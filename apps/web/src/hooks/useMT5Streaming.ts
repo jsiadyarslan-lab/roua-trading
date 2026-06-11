@@ -96,6 +96,16 @@ export function useMT5Streaming() {
             ;(account as any).metaapiError = undefined
             ;(account as any)._lastStreamUpdate = Date.now()
 
+            // V203 FIX: Mark this as a real exchange account so updatePositionPrice()
+            // and margin calculations trust the exchange-provided margin over client-side calc.
+            // Without this, real-time price updates would recalculate margin using
+            // paper-trading leverage formula instead of using MetaAPI's actual margin.
+            ;(account as any).isRealExchangeMargin = true
+            // V203: Also update _backendMargin so the margin priority system
+            // in updatePositionPrice() uses the real exchange margin (TIER 1)
+            ;(account as any)._backendMargin = update.margin
+            ;(account as any)._marginVersion = Date.now()
+
             usePositionsStore.setState({ account })
           }
 

@@ -699,6 +699,14 @@ export const usePositionsStore = create<PositionsState>()(
           // V162: Track whether we're showing an error state instead of real balance
           let exchangeUnavailable = false
 
+          // V203: Check if we have stale real account data from a previous fetch.
+          // This is used when the active real exchange fails — instead of falling
+          // back to paper trading balance, we use the stale real data (better UX).
+          const prevAccount = get().account
+          const hasStaleRealData = prevAccount && (prevAccount as any)._lastStreamUpdate
+            && (Date.now() - (prevAccount as any)._lastStreamUpdate < 300_000) // Within 5 minutes
+            && prevAccount.equity > 0
+
           // V162: Use the backend's allRealExchangesFailed flag when available,
           // otherwise compute it from the exchange results
           const allRealFailed = allRealExchangesFailed ||
@@ -726,20 +734,28 @@ export const usePositionsStore = create<PositionsState>()(
               `Using balance as primary display value.`
             )
           } else if (activeCredId && activeExchange && !activeExchangeSucceeded) {
-            // V189 CRITICAL FIX: User chose an active exchange but it FAILED.
+            // V189/V203 CRITICAL FIX: User chose an active exchange but it FAILED.
             // DO NOT silently fall back to paper trading!
-            // Instead, show the active exchange as "offline" with paper balance
-            // as a TEMPORARY fallback, but mark it clearly as unavailable.
-            // The UI should show "MT5 (offline)" not "ورقي".
+            // Instead, show the active exchange as "offline".
+            // V203 FIX: Use PREVIOUS account data if available (stale but real),
+            // NOT paper trading balance. This prevents showing $10,000 paper balance
+            // when the user's MT5 account is temporarily offline.
             console.warn(
-              `[PositionsStore] V189: Active exchange "${(activeExchange as any).exchange}" FAILED ` +
+              `[PositionsStore] V203: Active exchange "${(activeExchange as any).exchange}" FAILED ` +
               `(error: ${(activeExchange as any).error || 'unknown'}). ` +
-              `Showing as offline — NOT falling back to paper badge.`
+              `Showing as offline — NOT falling back to paper balance.`
             )
             exchangeUnavailable = true
-            // Use paper balance as temporary display value, but the badge
-            // will show the active exchange name (not "ورقي")
-            if (paperExchange && paperExchange.equity > 0) {
+            // V203: Try to use previous account data first (stale but from the real account)
+            if (hasStaleRealData) {
+              // Use stale real account data — better than paper balance
+              adjustedTotalEquityUsd = prevAccount.equity
+              adjustedTotalBalanceUsd = prevAccount.cash
+              adjustedTotalAvailableUsd = prevAccount.buyingPower
+              adjustedTotalUsedMargin = prevAccount.initialMargin
+              console.log(`[PositionsStore] V203: Using stale real data (equity=$${prevAccount.equity}) instead of paper balance`)
+            } else if (paperExchange && paperExchange.equity > 0) {
+              // V203: Only use paper balance as last resort, clearly marked as fallback
               adjustedTotalEquityUsd = paperExchange.equity
               adjustedTotalAvailableUsd = paperExchange.available || 0
               adjustedTotalUsedMargin = paperExchange.usedMargin || 0
@@ -748,6 +764,7 @@ export const usePositionsStore = create<PositionsState>()(
               adjustedTotalAvailableUsd = totalAvailableUsd
               adjustedTotalUsedMargin = totalUsedMargin
             } else {
+              // V203: Show $0 with offline indicator — NOT $10,000 paper fallback
               adjustedTotalEquityUsd = 0
               adjustedTotalAvailableUsd = 0
               adjustedTotalUsedMargin = 0
@@ -1010,9 +1027,18 @@ export const usePositionsStore = create<PositionsState>()(
             // can detect stale _backendMargin from localStorage (older than 60s).
             _backendMargin: usedMargin,
             _marginVersion: Date.now(),
-            // V153: Mark whether margin came from real exchange API
-            // If true, updatePositionPrice() should trust it over client-side calc
-            isRealExchangeMargin: (hasRealExchanges && realExchangeMargin > 0) || activeExchangeSucceeded,
+            // V153/V203: Mark whether margin came from real exchange API
+            // If true, updatePositionPrice() should trust it over client-side calc.
+            // V203 FIX: When the active exchange is a real exchange (MT5/Binance/etc) but
+            // it's currently offline, we should STILL mark isRealExchangeMargin=true if:
+            //   - The user's activeCredentialId points to a non-paper exchange
+            //   - OR we have stale real data from a previous successful fetch
+            // This prevents the margin from being recalculated with paper-trading leverage
+            // when the real exchange is temporarily offline.
+            isRealExchangeMargin: (hasRealExchanges && realExchangeMargin > 0)
+              || activeExchangeSucceeded
+              || (activeCredId && activeExchange && activeExchange.exchange !== 'paper-trading')
+              || (hasStaleRealData && prevAccount && (prevAccount as any).isRealExchangeMargin),
             // V162: Flag for UI to show "Exchange unavailable" indicator
             // instead of silently showing wrong/paper balance
             exchangeUnavailable,

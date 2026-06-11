@@ -348,7 +348,7 @@ export function PortfolioMini({
                 fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
                 border: isStaleBalance ? '0.5px solid rgba(245,158,11,0.3)' : '0.5px solid rgba(0,255,163,0.3)',
               }}>
-                {activeExchangeName.toUpperCase()}{isStaleBalance ? ' ⏳' : ''}
+                {activeExchangeName.toUpperCase()}{isStaleBalance ? ' ⚠' : ''}
               </span>
             ) : exchangeUnavailable ? (
               <span style={{
@@ -377,6 +377,41 @@ export function PortfolioMini({
           />
         </div>
       </div>
+
+      {/* V193: Prominent stale balance warning for MT5/real trading accounts */}
+      {isStaleBalance && activeExchangeName && !exchangeUnavailable && (
+        <div style={{
+          padding: '4px 8px', borderRadius: 6,
+          background: 'rgba(245,158,11,0.12)',
+          border: '1px solid rgba(245,158,11,0.3)',
+          display: 'flex', alignItems: 'center', gap: 5,
+        }}>
+          <span style={{ fontSize: 10 }}>⚠️</span>
+          <span style={{
+            fontSize: 8, color: T.amber, fontFamily: "'Cairo', sans-serif",
+            fontWeight: 700, lineHeight: 1.4,
+          }}>
+            بيانات مؤقتة — فشل الاتصال بـ MetaAPI. الرصيد معروض من ذاكرة التخزين المؤقت وقد لا يكون دقيقاً.
+          </span>
+        </div>
+      )}
+      {/* V193: MetaAPI completely down (TOKEN_MISSING) — critical warning */}
+      {usePositionsStore(s => s.account?.metaapiDown === true) && !isStaleBalance && (
+        <div style={{
+          padding: '5px 8px', borderRadius: 6,
+          background: 'rgba(239,68,68,0.12)',
+          border: '1px solid rgba(239,68,68,0.35)',
+          display: 'flex', alignItems: 'center', gap: 5,
+        }}>
+          <span style={{ fontSize: 10 }}>🔴</span>
+          <span style={{
+            fontSize: 8, color: '#f87171', fontFamily: "'Cairo', sans-serif",
+            fontWeight: 700, lineHeight: 1.4,
+          }}>
+            MetaAPI غير متصل — لا يمكن جلب بيانات حساب MT5 الحقيقي. تأكد من ضبط مفتاح METAAPI_TOKEN.
+          </span>
+        </div>
+      )}
 
       {/* V119: Per-Exchange Balance Breakdown */}
       {exchangeBalances.length > 0 && (

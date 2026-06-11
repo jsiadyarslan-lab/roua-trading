@@ -204,6 +204,22 @@ export class CredentialsController {
   }
 
   /**
+   * GET /api/portfolio/credentials/test-mt5/:credentialId — Test MT5/MetaAPI connectivity
+   * V193: Detailed step-by-step diagnostic for MT5 accounts.
+   * Shows exactly WHERE the connection fails and how to fix it.
+   */
+  @Get('test-mt5/:credentialId')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  async testMT5Connectivity(
+    @Request() req: any,
+    @Param('credentialId') credentialId: string,
+  ) {
+    this.assertRealUser(req);
+    const result = await this.credentialsService.testMT5Connectivity(req.user.id, credentialId);
+    return { success: true, data: result };
+  }
+
+  /**
    * GET /api/portfolio/credentials/test-connectivity — Diagnostic endpoint
    * Tests Binance API connectivity from the server (Railway).
    * V164b: Also tests with user's actual credentials if they have any.

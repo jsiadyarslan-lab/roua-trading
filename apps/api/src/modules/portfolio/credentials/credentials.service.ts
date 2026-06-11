@@ -1709,6 +1709,11 @@ export class CredentialsService {
     try {
       const metaApiToken = this.configService.get<string>('METAAPI_TOKEN');
       if (!metaApiToken) {
+        this.logger.error(
+          `🚨 V193: METAAPI_TOKEN NOT CONFIGURED! MT5 account (label: ${cred.label}) CANNOT connect! ` +
+          `Set METAAPI_TOKEN in Railway environment variables. ` +
+          `Without it, ALL MT5 accounts will fail — this is NOT optional for real trading.`
+        );
         return {
           exchange: cred.exchange,
           label: cred.label,
@@ -1719,9 +1724,9 @@ export class CredentialsService {
           currency: 'USD',
           usedMargin: 0,
           assets: [],
-          error: 'METAAPI_TOKEN غير مضبوط',
-          errorDetail: 'METAAPI_TOKEN env var not set — add it in Railway environment variables',
-        };
+          error: 'METAAPI_TOKEN غير مضبوط — لا يمكن الاتصال بحساب MT5 الحقيقي',
+          errorDetail: 'METAAPI_TOKEN env var not set. MT5 accounts REQUIRE this token to connect to MetaAPI Cloud. Add it in Railway environment variables.',
+        } as any;
       }
 
       // Decrypt MT5 credentials: apiKey=accountId, apiSecret=password, passphrase=server
@@ -2004,15 +2009,22 @@ export class CredentialsService {
       // ═══════ STEP 5: Stale cache as last resort ═══════
       if (!accountInfo) {
         this._recordMT5Failure(failureCacheKey);
+        this.logger.error(
+          `🚨 V193: MetaAPI ALL METHODS FAILED for account ${accountId} (${cred.exchange}/${cred.label}). ` +
+          `REST error: ${restError || 'skipped'}. RPC error: ${rpcError || 'skipped'}. ` +
+          `This means the MT5 account CANNOT get real-time data — NOT acceptable for real trading.`
+        );
         const cachedResult = await this._getCachedMT5Balance(cred, userId, isDemo, 'All methods failed');
-        if (cachedResult) return cachedResult;
+        if (cachedResult) return { ...cachedResult, _metaapiDown: true, _metaapiError: 'ALL_METHODS_FAILED' } as any;
         return {
           exchange: cred.exchange, label: cred.label, credentialId: cred.id,
           isTestnet: isDemo, equity: 0, available: 0, currency: 'USD',
           usedMargin: 0, assets: [],
           error: `فشل الاتصال بـ ${accountId}`,
           errorDetail: `REST: ${restError || 'skipped'} | RPC: ${rpcError || 'skipped'}`,
-        };
+          _metaapiDown: true,
+          _metaapiError: 'ALL_METHODS_FAILED',
+        } as any;
       }
 
       // ═══════ SUCCESS ═══════
@@ -2075,12 +2087,15 @@ export class CredentialsService {
         }],
       };
     } catch (error: any) {
-      this.logger.warn(`📊 Failed to fetch MT5 balance for ${cred.exchange}/${cred.label}: ${error.message}`);
+      this.logger.error(
+        `🚨 V193: MT5 balance fetch EXCEPTION for ${cred.exchange}/${cred.label}: ${error.message}. ` +
+        `This is a hard failure — the MT5 account cannot operate with real-time data.`
+      );
 
       // V185: Try to use cached MT5 balance when MetaAPI fails (503/timeout/etc)
       const cachedResult = await this._getCachedMT5Balance(cred, userId, isDemo, error.message);
       if (cachedResult) {
-        return cachedResult;
+        return { ...cachedResult, _metaapiDown: true, _metaapiError: error.message?.substring(0, 50) } as any;
       }
 
       return {
@@ -2095,7 +2110,7 @@ export class CredentialsService {
         assets: [],
         error: `خطأ MT5: ${error.message?.substring(0, 60) || 'غير معروف'}`,
         errorDetail: `MT5 fetch error: ${error.message?.substring(0, 200) || 'unknown'}`,
-      };
+      } as any;
     }
   }
 
@@ -2606,6 +2621,201 @@ export class CredentialsService {
     ];
     const lower = message.toLowerCase();
     return connectionErrorPatterns.some(p => lower.includes(p.toLowerCase()));
+  }
+
+  /**
+   * V193: Test MetaAPI Cloud connectivity for a specific MT5 credential.
+   * Runs step-by-step diagnostics and returns detailed results.
+   * Used by frontend to show connection status and debug MT5 issues.
+   */
+  async testMT5Connectivity(userId: string, credentialId: string): Promise<{
+    tokenPresent: boolean;
+    tokenValid: boolean;
+    credentialFound: boolean;
+    accountExists: boolean;
+    accountState?: string;
+    connectionStatus?: string;
+    restApiWorks: boolean;
+    rpcWorks: boolean;
+    balance?: { equity: number; balance: number; currency: string; margin: number; freeMargin: number };
+    steps: Array<{ step: string; success: boolean; message: string; durationMs?: number }>;
+    error?: string;
+    fixSuggestion?: string;
+  }> {
+    const steps: Array<{ step: string; success: boolean; message: string; durationMs?: number }> = [];
+
+    // Step 1: Check METAAPI_TOKEN
+    const metaApiToken = this.configService.get<string>('METAAPI_TOKEN');
+    const step1Start = Date.now();
+    if (!metaApiToken) {
+      steps.push({ step: 'METAAPI_TOKEN', success: false, message: 'METAAPI_TOKEN is not set in environment variables', durationMs: Date.now() - step1Start });
+      return {
+        tokenPresent: false,
+        tokenValid: false,
+        credentialFound: false,
+        accountExists: false,
+        restApiWorks: false,
+        rpcWorks: false,
+        steps,
+        error: 'METAAPI_TOKEN غير مضبوط',
+        fixSuggestion: 'أضف METAAPI_TOKEN كمتغير بيئة في Railway — بدون هذا المفتاح لا يمكن لأي حساب MT5 أن يعمل',
+      };
+    }
+    steps.push({ step: 'METAAPI_TOKEN', success: true, message: `Token present (${metaApiToken.length} chars)`, durationMs: Date.now() - step1Start });
+
+    // Step 2: Find the credential
+    const step2Start = Date.now();
+    const cred = await this.prisma.exchangeCredential.findUnique({ where: { id: credentialId } });
+    if (!cred || cred.userId !== userId) {
+      steps.push({ step: 'Credential', success: false, message: 'Credential not found or access denied', durationMs: Date.now() - step2Start });
+      return { tokenPresent: true, tokenValid: false, credentialFound: false, accountExists: false, restApiWorks: false, rpcWorks: false, steps, error: 'بيانات الاعتماد غير موجودة' };
+    }
+    const isDemo = cred.exchange === 'mt5_demo' || cred.testnet === true;
+    steps.push({ step: 'Credential', success: true, message: `Found: ${cred.exchange}/${cred.label} (demo: ${isDemo})`, durationMs: Date.now() - step2Start });
+
+    // Step 3: Decrypt credentials
+    const step3Start = Date.now();
+    let accountId: string, password: string, server: string;
+    try {
+      const decrypted = await this.decryptCredential(credentialId, userId);
+      accountId = decrypted.apiKey;
+      password = decrypted.apiSecret;
+      server = decrypted.passphrase || '';
+      if (!accountId || !password || !server) {
+        steps.push({ step: 'Decrypt', success: false, message: `Missing fields: accountId=${!!accountId}, password=${!!password}, server=${!!server}`, durationMs: Date.now() - step3Start });
+        return { tokenPresent: true, tokenValid: false, credentialFound: true, accountExists: false, restApiWorks: false, rpcWorks: false, steps, error: 'بيانات MT5 غير مكتملة', fixSuggestion: 'احذف الحساب وأضفه مرة أخرى مع التأكد من رقم الحساب وكلمة السر واسم السيرفر' };
+      }
+      steps.push({ step: 'Decrypt', success: true, message: `accountId=${accountId}, server=${server}`, durationMs: Date.now() - step3Start });
+    } catch (decryptErr: any) {
+      steps.push({ step: 'Decrypt', success: false, message: decryptErr.message?.substring(0, 100), durationMs: Date.now() - step3Start });
+      return { tokenPresent: true, tokenValid: false, credentialFound: true, accountExists: false, restApiWorks: false, rpcWorks: false, steps, error: 'فشل في فك تشفير بيانات الحساب', fixSuggestion: 'احذف الحساب وأضفه مرة أخرى — مفتاح التشفير قد يكون تغير' };
+    }
+
+    // Step 4: Validate token with MetaAPI
+    const step4Start = Date.now();
+    let metaApi: any;
+    try {
+      const metaApiModule: any = await import('metaapi.cloud-sdk');
+      const MetaApiClass = metaApiModule.default || metaApiModule;
+      metaApi = new MetaApiClass(metaApiToken);
+      const accountApi = metaApi.metatraderAccountApi;
+      // Just try listing accounts to validate token
+      await accountApi.getAccountsWithInfiniteScrollPagination();
+      steps.push({ step: 'Token Validate', success: true, message: 'MetaAPI token is valid', durationMs: Date.now() - step4Start });
+    } catch (tokenErr: any) {
+      const msg = tokenErr.message || '';
+      const isAuthError = msg.includes('Unauthorized') || msg.includes('401') || msg.includes('Invalid token');
+      steps.push({ step: 'Token Validate', success: false, message: msg.substring(0, 120), durationMs: Date.now() - step4Start });
+      return {
+        tokenPresent: true, tokenValid: !isAuthError, credentialFound: true, accountExists: false,
+        restApiWorks: false, rpcWorks: false, steps,
+        error: isAuthError ? 'مفتاح MetaAPI غير صالح' : 'فشل الاتصال بـ MetaAPI',
+        fixSuggestion: isAuthError
+          ? 'مفتاح METAAPI_TOKEN غير صالح أو منتهي الصلاحية — احصل على مفتاح جديد من metaapi.cloud'
+          : 'فشل الاتصال بـ MetaAPI Cloud — تحقق من اتصال الإنترنت',
+      };
+    }
+
+    // Step 5: Find account in MetaAPI
+    const step5Start = Date.now();
+    let account: any;
+    let metaApiAccountId: string | undefined;
+    try {
+      const accountApi = metaApi.metatraderAccountApi;
+      const allAccounts = await accountApi.getAccountsWithInfiniteScrollPagination();
+      const existing = allAccounts.find((a: any) => String(a.login) === String(accountId));
+      if (existing) {
+        account = await accountApi.getAccount(existing.id);
+        metaApiAccountId = existing.id;
+        steps.push({ step: 'Find Account', success: true, message: `Found in MetaAPI (ID: ${existing.id}, state: ${account.state || '?'}, conn: ${account.connectionStatus || '?'})`, durationMs: Date.now() - step5Start });
+      } else {
+        steps.push({ step: 'Find Account', success: false, message: `Account ${accountId} not found in MetaAPI — needs auto-create`, durationMs: Date.now() - step5Start });
+      }
+    } catch (findErr: any) {
+      steps.push({ step: 'Find Account', success: false, message: findErr.message?.substring(0, 100), durationMs: Date.now() - step5Start });
+    }
+
+    // Step 6: Test REST API
+    const step6Start = Date.now();
+    let restWorks = false;
+    let balanceData: any = null;
+    if (metaApiAccountId) {
+      try {
+        const restResult = await this._fetchMT5BalanceViaREST(metaApiAccountId, metaApiToken);
+        if (restResult) {
+          restWorks = true;
+          balanceData = {
+            equity: restResult.equity || 0,
+            balance: restResult.balance || 0,
+            currency: restResult.currency || 'USD',
+            margin: restResult.margin || 0,
+            freeMargin: restResult.freeMargin || 0,
+          };
+          steps.push({ step: 'REST API', success: true, message: `Balance: $${restResult.balance}, Equity: $${restResult.equity}`, durationMs: Date.now() - step6Start });
+        }
+      } catch (restErr: any) {
+        steps.push({ step: 'REST API', success: false, message: restErr.message?.substring(0, 120), durationMs: Date.now() - step6Start });
+      }
+    } else {
+      steps.push({ step: 'REST API', success: false, message: 'Skipped — no MetaAPI account ID', durationMs: 0 });
+    }
+
+    // Step 7: Test RPC (only if REST failed and account exists)
+    let rpcWorks = false;
+    if (!restWorks && account) {
+      const step7Start = Date.now();
+      try {
+        const connection = account.getRPCConnection();
+        await Promise.race([
+          (async () => { await connection.connect(); await connection.waitSynchronized(); })(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout (10s)')), 10_000)),
+        ]);
+        const info = await connection.getAccountInformation();
+        if (info) {
+          rpcWorks = true;
+          if (!balanceData) {
+            balanceData = {
+              equity: info.equity || 0,
+              balance: info.balance || 0,
+              currency: info.currency || 'USD',
+              margin: info.margin || 0,
+              freeMargin: info.freeMargin || 0,
+            };
+          }
+          steps.push({ step: 'RPC', success: true, message: `Balance: $${info.balance}, Equity: $${info.equity}`, durationMs: Date.now() - step7Start });
+        }
+      } catch (rpcErr: any) {
+        steps.push({ step: 'RPC', success: false, message: rpcErr.message?.substring(0, 120), durationMs: Date.now() - step7Start });
+      }
+    } else if (restWorks) {
+      steps.push({ step: 'RPC', success: true, message: 'Skipped — REST already works', durationMs: 0 });
+    }
+
+    // Determine fix suggestion
+    let fixSuggestion: string | undefined;
+    if (!account && !metaApiAccountId) {
+      fixSuggestion = 'الحساب غير مسجل في MetaAPI — جرب حذفه وإضافته مرة أخرى من التطبيق ليتم تسجيله تلقائياً';
+    } else if (account && account.state !== 'DEPLOYED') {
+      fixSuggestion = `حالة الحساب: ${account.state} — يحتاج نشر (deploy). جرب إعادة إضافة الحساب.`;
+    } else if (account && account.connectionStatus !== 'CONNECTED') {
+      fixSuggestion = `الحساب منشور لكن غير متصل بالسيرفر (${account.connectionStatus}). تأكد من صحة كلمة السر واسم السيرفر.`;
+    } else if (!restWorks && !rpcWorks && metaApiAccountId) {
+      fixSuggestion = 'فشلت جميع طرق الاتصال — قد تكون بيانات الحساب (رقم الحساب/كلمة السر/السيرفر) غير صحيحة. احذف الحساب وأضفه مرة أخرى.';
+    }
+
+    return {
+      tokenPresent: true,
+      tokenValid: true,
+      credentialFound: true,
+      accountExists: !!metaApiAccountId,
+      accountState: account?.state,
+      connectionStatus: account?.connectionStatus,
+      restApiWorks: restWorks,
+      rpcWorks,
+      balance: balanceData || undefined,
+      steps,
+      fixSuggestion,
+    };
   }
 
   /**

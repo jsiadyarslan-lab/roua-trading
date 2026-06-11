@@ -858,6 +858,44 @@ export default function PortfolioPage() {
       {/* ── API Error Banner ── */}
       {apiError && <ApiErrorBanner error={apiError} onRetry={fetchAll} retryLabel={tc('retry')} />}
 
+      {/* V193: MetaAPI down warning for MT5 accounts */}
+      {usePositionsStore(s => s.account?.metaapiDown === true) && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '8px 12px', borderRadius: 8, marginBottom: 8,
+          background: 'rgba(239,68,68,0.1)',
+          border: '1px solid rgba(239,68,68,0.3)',
+        }}>
+          <AlertTriangle size={14} color="#f87171" />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: '#f87171', fontFamily: "'Cairo', sans-serif" }}>
+              MetaAPI غير متصل — حساب MT5 لا يمكنه جلب البيانات الحقيقية
+            </div>
+            <div style={{ fontSize: 8, color: T.text2, fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>
+              مفتاح METAAPI_TOKEN غير مضبوط أو غير صالح. يجب إضافته في متغيرات البيئة ليعمل حساب MT5 الحقيقي.
+            </div>
+          </div>
+        </div>
+      )}
+      {usePositionsStore(s => s.account?.isStaleBalance === true) && !usePositionsStore(s => s.account?.metaapiDown === true) && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '8px 12px', borderRadius: 8, marginBottom: 8,
+          background: 'rgba(245,158,11,0.1)',
+          border: '1px solid rgba(245,158,11,0.3)',
+        }}>
+          <AlertTriangle size={14} color={T.amber} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: T.amber, fontFamily: "'Cairo', sans-serif" }}>
+              بيانات مؤقتة — الرصيد من ذاكرة التخزين المؤقت
+            </div>
+            <div style={{ fontSize: 8, color: T.text2, fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>
+              فشل الاتصال بـ MetaAPI مؤقتاً. البيانات المعروضة قد لا تكون محدثة.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Stats cards ── */}
       <div className="portfolio-stats-row" style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
         <StatCard

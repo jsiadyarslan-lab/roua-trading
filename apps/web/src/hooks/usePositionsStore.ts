@@ -1005,6 +1005,9 @@ export const usePositionsStore = create<PositionsState>()(
             activeCredentialId: activeCredId,
             // V185: Mark if the active exchange balance is stale (from cache)
             isStaleBalance: isStaleButValid ? true : false,
+            // V193: Mark if MetaAPI is completely down (TOKEN_MISSING or all methods failed)
+            metaapiDown: activeExchange ? !!(activeExchange as any)._metaapiDown : false,
+            metaapiError: activeExchange ? ((activeExchange as any)._metaapiError || (activeExchange as any).errorDetail || undefined) : undefined,
           }
           set({ account, exchangeBalances: exchanges, dataSource: 'nestjs', _cacheTimestamp: Date.now() })
 

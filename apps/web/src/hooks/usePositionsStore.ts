@@ -1431,7 +1431,12 @@ export const usePositionsStore = create<PositionsState>()(
 
     // ── المحاولة الأولى: NestJS API ──
     try {
-      const res = await fetch('/api/trading/positions')
+      // V209: Pass credentialId to API for server-side filtering by active account.
+      // Previously, ALL positions were fetched and filtered client-side only.
+      // Now the API also filters, so the response only includes relevant positions.
+      const activeCredId = get().activeCredentialId
+      const credParam = activeCredId ? `?credentialId=${encodeURIComponent(activeCredId)}` : ''
+      const res = await fetch(`/api/trading/positions${credParam}`)
       if (res.ok) {
         const data = await res.json()
         const raw = Array.isArray(data)

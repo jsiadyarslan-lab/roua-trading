@@ -49,19 +49,24 @@ export class PositionManagerService {
    * Get all open positions for a user
    * Aggregates positions from all linked exchanges
    */
-  async getOpenPositions(userId: string): Promise<PositionInfo[]> {
+  async getOpenPositions(userId: string, credentialId?: string): Promise<PositionInfo[]> {
     // FIX: Filter out phantom/paper-trading positions at the DB query level.
     // Previously, ALL open positions were returned including phantom positions
     // created by the Smart Executor and Autonomous Trader Agent. These phantom
     // positions have exchange='paper-trading' or source in ['smart_executor', 'agent', 'auto_paper'].
+    // V209: Added credentialId filter for server-side filtering by active account.
+    const where: any = {
+      userId,
+      status: 'OPEN',
+      // FIX: Include ALL positions including paper trading.
+      // Paper positions are real simulated trades — should appear in portfolio.
+      // Previously excluded, causing portfolioValue = 0 for paper traders.
+    };
+    if (credentialId) {
+      where.credentialId = credentialId;
+    }
     const positions = await this.prisma.position.findMany({
-      where: {
-        userId,
-        status: 'OPEN',
-        // FIX: Include ALL positions including paper trading.
-        // Paper positions are real simulated trades — should appear in portfolio.
-        // Previously excluded, causing portfolioValue = 0 for paper traders.
-      },
+      where,
       orderBy: { openedAt: 'desc' },
     });
 
@@ -195,7 +200,7 @@ export class PositionManagerService {
    * - unrealizedPnL: Sum of all unrealized P&L
    * - positions: Detailed position list
    */
-  async getPortfolioSummary(userId: string): Promise<PortfolioSummary> {
+  async getPortfolioSummary(userId: string, credentialId?: string): Promise<PortfolioSummary> {
     // Get portfolio value from Portfolio table
     const portfolios = await this.prisma.portfolio.aggregate({
       where: { userId },
@@ -204,7 +209,8 @@ export class PositionManagerService {
     const baseBalance = Number(portfolios._sum.totalValue || 0);
 
     // Get open positions with current prices
-    const positions = await this.getOpenPositions(userId);
+    // V209: Pass credentialId for server-side filtering by active account
+    const positions = await this.getOpenPositions(userId, credentialId);
 
     // Calculate total exposure
     const totalExposure = positions.reduce(

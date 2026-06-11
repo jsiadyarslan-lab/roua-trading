@@ -534,16 +534,23 @@ export class TradingService {
    * Get all open positions for a user
    * Uses parallel quote fetching and batch DB updates to avoid N+1 queries
    */
-  async getOpenPositions(userId: string): Promise<any[]> {
+  async getOpenPositions(userId: string, credentialId?: string): Promise<any[]> {
     // FIX: Include ALL positions including paper-trading.
     // Paper positions are real simulated trades — they should appear in portfolio.
     // Previously excluded, causing portfolioValue = 0 for paper traders.
     // PositionManagerService also includes them (must be consistent).
+    // V209: Added credentialId parameter for server-side filtering by account.
+    const where: any = {
+      userId,
+      status: 'OPEN',
+    };
+    // V209: Filter by credentialId when provided (for account switching).
+    // Position.credentialId is NOT NULL, so no need for OR null clause.
+    if (credentialId) {
+      where.credentialId = credentialId;
+    }
     const positions = await this.prisma.position.findMany({
-      where: {
-        userId,
-        status: 'OPEN',
-      },
+      where,
       orderBy: { openedAt: 'desc' },
     });
 
@@ -619,9 +626,9 @@ export class TradingService {
   /**
    * Get position summary
    */
-  async getPositionSummary(userId: string) {
+  async getPositionSummary(userId: string, credentialId?: string) {
     try {
-      const positions = await this.getOpenPositions(userId);
+      const positions = await this.getOpenPositions(userId, credentialId);
 
       const totalValue = positions.reduce(
         (sum, p) => sum + (typeof p.quantity === 'number' ? p.quantity : Number(p.quantity)) * (Number(p.currentPrice) || Number(p.entryPrice)),

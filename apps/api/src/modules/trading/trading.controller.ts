@@ -122,10 +122,13 @@ export class TradingController {
    * quickly so the endpoint responds in <100ms instead of timing out.
    */
   @Get('account')
-  async getAccountOverview(@Req() req: any) {
+  async getAccountOverview(
+    @Req() req: any,
+    @Query('credentialId') credentialId?: string,
+  ) {
     try {
       const userId = req.user.id;
-      return await this.tradingService.getPositionSummary(userId);
+      return await this.tradingService.getPositionSummary(userId, credentialId);
     } catch (error: any) {
       this.logger.error(
         `❌ Failed to fetch account overview: ${error.message}`,
@@ -513,11 +516,14 @@ export class TradingController {
    * GET /api/trading/positions
    */
   @Get('positions')
-  async getOpenPositions(@Req() req: any) {
+  async getOpenPositions(
+    @Req() req: any,
+    @Query('credentialId') credentialId?: string,
+  ) {
     try {
       const userId = req.user.id;
-      this.logger.log(`📋 Fetching open positions for user: ${userId}`);
-      const positions = await this.tradingService.getOpenPositions(userId);
+      this.logger.log(`📋 Fetching open positions for user: ${userId}, credentialId: ${credentialId || 'all'}`);
+      const positions = await this.tradingService.getOpenPositions(userId, credentialId);
       this.logger.log(`📋 Found ${positions.length} open positions`);
       return positions;
     } catch (error: any) {
@@ -641,10 +647,13 @@ export class TradingController {
    * GET /api/trading/positions/summary
    */
   @Get('positions/summary')
-  async getPositionSummary(@Req() req: any) {
+  async getPositionSummary(
+    @Req() req: any,
+    @Query('credentialId') credentialId?: string,
+  ) {
     try {
       const userId = req.user.id;
-      return await this.tradingService.getPositionSummary(userId);
+      return await this.tradingService.getPositionSummary(userId, credentialId);
     } catch (error: any) {
       this.logger.error(
         `❌ Failed to fetch position summary: ${error.message}`,
@@ -766,18 +775,21 @@ export class TradingController {
    * Falls back to TradingService position summary if V2 is unavailable.
    */
   @Get('portfolio')
-  async getPortfolioSummary(@Req() req: any) {
+  async getPortfolioSummary(
+    @Req() req: any,
+    @Query('credentialId') credentialId?: string,
+  ) {
     try {
       const userId = req.user.id;
 
       // ── V2 path: PositionManagerService with live P&L ──
       if (this.positionManager) {
-        const summary = await this.positionManager.getPortfolioSummary(userId);
+        const summary = await this.positionManager.getPortfolioSummary(userId, credentialId);
         return { success: true, data: summary };
       }
 
       // ── V1 fallback ──
-      return await this.tradingService.getPositionSummary(userId);
+      return await this.tradingService.getPositionSummary(userId, credentialId);
     } catch (error: any) {
       this.logger.error(
         `❌ Failed to fetch portfolio summary: ${error.message}`,

@@ -2584,4 +2584,151 @@ export class TradingService {
       return this.prisma.$transaction(async (innerTx) => executeUpdate(innerTx));
     }
   }
+
+  // ── Diagnostic Methods (READ-ONLY — no data modification) ──
+
+  /**
+   * DIAGNOSTIC: Check Trade table columns
+   * Returns list of column names in the Trade table.
+   * READ-ONLY — only SELECT queries.
+   */
+  async diagnoseTradeTable(): Promise<string[]> {
+    const columns = await this.prisma.$queryRaw`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'Trade' AND table_schema = 'public'
+      ORDER BY ordinal_position
+    `;
+    return (columns as any[]).map((c: any) => c.column_name);
+  }
+
+  /**
+   * DIAGNOSTIC: Check which migrations have been applied
+   * READ-ONLY — only SELECT queries.
+   */
+  async diagnoseMigrations(): Promise<any[]> {
+    const migrations = await this.prisma.$queryRaw`
+      SELECT migration_name, finished_at, logs
+      FROM _prisma_migrations
+      ORDER BY started_at DESC
+      LIMIT 20
+    `;
+    return (migrations as any[]).map((m: any) => ({
+      name: m.migration_name,
+      finishedAt: m.finished_at?.toISOString?.() || m.finished_at,
+      success: !m.logs || m.logs.length === 0,
+      hasError: m.logs && m.logs.length > 0,
+      errorPreview: m.logs ? String(m.logs).substring(0, 200) : null,
+    }));
+  }
+
+  /**
+   * DIAGNOSTIC: Check trade counts for a user
+   * READ-ONLY — only SELECT queries.
+   */
+  async diagnoseTradeCounts(userId: string): Promise<any> {
+    // Try with Prisma first (includes credentialId in SELECT)
+    try {
+      const totalTrades = await this.prisma.trade.count({ where: { userId } });
+      const tradesWithCred = await this.prisma.trade.count({
+        where: { userId, credentialId: { not: null } },
+      });
+      const tradesWithoutCred = await this.prisma.trade.count({
+        where: { userId, credentialId: null },
+      });
+      return { totalTrades, tradesWithCred, tradesWithoutCred, queryMethod: 'prisma' };
+    } catch (err: any) {
+      // If Prisma fails (column missing), try raw SQL without credentialId
+      try {
+        const result = await this.prisma.$queryRaw`
+          SELECT
+            COUNT(*) as "totalTrades",
+            COUNT("credentialId") as "tradesWithCred",
+            COUNT(*) - COUNT("credentialId") as "tradesWithoutCred"
+          FROM "Trade" WHERE "userId" = ${userId}
+        `;
+        const row = (result as any[])[0];
+        return {
+          totalTrades: Number(row?.totalTrades || 0),
+          tradesWithCred: Number(row?.tradesWithCred || 0),
+          tradesWithoutCred: Number(row?.tradesWithoutCred || 0),
+          queryMethod: 'raw_sql_fallback',
+          prismaError: err.message?.substring(0, 200),
+        };
+      } catch (rawErr: any) {
+        return {
+          totalTrades: 'QUERY_FAILED',
+          prismaError: err.message?.substring(0, 200),
+          rawError: rawErr.message?.substring(0, 200),
+        };
+      }
+    }
+  }
+
+  /**
+   * DIAGNOSTIC: Check position counts for a user
+   * READ-ONLY — only SELECT queries.
+   */
+  async diagnosePositionCounts(userId: string): Promise<any> {
+    const openPositions = await this.prisma.position.count({
+      where: { userId, status: 'OPEN' },
+    });
+    const closedPositions = await this.prisma.position.count({
+      where: { userId, status: { in: ['CLOSED', 'LIQUIDATED'] } },
+    });
+
+    // Get distinct credentialIds for this user's positions
+    const positionsByCred = await this.prisma.position.groupBy({
+      by: ['credentialId'],
+      where: { userId },
+      _count: { id: true },
+    });
+
+    return {
+      openPositions,
+      closedPositions,
+      positionsByCredential: positionsByCred.map((g: any) => ({
+        credentialId: g.credentialId?.substring(0, 12) + '...' || 'NULL',
+        count: g._count.id,
+      })),
+    };
+  }
+
+  /**
+   * DIAGNOSTIC: Check user's credentials and activeCredentialId
+   * READ-ONLY — only SELECT queries.
+   */
+  async diagnoseCredentials(userId: string): Promise<any> {
+    const credentials = await this.prisma.exchangeCredential.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        exchange: true,
+        isValid: true,
+        isTestnet: true,
+      },
+    });
+
+    // Check user settings for activeCredentialId
+    const settings = await this.prisma.userSettings.findUnique({
+      where: { userId },
+      select: { activeCredentialId: true },
+    });
+
+    const activeCredId = settings?.activeCredentialId;
+    const activeCredExists = activeCredId
+      ? credentials.some((c: any) => c.id === activeCredId)
+      : null;
+
+    return {
+      totalCredentials: credentials.length,
+      credentials: credentials.map((c: any) => ({
+        id: c.id.substring(0, 12) + '...',
+        exchange: c.exchange,
+        isValid: c.isValid,
+        isTestnet: c.isTestnet,
+      })),
+      activeCredentialId: activeCredId ? activeCredId.substring(0, 12) + '...' : null,
+      activeCredentialExists: activeCredExists,
+    };
+  }
 }

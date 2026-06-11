@@ -827,6 +827,66 @@ export class TradingController {
     };
   }
 
+  // ── Diagnostic (READ-ONLY) ──
+
+  /**
+   * DIAGNOSTIC: Check database state for trade visibility issues
+   * GET /api/trading/diagnose
+   *
+   * READ-ONLY — no data modification. Only SELECT queries.
+   * This endpoint helps diagnose why trades don't appear.
+   * Can be removed after the issue is resolved.
+   */
+  @Get('diagnose')
+  async diagnoseTrades(@Req() req: any) {
+    const userId = req.user.id;
+    const results: any = { userId, timestamp: new Date().toISOString(), checks: {} };
+
+    try {
+      // Check 1: Does the Trade table have a credentialId column?
+      const tradeColumns = await this.tradingService.diagnoseTradeTable();
+      results.checks.tradeTableColumns = tradeColumns;
+      results.checks.tradeHasCredentialId = tradeColumns?.includes('credentialId') ?? false;
+    } catch (err: any) {
+      results.checks.tradeTableColumns = `ERROR: ${err.message}`;
+      results.checks.tradeHasCredentialId = 'UNKNOWN';
+    }
+
+    try {
+      // Check 2: Which migrations have been applied?
+      const migrations = await this.tradingService.diagnoseMigrations();
+      results.checks.appliedMigrations = migrations;
+    } catch (err: any) {
+      results.checks.appliedMigrations = `ERROR: ${err.message}`;
+    }
+
+    try {
+      // Check 3: Trade counts (total, with credentialId, without credentialId)
+      const tradeStats = await this.tradingService.diagnoseTradeCounts(userId);
+      results.checks.tradeStats = tradeStats;
+    } catch (err: any) {
+      results.checks.tradeStats = `ERROR: ${err.message}`;
+    }
+
+    try {
+      // Check 4: Position counts (open, closed, by credentialId)
+      const positionStats = await this.tradingService.diagnosePositionCounts(userId);
+      results.checks.positionStats = positionStats;
+    } catch (err: any) {
+      results.checks.positionStats = `ERROR: ${err.message}`;
+    }
+
+    try {
+      // Check 5: User's credentials and activeCredentialId
+      const credentialInfo = await this.tradingService.diagnoseCredentials(userId);
+      results.checks.credentials = credentialInfo;
+    } catch (err: any) {
+      results.checks.credentials = `ERROR: ${err.message}`;
+    }
+
+    return { success: true, diagnostic: results };
+  }
+
   // ── Risk Management ──
 
   /**

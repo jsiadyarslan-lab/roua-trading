@@ -833,7 +833,7 @@ export default function ExchangeSettingsPage() {
                                   📋 Demo
                                 </Badge>
                               )}
-                              {(cred.exchange === 'mt5' || cred.exchange === 'mt5_demo') && (
+                              {(cred.exchange === 'mt5' || cred.exchange === 'mt5_demo' || cred.exchange?.toLowerCase().includes('mt5') || cred.exchange === 'metatrader5' || cred.exchange === 'metatrader') && (
                                 <Badge variant="outline" className="text-xs bg-purple-500/10 border-purple-500/30 text-purple-400">
                                   MT5
                                 </Badge>
@@ -858,7 +858,7 @@ export default function ExchangeSettingsPage() {
                           </Button>
                         )}
                         {/* V195: زر فحص اتصال MT5 */}
-                        {(cred.exchange === 'mt5' || cred.exchange === 'mt5_demo') && (
+                        {(cred.exchange === 'mt5' || cred.exchange === 'mt5_demo' || cred.exchange === 'metatrader5' || cred.exchange === 'metatrader' || cred.exchange?.toLowerCase().includes('mt5')) && (
                           <Button
                             variant="outline"
                             size="sm"

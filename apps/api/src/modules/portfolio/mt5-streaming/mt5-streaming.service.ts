@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy, ForwardRef, Inject } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import * as crypto from 'crypto';
@@ -323,7 +323,7 @@ export class MT5StreamingService implements OnModuleInit, OnModuleDestroy {
         const positions = connection.terminalState?.positions || [];
         const symbols = [...new Set(positions.map((p: any) => p.symbol))];
         for (const symbol of symbols) {
-          await this._subscribeToSymbol(connection, symbol);
+          await this._subscribeToSymbol(connection, symbol as string);
         }
         this.logger.log(`📊 MT5 Streaming: Subscribed to ${symbols.length} symbol(s) for ${accountId}`);
       } catch (subErr: any) {

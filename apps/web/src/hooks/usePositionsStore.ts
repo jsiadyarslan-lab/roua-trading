@@ -436,12 +436,18 @@ export const usePositionsStore = create<PositionsState>()(
         (sum, p) => sum + Math.abs(Number(p.marketValue || p.qty * p.currentPrice || 0)),
         0,
       )
+      // V196 FIX: For real exchanges (MT5), equity already includes PnL from MetaAPI.
+      // Do NOT recalculate equity from client-side positions — that overwrites the
+      // real equity with cash + mixed PnL (paper + real).
+      const isRealExchangeActive = !!(currentAccount as any).isRealExchangeMargin
       const positionsUnrealizedPnl = positions.reduce(
         (sum, p) => sum + (p.unrealizedPnl || 0),
         0,
       )
       const cash = Number(currentAccount.cash) || 0
-      const newEquity = cash + positionsUnrealizedPnl
+      const newEquity = isRealExchangeActive
+        ? Number(currentAccount.equity) // MT5 equity from MetaAPI already includes PnL
+        : cash + positionsUnrealizedPnl   // Paper trading: compute from positions
       // ═══════════════════════════════════════════════════════════════
       // V153 FIX: CORRECT MARGIN PRIORITY IN REAL-TIME UPDATES
       //
@@ -786,7 +792,10 @@ export const usePositionsStore = create<PositionsState>()(
           //   "Free margin: $10,000" (= equity - 0 margin)
           // Now: We calculate from actual loaded positions in the store.
           // ═══════════════════════════════════════════════════════════════
-          const currentPositions = get().positions
+          // V196 FIX: Use getActivePositions() to avoid mixing MT5 balance with paper PnL
+          const currentPositions = get().activeCredentialId
+            ? get().getActivePositions()
+            : get().positions
           const positionsMarketValue = currentPositions.reduce(
             (sum, p) => sum + Math.abs(Number(p.marketValue || p.qty * p.currentPrice || 0)),
             0,

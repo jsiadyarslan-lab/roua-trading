@@ -9,6 +9,7 @@ import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useAgentStore } from '@/hooks/useAgentStore'
 import { setNotificationTranslator } from '@/hooks/usePaperTradesStore'
 import { setAlertTranslator } from '@/components/charts/AlertManager'
+import { useMT5Streaming } from '@/hooks/useMT5Streaming'
 
 /**
  * GlobalLogicEngine
@@ -30,6 +31,9 @@ export function GlobalLogicEngine() {
   const t = useTranslations('dashboard.globalLogic')
   const tne = useTranslations('notifications.execution')
   const tnp = useTranslations('notifications.push')
+
+  // V196: Connect to MT5 streaming for real-time balance/position/price updates
+  useMT5Streaming()
 
   // Initialize notification translator for usePaperTradesStore (non-component context)
   useEffect(() => {

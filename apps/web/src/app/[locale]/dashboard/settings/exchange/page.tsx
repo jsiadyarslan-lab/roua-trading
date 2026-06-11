@@ -18,6 +18,8 @@ import {
   Info,
   ChevronDown,
   ChevronUp,
+  Wifi,
+  WifiOff,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useAgentStore } from '@/hooks/useAgentStore'
@@ -113,6 +115,10 @@ export default function ExchangeSettingsPage() {
   // V165: Key type selection (HMAC vs Ed25519/RSA)
   const [keyType, setKeyType] = useState<'hmac' | 'ed25519' | 'rsa'>('hmac')
 
+  // V195: MT5 connectivity test state
+  const [testingCredId, setTestingCredId] = useState<string | null>(null)
+  const [testResults, setTestResults] = useState<Record<string, any>>({})
+
   const isBinance = exchange.toLowerCase().startsWith('binance') && !exchange.includes('test')
   const isMT5 = exchange === 'mt5' || exchange === 'mt5_demo'
   const isMT5Demo = exchange === 'mt5_demo'
@@ -176,6 +182,24 @@ export default function ExchangeSettingsPage() {
       navigator.clipboard.writeText(serverIp)
       setIpCopied(true)
       setTimeout(() => setIpCopied(false), 2000)
+    }
+  }
+
+  // V195: Test MT5 connectivity
+  const handleTestMT5Connection = async (credentialId: string) => {
+    setTestingCredId(credentialId)
+    try {
+      const res = await fetch(`/api/portfolio/credentials/test-mt5/${credentialId}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && data.data) {
+          setTestResults(prev => ({ ...prev, [credentialId]: data.data }))
+        }
+      }
+    } catch {
+      setTestResults(prev => ({ ...prev, [credentialId]: { error: 'فشل الاتصال بالخادم' } }))
+    } finally {
+      setTestingCredId(null)
     }
   }
 
@@ -833,6 +857,29 @@ export default function ExchangeSettingsPage() {
                             {cred.testnet ? '🌐' : '🧪'}
                           </Button>
                         )}
+                        {/* V195: زر فحص اتصال MT5 */}
+                        {(cred.exchange === 'mt5' || cred.exchange === 'mt5_demo') && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleTestMT5Connection(cred.id)}
+                            disabled={testingCredId === cred.id}
+                            className="text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
+                            title="فحص اتصال MetaAPI"
+                          >
+                            {testingCredId === cred.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : testResults[cred.id] ? (
+                              testResults[cred.id].restApiWorks || testResults[cred.id].rpcWorks ? (
+                                <Wifi className="w-3 h-3 text-green-400" />
+                              ) : (
+                                <WifiOff className="w-3 h-3 text-red-400" />
+                              )
+                            ) : (
+                              <Wifi className="w-3 h-3" />
+                            )}
+                          </Button>
+                        )}
                         {/* زر تعيين كحساب نشط */}
                         <Button
                           variant="outline"
@@ -857,6 +904,60 @@ export default function ExchangeSettingsPage() {
                           <Trash2 className="w-3 h-3" />
                         </Button>
                       </div>
+                      {/* V195: MT5 diagnostic result panel */}
+                      {(cred.exchange === 'mt5' || cred.exchange === 'mt5_demo') && testResults[cred.id] && (
+                        <div className="mt-3 p-3 rounded-lg border text-xs" style={{
+                          background: (testResults[cred.id].restApiWorks || testResults[cred.id].rpcWorks)
+                            ? 'rgba(34,197,94,0.05)'
+                            : 'rgba(239,68,68,0.05)',
+                          borderColor: (testResults[cred.id].restApiWorks || testResults[cred.id].rpcWorks)
+                            ? 'rgba(34,197,94,0.2)'
+                            : 'rgba(239,68,68,0.2)',
+                          direction: 'rtl' as const,
+                        }}>
+                          <div className="font-bold mb-2" style={{
+                            color: (testResults[cred.id].restApiWorks || testResults[cred.id].rpcWorks)
+                              ? '#22c55e' : '#ef4444',
+                            fontFamily: "'Cairo', sans-serif",
+                          }}>
+                            {(testResults[cred.id].restApiWorks || testResults[cred.id].rpcWorks)
+                              ? 'الاتصال ناجح' : 'فشل الاتصال'}
+                          </div>
+                          <div className="space-y-1" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                            {testResults[cred.id].steps?.map((step: any, i: number) => (
+                              <div key={i} className="flex items-center gap-2">
+                                <span style={{ color: step.success ? '#22c55e' : '#ef4444' }}>
+                                  {step.success ? '✓' : '✗'}
+                                </span>
+                                <span className="text-muted-foreground">{step.step}</span>
+                                <span className="text-muted-foreground" style={{ flex: 1, textAlign: 'left' as const }}>
+                                  {step.message?.substring(0, 80)}
+                                </span>
+                                {step.durationMs > 0 && (
+                                  <span className="text-muted-foreground" style={{ opacity: 0.5 }}>
+                                    {step.durationMs}ms
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                          {testResults[cred.id].error && (
+                            <div className="mt-2 text-red-400" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                              {testResults[cred.id].error}
+                            </div>
+                          )}
+                          {testResults[cred.id].fixSuggestion && (
+                            <div className="mt-1 text-amber-400" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                              💡 {testResults[cred.id].fixSuggestion}
+                            </div>
+                          )}
+                          {testResults[cred.id].balance && (
+                            <div className="mt-2 text-green-400" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                              الرصيد: ${testResults[cred.id].balance.balance} | Equity: ${testResults[cred.id].balance.equity} | الهامش: ${testResults[cred.id].balance.margin}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </motion.div>

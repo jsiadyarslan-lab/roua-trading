@@ -391,7 +391,7 @@ export function PortfolioMini({
             fontSize: 8, color: T.amber, fontFamily: "'Cairo', sans-serif",
             fontWeight: 700, lineHeight: 1.4,
           }}>
-            بيانات مؤقتة — فشل الاتصال بـ MetaAPI. الرصيد معروض من ذاكرة التخزين المؤقت وقد لا يكون دقيقاً.
+            بيانات مؤقتة — فشل الاتصال بـ MetaAPI. الرصيد معروض من ذاكرة التخزين المؤقت وقد لا يكون دقيقاً. اذهب للإعدادات لفحص الاتصال.
           </span>
         </div>
       )}
@@ -408,7 +408,7 @@ export function PortfolioMini({
             fontSize: 8, color: '#f87171', fontFamily: "'Cairo', sans-serif",
             fontWeight: 700, lineHeight: 1.4,
           }}>
-            MetaAPI غير متصل — لا يمكن جلب بيانات حساب MT5 الحقيقي. تأكد من ضبط مفتاح METAAPI_TOKEN.
+            MetaAPI غير متصل — لا يمكن جلب بيانات حساب MT5 الحقيقي. {usePositionsStore(s => s.account?.metaapiError) || 'تأكد من ضبط مفتاح METAAPI_TOKEN.'}
           </span>
         </div>
       )}

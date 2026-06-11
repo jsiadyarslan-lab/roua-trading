@@ -872,7 +872,12 @@ export default function PortfolioPage() {
               MetaAPI غير متصل — حساب MT5 لا يمكنه جلب البيانات الحقيقية
             </div>
             <div style={{ fontSize: 8, color: T.text2, fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>
-              مفتاح METAAPI_TOKEN غير مضبوط أو غير صالح. يجب إضافته في متغيرات البيئة ليعمل حساب MT5 الحقيقي.
+              {usePositionsStore(s => s.account?.metaapiError)
+                ? `${usePositionsStore(s => s.account?.metaapiError)}`
+                : 'مفتاح METAAPI_TOKEN غير مضبوط أو غير صالح. يجب إضافته في متغيرات البيئة ليعمل حساب MT5 الحقيقي.'}
+            </div>
+            <div style={{ fontSize: 8, color: T.text2, fontFamily: "'Cairo', sans-serif", marginTop: 2, opacity: 0.7 }}>
+              💡 اذهب إلى الإعدادات → مفاتيح البورصات → اضغط زر فحص الاتصال للحصول على تفاصيل أكثر
             </div>
           </div>
         </div>
@@ -891,6 +896,9 @@ export default function PortfolioPage() {
             </div>
             <div style={{ fontSize: 8, color: T.text2, fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>
               فشل الاتصال بـ MetaAPI مؤقتاً. البيانات المعروضة قد لا تكون محدثة.
+            </div>
+            <div style={{ fontSize: 8, color: T.text2, fontFamily: "'Cairo', sans-serif", marginTop: 2, opacity: 0.7 }}>
+              💡 اذهب إلى الإعدادات → مفاتيح البورصات → اضغط زر فحص الاتصال للحصول على تفاصيل أكثر
             </div>
           </div>
         </div>

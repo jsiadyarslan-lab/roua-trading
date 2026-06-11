@@ -2009,21 +2009,24 @@ export class CredentialsService {
       // ═══════ STEP 5: Stale cache as last resort ═══════
       if (!accountInfo) {
         this._recordMT5Failure(failureCacheKey);
+        const accountState = (account as any)?.state || 'unknown';
+        const connectionStatus = (account as any)?.connectionStatus || 'unknown';
+        const detailedError = `REST: ${restError || 'skipped'} | RPC: ${rpcError || 'skipped'} | Account state: ${accountState} | Connection: ${connectionStatus}`;
         this.logger.error(
-          `🚨 V193: MetaAPI ALL METHODS FAILED for account ${accountId} (${cred.exchange}/${cred.label}). ` +
-          `REST error: ${restError || 'skipped'}. RPC error: ${rpcError || 'skipped'}. ` +
+          `🚨 V195: MetaAPI ALL METHODS FAILED for account ${accountId} (${cred.exchange}/${cred.label}). ` +
+          `${detailedError}. ` +
           `This means the MT5 account CANNOT get real-time data — NOT acceptable for real trading.`
         );
         const cachedResult = await this._getCachedMT5Balance(cred, userId, isDemo, 'All methods failed');
-        if (cachedResult) return { ...cachedResult, _metaapiDown: true, _metaapiError: 'ALL_METHODS_FAILED' } as any;
+        if (cachedResult) return { ...cachedResult, _metaapiDown: true, _metaapiError: `ALL_METHODS_FAILED: ${detailedError}` } as any;
         return {
           exchange: cred.exchange, label: cred.label, credentialId: cred.id,
           isTestnet: isDemo, equity: 0, available: 0, currency: 'USD',
           usedMargin: 0, assets: [],
           error: `فشل الاتصال بـ ${accountId}`,
-          errorDetail: `REST: ${restError || 'skipped'} | RPC: ${rpcError || 'skipped'}`,
+          errorDetail: detailedError,
           _metaapiDown: true,
-          _metaapiError: 'ALL_METHODS_FAILED',
+          _metaapiError: `ALL_METHODS_FAILED: ${detailedError}`,
         } as any;
       }
 
@@ -2665,10 +2668,23 @@ export class CredentialsService {
 
     // Step 2: Find the credential
     const step2Start = Date.now();
-    const cred = await this.prisma.exchangeCredential.findUnique({ where: { id: credentialId } });
+    let cred = await this.prisma.exchangeCredential.findUnique({ where: { id: credentialId } });
+    // V195: If credential not found by ID, try to find any MT5 credential for this user
     if (!cred || cred.userId !== userId) {
-      steps.push({ step: 'Credential', success: false, message: 'Credential not found or access denied', durationMs: Date.now() - step2Start });
-      return { tokenPresent: true, tokenValid: false, credentialFound: false, accountExists: false, restApiWorks: false, rpcWorks: false, steps, error: 'بيانات الاعتماد غير موجودة' };
+      // Try to find any MT5 credential for this user as fallback
+      const mt5Creds = await this.prisma.exchangeCredential.findMany({
+        where: { userId, exchange: { in: ['mt5', 'mt5_demo'] } },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      });
+      if (mt5Creds.length > 0) {
+        cred = mt5Creds[0];
+        this.logger.log(`📊 V195: testMT5Connectivity: credentialId ${credentialId} not found, using fallback MT5 credential ${cred.id}`);
+      }
+    }
+    if (!cred || cred.userId !== userId) {
+      steps.push({ step: 'Credential', success: false, message: `Credential not found (id: ${credentialId?.substring(0, 8)}...) and no MT5 credentials exist for this user`, durationMs: Date.now() - step2Start });
+      return { tokenPresent: true, tokenValid: false, credentialFound: false, accountExists: false, restApiWorks: false, rpcWorks: false, steps, error: 'بيانات الاعتماد غير موجودة — لم يتم العثور على حساب MT5', fixSuggestion: 'أضف حساب MT5 من صفحة الإعدادات أولاً' };
     }
     const isDemo = cred.exchange === 'mt5_demo' || cred.testnet === true;
     steps.push({ step: 'Credential', success: true, message: `Found: ${cred.exchange}/${cred.label} (demo: ${isDemo})`, durationMs: Date.now() - step2Start });

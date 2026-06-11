@@ -69,43 +69,50 @@ export function useMT5Streaming() {
         leverage: number
         timestamp: number
       }) => {
-        const state = usePositionsStore.getState()
-        const activeCredId = state.activeCredentialId
+        // V197 FIX: Use queueMicrotask to avoid React error #310
+        // "Cannot update a component while rendering a different component"
+        // Socket.IO callbacks can fire during React's render phase when
+        // the component tree is being committed. Deferring the state update
+        // to the next microtask ensures it happens outside the render cycle.
+        queueMicrotask(() => {
+          const state = usePositionsStore.getState()
+          const activeCredId = state.activeCredentialId
 
-        // Only update if this is the active credential
-        if (activeCredId && update.credentialId === activeCredId && state.account) {
-          const account = { ...state.account }
+          // Only update if this is the active credential
+          if (activeCredId && update.credentialId === activeCredId && state.account) {
+            const account = { ...state.account }
 
-          // Update account values from real-time MetaAPI data
-          account.equity = update.equity
-          account.cash = update.balance
-          account.buyingPower = Math.max(0, update.equity - update.margin)
-          account.portfolioValue = update.equity
-          account.initialMargin = update.margin
-          account.unrealizedPnl = update.equity - update.balance
+            // Update account values from real-time MetaAPI data
+            account.equity = update.equity
+            account.cash = update.balance
+            account.buyingPower = Math.max(0, update.equity - update.margin)
+            account.portfolioValue = update.equity
+            account.initialMargin = update.margin
+            account.unrealizedPnl = update.equity - update.balance
 
-          // Clear stale/metaapiDown flags — streaming is working!
-          ;(account as any).isStaleBalance = false
-          ;(account as any).metaapiDown = false
-          ;(account as any).metaapiError = undefined
-          ;(account as any)._lastStreamUpdate = Date.now()
+            // Clear stale/metaapiDown flags — streaming is working!
+            ;(account as any).isStaleBalance = false
+            ;(account as any).metaapiDown = false
+            ;(account as any).metaapiError = undefined
+            ;(account as any)._lastStreamUpdate = Date.now()
 
-          usePositionsStore.setState({ account })
-        }
-
-        // Also update the exchangeBalances entry
-        const exBals = [...(state.exchangeBalances || [])]
-        const idx = exBals.findIndex((e: any) => e.credentialId === update.credentialId)
-        if (idx >= 0) {
-          exBals[idx] = {
-            ...exBals[idx],
-            equity: update.equity,
-            balance: update.balance,
-            available: update.freeMargin,
-            usedMargin: update.margin,
+            usePositionsStore.setState({ account })
           }
-          usePositionsStore.setState({ exchangeBalances: exBals })
-        }
+
+          // Also update the exchangeBalances entry
+          const exBals = [...(state.exchangeBalances || [])]
+          const idx = exBals.findIndex((e: any) => e.credentialId === update.credentialId)
+          if (idx >= 0) {
+            exBals[idx] = {
+              ...exBals[idx],
+              equity: update.equity,
+              balance: update.balance,
+              available: update.freeMargin,
+              usedMargin: update.margin,
+            }
+            usePositionsStore.setState({ exchangeBalances: exBals })
+          }
+        })
       })
 
       // ─── Position Updates ────────────────────────────
@@ -127,24 +134,27 @@ export function useMT5Streaming() {
         }
         timestamp: number
       }) => {
-        const state = usePositionsStore.getState()
+        // V197: queueMicrotask to avoid React #310
+        queueMicrotask(() => {
+          const state = usePositionsStore.getState()
 
-        // Only process for the active credential
-        if (!state.activeCredentialId || update.credentialId !== state.activeCredentialId) return
+          // Only process for the active credential
+          if (!state.activeCredentialId || update.credentialId !== state.activeCredentialId) return
 
-        // For position additions/updates, trigger a positions refresh
-        if (update.action === 'added' || update.action === 'removed') {
-          // Debounced refresh — don't spam
-          const now = Date.now()
-          const lastRefresh = (state as any)._lastStreamRefresh || 0
-          if (now - lastRefresh > 2000) {
-            ;(state as any)._lastStreamRefresh = now
-            // Trigger a soft refresh of positions
-            if (state.fetchPositions) {
-              state.fetchPositions()
+          // For position additions/updates, trigger a positions refresh
+          if (update.action === 'added' || update.action === 'removed') {
+            // Debounced refresh — don't spam
+            const now = Date.now()
+            const lastRefresh = (state as any)._lastStreamRefresh || 0
+            if (now - lastRefresh > 2000) {
+              ;(state as any)._lastStreamRefresh = now
+              // Trigger a soft refresh of positions
+              if (state.fetchPositions) {
+                state.fetchPositions()
+              }
             }
           }
-        }
+        })
       })
 
       // ─── Price Updates ───────────────────────────────
@@ -158,15 +168,18 @@ export function useMT5Streaming() {
         freeMargin: number
         timestamp: number
       }) => {
-        const state = usePositionsStore.getState()
+        // V197: queueMicrotask to avoid React #310
+        queueMicrotask(() => {
+          const state = usePositionsStore.getState()
 
-        // Update position prices for matching symbols
-        if (state.activeCredentialId && update.credentialId === state.activeCredentialId) {
-          const midPrice = (update.bid + update.ask) / 2
-          // Use the existing updatePositionPrice for consistency
-          // But only for positions belonging to this credential
-          state.updatePositionPrice(update.symbol, midPrice)
-        }
+          // Update position prices for matching symbols
+          if (state.activeCredentialId && update.credentialId === state.activeCredentialId) {
+            const midPrice = (update.bid + update.ask) / 2
+            // Use the existing updatePositionPrice for consistency
+            // But only for positions belonging to this credential
+            state.updatePositionPrice(update.symbol, midPrice)
+          }
+        })
       })
 
       // ─── Connection Status ───────────────────────────
@@ -178,14 +191,17 @@ export function useMT5Streaming() {
         healthy: boolean
         message?: string
       }) => {
-        const state = usePositionsStore.getState()
-        if (state.activeCredentialId && status.credentialId === state.activeCredentialId && state.account) {
-          const account = { ...state.account }
-          ;(account as any).mt5StreamHealthy = status.healthy
-          ;(account as any).mt5StreamConnected = status.connected
-          ;(account as any).mt5BrokerConnected = status.connectedToBroker
-          usePositionsStore.setState({ account })
-        }
+        // V197: queueMicrotask to avoid React #310
+        queueMicrotask(() => {
+          const state = usePositionsStore.getState()
+          if (state.activeCredentialId && status.credentialId === state.activeCredentialId && state.account) {
+            const account = { ...state.account }
+            ;(account as any).mt5StreamHealthy = status.healthy
+            ;(account as any).mt5StreamConnected = status.connected
+            ;(account as any).mt5BrokerConnected = status.connectedToBroker
+            usePositionsStore.setState({ account })
+          }
+        })
       })
 
       socket.on('disconnect', (reason) => {

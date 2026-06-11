@@ -1812,6 +1812,7 @@ export class CredentialsService {
       // ═══════ STEP 1: Find or create the account ═══════
       let account: any;
       let metaApiAccountId: string | undefined;
+      let accountRegion: string | undefined; // V197: Account region for REST API URL
 
       try {
         const allAccounts = await accountApi.getAccountsWithInfiniteScrollPagination();
@@ -1819,7 +1820,9 @@ export class CredentialsService {
         if (existing) {
           account = await accountApi.getAccount(existing.id);
           metaApiAccountId = existing.id;
-          this.logger.log(`📊 V194b: Found existing MT5 account ${accountId} (MetaAPI ID: ${existing.id})`);
+          // V197: Get account region — G2 accounts use different REST API servers
+          accountRegion = (account as any).region || (existing as any).region;
+          this.logger.log(`📊 V194b: Found existing MT5 account ${accountId} (MetaAPI ID: ${existing.id}, region: ${accountRegion || 'default'})`);
         }
       } catch (searchErr: any) {
         this.logger.warn(`📊 V194b: Search failed for ${accountId}: ${searchErr.message?.substring(0, 60)}`);
@@ -1896,10 +1899,10 @@ export class CredentialsService {
 
       if (metaApiAccountId) {
         try {
-          const restResult = await this._fetchMT5BalanceViaREST(metaApiAccountId, metaApiToken);
+          const restResult = await this._fetchMT5BalanceViaREST(metaApiAccountId, metaApiToken, 0, accountRegion);
           if (restResult) {
             accountInfo = restResult;
-            this.logger.log(`📊 V194b: REST API quick check succeeded for ${accountId} — balance=$${restResult.balance}, equity=$${restResult.equity}`);
+            this.logger.log(`📊 V194b: REST API quick check succeeded for ${accountId} (region: ${accountRegion || 'default'}) — balance=$${restResult.balance}, equity=$${restResult.equity}`);
           }
         } catch (restErr: any) {
           restError = restErr.message?.substring(0, 120) || 'unknown';
@@ -1972,7 +1975,7 @@ export class CredentialsService {
 
               // Retry REST after successful deploy/redeploy
               try {
-                const retryResult = await this._fetchMT5BalanceViaREST(metaApiAccountId!, metaApiToken);
+                const retryResult = await this._fetchMT5BalanceViaREST(metaApiAccountId!, metaApiToken, 0, accountRegion);
                 if (retryResult) {
                   accountInfo = retryResult;
                   restError = '';
@@ -2491,9 +2494,21 @@ export class CredentialsService {
     metaApiAccountId: string,
     metaApiToken: string,
     _retryCount = 0,
+    region?: string,
   ): Promise<any | null> {
     const https = await import('https');
-    const url = `https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai/users/current/accounts/${metaApiAccountId}/account-information`;
+
+    // V197 FIX: Use the correct REST API URL based on the account's region.
+    // MetaAPI Cloud hosts accounts on different regional servers:
+    //   - G1 (default): mt-client-api-v1.agiliumtrade.agiliumtrade.ai
+    //   - G2 vint-hill: mt-client-api-v1.vint-hill.agiliumtrade.agiliumtrade.ai
+    //   - G2 new-york: mt-client-api-v1.new-york.agiliumtrade.agiliumtrade.ai
+    // Previously, we hardcoded the G1 URL, which returned 404 for G2 accounts.
+    // The account's `region` property (from MetaAPI SDK) tells us which server to use.
+    const domain = 'agiliumtrade.agiliumtrade.ai'; // Default domain (resolved by MetaAPI SDK)
+    const accountRegion = region || 'agiliumtrade'; // Default region for G1 accounts
+    const baseUrl = `https://mt-client-api-v1.${accountRegion}.${domain}`;
+    const url = `${baseUrl}/users/current/accounts/${metaApiAccountId}/account-information`;
 
     const makeRequest = (): Promise<any | null> => {
       return new Promise((resolve, reject) => {
@@ -2557,7 +2572,7 @@ export class CredentialsService {
         this.logger.warn(`📊 V191: REST API transient error for ${metaApiAccountId}, retrying... (${firstError.message?.substring(0, 60)})`);
         // Wait 500ms before retry
         await new Promise(r => setTimeout(r, 500));
-        return this._fetchMT5BalanceViaREST(metaApiAccountId, metaApiToken, _retryCount + 1);
+        return this._fetchMT5BalanceViaREST(metaApiAccountId, metaApiToken, _retryCount + 1, region);
       }
 
       throw firstError;
@@ -2811,6 +2826,7 @@ export class CredentialsService {
     const step5Start = Date.now();
     let account: any;
     let metaApiAccountId: string | undefined;
+    let testAccountRegion: string | undefined; // V197
     try {
       const accountApi = metaApi.metatraderAccountApi;
       const allAccounts = await accountApi.getAccountsWithInfiniteScrollPagination();
@@ -2818,7 +2834,8 @@ export class CredentialsService {
       if (existing) {
         account = await accountApi.getAccount(existing.id);
         metaApiAccountId = existing.id;
-        steps.push({ step: 'Find Account', success: true, message: `Found in MetaAPI (ID: ${existing.id}, state: ${account.state || '?'}, conn: ${account.connectionStatus || '?'})`, durationMs: Date.now() - step5Start });
+        testAccountRegion = (account as any).region || (existing as any).region; // V197
+        steps.push({ step: 'Find Account', success: true, message: `Found in MetaAPI (ID: ${existing.id}, state: ${account.state || '?'}, conn: ${account.connectionStatus || '?'}, region: ${testAccountRegion || 'default'})`, durationMs: Date.now() - step5Start });
       } else {
         steps.push({ step: 'Find Account', success: false, message: `Account ${accountId} not found in MetaAPI — needs auto-create`, durationMs: Date.now() - step5Start });
       }
@@ -2832,7 +2849,7 @@ export class CredentialsService {
     let balanceData: any = null;
     if (metaApiAccountId) {
       try {
-        const restResult = await this._fetchMT5BalanceViaREST(metaApiAccountId, metaApiToken);
+        const restResult = await this._fetchMT5BalanceViaREST(metaApiAccountId, metaApiToken, 0, testAccountRegion);
         if (restResult) {
           restWorks = true;
           balanceData = {

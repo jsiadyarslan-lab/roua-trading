@@ -2343,6 +2343,11 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         // the holding time instead of force-closing.
         //
         // This prevents the #1 complaint: "4h auto-close destroyed my big profits".
+        //
+        // V213 SAFETY NET: If somehow this code still has the old MAX_HOLDING_TIME logic
+        // (e.g., stale compiled JS on Railway), this explicit check prevents it.
+        // The Agent should NEVER close positions based on holding time — only SL/TP.
+        // Holding time management is the sole responsibility of PositionMonitorService.
 
         if (position.side === 'BUY') {
           if (stopLoss > 0 && currentPrice <= stopLoss) {
@@ -2359,6 +2364,21 @@ export class AutonomousTraderAgentService implements OnModuleInit {
           } else if (takeProfit > 0 && currentPrice <= takeProfit) {
             shouldClose = true;
             reason = 'TAKE_PROFIT_HIT';
+          }
+        }
+
+        if (shouldClose) {
+          // V213 SAFETY: Block MAX_HOLDING_TIME closes from Agent.
+          // The Agent should ONLY close positions via SL/TP hits.
+          // Holding time management is PositionMonitorService's job (48h for Agent).
+          // If reason is MAX_HOLDING_TIME, it means old code is running — BLOCK it.
+          if (reason === 'MAX_HOLDING_TIME') {
+            this.logger.error(
+              `🚨 V213 BLOCKED: Agent tried to close ${position.symbol} with MAX_HOLDING_TIME — ` +
+              `this is PositionMonitor's job, not Agent's. Position left open.`
+            );
+            shouldClose = false;
+            reason = '';
           }
         }
 

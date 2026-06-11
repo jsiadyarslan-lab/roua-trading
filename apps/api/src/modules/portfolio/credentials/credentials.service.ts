@@ -2871,7 +2871,15 @@ export class CredentialsService {
         testAccountRegion = (refreshed as any).region || testAccountRegion;
         steps.push({ step: 'Auto-Deploy', success: true, message: `Account deployed! state=${refreshed.state}, conn=${refreshed.connectionStatus || '?'}`, durationMs: Date.now() - deployStart });
       } catch (deployErr: any) {
-        steps.push({ step: 'Auto-Deploy', success: false, message: `Deploy failed: ${deployErr.message?.substring(0, 100)}`, durationMs: Date.now() - deployStart });
+        const errMsg = deployErr.message || '';
+        // V202b: Detect billing errors and give clear Arabic message
+        const isBillingError = errMsg.includes('top up') || errMsg.includes('subscription') ||
+          errMsg.includes('payment') || errMsg.includes('billing');
+        if (isBillingError) {
+          steps.push({ step: 'Auto-Deploy', success: false, message: `رصيد MetaAPI غير كافي — يجب شحن الحساب في metaapi.cloud`, durationMs: Date.now() - deployStart });
+        } else {
+          steps.push({ step: 'Auto-Deploy', success: false, message: `Deploy failed: ${errMsg.substring(0, 100)}`, durationMs: Date.now() - deployStart });
+        }
       }
     } else if (account && account.state === 'DEPLOYED' && account.connectionStatus !== 'CONNECTED') {
       // DEPLOYED but DISCONNECTED — redeploy
@@ -2957,7 +2965,11 @@ export class CredentialsService {
 
     // Determine fix suggestion
     let fixSuggestion: string | undefined;
-    if (!account && !metaApiAccountId) {
+    // V202b: Check if any step had a billing error
+    const billingStep = steps.find(s => s.message?.includes('رصيد MetaAPI غير كافي') || s.message?.includes('top up'));
+    if (billingStep) {
+      fixSuggestion = 'رصيد حساب MetaAPI غير كافي — اذهب إلى metaapi.cloud وقم بشحن حسابك. لا يمكن نشر أي حساب تداول بدون رصيد في MetaAPI.';
+    } else if (!account && !metaApiAccountId) {
       fixSuggestion = 'الحساب غير مسجل في MetaAPI — جرب حذفه وإضافته مرة أخرى من التطبيق ليتم تسجيله تلقائياً';
     } else if (account && account.state !== 'DEPLOYED') {
       fixSuggestion = `حالة الحساب: ${account.state} — يحتاج نشر (deploy). جرب إعادة إضافة الحساب.`;

@@ -313,7 +313,30 @@ export class MT5StreamingService implements OnModuleInit, OnModuleDestroy {
       if (wasJustDeployed) {
         // Account is UNDEPLOYED/CREATED — deploy it first
         this.logger.log(`📊 MT5 Streaming: Deploying account ${accountId} (state=${metaApiAccount.state})...`);
-        await metaApiAccount.deploy();
+        try {
+          await metaApiAccount.deploy();
+        } catch (deployErr: any) {
+          const msg = deployErr.message || '';
+          // V202b: Detect billing/subscription errors — these CANNOT be fixed by retrying!
+          if (msg.includes('top up') || msg.includes('subscription') || msg.includes('payment') || msg.includes('billing')) {
+            this.logger.error(
+              `📊 MT5 Streaming: DEPLOY BLOCKED by MetaAPI billing — account ${accountId} cannot be deployed. ` +
+              `Error: ${msg}. User must top up their MetaAPI account at metaapi.cloud`
+            );
+            // Don't schedule reconnect — it will fail again until billing is fixed
+            this._emitConnectionStatus(cred.id, {
+              credentialId: cred.id,
+              accountId,
+              connected: false,
+              connectedToBroker: false,
+              synchronized: false,
+              healthy: false,
+              message: `MetaAPI billing error: ${msg.substring(0, 80)}`,
+            });
+            return false;
+          }
+          throw deployErr; // Re-throw non-billing errors
+        }
         await Promise.race([
           metaApiAccount.waitDeployed(),
           new Promise((_, reject) => setTimeout(() => reject(new Error('deploy timeout (60s)')), 60_000)),
@@ -441,10 +464,20 @@ export class MT5StreamingService implements OnModuleInit, OnModuleDestroy {
       this.logger.log(`📊 MT5 Streaming: ✅ Connected to ${accountId} (MetaAPI ID: ${metaApiAccountId})`);
       return true;
     } catch (err: any) {
-      this.logger.error(`📊 MT5 Streaming: Failed to connect ${cred.id.slice(0, 8)}...: ${err.message?.substring(0, 120)}`);
+      const errMsg = err.message || '';
+      this.logger.error(`📊 MT5 Streaming: Failed to connect ${cred.id.slice(0, 8)}...: ${errMsg.substring(0, 120)}`);
 
-      // Schedule reconnect (with exponential backoff)
-      this._scheduleReconnect(cred);
+      // V202b: DON'T schedule reconnect for billing/subscription errors —
+      // they will fail again and again until the user tops up their MetaAPI account.
+      const isBillingError = errMsg.includes('top up') || errMsg.includes('subscription') ||
+        errMsg.includes('payment') || errMsg.includes('billing');
+
+      if (!isBillingError) {
+        // Schedule reconnect (with exponential backoff)
+        this._scheduleReconnect(cred);
+      } else {
+        this.logger.warn(`📊 MT5 Streaming: NOT scheduling reconnect — billing error requires manual fix at metaapi.cloud`);
+      }
 
       // Emit connection failure status
       this._emitConnectionStatus(cred.id, {

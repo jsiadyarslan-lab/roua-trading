@@ -2293,11 +2293,20 @@ export class IntegrityCheckController {
       return { id: 'V29', name: 'V219 تتبع الإصدار', status: 'MISSING', detail: 'ملف main.ts غير موجود' };
     }
 
-    // V29a: Version is V218 or V219 (evolving version)
-    if (mainContent.includes('V219')) {
+    // V29a: Version is V218+ (evolving version — _stripComments removes comment markers)
+    // NOTE: _stripComments() removes V219 comment markers, so we check code-level strings
+    if (mainContent.includes("'V220'") || mainContent.includes('"V220"')) {
+      passes.push('الإصدار V220 في health endpoint');
+    } else if (mainContent.includes("'V219'") || mainContent.includes('"V219"')) {
       passes.push('الإصدار V219 في health endpoint');
-    } else if (mainContent.includes('V218')) {
+    } else if (mainContent.includes("'V218'") || mainContent.includes('"V218"')) {
       passes.push('الإصدار V218 في health endpoint');
+    } else if (mainContent.includes('V220')) {
+      passes.push('الإصدار V220 في health endpoint (تعليق)');
+    } else if (mainContent.includes('V219')) {
+      passes.push('الإصدار V219 في health endpoint (تعليق)');
+    } else if (mainContent.includes('V218')) {
+      passes.push('الإصدار V218 في health endpoint (تعليق)');
     } else if (mainContent.includes('V217')) {
       failures.push('الإصدار لا يزال V217 — لم يتم التحديث');
     } else {
@@ -2332,6 +2341,17 @@ export class IntegrityCheckController {
     }
     if (mainContent.includes('partialFillManager')) {
       passes.push('partialFillManager مضمن (V219)');
+    }
+
+    // V29d: Phase 4 features (V220)
+    if (mainContent.includes('memoryLeakFix')) {
+      passes.push('memoryLeakFix مضمن (V220)');
+    }
+    if (mainContent.includes('stuckOrderDetection')) {
+      passes.push('stuckOrderDetection مضمن (V220)');
+    }
+    if (mainContent.includes('externalCircuitBreaker')) {
+      passes.push('externalCircuitBreaker مضمن (V220)');
     }
 
     if (failures.length > 0) {
@@ -2733,9 +2753,15 @@ export class IntegrityCheckController {
     const passes: string[] = [];
 
     // V38a: Generic retry utility exists
-    const retryContent = this.read('common/utils/retry.util.ts');
+    // NOTE: Retry utility lives in ai/services/ (not common/utils/) — checks both locations
+    let retryContent = this.read('common/utils/retry.util.ts');
+    let retryLocation = 'common/utils/retry.util.ts';
+    if (!retryContent) {
+      retryContent = this.read('modules/ai/services/retry.util.ts');
+      retryLocation = 'modules/ai/services/retry.util.ts';
+    }
     if (retryContent) {
-      passes.push('أداة إعادة المحاولة موجودة (retry.util.ts)');
+      passes.push(`أداة إعادة المحاولة موجودة (${retryLocation})`);
       if (retryContent.includes('withExponentialBackoff') || retryContent.includes('exponential')) {
         passes.push('إعادة المحاولة بتراجع أسي');
       }
@@ -3055,7 +3081,11 @@ export class IntegrityCheckController {
     const passes: string[] = [];
 
     // V44a: Connection resilience service exists
-    const crContent = this.read('modules/engine/services/connection-resilience.service.ts');
+    // NOTE: File lives in execution/services/ (not engine/services/)
+    let crContent = this.read('modules/execution/services/connection-resilience.service.ts');
+    if (!crContent) {
+      crContent = this.read('modules/engine/services/connection-resilience.service.ts');
+    }
     if (crContent) {
       passes.push('ConnectionResilienceService موجود — يتعامل مع قطع الاتصال');
     } else {

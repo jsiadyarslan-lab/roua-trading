@@ -971,9 +971,9 @@ export const usePositionsStore = create<PositionsState>()(
               effectiveCash   = paperBalanceFromAPI                           // Balance = true wallet balance (margin included)
               effectiveEquity = paperBalanceFromAPI + positionsUnrealizedPnl  // Equity = Balance + floating PnL
             } else {
-              // Fallback
-              effectiveCash   = adjustedTotalEquityUsd - positionsUnrealizedPnl
-              effectiveEquity = adjustedTotalEquityUsd
+              // V221: Fallback — use adjustedTotalBalanceUsd (true balance from backend)
+              effectiveCash   = adjustedTotalBalanceUsd
+              effectiveEquity = adjustedTotalBalanceUsd + positionsUnrealizedPnl
             }
           } else if (exchangeUnavailable) {
             // V171: Real exchange failed, but we have paper balance as fallback.

@@ -804,6 +804,10 @@ export class CredentialsService {
         credentialId: hasPaperCredential ? paperCredentials[0].id : 'paper-virtual',
         isTestnet: true,
         equity: paperEquity,
+        // V221 FIX: balance = displayedBalance (true balance WITHOUT floating PnL).
+        // This is different from equity (= balance + unrealizedPnL).
+        // Without this field, totalBalanceUsd falls back to equity, making Balance = Equity.
+        balance: displayedBalance,
         available: paperAvailableUsd,
         currency: 'USD',
         usedMargin,
@@ -850,6 +854,8 @@ export class CredentialsService {
         credentialId: 'paper-virtual',
         isTestnet: true,
         equity: 10000,
+        // V221: balance = 10000 (same as equity since no positions/PnL)
+        balance: 10000,
         available: 10000,
         currency: 'USD',
         usedMargin: 0,

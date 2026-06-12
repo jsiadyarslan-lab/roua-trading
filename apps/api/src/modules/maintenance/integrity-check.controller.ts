@@ -224,6 +224,12 @@ export class IntegrityCheckController {
     // V19 & V20: Call Next.js endpoints (async — runtime-based checks)
     results.push(await this.checkV19());
     results.push(await this.checkV20());
+    // V21-V25: V217 — Phase 1 Fixes (Portfolio Unification, paperBalance, Agent Protection)
+    results.push(this.checkV21());
+    results.push(this.checkV22());
+    results.push(this.checkV23());
+    results.push(this.checkV24());
+    results.push(this.checkV25());
 
     return results;
   }
@@ -1437,6 +1443,464 @@ export class IntegrityCheckController {
 
       return { id: 'V20', name: 'V189 إزالة خداع الإعدادات', status: 'PASS', detail: `كل الإصلاحات مطبقة (من الكود المصدري): ${passes.join(' | ')}` };
     }
+  }
+
+  // ── V21: V217 — Unified Portfolio Valuation (RiskManager matches RiskCalculator) ──
+  // CRITICAL: Both RiskCalculator and RiskManager must use the SAME formula.
+  // Previously RiskManager used paperBalance ONLY, RiskCalculator used paperBalance + unrealizedPnL.
+  // This caused positions sized by RiskCalculator to be rejected by RiskManager.
+  private checkV21(): CheckResult {
+    const failures: string[] = [];
+    const warnings: string[] = [];
+    const passes: string[] = [];
+
+    const riskMgrContent = this.read('modules/trading/risk-manager.service.ts');
+    const riskCalcContent = this.read('agents/autonomous-trader/services/risk-calculator.service.ts');
+
+    if (!riskMgrContent) {
+      return { id: 'V21', name: 'V217 توحيد تقييم المحفظة', status: 'MISSING', detail: 'ملف RiskManager غير موجود' };
+    }
+    if (!riskCalcContent) {
+      return { id: 'V21', name: 'V217 توحيد تقييم المحفظة', status: 'MISSING', detail: 'ملف RiskCalculator غير موجود' };
+    }
+
+    // ── V21a: RiskManager paper trading includes unrealizedPnL ──
+    const rmEstimateMethod = this._findMethodBody(riskMgrContent, '_estimatePortfolioValue');
+    if (rmEstimateMethod) {
+      const hasUnrealizedPnlInPaper = rmEstimateMethod.includes('unrealizedPnl') && /isPaperTrading/.test(rmEstimateMethod);
+      if (hasUnrealizedPnlInPaper) {
+        passes.push('RiskManager يحسب paperBalance + unrealizedPnL للتداول الورقي');
+      } else {
+        failures.push('RiskManager لا يضيف unrealizedPnL للتداول الورقي — حجم المركز سيعتمد على paperBalance فقط');
+      }
+    } else {
+      warnings.push('لم أجد دالة _estimatePortfolioValue في RiskManager');
+    }
+
+    // ── V21b: RiskManager real trading uses unrealizedPnL (not full notional) ──
+    if (rmEstimateMethod) {
+      // The old code had: positionsValue = qty * currentPrice (full notional value)
+      // The new code should have: unrealizedPnl = (currentPrice - entryPrice) * qty
+      const hasRealUnrealizedPnl = /unrealizedPnl\s*[+\-]=\s*\(currentPrice\s*-\s*entryPrice\)/.test(rmEstimateMethod)
+        || /unrealizedPnl\s*[+\-]=\s*\(entryPrice\s*-\s*currentPrice\)/.test(rmEstimateMethod);
+      // Also check the old pattern to confirm it's gone
+      const hasOldNotional = /positionsValue\s*=\s*openPositions\.reduce/.test(rmEstimateMethod)
+        && !rmEstimateMethod.includes('unrealizedPnl');
+
+      if (hasRealUnrealizedPnl) {
+        passes.push('RiskManager يستخدم unrealizedPnL (وليس القيمة الاسمية) للتداول الحقيقي');
+      } else if (hasOldNotional) {
+        failures.push('RiskManager لا يزال يستخدم القيمة الاسمية الكاملة (qty × price) بدل unrealizedPnL');
+      } else {
+        // Check if unrealizedPnl variable exists in the method at all
+        const hasAnyUnrealizedPnl = rmEstimateMethod.includes('unrealizedPnl');
+        if (hasAnyUnrealizedPnl) {
+          passes.push('RiskManager يستخدم unrealizedPnL في حساب المحفظة');
+        } else {
+          warnings.push('لم أستطع تحديد طريقة حساب المحفظة الحقيقية في RiskManager');
+        }
+      }
+    }
+
+    // ── V21c: RiskCalculator also includes unrealizedPnL for paper ──
+    const rcGetMethod = this._findMethodBody(riskCalcContent, '_getPortfolioValue');
+    if (rcGetMethod) {
+      const hasUnrealizedPnl = rcGetMethod.includes('unrealizedPnl') || rcGetMethod.includes('unrealizedPnl');
+      if (hasUnrealizedPnl) {
+        passes.push('RiskCalculator يحسب paperBalance + unrealizedPnL للتداول الورقي');
+      } else {
+        failures.push('RiskCalculator لا يضيف unrealizedPnL — عدم توحيد مع RiskManager');
+      }
+    } else {
+      warnings.push('لم أجد دالة _getPortfolioValue في RiskCalculator');
+    }
+
+    // ── V21d: Both services use the same PnL calculation formula ──
+    if (rmEstimateMethod && rcGetMethod) {
+      // Both should use: (currentPrice - entryPrice) * qty for BUY
+      const rmBuyFormula = /currentPrice\s*-\s*entryPrice/.test(rmEstimateMethod);
+      const rcBuyFormula = /currentPrice\s*-\s*entryPrice/.test(rcGetMethod);
+      const rmSellFormula = /entryPrice\s*-\s*currentPrice/.test(rmEstimateMethod);
+      const rcSellFormula = /entryPrice\s*-\s*currentPrice/.test(rcGetMethod);
+
+      if (rmBuyFormula && rcBuyFormula && rmSellFormula && rcSellFormula) {
+        passes.push('كلا الخدمتين تستخدمان نفس معادلة PnL (BUY: current-entry, SELL: entry-current)');
+      } else if (rmBuyFormula && rmSellFormula) {
+        passes.push('RiskManager يستخدم معادلة PnL صحيحة');
+      } else {
+        warnings.push('معادلات PnL غير متطابقة بين الخدمتين');
+      }
+    }
+
+    // ── Build result ──
+    if (failures.length > 0) {
+      return {
+        id: 'V21',
+        name: 'V217 توحيد تقييم المحفظة',
+        status: 'FAIL',
+        detail: `${failures.length} مشكلة: ${failures.join(' | ')}`,
+      };
+    }
+
+    if (warnings.length > 0) {
+      return {
+        id: 'V21',
+        name: 'V217 توحيد تقييم المحفظة',
+        status: 'WARN',
+        detail: `${warnings.join(' | ')}${passes.length > 0 ? ` | ✅ ${passes.join(' | ')}` : ''}`,
+      };
+    }
+
+    return {
+      id: 'V21',
+      name: 'V217 توحيد تقييم المحفظة',
+      status: 'PASS',
+      detail: `تقييم المحفظة موحد بين RiskCalculator و RiskManager: ${passes.join(' | ')}`,
+    };
+  }
+
+  // ── V22: V217 — paperBalance = 0 fallback to $10,000 ──
+  // Previously: RiskManager returned 0 when paperBalance was 0, blocking ALL trading.
+  // Now: falls back to DEFAULT_PAPER_BALANCE ($10,000), matching RiskCalculator.
+  private checkV22(): CheckResult {
+    const riskMgrContent = this.read('modules/trading/risk-manager.service.ts');
+    if (!riskMgrContent) {
+      return { id: 'V22', name: 'V217 paperBalance=0 احتياطي', status: 'MISSING', detail: 'ملف RiskManager غير موجود' };
+    }
+
+    const rmEstimateMethod = this._findMethodBody(riskMgrContent, '_estimatePortfolioValue');
+    if (!rmEstimateMethod) {
+      return { id: 'V22', name: 'V217 paperBalance=0 احتياطي', status: 'MISSING', detail: 'لم أجد دالة _estimatePortfolioValue' };
+    }
+
+    // Check that paperBalance fallback to DEFAULT_PAPER_BALANCE exists (not just returning 0)
+    const hasDefaultFallback = rmEstimateMethod.includes('DEFAULT_PAPER_BALANCE')
+      || rmEstimateMethod.includes('10000');
+    const hasOldZeroReturn = /paperBalance.*toNumber\(\).*\?\?\s*0/.test(rmEstimateMethod)
+      && !rmEstimateMethod.includes('DEFAULT_PAPER_BALANCE')
+      && !rmEstimateMethod.includes('10000');
+
+    if (hasOldZeroReturn) {
+      return {
+        id: 'V22',
+        name: 'V217 paperBalance=0 احتياطي',
+        status: 'FAIL',
+        detail: 'RiskManager يُرجع 0 عندما paperBalance=0 — يجب أن يُرجع $10,000 كقيمة افتراضية',
+      };
+    }
+
+    if (hasDefaultFallback) {
+      // Also check the catch block returns default (not 0)
+      const catchBlockHasDefault = /catch.*DEFAULT_PAPER_BALANCE|catch.*10000/.test(rmEstimateMethod);
+      const catchBlockReturnsZero = /catch.*return\s+0/.test(rmEstimateMethod) && !rmEstimateMethod.includes('DEFAULT_PAPER_BALANCE');
+
+      if (catchBlockReturnsZero && !catchBlockHasDefault) {
+        return {
+          id: 'V22',
+          name: 'V217 paperBalance=0 احتياطي',
+          status: 'WARN',
+          detail: 'قيمة paperBalance الافتراضية موجودة لكن catch block يُرجع 0 بدل القيمة الافتراضية',
+        };
+      }
+
+      return {
+        id: 'V22',
+        name: 'V217 paperBalance=0 احتياطي',
+        status: 'PASS',
+        detail: 'RiskManager يُرجع DEFAULT_PAPER_BALANCE ($10,000) عندما paperBalance=0 أو عند خطأ DB',
+      };
+    }
+
+    return {
+      id: 'V22',
+      name: 'V217 paperBalance=0 احتياطي',
+      status: 'WARN',
+      detail: 'لم أستطع تحديد سلوك paperBalance=0 بدقة',
+    };
+  }
+
+  // ── V23: V216 — ExchangeSync Safety Net (Agent positions < 48h BLOCKED) ──
+  // 5-layer defense-in-depth: V184 → V213 → V214 → V215 → V216
+  private checkV23(): CheckResult {
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    const syncContent = this.read('modules/trading/services/exchange-sync.service.ts');
+    if (!syncContent) {
+      return { id: 'V23', name: 'V216 حماية الوكيل في ExchangeSync', status: 'MISSING', detail: 'ملف ExchangeSync غير موجود' };
+    }
+
+    // ── V23a: V216 safety net exists in _closePositionInDB ──
+    const closeMethod = this._findMethodBody(syncContent, '_closePositionInDB');
+    if (closeMethod) {
+      const hasV216Block = closeMethod.includes('isAgentDirectClose') || closeMethod.includes('V216');
+      const has48hCheck = /48/.test(closeMethod) && /isAgent|agent/.test(closeMethod);
+      const hasBlockReturn = /return;?\s*$/.test(closeMethod) && closeMethod.includes('isAgent');
+
+      if (hasV216Block && has48hCheck) {
+        passes.push('V216 safety net يمنع إغلاق Agent positions < 48h في ExchangeSync fallback');
+      } else if (has48hCheck) {
+        passes.push('ExchangeSync يفحص 48h للـ Agent positions');
+      } else {
+        failures.push('V216 safety net غير موجود — ExchangeSync يمكنه إغلاق Agent positions مباشرة من DB بغض النظر عن عمر المركز');
+      }
+    } else {
+      failures.push('لم أجد دالة _closePositionInDB في ExchangeSync');
+    }
+
+    // ── V23b: V215 closeReason = EXCHANGE_SYNC ──
+    if (syncContent.includes('EXCHANGE_SYNC')) {
+      passes.push('ExchangeSync يضع closeReason = EXCHANGE_SYNC (V215) — قابل للتتبع');
+    } else {
+      failures.push('ExchangeSync لا يضع closeReason — إغلاقات لا يمكن تتبعها');
+    }
+
+    // ── V23c: 5-layer defense verification ──
+    let layersFound = 0;
+    const layerDetails: string[] = [];
+
+    // Layer 1: Agent Service (V184) - removed 4h breakeven
+    const agentContent = this.read('agents/autonomous-trader/agent.service.ts');
+    if (agentContent) {
+      const hasOldBug = /currentPrice\s*=\s*Number\s*\(\s*position\.entryPrice\s*\)/.test(agentContent)
+        && /shouldClose\s*=\s*true/.test(agentContent);
+      if (!hasOldBug) {
+        layersFound++;
+        layerDetails.push('V184');
+      }
+    }
+
+    // Layer 2: Position Monitor (V213) - _getMaxHoldingMs + isAgent
+    const monitorContent = this.read('modules/engine/services/position-monitor.service.ts');
+    if (monitorContent) {
+      const hasGetMaxHolding = monitorContent.includes('_getMaxHoldingMs');
+      const hasAgentGuard = monitorContent.includes('isAgentPosition') || monitorContent.includes('isAgent');
+      if (hasGetMaxHolding && hasAgentGuard) {
+        layersFound++;
+        layerDetails.push('V213');
+      }
+    }
+
+    // Layer 3: TradingService (V214) - isAgentPosition guard in closePositionWithRetry
+    const tradingContent = this.read('modules/trading/trading.service.ts');
+    if (tradingContent) {
+      const hasAgentPositionCheck = tradingContent.includes('isAgentPosition') || tradingContent.includes("source === 'agent'");
+      const hasMaxHoldingInClose = tradingContent.includes('MAX_HOLDING') || tradingContent.includes('maxHolding');
+      if (hasAgentPositionCheck) {
+        layersFound++;
+        layerDetails.push('V214');
+      }
+    }
+
+    // Layer 4: closeReason = EXCHANGE_SYNC (V215)
+    if (syncContent.includes('EXCHANGE_SYNC')) {
+      layersFound++;
+      layerDetails.push('V215');
+    }
+
+    // Layer 5: V216 safety net in ExchangeSync
+    if (closeMethod && closeMethod.includes('isAgentDirectClose')) {
+      layersFound++;
+      layerDetails.push('V216');
+    }
+
+    if (layersFound >= 4) {
+      passes.push(`حماية متعددة الطبقات: ${layersFound}/5 طبقات (${layerDetails.join(' → ')})`);
+    } else if (layersFound >= 3) {
+      passes.push(`حماية جزئية: ${layersFound}/5 طبقات (${layerDetails.join(' → ')})`);
+    } else {
+      failures.push(`حماية ضعيفة: فقط ${layersFound}/5 طبقات (${layerDetails.join(' → ') || 'لا توجد'})`);
+    }
+
+    // ── Build result ──
+    if (failures.length > 0) {
+      return {
+        id: 'V23',
+        name: 'V216 حماية الوكيل في ExchangeSync',
+        status: 'FAIL',
+        detail: `${failures.length} مشكلة: ${failures.join(' | ')}`,
+      };
+    }
+
+    return {
+      id: 'V23',
+      name: 'V216 حماية الوكيل في ExchangeSync',
+      status: 'PASS',
+      detail: `حماية Agent positions فعالة: ${passes.join(' | ')}`,
+    };
+  }
+
+  // ── V24: Version Tracking — health endpoint returns correct version ──
+  private checkV24(): CheckResult {
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    // Check NestJS main.ts health endpoint
+    const mainContent = this.read('main.ts');
+    if (!mainContent) {
+      return { id: 'V24', name: 'V217 تتبع الإصدار', status: 'MISSING', detail: 'ملف main.ts غير موجود' };
+    }
+
+    // Check for version info in health endpoint
+    const hasVersionInfo = mainContent.includes('version:') && (mainContent.includes('code:') || mainContent.includes('agentProtection'));
+    if (hasVersionInfo) {
+      passes.push('نقطة نهاية health تعرض معلومات الإصدار (code, agentProtection, commit)');
+    } else {
+      failures.push('نقطة نهاية health لا تعرض معلومات الإصدار — لا يمكن التحقق من الإصدار المنشور');
+    }
+
+    // Check for RAILWAY_GIT_COMMIT_SHA in version info
+    const hasCommitSha = mainContent.includes('RAILWAY_GIT_COMMIT_SHA') || mainContent.includes('DEPLOY_COMMIT');
+    if (hasCommitSha) {
+      passes.push('Commit SHA مضمن في health endpoint');
+    } else {
+      failures.push('Commit SHA غير مضمن — لا يمكن تتبع النسخة المنشورة');
+    }
+
+    // Check Next.js health route passes through version info
+    const webHealthPath = path.resolve(this.SRC_DIR, '..', 'web', 'src', 'app', 'api', 'health', 'route.ts');
+    let webHealthContent: string | null = null;
+    try {
+      webHealthContent = fs.readFileSync(webHealthPath, 'utf-8');
+    } catch {}
+    // Try alternate paths
+    if (!webHealthContent) {
+      const altPaths = [
+        path.resolve(this.SRC_DIR, '..', '..', 'web', 'src', 'app', 'api', 'health', 'route.ts'),
+        path.resolve(process.cwd(), 'apps', 'web', 'src', 'app', 'api', 'health', 'route.ts'),
+      ];
+      for (const p of altPaths) {
+        try { webHealthContent = fs.readFileSync(p, 'utf-8'); break; } catch {}
+      }
+    }
+
+    if (webHealthContent) {
+      const hasApiVersionPass = webHealthContent.includes('apiVersionInfo') || webHealthContent.includes('version') && webHealthContent.includes('api');
+      if (hasApiVersionPass) {
+        passes.push('Next.js health route يمرّر معلومات الإصدار من NestJS');
+      } else {
+        failures.push('Next.js health route لا يمرّر معلومات الإصدار — المستخدم يرى 0.1.0 بدل V216+');
+      }
+    } else {
+      // In production Docker, the Next.js source may not be accessible
+      // This is OK — we already checked the NestJS side
+    }
+
+    // ── Build result ──
+    if (failures.length > 0) {
+      return {
+        id: 'V24',
+        name: 'V217 تتبع الإصدار',
+        status: 'FAIL',
+        detail: `${failures.length} مشكلة: ${failures.join(' | ')}`,
+      };
+    }
+
+    return {
+      id: 'V24',
+      name: 'V217 تتبع الإصدار',
+      status: 'PASS',
+      detail: `تتبع الإصدار يعمل: ${passes.join(' | ')}`,
+    };
+  }
+
+  // ── V25: V217 — Cross-service Risk Consistency ──
+  // Verifies that all risk services (RiskGatekeeper, RiskManager, RiskCalculator)
+  // use consistent portfolio valuation and risk parameters.
+  private checkV25(): CheckResult {
+    const failures: string[] = [];
+    const warnings: string[] = [];
+    const passes: string[] = [];
+
+    // ── V25a: All three risk services exist ──
+    const riskGKContent = this.read('modules/trading/services/risk-gatekeeper.service.ts');
+    const riskMgrContent = this.read('modules/trading/risk-manager.service.ts');
+    const riskCalcContent = this.read('agents/autonomous-trader/services/risk-calculator.service.ts');
+
+    const missingServices: string[] = [];
+    if (!riskGKContent) missingServices.push('RiskGatekeeper');
+    if (!riskMgrContent) missingServices.push('RiskManager');
+    if (!riskCalcContent) missingServices.push('RiskCalculator');
+
+    if (missingServices.length > 0) {
+      return {
+        id: 'V25',
+        name: 'V217 تناسق المخاطر بين الخدمات',
+        status: 'MISSING',
+        detail: `خدمات مفقودة: ${missingServices.join(', ')}`,
+      };
+    }
+
+    // ── V25b: All services use _isPaperOnly (not _isTestExchange for paper bypass) ──
+    const gkHasPaperOnly = riskGKContent!.includes('_isPaperOnly');
+    const rmHasPaperOnly = riskMgrContent!.includes('_isPaperOnly');
+
+    if (gkHasPaperOnly && rmHasPaperOnly) {
+      passes.push('RiskGatekeeper و RiskManager يستخدمان _isPaperOnly() (فصل الورقي عن Demo)');
+    } else {
+      const missing: string[] = [];
+      if (!gkHasPaperOnly) missing.push('RiskGatekeeper');
+      if (!rmHasPaperOnly) missing.push('RiskManager');
+      failures.push(`${missing.join(' و ')} لا يستخدمان _isPaperOnly() — حسابات Demo قد تتجاوز فحوصات المخاطر`);
+    }
+
+    // ── V25c: RiskManager and RiskCalculator both handle paperBalance default ──
+    const rmHasDefault = riskMgrContent!.includes('DEFAULT_PAPER_BALANCE') || riskMgrContent!.includes('10000');
+    const rcHasDefault = riskCalcContent!.includes('DEFAULT_PAPER_BALANCE') || riskCalcContent!.includes('10000');
+
+    if (rmHasDefault && rcHasDefault) {
+      passes.push('كلا الخدمتين تتعاملان مع paperBalance=0 بقيمة افتراضية');
+    } else if (rmHasDefault) {
+      warnings.push('RiskManager يتعامل مع paperBalance=0 لكن RiskCalculator قد لا يفعل');
+    } else {
+      failures.push('RiskManager لا يتعامل مع paperBalance=0 — تداول الورق سيتوقف إذا كان الرصيد 0');
+    }
+
+    // ── V25d: No conflicting maxPositionSizePercent values ──
+    // RiskManager uses riskPerTrade * 3 (capped at 30%) from DB settings
+    // RiskCalculator uses config.maxPositionSizePercent (default 2%)
+    // These serve DIFFERENT purposes (RM = Smart Executor limit, RC = Agent limit), so different values are OK
+    // But we should verify neither has dangerously high values
+    const rmHasSafeCap = riskMgrContent!.includes('Math.min(30') || riskMgrContent!.includes('Math.min(20');
+    if (rmHasSafeCap) {
+      passes.push('RiskManager يحد maxPositionSizePercent بحد أقصى آمن (30%)');
+    } else {
+      warnings.push('لا يمكن التأكد من وجود حد أقصى آمن لـ maxPositionSizePercent في RiskManager');
+    }
+
+    // ── V25e: V133 agent daily limit only counts agent trades ──
+    const rcHasAgentOnlyPnl = riskCalcContent!.includes("source: 'agent'");
+    if (rcHasAgentOnlyPnl) {
+      passes.push('RiskCalculator يحسب الخسارة اليومية للوكيل فقط (V133) — لا تلوث من مصادر أخرى');
+    } else {
+      failures.push('RiskCalculator يحسب الخسارة اليومية من كل المصادر — Smart Executor يمكنه تفعيل حد الخسارة للوكيل');
+    }
+
+    // ── Build result ──
+    if (failures.length > 0) {
+      return {
+        id: 'V25',
+        name: 'V217 تناسق المخاطر بين الخدمات',
+        status: 'FAIL',
+        detail: `${failures.length} مشكلة: ${failures.join(' | ')}`,
+      };
+    }
+
+    if (warnings.length > 0) {
+      return {
+        id: 'V25',
+        name: 'V217 تناسق المخاطر بين الخدمات',
+        status: 'WARN',
+        detail: `${warnings.join(' | ')}${passes.length > 0 ? ` | ✅ ${passes.join(' | ')}` : ''}`,
+      };
+    }
+
+    return {
+      id: 'V25',
+      name: 'V217 تناسق المخاطر بين الخدمات',
+      status: 'PASS',
+      detail: `خدمات المخاطر متسقة: ${passes.join(' | ')}`,
+    };
   }
 
   // ── HTML Renderer ──

@@ -210,9 +210,9 @@ export class RiskManagerService {
         };
       }
       // V180+FIX: Position size % check for paper trading.
-      // NO guard condition — must ALWAYS check. If portfolioValue is unknown,
-      // use default $10,000 to prevent unbounded positions.
-      const paperPortfolioValue = await this._estimatePortfolioValue(userId, true) || 10000;
+      // V217: _estimatePortfolioValue now returns paperBalance + unrealizedPnL
+      // with $10,000 default fallback — no more || 10000 guard needed
+      const paperPortfolioValue = await this._estimatePortfolioValue(userId, true);
       const paperOrderValue = (quantity || 0) * (price || 0);
       if (paperOrderValue > 0) {
         const paperPositionPercent = (paperOrderValue / paperPortfolioValue) * 100;
@@ -385,38 +385,71 @@ export class RiskManagerService {
   /**
    * Estimate portfolio value for a user.
    *
-   * FIX: For paper-trading users, the Portfolio table is typically empty
-   * (no real funds to track), so manualValue = 0. If the user has 1 open
-   * position worth $5000, portfolioValue = $5000, and a new order for $5000
-   * gives positionPercent = 100%. This was the root cause of ALL orders being
-   * rejected with "حجم المركز (100.0%) يتجاوز الحد الأقصى (5%)".
+   * V217 UNIFIED FIX: Portfolio valuation is now CONSISTENT with RiskCalculator.
+   * Both services use the SAME formula:
    *
-   * Now: for paper users (isPaperTrading=true), use AgentSettings.paperBalance
-   * (default $10,000) as the portfolio base, giving realistic position sizing.
-   * For real users, use the existing Portfolio + positions calculation.
+   *   Paper trading: paperBalance + unrealizedPnL
+   *   Real trading:   Portfolio.totalValue + unrealizedPnL
+   *
+   * Previously, RiskManager used paperBalance ONLY (no unrealizedPnL), while
+   * RiskCalculator used paperBalance + unrealizedPnL. This inconsistency caused:
+   *   - RiskManager sees $10,000 portfolio → allows $200 order (2%)
+   *   - But RiskCalculator sees $12,000 portfolio (paperBalance + $2k PnL)
+   *     → sizes positions based on $12,000 → $240 order
+   *   - The $240 order then FAILS RiskManager's check because it uses $10,000
+   *
+   * Also fixed: paperBalance = 0 now falls back to $10,000 default (matching
+   * RiskCalculator behavior), instead of returning 0 which blocks all trading.
    */
   private async _estimatePortfolioValue(userId: string, isPaperTrading = false): Promise<number> {
-    // ── Paper Trading: Use AgentSettings.paperBalance ──
+    // ── Paper Trading: AgentSettings.paperBalance + unrealizedPnL ──
     if (isPaperTrading) {
       try {
         const agentSettings = await this.prisma.agentSettings.findUnique({
           where: { userId },
         });
-        const paperBalance = agentSettings?.paperBalance?.toNumber() ?? 0; // V204: was 10000
-        if (paperBalance <= 0) {
-          this.logger.warn(`🛡️ V204: Paper balance is $${paperBalance} — no capital available`);
-          return 0;
+        // V217: paperBalance = 0 → fallback to $10,000 default (was returning 0)
+        const paperBalance = agentSettings?.paperBalance?.toNumber()
+          || parseFloat(this.configService.get('DEFAULT_PAPER_BALANCE', '10000'))
+          || 10000;
+
+        // V217: Add unrealized P&L from open positions (unified with RiskCalculator)
+        let unrealizedPnl = 0;
+        try {
+          const openPositions = await this.prisma.position.findMany({
+            where: { userId, status: 'OPEN' },
+            select: { quantity: true, currentPrice: true, entryPrice: true, side: true },
+          });
+          for (const p of openPositions) {
+            const qty = Number(p.quantity) || 0;
+            const currentPrice = Number(p.currentPrice) || Number(p.entryPrice) || 0;
+            const entryPrice = Number(p.entryPrice) || 0;
+            if (p.side === 'BUY') {
+              unrealizedPnl += (currentPrice - entryPrice) * qty;
+            } else {
+              unrealizedPnl += (entryPrice - currentPrice) * qty;
+            }
+          }
+        } catch {
+          // If we can't fetch positions, just use paperBalance without PnL
         }
-        this.logger.debug(`🛡️ Paper trading portfolio value: $${paperBalance} (from AgentSettings)`);
-        return paperBalance;
+
+        const portfolioValue = paperBalance + unrealizedPnl;
+        if (portfolioValue <= 0) {
+          this.logger.warn(`🛡️ V217: Paper portfolio is $${portfolioValue} (balance=$${paperBalance}, PnL=$${unrealizedPnl}) — using default`);
+          return parseFloat(this.configService.get('DEFAULT_PAPER_BALANCE', '10000')) || 10000;
+        }
+        this.logger.debug(`🛡️ V217: Paper trading portfolio value: $${portfolioValue} (balance=$${paperBalance} + unrealizedPnl=$${unrealizedPnl})`);
+        return portfolioValue;
       } catch (err: any) {
-        this.logger.error(`🛡️ V204: Failed to fetch paper balance: ${err.message} — returning 0`);
-        return 0;
+        // V217: On DB error, return default instead of 0 (matching RiskCalculator)
+        const defaultBalance = parseFloat(this.configService.get('DEFAULT_PAPER_BALANCE', '10000')) || 10000;
+        this.logger.error(`🛡️ V217: Failed to fetch paper balance: ${err.message} — using default: $${defaultBalance}`);
+        return defaultBalance;
       }
     }
 
     // ── Real Trading: Portfolio table + open positions ──
-    // Sum up all portfolio values for the user
     const portfolios = await this.prisma.portfolio.aggregate({
       where: { userId },
       _sum: { totalValue: true },
@@ -424,16 +457,33 @@ export class RiskManagerService {
 
     const manualValue = Number(portfolios._sum.totalValue || 0);
 
-    // Also add current value of open positions
+    // V217: Calculate unrealizedPnL (not full notional) for consistency with RiskCalculator
     const openPositions = await this.prisma.position.findMany({
       where: { userId, status: 'OPEN' },
     });
 
-    const positionsValue = openPositions.reduce((sum, p) => {
-      return sum + Number(p.quantity) * (Number(p.currentPrice) || Number(p.entryPrice));
-    }, 0);
+    let unrealizedPnl = 0;
+    for (const p of openPositions) {
+      const qty = Number(p.quantity) || 0;
+      const currentPrice = Number(p.currentPrice) || Number(p.entryPrice) || 0;
+      const entryPrice = Number(p.entryPrice) || 0;
+      if (p.side === 'BUY') {
+        unrealizedPnl += (currentPrice - entryPrice) * qty;
+      } else {
+        unrealizedPnl += (entryPrice - currentPrice) * qty;
+      }
+    }
 
-    return manualValue + positionsValue;
+    const totalValue = manualValue + unrealizedPnl;
+
+    if (totalValue <= 0) {
+      this.logger.warn(
+        `🛡️ V217: Real portfolio value is $${totalValue} for user ${userId} (manual=$${manualValue}, PnL=$${unrealizedPnl}) — NOT executing for safety`,
+      );
+      return 0;
+    }
+
+    return totalValue;
   }
 
   /**

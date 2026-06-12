@@ -19,6 +19,8 @@
 # on every version bump, causing 30+ minute full rebuilds.
 # Use Railway's "Redeploy" button for clean rebuilds instead.
 ARG GIT_COMMIT=unknown
+# V216: Declare RAILWAY_GIT_COMMIT_SHA so Docker doesn't warn about undefined variable
+ARG RAILWAY_GIT_COMMIT_SHA=
 
 # ─────────────────────────────────────────────────────────────
 # Stage 1: Install dependencies
@@ -96,6 +98,7 @@ FROM node:22-slim AS runner
 
 # Re-declare ARG so it's available in this stage (ARGs don't carry across stages)
 ARG GIT_COMMIT=unknown
+ARG RAILWAY_GIT_COMMIT_SHA=
 
 # OpenSSL for Prisma + curl for health checks + bash for start.sh
 # procps: Provides pgrep/pkill for process management in start.sh

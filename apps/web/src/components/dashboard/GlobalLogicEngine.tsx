@@ -58,8 +58,11 @@ export function GlobalLogicEngine() {
     fetchSettings()
   }, [fetchSettings])
 
-  // ── Price sync: every 1 second (V139: reduced from 2s for faster P&L updates) ──
-  // Only updates currentPrice in existing positions — does NOT replace the array.
+  // ── Price sync: BACKUP every 2 seconds (V225: reduced from 1s primary → 2s backup) ──
+  // V225: Binance WS now calls updatePositionPrice() directly (~100ms latency).
+  // This loop is now a BACKUP that catches symbols NOT served by WS (forex, stocks)
+  // or when WS is disconnected. Redundant calls are harmless — updatePositionPrice()
+  // skips if price unchanged (Math.abs delta < 0.0001).
   //
   // FIX V139: Normalize USD→USDT when matching symbols. Positions from SmartExecutor
   // use BTC/USDT format, but market quotes may use BTC/USD. Without this normalization,
@@ -74,9 +77,13 @@ export function GlobalLogicEngine() {
       const price = q?.price
       if (typeof price !== 'number' || Number.isNaN(price)) return
 
+      // V225: Skip symbols with fresh Binance WS data (<2s old).
+      // Binance WS calls updatePositionPrice() directly on every tick,
+      // so calling it again here is redundant and wastes CPU.
+      // Only process non-WS or stale-WS symbols (forex, stocks, disconnected WS).
+      if (q.source === 'Binance WS' && (now - new Date(q.timestamp).getTime() < 2000)) return
+
       // FIX V139: Normalize USD→USDT for matching purposes.
-      // BTC/USD → BTCUSDT (same as BTC/USDT → BTCUSDT)
-      // This ensures positions stored as BTC/USDT match quotes stored under BTC/USD
       const normalizedSymbol = symbol.toUpperCase().replace('/', '').replace(/USD$/, 'USDT')
 
       const hasMatchingRealPosition = realPositions.some(
@@ -86,7 +93,7 @@ export function GlobalLogicEngine() {
       if (!hasMatchingRealPosition) return
 
       const lastSyncAt = lastPriceSyncRef.current[normalizedSymbol] || 0
-      if (now - lastSyncAt < 500) return // PERF: 500ms — 4x faster than before for responsive P&L
+      if (now - lastSyncAt < 500) return // PERF: 500ms per-symbol throttle
 
       lastPriceSyncRef.current[normalizedSymbol] = now
       updatePositionPrice(symbol, price)
@@ -132,7 +139,7 @@ export function GlobalLogicEngine() {
     if (currentEquity > 0) {
       prevEquityRef.current = currentEquity
     }
-  }, 1000) // PERF: 1000ms interval, with 500ms per-symbol throttle = responsive P&L
+  }, 2000) // V225: 2000ms backup interval (Binance WS handles crypto P&L directly at ~100ms)
 
   // ── Adaptive full fetch: 5s when active, 15s when idle ──
   // FIX: Reduced from 30s to 15s baseline, and 5s when automated trading is active.

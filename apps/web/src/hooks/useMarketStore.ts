@@ -1,6 +1,22 @@
 import { create } from 'zustand'
 import { BINANCE_URLS, CRYPTO_BASES } from '../lib/charts/config'
 
+// V225: Lazy import to avoid circular dependency.
+// usePositionsStore imports useMarketStore (via binanceWS), so importing
+// usePositionsStore at module level would create a circular reference.
+// Lazy import inside the callback breaks the cycle.
+let _updatePositionPrice: ((symbol: string, price: number) => void) | null = null
+function getUpdatePositionPrice() {
+  if (!_updatePositionPrice) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const mod = require('./usePositionsStore')
+      _updatePositionPrice = mod.usePositionsStore?.getState?.()?.updatePositionPrice ?? null
+    } catch { /* store not ready yet */ }
+  }
+  return _updatePositionPrice
+}
+
 export interface QuoteData {
   symbol: string
   name: string
@@ -341,6 +357,24 @@ class BinanceWSManager {
               timestamp: new Date().toISOString(),
               source: 'Binance WS'
             })
+
+            // ═══════════════════════════════════════════════════════════════
+            // V225 FIX: DIRECT P&L UPDATE FROM BINANCE WS
+            // Previously, Binance WS prices went to useMarketStore, then
+            // GlobalLogicEngine polled them every 1s with 500ms per-symbol
+            // throttle before calling updatePositionPrice(). This added
+            // 1-1.5s latency to crypto P&L updates.
+            //
+            // MT5 already bypasses this loop — useMT5Streaming calls
+            // updatePositionPrice() directly from Socket.IO events.
+            // Now Binance WS does the same: ~100ms P&L updates for crypto.
+            //
+            // GlobalLogicEngine still runs as backup for non-WS price sources.
+            // ═══════════════════════════════════════════════════════════════
+            try {
+              const fn = getUpdatePositionPrice()
+              if (fn) fn(originalSymbol, price)
+            } catch { /* non-fatal — GlobalLogicEngine will pick it up */ }
           }
         }
       } catch {

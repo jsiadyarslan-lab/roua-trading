@@ -2330,24 +2330,21 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         let shouldClose = false;
         let reason = '';
 
-        // V184 FIX: REMOVED hardcoded 4h breakeven close for paper positions.
-        // Previously, this closed ALL paper positions at 4h with currentPrice = entryPrice,
-        // which destroyed profitable trades and recorded wrong PnL (0 instead of actual).
+        // ═══════════════════════════════════════════════════════════════
+        // V224: REMOVED 4-hour MAX_HOLDING_TIME close logic entirely.
         //
-        // Now: MAX_HOLDING_TIME is handled exclusively by Position Monitor service,
-        // which uses dynamic timeframe-based holding limits AND checks P/L before closing.
-        // Agent positions get 48h (swing trading), Smart Executor gets 4h-7d by timeframe.
+        // History of this code block:
+        //   - V184: Removed hardcoded 4h breakeven close for paper positions
+        //   - V213: Added safety net to block MAX_HOLDING_TIME if old code ran
+        //   - V222: Added DB-level protection (Prisma $extends) preventing closes
+        //   - V224: Removed ALL MAX_HOLDING_TIME code from Agent entirely.
         //
-        // The Position Monitor also implements "profit protection": if a position is
-        // profitable when TIME_EXPIRED triggers, it moves SL to breakeven and extends
-        // the holding time instead of force-closing.
+        // The Agent now ONLY closes positions via SL/TP hits. Holding time
+        // management is the sole responsibility of PositionMonitorService,
+        // which uses dynamic timeframe-based limits (48h for Agent positions).
         //
-        // This prevents the #1 complaint: "4h auto-close destroyed my big profits".
-        //
-        // V213 SAFETY NET: If somehow this code still has the old MAX_HOLDING_TIME logic
-        // (e.g., stale compiled JS on Railway), this explicit check prevents it.
-        // The Agent should NEVER close positions based on holding time — only SL/TP.
-        // Holding time management is the sole responsibility of PositionMonitorService.
+        // This code block no longer contains ANY time-based closing logic.
+        // ═══════════════════════════════════════════════════════════════
 
         if (position.side === 'BUY') {
           if (stopLoss > 0 && currentPrice <= stopLoss) {
@@ -2367,20 +2364,11 @@ export class AutonomousTraderAgentService implements OnModuleInit {
           }
         }
 
-        if (shouldClose) {
-          // V213 SAFETY: Block MAX_HOLDING_TIME closes from Agent.
-          // The Agent should ONLY close positions via SL/TP hits.
-          // Holding time management is PositionMonitorService's job (48h for Agent).
-          // If reason is MAX_HOLDING_TIME, it means old code is running — BLOCK it.
-          if (reason === 'MAX_HOLDING_TIME') {
-            this.logger.error(
-              `🚨 V213 BLOCKED: Agent tried to close ${position.symbol} with MAX_HOLDING_TIME — ` +
-              `this is PositionMonitor's job, not Agent's. Position left open.`
-            );
-            shouldClose = false;
-            reason = '';
-          }
-        }
+        // V224: Removed V213 MAX_HOLDING_TIME safety net.
+        // The Agent can no longer produce reason='MAX_HOLDING_TIME' because
+        // the time-based close code has been fully removed above.
+        // The only possible reasons are now STOP_LOSS_HIT and TAKE_PROFIT_HIT.
+        // V222 DB-level protection provides an additional safety layer.
 
         if (shouldClose) {
           this.logger.log(`🧠 Auto-closing position ${position.id} (${position.symbol}): ${reason}`);
@@ -2396,12 +2384,12 @@ export class AutonomousTraderAgentService implements OnModuleInit {
               // V141: Pass closeReason so it's stored on the Position record
               const result = await this.tradingService.closePositionWithRetry(userId, {
                 positionId: position.id,
-                closeReason: reason, // STOP_LOSS_HIT, TAKE_PROFIT_HIT, or MAX_HOLDING_TIME
+                closeReason: reason, // STOP_LOSS_HIT or TAKE_PROFIT_HIT (V224: MAX_HOLDING_TIME removed)
               });
 
               // V184 FIX: Use actual exit price from close result, not local currentPrice.
-              // Previously, when MAX_HOLDING_TIME triggered, currentPrice was set to
-              // entryPrice (breakeven), making PnL always = 0 in tracking records.
+              // V224: Previously, when MAX_HOLDING_TIME triggered, currentPrice was set to
+              // entryPrice (breakeven), making PnL always = 0. This code path no longer exists.
               // Now: read the actual close price from the result or position record.
               const actualExitPrice = result?.position?.exitPrice
                 ? Number(result.position.exitPrice)
@@ -2432,7 +2420,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
                     pnl,
                     closedAt: new Date(),
                     holdingDurationMs: Date.now() - new Date(position.openedAt).getTime(),
-                    exitReason: reason === 'STOP_LOSS_HIT' ? 'STOP_LOSS' : reason === 'MAX_HOLDING_TIME' ? 'STRATEGY_EXIT' : 'TAKE_PROFIT',
+                    exitReason: reason === 'STOP_LOSS_HIT' ? 'STOP_LOSS' : 'TAKE_PROFIT',
                     isWinning: pnl > 0,
                     currentPrice: actualExitPrice as number,
                     status: 'FILLED',
@@ -2459,7 +2447,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
                   unrealizedPnl: pnl,
                   realizedPnl: (Number(position.realizedPnl) || 0) + pnl, // V140B: Set realizedPnl
                   exitPrice: currentPrice, // V140B: Set exitPrice
-                  closeReason: reason, // V141: STOP_LOSS_HIT, TAKE_PROFIT_HIT, or MAX_HOLDING_TIME
+                  closeReason: reason, // V224: STOP_LOSS_HIT or TAKE_PROFIT_HIT only
                   closedAt: new Date(),
                 },
               });
@@ -2509,7 +2497,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
                     pnl,
                     closedAt: new Date(),
                     holdingDurationMs: Date.now() - new Date(position.openedAt).getTime(),
-                    exitReason: reason === 'STOP_LOSS_HIT' ? 'STOP_LOSS' : reason === 'MAX_HOLDING_TIME' ? 'STRATEGY_EXIT' : 'TAKE_PROFIT',
+                    exitReason: reason === 'STOP_LOSS_HIT' ? 'STOP_LOSS' : 'TAKE_PROFIT',
                     isWinning: pnl > 0,
                     currentPrice,
                     status: 'FILLED',

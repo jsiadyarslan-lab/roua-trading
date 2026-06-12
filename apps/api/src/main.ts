@@ -319,7 +319,7 @@ async function bootstrap() {
         // V219: Version info for deployment verification
         // This allows checking which code is ACTUALLY running on Railway
         version: {
-          code: 'V223',
+          code: 'V224',
           agentProtection: 'ENABLED', // V214+V216: Agent positions protected from premature close
           portfolioUnification: 'ENABLED', // V217: RiskManager & RiskCalculator use same formula
           unifiedValuation: 'ENABLED', // V218: PortfolioValuationService = single source of truth
@@ -336,6 +336,7 @@ async function bootstrap() {
           wsPriceGuard: 'ENABLED', // V223: REST polling skips crypto when Binance WS is active
           fastPriceSync: 'ENABLED', // V223: Price sync throttle reduced 2000ms→500ms for responsive P&L
           reducedQuoteCache: 'ENABLED', // V223: Binance cache 3s→1s, ExchangeService cache 5s→2s
+          agentMaxHoldingRemoved: 'ENABLED', // V224: Removed ALL MAX_HOLDING_TIME code from Agent
           commit: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.DEPLOY_COMMIT || 'unknown',
           nodeEnv: process.env.NODE_ENV || 'development',
         },

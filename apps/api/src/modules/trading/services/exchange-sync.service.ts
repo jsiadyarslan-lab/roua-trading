@@ -344,6 +344,9 @@ export class ExchangeSyncService implements OnModuleInit, OnModuleDestroy {
         // path. Even if TradingService.closePositionWithRetry() fails
         // (which has V214 protection), this direct DB update path would
         // bypass V214 entirely. We must check here too.
+        //
+        // V219: Instead of leaving a permanent DB/exchange discrepancy,
+        // mark the position as DISPUTED so it can be reconciled later.
         // ═══════════════════════════════════════════════════════════
         const isAgentDirectClose = position.source === 'agent';
         if (isAgentDirectClose) {
@@ -353,12 +356,28 @@ export class ExchangeSyncService implements OnModuleInit, OnModuleDestroy {
           const directHoldingHours = directHoldingMs / (60 * 60 * 1000);
           if (directHoldingHours < 48) {
             this.logger.error(
-              `🚨 V216 BLOCKED: ExchangeSync direct DB close of Agent position ${position.id} (${position.symbol}) ` +
-              `at ${directHoldingHours.toFixed(1)}h — minimum 48h. ` +
-              `Leaving position OPEN in DB despite being closed on exchange. ` +
-              `This may indicate a stale exchange state — investigate manually.`
+              `🚨 V219: ExchangeSync detected Agent position ${position.id} (${position.symbol}) ` +
+              `closed on exchange at ${directHoldingHours.toFixed(1)}h (< 48h minimum). ` +
+              `Marking as DISPUTED for manual reconciliation.`
             );
-            return; // Do NOT close the position in DB
+            // V219: Mark as DISPUTED instead of leaving OPEN indefinitely
+            // This prevents: (1) the position blocking new trades, and
+            // (2) shows it clearly in the dashboard for investigation
+            try {
+              await this.prisma.position.update({
+                where: { id: position.id },
+                data: {
+                  status: 'DISPUTED',
+                  closeReason: 'EXCHANGE_SYNC_AGENT_PROTECTED',
+                  // V219: Store dispute details in closeReason since metadata field may not exist
+                  unrealizedPnl: 0,
+                },
+              });
+              this.logger.warn(`🚨 V219: Position ${position.id} marked as DISPUTED — needs manual reconciliation`);
+            } catch (disputeErr: any) {
+              this.logger.error(`🚨 V219: Failed to mark position as DISPUTED: ${disputeErr.message} — leaving OPEN`);
+            }
+            return;
           }
         }
 

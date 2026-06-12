@@ -20,6 +20,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
+import { PortfolioValuationService } from './portfolio-valuation.service';
 
 /** نتيجة فحص التعرض */
 export interface ExposureCheckResult {
@@ -64,8 +65,9 @@ export class ExposureManagerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly portfolioValuation: PortfolioValuationService,
   ) {
-    this.logger.log('🛡️ Exposure Manager initialized — unified cross-system exposure tracking with Redis locks');
+    this.logger.log('🛡️ Exposure Manager initialized — unified cross-system exposure tracking with Redis locks + PortfolioValuationService');
   }
 
   /**
@@ -313,34 +315,18 @@ export class ExposureManagerService {
 
   /**
    * الحصول على قيمة المحفظة
-   * يقرأ من AgentSettings.paperBalance للتداول الورقي
-   * أو من جدول Portfolio للتداول الحقيقي
+   * V219: Now delegates to PortfolioValuationService (SINGLE SOURCE OF TRUTH).
+   * Previously used its own formula with $10,000 default — inconsistent with RiskManager.
    */
   private async _getPortfolioValue(userId: string): Promise<number> {
     try {
-      // محاولة قراءة رصيد التداول الورقي أولاً
-      const agentSettings = await this.prisma.agentSettings.findUnique({
-        where: { userId },
-        select: { paperBalance: true },
-      });
-      if (agentSettings && Number(agentSettings.paperBalance) > 0) {
-        return Number(agentSettings.paperBalance);
-      }
-
-      // محاولة قراءة قيمة المحفظة الحقيقية
-      const portfolio = await this.prisma.portfolio.aggregate({
-        where: { userId },
-        _sum: { totalValue: true },
-      });
-      const totalValue = Number(portfolio._sum.totalValue || 0);
-      if (totalValue > 0) {
-        return totalValue;
-      }
-
-      // قيمة افتراضية
-      return 10000;
-    } catch {
-      return 10000;
+      const valuation = await this.portfolioValuation.autoDetectValuation(userId);
+      return valuation.totalValue;
+    } catch (error: any) {
+      // V219: Fail-CLOSED — if valuation fails, return 0 (block trades)
+      // OLD: returned 10000 as default — allowed trades based on phantom balance
+      this.logger.warn(`🛡️ V219: PortfolioValuationService failed for ${userId}: ${error.message} — returning 0 (fail-closed)`);
+      return 0;
     }
   }
 }

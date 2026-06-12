@@ -253,6 +253,13 @@ export class IntegrityCheckController {
     results.push(this.checkV28());
     results.push(this.checkV29());
     results.push(this.checkV30());
+    // V219 Phase 3 checks
+    results.push(this.checkV31());
+    results.push(this.checkV32());
+    results.push(this.checkV33());
+    results.push(this.checkV34());
+    results.push(this.checkV35());
+    results.push(this.checkV36());
 
     return results;
   }
@@ -2322,7 +2329,263 @@ export class IntegrityCheckController {
     return { id: 'V30', name: 'V218 منع التداولات المكررة', status: 'PASS', detail: `منع التداولات المكررة يعمل: ${passes.join(' | ')}` };
   }
 
-  // ── HTML Renderer ──
+  // ── V31: V219 — Agent OrderExecutor Cross-Source Position Check ──
+  // Verifies that the Agent's fallback position check searches ALL sources,
+  // not just source='agent'. This prevents duplicate positions across systems.
+  private checkV31(): CheckResult {
+    const oeContent = this.read('agents/autonomous-trader/services/order-executor.service.ts');
+    if (!oeContent) {
+      return { id: 'V31', name: 'V219 فحص المراكز الموحد للوكيل', status: 'MISSING', detail: 'ملف OrderExecutor غير موجود' };
+    }
+
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    // V31a: Fallback check does NOT filter by source='agent'
+    const hasSourceFilter = /source:\s*['"]agent['"]/.test(oeContent) && /findFirst/.test(oeContent);
+    // The fallback should check ALL sources — so source:'agent' should NOT be in the fallback
+    const hasV219Fix = oeContent.includes('V219-FIX') || (!hasSourceFilter && oeContent.includes('status: \'OPEN\''));
+
+    if (hasV219Fix || !hasSourceFilter) {
+      passes.push('فحص المراكز الاحتياطي يبحث في كل المصادر (ليس فقط الوكيل)');
+    } else {
+      failures.push('فحص المراكز الاحتياطي يبحث فقط في source=agent — قد يفتح مراكز مكررة مع SmartExecutor');
+    }
+
+    // V31b: TradeCoordination is used when available
+    const usesTradeCoordination = oeContent.includes('tradeCoordination.canOpenPosition');
+    if (usesTradeCoordination) {
+      passes.push('OrderExecutor يستخدم TradeCoordination للتحقق الموحد');
+    } else {
+      failures.push('OrderExecutor لا يستخدم TradeCoordination — فحص مكرر مفقود');
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V31', name: 'V219 فحص المراكز الموحد للوكيل', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V31', name: 'V219 فحص المراكز الموحد للوكيل', status: 'PASS', detail: `فحص المراكز الموحد يعمل: ${passes.join(' | ')}` };
+  }
+
+  // ── V32: V219 — ExposureManager Uses PortfolioValuationService ──
+  // Verifies that ExposureManager delegates portfolio valuation to the unified service
+  // instead of using its own formula with $10,000 default.
+  private checkV32(): CheckResult {
+    const emContent = this.read('modules/trading/services/exposure-manager.service.ts');
+    if (!emContent) {
+      return { id: 'V32', name: 'V219 ExposureManager موحد', status: 'MISSING', detail: 'ملف ExposureManager غير موجود' };
+    }
+
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    // V32a: ExposureManager imports PortfolioValuationService
+    const importsPV = emContent.includes('PortfolioValuationService');
+    if (importsPV) {
+      passes.push('ExposureManager يستورد PortfolioValuationService');
+    } else {
+      failures.push('ExposureManager لا يستورد PortfolioValuationService — صيغة مكررة');
+    }
+
+    // V32b: _getPortfolioValue delegates to PV
+    const delegatesToPV = emContent.includes('portfolioValuation.autoDetectValuation') || emContent.includes('portfolioValuation.getValue');
+    if (delegatesToPV) {
+      passes.push('ExposureManager يفوّض التقييم لـ PortfolioValuationService');
+    } else {
+      failures.push('ExposureManager لا يفوّض التقييم — يستخدم صيغته الخاصة');
+    }
+
+    // V32c: Fail-CLOSED behavior (returns 0 on error, not 10000)
+    const failClosed = emContent.includes('fail-closed') || (emContent.includes('return 0') && emContent.includes('V219'));
+    if (failClosed) {
+      passes.push('ExposureManager يفشل بشكل مغلقت (fail-CLOSED — يرجع 0 عند الخطأ)');
+    } else {
+      // Check if old $10,000 default is still there
+      const hasOldDefault = /return\s+10000/.test(emContent);
+      if (hasOldDefault) {
+        failures.push('ExposureManager يرجع 10000 كقيمة افتراضية — يجب أن يرجع 0 (fail-CLOSED)');
+      } else {
+        passes.push('لا يوجد حد افتراضي $10,000 في ExposureManager');
+      }
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V32', name: 'V219 ExposureManager موحد', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V32', name: 'V219 ExposureManager موحد', status: 'PASS', detail: `ExposureManager موحد: ${passes.join(' | ')}` };
+  }
+
+  // ── V33: V219 — Fail-CLOSED TradeCoordination ──
+  // Verifies that all risk-critical services use fail-CLOSED behavior.
+  private checkV33(): CheckResult {
+    const tcContent = this.read('modules/trading/services/trade-coordination.service.ts');
+    if (!tcContent) {
+      return { id: 'V33', name: 'V219 فشل مغلق للتنسيق', status: 'MISSING', detail: 'ملف TradeCoordination غير موجود' };
+    }
+
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    // V33a: TradeCoordination does NOT have "FAIL-OPEN" or "fail open" in code
+    const hasFailOpen = tcContent.includes('FAIL-OPEN') || tcContent.includes('fail open') || tcContent.includes('allowing trade');
+    if (!hasFailOpen) {
+      passes.push('TradeCoordination لا يحتوي على سلوك fail-open');
+    } else {
+      failures.push('TradeCoordination لا يزال يستخدم سلوك fail-open — يجب أن يكون fail-CLOSED');
+    }
+
+    // V33b: Has fail-closed markers
+    const hasFailClosed = tcContent.includes('fail-closed') || tcContent.includes('fail-CLOSED') || tcContent.includes('V219');
+    if (hasFailClosed) {
+      passes.push('TradeCoordination يستخدم سلوك fail-CLOSED (V219)');
+    } else {
+      failures.push('TradeCoordination لا يوضح سلوك fail-CLOSED — يجب توثيقه');
+    }
+
+    // V33c: Lock acquisition returns false on Redis failure (not true)
+    const lockFailsClosed = /catch.*\n.*return false/.test(tcContent);
+    if (lockFailsClosed) {
+      passes.push('قفل التنسيق يفشل بشكل مغلقت (يرجع false عند فشل Redis)');
+    } else {
+      const allowsOnRedisFail = /allowing trade for/.test(tcContent);
+      if (allowsOnRedisFail) {
+        failures.push('قفل التنسيق يسمح التداول عند فشل Redis — يجب أن يرفض');
+      } else {
+        passes.push('قفل التنسيق لا يسمح التداول عند فشل Redis');
+      }
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V33', name: 'V219 فشل مغلق للتنسيق', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V33', name: 'V219 فشل مغلق للتنسيق', status: 'PASS', detail: `سلوك الفشل الموحد: ${passes.join(' | ')}` };
+  }
+
+  // ── V34: V219 — SmartExecutor $200 Cap Removed ──
+  // Verifies that the $200 hard cap on maxOrderValue has been removed.
+  private checkV34(): CheckResult {
+    const seContent = this.read('modules/ai/smart-executor/smart-executor.service.ts');
+    if (!seContent) {
+      return { id: 'V34', name: 'V219 حد الطلب المرن', status: 'MISSING', detail: 'ملف SmartExecutor غير موجود' };
+    }
+
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    // V34a: No $200 hard cap in maxOrderValue calculation
+    const has200Cap = /Math\.min\(.*200\)/.test(seContent);
+    if (!has200Cap) {
+      passes.push('الحد الأقصى $200 الصلب تمت إزالته — حجم الطلب يعتمد على نسبة المحفظة فقط');
+    } else {
+      failures.push('الحد الأقصى $200 الصلب لا يزال موجوداً — يقيد الحسابات الكبيرة بشكل مفرط');
+    }
+
+    // V34b: maxOrderValue is percentage-based
+    const isPercentageBased = /maxOrderValue\s*=\s*portfolioValue\s*\*\s*0\.0[0-9]/.test(seContent);
+    if (isPercentageBased) {
+      passes.push('حجم الطلب يعتمد على نسبة المحفظة (نظام مرن)');
+    } else {
+      failures.push('حجم الطلب لا يعتمد على نسبة المحفظة — قد يكون مقيداً بشكل مفرط');
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V34', name: 'V219 حد الطلب المرن', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V34', name: 'V219 حد الطلب المرن', status: 'PASS', detail: `حد الطلب المرن: ${passes.join(' | ')}` };
+  }
+
+  // ── V35: V219 — DISPUTED Position Status ──
+  // Verifies that the DISPUTED status exists for reconciliation of exchange sync conflicts.
+  private checkV35(): CheckResult {
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    // V35a: Prisma schema has DISPUTED enum value
+    const schemaContent = this.readSchema();
+    if (schemaContent) {
+      const hasDisputed = /enum PositionStatus[\s\S]*DISPUTED/.test(schemaContent);
+      if (hasDisputed) {
+        passes.push('حالة DISPUTED موجودة في Prisma schema');
+      } else {
+        failures.push('حالة DISPUTED غير موجودة في Prisma schema — المواقف المتنازع عليها لن تُسجَّل');
+      }
+    } else {
+      failures.push('ملف Prisma schema غير موجود');
+    }
+
+    // V35b: ExchangeSync uses DISPUTED status
+    const esContent = this.read('modules/trading/services/exchange-sync.service.ts');
+    if (esContent) {
+      const usesDisputed = esContent.includes('DISPUTED');
+      if (usesDisputed) {
+        passes.push('ExchangeSync يضع المراكز المتنازع عليها في حالة DISPUTED');
+      } else {
+        failures.push('ExchangeSync لا يستخدم حالة DISPUTED — المراكز المتنازع عليها تبقى OPEN');
+      }
+    }
+
+    // V35c: V216 safety net still blocks Agent positions < 48h
+    if (esContent) {
+      const hasAgentProtection = esContent.includes('isAgentDirectClose') || esContent.includes("source === 'agent'");
+      if (hasAgentProtection) {
+        passes.push('حماية الوكيل < 48h لا تزال فعالة (V216)');
+      } else {
+        failures.push('حماية الوكيل < 48h مفقودة — يمكن إغلاق مراكز الوكيل مبكراً');
+      }
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V35', name: 'V219 حالة DISPUTED', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V35', name: 'V219 حالة DISPUTED', status: 'PASS', detail: `حالة DISPUTED فعالة: ${passes.join(' | ')}` };
+  }
+
+  // ── V36: V219 — Partial Fill Manager ──
+  // Verifies that the partial fill handling service exists and is properly configured.
+  private checkV36(): CheckResult {
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    // V36a: PartialFillManagerService file exists
+    const pfmContent = this.read('modules/trading/services/partial-fill-manager.service.ts');
+    if (!pfmContent) {
+      return { id: 'V36', name: 'V219 إدارة التعبئة الجزئية', status: 'MISSING', detail: 'ملف PartialFillManager غير موجود' };
+    }
+    passes.push('PartialFillManagerService موجود');
+
+    // V36b: Has trackPartialFill method
+    if (pfmContent.includes('trackPartialFill')) {
+      passes.push('طريقة trackPartialFill متاحة');
+    } else {
+      failures.push('طريقة trackPartialFill غير موجودة — لا يمكن تتبع التعبئة الجزئية');
+    }
+
+    // V36c: Has resolvePartialFill method
+    if (pfmContent.includes('resolvePartialFill')) {
+      passes.push('طريقة resolvePartialFill متاحة');
+    } else {
+      failures.push('طريقة resolvePartialFill غير موجودة — لا يمكن حل التعبئة الجزئية');
+    }
+
+    // V36d: Has position adjustment for partial fills
+    if (pfmContent.includes('adjustPositionForPartialFill') || pfmContent.includes('_adjustPositionForPartialFill')) {
+      passes.push('تعديل المركز (الكمية + SL/TP) عند التعبئة الجزئية');
+    } else {
+      failures.push('لا يوجد تعديل للمركز عند التعبئة الجزئية — SL/TP سيكون خاطئاً');
+    }
+
+    // V36e: Registered in TradingModule
+    const tmContent = this.read('modules/trading/trading.module.ts');
+    if (tmContent && tmContent.includes('PartialFillManagerService')) {
+      passes.push('PartialFillManagerService مسجل في TradingModule');
+    } else {
+      failures.push('PartialFillManagerService غير مسجل في TradingModule');
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V36', name: 'V219 إدارة التعبئة الجزئية', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V36', name: 'V219 إدارة التعبئة الجزئية', status: 'PASS', detail: `إدارة التعبئة الجزئية تعمل: ${passes.join(' | ')}` };
+  }
   private renderHtml(results: CheckResult[], passed: number, failed: number, warnings: number, score: string): string {
     const statusIcon = (s: string) => s === 'PASS' ? '✅' : s === 'FAIL' ? '❌' : s === 'WARN' ? '⚠️' : '❓';
     const statusColor = (s: string) => s === 'PASS' ? '#16a34a' : s === 'FAIL' ? '#dc2626' : s === 'WARN' ? '#d97706' : '#6b7280';

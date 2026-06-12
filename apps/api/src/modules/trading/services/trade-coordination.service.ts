@@ -11,8 +11,9 @@
 // 3. Each symbol can only have ONE open position at a time (regardless of source)
 // 4. Redis-based distributed lock prevents race conditions
 //
-// FAIL-OPEN: If Redis or the coordination service fails, trades are still allowed.
-// This prevents a coordination outage from blocking all trading activity.
+// V219: Fail-CLOSED — if Redis or DB fails, trades are BLOCKED (not allowed).
+// Previous fail-open behavior allowed duplicate positions during outages.
+// Risk-critical checks must fail-closed to protect capital.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Injectable, Logger } from '@nestjs/common';
@@ -50,9 +51,9 @@ export class TradeCoordinationService {
 
       return existing?.source || null;
     } catch (err: any) {
-      // FAIL-OPEN: If DB query fails, allow the trade
-      this.logger.warn(`🔗 Position source check failed for ${userId}:${symbol}: ${err.message} — allowing trade`);
-      return null;
+      // V219: Fail-CLOSED — if DB query fails, block the trade
+      this.logger.error(`🔗 Position source check FAILED (fail-closed) for ${userId}:${symbol}: ${err.message}`);
+      return 'error_unknown'; // Return non-null to block the trade
     }
   }
 
@@ -102,8 +103,13 @@ export class TradeCoordinationService {
         };
       }
     } catch (err: any) {
-      // FAIL-OPEN: Redis unavailable — allow trade
-      this.logger.debug(`🔗 Lock check failed (Redis unavailable): ${err.message} — allowing trade`);
+      // V219: Fail-CLOSED — Redis unavailable → block trade
+      this.logger.error(`🔗 Lock check FAILED (fail-closed, Redis unavailable): ${err.message}`);
+      return {
+        allowed: false,
+        reason: `فشل فحص القفل (مرفوض احتياطياً): ${err.message}`,
+        existingSource: 'error_unknown',
+      };
     }
 
     return { allowed: true, reason: 'OK', existingSource: null };
@@ -126,9 +132,9 @@ export class TradeCoordinationService {
       }
       return true;
     } catch {
-      // Redis unavailable — allow trade (fail open, not closed)
-      this.logger.debug(`🔗 Lock acquisition failed (Redis unavailable) — allowing trade for ${source}`);
-      return true;
+      // V219: Fail-CLOSED — Redis unavailable → block trade
+      this.logger.error(`🔗 Lock acquisition FAILED (fail-closed, Redis unavailable) — blocking trade for ${source}`);
+      return false;
     }
   }
 

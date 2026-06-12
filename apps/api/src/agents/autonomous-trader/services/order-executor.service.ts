@@ -148,19 +148,21 @@ export class OrderExecutorService implements OnModuleDestroy {
           this.logger.warn(`⚡ Trade coordination check failed: ${coordErr.message} — proceeding anyway`);
         }
       } else {
-        // Fallback: No TradeCoordinationService — use the old V146b check
+        // V219-FIX: Fallback when TradeCoordinationService is unavailable.
+        // OLD: Only checked source='agent' positions → missed SmartExecutor duplicates
+        // NEW: Check ALL sources to prevent cross-system duplicate positions
         const existingPosition = await this.prisma.position.findFirst({
-          where: { userId, symbol: signal.symbol, status: 'OPEN', source: 'agent' },
+          where: { userId, symbol: signal.symbol, status: 'OPEN' },
         });
 
         if (existingPosition) {
           this.logger.warn(
-            `⚡ ORDER REJECTED: Agent already has position for ${signal.symbol} ` +
-            `(existing: ${existingPosition.side})`,
+            `⚡ ORDER REJECTED: Position already exists for ${signal.symbol} ` +
+            `(source: ${existingPosition.source || 'unknown'}, side: ${existingPosition.side})`,
           );
           return {
             success: false,
-            error: `يوجد مركز خاص بالوكيل لـ ${signal.symbol} (${existingPosition.side}) — لا يمكن فتح مركز آخر`,
+            error: `يوجد مركز مفتوح لـ ${signal.symbol} (${existingPosition.source || 'غير معروف'}: ${existingPosition.side}) — لا يمكن فتح مركز آخر`,
             executionTimeMs: Date.now() - startTime,
           };
         }

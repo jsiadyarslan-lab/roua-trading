@@ -3024,7 +3024,9 @@ export class SmartExecutorService implements OnModuleDestroy {
       // Previously paper was 5% which allowed positions of 86% of portfolio.
       // Paper trading must enforce the same risk discipline as real trading
       // so that test results reflect real-world behavior.
-      const maxOrderValue = Math.min(portfolioValue * 0.02, 200);
+      // V219: Removed $200 hard cap — it was too restrictive for larger accounts.
+      // A $50K account at 2% = $1,000 but was capped at $200. Now purely percentage-based.
+      const maxOrderValue = portfolioValue * 0.02;
 
       if (posResult.notional > maxOrderValue) {
         // Reduce quantity to fit within max order value

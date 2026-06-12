@@ -46,6 +46,9 @@ import { PriceValidationService } from './services/price-validation.service';
 // ✅ V218: Risk Event Audit — every risk decision logged for audit trail
 import { RiskEventAuditService } from './services/risk-event-audit.service';
 
+// ✅ V219: Partial Fill Manager — handles partially filled orders from real exchanges
+import { PartialFillManagerService } from './services/partial-fill-manager.service';
+
 /**
  * Trading Module — Complete Trading Engine
  *
@@ -130,6 +133,9 @@ import { RiskEventAuditService } from './services/risk-event-audit.service';
 
     // ✅ V218: Risk Event Audit
     RiskEventAuditService,
+
+    // ✅ V219: Partial Fill Manager
+    PartialFillManagerService,
   ],
   exports: [
     TradingService,
@@ -167,6 +173,9 @@ import { RiskEventAuditService } from './services/risk-event-audit.service';
 
     // ✅ V218: Export Risk Event Audit for risk services
     RiskEventAuditService,
+
+    // ✅ V219: Export Partial Fill Manager for trading services
+    PartialFillManagerService,
   ],
 })
 export class TradingModule {}

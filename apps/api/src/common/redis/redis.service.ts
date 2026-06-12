@@ -126,6 +126,37 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
+  // V219: Redis Set operations for PartialFillManager and future services
+  async sadd(key: string, ...members: string[]): Promise<number> {
+    if (!this.isAvailable) return this.handleUnavailable(0, `sadd(${key})`);
+    try {
+      return await this.client.sadd(key, ...members);
+    } catch (err: any) {
+      this.logger.warn(`Redis SADD failed for key "${key}": ${err.message}`);
+      return 0;
+    }
+  }
+
+  async smembers(key: string): Promise<string[]> {
+    if (!this.isAvailable) return this.handleUnavailable([], `smembers(${key})`);
+    try {
+      return await this.client.smembers(key);
+    } catch (err: any) {
+      this.logger.warn(`Redis SMEMBERS failed for key "${key}": ${err.message}`);
+      return [];
+    }
+  }
+
+  async srem(key: string, ...members: string[]): Promise<number> {
+    if (!this.isAvailable) return this.handleUnavailable(0, `srem(${key})`);
+    try {
+      return await this.client.srem(key, ...members);
+    } catch (err: any) {
+      this.logger.warn(`Redis SREM failed for key "${key}": ${err.message}`);
+      return 0;
+    }
+  }
+
   async incr(key: string): Promise<number> {
     if (!this.isAvailable) return this.handleUnavailable(0, `incr(${key})`);
     try {

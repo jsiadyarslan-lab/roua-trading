@@ -334,6 +334,7 @@ enum PositionStatus {
   OPEN
   CLOSED
   LIQUIDATED
+  DISPUTED  // V219: Position closed on exchange but protected by Agent 48h rule — needs reconciliation
 }
 
 enum TradeType {

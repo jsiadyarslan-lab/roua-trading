@@ -238,7 +238,11 @@ export class PositionManagerService {
     const dailyPnL = await this.getDailyPnL(userId);
 
     // Calculate daily P&L percentage
-    const totalBalance = baseBalance + totalExposure;
+    // V221 FIX: totalBalance = baseBalance (account balance without floating PnL).
+    // Old code was: baseBalance + totalExposure, which added the FULL NOTIONAL value
+    // of positions (e.g., $108K for 1 lot EUR/USD) to the balance — nonsensical.
+    // Balance is just the account balance. Equity would be: baseBalance + unrealizedPnL.
+    const totalBalance = baseBalance;
     const dailyPnLPercent = totalBalance > 0
       ? (dailyPnL / totalBalance) * 100
       : 0;

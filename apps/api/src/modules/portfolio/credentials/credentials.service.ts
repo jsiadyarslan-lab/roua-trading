@@ -925,6 +925,11 @@ export class CredentialsService {
       : exchanges;
 
     const totalEquityUsd = totalSources.reduce((sum, e) => sum + e.equity, 0);
+    // V221 FIX: Calculate totalBalanceUsd separately from totalEquityUsd.
+    // For MT5 accounts: balance ≠ equity (balance excludes floating PnL).
+    // For crypto exchanges: balance = equity (no separate balance concept).
+    // Without this, the frontend was showing EQUITY as BALANCE for MT5 accounts.
+    const totalBalanceUsd = totalSources.reduce((sum, e) => sum + ((e as any).balance ?? e.equity), 0);
     const totalAvailableUsd = totalSources.reduce((sum, e) => sum + e.available, 0);
     // ═══════════════════════════════════════════════════════════════
     // V150 FIX: Calculate totalUsedMargin using DIRECT usedMargin field.
@@ -954,6 +959,7 @@ export class CredentialsService {
 
     const result = {
       totalEquityUsd,
+      totalBalanceUsd,  // V221: True account balance (without floating PnL)
       totalAvailableUsd,
       totalUsedMargin,
       exchanges,

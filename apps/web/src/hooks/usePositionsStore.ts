@@ -597,6 +597,8 @@ export const usePositionsStore = create<PositionsState>()(
         const data = await res.json()
         if (data.success && data.data && data.data.exchanges?.length > 0) {
           const { totalEquityUsd, totalAvailableUsd, totalUsedMargin, exchanges } = data.data
+          // V221: Backend now provides totalBalanceUsd (true balance without floating PnL)
+          const totalBalanceUsd = (data.data as any).totalBalanceUsd ?? totalEquityUsd
           // V162: Backend now provides these flags to prevent the shared balance bug
           const allRealExchangesFailed = data.data.allRealExchangesFailed === true
           const backendHasRealCredentials = data.data.hasRealCredentials === true
@@ -726,12 +728,12 @@ export const usePositionsStore = create<PositionsState>()(
           // even if other real exchanges failed. This fixes the case where
           // Binance fails but MT5 (which is the active account) works fine.
           // V189: Use `balance` (without floating PnL) instead of `equity` for MT5 accounts
-          let adjustedTotalBalanceUsd = totalEquityUsd  // V189: True balance (without floating PnL)
+          let adjustedTotalBalanceUsd = totalBalanceUsd  // V221: True balance from backend (not equity!)
           if (activeExchangeSucceeded) {
             // The active exchange (e.g., MT5) succeeded — use its balance as primary
             // V189: Prefer `balance` field over `equity` — balance is the real deposited amount
             // without unrealized PnL. For MT5: balance ≠ equity. For crypto: balance = equity.
-            const activeBal = (activeExchange as any).balance || (activeExchange as any).equity
+            const activeBal = (activeExchange as any).balance ?? (activeExchange as any).equity  // V221: Use ?? not || (0 is valid balance)
             adjustedTotalEquityUsd = (activeExchange as any).equity
             adjustedTotalBalanceUsd = activeBal
             adjustedTotalAvailableUsd = (activeExchange as any).available || 0
@@ -794,7 +796,7 @@ export const usePositionsStore = create<PositionsState>()(
               adjustedTotalUsedMargin = paperExchange.usedMargin || 0
             } else if (totalEquityUsd > 0) {
               adjustedTotalEquityUsd = totalEquityUsd
-              adjustedTotalBalanceUsd = totalEquityUsd
+              adjustedTotalBalanceUsd = totalBalanceUsd  // V221: Use totalBalanceUsd (not totalEquityUsd!)
               adjustedTotalAvailableUsd = totalAvailableUsd
               adjustedTotalUsedMargin = totalUsedMargin
             } else {
@@ -808,13 +810,13 @@ export const usePositionsStore = create<PositionsState>()(
             // At least one real exchange succeeded — backend totals exclude
             // paper trading when real credentials exist.
             adjustedTotalEquityUsd = totalEquityUsd
-            adjustedTotalBalanceUsd = totalEquityUsd  // V189: For mixed crypto exchanges, balance = equity
+            adjustedTotalBalanceUsd = totalBalanceUsd  // V221: Use totalBalanceUsd from backend
             adjustedTotalAvailableUsd = totalAvailableUsd
             adjustedTotalUsedMargin = totalUsedMargin
           } else {
             // No real exchange credentials — paper trading only.
             adjustedTotalEquityUsd = paperExchange?.equity || totalEquityUsd
-            adjustedTotalBalanceUsd = (paperExchange as any)?.balance || adjustedTotalEquityUsd
+            adjustedTotalBalanceUsd = (paperExchange as any)?.balance ?? adjustedTotalEquityUsd  // V221: Use ?? not || (0 is valid)
             adjustedTotalAvailableUsd = paperExchange?.available || totalAvailableUsd
             adjustedTotalUsedMargin = paperExchange?.usedMargin || totalUsedMargin
           }
@@ -993,10 +995,31 @@ export const usePositionsStore = create<PositionsState>()(
               effectiveCash = 10000
             }
           } else {
-            // V140B: For real accounts, equity = totalBalance + unrealizedPnl
-            // (totalEquityUsd from real exchanges is wallet balance, NOT including PnL)
-            effectiveEquity = adjustedTotalEquityUsd + positionsUnrealizedPnl
-            effectiveCash = adjustedTotalEquityUsd  // Total wallet balance (free + used)
+            // V221 FIX: For real accounts, separate Balance from Equity properly.
+            //
+            // IMPORTANT: MT5 equity already includes floating PnL from the broker.
+            // So for MT5 accounts, we should NOT add positionsUnrealizedPnl again.
+            // For crypto exchanges (Binance), equity = balance (no floating PnL concept).
+            //
+            // Balance = actual deposited funds + realized P&L (no floating PnL)
+            // Equity  = Balance + unrealized PnL
+            //
+            // The backend now sends totalBalanceUsd separately from totalEquityUsd,
+            // so we can use adjustedTotalBalanceUsd for the true balance display.
+            const hasMT5 = realExchangesSuccess.some((e: any) =>
+              ['mt5', 'mt5_demo', 'metatrader5', 'metatrader'].includes((e.exchange || '').toLowerCase())
+            )
+
+            if (hasMT5) {
+              // MT5 equity already includes PnL from the broker — don't double-count
+              effectiveEquity = adjustedTotalEquityUsd
+              effectiveCash = adjustedTotalBalanceUsd  // True balance without floating PnL
+            } else {
+              // Crypto exchanges: equity = balance (no separate concept)
+              // Add positionsUnrealizedPnl to get true equity
+              effectiveEquity = adjustedTotalEquityUsd + positionsUnrealizedPnl
+              effectiveCash = adjustedTotalBalanceUsd  // True balance
+            }
           }
 
           const account = {
@@ -1146,14 +1169,15 @@ export const usePositionsStore = create<PositionsState>()(
             // TIER 2: Backend margin — use only when no positions loaded
             margin = summary.usedMargin
           }
-          // V152 FIX: cash should NOT subtract totalExposure (full notional).
-          // totalExposure = qty × price which is the full position value, NOT margin.
-          // Subtracting it made cash negative, which broke equity calculations.
-          // For paper trading: cash = the raw balance (equity - PnL)
-          const rawBalance = (summary.totalBalance || 0) - (summary.unrealizedPnL || 0)
+          // V221 FIX: totalBalance from backend is now the TRUE balance (not balance + exposure).
+          // Old code: totalBalance = baseBalance + totalExposure (nonsensical, added $108K notional).
+          // New code: totalBalance = baseBalance (actual account balance).
+          // Equity = Balance + UnrealizedPnL
+          const trueBalance = summary.totalBalance || 0
+          const trueEquity = trueBalance + (summary.unrealizedPnL || 0)
           const account = {
-            equity: summary.totalBalance || 0,
-            cash: rawBalance > 0 ? rawBalance : (summary.totalBalance || 0),
+            equity: trueEquity,
+            cash: trueBalance,
             buyingPower: Math.max(0, (summary.totalBalance || 0) - margin),
             portfolioValue: summary.totalBalance || 0,
             longMarketValue: summary.totalExposure || 0,

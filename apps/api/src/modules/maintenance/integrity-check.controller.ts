@@ -3367,7 +3367,11 @@ export class IntegrityCheckController {
     const agentContent = this.read('agents/autonomous-trader/agent.service.ts');
     if (agentContent) {
       // Check for OLD 4h close pattern (this was the root cause)
-      const hasOld4hClose = agentContent.includes('4 * 60 * 60 * 1000') && agentContent.includes('position.openedAt');
+      // V226 FIX: Use regex with word boundary to avoid false positive from
+      // '24 * 60 * 60 * 1000' which contains '4 * 60 * 60 * 1000' as substring.
+      // The 4h pattern is always preceded by '= ' or '((' or start of expression,
+      // never by another digit like '2' in '24'.
+      const hasOld4hClose = /(?<!\d)4\s*\*\s*60\s*\*\s*60\s*\*\s*1000/.test(agentContent) && agentContent.includes('position.openedAt');
       if (hasOld4hClose) {
         failures.push('الوكيل يحتوي على كود إغلاق 4 ساعات قديم! — سيُمنع بواسطة V222 لكن يجب إزالته');
       } else {

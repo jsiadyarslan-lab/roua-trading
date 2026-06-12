@@ -710,6 +710,65 @@ export class TradingService {
       throw new NotFoundException('المركز غير موجود');
     }
 
+    // ═══════════════════════════════════════════════════════════════════
+    // V214 LAST LINE OF DEFENSE: Block premature close of Agent positions
+    //
+    // PROBLEM: Old compiled JS on Railway (pre-V184/V213) still has the
+    // hardcoded 4h close for Agent positions. Despite V184 removing it
+    // and V213 adding a safety net in _monitorOpenPositions, the OLD code
+    // is still running and closing Agent positions at exactly 4h 0m.
+    //
+    // Evidence from June 12, 2026:
+    //   - 10+ Agent positions ALL closed at exactly 4h 0m
+    //   - closeReason = "Manual" (old default before V176)
+    //   - Smart Executor positions also closing at 4h with "Manual"
+    //   - This proves old pre-V141/V176 code is running on Railway
+    //
+    // FIX: Block ANY close of an Agent position that hasn't reached 48h,
+    // UNLESS the close is triggered by SL/TP hit (valid trading exit).
+    // This works regardless of which service calls closePosition — it's
+    // the single point of truth for all position closes.
+    // ═══════════════════════════════════════════════════════════════════
+    const isAgentPosition = position.source === 'agent';
+    const closeReasonStr = (request.closeReason || '').toUpperCase();
+    const isSLTPClose = closeReasonStr.includes('STOP_LOSS') || closeReasonStr.includes('TAKE_PROFIT');
+    const isManualClose = closeReasonStr === 'MANUAL' || closeReasonStr === '';
+
+    if (isAgentPosition && !isSLTPClose) {
+      const holdingMs = position.openedAt
+        ? Date.now() - new Date(position.openedAt).getTime()
+        : 0;
+      const holdingHours = holdingMs / (60 * 60 * 1000);
+      const AGENT_MIN_HOLDING_HOURS = 48;
+
+      if (holdingHours < AGENT_MIN_HOLDING_HOURS) {
+        // Agent position hasn't reached 48h — BLOCK the close
+        this.logger.error(
+          `🚨 V214 BLOCKED: Attempted to close Agent position ${position.id} (${position.symbol}) ` +
+          `at ${holdingHours.toFixed(1)}h — Agent positions must be held for ${AGENT_MIN_HOLDING_HOURS}h minimum. ` +
+          `closeReason="${request.closeReason || 'EMPTY'}" — ` +
+          `Only SL/TP closes are allowed before ${AGENT_MIN_HOLDING_HOURS}h. ` +
+          `This close was likely triggered by OLD code (pre-V184) still running on Railway.`
+        );
+
+        // Instead of throwing (which would break things), just skip and return
+        // the position as-is — don't close it
+        return {
+          order: null,
+          pnl: 0,
+          position,
+          blockedByV214: true,
+          reason: `Agent position held ${holdingHours.toFixed(1)}h — minimum is ${AGENT_MIN_HOLDING_HOURS}h`,
+        };
+      }
+
+      // Agent position has reached 48h — allow the close
+      this.logger.log(
+        `✅ V214 ALLOWED: Agent position ${position.id} (${position.symbol}) held ${holdingHours.toFixed(1)}h ` +
+        `≥ ${AGENT_MIN_HOLDING_HOURS}h — close allowed. closeReason="${request.closeReason}"`
+      );
+    }
+
     // FIX: Optimistic locking — if another request already closed this position
     // between our read and the upcoming update, the version won't match and we'll
     // retry. This prevents double-close, duplicate EXIT trades, and PnL miscalculation.
@@ -1306,6 +1365,34 @@ export class TradingService {
         }),
         alreadyClosed: true,
       };
+    }
+
+    // V214 LAST LINE OF DEFENSE: Also protect Agent positions in forceClosePosition
+    // Old code on Railway may use forceClosePosition as a fallback path to close Agent positions at 4h
+    const isAgentForceClose = position.source === 'agent';
+    const reasonUpper = (reason || '').toUpperCase();
+    const isSLTPForceClose = reasonUpper.includes('STOP_LOSS') || reasonUpper.includes('TAKE_PROFIT');
+
+    if (isAgentForceClose && !isSLTPForceClose) {
+      const holdingMs = position.openedAt
+        ? Date.now() - new Date(position.openedAt).getTime()
+        : 0;
+      const holdingHours = holdingMs / (60 * 60 * 1000);
+
+      if (holdingHours < 48) {
+        this.logger.error(
+          `🚨 V214 BLOCKED forceClose: Agent position ${position.id} (${position.symbol}) ` +
+          `at ${holdingHours.toFixed(1)}h — minimum 48h. reason="${reason}" — ` +
+          `BLOCKED. Only SL/TP force-closes allowed before 48h.`
+        );
+        return {
+          order: null,
+          pnl: 0,
+          position,
+          blockedByV214: true,
+          reason: `Agent position held ${holdingHours.toFixed(1)}h — minimum is 48h. Force close blocked.`,
+        };
+      }
     }
 
     const posQuantity = position.quantity.toNumber();

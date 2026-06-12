@@ -480,11 +480,55 @@ export class PositionMonitorService {
     // ── MAX_HOLDING_TIME: Smart Executor + Agent positions ──
     // Counter-trend (reversal): 45 دقيقة
     // Smart Executor مع الاتجاه: 4 ساعات
-    // Agent: 48 ساعة (swing trading)
+    // Agent: 48 ساعة (swing trading) — V214: HARD ENFORCED, no fallback to 4h
     if ((position.source === 'smart_executor' || position.source === 'agent') && position.openedAt) {
       const holdingMs = Date.now() - new Date(position.openedAt).getTime();
 
       const isAgent = position.source === 'agent';
+
+      // V214 HARD ENFORCEMENT: Agent positions MUST get 48h — no exceptions.
+      // Even if timeframe=null or Redis is empty, Agent always gets 48h.
+      // This is the ONLY correct value — the isAgent check in _getMaxHoldingMs
+      // is the authoritative source. Timeframe is IRRELEVANT for Agent positions.
+      if (isAgent) {
+        const agentMaxMs = 48 * 60 * 60 * 1000; // 48 hours — hardcoded, no function call
+        if (holdingMs < agentMaxMs) {
+          // Agent position hasn't reached 48h — skip MAX_HOLDING check entirely
+          // V214: Don't even call _getMaxHoldingMs for Agent — use hardcoded 48h
+          this.logger.debug(
+            `🛡️ V214: Agent position ${position.symbol} held ${(holdingMs / (60*60*1000)).toFixed(1)}h < 48h — skipping MAX_HOLDING check`
+          );
+          // Skip to the non-agent SL/TP checks below
+          // (Agent SL/TP was already checked above at line ~376)
+          if (!isAgentPosition) {
+            // This shouldn't happen (isAgent=isAgentPosition), but just in case
+          }
+          // For Agent positions, skip the entire MAX_HOLDING block and continue
+          // to the price/PnL update at the end
+          priceUpdates.push(
+            this.prisma.position.update({
+              where: { id: position.id },
+              data: {
+                currentPrice,
+                unrealizedPnl,
+                highestPrice:
+                  position.side === 'BUY'
+                    ? Math.max(position.highestPrice || currentPrice, currentPrice)
+                    : position.highestPrice || currentPrice,
+                lowestPrice:
+                  position.side === 'SELL'
+                    ? Math.min(position.lowestPrice || currentPrice, currentPrice)
+                    : position.lowestPrice || currentPrice,
+              },
+            }),
+          );
+          return result;
+        }
+        // Agent position has reached 48h — proceed with TIME_EXPIRED logic below
+        this.logger.warn(
+          `⏱️ V214: Agent position ${position.symbol} reached 48h — allowing TIME_EXPIRED check`
+        );
+      }
 
       // قراءة الـ timeframe من DB أولاً (V204)، ثم Redis كـ fallback
       // V204 FIX: Previously timeframe was ONLY in Redis. If Redis restarted

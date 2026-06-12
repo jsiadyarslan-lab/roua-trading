@@ -3228,7 +3228,16 @@ export class IntegrityCheckController {
       failures.push('totalBalanceUsd لا يتحقق من حقل balance — قد يستخدم equity دائماً');
     }
 
-    // V47c: totalBalanceUsd included in API response
+    // V47c: Paper-trading entry includes balance field (ROOT CAUSE of Balance=Equity)
+    // Before V221: paper-trading entry had equity+paperBalance but NO balance field.
+    // totalBalanceUsd fell back to equity via ??, making Balance display = Equity.
+    if (credContent.includes('balance: displayedBalance')) {
+      passes.push('paper-trading يحتوي على حقل balance (= displayedBalance بدون PnL)');
+    } else {
+      failures.push('paper-trading لا يحتوي على balance — سيعرض Equity كـ Balance!');
+    }
+
+    // V47d: totalBalanceUsd included in API response
     if (credContent.includes('totalBalanceUsd,')) {
       passes.push('totalBalanceUsd مضمن في استجابة API');
     } else {

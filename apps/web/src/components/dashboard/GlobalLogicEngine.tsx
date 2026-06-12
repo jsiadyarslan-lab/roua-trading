@@ -86,7 +86,7 @@ export function GlobalLogicEngine() {
       if (!hasMatchingRealPosition) return
 
       const lastSyncAt = lastPriceSyncRef.current[normalizedSymbol] || 0
-      if (now - lastSyncAt < 2000) return // PERF: 2000ms is sufficient for P&L display
+      if (now - lastSyncAt < 500) return // PERF: 500ms — 4x faster than before for responsive P&L
 
       lastPriceSyncRef.current[normalizedSymbol] = now
       updatePositionPrice(symbol, price)
@@ -132,7 +132,7 @@ export function GlobalLogicEngine() {
     if (currentEquity > 0) {
       prevEquityRef.current = currentEquity
     }
-  }, 2000) // PERF: 2000ms interval — sufficient for P&L, 50% fewer renders vs 1000ms
+  }, 1000) // PERF: 1000ms interval, with 500ms per-symbol throttle = responsive P&L
 
   // ── Adaptive full fetch: 5s when active, 15s when idle ──
   // FIX: Reduced from 30s to 15s baseline, and 5s when automated trading is active.
@@ -148,8 +148,11 @@ export function GlobalLogicEngine() {
       if (positions.length > 0) isActive = true
     } catch { /* store not ready */ }
 
-    // Adaptive guard: 5s when active, 15s when idle
-    const minInterval = isActive ? 8000 : 20000 // PERF: 8s active, 20s idle
+    // Adaptive guard: 5s when active, 12s when idle
+    // FIX: Reduced from 8s/20s to 5s/12s — positions data refreshes faster.
+    // mergePositions() now protects live price fields from being overwritten
+    // by stale backend data, so faster fetches are safe and beneficial.
+    const minInterval = isActive ? 5000 : 12000 // PERF: 5s active, 12s idle
     if (now - lastFullFetchRef.current < minInterval) return
 
     lastFullFetchRef.current = now

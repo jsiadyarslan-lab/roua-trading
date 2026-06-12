@@ -45,6 +45,20 @@ const NON_CRYPTO_SYMBOLS = GLOBAL_SYMBOLS.filter(s => {
 
 async function fetchAndStore(symbol: string) {
   try {
+    // FIX: For crypto symbols with active Binance WS, skip REST fetch entirely.
+    // Binance WS provides sub-second price updates. REST polling every 15s
+    // overwrites the live WS price with a stale cached price (3-8s old),
+    // causing P&L to briefly "jump back" on every REST poll cycle.
+    // Only use REST as fallback when WS data is missing or stale.
+    const isCrypto = CRYPTO_BASES_SET.has(symbol.split('/')[0])
+    if (isCrypto) {
+      const existingQuote = useMarketStore.getState().quotes[symbol]
+      const isWslive = existingQuote?.source === 'Binance WS' &&
+        existingQuote?.price > 0 &&
+        (Date.now() - new Date(existingQuote.timestamp).getTime() < 30_000) // WS data < 30s old
+      if (isWslive) return // Skip REST — WS is providing live prices
+    }
+
     const res = await fetch(`/api/exchange/quote/${encodeURIComponent(symbol)}`)
     if (!res.ok) return // Silently skip failed requests
     const data = await res.json()

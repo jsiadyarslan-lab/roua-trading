@@ -204,19 +204,42 @@ function mergePositions(
       continue
     }
 
-    // Merge: Use incoming data but preserve real-time price if it's fresher
-    // The real-time price from Binance WS is more accurate than the API price
-    const hasLivePriceUpdate = existing.currentPrice > 0 &&
-      Math.abs(existing.currentPrice - inc.currentPrice) > 0.0001 &&
-      existing.source === 'nestjs' && inc.source === 'nestjs'
+    // ═══════════════════════════════════════════════════════════════
+    // FIX: P&L DANCE PREVENTION
+    // The backend (fetchPositions) returns currentPrice and unrealizedPnl
+    // calculated from stale REST API prices (3-10s cache). Meanwhile,
+    // updatePositionPrice() updates these fields from live market data
+    // (Binance WS for crypto, REST polling for forex/gold/stocks).
+    //
+    // Without this protection, every fetchPositions() call overwrites
+    // live prices with stale backend prices, causing P&L to "dance":
+    //   $47 (live) → $12 (stale backend) → $48 (live) → $11 (stale)
+    //
+    // Solution: ALWAYS preserve currentPrice, unrealizedPnl,
+    // unrealizedPnlPct, and marketValue from the existing position
+    // if they've been updated by the live price path (non-zero).
+    //
+    // The backend should only provide STATIC data (entryPrice, quantity,
+    // side, stopLoss, takeProfit) — dynamic price fields come from
+    // the live market data pipeline (WS + polling → GlobalLogicEngine).
+    // ═══════════════════════════════════════════════════════════════
+    const hasLivePrice = existing.currentPrice > 0
 
     result.push({
       ...inc,
-      // Preserve the live price update from GlobalLogicEngine if it's more recent
-      currentPrice: hasLivePriceUpdate ? existing.currentPrice : inc.currentPrice,
-      unrealizedPnl: hasLivePriceUpdate ? existing.unrealizedPnl : inc.unrealizedPnl,
-      unrealizedPnlPct: hasLivePriceUpdate ? existing.unrealizedPnlPct : inc.unrealizedPnlPct,
-      marketValue: hasLivePriceUpdate ? existing.marketValue : inc.marketValue,
+      // ═══ LIVE PRICE PROTECTION ═══
+      // Always preserve live-updated price fields from the frontend.
+      // The backend price is always stale (3-10s cache for crypto,
+      // 5-10min cache for forex/gold/stocks). The frontend price comes
+      // from Binance WS (~100ms for crypto) or REST polling, and is
+      // always fresher or at worst equally stale.
+      //
+      // Exception: if existing.currentPrice is 0 (initial load / no
+      // price data yet), use the backend price as initial value.
+      currentPrice: hasLivePrice ? existing.currentPrice : inc.currentPrice,
+      unrealizedPnl: hasLivePrice ? existing.unrealizedPnl : inc.unrealizedPnl,
+      unrealizedPnlPct: hasLivePrice ? existing.unrealizedPnlPct : inc.unrealizedPnlPct,
+      marketValue: hasLivePrice ? existing.marketValue : inc.marketValue,
       // FIX: Preserve dbId from existing position if incoming doesn't have it.
       // When Alpaca data overwrites NestJS data in the merge, the incoming
       // position from Alpaca has no dbId (undefined), overwriting the existing

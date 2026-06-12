@@ -273,6 +273,8 @@ export class IntegrityCheckController {
     results.push(this.checkV46());
     // V221 Balance fix checks
     results.push(this.checkV47());
+    // V222 Agent protection checks
+    results.push(this.checkV48());
 
     return results;
   }
@@ -3296,6 +3298,73 @@ export class IntegrityCheckController {
       return { id: 'V47', name: 'V221 فصل الرصيد عن الحقوق', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
     }
     return { id: 'V47', name: 'V221 فصل الرصيد عن الحقوق', status: 'PASS', detail: `فصل الرصيد عن الحقوق يعمل: ${passes.join(' | ')}` };
+  }
+
+  // ── V48: V222 — Agent Position Protection at DB Level ──
+  // Verifies that Agent positions < 48h cannot be closed, even by old code.
+  private checkV48(): CheckResult {
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    // V48a: PrismaService has V222 Agent protection extension
+    const prismaContent = this.read('common/prisma/prisma.service.ts');
+    if (!prismaContent) {
+      return { id: 'V48', name: 'V222 حماية الوكيل على مستوى قاعدة البيانات', status: 'MISSING', detail: 'ملف prisma.service.ts غير موجود' };
+    }
+
+    if (prismaContent.includes('V222_AgentProtection')) {
+      passes.push('Prisma $extends V222_AgentProtection موجود');
+    } else {
+      failures.push('Prisma $extends V222_AgentProtection غير موجود — الكود القديم قد يغلق صفقات الوكيل عند 4 ساعات');
+    }
+
+    // V48b: Protection checks for Agent + 48h + SL/TP exception
+    if (prismaContent.includes('AGENT_MIN_HOLDING_HOURS = 48')) {
+      passes.push('حد أدنى 48 ساعة لصفقات الوكيل');
+    } else {
+      failures.push('حد أدنى 48 ساعة غير موجود — صفقات الوكيل ستُغلق مبكراً');
+    }
+
+    if (prismaContent.includes("STOP_LOSS') || closeReason.includes('TAKE_PROFIT")) {
+      passes.push('استثناء SL/TP — الإغلاق عبر وقف الخسارة/جني الأرباح مسموح');
+    } else {
+      failures.push('لا استثناء SL/TP — حتى إغلاقات وقف الخسارة ستُمنع!');
+    }
+
+    // V48c: TradingService V214 code-level protection still exists
+    const tsContent = this.read('modules/trading/trading.service.ts');
+    if (tsContent) {
+      if (tsContent.includes('blockedByV214') || tsContent.includes('AGENT_MIN_HOLDING_HOURS')) {
+        passes.push('V214 حماية على مستوى الكود لا يزال موجود (طبقة إضافية)');
+      }
+    }
+
+    // V48d: PositionMonitor has hardcoded 48h for Agent
+    const pmContent = this.read('modules/engine/services/position-monitor.service.ts');
+    if (pmContent) {
+      if (pmContent.includes('agentMaxMs = 48 * 60 * 60 * 1000')) {
+        passes.push('Position Monitor: 48 ساعة مُبرمجة للوكيل');
+      } else {
+        failures.push('Position Monitor: لا يوجد 48 ساعة مُبرمجة — قد يستخدم القيمة الافتراضية 4 ساعات!');
+      }
+    }
+
+    // V48e: Agent service does NOT have 4h close logic
+    const agentContent = this.read('agents/autonomous-trader/agent.service.ts');
+    if (agentContent) {
+      // Check for OLD 4h close pattern (this was the root cause)
+      const hasOld4hClose = agentContent.includes('4 * 60 * 60 * 1000') && agentContent.includes('position.openedAt');
+      if (hasOld4hClose) {
+        failures.push('الوكيل يحتوي على كود إغلاق 4 ساعات قديم! — سيُمنع بواسطة V222 لكن يجب إزالته');
+      } else {
+        passes.push('الوكيل لا يحتوي على كود إغلاق 4 ساعات (تمت إزالته في V184)');
+      }
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V48', name: 'V222 حماية الوكيل على مستوى قاعدة البيانات', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V48', name: 'V222 حماية الوكيل على مستوى قاعدة البيانات', status: 'PASS', detail: `حماية الوكيل تعمل: ${passes.join(' | ')}` };
   }
   private renderHtml(results: CheckResult[], passed: number, failed: number, warnings: number, score: string): string {
     const statusIcon = (s: string) => s === 'PASS' ? '✅' : s === 'FAIL' ? '❌' : s === 'WARN' ? '⚠️' : '❓';

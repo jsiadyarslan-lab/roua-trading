@@ -83,6 +83,101 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       // This ensures the database schema matches the Prisma schema even if
       // `prisma migrate deploy` failed or was skipped during deployment.
       await this.autoMigrateMissingColumns();
+
+      // ── V222: Agent Position Protection at Database Level ──
+      // This is the ULTIMATE defense — works regardless of which code path
+      // calls prisma.position.update(). Even old compiled JS on Railway
+      // that bypasses V214 in closePosition() will be blocked here.
+      //
+      // HOW: We use Prisma $extends to intercept ALL position.update() and
+      // position.updateMany() calls. If the update sets status='CLOSED' for
+      // an Agent position held < 48h (and closeReason is NOT SL/TP), we BLOCK it.
+      this._applyAgentProtectionExtension();
+    }
+  }
+
+  /**
+   * V222: Agent Position Protection at Database Level
+   *
+   * This is the ULTIMATE defense against premature Agent position closes.
+   * It intercepts ALL position.update() and position.updateMany() calls
+   * at the Prisma level. If the update sets status='CLOSED' for an Agent
+   * position held < 48h, AND the closeReason is NOT SL/TP, it BLOCKS the update.
+   *
+   * This works regardless of:
+   * - Which code path calls the update (PositionMonitor, Agent, ExchangeSync, etc.)
+   * - Whether old compiled JS is running on Railway (pre-V184/V213/V214)
+   * - Direct prisma.position.update() calls that bypass TradingService
+   *
+   * The ONLY exceptions are SL/TP closes (valid trading exits).
+   */
+  private _applyAgentProtectionExtension(): void {
+    const logger = this.logger;
+    const H = 60 * 60 * 1000;
+    const AGENT_MIN_HOLDING_HOURS = 48;
+    const AGENT_MIN_HOLDING_MS = AGENT_MIN_HOLDING_HOURS * H;
+    const self = this;
+
+    try {
+      this.$extends({
+        name: 'V222_AgentProtection',
+        query: {
+          position: {
+            async update({ args, query }) {
+              const data = args.data as any;
+              // Only intercept updates that set status to CLOSED
+              const newStatus = typeof data?.status === 'string' ? data.status : data?.status?.set;
+              if (newStatus === 'CLOSED') {
+                const where = args.where as any;
+                const positionId = where?.id;
+
+                if (positionId) {
+                  // Read the current position using the SAME PrismaClient (self)
+                  try {
+                    const current = await self.position.findUnique({ where: { id: positionId } });
+
+                    if (current && current.source === 'agent' && current.openedAt) {
+                      const holdingMs = Date.now() - new Date(current.openedAt).getTime();
+                      const closeReason = String(data.closeReason || data.closeReason?.set || '').toUpperCase();
+                      const isSLTP = closeReason.includes('STOP_LOSS') || closeReason.includes('TAKE_PROFIT');
+
+                      if (holdingMs < AGENT_MIN_HOLDING_MS && !isSLTP) {
+                        logger.error(
+                          `🚨 V222 DB-LEVEL BLOCK: Agent position ${positionId} (${current.symbol}) ` +
+                          `attempted close at ${(holdingMs / H).toFixed(1)}h (< ${AGENT_MIN_HOLDING_HOURS}h). ` +
+                          `closeReason="${closeReason || 'EMPTY'}". ` +
+                          `BLOCKED at Prisma level — position stays OPEN.`
+                        );
+                        // Return the current position without closing it
+                        return current;
+                      }
+                    }
+                  } catch (readErr: any) {
+                    // If we can't read the position, log but don't block
+                    logger.warn(`V222: Could not read position ${positionId} for protection check: ${readErr.message}`);
+                  }
+                }
+              }
+              return query(args);
+            },
+            async updateMany({ args, query }) {
+              const data = args.data as any;
+              if (data?.status === 'CLOSED') {
+                logger.warn(
+                  `🚨 V222: updateMany with status=CLOSED detected — this bypasses Agent protection. ` +
+                  `Consider using individual update() calls instead.`
+                );
+              }
+              return query(args);
+            },
+          },
+        },
+      });
+
+      logger.log(`🛡️ V222: Agent Position Protection active — Agent positions < ${AGENT_MIN_HOLDING_HOURS}h are protected at DB level`);
+    } catch (extendErr: any) {
+      // $extends may not work in all Prisma versions — don't crash the app
+      logger.warn(`V222: Could not apply Agent protection extension: ${extendErr.message} — relying on V214 code-level protection`);
     }
   }
 

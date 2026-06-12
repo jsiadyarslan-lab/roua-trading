@@ -319,7 +319,7 @@ async function bootstrap() {
         // V219: Version info for deployment verification
         // This allows checking which code is ACTUALLY running on Railway
         version: {
-          code: 'V226',
+          code: 'V225',
           agentProtection: 'ENABLED', // V214+V216: Agent positions protected from premature close
           portfolioUnification: 'ENABLED', // V217: RiskManager & RiskCalculator use same formula
           unifiedValuation: 'ENABLED', // V218: PortfolioValuationService = single source of truth
@@ -339,9 +339,6 @@ async function bootstrap() {
           agentMaxHoldingRemoved: 'ENABLED', // V224: Removed ALL MAX_HOLDING_TIME code from Agent
           directWSPnL: 'ENABLED', // V225: Binance WS calls updatePositionPrice() directly (~100ms crypto P&L)
           globalEngineBackup: 'ENABLED', // V225: GlobalLogicEngine is now backup only (2s), WS is primary
-          mt5FullExecution: 'ENABLED', // V226: TradingService routes MT5 via ExecutionGateway (not CCXT)
-          mt5PositionModify: 'ENABLED', // V226: MT5Adapter.modifyPosition() for SL/TP updates on broker
-          mt5SymbolSupport: 'ENABLED', // V226: isSymbolSupportedByExchange recognizes MT5 pairs (forex+commodities+crypto)
           commit: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.DEPLOY_COMMIT || 'unknown',
           nodeEnv: process.env.NODE_ENV || 'development',
         },

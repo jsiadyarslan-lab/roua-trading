@@ -20,7 +20,6 @@ import {
   ClosePositionRequest,
 } from './trading.types';
 import { OrderSide as PrismaOrderSide, OrderType as PrismaOrderType, OrderStatus as PrismaOrderStatus } from './trading.types';
-import { ExecutionGatewayService } from '../execution/gateways/execution-gateway.service';
 /**
  * Trading Engine Service — Roua Trading (رؤى)
  *
@@ -53,7 +52,6 @@ export class TradingService {
     private readonly exchangeService: ExchangeService,
     private readonly riskManager: RiskManagerService,
     private readonly auditService: AuditService,
-    private readonly executionGateway: ExecutionGatewayService, // V226: MT5 execution support
   ) {
     this.logger.log(
       '⚡ Trading Engine initialized — ready for execution',
@@ -474,29 +472,12 @@ export class TradingService {
             where: { id: order.exchangeCredentialId!, userId },
           });
         if (credential) {
-          // V226: Route MT5 cancel through ExecutionGatewayService
-          // (CCXT can't handle MT5 — ccxt['mt5'] = undefined)
-          if (this._isMT5Exchange(credential.exchange)) {
-            this.logger.log(
-              `📊 V226: Routing MT5 order cancel via ExecutionGateway — order ${order.exchangeOrderId}`
-            );
-            const cancelled = await this.executionGateway.cancelOrder(
-              userId,
-              credential.id,
-              order.exchangeOrderId,
-              order.symbol,
-            );
-            if (!cancelled) {
-              this.logger.warn(`⚠️ V226: MT5 cancel returned false for order ${order.exchangeOrderId}`);
-            }
-          } else {
-            // CCXT path (Binance, Alpaca, etc.)
-            const { apiKey, apiSecret } =
-              await this.credentialsService.decryptCredential(credential.id, userId);
-            const exchange = this._getExchangeInstance(credential.exchange, apiKey, apiSecret, credential.id, (credential as any).testnet || false);
-            if (exchange) {
-              await exchange.cancelOrder(order.exchangeOrderId, order.symbol);
-            }
+          // SECURITY: Pass userId to verify credential ownership before decrypting
+          const { apiKey, apiSecret } =
+            await this.credentialsService.decryptCredential(credential.id, userId);
+          const exchange = this._getExchangeInstance(credential.exchange, apiKey, apiSecret, credential.id, (credential as any).testnet || false);
+          if (exchange) {
+            await exchange.cancelOrder(order.exchangeOrderId, order.symbol);
           }
         }
       } catch (error: any) {
@@ -943,56 +924,19 @@ export class TradingService {
         userId,
       );
     } else {
-      // V226: Route MT5 close through ExecutionGatewayService.
-      // Same fix as _executeOnExchange() — CCXT can't handle MT5.
-      if (this._isMT5Exchange(credential?.exchange) && userId) {
-        this.logger.log(
-          `📊 V226: Routing MT5 position close via ExecutionGateway — ${position.symbol} (${closeSide})`
-        );
-        try {
-          const result = await this.executionGateway.placeOrder(userId, {
-            userId: userId,
-            exchangeCredentialId: credential.id,
-            symbol: position.symbol,
-            side: closeSide as 'BUY' | 'SELL',
-            type: 'MARKET',
-            quantity: closeQuantity,
-            idempotencyKey: `mt5-close-${position.id}-${Date.now()}`,
-            source: 'position_close',
-          });
-
-          execution = {
-            success: result.success,
-            exchangeOrderId: result.exchangeOrderId,
-            filledQuantity: result.filledQuantity,
-            averagePrice: result.averagePrice,
-            fee: result.fee,
-            feeCurrency: result.feeCurrency,
-            error: result.error,
-          };
-
-          if (!result.success) {
-            this.logger.warn(`⚠️ V226: MT5 close failed via gateway: ${result.error}`);
-          }
-        } catch (mt5Err: any) {
-          this.logger.error(`❌ V226: MT5 close gateway error: ${mt5Err.message}`);
-          execution = { success: false, error: `فشل إغلاق مركز MT5: ${mt5Err.message}` };
-        }
-      } else {
-        // Real exchange close: use CCXT (Binance, Alpaca, etc.)
-        execution = await this._executeOnExchange(
-          credential.exchange,
-          credential.id,
-          {
-            credentialId: credential.id,
-            symbol: position.symbol,
-            side: closeSide as PrismaOrderSide,
-            type: PrismaOrderType.MARKET,
-            quantity: closeQuantity,
-          },
-          userId,
-        );
-      }
+      // Real exchange close: use CCXT
+      execution = await this._executeOnExchange(
+        credential.exchange,
+        credential.id,
+        {
+          credentialId: credential.id,
+          symbol: position.symbol,
+          side: closeSide as PrismaOrderSide,
+          type: PrismaOrderType.MARKET,
+          quantity: closeQuantity,
+        },
+        userId,
+      );
     }
 
     if (!execution.success) {
@@ -1994,17 +1938,6 @@ export class TradingService {
   }
 
   /**
-   * V226: Check if the exchange is an MT5/MetaTrader variant.
-   * MT5 accounts must be routed through ExecutionGatewayService
-   * instead of CCXT because ccxt['mt5'] = undefined.
-   */
-  private _isMT5Exchange(exchangeName: string): boolean {
-    if (!exchangeName) return false;
-    const lower = exchangeName.toLowerCase();
-    return ['mt5', 'mt5_demo', 'metatrader5', 'metatrader'].includes(lower);
-  }
-
-  /**
    * Get or create a cached CCXT exchange instance
    * Caches per credential+exchange combo to avoid recreating for every order
    */
@@ -2356,69 +2289,6 @@ export class TradingService {
           return { success: false, error: `لا يمكن جلب سعر ${request.symbol} للتداول الورقي` };
         }
         return await this._executePaperTrade(request, currentPrice, userId);
-      }
-
-      // ═══════════════════════════════════════════════════════════════
-      // V226: MT5 Execution via ExecutionGatewayService
-      //
-      // PROBLEM: TradingService._executeOnExchange() uses CCXT directly,
-      // but ccxt['mt5'] = undefined, so ALL MT5 orders fail with:
-      // "البورصة mt5 غير مدعومة"
-      //
-      // FIX: Route MT5 orders through ExecutionGatewayService, which
-      // correctly creates an MT5Adapter (via MetaAPI Cloud SDK).
-      // This is the SAME path used by the V2 BullMQ pipeline that
-      // already works for manual orders via OrderController.
-      //
-      // The gateway handles:
-      //   - Credential decryption (same as CCXT path)
-      //   - MT5Adapter creation (with MetaAPI connection)
-      //   - Position size checks (5% max equity)
-      //   - Symbol format conversion (EUR/USD → EURUSD)
-      //   - Error normalization (Arabic messages)
-      // ═══════════════════════════════════════════════════════════════
-      if (this._isMT5Exchange(exchangeName) && userId) {
-        this.logger.log(
-          `📊 V226: Routing MT5 order via ExecutionGateway — ${request.side} ${request.quantity} ${request.symbol}`
-        );
-        try {
-          const result = await this.executionGateway.placeOrder(userId, {
-            userId: userId,
-            exchangeCredentialId: credentialId,
-            symbol: request.symbol,
-            side: request.side as 'BUY' | 'SELL',
-            type: (request.type || 'MARKET') as 'MARKET' | 'LIMIT' | 'STOP' | 'STOP_LIMIT',
-            quantity: request.quantity,
-            price: request.price,
-            stopLoss: request.stopLoss,
-            takeProfit: request.takeProfit,
-            idempotencyKey: request.idempotencyKey || `mt5-${Date.now()}`,
-            source: request.source || 'trading_service',
-          });
-
-          if (result.success) {
-            this.logger.log(
-              `✅ V226: MT5 order executed via gateway: ${result.exchangeOrderId} — ` +
-              `${request.side} ${result.filledQuantity} ${request.symbol} @ ${result.averagePrice}`
-            );
-          }
-
-          return {
-            success: result.success,
-            exchangeOrderId: result.exchangeOrderId,
-            filledQuantity: result.filledQuantity,
-            averagePrice: result.averagePrice,
-            fee: result.fee,
-            feeCurrency: result.feeCurrency,
-            error: result.error,
-          };
-        } catch (gatewayErr: any) {
-          this.logger.error(`❌ V226: MT5 gateway execution failed: ${gatewayErr.message}`);
-          return {
-            success: false,
-            error: `فشل تنفيذ أمر MT5: ${gatewayErr.message}`,
-          };
-        }
       }
 
       // SECURITY: Pass userId to verify credential ownership before decrypting

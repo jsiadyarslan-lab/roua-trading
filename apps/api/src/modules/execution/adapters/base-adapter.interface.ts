@@ -148,23 +148,4 @@ export interface IExchangeAdapter {
    * Used by RateLimiterService for token bucket configuration
    */
   getRateLimits(): { maxRequestsPerSecond: number; maxRequestsPerMinute: number };
-
-  /**
-   * V226: Modify an existing position's stop-loss and/or take-profit.
-   * Essential for MT5 where SL/TP are managed on the broker side.
-   * For CCXT exchanges, SL/TP are typically set at order time and
-   * can't be modified after — return false to indicate unsupported.
-   *
-   * @param positionId The exchange-specific position ID (MT5 position ticket)
-   * @param symbol The trading pair symbol
-   * @param modifications Object with optional stopLoss and takeProfit values
-   * @returns true if modification succeeded, false if failed or unsupported
-   */
-  modifyPosition?(positionId: string, symbol: string, modifications: PositionModification): Promise<boolean>;
-}
-
-/** V226: Position modification parameters */
-export interface PositionModification {
-  stopLoss?: number;
-  takeProfit?: number;
 }

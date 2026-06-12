@@ -338,6 +338,30 @@ export class ExchangeSyncService implements OnModuleInit, OnModuleDestroy {
           ? (currentPrice - entryPrice) * quantity
           : (entryPrice - currentPrice) * quantity;
 
+        // ═══════════════════════════════════════════════════════════
+        // V216 SAFETY NET: Block direct DB close of Agent positions < 48h
+        // This is the LAST line of defense for the ExchangeSync fallback
+        // path. Even if TradingService.closePositionWithRetry() fails
+        // (which has V214 protection), this direct DB update path would
+        // bypass V214 entirely. We must check here too.
+        // ═══════════════════════════════════════════════════════════
+        const isAgentDirectClose = position.source === 'agent';
+        if (isAgentDirectClose) {
+          const directHoldingMs = position.openedAt
+            ? Date.now() - new Date(position.openedAt).getTime()
+            : 0;
+          const directHoldingHours = directHoldingMs / (60 * 60 * 1000);
+          if (directHoldingHours < 48) {
+            this.logger.error(
+              `🚨 V216 BLOCKED: ExchangeSync direct DB close of Agent position ${position.id} (${position.symbol}) ` +
+              `at ${directHoldingHours.toFixed(1)}h — minimum 48h. ` +
+              `Leaving position OPEN in DB despite being closed on exchange. ` +
+              `This may indicate a stale exchange state — investigate manually.`
+            );
+            return; // Do NOT close the position in DB
+          }
+        }
+
         await this.prisma.position.update({
           where: { id: position.id },
           data: {

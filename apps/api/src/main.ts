@@ -316,6 +316,14 @@ async function bootstrap() {
         uptime: Math.round(process.uptime()),
         checks,
         responseTimeMs: Date.now() - start,
+        // V216: Version info for deployment verification
+        // This allows checking which code is ACTUALLY running on Railway
+        version: {
+          code: 'V216',
+          agentProtection: 'ENABLED', // V214+V216: Agent positions protected from premature close
+          commit: process.env.DEPLOY_COMMIT || 'unknown',
+          nodeEnv: process.env.NODE_ENV || 'development',
+        },
       });
     });
 

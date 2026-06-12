@@ -307,8 +307,12 @@ export class ExchangeSyncService implements OnModuleInit, OnModuleDestroy {
       );
 
       // Use TradingService for proper close (creates Order, Trade, updates Position)
+      // V215 FIX: Pass closeReason so it's stored on the Position record instead of
+      // defaulting to AUTO_CLOSE. This was a silent bug — ExchangeSync closes were
+      // untraceable because they had no closeReason.
       await this.tradingService.closePositionWithRetry(position.userId, {
         positionId: position.id,
+        closeReason: `EXCHANGE_SYNC:${reason}`,
       });
 
       this.logger.log(

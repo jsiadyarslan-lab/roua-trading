@@ -689,6 +689,20 @@ export class TradingService {
     userAgent?: string,
     _retryCount = 0, // FIX: Internal retry counter for optimistic locking
   ) {
+    // ── V215 FORENSIC LOG: Track every closePosition call ──
+    // Problem: Positions close at 4h with closeReason="Manual" but we don't know
+    // WHO is calling closePosition. This log captures the full call stack so we can
+    // identify the exact code path triggering premature closes on Railway.
+    const _v215Stack = new Error().stack?.split('\n').slice(1, 6).map(s => s.trim()).join(' | ');
+    const _v215HoldingMs = request.positionId ? 'pending' : 'n/a';
+    this.logger.warn(
+      `🔒 V215 closePosition CALLED: positionId=${request.positionId?.slice(0,12) || '?'}... ` +
+      `closeReason="${request.closeReason || 'EMPTY'}" ` +
+      `quantity=${request.quantity || 'full'} ` +
+      `retryCount=${_retryCount} ` +
+      `caller=${_v215Stack}`
+    );
+
     // FIX: REMOVED the dynamic DDL that dropped unique constraints on Position table
     // on EVERY closePosition() call. This was a dangerous hotfix that:
     //   1. Ran destructive DDL (DROP INDEX CASCADE) inside business logic
@@ -1347,6 +1361,14 @@ export class TradingService {
     ipAddress?: string,
     userAgent?: string,
   ) {
+    // ── V215 FORENSIC LOG: Track every forceClosePosition call ──
+    const _v215Stack = new Error().stack?.split('\n').slice(1, 6).map(s => s.trim()).join(' | ');
+    this.logger.warn(
+      `🔒 V215 forceClosePosition CALLED: positionId=${positionId?.slice(0,12) || '?'}... ` +
+      `reason="${reason}" ` +
+      `caller=${_v215Stack}`
+    );
+
     // DATA ISOLATION: Use findFirst with userId
     const position = await this.prisma.position.findFirst({
       where: { id: positionId, userId },

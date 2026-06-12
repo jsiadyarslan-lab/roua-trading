@@ -9,7 +9,7 @@
 // V185: النظام يراقب نفسه ويحمي نفسه
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
 
@@ -301,9 +301,12 @@ export class SelfHealingService {
     }
   }
 
+  private _healthCheckInterval: NodeJS.Timeout | null = null; // V220: cleanup on destroy
+
   private _startPeriodicHealthCheck(): void {
     // Full health check every 5 minutes
-    setInterval(async () => {
+    // V220-FIX: Store interval reference for cleanup on module destroy
+    this._healthCheckInterval = setInterval(async () => {
       try {
         const report = await this.getHealthReport();
         const failed = report.filter(r => r.status === 'FAILED' || r.status === 'DISABLED');
@@ -316,5 +319,13 @@ export class SelfHealingService {
         }
       } catch { /* non-critical */ }
     }, 5 * 60 * 1000);
+  }
+
+  onModuleDestroy(): void {
+    // V220-FIX: Clean up interval to prevent memory leak on shutdown/hot-reload
+    if (this._healthCheckInterval) {
+      clearInterval(this._healthCheckInterval);
+      this._healthCheckInterval = null;
+    }
   }
 }

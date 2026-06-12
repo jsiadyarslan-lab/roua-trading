@@ -7,7 +7,7 @@
 // V185: حماية رأس المال من الرهان المتكرر
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import { MarketDataService } from '../services/market-data.service';
@@ -36,6 +36,7 @@ export class CrossPairCorrelationService {
   private readonly logger = new Logger(CrossPairCorrelationService.name);
   private readonly REDIS_MATRIX_KEY = 'correlation:matrix';
   private readonly REDIS_PRICES_KEY = 'correlation:prices:';
+  private _correlationCollectionInterval: NodeJS.Timeout | null = null; // V220: cleanup on destroy
 
   // Price history stored in Redis for correlation calculation
   // Key: correlation:prices:BTC/USDT → JSON array of {time, price}
@@ -360,8 +361,17 @@ export class CrossPairCorrelationService {
     };
 
     // Collect every 15 minutes
-    setInterval(collect, 15 * 60 * 1000);
+    // V220-FIX: Store interval reference for cleanup on module destroy
+    this._correlationCollectionInterval = setInterval(collect, 15 * 60 * 1000);
     // Also collect immediately
     setTimeout(collect, 5000);
+  }
+
+  onModuleDestroy(): void {
+    // V220-FIX: Clean up interval to prevent memory leak on shutdown/hot-reload
+    if (this._correlationCollectionInterval) {
+      clearInterval(this._correlationCollectionInterval);
+      this._correlationCollectionInterval = null;
+    }
   }
 }

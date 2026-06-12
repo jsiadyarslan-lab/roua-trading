@@ -49,6 +49,12 @@ import { RiskEventAuditService } from './services/risk-event-audit.service';
 // ✅ V219: Partial Fill Manager — handles partially filled orders from real exchanges
 import { PartialFillManagerService } from './services/partial-fill-manager.service';
 
+// ✅ V220: Stuck Order Detector — detects and resolves orders stuck in PENDING/ACCEPTED
+import { StuckOrderDetectorService } from './services/stuck-order-detector.service';
+
+// ✅ V220: External Circuit Breaker — protects against cascading external API failures
+import { ExternalCircuitBreakerService } from './services/external-circuit-breaker.service';
+
 /**
  * Trading Module — Complete Trading Engine
  *
@@ -136,6 +142,12 @@ import { PartialFillManagerService } from './services/partial-fill-manager.servi
 
     // ✅ V219: Partial Fill Manager
     PartialFillManagerService,
+
+    // ✅ V220: Stuck Order Detector
+    StuckOrderDetectorService,
+
+    // ✅ V220: External Circuit Breaker
+    ExternalCircuitBreakerService,
   ],
   exports: [
     TradingService,
@@ -176,6 +188,12 @@ import { PartialFillManagerService } from './services/partial-fill-manager.servi
 
     // ✅ V219: Export Partial Fill Manager for trading services
     PartialFillManagerService,
+
+    // ✅ V220: Export Stuck Order Detector for monitoring
+    StuckOrderDetectorService,
+
+    // ✅ V220: Export External Circuit Breaker for external API calls
+    ExternalCircuitBreakerService,
   ],
 })
 export class TradingModule {}

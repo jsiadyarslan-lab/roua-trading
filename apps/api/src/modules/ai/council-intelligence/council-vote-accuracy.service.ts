@@ -7,7 +7,7 @@
 // V185: النظام يتعلم من أخطائه — بالضبط كما يفعل المتداول الذكي
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
 
@@ -333,9 +333,12 @@ export class CouncilVoteAccuracyService {
 
   // ── Private Methods ──
 
+  private _accuracyCalculationInterval: NodeJS.Timeout | null = null; // V220: cleanup on destroy
+
   private _startPeriodicCalculation(): void {
     // Process pending updates every 5 minutes
-    setInterval(async () => {
+    // V220-FIX: Store interval reference for cleanup on module destroy
+    this._accuracyCalculationInterval = setInterval(async () => {
       try {
         const count = await this.processPendingUpdates();
         if (count > 0) {
@@ -345,5 +348,13 @@ export class CouncilVoteAccuracyService {
         // Non-critical
       }
     }, 5 * 60 * 1000);
+  }
+
+  onModuleDestroy(): void {
+    // V220-FIX: Clean up interval to prevent memory leak on shutdown/hot-reload
+    if (this._accuracyCalculationInterval) {
+      clearInterval(this._accuracyCalculationInterval);
+      this._accuracyCalculationInterval = null;
+    }
   }
 }

@@ -4,6 +4,7 @@ import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
@@ -40,6 +41,7 @@ export class TradingService {
   private readonly logger = new Logger(TradingService.name);
   private readonly exchangeCache = new Map<string, any>(); // credentialId:exchangeName -> exchange instance
   private readonly exchangeCacheTimestamps = new Map<string, number>(); // TTL tracking
+  private _exchangeCacheCleanupInterval: NodeJS.Timeout | null = null; // V220: cleanup on destroy
   private readonly EXCHANGE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
   private readonly MAX_CACHE_SIZE = 50; // prevent unbounded growth
 
@@ -61,7 +63,16 @@ export class TradingService {
     //   2. Conflicts with prisma db push / migrate deploy
     //   3. Was a contributing factor to the catastrophic data loss incident
     // FIX: Clean expired exchange instances every 10 minutes (prevent memory leak)
-    setInterval(() => this._cleanExchangeCache(), 10 * 60 * 1000);
+    // V220-FIX: Store interval reference for cleanup on module destroy
+    this._exchangeCacheCleanupInterval = setInterval(() => this._cleanExchangeCache(), 10 * 60 * 1000);
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    // V220-FIX: Clean up interval to prevent memory leak on shutdown/hot-reload
+    if (this._exchangeCacheCleanupInterval) {
+      clearInterval(this._exchangeCacheCleanupInterval);
+      this._exchangeCacheCleanupInterval = null;
+    }
   }
 
   private _cleanExchangeCache(): void {

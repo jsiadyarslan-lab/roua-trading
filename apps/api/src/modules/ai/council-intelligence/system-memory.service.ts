@@ -7,7 +7,7 @@
 // V185: المتداول الذكي لا يحلل من الصفر — يتذكر
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
 
@@ -275,9 +275,12 @@ export class SystemMemoryService {
 
   // ── Private Methods ──
 
+  private _memoryCleanupInterval: NodeJS.Timeout | null = null; // V220: cleanup on destroy
+
   private _startPeriodicCleanup(): void {
     // Deactivate expired memories every hour
-    setInterval(async () => {
+    // V220-FIX: Store interval reference for cleanup on module destroy
+    this._memoryCleanupInterval = setInterval(async () => {
       try {
         const result = await this.prisma.systemMemory.updateMany({
           where: {
@@ -291,5 +294,13 @@ export class SystemMemoryService {
         }
       } catch { /* non-critical */ }
     }, 60 * 60 * 1000);
+  }
+
+  onModuleDestroy(): void {
+    // V220-FIX: Clean up interval to prevent memory leak on shutdown/hot-reload
+    if (this._memoryCleanupInterval) {
+      clearInterval(this._memoryCleanupInterval);
+      this._memoryCleanupInterval = null;
+    }
   }
 }

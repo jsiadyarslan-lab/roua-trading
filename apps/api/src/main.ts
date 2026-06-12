@@ -319,7 +319,7 @@ async function bootstrap() {
         // V219: Version info for deployment verification
         // This allows checking which code is ACTUALLY running on Railway
         version: {
-          code: 'V219',
+          code: 'V220',
           agentProtection: 'ENABLED', // V214+V216: Agent positions protected from premature close
           portfolioUnification: 'ENABLED', // V217: RiskManager & RiskCalculator use same formula
           unifiedValuation: 'ENABLED', // V218: PortfolioValuationService = single source of truth
@@ -328,6 +328,9 @@ async function bootstrap() {
           crossSystemSafety: 'ENABLED', // V219: Fail-CLOSED coordination + ExposureManager + PartialFill
           disputedStatus: 'ENABLED', // V219: DISPUTED position status for reconciliation
           partialFillManager: 'ENABLED', // V219: Handles partially filled exchange orders
+          memoryLeakFix: 'ENABLED', // V220: Interval cleanup on module destroy (6 services)
+          stuckOrderDetection: 'ENABLED', // V220: Detects and resolves stuck PENDING/ACCEPTED orders
+          externalCircuitBreaker: 'ENABLED', // V220: Circuit breaker for external API calls
           commit: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.DEPLOY_COMMIT || 'unknown',
           nodeEnv: process.env.NODE_ENV || 'development',
         },

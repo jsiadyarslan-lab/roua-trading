@@ -6,6 +6,7 @@ import {
   ForbiddenException,
   Optional,
   Inject,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../common/prisma/prisma.service';
@@ -44,6 +45,7 @@ export class CredentialsService {
   private readonly BALANCE_CACHE_TTL_MS = 5_000;  // V140: reduced from 60s to 5s — faster balance updates after trades
   private readonly BALANCE_CACHE_MAX_SIZE = 50;    // Max users to cache
   private balanceCleanupInterval: NodeJS.Timeout | null = null;
+  private _securityAlertInterval: NodeJS.Timeout | null = null; // V220: cleanup on destroy
   // V188: MT5 failure cache — prevents retrying known-failing connections every 5s
   private readonly mt5FailureCache = new Map<string, number>(); // key → timestamp of last failure
 
@@ -98,7 +100,7 @@ export class CredentialsService {
             'then add ENCRYPTION_KEY to Railway environment variables.'
           );
           // Repeat alert every 60s so it cannot be missed in logs
-          setInterval(() => {
+          this._securityAlertInterval = setInterval(() => {
             this.logger.error('🚨 SECURITY ALERT: ENCRYPTION_KEY still not set in production! Real account credentials at risk.');
           }, 60_000);
         } else {
@@ -159,6 +161,18 @@ export class CredentialsService {
         }
       }
     }, 10 * 60 * 1000);
+  }
+
+  // V220-FIX: Clean up intervals on module destroy to prevent memory leaks
+  async onModuleDestroy(): Promise<void> {
+    if (this.balanceCleanupInterval) {
+      clearInterval(this.balanceCleanupInterval);
+      this.balanceCleanupInterval = null;
+    }
+    if (this._securityAlertInterval) {
+      clearInterval(this._securityAlertInterval);
+      this._securityAlertInterval = null;
+    }
   }
 
   /**

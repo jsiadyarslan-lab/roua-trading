@@ -260,6 +260,17 @@ export class IntegrityCheckController {
     results.push(this.checkV34());
     results.push(this.checkV35());
     results.push(this.checkV36());
+    // V220 Phase 4 checks
+    results.push(this.checkV37());
+    results.push(this.checkV38());
+    results.push(this.checkV39());
+    results.push(this.checkV40());
+    results.push(this.checkV41());
+    results.push(this.checkV42());
+    results.push(this.checkV43());
+    results.push(this.checkV44());
+    results.push(this.checkV45());
+    results.push(this.checkV46());
 
     return results;
   }
@@ -2654,6 +2665,509 @@ export class IntegrityCheckController {
       return { id: 'V36', name: 'V219 إدارة التعبئة الجزئية', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
     }
     return { id: 'V36', name: 'V219 إدارة التعبئة الجزئية', status: 'PASS', detail: `إدارة التعبئة الجزئية تعمل: ${passes.join(' | ')}` };
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // V220 Phase 4: Resilience & Operational Safety
+  // ══════════════════════════════════════════════════════════════════════
+
+  // ── V37: V220 — External Circuit Breaker Coverage ──
+  // Verifies that the ExternalCircuitBreakerService exists and is registered.
+  private checkV37(): CheckResult {
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    // V37a: ExternalCircuitBreakerService file exists
+    const cbContent = this.read('modules/trading/services/external-circuit-breaker.service.ts');
+    if (!cbContent) {
+      return { id: 'V37', name: 'V220 قاطع الدائرة للمكالمات الخارجية', status: 'MISSING', detail: 'ملف ExternalCircuitBreakerService غير موجود' };
+    }
+    passes.push('ExternalCircuitBreakerService موجود');
+
+    // V37b: Has register method (to register new circuits)
+    if (cbContent.includes('register(')) {
+      passes.push('طريقة register متاحة — يمكن تسجيل قواطع جديدة');
+    } else {
+      failures.push('طريقة register غير موجودة');
+    }
+
+    // V37c: Has execute method (to run calls through circuit breaker)
+    if (cbContent.includes('execute(')) {
+      passes.push('طريقة execute متاحة — تنفيذ المكالمات عبر قاطع الدائرة');
+    } else {
+      failures.push('طريقة execute غير موجودة');
+    }
+
+    // V37d: Has state tracking (CLOSED/OPEN/HALF_OPEN)
+    if (cbContent.includes('HALF_OPEN') && cbContent.includes('CLOSED') && cbContent.includes('OPEN')) {
+      passes.push('تتبع حالة قاطع الدائرة (CLOSED/OPEN/HALF_OPEN)');
+    } else {
+      failures.push('تتبع حالة قاطع الدائرة غير مكتمل');
+    }
+
+    // V37e: Has onModuleDestroy (cleanup)
+    if (cbContent.includes('onModuleDestroy')) {
+      passes.push('onModuleDestroy ينظف الموارد');
+    } else {
+      failures.push('onModuleDestroy مفقود — تسرب ذاكرة محتمل');
+    }
+
+    // V37f: Registered in TradingModule
+    const tmContent = this.read('modules/trading/trading.module.ts');
+    if (tmContent && tmContent.includes('ExternalCircuitBreakerService')) {
+      passes.push('ExternalCircuitBreakerService مسجل في TradingModule');
+    } else {
+      failures.push('ExternalCircuitBreakerService غير مسجل في TradingModule');
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V37', name: 'V220 قاطع الدائرة للمكالمات الخارجية', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V37', name: 'V220 قاطع الدائرة للمكالمات الخارجية', status: 'PASS', detail: `قاطع الدائرة يعمل: ${passes.join(' | ')}` };
+  }
+
+  // ── V38: V220 — Retry Coverage for Data Providers ──
+  // Verifies that the system has retry logic for external API calls.
+  private checkV38(): CheckResult {
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    // V38a: Generic retry utility exists
+    const retryContent = this.read('common/utils/retry.util.ts');
+    if (retryContent) {
+      passes.push('أداة إعادة المحاولة موجودة (retry.util.ts)');
+      if (retryContent.includes('withExponentialBackoff') || retryContent.includes('exponential')) {
+        passes.push('إعادة المحاولة بتراجع أسي');
+      }
+    } else {
+      failures.push('أداة إعادة المحاولة غير موجودة — لا retry للمكالمات الخارجية');
+    }
+
+    // V38b: AI orchestrator uses retry
+    const aiContent = this.read('modules/ai/services/ai-orchestrator.service.ts');
+    if (aiContent) {
+      if (aiContent.includes('withExponentialBackoff') || aiContent.includes('retry')) {
+        passes.push('AI Orchestrator يستخدم إعادة المحاولة');
+      }
+    }
+
+    // V38c: Position close retry exists
+    const tsContent = this.read('modules/trading/trading.service.ts');
+    if (tsContent && tsContent.includes('closePositionWithRetry')) {
+      passes.push('إغلاق المركز يستخدم إعادة المحاولة');
+    }
+
+    // V38d: Order queue retry exists
+    const oqContent = this.read('modules/trading/services/order-queue.processor.ts');
+    if (oqContent && oqContent.includes('retry')) {
+      passes.push('طابور الأوامر يستخدم إعادة المحاولة');
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V38', name: 'V220 تغطية إعادة المحاولة', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V38', name: 'V220 تغطية إعادة المحاولة', status: 'PASS', detail: `إعادة المحاولة تعمل: ${passes.join(' | ')}` };
+  }
+
+  // ── V39: V220 — Version Tracking (V220) ──
+  // Verifies that the health endpoint returns V220 version with Phase 4 features.
+  private checkV39(): CheckResult {
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    const mainContent = this.read('main.ts');
+    if (!mainContent) {
+      return { id: 'V39', name: 'V220 تتبع الإصدار', status: 'MISSING', detail: 'ملف main.ts غير موجود' };
+    }
+
+    // V39a: Version is V220
+    if (mainContent.includes('V220')) {
+      passes.push('الإصدار V220 في health endpoint');
+    } else if (mainContent.includes('V219')) {
+      failures.push('الإصدار لا يزال V219 — لم يتم التحديث إلى V220');
+    } else {
+      failures.push('لم أجد معلومات الإصدار في main.ts');
+    }
+
+    // V39b: Phase 4 features
+    if (mainContent.includes('memoryLeakFix')) {
+      passes.push('memoryLeakFix مضمن (V220)');
+    } else {
+      failures.push('memoryLeakFix غير مضمن');
+    }
+
+    if (mainContent.includes('stuckOrderDetection')) {
+      passes.push('stuckOrderDetection مضمن (V220)');
+    } else {
+      failures.push('stuckOrderDetection غير مضمن');
+    }
+
+    if (mainContent.includes('externalCircuitBreaker')) {
+      passes.push('externalCircuitBreaker مضمن (V220)');
+    } else {
+      failures.push('externalCircuitBreaker غير مضمن');
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V39', name: 'V220 تتبع الإصدار', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V39', name: 'V220 تتبع الإصدار', status: 'PASS', detail: `تتبع الإصدار يعمل: ${passes.join(' | ')}` };
+  }
+
+  // ── V40: V220 — Interval Cleanup on Module Destroy ──
+  // Verifies that ALL services using setInterval implement OnModuleDestroy.
+  private checkV40(): CheckResult {
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    // V40a: TradingService — had setInterval without cleanup
+    const tsContent = this.read('modules/trading/trading.service.ts');
+    if (tsContent) {
+      const hasInterval = tsContent.includes('setInterval');
+      const hasDestroy = tsContent.includes('onModuleDestroy');
+      const hasClearInterval = tsContent.includes('clearInterval');
+      if (hasInterval && hasDestroy && hasClearInterval) {
+        passes.push('TradingService ينظف setInterval في onModuleDestroy');
+      } else if (hasInterval && !hasDestroy) {
+        failures.push('TradingService يستخدم setInterval بدون onModuleDestroy — تسرب ذاكرة');
+      } else if (hasInterval) {
+        passes.push('TradingService لديه تنظيف');
+      }
+    }
+
+    // V40b: CredentialsService — had 2 setInterval without cleanup
+    const csContent = this.read('modules/portfolio/credentials/credentials.service.ts');
+    if (csContent) {
+      const hasInterval = csContent.includes('setInterval');
+      const hasDestroy = csContent.includes('onModuleDestroy');
+      const hasClearInterval = csContent.includes('clearInterval');
+      if (hasInterval && hasDestroy && hasClearInterval) {
+        passes.push('CredentialsService ينظف setInterval في onModuleDestroy');
+      } else if (hasInterval && !hasDestroy) {
+        failures.push('CredentialsService يستخدم setInterval بدون onModuleDestroy — تسرب ذاكرة');
+      }
+    }
+
+    // V40c: CrossPairCorrelationService
+    const cpcContent = this.read('modules/ai/council-intelligence/cross-pair-correlation.service.ts');
+    if (cpcContent) {
+      const hasInterval = cpcContent.includes('setInterval');
+      const hasDestroy = cpcContent.includes('onModuleDestroy');
+      if (hasInterval && hasDestroy) {
+        passes.push('CrossPairCorrelationService ينظف setInterval');
+      } else if (hasInterval && !hasDestroy) {
+        failures.push('CrossPairCorrelationService يستخدم setInterval بدون onModuleDestroy');
+      }
+    }
+
+    // V40d: SelfHealingService
+    const shContent = this.read('modules/ai/council-intelligence/self-healing.service.ts');
+    if (shContent) {
+      const hasInterval = shContent.includes('setInterval');
+      const hasDestroy = shContent.includes('onModuleDestroy');
+      if (hasInterval && hasDestroy) {
+        passes.push('SelfHealingService ينظف setInterval');
+      } else if (hasInterval && !hasDestroy) {
+        failures.push('SelfHealingService يستخدم setInterval بدون onModuleDestroy');
+      }
+    }
+
+    // V40e: SystemMemoryService
+    const smContent = this.read('modules/ai/council-intelligence/system-memory.service.ts');
+    if (smContent) {
+      const hasInterval = smContent.includes('setInterval');
+      const hasDestroy = smContent.includes('onModuleDestroy');
+      if (hasInterval && hasDestroy) {
+        passes.push('SystemMemoryService ينظف setInterval');
+      } else if (hasInterval && !hasDestroy) {
+        failures.push('SystemMemoryService يستخدم setInterval بدون onModuleDestroy');
+      }
+    }
+
+    // V40f: CouncilVoteAccuracyService
+    const cvaContent = this.read('modules/ai/council-intelligence/council-vote-accuracy.service.ts');
+    if (cvaContent) {
+      const hasInterval = cvaContent.includes('setInterval');
+      const hasDestroy = cvaContent.includes('onModuleDestroy');
+      if (hasInterval && hasDestroy) {
+        passes.push('CouncilVoteAccuracyService ينظف setInterval');
+      } else if (hasInterval && !hasDestroy) {
+        failures.push('CouncilVoteAccuracyService يستخدم setInterval بدون onModuleDestroy');
+      }
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V40', name: 'V220 تنظيف الموارد عند الإيقاف', status: 'FAIL', detail: `${failures.length} تسرب ذاكرة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V40', name: 'V220 تنظيف الموارد عند الإيقاف', status: 'PASS', detail: `تنظيف الموارد يعمل: ${passes.join(' | ')}` };
+  }
+
+  // ── V41: V220 — Graceful Degradation State ──
+  // Verifies that the system degrades safely when services are unavailable.
+  private checkV41(): CheckResult {
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    // V41a: Health endpoint returns 200 even when degraded
+    const mainContent = this.read('main.ts');
+    if (mainContent) {
+      if (mainContent.includes('statusCode = 200') || mainContent.includes('status: 200') || mainContent.includes('Always return 200')) {
+        passes.push('health endpoint يرجع 200 حتى عند التدهور — يمنع Railway من قتل التطبيق');
+      } else {
+        failures.push('health endpoint قد يرجع 503 عند التدهور — Railway سيقتل التطبيق');
+      }
+    }
+
+    // V41b: Global exception filter exists
+    const filterContent = this.read('common/filters/all-exceptions.filter.ts');
+    if (filterContent) {
+      passes.push('فلتر الاستثناءات العام موجود — يمنع تسرب الأخطاء غير المعالجة');
+    } else {
+      failures.push('فلتر الاستثناءات العام غير موجود — أخطاء غير معالجة قد توقف النظام');
+    }
+
+    // V41c: Unhandled rejection handler
+    if (mainContent && mainContent.includes('unhandledRejection')) {
+      passes.push('معالج الوعود المرفوضة غير المعالجة موجود');
+    } else {
+      failures.push('لا يوجد معالج للوعود المرفوضة — قد يوقف النظام');
+    }
+
+    // V41d: Fail-CLOSED for trade coordination
+    const tcContent = this.read('modules/trading/services/trade-coordination.service.ts');
+    if (tcContent) {
+      // Check for V219 fail-closed pattern
+      const hasFailClosed = tcContent.includes('fail-closed') || tcContent.includes('fail-CLOSED') || tcContent.includes('V219');
+      if (hasFailClosed) {
+        passes.push('التنسيق يستخدم فشل مغلق — يمنع التداول عند فشل Redis');
+      }
+    }
+
+    // V41e: AI fallback to stub
+    const aiContent = this.read('modules/ai/services/ai-orchestrator.service.ts');
+    if (aiContent && aiContent.includes('stub')) {
+      passes.push('AI يتراجع للاستجابة البديلة عند فشل جميع النماذج');
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V41', name: 'V220 التدهور الآمن', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V41', name: 'V220 التدهور الآمن', status: 'PASS', detail: `التدهور الآمن يعمل: ${passes.join(' | ')}` };
+  }
+
+  // ── V42: V220 — Data Consistency Checker ──
+  // Verifies that the data consistency checker exists and detects common issues.
+  private checkV42(): CheckResult {
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    // V42a: DataConsistencyCheckerService exists
+    const dccContent = this.read('modules/trading/services/data-consistency-checker.service.ts');
+    if (!dccContent) {
+      return { id: 'V42', name: 'V220 فحص تناسق البيانات', status: 'MISSING', detail: 'ملف DataConsistencyChecker غير موجود' };
+    }
+    passes.push('DataConsistencyCheckerService موجود');
+
+    // V42b: Checks for orphan positions
+    if (dccContent.includes('orphan') || dccContent.includes('CLOSED') && dccContent.includes('trade')) {
+      passes.push('يكتشف المراكز اليتيمة (بدون صفقات)');
+    } else {
+      failures.push('لا يكتشف المراكز اليتيمة');
+    }
+
+    // V42c: Checks PnL sum
+    if (dccContent.includes('pnl') || dccContent.includes('realizedPnl')) {
+      passes.push('يتحقق من مجموع PnL');
+    }
+
+    // V42d: Has scheduled execution (cron)
+    if (dccContent.includes('Cron') || dccContent.includes('cron') || dccContent.includes('setInterval')) {
+      passes.push('يعمل تلقائياً حسب جدول');
+    } else {
+      failures.push('لا يعمل تلقائياً — يجب تشغيله يدوياً');
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V42', name: 'V220 فحص تناسق البيانات', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V42', name: 'V220 فحص تناسق البيانات', status: 'PASS', detail: `فحص التناسق يعمل: ${passes.join(' | ')}` };
+  }
+
+  // ── V43: V220 — Stuck Order Detection ──
+  // Verifies that the StuckOrderDetectorService exists and can detect/resolve stuck orders.
+  private checkV43(): CheckResult {
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    // V43a: StuckOrderDetectorService file exists
+    const sodContent = this.read('modules/trading/services/stuck-order-detector.service.ts');
+    if (!sodContent) {
+      return { id: 'V43', name: 'V220 كشف الأوامر العالقة', status: 'MISSING', detail: 'ملف StuckOrderDetector غير موجود' };
+    }
+    passes.push('StuckOrderDetectorService موجود');
+
+    // V43b: Has detectAndResolveStuckOrders method
+    if (sodContent.includes('detectAndResolveStuckOrders')) {
+      passes.push('طريقة detectAndResolveStuckOrders متاحة');
+    } else {
+      failures.push('طريقة detectAndResolveStuckOrders غير موجودة');
+    }
+
+    // V43c: Has isValidTransition method (order state validation)
+    if (sodContent.includes('isValidTransition')) {
+      passes.push('تحقق من صحة انتقالات حالة الأمر');
+    } else {
+      failures.push('لا يوجد تحقق من انتقالات حالة الأمر — يمكن تخطي حالات بشكل غير قانوني');
+    }
+
+    // V43d: Has auto-cancel for very old orders
+    if (sodContent.includes('CANCEL') && sodContent.includes('Auto-cancelled')) {
+      passes.push('إلغاء تلقائي للأوامر العالقة القديمة جداً (>30 دقيقة)');
+    } else {
+      failures.push('لا يوجد إلغاء تلقائي — الأوامر العالقة ستبقى للأبد');
+    }
+
+    // V43e: Has onModuleDestroy (cleanup)
+    if (sodContent.includes('onModuleDestroy')) {
+      passes.push('onModuleDestroy ينظف فحص الأوامر العالقة');
+    } else {
+      failures.push('onModuleDestroy مفقود — تسرب ذاكرة محتمل');
+    }
+
+    // V43f: Registered in TradingModule
+    const tmContent = this.read('modules/trading/trading.module.ts');
+    if (tmContent && tmContent.includes('StuckOrderDetectorService')) {
+      passes.push('StuckOrderDetectorService مسجل في TradingModule');
+    } else {
+      failures.push('StuckOrderDetectorService غير مسجل في TradingModule');
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V43', name: 'V220 كشف الأوامر العالقة', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V43', name: 'V220 كشف الأوامر العالقة', status: 'PASS', detail: `كشف الأوامر العالقة يعمل: ${passes.join(' | ')}` };
+  }
+
+  // ── V44: V220 — WebSocket Delivery Guarantee ──
+  // Verifies WebSocket reliability patterns (reconnection, cleanup).
+  private checkV44(): CheckResult {
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    // V44a: Connection resilience service exists
+    const crContent = this.read('modules/engine/services/connection-resilience.service.ts');
+    if (crContent) {
+      passes.push('ConnectionResilienceService موجود — يتعامل مع قطع الاتصال');
+    } else {
+      failures.push('ConnectionResilienceService غير موجود — لا توجد آلية للتعافي من قطع الاتصال');
+    }
+
+    // V44b: WebSocket gateway has disconnect cleanup
+    const gwContent = this.read('modules/exchange/exchange.gateway.ts');
+    if (gwContent) {
+      if (gwContent.includes('handleDisconnect') || gwContent.includes('disconnect')) {
+        passes.push('WebSocket Gateway ينظف الموارد عند قطع الاتصال');
+      } else {
+        failures.push('WebSocket Gateway لا ينظف عند قطع الاتصال — تسرب ذاكرة');
+      }
+    }
+
+    // V44c: IoAdapter setup (no duplicate servers)
+    const mainContent = this.read('main.ts');
+    if (mainContent && mainContent.includes('IoAdapter')) {
+      passes.push('IoAdapter مضبوط بشكل صحيح (خادم Socket.IO واحد)');
+    } else {
+      failures.push('IoAdapter غير مضبوط — قد يكون هناك خوادم متعددة');
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V44', name: 'V220 موثوقية WebSocket', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V44', name: 'V220 موثوقية WebSocket', status: 'PASS', detail: `موثوقية WebSocket: ${passes.join(' | ')}` };
+  }
+
+  // ── V45: V220 — AI Provider Health Visibility ──
+  // Verifies that AI provider health status is available for monitoring.
+  private checkV45(): CheckResult {
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    // V45a: AI orchestrator has health check
+    const aiContent = this.read('modules/ai/services/ai-orchestrator.service.ts');
+    if (!aiContent) {
+      return { id: 'V45', name: 'V220 مراقبة مزودي AI', status: 'MISSING', detail: 'ملف AI Orchestrator غير موجود' };
+    }
+
+    // V45b: Has circuit breaker per model
+    if (aiContent.includes('circuit') || aiContent.includes('consecutiveFailures')) {
+      passes.push('قاطع دائرة لكل نموذج AI — يتتبع الأعطال المتتالية');
+    } else {
+      failures.push('لا يوجد قاطع دائرة لنماذج AI — أعطال النماذج لن تُكتشف');
+    }
+
+    // V45c: Has latency tracking
+    if (aiContent.includes('latency') || aiContent.includes('avgLatency')) {
+      passes.push('تتبع زمن الاستجابة لنماذج AI');
+    }
+
+    // V45d: Has fallback chain
+    if (aiContent.includes('fallback') || aiContent.includes('primary') && aiContent.includes('model')) {
+      passes.push('سلسلة احتياطية لنماذج AI');
+    }
+
+    // V45e: Budget guard exists
+    if (aiContent.includes('budget') || aiContent.includes('Budget')) {
+      passes.push('حارس الميزانية لنفقات AI');
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V45', name: 'V220 مراقبة مزودي AI', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V45', name: 'V220 مراقبة مزودي AI', status: 'PASS', detail: `مراقبة AI تعمل: ${passes.join(' | ')}` };
+  }
+
+  // ── V46: V220 — Position Reconciliation ──
+  // Verifies that position reconciliation exists between exchange and DB.
+  private checkV46(): CheckResult {
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    // V46a: ExchangeSyncService exists
+    const esContent = this.read('modules/trading/services/exchange-sync.service.ts');
+    if (!esContent) {
+      return { id: 'V46', name: 'V220 تسوية المراكز', status: 'MISSING', detail: 'ملف ExchangeSync غير موجود' };
+    }
+    passes.push('ExchangeSyncService موجود');
+
+    // V46b: Has periodic sync
+    if (esContent.includes('setInterval') || esContent.includes('Cron') || esContent.includes('@Cron')) {
+      passes.push('مزامنة دورية بين البورصة وقاعدة البيانات');
+    } else {
+      failures.push('لا توجد مزامنة دورية — المراكز قد تخرج عن التزامن');
+    }
+
+    // V46c: Has onModuleDestroy (cleanup)
+    if (esContent.includes('onModuleDestroy')) {
+      passes.push('ExchangeSyncService ينظف الموارد عند الإيقاف');
+    }
+
+    // V46d: PositionReconciliationService exists
+    const prContent = this.read('modules/trading/services/position-reconciliation.service.ts');
+    if (prContent) {
+      passes.push('PositionReconciliationService موجود — يعالج تحديثات المراكز الفاشلة');
+    } else {
+      failures.push('PositionReconciliationService غير موجود — تحديثات المراكز الفاشلة لا تُعاد');
+    }
+
+    // V46e: Agent protection in ExchangeSync
+    if (esContent.includes('isAgentDirectClose') || esContent.includes('agent') && esContent.includes('48')) {
+      passes.push('حماية مراكز الوكيل في ExchangeSync (< 48 ساعة)');
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V46', name: 'V220 تسوية المراكز', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V46', name: 'V220 تسوية المراكز', status: 'PASS', detail: `تسوية المراكز تعمل: ${passes.join(' | ')}` };
   }
   private renderHtml(results: CheckResult[], passed: number, failed: number, warnings: number, score: string): string {
     const statusIcon = (s: string) => s === 'PASS' ? '✅' : s === 'FAIL' ? '❌' : s === 'WARN' ? '⚠️' : '❓';

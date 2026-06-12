@@ -74,6 +74,26 @@ export const BINANCE_SUPPORTED_PAIRS: string[] = [
   ...COUNCIL_PAIRS.CRYPTO,
 ];
 
+/** V226: Pairs supported by MT5 (MetaTrader 5) via MetaAPI.
+ *  MT5 supports forex, commodities, and some crypto — depending on broker.
+ *  These are the COMMON pairs available on most MT5 brokers.
+ *  Individual brokers may have more symbols with suffixes like .raw, _ecn, etc.
+ *  The MT5Adapter._fromMT5Symbol() handles these suffixes during sync. */
+export const MT5_SUPPORTED_PAIRS: string[] = [
+  // Forex majors
+  ...COUNCIL_PAIRS.FOREX,
+  'AUD/USD', 'USD/CHF', 'USD/CAD', 'NZD/USD',
+  // Forex crosses
+  'EUR/GBP', 'EUR/JPY', 'GBP/JPY', 'AUD/JPY',
+  'EUR/AUD', 'EUR/CAD', 'GBP/AUD', 'GBP/CAD',
+  'CHF/JPY', 'AUD/CAD', 'NZD/JPY', 'AUD/NZD',
+  // Commodities
+  ...COUNCIL_PAIRS.COMMODITIES,
+  'XAG/USD',  // Silver
+  // Crypto (common on MT5 brokers)
+  'BTC/USD', 'ETH/USD',  // Some brokers offer these
+];
+
 /** Pairs NOT supported by Binance — analysis only, no execution.
  *  These can be used for market sentiment but orders will always fail. */
 export const NON_BINANCE_PAIRS: string[] = [
@@ -91,13 +111,23 @@ export const ALL_COUNCIL_PAIRS: string[] = [
 ];
 
 /** Check if a symbol is supported by the given exchange.
- *  Currently all users use Binance, so we check against BINANCE_SUPPORTED_PAIRS.
+ *  V226: Added MT5 support — forex + commodities + crypto on MT5 brokers.
  *  Returns true if the symbol can be executed on the exchange. */
 export function isSymbolSupportedByExchange(symbol: string, exchange: string): boolean {
   const exchangeId = exchange.toLowerCase().replace('_test', '').replace('-test', '');
   switch (exchangeId) {
     case 'binance':
       return BINANCE_SUPPORTED_PAIRS.includes(symbol);
+    case 'mt5':
+    case 'mt5_demo':
+    case 'metatrader5':
+    case 'metatrader':
+      // V226: MT5 supports forex, commodities, and some crypto
+      return MT5_SUPPORTED_PAIRS.includes(symbol);
+    case 'paper':
+    case 'paper-trading':
+      // Paper trading supports all pairs (simulation)
+      return true;
     default:
       // For unknown exchanges, only allow crypto pairs (safe default)
       return BINANCE_SUPPORTED_PAIRS.includes(symbol);

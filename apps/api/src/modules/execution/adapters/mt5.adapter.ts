@@ -29,6 +29,7 @@ import {
   ExecutionResult,
   OrderExecutionStatus,
   UnifiedBalance,
+  PositionModification,
 } from './base-adapter.interface';
 import { AuditService } from '../../../audit/audit.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
@@ -344,6 +345,75 @@ export class MT5Adapter implements IExchangeAdapter {
 
   getRateLimits(): { maxRequestsPerSecond: number; maxRequestsPerMinute: number } {
     return this.rateLimits;
+  }
+
+  // ── V226: Position Modification ──
+
+  /**
+   * V226: Modify an existing MT5 position's stop-loss and/or take-profit.
+   * This is critical for the Agent and PositionMonitor which need to
+   * update SL/TP on open positions (trailing stop, breakeven, etc.).
+   *
+   * MT5 natively supports position modification via MetaAPI:
+   *   connection.modifyPosition(positionId, { stopLoss, takeProfit })
+   *
+   * @param positionId The MT5 position ticket number
+   * @param symbol The trading pair (CCXT format, will be converted)
+   * @param modifications Object with optional stopLoss and/or takeProfit
+   */
+  async modifyPosition(positionId: string, symbol: string, modifications: PositionModification): Promise<boolean> {
+    this.logger.log(
+      `📊 MT5 modifying position ${positionId} (${symbol}): ` +
+      `SL=${modifications.stopLoss ?? 'unchanged'}, TP=${modifications.takeProfit ?? 'unchanged'}`
+    );
+
+    try {
+      const connection = await this._getConnection();
+
+      // Build modification payload — only include fields that are specified
+      const modifyParams: Record<string, any> = {};
+      if (modifications.stopLoss !== undefined) {
+        modifyParams.stopLoss = modifications.stopLoss;
+      }
+      if (modifications.takeProfit !== undefined) {
+        modifyParams.takeProfit = modifications.takeProfit;
+      }
+
+      // MetaAPI: modifyPosition takes the position ticket and modification object
+      await connection.modifyPosition(positionId, modifyParams);
+
+      await this._auditLog('MT5_POSITION_MODIFIED', {
+        positionId,
+        symbol,
+        stopLoss: modifications.stopLoss,
+        takeProfit: modifications.takeProfit,
+        isDemo: this.accountInfo.isDemo,
+      });
+
+      this.logger.log(
+        `✅ MT5 position ${positionId} modified: ` +
+        `SL=${modifications.stopLoss ?? 'unchanged'}, TP=${modifications.takeProfit ?? 'unchanged'}`
+      );
+
+      return true;
+    } catch (error: any) {
+      this.logger.error(`❌ MT5 modify position ${positionId} failed: ${error.message}`);
+
+      // Common error patterns
+      const errorMsg = error.message || '';
+      if (errorMsg.includes('Invalid stops') || errorMsg.includes('invalid stop')) {
+        this.logger.warn(
+          `⚠️ MT5: Invalid SL/TP values for position ${positionId}. ` +
+          `SL=${modifications.stopLoss}, TP=${modifications.takeProfit}. ` +
+          `MT5 requires SL below current price for BUY, above for SELL.`
+        );
+      }
+      if (errorMsg.includes('Position not found') || errorMsg.includes('position does not exist')) {
+        this.logger.warn(`⚠️ MT5: Position ${positionId} not found — may already be closed`);
+      }
+
+      return false;
+    }
   }
 
   // ── Private: Connection Management ──

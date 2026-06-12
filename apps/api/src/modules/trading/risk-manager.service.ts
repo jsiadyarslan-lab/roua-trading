@@ -11,6 +11,8 @@ import {
   calculateNotionalValue,
   AssetClass,
 } from './services/symbol-metadata';
+import { PortfolioValuationService } from './services/portfolio-valuation.service';
+import { RiskEventAuditService } from './services/risk-event-audit.service';
 
 /**
  * Risk Manager Service — Position Sizing and Risk Controls
@@ -45,6 +47,8 @@ export class RiskManagerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly portfolioValuation: PortfolioValuationService,
+    private readonly riskEventAudit: RiskEventAuditService,
   ) {
     // Initialize with env var defaults — will be overwritten by DB settings
     this.maxPositionSizePercent = parseFloat(
@@ -204,6 +208,11 @@ export class RiskManagerService {
         where: { userId, status: 'OPEN' },
       });
       if (openPositions >= this.maxOpenPositions) {
+        this.riskEventAudit.log({
+          userId, service: 'RiskManager', decision: 'REJECT',
+          reason: `تجاوز عدد المراكز المفتوحة (${openPositions}/${this.maxOpenPositions})`,
+          symbol, source: isPaperOnly ? 'paper' : 'real',
+        });
         return {
           allowed: false,
           reason: `لديك ${openPositions} مركز مفتوح بالفعل (الحد الأقصى: ${this.maxOpenPositions})`,
@@ -217,12 +226,23 @@ export class RiskManagerService {
       if (paperOrderValue > 0) {
         const paperPositionPercent = (paperOrderValue / paperPortfolioValue) * 100;
         if (paperPositionPercent > this.maxPositionSizePercent) {
+          this.riskEventAudit.log({
+            userId, service: 'RiskManager', decision: 'REJECT',
+            reason: `حجم المركز الورقي ${paperPositionPercent.toFixed(1)}% > ${this.maxPositionSizePercent}%`,
+            symbol, orderValue: paperOrderValue, portfolioValue: paperPortfolioValue,
+            positionPct: paperPositionPercent, source: 'paper',
+          });
           return {
             allowed: false,
             reason: `حجم المركز (${paperPositionPercent.toFixed(1)}% من المحفظة) يتجاوز الحد الأقصى (${this.maxPositionSizePercent}%) حتى في التداول الورقي`,
           };
         }
       }
+      this.riskEventAudit.log({
+        userId, service: 'RiskManager', decision: 'ACCEPT',
+        reason: 'تداول ورقي مسموح', symbol, orderValue: paperOrderValue,
+        portfolioValue: paperPortfolioValue, source: 'paper',
+      });
       this.logger.debug(`🛡️ Paper trading order ALLOWED by RiskManager (position count: ${openPositions}/${this.maxOpenPositions}, size check: passed)`);
       return { allowed: true, riskScore: 10 };
     }
@@ -255,6 +275,11 @@ export class RiskManagerService {
     if (portfolioValue > 0) {
       const positionPercent = (orderValue / portfolioValue) * 100;
       if (positionPercent > this.maxPositionSizePercent) {
+        this.riskEventAudit.log({
+          userId, service: 'RiskManager', decision: 'REJECT',
+          reason: `حجم المركز ${positionPercent.toFixed(1)}% > ${this.maxPositionSizePercent}%`,
+          symbol, orderValue, portfolioValue, positionPct: positionPercent,
+        });
         return {
           allowed: false,
           reason: `حجم المركز (${positionPercent.toFixed(1)}%) يتجاوز الحد الأقصى (${this.maxPositionSizePercent}%)`,
@@ -267,6 +292,11 @@ export class RiskManagerService {
     if (portfolioValue > 0 && dailyLoss < 0) {
       const lossPercent = (Math.abs(dailyLoss) / portfolioValue) * 100;
       if (lossPercent >= this.maxDailyLossPercent) {
+        this.riskEventAudit.log({
+          userId, service: 'RiskManager', decision: 'REJECT',
+          reason: `خسارة يومية ${lossPercent.toFixed(1)}% >= ${this.maxDailyLossPercent}%`,
+          symbol, portfolioValue, riskScore: 100,
+        });
         return {
           allowed: false,
           reason: `خسائرك اليومية (${lossPercent.toFixed(1)}%) تجاوزت الحد الأقصى (${this.maxDailyLossPercent}%)`,
@@ -282,6 +312,10 @@ export class RiskManagerService {
       dailyLoss,
     );
 
+    this.riskEventAudit.log({
+      userId, service: 'RiskManager', decision: 'ACCEPT',
+      reason: 'الطلب مسموح', symbol, orderValue, portfolioValue, riskScore,
+    });
     return { allowed: true, riskScore };
   }
 
@@ -385,105 +419,14 @@ export class RiskManagerService {
   /**
    * Estimate portfolio value for a user.
    *
-   * V217 UNIFIED FIX: Portfolio valuation is now CONSISTENT with RiskCalculator.
-   * Both services use the SAME formula:
+   * V218: Now delegates to PortfolioValuationService — the SINGLE SOURCE OF TRUTH.
+   * Both RiskManager and RiskCalculator use the same service, eliminating
+   * the possibility of formula drift between services.
    *
-   *   Paper trading: paperBalance + unrealizedPnL
-   *   Real trading:   Portfolio.totalValue + unrealizedPnL
-   *
-   * Previously, RiskManager used paperBalance ONLY (no unrealizedPnL), while
-   * RiskCalculator used paperBalance + unrealizedPnL. This inconsistency caused:
-   *   - RiskManager sees $10,000 portfolio → allows $200 order (2%)
-   *   - But RiskCalculator sees $12,000 portfolio (paperBalance + $2k PnL)
-   *     → sizes positions based on $12,000 → $240 order
-   *   - The $240 order then FAILS RiskManager's check because it uses $10,000
-   *
-   * Also fixed: paperBalance = 0 now falls back to $10,000 default (matching
-   * RiskCalculator behavior), instead of returning 0 which blocks all trading.
+   * V217 kept as backwards-compatible wrapper that calls the unified service.
    */
   private async _estimatePortfolioValue(userId: string, isPaperTrading = false): Promise<number> {
-    // ── Paper Trading: AgentSettings.paperBalance + unrealizedPnL ──
-    if (isPaperTrading) {
-      try {
-        const agentSettings = await this.prisma.agentSettings.findUnique({
-          where: { userId },
-        });
-        // V217: paperBalance = 0 → fallback to $10,000 default (was returning 0)
-        const paperBalance = agentSettings?.paperBalance?.toNumber()
-          || parseFloat(this.configService.get('DEFAULT_PAPER_BALANCE', '10000'))
-          || 10000;
-
-        // V217: Add unrealized P&L from open positions (unified with RiskCalculator)
-        let unrealizedPnl = 0;
-        try {
-          const openPositions = await this.prisma.position.findMany({
-            where: { userId, status: 'OPEN' },
-            select: { quantity: true, currentPrice: true, entryPrice: true, side: true },
-          });
-          for (const p of openPositions) {
-            const qty = Number(p.quantity) || 0;
-            const currentPrice = Number(p.currentPrice) || Number(p.entryPrice) || 0;
-            const entryPrice = Number(p.entryPrice) || 0;
-            if (p.side === 'BUY') {
-              unrealizedPnl += (currentPrice - entryPrice) * qty;
-            } else {
-              unrealizedPnl += (entryPrice - currentPrice) * qty;
-            }
-          }
-        } catch {
-          // If we can't fetch positions, just use paperBalance without PnL
-        }
-
-        const portfolioValue = paperBalance + unrealizedPnl;
-        if (portfolioValue <= 0) {
-          this.logger.warn(`🛡️ V217: Paper portfolio is $${portfolioValue} (balance=$${paperBalance}, PnL=$${unrealizedPnl}) — using default`);
-          return parseFloat(this.configService.get('DEFAULT_PAPER_BALANCE', '10000')) || 10000;
-        }
-        this.logger.debug(`🛡️ V217: Paper trading portfolio value: $${portfolioValue} (balance=$${paperBalance} + unrealizedPnl=$${unrealizedPnl})`);
-        return portfolioValue;
-      } catch (err: any) {
-        // V217: On DB error, return default instead of 0 (matching RiskCalculator)
-        const defaultBalance = parseFloat(this.configService.get('DEFAULT_PAPER_BALANCE', '10000')) || 10000;
-        this.logger.error(`🛡️ V217: Failed to fetch paper balance: ${err.message} — using default: $${defaultBalance}`);
-        return defaultBalance;
-      }
-    }
-
-    // ── Real Trading: Portfolio table + open positions ──
-    const portfolios = await this.prisma.portfolio.aggregate({
-      where: { userId },
-      _sum: { totalValue: true },
-    });
-
-    const manualValue = Number(portfolios._sum.totalValue || 0);
-
-    // V217: Calculate unrealizedPnL (not full notional) for consistency with RiskCalculator
-    const openPositions = await this.prisma.position.findMany({
-      where: { userId, status: 'OPEN' },
-    });
-
-    let unrealizedPnl = 0;
-    for (const p of openPositions) {
-      const qty = Number(p.quantity) || 0;
-      const currentPrice = Number(p.currentPrice) || Number(p.entryPrice) || 0;
-      const entryPrice = Number(p.entryPrice) || 0;
-      if (p.side === 'BUY') {
-        unrealizedPnl += (currentPrice - entryPrice) * qty;
-      } else {
-        unrealizedPnl += (entryPrice - currentPrice) * qty;
-      }
-    }
-
-    const totalValue = manualValue + unrealizedPnl;
-
-    if (totalValue <= 0) {
-      this.logger.warn(
-        `🛡️ V217: Real portfolio value is $${totalValue} for user ${userId} (manual=$${manualValue}, PnL=$${unrealizedPnl}) — NOT executing for safety`,
-      );
-      return 0;
-    }
-
-    return totalValue;
+    return this.portfolioValuation.getValue(userId, isPaperTrading);
   }
 
   /**

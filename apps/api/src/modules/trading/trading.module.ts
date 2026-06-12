@@ -37,6 +37,15 @@ import { DistributedLockService } from './services/distributed-lock.service';
 import { SignalEvaluatorService } from './services/signal-evaluator.service';
 import { AdaptiveStrategySelectorService } from './services/adaptive-strategy-selector.service';
 
+// ✅ V218: Unified Portfolio Valuation — single source of truth for RiskManager + RiskCalculator
+import { PortfolioValuationService } from './services/portfolio-valuation.service';
+
+// ✅ V218: Price Validation — prevents recording trades with wrong prices
+import { PriceValidationService } from './services/price-validation.service';
+
+// ✅ V218: Risk Event Audit — every risk decision logged for audit trail
+import { RiskEventAuditService } from './services/risk-event-audit.service';
+
 /**
  * Trading Module — Complete Trading Engine
  *
@@ -112,6 +121,15 @@ import { AdaptiveStrategySelectorService } from './services/adaptive-strategy-se
 
     // ✅ #11: Distributed Lock — Redis-based concurrent trade protection
     DistributedLockService,
+
+    // ✅ V218: Unified Portfolio Valuation
+    PortfolioValuationService,
+
+    // ✅ V218: Price Validation
+    PriceValidationService,
+
+    // ✅ V218: Risk Event Audit
+    RiskEventAuditService,
   ],
   exports: [
     TradingService,
@@ -140,6 +158,15 @@ import { AdaptiveStrategySelectorService } from './services/adaptive-strategy-se
 
     // ✅ #11: Export Distributed Lock for cross-service trade operation locking
     DistributedLockService,
+
+    // ✅ V218: Export Portfolio Valuation for RiskCalculator and other services
+    PortfolioValuationService,
+
+    // ✅ V218: Export Price Validation for trading services
+    PriceValidationService,
+
+    // ✅ V218: Export Risk Event Audit for risk services
+    RiskEventAuditService,
   ],
 })
 export class TradingModule {}

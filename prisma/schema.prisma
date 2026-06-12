@@ -39,6 +39,7 @@ model User {
   auditLogs           AuditLog[]
   autonomousTrades    AutonomousTrade[]
   agentSessions       AgentSession[]
+  riskEvents          RiskEvent[]
   agentSettings       AgentSettings?
   contentArticles     ContentArticle[]
   tradingBriefs       TradingBrief[]
@@ -207,6 +208,33 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
   @@index([action, createdAt])
+}
+
+// ── V218: Risk Event Audit Trail ──
+// Every risk decision (accept/reject/warn) is logged here.
+// This creates a full audit trail for debugging, compliance, and analytics.
+model RiskEvent {
+  id            String   @id @default(cuid())
+  userId        String
+  service       String   // Which service made the decision: RiskManager, RiskCalculator, RiskGatekeeper
+  decision      String   // ACCEPT, REJECT, WARN
+  reason        String   // Human-readable reason (Arabic or English)
+  symbol        String?  // Trading pair (if applicable)
+  orderValue    Decimal? @db.Decimal(18, 4)    // Order value in USD
+  portfolioValue Decimal? @db.Decimal(18, 4)   // Portfolio value at time of check
+  positionPct   Decimal? @db.Decimal(8, 4)     // Position as % of portfolio
+  riskScore     Int?     // Risk score 0-100
+  metadata      String?  // JSON string with additional context
+  source        String?  // agent, smart_executor, user_manual
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([service])
+  @@index([decision])
+  @@index([createdAt])
+  @@index([userId, decision, createdAt])
+  @@index([symbol])
 }
 
 // ── News Article for RAG (Phase 4) ──

@@ -17,6 +17,7 @@ import {
   calculateMargin,
   calculateNotionalValue,
 } from '../../../modules/trading/services/symbol-metadata';
+import { PortfolioValuationService } from '../../../modules/trading/services/portfolio-valuation.service';
 
 /**
  * RiskCalculatorService — Smart risk management engine
@@ -50,6 +51,7 @@ export class RiskCalculatorService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly configService: ConfigService,
+    private readonly portfolioValuation: PortfolioValuationService,
   ) {
     // Load defaults from env
     this.defaultMaxPositionSizePercent = parseFloat(
@@ -432,82 +434,22 @@ export class RiskCalculatorService {
     return Math.min(100, Math.round(score));
   }
 
+  /**
+   * V218: Portfolio valuation now delegates to PortfolioValuationService.
+   * This is the SINGLE SOURCE OF TRUTH — both RiskManager and RiskCalculator
+   * use the same formula, eliminating the possibility of drift.
+   */
   private async _getPortfolioValue(userId: string): Promise<number> {
     try {
-      // V147 FIX: For paper-trading users, ALWAYS use paperBalance as the base,
-      // then ADD unrealized P&L (not position notional value). Previously,
-      // the code added positionsValue (qty × price = full notional) to manualValue,
-      // which gave wrong results:
-      //   - Paper user with 0 portfolio + 5 positions worth $500 each = $2,500 portfolio
-      //   - But the actual balance is $10,000 (paperBalance)
-      // This caused the position sizing to be based on $2,500 instead of $10,000,
-      // producing tiny positions and incorrect risk calculations.
-      // Now: paperPortfolioValue = paperBalance + unrealizedPnL
-      const settings = await this.prisma.agentSettings.findUnique({
-        where: { userId },
-      });
-
-      const isPaperTrading = settings ? settings.autoTradingEnabled !== false : true;
-      const paperBalance = settings ? Number(settings.paperBalance) || 10000 : 10000;
-
-      if (isPaperTrading) {
-        // Add unrealized P&L from open positions to paper balance
-        try {
-          const openPositions = await this.prisma.position.findMany({
-            where: { userId, status: 'OPEN' },
-            select: { quantity: true, currentPrice: true, entryPrice: true, side: true },
-          });
-          let unrealizedPnl = 0;
-          for (const p of openPositions) {
-            const qty = Number(p.quantity) || 0;
-            const currentPrice = Number(p.currentPrice) || Number(p.entryPrice) || 0;
-            const entryPrice = Number(p.entryPrice) || 0;
-            if (p.side === 'BUY') {
-              unrealizedPnl += (currentPrice - entryPrice) * qty;
-            } else {
-              unrealizedPnl += (entryPrice - currentPrice) * qty;
-            }
-          }
-          return paperBalance + unrealizedPnl;
-        } catch {
-          return paperBalance;
-        }
-      }
-
-      // For real-trading users: aggregate portfolio value from DB
-      const portfolios = await this.prisma.portfolio.aggregate({
-        where: { userId },
-        _sum: { totalValue: true },
-      });
-
-      const manualValue = Number(portfolios._sum.totalValue || 0);
-
-      // Add open positions value
-      const positions = await this.prisma.position.findMany({
-        where: { userId, status: 'OPEN' },
-      });
-
-      const positionsValue = positions.reduce((sum, p) => {
-        return sum + Number(p.quantity) * (Number(p.currentPrice) || Number(p.entryPrice));
-      }, 0);
-
-      const totalValue = manualValue + positionsValue;
-
-      if (totalValue <= 0) {
-        this.logger.warn(
-          `🛡️ Portfolio value is 0 for real-trading user ${userId} — NOT executing for safety`,
-        );
-        return 0;
-      }
-
-      return totalValue;
+      const valuation = await this.portfolioValuation.autoDetectValuation(userId);
+      return valuation.totalValue;
     } catch (error: any) {
-      // Even on DB error, return default for paper trading so agent doesn't get stuck
+      // Fallback: return default for paper trading so agent doesn't get stuck
       const defaultBalance = parseFloat(
         this.configService.get('DEFAULT_PAPER_BALANCE', '10000'),
       ) || 10000;
       this.logger.warn(
-        `🛡️ Failed to calculate portfolio value for ${userId}: ${error.message} — using default: $${defaultBalance}`,
+        `🛡️ V218: PortfolioValuationService failed for ${userId}: ${error.message} — using default: $${defaultBalance}`,
       );
       return defaultBalance;
     }

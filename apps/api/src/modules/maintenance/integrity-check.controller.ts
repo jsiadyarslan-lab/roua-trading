@@ -97,6 +97,23 @@ export class IntegrityCheckController {
   }
 
   /**
+   * Read the Prisma schema file (for model verification checks).
+   */
+  private readSchema(): string | null {
+    const schemaPaths = [
+      path.resolve(this.SRC_DIR, '..', '..', '..', 'prisma', 'schema.prisma'),
+      path.resolve(process.cwd(), 'prisma', 'schema.prisma'),
+      path.resolve(this.SRC_DIR, '..', '..', 'prisma', 'schema.prisma'),
+    ];
+    for (const p of schemaPaths) {
+      try {
+        return fs.readFileSync(p, 'utf-8');
+      } catch {}
+    }
+    return null;
+  }
+
+  /**
    * Read raw file content WITHOUT stripping comments.
    * Used for checks that need to see comment markers (like "REMOVED").
    */
@@ -230,6 +247,12 @@ export class IntegrityCheckController {
     results.push(this.checkV23());
     results.push(this.checkV24());
     results.push(this.checkV25());
+    // V218 Phase 2 checks
+    results.push(this.checkV26());
+    results.push(this.checkV27());
+    results.push(this.checkV28());
+    results.push(this.checkV29());
+    results.push(this.checkV30());
 
     return results;
   }
@@ -1908,6 +1931,285 @@ export class IntegrityCheckController {
       status: 'PASS',
       detail: `خدمات المخاطر متسقة: ${passes.join(' | ')}`,
     };
+  }
+
+  // ── V26: V218 — Unified PortfolioValuationService ──
+  // Verifies that a single PortfolioValuationService exists and is used by both
+  // RiskManager and RiskCalculator (eliminating formula drift).
+  private checkV26(): CheckResult {
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    // V26a: PortfolioValuationService file exists
+    const pvsContent = this.read('modules/trading/services/portfolio-valuation.service.ts');
+    if (!pvsContent) {
+      return { id: 'V26', name: 'V218 خدمة تقييم المحفظة الموحدة', status: 'MISSING', detail: 'ملف PortfolioValuationService غير موجود' };
+    }
+    passes.push('PortfolioValuationService موجود');
+
+    // V26b: Service has the key methods
+    if (pvsContent.includes('getValuation') && pvsContent.includes('getValue') && pvsContent.includes('autoDetectValuation')) {
+      passes.push('الخدمة تحتوي على getValuation + getValue + autoDetectValuation');
+    } else {
+      failures.push('الخدمة تفتقد بعض الطرق الأساسية (getValuation, getValue, autoDetectValuation)');
+    }
+
+    // V26c: Service calculates unrealizedPnL correctly
+    if (pvsContent.includes('unrealizedPnl') && /currentPrice\s*-\s*entryPrice/.test(pvsContent) && /entryPrice\s*-\s*currentPrice/.test(pvsContent)) {
+      passes.push('معادلة PnL موحدة (BUY: current-entry, SELL: entry-current)');
+    } else {
+      failures.push('معادلة PnL غير مكتملة في PortfolioValuationService');
+    }
+
+    // V26d: Service handles paperBalance = 0 fallback
+    if (pvsContent.includes('DEFAULT_PAPER_BALANCE')) {
+      passes.push('PortfolioValuationService يتعامل مع paperBalance=0 (fallback)');
+    } else {
+      failures.push('PortfolioValuationService لا يتعامل مع paperBalance=0');
+    }
+
+    // V26e: RiskManager uses PortfolioValuationService
+    const rmContent = this.read('modules/trading/risk-manager.service.ts');
+    if (rmContent) {
+      if (rmContent.includes('PortfolioValuationService') && rmContent.includes('portfolioValuation')) {
+        passes.push('RiskManager يستخدم PortfolioValuationService');
+      } else {
+        failures.push('RiskManager لا يستخدم PortfolioValuationService — صيغة مكررة');
+      }
+    }
+
+    // V26f: RiskCalculator uses PortfolioValuationService
+    const rcContent = this.read('agents/autonomous-trader/services/risk-calculator.service.ts');
+    if (rcContent) {
+      if (rcContent.includes('PortfolioValuationService') && rcContent.includes('portfolioValuation')) {
+        passes.push('RiskCalculator يستخدم PortfolioValuationService');
+      } else {
+        failures.push('RiskCalculator لا يستخدم PortfolioValuationService — صيغة مكررة');
+      }
+    }
+
+    // V26g: Service is registered in TradingModule
+    const tmContent = this.read('modules/trading/trading.module.ts');
+    if (tmContent) {
+      if (tmContent.includes('PortfolioValuationService')) {
+        passes.push('PortfolioValuationService مسجل في TradingModule');
+      } else {
+        failures.push('PortfolioValuationService غير مسجل في TradingModule');
+      }
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V26', name: 'V218 خدمة تقييم المحفظة الموحدة', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V26', name: 'V218 خدمة تقييم المحفظة الموحدة', status: 'PASS', detail: `تقييم المحفظة موحد: ${passes.join(' | ')}` };
+  }
+
+  // ── V27: V218 — Price Validation Layer ──
+  // Verifies the price validation service that prevents BTC $1,921 bug.
+  private checkV27(): CheckResult {
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    const pvContent = this.read('modules/trading/services/price-validation.service.ts');
+    if (!pvContent) {
+      return { id: 'V27', name: 'V218 طبقة التحقق من السعر', status: 'MISSING', detail: 'ملف PriceValidationService غير موجود' };
+    }
+    passes.push('PriceValidationService موجود');
+
+    // V27a: Has BTC price floor
+    if (pvContent.includes('BTC') && /10000|100000/.test(pvContent)) {
+      passes.push('يحتوي على حد أدنى لسعر BTC');
+    } else {
+      failures.push('لا يوجد حد أدنى لسعر BTC — خطأ $1,921 يمكن أن يتكرر');
+    }
+
+    // V27b: Has price deviation check
+    if (pvContent.includes('deviation') && pvContent.includes('MAX_PRICE_DEVIATION')) {
+      passes.push('يفحص انحراف السعر عن آخر سعر معروف');
+    } else {
+      failures.push('لا يفحص انحراف السعر — تغييرات مفاجئة قد لا تُكتشف');
+    }
+
+    // V27c: Has auto-correction for unit conversion (satoshi → dollar)
+    if (pvContent.includes('satoshi') || pvContent.includes('100_000_000') || pvContent.includes('autoCorrect')) {
+      passes.push('يحاول تصحيح الأسعار بوحدات خاطئة (satoshi → dollar)');
+    } else {
+      failures.push('لا يصحح الأسعار بوحدات خاطئة تلقائياً');
+    }
+
+    // V27d: Has quick validation for high-frequency paths
+    if (pvContent.includes('quickValidate')) {
+      passes.push('quickValidate متاح للمسارات عالية التردد');
+    } else {
+      failures.push('لا يوجد quickValidate — قد يكون بطيئاً للتطبيق على كل عملية تداول');
+    }
+
+    // V27e: Registered in TradingModule
+    const tmContent = this.read('modules/trading/trading.module.ts');
+    if (tmContent && tmContent.includes('PriceValidationService')) {
+      passes.push('PriceValidationService مسجل في TradingModule');
+    } else {
+      failures.push('PriceValidationService غير مسجل في TradingModule');
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V27', name: 'V218 طبقة التحقق من السعر', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V27', name: 'V218 طبقة التحقق من السعر', status: 'PASS', detail: `طبقة التحقق من السعر فعالة: ${passes.join(' | ')}` };
+  }
+
+  // ── V28: V218 — Risk Event Audit Trail ──
+  // Verifies that every risk decision is logged for audit purposes.
+  private checkV28(): CheckResult {
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    // V28a: RiskEventAuditService file exists
+    const reaContent = this.read('modules/trading/services/risk-event-audit.service.ts');
+    if (!reaContent) {
+      return { id: 'V28', name: 'V218 مسار تدقيق المخاطر', status: 'MISSING', detail: 'ملف RiskEventAuditService غير موجود' };
+    }
+    passes.push('RiskEventAuditService موجود');
+
+    // V28b: Has log method with fire-and-forget
+    if (reaContent.includes('log') && (reaContent.includes('fire-and-forget') || reaContent.includes('never throw'))) {
+      passes.push('طريقة log تعمل بدون حظر (fire-and-forget)');
+    } else {
+      failures.push('طريقة log قد تسبب حظر — تأكد من أنها لا throw');
+    }
+
+    // V28c: Has rate limiting to prevent DB flooding
+    if (reaContent.includes('rate') || reaContent.includes('EVENT_RATE_LIMIT')) {
+      passes.push('تحديد معدل التسجيل (منع إغراق قاعدة البيانات)');
+    } else {
+      failures.push('لا يوجد تحديد معدل — قد تغرق قاعدة البيانات بالأحداث');
+    }
+
+    // V28d: Prisma schema has RiskEvent model
+    const schemaContent = this.readSchema();
+    if (schemaContent && schemaContent.includes('model RiskEvent')) {
+      passes.push('نموذج RiskEvent موجود في Prisma schema');
+    } else {
+      failures.push('نموذج RiskEvent غير موجود في Prisma schema — الجدول لن يُنشأ');
+    }
+
+    // V28e: RiskManager logs events
+    const rmContent = this.read('modules/trading/risk-manager.service.ts');
+    if (rmContent && rmContent.includes('riskEventAudit')) {
+      passes.push('RiskManager يسجل أحداث المخاطر');
+    } else {
+      failures.push('RiskManager لا يسجل أحداث المخاطر');
+    }
+
+    // V28f: Registered in TradingModule
+    const tmContent = this.read('modules/trading/trading.module.ts');
+    if (tmContent && tmContent.includes('RiskEventAuditService')) {
+      passes.push('RiskEventAuditService مسجل في TradingModule');
+    } else {
+      failures.push('RiskEventAuditService غير مسجل في TradingModule');
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V28', name: 'V218 مسار تدقيق المخاطر', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V28', name: 'V218 مسار تدقيق المخاطر', status: 'PASS', detail: `مسار التدقيق يعمل: ${passes.join(' | ')}` };
+  }
+
+  // ── V29: V218 — Version Tracking ──
+  // Verifies that the health endpoint returns V218 version with Phase 2 features.
+  private checkV29(): CheckResult {
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    const mainContent = this.read('main.ts');
+    if (!mainContent) {
+      return { id: 'V29', name: 'V218 تتبع الإصدار', status: 'MISSING', detail: 'ملف main.ts غير موجود' };
+    }
+
+    // V29a: Version is V218
+    if (mainContent.includes('V218')) {
+      passes.push('الإصدار V218 في health endpoint');
+    } else if (mainContent.includes('V217')) {
+      failures.push('الإصدار لا يزال V217 — لم يتم التحديث إلى V218');
+    } else {
+      failures.push('لم أجد معلومات الإصدار في main.ts');
+    }
+
+    // V29b: Phase 2 features in version info
+    if (mainContent.includes('unifiedValuation')) {
+      passes.push('unifiedValuation مضمن في معلومات الإصدار');
+    } else {
+      failures.push('unifiedValuation غير مضمن — لا يمكن التحقق من خدمة التقييم الموحدة');
+    }
+
+    if (mainContent.includes('priceValidation')) {
+      passes.push('priceValidation مضمن في معلومات الإصدار');
+    } else {
+      failures.push('priceValidation غير مضمن');
+    }
+
+    if (mainContent.includes('riskEventAudit')) {
+      passes.push('riskEventAudit مضمن في معلومات الإصدار');
+    } else {
+      failures.push('riskEventAudit غير مضمن');
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V29', name: 'V218 تتبع الإصدار', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V29', name: 'V218 تتبع الإصدار', status: 'PASS', detail: `تتبع الإصدار يعمل: ${passes.join(' | ')}` };
+  }
+
+  // ── V30: V218 — Cooldown & Duplicate Trade Prevention ──
+  // Verifies that the duplicate trade prevention system works correctly.
+  private checkV30(): CheckResult {
+    const failures: string[] = [];
+    const warnings: string[] = [];
+    const passes: string[] = [];
+
+    // V30a: PositionMonitor has cooldown mechanism
+    const pmContent = this.read('modules/engine/services/position-monitor.service.ts');
+    if (pmContent) {
+      if (pmContent.includes('cooldown') && pmContent.includes('COOLDOWN_TTL_MS')) {
+        passes.push('PositionMonitor يضع cooldown بعد الإغلاق التلقائي');
+      } else {
+        failures.push('PositionMonitor لا يضع cooldown — تداولات مكررة ممكنة');
+      }
+    }
+
+    // V30b: SmartExecutor checks cooldown before trading
+    const seContent = this.read('modules/ai/smart-executor/smart-executor.service.ts');
+    if (seContent) {
+      if (seContent.includes('cooldown')) {
+        passes.push('SmartExecutor يفحص cooldown قبل فتح صفقات جديدة');
+      } else {
+        failures.push('SmartExecutor لا يفحص cooldown — يمكنه إعادة فتح نفس الصفقة فوراً');
+      }
+    }
+
+    // V30c: TradeCoordinationService exists (prevents cross-system duplicates)
+    const tcContent = this.read('modules/trading/services/trade-coordination.service.ts');
+    if (tcContent) {
+      passes.push('TradeCoordinationService يمنع التداولات المكررة بين الأنظمة');
+    } else {
+      warnings.push('TradeCoordinationService غير موجود — تداولات مكررة بين الوكيل والمنفذ ممكنة');
+    }
+
+    // V30d: ExposureManager exists (cross-system exposure tracking)
+    const emContent = this.read('modules/trading/services/exposure-manager.service.ts');
+    if (emContent) {
+      passes.push('ExposureManager يتتبع التعرض الموحد بين الأنظمة');
+    } else {
+      warnings.push('ExposureManager غير موجود — لا تتبع موحد للتعرض');
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V30', name: 'V218 منع التداولات المكررة', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    if (warnings.length > 0) {
+      return { id: 'V30', name: 'V218 منع التداولات المكررة', status: 'WARN', detail: `${warnings.join(' | ')} | ✅ ${passes.join(' | ')}` };
+    }
+    return { id: 'V30', name: 'V218 منع التداولات المكررة', status: 'PASS', detail: `منع التداولات المكررة يعمل: ${passes.join(' | ')}` };
   }
 
   // ── HTML Renderer ──

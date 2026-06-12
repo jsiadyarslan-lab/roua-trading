@@ -316,12 +316,15 @@ async function bootstrap() {
         uptime: Math.round(process.uptime()),
         checks,
         responseTimeMs: Date.now() - start,
-        // V217: Version info for deployment verification
+        // V218: Version info for deployment verification
         // This allows checking which code is ACTUALLY running on Railway
         version: {
-          code: 'V217',
+          code: 'V218',
           agentProtection: 'ENABLED', // V214+V216: Agent positions protected from premature close
           portfolioUnification: 'ENABLED', // V217: RiskManager & RiskCalculator use same formula
+          unifiedValuation: 'ENABLED', // V218: PortfolioValuationService = single source of truth
+          priceValidation: 'ENABLED', // V218: Price validation layer prevents BTC $1,921 bug
+          riskEventAudit: 'ENABLED', // V218: Every risk decision logged to RiskEvent table
           commit: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.DEPLOY_COMMIT || 'unknown',
           nodeEnv: process.env.NODE_ENV || 'development',
         },

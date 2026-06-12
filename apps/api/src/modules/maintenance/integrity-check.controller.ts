@@ -2299,18 +2299,15 @@ export class IntegrityCheckController {
 
     // V29a: Version is V218+ (evolving version — _stripComments removes comment markers)
     // NOTE: _stripComments() removes V219 comment markers, so we check code-level strings
-    if (mainContent.includes("'V220'") || mainContent.includes('"V220"')) {
-      passes.push('الإصدار V220 في health endpoint');
-    } else if (mainContent.includes("'V219'") || mainContent.includes('"V219"')) {
-      passes.push('الإصدار V219 في health endpoint');
-    } else if (mainContent.includes("'V218'") || mainContent.includes('"V218"')) {
-      passes.push('الإصدار V218 في health endpoint');
-    } else if (mainContent.includes('V220')) {
-      passes.push('الإصدار V220 في health endpoint (تعليق)');
-    } else if (mainContent.includes('V219')) {
-      passes.push('الإصدار V219 في health endpoint (تعليق)');
-    } else if (mainContent.includes('V218')) {
-      passes.push('الإصدار V218 في health endpoint (تعليق)');
+    // V226: Accept any version from V218 to V226+
+    const versionMatch = mainContent.match(/['"]V(\d+)['"]/);
+    const versionNum = versionMatch ? parseInt(versionMatch[1]) : 0;
+    if (versionNum >= 226) {
+      passes.push(`الإصدار V${versionNum} في health endpoint (أحدث)`);
+    } else if (versionNum >= 218) {
+      passes.push(`الإصدار V${versionNum} في health endpoint`);
+    } else if (mainContent.includes('V220') || mainContent.includes('V219') || mainContent.includes('V218')) {
+      passes.push('الإصدار V218+ في health endpoint (تعليق)');
     } else if (mainContent.includes('V217')) {
       failures.push('الإصدار لا يزال V217 — لم يتم التحديث');
     } else {
@@ -2810,11 +2807,15 @@ export class IntegrityCheckController {
       return { id: 'V39', name: 'V220 تتبع الإصدار', status: 'MISSING', detail: 'ملف main.ts غير موجود' };
     }
 
-    // V39a: Version is V220
-    if (mainContent.includes('V220')) {
-      passes.push('الإصدار V220 في health endpoint');
+    // V39a: Version is V220+
+    const v39VersionMatch = mainContent.match(/['"]V(\d+)['"]/);
+    const v39VersionNum = v39VersionMatch ? parseInt(v39VersionMatch[1]) : 0;
+    if (v39VersionNum >= 220) {
+      passes.push(`الإصدار V${v39VersionNum} في health endpoint`);
+    } else if (mainContent.includes('V220') || mainContent.includes('V221') || mainContent.includes('V222') || mainContent.includes('V223') || mainContent.includes('V224') || mainContent.includes('V225') || mainContent.includes('V226')) {
+      passes.push('الإصدار V220+ في health endpoint (تعليق)');
     } else if (mainContent.includes('V219')) {
-      failures.push('الإصدار لا يزال V219 — لم يتم التحديث إلى V220');
+      failures.push('الإصدار لا يزال V219 — لم يتم التحديث إلى V220+');
     } else {
       failures.push('لم أجد معلومات الإصدار في main.ts');
     }
@@ -2836,6 +2837,19 @@ export class IntegrityCheckController {
       passes.push('externalCircuitBreaker مضمن (V220)');
     } else {
       failures.push('externalCircuitBreaker غير مضمن');
+    }
+
+    // V39c: V226 MT5 features
+    if (mainContent.includes('mt5FullExecution')) {
+      passes.push('mt5FullExecution مضمن (V226)');
+    }
+
+    if (mainContent.includes('mt5PositionModify')) {
+      passes.push('mt5PositionModify مضمن (V226)');
+    }
+
+    if (mainContent.includes('mt5SymbolSupport')) {
+      passes.push('mt5SymbolSupport مضمن (V226)');
     }
 
     if (failures.length > 0) {

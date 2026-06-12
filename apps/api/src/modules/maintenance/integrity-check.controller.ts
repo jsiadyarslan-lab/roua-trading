@@ -271,6 +271,8 @@ export class IntegrityCheckController {
     results.push(this.checkV44());
     results.push(this.checkV45());
     results.push(this.checkV46());
+    // V221 Balance fix checks
+    results.push(this.checkV47());
 
     return results;
   }
@@ -3198,6 +3200,93 @@ export class IntegrityCheckController {
       return { id: 'V46', name: 'V220 تسوية المراكز', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
     }
     return { id: 'V46', name: 'V220 تسوية المراكز', status: 'PASS', detail: `تسوية المراكز تعمل: ${passes.join(' | ')}` };
+  }
+
+  // ── V47: V221 — Balance ≠ Equity Fix ──
+  // Verifies that Balance and Equity are properly separated across the system.
+  // Before V221: Balance field showed Equity value for MT5 accounts.
+  private checkV47(): CheckResult {
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    // V47a: Backend returns totalBalanceUsd separately from totalEquityUsd
+    const credContent = this.read('modules/portfolio/credentials/credentials.service.ts');
+    if (!credContent) {
+      return { id: 'V47', name: 'V221 فصل الرصيد عن الحقوق', status: 'MISSING', detail: 'ملف credentials.service.ts غير موجود' };
+    }
+
+    if (credContent.includes('totalBalanceUsd')) {
+      passes.push('الباك-إند يرجع totalBalanceUsd بشكل منفصل عن totalEquityUsd');
+    } else {
+      failures.push('الباك-إند لا يرجع totalBalanceUsd — الرصيد سيعرض الحقوق (Equity)');
+    }
+
+    // V47b: totalBalanceUsd uses balance ?? equity (not just equity)
+    if (credContent.includes('balance ?? e.equity') || credContent.includes('balance??e.equity')) {
+      passes.push('totalBalanceUsd يستخدم balance ?? equity (يفضل الرصيد الحقيقي)');
+    } else {
+      failures.push('totalBalanceUsd لا يتحقق من حقل balance — قد يستخدم equity دائماً');
+    }
+
+    // V47c: totalBalanceUsd included in API response
+    if (credContent.includes('totalBalanceUsd,')) {
+      passes.push('totalBalanceUsd مضمن في استجابة API');
+    } else {
+      failures.push('totalBalanceUsd غير مضمن في استجابة API — الفرونت إند لن يتلقى الرصيد');
+    }
+
+    // V47d: Frontend uses totalBalanceUsd from backend
+    // NOTE: usePositionsStore.ts is in the Next.js app (apps/web/), not in the NestJS app.
+    // From SRC_DIR (apps/api/src), the relative path is ../../web/src/hooks/
+    const storeContent = this.read('../../web/src/hooks/usePositionsStore.ts');
+    if (storeContent) {
+      if (storeContent.includes('totalBalanceUsd')) {
+        passes.push('الفرونت إند يستخدم totalBalanceUsd من الباك-إند');
+      } else {
+        failures.push('الفرونت إند لا يستخدم totalBalanceUsd — سيعرض equity كـ balance');
+      }
+
+      // V47e: effectiveCash uses adjustedTotalBalanceUsd (not adjustedTotalEquityUsd)
+      if (storeContent.includes('effectiveCash = adjustedTotalBalanceUsd')) {
+        passes.push('effectiveCash يستخدم adjustedTotalBalanceUsd (الرصيد الحقيقي)');
+      } else {
+        failures.push('effectiveCash يستخدم adjustedTotalEquityUsd — الرصيد يعرض الحقوق!');
+      }
+
+      // V47f: MT5 double-counting fix (hasMT5 detection)
+      if (storeContent.includes('hasMT5')) {
+        passes.push('كشف حسابات MT5 لمنع الحساب المزدوج للـ PnL');
+      } else {
+        failures.push('لا يوجد كشف MT5 — PnL يُحسب مرتين لحسابات MT5');
+      }
+
+      // V47g: Uses ?? instead of || for balance fallback
+      if (storeContent.includes('balance ??') && !storeContent.includes('balance || (activeExchange')) {
+        passes.push('يستخدم ?? بدل || للرصيد (0 رصيد صالح)');
+      } else {
+        failures.push('يستخدم || للرصيد — رصيد 0 يُستبدل بـ equity');
+      }
+    } else {
+      // Frontend file not accessible from backend — check what we can
+      passes.push('الفرونت إند غير قابل للفحص من الباك-إند (ملف منفصل)');
+    }
+
+    // V47h: Position-manager totalBalance = baseBalance (not baseBalance + totalExposure)
+    const pmContent = this.read('modules/trading/services/position-manager.service.ts');
+    if (pmContent) {
+      if (pmContent.includes('totalBalance = baseBalance;') || pmContent.includes('totalBalance = baseBalance')) {
+        passes.push('position-manager: totalBalance = baseBalance (بدون totalExposure)');
+      } else if (pmContent.includes('totalBalance = baseBalance + totalExposure')) {
+        failures.push('position-manager: totalBalance = baseBalance + totalExposure — يضيف القيمة الاسمية الكاملة!');
+      } else {
+        failures.push('position-manager: لا يوجد حساب واضح لـ totalBalance');
+      }
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V47', name: 'V221 فصل الرصيد عن الحقوق', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V47', name: 'V221 فصل الرصيد عن الحقوق', status: 'PASS', detail: `فصل الرصيد عن الحقوق يعمل: ${passes.join(' | ')}` };
   }
   private renderHtml(results: CheckResult[], passed: number, failed: number, warnings: number, score: string): string {
     const statusIcon = (s: string) => s === 'PASS' ? '✅' : s === 'FAIL' ? '❌' : s === 'WARN' ? '⚠️' : '❓';

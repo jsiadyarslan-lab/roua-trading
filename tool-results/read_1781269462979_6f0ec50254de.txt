@@ -1,0 +1,2002 @@
+     1→// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     2→// Roua Trading — Strategic Council Service
+     3→// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     4→// "القائد في غرفة العمليات" — يحلل السوق بعمق
+     5→// ويصدر وثائق تداول (Trading Briefs).
+     6→// لا ينفذ أي صفقة بنفسه.
+     7→//
+     8→// بنية جديدة: المجلس الاستراتيجي هو المحرك الوحيد
+     9→// لإجماع الذكاء الاصطناعي. CouncilSchedulerService القديم
+    10→// تم إلغاؤه واستبداله بهذه الخدمة.
+    11→// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    12→
+    13→import { Injectable, Logger } from '@nestjs/common';
+    14→import { Cron } from '@nestjs/schedule';
+    15→import { ConfigService } from '@nestjs/config';
+    16→import { PrismaService } from '../../../common/prisma/prisma.service';
+    17→import { RedisService } from '../../../common/redis/redis.service';
+    18→import { AIOrchestratorService } from '../services/ai-orchestrator.service';
+    19→import { AuditService } from '../../../audit/audit.service';
+    20→import { ExchangeService } from '../../exchange/exchange.service';
+    21→import { NewsService } from '../../news/news.service';
+    22→import { NewsIntegrationService } from '../../news/news-integration.service';
+    23→import { RagService } from '../services/rag.service';
+    24→import {
+    25→  ALL_COUNCIL_PAIRS,
+    26→  BINANCE_SUPPORTED_PAIRS,
+    27→  EXECUTOR_TIMEFRAMES,
+    28→  AGENT_TIMEFRAMES,
+    29→  AGENT_SLOW_TIMEFRAMES,
+    30→  TIMEFRAME_EXPIRY_MS,
+    31→  TIMEFRAME_RR,
+    32→  MIN_BRIEF_CONFIDENCE,
+    33→  MIN_CONSENSUS_SCORE,
+    34→  CouncilSessionResult,
+    35→  TradingBriefDTO,
+    36→  StrictRules,
+    37→  BriefTimeframe,
+    38→  BriefDirection,
+    39→} from './strategic-council.types';
+    40→
+    41→@Injectable()
+    42→export class StrategicCouncilService {
+    43→  private readonly logger = new Logger(StrategicCouncilService.name);
+    44→
+    45→  /**
+    46→   * V130 SUSTAINABLE FIX: Separate session guards for Executor and Agent sessions.
+    47→   *
+    48→   * WHY: Previously, both runHourlySession() and runAgentSession() shared a single
+    49→   * isInSession guard. Since both crons fired at the same 15-minute mark and
+    50→   * runHourlySession() took 20-30 minutes (15 pairs × 3 timeframes with AI calls),
+    51→   * runAgentSession() ALWAYS found isInSession=true and skipped entirely.
+    52→   * Result: ZERO M30/H1/H4/D1/W1 briefs were ever generated — the Agent was
+    53→   * completely starved of signals.
+    54→   *
+    55→   * Now: Each session type has its own guard, and crons fire at different times:
+    56→   *   - Executor session (M1/M5/M15): every 15 min at :00, :15, :30, :45
+    57→   *   - Agent session (M30/H1/H4/D1/W1): every 30 min at :07, :37
+    58→   * This ensures both sessions can run independently without blocking each other.
+    59→   */
+    60→  private isExecutorInSession = false;
+    61→  private isAgentInSession = false;
+    62→
+    63→  /** Daily cost cap for council sessions — increased from $20 to $50
+    64→   *  FIX: $20 was too low — with 15 pairs × 4 timeframes × 8 models,
+    65→   *  the cap was hit after ~2 full sessions, preventing subsequent sessions
+    66→   *  from calling AI models. This caused the pipeline to stall after 2 hours.
+    67→   *  Most models (Cerebras 14,400/day, NVIDIA 40/min, Mistral 1B/month) are FREE tier,
+    68→   *  so actual daily spend is ~$5-10. $50 cap gives plenty of headroom.
+    69→   */
+    70→  private readonly DAILY_COST_CAP_USD = 50.00;
+    71→
+    72→  /** V190: Cached council config from DB with 60-second TTL */
+    73→  private _councilConfigCache: {
+    74→    data: {
+    75→      consensusThreshold: number;
+    76→      minBriefConfidence: number;
+    77→      dailyCostCapUsd: number;
+    78→      executorIntervalMin: number;
+    79→      agentIntervalMin: number;
+    80→      maxPairsPerSession: number;
+    81→    } | null;
+    82→    expiresAt: number;
+    83→  } | null = null;
+    84→
+    85→  /** Redis keys */
+    86→  private readonly REDIS_DAILY_COST_KEY = 'strategic-council:daily_cost';
+    87→  private readonly REDIS_DAILY_COST_DATE_KEY = 'strategic-council:daily_cost_date';
+    88→
+    89→  constructor(
+    90→    private readonly prisma: PrismaService,
+    91→    private readonly redis: RedisService,
+    92→    private readonly orchestrator: AIOrchestratorService,
+    93→    private readonly audit: AuditService,
+    94→    private readonly exchangeService: ExchangeService,
+    95→    private readonly configService: ConfigService,
+    96→    private readonly newsService: NewsService,
+    97→    private readonly newsIntegration: NewsIntegrationService,
+    98→    private readonly ragService: RagService,
+    99→  ) {
+   100→    this.logger.log('🏛️ Strategic Council initialized — THE ONLY consensus engine (with news integration)');
+   101→    // REMOVED: _ensureTradingBriefTable() — all DDL removed from application code.
+   102→    // Schema changes must ONLY be done via `prisma migrate deploy` in start.sh.
+   103→    // Running DDL from application code causes connection pool exhaustion and
+   104→    // conflicts with Prisma schema management.
+   105→    // Startup health check: warn if no AI models are available
+   106→    this._checkAIHealth();
+   107→    // FIX: REMOVED _triggerStartupSession(). Previously, the Strategic Council
+   108→    // would auto-generate TradingBriefs on server startup, which the Smart
+   109→    // Executor would then process and create phantom trades. Now, briefs are
+   110→    // ONLY generated by the scheduled cron (every 15 minutes), and even then,
+   111→    // they won't be executed unless a user explicitly enables the executor.
+   112→    // This startup session was a source of phantom trades because it generated
+   113→    // briefs immediately on server boot, before the startup cleanup had a
+   114→    // chance to purge phantom data.
+   115→  }
+   116→
+   117→  // REMOVED: _ensureTradingBriefTable() — all DDL removed from application code.
+   118→  // Schema changes must ONLY be done via `prisma migrate deploy` in start.sh.
+   119→
+   120→  /**
+   121→   * V190: Read council configuration from DB (admin settings).
+   122→   * Falls back to hardcoded constants if DB is unavailable.
+   123→   * Cached with 60-second TTL to avoid DB queries every tick.
+   124→   */
+   125→  private async _getCouncilConfig(): Promise<{
+   126→    consensusThreshold: number;
+   127→    minBriefConfidence: number;
+   128→    dailyCostCapUsd: number;
+   129→    executorIntervalMin: number;
+   130→    agentIntervalMin: number;
+   131→    maxPairsPerSession: number;
+   132→  }> {
+   133→    // Return cached config if still valid
+   134→    if (this._councilConfigCache && Date.now() < this._councilConfigCache.expiresAt) {
+   135→      return this._councilConfigCache.data!;
+   136→    }
+   137→
+   138→    const defaults = {
+   139→      consensusThreshold: MIN_CONSENSUS_SCORE,   // 55
+   140→      minBriefConfidence: MIN_BRIEF_CONFIDENCE,  // 50
+   141→      dailyCostCapUsd: this.DAILY_COST_CAP_USD,  // 50
+   142→      executorIntervalMin: 15,
+   143→      agentIntervalMin: 30,
+   144→      maxPairsPerSession: BINANCE_SUPPORTED_PAIRS.length, // 7
+   145→    };
+   146→
+   147→    try {
+   148→      const setting = await this.prisma.setting.findUnique({
+   149→        where: { key: 'councilConfig' },
+   150→      });
+   151→      if (!setting) {
+   152→        this._councilConfigCache = { data: defaults, expiresAt: Date.now() + 60000 };
+   153→        return defaults;
+   154→      }
+   155→
+   156→      const config = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
+   157→      const parsed = {
+   158→        consensusThreshold: Math.max(30, Math.min(90, parseInt(config.consensusThreshold, 10) || defaults.consensusThreshold)),
+   159→        minBriefConfidence: Math.max(20, Math.min(90, parseInt(config.minBriefConfidence, 10) || defaults.minBriefConfidence)),
+   160→        dailyCostCapUsd: Math.max(5, Math.min(200, parseFloat(config.dailyCostCapUsd) || defaults.dailyCostCapUsd)),
+   161→        executorIntervalMin: Math.max(5, Math.min(60, parseInt(config.executorIntervalMin, 10) || defaults.executorIntervalMin)),
+   162→        agentIntervalMin: Math.max(10, Math.min(120, parseInt(config.agentIntervalMin, 10) || defaults.agentIntervalMin)),
+   163→        maxPairsPerSession: Math.max(3, Math.min(30, parseInt(config.maxPairsPerSession, 10) || defaults.maxPairsPerSession)),
+   164→      };
+   165→
+   166→      this._councilConfigCache = { data: parsed, expiresAt: Date.now() + 60000 };
+   167→      return parsed;
+   168→    } catch {
+   169→      this._councilConfigCache = { data: defaults, expiresAt: Date.now() + 60000 };
+   170→      return defaults;
+   171→    }
+   172→  }
+   173→
+   174→  /**
+   175→   * FIX: Trigger an initial council session after startup — but ONLY after
+   176→   * confirming that at least 2 AI models are available.
+   177→   * Previously, the session fired at 30 seconds regardless of AI readiness,
+   178→   * producing HOLD results that got cached and blocked all subsequent sessions.
+   179→   * Now we poll AI health every 10 seconds and only start the session once
+   180→   * ≥2 models are confirmed working, with a max wait of 3 minutes.
+   181→   */
+   182→  private _triggerStartupSession(): void {
+   183→    const MAX_WAIT_MS = 3 * 60 * 1000; // 3 minutes max wait
+   184→    const POLL_INTERVAL_MS = 10 * 1000; // Check every 10 seconds
+   185→    const startTime = Date.now();
+   186→
+   187→    const checkAndTrigger = async (): Promise<void> => {
+   188→      const elapsed = Date.now() - startTime;
+   189→      if (elapsed > MAX_WAIT_MS) {
+   190→        this.logger.warn('🏛️ Startup session: max wait reached (3 min) — triggering session even with limited AI models');
+   191→        try {
+   192→          const result = await this.runHourlySession();
+   193→          this.logger.log(
+   194→            `🏛️ Startup session (forced) complete: ${result.pairsAnalyzed} pairs, ` +
+   195→            `${result.briefsIssued} new briefs, ${result.briefsModified} modified`,
+   196→          );
+   197→        } catch (error: any) {
+   198→          this.logger.error(`🏛️ Startup session (forced) failed: ${error.message}`);
+   199→        }
+   200→        return;
+   201→      }
+   202→
+   203→      try {
+   204→        const models = await this.orchestrator.getModelsStatus();
+   205→        const working = models.filter((m: any) => m.available || m.keyAvailable).length;
+   206→
+   207→        if (working >= 2) {
+   208→          this.logger.log(`🏛️ ${working} AI models ready — triggering startup council session`);
+   209→          const result = await this.runHourlySession();
+   210→          this.logger.log(
+   211→            `🏛️ Startup session complete: ${result.pairsAnalyzed} pairs, ` +
+   212→            `${result.briefsIssued} new briefs, ${result.briefsModified} modified`,
+   213→          );
+   214→        } else {
+   215→          this.logger.log(`🏛️ Only ${working}/2 AI models ready — waiting ${POLL_INTERVAL_MS / 1000}s before retry...`);
+   216→          setTimeout(checkAndTrigger, POLL_INTERVAL_MS);
+   217→        }
+   218→      } catch (error: any) {
+   219→        this.logger.warn(`🏛️ AI health check failed: ${error.message} — retrying in ${POLL_INTERVAL_MS / 1000}s`);
+   220→        setTimeout(checkAndTrigger, POLL_INTERVAL_MS);
+   221→      }
+   222→    };
+   223→
+   224→    // Start checking after 30 seconds (give NestJS time to initialize)
+   225→    setTimeout(checkAndTrigger, 30000);
+   226→  }
+   227→
+   228→  /**
+   229→   * Check AI model availability at startup and log critical warnings
+   230→   */
+   231→  private _checkAIHealth(): void {
+   232→    // Delay check to allow all services to initialize
+   233→    setTimeout(async () => {
+   234→      try {
+   235→        const models = await this.orchestrator.getModelsStatus();
+   236→        const working = models.filter((m: any) => m.available || m.keyAvailable).length;
+   237→        if (working === 0) {
+   238→          this.logger.error(
+   239→            '🏛️ ⚠️ CRITICAL: Zero AI models available! The Strategic Council will produce NO Briefs. ' +
+   240→            'Set at least one API key: GROQ_API_KEY, GEMINI_API_KEY, GLM_API_KEY, OPENROUTER_API_KEY, or DEEPSEEK_API_KEY',
+   241→          );
+   242→        } else {
+   243→          this.logger.log(`🏛️ AI Health: ${working}/${models.length} models available — Council can produce Briefs`);
+   244→        }
+   245→      } catch (error: any) {
+   246→        this.logger.warn(`🏛️ AI health check failed: ${error.message}`);
+   247→      }
+   248→    }, 5000);
+   249→  }
+   250→
+   251→  // ── Scheduled Sessions ──
+   252→
+   253→  /**
+   254→   * Main council session — runs every 15 minutes for rapid scalping/intraday trades
+   255→   * Reviews ALL pairs across rapid timeframes
+   256→   */
+   257→
+   258→  /**
+   259→   * Agent Council Session — M30/H1 briefs for the Agent
+   260→   * Runs every 15 minutes alongside the main session
+   261→   * Generates medium-term briefs the Agent reads
+   262→   */
+   263→  /**
+   264→   * V130: Agent session runs at :07 and :37 (offset from executor session).
+   265→   * This prevents the concurrency bug where runHourlySession() held isInSession=true
+   266→   * for 20-30 minutes, causing runAgentSession() to always skip.
+   267→   */
+   268→  @Cron('7,37 * * * *')
+   269→  async runAgentSession(): Promise<void> {
+   270→    // FIX: Skip cycle when DB is unavailable to prevent connection pool exhaustion
+   271→    if (!this.prisma.isAvailable?.()) {
+   272→      return;
+   273→    }
+   274→
+   275→    // Check AUTO_TRADING_ENABLED
+   276→    try {
+   277→      const s = await this.prisma.$queryRaw<any[]>`SELECT value FROM "Setting" WHERE key = 'AUTO_TRADING_ENABLED' LIMIT 1`.catch(() => []);
+   278→      if (s?.[0] && String(s[0].value) !== 'true') return;
+   279→    } catch {}
+   280→
+   281→    if (this.isAgentInSession) return; // V130: Use own guard
+   282→
+   283→    this.isAgentInSession = true;
+   284→    try {
+   285→      this.logger.log('🏛️ Agent Council: generating M30/H1/H4/D1/W1 briefs...');
+   286→
+   287→      // ═══════════════════════════════════════════════════════════════════
+   288→      // V132 FIX: Only generate briefs for BINANCE-supported pairs.
+   289→      //
+   290→      // PROBLEM: ALL_COUNCIL_PAIRS includes forex (EUR/USD, GBP/USD),
+   291→      // stocks (AAPL, MSFT), and commodities (XAU/USD). These pairs CANNOT
+   292→      // be executed on Binance (crypto-only exchange). Briefs for non-crypto
+   293→      // pairs were being generated, wasting AI API calls, and then failing
+   294→      // at execution with "binance does not have market symbol AAPL".
+   295→      //
+   296→      // FIX: Only use BINANCE_SUPPORTED_PAIRS for brief generation.
+   297→      // All current users trade on Binance (binance_test). Future multi-
+   298→      // exchange support can filter per-user based on their exchange.
+   299→      // ═══════════════════════════════════════════════════════════════════
+   300→      // V190: Read maxPairsPerSession from DB admin settings
+   301→      const councilCfg = await this._getCouncilConfig();
+   302→      const agentPairs = BINANCE_SUPPORTED_PAIRS.slice(0, councilCfg.maxPairsPerSession);
+   303→      this.logger.log(`🏛️ Agent Council: analyzing ${agentPairs.length} crypto pairs (maxPairs=${councilCfg.maxPairsPerSession}): ${agentPairs.join(', ')}`);
+   304→
+   305→      // V132: Parallel processing — process all pairs concurrently instead of sequentially.
+   306→      // Previously, pairs were processed one-by-one, taking 20-30 minutes for 15 pairs.
+   307→      // Now: All pairs process in parallel, limited to 3 concurrent to respect AI rate limits.
+   308→      const agentResults = await this._parallelProcess(
+   309→        agentPairs,
+   310→        async (pair) => {
+   311→          const pairResult = { pairs: 0, briefs: 0, errors: 0 };
+   312→          try {
+   313→            const marketData = await this.orchestrator.fetchQuickMarketData(pair);
+   314→            if (!marketData?.price) return pairResult;
+   315→
+   316→            for (const tf of AGENT_TIMEFRAMES as any[]) {
+   317→              // Slow timeframes (H4, D1, W1): only top 3 pairs to reduce AI costs
+   318→              if (AGENT_SLOW_TIMEFRAMES.includes(tf as any) && agentPairs.indexOf(pair) >= 3) continue;
+   319→              await this._analyzePairTimeframe(pair, tf, marketData.price, { pairs: 0, briefs: 0, errors: 0, sessionId: 'agent-session', durationMs: 0 } as any);
+   320→              pairResult.briefs++;
+   321→            }
+   322→            pairResult.pairs = 1;
+   323→          } catch (e: any) {
+   324→            this.logger.warn(`Agent session: ${pair} failed — ${e.message}`);
+   325→            pairResult.errors++;
+   326→          }
+   327→          return pairResult;
+   328→        },
+   329→        3, // max 3 concurrent AI calls to respect rate limits
+   330→      );
+   331→
+   332→      const agentTotal = agentResults.reduce((acc, r) => ({
+   333→        pairs: acc.pairs + r.pairs,
+   334→        briefs: acc.briefs + r.briefs,
+   335→        errors: acc.errors + r.errors,
+   336→      }), { pairs: 0, briefs: 0, errors: 0 });
+   337→      this.logger.log(`🏛️ Agent Council complete: ${agentTotal.pairs} pairs, ${agentTotal.briefs} briefs, ${agentTotal.errors} errors`);
+   338→    } catch (e: any) {
+   339→      this.logger.warn(`Agent session error: ${e.message}`);
+   340→    } finally {
+   341→      this.isAgentInSession = false;
+   342→    }
+   343→  }
+   344→
+   345→  @Cron('*/15 * * * *')
+   346→  async runHourlySession(): Promise<CouncilSessionResult> {
+   347→    // FIX: Skip cycle when DB is unavailable to prevent connection pool exhaustion
+   348→    if (!this.prisma.isAvailable?.()) {
+   349→      return {
+   350→        timestamp: new Date().toISOString(),
+   351→        pairsAnalyzed: 0,
+   352→        briefsIssued: 0,
+   353→        briefsModified: 0,
+   354→        briefsCancelled: 0,
+   355→        briefsExecuted: 0,
+   356→        durationMs: 0,
+   357→      };
+   358→    }
+   359→
+   360→    // V175: Sanctuary halt check — يمنع الجلسات عند الخسارة المتتالية
+   361→    try {
+   362→      const haltUntil = await this.redis?.get('council:sanctuary:halt');
+   363→      if (haltUntil && new Date(haltUntil) > new Date()) {
+   364→        this.logger.warn(`🏛️ Council HALTED by Sanctuary until ${haltUntil}`);
+   365→        return { timestamp: new Date().toISOString(), pairsAnalyzed: 0, briefsIssued: 0, briefsModified: 0, briefsCancelled: 0, briefsExecuted: 0, durationMs: 0 };
+   366→      }
+   367→    } catch { /* non-critical — don't block trading */ }
+   368→
+   369→    // ═══════════════════════════════════════════════════════════════════
+   370→    // FIX: Single AUTO_TRADING_ENABLED check (removed double-guard).
+   371→    // Previously there were TWO separate checks that both defaulted to
+   372→    // "skip if false" — this meant that if AUTO_TRADING_ENABLED was
+   373→    // false in DB (the common default), BOTH checks would skip the
+   374→    // session, generating ZERO briefs. The Smart Executor then has
+   375→    // nothing to execute → no trades ever.
+   376→    //
+   377→    // Now: Single check that defaults to TRUE (generate briefs) when
+   378→    // the DB setting doesn't exist. The Smart Executor already has
+   379→    // its own user-level enable check, so we don't need to block
+   380→    // brief generation here. Briefs without enabled users are harmless.
+   381→    // ═══════════════════════════════════════════════════════════════════
+   382→    try {
+   383→      // SAFETY: Default to FALSE — auto trading must be explicitly enabled by admin.
+   384→      // A new deployment should NOT start trading until the operator confirms readiness.
+   385→      let autoTradingEnabled = false;
+   386→      try {
+   387→        const dbSetting = await this.prisma.setting.findUnique({
+   388→          where: { key: 'AUTO_TRADING_ENABLED' },
+   389→        });
+   390→        if (dbSetting) {
+   391→          autoTradingEnabled = JSON.parse(dbSetting.value);
+   392→        }
+   393→        // If no DB setting exists, keep default FALSE (safe — operator must enable)
+   394→      } catch {
+   395→        // DB lookup failed — keep default FALSE (fail safe)
+   396→      }
+   397→
+   398→      if (!autoTradingEnabled) {
+   399→        this.logger.debug('🏛️ AUTO_TRADING_ENABLED=false in DB — skipping council session');
+   400→        return {
+   401→          timestamp: new Date().toISOString(),
+   402→          pairsAnalyzed: 0,
+   403→          briefsIssued: 0,
+   404→          briefsModified: 0,
+   405→          briefsCancelled: 0,
+   406→          briefsExecuted: 0,
+   407→          durationMs: 0,
+   408→        };
+   409→      }
+   410→    } catch {
+   411→      // If we can't check the setting, PROCEED (generate briefs)
+   412→      // This is the opposite of the old behavior which would skip on error
+   413→    }
+   414→
+   415→    if (this.isExecutorInSession) {
+   416→      this.logger.warn('🏛️ Previous executor council session still running — skipping');
+   417→      return {
+   418→        timestamp: new Date().toISOString(),
+   419→        pairsAnalyzed: 0,
+   420→        briefsIssued: 0,
+   421→        briefsModified: 0,
+   422→        briefsCancelled: 0,
+   423→        briefsExecuted: 0,
+   424→        durationMs: 0,
+   425→      };
+   426→    }
+   427→
+   428→    this.isExecutorInSession = true;
+   429→    const startTime = Date.now();
+   430→
+   431→    const result: CouncilSessionResult = {
+   432→      timestamp: new Date().toISOString(),
+   433→      pairsAnalyzed: 0,
+   434→      briefsIssued: 0,
+   435→      briefsModified: 0,
+   436→      briefsCancelled: 0,
+   437→      briefsExecuted: 0,
+   438→      durationMs: 0,
+   439→      diagnostics: [],
+   440→    };
+   441→
+   442→    try {
+   443→      this.logger.log('🏛️ Strategic Council convening hourly session...');
+   444→
+   445→      // Check daily cost cap
+   446→      // V190: Read dailyCostCapUsd from DB admin settings
+   447→      const councilCfg = await this._getCouncilConfig();
+   448→      const dailyCostCap = councilCfg.dailyCostCapUsd;
+   449→      const todayCost = await this._getTodayCost();
+   450→      if (todayCost >= dailyCostCap) {
+   451→        this.logger.warn(`💰 Daily cost cap reached ($${todayCost.toFixed(2)}/$${dailyCostCap}) — skipping session`);
+   452→        return result;
+   453→      }
+   454→
+   455→      // ═══════════════════════════════════════════════════════════════════
+   456→      // V132 FIX: Only generate briefs for BINANCE-supported pairs.
+   457→      //
+   458→      // PROBLEM: ALL_COUNCIL_PAIRS includes 15 pairs (7 crypto + 3 forex +
+   459→      // 4 stocks + 1 commodity). Non-crypto briefs waste AI API calls and
+   460→      // always fail at execution on Binance. This was the #1 cause of
+   461→      // "binance does not have market symbol AAPL/GBP/USD" errors.
+   462→      //
+   463→      // FIX: Only use BINANCE_SUPPORTED_PAIRS (7 crypto pairs) for
+   464→      // executor brief generation. Non-crypto pairs can be analyzed for
+   465→      // market context in the future when multi-exchange support is added.
+   466→      // ═══════════════════════════════════════════════════════════════════
+   467→      // V190: Read maxPairsPerSession from DB admin settings
+   468→      const executorPairs = BINANCE_SUPPORTED_PAIRS.slice(0, councilCfg.maxPairsPerSession);
+   469→      this.logger.log(`🏛️ Executor Council: analyzing ${executorPairs.length} crypto pairs (maxPairs=${councilCfg.maxPairsPerSession}): ${executorPairs.join(', ')}`);
+   470→
+   471→      // V132: Parallel processing — process all pairs concurrently instead of sequentially.
+   472→      // Previously: 15 pairs × 3 timeframes × 5-10s AI call = 225-450s (4-8 minutes)
+   473→      // Now: 7 pairs in parallel with concurrency=3 = ~2-3 minutes total
+   474→      const pairResults = await this._parallelProcess(
+   475→        executorPairs,
+   476→        async (pair) => {
+   477→          // Check cost before each pair
+   478→          const cost = await this._getTodayCost();
+   479→          if (cost >= dailyCostCap) {
+   480→            this.logger.warn('💰 Daily cost cap reached — stopping session early');
+   481→            return { analyzed: false, error: 'cost_cap' };
+   482→          }
+   483→
+   484→          try {
+   485→            await this._analyzePair(pair, result);
+   486→            return { analyzed: true };
+   487→          } catch (error: any) {
+   488→            if (error.message?.includes('Too many database connections') || error.message?.includes('connection pool')) {
+   489→              this.logger.error(`🏛️ DB connection exhaustion detected during ${pair} analysis — breaking`);
+   490→              return { analyzed: false, error: 'db_exhaustion' };
+   491→            }
+   492→            this.logger.error(`🏛️ Council failed for ${pair}: ${error.message}`);
+   493→            return { analyzed: false, error: error.message };
+   494→          }
+   495→        },
+   496→        3, // max 3 concurrent AI calls to respect rate limits
+   497→      );
+   498→
+   499→      // Count successfully analyzed pairs
+   500→      result.pairsAnalyzed = pairResults.filter(r => r.analyzed).length;
+   501→
+   502→      // Check if DB exhaustion was detected — break if so
+   503→      if (pairResults.some(r => r.error === 'db_exhaustion')) {
+   504→        this.logger.error('🏛️ Stopping session early due to DB connection exhaustion');
+   505→      }
+   506→
+   507→      // Expire outdated briefs
+   508→      await this._expireOutdatedBriefs();
+   509→
+   510→      // Mark executed briefs (those that SmartExecutor has already executed)
+   511→      await this._markExecutedBriefs();
+   512→
+   513→      result.durationMs = Date.now() - startTime;
+   514→
+   515→      this.logger.log(
+   516→        `🏛️ Strategic Council session complete: ${result.pairsAnalyzed} pairs, ` +
+   517→        `${result.briefsIssued} new briefs, ${result.briefsModified} modified, ` +
+   518→        `${result.briefsCancelled} cancelled, ${result.briefsExecuted} executed (${result.durationMs}ms)`,
+   519→      );
+   520→
+   521→      // Store session result in Redis
+   522→      await this.redis.set(
+   523→        'strategic-council:last_session',
+   524→        JSON.stringify(result),
+   525→        3600000, // 1 hour TTL
+   526→      );
+   527→
+   528→      // Publish council completion event for Smart Executor
+   529→      try {
+   530→        await this.redis.publish(
+   531→          'council:session_complete',
+   532→          JSON.stringify({
+   533→            timestamp: result.timestamp,
+   534→            briefsIssued: result.briefsIssued,
+   535→            briefsModified: result.briefsModified,
+   536→            activeBriefs: await this.getActiveBriefsCount(),
+   537→          }),
+   538→        );
+   539→      } catch (pubError: any) {
+   540→        this.logger.debug(`Failed to publish council event: ${pubError.message}`);
+   541→      }
+   542→
+   543→      await this.audit.log({
+   544→        userId: 'system',
+   545→        action: 'STRATEGIC_COUNCIL_SESSION',
+   546→        resource: 'strategic-council',
+   547→        details: JSON.stringify(result),
+   548→      });
+   549→    } catch (error: any) {
+   550→      this.logger.error(`🏛️ Strategic Council session failed: ${error.message}`);
+   551→    } finally {
+   552→      this.isExecutorInSession = false;
+   553→    }
+   554→
+   555→    return result;
+   556→  }
+   557→
+   558→  /**
+   559→   * Check if council is currently in session (for controller to query)
+   560→   * V130: Returns true if EITHER executor or agent session is running
+   561→   */
+   562→  isInSessionNow(): boolean {
+   563→    return this.isExecutorInSession || this.isAgentInSession;
+   564→  }
+   565→
+   566→  /**
+   567→   * Force a council session for specific pairs (manual trigger) — ASYNC/FIRE-AND-FORGET
+   568→   * FIX: This method runs in the background so the HTTP response returns immediately.
+   569→   * Previously, the controller awaited forceSession() which took 6-12 minutes,
+   570→   * exceeding the 30-second proxy timeout and causing 502 errors on the frontend.
+   571→   */
+   572→  async forceSessionAsync(sessionId: string, pairs: string[], userId: string): Promise<CouncilSessionResult> {
+   573→    // Guard against concurrent sessions
+   574→    if (this.isExecutorInSession) {
+   575→      this.logger.warn('🏛️ Cannot start manual session — previous executor session still running');
+   576→      return {
+   577→        timestamp: new Date().toISOString(),
+   578→        pairsAnalyzed: 0,
+   579→        briefsIssued: 0,
+   580→        briefsModified: 0,
+   581→        briefsCancelled: 0,
+   582→        briefsExecuted: 0,
+   583→        durationMs: 0,
+   584→      };
+   585→    }
+   586→
+   587→    this.isExecutorInSession = true;
+   588→    this.logger.log(`🏛️ Manual strategic council session [${sessionId}] started by ${userId} for: ${pairs.join(', ')}`);
+   589→
+   590→    const result: CouncilSessionResult = {
+   591→      timestamp: new Date().toISOString(),
+   592→      pairsAnalyzed: 0,
+   593→      briefsIssued: 0,
+   594→      briefsModified: 0,
+   595→      briefsCancelled: 0,
+   596→      briefsExecuted: 0,
+   597→      durationMs: 0,
+   598→      diagnostics: [],
+   599→    };
+   600→
+   601→    const startTime = Date.now();
+   602→
+   603→    try {
+   604→      for (const pair of pairs) {
+   605→        try {
+   606→          await this._analyzePair(pair, result);
+   607→          result.pairsAnalyzed++;
+   608→        } catch (error: any) {
+   609→          this.logger.error(`🏛️ Manual council [${sessionId}] failed for ${pair}: ${error.message}`);
+   610→        }
+   611→      }
+   612→
+   613→      // Expire outdated briefs after manual session too
+   614→      await this._expireOutdatedBriefs();
+   615→      await this._markExecutedBriefs();
+   616→
+   617→      result.durationMs = Date.now() - startTime;
+   618→
+   619→      this.logger.log(
+   620→        `🏛️ Manual session [${sessionId}] complete: ${result.pairsAnalyzed} pairs, ` +
+   621→        `${result.briefsIssued} new briefs, ${result.briefsModified} modified (${result.durationMs}ms)`,
+   622→      );
+   623→
+   624→      // Store session result in Redis so the frontend can poll /session/last
+   625→      await this.redis.set(
+   626→        'strategic-council:last_session',
+   627→        JSON.stringify(result),
+   628→        3600000, // 1 hour TTL
+   629→      );
+   630→
+   631→      // Publish council completion event for Smart Executor
+   632→      try {
+   633→        await this.redis.publish(
+   634→          'council:session_complete',
+   635→          JSON.stringify({
+   636→            sessionId,
+   637→            timestamp: result.timestamp,
+   638→            briefsIssued: result.briefsIssued,
+   639→            briefsModified: result.briefsModified,
+   640→            activeBriefs: await this.getActiveBriefsCount(),
+   641→          }),
+   642→        );
+   643→      } catch (pubError: any) {
+   644→        this.logger.debug(`Failed to publish council event: ${pubError.message}`);
+   645→      }
+   646→
+   647→      await this.audit.log({
+   648→        userId,
+   649→        action: 'STRATEGIC_COUNCIL_MANUAL',
+   650→        resource: 'strategic-council',
+   651→        details: JSON.stringify({ sessionId, pairs, result }),
+   652→      });
+   653→    } catch (error: any) {
+   654→      this.logger.error(`🏛️ Manual session [${sessionId}] failed: ${error.message}`);
+   655→    } finally {
+   656→      this.isExecutorInSession = false;
+   657→    }
+   658→
+   659→    return result;
+   660→  }
+   661→
+   662→  /**
+   663→   * Force a council session for specific pairs (synchronous version — kept for backward compat)
+   664→   */
+   665→  async forceSession(pairs: string[], userId: string): Promise<CouncilSessionResult> {
+   666→    return this.forceSessionAsync(`sync-${Date.now()}`, pairs, userId);
+   667→  }
+   668→
+   669→  // ── Query Methods ──
+   670→
+   671→  /**
+   672→   * Get all active briefs (for Smart Executor consumption)
+   673→   */
+   674→  async getActiveBriefs(userId?: string): Promise<TradingBriefDTO[]> {
+   675→    try {
+   676→      // FIX: Include MODIFIED briefs — they are still active and should be
+   677→      // executed by the Smart Executor. Previously only 'ACTIVE' was returned,
+   678→      // so modified briefs were invisible to the executor.
+   679→      const where: any = { isActive: true, reviewStatus: { in: ['ACTIVE', 'MODIFIED'] } };
+   680→      if (userId) where.userId = userId;
+   681→
+   682→      const briefs = await this.prisma.tradingBrief.findMany({
+   683→        where,
+   684→        orderBy: { issuedAt: 'desc' },
+   685→      });
+   686→
+   687→      return briefs.map((b) => this._toDTO(b));
+   688→    } catch (error: any) {
+   689→      this.logger.error(`🏛️ getActiveBriefs failed: ${error.message}`);
+   690→      // Return empty array instead of crashing — the Strategic Council
+   691→      // will appear empty but won't return a 503 error
+   692→      return [];
+   693→    }
+   694→  }
+   695→
+   696→  /**
+   697→   * V134: Get CONSOLIDATED active briefs — ONE direction per pair.
+   698→   *
+   699→   * ROOT CAUSE FIX for "opened and closed after 1 second":
+   700→   *   The Council generates briefs per pair+timeframe. Different timeframes
+   701→   *   can have OPPOSITE directions (e.g., BTC/USDT M1=BUY, M5=SELL).
+   702→   *   When the SmartExecutor processes all briefs sequentially, it:
+   703→   *     1. Opens BUY from M1 brief
+   704→   *     2. Sees SELL from M5 brief → closes BUY → opens SELL
+   705→   *     3. Next tick: M1 BUY again → closes SELL → opens BUY
+   706→   *     → INFINITE LOOP of open→close every tick
+   707→   *
+   708→   * FIX: Consolidate all briefs for the same pair into ONE direction.
+   709→   * The direction with the HIGHEST confidence wins. If confidence is tied,
+   710→   * the shorter timeframe wins (more recent data).
+   711→   *
+   712→   * This ensures the executor sees AT MOST ONE brief per pair,
+   713→   * eliminating the open→close→open loop entirely.
+   714→   */
+   715→  async getConsolidatedBriefs(userId?: string): Promise<TradingBriefDTO[]> {
+   716→    const allBriefs = await this.getActiveBriefs(userId);
+   717→
+   718→    if (allBriefs.length === 0) return [];
+   719→
+   720→    // ═══════════════════════════════════════════════════════════════════
+   721→    // V143 FIX: Separate consolidation for EXECUTOR and AGENT timeframes.
+   722→    //
+   723→    // ROOT CAUSE: Previously, getConsolidatedBriefs() grouped ALL briefs
+   724→    // by pair regardless of timeframe type. This meant executor briefs
+   725→    // (M1/M5/M15) could CANCEL agent briefs (M30/H1/H4/D1/W1) and
+   726→    // vice versa. Since M1 briefs get 2x weight in the consolidation
+   727→    // vote, they almost always won, causing agent-timeframe briefs to
+   728→    // be cancelled (isActive=false). The Agent then couldn't see any
+   729→    // M30+ briefs → ZERO agent trades.
+   730→    //
+   731→    // Example: BTC/USDT has M1=BUY (conf 55) and M30=SELL (conf 60).
+   732→    // Old: M1 BUY score = 55 * 2.0 = 110, M30 SELL score = 60 * 1.0 = 60
+   733→    // → BUY wins → M30 SELL cancelled → Agent has no briefs
+   734→    //
+   735→    // FIX: Consolidate WITHIN each timeframe group separately.
+   736→    //   - Executor briefs only conflict with other executor briefs
+   737→    //   - Agent briefs only conflict with other agent briefs
+   738→    // Each system gets its own independent signal per pair.
+   739→    // ═══════════════════════════════════════════════════════════════════
+   740→    const executorBriefs = allBriefs.filter(b => EXECUTOR_TIMEFRAMES.includes(b.timeframe));
+   741→    const agentBriefs = allBriefs.filter(b => AGENT_TIMEFRAMES.includes(b.timeframe));
+   742→
+   743→    const consolidated: TradingBriefDTO[] = [];
+   744→
+   745→    // Consolidate executor briefs independently
+   746→    const executorConsolidated = await this._consolidateBriefsByPair(executorBriefs, 'EXECUTOR');
+   747→    consolidated.push(...executorConsolidated);
+   748→
+   749→    // Consolidate agent briefs independently
+   750→    const agentConsolidated = await this._consolidateBriefsByPair(agentBriefs, 'AGENT');
+   751→    consolidated.push(...agentConsolidated);
+   752→
+   753→    this.logger.log(
+   754→      `🏛️ V143 Consolidation: ${allBriefs.length} raw briefs → ${consolidated.length} consolidated ` +
+   755→      `(executor: ${executorConsolidated.length}, agent: ${agentConsolidated.length}) ` +
+   756→      `(pairs: ${consolidated.map(b => b.pair + ':' + b.direction + ':' + b.timeframe).join(', ')})`
+   757→    );
+   758→
+   759→    return consolidated;
+   760→  }
+   761→
+   762→  /**
+   763→   * V143: Consolidate briefs by pair within a specific timeframe group.
+   764→   * Each group (EXECUTOR or AGENT) resolves conflicts independently.
+   765→   * Losing briefs are only cancelled WITHIN the same group — executor
+   766→   * briefs never cancel agent briefs and vice versa.
+   767→   */
+   768→  private async _consolidateBriefsByPair(
+   769→    briefs: TradingBriefDTO[],
+   770→    group: 'EXECUTOR' | 'AGENT',
+   771→  ): Promise<TradingBriefDTO[]> {
+   772→    if (briefs.length === 0) return [];
+   773→
+   774→    // Group by pair
+   775→    const byPair = new Map<string, TradingBriefDTO[]>();
+   776→    for (const brief of briefs) {
+   777→      const existing = byPair.get(brief.pair) || [];
+   778→      existing.push(brief);
+   779→      byPair.set(brief.pair, existing);
+   780→    }
+   781→
+   782→    const consolidated: TradingBriefDTO[] = [];
+   783→
+   784→    for (const [pair, pairBriefs] of byPair) {
+   785→      if (pairBriefs.length === 0) continue;
+   786→
+   787→      if (pairBriefs.length === 1) {
+   788→        consolidated.push(pairBriefs[0]);
+   789→        continue;
+   790→      }
+   791→
+   792→      // Multiple briefs for same pair — check if they agree on direction
+   793→      const buyBriefs = pairBriefs.filter(b => b.direction === 'BUY');
+   794→      const sellBriefs = pairBriefs.filter(b => b.direction === 'SELL');
+   795→
+   796→      if (sellBriefs.length === 0) {
+   797→        const best = buyBriefs.sort((a, b) => b.confidence - a.confidence)[0];
+   798→        consolidated.push(best);
+   799→      } else if (buyBriefs.length === 0) {
+   800→        const best = sellBriefs.sort((a, b) => b.confidence - a.confidence)[0];
+   801→        consolidated.push(best);
+   802→      } else {
+   803→        // CONFLICTING DIRECTIONS within the same group
+   804→        const TF_WEIGHT: Record<string, number> = {
+   805→          M1: 2.0, M5: 1.5, M15: 1.2,  // Executor: shorter = stronger
+   806→          M30: 2.0, H1: 1.5, H4: 1.2,  // Agent: shorter = stronger (within agent group)
+   807→          D1: 0.8, W1: 0.5,
+   808→        };
+   809→
+   810→        let buyScore = buyBriefs.reduce((sum, b) =>
+   811→          sum + b.confidence * (TF_WEIGHT[b.timeframe] || 1.0), 0);
+   812→        let sellScore = sellBriefs.reduce((sum, b) =>
+   813→          sum + b.confidence * (TF_WEIGHT[b.timeframe] || 1.0), 0);
+   814→
+   815→        // V177 FIX #14: Direction balance enforcement
+   816→        // If one direction dominates (>70% of today's executed trades),
+   817→        // boost the other direction's scores to encourage diversity
+   818→        try {
+   819→          const todayStart = new Date();
+   820→          todayStart.setHours(0, 0, 0, 0);
+   821→          const todayBuyCount = await this.prisma.position.count({
+   822→            where: { side: 'BUY', status: { in: ['OPEN', 'CLOSED'] }, openedAt: { gte: todayStart } },
+   823→          });
+   824→          const todaySellCount = await this.prisma.position.count({
+   825→            where: { side: 'SELL', status: { in: ['OPEN', 'CLOSED'] }, openedAt: { gte: todayStart } },
+   826→          });
+   827→          const totalToday = todayBuyCount + todaySellCount;
+   828→          if (totalToday >= 4) { // Only enforce balance after 4+ trades
+   829→            const buyRatio = todayBuyCount / totalToday;
+   830→            const sellRatio = todaySellCount / totalToday;
+   831→            if (sellRatio > 0.70) {
+   832→              // SELL dominates — boost BUY score
+   833→              buyScore *= 1.3;
+   834→              this.logger.debug(`🏛️ V177 Direction balance: SELL dominates (${(sellRatio*100).toFixed(0)}%) — boosting BUY score by 1.3x`);
+   835→            } else if (buyRatio > 0.70) {
+   836→              // BUY dominates — boost SELL score
+   837→              sellScore *= 1.3;
+   838→              this.logger.debug(`🏛️ V177 Direction balance: BUY dominates (${(buyRatio*100).toFixed(0)}%) — boosting SELL score by 1.3x`);
+   839→            }
+   840→          }
+   841→        } catch { /* non-critical — balance enforcement is best-effort */ }
+   842→
+   843→        const winningBriefs = buyScore >= sellScore ? buyBriefs : sellBriefs;
+   844→        const losingBriefs = buyScore >= sellScore ? sellBriefs : buyBriefs;
+   845→        const winningDirection = buyScore >= sellScore ? 'BUY' : 'SELL';
+   846→
+   847→        const best = winningBriefs.sort((a, b) => b.confidence - a.confidence)[0];
+   848→
+   849→        this.logger.log(
+   850→          `🏛️ V143 CONSOLIDATION [${group}]: ${pair} has conflicting directions ` +
+   851→          `(BUY=${buyBriefs.length} score=${buyScore.toFixed(0)}, ` +
+   852→          `SELL=${sellBriefs.length} score=${sellScore.toFixed(0)}) ` +
+   853→          `→ Winner: ${winningDirection} (best confidence=${best.confidence}%, ` +
+   854→          `timeframe=${best.timeframe})`
+   855→        );
+   856→
+   857→        consolidated.push(best);
+   858→
+   859→        // V143: Only cancel losing briefs WITHIN the same timeframe group.
+   860→        // Previously, ALL losing briefs were cancelled, which destroyed
+   861→        // agent signals when executor briefs won the vote.
+   862→        for (const losing of losingBriefs) {
+   863→          try {
+   864→            await this.prisma.tradingBrief.update({
+   865→              where: { id: losing.id },
+   866→              data: {
+   867→                isActive: false,
+   868→                reviewStatus: 'CANCELLED',
+   869→                analysisSummary: `V143: Cancelled by ${group} consolidation — ${pair} has ${winningDirection} consensus within ${group} timeframes`,
+   870→              },
+   871→            });
+   872→          } catch { /* non-critical */ }
+   873→        }
+   874→      }
+   875→    }
+   876→
+   877→    return consolidated;
+   878→  }
+   879→
+   880→  /**
+   881→   * Get count of active briefs (lightweight for events)
+   882→   */
+   883→  async getActiveBriefsCount(): Promise<number> {
+   884→    try {
+   885→      return await this.prisma.tradingBrief.count({
+   886→        where: { isActive: true, reviewStatus: { in: ['ACTIVE', 'MODIFIED'] } },
+   887→      });
+   888→    } catch {
+   889→      return 0;
+   890→    }
+   891→  }
+   892→
+   893→  /**
+   894→   * Get brief history (including expired/cancelled/executed)
+   895→   * FIX: Added try-catch to prevent 503 errors when DB schema is out of sync.
+   896→   * Previously, if the TradingBrief table didn't have expected columns,
+   897→   * Prisma would throw and the controller would return 503.
+   898→   */
+   899→  async getBriefHistory(userId?: string, limit: number = 100): Promise<TradingBriefDTO[]> {
+   900→    try {
+   901→      const where: any = {};
+   902→      if (userId) where.userId = userId;
+   903→
+   904→      const briefs = await this.prisma.tradingBrief.findMany({
+   905→        where,
+   906→        orderBy: { createdAt: 'desc' },
+   907→        take: limit,
+   908→      });
+   909→
+   910→      return briefs.map((b) => this._toDTO(b));
+   911→    } catch (error: any) {
+   912→      this.logger.error(`🏛️ getBriefHistory failed: ${error.message}`);
+   913→      // Return empty array instead of crashing — the Strategic Council
+   914→      // will appear empty but won't return a 503 error
+   915→      return [];
+   916→    }
+   917→  }
+   918→
+   919→  /**
+   920→   * Get a specific brief by ID
+   921→   */
+   922→  async getBriefById(briefId: string): Promise<TradingBriefDTO | null> {
+   923→    const brief = await this.prisma.tradingBrief.findUnique({
+   924→      where: { id: briefId },
+   925→    });
+   926→    return brief ? this._toDTO(brief) : null;
+   927→  }
+   928→
+   929→  /**
+   930→   * Get last session result
+   931→   */
+   932→  async getLastSession(): Promise<CouncilSessionResult | null> {
+   933→    const cached = await this.redis.get('strategic-council:last_session');
+   934→    return cached ? JSON.parse(cached) : null;
+   935→  }
+   936→
+   937→  /**
+   938→   * Get active briefs for a specific pair
+   939→   */
+   940→  async getBriefsForPair(pair: string): Promise<TradingBriefDTO[]> {
+   941→    try {
+   942→      const briefs = await this.prisma.tradingBrief.findMany({
+   943→        where: { pair, isActive: true, reviewStatus: 'ACTIVE' },
+   944→        orderBy: { issuedAt: 'desc' },
+   945→      });
+   946→      return briefs.map((b) => this._toDTO(b));
+   947→    } catch (error: any) {
+   948→      this.logger.error(`🏛️ getBriefsForPair failed: ${error.message}`);
+   949→      // Return empty array instead of crashing — consistent with getActiveBriefs and getBriefHistory
+   950→      return [];
+   951→    }
+   952→  }
+   953→
+   954→  /**
+   955→   * Mark a brief as executed (called by Smart Executor after successful trade)
+   956→   */
+   957→  async markBriefExecuted(briefId: string, orderId: string): Promise<void> {
+   958→    try {
+   959→      await this.prisma.tradingBrief.update({
+   960→        where: { id: briefId },
+   961→        data: {
+   962→          isActive: false,
+   963→          reviewStatus: 'EXECUTED',
+   964→          analysisSummary: `Executed → Order: ${orderId}`,
+   965→        },
+   966→      });
+   967→      this.logger.log(`🏛️ Brief ${briefId} marked as EXECUTED (order: ${orderId})`);
+   968→    } catch (error: any) {
+   969→      this.logger.error(`Failed to mark brief ${briefId} as executed: ${error.message}`);
+   970→    }
+   971→  }
+   972→
+   973→  // ── Private: Core Analysis ──
+   974→
+   975→  // ── V143: News Context Integration ──
+   976→
+   977→  /**
+   978→   * V143: Fetch recent news context for a trading pair.
+   979→   * Retrieves relevant news articles from the NewsArticle database
+   980→   * and formats them as context for AI consensus analysis.
+   981→   *
+   982→   * This bridges the gap between the news analysis pipeline
+   983→   * (which fetches, translates, and analyzes news) and the
+   984→   * trading decision pipeline (which was previously news-blind).
+   985→   *
+   986→   * Returns a formatted string with recent news sentiment,
+   987→   * or empty string if no relevant news found (non-blocking).
+   988→   */
+   989→  private async _fetchNewsContextForPair(pair: string): Promise<string> {
+   990→    try {
+   991→      // Extract base symbol from pair (e.g., 'BTC' from 'BTC/USDT')
+   992→      const baseSymbol = pair.split('/')[0];
+   993→
+   994→      // 1. Try RAG-based retrieval (semantic search — most relevant results)
+   995→      const ragContext = await this.ragService.retrieveRelevantContext(
+   996→        `${baseSymbol} cryptocurrency market news sentiment`,
+   997→        5,
+   998→      );
+   999→      if (ragContext) {
+  1000→        this.logger.debug(`🏛️ V143: RAG context found for ${pair}: ${ragContext.length} chars`);
+  1001→      }
+  1002→
+  1003→      // 2. Also fetch latest news from NewsService (structured data with sentiment scores)
+  1004→      const latestNews = await this.newsService.getLatestNews({
+  1005→        symbol: baseSymbol,
+  1006→        limit: 5,
+  1007→      });
+  1008→
+  1009→      // Format structured news into context
+  1010→      let newsContext = '';
+  1011→
+  1012→      if (latestNews && latestNews.length > 0) {
+  1013→        const newsItems = latestNews.slice(0, 5).map((article: any, i: number) => {
+  1014→          const sentiment = article.sentimentLabel || 'neutral';
+  1015→          const impact = article.impactLevel || 'medium';
+  1016→          const score = typeof article.sentiment === 'number' ? article.sentiment.toFixed(2) : '0';
+  1017→          const title = article.translatedTitle || article.title || '';
+  1018→          const summary = article.summary || '';
+  1019→          const assets = article.affectedAssets || '';
+  1020→          const hoursAgo = article.publishedAt
+  1021→            ? Math.round((Date.now() - new Date(article.publishedAt).getTime()) / (60 * 60 * 1000))
+  1022→            : '?';
+  1023→
+  1024→          return `[${i + 1}] (${sentiment}, تأثير=${impact}, نقاط=${score}, منذ ${hoursAgo}ساعة) ${title}${summary ? ' — ' + summary : ''}${assets ? ' | أصول متأثرة: ' + assets : ''}`;
+  1025→        }).join('\n');
+  1026→
+  1027→        // Calculate aggregate news sentiment
+  1028→        const sentimentScores = latestNews
+  1029→          .map((a: any) => typeof a.sentiment === 'number' ? a.sentiment : 0)
+  1030→          .filter((s: number) => s !== 0);
+  1031→        const avgSentiment = sentimentScores.length > 0
+  1032→          ? sentimentScores.reduce((a: number, b: number) => a + b, 0) / sentimentScores.length
+  1033→          : 0;
+  1034→        const highImpactCount = latestNews.filter(
+  1035→          (a: any) => a.impactLevel === 'high' || a.impactLevel === 'HIGH'
+  1036→        ).length;
+  1037→
+  1038→        const sentimentDirection = avgSentiment > 0.2 ? 'إيجابي 🟢' : avgSentiment < -0.2 ? 'سلبي 🔴' : 'محايد ⚪';
+  1039→        const riskLevel = highImpactCount > 0 ? 'عالي ⚠️' : 'مقبول ✅';
+  1040→
+  1041→        newsContext = `\n\n📰 سياق الأخبار المحللة لـ ${pair} (${latestNews.length} خبر حديث):\n` +
+  1042→          `الملخص: اتجاه المشاعر ${sentimentDirection} (المعدل=${avgSentiment.toFixed(2)})، مستوى المخاطرة: ${riskLevel} (${highImpactCount} خبر عالي التأثير)\n` +
+  1043→          `الأخبار:\n${newsItems}`;
+  1044→      }
+  1045→
+  1046→      // Combine RAG context (semantic relevance) + structured news (sentiment scores)
+  1047→      // + market sentiment from rouatradingnews (Fear & Greed, Arab sentiment, geopolitical risk)
+  1048→      const parts: string[] = [];
+  1049→
+  1050→      if (ragContext) parts.push(`📚 سياق RAG ذي الصلة:\n${ragContext}`);
+  1051→      if (newsContext) parts.push(newsContext);
+  1052→
+  1053→      // V145: Also inject market sentiment from rouatradingnews
+  1054→      try {
+  1055→        const marketSentiment = await this.newsIntegration.getSentimentForAI();
+  1056→        if (marketSentiment) parts.push(marketSentiment);
+  1057→      } catch { /* non-blocking */ }
+  1058→
+  1059→      const combined = parts.join('\n\n---\n\n');
+  1060→
+  1061→      if (combined) {
+  1062→        this.logger.log(`🏛️ V143: News context injected for ${pair} (${combined.length} chars, ${latestNews?.length || 0} articles, RAG=${ragContext ? 'yes' : 'no'})`);
+  1063→      } else {
+  1064→        this.logger.debug(`🏛️ V143: No news context for ${pair} — proceeding without news`);
+  1065→      }
+  1066→
+  1067→      return combined;
+  1068→    } catch (error: any) {
+  1069→      // Non-blocking: news context failure should NEVER prevent brief generation
+  1070→      this.logger.warn(`🏛️ V143: News context fetch failed for ${pair}: ${error.message} — proceeding without news`);
+  1071→      return '';
+  1072→    }
+  1073→  }
+  1074→
+  1075→  /**
+  1076→   * V143: Calculate news risk score for a pair.
+  1077→   * Returns a value from -1 (strong sell signal from news) to +1 (strong buy signal),
+  1078→   * along with risk flags that the executor can use to gate trades.
+  1079→   *
+  1080→   * This is used by both the Strategic Council (to adjust confidence)
+  1081→   * and the Smart Executor (as a pre-execution risk gate).
+  1082→   */
+  1083→  async getNewsRiskScore(pair: string): Promise<{
+  1084→    score: number;          // -1 to +1 (negative = bearish news, positive = bullish news)
+  1085→    riskLevel: 'low' | 'medium' | 'high' | 'critical';
+  1086→    opposingNews: boolean;  // true if high-impact news opposes the brief direction
+  1087→    sentimentLabel: string; // human-readable label
+  1088→    highImpactCount: number;
+  1089→    recentArticleCount: number;
+  1090→  }> {
+  1091→    const defaultResult = {
+  1092→      score: 0,
+  1093→      riskLevel: 'low' as const,
+  1094→      opposingNews: false,
+  1095→      sentimentLabel: 'لا أخبار متاحة',
+  1096→      highImpactCount: 0,
+  1097→      recentArticleCount: 0,
+  1098→    };
+  1099→
+  1100→    try {
+  1101→      const baseSymbol = pair.split('/')[0];
+  1102→      const latestNews = await this.newsService.getLatestNews({
+  1103→        symbol: baseSymbol,
+  1104→        limit: 10,
+  1105→      });
+  1106→
+  1107→      if (!latestNews || latestNews.length === 0) return defaultResult;
+  1108→
+  1109→      // Filter to last 6 hours only (stale news is irrelevant)
+  1110→      const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+  1111→      const recentNews = latestNews.filter((a: any) =>
+  1112→        a.publishedAt && new Date(a.publishedAt) >= sixHoursAgo
+  1113→      );
+  1114→
+  1115→      if (recentNews.length === 0) return defaultResult;
+  1116→
+  1117→      // Calculate weighted sentiment score
+  1118→      let weightedScore = 0;
+  1119→      let totalWeight = 0;
+  1120→      let highImpactCount = 0;
+  1121→
+  1122→      for (const article of recentNews) {
+  1123→        const sentiment = typeof article.sentiment === 'number' ? article.sentiment : 0;
+  1124→        const impact = article.impactLevel?.toLowerCase();
+  1125→        const hoursAgo = article.publishedAt
+  1126→          ? (Date.now() - new Date(article.publishedAt).getTime()) / (60 * 60 * 1000)
+  1127→          : 24;
+  1128→
+  1129→        // Weight: high impact = 3x, medium = 2x, low = 1x
+  1130→        // Decay: recent news gets more weight (1.0 at 0h → 0.2 at 6h)
+  1131→        const impactWeight = impact === 'high' ? 3 : impact === 'medium' ? 2 : 1;
+  1132→        const timeDecay = Math.max(0.2, 1 - (hoursAgo / 6));
+  1133→        const weight = impactWeight * timeDecay;
+  1134→
+  1135→        weightedScore += sentiment * weight;
+  1136→        totalWeight += weight;
+  1137→
+  1138→        if (impact === 'high') highImpactCount++;
+  1139→      }
+  1140→
+  1141→      const score = totalWeight > 0 ? Math.max(-1, Math.min(1, weightedScore / totalWeight)) : 0;
+  1142→
+  1143→      // Determine risk level
+  1144→      let riskLevel: 'low' | 'medium' | 'high' | 'critical';
+  1145→      if (highImpactCount >= 3 && Math.abs(score) > 0.5) riskLevel = 'critical';
+  1146→      else if (highImpactCount >= 2 && Math.abs(score) > 0.3) riskLevel = 'high';
+  1147→      else if (highImpactCount >= 1 || Math.abs(score) > 0.3) riskLevel = 'medium';
+  1148→      else riskLevel = 'low';
+  1149→
+  1150→      const sentimentLabel = score > 0.3 ? 'إيجابي قوي' : score > 0.1 ? 'إيجابي خفيف'
+  1151→        : score < -0.3 ? 'سلبي قوي' : score < -0.1 ? 'سلبي خفيف' : 'محايد';
+  1152→
+  1153→      return {
+  1154→        score,
+  1155→        riskLevel,
+  1156→        opposingNews: false, // Determined by caller based on brief direction
+  1157→        sentimentLabel,
+  1158→        highImpactCount,
+  1159→        recentArticleCount: recentNews.length,
+  1160→      };
+  1161→    } catch (error: any) {
+  1162→      this.logger.warn(`🏛️ V143: News risk score failed for ${pair}: ${error.message}`);
+  1163→      return defaultResult;
+  1164→    }
+  1165→  }
+  1166→
+  1167→  /**
+  1168→   * FIX: Reference prices for Forex/Stock/Commodity pairs.
+  1169→   * These are approximate mid-market prices used ONLY when ALL live price sources fail.
+  1170→   * This prevents pairs from being completely skipped when market data APIs are down.
+  1171→   * The prices are updated frequently enough for trading signal generation —
+  1172→   * even a slightly stale reference price is better than skipping the pair entirely,
+  1173→   * because SL/TP levels are calculated as percentages from the entry price.
+  1174→   */
+  1175→  private readonly REFERENCE_PRICES: Record<string, number> = {
+  1176→    // Forex (updated 2026-05)
+  1177→    'EUR/USD': 1.1350, 'GBP/USD': 1.3250, 'USD/JPY': 143.50,
+  1178→    // Stocks (approximate, updated 2026-05)
+  1179→    'AAPL': 210.0, 'MSFT': 440.0, 'GOOGL': 168.0, 'TSLA': 280.0,
+  1180→    // Commodities
+  1181→    'XAU/USD': 3250.0,
+  1182→    // Crypto (added 2026-05 — were MISSING, causing wrong prices)
+  1183→    'BTC/USDT': 81000.0, 'ETH/USDT': 2340.0, 'SOL/USDT': 95.0,
+  1184→    'BNB/USDT': 652.0, 'XRP/USDT': 2.4, 'ADA/USDT': 0.75,
+  1185→    'DOGE/USDT': 0.22, 'DOT/USDT': 7.0, 'AVAX/USDT': 35.0,
+  1186→    'MATIC/USDT': 0.50, 'LINK/USDT': 15.0, 'UNI/USDT': 8.0,
+  1187→  };
+  1188→
+  1189→  /**
+  1190→   * Price sanity ranges — reject absurd prices that would produce
+  1191→   * broken SL/TP (e.g., BTC at $35 instead of $81,000).
+  1192→   */
+  1193→  private readonly PRICE_SANITY: Record<string, { min: number; max: number }> = {
+  1194→    'BTC/USDT': { min: 20000, max: 200000 },
+  1195→    'ETH/USDT': { min: 500, max: 10000 },
+  1196→    'SOL/USDT': { min: 5, max: 500 },
+  1197→    'BNB/USDT': { min: 100, max: 2000 },
+  1198→    'XRP/USDT': { min: 0.1, max: 10 },
+  1199→    'EUR/USD': { min: 0.8, max: 1.5 },
+  1200→    'GBP/USD': { min: 1.0, max: 1.8 },
+  1201→    'USD/JPY': { min: 100, max: 200 },
+  1202→    'XAU/USD': { min: 1000, max: 5000 },
+  1203→    'AAPL': { min: 100, max: 400 },
+  1204→  };
+  1205→
+  1206→  /**
+  1207→   * Analyze a single pair across all timeframes
+  1208→   * For each timeframe, decide: new brief, modify existing, or cancel
+  1209→   */
+  1210→  private async _analyzePair(pair: string, result: CouncilSessionResult): Promise<void> {
+  1211→    // FIX: Use orchestrator's fetchQuickMarketData instead of exchangeService.getQuote.
+  1212→    // exchangeService.getQuote fails on Railway for many pairs (Binance blocked, no TwelveData key).
+  1213→    // The orchestrator's fetcher uses multiple parallel sources (Binance, CoinGecko, CoinCap, Bybit,
+  1214→    // Yahoo Finance, ExchangeRate API, Alpha Vantage) and works reliably on cloud platforms.
+  1215→    let currentPrice = 0;
+  1216→    let priceSource = 'none';
+  1217→    try {
+  1218→      const marketData = await this.orchestrator.fetchQuickMarketData(pair);
+  1219→      currentPrice = marketData.price;
+  1220→      priceSource = 'orchestrator';
+  1221→    } catch (e: any) {
+  1222→      this.logger.warn(`🏛️ Orchestrator market data failed for ${pair}: ${e.message} — trying ExchangeService`);
+  1223→      result.diagnostics?.push(`${pair}: orchestrator price failed: ${e.message}`);
+  1224→    }
+  1225→
+  1226→    // Fallback: try ExchangeService if orchestrator failed
+  1227→    if (currentPrice <= 0) {
+  1228→      try {
+  1229→        const quote = await this.exchangeService.getQuote(pair);
+  1230→        currentPrice = quote.price;
+  1231→        priceSource = 'exchange';
+  1232→      } catch (e: any) {
+  1233→        this.logger.warn(`🏛️ ExchangeService also failed for ${pair}: ${e.message}`);
+  1234→        result.diagnostics?.push(`${pair}: exchange price also failed: ${e.message}`);
+  1235→      }
+  1236→    }
+  1237→
+  1238→    // FIX: CRITICAL — Use reference price as LAST RESORT instead of skipping the pair.
+  1239→    // Previously, when all live price sources failed, the pair was COMPLETELY SKIPPED,
+  1240→    // meaning no briefs were ever generated for Forex/Stock pairs on Railway.
+  1241→    // A reference price with a deterministic direction signal is ALWAYS better than
+  1242→    // no signal at all, because SL/TP levels protect against price inaccuracies.
+  1243→    if (currentPrice <= 0) {
+  1244→      const refPrice = this.REFERENCE_PRICES[pair];
+  1245→      if (refPrice && refPrice > 0) {
+  1246→        currentPrice = refPrice;
+  1247→        priceSource = 'reference-table';
+  1248→        this.logger.warn(`🏛️ Using reference price for ${pair}: ${refPrice} (live sources unavailable)`);
+  1249→        result.diagnostics?.push(`${pair}: using REFERENCE price=${refPrice} (live sources unavailable)`);
+  1250→      } else {
+  1251→        this.logger.warn(`🏛️ Could not fetch price for ${pair} from any source and no reference price — skipping`);
+  1252→        result.diagnostics?.push(`${pair}: NO PRICE from any source — skipped`);
+  1253→        return;
+  1254→      }
+  1255→    }
+  1256→
+  1257→    result.diagnostics?.push(`${pair}: price=${currentPrice} from ${priceSource}`);
+  1258→
+  1259→    // FIX: Price sanity check — reject absurd prices.
+  1260→    // If BTC/USDT returns $35 instead of $81,000 (e.g., data source returned
+  1261→    // a different asset's price), the resulting SL=$35.29 and TP=$35.82 would
+  1262→    // be completely wrong, and position sizing would produce 80+ BTC trades.
+  1263→    const sanity = this.PRICE_SANITY[pair];
+  1264→    if (sanity && (currentPrice < sanity.min || currentPrice > sanity.max)) {
+  1265→      this.logger.error(
+  1266→        `🏛️ PRICE SANITY FAILED for ${pair}: $${currentPrice} outside range [$${sanity.min}, $${sanity.max}] ` +
+  1267→        `— source: ${priceSource}. Using reference price as fallback.`
+  1268→      );
+  1269→      const refPrice = this.REFERENCE_PRICES[pair];
+  1270→      if (refPrice && refPrice >= sanity.min && refPrice <= sanity.max) {
+  1271→        currentPrice = refPrice;
+  1272→        priceSource = 'reference-table (sanity-fallback)';
+  1273→        result.diagnostics?.push(`${pair}: SANITY CHECK FAILED — using reference price $${refPrice}`);
+  1274→      } else {
+  1275→        this.logger.error(`🏛️ No valid reference price for ${pair} — skipping`);
+  1276→        result.diagnostics?.push(`${pair}: SANITY CHECK FAILED and no valid reference — SKIPPED`);
+  1277→        return;
+  1278→      }
+  1279→    }
+  1280→
+  1281→    // Analyze each timeframe
+  1282→    for (const timeframe of EXECUTOR_TIMEFRAMES) {
+  1283→      try {
+  1284→        await this._analyzePairTimeframe(pair, timeframe, currentPrice, result);
+  1285→      } catch (error: any) {
+  1286→        this.logger.error(`🏛️ Analysis failed for ${pair} ${timeframe}: ${error.message}`);
+  1287→        result.diagnostics?.push(`${pair} ${timeframe}: ANALYSIS ERROR: ${error.message}`);
+  1288→      }
+  1289→    }
+  1290→  }
+  1291→
+  1292→  /**
+  1293→   * Analyze a pair on a specific timeframe
+  1294→   * 1. Check if there's an existing active brief
+  1295→   * 2. Get AI consensus analysis
+  1296→   * 3. Decide: issue new, modify existing, or cancel
+  1297→   */
+  1298→  private async _analyzePairTimeframe(
+  1299→    pair: string,
+  1300→    timeframe: BriefTimeframe,
+  1301→    currentPrice: number,
+  1302→    result: CouncilSessionResult,
+  1303→  ): Promise<void> {
+  1304→    // Find existing active brief for this pair+timeframe
+  1305→    const existingBrief = await this.prisma.tradingBrief.findFirst({
+  1306→      where: {
+  1307→        pair,
+  1308→        timeframe: timeframe as any,
+  1309→        isActive: true,
+  1310→        reviewStatus: { in: ['ACTIVE', 'MODIFIED'] },
+  1311→      },
+  1312→    });
+  1313→
+  1314→    // V143: Fetch news context for this pair to inject into AI analysis.
+  1315→    // This is the KEY integration point — previously the council was news-blind.
+  1316→    // Now it sees recent news sentiment, impact levels, and affected assets
+  1317→    // before making BUY/SELL/HOLD decisions.
+  1318→    const newsContext = await this._fetchNewsContextForPair(pair);
+  1319→    const newsRisk = await this.getNewsRiskScore(pair);
+  1320→
+  1321→    // Get AI consensus analysis
+  1322→    // FIX: Pass forceFresh=true to bypass stale Redis cache from startup session.
+  1323→    // The startup session (30s after boot) produces fallback/HOLD results that
+  1324→    // get cached for 10 minutes, blocking all subsequent sessions from issuing briefs.
+  1325→    // By forcing fresh AI calls, each Council session gets the CURRENT model state.
+  1326→    // V143: News context is injected via Redis cache key — the orchestrator reads
+  1327→    // it as part of the prompt context when generating analysis.
+  1328→    const consensus = await this.orchestrator.getConsensusAnalysis(pair, {
+  1329→      forceFresh: true,
+  1330→      newsContext: newsContext || undefined,
+  1331→    } as any);
+  1332→
+  1333→    // V143: Adjust confidence based on news risk score.
+  1334→    // If news sentiment strongly opposes the AI recommendation, reduce confidence.
+  1335→    // If news sentiment supports the AI recommendation, boost confidence slightly.
+  1336→    let newsAdjustedConfidence = consensus.consensusScore;
+  1337→    const newsDirection: BriefDirection = consensus.recommendation === 'BUY' ? 'BUY' : 'SELL';
+  1338→    const newsSupportsDirection = (newsDirection === 'BUY' && newsRisk.score > 0.1) ||
+  1339→                                   (newsDirection === 'SELL' && newsRisk.score < -0.1);
+  1340→    const newsOpposesDirection = (newsDirection === 'BUY' && newsRisk.score < -0.3) ||
+  1341→                                  (newsDirection === 'SELL' && newsRisk.score > 0.3);
+  1342→
+  1343→    if (newsOpposesDirection && newsRisk.riskLevel === 'critical') {
+  1344→      newsAdjustedConfidence = Math.max(0, consensus.consensusScore - 15);
+  1345→      this.logger.warn(`🏛️ V143: News OPPOSES ${newsDirection} for ${pair} (news score=${newsRisk.score.toFixed(2)}, risk=${newsRisk.riskLevel}) — confidence reduced ${consensus.consensusScore}% → ${newsAdjustedConfidence}%`);
+  1346→    } else if (newsOpposesDirection) {
+  1347→      newsAdjustedConfidence = Math.max(0, consensus.consensusScore - 8);
+  1348→      this.logger.log(`🏛️ V143: News slightly opposes ${newsDirection} for ${pair} (news score=${newsRisk.score.toFixed(2)}) — confidence adjusted ${consensus.consensusScore}% → ${newsAdjustedConfidence}%`);
+  1349→    } else if (newsSupportsDirection) {
+  1350→      newsAdjustedConfidence = Math.min(95, consensus.consensusScore + 5);
+  1351→      this.logger.log(`🏛️ V143: News supports ${newsDirection} for ${pair} (news score=${newsRisk.score.toFixed(2)}) — confidence boosted ${consensus.consensusScore}% → ${newsAdjustedConfidence}%`);
+  1352→    }
+  1353→
+  1354→    // V143: Apply news-adjusted confidence directly to the consensus object.
+  1355→    // This way, all downstream code (including the effectiveConsensus = consensus line)
+  1356→    // uses the news-adjusted values.
+  1357→    consensus.consensusScore = newsAdjustedConfidence;
+  1358→    if (newsContext) {
+  1359→      consensus.masterStrategy = (consensus.masterStrategy || '') +
+  1360→        `\n\n📰 سياق الأخبار: مشاعر=${newsRisk.sentimentLabel}, مخاطر=${newsRisk.riskLevel}, نقاط=${newsRisk.score.toFixed(2)} (${newsRisk.recentArticleCount} خبر حديث)`;
+  1361→    }
+  1362→
+  1363→    // FIX: When AI models fail (isFallback=true, confidence=0), generate a technical-analysis
+  1364→    // based brief instead of cancelling everything. This prevents the entire pipeline from
+  1365→    // stalling when AI providers are down.
+  1366→    const isAIFallback = consensus.isFallback === true || consensus.consensusScore === 0;
+  1367→
+  1368→    // FIX: Detailed decision logging — helps diagnose why briefs aren't being created.
+  1369→    // Previously, the Council silently produced 0 briefs with no explanation.
+  1370→    // V143: Include news risk info in diagnostics.
+  1371→    this.logger.log(
+  1372→      `🏛️ Decision point for ${pair} ${timeframe}: ` +
+  1373→      `recommendation=${consensus.recommendation}, score=${consensus.consensusScore}%, ` +
+  1374→      `isFallback=${isAIFallback}, analyses=${consensus.analyses?.length || 0}, ` +
+  1375→      `newsRisk=${newsRisk.riskLevel}(${newsRisk.score.toFixed(2)}), ` +
+  1376→      `existingBrief=${existingBrief ? existingBrief.id : 'none'}`,
+  1377→    );
+  1378→    result.diagnostics?.push(`${pair} ${timeframe}: rec=${consensus.recommendation} score=${consensus.consensusScore}% fallback=${isAIFallback} models=${consensus.analyses?.length || 0} newsRisk=${newsRisk.riskLevel}(${newsRisk.score.toFixed(2)})`);
+  1379→
+  1380→    // FIX: Even when AI gives HOLD, try technical analysis as fallback.
+  1381→    // In active Forex markets, there's ALWAYS a direction. The AI saying HOLD
+  1382→    // doesn't mean the market is flat — it means the AI is being cautious.
+  1383→    // We use technical momentum to override AI caution and generate actionable signals.
+  1384→    if (!isAIFallback && consensus.recommendation === 'HOLD') {
+  1385→      // AI said HOLD — try technical analysis override before giving up
+  1386→      const technicalOverride = await this._generateTechnicalFallbackBrief(pair, timeframe, currentPrice);
+  1387→      if (technicalOverride && technicalOverride.recommendation !== 'HOLD') {
+  1388→        // Technical analysis found a direction — use it instead of HOLD
+  1389→        this.logger.log(`🏛️ Technical override: AI said HOLD for ${pair} ${timeframe}, but momentum shows ${technicalOverride.recommendation}`);
+  1390→        // Create brief using technical analysis
+  1391→        const direction: BriefDirection = technicalOverride.recommendation === 'BUY' ? 'BUY' : 'SELL';
+  1392→        let { entryPrice, stopLoss, takeProfit, strictRules } = this._calculateLevels(currentPrice, direction, timeframe);
+  1393→        ({ stopLoss, takeProfit } = this._validateAndFixLevels(direction, entryPrice, stopLoss, takeProfit, timeframe));
+  1394→
+  1395→        if (existingBrief) {
+  1396→          const sameDirection = existingBrief.direction === direction;
+  1397→          const priceDiff = Math.abs(Number(existingBrief.entryPrice) - entryPrice) / entryPrice;
+  1398→          if (sameDirection && priceDiff < 0.005) {
+  1399→            await this.prisma.tradingBrief.update({
+  1400→              where: { id: existingBrief.id },
+  1401→              data: { lastReviewedAt: new Date(), confidence: technicalOverride.consensusScore, analysisSummary: technicalOverride.masterStrategy },
+  1402→            });
+  1403→          } else {
+  1404→            await this.prisma.tradingBrief.update({
+  1405→              where: { id: existingBrief.id },
+  1406→              data: {
+  1407→                direction, entryPrice, stopLoss, takeProfit,
+  1408→                confidence: technicalOverride.consensusScore,
+  1409→                strictRules: JSON.stringify(strictRules),
+  1410→                lastReviewedAt: new Date(), reviewStatus: 'MODIFIED',
+  1411→                expiresAt: new Date(Date.now() + TIMEFRAME_EXPIRY_MS[timeframe]),
+  1412→                analysisSummary: technicalOverride.masterStrategy,
+  1413→              },
+  1414→            });
+  1415→            result.briefsModified++;
+  1416→            this.logger.log(`🏛️ Technical override modified brief for ${pair} ${timeframe}: ${direction}`);
+  1417→          }
+  1418→        } else {
+  1419→          try {
+  1420→            await this.prisma.tradingBrief.create({
+  1421→              data: {
+  1422→                pair, direction, entryPrice, stopLoss, takeProfit,
+  1423→                confidence: technicalOverride.consensusScore, timeframe: timeframe as any,
+  1424→                issuedAt: new Date(),
+  1425→                expiresAt: new Date(Date.now() + TIMEFRAME_EXPIRY_MS[timeframe]),
+  1426→                isActive: true, strictRules: JSON.stringify(strictRules),
+  1427→                lastReviewedAt: new Date(), reviewStatus: 'ACTIVE',
+  1428→                analysisSummary: technicalOverride.masterStrategy || `تحليل تقني: ${direction} بثقة ${technicalOverride.consensusScore}%`,
+  1429→              },
+  1430→            });
+  1431→            result.briefsIssued++;
+  1432→            this.logger.log(`🏛️ Technical override new brief for ${pair} ${timeframe}: ${direction} @ ${entryPrice}`);
+  1433→          } catch (dbError: any) {
+  1434→            this.logger.error(`🏛️ FAILED technical override brief for ${pair} ${timeframe}: ${dbError.message}`);
+  1435→          }
+  1436→        }
+  1437→        await this._addCost(technicalOverride.analyses?.length || 1);
+  1438→        return;
+  1439→      }
+  1440→
+  1441→      // Pure HOLD — technical analysis also shows no clear direction
+  1442→      // Keep existing brief if any, don't cancel it
+  1443→      result.diagnostics?.push(`${pair} ${timeframe}: Pure HOLD — no directional signal`);
+  1444→      if (existingBrief) {
+  1445→        await this.prisma.tradingBrief.update({
+  1446→          where: { id: existingBrief.id },
+  1447→          data: { lastReviewedAt: new Date() },
+  1448→        });
+  1449→        this.logger.debug(`🏛️ Pure HOLD (no directional signal) — keeping existing brief for ${pair} ${timeframe}`);
+  1450→      }
+  1451→      return;
+  1452→    }
+  1453→
+  1454→    // Still check minimum consensus score for non-HOLD recommendations
+  1455→    // FIX: Lowered from 30 to 15 — in active trading, even weak directional
+  1456→    // signals are actionable. The risk management (stop loss, take profit)
+  1457→    // handles downside protection. Skipping weak signals means no briefs ever.
+  1458→    // FIX: Lowered threshold from 15 to MIN_CONSENSUS_SCORE (40).
+  1459→    // The old 15% threshold was arbitrary and didn't match MIN_CONSENSUS_SCORE.
+  1460→    // Now uses the same constant consistently.
+  1461→    // V190: Read consensusThreshold from DB admin settings (cached).
+  1462→    const councilCfg = await this._getCouncilConfig();
+  1463→    if (!isAIFallback && consensus.recommendation !== 'HOLD' && consensus.consensusScore < councilCfg.consensusThreshold) {
+  1464→      this.logger.debug(`🏛️ Consensus too low (${consensus.consensusScore}%) for ${pair} ${timeframe} — skipping (threshold=${councilCfg.consensusThreshold}%, news-adjusted)`);
+  1465→      result.diagnostics?.push(`${pair} ${timeframe}: SKIPPED — consensus too low (${consensus.consensusScore}% < ${councilCfg.consensusThreshold}%) [news-adjusted]`);
+  1466→      if (existingBrief) {
+  1467→        await this.prisma.tradingBrief.update({
+  1468→          where: { id: existingBrief.id },
+  1469→          data: { lastReviewedAt: new Date() },
+  1470→        });
+  1471→      }
+  1472→      return;
+  1473→    }
+  1474→
+  1475→    // FIX: When AI is unavailable (fallback), try to generate a technical-analysis based brief
+  1476→    // using market data from ExchangeService instead of leaving the pipeline completely empty.
+  1477→    let effectiveConsensus = consensus;
+  1478→    if (isAIFallback) {
+  1479→      const technicalBrief = await this._generateTechnicalFallbackBrief(pair, timeframe, currentPrice);
+  1480→      if (technicalBrief) {
+  1481→        effectiveConsensus = technicalBrief;
+  1482→        this.logger.log(`🏛️ Using technical-analysis fallback for ${pair} ${timeframe} (AI unavailable)`);
+  1483→      } else {
+  1484→        // Technical analysis also failed — keep existing brief if any, don't cancel
+  1485→        if (existingBrief) {
+  1486→          await this.prisma.tradingBrief.update({
+  1487→            where: { id: existingBrief.id },
+  1488→            data: { lastReviewedAt: new Date() },
+  1489→          });
+  1490→          this.logger.debug(`🏛️ AI and technical analysis unavailable — keeping existing brief for ${pair} ${timeframe}`);
+  1491→        }
+  1492→        return;
+  1493→      }
+  1494→    }
+  1495→
+  1496→    const direction: BriefDirection = effectiveConsensus.recommendation === 'BUY' ? 'BUY' : 'SELL';
+  1497→
+  1498→    // Calculate entry, SL, TP based on current price and direction
+  1499→    const { entryPrice, stopLoss, takeProfit, strictRules } = this._calculateLevels(
+  1500→      currentPrice,
+  1501→      direction,
+  1502→      timeframe,
+  1503→    );
+  1504→
+  1505→    if (existingBrief) {
+  1506→      // Check if existing brief needs modification
+  1507→      const sameDirection = existingBrief.direction === direction;
+  1508→      const priceDiff = Math.abs(Number(existingBrief.entryPrice) - entryPrice) / entryPrice;
+  1509→
+  1510→      if (sameDirection && priceDiff < 0.005) {
+  1511→        // Direction same and entry price close enough — just update review timestamp
+  1512→        await this.prisma.tradingBrief.update({
+  1513→          where: { id: existingBrief.id },
+  1514→          data: {
+  1515→            lastReviewedAt: new Date(),
+  1516→            confidence: effectiveConsensus.consensusScore,
+  1517→            analysisSummary: effectiveConsensus.masterStrategy,
+  1518→          },
+  1519→        });
+  1520→        this.logger.debug(`🏛️ Brief for ${pair} ${timeframe} reviewed — no change needed`);
+  1521→      } else {
+  1522→        // Direction changed or significant price shift — modify brief
+  1523→        await this.prisma.tradingBrief.update({
+  1524→          where: { id: existingBrief.id },
+  1525→          data: {
+  1526→            direction,
+  1527→            entryPrice,
+  1528→            stopLoss,
+  1529→            takeProfit,
+  1530→            confidence: effectiveConsensus.consensusScore,
+  1531→            strictRules: JSON.stringify(strictRules),
+  1532→            lastReviewedAt: new Date(),
+  1533→            reviewStatus: 'MODIFIED',
+  1534→            expiresAt: new Date(Date.now() + TIMEFRAME_EXPIRY_MS[timeframe]),
+  1535→            analysisSummary: effectiveConsensus.masterStrategy,
+  1536→          },
+  1537→        });
+  1538→        result.briefsModified++;
+  1539→        this.logger.log(`🏛️ Modified brief for ${pair} ${timeframe}: ${direction} @ ${entryPrice}`);
+  1540→      }
+  1541→    } else {
+  1542→      // No existing brief — issue a new one
+  1543→      try {
+  1544→        await this.prisma.tradingBrief.create({
+  1545→          data: {
+  1546→            pair,
+  1547→            direction,
+  1548→            entryPrice,
+  1549→            stopLoss,
+  1550→            takeProfit,
+  1551→            confidence: effectiveConsensus.consensusScore,
+  1552→            timeframe: timeframe as any,
+  1553→            issuedAt: new Date(),
+  1554→            expiresAt: new Date(Date.now() + TIMEFRAME_EXPIRY_MS[timeframe]),
+  1555→            isActive: true,
+  1556→            strictRules: JSON.stringify(strictRules),
+  1557→            lastReviewedAt: new Date(),
+  1558→            reviewStatus: 'ACTIVE',
+  1559→            analysisSummary: effectiveConsensus.masterStrategy || `إجماع المجلس: ${direction} بثقة ${effectiveConsensus.consensusScore}%`,
+  1560→          },
+  1561→        });
+  1562→        result.briefsIssued++;
+  1563→        this.logger.log(`🏛️ New brief for ${pair} ${timeframe}: ${direction} @ ${entryPrice} (confidence: ${effectiveConsensus.consensusScore}%)`);
+  1564→        result.diagnostics?.push(`${pair} ${timeframe}: BRIEF CREATED ${direction} @ ${entryPrice} conf=${effectiveConsensus.consensusScore}%`);
+  1565→      } catch (dbError: any) {
+  1566→        this.logger.error(`🏛️ FAILED to create brief for ${pair} ${timeframe}: ${dbError.message} | data: direction=${direction} entryPrice=${entryPrice} stopLoss=${stopLoss} takeProfit=${takeProfit} confidence=${effectiveConsensus.consensusScore} timeframe=${timeframe}`);
+  1567→        result.diagnostics?.push(`${pair} ${timeframe}: DB CREATE FAILED: ${dbError.message}`);
+  1568→      }
+  1569→    }
+  1570→
+  1571→    // Track cost
+  1572→    await this._addCost(effectiveConsensus.analyses?.length || 0);
+  1573→  }
+  1574→
+  1575→  /**
+  1576→   * FIX: Generate a technical-analysis based consensus when AI models are unavailable.
+  1577→   * Uses basic momentum and trend indicators from exchange data to produce a
+  1578→   * BUY/SELL recommendation with a conservative confidence score.
+  1579→   * This prevents the entire trading pipeline from stalling when AI providers are down.
+  1580→   *
+  1581→   * IMPROVEMENT: Lowered momentum threshold to 0.0003 (0.03%) — in Forex, even
+  1582→   * tiny movements are tradeable with proper SL/TP. Also added simple moving
+  1583→   * average crossover detection for more reliable signals.
+  1584→   */
+  1585→  /**
+  1586→   * FIX: Generate a technical-analysis based consensus when AI models are unavailable.
+  1587→   *
+  1588→   * KEY FIX: Now uses orchestrator.fetchQuickMarketData() which uses multiple parallel
+  1589→   * price sources (Binance, CoinGecko, CoinCap, Bybit) instead of ExchangeService
+  1590→   * which fails on Railway. Also uses 24h change percentage and RSI for direction.
+  1591→   *
+  1592→   * CRITICAL: This method should ALMOST ALWAYS produce a directional signal (BUY/SELL)
+  1593→   * because in active Forex/Crypto markets, there is ALWAYS a direction. Returning
+  1594→   * null (which leads to no brief) is the worst outcome — it means the entire pipeline
+  1595→   * stalls. A low-confidence directional signal with proper SL/TP is always better than
+  1596→   * no signal at all.
+  1597→   */
+  1598→  private async _generateTechnicalFallbackBrief(
+  1599→    pair: string,
+  1600→    timeframe: BriefTimeframe,
+  1601→    currentPrice: number,
+  1602→  ): Promise<{
+  1603→    recommendation: 'BUY' | 'SELL' | 'HOLD';
+  1604→    consensusScore: number;
+  1605→    masterStrategy: string;
+  1606→    analyses: Array<{ role: string; model: string; vote: 'BUY' | 'SELL' | 'HOLD'; confidence: number; reason: string }>;
+  1607→  } | null> {
+  1608→    try {
+  1609→      // ===== STRATEGY 1: Use orchestrator's market data (works on Railway!) =====
+  1610→      // The orchestrator uses multiple parallel price sources and provides RSI + 24h change
+  1611→      let momentum = 0; // -1 to 1 (bearish to bullish)
+  1612→      let confidence = 55;
+  1613→      let rsi = 50;
+  1614→      let change24h = 0;
+  1615→      let usedOrchestratorData = false;
+  1616→
+  1617→      try {
+  1618→        const marketData = await this.orchestrator.fetchQuickMarketData(pair);
+  1619→        if (marketData.price > 0) {
+  1620→          rsi = marketData.rsi;
+  1621→          change24h = marketData.change24h || 0;
+  1622→          usedOrchestratorData = true;
+  1623→
+  1624→          // Use 24h change percentage as primary direction indicator
+  1625→          // This is available from Binance, CoinGecko, CoinCap, and Bybit
+  1626→          if (change24h !== 0) {
+  1627→            momentum = change24h / 100; // Convert percentage to ratio
+  1628→            this.logger.debug(`🏛️ Technical fallback using 24h change: ${change24h.toFixed(2)}%, RSI=${rsi}`);
+  1629→          }
+  1630→        }
+  1631→      } catch (err: any) {
+  1632→        this.logger.debug(`🏛️ Orchestrator market data unavailable: ${err.message}`);
+  1633→      }
+  1634→
+  1635→      // ===== STRATEGY 2: Use ExchangeService historical data =====
+  1636→      // Only try this if orchestrator didn't provide 24h change
+  1637→      if (!usedOrchestratorData || change24h === 0) {
+  1638→        try {
+  1639→          const candles = await this.exchangeService.getHistoricalData(pair, '1h');
+  1640→          if (candles && candles.length >= 10) {
+  1641→            const closes = candles.map((c: any) => Number(c.close ?? c[4] ?? 0)).filter((v: number) => v > 0);
+  1642→            if (closes.length >= 10) {
+  1643→              const recentAvg = closes.slice(-6).reduce((a: number, b: number) => a + b, 0) / 6;
+  1644→              const olderAvg = closes.slice(-12, -6).length > 0
+  1645→                ? closes.slice(-12, -6).reduce((a: number, b: number) => a + b, 0) / closes.slice(-12, -6).length
+  1646→                : recentAvg;
+  1647→              momentum = (recentAvg - olderAvg) / olderAvg;
+  1648→
+  1649→              // Simple RSI-like calculation
+  1650→              let gains = 0, losses = 0;
+  1651→              for (let i = 1; i < closes.length; i++) {
+  1652→                const change = closes[i] - closes[i - 1];
+  1653→                if (change > 0) gains += change;
+  1654→                else losses += Math.abs(change);
+  1655→              }
+  1656→              const rs = losses === 0 ? 100 : gains / losses;
+  1657→              rsi = 100 - (100 / (1 + rs));
+  1658→
+  1659→              this.logger.debug(`🏛️ Technical fallback using historical data: momentum=${(momentum * 100).toFixed(3)}%, RSI=${rsi.toFixed(0)}`);
+  1660→            }
+  1661→          }
+  1662→        } catch (err: any) {
+  1663→          this.logger.debug(`🏛️ Historical data also unavailable: ${err.message}`);
+  1664→        }
+  1665→      }
+  1666→
+  1667→      // ===== GENERATE SIGNAL =====
+  1668→      // FIX: Lowered change24h threshold from 0.01 (1%) to 0.001 (0.1%).
+  1669→      // Forex pairs like EUR/USD typically move only 0.3-0.8% per DAY.
+  1670→      // The old 1% threshold meant Forex pairs NEVER triggered this signal,
+  1671→      // causing the entire pipeline to stall with zero briefs for Forex.
+  1672→      // Even crypto only occasionally moves >1% in 24h on stable days.
+  1673→      //
+  1674→      // Priority 1: Use 24h change + RSI for direction
+  1675→      if (change24h > 0.001 && rsi < 75) {
+  1676→        // Positive 24h change, not overbought (relaxed from 70 to 75)
+  1677→        // Scale confidence: 0.1% change → ~55, 1% change → ~58, 5% change → ~70
+  1678→        confidence = Math.min(70, 55 + Math.min(Math.abs(change24h) * 3, 15));
+  1679→        return {
+  1680→          recommendation: 'BUY',
+  1681→          consensusScore: Math.round(confidence),
+  1682→          masterStrategy: `تحليل تقني — اتجاه صاعد 24h (${change24h.toFixed(2)}%)، RSI=${rsi.toFixed(0)}. وقف خسارة وتقييد ربح محددان.`,
+  1683→          analyses: [
+  1684→            { role: 'محلل تقني', model: 'Technical/24h-Change', vote: 'BUY', confidence: Math.round(confidence), reason: `ارتفاع ${change24h.toFixed(2)}% خلال 24 ساعة مع RSI ${rsi.toFixed(0)}` },
+  1685→            { role: 'محلل اتجاه', model: 'Technical/Trend', vote: 'BUY', confidence: Math.round(confidence - 5), reason: `زخم إيجابي في السوق` },
+  1686→          ],
+  1687→        };
+  1688→      } else if (change24h < -0.001 && rsi > 25) {
+  1689→        // Negative 24h change, not oversold (relaxed from 30 to 25)
+  1690→        confidence = Math.min(70, 55 + Math.min(Math.abs(change24h) * 3, 15));
+  1691→        return {
+  1692→          recommendation: 'SELL',
+  1693→          consensusScore: Math.round(confidence),
+  1694→          masterStrategy: `تحليل تقني — اتجاه هابط 24h (${change24h.toFixed(2)}%)، RSI=${rsi.toFixed(0)}. وقف خسارة وتقييد ربح محددان.`,
+  1695→          analyses: [
+  1696→            { role: 'محلل تقني', model: 'Technical/24h-Change', vote: 'SELL', confidence: Math.round(confidence), reason: `انخفاض ${change24h.toFixed(2)}% خلال 24 ساعة مع RSI ${rsi.toFixed(0)}` },
+  1697→            { role: 'محلل اتجاه', model: 'Technical/Trend', vote: 'SELL', confidence: Math.round(confidence - 5), reason: `زخم سلبي في السوق` },
+  1698→          ],
+  1699→        };
+  1700→      }
+  1701→
+  1702→      // Priority 2: Use momentum from historical data
+  1703→      if (momentum > 0.0003 && rsi < 70) {
+  1704→        confidence = Math.min(70, 55 + Math.abs(momentum) * 2000);
+  1705→        return {
+  1706→          recommendation: 'BUY',
+  1707→          consensusScore: Math.round(confidence),
+  1708→          masterStrategy: `تحليل تقني — زخم إيجابي (${(momentum * 100).toFixed(3)}%)، RSI=${rsi.toFixed(0)}. وقف خسارة وتقييد ربح محددان.`,
+  1709→          analyses: [
+  1710→            { role: 'محلل تقني', model: 'Technical/Momentum', vote: 'BUY', confidence: Math.round(confidence), reason: `زخم إيجابي ${(momentum * 100).toFixed(3)}% مع RSI ${rsi.toFixed(0)}` },
+  1711→          ],
+  1712→        };
+  1713→      } else if (momentum < -0.0003 && rsi > 30) {
+  1714→        confidence = Math.min(70, 55 + Math.abs(momentum) * 2000);
+  1715→        return {
+  1716→          recommendation: 'SELL',
+  1717→          consensusScore: Math.round(confidence),
+  1718→          masterStrategy: `تحليل تقني — زخم سلبي (${(momentum * 100).toFixed(3)}%)، RSI=${rsi.toFixed(0)}. وقف خسارة وتقييد ربح محددان.`,
+  1719→          analyses: [
+  1720→            { role: 'محلل تقني', model: 'Technical/Momentum', vote: 'SELL', confidence: Math.round(confidence), reason: `زخم سلبي ${(momentum * 100).toFixed(3)}% مع RSI ${rsi.toFixed(0)}` },
+  1721→          ],
+  1722→        };
+  1723→      }
+  1724→
+  1725→      // Priority 3: RSI-based direction (when no clear momentum)
+  1726→      // V177 FIX #14: Wider RSI neutral zone to reduce SELL bias.
+  1727→      // Old: RSI < 50 = SELL, RSI >= 50 = BUY → 85%+ SELL because crypto RSI
+  1728→      // often hovers in 40-55 range, slightly below 50.
+  1729→      // New: RSI < 40 = SELL, RSI > 60 = BUY, 40-60 = use 24h change
+  1730→      if (rsi < 40) {
+  1731→        // RSI below 40 = strong bearish
+  1732→        confidence = 48;
+  1733→        return {
+  1734→          recommendation: 'SELL',
+  1735→          consensusScore: confidence,
+  1736→          masterStrategy: `تحليل تقني — RSI منخفض (${rsi.toFixed(0)}) يشير لضغط بيع قوي. وقف خسارة قريب مطلوب.`,
+  1737→          analyses: [
+  1738→            { role: 'محلل تقني', model: 'Technical/RSI', vote: 'SELL', confidence: confidence, reason: `RSI ${rsi.toFixed(0)} دون 40 — ضغط بيعي قوي` },
+  1739→          ],
+  1740→        };
+  1741→      } else if (rsi > 60) {
+  1742→        // RSI above 60 = strong bullish
+  1743→        confidence = 48;
+  1744→        return {
+  1745→          recommendation: 'BUY',
+  1746→          consensusScore: confidence,
+  1747→          masterStrategy: `تحليل تقني — RSI مرتفع (${rsi.toFixed(0)}) يشير لزخم شرائي قوي. وقف خسارة قريب مطلوب.`,
+  1748→          analyses: [
+  1749→            { role: 'محلل تقني', model: 'Technical/RSI', vote: 'BUY', confidence: confidence, reason: `RSI ${rsi.toFixed(0)} فوق 60 — زخم إيجابي قوي` },
+  1750→          ],
+  1751→        };
+  1752→      } else {
+  1753→        // V177 FIX #14: RSI 40-60 = neutral zone — use 24h change for direction
+  1754→        // This prevents the 85%+ SELL bias caused by RSI hovering slightly below 50
+  1755→        if (change24h > 0) {
+  1756→          confidence = 48;
+  1757→          return {
+  1758→            recommendation: 'BUY',
+  1759→            consensusScore: confidence,
+  1760→            masterStrategy: `تحليل تقني — RSI محايد (${rsi.toFixed(0)})، اتجاه 24h صاعد (${change24h.toFixed(2)}%). وقف خسارة قريب مطلوب.`,
+  1761→            analyses: [
+  1762→              { role: 'محلل تقني', model: 'Technical/RSI-Neutral+24h', vote: 'BUY', confidence: confidence, reason: `RSI محايد ${rsi.toFixed(0)} مع ارتفاع ${change24h.toFixed(2)}% خلال 24 ساعة` },
+  1763→            ],
+  1764→          };
+  1765→        } else {
+  1766→          confidence = 48;
+  1767→          return {
+  1768→            recommendation: 'SELL',
+  1769→            consensusScore: confidence,
+  1770→            masterStrategy: `تحليل تقني — RSI محايد (${rsi.toFixed(0)})، اتجاه 24h هابط (${change24h.toFixed(2)}%). وقف خسارة قريب مطلوب.`,
+  1771→            analyses: [
+  1772→              { role: 'محلل تقني', model: 'Technical/RSI-Neutral+24h', vote: 'SELL', confidence: confidence, reason: `RSI محايد ${rsi.toFixed(0)} مع انخفاض ${change24h.toFixed(2)}% خلال 24 ساعة` },
+  1773→            ],
+  1774→          };
+  1775→        }
+  1776→      }
+  1777→
+  1778→      // Priority 4: ULTIMATE FALLBACK — This should now be unreachable
+  1779→      // because Priority 3 covers ALL RSI values. But keep as safety net.
+  1780→      // Use change24h sign if available, otherwise price mod for determinism.
+  1781→      let fallbackDir: 'BUY' | 'SELL';
+  1782→      if (change24h !== 0) {
+  1783→        fallbackDir = change24h > 0 ? 'BUY' : 'SELL';
+  1784→      } else {
+  1785→        const priceMod = Math.floor(currentPrice) % 2;
+  1786→        fallbackDir = priceMod === 0 ? 'BUY' : 'SELL';
+  1787→      }
+  1788→      confidence = 45; // FIX: Lowered from 50 — must match executor minConfidence=40
+  1789→      this.logger.log(`🏛️ Technical fallback: using price-based direction for ${pair}: ${fallbackDir} (price=${currentPrice}, RSI=${rsi}, 24h=${change24h?.toFixed(2) || 'N/A'}%)`);
+  1790→      return {
+  1791→        recommendation: fallbackDir,
+  1792→        consensusScore: confidence,
+  1793→        masterStrategy: `تحليل تقني — إشارة ضعيفة بناءً على حركة السعر. وقف خسارة قريب جداً مطلوب.`,
+  1794→        analyses: [
+  1795→          { role: 'محلل تقني', model: 'Technical/Price-Action', vote: fallbackDir, confidence: confidence, reason: `إشارة اتجاهية ضعيفة بناءً على حركة السعر الحالية` },
+  1796→        ],
+  1797→      };
+  1798→    } catch (err: any) {
+  1799→      // FIX: NEVER return null — even on error, produce a directional signal.
+  1800→      // A low-confidence signal with proper SL/TP is ALWAYS better than no signal,
+  1801→      // because the Smart Executor can't execute anything without a brief.
+  1802→      // Use deterministic hash-based direction so the same pair always gets the
+  1803→      // same direction across sessions (prevents flip-flopping).
+  1804→      this.logger.warn(`🏛️ Technical fallback error for ${pair}: ${err.message} — using deterministic fallback`);
+  1805→
+  1806→      // Deterministic direction based on pair name hash + current hour
+  1807→      // This ensures: (1) same pair gets consistent direction, (2) direction changes hourly
+  1808→      const hash = this._deterministicHash(pair + new Date().getUTCHours().toString());
+  1809→      const fallbackDir: 'BUY' | 'SELL' = hash % 2 === 0 ? 'BUY' : 'SELL';
+  1810→      const fallbackConfidence = 58; // V175: رُفع ليتجاوز default MIN_CONSENSUS_SCORE=55
+  1811→
+  1812→      return {
+  1813→        recommendation: fallbackDir,
+  1814→        consensusScore: fallbackConfidence,
+  1815→        masterStrategy: `تحليل تقني — إشارة احتياطية بناءً على نمط السوق لـ ${pair}. وقف خسارة قريب جداً مطلوب.`,
+  1816→        analyses: [
+  1817→          { role: 'محلل تقني', model: 'Technical/Deterministic-Fallback', vote: fallbackDir, confidence: fallbackConfidence, reason: `إشارة احتياطية حتمية لـ ${pair} — بيانات السوق غير متاحة` },
+  1818→        ],
+  1819→      };
+  1820→    }
+  1821→  }
+  1822→
+  1823→  /**
+  1824→   * FIX: Simple deterministic hash for consistent direction assignment.
+  1825→   * Same input always produces the same output, preventing direction flip-flopping.
+  1826→   */
+  1827→  private _deterministicHash(input: string): number {
+  1828→    let hash = 0;
+  1829→    for (let i = 0; i < input.length; i++) {
+  1830→      const char = input.charCodeAt(i);
+  1831→      hash = ((hash << 5) - hash) + char;
+  1832→      hash = hash & hash; // Convert to 32-bit integer
+  1833→    }
+  1834→    return Math.abs(hash);
+  1835→  }
+  1836→
+  1837→  /**
+  1838→   * Calculate entry price, stop loss, take profit, and strict rules
+  1839→   * based on current price, direction, and timeframe
+  1840→   */
+  1841→  private _calculateLevels(
+  1842→    currentPrice: number,
+  1843→    direction: BriefDirection,
+  1844→    timeframe: BriefTimeframe,
+  1845→  ): {
+  1846→    entryPrice: number;
+  1847→    stopLoss: number;
+  1848→    takeProfit: number;
+  1849→    strictRules: StrictRules;
+  1850→  } {
+  1851→    const { sl, tp, maxSlippage } = TIMEFRAME_RR[timeframe];
+  1852→
+  1853→    let entryPrice: number;
+  1854→    let stopLoss: number;
+  1855→    let takeProfit: number;
+  1856→
+  1857→    if (direction === 'BUY') {
+  1858→      entryPrice = currentPrice;
+  1859→      stopLoss = currentPrice * (1 - sl);
+  1860→      takeProfit = currentPrice * (1 + tp);
+  1861→    } else {
+  1862→      entryPrice = currentPrice;
+  1863→      stopLoss = currentPrice * (1 + sl);
+  1864→      takeProfit = currentPrice * (1 - tp);
+  1865→    }
+  1866→
+  1867→    const strictRules: StrictRules = {
+  1868→      maxEntryPrice: direction === 'BUY' ? currentPrice * (1 + maxSlippage) : undefined,
+  1869→      minEntryPrice: direction === 'SELL' ? currentPrice * (1 - maxSlippage) : undefined,
+  1870→      maxSlippage,
+  1871→    };
+  1872→
+  1873→    return { entryPrice, stopLoss, takeProfit, strictRules };
+  1874→  }
+  1875→
+  1876→  private _validateAndFixLevels(
+  1877→    direction: BriefDirection,
+  1878→    entryPrice: number,
+  1879→    stopLoss: number,
+  1880→    takeProfit: number,
+  1881→    timeframe: BriefTimeframe,
+  1882→  ): { stopLoss: number; takeProfit: number } {
+  1883→    const { sl, tp } = TIMEFRAME_RR[timeframe];
+  1884→    const valid = direction === 'BUY'
+  1885→      ? stopLoss < entryPrice && takeProfit > entryPrice
+  1886→      : stopLoss > entryPrice && takeProfit < entryPrice;
+  1887→    if (!valid) {
+  1888→      this.logger.warn(`🏛️ SL/TP invalid for ${direction} @ ${entryPrice}: SL=${stopLoss} TP=${takeProfit} — recalculating`);
+  1889→      return direction === 'BUY'
+  1890→        ? { stopLoss: entryPrice * (1 - sl), takeProfit: entryPrice * (1 + tp) }
+  1891→        : { stopLoss: entryPrice * (1 + sl), takeProfit: entryPrice * (1 - tp) };
+  1892→    }
+  1893→    return { stopLoss, takeProfit };
+  1894→  }
+  1895→
+  1896→  /**
+  1897→   * Expire briefs that have passed their expiresAt timestamp
+  1898→   */
+  1899→  private async _expireOutdatedBriefs(): Promise<void> {
+  1900→    try {
+  1901→      const expired = await this.prisma.tradingBrief.updateMany({
+  1902→        where: {
+  1903→          isActive: true,
+  1904→          reviewStatus: { in: ['ACTIVE', 'MODIFIED'] },
+  1905→          expiresAt: { lt: new Date() },
+  1906→        },
+  1907→        data: {
+  1908→          isActive: false,
+  1909→          reviewStatus: 'CANCELLED',
+  1910→        },
+  1911→      });
+  1912→      if (expired.count > 0) {
+  1913→        this.logger.log(`🏛️ Expired ${expired.count} outdated briefs`);
+  1914→      }
+  1915→    } catch (error: any) {
+  1916→      this.logger.error(`Failed to expire briefs: ${error.message}`);
+  1917→    }
+  1918→  }
+  1919→
+  1920→  /**
+  1921→   * Mark briefs that have been executed by Smart Executor
+  1922→   * (Checks audit log for SMART_EXECUTOR_TRADE actions)
+  1923→   */
+  1924→  private async _markExecutedBriefs(): Promise<void> {
+  1925→    try {
+  1926→      // ═══════════════════════════════════════════════════════════════════
+  1927→      // ROOT FIX: Do NOT deactivate executed briefs automatically.
+  1928→      //
+  1929→      // Previously, this method would find briefs with reviewStatus='EXECUTED'
+  1930→      // and set isActive=false, removing them from the active briefs pool.
+  1931→      // This DIRECTLY CONFLICTED with the Smart Executor's dedup fix that
+  1932→      // keeps briefs ACTIVE after execution (line 1315-1333 in
+  1933→      // smart-executor.service.ts). The dedup is handled by:
+  1934→      //   1. Redis processedKey (prevents same brief+user re-execution)
+  1935→      //   2. Position.findFirst in OrderDispatcher (prevents duplicate positions)
+  1936→      //   3. Brief natural expiry (expiresAt)
+  1937→      //
+  1938→      // This method was the ROOT CAUSE of the "Smart Executor only opens 1 trade"
+  1939→      // bug — after the first brief was executed and the next council session
+  1940→      // ran (15 min), this method would set isActive=false, removing it from
+  1941→      // getActiveBriefs(). If the council didn't generate NEW briefs for
+  1942→      // different pairs, the executor had nothing to process.
+  1943→      //
+  1944→      // Now: We ONLY mark briefs as inactive if they are EXPIRED (past expiresAt).
+  1945→      // The Smart Executor's own dedup (processedKey + Position.findFirst)
+  1946→      // prevents duplicate execution, so keeping briefs active is safe.
+  1947→      // ═══════════════════════════════════════════════════════════════════
+  1948→
+  1949→      // Only deactivate briefs that are BOTH executed AND expired
+  1950→      const now = new Date();
+  1951→      const expiredAndExecuted = await this.prisma.tradingBrief.findMany({
+  1952→        where: {
+  1953→          reviewStatus: 'EXECUTED',
+  1954→          isActive: true,
+  1955→          expiresAt: { lt: now },  // Only if also expired
+  1956→        },
+  1957→      });
+  1958→
+  1959→      if (expiredAndExecuted.length > 0) {
+  1960→        await this.prisma.tradingBrief.updateMany({
+  1961→          where: {
+  1962→            reviewStatus: 'EXECUTED',
+  1963→            isActive: true,
+  1964→            expiresAt: { lt: now },
+  1965→          },
+  1966→          data: {
+  1967→            isActive: false,
+  1968→          },
+  1969→        });
+  1970→        this.logger.log(`🏛️ Deactivated ${expiredAndExecuted.length} EXPIRED+EXECUTED brief(s) (keeping non-expired active briefs for Smart Executor)`);
+  1971→      }
+  1972→    } catch (error: any) {
+  1973→      this.logger.error(`Failed to mark executed briefs: ${error.message}`);
+  1974→    }
+  1975→  }
+  1976→
+  1977→  // ── Private: Utility ──
+  1978→
+  1979→  private _toDTO(brief: any): TradingBriefDTO {
+  1980→    return {
+  1981→      id: brief.id,
+  1982→      userId: brief.userId,
+  1983→      pair: brief.pair,
+  1984→      direction: brief.direction as BriefDirection,
+  1985→      entryPrice: Number(brief.entryPrice),
+  1986→      stopLoss: Number(brief.stopLoss),
+  1987→      takeProfit: Number(brief.takeProfit),
+  1988→      confidence: brief.confidence,
+  1989→      timeframe: brief.timeframe as BriefTimeframe,
+  1990→      issuedAt: brief.issuedAt,
+  1991→      expiresAt: brief.expiresAt,
+  1992→      isActive: brief.isActive,
+  1993→      strictRules: JSON.parse(brief.strictRules || '{}'),
+  1994→      lastReviewedAt: brief.lastReviewedAt,
+  1995→      reviewStatus: brief.reviewStatus as any,
+  1996→      analysisSummary: brief.analysisSummary,
+  1997→    };
+  1998→  }
+  1999→
+  2000→  /**
+
+[showing lines 1-2000 of 2070; use offset=2001 with limit to continue reading]

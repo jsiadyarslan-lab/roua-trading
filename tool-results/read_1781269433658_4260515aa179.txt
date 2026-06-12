@@ -1,0 +1,2002 @@
+     1→// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     2→// Roua Trading (رؤى) — Autonomous Trader Agent Service
+     3→// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     4→
+     5→import { Injectable, Logger, BadRequestException, NotFoundException, ServiceUnavailableException, OnModuleInit, Optional } from '@nestjs/common';
+     6→import { Cron, CronExpression } from '@nestjs/schedule';
+     7→import { ConfigService } from '@nestjs/config';
+     8→import { PrismaService } from '../../common/prisma/prisma.service';
+     9→import { RedisService } from '../../common/redis/redis.service';
+    10→import { AuditService } from '../../audit/audit.service';
+    11→import { ExchangeService } from '../../modules/exchange/exchange.service';
+    12→import { TradingService } from '../../modules/trading/trading.service';
+    13→import { TradeCoordinationService } from '../../modules/trading/services/trade-coordination.service';
+    14→import { isMarketOpen } from '../../common/utils/market-hours.util';
+    15→
+    16→import { MarketAnalyzerService } from './services/market-analyzer.service';
+    17→import { SignalEvaluatorService } from './services/signal-evaluator.service';
+    18→import { RiskCalculatorService } from './services/risk-calculator.service';
+    19→import { OrderExecutorService } from './services/order-executor.service';
+    20→import { StrategicCouncilService } from '../../modules/ai/strategic-council/strategic-council.service';
+    21→import { TradingBriefDTO, AGENT_TIMEFRAMES, TIMEFRAME_RR, isAgentTimeframe, isSymbolSupportedByExchange } from '../../modules/ai/strategic-council/strategic-council.types';
+    22→
+    23→import {
+    24→  AgentStatus,
+    25→  AgentConfig,
+    26→  AgentState,
+    27→  StrategyType,
+    28→  StrategyParams,
+    29→  PerformanceMetrics,
+    30→  StartAgentDto,
+    31→  ChangeStrategyDto,
+    32→  UpdateRiskParamsDto,
+    33→  UpdateAgentSettingsDto,
+    34→  AgentDecision,
+    35→  EvaluatedSignal,
+    36→  OrderSide,
+    37→  OrderType,
+    38→} from './types/agent.types';
+    39→import { PerformanceTracker } from './models/performance';
+    40→
+    41→/**
+    42→ * AutonomousTraderAgentService — The Brain of Autonomous Trading
+    43→ *
+    44→ * V137: PER-USER ISOLATION ARCHITECTURE
+    45→ * ═══════════════════════════════════════════════════════════════
+    46→ * Every user has their own INDEPENDENT trading context:
+    47→ *   - Agent state:    Redis `agent:state:{userId}` (isolated)
+    48→ *   - Agent settings: DB `AgentSettings` (per-user row)
+    49→ *   - Credentials:    DB `ExchangeCredential` (per-user, verified by userId)
+    50→ *   - Positions:      DB `Position` (filtered by userId)
+    51→ *   - Risk limits:    Per-user daily loss limit, position count, etc.
+    52→ *   - Circuit breaker: Redis `circuit-breaker:v2:{userId}:{symbol}` (V137 fix)
+    53→ *
+    54→ * SHARED components (work across ALL users):
+    55→ *   - Strategic Council → generates global signals/briefs
+    56→ *   - AI Council → generates global AI analysis
+    57→ *   - Signals → shared market signals
+    58→ *   - Scanner → scans market for all users
+    59→ *
+    60→ * The cron loop processes ALL active users, but each user's cycle
+    61→ * (_processAgentCycle) reads ONLY that user's data. Cross-user
+    62→ * contamination is impossible by design.
+    63→ * ═══════════════════════════════════════════════════════════════
+    64→ *
+    65→ * This service orchestrates the entire autonomous trading cycle:
+    66→ *
+    67→ * ┌─────────────────────────────────────────────────────────────┐
+    68→ * │                    AUTONOMOUS TRADING CYCLE                 │
+    69→ * │                                                             │
+    70→ * │  1. MARKET ANALYSIS    → MarketAnalyzerService              │
+    71→ * │  2. SIGNAL EVALUATION  → SignalEvaluatorService             │
+    72→ * │  3. RISK ASSESSMENT    → RiskCalculatorService              │
+    73→ * │  4. ORDER EXECUTION    → OrderExecutorService               │
+    74→ * │  5. PERFORMANCE TRACK  → PerformanceTracker                 │
+    75→ * │  6. AUDIT & LOG        → AuditService + Redis               │
+    76→ * └─────────────────────────────────────────────────────────────┘
+    77→ *
+    78→ * Safety Systems:
+    79→ * - Daily loss limit → auto-stop agent when exceeded
+    80→ * - Mandatory stop-loss → NO trade without SL
+    81→ * - No withdrawal capability → trading permissions only
+    82→ * - Full audit trail → every decision recorded
+    83→ * - Emergency stop → close all positions immediately
+    84→ *
+    85→ * Schedule: Runs every 60 seconds (configurable)
+    86→ */
+    87→@Injectable()
+    88→export class AutonomousTraderAgentService implements OnModuleInit {
+    89→  private readonly logger = new Logger(AutonomousTraderAgentService.name);
+    90→
+    91→  /** Track if a cycle is currently running to prevent overlap */
+    92→  private isCycleRunning = false;
+    93→
+    94→  /** Track whether critical dependencies (Prisma/Redis) are available */
+    95→  private _isReady = false;
+    96→
+    97→  /** Human-readable reason why the service is not ready (for error messages) */
+    98→  private _notReadyReason = 'الخدمة لم تكتمل بعد — يتم التهيئة';
+    99→
+   100→  /** Default symbols to trade when not specified */
+   101→  private readonly DEFAULT_SYMBOLS = [
+   102→    'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT',
+   103→  ];
+   104→
+   105→  constructor(
+   106→    @Optional() private readonly prisma: PrismaService,
+   107→    @Optional() private readonly redis: RedisService,
+   108→    @Optional() private readonly audit: AuditService,
+   109→    private readonly configService: ConfigService,
+   110→    @Optional() private readonly exchangeService: ExchangeService,
+   111→    @Optional() private readonly tradingService: TradingService,
+   112→    private readonly marketAnalyzer: MarketAnalyzerService,
+   113→    private readonly signalEvaluator: SignalEvaluatorService,
+   114→    private readonly riskCalculator: RiskCalculatorService,
+   115→    private readonly orderExecutor: OrderExecutorService,
+   116→    private readonly councilService: StrategicCouncilService,  // V145: No longer @Optional — module imports StrategicCouncilModule
+   117→    @Optional() private readonly tradeCoordination: TradeCoordinationService,  // #18: Trade coordination service
+   118→  ) {
+   119→    // FIX: Lazy readiness check — try to connect to dependencies on first use
+   120→    // instead of permanently blocking if they're unavailable at constructor time.
+   121→    // Redis might take a moment to connect, and Prisma might need a warm-up.
+   122→    this._tryMarkReady();
+   123→
+   124→    this.logger.log(`🧠 Autonomous Trader Agent initialized (ready=${this._isReady})`);
+   125→  }
+   126→
+   127→  /**
+   128→   * FIX: Attempt to mark the service as ready. Called from constructor and
+   129→   * also lazily from _ensureReady() to recover from transient failures.
+   130→   */
+   131→  private _tryMarkReady(): void {
+   132→    if (!this.prisma) {
+   133→      this._notReadyReason = 'قاعدة البيانات غير متاحة — يرجى المحاولة لاحقاً';
+   134→      return;
+   135→    }
+   136→    if (!this.redis) {
+   137→      this._notReadyReason = 'خدمة التخزين المؤقت غير متاحة — يرجى المحاولة لاحقاً';
+   138→      return;
+   139→    }
+   140→    this._isReady = true;
+   141→    this._notReadyReason = '';
+   142→  }
+   143→
+   144→  /**
+   145→   * Check if the service is fully ready to handle DB-dependent operations.
+   146→   * FIX: Now attempts lazy recovery — if not ready, retries once before throwing.
+   147→   */
+   148→  private _ensureReady(): void {
+   149→    if (!this._isReady) {
+   150→      // FIX: Retry readiness check — dependencies might have become available
+   151→      this._tryMarkReady();
+   152→    }
+   153→    if (!this._isReady) {
+   154→      this.logger.warn(`Service not ready: ${this._notReadyReason}`);
+   155→      throw new ServiceUnavailableException(this._notReadyReason);
+   156→    }
+   157→  }
+   158→
+   159→  /**
+   160→   * Public getter — allows controller to check readiness without throwing.
+   161→   */
+   162→  get isReady(): boolean {
+   163→    return this._isReady;
+   164→  }
+   165→
+   166→  /**
+   167→   * Public getter — returns the reason the service is not ready.
+   168→   */
+   169→  get notReadyReason(): string {
+   170→    return this._notReadyReason;
+   171→  }
+   172→
+   173→  /**
+   174→   * OnModuleInit — Auto-seed critical system settings on startup.
+   175→   * This ensures AUTO_TRADING_ENABLED exists in the DB with a default of `false`,
+   176→   * so the agent can be controlled from the UI without relying on env vars.
+   177→   *
+   178→   * IMPORTANT: This method MUST NEVER throw. If the DB isn't ready yet
+   179→   * (cold start, connection issues), we gracefully skip and fall back to
+   180→   * env vars. A throwing onModuleInit prevents the entire module from
+   181→   * loading, which causes ALL agent routes to return 404.
+   182→   */
+   183→  async onModuleInit() {
+   184→    const INIT_TIMEOUT_MS = 5000;
+   185→
+   186→    if (!this.prisma || !this.redis) {
+   187→      this.logger.warn(
+   188→        `⚠️ Skipping onModuleInit auto-seed: prisma=${!!this.prisma}, redis=${!!this.redis}. ` +
+   189→        `Agent routes will still be registered. Service will retry on next DB access.`
+   190→      );
+   191→      this._tryMarkReady();
+   192→      return;
+   193→    }
+   194→
+   195→    try {
+   196→      await Promise.race([
+   197→        this._initAutoTradingSetting(),
+   198→        new Promise<void>((_, reject) =>
+   199→          setTimeout(() => reject(new Error('onModuleInit timeout')), INIT_TIMEOUT_MS)
+   200→        ),
+   201→      ]);
+   202→    } catch (error: any) {
+   203→      this.logger.warn(`Could not auto-seed AUTO_TRADING_ENABLED: ${error?.message || error} — will fall back to env var. Agent routes will still be registered.`);
+   204→      this._isReady = false;
+   205→      this._notReadyReason = 'قاعدة البيانات غير جاهزة بعد — يرجى المحاولة لاحقاً';
+   206→    }
+   207→
+   208→    // FIX: REMOVED _autoRestoreRunningAgents(). Previously, the agent would
+   209→    // auto-restore all RUNNING agent sessions from the database on server restart,
+   210→    // which caused phantom trades to be created for every user who had ever
+   211→    // activated the agent — even if they had since deactivated it or hadn't
+   212→    // used the platform in days. This was a major source of phantom trades.
+   213→    //
+   214→    // Now: The agent does NOT auto-restore. Users must explicitly click "تفعيل"
+   215→    // from their dashboard after every server restart. This ensures no trades
+   216→    // are ever executed without the user's explicit, current consent.
+   217→    //
+   218→    // Instead, run a startup cleanup to purge phantom data:
+   219→    if (this._isReady) {
+   220→      setTimeout(() => this._startupCleanup(), 10000);
+   221→    }
+   222→  }
+   223→
+   224→  /**
+   225→   * Startup cleanup: Purge ONLY phantom/stale data, preserving legitimate user states.
+   226→   *
+   227→   * FIX: Previous version deleted ALL data on every restart, including:
+   228→   *   - AgentSettings that users explicitly configured
+   229→   *   - Valid TradingBriefs from the Strategic Council
+   230→   *   - Legitimate trade history
+   231→   *   - Paper-trading credentials that users intentionally created
+   232→   *
+   233→   * New behavior:
+   234→   *   - Stops stale agent sessions (RUNNING/PAUSED) — they should be restarted explicitly
+   235→   *   - Only purges PHANTOM positions (zero-value / stale > 24h)
+   236→   *   - Only purges EXPIRED TradingBriefs
+   237→   *   - Preserves AgentSettings (user configuration)
+   238→   *   - Preserves DB-persisted user states
+   239→   */
+   240→  private async _startupCleanup(): Promise<void> {
+   241→    try {
+   242→      // SUSTAINABLE FIX: Skip cleanup if DB is not available.
+   243→      // Each query on an unavailable DB creates a new Prisma connection pool,
+   244→      // which leaks a PostgreSQL connection slot. On Railway's limited PostgreSQL,
+   245→      // this causes "too many clients already" cascading failures.
+   246→      if (!this.prisma?.isAvailable?.()) {
+   247→        this.logger.warn('🧠 Skipping startup cleanup — DB not yet available');
+   248→        return;
+   249→      }
+   250→
+   251→      this.logger.log('🧠 Running startup phantom cleanup (preserving user data)...');
+   252→
+   253→      // ── STOP: Only reset sessions in transitional states to STOPPED ──
+   254→      // FIX: Previously, ALL sessions (RUNNING, PAUSED, DAILY_LIMIT_REACHED)
+   255→      // were set to STOPPED on restart. This killed legitimately RUNNING
+   256→      // sessions that should auto-resume. Now only sessions in transitional
+   257→      // states (STARTING, STOPPING) are reset — RUNNING sessions are preserved
+   258→      // so they can auto-resume after a server restart.
+   259→      try {
+   260→        const stopped = await this.prisma.agentSession.updateMany({
+   261→          where: { status: { in: ['STARTING', 'STOPPING'] } },
+   262→          data: { status: 'STOPPED', updatedAt: new Date() },
+   263→        });
+   264→        if (stopped.count > 0) {
+   265→          this.logger.log(`🧠 STARTUP: Stopped ${stopped.count} transitional agent session(s) (STARTING/STOPPING)`);
+   266→        }
+   267→
+   268→        // Log count of preserved RUNNING sessions for visibility
+   269→        const running = await this.prisma.agentSession.count({
+   270→          where: { status: 'RUNNING' },
+   271→        });
+   272→        if (running > 0) {
+   273→          this.logger.log(`🧠 STARTUP: Preserved ${running} RUNNING agent session(s) — will auto-resume`);
+   274→        }
+   275→      } catch (err: any) {
+   276→        this.logger.warn(`🧠 Failed to update agent sessions: ${err.message}`);
+   277→      }
+   278→
+   279→      // ── PURGE: Clear volatile agent states from Redis ──
+   280→      // Clear stale Redis agent states. Transitional sessions (STARTING/STOPPING)
+   281→      // are already marked as STOPPED above. Redis states for these are stale.
+   282→      // RUNNING sessions' Redis states are preserved since those sessions auto-resume.
+   283→      // The _getActiveAgents() DB recovery will re-populate from DB for any
+   284→      // legitimately running agents whose Redis state was lost.
+   285→      try {
+   286→        const agentKeys = await this.redis.scanKeys('agent:state:*');
+   287→        let cleared = 0;
+   288→        for (const key of agentKeys) {
+   289→          try {
+   290→            const raw = await this.redis.get(key);
+   291→            if (raw) {
+   292→              // Valid state but stale after restart — clear it
+   293→              await this.redis.del(key);
+   294→              cleared++;
+   295→            } else {
+   296→              // Empty/invalid key — delete it
+   297→              await this.redis.del(key);
+   298→              cleared++;
+   299→            }
+   300→          } catch {
+   301→            // Invalid state — delete it
+   302→            await this.redis.del(key);
+   303→            cleared++;
+   304→          }
+   305→        }
+   306→        if (cleared > 0) {
+   307→          this.logger.log(`🧠 STARTUP: Cleared ${cleared} stale Redis agent state(s)`);
+   308→        }
+   309→      } catch (err: any) {
+   310→        this.logger.warn(`🧠 Failed to clear agent Redis states: ${err.message}`);
+   311→      }
+   312→
+   313→      // ── PURGE: Clear OLD format circuit breaker keys from Redis (V137) ──
+   314→      // #18: Consolidated into TradeCoordinationService.cleanupV1CircuitBreakerKeys()
+   315→      // This ensures a single cleanup implementation shared by SmartExecutor and Agent.
+   316→      try {
+   317→        if (this.tradeCoordination) {
+   318→          const oldCbCleaned = await this.tradeCoordination.cleanupV1CircuitBreakerKeys();
+   319→          if (oldCbCleaned > 0) {
+   320→            this.logger.log(`🧠 STARTUP: Cleared ${oldCbCleaned} old-format circuit breaker key(s) via TradeCoordinationService (V137/#18)`);
+   321→          }
+   322→        }
+   323→      } catch (cbErr: any) {
+   324→        this.logger.warn(`🧠 Failed to clear old circuit breaker keys: ${cbErr.message}`);
+   325→      }
+   326→
+   327→      // ── PURGE: Delete only EXPIRED TradingBriefs (not all) ──
+   328→      // V143: REMOVED — Smart Executor's startup cleanup already handles this.
+   329→      // Running the same deleteMany twice (once in Executor, once in Agent)
+   330→      // is redundant and can cause race conditions on startup.
+   331→      // The Executor's cleanup is comprehensive enough for both.
+   332→
+   333→      // ── PURGE: Delete stale AutonomousTrade records (>7 days) ──
+   334→      try {
+   335→        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+   336→        const deletedTrades = await this.prisma.autonomousTrade.deleteMany({
+   337→          where: { createdAt: { lt: sevenDaysAgo } },
+   338→        });
+   339→        if (deletedTrades.count > 0) {
+   340→          this.logger.log(`🧠 STARTUP: Purged ${deletedTrades.count} stale AutonomousTrade(s) (>7 days)`);
+   341→        }
+   342→      } catch (err: any) {
+   343→        this.logger.warn(`🧠 Failed to purge stale AutonomousTrade records: ${err.message}`);
+   344→      }
+   345→
+   346→      // ── PURGE: Delete stale PaperOrder records (>7 days) ──
+   347→      try {
+   348→        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+   349→        const deletedPaperOrders = await this.prisma.paperOrder.deleteMany({
+   350→          where: { createdAt: { lt: sevenDaysAgo } },
+   351→        });
+   352→        if (deletedPaperOrders.count > 0) {
+   353→          this.logger.log(`🧠 STARTUP: Purged ${deletedPaperOrders.count} stale PaperOrder(s) (>7 days)`);
+   354→        }
+   355→      } catch (err: any) {
+   356→        this.logger.warn(`🧠 Failed to purge stale PaperOrder records: ${err.message}`);
+   357→      }
+   358→
+   359→      this.logger.log('🧠 Startup cleanup complete (user data preserved)');
+   360→    } catch (error: any) {
+   361→      this.logger.warn(`🧠 Startup cleanup failed (non-critical): ${error.message}`);
+   362→    }
+   363→  }
+   364→
+   365→  /**
+   366→   * Initialize AUTO_TRADING_ENABLED setting in DB.
+   367→   * Extracted from onModuleInit for timeout wrapping.
+   368→   */
+   369→  private async _initAutoTradingSetting(): Promise<void> {
+   370→    // Ensure AUTO_TRADING_ENABLED exists in the Setting table
+   371→    const existing = await this.prisma.setting.findUnique({
+   372→      where: { key: 'AUTO_TRADING_ENABLED' },
+   373→    });
+   374→
+   375→    if (!existing) {
+   376→      // FIX: Default to TRUE — the user controls their own agent.
+   377→      // The old phantom trade issue was fixed by the OrderDispatcher pipeline,
+   378→      // not by disabling auto-trading globally. Defaulting to false was blocking all users.
+   379→      const envValue = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+   380→      await this.prisma.setting.create({
+   381→        data: {
+   382→          key: 'AUTO_TRADING_ENABLED',
+   383→          value: JSON.stringify(envValue),
+   384→        },
+   385→      });
+   386→      this.logger.log(`🔧 Auto-seeded AUTO_TRADING_ENABLED=${envValue} in DB (from env var / default)`);
+   387→    } else {
+   388→      // FIX: TRUST the DB value — do NOT override it.
+   389→      // Previous code reset AUTO_TRADING_ENABLED to false on every server restart,
+   390→      // making it impossible for users to enable the agent permanently.
+   391→      const existingValue = JSON.parse(existing.value);
+   392→      this.logger.log(`🔧 AUTO_TRADING_ENABLED=${existingValue} (source: database — respected as-is)`);
+   393→    }
+   394→  }
+   395→
+   396→  // ── Agent Lifecycle ──
+   397→
+   398→  /**
+   399→   * Start the autonomous trader for a user
+   400→   */
+   401→  async startAgent(userId: string, dto: StartAgentDto): Promise<AgentState> {
+   402→    // CRITICAL: Ensure the service has its dependencies before attempting DB ops.
+   403→    // Try a lazy readiness check — maybe DB came up after initial cold start.
+   404→    this._tryMarkReady();
+   405→    this._ensureReady();
+   406→
+   407→    // Check if agent is already running
+   408→    const existingState = await this._getAgentState(userId);
+   409→    if (existingState && existingState.status === AgentStatus.RUNNING) {
+   410→      throw new BadRequestException('الوكيل يعمل بالفعل — أوقفه أولاً ثم أعد تشغيله');
+   411→    }
+   412→
+   413→    // FIX: If agent was stopped due to DAILY_LIMIT_REACHED, allow restart
+   414→    // by resetting daily stats. The user explicitly chose to override the limit.
+   415→    if (existingState && existingState.status === AgentStatus.DAILY_LIMIT_REACHED) {
+   416→      this.logger.log(`🧠 User ${userId} restarting agent after daily limit — resetting daily stats`);
+   417→      existingState.dailyPnL = 0;
+   418→      existingState.dailyTradesCount = 0;
+   419→      existingState.dailyResetAt = new Date();
+   420→      existingState.consecutiveLosses = 0;
+   421→      existingState.status = AgentStatus.RUNNING;
+   422→      await this._saveAgentState(userId, existingState);
+   423→
+   424→      // Update DB session too
+   425→      try {
+   426→        const session = await this.prisma.agentSession.findFirst({
+   427→          where: { userId, status: 'DAILY_LIMIT_REACHED' },
+   428→          orderBy: { startedAt: 'desc' },
+   429→        });
+   430→        if (session) {
+   431→          await this.prisma.agentSession.update({
+   432→            where: { id: session.id },
+   433→            data: {
+   434→              status: AgentStatus.RUNNING,
+   435→              dailyPnL: 0,
+   436→              dailyTradesCount: 0,
+   437→              dailyResetAt: new Date(),
+   438→            },
+   439→          });
+   440→        }
+   441→      } catch (dbErr: any) {
+   442→        this.logger.warn(`Failed to update DB session on daily limit reset: ${dbErr.message}`);
+   443→      }
+   444→
+   445→      // Audit the override
+   446→      try {
+   447→        if (this.audit) {
+   448→          await this.audit.log({
+   449→            userId,
+   450→            action: 'AGENT_DAILY_LIMIT_OVERRIDE',
+   451→            resource: 'autonomous-trader',
+   452→            details: JSON.stringify({ message: 'User overrode daily loss limit and restarted agent' }),
+   453→          });
+   454→        }
+   455→      } catch {}
+   456→
+   457→      return existingState;
+   458→    }
+   459→
+   460→    // CRITICAL CHECK: Fail-fast if AUTO_TRADING_ENABLED is false
+   461→    // Step 1: Check global system-level toggle (DB first, then env var)
+   462→    let globalAutoTradingEnabled: boolean;
+   463→    try {
+   464→      const dbSetting = await this.prisma.setting.findUnique({
+   465→        where: { key: 'AUTO_TRADING_ENABLED' },
+   466→      });
+   467→      if (dbSetting) {
+   468→        globalAutoTradingEnabled = JSON.parse(dbSetting.value);
+   469→      } else {
+   470→        globalAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+   471→      }
+   472→    } catch {
+   473→      globalAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+   474→    }
+   475→
+   476→    if (!globalAutoTradingEnabled) {
+   477→      this.logger.error(`🚫 AUTO_TRADING_ENABLED=false (global) — cannot start agent for user ${userId}`);
+   478→      throw new BadRequestException(
+   479→        'التداول الذاتي معطّل على مستوى النظام — لا يمكن تفعيل الوكيل. يمكنك تفعيله من إعدادات النظام',
+   480→      );
+   481→    }
+   482→
+   483→    // Step 2: Check per-user autoTradingEnabled from DB settings
+   484→    // FIX: When the user clicks "Start Agent", the action itself IS consent to enable
+   485→    // auto trading. We now SET autoTradingEnabled=true when the user explicitly
+   486→    // starts the agent, instead of requiring them to find and toggle a separate
+   487→    // setting first. The "Start Agent" button = enable + start. "Stop Agent" = disable.
+   488→    // Previously, if autoTradingEnabled was false (from a previous stop or old DB row),
+   489→    // the user got stuck: they couldn't start the agent without finding the hidden
+   490→    // settings toggle, and the error message didn't help them find it.
+   491→    let userAutoTradingEnabled = true;
+   492→    try {
+   493→      let userSettings = await this.prisma.agentSettings.findUnique({
+   494→        where: { userId },
+   495→      });
+   496→      if (!userSettings) {
+   497→        // Auto-create settings with autoTradingEnabled=true
+   498→        try {
+   499→          userSettings = await this.prisma.agentSettings.create({
+   500→            data: {
+   501→              userId,
+   502→              autoTradingEnabled: true,
+   503→              maxPositionSizePercent: 2,
+   504→              maxDailyLossPercent: 5,
+   505→              maxOpenPositions: parseInt(this.configService.get('MAX_OPEN_POSITIONS', '20'), 10) || 20,  // V145: Was hardcoded 3 — now reads from env/admin settings
+   506→              riskPerTradePercent: 1,
+   507→            },
+   508→          });
+   509→          this.logger.log(`🔧 Auto-created agentSettings for user ${userId} with autoTradingEnabled=true`);
+   510→        } catch (createErr: any) {
+   511→          // Race condition: row was created between findUnique and create.
+   512→          // Re-read the row and force-enable autoTrading.
+   513→          this.logger.warn(`🔧 AgentSettings create race for user ${userId}: ${createErr.message} — re-reading and force-enabling`);
+   514→          try {
+   515→            userSettings = await this.prisma.agentSettings.findUnique({ where: { userId } });
+   516→            if (userSettings && !userSettings.autoTradingEnabled) {
+   517→              userSettings = await this.prisma.agentSettings.update({
+   518→                where: { userId },
+   519→                data: { autoTradingEnabled: true },
+   520→              });
+   521→            }
+   522→          } catch { /* Give up — allow agent to start anyway */ }
+   523→        }
+   524→      } else if (!userSettings.autoTradingEnabled) {
+   525→        // FIX: User clicked "Start Agent" → this IS the enable action.
+   526→        // Set autoTradingEnabled=true instead of blocking with an error.
+   527→        try {
+   528→          userSettings = await this.prisma.agentSettings.update({
+   529→            where: { userId },
+   530→            data: { autoTradingEnabled: true },
+   531→          });
+   532→          this.logger.log(`🔧 autoTradingEnabled set to true for user ${userId} (user clicked Start Agent)`);
+   533→        } catch (updateErr: any) {
+   534→          this.logger.warn(`Could not enable autoTradingEnabled for user ${userId}: ${updateErr.message}`);
+   535→          // FIX: Even if DB update fails, allow the agent to start.
+   536→          // The user's explicit click on "Start Agent" is consent.
+   537→          // A stale DB value should not block the user's action.
+   538→          userSettings = { ...userSettings, autoTradingEnabled: true };
+   539→        }
+   540→      }
+   541→      // SAFETY NET: If userSettings still shows autoTradingEnabled=false
+   542→      // (e.g., DB read returned stale data), override it. The user clicked
+   543→      // "Start Agent" — that's explicit consent. Don't block them.
+   544→      if (userSettings && !userSettings.autoTradingEnabled) {
+   545→        this.logger.warn(`🔧 userSettings.autoTradingEnabled is still false for ${userId} after fix attempts — OVERRIDING to true (user clicked Start Agent)`);
+   546→        userAutoTradingEnabled = true; // Force-allow — user consent overrides stale DB
+   547→      }
+   548→    } catch (e: any) {
+   549→      this.logger.warn(`Could not check user autoTradingEnabled: ${e.message}`);
+   550→      // FIX: If we can't check, allow the agent to start.
+   551→      // Missing settings should not block the user.
+   552→    }
+   553→
+   554→    if (!userAutoTradingEnabled) {
+   555→      this.logger.warn(`🚫 User ${userId} has autoTradingEnabled=false — cannot start agent`);
+   556→      throw new BadRequestException(
+   557→        'التداول الذاتي معطّل في إعداداتك — فعّله من صفحة إعدادات الوكيل',
+   558→      );
+   559→    }
+   560→
+   561→    // ═══════════════════════════════════════════════════════════════
+   562→    // V126: User-driven account selection — same as Smart Executor.
+   563→    //
+   564→    // The user selects which account to trade on from their settings page.
+   565→    // The agent reads activeCredentialId from user settings and executes
+   566→    // on that account. No paper/real mode logic, no auto-routing.
+   567→    // The user is in control — they chose their account in settings.
+   568→    // ═══════════════════════════════════════════════════════════════
+   569→    let credential: any = null;
+   570→    let isPaperTrading = false;
+   571→    let isTestnet = false;  // V135: Separate testnet from paper trading
+   572→    let exchangeName: string | undefined;  // V135: Exchange name for display
+   573→
+   574→    // Priority: dto.credentialId > activeCredentialId from user settings
+   575→    let effectiveCredentialId = dto.credentialId;
+   576→
+   577→    // If no credentialId in DTO, read from user settings (the user chose it)
+   578→    if (!effectiveCredentialId || effectiveCredentialId.trim() === '' || effectiveCredentialId.startsWith('paper-')) {
+   579→      try {
+   580→        const activeSetting = await this.prisma.setting.findFirst({
+   581→          where: { key: `user:${userId}:activeCredentialId` },
+   582→        });
+   583→        if (activeSetting?.value) {
+   584→          effectiveCredentialId = activeSetting.value;
+   585→          this.logger.log(`🧠 V126 Agent using active account from settings: ${effectiveCredentialId}`);
+   586→        }
+   587→      } catch (err: any) {
+   588→        this.logger.warn(`🧠 V126 Could not read activeCredentialId for user ${userId}: ${err.message}`);
+   589→      }
+   590→    }
+   591→
+   592→    // If still no credential, auto-create paper-trading credential as fallback
+   593→    if (!effectiveCredentialId || effectiveCredentialId.trim() === '' || effectiveCredentialId.startsWith('paper-')) {
+   594→      isPaperTrading = true;
+   595→      this.logger.log(`🧠 Agent starting in PAPER TRADING mode for user ${userId} (no active account selected)`);
+   596→
+   597→      try {
+   598→        const existingPaper = await this.prisma.exchangeCredential.findFirst({
+   599→          where: { userId, exchange: 'paper-trading', isValid: true },
+   600→        });
+   601→        if (existingPaper) {
+   602→          credential = existingPaper;
+   603→          effectiveCredentialId = existingPaper.id;
+   604→        } else {
+   605→          this.logger.log(`🧪 Auto-creating paper-trading credential for user ${userId}`);
+   606→          credential = await this.prisma.exchangeCredential.create({
+   607→            data: {
+   608→              userId,
+   609→              exchange: 'paper-trading',
+   610→              label: 'Paper Trading (Auto)',
+   611→              encryptedApiKey: 'paper',
+   612→              encryptedSecret: 'paper',
+   613→              iv: 'auto-paper',
+   614→              authTag: 'auto-paper',
+   615→              secretIv: 'auto-paper',
+   616→              secretAuthTag: 'auto-paper',
+   617→              permissions: JSON.stringify(['read', 'trade']),
+   618→              isValid: true,
+   619→              lastValidatedAt: new Date(),
+   620→              testnet: true,
+   621→            },
+   622→          });
+   623→          effectiveCredentialId = credential.id;
+   624→          this.logger.log(`🧪 Paper-trading credential created for user ${userId}`);
+   625→        }
+   626→      } catch (error: any) {
+   627→        this.logger.warn(`Could not setup paper credential: ${error.message}`);
+   628→      }
+   629→    } else {
+   630→      // User has selected an account — validate it
+   631→      try {
+   632→        credential = await this.prisma.exchangeCredential.findFirst({
+   633→          where: { id: effectiveCredentialId, userId, isValid: true },
+   634→        });
+   635→      } catch (error: any) {
+   636→        this.logger.error(`Database error looking up credential: ${error.message}`);
+   637→        throw new ServiceUnavailableException('خطأ في قاعدة البيانات — يرجى المحاولة لاحقاً');
+   638→      }
+   639→
+   640→      if (!credential) {
+   641→        throw new NotFoundException('الحساب المفعّل غير صالح أو غير موجود — اختر حساباً آخر من الإعدادات');
+   642→      }
+   643→
+   644→      // V135: Determine trading mode — separate testnet from paper trading.
+   645→      //   - isPaperTrading = true → exchange='paper-trading' (locally simulated, no real exchange)
+   646→      //   - isTestnet = true → testnet=true on a real exchange (e.g., Binance testnet)
+   647→      //   - Both false → live/real trading with real funds
+   648→      // Previously, testnet accounts were lumped with paper trading, causing the
+   649→      // widget to show "ورقي" even when connected to a real exchange via testnet.
+   650→      isPaperTrading = credential.exchange === 'paper-trading';
+   651→      isTestnet = credential.testnet === true && credential.exchange !== 'paper-trading';
+   652→      exchangeName = credential.exchange;
+   653→      this.logger.log(
+   654→        `🧠 V135 Agent starting for user ${userId} on ${credential.exchange} ` +
+   655→        `(testnet=${credential.testnet || false}, isPaperTrading=${isPaperTrading}, isTestnet=${isTestnet})`,
+   656→      );
+   657→    }
+   658→
+   659→    // Load user's persistent settings (DB first, env vars as fallback)
+   660→    let userSettings: any = null;
+   661→    try {
+   662→      userSettings = await this.prisma.agentSettings.findUnique({
+   663→        where: { userId },
+   664→      });
+   665→    } catch (e: any) {
+   666→      this.logger.warn(`Could not load user settings: ${e.message}`);
+   667→    }
+   668→
+   669→    // V145: Read global agentExecutorConfig from admin settings
+   670→    let globalAgentMaxPositions: number | undefined;
+   671→    try {
+   672→      const agentExecSetting = await this.prisma.setting.findFirst({
+   673→        where: { key: 'agentExecutorConfig' },
+   674→      });
+   675→      if (agentExecSetting) {
+   676→        const parsed = JSON.parse(agentExecSetting.value);
+   677→        if (parsed.agentMaxOpenPositions) {
+   678→          globalAgentMaxPositions = parseInt(parsed.agentMaxOpenPositions, 10);
+   679→          this.logger.log(`🧠 V145: Read agentMaxOpenPositions=${globalAgentMaxPositions} from admin settings`);
+   680→        }
+   681→      }
+   682→    } catch (globalErr: any) {
+   683→      this.logger.debug(`🧠 V145: Could not read global agentExecutorConfig: ${globalErr.message}`);
+   684→    }
+   685→
+   686→    // Build agent config: DTO > DB Settings > Env Vars > Hardcoded defaults
+   687→    const config: AgentConfig = {
+   688→      userId,
+   689→      strategy: dto.strategy,
+   690→      enabled: true,
+   691→      maxPositionSizePercent: dto.maxPositionSizePercent ??
+   692→        (userSettings ? Number(userSettings.maxPositionSizePercent) : undefined) ??
+   693→        (parseFloat(this.configService.get('MAX_POSITION_SIZE_PERCENT', '2')) || 2),
+   694→      maxDailyLossPercent: dto.maxDailyLossPercent ??
+   695→        (userSettings ? Number(userSettings.maxDailyLossPercent) : undefined) ??
+   696→        (parseFloat(this.configService.get('MAX_DAILY_LOSS_PERCENT', '5')) || 5),
+   697→      maxOpenPositions: dto.maxOpenPositions ??
+   698→        (userSettings ? Number(userSettings.maxOpenPositions) : undefined) ??
+   699→        globalAgentMaxPositions ??  // V145: Admin settings override env vars
+   700→        (parseInt(this.configService.get('MAX_OPEN_POSITIONS', '20'), 10) || 20),  // V145: Changed fallback from '5' to '20'
+   701→      riskPerTradePercent: dto.riskPerTradePercent ??
+   702→        (userSettings ? Number(userSettings.riskPerTradePercent) : undefined) ??
+   703→        1.5,
+   704→      strategyParams: dto.strategyParams ??
+   705→        (userSettings ? this._buildStrategyParamsFromSettings(userSettings, dto.strategy) : undefined) ??
+   706→        this._getDefaultStrategyParams(dto.strategy),
+   707→      symbols: dto.symbols ??
+   708→        (userSettings && userSettings.defaultSymbols ? userSettings.defaultSymbols.split(',').filter(Boolean) : undefined) ??
+   709→        this.DEFAULT_SYMBOLS,
+   710→      credentialId: effectiveCredentialId || credential?.id || `paper-${userId}`,
+   711→      isPaperTrading,
+   712→      isTestnet,  // V135: Separate testnet from paper
+   713→      exchangeName,  // V135: Exchange name for display
+   714→      createdAt: new Date(),
+   715→      updatedAt: new Date(),
+   716→    };
+   717→
+   718→    // Build initial state
+   719→    const agentRunId = `run-${userId}-${Date.now()}`;
+   720→    const state: AgentState = {
+   721→      status: AgentStatus.RUNNING,
+   722→      config,
+   723→      startedAt: new Date(),
+   724→      dailyPnL: 0,
+   725→      dailyTradesCount: 0,
+   726→      dailyResetAt: new Date(),
+   727→      consecutiveLosses: 0,
+   728→      totalCycles: 0,
+   729→    };
+   730→
+   731→    // Store in Redis (fast access for cycle)
+   732→    await this._saveAgentState(userId, state);
+   733→
+   734→    // Persist to DB (survives Redis restart)
+   735→    try {
+   736→      await this.prisma.agentSession.create({
+   737→        data: {
+   738→          userId,
+   739→          agentRunId,
+   740→          status: AgentStatus.RUNNING,
+   741→          strategy: config.strategy,
+   742→          config: JSON.stringify(config),
+   743→          credentialId: config.credentialId,
+   744→          dailyPnL: 0,
+   745→          dailyTradesCount: 0,
+   746→          totalCycles: 0,
+   747→          consecutiveLosses: 0,
+   748→          startedAt: new Date(),
+   749→          dailyResetAt: new Date(),
+   750→        },
+   751→      });
+   752→    } catch (dbError: any) {
+   753→      this.logger.error(`Failed to persist agent session to DB: ${dbError.message}`);
+   754→      // Non-fatal — Redis is the primary store, DB is backup
+   755→    }
+   756→
+   757→    // Audit (best-effort — don't fail if AuditService is unavailable)
+   758→    try {
+   759→      if (this.audit) {
+   760→        await this.audit.log({
+   761→          userId,
+   762→          action: 'AGENT_STARTED',
+   763→          resource: 'autonomous-trader',
+   764→          details: JSON.stringify({
+   765→            strategy: config.strategy,
+   766→            symbols: config.symbols,
+   767→            maxPositionSizePercent: config.maxPositionSizePercent,
+   768→            maxDailyLossPercent: config.maxDailyLossPercent,
+   769→            maxOpenPositions: config.maxOpenPositions,
+   770→          }),
+   771→        });
+   772→      }
+   773→    } catch (auditError: any) {
+   774→      this.logger.warn(`Audit log failed (non-critical): ${auditError.message}`);
+   775→    }
+   776→
+   777→    this.logger.log(`🧠 Agent started for user ${userId} — Strategy: ${config.strategy}`);
+   778→
+   779→    return state;
+   780→  }
+   781→
+   782→  /**
+   783→   * Stop the autonomous trader for a user
+   784→   */
+   785→  async stopAgent(userId: string, emergency: boolean = false): Promise<AgentState> {
+   786→    this._tryMarkReady();
+   787→    this._ensureReady();
+   788→
+   789→    const state = await this._getAgentState(userId);
+   790→    if (!state) {
+   791→      throw new NotFoundException('الوكيل غير نشط');
+   792→    }
+   793→
+   794→    state.status = emergency ? AgentStatus.EMERGENCY_STOP : AgentStatus.STOPPED;
+   795→
+   796→    await this._saveAgentState(userId, state);
+   797→
+   798→    // ── EMERGENCY: Close ALL open positions immediately ──
+   799→    if (emergency) {
+   800→      try {
+   801→        const openPositions = await this.prisma.position.findMany({
+   802→          where: { userId, status: 'OPEN' },
+   803→          select: { id: true, symbol: true },
+   804→        });
+   805→
+   806→        if (openPositions.length > 0) {
+   807→          this.logger.warn(`🧠 EMERGENCY STOP: closing ${openPositions.length} open positions for user ${userId}`);
+   808→          await Promise.allSettled(
+   809→            openPositions.map((pos) =>
+   810→              this.tradingService.closePositionWithRetry(userId, {
+   811→                positionId: pos.id,
+   812→                closeReason: 'EMERGENCY_STOP',
+   813→              }).catch((err: any) =>
+   814→                this.logger.error(`Failed to close position ${pos.id} (${pos.symbol}): ${err.message}`)
+   815→              )
+   816→            )
+   817→          );
+   818→        }
+   819→      } catch (closeErr: any) {
+   820→        this.logger.error(`Emergency position close failed: ${closeErr.message}`);
+   821→      }
+   822→    }
+   823→
+   824→    // Update DB session
+   825→    try {
+   826→      const session = await this.prisma.agentSession.findFirst({
+   827→        where: { userId, status: 'RUNNING' },
+   828→        orderBy: { startedAt: 'desc' },
+   829→      });
+   830→      if (session) {
+   831→        await this.prisma.agentSession.update({
+   832→          where: { id: session.id },
+   833→          data: {
+   834→            status: state.status,
+   835→            stoppedAt: new Date(),
+   836→            dailyPnL: state.dailyPnL,
+   837→            dailyTradesCount: state.dailyTradesCount,
+   838→            totalCycles: state.totalCycles,
+   839→            consecutiveLosses: state.consecutiveLosses,
+   840→            lastError: state.lastError,
+   841→          },
+   842→        });
+   843→      }
+   844→    } catch (dbError: any) {
+   845→      this.logger.error(`Failed to update agent session in DB: ${dbError.message}`);
+   846→    }
+   847→
+   848→    // If emergency, close all positions
+   849→    if (emergency) {
+   850→      this.logger.warn(`🚨 Emergency stop for user ${userId} — closing all positions`);
+   851→      await this.orderExecutor.emergencyCloseAll(userId);
+   852→    }
+   853→
+   854→    // Clear strategy cache
+   855→    this.signalEvaluator.clearUserStrategies(userId);
+   856→
+   857→    // Audit (best-effort)
+   858→    try {
+   859→      if (this.audit) {
+   860→        await this.audit.log({
+   861→          userId,
+   862→          action: emergency ? 'AGENT_EMERGENCY_STOP' : 'AGENT_STOPPED',
+   863→          resource: 'autonomous-trader',
+   864→          details: JSON.stringify({
+   865→            dailyPnL: state.dailyPnL,
+   866→            dailyTradesCount: state.dailyTradesCount,
+   867→            totalCycles: state.totalCycles,
+   868→          }),
+   869→        });
+   870→      }
+   871→    } catch (auditError: any) {
+   872→      this.logger.warn(`Audit log failed (non-critical): ${auditError.message}`);
+   873→    }
+   874→
+   875→    this.logger.log(`🧠 Agent ${emergency ? 'emergency ' : ''}stopped for user ${userId}`);
+   876→
+   877→    return state;
+   878→  }
+   879→
+   880→  /**
+   881→   * Get agent status for a user
+   882→   */
+   883→  async getStatus(userId: string): Promise<AgentState | null> {
+   884→    this._tryMarkReady();
+   885→    // getStatus is non-critical — return null if not ready instead of throwing
+   886→    if (!this._isReady) {
+   887→      return null;
+   888→    }
+   889→    return this._getAgentState(userId);
+   890→  }
+   891→
+   892→  /**
+   893→   * Change the active strategy
+   894→   */
+   895→  async changeStrategy(userId: string, dto: ChangeStrategyDto): Promise<AgentState> {
+   896→    this._tryMarkReady();
+   897→    this._ensureReady();
+   898→
+   899→    const state = await this._getAgentState(userId);
+   900→    if (!state || state.status !== AgentStatus.RUNNING) {
+   901→      throw new BadRequestException('الوكيل ليس في حالة تشغيل');
+   902→    }
+   903→
+   904→    const previousStrategy = state.config.strategy;
+   905→    state.config.strategy = dto.strategy;
+   906→    state.config.strategyParams = dto.strategyParams ?? this._getDefaultStrategyParams(dto.strategy);
+   907→    state.config.updatedAt = new Date();
+   908→
+   909→    // Update strategy in evaluator
+   910→    this.signalEvaluator.updateStrategy(userId, dto.strategy, state.config.strategyParams);
+   911→
+   912→    await this._saveAgentState(userId, state);
+   913→
+   914→    // Audit (best-effort)
+   915→    try {
+   916→      if (this.audit) {
+   917→        await this.audit.log({
+   918→          userId,
+   919→          action: 'AGENT_STRATEGY_CHANGED',
+   920→          resource: 'autonomous-trader',
+   921→          details: JSON.stringify({
+   922→            from: previousStrategy,
+   923→            to: dto.strategy,
+   924→          }),
+   925→        });
+   926→      }
+   927→    } catch (auditError: any) {
+   928→      this.logger.warn(`Audit log failed (non-critical): ${auditError.message}`);
+   929→    }
+   930→
+   931→    this.logger.log(`🧠 Strategy changed for user ${userId}: ${previousStrategy} → ${dto.strategy}`);
+   932→
+   933→    return state;
+   934→  }
+   935→
+   936→  /**
+   937→   * Update risk parameters
+   938→   */
+   939→  async updateRiskParams(userId: string, dto: UpdateRiskParamsDto): Promise<AgentState> {
+   940→    this._tryMarkReady();
+   941→    this._ensureReady();
+   942→
+   943→    const state = await this._getAgentState(userId);
+   944→    if (!state) {
+   945→      throw new NotFoundException('الوكيل غير نشط');
+   946→    }
+   947→
+   948→    if (dto.maxPositionSizePercent) state.config.maxPositionSizePercent = dto.maxPositionSizePercent;
+   949→    if (dto.maxDailyLossPercent) state.config.maxDailyLossPercent = dto.maxDailyLossPercent;
+   950→    if (dto.maxOpenPositions) state.config.maxOpenPositions = dto.maxOpenPositions;
+   951→    if (dto.riskPerTradePercent) state.config.riskPerTradePercent = dto.riskPerTradePercent;
+   952→    state.config.updatedAt = new Date();
+   953→
+   954→    await this._saveAgentState(userId, state);
+   955→
+   956→    // Audit (best-effort)
+   957→    try {
+   958→      if (this.audit) {
+   959→        await this.audit.log({
+   960→          userId,
+   961→          action: 'AGENT_RISK_PARAMS_UPDATED',
+   962→          resource: 'autonomous-trader',
+   963→          details: JSON.stringify(dto),
+   964→        });
+   965→      }
+   966→    } catch (auditError: any) {
+   967→      this.logger.warn(`Audit log failed (non-critical): ${auditError.message}`);
+   968→    }
+   969→
+   970→    return state;
+   971→  }
+   972→
+   973→  /**
+   974→   * Get per-user agent settings (persistent across sessions)
+   975→   * Returns DB settings if they exist, otherwise creates defaults from env vars.
+   976→   */
+   977→  async getSettings(userId: string) {
+   978→    this._tryMarkReady();
+   979→    this._ensureReady();
+   980→
+   981→    let settings = await this.prisma.agentSettings.findUnique({
+   982→      where: { userId },
+   983→    });
+   984→
+   985→    // If no settings exist yet, create default settings
+   986→    if (!settings) {
+   987→      settings = await this._createDefaultSettings(userId);
+   988→    }
+   989→
+   990→    // Parse defaultSymbols from comma-separated string to array
+   991→    const result = { ...settings };
+   992→    (result as any).defaultSymbols = settings.defaultSymbols
+   993→      ? settings.defaultSymbols.split(',').filter(Boolean)
+   994→      : this.DEFAULT_SYMBOLS;
+   995→
+   996→    return result;
+   997→  }
+   998→
+   999→  /**
+  1000→   * Update per-user agent settings
+  1001→   * These settings persist across agent restarts and are used as defaults
+  1002→   * when starting the agent.
+  1003→   */
+  1004→  async updateSettings(userId: string, dto: UpdateAgentSettingsDto) {
+  1005→    this._tryMarkReady();
+  1006→    this._ensureReady();
+  1007→
+  1008→    // Ensure settings row exists
+  1009→    let settings = await this.prisma.agentSettings.findUnique({
+  1010→      where: { userId },
+  1011→    });
+  1012→
+  1013→    if (!settings) {
+  1014→      settings = await this._createDefaultSettings(userId);
+  1015→    }
+  1016→
+  1017→    // Build update data from DTO
+  1018→    const updateData: any = {};
+  1019→
+  1020→    if (dto.autoTradingEnabled !== undefined) updateData.autoTradingEnabled = dto.autoTradingEnabled;
+  1021→    if (dto.paperBalance !== undefined) updateData.paperBalance = dto.paperBalance;
+  1022→    // V153: Paper trading leverage (user-configurable)
+  1023→    if (dto.paperForexLeverage !== undefined) updateData.paperForexLeverage = dto.paperForexLeverage;
+  1024→    if (dto.paperGoldLeverage !== undefined) updateData.paperGoldLeverage = dto.paperGoldLeverage;
+  1025→    if (dto.paperCryptoLeverage !== undefined) updateData.paperCryptoLeverage = dto.paperCryptoLeverage;
+  1026→    if (dto.maxPositionSizePercent !== undefined) updateData.maxPositionSizePercent = dto.maxPositionSizePercent;
+  1027→    if (dto.maxDailyLossPercent !== undefined) updateData.maxDailyLossPercent = dto.maxDailyLossPercent;
+  1028→    if (dto.maxOpenPositions !== undefined) updateData.maxOpenPositions = dto.maxOpenPositions;
+  1029→    if (dto.riskPerTradePercent !== undefined) updateData.riskPerTradePercent = dto.riskPerTradePercent;
+  1030→    if (dto.defaultStrategy !== undefined) updateData.defaultStrategy = dto.defaultStrategy;
+  1031→
+  1032→    // Strategy-specific params
+  1033→    if (dto.scalpingTimeframe !== undefined) updateData.scalpingTimeframe = dto.scalpingTimeframe;
+  1034→    if (dto.scalpingTakeProfitPips !== undefined) updateData.scalpingTakeProfitPips = dto.scalpingTakeProfitPips;
+  1035→    if (dto.scalpingStopLossPips !== undefined) updateData.scalpingStopLossPips = dto.scalpingStopLossPips;
+  1036→    if (dto.scalpingMaxSpread !== undefined) updateData.scalpingMaxSpread = dto.scalpingMaxSpread;
+  1037→    if (dto.swingTimeframe !== undefined) updateData.swingTimeframe = dto.swingTimeframe;
+  1038→    if (dto.swingHoldingPeriodHours !== undefined) updateData.swingHoldingPeriodHours = dto.swingHoldingPeriodHours;
+  1039→    if (dto.swingTrendLookback !== undefined) updateData.swingTrendLookback = dto.swingTrendLookback;
+  1040→    if (dto.gridLevels !== undefined) updateData.gridLevels = dto.gridLevels;
+  1041→    if (dto.gridSpacingPercent !== undefined) updateData.gridSpacingPercent = dto.gridSpacingPercent;
+  1042→    if (dto.gridQuantityPerLevel !== undefined) updateData.gridQuantityPerLevel = dto.gridQuantityPerLevel;
+  1043→
+  1044→    // Default symbols: convert array to comma-separated string
+  1045→    if (dto.defaultSymbols !== undefined) {
+  1046→      updateData.defaultSymbols = dto.defaultSymbols.join(',');
+  1047→    }
+  1048→
+  1049→    const updated = await this.prisma.agentSettings.update({
+  1050→      where: { userId },
+  1051→      data: updateData,
+  1052→    });
+  1053→
+  1054→    // If agent is currently running, apply risk params immediately
+  1055→    const state = await this._getAgentState(userId);
+  1056→    if (state && state.status === AgentStatus.RUNNING) {
+  1057→      if (dto.maxPositionSizePercent !== undefined) state.config.maxPositionSizePercent = dto.maxPositionSizePercent;
+  1058→      if (dto.maxDailyLossPercent !== undefined) state.config.maxDailyLossPercent = dto.maxDailyLossPercent;
+  1059→      if (dto.maxOpenPositions !== undefined) state.config.maxOpenPositions = dto.maxOpenPositions;
+  1060→      if (dto.riskPerTradePercent !== undefined) state.config.riskPerTradePercent = dto.riskPerTradePercent;
+  1061→
+  1062→      // Update strategy params if provided
+  1063→      if (dto.scalpingTimeframe || dto.scalpingTakeProfitPips || dto.scalpingStopLossPips || dto.scalpingMaxSpread ||
+  1064→          dto.swingTimeframe || dto.swingHoldingPeriodHours || dto.swingTrendLookback ||
+  1065→          dto.gridLevels || dto.gridSpacingPercent || dto.gridQuantityPerLevel) {
+  1066→        state.config.strategyParams = this._buildStrategyParamsFromSettings(updated, state.config.strategy);
+  1067→      }
+  1068→
+  1069→      state.config.updatedAt = new Date();
+  1070→      await this._saveAgentState(userId, state);
+  1071→    }
+  1072→
+  1073→    // Audit (best-effort)
+  1074→    try {
+  1075→      if (this.audit) {
+  1076→        await this.audit.log({
+  1077→          userId,
+  1078→          action: 'AGENT_SETTINGS_UPDATED',
+  1079→          resource: 'autonomous-trader',
+  1080→          details: JSON.stringify(dto),
+  1081→        });
+  1082→      }
+  1083→    } catch (auditError: any) {
+  1084→      this.logger.warn(`Audit log failed (non-critical): ${auditError.message}`);
+  1085→    }
+  1086→
+  1087→    // Parse defaultSymbols for response
+  1088→    const result = { ...updated };
+  1089→    (result as any).defaultSymbols = updated.defaultSymbols
+  1090→      ? updated.defaultSymbols.split(',').filter(Boolean)
+  1091→      : this.DEFAULT_SYMBOLS;
+  1092→
+  1093→    return result;
+  1094→  }
+  1095→
+  1096→  /**
+  1097→   * Update system-level AUTO_TRADING_ENABLED setting in DB
+  1098→   * This allows toggling auto-trading from the UI without changing env vars
+  1099→   */
+  1100→  async updateSystemAutoTrading(enabled: boolean): Promise<void> {
+  1101→    this._tryMarkReady();
+  1102→    this._ensureReady();
+  1103→
+  1104→    try {
+  1105→      await this.prisma.setting.upsert({
+  1106→        where: { key: 'AUTO_TRADING_ENABLED' },
+  1107→        update: { value: JSON.stringify(enabled) },
+  1108→        create: { key: 'AUTO_TRADING_ENABLED', value: JSON.stringify(enabled) },
+  1109→      });
+  1110→      this.logger.log(`🔧 System AUTO_TRADING_ENABLED set to ${enabled} in DB`);
+  1111→    } catch (error: any) {
+  1112→      this.logger.error(`Failed to update system AUTO_TRADING_ENABLED: ${error.message}`);
+  1113→      throw error;
+  1114→    }
+  1115→  }
+  1116→
+  1117→  /**
+  1118→   * Public status endpoint — no auth required.
+  1119→   * Returns only autoTradingEnabled and source (safe to expose publicly).
+  1120→   */
+  1121→  async getPublicStatus() {
+  1122→    this._tryMarkReady();
+  1123→
+  1124→    // FIX: Default to TRUE (was false). Previously, if the DB lookup failed,
+  1125→    // this method would return autoTradingEnabled=false, which blocked the
+  1126→    // frontend from starting the agent. Since the DB setting is auto-seeded
+  1127→    // with true by onModuleInit(), and the agent's own cron + startup cleanup
+  1128→    // prevent phantom trades, the safe default is TRUE.
+  1129→    let autoTradingEnabled = true;
+  1130→    let source: 'database' | 'env_var' = 'env_var';
+  1131→
+  1132→    try {
+  1133→      if (!this.prisma) {
+  1134→        // Prisma not available — fall back to env var
+  1135→        autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+  1136→        source = 'env_var';
+  1137→      } else {
+  1138→        const dbSetting = await this.prisma.setting.findUnique({
+  1139→          where: { key: 'AUTO_TRADING_ENABLED' },
+  1140→        });
+  1141→        if (dbSetting) {
+  1142→          autoTradingEnabled = JSON.parse(dbSetting.value);
+  1143→          source = 'database';
+  1144→        } else {
+  1145→          autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+  1146→          source = 'env_var';
+  1147→        }
+  1148→      }
+  1149→    } catch {
+  1150→      autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+  1151→      source = 'env_var';
+  1152→    }
+  1153→
+  1154→    return {
+  1155→      success: true,
+  1156→      data: {
+  1157→        autoTradingEnabled,
+  1158→        source,
+  1159→      },
+  1160→    };
+  1161→  }
+  1162→
+  1163→  /**
+  1164→   * Get system-level status information
+  1165→   * Shows global configuration like AUTO_TRADING_ENABLED status.
+  1166→   * Checks DB first, then env var, then defaults to true.
+  1167→   */
+  1168→  async getSystemStatus() {
+  1169→    this._tryMarkReady();
+  1170→
+  1171→    // Check DB first, then env var
+  1172→    let dbAutoTradingEnabled: boolean | null = null;
+  1173→    try {
+  1174→      if (this.prisma) {
+  1175→        const dbSetting = await this.prisma.setting.findUnique({
+  1176→          where: { key: 'AUTO_TRADING_ENABLED' },
+  1177→        });
+  1178→        if (dbSetting) {
+  1179→          dbAutoTradingEnabled = JSON.parse(dbSetting.value);
+  1180→        }
+  1181→      }
+  1182→    } catch {
+  1183→      // DB not available — fall through to env var
+  1184→    }
+  1185→
+  1186→    // FIX: Priority: DB setting > env var > default (TRUE)
+  1187→    // Previously defaulted to false, which was blocking all agent starts
+  1188→    // when the DB setting didn't exist. Since onModuleInit seeds TRUE,
+  1189→    // and phantom trades are prevented by other mechanisms, default TRUE.
+  1190→    const envAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+  1191→    const autoTradingEnabled = dbAutoTradingEnabled !== null ? dbAutoTradingEnabled : envAutoTradingEnabled;
+  1192→
+  1193→    const defaultPaperBalance = parseFloat(this.configService.get('DEFAULT_PAPER_BALANCE', '10000')) || 10000;
+  1194→
+  1195→    return {
+  1196→      success: true,
+  1197→      data: {
+  1198→        autoTradingEnabled,
+  1199→        globalAutoTradingEnabled: autoTradingEnabled,
+  1200→        source: dbAutoTradingEnabled !== null ? 'database' : 'env_var',
+  1201→        defaultPaperBalance,
+  1202→        nodeEnv: this.configService.get('NODE_ENV', 'development'),
+  1203→        message: autoTradingEnabled
+  1204→          ? 'التداول الذاتي مفعّل على مستوى النظام'
+  1205→          : 'التداول الذاتي معطّل على مستوى النظام',
+  1206→      },
+  1207→    };
+  1208→  }
+  1209→
+  1210→  /**
+  1211→   * Create default settings for a user, combining env var defaults with DB persistence.
+  1212→   */
+  1213→  private async _createDefaultSettings(userId: string) {
+  1214→    // FIX: autoTradingEnabled defaults to TRUE to match Prisma schema @default(true)
+  1215→    // and the startAgent() auto-creation logic. The global AUTO_TRADING_ENABLED
+  1216→    // setting still controls the system-level switch, so per-user default of true
+  1217→    // is safe — the system won't auto-trade unless both the global switch AND
+  1218→    // per-user setting are true. Previously defaulting to false caused a bug:
+  1219→    // visiting Settings page before starting the agent would create settings with
+  1220→    // false, then startAgent() would find existing settings and refuse to start.
+  1221→    return this.prisma.agentSettings.create({
+  1222→      data: {
+  1223→        userId,
+  1224→        autoTradingEnabled: true,
+  1225→        paperBalance: parseFloat(this.configService.get('DEFAULT_PAPER_BALANCE', '10000')) || 10000,
+  1226→        maxPositionSizePercent: parseFloat(this.configService.get('MAX_POSITION_SIZE_PERCENT', '2')) || 2,
+  1227→        maxDailyLossPercent: parseFloat(this.configService.get('MAX_DAILY_LOSS_PERCENT', '5')) || 5,
+  1228→        maxOpenPositions: parseInt(this.configService.get('MAX_OPEN_POSITIONS', '20'), 10) || 20,  // V144: Increased from 15 to 20
+  1229→        riskPerTradePercent: 1.5,
+  1230→        defaultStrategy: StrategyType.AUTO,
+  1231→        scalpingTimeframe: '5m',
+  1232→        scalpingTakeProfitPips: 15,
+  1233→        scalpingStopLossPips: 10,
+  1234→        scalpingMaxSpread: 3,
+  1235→        swingTimeframe: '1h',
+  1236→        swingHoldingPeriodHours: 48,
+  1237→        swingTrendLookback: 50,
+  1238→        gridLevels: 5,
+  1239→        gridSpacingPercent: 0.5,
+  1240→        defaultSymbols: this.DEFAULT_SYMBOLS.join(','),
+  1241→      },
+  1242→    });
+  1243→  }
+  1244→
+  1245→  /**
+  1246→   * Build StrategyParams from AgentSettings for the given strategy type.
+  1247→   */
+  1248→  private _buildStrategyParamsFromSettings(settings: any, strategy: StrategyType): StrategyParams {
+  1249→    switch (strategy) {
+  1250→      case StrategyType.AUTO:
+  1251→        // AUTO uses all strategy params — build comprehensive params
+  1252→        return {
+  1253→          ...this._buildStrategyParamsFromSettings(settings, StrategyType.SCALPING),
+  1254→          ...this._buildStrategyParamsFromSettings(settings, StrategyType.SWING),
+  1255→          ...this._buildStrategyParamsFromSettings(settings, StrategyType.MEAN_REVERSION),
+  1256→          ...this._buildStrategyParamsFromSettings(settings, StrategyType.MOMENTUM_BREAKOUT),
+  1257→          ...this._buildStrategyParamsFromSettings(settings, StrategyType.DCA),
+  1258→          ...this._buildStrategyParamsFromSettings(settings, StrategyType.VWAP_RSI),
+  1259→        };
+  1260→      case StrategyType.SCALPING:
+  1261→        return {
+  1262→          scalpingTimeframe: settings.scalpingTimeframe || '5m',
+  1263→          scalpingTakeProfitPips: settings.scalpingTakeProfitPips ?? 15,
+  1264→          scalpingStopLossPips: settings.scalpingStopLossPips ?? 10,
+  1265→          scalpingMaxSpread: settings.scalpingMaxSpread ?? 3,
+  1266→        };
+  1267→      case StrategyType.SWING:
+  1268→        return {
+  1269→          swingTimeframe: settings.swingTimeframe || '1h',
+  1270→          swingHoldingPeriodHours: settings.swingHoldingPeriodHours ?? 48,
+  1271→          swingTrendLookback: settings.swingTrendLookback ?? 50,
+  1272→        };
+  1273→      case StrategyType.GRID:
+  1274→        return {
+  1275→          gridLevels: settings.gridLevels ?? 5,
+  1276→          gridSpacingPercent: settings.gridSpacingPercent ?? 0.5,
+  1277→          gridQuantityPerLevel: settings.gridQuantityPerLevel
+  1278→            ? Number(settings.gridQuantityPerLevel)
+  1279→            : undefined,
+  1280→        };
+  1281→      default:
+  1282→        return {};
+  1283→    }
+  1284→  }
+  1285→
+  1286→  /**
+  1287→   * Get open positions managed by the agent
+  1288→   */
+  1289→  async getOpenPositions(userId: string) {
+  1290→    this._tryMarkReady();
+  1291→    this._ensureReady();
+  1292→
+  1293→    // ═══════════════════════════════════════════════════════════
+  1294→    // SOURCE FILTER: Only show positions created by the Agent
+  1295→    // (source='agent'). Previously, this returned ALL positions
+  1296→    // including those created by the Smart Executor, making both
+  1297→    // logs show identical trades — confusing users into thinking
+  1298→    // trades are being duplicated.
+  1299→    // ═══════════════════════════════════════════════════════════
+  1300→    return this.prisma.position.findMany({
+  1301→      where: { userId, status: 'OPEN', source: 'agent' },
+  1302→      orderBy: { openedAt: 'desc' },
+  1303→    });
+  1304→  }
+  1305→
+  1306→  /**
+  1307→   * Get performance report
+  1308→   */
+  1309→  async getPerformance(userId: string, period: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'ALL_TIME' = 'WEEKLY'): Promise<PerformanceMetrics> {
+  1310→    this._tryMarkReady();
+  1311→    this._ensureReady();
+  1312→
+  1313→    const tracker = new PerformanceTracker();
+  1314→
+  1315→    // Get completed trades from DB
+  1316→    const todayStart = this._getPeriodStart(period);
+  1317→    const trades = await this.prisma.trade.findMany({
+  1318→      where: {
+  1319→        userId,
+  1320→        executedAt: { gte: todayStart },
+  1321→        type: { in: ['EXIT', 'PARTIAL_EXIT'] },
+  1322→        pnl: { not: null },
+  1323→      },
+  1324→      orderBy: { executedAt: 'asc' },
+  1325→    });
+  1326→
+  1327→    for (const trade of trades) {
+  1328→      // Safely parse strategy from metadata — fallback to SWING if unavailable
+  1329→      let strategy: StrategyType = StrategyType.SWING;
+  1330→      try {
+  1331→        const metadata = (trade as any).metadata;
+  1332→        if (metadata && typeof metadata === 'string') {
+  1333→          const parsed = JSON.parse(metadata);
+  1334→          if (parsed.strategy && Object.values(StrategyType).includes(parsed.strategy)) {
+  1335→            strategy = parsed.strategy;
+  1336→          }
+  1337→        }
+  1338→      } catch {
+  1339→        // Malformed JSON — use default
+  1340→      }
+  1341→
+  1342→      tracker.addTrade({
+  1343→        id: trade.id,
+  1344→        symbol: trade.symbol,
+  1345→        side: trade.side as 'BUY' | 'SELL',
+  1346→        strategy,
+  1347→        pnl: Number(trade.pnl || 0),
+  1348→        fee: Number(trade.fee || 0),
+  1349→        openedAt: trade.executedAt,
+  1350→        closedAt: trade.executedAt,
+  1351→      });
+  1352→    }
+  1353→
+  1354→    return tracker.calculateMetrics(period);
+  1355→  }
+  1356→
+  1357→  // ── Main Trading Cycle ──
+  1358→
+  1359→  /**
+  1360→   * Main cycle — runs every 60 seconds
+  1361→   * Processes all active agents
+  1362→   *
+  1363→   * FIX: This cron now checks AUTO_TRADING_ENABLED at the DB level BEFORE
+  1364→   * doing anything else. Previously, the cron would fire every minute and
+  1365→   * process agents even when auto-trading was globally disabled. This was a
+  1366→   * source of phantom trades — the cron would find orphaned agent sessions
+  1367→   * in Redis (before startup cleanup ran) and execute trades for them.
+  1368→   *
+  1369→   * FIX: @Cron decorator RE-ENABLED with safety guards.
+  1370→   * Previously, this cron was completely disabled to prevent phantom trades.
+  1371→   * However, disabling it meant the agent NEVER trades — users see "يعمل" but
+  1372→   * no trades execute. The real phantom trade sources were:
+  1373→   *   1. Auto-restore of running agents on restart → FIXED (removed _autoRestoreRunningAgents)
+  1374→   *   2. Auto-start of executor on restart → FIXED (removed auto-start)
+  1375→   *   3. Startup session generating stale briefs → FIXED (removed _triggerStartupSession)
+  1376→   * With these 3 fixes in place, the cron is safe to re-enable.
+  1377→   * Additional safety: AUTO_TRADING_ENABLED guard + isCycleRunning overlap protection.
+  1378→   */
+  1379→  @Cron('*/1 * * * *')  // FIX: Re-enabled — agent needs cron to actually trade. Phantom trades prevented by AUTO_TRADING_ENABLED guard + startup cleanup + no auto-restore.
+  1380→  async runCycle(): Promise<void> {
+  1381→    // ═══════════════════════════════════════════════════════
+  1382→    // CRITICAL GUARD: Check AUTO_TRADING_ENABLED before anything else.
+  1383→    // This prevents the cron from ever executing trades when the global
+  1384→    // toggle is off (which is the default). Without this guard, the cron
+  1385→    // could still process orphaned Redis sessions and create phantom trades.
+  1386→    // ═══════════════════════════════════════════════════════
+  1387→    try {
+  1388→      let autoTradingEnabled = true;  // FIX: Default TRUE — was false, blocking all agent cycles when DB setting didn't exist
+  1389→      try {
+  1390→        const dbSetting = await this.prisma.setting.findUnique({
+  1391→          where: { key: 'AUTO_TRADING_ENABLED' },
+  1392→        });
+  1393→        if (dbSetting) {
+  1394→          autoTradingEnabled = JSON.parse(dbSetting.value);
+  1395→        }
+  1396→        // If no DB setting, keep default TRUE (don't fall back to env var)
+  1397→      } catch {
+  1398→        // DB lookup failed — keep default TRUE (proceed with cycle)
+  1399→        autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+  1400→      }
+  1401→
+  1402→      if (!autoTradingEnabled) {
+  1403→        // Auto-trading is explicitly disabled in DB — skip cycle.
+  1404→        return;
+  1405→      }
+  1406→    } catch {
+  1407→      // Outer catch — proceed with cycle (don't block on config errors)
+  1408→      // Previously returned here, which meant ANY error = agent completely disabled
+  1409→    }
+  1410→
+  1411→    // If dependencies aren't ready, skip this cycle silently
+  1412→    if (!this._isReady) {
+  1413→      this._tryMarkReady();
+  1414→      if (!this._isReady) {
+  1415→        return; // DB/Redis still unavailable — skip cycle
+  1416→      }
+  1417→    }
+  1418→
+  1419→    if (this.isCycleRunning) {
+  1420→      this.logger.debug('Previous cycle still running — skipping');
+  1421→      return;
+  1422→    }
+  1423→
+  1424→    this.isCycleRunning = true;
+  1425→
+  1426→    try {
+  1427→      // Find all running agents
+  1428→      const activeAgents = await this._getActiveAgents();
+  1429→
+  1430→      if (activeAgents.length === 0) {
+  1431→        return;
+  1432→      }
+  1433→
+  1434→      this.logger.debug(`🧠 Processing ${activeAgents.length} active agents`);
+  1435→
+  1436→      for (const userId of activeAgents) {
+  1437→        try {
+  1438→          await this._processAgentCycle(userId);
+  1439→        } catch (error: any) {
+  1440→          this.logger.error(`Agent cycle failed for ${userId}: ${error.message}`);
+  1441→        }
+  1442→      }
+  1443→    } catch (error: any) {
+  1444→      this.logger.error(`Cycle error: ${error.message}`);
+  1445→    } finally {
+  1446→      this.isCycleRunning = false;
+  1447→    }
+  1448→  }
+  1449→
+  1450→  /**
+  1451→   * Process a single agent's trading cycle
+  1452→   *
+  1453→   * ARCHITECTURE: The Agent now reads TradingBriefs from the Strategic Council
+  1454→   * instead of generating its own signals via MarketAnalyzer + SignalEvaluator.
+  1455→   * This ensures a UNIFIED signal source — both Smart Executor and Agent
+  1456→   * read from the same Council, but each filters by its assigned timeframes:
+  1457→   *   - Smart Executor: M1, M5, M15 (quick/scalping)
+  1458→   *   - Agent: M30, H1, H4, D1, W1 (short/medium/long-term)
+  1459→   *
+  1460→   * The old self-contained pipeline (MarketAnalyzer → SignalEvaluator → RiskCalculator)
+  1461→   * is kept as a FALLBACK when the Council is unavailable, but the primary path
+  1462→   * is Council → Brief → Execute.
+  1463→   */
+  1464→  private async _processAgentCycle(userId: string): Promise<void> {
+  1465→    const state = await this._getAgentState(userId);
+  1466→    if (!state) return;
+  1467→
+  1468→    // FIX: Reset daily stats BEFORE the status check so that agents with
+  1469→    // DAILY_LIMIT_REACHED status from a previous day can recover.
+  1470→    this._resetDailyStatsIfNeeded(state);
+  1471→
+  1472→    if (state.status !== AgentStatus.RUNNING) return;
+  1473→
+  1474→    // ═══════════════════════════════════════════════════════════════
+  1475→    // V136: Re-read activeCredentialId from user settings on each cycle.
+  1476→    // ROOT CAUSE of "ورقي" showing despite Binance in settings:
+  1477→    //   The agent's state (isPaperTrading, exchangeName) was set once
+  1478→    //   at start and never refreshed. If the user changed their
+  1479→    //   active credential in settings AFTER starting the agent, the
+  1480→    //   widget still showed "ورقي" from the stale state.
+  1481→    //   Now: we re-read and update the credential metadata every cycle.
+  1482→    // ═══════════════════════════════════════════════════════════════
+  1483→    try {
+  1484→      const activeSetting = await this.prisma.setting.findFirst({
+  1485→        where: { key: `user:${userId}:activeCredentialId` },
+  1486→      });
+  1487→      const settingsActiveId = activeSetting?.value || undefined;
+  1488→
+  1489→      if (settingsActiveId && settingsActiveId !== state.config.credentialId) {
+  1490→        // User changed their credential — update agent state
+  1491→        state.config.credentialId = settingsActiveId;
+  1492→
+  1493→        // Read the new credential's metadata
+  1494→        const credential = await this.prisma.exchangeCredential.findFirst({
+  1495→          where: { id: settingsActiveId, userId, isValid: true },
+  1496→          select: { testnet: true, exchange: true },
+  1497→        });
+  1498→
+  1499→        if (credential) {
+  1500→          state.config.isPaperTrading = credential.exchange === 'paper-trading';
+  1501→          state.config.isTestnet = credential.testnet === true && credential.exchange !== 'paper-trading';
+  1502→          state.config.exchangeName = credential.exchange;
+  1503→          this.logger.log(
+  1504→            `🧠 V136 Agent credential updated for user ${userId}: ` +
+  1505→            `${credential.exchange} (isPaperTrading=${state.config.isPaperTrading}, isTestnet=${state.config.isTestnet})`,
+  1506→          );
+  1507→        }
+  1508→        await this._saveAgentState(userId, state);
+  1509→      } else if (!settingsActiveId && state.config.credentialId && !state.config.credentialId.startsWith('paper-')) {
+  1510→        // User removed their active credential — revert to paper trading
+  1511→        state.config.credentialId = `paper-${userId}`;
+  1512→        state.config.isPaperTrading = true;
+  1513→        state.config.isTestnet = false;
+  1514→        state.config.exchangeName = undefined;
+  1515→        this.logger.log(`🧠 V136 Agent credential removed for user ${userId} — reverting to paper trading`);
+  1516→        await this._saveAgentState(userId, state);
+  1517→      }
+  1518→    } catch (err: any) {
+  1519→      this.logger.debug(`🧠 V136 Could not refresh credential for user ${userId}: ${err.message}`);
+  1520→    }
+  1521→
+  1522→    // Check if daily loss limit reached
+  1523→    const dailyLimitReached = await this.riskCalculator.isDailyLimitReached(
+  1524→      userId,
+  1525→      state.config.maxDailyLossPercent,
+  1526→    );
+  1527→
+  1528→    if (dailyLimitReached) {
+  1529→      this.logger.warn(`🧠 HARD STOP: User ${userId} hit daily loss limit — auto-stopping agent`);
+  1530→      state.status = AgentStatus.DAILY_LIMIT_REACHED;
+  1531→      await this._saveAgentState(userId, state);
+  1532→
+  1533→      // ── Persist to DB so restart doesn't reset it ──
+  1534→      try {
+  1535→        await this.prisma.setting.upsert({
+  1536→          where: { key: `user:${userId}:agentDailyLossHit` },
+  1537→          update: { value: new Date().toDateString() },
+  1538→          create: { key: `user:${userId}:agentDailyLossHit`, value: new Date().toDateString() },
+  1539→        });
+  1540→      } catch { /* non-fatal */ }
+  1541→
+  1542→      // ── Notify user ──
+  1543→      // V169 FIX: notificationService is not injected into this service.
+  1544→      // Log the alert instead of calling a non-existent method.
+  1545→      try {
+  1546→        this.logger.warn(`🛑 Agent ${userId}: Daily loss limit reached — agent stopped automatically. Risk alert would be sent to user.`);
+  1547→      } catch { /* non-fatal */ }
+  1548→
+  1549→      return;
+  1550→    }
+  1551→
+  1552→    // ── Check if daily loss was hit today (persisted across restarts) ──
+  1553→    try {
+  1554→      const dailyLossFlag = await this.prisma.setting.findUnique({
+  1555→        where: { key: `user:${userId}:agentDailyLossHit` },
+  1556→      });
+  1557→      if (dailyLossFlag?.value === new Date().toDateString()) {
+  1558→        this.logger.warn(`🧠 User ${userId} already hit daily loss limit today — agent remains stopped`);
+  1559→        state.status = AgentStatus.DAILY_LIMIT_REACHED;
+  1560→        await this._saveAgentState(userId, state);
+  1561→        return;
+  1562→      }
+  1563→    } catch { /* non-fatal */ }
+  1564→
+  1565→    // CRITICAL: Monitor existing positions for SL/TP exits BEFORE opening new ones
+  1566→    await this._monitorOpenPositions(userId, state);
+  1567→
+  1568→    // ── PRIMARY PATH: Read briefs from Strategic Council ──
+  1569→    // The Agent reads the SAME briefs as the Smart Executor, but filters
+  1570→    // for M30+ timeframes only. This ensures unified signal source.
+  1571→    let agentBriefs: TradingBriefDTO[] = [];
+  1572→    let usingCouncilBriefs = false;
+  1573→
+  1574→    if (this.councilService) {
+  1575→      try {
+  1576→        const allBriefs = await this.councilService.getActiveBriefs();
+  1577→        // Filter: Agent handles M30+ timeframes only
+  1578→        agentBriefs = allBriefs.filter(
+  1579→          (brief: TradingBriefDTO) => isAgentTimeframe(brief.timeframe)
+  1580→        );
+  1581→        usingCouncilBriefs = agentBriefs.length > 0;
+  1582→
+  1583→        if (agentBriefs.length > 0) {
+  1584→          this.logger.log(
+  1585→            `🧠 Agent ${userId} cycle #${state.totalCycles + 1}: ` +
+  1586→            `${agentBriefs.length} council briefs for agent timeframes [${AGENT_TIMEFRAMES.join(',')}] ` +
+  1587→            `(total briefs: ${allBriefs.length})`,
+  1588→          );
+  1589→        }
+  1590→      } catch (councilErr: any) {
+  1591→        this.logger.warn(`🧠 Council briefs unavailable for agent ${userId}: ${councilErr.message} — falling back to self-analysis`);
+  1592→      }
+  1593→    }
+  1594→
+  1595→    // ── FALLBACK: Self-contained analysis when Council is unavailable ──
+  1596→    if (!usingCouncilBriefs) {
+  1597→      this.logger.debug(`🧠 Agent ${userId}: No council briefs available — using self-analysis fallback`);
+  1598→    }
+  1599→
+  1600→    let signalsExecuted = 0;
+  1601→    let signalsGenerated = 0;
+  1602→    let signalsRejected = 0;
+  1603→    const rejectionReasons: string[] = [];
+  1604→
+  1605→    if (usingCouncilBriefs) {
+  1606→      // ── COUNCIL-BASED EXECUTION: Execute agent briefs from the Council ──
+  1607→      for (const brief of agentBriefs) {
+  1608→        try {
+  1609→          // V141 FIX: Check for same-direction position only (not just any position).
+  1610→          // Previously, if the Smart Executor had a BUY on BTC/USDT, the Agent
+  1611→          // was blocked from opening its own BTC/USDT BUY on M30/H1 timeframes.
+  1612→          // The Agent effectively became subordinate to the Executor.
+  1613→          //
+  1614→          // Now: The Agent skips only if there's an EXISTING same-direction position
+  1615→          // on the same symbol — because two BUY positions on BTC/USDT would be
+  1616→          // a true duplicate. But if the Executor has BUY and the Agent wants SELL
+  1617→          // V146b FIX: Allow Agent to open same-direction positions alongside Smart Executor.
+  1618→          // The Agent trades on different timeframes (M30/H1/H4/D1/W1) than the
+  1619→          // Smart Executor (M1/M5/M15). Same direction from a DIFFERENT source on a
+  1620→          // DIFFERENT timeframe is NOT a duplicate — it's an independent trade.
+  1621→          //
+  1622→          // Only block if the Agent already has its OWN position on this pair.
+  1623→          const existingPosition = await this.prisma.position.findFirst({
+  1624→            where: { userId, symbol: brief.pair, status: 'OPEN', source: 'agent' },
+  1625→          });
+  1626→          if (existingPosition) {
+  1627→            this.logger.debug(
+  1628→              `🧠 Skipping brief ${brief.id} — Agent already has position for ${brief.pair} ` +
+  1629→              `(existing: ${existingPosition.side})`
+  1630→            );
+  1631→            continue;
+  1632→          }
+  1633→
+  1634→          // Check confidence threshold (use agent-specific minimum)
+  1635→          const minConfidence = 65; // Safe default for real accounts
+  1636→          if (brief.confidence < minConfidence) {
+  1637→            this.logger.debug(`🧠 Skipping brief ${brief.id} — confidence ${brief.confidence}% < min ${minConfidence}%`);
+  1638→            continue;
+  1639→          }
+  1640→
+  1641→          // V146c: Check if the symbol is supported by the user's exchange.
+  1642→          // Binance doesn't support forex (EUR/USD) or commodities (XAU/USD).
+  1643→          // Without this check, the Agent dispatches orders that always fail
+  1644→          // with "binance does not have market symbol EUR/USD".
+  1645→          const userExchange = state.config.exchangeName || 'binance';
+  1646→          if (!isSymbolSupportedByExchange(brief.pair, userExchange)) {
+  1647→            this.logger.debug(
+  1648→              `🧠 Skipping brief ${brief.id} — ${brief.pair} not supported on ${userExchange}`
+  1649→            );
+  1650→            continue;
+  1651→          }
+  1652→
+  1653→          // V146d: On SPOT exchanges, SELL requires owning the base currency.
+  1654→          // You can't short-sell on spot — only sell what you already hold.
+  1655→          // The Agent opens NEW positions, so SELL on spot means "I want to go short"
+  1656→          // which is impossible without margin/futures. Skip these briefs entirely.
+  1657→          const isSpotExchange = !state.config.isPaperTrading &&
+  1658→            !state.config.isTestnet &&
+  1659→            userExchange !== 'alpaca'; // Alpaca supports short selling on stocks
+  1660→          const isBriefSell = brief.direction === 'SELL';
+  1661→          if (isSpotExchange && isBriefSell) {
+  1662→            this.logger.debug(
+  1663→              `🧠 Skipping SELL brief ${brief.id} — ${brief.pair} SELL not possible on spot exchange ${userExchange} (need margin/futures for short selling)`
+  1664→            );
+  1665→            continue;
+  1666→          }
+  1667→
+  1668→          // Check market hours
+  1669→          const marketStatus = isMarketOpen(brief.pair);
+  1670→          if (!marketStatus.open) {
+  1671→            rejectionReasons.push(`${brief.pair}: سوق مغلق`);
+  1672→            continue;
+  1673→          }
+  1674→
+  1675→          signalsGenerated++;
+  1676→
+  1677→          // ── FIX: Validate SL/TP against CURRENT market price ──
+  1678→          // Brief levels were calculated at creation time. By execution time,
+  1679→          // price may have moved significantly. If TP is on the wrong side
+  1680→          // of the current entry price, recalculate from current price.
+  1681→          let execEntryPrice = brief.entryPrice;
+  1682→          let execStopLoss = brief.stopLoss;
+  1683→          let execTakeProfit = brief.takeProfit;
+  1684→          try {
+  1685→            const liveQuote = await this.exchangeService.getQuote(brief.pair);
+  1686→            if (liveQuote?.price) {
+  1687→              execEntryPrice = liveQuote.price;
+  1688→              const isBuy = brief.direction === 'BUY';
+  1689→              const { sl, tp } = TIMEFRAME_RR[brief.timeframe] || { sl: 0.01, tp: 0.02 };
+  1690→              // Check if TP is on wrong side of CURRENT price
+  1691→              const tpIsWrong = isBuy
+  1692→                ? execTakeProfit <= execEntryPrice   // BUY TP must be above entry
+  1693→                : execTakeProfit >= execEntryPrice;  // SELL TP must be below entry
+  1694→              const slIsWrong = isBuy
+  1695→                ? execStopLoss >= execEntryPrice     // BUY SL must be below entry
+  1696→                : execStopLoss <= execEntryPrice;    // SELL SL must be above entry
+  1697→              if (tpIsWrong || slIsWrong) {
+  1698→                this.logger.warn(
+  1699→                  `🧠 SL/TP stale for ${brief.pair} ${brief.direction}: ` +
+  1700→                  `entry=${execEntryPrice} SL=${execStopLoss} TP=${execTakeProfit} — recalculating from live price`
+  1701→                );
+  1702→                execStopLoss = isBuy
+  1703→                  ? execEntryPrice * (1 - sl)
+  1704→                  : execEntryPrice * (1 + sl);
+  1705→                execTakeProfit = isBuy
+  1706→                  ? execEntryPrice * (1 + tp)
+  1707→                  : execEntryPrice * (1 - tp);
+  1708→              }
+  1709→            }
+  1710→          } catch { /* use brief levels as fallback */ }
+  1711→
+  1712→          // Risk assessment using the brief's SL/TP
+  1713→          const signal: EvaluatedSignal = {
+  1714→            id: brief.id,
+  1715→            symbol: brief.pair,
+  1716→            action: brief.direction === 'BUY' ? OrderSide.BUY : OrderSide.SELL,
+  1717→            type: OrderType.MARKET,
+  1718→            confidence: brief.confidence,
+  1719→            strategy: state.config.strategy,
+  1720→            entryPrice: execEntryPrice,
+  1721→            stopLoss: execStopLoss,
+  1722→            takeProfit: execTakeProfit,
+  1723→            quantity: 0, // Will be calculated by risk assessment
+  1724→            reasoning: brief.analysisSummary || `Council brief: ${brief.timeframe} ${brief.direction}`,
+  1725→            riskRewardRatio: Math.abs(execTakeProfit - execEntryPrice) / Math.abs(execEntryPrice - execStopLoss),
+  1726→            riskScore: 100 - brief.confidence,
+  1727→            timestamp: new Date(),
+  1728→            timeframe: brief.timeframe,
+  1729→            metadata: { briefId: brief.id, timeframe: brief.timeframe, source: 'council' },
+  1730→          };
+  1731→
+  1732→          const risk = await this.riskCalculator.assessRisk(userId, signal, state.config);
+  1733→
+  1734→          if (!risk.canTrade) {
+  1735→            signalsRejected++;
+  1736→            rejectionReasons.push(`${brief.pair}: ${risk.reason}`);
+  1737→            state.lastError = risk.reason;
+  1738→            continue;
+  1739→          }
+  1740→
+  1741→          // ═══════════════════════════════════════════════════════════════
+  1742→          // Agent EXECUTES trades for M30+ timeframes.
+  1743→          // The Smart Executor handles M1/M5/M15 (scalping/quick trades).
+  1744→          // The Agent handles M30/H1/H4/D1/W1 (short/medium/long trades).
+  1745→          // They DON'T race because they filter by different timeframes
+  1746→          // and ExposureManager prevents duplicate positions per symbol.
+  1747→          // ═══════════════════════════════════════════════════════════════
+  1748→          this.logger.log(
+  1749→            `🧠 Agent ${userId}: Executing signal — ${signal.action} ${signal.symbol} ` +
+  1750→            `(confidence: ${signal.confidence}%, RR: ${signal.riskRewardRatio?.toFixed(2)}, ` +
+  1751→            `brief: ${brief.id}, timeframe: ${brief.timeframe})`,
+  1752→          );
+  1753→
+  1754→          signalsGenerated++;
+  1755→
+  1756→          // Execute the trade via OrderDispatcher (source: 'agent')
+  1757→          const execution = await this.orderExecutor.execute(
+  1758→            userId,
+  1759→            signal,
+  1760→            risk,
+  1761→            state.config.credentialId,
+  1762→          );
+  1763→
+  1764→          if (execution.success) {
+  1765→            signalsExecuted++;
+  1766→            state.dailyTradesCount++;
+  1767→            state.dailyPnL -= (execution.fee || 0);
+  1768→
+  1769→            // V187 FIX: Save timeframe to Redis so Position Monitor uses correct MAX_HOLDING.
+  1770→            // Without this, Position Monitor can't find the timeframe for Agent positions,
+  1771→            // so _getMaxHoldingMs() gets null → falls back to 8h default instead of 48h.
+  1772→            // SmartExecutor already saves this (line 3020-3021) but Agent was missing it.
+  1773→            try {
+  1774→              const tfKey = `smart-executor:position-tf:${userId}:${brief.pair}`;
+  1775→              await this.redis.set(tfKey, brief.timeframe, 7 * 24 * 60 * 60 * 1000);
+  1776→              this.logger.debug(`🧠 V187: Saved timeframe ${brief.timeframe} for ${brief.pair} to Redis`);
+  1777→            } catch (tfErr: any) {
+  1778→              this.logger.warn(`🧠 V187: Failed to save timeframe for ${brief.pair}: ${tfErr.message}`);
+  1779→            }
+  1780→
+  1781→            this.logger.log(
+  1782→              `✅ Agent ${userId}: Trade executed — ${signal.action} ${signal.symbol} ` +
+  1783→              `@ ${execution.averagePrice?.toFixed(2)} (order: ${execution.orderId})`,
+  1784→            );
+  1785→          } else {
+  1786→            signalsRejected++;
+  1787→            rejectionReasons.push(`${brief.pair}: ${execution.error}`);
+  1788→            state.lastError = execution.error || 'فشل تنفيذ الصفقة';
+  1789→            this.logger.warn(
+  1790→              `⚠️ Agent ${userId}: Trade rejected — ${signal.action} ${signal.symbol}: ${execution.error}`,
+  1791→            );
+  1792→          }
+  1793→
+  1794→          // Store the decision in Redis for dashboard display
+  1795→          try {
+  1796→            await this.redis.set(
+  1797→              `agent:decision:${userId}:${signal.symbol}`,
+  1798→              JSON.stringify({
+  1799→                action: signal.action,
+  1800→                symbol: signal.symbol,
+  1801→                confidence: signal.confidence,
+  1802→                entryPrice: signal.entryPrice,
+  1803→                stopLoss: signal.stopLoss,
+  1804→                takeProfit: signal.takeProfit,
+  1805→                strategy: signal.strategy,
+  1806→                reasoning: signal.reasoning,
+  1807→                briefId: brief.id,
+  1808→                timeframe: brief.timeframe,
+  1809→                generatedAt: new Date().toISOString(),
+  1810→                status: execution.success ? 'EXECUTED' : 'REJECTED',
+  1811→                orderId: execution.orderId,
+  1812→              }),
+  1813→              300000, // 5 minutes TTL (was 300 = 300ms, effectively instant expiration — V143 fix)
+  1814→            );
+  1815→          } catch (redisErr: any) {
+  1816→            this.logger.debug(`Could not cache agent decision: ${redisErr.message}`);
+  1817→          }
+  1818→
+  1819→          // Store signal in DB for the Strategic Council to potentially pick up
+  1820→          try {
+  1821→            await this.prisma.signal.upsert({
+  1822→              where: { id: `agent-${brief.id}` },
+  1823→              create: {
+  1824→                id: `agent-${brief.id}`,
+  1825→                userId,
+  1826→                pair: signal.symbol,
+  1827→                action: signal.action as any,
+  1828→                status: 'ACTIVE',
+  1829→                entryPrice: signal.entryPrice,
+  1830→                stopLoss: signal.stopLoss,
+  1831→                takeProfit: signal.takeProfit,
+  1832→                confidence: Math.round(signal.confidence),
+  1833→                reason: signal.reasoning || `Agent signal: ${signal.action} ${signal.symbol}`,
+  1834→                expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h TTL
+  1835→              },
+  1836→              update: {
+  1837→                status: 'ACTIVE',
+  1838→                confidence: Math.round(signal.confidence),
+  1839→                updatedAt: new Date(),
+  1840→              },
+  1841→            });
+  1842→          } catch (signalErr: any) {
+  1843→            this.logger.debug(`Could not store agent signal: ${signalErr.message}`);
+  1844→          }
+  1845→
+  1846→          state.lastSignalAt = new Date();
+  1847→
+  1848→          // Check consecutive losses
+  1849→          if (state.consecutiveLosses >= 5) {
+  1850→            this.logger.warn(`🧠 User ${userId}: 5 consecutive losses — pausing agent`);
+  1851→            state.status = AgentStatus.PAUSED;
+  1852→            break;
+  1853→          }
+  1854→        } catch (error: any) {
+  1855→          this.logger.error(`Error processing council brief ${brief.id} for ${userId}: ${error.message}`);
+  1856→        }
+  1857→      }
+  1858→    } else {
+  1859→      // ── FALLBACK DISABLED ──
+  1860→      // The Agent MUST NOT fall back to self-analysis (MarketAnalyzer + SignalEvaluator).
+  1861→      // Self-analysis uses the same symbols and short timeframes as SmartExecutor,
+  1862→      // causing the Agent to steal SmartExecutor trades (source='agent' instead of 'smart_executor').
+  1863→      //
+  1864→      // Rule: Agent ONLY executes when StrategicCouncil has M30+ briefs.
+  1865→      // If no M30+ briefs exist → Agent waits for the next Council session.
+  1866→      // SmartExecutor handles M5/M15 scalping independently.
+  1867→      this.logger.debug(
+  1868→        `🧠 Agent ${userId}: No M30+ council briefs available — waiting for next Council session. ` +
+  1869→        `Agent does NOT fall back to self-analysis to avoid competing with SmartExecutor.`,
+  1870→      );
+  1871→
+  1872→      // Agent waits — no fallback execution
+  1873→    }
+  1874→
+  1875→    // Update cycle stats
+  1876→    state.totalCycles++;
+  1877→    state.lastCycleAt = new Date();
+  1878→
+  1879→    // Cycle summary log
+  1880→    this.logger.log(
+  1881→      `🧠 Agent ${userId} cycle #${state.totalCycles} complete: ` +
+  1882→      `${usingCouncilBriefs ? `${agentBriefs.length} council briefs` : 'self-analysis'}, ` +
+  1883→      `${signalsGenerated} signals, ${signalsExecuted} executed, ${signalsRejected} rejected` +
+  1884→      (rejectionReasons.length > 0 ? ` — rejections: [${rejectionReasons.join('; ')}]` : '') +
+  1885→      (signalsGenerated === 0 ? ' — NO signals generated' : ''),
+  1886→    );
+  1887→
+  1888→    await this._saveAgentState(userId, state);
+  1889→  }
+  1890→
+  1891→  // ── Private Helpers ──
+  1892→
+  1893→  private async _getAgentState(userId: string): Promise<AgentState | null> {
+  1894→    try {
+  1895→      const raw = await this.redis.get(`agent:state:${userId}`);
+  1896→      if (raw) {
+  1897→        return JSON.parse(raw);
+  1898→      }
+  1899→    } catch {
+  1900→      // Redis read failed — try DB fallback
+  1901→    }
+  1902→
+  1903→    // DB fallback: recover agent state if Redis lost it (e.g., Redis restart)
+  1904→    try {
+  1905→      const session = await this.prisma.agentSession.findFirst({
+  1906→        where: { userId, status: { in: ['RUNNING', 'PAUSED', 'DAILY_LIMIT_REACHED'] } },
+  1907→        orderBy: { startedAt: 'desc' },
+  1908→      });
+  1909→
+  1910→      if (session) {
+  1911→        this.logger.log(`🧠 Recovered agent state from DB for user ${userId} (session ${session.agentRunId})`);
+  1912→
+  1913→        let config: AgentConfig;
+  1914→        try {
+  1915→          config = JSON.parse(session.config);
+  1916→        } catch {
+  1917→          config = {
+  1918→            userId,
+  1919→            strategy: session.strategy as StrategyType,
+  1920→            enabled: true,
+  1921→            maxPositionSizePercent: 2,
+  1922→            maxDailyLossPercent: 5,
+  1923→            maxOpenPositions: 20, // V144: 15→20
+  1924→            riskPerTradePercent: 1.5,
+  1925→            strategyParams: this._getDefaultStrategyParams(session.strategy as StrategyType),
+  1926→            symbols: this.DEFAULT_SYMBOLS,
+  1927→            credentialId: session.credentialId,
+  1928→            createdAt: session.startedAt,
+  1929→            updatedAt: session.updatedAt,
+  1930→          };
+  1931→        }
+  1932→
+  1933→        const state: AgentState = {
+  1934→          status: session.status as AgentStatus,
+  1935→          config,
+  1936→          startedAt: session.startedAt,
+  1937→          dailyPnL: Number(session.dailyPnL),
+  1938→          dailyTradesCount: session.dailyTradesCount,
+  1939→          dailyResetAt: session.dailyResetAt ?? undefined,
+  1940→          consecutiveLosses: session.consecutiveLosses,
+  1941→          totalCycles: session.totalCycles,
+  1942→          lastError: session.lastError ?? undefined,
+  1943→          lastCycleAt: session.lastCycleAt ?? undefined,
+  1944→          lastSignalAt: session.lastSignalAt ?? undefined,
+  1945→        };
+  1946→
+  1947→        // Re-populate Redis from DB
+  1948→        await this._saveAgentState(userId, state);
+  1949→
+  1950→        return state;
+  1951→      }
+  1952→    } catch (dbError: any) {
+  1953→      this.logger.error(`DB fallback for agent state also failed: ${dbError.message}`);
+  1954→    }
+  1955→
+  1956→    return null;
+  1957→  }
+  1958→
+  1959→  private async _saveAgentState(userId: string, state: AgentState): Promise<void> {
+  1960→    try {
+  1961→      await this.redis.set(
+  1962→        `agent:state:${userId}`,
+  1963→        JSON.stringify(state),
+  1964→        86400000, // 24 hours TTL
+  1965→      );
+  1966→    } catch (error: any) {
+  1967→      this.logger.error(`Failed to save agent state for ${userId}: ${error.message}`);
+  1968→    }
+  1969→
+  1970→    // Also sync to DB (fire-and-forget for performance)
+  1971→    this._syncStateToDB(userId, state).catch((err) => {
+  1972→      this.logger.error(`Failed to sync agent state to DB: ${err.message}`);
+  1973→    });
+  1974→  }
+  1975→
+  1976→  /**
+  1977→   * Sync agent state to DB for persistence across Redis restarts.
+  1978→   * Fire-and-forget — should not block the main cycle.
+  1979→   */
+  1980→  private async _syncStateToDB(userId: string, state: AgentState): Promise<void> {
+  1981→    try {
+  1982→      const session = await this.prisma.agentSession.findFirst({
+  1983→        where: { userId, status: { in: ['RUNNING', 'PAUSED', 'DAILY_LIMIT_REACHED'] } },
+  1984→        orderBy: { startedAt: 'desc' },
+  1985→      });
+  1986→
+  1987→      if (session) {
+  1988→        await this.prisma.agentSession.update({
+  1989→          where: { id: session.id },
+  1990→          data: {
+  1991→            status: state.status,
+  1992→            dailyPnL: state.dailyPnL,
+  1993→            dailyTradesCount: state.dailyTradesCount,
+  1994→            totalCycles: state.totalCycles,
+  1995→            consecutiveLosses: state.consecutiveLosses,
+  1996→            lastError: state.lastError ?? null,
+  1997→            lastCycleAt: state.lastCycleAt ?? null,
+  1998→            lastSignalAt: state.lastSignalAt ?? null,
+  1999→            dailyResetAt: state.dailyResetAt ?? null,
+  2000→          },
+
+[showing lines 1-2000 of 2548; use offset=2001 with limit to continue reading]

@@ -1,0 +1,2002 @@
+     1→import {
+     2→  Injectable,
+     3→  Logger,
+     4→  BadRequestException,
+     5→  NotFoundException,
+     6→  ForbiddenException,
+     7→} from '@nestjs/common';
+     8→import { PrismaService } from '../../common/prisma/prisma.service';
+     9→import { RedisService } from '../../common/redis/redis.service';
+    10→import { CredentialsService } from '../portfolio/credentials/credentials.service';
+    11→import { ExchangeService } from '../exchange/exchange.service';
+    12→import { RiskManagerService } from './risk-manager.service';
+    13→import { AuditService } from '../../audit/audit.service';
+    14→import { getSymbolMetadata, AssetClass, calculateMargin } from './services/symbol-metadata';
+    15→import * as ccxt from 'ccxt';
+    16→import * as crypto from 'crypto';
+    17→import {
+    18→  PlaceOrderRequest,
+    19→  ClosePositionRequest,
+    20→} from './trading.types';
+    21→import { OrderSide as PrismaOrderSide, OrderType as PrismaOrderType, OrderStatus as PrismaOrderStatus } from './trading.types';
+    22→/**
+    23→ * Trading Engine Service — Roua Trading (رؤى)
+    24→ *
+    25→ * Core trading engine that handles:
+    26→ * 1. Order placement (market, limit)
+    27→ * 2. Order cancellation
+    28→ * 3. Position tracking and management
+    29→ * 4. Trade execution and recording
+    30→ * 5. Integration with exchange APIs via CCXT
+    31→ * 6. Risk management checks before execution
+    32→ * 7. Automatic position opening/closing
+    33→ *
+    34→ * Note: Order, Position, and Trade models use Decimal for financial fields.
+    35→ * When writing, pass as number/string (Prisma accepts both). When reading,
+    36→ * Decimal fields return Prisma.Decimal objects — convert using .toNumber().
+    37→ */
+    38→@Injectable()
+    39→export class TradingService {
+    40→  private readonly logger = new Logger(TradingService.name);
+    41→  private readonly exchangeCache = new Map<string, any>(); // credentialId:exchangeName -> exchange instance
+    42→  private readonly exchangeCacheTimestamps = new Map<string, number>(); // TTL tracking
+    43→  private readonly EXCHANGE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+    44→  private readonly MAX_CACHE_SIZE = 50; // prevent unbounded growth
+    45→
+    46→  constructor(
+    47→    private readonly prisma: PrismaService,
+    48→    private readonly redis: RedisService,
+    49→    private readonly credentialsService: CredentialsService,
+    50→    private readonly exchangeService: ExchangeService,
+    51→    private readonly riskManager: RiskManagerService,
+    52→    private readonly auditService: AuditService,
+    53→  ) {
+    54→    this.logger.log(
+    55→      '⚡ Trading Engine initialized — ready for execution',
+    56→    );
+    57→    // REMOVED: _ensureExchangeCredentialColumns() — all DDL (ALTER TABLE, CREATE TABLE)
+    58→    // has been removed from application code. Schema changes must ONLY be done via
+    59→    // `prisma migrate deploy` in start.sh. Running DDL from application code:
+    60→    //   1. Causes connection pool exhaustion (each DDL query opens connections)
+    61→    //   2. Conflicts with prisma db push / migrate deploy
+    62→    //   3. Was a contributing factor to the catastrophic data loss incident
+    63→    // FIX: Clean expired exchange instances every 10 minutes (prevent memory leak)
+    64→    setInterval(() => this._cleanExchangeCache(), 10 * 60 * 1000);
+    65→  }
+    66→
+    67→  private _cleanExchangeCache(): void {
+    68→    const now = Date.now();
+    69→    let cleaned = 0;
+    70→    for (const [key] of this.exchangeCache.entries()) {
+    71→      const ts = this.exchangeCacheTimestamps.get(key) || 0;
+    72→      if (now - ts > this.EXCHANGE_CACHE_TTL_MS) {
+    73→        this.exchangeCache.delete(key);
+    74→        this.exchangeCacheTimestamps.delete(key);
+    75→        cleaned++;
+    76→      }
+    77→    }
+    78→    if (cleaned > 0) {
+    79→      this.logger.debug(`🗑️ ExchangeCache: cleaned ${cleaned} expired instances (${this.exchangeCache.size} remaining)`);
+    80→    }
+    81→    // Hard limit: evict oldest if over MAX_CACHE_SIZE
+    82→    if (this.exchangeCache.size > this.MAX_CACHE_SIZE) {
+    83→      const oldest = [...this.exchangeCache.entries()].sort((a, b) => (this.exchangeCacheTimestamps.get(a[0]) || 0) - (this.exchangeCacheTimestamps.get(b[0]) || 0));
+    84→      oldest.slice(0, this.exchangeCache.size - this.MAX_CACHE_SIZE).forEach(([k]) => { this.exchangeCache.delete(k); this.exchangeCacheTimestamps.delete(k); });
+    85→    }
+    86→  }
+    87→
+    88→  // REMOVED: _ensureExchangeCredentialColumns() — all DDL removed from application code.
+    89→  // Schema changes must ONLY be done via `prisma migrate deploy` in start.sh.
+    90→
+    91→  // ── Order Management ──
+    92→
+    93→  /**
+    94→   * Place a new order
+    95→   * 1. Validate the request
+    96→   * 2. Run risk checks
+    97→   * 3. Execute on the exchange via CCXT
+    98→   * 4. Record in database
+    99→   * 5. Open/update position
+   100→   */
+   101→  async placeOrder(
+   102→    userId: string,
+   103→    request: PlaceOrderRequest,
+   104→    ipAddress?: string,
+   105→    userAgent?: string,
+   106→  ) {
+   107→    this.logger.log(
+   108→      `📋 Order request: ${request.side} ${request.quantity} ${request.symbol} (${request.type})`,
+   109→    );
+   110→
+   111→    // #1 FIX: Round quantity to appropriate precision BEFORE execution.
+   112→    // This ensures margin = quantity * price matches exactly,
+   113→    // preventing rounding errors that cause margin drift.
+   114→    // Different asset classes need different precision:
+   115→    // - Crypto: 6 decimal places (e.g., 0.001234 BTC)
+   116→    // - Forex: 2 decimal places (e.g., 1000 units)
+   117→    // - Stocks: 0 decimal places (whole shares)
+   118→    const meta = getSymbolMetadata(request.symbol);
+   119→    const precision = meta.assetClass === AssetClass.CRYPTO ? 6
+   120→      : meta.assetClass === AssetClass.FOREX ? 2
+   121→      : meta.assetClass === AssetClass.COMMODITY ? 2
+   122→      : 0;
+   123→    request.quantity = Math.round(request.quantity * Math.pow(10, precision)) / Math.pow(10, precision);
+   124→
+   125→    if (request.quantity <= 0) {
+   126→      throw new BadRequestException(
+   127→        `الكمية بعد التقريب أصبحت صفراً — قيمة الطلب صغيرة جداً (${request.quantity})`,
+   128→      );
+   129→    }
+   130→
+   131→    // Step 1: Validate credential ownership
+   132→    // DATA ISOLATION: Use findFirst with userId to prevent accessing other users' credentials
+   133→    const credential = await this.prisma.exchangeCredential.findFirst({
+   134→      where: { id: request.credentialId, userId },
+   135→    });
+   136→
+   137→    if (!credential) {
+   138→      throw new NotFoundException('بيانات الاعتماد غير موجودة');
+   139→    }
+   140→
+   141→    if (!credential.isValid) {
+   142→      throw new BadRequestException(
+   143→        'بيانات الاعتماد غير صالحة — يرجى التحقق من مفتاح API',
+   144→      );
+   145→    }
+   146→
+   147→    // Step 2: Check if credential has trade permission
+   148→    // FIX: Skip permissions check for paper-trading and test exchange credentials.
+   149→    // Paper-trading credentials have 'paper' as the API key (not real keys),
+   150→    // and their permissions field is often the Prisma default "read" (a plain
+   151→    // string, not a JSON array). JSON.parse("read") throws SyntaxError,
+   152→    // which crashes the entire placeOrder — meaning paper trades NEVER create
+   153→    // Position records in the DB, causing trades to disappear on page refresh.
+   154→    // Paper trading is simulation — there are no real API permissions to check.
+   155→    const isTestExchange = ['paper-trading', 'paper', 'demo', 'sandbox', 'simulation'].includes(credential.exchange)
+   156→      || credential.exchange.endsWith('_test')
+   157→      || credential.exchange.endsWith('_paper')
+   158→      || credential.exchange.endsWith('-test')
+   159→      || credential.exchange.endsWith('-paper');
+   160→
+   161→    if (!isTestExchange) {
+   162→      const permissions = JSON.parse(credential.permissions || '["read"]');
+   163→      if (!permissions.includes('trade')) {
+   164→        throw new ForbiddenException(
+   165→          'مفتاح API لا يملك صلاحية التداول — أضف مفتاحاً بصلاحية trade',
+   166→        );
+   167→      }
+   168→    }
+   169→
+   170→    // Step 3: Get current market price for risk check
+   171→    // FIX: For MARKET orders, use the provided price if available (e.g., from SmartExecutor
+   172→    // which already fetched it). Only fetch from ExchangeService as fallback.
+   173→    // Previously, MARKET orders always re-fetched the price, which could fail on Railway
+   174→    // for some pairs, causing paper trades to be rejected.
+   175→    let currentPrice = request.price;
+   176→    if (!currentPrice) {
+   177→      try {
+   178→        const quote = await this.exchangeService.getQuote(request.symbol);
+   179→        currentPrice = quote.price;
+   180→      } catch (error: any) {
+   181→        throw new BadRequestException(
+   182→          `فشل في جلب سعر السوق لـ ${request.symbol}: ${error.message}`,
+   183→        );
+   184→      }
+   185→    }
+   186→
+   187→    // Step 4: Risk checks — SKIPPED if already validated by RiskGatekeeper.
+   188→    // V176 FIX: Removed duplicate RiskManager.checkOrderRisk() call.
+   189→    // Previously, the V1 pipeline ran TWO risk checks:
+   190→    //   1. RiskGatekeeper.validateOrder() in TradingController (5-point check)
+   191→    //   2. RiskManager.checkOrderRisk() here (overlapping checks)
+   192→    // This caused double latency and could produce contradictory results
+   193→    // (e.g., RiskGatekeeper allows but RiskManager blocks, or vice versa).
+   194→    // Now: RiskGatekeeper is the SOLE risk gateway for V1 (same as V2).
+   195→    // RiskManager is still used for position sizing calculations.
+   196→    // If RiskGatekeeper was NOT called (e.g., internal call from OrderDispatcher),
+   197→    // the `skipRiskCheck` flag can be set to false to enforce the check here.
+   198→    // V178 FIX: Inverted default — risk check runs by DEFAULT (skipRiskCheck === true means skip).
+   199→    // Previously: skipRiskCheck !== false → undefined = skip (INSECURE).
+   200→    // Now: skipRiskCheck === true → must explicitly opt-in to skip.
+   201→    // Controllers set skipRiskCheck=true after RiskGatekeeper validates.
+   202→    // Internal calls without a controller MUST go through risk check.
+   203→    const skipRiskCheck = request.skipRiskCheck === true;
+   204→    if (!skipRiskCheck) {
+   205→      const riskCheck = await this.riskManager.checkOrderRisk(
+   206→        userId,
+   207→        request.symbol,
+   208→        request.side,
+   209→        request.quantity,
+   210→        currentPrice,
+   211→        credential.exchange,
+   212→        credential.id,
+   213→      );
+   214→
+   215→      if (!riskCheck.allowed) {
+   216→        await this.auditService.log({
+   217→          userId,
+   218→          action: 'ORDER_REJECTED_RISK',
+   219→          resource: 'order',
+   220→          details: JSON.stringify({
+   221→            symbol: request.symbol,
+   222→            side: request.side,
+   223→            reason: riskCheck.reason,
+   224→          }),
+   225→          ipAddress,
+   226→          userAgent,
+   227→        });
+   228→
+   229→        throw new ForbiddenException(
+   230→          `🛡️ تم رفض الطلب: ${riskCheck.reason}`,
+   231→        );
+   232→      }
+   233→    }
+   234→
+   235→    // Step 5: Execute order on the exchange
+   236→    // FIX: Handle paper-trading separately — CCXT doesn't have a 'paper-trading' exchange,
+   237→    // so calling _executeOnExchange with 'paper-trading' would always fail with
+   238→    // "exchange not supported". This was the ROOT CAUSE of zero trade executions:
+   239→    // RiskGatekeeper correctly bypasses paper-trading, but TradingService always
+   240→    // tried to execute via CCXT, which fails for paper-trading credentials.
+   241→    let execution: any;
+   242→    if (credential.exchange === 'paper-trading') {
+   243→      execution = await this._executePaperTrade(request, currentPrice, userId);
+   244→    } else {
+   245→      execution = await this._executeOnExchange(
+   246→        credential.exchange,
+   247→        credential.id,
+   248→        request,
+   249→        userId,
+   250→      );
+   251→    }
+   252→
+   253→    if (!execution.success) {
+   254→      // Record the failed order
+   255→      // idempotencyKey is required (String @unique)
+   256→      const order = await this.prisma.order.create({
+   257→        data: {
+   258→          userId,
+   259→          exchangeCredentialId: request.credentialId,
+   260→          exchange: credential.exchange,
+   261→          symbol: request.symbol,
+   262→          side: request.side,
+   263→          type: request.type,
+   264→          status: 'REJECTED' as PrismaOrderStatus,
+   265→          quantity: request.quantity,
+   266→          price: request.price ?? null,
+   267→          stopLoss: request.stopLoss ?? null,
+   268→          idempotencyKey: request.idempotencyKey || `legacy-${Date.now()}-${crypto.randomUUID()}`,
+   269→        },
+   270→      });
+   271→
+   272→      await this.auditService.log({
+   273→        userId,
+   274→        action: 'ORDER_REJECTED_EXCHANGE',
+   275→        resource: 'order',
+   276→        details: JSON.stringify({
+   277→          orderId: order.id,
+   278→          symbol: request.symbol,
+   279→          error: execution.error,
+   280→        }),
+   281→        ipAddress,
+   282→        userAgent,
+   283→      });
+   284→
+   285→      throw new BadRequestException(
+   286→        `فشل في تنفيذ الطلب: ${execution.error}`,
+   287→      );
+   288→    }
+   289→
+   290→    // Step 6-9: Record order, update position, record trade, update signal — all in one transaction
+   291→    // Note: averagePrice (not averageFillPrice) is the correct field name
+   292→    // idempotencyKey is required (String @unique)
+   293→    const order = await this.prisma.$transaction(async (tx) => {
+   294→      const createdOrder = await tx.order.create({
+   295→        data: {
+   296→          userId,
+   297→          exchangeCredentialId: request.credentialId,
+   298→          exchange: credential.exchange,
+   299→          symbol: request.symbol,
+   300→          side: request.side,
+   301→          type: request.type,
+   302→          status:
+   303→            (execution.filledQuantity || 0) >= request.quantity
+   304→              ? ('FILLED' as PrismaOrderStatus)
+   305→              : ('PARTIALLY_FILLED' as PrismaOrderStatus),
+   306→          quantity: request.quantity,
+   307→          price: request.price ?? null,
+   308→          stopLoss: request.stopLoss ?? null,
+   309→          filledQuantity: execution.filledQuantity || 0,
+   310→          averagePrice: execution.averagePrice,
+   311→          fee: execution.fee ?? null,
+   312→          feeCurrency: execution.feeCurrency ?? null,
+   313→          exchangeOrderId: execution.exchangeOrderId,
+   314→          idempotencyKey: request.idempotencyKey || `legacy-${Date.now()}-${crypto.randomUUID()}`,
+   315→        },
+   316→      });
+   317→
+   318→      // Step 7: Update or open position
+   319→      await this._updatePosition(userId, createdOrder, request, execution, tx);
+   320→
+   321→      // Step 8: Record trade
+   322→      // ═══════════════════════════════════════════════════
+   323→      // FIX: Validate trade data before recording. Previously,
+   324→      // execution.filledQuantity could be null/undefined → 0,
+   325→      // and execution.averagePrice could be null → currentPrice
+   326→      // which might also be 0, producing phantom $0.00 trades.
+   327→      // ═══════════════════════════════════════════════════
+   328→      const tradeQuantity = execution.filledQuantity || 0;
+   329→      const tradePrice = execution.averagePrice || currentPrice;
+   330→
+   331→      if (tradeQuantity <= 0 || tradePrice <= 0) {
+   332→        this.logger.warn(
+   333→          `Trade record skipped — invalid quantity (${tradeQuantity}) or price (${tradePrice}) for ${request.symbol}`,
+   334→        );
+   335→      } else {
+   336→        await tx.trade.create({
+   337→          data: {
+   338→            userId,
+   339→            orderId: createdOrder.id,
+   340→            credentialId: request.credentialId,
+   341→            exchange: credential.exchange,
+   342→            symbol: request.symbol,
+   343→            side: request.side,
+   344→            type: 'ENTRY',
+   345→            quantity: tradeQuantity,
+   346→            price: tradePrice,
+   347→            fee: execution.fee ?? 0,
+   348→            feeCurrency: execution.feeCurrency,
+   349→            source: request.source || (credential.exchange === 'paper-trading' ? 'auto_paper' : 'user_manual'),
+   350→          },
+   351→        });
+   352→      }
+   353→
+   354→      // Step 9: If this was triggered by a signal, update signal status
+   355→      // DATA ISOLATION: Added userId filter to prevent updating other users' signals
+   356→      if (request.signalId) {
+   357→        await tx.signal
+   358→          .updateMany({
+   359→            where: { id: request.signalId, userId },
+   360→            data: { status: 'EXECUTED' },
+   361→          })
+   362→          .catch(() => {}); // Don't fail if signal not found
+   363→      }
+   364→
+   365→      return createdOrder;
+   366→    });
+   367→
+   368→    // Audit log
+   369→    await this.auditService.log({
+   370→      userId,
+   371→      action: 'ORDER_PLACED',
+   372→      resource: 'order',
+   373→      details: JSON.stringify({
+   374→        orderId: order.id,
+   375→        symbol: request.symbol,
+   376→        side: request.side,
+   377→        type: request.type,
+   378→        quantity: request.quantity,
+   379→        filledQuantity: execution.filledQuantity,
+   380→        averagePrice: execution.averagePrice,
+   381→        // V176: riskCheck removed from scope — RiskGatekeeper already logged the risk assessment
+   382→      }),
+   383→      ipAddress,
+   384→      userAgent,
+   385→    });
+   386→
+   387→    // V172d FIX: Deduct margin from paperBalance atomically when opening a paper-trading position.
+   388→    // Uses $executeRaw to prevent race condition: findUnique→update is NOT atomic.
+   389→    // With two concurrent orders, both would read the same balance and each deduct their margin
+   390→    // independently, ignoring the other's deduction (double-spending).
+   391→    // $executeRaw UPDATE with arithmetic is atomic at the DB level.
+   392→    if (credential.exchange === 'paper-trading' && execution.success) {
+   393→      try {
+   394→        const settings = await this.prisma.agentSettings.findUnique({
+   395→          where: { userId },
+   396→          select: { paperCryptoLeverage: true, paperForexLeverage: true, paperGoldLeverage: true },
+   397→        });
+   398→        const meta = getSymbolMetadata(request.symbol);
+   399→        const cryptoLev = Number(settings?.paperCryptoLeverage) || 1;
+   400→        const forexLev = Number(settings?.paperForexLeverage) || 50;
+   401→        const goldLev = Number(settings?.paperGoldLeverage) || 20;
+   402→        let leverage = 1;
+   403→        if (meta.assetClass === AssetClass.FOREX) leverage = forexLev;
+   404→        else if (meta.assetClass === AssetClass.COMMODITY) leverage = goldLev;
+   405→        else leverage = cryptoLev;
+   406→
+   407→        const notional = request.quantity * currentPrice;
+   408→        const marginToDeduct = leverage > 1 ? notional / leverage : notional;
+   409→
+   410→        // V176 FIX: Actually DEDUCT margin from paperBalance when opening a position.
+   411→        // Previously (V175), margin was only "locked" (logged) but never deducted,
+   412→        // allowing unlimited positions regardless of available balance.
+   413→        // Now: paperBalance = paperBalance - marginToDeduct (atomic SQL update).
+   414→        // On close: paperBalance = paperBalance + marginToDeduct + pnl.
+   415→        // This ensures users cannot open more positions than their balance allows.
+   416→        await this.prisma.$executeRaw`
+   417→          UPDATE "AgentSettings"
+   418→          SET "paperBalance" = "paperBalance" - ${marginToDeduct}
+   419→          WHERE "userId" = ${userId}
+   420→        `;
+   421→        this.logger.log(
+   422→          `📝 V176 Paper margin DEDUCTED: -$${marginToDeduct.toFixed(2)} (${request.symbol}, leverage: ${leverage}x)`,
+   423→        );
+   424→      } catch (err: any) {
+   425→        this.logger.warn(`V172d Failed to deduct paper margin on open: ${err.message}`);
+   426→      }
+   427→    }
+   428→
+   429→    this.logger.log(
+   430→      `✅ Order executed: ${order.id} — ${request.side} ${execution.filledQuantity}/${request.quantity} ${request.symbol} @ ${execution.averagePrice}`,
+   431→    );
+   432→
+   433→    return order;
+   434→  }
+   435→  async cancelOrder(
+   436→    userId: string,
+   437→    orderId: string,
+   438→    ipAddress?: string,
+   439→    userAgent?: string,
+   440→  ) {
+   441→    // DATA ISOLATION: Use findFirst with userId to prevent accessing other users' orders
+   442→    const order = await this.prisma.order.findFirst({
+   443→      where: { id: orderId, userId },
+   444→    });
+   445→
+   446→    if (!order) {
+   447→      throw new NotFoundException('الطلب غير موجود');
+   448→    }
+   449→
+   450→    if (!['PENDING', 'ACCEPTED', 'PARTIALLY_FILLED'].includes(order.status)) {
+   451→      throw new BadRequestException(
+   452→        `لا يمكن إلغاء طلب بحالة "${order.status}"`,
+   453→      );
+   454→    }
+   455→
+   456→    // Try to cancel on the exchange
+   457→    if (order.exchangeOrderId) {
+   458→      try {
+   459→        const credential =
+   460→          await this.prisma.exchangeCredential.findFirst({
+   461→            where: { id: order.exchangeCredentialId!, userId },
+   462→          });
+   463→        if (credential) {
+   464→          // SECURITY: Pass userId to verify credential ownership before decrypting
+   465→          const { apiKey, apiSecret } =
+   466→            await this.credentialsService.decryptCredential(credential.id, userId);
+   467→          const exchange = this._getExchangeInstance(credential.exchange, apiKey, apiSecret, credential.id, (credential as any).testnet || false);
+   468→          if (exchange) {
+   469→            await exchange.cancelOrder(order.exchangeOrderId, order.symbol);
+   470→          }
+   471→        }
+   472→      } catch (error: any) {
+   473→        this.logger.warn(
+   474→          `Failed to cancel order on exchange: ${error.message}`,
+   475→        );
+   476→        // Continue with local cancellation even if exchange cancel fails
+   477→      }
+   478→    }
+   479→
+   480→    const updated = await this.prisma.order.update({
+   481→      where: { id: orderId },
+   482→      data: { status: 'CANCELLED' },
+   483→    });
+   484→
+   485→    await this.auditService.log({
+   486→      userId,
+   487→      action: 'ORDER_CANCELLED',
+   488→      resource: 'order',
+   489→      details: JSON.stringify({ orderId, symbol: order.symbol }),
+   490→      ipAddress,
+   491→      userAgent,
+   492→    });
+   493→
+   494→    return updated;
+   495→  }
+   496→
+   497→  /**
+   498→   * Get user's orders with optional filtering
+   499→   */
+   500→  async getOrders(
+   501→    userId: string,
+   502→    filters?: { symbol?: string; status?: string; limit?: number },
+   503→  ) {
+   504→    const where: any = { userId };
+   505→    if (filters?.symbol) where.symbol = filters.symbol;
+   506→    if (filters?.status) where.status = filters.status;
+   507→
+   508→    return this.prisma.order.findMany({
+   509→      where,
+   510→      orderBy: { createdAt: 'desc' },
+   511→      take: filters?.limit || 50,
+   512→    });
+   513→  }
+   514→
+   515→  /**
+   516→   * Get a specific order
+   517→   */
+   518→  async getOrder(userId: string, orderId: string) {
+   519→    // DATA ISOLATION: Use findFirst with userId to prevent accessing other users' orders
+   520→    const order = await this.prisma.order.findFirst({
+   521→      where: { id: orderId, userId },
+   522→    });
+   523→
+   524→    if (!order) {
+   525→      throw new NotFoundException('الطلب غير موجود');
+   526→    }
+   527→
+   528→    return order;
+   529→  }
+   530→
+   531→  // ── Position Management ──
+   532→
+   533→  /**
+   534→   * Get all open positions for a user
+   535→   * Uses parallel quote fetching and batch DB updates to avoid N+1 queries
+   536→   */
+   537→  async getOpenPositions(userId: string, credentialId?: string): Promise<any[]> {
+   538→    // FIX: Include ALL positions including paper-trading.
+   539→    // Paper positions are real simulated trades — they should appear in portfolio.
+   540→    // Previously excluded, causing portfolioValue = 0 for paper traders.
+   541→    // PositionManagerService also includes them (must be consistent).
+   542→    // V209: Added credentialId parameter for server-side filtering by account.
+   543→    const where: any = {
+   544→      userId,
+   545→      status: 'OPEN',
+   546→    };
+   547→    // V209: Filter by credentialId when provided (for account switching).
+   548→    // V212 FIX: Position.credentialId is NOT NULL in schema, so we CANNOT use
+   549→    // OR with { credentialId: null } — Prisma rejects it. Use direct filter instead.
+   550→    // Trade.credentialId IS nullable, so OR with null is fine for Trade queries.
+   551→    if (credentialId) {
+   552→      where.credentialId = credentialId;
+   553→    }
+   554→    const positions = await this.prisma.position.findMany({
+   555→      where,
+   556→      orderBy: { openedAt: 'desc' },
+   557→    });
+   558→
+   559→    if (positions.length === 0) return [];
+   560→
+   561→    // Fetch all quotes in parallel
+   562→    const quotePromises = positions.map((pos) =>
+   563→      this.exchangeService.getQuote(pos.symbol).catch(() => null),
+   564→    );
+   565→    const quotes = await Promise.allSettled(quotePromises);
+   566→
+   567→    // Build updates and results
+   568→    const updates: any[] = [];
+   569→    const results: any[] = [];
+   570→
+   571→    for (let i = 0; i < positions.length; i++) {
+   572→      const position = positions[i];
+   573→      const quoteResult = quotes[i];
+   574→      const quote = quoteResult.status === 'fulfilled' ? quoteResult.value : null;
+   575→
+   576→      if (quote && quote.price) {
+   577→        const currentPrice = quote.price;
+   578→        const entryPrice = position.entryPrice.toNumber();
+   579→        const quantity = position.quantity.toNumber();
+   580→        const unrealizedPnl =
+   581→          position.side === 'BUY'
+   582→            ? (currentPrice - entryPrice) * quantity
+   583→            : (entryPrice - currentPrice) * quantity;
+   584→
+   585→        updates.push(
+   586→          this.prisma.position.update({
+   587→            where: { id: position.id },
+   588→            data: {
+   589→              currentPrice,
+   590→              unrealizedPnl,
+   591→              highestPrice: Math.max(
+   592→                position.highestPrice?.toNumber() ?? currentPrice,
+   593→                currentPrice,
+   594→              ),
+   595→              lowestPrice: Math.min(
+   596→                position.lowestPrice?.toNumber() ?? currentPrice,
+   597→                currentPrice,
+   598→              ),
+   599→            },
+   600→          }),
+   601→        );
+   602→
+   603→        // Build enriched position for response
+   604→        results.push({
+   605→          ...position,
+   606→          currentPrice,
+   607→          unrealizedPnl,
+   608→        });
+   609→      } else {
+   610→        // No quote available — return position as-is
+   611→        this.logger.warn(
+   612→          `Failed to update price for ${position.symbol}: quote unavailable`,
+   613→        );
+   614→        results.push(position);
+   615→      }
+   616→    }
+   617→
+   618→    // Batch update in transaction
+   619→    if (updates.length > 0) {
+   620→      await this.prisma.$transaction(updates).catch((err: any) => {
+   621→        this.logger.warn(`Batch position update failed: ${err.message}`);
+   622→      });
+   623→    }
+   624→
+   625→    return results;
+   626→  }
+   627→
+   628→  /**
+   629→   * Get position summary
+   630→   */
+   631→  async getPositionSummary(userId: string, credentialId?: string) {
+   632→    try {
+   633→      const positions = await this.getOpenPositions(userId, credentialId);
+   634→
+   635→      const totalValue = positions.reduce(
+   636→        (sum, p) => sum + (typeof p.quantity === 'number' ? p.quantity : Number(p.quantity)) * (Number(p.currentPrice) || Number(p.entryPrice)),
+   637→        0,
+   638→      );
+   639→      const totalUnrealizedPnl = positions.reduce(
+   640→        (sum, p) => sum + (Number(p.unrealizedPnl) || 0),
+   641→        0,
+   642→      );
+   643→      const totalRealizedPnl = positions.reduce(
+   644→        (sum, p) => sum + (Number(p.realizedPnl) || 0),
+   645→        0,
+   646→      );
+   647→      // V148 FIX: Calculate leverage-aware used margin instead of returning
+   648→      // totalValue (full notional) as margin. Previously, the frontend used
+   649→      // totalValue as "initialMargin" which is WRONG for leveraged positions.
+   650→      // For forex (50:1 leverage), a $108K notional position only needs $2,160 margin.
+   651→      // Using totalValue as margin caused the "مستخدم" to show $108K instead of $2.16K.
+   652→      const usedMargin = positions.reduce(
+   653→        (sum, p) => sum + calculateMargin(
+   654→          typeof p.quantity === 'number' ? p.quantity : Number(p.quantity),
+   655→          Number(p.currentPrice) || Number(p.entryPrice),
+   656→          p.symbol,
+   657→        ),
+   658→        0,
+   659→      );
+   660→
+   661→      return {
+   662→        totalPositions: positions.length,
+   663→        totalValue,
+   664→        totalUnrealizedPnl,
+   665→        totalRealizedPnl,
+   666→        usedMargin,
+   667→        positions,
+   668→      };
+   669→    } catch (error: any) {
+   670→      this.logger.error(
+   671→        `Failed to get position summary: ${error.message}`,
+   672→        error.stack,
+   673→      );
+   674→      // FIX: Previously returned fake "zero" summary that masked real failures
+   675→      // (DB down, exchange unreachable). Users saw "0 positions, $0 P&L" and
+   676→      // thought their positions were empty when the system was actually broken.
+   677→      // Now we throw so the caller gets a proper error response.
+   678→      throw new Error(`فشل في جلب ملخص المراكز: ${error.message}`);
+   679→    }
+   680→  }
+   681→
+   682→  /**
+   683→   * Close a position (partially or fully)
+   684→   */
+   685→  async closePosition(
+   686→    userId: string,
+   687→    request: ClosePositionRequest,
+   688→    ipAddress?: string,
+   689→    userAgent?: string,
+   690→    _retryCount = 0, // FIX: Internal retry counter for optimistic locking
+   691→  ) {
+   692→    // FIX: REMOVED the dynamic DDL that dropped unique constraints on Position table
+   693→    // on EVERY closePosition() call. This was a dangerous hotfix that:
+   694→    //   1. Ran destructive DDL (DROP INDEX CASCADE) inside business logic
+   695→    //   2. Executed on every close call (not just once)
+   696→    //   3. Could cause data corruption under concurrent close requests
+   697→    //   4. Removed ALL unique constraints (except PK), allowing duplicate data
+   698→    //
+   699→    // The original problem (unique constraint violations during close) is now
+   700→    // handled properly by the idempotent close logic below and the race condition
+   701→    // fix in _updatePosition() (P2002 catch with retry).
+   702→
+   703→    // DATA ISOLATION: Use findFirst with userId to prevent accessing other users' positions
+   704→    // FIX: Read version for optimistic locking — prevents concurrent close race condition
+   705→    const position = await this.prisma.position.findFirst({
+   706→      where: { id: request.positionId, userId },
+   707→    });
+   708→
+   709→    if (!position) {
+   710→      throw new NotFoundException('المركز غير موجود');
+   711→    }
+   712→
+   713→    // ═══════════════════════════════════════════════════════════════════
+   714→    // V214 LAST LINE OF DEFENSE: Block premature close of Agent positions
+   715→    //
+   716→    // PROBLEM: Old compiled JS on Railway (pre-V184/V213) still has the
+   717→    // hardcoded 4h close for Agent positions. Despite V184 removing it
+   718→    // and V213 adding a safety net in _monitorOpenPositions, the OLD code
+   719→    // is still running and closing Agent positions at exactly 4h 0m.
+   720→    //
+   721→    // Evidence from June 12, 2026:
+   722→    //   - 10+ Agent positions ALL closed at exactly 4h 0m
+   723→    //   - closeReason = "Manual" (old default before V176)
+   724→    //   - Smart Executor positions also closing at 4h with "Manual"
+   725→    //   - This proves old pre-V141/V176 code is running on Railway
+   726→    //
+   727→    // FIX: Block ANY close of an Agent position that hasn't reached 48h,
+   728→    // UNLESS the close is triggered by SL/TP hit (valid trading exit).
+   729→    // This works regardless of which service calls closePosition — it's
+   730→    // the single point of truth for all position closes.
+   731→    // ═══════════════════════════════════════════════════════════════════
+   732→    const isAgentPosition = position.source === 'agent';
+   733→    const closeReasonStr = (request.closeReason || '').toUpperCase();
+   734→    const isSLTPClose = closeReasonStr.includes('STOP_LOSS') || closeReasonStr.includes('TAKE_PROFIT');
+   735→    const isManualClose = closeReasonStr === 'MANUAL' || closeReasonStr === '';
+   736→
+   737→    if (isAgentPosition && !isSLTPClose) {
+   738→      const holdingMs = position.openedAt
+   739→        ? Date.now() - new Date(position.openedAt).getTime()
+   740→        : 0;
+   741→      const holdingHours = holdingMs / (60 * 60 * 1000);
+   742→      const AGENT_MIN_HOLDING_HOURS = 48;
+   743→
+   744→      if (holdingHours < AGENT_MIN_HOLDING_HOURS) {
+   745→        // Agent position hasn't reached 48h — BLOCK the close
+   746→        this.logger.error(
+   747→          `🚨 V214 BLOCKED: Attempted to close Agent position ${position.id} (${position.symbol}) ` +
+   748→          `at ${holdingHours.toFixed(1)}h — Agent positions must be held for ${AGENT_MIN_HOLDING_HOURS}h minimum. ` +
+   749→          `closeReason="${request.closeReason || 'EMPTY'}" — ` +
+   750→          `Only SL/TP closes are allowed before ${AGENT_MIN_HOLDING_HOURS}h. ` +
+   751→          `This close was likely triggered by OLD code (pre-V184) still running on Railway.`
+   752→        );
+   753→
+   754→        // Instead of throwing (which would break things), just skip and return
+   755→        // the position as-is — don't close it
+   756→        return {
+   757→          order: null,
+   758→          pnl: 0,
+   759→          position,
+   760→          blockedByV214: true,
+   761→          reason: `Agent position held ${holdingHours.toFixed(1)}h — minimum is ${AGENT_MIN_HOLDING_HOURS}h`,
+   762→        };
+   763→      }
+   764→
+   765→      // Agent position has reached 48h — allow the close
+   766→      this.logger.log(
+   767→        `✅ V214 ALLOWED: Agent position ${position.id} (${position.symbol}) held ${holdingHours.toFixed(1)}h ` +
+   768→        `≥ ${AGENT_MIN_HOLDING_HOURS}h — close allowed. closeReason="${request.closeReason}"`
+   769→      );
+   770→    }
+   771→
+   772→    // FIX: Optimistic locking — if another request already closed this position
+   773→    // between our read and the upcoming update, the version won't match and we'll
+   774→    // retry. This prevents double-close, duplicate EXIT trades, and PnL miscalculation.
+   775→    const positionVersion = position.version ?? 0;
+   776→
+   777→    if (position.status !== 'OPEN') {
+   778→      // ── FIX: Idempotent close — if position is already CLOSED/LIQUIDATED,
+   779→      // it may still be open on the exchange (e.g. SmartExecutor closed it in
+   780→      // DB without closing on exchange). Try to close on exchange anyway and
+   781→      // return success instead of rejecting the user's request.
+   782→      this.logger.warn(
+   783→        `Position ${position.id} (${position.symbol}) status is ${position.status} — attempting exchange close for safety`,
+   784→      );
+   785→
+   786→      // Try to close on exchange if we have valid credentials
+   787→      try {
+   788→        const staleCredential =
+   789→          await this.prisma.exchangeCredential.findFirst({
+   790→            where: { id: position.credentialId, userId },
+   791→          });
+   792→
+   793→        if (staleCredential && staleCredential.exchange !== 'paper-trading') {
+   794→          const staleSide = position.side === 'BUY' ? 'SELL' : 'BUY';
+   795→          await this._executeOnExchange(
+   796→            staleCredential.exchange,
+   797→            staleCredential.id,
+   798→            {
+   799→              credentialId: staleCredential.id,
+   800→              symbol: position.symbol,
+   801→              side: staleSide as PrismaOrderSide,
+   802→              type: PrismaOrderType.MARKET,
+   803→              quantity: position.quantity.toNumber(),
+   804→            },
+   805→            userId,
+   806→          );
+   807→          this.logger.log(
+   808→            `Successfully closed position ${position.id} on exchange despite DB status being ${position.status}`,
+   809→          );
+   810→        }
+   811→      } catch (exchangeErr: any) {
+   812→        this.logger.warn(
+   813→          `Exchange close for already-closed position ${position.id} failed: ${exchangeErr.message}`,
+   814→        );
+   815→        // Not fatal — position may already be closed on exchange too
+   816→      }
+   817→
+   818→      // Return the existing closed position (idempotent success)
+   819→      return {
+   820→        order: null,
+   821→        pnl: position.realizedPnl?.toNumber() ?? 0,
+   822→        position: await this.prisma.position.findUnique({
+   823→          where: { id: position.id },
+   824→        }),
+   825→        alreadyClosed: true,
+   826→      };
+   827→    }
+   828→
+   829→    const posQuantity = position.quantity.toNumber();
+   830→    const posEntryPrice = position.entryPrice.toNumber();
+   831→    const posCurrentPrice = position.currentPrice?.toNumber() ?? null;
+   832→    const posRealizedPnl = position.realizedPnl?.toNumber() ?? 0;
+   833→    const posStopLoss = position.stopLoss?.toNumber() ?? null;
+   834→
+   835→    const closeQuantity = request.quantity ?? posQuantity;
+   836→    if (closeQuantity > posQuantity) {
+   837→      throw new BadRequestException(
+   838→        `كمية الإغلاق (${closeQuantity}) أكبر من حجم المركز (${posQuantity})`,
+   839→      );
+   840→    }
+   841→
+   842→    // Execute closing order on exchange
+   843→    // FIX: Handle paper-trading positions separately. Previously, closePosition
+   844→    // always called _executeOnExchange() which requires decrypting credentials.
+   845→    // But paper-trading credentials may have been deleted by _startupCleanup(),
+   846→    // making paper positions un-closeable (NotFoundException on credential).
+   847→    // Now: for paper-trading positions, use _executePaperTrade() directly.
+   848→    const credential =
+   849→      await this.prisma.exchangeCredential.findFirst({
+   850→        where: { id: position.credentialId, userId },
+   851→      });
+   852→
+   853→    const closeSide = position.side === 'BUY' ? 'SELL' : 'BUY';
+   854→
+   855→    let execution: any;
+   856→
+   857→    if (position.exchange === 'paper-trading' || !credential) {
+   858→      // Paper-trading close: simulate the close using current market price.
+   859→      // If credential was deleted by startup cleanup, we can still close the position
+   860→      // because paper trading is simulated — no real exchange connection needed.
+   861→      //
+   862→      // FIX v114: Use entryPrice as the DEFAULT close price for paper trading.
+   863→      // Previously, if posCurrentPrice was 0/null, it tried getQuote() which could
+   864→      // hang for 30+ seconds when all price providers are exhausted (TwelveData
+   865→      // rate-limited, Binance blocked, etc.). This caused close requests to timeout
+   866→      // and positions to remain stuck OPEN.
+   867→      //
+   868→      // Now: Only try getQuote with a 3-second timeout. If it fails or times out,
+   869→      // V172: Reduced getQuote timeout 3s → 1s. Paper positions always have
+   870→      // currentPrice set by the position monitor — getQuote is rarely needed.
+   871→      let closePrice = posCurrentPrice;
+   872→      if (!closePrice || closePrice <= 0) {
+   873→        try {
+   874→          const quotePromise = this.exchangeService.getQuote(position.symbol);
+   875→          const quote = await Promise.race([
+   876→            quotePromise,
+   877→            new Promise<null>((resolve) => setTimeout(() => resolve(null), 1000)),
+   878→          ]);
+   879→          closePrice = quote?.price || posEntryPrice;
+   880→        } catch {
+   881→          closePrice = posEntryPrice;
+   882→        }
+   883→      }
+   884→      // Final safety: entryPrice is always available for an OPEN position
+   885→      if (!closePrice || closePrice <= 0) {
+   886→        closePrice = posEntryPrice;
+   887→      }
+   888→
+   889→      execution = await this._executePaperTrade(
+   890→        {
+   891→          credentialId: position.credentialId,
+   892→          symbol: position.symbol,
+   893→          side: closeSide as PrismaOrderSide,
+   894→          type: PrismaOrderType.MARKET,
+   895→          quantity: closeQuantity,
+   896→          price: closePrice,
+   897→        },
+   898→        closePrice,
+   899→        userId,
+   900→      );
+   901→    } else {
+   902→      // Real exchange close: use CCXT
+   903→      execution = await this._executeOnExchange(
+   904→        credential.exchange,
+   905→        credential.id,
+   906→        {
+   907→          credentialId: credential.id,
+   908→          symbol: position.symbol,
+   909→          side: closeSide as PrismaOrderSide,
+   910→          type: PrismaOrderType.MARKET,
+   911→          quantity: closeQuantity,
+   912→        },
+   913→        userId,
+   914→      );
+   915→    }
+   916→
+   917→    if (!execution.success) {
+   918→      const errorMsg = execution.error || '';
+   919→
+   920→      // FIX: Force-close on ANY exchange error when position is paper-trading
+   921→      // or exchange is unreachable — not just for the specific Arabic text
+   922→      // "رصيد غير متاح". Paper-trading positions have no real exchange state,
+   923→      // so force-closing in DB is always safe. For real exchange positions,
+   924→      // only force-close when the exchange is unreachable (the close might
+   925→      // have partially executed, so we can't safely force-close).
+   926→      // User-cancel errors (e.g. "order not found") should also be force-closed
+   927→      // because the position is likely already closed on the exchange.
+   928→      const isPaperTrading = position.exchange === 'paper-trading';
+   929→      const isExchangeUnreachable = /timeout|ECONNREFUSED|ECONNRESET|ETIMEDOUT|network|unreachable/i.test(errorMsg);
+   930→      const isUserCancel = /cancel|not found|already closed|unknown order/i.test(errorMsg);
+   931→      const isInsufficientBalance = (errorMsg.includes('رصيد') && errorMsg.includes('غير متاح'))
+   932→        || /insufficient.*balance|not enough/i.test(errorMsg);
+   933→
+   934→      const shouldForceClose = isPaperTrading || isExchangeUnreachable || isInsufficientBalance || isUserCancel;
+   935→
+   936→      if (shouldForceClose) {
+   937→        this.logger.warn(
+   938→          `⚡ Exchange close failed for ${position.symbol} — attempting force close (DB only). ` +
+   939→          `Reason: ${isPaperTrading ? 'paper-trading' : isExchangeUnreachable ? 'exchange-unreachable' : isInsufficientBalance ? 'insufficient-balance' : 'user-cancel'}. ` +
+   940→          `Error: ${errorMsg}`,
+   941→        );
+   942→        try {
+   943→          return await this.forceClosePosition(
+   944→            userId,
+   945→            position.id,
+   946→            `Auto force-close: ${isPaperTrading ? 'paper-trading position' : isExchangeUnreachable ? 'exchange unreachable' : isInsufficientBalance ? 'insufficient balance' : 'position likely already closed'} — ${errorMsg}`,
+   947→            ipAddress,
+   948→            userAgent,
+   949→          );
+   950→        } catch (forceErr: any) {
+   951→          this.logger.error(
+   952→            `❌ Force close also failed for ${position.id}: ${forceErr.message}`,
+   953→          );
+   954→        }
+   955→      }
+   956→
+   957→      // FIX V114: For paper-trading positions, NEVER leave them stuck OPEN.
+   958→      // Paper trading has no real exchange state to desync — force-close is always safe.
+   959→      // If force-close already failed above, try ONE MORE TIME with a direct DB update
+   960→      // as the absolute last resort. This prevents the "3 out of 4 close" pattern where
+   961→      // the last position gets stuck because of a transient error during force-close.
+   962→      if (isPaperTrading) {
+   963→        this.logger.warn(
+   964→          `🔴 V114 Paper-trading safety net: force-close failed for ${position.id}, attempting direct DB update as last resort`,
+   965→        );
+   966→        try {
+   967→          await this.prisma.position.update({
+   968→            where: { id: position.id },
+   969→            data: {
+   970→              status: 'CLOSED',
+   971→              closedAt: new Date(),
+   972→              realizedPnl: posRealizedPnl, // No PnL change since execution failed
+   973→              exitPrice: posEntryPrice, // V140: Fallback to entry price when execution failed
+   974→              closeReason: request.closeReason || 'FORCE_CLOSE', // V141
+   975→            },
+   976→          });
+   977→          this._clearProcessedKeysForPosition(userId, position.symbol).catch(() => {});
+   978→          this.logger.log(
+   979→            `🔴 V114 Paper-trading position ${position.id} force-closed via direct DB update`,
+   980→          );
+   981→          return {
+   982→            order: null,
+   983→            pnl: 0,
+   984→            position: await this.prisma.position.findUnique({ where: { id: position.id } }),
+   985→            forceClosed: true,
+   986→            safetyNetClose: true,
+   987→          };
+   988→        } catch (dbErr: any) {
+   989→          this.logger.error(
+   990→            `❌ V114 Even direct DB update failed for ${position.id}: ${dbErr.message}`,
+   991→          );
+   992→        }
+   993→      }
+   994→
+   995→      // Only throw for real trading positions where the exchange might have
+   996→      // partially executed — force-closing would lose sync with exchange state.
+   997→      throw new BadRequestException(
+   998→        `فشل في إغلاق المركز: ${execution.error}`,
+   999→      );
+  1000→    }
+  1001→
+  1002→    // Safe exit price: use explicit null checks instead of || operator
+  1003→    // The || operator treats 0 as falsy, causing incorrect fallback to entry price
+  1004→    const exitPrice =
+  1005→      execution.averagePrice != null && execution.averagePrice > 0
+  1006→        ? execution.averagePrice
+  1007→        : (posCurrentPrice != null && posCurrentPrice > 0
+  1008→          ? posCurrentPrice
+  1009→          : posEntryPrice);
+  1010→
+  1011→    // FIX: Deduct actual trading fees from PnL.
+  1012→    // For real exchanges, execution.fee contains the actual fee charged.
+  1013→    // For paper trading, fee is simulated at 0.1% per leg (entry + exit).
+  1014→    const grossPnl =
+  1015→      position.side === 'BUY'
+  1016→        ? (exitPrice - posEntryPrice) * closeQuantity
+  1017→        : (posEntryPrice - exitPrice) * closeQuantity;
+  1018→    // FIX V174: Only deduct EXIT fee from PnL.
+  1019→    // Entry fee was already paid when the position opened (_executePaperTrade
+  1020→    // charges 0.1% at entry and records it in the ENTRY trade).
+  1021→    // Adding entryFeeEstimate here caused double-counting — charging entry fee twice.
+  1022→    // BTC example: exitFee=$3.90 + entryFeeEstimate=$3.89 = $7.79 extra deduction.
+  1023→    const exitFee = execution.fee ?? (exitPrice * closeQuantity * 0.001);
+  1024→    const totalFees = exitFee; // exit fee only — entry fee already charged at open
+  1025→    const pnl = grossPnl - totalFees;
+  1026→
+  1027→    // Record closing order, exit trade, and update position — all in one transaction
+  1028→    // FIX: Optimistic locking — use version check in WHERE clause to prevent
+  1029→    // concurrent close from double-executing. If version changed (another close
+  1030→    // committed first), we retry the whole closePosition method.
+  1031→    const { order: closedOrder } = await this.prisma.$transaction(async (tx) => {
+  1032→      // FIX: Wrap order creation in try-catch — if it fails (e.g., idempotency collision),
+  1033→      // still close the position. A failed audit trail is better than a stuck open position.
+  1034→      let order: any = null;
+  1035→      try { order = await tx.order.create({
+  1036→        data: {
+  1037→          userId,
+  1038→          exchangeCredentialId: position.credentialId,
+  1039→          exchange: position.exchange,
+  1040→          symbol: position.symbol,
+  1041→          side: closeSide,
+  1042→          type: 'MARKET' as PrismaOrderType,
+  1043→          status: 'FILLED' as PrismaOrderStatus,
+  1044→          quantity: closeQuantity,
+  1045→          stopLoss: posStopLoss,
+  1046→          filledQuantity: execution.filledQuantity || closeQuantity,
+  1047→          averagePrice: execution.averagePrice,
+  1048→          fee: execution.fee ?? null,
+  1049→          feeCurrency: execution.feeCurrency ?? null,
+  1050→          exchangeOrderId: execution.exchangeOrderId,
+  1051→          idempotencyKey: `close-${position.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  1052→        },
+  1053→      }); } catch (orderErr: any) {
+  1054→        this.logger.warn(`closePosition: Order creation failed (non-critical): ${orderErr.message}`);
+  1055→        order = { id: 'manual-close-' + Date.now() };
+  1056→      }
+  1057→
+  1058→      // Record exit trade
+  1059→      await tx.trade.create({
+  1060→        data: {
+  1061→          userId,
+  1062→          orderId: order.id,
+  1063→          positionId: position.id,
+  1064→          credentialId: position.credentialId,
+  1065→          exchange: position.exchange,
+  1066→          symbol: position.symbol,
+  1067→          side: closeSide as PrismaOrderSide,
+  1068→          type: closeQuantity >= posQuantity ? 'EXIT' : 'PARTIAL_EXIT',
+  1069→          quantity: closeQuantity,
+  1070→          price: exitPrice,
+  1071→          fee: execution.fee ?? 0,
+  1072→          feeCurrency: execution.feeCurrency,
+  1073→          pnl,
+  1074→          source: position.source || 'user_manual', // V140B: Inherit source from position (smart_executor/agent/etc)
+  1075→        },
+  1076→      });
+  1077→
+  1078→      // Update position with optimistic locking (version check)
+  1079→      // If another concurrent close already updated this position, the version
+  1080→      // won't match and the update will affect 0 rows — we detect this and retry.
+  1081→      if (closeQuantity >= posQuantity) {
+  1082→        const updateResult = await tx.position.updateMany({
+  1083→          // FIX: For paper trading, skip version check — no real exchange race condition
+  1084→          where: { id: position.id, ...(position.exchange === 'paper-trading' ? {} : { version: positionVersion }) },
+  1085→          data: {
+  1086→            status: 'CLOSED',
+  1087→            closedAt: new Date(),
+  1088→            realizedPnl: posRealizedPnl + pnl,
+  1089→            exitPrice, // V140: Store the actual close price
+  1090→            closeReason: request.closeReason || 'AUTO_CLOSE', // V176: Default to AUTO_CLOSE (not MANUAL). Issue #12: auto-closes from position monitor (TIME_EXPIRED, STOP_LOSS, STALE_POSITION) were recorded as 'MANUAL' because closeReason defaulted to 'MANUAL'. This made it impossible to distinguish user-initiated closes from automatic ones. Now: 'AUTO_CLOSE' clearly indicates the close was triggered by the system.
+  1091→            version: positionVersion + 1,
+  1092→          },
+  1093→        });
+  1094→        if (updateResult.count === 0) {
+  1095→          // Optimistic lock failure — another close committed first
+  1096→          throw new Error('OPTIMISTIC_LOCK_FAILURE: Position was modified by another request. Please retry.');
+  1097→        }
+  1098→      } else {
+  1099→        const updateResult = await tx.position.updateMany({
+  1100→          // FIX: For paper trading, skip version check — no real exchange race condition
+  1101→          where: { id: position.id, ...(position.exchange === 'paper-trading' ? {} : { version: positionVersion }) },
+  1102→          data: {
+  1103→            quantity: posQuantity - closeQuantity,
+  1104→            realizedPnl: posRealizedPnl + pnl,
+  1105→            version: positionVersion + 1,
+  1106→          },
+  1107→        });
+  1108→        if (updateResult.count === 0) {
+  1109→          throw new Error('OPTIMISTIC_LOCK_FAILURE: Position was modified by another request. Please retry.');
+  1110→        }
+  1111→      }
+  1112→
+  1113→      return { order };
+  1114→    });
+  1115→
+  1116→    await this.auditService.log({
+  1117→      userId,
+  1118→      action: 'POSITION_CLOSED',
+  1119→      resource: 'position',
+  1120→      details: JSON.stringify({
+  1121→        positionId: position.id,
+  1122→        symbol: position.symbol,
+  1123→        quantity: closeQuantity,
+  1124→        pnl,
+  1125→        partial: closeQuantity < Number(position.quantity),
+  1126→      }),
+  1127→      ipAddress,
+  1128→      userAgent,
+  1129→    });
+  1130→
+  1131→    this.logger.log(
+  1132→      `📈 Position closed: ${position.symbol} — PnL: ${pnl.toFixed(2)} USD`,
+  1133→    );
+  1134→
+  1135→    // V177 FIX #17: Update trade repetition tracking after close
+  1136→    try {
+  1137→      const closedSide = position.side;
+  1138→      const repDirLockKey = `trade-rep:dir-lock:${userId}:${position.symbol}:${closedSide}`;
+  1139→      await this.redis.set(repDirLockKey, '1', 30 * 60 * 1000); // 30 min lockout
+  1140→
+  1141→      const dailyCountKey = `trade-rep:daily:${userId}:${position.symbol}`;
+  1142→      const currentCount = parseInt(await this.redis.get(dailyCountKey) || '0', 10);
+  1143→      // TTL: reset at midnight
+  1144→      const ttlMs = new Date().setHours(24, 0, 0, 0) - Date.now();
+  1145→      await this.redis.set(dailyCountKey, String(currentCount + 1), Math.max(ttlMs, 60000));
+  1146→
+  1147→      // Track consecutive losses
+  1148→      const consecLossKey = `trade-rep:consec-loss:${userId}:${position.symbol}`;
+  1149→      if (pnl < 0) {
+  1150→        const currentLosses = parseInt(await this.redis.get(consecLossKey) || '0', 10);
+  1151→        await this.redis.set(consecLossKey, String(currentLosses + 1), 2 * 60 * 60 * 1000); // 2h TTL
+  1152→      } else {
+  1153→        await this.redis.del(consecLossKey); // Reset on win
+  1154→      }
+  1155→    } catch (repErr: any) {
+  1156→      // Non-critical — trade repetition tracking failure should not block closes
+  1157→    }
+  1158→
+  1159→    // FIX: Clear Smart Executor processed keys for this position so new briefs
+  1160→    // for the same symbol can be executed. Without this, the processedKey
+  1161→    // `smart-executor:processed:{briefId}:{userId}` persists for 24 hours,
+  1162→    // blocking the executor from opening new positions for this user+symbol
+  1163→    // after the old position was closed.
+  1164→    this._clearProcessedKeysForPosition(userId, position.symbol).catch(() => {});
+  1165→
+  1166→    // V172d FIX: Return MARGIN + PnL to paperBalance atomically on close.
+  1167→    if (position.exchange === 'paper-trading') {
+  1168→      try {
+  1169→        const settings = await this.prisma.agentSettings.findUnique({
+  1170→          where: { userId },
+  1171→          select: { paperCryptoLeverage: true, paperForexLeverage: true, paperGoldLeverage: true },
+  1172→        });
+  1173→        const meta = getSymbolMetadata(position.symbol);
+  1174→        const cryptoLev = Number(settings?.paperCryptoLeverage) || 1;
+  1175→        const forexLev = Number(settings?.paperForexLeverage) || 50;
+  1176→        const goldLev = Number(settings?.paperGoldLeverage) || 20;
+  1177→        let leverage = 1;
+  1178→        if (meta.assetClass === AssetClass.FOREX) leverage = forexLev;
+  1179→        else if (meta.assetClass === AssetClass.COMMODITY) leverage = goldLev;
+  1180→        else leverage = cryptoLev;
+  1181→
+  1182→        const notional = posEntryPrice * closeQuantity;
+  1183→        const marginToReturn = leverage > 1 ? notional / leverage : notional;
+  1184→
+  1185→        // V176 FIX: Return margin + PnL to paperBalance on close.
+  1186→        // Previously (V175), only PnL was added because margin was never deducted.
+  1187→        // Now that margin is actually deducted on open, we must return it on close.
+  1188→        const totalReturn = marginToReturn + pnl;
+  1189→        await this.prisma.$executeRaw`
+  1190→          UPDATE "AgentSettings"
+  1191→          SET "paperBalance" = "paperBalance" + ${totalReturn}
+  1192→          WHERE "userId" = ${userId}
+  1193→        `;
+  1194→        this.logger.log(
+  1195→          `📝 V176 Paper balance on close: margin +$${marginToReturn.toFixed(2)}, PnL ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}, total +$${totalReturn.toFixed(2)} (${position.symbol})`,
+  1196→        );
+  1197→
+  1198→      } catch (err: any) {
+  1199→        this.logger.warn(`V172d Failed to update paper balance on close: ${err.message}`);
+  1200→      }
+  1201→    }
+  1202→
+  1203→    // FIX V117: Invalidate balance cache so the next fetch returns fresh data.
+  1204→    // Without this, the cached balance (60s TTL) still shows the old equity/margin
+  1205→    // after closing a position, making it look like the close had no effect.
+  1206→    try {
+  1207→      this.credentialsService.invalidateBalanceCache(userId);
+  1208→    } catch { /* non-critical */ }
+  1209→
+  1210→    return {
+  1211→      order: closedOrder,
+  1212→      pnl,
+  1213→      position: await this.prisma.position.findUnique({
+  1214→        where: { id: position.id },
+  1215→      }),
+  1216→    };
+  1217→  }
+  1218→
+  1219→  /**
+  1220→   * FIX: Clear Smart Executor processed Redis keys that match a closed position's
+  1221→   * symbol. When a position is closed, the old `smart-executor:processed:{briefId}:{userId}`
+  1222→   * key must be removed so that new briefs for the same symbol can be executed.
+  1223→   *
+  1224→   * The processed key stores JSON like: {"orderId":"...","executedAt":"..."}
+  1225→   * The key format is: smart-executor:processed:{briefId}:{userId}
+  1226→   * Since briefId is opaque, we scan all keys for this userId, get each key's value,
+  1227→   * and check if the associated position's symbol matches the closed position.
+  1228→   *
+  1229→   * We also clear the corresponding DB-persisted keys (smart-executor:processed:*:userId:db).
+  1230→   */
+  1231→  private async _clearProcessedKeysForPosition(userId: string, symbol: string): Promise<void> {
+  1232→    try {
+  1233→      const pattern = `smart-executor:processed:*:${userId}`;
+  1234→      const keys = await this.redis.scanKeys(pattern);
+  1235→      let cleared = 0;
+  1236→
+  1237→      for (const key of keys) {
+  1238→        try {
+  1239→          // The key format is: smart-executor:processed:{briefId}:{userId}
+  1240→          // Extract the briefId from the key
+  1241→          const parts = key.split(':');
+  1242→          // Expected: ['smart-executor', 'processed', briefId, userId]
+  1243→          const briefId = parts.length >= 4 ? parts[2] : null;
+  1244→
+  1245→          if (!briefId) continue;
+  1246→
+  1247→          // Look up the brief in the DB to check its pair/symbol
+  1248→          const brief = await this.prisma.tradingBrief.findUnique({
+  1249→            where: { id: briefId },
+  1250→            select: { pair: true },
+  1251→          });
+  1252→
+  1253→          if (brief && brief.pair === symbol) {
+  1254→            // Delete the Redis processed key
+  1255→            await this.redis.del(key);
+  1256→            // Also delete the DB-persisted fallback key
+  1257→            try {
+  1258→              await this.prisma.setting.deleteMany({
+  1259→                where: { key: `${key}:db` },
+  1260→              });
+  1261→            } catch { /* non-critical */ }
+  1262→            cleared++;
+  1263→            this.logger.debug(
+  1264→              `🗑️ Cleared processedKey ${key} for closed position ${symbol} (user: ${userId})`,
+  1265→            );
+  1266→          }
+  1267→        } catch (keyErr: any) {
+  1268→          this.logger.warn(
+  1269→            `Failed to check/clear processed key ${key}: ${keyErr.message}`,
+  1270→          );
+  1271→        }
+  1272→      }
+  1273→
+  1274→      if (cleared > 0) {
+  1275→        this.logger.log(
+  1276→          `🗑️ Cleared ${cleared} processed key(s) for ${symbol} (user: ${userId}) — new positions can now be opened`,
+  1277→        );
+  1278→      }
+  1279→    } catch (error: any) {
+  1280→      this.logger.warn(
+  1281→        `Failed to clear processed keys for ${symbol} (user: ${userId}): ${error.message}`,
+  1282→      );
+  1283→    }
+  1284→  }
+  1285→
+  1286→  /**
+  1287→   * FIX V114: Close position with automatic retry on optimistic lock failure
+  1288→   * AND transient errors (timeout, network, rate limit).
+  1289→   *
+  1290→   * Previously, this only retried on OPTIMISTIC_LOCK_FAILURE. But many
+  1291→   * transient errors (CCXT timeout, network reset, rate limit) also benefit
+  1292→   * from a retry — especially for paper-trading positions where a retry
+  1293→   * is always safe (no real exchange state to desync).
+  1294→   *
+  1295→   * Retry schedule:
+  1296→   * - OPTIMISTIC_LOCK_FAILURE: 100ms delay (fast — the other tx just committed)
+  1297→   * - Transient errors: 1s, 2s, 3s exponential backoff
+  1298→   */
+  1299→  async closePositionWithRetry(
+  1300→    userId: string,
+  1301→    request: ClosePositionRequest,
+  1302→    ipAddress?: string,
+  1303→    userAgent?: string,
+  1304→    maxRetries = 3,
+  1305→  ): Promise<any> {
+  1306→    try {
+  1307→      return await this.closePosition(userId, request, ipAddress, userAgent, 0);
+  1308→    } catch (error: any) {
+  1309→      const errMsg = error?.message || '';
+  1310→
+  1311→      // Check if this is an optimistic lock failure — fast retry
+  1312→      if (errMsg.includes('OPTIMISTIC_LOCK_FAILURE') && maxRetries > 0) {
+  1313→        this.logger.warn(`Optimistic lock failure on closePosition for ${request.positionId} — retrying (${maxRetries} attempts left)`);
+  1314→        await new Promise(resolve => setTimeout(resolve, 100));
+  1315→        return this.closePositionWithRetry(userId, request, ipAddress, userAgent, maxRetries - 1);
+  1316→      }
+  1317→
+  1318→      // FIX V114: Also retry on transient errors (timeout, network, rate limit)
+  1319→      // These are temporary failures that may succeed on retry.
+  1320→      const isTransientError = /timeout|ETIMEDOUT|ECONNREFUSED|ECONNRESET|rate.?limit|too many|429|network|unreachable|fetch failed|Service Unavailable|502|504/i.test(errMsg);
+  1321→      if (isTransientError && maxRetries > 0) {
+  1322→        const delayMs = (4 - maxRetries) * 1000; // 1s, 2s, 3s backoff
+  1323→        this.logger.warn(`Transient error on closePosition for ${request.positionId} — retrying in ${delayMs}ms (${maxRetries} attempts left). Error: ${errMsg.substring(0, 100)}`);
+  1324→        await new Promise(resolve => setTimeout(resolve, delayMs));
+  1325→        return this.closePositionWithRetry(userId, request, ipAddress, userAgent, maxRetries - 1);
+  1326→      }
+  1327→
+  1328→      throw error;
+  1329→    }
+  1330→  }
+  1331→
+  1332→  /**
+  1333→   * FIX: Force close a position in the database WITHOUT executing on the exchange.
+  1334→   * This is used when:
+  1335→   * 1. The user already closed the position manually on the exchange
+  1336→   * 2. The exchange API is not accessible (insufficient balance, API key issues, etc.)
+  1337→   * 3. The position is stuck and needs manual sync
+  1338→   *
+  1339→   * WARNING: This does NOT execute any order on the exchange. It only updates the
+  1340→   * database records. Use only when you are certain the position is already closed
+  1341→   * on the exchange or should be marked as closed for operational reasons.
+  1342→   */
+  1343→  async forceClosePosition(
+  1344→    userId: string,
+  1345→    positionId: string,
+  1346→    reason: string,
+  1347→    ipAddress?: string,
+  1348→    userAgent?: string,
+  1349→  ) {
+  1350→    // DATA ISOLATION: Use findFirst with userId
+  1351→    const position = await this.prisma.position.findFirst({
+  1352→      where: { id: positionId, userId },
+  1353→    });
+  1354→
+  1355→    if (!position) {
+  1356→      throw new NotFoundException('المركز غير موجود');
+  1357→    }
+  1358→
+  1359→    if (position.status !== 'OPEN') {
+  1360→      return {
+  1361→        order: null,
+  1362→        pnl: position.realizedPnl?.toNumber() ?? 0,
+  1363→        position: await this.prisma.position.findUnique({
+  1364→          where: { id: position.id },
+  1365→        }),
+  1366→        alreadyClosed: true,
+  1367→      };
+  1368→    }
+  1369→
+  1370→    // V214 LAST LINE OF DEFENSE: Also protect Agent positions in forceClosePosition
+  1371→    // Old code on Railway may use forceClosePosition as a fallback path to close Agent positions at 4h
+  1372→    const isAgentForceClose = position.source === 'agent';
+  1373→    const reasonUpper = (reason || '').toUpperCase();
+  1374→    const isSLTPForceClose = reasonUpper.includes('STOP_LOSS') || reasonUpper.includes('TAKE_PROFIT');
+  1375→
+  1376→    if (isAgentForceClose && !isSLTPForceClose) {
+  1377→      const holdingMs = position.openedAt
+  1378→        ? Date.now() - new Date(position.openedAt).getTime()
+  1379→        : 0;
+  1380→      const holdingHours = holdingMs / (60 * 60 * 1000);
+  1381→
+  1382→      if (holdingHours < 48) {
+  1383→        this.logger.error(
+  1384→          `🚨 V214 BLOCKED forceClose: Agent position ${position.id} (${position.symbol}) ` +
+  1385→          `at ${holdingHours.toFixed(1)}h — minimum 48h. reason="${reason}" — ` +
+  1386→          `BLOCKED. Only SL/TP force-closes allowed before 48h.`
+  1387→        );
+  1388→        return {
+  1389→          order: null,
+  1390→          pnl: 0,
+  1391→          position,
+  1392→          blockedByV214: true,
+  1393→          reason: `Agent position held ${holdingHours.toFixed(1)}h — minimum is 48h. Force close blocked.`,
+  1394→        };
+  1395→      }
+  1396→    }
+  1397→
+  1398→    const posQuantity = position.quantity.toNumber();
+  1399→    const posEntryPrice = position.entryPrice.toNumber();
+  1400→    const posRealizedPnl = position.realizedPnl?.toNumber() ?? 0;
+  1401→    const posStopLoss = position.stopLoss?.toNumber() ?? null;
+  1402→
+  1403→    // Get current market price for PnL calculation
+  1404→    // FIX V114: Add 3-second timeout for getQuote() — same pattern as closePosition().
+  1405→    // Previously, forceClosePosition() called getQuote() WITHOUT a timeout. When all
+  1406→    // price providers were exhausted (TwelveData rate-limited, Binance blocked, etc.),
+  1407→    // getQuote() could hang for 30+ seconds, causing the entire force-close request
+  1408→    // to timeout and the position to remain stuck OPEN.
+  1409→    let currentPrice = position.currentPrice?.toNumber() ?? 0;
+  1410→    if (currentPrice <= 0) {
+  1411→      try {
+  1412→        const quotePromise = this.exchangeService.getQuote(position.symbol);
+  1413→        const quote = await Promise.race([
+  1414→          quotePromise,
+  1415→          new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+  1416→        ]);
+  1417→        currentPrice = quote?.price ?? posEntryPrice;
+  1418→      } catch {
+  1419→        currentPrice = posEntryPrice;
+  1420→      }
+  1421→    }
+  1422→    // Final safety: entryPrice is always available for an OPEN position
+  1423→    if (!currentPrice || currentPrice <= 0) {
+  1424→      currentPrice = posEntryPrice;
+  1425→    }
+  1426→
+  1427→    const closeSide = position.side === 'BUY' ? 'SELL' : 'BUY';
+  1428→    // FIX V174: Only deduct exit fee (0.1%). Entry fee was charged at open.
+  1429→    const grossPnl2 =
+  1430→      position.side === 'BUY'
+  1431→        ? (currentPrice - posEntryPrice) * posQuantity
+  1432→        : (posEntryPrice - currentPrice) * posQuantity;
+  1433→    const paperFees = currentPrice * posQuantity * 0.001; // exit fee only
+  1434→    const pnl = grossPnl2 - paperFees;
+  1435→
+  1436→    // Create DB records without exchange execution
+  1437→    const { order: closedOrder } = await this.prisma.$transaction(async (tx) => {
+  1438→      const order = await tx.order.create({
+  1439→        data: {
+  1440→          userId,
+  1441→          exchangeCredentialId: position.credentialId,
+  1442→          exchange: position.exchange,
+  1443→          symbol: position.symbol,
+  1444→          side: closeSide,
+  1445→          type: 'MARKET' as PrismaOrderType,
+  1446→          status: 'FILLED' as PrismaOrderStatus,
+  1447→          quantity: posQuantity,
+  1448→          stopLoss: posStopLoss,
+  1449→          filledQuantity: posQuantity,
+  1450→          averagePrice: currentPrice,
+  1451→          fee: 0,
+  1452→          feeCurrency: position.symbol.split('/').pop() || 'USDT',
+  1453→          exchangeOrderId: `force-${Date.now()}-${crypto.randomUUID()}`,
+  1454→          idempotencyKey: `force-close-${Date.now()}-${crypto.randomUUID()}`,
+  1455→        },
+  1456→      });
+  1457→
+  1458→      await tx.trade.create({
+  1459→        data: {
+  1460→          userId,
+  1461→          orderId: order.id,
+  1462→          positionId: position.id,
+  1463→          credentialId: position.credentialId,
+  1464→          exchange: position.exchange,
+  1465→          symbol: position.symbol,
+  1466→          side: closeSide as PrismaOrderSide,
+  1467→          type: 'EXIT',
+  1468→          quantity: posQuantity,
+  1469→          price: currentPrice,
+  1470→          fee: 0,
+  1471→          feeCurrency: position.symbol.split('/').pop() || 'USDT',
+  1472→          pnl,
+  1473→          source: position.source || 'user_manual', // V140B: Inherit source from position (smart_executor/agent/etc)
+  1474→        },
+  1475→      });
+  1476→
+  1477→      await tx.position.update({
+  1478→        where: { id: position.id },
+  1479→        data: {
+  1480→          status: 'CLOSED',
+  1481→          closedAt: new Date(),
+  1482→          realizedPnl: posRealizedPnl + pnl,
+  1483→          exitPrice: currentPrice, // V140: Store the actual close price
+  1484→          closeReason: reason ? reason.split(' ').slice(0, 3).join('_').toUpperCase() : 'FORCE_CLOSE', // V141: Extract reason type from force-close reason string
+  1485→        },
+  1486→      });
+  1487→
+  1488→      return { order };
+  1489→    });
+  1490→
+  1491→    await this.auditService.log({
+  1492→      userId,
+  1493→      action: 'POSITION_FORCE_CLOSED',
+  1494→      resource: 'position',
+  1495→      details: JSON.stringify({
+  1496→        positionId: position.id,
+  1497→        symbol: position.symbol,
+  1498→        quantity: posQuantity,
+  1499→        pnl,
+  1500→        exitPrice: currentPrice,
+  1501→        reason,
+  1502→        warning: 'Position was force-closed in DB only — no exchange order was executed',
+  1503→      }),
+  1504→      ipAddress,
+  1505→      userAgent,
+  1506→    });
+  1507→
+  1508→    this.logger.warn(
+  1509→      `🔴 FORCE CLOSED position ${position.id} (${position.symbol}) — reason: ${reason}. ` +
+  1510→      `NO exchange order was executed. DB updated only.`,
+  1511→    );
+  1512→
+  1513→    // FIX: Clear Smart Executor processed keys for this position so new briefs
+  1514→    // for the same symbol can be executed after force close.
+  1515→    this._clearProcessedKeysForPosition(userId, position.symbol).catch(() => {});
+  1516→
+  1517→    // V172d FIX: Return MARGIN + PnL to paperBalance atomically on force-close.
+  1518→    if (position.exchange === 'paper-trading') {
+  1519→      try {
+  1520→        const settings = await this.prisma.agentSettings.findUnique({
+  1521→          where: { userId },
+  1522→          select: { paperCryptoLeverage: true, paperForexLeverage: true, paperGoldLeverage: true },
+  1523→        });
+  1524→        const meta = getSymbolMetadata(position.symbol);
+  1525→        const cryptoLev = Number(settings?.paperCryptoLeverage) || 1;
+  1526→        const forexLev = Number(settings?.paperForexLeverage) || 50;
+  1527→        const goldLev = Number(settings?.paperGoldLeverage) || 20;
+  1528→        let leverage = 1;
+  1529→        if (meta.assetClass === AssetClass.FOREX) leverage = forexLev;
+  1530→        else if (meta.assetClass === AssetClass.COMMODITY) leverage = goldLev;
+  1531→        else leverage = cryptoLev;
+  1532→
+  1533→        const notional = Number(position.entryPrice) * posQuantity;
+  1534→        const marginToReturn = leverage > 1 ? notional / leverage : notional;
+  1535→        const totalReturn = marginToReturn + pnl;
+  1536→
+  1537→        // V176 FIX: Return margin + PnL (not just PnL) on force-close
+  1538→        await this.prisma.$executeRaw`
+  1539→          UPDATE "AgentSettings"
+  1540→          SET "paperBalance" = "paperBalance" + ${totalReturn}
+  1541→          WHERE "userId" = ${userId}
+  1542→        `;
+  1543→        this.logger.log(
+  1544→          `📝 V176 Paper balance on force-close: margin +$${marginToReturn.toFixed(2)}, PnL ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}, total +$${totalReturn.toFixed(2)} (${position.symbol})`,
+  1545→        );
+  1546→      } catch (err: any) {
+  1547→        this.logger.warn(`V172d Failed to update paper balance on force-close: ${err.message}`);
+  1548→      }
+  1549→    }
+  1550→
+  1551→    // FIX V117: Invalidate balance cache after force close too
+  1552→    try {
+  1553→      this.credentialsService.invalidateBalanceCache(userId);
+  1554→    } catch { /* non-critical */ }
+  1555→
+  1556→    return {
+  1557→      order: closedOrder,
+  1558→      pnl,
+  1559→      position: await this.prisma.position.findUnique({
+  1560→        where: { id: position.id },
+  1561→      }),
+  1562→      forceClosed: true,
+  1563→    };
+  1564→  }
+  1565→
+  1566→  /**
+  1567→   * Update stop-loss and take-profit for a position
+  1568→   */
+  1569→  async updatePositionLevels(
+  1570→    userId: string,
+  1571→    positionId: string,
+  1572→    data: { stopLoss?: number; takeProfit?: number },
+  1573→  ) {
+  1574→    // DATA ISOLATION: Use findFirst with userId to prevent accessing other users' positions
+  1575→    const position = await this.prisma.position.findFirst({
+  1576→      where: { id: positionId, userId },
+  1577→    });
+  1578→
+  1579→    if (!position) {
+  1580→      throw new NotFoundException('المركز غير موجود');
+  1581→    }
+  1582→
+  1583→    if (position.status !== 'OPEN') {
+  1584→      // ── FIX: Idempotent update — if position is already CLOSED/LIQUIDATED,
+  1585→      // SL/TP update is meaningless. Return the position as-is instead of error.
+  1586→      this.logger.warn(
+  1587→        `Cannot update SL/TP for position ${positionId} — status is ${position.status}`,
+  1588→      );
+  1589→      return this.prisma.position.findUnique({
+  1590→        where: { id: positionId },
+  1591→      });
+  1592→    }
+  1593→
+  1594→    return this.prisma.position.update({
+  1595→      where: { id: positionId },
+  1596→      data: {
+  1597→        stopLoss: data.stopLoss,
+  1598→        takeProfit: data.takeProfit,
+  1599→      },
+  1600→    });
+  1601→  }
+  1602→
+  1603→  /**
+  1604→   * Get closed positions for a user
+  1605→   */
+  1606→  async getClosedPositions(userId: string, limit: number = 100, from?: string, to?: string, credentialId?: string) {
+  1607→    try {
+  1608→      const where: any = { userId, status: { in: ['CLOSED', 'LIQUIDATED'] } }; // V140B: Include LIQUIDATED positions
+  1609→
+  1610→      // V205: Filter by credentialId for account-based filtering
+  1611→      // V212 FIX: Position.credentialId is NOT NULL in schema, so we CANNOT use
+  1612→      // OR with { credentialId: null } — Prisma rejects it. Use direct filter instead.
+  1613→      if (credentialId) {
+  1614→        where.credentialId = credentialId;
+  1615→      }
+  1616→
+  1617→      // V140: Add date range filtering for daily/weekly/monthly/yearly classification
+  1618→      if (from || to) {
+  1619→        where.closedAt = {};
+  1620→        if (from) where.closedAt.gte = new Date(from);
+  1621→        if (to) where.closedAt.lte = new Date(to);
+  1622→      }
+  1623→
+  1624→      // V207 FIX: Try with trades include first. If it fails (e.g., Trade table
+  1625→      // doesn't have credentialId column yet because migration wasn't applied),
+  1626→      // fall back to querying without the trades include. This makes the API
+  1627→      // resilient to migration failures — the user still sees their closed positions,
+  1628→      // just without the trade details (exit price fallback uses entryPrice instead).
+  1629→      try {
+  1630→        return await this.prisma.position.findMany({
+  1631→          where,
+  1632→          orderBy: { closedAt: 'desc' },
+  1633→          take: limit,
+  1634→          include: { trades: true }, // V140: Include related trades for exit price
+  1635→        });
+  1636→      } catch (includeError: any) {
+  1637→        // If the error is about a missing column (migration not applied), retry without include
+  1638→        const errMsg = includeError?.message || '';
+  1639→        if (errMsg.includes('does not exist') || errMsg.includes('column') || includeError?.code === 'P2021') {
+  1640→          this.logger.warn(
+  1641→            `V207: getClosedPositions failed with trades include (migration not applied?): ${errMsg.substring(0, 200)}. Retrying without trades include.`
+  1642→          );
+  1643→          return await this.prisma.position.findMany({
+  1644→            where,
+  1645→            orderBy: { closedAt: 'desc' },
+  1646→            take: limit,
+  1647→            // No trades include — exit price will use position.exitPrice or entryPrice
+  1648→          });
+  1649→        }
+  1650→        // Other errors — re-throw
+  1651→        throw includeError;
+  1652→      }
+  1653→    } catch (error: any) {
+  1654→      this.logger.error(
+  1655→        `Failed to fetch closed positions: ${error.message}`,
+  1656→        error.stack,
+  1657→      );
+  1658→      throw error;
+  1659→    }
+  1660→  }
+  1661→
+  1662→  /**
+  1663→   * Get all positions (open + closed) for a user
+  1664→   * Enriches open positions with live quotes using parallel fetching
+  1665→   */
+  1666→  async getAllPositions(userId: string, limit: number = 100) {
+  1667→    try {
+  1668→      const positions = await this.prisma.position.findMany({
+  1669→        where: { userId },
+  1670→        orderBy: { openedAt: 'desc' },
+  1671→        take: limit,
+  1672→      });
+  1673→
+  1674→      if (positions.length === 0) return [];
+  1675→
+  1676→      // Separate open positions that need live quote enrichment
+  1677→      const openPositions = positions.filter((p) => p.status === 'OPEN');
+  1678→
+  1679→      if (openPositions.length === 0) return positions;
+  1680→
+  1681→      // Fetch all quotes for open positions in parallel
+  1682→      const quotePromises = openPositions.map((pos) =>
+  1683→        this.exchangeService.getQuote(pos.symbol).catch(() => null),
+  1684→      );
+  1685→      const quotes = await Promise.allSettled(quotePromises);
+  1686→
+  1687→      // Build batch updates for open positions
+  1688→      const updates: any[] = [];
+  1689→      const enrichedMap = new Map<string, any>();
+  1690→
+  1691→      for (let i = 0; i < openPositions.length; i++) {
+  1692→        const position = openPositions[i];
+  1693→        const quoteResult = quotes[i];
+  1694→        const quote = quoteResult.status === 'fulfilled' ? quoteResult.value : null;
+  1695→
+  1696→        if (quote && quote.price) {
+  1697→          const currentPrice = quote.price;
+  1698→          const entryPrice = position.entryPrice.toNumber();
+  1699→          const quantity = position.quantity.toNumber();
+  1700→          const unrealizedPnl =
+  1701→            position.side === 'BUY'
+  1702→              ? (currentPrice - entryPrice) * quantity
+  1703→              : (entryPrice - currentPrice) * quantity;
+  1704→
+  1705→          updates.push(
+  1706→            this.prisma.position.update({
+  1707→              where: { id: position.id },
+  1708→              data: {
+  1709→                currentPrice,
+  1710→                unrealizedPnl,
+  1711→                highestPrice: Math.max(
+  1712→                  position.highestPrice?.toNumber() ?? currentPrice,
+  1713→                  currentPrice,
+  1714→                ),
+  1715→                lowestPrice: Math.min(
+  1716→                  position.lowestPrice?.toNumber() ?? currentPrice,
+  1717→                  currentPrice,
+  1718→                ),
+  1719→              },
+  1720→            }),
+  1721→          );
+  1722→
+  1723→          enrichedMap.set(position.id, {
+  1724→            currentPrice,
+  1725→            unrealizedPnl,
+  1726→          });
+  1727→        }
+  1728→      }
+  1729→
+  1730→      // Batch update in transaction
+  1731→      if (updates.length > 0) {
+  1732→        await this.prisma.$transaction(updates).catch((err: any) => {
+  1733→          this.logger.warn(`Batch position update failed: ${err.message}`);
+  1734→        });
+  1735→      }
+  1736→
+  1737→      // Merge enriched data into results
+  1738→      return positions.map((pos) => {
+  1739→        const enriched = enrichedMap.get(pos.id);
+  1740→        if (enriched) {
+  1741→          return { ...pos, ...enriched };
+  1742→        }
+  1743→        return pos;
+  1744→      });
+  1745→    } catch (error: any) {
+  1746→      this.logger.error(
+  1747→        `Failed to fetch all positions: ${error.message}`,
+  1748→        error.stack,
+  1749→      );
+  1750→      throw error;
+  1751→    }
+  1752→  }
+  1753→
+  1754→  /**
+  1755→   * Get trade history
+  1756→   */
+  1757→  async getTradeHistory(userId: string, limit: number = 50, from?: string, to?: string, credentialId?: string) {
+  1758→    try {
+  1759→      const where: any = { userId };
+  1760→
+  1761→      // V205: Filter by credentialId for account-based filtering
+  1762→      // V206 FIX: Include trades where credentialId is NULL (legacy data before migration)
+  1763→      // During migration period, some Trade records may not have credentialId set yet.
+  1764→      if (credentialId) {
+  1765→        where.OR = [
+  1766→          { credentialId },
+  1767→          { credentialId: null }, // Legacy trades without credentialId
+  1768→        ];
+  1769→      }
+  1770→
+  1771→      // V140: Add date range filtering
+  1772→      if (from || to) {
+  1773→        where.executedAt = {};
+  1774→        if (from) where.executedAt.gte = new Date(from);
+  1775→        if (to) where.executedAt.lte = new Date(to);
+  1776→      }
+  1777→
+  1778→      return await this.prisma.trade.findMany({
+  1779→        where,
+  1780→        orderBy: { executedAt: 'desc' },
+  1781→        take: limit,
+  1782→      });
+  1783→    } catch (error: any) {
+  1784→      // V208 FIX: If the query fails, use raw SQL as fallback.
+  1785→      // Prisma always includes ALL schema columns in SELECT, so even removing
+  1786→      // credentialId from WHERE doesn't help — the SELECT still references it.
+  1787→      // Only raw SQL can avoid referencing a column that doesn't exist yet.
+  1788→      const errMsg = error?.message || '';
+  1789→      const isColumnMissing = errMsg.includes('does not exist') || errMsg.includes('column') || error?.code === 'P2021';
+  1790→
+  1791→      if (isColumnMissing) {
+  1792→        this.logger.warn(
+  1793→          `V208: getTradeHistory Prisma query failed (column missing?): ${errMsg.substring(0, 200)}. Using raw SQL fallback.`
+  1794→        );
+  1795→        try {
+  1796→          // Build raw SQL that only selects columns that definitely exist
+  1797→          let sql = `SELECT id, "userId", "orderId", "positionId", exchange, symbol, side, type, quantity, price, fee, "feeCurrency", pnl, "exchangeTradeId", "executedAt", source FROM "Trade" WHERE "userId" = $1`;
+  1798→          const params: any[] = [userId];
+  1799→          let paramIdx = 2;
+  1800→
+  1801→          if (credentialId) {
+  1802→            sql += ` AND ("credentialId" = $${paramIdx} OR "credentialId" IS NULL)`;
+  1803→            params.push(credentialId);
+  1804→            paramIdx++;
+  1805→          }
+  1806→
+  1807→          if (from) {
+  1808→            sql += ` AND "executedAt" >= $${paramIdx}`;
+  1809→            params.push(new Date(from));
+  1810→            paramIdx++;
+  1811→          }
+  1812→          if (to) {
+  1813→            sql += ` AND "executedAt" <= $${paramIdx}`;
+  1814→            params.push(new Date(to));
+  1815→            paramIdx++;
+  1816→          }
+  1817→
+  1818→          sql += ` ORDER BY "executedAt" DESC LIMIT $${paramIdx}`;
+  1819→          params.push(limit);
+  1820→
+  1821→          const trades = await this.prisma.$queryRawUnsafe(sql, ...params);
+  1822→
+  1823→          // Add credentialId: null to each trade for consistent shape
+  1824→          return (trades as any[]).map(t => ({ ...t, credentialId: t.credentialId ?? null }));
+  1825→        } catch (rawErr: any) {
+  1826→          // If credentialId filter fails in raw SQL too, try WITHOUT it
+  1827→          if (credentialId && (rawErr?.message || '').includes('credentialId')) {
+  1828→            this.logger.warn(
+  1829→              `V208: Raw SQL with credentialId also failed: ${(rawErr?.message || '').substring(0, 200)}. Trying without credentialId.`
+  1830→            );
+  1831→            try {
+  1832→              let sql = `SELECT id, "userId", "orderId", "positionId", exchange, symbol, side, type, quantity, price, fee, "feeCurrency", pnl, "exchangeTradeId", "executedAt", source FROM "Trade" WHERE "userId" = $1`;
+  1833→              const params: any[] = [userId];
+  1834→              let paramIdx = 2;
+  1835→
+  1836→              if (from) {
+  1837→                sql += ` AND "executedAt" >= $${paramIdx}`;
+  1838→                params.push(new Date(from));
+  1839→                paramIdx++;
+  1840→              }
+  1841→              if (to) {
+  1842→                sql += ` AND "executedAt" <= $${paramIdx}`;
+  1843→                params.push(new Date(to));
+  1844→                paramIdx++;
+  1845→              }
+  1846→
+  1847→              sql += ` ORDER BY "executedAt" DESC LIMIT $${paramIdx}`;
+  1848→              params.push(limit);
+  1849→
+  1850→              const trades = await this.prisma.$queryRawUnsafe(sql, ...params);
+  1851→              return (trades as any[]).map(t => ({ ...t, credentialId: null }));
+  1852→            } catch (rawErr2: any) {
+  1853→              this.logger.error(
+  1854→                `V208: Raw SQL fallback without credentialId also failed: ${rawErr2.message}`,
+  1855→                rawErr2.stack,
+  1856→              );
+  1857→              throw rawErr2;
+  1858→            }
+  1859→          }
+  1860→          throw rawErr;
+  1861→        }
+  1862→      }
+  1863→      this.logger.error(
+  1864→        `Failed to fetch trade history: ${error.message}`,
+  1865→        error.stack,
+  1866→      );
+  1867→      throw error;
+  1868→    }
+  1869→  }
+  1870→
+  1871→  // ── Private Methods ──
+  1872→
+  1873→  /**
+  1874→   * V147: Determine the correct number of decimal places for a price
+  1875→   * using symbol-metadata registry (consistent with SYMBOL_METADATA).
+  1876→   * Falls back to price-magnitude heuristics for unknown symbols.
+  1877→   */
+  1878→  private _priceDecimals(price: number, symbol?: string): number {
+  1879→    if (!Number.isFinite(price) || price <= 0) return 2;
+  1880→    // V147: Use symbol-metadata priceDecimals when available — this ensures
+  1881→    // consistency with the lot/margin system. For example, EUR/USD has
+  1882→    // priceDecimals=5 in SYMBOL_METADATA, which matches the old heuristic.
+  1883→    // But for symbols like XRP/USDT (priceDecimals=4) or ADA/USDT (4),
+  1884→    // the metadata is more accurate than the heuristic.
+  1885→    if (symbol) {
+  1886→      try {
+  1887→        const meta = getSymbolMetadata(symbol);
+  1888→        // Only use metadata if it returned a specific (non-default) value
+  1889→        // The default metadata has priceDecimals=2 which is too coarse for forex
+  1890→        if (meta.priceDecimals > 2 || meta.assetClass === AssetClass.FOREX) {
+  1891→          return meta.priceDecimals;
+  1892→        }
+  1893→      } catch {
+  1894→        // Fall through to heuristic
+  1895→      }
+  1896→      // Fallback heuristics for symbols not in registry
+  1897→      const s = symbol.toUpperCase();
+  1898→      if (s.includes('JPY')) return 3;
+  1899→      if (s.includes('BTC')) return 2;
+  1900→      if (s.includes('XAU') || s.includes('XAG')) return 2;
+  1901→    }
+  1902→    if (price > 1000) return 2;
+  1903→    if (price > 1) return 5;   // forex pipette precision
+  1904→    return 6;
+  1905→  }
+  1906→
+  1907→  /**
+  1908→   * Get or create a cached CCXT exchange instance
+  1909→   * Caches per credential+exchange combo to avoid recreating for every order
+  1910→   */
+  1911→  private _getExchangeInstance(exchangeName: string, apiKey: string, apiSecret: string, credentialId: string, testnet: boolean = false): any {
+  1912→    const cacheKey = `${credentialId}:${exchangeName}:${testnet}`;
+  1913→    let exchange = this.exchangeCache.get(cacheKey);
+  1914→
+  1915→    if (!exchange) {
+  1916→      const isLegacyBinanceTest = exchangeName === 'binance_test' || exchangeName === 'binance_future_test';
+  1917→      const isTestnet = testnet || isLegacyBinanceTest;
+  1918→      const normalizedName = isLegacyBinanceTest ? 'binance' : exchangeName;
+  1919→      const ExchangeClass = ccxt[normalizedName as keyof typeof ccxt] as any;
+  1920→      if (!ExchangeClass) {
+  1921→        return null;
+  1922→      }
+  1923→      exchange = new ExchangeClass({
+  1924→        apiKey,
+  1925→        secret: apiSecret,
+  1926→        enableRateLimit: true,
+  1927→        timeout: 10000, // 10 second timeout
+  1928→        options: { 
+  1929→          defaultType: exchangeName === 'binance_future_test' ? 'future' : 'spot',
+  1930→          adjustForTimeDifference: true
+  1931→        },
+  1932→      });
+  1933→
+  1934→      if (isTestnet) {
+  1935→        exchange.setSandboxMode(true);
+  1936→        this.logger.log(`🛠️ TradingService: Enabled Binance Sandbox mode for ${credentialId} (testnet=${testnet}, legacy=${isLegacyBinanceTest})`);
+  1937→      }
+  1938→
+  1939→      this.exchangeCache.set(cacheKey, exchange);
+  1940→      this.exchangeCacheTimestamps.set(cacheKey, Date.now());
+  1941→
+  1942→      // Auto-cleanup after 10 minutes
+  1943→      setTimeout(() => this.exchangeCache.delete(cacheKey), 10 * 60 * 1000);
+  1944→    }
+  1945→
+  1946→    return exchange;
+  1947→  }
+  1948→
+  1949→  /**
+  1950→   * Get available balance for a specific symbol from the exchange.
+  1951→   * This checks the ACTUAL balance on the exchange (not the cached/expected balance).
+  1952→   * Used to prevent "Insufficient balance" errors when closing positions.
+  1953→   *
+  1954→   * FIX: Enhanced version with:
+  1955→   * 1. Detailed logging to debug "available: 0" issues
+  1956→   * 2. Futures wallet support (for positions opened on futures)
+  1957→   * 3. Fallback to total balance if free balance is 0 (with warning)
+  1958→   * 4. Better error messages for different wallet types
+  1959→   *
+  1960→   * @param exchange CCXT exchange instance
+  1961→   * @param symbol Trading pair (e.g., 'BTC/USDT')
+  1962→   * @param walletType 'spot' | 'future' | 'margin' — defaults to spot
+  1963→   * @returns Available and total balance for the base currency (e.g., BTC)
+  1964→   */
+  1965→  private async _getAvailableBalance(
+  1966→    exchange: any,
+  1967→    symbol: string,
+  1968→    walletType: 'spot' | 'future' | 'margin' = 'spot',
+  1969→  ): Promise<{ available: number; total: number; currency: string; walletType: string; rawBalance?: any }> {
+  1970→    const baseCurrency = symbol.split('/')[0];
+  1971→
+  1972→    try {
+  1973→      // Try fetching balance with specified wallet type
+  1974→      const balanceParams = walletType !== 'spot' ? { type: walletType } : {};
+  1975→      const balance = await exchange.fetchBalance(balanceParams);
+  1976→
+  1977→      // DEBUG: Log full balance response for troubleshooting
+  1978→      this.logger.debug(
+  1979→        `🔍 Balance fetch for ${symbol} (${walletType}): ${JSON.stringify({
+  1980→          baseCurrency,
+  1981→          free: balance[baseCurrency]?.free,
+  1982→          total: balance[baseCurrency]?.total,
+  1983→          used: balance[baseCurrency]?.used,
+  1984→          hasBalance: !!balance[baseCurrency],
+  1985→        })}`,
+  1986→      );
+  1987→
+  1988→      // Log all currencies that have balance > 0 (for debugging)
+  1989→      const nonZeroBalances = Object.entries(balance)
+  1990→        .filter(([key, val]: [string, any]) => {
+  1991→          if (key === 'free' || key === 'total' || key === 'used' || key === 'info') return false;
+  1992→          return val && (parseFloat(val.total || 0) > 0 || parseFloat(val.free || 0) > 0);
+  1993→        })
+  1994→        .map(([key, val]: [string, any]) => `${key}: free=${val.free}, total=${val.total}`);
+  1995→
+  1996→      if (nonZeroBalances.length > 0) {
+  1997→        this.logger.debug(`🔍 Non-zero balances on ${walletType}: ${nonZeroBalances.join(' | ')}`);
+  1998→      }
+  1999→
+  2000→      if (!balance[baseCurrency]) {
+
+[showing lines 1-2000 of 3117; use offset=2001 with limit to continue reading]

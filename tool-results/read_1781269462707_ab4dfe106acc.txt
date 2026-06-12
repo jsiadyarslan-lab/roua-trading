@@ -1,0 +1,1685 @@
+     1→import { Injectable, Logger, Optional, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+     2→import { ConfigService } from '@nestjs/config';
+     3→import { PrismaService } from '../../../common/prisma/prisma.service';
+     4→import { RedisService } from '../../../common/redis/redis.service';
+     5→import { CredentialsService } from '../../portfolio/credentials/credentials.service';
+     6→import { ExchangeService } from '../../exchange/exchange.service';
+     7→import { RiskCheckResult, OrderCommand } from '../events/order.events';
+     8→import * as ccxt from 'ccxt';
+     9→
+    10→/**
+    11→ * Risk Gatekeeper Service — Pre-Trade Risk Validation
+    12→ *
+    13→ * V137: PER-USER ISOLATION — Circuit breaker Redis keys now include userId.
+    14→ * Previously: `circuit-breaker:{symbol}` (cross-user contamination on restart)
+    15→ * Now:        `circuit-breaker:v2:{userId}:{symbol}` (per-user isolated)
+    16→ *
+    17→ * Enforces ALL risk rules BEFORE an order reaches the exchange.
+    18→ * If ANY check fails, the order is immediately rejected with a clear reason.
+    19→ *
+    20→ * Checks are executed in order (fail-fast):
+    21→ * ┌───────────────────────────────────────────────────────────────────┐
+    22→ * │ 1. enforceStopLoss          — Stop-loss is MANDATORY            │
+    23→ * │ 2. checkSufficientBalance   — User has enough funds             │
+    24→ * │ 3. checkPositionSizeLimit   — Position doesn't exceed max size  │
+    25→ * │ 4. checkDailyDrawdownLimit  — Daily losses within allowed range │
+    26→ * │ 5. checkCircuitBreakers     — No trading halt on the asset      │
+    27→ * └───────────────────────────────────────────────────────────────────┘
+    28→ *
+    29→ * IMPORTANT: Risk parameters are now loaded from the Setting table
+    30→ * in the database (synced with admin dashboard) with env var fallbacks.
+    31→ * This means admin settings changes are applied in real-time.
+    32→ */
+    33→@Injectable()
+    34→export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
+    35→  private readonly logger = new Logger(RiskGatekeeperService.name);
+    36→
+    37→  // ── Configurable Risk Parameters (loaded from DB with env fallback) ──
+    38→  private maxPositionSizePercent: number;
+    39→  private maxOpenPositions: number;
+    40→  // V145: Per-source limits from agentExecutorConfig admin settings
+    41→  private executorMaxOpenPositions: number;
+    42→  private agentMaxOpenPositions: number;
+    43→  private maxDailyLossPercent: number;
+    44→  private minOrderSizeUSD: number;
+    45→  private maxOrderSizeUSD: number;
+    46→  private stopLossDefault: number;
+    47→  private circuitBreakerThresholdPercent: number;
+    48→  // ── Circuit Breaker State (in-memory, per user+symbol) ──
+    49→  // FIX: Changed key from symbol-only to userId:symbol to scope circuit breakers
+    50→  // per-user. Previously, if user A triggered a circuit breaker on BTC/USDT,
+    51→  // it blocked ALL users from trading that symbol — which is incorrect.
+    52→  // Now each user has their own circuit breaker state per symbol.
+    53→  // The key format is "userId:symbol" (e.g., "user123:BTC/USDT").
+    54→  private readonly CB_BASE_COOLDOWN_MS = 60_000; // 60 seconds base cooldown
+    55→  private readonly CB_MAX_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes max cooldown
+    56→  private readonly circuitBreakerState: Map<string, {
+    57→    triggered: boolean;
+    58→    until: Date;
+    59→    level: number; // Progressive cooldown level
+    60→    triggeredAt: Date; // When the circuit breaker was first triggered
+    61→    consecutiveTriggers: number; // Number of consecutive triggers
+    62→  }> = new Map();
+    63→
+    64→  // ── Redis key prefix for circuit breaker persistence ──
+    65→  // V137 FIX: Changed from 'circuit-breaker:' to 'circuit-breaker:v2:' to avoid
+    66→  // conflicts with old-format keys (which used symbol-only, missing userId).
+    67→  // Old format: circuit-breaker:BTC/USDT (cross-user contamination)
+    68→  // New format: circuit-breaker:v2:userId:BTC/USDT (per-user isolated)
+    69→  private readonly CB_REDIS_PREFIX = 'circuit-breaker:v2:';
+    70→
+    71→  // ── Last DB sync timestamp ──
+    72→  private lastSettingsSync = 0;
+    73→  private readonly SETTINGS_SYNC_INTERVAL = 30000; // Re-sync every 30 seconds
+    74→
+    75→  constructor(
+    76→    private readonly prisma: PrismaService,
+    77→    private readonly configService: ConfigService,
+    78→    private readonly credentialsService: CredentialsService,
+    79→    private readonly exchangeService: ExchangeService,
+    80→    @Optional() private readonly redis?: RedisService,
+    81→  ) {
+    82→    // Initialize with env var defaults — will be overwritten by DB settings
+    83→    this.maxPositionSizePercent = parseFloat(
+    84→      this.configService.get('RISK_MAX_POSITION_PERCENT', '2'),  // V204: was 5 — unified to 2% across all services
+    85→    );
+    86→    this.maxOpenPositions = parseInt(
+    87→      this.configService.get('RISK_MAX_OPEN_POSITIONS', '10'), // Safe default for real accounts
+    88→      10,
+    89→    );
+    90→    this.executorMaxOpenPositions = parseInt(
+    91→      this.configService.get('EXECUTOR_MAX_OPEN_POSITIONS', '5'), 10,
+    92→    );
+    93→    this.agentMaxOpenPositions = parseInt(
+    94→      this.configService.get('AGENT_MAX_OPEN_POSITIONS', '5'), 10,
+    95→    );
+    96→    this.maxDailyLossPercent = parseFloat(
+    97→      this.configService.get('RISK_MAX_DAILY_LOSS_PERCENT', '5'),
+    98→    );
+    99→    this.minOrderSizeUSD = parseFloat(
+   100→      this.configService.get('RISK_MIN_ORDER_SIZE', '10'),
+   101→    );
+   102→    this.maxOrderSizeUSD = parseFloat(
+   103→      this.configService.get('RISK_MAX_ORDER_SIZE', '5000'),
+   104→    );
+   105→    this.stopLossDefault = parseFloat(
+   106→      this.configService.get('RISK_STOP_LOSS_DEFAULT', '2'),
+   107→    );
+   108→    this.circuitBreakerThresholdPercent = parseFloat(
+   109→      this.configService.get('RISK_CIRCUIT_BREAKER_THRESHOLD', '10'),
+   110→    );
+   111→    // Load settings from DB on startup
+   112→    // FIX: Added .catch() to prevent unhandled promise rejection from constructor
+   113→    this.syncSettingsFromDB().catch((err) => this.logger.warn(`syncSettingsFromDB failed at startup: ${err?.message || err}`));
+   114→
+   115→    this.logger.log('🛡️ Risk Gatekeeper initialized — pre-trade validation active (with DB sync)');
+   116→  }
+   117→
+   118→  async onModuleInit() {
+   119→    // Load circuit breaker state from Redis on startup
+   120→    // FIX: Add a timeout so that an unreachable Redis doesn't block
+   121→    // NestJS bootstrap. Without this, scanKeys() waits for ioredis to
+   122→    // connect, which can hang if Redis is slow/unreachable → ECONNREFUSED.
+   123→    const INIT_TIMEOUT_MS = 5_000; // 5 seconds
+   124→    await Promise.race([
+   125→      this._loadCircuitBreakerStateFromRedis(),
+   126→      new Promise<void>((resolve) =>
+   127→        setTimeout(() => {
+   128→          this.logger.warn(`🛡️ Circuit breaker Redis load timed out after ${INIT_TIMEOUT_MS / 1000}s — continuing with empty state`);
+   129→          resolve();
+   130→        }, INIT_TIMEOUT_MS),
+   131→      ),
+   132→    ]);
+   133→  }
+   134→
+   135→  async onModuleDestroy() {
+   136→    // Persist circuit breaker state to Redis before shutdown
+   137→    await this._saveCircuitBreakerStateToRedis();
+   138→  }
+   139→
+   140→  /**
+   141→   * Sync risk parameters from the admin Setting table.
+   142→   * This is the bridge that connects admin dashboard changes
+   143→   * to the live risk gatekeeper. Called periodically and before each validation.
+   144→   */
+   145→  private async syncSettingsFromDB(): Promise<void> {
+   146→    const now = Date.now();
+   147→    if (now - this.lastSettingsSync < this.SETTINGS_SYNC_INTERVAL) {
+   148→      return; // Skip if synced recently
+   149→    }
+   150→    this.lastSettingsSync = now;
+   151→
+   152→    // SUSTAINABLE FIX: Skip if DB not available to avoid leaking connection pools
+   153→    if (!this.prisma?.isAvailable?.()) {
+   154→      return; // Will retry on next sync interval
+   155→    }
+   156→
+   157→    try {
+   158→      // V136 FIX: Only read GLOBAL system settings (riskConfig, botConfig),
+   159→      // NOT all user-specific settings. Previously, findMany() loaded EVERY
+   160→      // setting from EVERY user into memory — a data leak risk and performance
+   161→      // issue. User-specific settings are read per-request via _loadUserRiskSettings().
+   162→      const settings = await this.prisma.setting.findMany({
+   163→        where: {
+   164→          key: { in: ['riskConfig', 'botConfig', 'AUTO_TRADING_ENABLED', 'agentExecutorConfig'] },
+   165→        },
+   166→      });
+   167→      const settingsMap: Record<string, any> = {};
+   168→      for (const s of settings) {
+   169→        try {
+   170→          settingsMap[s.key] = JSON.parse(s.value);
+   171→        } catch {
+   172→          settingsMap[s.key] = s.value;
+   173→        }
+   174→      }
+   175→
+   176→      // Apply riskConfig from admin DB
+   177→      const riskConfig = settingsMap.riskConfig;
+   178→      if (riskConfig) {
+   179→        if (riskConfig.maxDrawdown) this.maxDailyLossPercent = parseFloat(riskConfig.maxDrawdown);
+   180→        if (riskConfig.maxOpenPositions) {
+   181→          let val = parseInt(riskConfig.maxOpenPositions, 10);
+   182→          // ═══════════════════════════════════════════════════════════════════
+   183→          // V144: Auto-migrate stale riskConfig.maxOpenPositions from old default (5).
+   184→          // The old admin settings page saved maxOpenPositions=5 as the default.
+   185→          // This value persists in the DB even after V143 changed the frontend
+   186→          // default to 15. The RiskGatekeeper reads this stale value every 30s
+   187→          // and uses it to BLOCK all new trades when total positions >= 5.
+   188→          //
+   189→          // This was THE root cause of "executor stops at 5 trades":
+   190→          //   1. SmartExecutor's own check: counts only smart_executor positions
+   191→          //      (5 < 15 → PASSES)
+   192→          //   2. RiskGatekeeper's check: counts ALL positions from ALL sources
+   193→          //      (5 >= 5 from stale DB → BLOCKS!)
+   194→          //
+   195→          // Fix: If the DB value is <= 5, auto-upgrade to 20 (env default)
+   196→          // and UPDATE the DB so the admin sees the new value.
+   197→          // ═══════════════════════════════════════════════════════════════════
+   198→          if (val <= 5) {
+   199→            const newVal = parseInt(this.configService.get('RISK_MAX_OPEN_POSITIONS', '20'), 10);
+   200→            this.logger.warn(`🛡️ V144: Auto-upgrading riskConfig.maxOpenPositions from ${val} to ${newVal} (stale old default detected)`);
+   201→            val = newVal;
+   202→            // Update the DB so admin sees the new value and it doesn't get re-read as 5
+   203→            this.prisma.setting.upsert({
+   204→              where: { key: 'riskConfig' },
+   205→              update: { value: JSON.stringify({ ...riskConfig, maxOpenPositions: String(newVal) }) },
+   206→              create: { key: 'riskConfig', value: JSON.stringify({ ...riskConfig, maxOpenPositions: String(newVal) }) },
+   207→            }).catch((dbErr: any) => {
+   208→              this.logger.warn(`🛡️ V144: Failed to update riskConfig in DB: ${dbErr?.message}`);
+   209→            });
+   210→          }
+   211→          this.maxOpenPositions = val;
+   212→        }
+   213→        if (riskConfig.stopLossDefault) this.stopLossDefault = parseFloat(riskConfig.stopLossDefault);
+   214→
+   215→        if (riskConfig.circuitBreakerThreshold) this.circuitBreakerThresholdPercent = parseFloat(riskConfig.circuitBreakerThreshold);
+   216→      }
+   217→
+   218→      // Apply botConfig from admin DB
+   219→      const botConfig = settingsMap.botConfig;
+   220→      if (botConfig) {
+   221→        if (botConfig.maxPositionSize) this.maxOrderSizeUSD = parseFloat(botConfig.maxPositionSize);
+   222→      }
+   223→
+   224→      // V144: Also apply agentExecutorConfig if available.
+   225→      // If riskConfig.maxOpenPositions is NOT set but agentExecutorConfig is,
+   226→      // use the executor-specific limit as a hint for the global limit.
+   227→      // The global limit should be >= executor limit + agent limit.
+   228→      const agentExecConfig = settingsMap.agentExecutorConfig;
+   229→      if (agentExecConfig) {
+   230→        const execMax = parseInt(agentExecConfig.executorMaxOpenPositions || '15', 10);
+   231→        const agentMax = parseInt(agentExecConfig.agentMaxOpenPositions || '15', 10);
+   232→        // V145: Store per-source limits for source-aware position counting
+   233→        this.executorMaxOpenPositions = execMax;
+   234→        this.agentMaxOpenPositions = agentMax;
+   235→        this.logger.debug(`🛡️ V145: Per-source limits — executor=${execMax}, agent=${agentMax}`);
+   236→
+   237→        if (!settingsMap.riskConfig?.maxOpenPositions) {
+   238→          const impliedGlobal = execMax + agentMax;
+   239→          if (this.maxOpenPositions < impliedGlobal) {
+   240→            this.logger.warn(`🛡️ V144: Global maxOpenPositions (${this.maxOpenPositions}) is less than executor+agent total (${impliedGlobal}). Consider increasing riskConfig.maxOpenPositions to at least ${impliedGlobal}.`);
+   241→          }
+   242→        }
+   243→      }
+   244→
+   245→      this.logger.debug(`🛡️ Risk parameters synced from DB — maxOpenPositions=${this.maxOpenPositions}`);
+   246→    } catch (error: any) {
+   247→      this.logger.warn(`🛡️ Failed to sync settings from DB: ${error.message} — using env defaults`);
+   248→    }
+   249→  }
+   250→
+   251→  /**
+   252→   * Run ALL risk checks for an order command
+   253→   * Returns the result of the FIRST failed check, or success if all pass
+   254→   */
+   255→  async validateOrder(command: OrderCommand): Promise<RiskCheckResult> {
+   256→    // Sync settings from DB before each validation (rate-limited internally)
+   257→    await this.syncSettingsFromDB();
+   258→
+   259→    this.logger.debug(
+   260→      `🛡️ Validating order: ${command.side} ${command.quantity} ${command.symbol} (key: ${command.idempotencyKey})`,
+   261→    );
+   262→
+   263→    // Check 1: Stop-loss enforcement (MANDATORY)
+   264→    // FIX: enforceStopLoss is now async — it fetches market price for market orders
+   265→    // where command.price is undefined, instead of using `(command.price || 0)` which
+   266→    // caused false rejections for all market buy orders.
+   267→    const slCheck = await this.enforceStopLoss(command);
+   268→    if (!slCheck.allowed) return slCheck;
+   269→
+   270→    // Check 2: Sufficient balance
+   271→    const balanceCheck = await this.checkSufficientBalance(command);
+   272→    if (!balanceCheck.allowed) return balanceCheck;
+   273→
+   274→    // Check 3: Position size limit
+   275→    const sizeCheck = await this.checkPositionSizeLimit(command);
+   276→    if (!sizeCheck.allowed) return sizeCheck;
+   277→
+   278→    // Check 4: Daily drawdown limit (scoped per exchange)
+   279→    const drawdownCheck = await this.checkDailyDrawdownLimit(command.userId, command.exchangeCredentialId);
+   280→    if (!drawdownCheck.allowed) return drawdownCheck;
+   281→
+   282→    // Check 4b: Overall drawdown limit (all-time, not just today)
+   283→    const overallDrawdownCheck = await this.checkOverallDrawdownLimit(command.userId, command.exchangeCredentialId);
+   284→    if (!overallDrawdownCheck.allowed) return overallDrawdownCheck;
+   285→
+   286→    // Check 5: Circuit breakers (scoped per user+symbol)
+   287→    const circuitCheck = await this.checkCircuitBreakers(command.userId, command.symbol);
+   288→    if (!circuitCheck.allowed) return circuitCheck;
+   289→
+   290→    // Check 6: Trade repetition filter (V177 FIX #17)
+   291→    const repetitionCheck = await this.checkTradeRepetitionFilter(command);
+   292→    if (!repetitionCheck.allowed) return repetitionCheck;
+   293→
+   294→    // Check 7: Price sanity filter (#9 FIX)
+   295→    const sanityCheck = await this.checkPriceSanity(command);
+   296→    if (!sanityCheck.allowed) return sanityCheck;
+   297→
+   298→    // All checks passed — calculate risk score
+   299→    const riskScore = await this._calculateRiskScore(command);
+   300→
+   301→    this.logger.debug(
+   302→      `🛡️ Order validated: ${command.symbol} (risk score: ${riskScore})`,
+   303→    );
+   304→
+   305→    return {
+   306→      allowed: true,
+   307→      riskScore,
+   308→    };
+   309→  }
+   310→
+   311→  /**
+   312→   * CHECK 7: Price Sanity Filter
+   313→   *
+   314→   * Validates that the order price is within reasonable range
+   315→   * of the last known price. Prevents orders at clearly wrong prices
+   316→   * (stale data, API errors, flash crash misreads).
+   317→   *
+   318→   * #9 FIX: Aggregates sanity check results into a Redis report
+   319→   * for monitoring (total checks, passes, rejects by symbol).
+   320→   */
+   321→  async checkPriceSanity(command: OrderCommand): Promise<RiskCheckResult> {
+   322→    // Skip for simulated trading
+   323→    if (command.isPaperTrading) {
+   324→      return { allowed: true };
+   325→    }
+   326→
+   327→    // Get the order's reference price
+   328→    let orderPrice = command.price;
+   329→    if (!orderPrice || orderPrice <= 0) {
+   330→      try {
+   331→        const quote = await this.exchangeService.getQuote(command.symbol);
+   332→        orderPrice = quote?.price;
+   333→      } catch {
+   334→        return { allowed: true }; // Can't check — allow
+   335→      }
+   336→    }
+   337→
+   338→    if (!orderPrice || orderPrice <= 0) {
+   339→      return { allowed: true };
+   340→    }
+   341→
+   342→    // Get last known price from Redis
+   343→    const sanityKey = `price-sanity:last:${command.symbol}`;
+   344→    let lastKnownPrice: number | null = null;
+   345→    try {
+   346→      const raw = this.redis ? await this.redis.get(sanityKey) : null;
+   347→      lastKnownPrice = raw ? parseFloat(raw) : null;
+   348→    } catch {
+   349→      lastKnownPrice = null;
+   350→    }
+   351→
+   352→    if (lastKnownPrice && lastKnownPrice > 0) {
+   353→      const deviation = Math.abs(orderPrice - lastKnownPrice) / lastKnownPrice;
+   354→      const MAX_DEVIATION = 0.10; // 10% max deviation
+   355→
+   356→      if (deviation > MAX_DEVIATION) {
+   357→        // Update sanity report (aggregate)
+   358→        await this._updatePriceSanityReport(command.symbol, false, deviation);
+   359→
+   360→        this.logger.warn(
+   361→          `🛡️ PRICE_SANITY: ${command.symbol} price ${orderPrice} deviates ${(deviation * 100).toFixed(1)}% from last known ${lastKnownPrice} — rejecting`,
+   362→        );
+   363→        return {
+   364→          allowed: false,
+   365→          reason: `سعر ${command.symbol} (${orderPrice}) يختلف بنسبة ${(deviation * 100).toFixed(1)}% عن آخر سعر معروف (${lastKnownPrice}) — قد يكون هناك خطأ في البيانات.`,
+   366→          failedCheck: 'PRICE_SANITY',
+   367→        };
+   368→      }
+   369→    }
+   370→
+   371→    // Update last known price
+   372→    try {
+   373→      if (this.redis) {
+   374→        await this.redis.set(sanityKey, orderPrice.toString(), 300000); // 5 min TTL
+   375→      }
+   376→    } catch {}
+   377→
+   378→    // Update sanity report (pass)
+   379→    await this._updatePriceSanityReport(command.symbol, true, 0);
+   380→
+   381→    return { allowed: true };
+   382→  }
+   383→
+   384→  /**
+   385→   * Update the price sanity report in Redis.
+   386→   * Aggregates ~10 lines of stats per symbol.
+   387→   */
+   388→  private async _updatePriceSanityReport(symbol: string, passed: boolean, deviation: number): Promise<void> {
+   389→    if (!this.redis) return;
+   390→    try {
+   391→      const reportKey = 'price-sanity:report';
+   392→      const raw = await this.redis.get(reportKey);
+   393→      const report: Record<string, { checks: number; passes: number; rejects: number; lastDeviation: number }> = raw ? JSON.parse(raw) : {};
+   394→
+   395→      if (!report[symbol]) {
+   396→        report[symbol] = { checks: 0, passes: 0, rejects: 0, lastDeviation: 0 };
+   397→      }
+   398→
+   399→      report[symbol].checks++;
+   400→      if (passed) report[symbol].passes++;
+   401→      else report[symbol].rejects++;
+   402→      report[symbol].lastDeviation = deviation;
+   403→
+   404→      // Keep only last 100 symbols
+   405→      const keys = Object.keys(report);
+   406→      if (keys.length > 100) {
+   407→        delete report[keys[0]]; // Remove oldest
+   408→      }
+   409→
+   410→      await this.redis.set(reportKey, JSON.stringify(report), 86400000); // 24h TTL
+   411→    } catch {}
+   412→  }
+   413→
+   414→  /**
+   415→   * CHECK 1: Enforce Stop-Loss — MANDATORY
+   416→   *
+   417→   * Every order MUST have a stop-loss. No exceptions.
+   418→   * This is the #1 safety rule of the Roua platform.
+   419→   */
+   420→  async enforceStopLoss(command: OrderCommand): Promise<RiskCheckResult> {
+   421→    if (!command.stopLoss || command.stopLoss <= 0) {
+   422→      this.logger.warn(`🛡️ ORDER REJECTED: No stop-loss for ${command.symbol}`);
+   423→
+   424→      return {
+   425→        allowed: false,
+   426→        reason: 'وقف الخسارة إجباري. لا يمكن تقديم أمر بدون وقف خسارة — هذا القانون الأول في منصة رؤى.',
+   427→        failedCheck: 'STOPLOSS_ENFORCEMENT',
+   428→      };
+   429→    }
+   430→
+   431→    // FIX: Resolve reference price for stop-loss direction validation.
+   432→    // For MARKET orders, `command.price` is undefined/0 because there's no limit price.
+   433→    // Previously, `(command.price || 0)` resulted in `0`, making `stopLoss >= 0` always TRUE
+   434→    // for BUY orders — which incorrectly rejected ALL market buy orders with a valid SL.
+   435→    // Now: if price is missing, fetch the current market price from the exchange service.
+   436→    let referencePrice: number | undefined = command.price;
+   437→    if (!referencePrice || referencePrice <= 0) {
+   438→      try {
+   439→        const quote = await this.exchangeService.getQuote(command.symbol);
+   440→        if (quote && quote.price > 0) {
+   441→          referencePrice = quote.price;
+   442→          this.logger.debug(`🛡️ Fetched market price for SL validation: ${command.symbol} = $${referencePrice}`);
+   443→        }
+   444→      } catch {
+   445→        // Cannot fetch price — skip direction check rather than reject
+   446→        // A missing price reference should not block the order; the SL value itself
+   447→        // is still validated (> 0) and the exchange will reject invalid SL on execution.
+   448→        this.logger.warn(`🛡️ Cannot fetch price for ${command.symbol} — skipping SL direction check`);
+   449→        return { allowed: true };
+   450→      }
+   451→    }
+   452→
+   453→    // If we still don't have a reference price, skip direction check (safety net)
+   454→    if (!referencePrice || referencePrice <= 0) {
+   455→      this.logger.warn(`🛡️ No reference price for ${command.symbol} — skipping SL direction check`);
+   456→      return { allowed: true };
+   457→    }
+   458→
+   459→    // Validate stop-loss direction using the resolved reference price
+   460→    if (command.side === 'BUY' && command.stopLoss >= referencePrice) {
+   461→      return {
+   462→        allowed: false,
+   463→        reason: 'وقف الخسارة لأمر الشراء يجب أن يكون أقل من سعر الدخول.',
+   464→        failedCheck: 'STOPLOGIC_ENFORCEMENT',
+   465→      };
+   466→    }
+   467→
+   468→    if (command.side === 'SELL' && command.stopLoss <= referencePrice) {
+   469→      return {
+   470→        allowed: false,
+   471→        reason: 'وقف الخسارة لأمر البيع يجب أن يكون أعلى من سعر الدخول.',
+   472→        failedCheck: 'STOPLOGIC_ENFORCEMENT',
+   473→      };
+   474→    }
+   475→
+   476→    // V177 FIX #13 / V178 FIX: Strategy-aware Risk/Reward ratio validation
+   477→    // Different strategies have different R:R expectations:
+   478→    // - DCA: 0.4 (averages into positions, low R:R acceptable)
+   479→    // - Grid: 0.8 (many small trades)
+   480→    // - Mean Reversion: 0.8 (counter-trend, tight targets)
+   481→    // - Scalping: 1.0 (quick in-and-out)
+   482→    // - Default/Swing: 1.5 (standard trend-following)
+   483→    // The minimum R:R is now determined by the strategy source, not a flat 1.5.
+   484→    if (command.takeProfit && command.takeProfit > 0 && referencePrice) {
+   485→      const slDistance = Math.abs(referencePrice - command.stopLoss);
+   486→      const tpDistance = Math.abs(command.takeProfit - referencePrice);
+   487→      if (slDistance > 0) {
+   488→        const riskRewardRatio = tpDistance / slDistance;
+   489→        // V178: Strategy-specific minimum R:R (matches RiskCalculator STRATEGY_MIN_RR table)
+   490→        const STRATEGY_MIN_RR: Record<string, number> = {
+   491→          dca: 0.4,
+   492→          grid: 0.8,
+   493→          mean_reversion: 0.8,
+   494→          scalping: 1.0,
+   495→          vwap_rsi: 1.0,
+   496→          momentum_breakout: 1.2,
+   497→          swing: 1.5,
+   498→        };
+   499→        const strategyKey = (command.strategy || command.source || '').toLowerCase();
+   500→        const minRR = STRATEGY_MIN_RR[strategyKey] || 1.2; // Default 1.2 (was flat 1.5)
+   501→        if (riskRewardRatio < minRR) {
+   502→          this.logger.warn(`🛡️ ORDER REJECTED: R:R ratio ${riskRewardRatio.toFixed(2)} < ${minRR} minimum (strategy: ${strategyKey || 'default'}) for ${command.symbol}`);
+   503→          return {
+   504→            allowed: false,
+   505→            reason: `نسبة المخاطرة/المكافأة (${riskRewardRatio.toFixed(2)}:1) أقل من الحد الأدنى للاستراتيجية ${strategyKey || 'الافتراضية'} (${minRR}:1). وسّع هدف الربح أو قلّل وقف الخسارة.`,
+   506→            failedCheck: 'RISK_REWARD_RATIO',
+   507→          };
+   508→        }
+   509→      }
+   510→    }
+   511→
+   512→    return { allowed: true };
+   513→  }
+   514→
+   515→  /**
+   516→   * CHECK 2: Sufficient Balance
+   517→   *
+   518→   * Verifies that the user has enough funds on the linked exchange
+   519→   * to execute the order. Uses the exchange adapter to fetch real balance.
+   520→   */
+   521→  async checkSufficientBalance(command: OrderCommand): Promise<RiskCheckResult> {
+   522→    try {
+   523→      // Fetch the credential
+   524→      const credential = await this.prisma.exchangeCredential.findUnique({
+   525→        where: { id: command.exchangeCredentialId },
+   526→      });
+   527→
+   528→      if (!credential) {
+   529→        return {
+   530→          allowed: false,
+   531→          reason: 'بيانات الاعتماد غير موجودة.',
+   532→          failedCheck: 'BALANCE_CHECK',
+   533→        };
+   534→      }
+   535→
+   536→      // FIX: SECURITY — Verify credential ownership
+   537→      // Without this check, a malicious user could pass another user's exchangeCredentialId
+   538→      // and the system would use their API keys to check balance (and potentially trade).
+   539→      // This is a critical authorization bypass vulnerability.
+   540→      if (credential.userId !== command.userId) {
+   541→        this.logger.error(
+   542→          `🛡️ SECURITY: User ${command.userId} attempted to use credential ${command.exchangeCredentialId} owned by ${credential.userId}`,
+   543→        );
+   544→        return {
+   545→          allowed: false,
+   546→          reason: 'بيانات الاعتماد لا تنتمي لحسابك.',
+   547→          failedCheck: 'CREDENTIAL_OWNERSHIP',
+   548→        };
+   549→      }
+   550→
+   551→      if (!credential.isValid) {
+   552→        return {
+   553→          allowed: false,
+   554→          reason: 'بيانات الاعتماد غير صالحة — يرجى التحقق من مفتاح API.',
+   555→          failedCheck: 'BALANCE_CHECK',
+   556→        };
+   557→      }
+   558→
+   559→      // ── V181: Pure Paper Trading Bypass ONLY ──
+   560→      // FIX: Previously, _isSimulatedCredential() returned true for broker demo
+   561→      // accounts (mt5_demo, binance_test, testnet credentials), treating them
+   562→      // the same as pure paper trading. This was WRONG because:
+   563→      // 1. Broker demos connect to REAL brokers with REAL market data
+   564→      // 2. They execute orders on real platforms (MetaTrader, Binance testnet API)
+   565→      // 3. Bypassing risk checks on demo defeats the purpose — users won't discover
+   566→      //    risk limit violations until they switch to live accounts
+   567→      // Now: Only bypass for PURE paper/simulation (no broker connection at all).
+   568→      if (this._isSimulatedCredential(credential)) {
+   569→        this.logger.debug(`🛡️ Paper-only credential "${credential.exchange}" balance check: BYPASSED (pure simulation) — allowing order`);
+   570→        return { allowed: true };
+   571→      }
+   572→
+   573→      // ── V181: Broker Demo / MT5 Accounts ──
+   574→      // For MT5 accounts (both live and demo), we can't use CCXT to verify balance.
+   575→      // Instead, we enforce order value limits and position size checks.
+   576→      // The MT5Adapter itself also enforces a 5% max position size limit.
+   577→      const isMT5Account = this._isMT5Exchange(credential.exchange);
+   578→      if (isMT5Account) {
+   579→        // MT5 accounts: Skip CCXT balance verification, but enforce value limits
+   580→        const orderValue = command.quantity * (command.price || 0);
+   581→
+   582→        // Minimum order size check
+   583→        if (orderValue < this.minOrderSizeUSD) {
+   584→          return {
+   585→            allowed: false,
+   586→            reason: `قيمة الطلب (${orderValue.toFixed(2)} USD) أقل من الحد الأدنى (${this.minOrderSizeUSD} USD).`,
+   587→            failedCheck: 'BALANCE_CHECK',
+   588→          };
+   589→        }
+   590→
+   591→        // Maximum order size check
+   592→        if (orderValue > this.maxOrderSizeUSD) {
+   593→          return {
+   594→            allowed: false,
+   595→            reason: `قيمة الطلب (${orderValue.toFixed(2)} USD) تتجاوز الحد الأقصى (${this.maxOrderSizeUSD} USD).`,
+   596→            failedCheck: 'BALANCE_CHECK',
+   597→          };
+   598→        }
+   599→
+   600→        this.logger.debug(`🛡️ MT5 account "${credential.exchange}" balance check: CCXT bypassed (MT5 uses MetaAPI), order value limits enforced ($${orderValue.toFixed(2)})`);
+   601→        return { allowed: true };
+   602→      }
+   603→
+   604→      // Check permissions (only for REAL exchanges — paper already bypassed above)
+   605→      const permissions = JSON.parse(credential.permissions || '["read"]');
+   606→      if (!permissions.includes('trade')) {
+   607→        return {
+   608→          allowed: false,
+   609→          reason: 'مفتاح API لا يملك صلاحية التداول — أضف مفتاحاً بصلاحية trade.',
+   610→          failedCheck: 'BALANCE_CHECK',
+   611→        };
+   612→      }
+   613→
+   614→      // Try to get current price for order value estimation
+   615→      let currentPrice = command.price;
+   616→      if (!currentPrice) {
+   617→        try {
+   618→          const quote = await this.exchangeService.getQuote(command.symbol);
+   619→          currentPrice = quote.price;
+   620→        } catch {
+   621→          // FAIL-CLOSED: Cannot verify balance without price — reject to protect capital
+   622→          this.logger.error(`Cannot fetch price for ${command.symbol} — rejecting order to protect capital`);
+   623→          return {
+   624→            allowed: false,
+   625→            reason: 'لا يمكن التحقق من سعر الصفقة — تم رفض الطلب لحماية رأس المال.',
+   626→            failedCheck: 'BALANCE_CHECK',
+   627→          };
+   628→        }
+   629→      }
+   630→
+   631→      const orderValue = command.quantity * (currentPrice || 0);
+   632→
+   633→      // Minimum order size check
+   634→      if (orderValue < this.minOrderSizeUSD) {
+   635→        return {
+   636→          allowed: false,
+   637→          reason: `قيمة الطلب (${orderValue.toFixed(2)} USD) أقل من الحد الأدنى (${this.minOrderSizeUSD} USD).`,
+   638→          failedCheck: 'BALANCE_CHECK',
+   639→        };
+   640→      }
+   641→
+   642→      // Maximum order size check
+   643→      if (orderValue > this.maxOrderSizeUSD) {
+   644→        return {
+   645→          allowed: false,
+   646→          reason: `قيمة الطلب (${orderValue.toFixed(2)} USD) تتجاوز الحد الأقصى (${this.maxOrderSizeUSD} USD).`,
+   647→          failedCheck: 'BALANCE_CHECK',
+   648→        };
+   649→      }
+   650→
+   651→      // Try to verify actual balance via CCXT (real exchanges only)
+   652→      try {
+   653→        const { apiKey, apiSecret } = await this.credentialsService.decryptCredential(credential.id, command.userId);
+   654→        // FIX: Try the exact exchange name first, then try resolving the real
+   655→        // exchange name from test variants (e.g. 'binance_test' → 'binance').
+   656→        // This allows test credentials with real API keys to still verify balance
+   657→        // via the real CCXT class (e.g. Binance testnet keys).
+   658→        let ExchangeClass = (ccxt as any)[credential.exchange];
+   659→        if (!ExchangeClass) {
+   660→          const realName = this._resolveRealExchangeName(credential.exchange);
+   661→          if (realName && (ccxt as any)[realName]) {
+   662→            ExchangeClass = (ccxt as any)[realName];
+   663→            this.logger.debug(`🛡️ Resolved exchange "${credential.exchange}" → "${realName}" for CCXT lookup`);
+   664→          }
+   665→        }
+   666→        if (ExchangeClass) {
+   667→          const exchange = new ExchangeClass({
+   668→            apiKey,
+   669→            secret: apiSecret,
+   670→            enableRateLimit: true,
+   671→          });
+   672→
+   673→          const balance = await exchange.fetchBalance();
+   674→          const quoteCurrency = command.symbol.split('/').pop() || 'USDT';
+   675→          const availableBalance = balance[quoteCurrency]?.free || 0;
+   676→
+   677→          if (command.side === 'BUY' && availableBalance < orderValue) {
+   678→            return {
+   679→              allowed: false,
+   680→              reason: `رصيد غير كافي. المتاح: ${availableBalance.toFixed(2)} ${quoteCurrency}، المطلوب: ${orderValue.toFixed(2)} ${quoteCurrency}.`,
+   681→              failedCheck: 'BALANCE_CHECK',
+   682→            };
+   683→          }
+   684→
+   685→          // SELL-side balance check: verify user has enough base currency to sell
+   686→          if (command.side === 'SELL') {
+   687→            const baseCurrency = command.symbol.split('/')[0] || '';
+   688→            const baseBalance = balance[baseCurrency]?.free || 0;
+   689→            if (baseBalance < command.quantity) {
+   690→              return {
+   691→                allowed: false,
+   692→                reason: `رصيد غير كافي من ${baseCurrency}. المتاح: ${baseBalance.toFixed(6)} ${baseCurrency}، المطلوب: ${command.quantity} ${baseCurrency}.`,
+   693→                failedCheck: 'BALANCE_CHECK',
+   694→              };
+   695→            }
+   696→          }
+   697→        } else {
+   698→          // FIX: If exchange is not found in CCXT, it might be a custom exchange
+   699→          // or a test variant that we couldn't resolve. Instead of hard-rejecting,
+   700→          // allow the order to proceed — the execution layer will handle it.
+   701→          // Previously, this hard-reject blocked ALL orders for exchanges like
+   702→          // 'binance_test' that aren't exact CCXT class names.
+   703→          this.logger.warn(`🛡️ Exchange "${credential.exchange}" not found in CCXT — allowing order (execution layer will validate)`);
+   704→        }
+   705→      } catch (error: any) {
+   706→        // FIX: If decryption failed (ENCRYPTION_KEY changed), REJECT the order.
+   707→        // Previously, decrypt failures were allowed through under the assumption
+   708→        // that Smart Executor would auto-fallback to paper trading — but this is
+   709→        // dangerous: an order that bypasses balance checks can execute with
+   710→        // unverified credentials on a live exchange. Fail-closed is the only
+   711→        // safe policy.
+   712→        const isDecryptError = error.message?.includes('decrypt') ||
+   713→          error.message?.includes('initialization vector') ||
+   714→          error.message?.includes('فشل فك تشفير');
+   715→        if (isDecryptError) {
+   716→          this.logger.error(
+   717→            `🛡️ Credential decryption failed for ${credential.exchange} (likely ENCRYPTION_KEY changed) — ` +
+   718→            `REJECTING order to protect capital (fail-closed)`
+   719→          );
+   720→          return {
+   721→            allowed: false,
+   722→            reason: 'فشل فك تشفير بيانات الاعتماد — لا يمكن التحقق من الرصيد. تم رفض الطلب لحماية رأس المال. يرجى إعادة إدخال مفاتيح API.',
+   723→            failedCheck: 'BALANCE_CHECK',
+   724→          };
+   725→        } else {
+   726→          // FAIL-CLOSED: Other balance verification failures — reject to protect capital
+   727→          this.logger.error(`Balance verification failed for ${command.symbol}: ${error.message} — rejecting order`);
+   728→          return {
+   729→            allowed: false,
+   730→            reason: 'فشل التحقق من الرصيد — تم رفض الطلب لحماية رأس المال.',
+   731→            failedCheck: 'BALANCE_CHECK',
+   732→          };
+   733→        }
+   734→      }
+   735→
+   736→      return { allowed: true };
+   737→    } catch (error: any) {
+   738→      // FAIL-CLOSED: Any unexpected error — reject to protect capital
+   739→      this.logger.error(`Balance check error: ${error.message} — rejecting order`);
+   740→      return {
+   741→        allowed: false,
+   742→        reason: 'فشل فحص الرصيد — تم رفض الطلب لحماية رأس المال.',
+   743→        failedCheck: 'BALANCE_CHECK',
+   744→      };
+   745→    }
+   746→  }
+   747→
+   748→  /**
+   749→   * CHECK 3: Position Size Limit
+   750→   *
+   751→   * Ensures that the position size doesn't exceed the maximum
+   752→   * allowed percentage of the user's total portfolio.
+   753→   */
+   754→  async checkPositionSizeLimit(command: OrderCommand): Promise<RiskCheckResult> {
+   755→    try {
+   756→      // ── V181: Paper Trading Path ──
+   757→      // Only PURE paper/simulation accounts (no broker connection) take this path.
+   758→      // Broker demo accounts (mt5_demo, binance_test, testnet) now go through
+   759→      // the REAL trading path below, enforcing all risk checks to simulate
+   760→      // realistic conditions. This is critical because:
+   761→      // 1. Demo accounts connect to real brokers with real market data
+   762→      // 2. Users must experience realistic risk constraints before going live
+   763→      // 3. Bypassing risk checks on demo defeats the purpose of demo trading
+   764→      //
+   765→      // CRITICAL FIX v2: Also check command.isPaperTrading flag. The Smart Executor
+   766→      // sets this flag when submitting paper trades. The credential-based check
+   767→      // alone was failing because:
+   768→      // 1. Some test credentials have exchange names like "binance_testnet" that
+   769→      //    _isTestExchange might not recognize
+   770→      // 2. The credential lookup itself can fail (DB timeout, etc.)
+   771→      // 3. The maxPositionSizePercent was set to 5% by admin settings, and with
+   772→      //    a small portfolio estimation, orders were calculated as 100% of portfolio
+   773→      // This caused the error: "حجم المركز (100.0%) يتجاوز الحد الأقصى (5%)"
+   774→      // blocking ALL paper-trading executions.
+   775→      // ── V181: Now uses _isSimulatedCredential() which only matches pure paper ──
+   776→      const isPaperByFlag = command.isPaperTrading === true;
+   777→      const credential = await this.prisma.exchangeCredential.findUnique({
+   778→        where: { id: command.exchangeCredentialId },
+   779→      });
+   780→      const isSimulatedByCredential = this._isSimulatedCredential(credential);
+   781→
+   782→      if (isPaperByFlag || isSimulatedByCredential) {
+   783→        // ═══════════════════════════════════════════════════════════════════
+   784→        // V145: SOURCE-AWARE position counting for paper/simulated trading.
+   785→        // Instead of counting ALL positions against the global limit,
+   786→        // count positions per-source against per-source limits.
+   787→        // This prevents the Agent's positions from blocking the Executor
+   788→        // and vice versa.
+   789→        // ═══════════════════════════════════════════════════════════════════
+   790→        const orderSource = command.source || 'auto_paper';
+   791→        const isExecutor = ['smart_executor', 'auto_paper'].includes(orderSource);
+   792→        const perSourceLimit = isExecutor ? this.executorMaxOpenPositions : this.agentMaxOpenPositions;
+   793→
+   794→        // Count positions for THIS source only
+   795→        const sourcePositions = await this.prisma.position.count({
+   796→          where: {
+   797→            userId: command.userId,
+   798→            status: 'OPEN',
+   799→            source: isExecutor ? { in: ['smart_executor', 'auto_paper'] } : orderSource,
+   800→          },
+   801→        });
+   802→
+   803→        if (sourcePositions >= perSourceLimit) {
+   804→          return {
+   805→            allowed: false,
+   806→            reason: `لديك ${sourcePositions} مركز مفتوح من ${isExecutor ? 'المنفذ' : 'الوكيل'} بالفعل (الحد الأقصى: ${perSourceLimit}). أغلق بعض المراكز أولاً.`,
+   807→            failedCheck: 'POSITION_SIZE_LIMIT',
+   808→          };
+   809→        }
+   810→
+   811→        // Also check the GLOBAL limit (safety net — total across all sources)
+   812→        const totalOpenPositions = await this.prisma.position.count({
+   813→          where: { userId: command.userId, status: 'OPEN' },
+   814→        });
+   815→        if (totalOpenPositions >= this.maxOpenPositions) {
+   816→          return {
+   817→            allowed: false,
+   818→            reason: `لديك ${totalOpenPositions} مركز مفتوح إجمالاً (الحد الأقصى العام: ${this.maxOpenPositions}). أغلق بعض المراكز أولاً.`,
+   819→            failedCheck: 'POSITION_SIZE_LIMIT',
+   820→          };
+   821→        }
+   822→
+   823→        this.logger.debug(`🛡️ Paper trading order ALLOWED (source=${orderSource}: ${sourcePositions}/${perSourceLimit}, total: ${totalOpenPositions}/${this.maxOpenPositions})`);
+   824→
+   825→        // V172: Paper margin check — prevent used margin from exceeding paper balance.
+   826→        // Previously paper trading bypassed ALL balance checks → margin > balance.
+   827→        try {
+   828→          const settings = await this.prisma.agentSettings.findUnique({
+   829→            where: { userId: command.userId },
+   830→            select: { paperBalance: true, paperCryptoLeverage: true, paperForexLeverage: true },
+   831→          });
+   832→          const paperBalance = settings?.paperBalance ? Number(settings.paperBalance) : 0; // V204: was 10000
+   833→          const cryptoLev = settings?.paperCryptoLeverage ? Number(settings.paperCryptoLeverage) : 1;
+   834→          const forexLev = settings?.paperForexLeverage ? Number(settings.paperForexLeverage) : 50;
+   835→
+   836→          // Current used margin from all open positions
+   837→          const allOpen = await this.prisma.position.findMany({
+   838→            where: { userId: command.userId, status: 'OPEN' },
+   839→            select: { quantity: true, currentPrice: true, entryPrice: true, symbol: true },
+   840→          });
+   841→          let currentUsed = 0;
+   842→          for (const pos of allOpen) {
+   843→            const notional = Math.abs((Number(pos.quantity) || 0) * (Number(pos.currentPrice) || Number(pos.entryPrice) || 0));
+   844→            const symIsForex = (pos.symbol || '').includes('/') && !(pos.symbol || '').match(/USDT|BTC|ETH|SOL|BNB/i);
+   845→            currentUsed += symIsForex ? notional / forexLev : (cryptoLev > 1 ? notional / cryptoLev : notional);
+   846→          }
+   847→
+   848→          // New position margin estimate
+   849→          const newNotional = Math.abs((command.quantity || 0) * (command.price || 0));
+   850→          if (newNotional > 10) {
+   851→            const symIsForex = (command.symbol || '').includes('/') && !(command.symbol || '').match(/USDT|BTC|ETH|SOL|BNB/i);
+   852→            const newMargin = symIsForex ? newNotional / forexLev : (cryptoLev > 1 ? newNotional / cryptoLev : newNotional);
+   853→            if ((currentUsed + newMargin) > paperBalance * 1.02) {
+   854→              const available = Math.max(0, paperBalance - currentUsed);
+   855→              return {
+   856→                allowed: false,
+   857→                reason: `هامش الورق غير كافٍ. الرصيد: $${paperBalance.toFixed(0)}، المستخدم: $${currentUsed.toFixed(0)}، المتاح: $${available.toFixed(0)}، مطلوب للمركز الجديد: $${newMargin.toFixed(0)}.`,
+   858→                failedCheck: 'PAPER_MARGIN_CHECK',
+   859→              };
+   860→            }
+   861→          }
+   862→        } catch {
+   863→          // Non-fatal — if margin check fails, allow the order
+   864→        }
+   865→
+   866→        // V180+FIX: Position size percentage check for paper/simulated accounts.
+   867→        // Previously, paper trading completely bypassed position size % checks,
+   868→        // allowing positions of 86% of portfolio. Paper trading MUST enforce
+   869→        // the same position size limits as real trading so test results
+   870→        // reflect real-world behavior.
+   871→        // NO guard condition — must ALWAYS check. If balance unknown, block the trade.
+   872→        const paperBalance = await this._getPaperBalance(command.userId) || 0; // V204: was || 10000
+   873→        const orderValue = Math.abs((command.quantity || 0) * (command.price || 0));
+   874→        if (orderValue > 0) {
+   875→          const positionPercent = (orderValue / paperBalance) * 100;
+   876→          if (positionPercent > this.maxPositionSizePercent) {
+   877→            return {
+   878→              allowed: false,
+   879→              reason: `حجم المركز (${positionPercent.toFixed(1)}% من المحفظة) يتجاوز الحد الأقصى (${this.maxPositionSizePercent}%) حتى في التداول الورقي.`,
+   880→              failedCheck: 'POSITION_SIZE_LIMIT',
+   881→            };
+   882→          }
+   883→        }
+   884→
+   885→        return { allowed: true };
+   886→      }
+   887→
+   888→      // ═══════════════════════════════════════════════════════════════════
+   889→      // V145: SOURCE-AWARE position counting for REAL trading too.
+   890→      // Same logic as paper trading — count per-source first, then global.
+   891→      // ═══════════════════════════════════════════════════════════════════
+   892→      const orderSource = command.source || 'user_manual';
+   893→      const isExecutor = ['smart_executor', 'auto_paper'].includes(orderSource);
+   894→      const perSourceLimit = isExecutor ? this.executorMaxOpenPositions : this.agentMaxOpenPositions;
+   895→
+   896→      // Count positions for THIS source only
+   897→      const sourcePositions = await this.prisma.position.count({
+   898→        where: {
+   899→          userId: command.userId,
+   900→          status: 'OPEN',
+   901→          source: isExecutor ? { in: ['smart_executor', 'auto_paper'] } : orderSource,
+   902→        },
+   903→      });
+   904→
+   905→      if (sourcePositions >= perSourceLimit) {
+   906→        return {
+   907→          allowed: false,
+   908→          reason: `لديك ${sourcePositions} مركز مفتوح من ${isExecutor ? 'المنفذ' : 'الوكيل'} بالفعل (الحد الأقصى: ${perSourceLimit}). أغلق بعض المراكز أولاً.`,
+   909→          failedCheck: 'POSITION_SIZE_LIMIT',
+   910→        };
+   911→      }
+   912→
+   913→      // Also check the GLOBAL limit (safety net — total across all sources)
+   914→      const openPositions = await this.prisma.position.count({
+   915→        where: { userId: command.userId, status: 'OPEN' },
+   916→      });
+   917→
+   918→      if (openPositions >= this.maxOpenPositions) {
+   919→        return {
+   920→          allowed: false,
+   921→          reason: `لديك ${openPositions} مركز مفتوح إجمالاً (الحد الأقصى العام: ${this.maxOpenPositions}). أغلق بعض المراكز أولاً.`,
+   922→          failedCheck: 'POSITION_SIZE_LIMIT',
+   923→        };
+   924→      }
+   925→
+   926→      // Check position size as % of portfolio
+   927→      let currentPrice = command.price;
+   928→      if (!currentPrice) {
+   929→        try {
+   930→          const quote = await this.exchangeService.getQuote(command.symbol);
+   931→          currentPrice = quote.price;
+   932→        } catch {
+   933→          return { allowed: false, reason: 'Price unavailable — cannot verify position size limit', failedCheck: 'POSITION_SIZE_LIMIT' };
+   934→        }
+   935→      }
+   936→
+   937→      const orderValue = command.quantity * (currentPrice || 0);
+   938→      const portfolioValue = await this._estimatePortfolioValue(command.userId);
+   939→
+   940→      if (portfolioValue > 0) {
+   941→        const positionPercent = (orderValue / portfolioValue) * 100;
+   942→        if (positionPercent > this.maxPositionSizePercent) {
+   943→          return {
+   944→            allowed: false,
+   945→            reason: `حجم المركز (${positionPercent.toFixed(1)}% من المحفظة) يتجاوز الحد الأقصى (${this.maxPositionSizePercent}%). قلل الكمية.`,
+   946→            failedCheck: 'POSITION_SIZE_LIMIT',
+   947→          };
+   948→        }
+   949→      }
+   950→
+   951→      return { allowed: true };
+   952→    } catch (error: any) {
+   953→      this.logger.error(`Position size check error: ${error.message}`);
+   954→      return { allowed: false, reason: 'Cannot verify position size limit', failedCheck: 'POSITION_SIZE_LIMIT' };
+   955→    }
+   956→  }
+   957→
+   958→  /**
+   959→   * CHECK 4: Daily Drawdown Limit
+   960→   *
+   961→   * Ensures that the cumulative daily losses don't exceed
+   962→   * the maximum allowed percentage of the portfolio.
+   963→   * This prevents revenge trading and catastrophic losses.
+   964→   *
+   965→   * FIX: Now scoped per exchange when exchangeCredentialId is available.
+   966→   * Previously, daily losses on Binance counted against the user's Alpaca
+   967→   * limit too. Now each exchange's drawdown is calculated independently.
+   968→   * If no exchange is specified, falls back to total across all exchanges.
+   969→   */
+   970→  async checkDailyDrawdownLimit(userId: string, exchangeCredentialId?: string): Promise<RiskCheckResult> {
+   971→    try {
+   972→      // ═══════════════════════════════════════════════════════════════
+   973→      // V181 FIX: Skip daily drawdown check for PURE PAPER trading ONLY.
+   974→      // Previously, broker demo accounts (mt5_demo, binance_test, testnet)
+   975→      // also bypassed this check, which defeated the purpose of demo trading.
+   976→      // Demo accounts connect to REAL brokers and MUST enforce risk checks
+   977→      // so users experience realistic constraints before going live.
+   978→      // Now: _isSimulatedCredential() only returns true for pure paper/simulation.
+   979→      // ═══════════════════════════════════════════════════════════════
+   980→      if (exchangeCredentialId) {
+   981→        const credential = await this.prisma.exchangeCredential.findUnique({
+   982→          where: { id: exchangeCredentialId },
+   983→        });
+   984→        if (this._isSimulatedCredential(credential)) {
+   985→          this.logger.debug(`🛡️ Paper-only credential "${credential?.exchange}" daily drawdown check: BYPASSED (pure simulation)`);
+   986→          return { allowed: true };
+   987→        }
+   988→      } else {
+   989→        // No credential specified — check if user only has paper/testnet credentials
+   990→        const realCredential = await this.prisma.exchangeCredential.findFirst({
+   991→          where: { userId, isValid: true, exchange: { not: 'paper-trading' }, testnet: { not: true } },
+   992→        });
+   993→        if (!realCredential) {
+   994→          // User only has simulated credentials — bypass
+   995→          this.logger.debug(`🛡️ Simulated-only user daily drawdown check: BYPASSED`);
+   996→          return { allowed: true };
+   997→        }
+   998→      }
+   999→
+  1000→      const todayStart = new Date();
+  1001→      todayStart.setHours(0, 0, 0, 0);
+  1002→
+  1003→      // FIX: Scope daily drawdown per exchange if credential is provided
+  1004→      const tradeWhere: any = {
+  1005→        userId,
+  1006→        executedAt: { gte: todayStart },
+  1007→        type: { in: ['EXIT', 'PARTIAL_EXIT'] },
+  1008→      };
+  1009→
+  1010→      if (exchangeCredentialId) {
+  1011→        // Find the exchange name for this credential
+  1012→        const credential = await this.prisma.exchangeCredential.findUnique({
+  1013→          where: { id: exchangeCredentialId },
+  1014→          select: { exchange: true },
+  1015→        });
+  1016→        if (credential) {
+  1017→          // Only count trades on the same exchange
+  1018→          tradeWhere.exchange = credential.exchange;
+  1019→        }
+  1020→      }
+  1021→
+  1022→      // Calculate today's realized losses from closed trades
+  1023→      const todayTrades = await this.prisma.trade.findMany({
+  1024→        where: tradeWhere,
+  1025→      });
+  1026→
+  1027→      const dailyPnL = todayTrades.reduce((sum, t) => sum + Number(t.pnl || 0), 0);
+  1028→
+  1029→      if (dailyPnL < 0) {
+  1030→        const portfolioValue = await this._estimatePortfolioValue(userId);
+  1031→        if (portfolioValue > 0) {
+  1032→          const lossPercent = (Math.abs(dailyPnL) / portfolioValue) * 100;
+  1033→          if (lossPercent >= this.maxDailyLossPercent) {
+  1034→            return {
+  1035→              allowed: false,
+  1036→              reason: `خسائرك اليومية (${lossPercent.toFixed(1)}%) تجاوزت الحد الأقصى (${this.maxDailyLossPercent}%). توقف عن التداول ليومك — حماية رأس المال أولوية.`,
+  1037→              failedCheck: 'DAILY_DRAWDOWN',
+  1038→            };
+  1039→          }
+  1040→        }
+  1041→      }
+  1042→
+  1043→      return { allowed: true };
+  1044→    } catch (error: any) {
+  1045→      this.logger.error(`Daily drawdown check error: ${error.message}`);
+  1046→      return { allowed: false, reason: 'Cannot verify daily drawdown limit', failedCheck: 'DAILY_DRAWDOWN' };
+  1047→    }
+  1048→  }
+  1049→
+  1050→  /**
+  1051→   * CHECK 4b: Overall Drawdown Limit
+  1052→   *
+  1053→   * Stops trading if total realized losses exceed 30% of original portfolio value.
+  1054→   * This protects against catastrophic losses that span multiple days.
+  1055→   * Default threshold: 30% (configurable via RISK_MAX_OVERALL_DRAWDOWN_PERCENT env var).
+  1056→   */
+  1057→  async checkOverallDrawdownLimit(userId: string, exchangeCredentialId?: string): Promise<RiskCheckResult> {
+  1058→    try {
+  1059→      if (exchangeCredentialId) {
+  1060→        const credential = await this.prisma.exchangeCredential.findUnique({ where: { id: exchangeCredentialId } });
+  1061→        if (this._isSimulatedCredential(credential)) return { allowed: true };
+  1062→      }
+  1063→
+  1064→      const maxOverallDrawdownPercent = parseFloat(
+  1065→        this.configService.get('RISK_MAX_OVERALL_DRAWDOWN_PERCENT', '30')
+  1066→      );
+  1067→
+  1068→      // Sum ALL realized losses from closed trades (no date filter)
+  1069→      const allTrades = await this.prisma.trade.findMany({
+  1070→        where: { userId, type: { in: ['EXIT', 'PARTIAL_EXIT'] } },
+  1071→        select: { pnl: true },
+  1072→      });
+  1073→      const totalPnL = allTrades.reduce((sum, t) => sum + Number(t.pnl || 0), 0);
+  1074→
+  1075→      if (totalPnL < 0) {
+  1076→        const portfolioValue = await this._estimatePortfolioValue(userId);
+  1077→        if (portfolioValue > 0) {
+  1078→          const originalValue = portfolioValue + Math.abs(totalPnL);
+  1079→          const overallLossPercent = (Math.abs(totalPnL) / originalValue) * 100;
+  1080→          if (overallLossPercent >= maxOverallDrawdownPercent) {
+  1081→            this.logger.warn(
+  1082→              `🛡️ OVERALL DRAWDOWN: User ${userId} overall loss ${overallLossPercent.toFixed(1)}% >= limit ${maxOverallDrawdownPercent}%`
+  1083→            );
+  1084→            return {
+  1085→              allowed: false,
+  1086→              reason: `إجمالي خسائرك (${overallLossPercent.toFixed(1)}%) تجاوز الحد الأقصى الكلي (${maxOverallDrawdownPercent}%). يرجى مراجعة استراتيجيتك قبل الاستمرار.`,
+  1087→              failedCheck: 'OVERALL_DRAWDOWN',
+  1088→            };
+  1089→          }
+  1090→        }
+  1091→      }
+  1092→      return { allowed: true };
+  1093→    } catch (err: any) {
+  1094→      this.logger.warn(`Overall drawdown check failed (non-fatal): ${err.message}`);
+  1095→      return { allowed: true }; // Non-fatal — don't block trading on check failure
+  1096→    }
+  1097→  }
+  1098→
+  1099→  /**
+  1100→   * CHECK 5: Circuit Breakers
+  1101→   *
+  1102→   * Checks if there's a trading halt on the asset for THIS USER due to extreme volatility.
+  1103→   * FIX: Now scoped per-user — userId is part of the circuit breaker key.
+  1104→   * Previously, a circuit breaker triggered by user A on BTC/USDT would block
+  1105→   * ALL users from trading that symbol. Now each user has their own state.
+  1106→   *
+  1107→   * Key format: "userId:symbol" (e.g., "user123:BTC/USDT")
+  1108→   */
+  1109→  async checkCircuitBreakers(userId: string, symbol: string): Promise<RiskCheckResult> {
+  1110→    // FIX: Scope circuit breaker per user
+  1111→    const cbKey = `${userId}:${symbol}`;
+  1112→
+  1113→    // Check in-memory circuit breaker state
+  1114→    const state = this.circuitBreakerState.get(cbKey);
+  1115→    if (state && state.triggered && state.until > new Date()) {
+  1116→      const remainingMs = state.until.getTime() - Date.now();
+  1117→      const remainingMin = Math.ceil(remainingMs / 60000);
+  1118→      const remainingSec = Math.ceil(remainingMs / 1000);
+  1119→
+  1120→      // FIX: Show more precise time (seconds when < 1 minute, minutes otherwise)
+  1121→      const timeStr = remainingMs < 60000
+  1122→        ? `${remainingSec} ثانية`
+  1123→        : `${remainingMin} دقيقة`;
+  1124→
+  1125→      return {
+  1126→        allowed: false,
+  1127→        reason: `تداول ${symbol} متوقف مؤقتاً لك بسبب تقلب شديد (مستوى ${state.level}). يُستأنف بعد ${timeStr}.`,
+  1128→        failedCheck: 'CIRCUIT_BREAKER',
+  1129→      };
+  1130→    }
+  1131→
+  1132→    // FIX: If cooldown has expired, check if we should reset the level
+  1133→    if (state && state.triggered && state.until <= new Date()) {
+  1134→      try {
+  1135→        const quote = await this.exchangeService.getQuote(symbol);
+  1136→        if (quote && Math.abs(quote.changePercent) <= this.circuitBreakerThresholdPercent) {
+  1137→          // Market has calmed — reset the circuit breaker completely
+  1138→          this.circuitBreakerState.delete(cbKey);
+  1139→          this._persistCircuitBreakerToRedis(cbKey);
+  1140→          this.logger.log(`🟢 Circuit breaker RESET for ${symbol} — volatility subsided (${quote.changePercent.toFixed(1)}%)`);
+  1141→        } else {
+  1142→          // Still volatile — extend cooldown with next exponential level
+  1143→          const newLevel = state.level + 1;
+  1144→          const cooldownMs = Math.min(
+  1145→            this.CB_BASE_COOLDOWN_MS * Math.pow(2, newLevel - 1),
+  1146→            this.CB_MAX_COOLDOWN_MS,
+  1147→          );
+  1148→          const newUntil = new Date(Date.now() + cooldownMs);
+  1149→
+  1150→          this.circuitBreakerState.set(cbKey, {
+  1151→            triggered: true,
+  1152→            until: newUntil,
+  1153→            level: newLevel,
+  1154→            triggeredAt: state.triggeredAt,
+  1155→            consecutiveTriggers: state.consecutiveTriggers + 1,
+  1156→          });
+  1157→          this._persistCircuitBreakerToRedis(cbKey);
+  1158→
+  1159→          this.logger.warn(
+  1160→            `🔴 Circuit breaker RE-TRIGGERED for ${symbol}: still volatile (${quote?.changePercent?.toFixed(1)}%) — level ${newLevel}, cooldown ${Math.round(cooldownMs / 1000)}s`,
+  1161→          );
+  1162→
+  1163→          return {
+  1164→            allowed: false,
+  1165→            reason: `تقلب شديد مستمر في ${symbol} (مستوى ${newLevel}). التداول متوقف لك لمدة ${Math.round(cooldownMs / 60000)} دقيقة حمايةً لك.`,
+  1166→            failedCheck: 'CIRCUIT_BREAKER',
+  1167→          };
+  1168→        }
+  1169→      } catch {
+  1170→        // Can't verify — reset cautiously (allow trading)
+  1171→        this.circuitBreakerState.delete(cbKey);
+  1172→        this._persistCircuitBreakerToRedis(cbKey);
+  1173→      }
+  1174→    }
+  1175→
+  1176→    // Try to detect extreme volatility from live data
+  1177→    try {
+  1178→      const quote = await this.exchangeService.getQuote(symbol);
+  1179→      if (quote && Math.abs(quote.changePercent) > this.circuitBreakerThresholdPercent) {
+  1180→        // FIX: Progressive cooldown with exponential backoff
+  1181→        // Determine level: check if there's a recent expired state to build upon
+  1182→        const previousState = this.circuitBreakerState.get(cbKey);
+  1183→        const level = previousState ? previousState.level + 1 : 1;
+  1184→        const consecutiveTriggers = previousState ? previousState.consecutiveTriggers + 1 : 1;
+  1185→
+  1186→        const cooldownMs = Math.min(
+  1187→          this.CB_BASE_COOLDOWN_MS * Math.pow(2, level - 1),
+  1188→          this.CB_MAX_COOLDOWN_MS,
+  1189→        );
+  1190→        const until = new Date(Date.now() + cooldownMs);
+  1191→
+  1192→        this.circuitBreakerState.set(cbKey, {
+  1193→          triggered: true,
+  1194→          until,
+  1195→          level,
+  1196→          triggeredAt: new Date(),
+  1197→          consecutiveTriggers,
+  1198→        });
+  1199→        this._persistCircuitBreakerToRedis(cbKey);
+  1200→
+  1201→        const cooldownSec = Math.round(cooldownMs / 1000);
+  1202→        const cooldownMin = Math.round(cooldownMs / 60000);
+  1203→        const cooldownStr = cooldownMs < 60000
+  1204→          ? `${cooldownSec} ثانية`
+  1205→          : `${cooldownMin} دقيقة`;
+  1206→
+  1207→        this.logger.warn(
+  1208→          `🔴 Circuit breaker triggered for ${symbol}: ${quote.changePercent.toFixed(1)}% move (level ${level}, cooldown ${cooldownSec}s)`,
+  1209→        );
+  1210→
+  1211→        return {
+  1212→          allowed: false,
+  1213→          reason: `تقلب شديد في ${symbol} (${quote.changePercent.toFixed(1)}%). التداول متوقف مؤقتاً لمدة ${cooldownStr} حمايةً لك (مستوى ${level}).`,
+  1214→          failedCheck: 'CIRCUIT_BREAKER',
+  1215→        };
+  1216→      }
+  1217→    } catch {
+  1218→      // Can't check — allow
+  1219→    }
+  1220→
+  1221→    return { allowed: true };
+  1222→  }
+  1223→
+  1224→  /**
+  1225→   * Persist circuit breaker state to Redis.
+  1226→   * Called on module destroy and after each circuit breaker update.
+  1227→   *
+  1228→   * V137 FIX: Redis key now includes userId to prevent cross-user contamination.
+  1229→   * Previously, the key was `circuit-breaker:{symbol}` which meant User A's
+  1230→   * circuit breaker on BTC/USDT would be loaded for ALL users on restart.
+  1231→   * Now the key is `circuit-breaker:v2:{userId}:{symbol}` matching the in-memory
+  1232→   * Map key format `userId:symbol`.
+  1233→   */
+  1234→  private async _saveCircuitBreakerStateToRedis(): Promise<void> {
+  1235→    if (!this.redis) return;
+  1236→    try {
+  1237→      for (const [cbKey, state] of this.circuitBreakerState.entries()) {
+  1238→        // Only persist active circuit breakers (not expired ones)
+  1239→        if (state.triggered && state.until > new Date()) {
+  1240→          const remainingMs = state.until.getTime() - Date.now();
+  1241→          // V137: cbKey format is "userId:symbol" — use it directly as Redis key suffix
+  1242→          const key = `${this.CB_REDIS_PREFIX}${cbKey}`;
+  1243→          const value = JSON.stringify({
+  1244→            triggered: state.triggered,
+  1245→            until: state.until.toISOString(),
+  1246→            level: state.level,
+  1247→            triggeredAt: state.triggeredAt.toISOString(),
+  1248→            consecutiveTriggers: state.consecutiveTriggers,
+  1249→          });
+  1250→          // Set TTL matching the remaining cooldown + small buffer
+  1251→          const ttlMs = remainingMs + 60000;
+  1252→          await this.redis.set(key, value, ttlMs);
+  1253→        }
+  1254→      }
+  1255→    } catch (error: any) {
+  1256→      this.logger.warn(`🛡️ Failed to persist circuit breaker state to Redis: ${error.message}`);
+  1257→    }
+  1258→  }
+  1259→
+  1260→  /**
+  1261→   * Load circuit breaker state from Redis on startup.
+  1262→   * Restores any active circuit breakers that survived a restart.
+  1263→   *
+  1264→   * V137 FIX: Now correctly parses userId from Redis key to prevent
+  1265→   * cross-user contamination. Old format keys (circuit-breaker:{symbol})
+  1266→   * are cleaned up since they lack userId isolation.
+  1267→   */
+  1268→  private async _loadCircuitBreakerStateFromRedis(): Promise<void> {
+  1269→    if (!this.redis) return;
+  1270→    try {
+  1271→      // ── V137: Clean up OLD format keys (circuit-breaker:{symbol}) ──
+  1272→      // These lack userId and cause cross-user contamination.
+  1273→      // Delete all old-format keys on startup.
+  1274→      try {
+  1275→        const oldKeys = await this.redis.scanKeys('circuit-breaker:*');
+  1276→        let oldCleaned = 0;
+  1277→        for (const oldKey of oldKeys) {
+  1278→          // Skip new-format keys (circuit-breaker:v2:...)
+  1279→          if (oldKey.startsWith('circuit-breaker:v2:')) continue;
+  1280→          await this.redis.del(oldKey).catch(() => {});
+  1281→          oldCleaned++;
+  1282→        }
+  1283→        if (oldCleaned > 0) {
+  1284→          this.logger.log(`🛡️ V137: Cleaned up ${oldCleaned} old-format circuit breaker key(s) (missing userId)`);
+  1285→        }
+  1286→      } catch (cleanErr: any) {
+  1287→        this.logger.warn(`🛡️ V137: Failed to clean up old circuit breaker keys: ${cleanErr.message}`);
+  1288→      }
+  1289→
+  1290→      // ── Load NEW format keys (circuit-breaker:v2:{userId}:{symbol}) ──
+  1291→      const keys = await this.redis.scanKeys(`${this.CB_REDIS_PREFIX}*`);
+  1292→      for (const key of keys) {
+  1293→        const data = await this.redis.get(key);
+  1294→        if (!data) continue;
+  1295→        try {
+  1296→          const state = JSON.parse(data);
+  1297→          // V137: Extract cbKey (userId:symbol) from Redis key
+  1298→          // Key format: circuit-breaker:v2:{userId}:{symbol}
+  1299→          // cbKey = userId:symbol (matches in-memory Map key)
+  1300→          const cbKey = key.replace(this.CB_REDIS_PREFIX, '');
+  1301→          const until = new Date(state.until);
+  1302→          // Only restore if the circuit breaker hasn't expired yet
+  1303→          if (until > new Date()) {
+  1304→            this.circuitBreakerState.set(cbKey, {
+  1305→              triggered: state.triggered,
+  1306→              until,
+  1307→              level: state.level,
+  1308→              triggeredAt: new Date(state.triggeredAt),
+  1309→              consecutiveTriggers: state.consecutiveTriggers,
+  1310→            });
+  1311→            this.logger.log(`🛡️ Restored circuit breaker for ${cbKey} from Redis (level ${state.level}, expires ${until.toISOString()})`);
+  1312→          } else {
+  1313→            // Expired — clean up from Redis
+  1314→            await this.redis.del(key).catch(() => {});
+  1315→          }
+  1316→        } catch {
+  1317→          // Malformed data — clean up
+  1318→          await this.redis.del(key).catch(() => {});
+  1319→        }
+  1320→      }
+  1321→    } catch (error: any) {
+  1322→      this.logger.warn(`🛡️ Failed to load circuit breaker state from Redis: ${error.message}`);
+  1323→    }
+  1324→  }
+  1325→
+  1326→  /**
+  1327→   * Persist a single circuit breaker state update to Redis.
+  1328→   *
+  1329→   * V137 FIX: The `cbKey` parameter is the in-memory Map key in format
+  1330→   * "userId:symbol" (e.g., "user123:BTC/USDT"). The Redis key is now
+  1331→   * `circuit-breaker:v2:{userId}:{symbol}` to include userId and prevent
+  1332→   * cross-user contamination on server restart.
+  1333→   */
+  1334→  private async _persistCircuitBreakerToRedis(cbKey: string): Promise<void> {
+  1335→    if (!this.redis) return;
+  1336→    try {
+  1337→      const state = this.circuitBreakerState.get(cbKey);
+  1338→      if (!state) return;
+  1339→
+  1340→      // V137: cbKey format is "userId:symbol" — use directly as Redis key suffix
+  1341→      const key = `${this.CB_REDIS_PREFIX}${cbKey}`;
+  1342→
+  1343→      if (state.triggered && state.until > new Date()) {
+  1344→        const remainingMs = state.until.getTime() - Date.now();
+  1345→        const value = JSON.stringify({
+  1346→          triggered: state.triggered,
+  1347→          until: state.until.toISOString(),
+  1348→          level: state.level,
+  1349→          triggeredAt: state.triggeredAt.toISOString(),
+  1350→          consecutiveTriggers: state.consecutiveTriggers,
+  1351→        });
+  1352→        const ttlMs = remainingMs + 60000;
+  1353→        await this.redis.set(key, value, ttlMs);
+  1354→      } else {
+  1355→        // Circuit breaker expired or reset — remove from Redis
+  1356→        await this.redis.del(key).catch(() => {});
+  1357→      }
+  1358→    } catch (error: any) {
+  1359→      this.logger.warn(`🛡️ Failed to persist circuit breaker state for ${cbKey}: ${error.message}`);
+  1360→    }
+  1361→  }
+  1362→
+  1363→  /**
+  1364→   * Get current risk parameters for display
+  1365→   */
+  1366→  getRiskParameters() {
+  1367→    return {
+  1368→      maxPositionSizePercent: this.maxPositionSizePercent,
+  1369→      maxOpenPositions: this.maxOpenPositions,
+  1370→      executorMaxOpenPositions: this.executorMaxOpenPositions,  // V145: Per-source limit
+  1371→      agentMaxOpenPositions: this.agentMaxOpenPositions,        // V145: Per-source limit
+  1372→      maxDailyLossPercent: this.maxDailyLossPercent,
+  1373→      minOrderSizeUSD: this.minOrderSizeUSD,
+  1374→      maxOrderSizeUSD: this.maxOrderSizeUSD,
+  1375→      stopLossDefault: this.stopLossDefault,
+  1376→      circuitBreakerThresholdPercent: this.circuitBreakerThresholdPercent,
+  1377→    };
+  1378→  }
+  1379→
+  1380→  // ── Private Helpers ──
+  1381→
+  1382→  /**
+  1383→   * Determine if an exchange name represents a test/demo/paper environment.
+  1384→   * These exchanges use virtual funds and don't need real balance verification.
+  1385→   *
+  1386→   * FIX: Previously, only 'paper-trading' was recognized as a test exchange.
+  1387→   * However, credentials stored in the DB can have names like 'binance_test',
+  1388→   * 'alpaca_paper', 'kucoin_test', etc. — all of which represent simulated
+  1389→   * environments with virtual balance. Without this fix, any exchange name
+  1390→   * not found in CCXT (like 'binance_test') would cause the order to be
+  1391→   * rejected with: "لا يمكن التحقق من الرصيد للبورصة" — blocking ALL trades.
+  1392→   *
+  1393→   * Recognized test exchange patterns:
+  1394→   * - Exactly 'paper-trading' or 'paper' or 'demo' or 'sandbox' or 'simulation'
+  1395→   * - Ends with '_test', '_paper', '_demo', '_sandbox', '_simulation' (e.g. 'binance_test', 'alpaca_paper')
+  1396→   * - Contains 'testnet' (e.g. 'binance_testnet')
+  1397→   *
+  1398→   * NOTE: 'test' is intentionally EXCLUDED from exactMatches to prevent any
+  1399→   * exchange literally named "test" from bypassing ALL balance checks.
+  1400→   *
+  1401→   * IMPORTANT: This method ONLY checks the exchange name string. For credentials
+  1402→   * that have `testnet: true` but a regular exchange name (e.g., Binance Testnet
+  1403→   * credentials stored as exchange='binance' with testnet=true), use
+  1404→   * `_isSimulatedCredential()` instead — it checks BOTH the exchange name
+  1405→   * AND the testnet flag on the credential object.
+  1406→   */
+  1407→  private _isTestExchange(exchangeName: string): boolean {
+  1408→    if (!exchangeName) return false;
+  1409→    const lower = exchangeName.toLowerCase();
+  1410→    const exactMatches = ['paper-trading', 'paper', 'demo', 'sandbox', 'simulation'];
+  1411→    if (exactMatches.includes(lower)) return true;
+  1412→    const suffixes = ['_test', '_paper', '_demo', '_sandbox', '_simulation'];
+  1413→    if (suffixes.some(s => lower.endsWith(s))) return true;
+  1414→    if (lower.includes('testnet')) return true;
+  1415→    return false;
+  1416→  }
+  1417→
+  1418→  /**
+  1419→   * V181: Pure paper/simulation detection — NO real broker connection.
+  1420→   *
+  1421→   * This method identifies accounts that are PURELY internal simulations
+  1422→   * with no connection to any external broker or exchange. These are the
+  1423→   * ONLY accounts that should bypass certain risk checks (balance, drawdown)
+  1424→   * because they have no real execution path and no real market data.
+  1425→   *
+  1426→   * CRITICAL DISTINCTION from _isTestExchange():
+  1427→   * - _isTestExchange() includes broker demo accounts (mt5_demo, binance_test, etc.)
+  1428→   *   which connect to REAL brokers with REAL market data but virtual funds.
+  1429→   * - _isPaperOnly() excludes broker demos because they MUST enforce risk checks
+  1430→   *   to simulate realistic trading conditions. If risk checks are bypassed on
+  1431→   *   a broker demo, the user won't discover risk limit violations until they
+  1432→   *   switch to a live account — which defeats the purpose of demo trading.
+  1433→   *
+  1434→   * Examples:
+  1435→   * - 'paper-trading' / 'paper' → TRUE (pure simulation)
+  1436→   * - 'mt5_demo'               → FALSE (real MetaTrader broker, virtual funds)
+  1437→   * - 'binance_test'           → FALSE (real Binance API, testnet funds)
+  1438→   */
+  1439→  private _isPaperOnly(exchangeName: string): boolean {
+  1440→    if (!exchangeName) return false;
+  1441→    const lower = exchangeName.toLowerCase();
+  1442→    return ['paper-trading', 'paper', 'sandbox', 'simulation'].includes(lower);
+  1443→  }
+  1444→
+  1445→  /**
+  1446→   * V181: Check if the exchange is an MT5/MetaTrader variant.
+  1447→   * MT5 accounts (both live and demo) need special handling because:
+  1448→   * - They use MetaAPI Cloud SDK, not CCXT
+  1449→   * - Balance verification must go through MetaAPI, not CCXT
+  1450→   * - They have their own position sizing rules (lot-based)
+  1451→   */
+  1452→  private _isMT5Exchange(exchangeName: string): boolean {
+  1453→    if (!exchangeName) return false;
+  1454→    const lower = exchangeName.toLowerCase();
+  1455→    return ['mt5', 'mt5_demo', 'metatrader5', 'metatrader'].includes(lower);
+  1456→  }
+  1457→
+  1458→  /**
+  1459→   * CHECK 6: Trade Repetition Filter (V177 FIX #17)
+  1460→   *
+  1461→   * Prevents repetitive trading patterns:
+  1462→   * 1. Same userId+symbol+direction within 30 minutes → block
+  1463→   * 2. More than 5 trades on the same symbol per day → block
+  1464→   * 3. More than 3 consecutive losses on the same symbol → 2-hour block
+  1465→   */
+  1466→  async checkTradeRepetitionFilter(command: OrderCommand): Promise<RiskCheckResult> {
+  1467→    try {
+  1468→      const { userId, symbol, side } = command;
+  1469→
+  1470→      // ── Rule 1: Same direction lockout (30 min) ──
+  1471→      // If user closed a position in this direction on this symbol
+  1472→      // less than 30 minutes ago, block the same direction.
+  1473→      const dirLockKey = `trade-rep:dir-lock:${userId}:${symbol}:${side}`;
+  1474→      const dirLocked = await this.redis?.get(dirLockKey);
+  1475→      if (dirLocked) {
+  1476→        this.logger.warn(`🛡️ V177 Direction lockout: ${symbol} ${side} blocked for user ${userId} — same direction closed <30m ago`);
+  1477→        return {
+  1478→          allowed: false,
+  1479→          reason: `تم إغلاق مركز ${side === 'BUY' ? 'شراء' : 'بيع'} على ${symbol} مؤخراً — انتظر 30 دقيقة قبل فتح مركز جديد بنفس الاتجاه.`,
+  1480→          failedCheck: 'TRADE_REPETITION',
+  1481→        };
+  1482→      }
+  1483→
+  1484→      // ── Rule 2: Daily symbol trade limit (max 5 per day) ──
+  1485→      const dailyCountKey = `trade-rep:daily:${userId}:${symbol}`;
+  1486→      const dailyCount = parseInt(await this.redis?.get(dailyCountKey) || '0', 10);
+  1487→      if (dailyCount >= 5) {
+  1488→        this.logger.warn(`🛡️ V177 Daily symbol limit: ${symbol} has ${dailyCount} trades today for user ${userId} — blocking`);
+  1489→        return {
+  1490→          allowed: false,
+  1491→          reason: `لديك ${dailyCount} صفقات على ${symbol} اليوم (الحد: 5). تنويع أفضل من التكرار.`,
+  1492→          failedCheck: 'TRADE_REPETITION',
+  1493→        };
+  1494→      }
+  1495→
+  1496→      // ── Rule 3: Consecutive loss block (3 losses → 2-hour block) ──
+  1497→      const consecLossKey = `trade-rep:consec-loss:${userId}:${symbol}`;
+  1498→      const consecLosses = parseInt(await this.redis?.get(consecLossKey) || '0', 10);
+  1499→      if (consecLosses >= 3) {
+  1500→        this.logger.warn(`🛡️ V177 Consecutive loss block: ${symbol} has ${consecLosses} consecutive losses for user ${userId} — 2h block`);
+  1501→        return {
+  1502→          allowed: false,
+  1503→          reason: `${consecLosses} خسائر متتالية على ${symbol} — تم حظر التداول عليه لمدة ساعتين لحماية رأس المال.`,
+  1504→          failedCheck: 'TRADE_REPETITION',
+  1505→        };
+  1506→      }
+  1507→
+  1508→      return { allowed: true };
+  1509→    } catch (error: any) {
+  1510→      // Non-critical — if Redis fails, allow the trade
+  1511→      this.logger.warn(`🛡️ Trade repetition check failed: ${error.message} — allowing order`);
+  1512→      return { allowed: true };
+  1513→    }
+  1514→  }
+  1515→
+  1516→  /**
+  1517→   * V181: Determine if a credential represents a PURE paper/simulation account.
+  1518→   *
+  1519→   * This is the CORRECT method to use when deciding whether to bypass risk checks.
+  1520→   * It ONLY returns true for accounts with no real broker connection — meaning
+  1521→   * pure internal simulations where balance/drawdown checks are meaningless.
+  1522→   *
+  1523→   * Broker demo accounts (mt5_demo, binance_test, testnet credentials) return FALSE
+  1524→   * because they connect to real brokers and MUST enforce risk checks to simulate
+  1525→   * realistic trading conditions. The whole point of a demo account is to practice
+  1526→   * with realistic constraints — bypassing risk checks defeats this purpose.
+  1527→   */
+  1528→  private _isSimulatedCredential(credential: { exchange: string; testnet?: boolean } | null): boolean {
+  1529→    if (!credential) return false;
+  1530→    // Check 1: Exchange name indicates PURE paper/simulation (no broker)
+  1531→    if (this._isPaperOnly(credential.exchange)) return true;
+  1532→    // Check 2: The testnet FLAG with a generic 'demo'/'sandbox' exchange name
+  1533→    // Note: Real broker testnet (e.g. Binance with testnet=true) is NOT paper-only
+  1534→    if ((credential as any).testnet === true && this._isPaperOnly(credential.exchange)) return true;
+  1535→    return false;
+  1536→  }
+  1537→
+  1538→  /**
+  1539→   * Resolve the real CCXT exchange class name from a possibly test-prefixed name.
+  1540→   * E.g. 'binance_test' → 'binance', 'alpaca_paper' → 'alpaca'
+  1541→   * Returns undefined if no real exchange can be inferred.
+  1542→   */
+  1543→  private _resolveRealExchangeName(exchangeName: string): string | undefined {
+  1544→    if (!exchangeName) return undefined;
+  1545→    const suffixes = ['_test', '_paper', '_demo', '_sandbox', '_simulation'];
+  1546→    for (const suffix of suffixes) {
+  1547→      if (exchangeName.toLowerCase().endsWith(suffix)) {
+  1548→        return exchangeName.slice(0, -suffix.length);
+  1549→      }
+  1550→    }
+  1551→    if (exchangeName.toLowerCase().includes('testnet')) {
+  1552→      return exchangeName.replace(/testnet/i, '');
+  1553→    }
+  1554→    return undefined;
+  1555→  }
+  1556→
+  1557→  private async _estimatePortfolioValue(userId: string): Promise<number> {
+  1558→    // ═══════════════════════════════════════════════════════════════
+  1559→    // FIX: For paper-trading users, use AgentSettings.paperBalance
+  1560→    // instead of the Portfolio table (which is often empty or stale).
+  1561→    // Previously, _estimatePortfolioValue() would return 0 for paper
+  1562→    // users with no Portfolio records, then fall back to summing open
+  1563→    // positions' notional value — which could be $400K+ and completely
+  1564→    // wrong as a "portfolio value". This caused the daily drawdown
+  1565→    // check to calculate absurd percentages like 832%.
+  1566→    // ═══════════════════════════════════════════════════════════════
+  1567→
+  1568→    // Step 1: Check if user has paper-trading credentials (primary)
+  1569→    const paperCredential = await this.prisma.exchangeCredential.findFirst({
+  1570→      where: { userId, exchange: 'paper-trading', isValid: true },
+  1571→    });
+  1572→
+  1573→    if (paperCredential) {
+  1574→      // V172d: paperBalance = free cash, equity = freeCash + lockedMargin + unrealizedPnL
+  1575→      try {
+  1576→        const settings = await this.prisma.agentSettings.findUnique({
+  1577→          where: { userId },
+  1578→          select: { paperBalance: true, paperCryptoLeverage: true, paperForexLeverage: true, paperGoldLeverage: true },
+  1579→        });
+  1580→        const freeCash = settings ? Number(settings.paperBalance) : 10000;
+  1581→        const openPositions = await this.prisma.position.findMany({
+  1582→          where: { userId, status: 'OPEN', exchange: 'paper-trading' },
+  1583→          select: { quantity: true, entryPrice: true, symbol: true },
+  1584→        }).catch(() => []);
+  1585→        let lockedMargin = 0;
+  1586→        const { getSymbolMetadata, AssetClass } = require('../../../modules/trading/services/symbol-metadata');
+  1587→        const cryptoLev = Number(settings?.paperCryptoLeverage) || 1;
+  1588→        const forexLev = Number(settings?.paperForexLeverage) || 50;
+  1589→        const goldLev = Number(settings?.paperGoldLeverage) || 20;
+  1590→        for (const pos of openPositions) {
+  1591→          const meta = getSymbolMetadata(pos.symbol);
+  1592→          let leverage = cryptoLev;
+  1593→          if (meta.assetClass === AssetClass.FOREX) leverage = forexLev;
+  1594→          else if (meta.assetClass === AssetClass.COMMODITY) leverage = goldLev;
+  1595→          const notional = Number(pos.quantity) * Number(pos.entryPrice);
+  1596→          lockedMargin += leverage > 1 ? notional / leverage : notional;
+  1597→        }
+  1598→        const equity = freeCash + lockedMargin;
+  1599→        return equity > 0 ? equity : 10000;
+  1600→      } catch {
+  1601→        return 10000;
+  1602→      }
+  1603→    }
+  1604→
+  1605→    // Step 2: Real exchange user — use Portfolio table + open positions
+  1606→    const portfolios = await this.prisma.portfolio.aggregate({
+  1607→      where: { userId },
+  1608→      _sum: { totalValue: true },
+  1609→    });
+  1610→
+  1611→    const manualValue = Number(portfolios._sum.totalValue || 0);
+  1612→
+  1613→    const openPositions = await this.prisma.position.findMany({
+  1614→      where: { userId, status: 'OPEN' },
+  1615→    });
+  1616→
+  1617→    const positionsValue = openPositions.reduce((sum, p) => {
+  1618→      return sum + Number(p.quantity) * (Number(p.currentPrice) || Number(p.entryPrice));
+  1619→    }, 0);
+  1620→
+  1621→    return manualValue + positionsValue;
+  1622→  }
+  1623→
+  1624→  /**
+  1625→   * Get paper-trading balance from AgentSettings.
+  1626→   * Used by checkPositionSizeLimit() to cap order value for paper trading.
+  1627→   */
+  1628→  private async _getPaperBalance(userId: string): Promise<number> {
+  1629→    try {
+  1630→      const settings = await this.prisma.agentSettings.findUnique({
+  1631→        where: { userId },
+  1632→      });
+  1633→      if (settings && Number(settings.paperBalance) > 0) {
+  1634→        return Number(settings.paperBalance);
+  1635→      }
+  1636→    } catch {}
+  1637→    return 10000; // Default paper balance
+  1638→  }
+  1639→
+  1640→  private async _calculateRiskScore(command: OrderCommand): Promise<number> {
+  1641→    let score = 0;
+  1642→
+  1643→    const portfolioValue = await this._estimatePortfolioValue(command.userId);
+  1644→    let currentPrice = command.price || 0;
+  1645→    if (!currentPrice) {
+  1646→      try {
+  1647→        const quote = await this.exchangeService.getQuote(command.symbol);
+  1648→        currentPrice = quote.price;
+  1649→      } catch {
+  1650→        // ignore
+  1651→      }
+  1652→    }
+  1653→
+  1654→    const orderValue = command.quantity * (currentPrice || 0);
+  1655→
+  1656→    // Position size contribution (0-30)
+  1657→    if (portfolioValue > 0) {
+  1658→      score += Math.min(30, (orderValue / portfolioValue) * 100 * 1.5);
+  1659→    }
+  1660→
+  1661→    // Open positions contribution (0-30)
+  1662→    const openPositions = await this.prisma.position.count({
+  1663→      where: { userId: command.userId, status: 'OPEN' },
+  1664→    });
+  1665→    score += Math.min(30, openPositions * 3);
+  1666→
+  1667→    // Daily loss contribution (0-40)
+  1668→    const todayStart = new Date();
+  1669→    todayStart.setHours(0, 0, 0, 0);
+  1670→    const todayTrades = await this.prisma.trade.findMany({
+  1671→      where: {
+  1672→        userId: command.userId,
+  1673→        executedAt: { gte: todayStart },
+  1674→        type: { in: ['EXIT', 'PARTIAL_EXIT'] },
+  1675→      },
+  1676→    });
+  1677→    const dailyPnL = todayTrades.reduce((sum, t) => sum + Number(t.pnl || 0), 0);
+  1678→    if (dailyPnL < 0 && portfolioValue > 0) {
+  1679→      score += Math.min(40, (Math.abs(dailyPnL) / portfolioValue) * 100 * 8);
+  1680→    }
+  1681→
+  1682→    return Math.min(100, Math.round(score));
+  1683→  }
+  1684→}
+  1685→

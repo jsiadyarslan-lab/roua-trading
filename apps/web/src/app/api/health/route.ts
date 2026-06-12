@@ -38,6 +38,9 @@ export async function GET() {
 
   const checks: Record<string, { status: string; latencyMs?: number; detail?: string }> = {};
 
+  // V216: Store the full API response data so we can extract version info
+  let apiVersionInfo: any = null;
+
   // Run API and Socket.IO checks in parallel for faster response.
   // Use a short 3s timeout — this is a health check, not a full diagnostic.
   const [apiResult, socketResult] = await Promise.allSettled([
@@ -50,6 +53,10 @@ export async function GET() {
         });
         if (apiResponse.ok) {
           const apiData = await apiResponse.json();
+          // V216: Extract version info from API response (code version, protection status, commit)
+          if (apiData.version) {
+            apiVersionInfo = apiData.version;
+          }
           return { status: 'ok' as const, latencyMs: Date.now() - apiStart, detail: JSON.stringify(apiData.checks || {}) };
         }
         return { status: 'degraded' as const, latencyMs: Date.now() - apiStart, detail: `HTTP ${apiResponse.status}` };
@@ -130,9 +137,11 @@ export async function GET() {
       status: hasError ? 'degraded' : (allOk ? 'ok' : 'degraded'),
       uptime: Math.round(process.uptime()),
       timestamp: new Date().toISOString(),
-      version: process.env.npm_package_version || '0.1.0',
+      // V216: Show API version info (includes code version, protection status, commit)
+      // Falls back to npm_package_version if API is unreachable
+      version: apiVersionInfo || process.env.npm_package_version || '0.1.0',
       buildId: _buildId,
-      deployCommit: process.env.DEPLOY_COMMIT || 'unknown',
+      deployCommit: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.DEPLOY_COMMIT || 'unknown',
       checks,
       responseTimeMs: Date.now() - start,
     },

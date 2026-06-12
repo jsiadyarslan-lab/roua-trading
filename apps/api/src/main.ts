@@ -321,7 +321,7 @@ async function bootstrap() {
         version: {
           code: 'V216',
           agentProtection: 'ENABLED', // V214+V216: Agent positions protected from premature close
-          commit: process.env.DEPLOY_COMMIT || 'unknown',
+          commit: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.DEPLOY_COMMIT || 'unknown',
           nodeEnv: process.env.NODE_ENV || 'development',
         },
       });

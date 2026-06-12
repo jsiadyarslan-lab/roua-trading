@@ -114,7 +114,9 @@ ENV PORT=3000
 ENV API_PORT=3001
 ENV HOSTNAME="0.0.0.0"
 # Pass git commit SHA so /api/health can report what version is running
-ENV DEPLOY_COMMIT=${GIT_COMMIT}
+# V216 FIX: Use RAILWAY_GIT_COMMIT_SHA if available (auto-set by Railway),
+# otherwise fall back to the build ARG
+ENV DEPLOY_COMMIT=${RAILWAY_GIT_COMMIT_SHA:-${GIT_COMMIT}}
 
 # FIX: Selective copy — only runtime files, NOT devDependencies or source.
 # The previous "COPY --from=builder /app ." copied EVERYTHING including

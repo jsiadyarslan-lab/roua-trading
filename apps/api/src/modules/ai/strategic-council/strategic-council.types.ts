@@ -62,9 +62,9 @@ export interface CouncilSessionResult {
  */
 export const COUNCIL_PAIRS = {
   CRYPTO: ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT', 'ADA/USDT', 'XRP/USDT', 'DOGE/USDT'],
-  FOREX: ['EUR/USD', 'GBP/USD', 'USD/JPY'],
+  FOREX: ['EUR/USD', 'GBP/USD', 'USD/JPY', 'USD/CHF', 'AUD/USD', 'NZD/USD', 'USD/CAD'],
   STOCKS: ['AAPL', 'MSFT', 'GOOGL', 'TSLA'],
-  COMMODITIES: ['XAU/USD'],
+  COMMODITIES: ['XAU/USD', 'XAG/USD'],
 } as const;
 
 /** Pairs supported by Binance (the exchange used by all current users).
@@ -75,11 +75,21 @@ export const BINANCE_SUPPORTED_PAIRS: string[] = [
 ];
 
 /** Pairs NOT supported by Binance — analysis only, no execution.
- *  These can be used for market sentiment but orders will always fail. */
+ *  These can be used for market sentiment but orders will always fail on Binance.
+ *  However, they ARE supported on MT5 (forex + commodities). */
 export const NON_BINANCE_PAIRS: string[] = [
   ...COUNCIL_PAIRS.FOREX,
   ...COUNCIL_PAIRS.STOCKS,
   ...COUNCIL_PAIRS.COMMODITIES,
+];
+
+/** V226: Pairs supported by MT5/MetaTrader broker.
+ *  Forex majors + commodities (gold/silver) + crypto.
+ *  Paper-trading supports ALL pairs (simulation). */
+export const MT5_SUPPORTED_PAIRS: string[] = [
+  ...COUNCIL_PAIRS.FOREX,
+  ...COUNCIL_PAIRS.COMMODITIES,
+  ...COUNCIL_PAIRS.CRYPTO,
 ];
 
 /** All pairs flattened (for backward compat and market scanning) */
@@ -91,13 +101,23 @@ export const ALL_COUNCIL_PAIRS: string[] = [
 ];
 
 /** Check if a symbol is supported by the given exchange.
- *  Currently all users use Binance, so we check against BINANCE_SUPPORTED_PAIRS.
+ *  V226: Now supports MT5 with forex + commodities + crypto pairs.
  *  Returns true if the symbol can be executed on the exchange. */
 export function isSymbolSupportedByExchange(symbol: string, exchange: string): boolean {
   const exchangeId = exchange.toLowerCase().replace('_test', '').replace('-test', '');
   switch (exchangeId) {
     case 'binance':
       return BINANCE_SUPPORTED_PAIRS.includes(symbol);
+    case 'mt5':
+    case 'mt5_demo':
+    case 'metatrader5':
+    case 'metatrader':
+      // MT5 supports forex + commodities + crypto (via CFDs)
+      return MT5_SUPPORTED_PAIRS.includes(symbol);
+    case 'paper':
+    case 'paper-trading':
+      // Paper trading supports ALL pairs (simulation)
+      return true;
     default:
       // For unknown exchanges, only allow crypto pairs (safe default)
       return BINANCE_SUPPORTED_PAIRS.includes(symbol);

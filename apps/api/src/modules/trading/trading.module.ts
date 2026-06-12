@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ExecutionModule } from '../execution/execution.module';
 import { TradingController } from './trading.controller';
 import { TradingService } from './trading.service';
 import { RiskManagerService } from './risk-manager.service';
@@ -89,15 +90,11 @@ import { ExternalCircuitBreakerService } from './services/external-circuit-break
     AuditModule,
     NotificationModule,
 
-    // CRITICAL FIX: ExecutionModule provides ExecutionGatewayService which
-    // OrderDispatcherService depends on. Without this import, NestJS crashes with:
-    // "Nest can't resolve dependencies of the OrderDispatcherService →
-    //  ExecutionGatewayService at index [5] is not available in TradingModule"
-    //
-    // ExecutionModule also registers the BullMQ 'execution_queue' with full options
-    // (retries, backoff, TTL). TradingModule no longer registers the queue separately
-    // to avoid double-registration conflicts that can crash NestJS on startup.
-    // OrderController uses @Optional() @InjectQueue for graceful degradation.
+    // V226: ExecutionModule provides ExecutionGatewayService which
+    // TradingService now needs for MT5 order routing.
+    // Also needed by OrderDispatcherService.
+    // Without this import, NestJS can't resolve ExecutionGatewayService → crash.
+    ExecutionModule,
   ],
   controllers: [TradingController, OrderController],
   providers: [

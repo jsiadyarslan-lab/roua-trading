@@ -3439,22 +3439,20 @@ export class IntegrityCheckController {
     const passes: string[] = [];
 
     // V49a: PaperTradesStore — closedIds are processed after SL/TP hit
-    const ptsContent = this.read('../../../web/src/hooks/usePaperTradesStore.ts');
-    if (!ptsContent) {
-      // Try alternate path (compiled or different layout)
-      const altContent = this.read('web/src/hooks/usePaperTradesStore.ts');
-      if (!altContent) {
-        failures.push('usePaperTradesStore.ts غير موجود — لا يمكن التحقق من إصلاح SL/TP');
-      } else {
-        this._checkV49a(altContent, passes, failures);
-      }
-    } else {
+    // PATH FIX: SRC_DIR resolves to apps/api/src/ (dev) or apps/api/dist/ (prod).
+    // From there, ../../web/src/ reaches apps/web/src/ correctly.
+    // The old path ../../../web/src/ went 3 levels up (to project root) where web/ doesn't exist.
+    const ptsContent = this.read('../../web/src/hooks/usePaperTradesStore.ts')
+      || this.read('../../../web/src/hooks/usePaperTradesStore.ts');  // legacy fallback
+    if (ptsContent) {
       this._checkV49a(ptsContent, passes, failures);
+    } else {
+      failures.push('usePaperTradesStore.ts غير موجود — لا يمكن التحقق من إصلاح SL/TP');
     }
 
     // V49b: AnalysisValidator — R:R ratio operator precedence fixed
-    const avContent = this.read('../../../web/src/lib/charts/AnalysisValidator.ts')
-      || this.read('web/src/lib/charts/AnalysisValidator.ts');
+    const avContent = this.read('../../web/src/lib/charts/AnalysisValidator.ts')
+      || this.read('../../../web/src/lib/charts/AnalysisValidator.ts');
     if (avContent) {
       // The BUG was: reward / risk.toFixed(2) → divides by string → NaN
       // The FIX is: (reward / risk).toFixed(2) → proper parenthesization
@@ -3468,8 +3466,8 @@ export class IntegrityCheckController {
     }
 
     // V49c: useChartWebSocket — Socket.IO uses bufferUpdate (not direct calls)
-    const wsContent = this.read('../../../web/src/hooks/useChartWebSocket.ts')
-      || this.read('web/src/hooks/useChartWebSocket.ts');
+    const wsContent = this.read('../../web/src/hooks/useChartWebSocket.ts')
+      || this.read('../../../web/src/hooks/useChartWebSocket.ts');
     if (wsContent) {
       // Check that Socket.IO ticker handler uses bufferUpdate, not direct onPriceUpdate/onCandleUpdate
       const socketSection = wsContent.substring(
@@ -3485,9 +3483,11 @@ export class IntegrityCheckController {
       }
 
       // Check that connect() deps don't include onCandleUpdate/onPriceUpdate
-      const connectDepsMatch = wsContent.match(/},\s*\[([^\]]*?)\]\s*;\s*\/\/ V225 FIX/);
-      if (connectDepsMatch) {
-        if (!connectDepsMatch[1].includes('onCandleUpdate') && !connectDepsMatch[1].includes('onPriceUpdate')) {
+      // NOTE: _stripComments() removes the '// V225 FIX' comment, so we can't match on it.
+      // Instead, find the connect() useCallback closing bracket and check its deps.
+      const connectFnMatch = wsContent.match(/const\s+connect\s*=\s*useCallback\([\s\S]*?\},\s*\[([^\]]*?)\]\s*\)/);
+      if (connectFnMatch) {
+        if (!connectFnMatch[1].includes('onCandleUpdate') && !connectFnMatch[1].includes('onPriceUpdate')) {
           passes.push('connect() deps لا تتضمن onCandleUpdate/onPriceUpdate');
         } else {
           failures.push('connect() deps تتضمن callbacks — يسبب إعادة اتصال مستمرة');
@@ -3496,8 +3496,8 @@ export class IntegrityCheckController {
     }
 
     // V49d: IncrementalCalc — rolling volume average (volumeHistory)
-    const icContent = this.read('../../../web/src/lib/charts/IncrementalCalc.ts')
-      || this.read('web/src/lib/charts/IncrementalCalc.ts');
+    const icContent = this.read('../../web/src/lib/charts/IncrementalCalc.ts')
+      || this.read('../../../web/src/lib/charts/IncrementalCalc.ts');
     if (icContent) {
       if (icContent.includes('volumeHistory')) {
         passes.push('متوسط الحجم المتدحرج يعمل — volumeHistory');
@@ -3511,8 +3511,8 @@ export class IntegrityCheckController {
     }
 
     // V49e: indicator-worker — Ichimoku displacement applied
-    const iwContent = this.read('../../../web/src/workers/indicator-worker.ts')
-      || this.read('web/src/workers/indicator-worker.ts');
+    const iwContent = this.read('../../web/src/workers/indicator-worker.ts')
+      || this.read('../../../web/src/workers/indicator-worker.ts');
     if (iwContent) {
       // Check for shift forward by 'base' periods in senkouA calculation
       if (iwContent.includes('targetIdx = i + base') && iwContent.includes('senkouA[targetIdx]')) {
@@ -3530,8 +3530,8 @@ export class IntegrityCheckController {
     }
 
     // V49f: ChartGrid — single setCells call in sync mode
-    const cgContent = this.read('../../../web/src/components/charts/ChartGrid.tsx')
-      || this.read('web/src/components/charts/ChartGrid.tsx');
+    const cgContent = this.read('../../web/src/components/charts/ChartGrid.tsx')
+      || this.read('../../../web/src/components/charts/ChartGrid.tsx');
     if (cgContent) {
       // Check that handleChangeSymbol doesn't have two setCells calls
       const symbolHandler = this._findMethodBody(cgContent, 'handleChangeSymbol');
@@ -3546,8 +3546,8 @@ export class IntegrityCheckController {
     }
 
     // V49g: ConfidenceHeatmap — division by zero guard
-    const chContent = this.read('../../../web/src/lib/charts/ConfidenceHeatmap.ts')
-      || this.read('web/src/lib/charts/ConfidenceHeatmap.ts');
+    const chContent = this.read('../../web/src/lib/charts/ConfidenceHeatmap.ts')
+      || this.read('../../../web/src/lib/charts/ConfidenceHeatmap.ts');
     if (chContent) {
       if (chContent.includes('Math.max(1, Math.min(i, 5))')) {
         passes.push('ConfidenceHeatmap: حماية من القسمة على صفر');
@@ -3557,11 +3557,12 @@ export class IntegrityCheckController {
     }
 
     // V49h: chart-detection — BOS ATR uses previous close
-    const cdContent = this.read('../../../web/src/lib/charts/chart-detection.ts')
-      || this.read('web/src/lib/charts/chart-detection.ts');
+    const cdContent = this.read('../../web/src/lib/charts/chart-detection.ts')
+      || this.read('../../../web/src/lib/charts/chart-detection.ts');
     if (cdContent) {
       // Check for the fixed True Range formula that uses sl2[i - 1].close
-      if (cdContent.includes('sl2[i - 1].close') && cdContent.includes('V225 FIX')) {
+      // NOTE: _stripComments() removes '// V225 FIX' comment, so check code pattern only.
+      if (cdContent.includes('sl2[i - 1].close')) {
         passes.push('BOS ATR: يستخدم إغلاق الشمعة السابقة (صحيح)');
       } else if (cdContent.includes('c.high - c.close') && cdContent.includes('c.low - c.close')) {
         failures.push('BOS ATR: يستخدم إغلاق الشمعة الحالية بدل السابقة — True Range خاطئ');

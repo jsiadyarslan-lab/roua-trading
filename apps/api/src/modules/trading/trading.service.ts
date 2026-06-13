@@ -1710,7 +1710,7 @@ export class TradingService {
   /**
    * Get closed positions for a user
    */
-  async getClosedPositions(userId: string, limit: number = 100, from?: string, to?: string, credentialId?: string) {
+  async getClosedPositions(userId: string, limit?: number | undefined, from?: string, to?: string, credentialId?: string) {
     try {
       const where: any = { userId, status: { in: ['CLOSED', 'LIQUIDATED'] } }; // V140B: Include LIQUIDATED positions
 

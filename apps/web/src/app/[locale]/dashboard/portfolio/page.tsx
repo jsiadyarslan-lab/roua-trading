@@ -315,7 +315,7 @@ export default function PortfolioPage() {
       // V205: Pass credentialId to API for server-side filtering instead of client-side
       const activeCredId = usePositionsStore.getState().activeCredentialId
       const credParam = activeCredId ? `&credentialId=${encodeURIComponent(activeCredId)}` : ''
-      const res = await fetch(`/api/trading/positions/history?limit=500${credParam}`)
+      const res = await fetch(`/api/trading/positions/history?limit=0${credParam}`)
       if (res.ok) {
         const data = await res.json()
         const allClosed = Array.isArray(data) ? data : (data.data || data.positions || [])

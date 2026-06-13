@@ -601,9 +601,14 @@ export class TradingController {
     try {
       const userId = req.user.id;
       this.logger.log(`📋 Fetching closed positions for user: ${userId}, credentialId: ${credentialId || 'all'}, from: ${from || 'all'}, to: ${to || 'all'}`);
+      // V227: Support limit=0 to fetch ALL closed positions (no limit).
+      // Previously capped at 100, frontend used limit=500 but still missed
+      // positions beyond 500. Now limit=0 means "fetch everything".
+      const parsedLimit = limit ? parseInt(limit, 10) : 100;
+      const effectiveLimit = parsedLimit === 0 ? undefined : (parsedLimit || 100);
       return await this.tradingService.getClosedPositions(
         userId,
-        limit ? (parseInt(limit, 10) || 100) : 100,
+        effectiveLimit as any,
         from,
         to,
         credentialId,

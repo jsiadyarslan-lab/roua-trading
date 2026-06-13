@@ -61,6 +61,7 @@ import {
 import { DynamicPositionSizingService } from '../council-intelligence/dynamic-position-sizing.service';
 import { CrossPairCorrelationService } from '../council-intelligence/cross-pair-correlation.service';
 import { TradeJournalService } from '../council-intelligence/trade-journal.service';
+import { ScannerService } from '../../scanner/scanner.service'; // V224: MTF Confirmation
 
 @Injectable()
 export class SmartExecutorService implements OnModuleDestroy {
@@ -116,11 +117,13 @@ export class SmartExecutorService implements OnModuleDestroy {
     @Optional() private readonly dynamicSizing?: DynamicPositionSizingService,
     @Optional() private readonly correlationCheck?: CrossPairCorrelationService,
     @Optional() private readonly journal?: TradeJournalService,
+    @Optional() private readonly scannerService?: ScannerService, // V224: MTF Confirmation
   ) {
     const extras = [
       this.dynamicSizing && 'DynamicSizing',
       this.correlationCheck && 'Correlation',
       this.journal && 'TradeJournal',
+      this.scannerService && 'MTF-Confirm',
     ].filter(Boolean).join('+');
     this.logger.log('⚔️ Smart Executor initialized — DISABLED auto-start. Will ONLY run when a user explicitly enables it. (with news risk gate)' + (extras ? ` + V185 [${extras}]` : ''));
 
@@ -2431,6 +2434,58 @@ export class SmartExecutorService implements OnModuleDestroy {
         }
       }
 
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // V224: MTF CONFIRMATION GATE — تأكيد الإطارات الزمنية المتعددة
+      //
+      // قبل تنفيذ أي صفقة، نتحقق: هل الإطارات الزمنية الأعلى (H1, H4, D1)
+      // توافق اتجاه الإشارة؟ هذا يمنع التنفيذ ضد الاتجاه العام.
+      //
+      // القواعد:
+      //   - STRONG_BULLISH / BULLISH + brief BUY → ✅ تنفيذ عادي
+      //   - STRONG_BEARISH / BEARISH + brief SELL → ✅ تنفيذ عادي
+      //   - NEUTRAL → ✅ تنفيذ (لا توجد إشارة معاكسة)
+      //   - STRONG_BULLISH + brief SELL → ❌ رفض (عكس الاتجاه القوي)
+      //   - STRONG_BEARISH + brief BUY → ❌ رفض (عكس الاتجاه القوي)
+      //   - BULLISH + brief SELL → ⚠️ تحذير + حجم أصغر
+      //   - BEARISH + brief BUY → ⚠️ تحذير + حجم أصغر
+      //
+      // لماذا هذا مهم؟
+      //   Smart Executor يعمل على M1/M5 — إشارات سريعة جداً.
+      //   بدون تأكيد MTF، قد ينفذ صفقة BUY على M1 بينما H4 و D1
+      //   في اتجاه هابط — احتمال كبير أن تخسر الصفقة.
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      if (!isSimulated && this.scannerService) {
+        try {
+          const mtfResult = await this.scannerService.multiTimeframeAnalysis(brief.pair);
+          const mtfDecision = this._evaluateMTFAlignment(mtfResult, brief);
+
+          if (mtfDecision.action === 'REJECT') {
+            this.logger.warn(
+              `⚔️ V224 MTF REJECT: ${brief.direction} ${brief.pair} — ` +
+              `alignment=${mtfResult.alignment} (score=${mtfResult.alignmentScore}) ` +
+              `opposes brief direction. ${mtfDecision.reason}`
+            );
+            return; // Skip execution — MTF opposes this trade
+          } else if (mtfDecision.action === 'REDUCE') {
+            this.logger.log(
+              `⚔️ V224 MTF REDUCE: ${brief.direction} ${brief.pair} — ` +
+              `alignment=${mtfResult.alignment} (score=${mtfResult.alignmentScore}) ` +
+              `partially opposes. Reducing position size. ${mtfDecision.reason}`
+            );
+            // Store MTF reduction factor for _executeBriefForUser to apply
+            (brief as any).__mtfSizeMultiplier = mtfDecision.sizeMultiplier;
+          } else {
+            this.logger.debug(
+              `⚔️ V224 MTF OK: ${brief.direction} ${brief.pair} — ` +
+              `alignment=${mtfResult.alignment} (score=${mtfResult.alignmentScore}) confirms brief`
+            );
+          }
+        } catch (mtfErr: any) {
+          // Non-blocking: MTF check failure should NOT prevent execution
+          this.logger.warn(`⚔️ V224: MTF confirmation check failed: ${mtfErr.message} — proceeding without MTF gate`);
+        }
+      }
+
       // EXECUTE THE TRADE!
       const result = await this._executeBriefForUser(userId, brief, currentPrice, userState, portfolioValue);
 
@@ -2790,6 +2845,95 @@ export class SmartExecutorService implements OnModuleDestroy {
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════════
+  // V224: MTF CONFIRMATION — تقييم توافق الإطارات الزمنية المتعددة
+  // ═══════════════════════════════════════════════════════════════════
+  //
+  // تقارن اتجاه Scanner MTF (M15/H1/H4/D1) مع اتجاه الـ brief.
+  // النتيجة: APPROVE / REDUCE / REJECT مع مضاعف حجم المركز.
+  //
+  // المنطق:
+  //   - التوافق الكامل (STRONG_BULLISH + BUY) → APPROVE بحجم كامل
+  //   - التوافق الجزئي (BULLISH + BUY) → APPROVE بحجم كامل
+  //   - محايد (NEUTRAL) → APPROVE بحجم كامل (لا يوجد ضد)
+  //   - تناقض جزئي (BULLISH + SELL) → REDUCE بحجم 50%
+  //   - تناقض قوي (STRONG_BULLISH + SELL) → REJECT تماماً
+  //   - تناقض قوي (STRONG_BEARISH + BUY) → REJECT تماماً
+  //
+  // التدرج يعكس درجة الثقة:
+  //   STRONG_ → القرار حاسم (رفض كامل)
+  //   بدون STRONG_ → القرار مرن (تقليل الحجم)
+  // ═══════════════════════════════════════════════════════════════════
+  private _evaluateMTFAlignment(
+    mtfResult: { alignment: string; alignmentScore: number; timeframes: any[] },
+    brief: TradingBriefDTO,
+  ): { action: 'APPROVE' | 'REDUCE' | 'REJECT'; reason: string; sizeMultiplier: number } {
+
+    const isBullishAlignment = mtfResult.alignment === 'STRONG_BULLISH' || mtfResult.alignment === 'BULLISH';
+    const isBearishAlignment = mtfResult.alignment === 'STRONG_BEARISH' || mtfResult.alignment === 'BEARISH';
+    const isStrongBullish = mtfResult.alignment === 'STRONG_BULLISH';
+    const isStrongBearish = mtfResult.alignment === 'STRONG_BEARISH';
+    const isNeutral = mtfResult.alignment === 'NEUTRAL';
+
+    const isBuyBrief = brief.direction === 'BUY';
+    const isSellBrief = brief.direction === 'SELL';
+
+    // 1. توافق كامل — نفس الاتجاه
+    if ((isBullishAlignment && isBuyBrief) || (isBearishAlignment && isSellBrief)) {
+      return {
+        action: 'APPROVE',
+        reason: `MTF ${mtfResult.alignment} confirms ${brief.direction}`,
+        sizeMultiplier: 1.0,
+      };
+    }
+
+    // 2. محايد — لا يوجد ضد، نتابع
+    if (isNeutral) {
+      return {
+        action: 'APPROVE',
+        reason: 'MTF neutral — no opposition',
+        sizeMultiplier: 1.0,
+      };
+    }
+
+    // 3. تناقض قوي — STRONG في الاتجاه المعاكس → رفض
+    if ((isStrongBullish && isSellBrief) || (isStrongBearish && isBuyBrief)) {
+      // كم إطار زمني يؤيد الاتجاه المعاكس؟
+      const opposingTfs = mtfResult.timeframes.filter((tf: any) => {
+        if (isBuyBrief) return tf.technicalScore < -15; // bearish TFs opposing BUY
+        return tf.technicalScore > 15; // bullish TFs opposing SELL
+      }).map((tf: any) => tf.timeframe);
+
+      return {
+        action: 'REJECT',
+        reason: `Strong MTF opposition: ${mtfResult.alignment} (score=${mtfResult.alignmentScore}) opposes ${brief.direction}. Opposing TFs: ${opposingTfs.join(', ') || 'none'}`,
+        sizeMultiplier: 0,
+      };
+    }
+
+    // 4. تناقض جزئي — اتجاه معاكس لكن ليس قوي → تقليل الحجم
+    if ((isBullishAlignment && isSellBrief) || (isBearishAlignment && isBuyBrief)) {
+      // كلما زاد alignmentScore، زاد التناقض → حجم أصغر
+      // score=15 (BULLISH min) → multiplier=0.7
+      // score=39 (almost STRONG) → multiplier=0.3
+      const absScore = Math.abs(mtfResult.alignmentScore);
+      const multiplier = Math.max(0.3, 1.0 - (absScore / 50));
+
+      return {
+        action: 'REDUCE',
+        reason: `Partial MTF opposition: ${mtfResult.alignment} (score=${mtfResult.alignmentScore}) partially opposes ${brief.direction}`,
+        sizeMultiplier: Math.round(multiplier * 100) / 100,
+      };
+    }
+
+    // 5. حالة غير متوقعة — نتابع بأمان
+    return {
+      action: 'APPROVE',
+      reason: `Unknown MTF alignment '${mtfResult.alignment}' — defaulting to approve`,
+      sizeMultiplier: 1.0,
+    };
+  }
+
   /**
    * Execute a brief for a specific user — place the order via TradingService
    *
@@ -2983,6 +3127,18 @@ export class SmartExecutorService implements OnModuleDestroy {
       } catch (corrErr: any) {
         this.logger.debug(`V185 Correlation: ${corrErr.message}`);
       }
+
+      // V224: MTF Confirmation — تطبيق تقليل الحجم إذا كان MTF يعارض جزئياً
+      try {
+        const mtfMultiplier = (brief as any).__mtfSizeMultiplier;
+        if (mtfMultiplier !== undefined && mtfMultiplier < 1.0) {
+          this.logger.log(
+            `⚔️ V224 MTF Sizing: Reducing position by ${(mtfMultiplier * 100).toFixed(0)}% ` +
+            `due to partial MTF opposition for ${brief.pair}`
+          );
+          v185SizingMultiplier *= mtfMultiplier;
+        }
+      } catch { /* non-critical */ }
 
       // Apply V185 multiplier (clamped 0.3x–2.0x by the service itself)
       riskPercent = riskPercent * v185SizingMultiplier;

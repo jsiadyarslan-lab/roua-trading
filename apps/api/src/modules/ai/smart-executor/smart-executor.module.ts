@@ -23,6 +23,7 @@ import { AiModule } from '../ai.module';
 import { NewsModule } from '../../news/news.module';
 import { CredentialsModule } from '../../portfolio/credentials/credentials.module';
 import { CouncilIntelligenceModule } from '../council-intelligence/council-intelligence.module';
+import { ScannerModule } from '../../scanner/scanner.module'; // V224: MTF Confirmation
 
 @Module({
   imports: [
@@ -39,6 +40,9 @@ import { CouncilIntelligenceModule } from '../council-intelligence/council-intel
 
     // V185: مجلس الذكاء — DynamicSizing + Correlation + TradeJournal
     CouncilIntelligenceModule,
+
+    // V224: MTF Confirmation — Scanner provides multi-timeframe alignment data
+    ScannerModule,
   ],
   controllers: [SmartExecutorController],
   providers: [SmartExecutorService],

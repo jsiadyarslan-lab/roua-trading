@@ -640,8 +640,10 @@ export class OrderExecutorService implements OnModuleDestroy {
 
       for (const position of positions) {
         try {
+          // V223 FIX: أضف closeReason — كان فارغًا فيُخزّن كـ AUTO_CLOSE بدل MANUAL
           const result = await this.tradingService.closePosition(userId, {
             positionId: position.id,
+            closeReason: 'EMERGENCY_STOP',
           });
 
           if (result.pnl) {

@@ -1000,8 +1000,11 @@ export class PositionMonitorService {
       reason = 'No timeframe → 8h default';
     } else {
       const tf = timeframe.toUpperCase();
-      if (tf === 'M1' || tf === 'M5') { maxHoldingMs = 4 * H; reason = `${tf} → 4h`; }
-      else if (tf === 'M15' || tf === 'M30') { maxHoldingMs = 12 * H; reason = `${tf} → 12h`; }
+      // V223 FIX: M1/M5 كانت 4 ساعات فقط — سبب إغلاق صفقات Smart Executor بعد 4 ساعات بالضبط
+      // مع closeReason="Manual" (لأن TIME_EXPIRED لم يكن يظهر في الواجهة).
+      // الآن: M1/M5 = 8 ساعات، M15/M30 = 24 ساعة
+      if (tf === 'M1' || tf === 'M5') { maxHoldingMs = 8 * H; reason = `${tf} → 8h (V223)`; }
+      else if (tf === 'M15' || tf === 'M30') { maxHoldingMs = 24 * H; reason = `${tf} → 24h (V223)`; }
       else if (tf === 'H1' || tf === 'H2' || tf === 'H4') { maxHoldingMs = 48 * H; reason = `${tf} → 48h`; }
       else if (tf === 'D1' || tf === 'D3') { maxHoldingMs = 7 * 24 * H; reason = `${tf} → 7d`; }
       else if (tf === 'W1' || tf === 'W2') { maxHoldingMs = 14 * 24 * H; reason = `${tf} → 14d`; }

@@ -174,7 +174,9 @@ export function buildHeatmap(candles: CandleData[], signals: any[]): HeatmapResu
     const points: HeatmapPoint[] = recent.map((c, i) => {
       // Simple momentum-based confidence: consecutive candles in same direction
       let momentum = 0;
-      const lookback = Math.min(i, 5);
+      // V225 FIX: Guard against lookback=0 (division by zero at i=0)
+      // When i=0, Math.min(0, 5) = 0, and lookback=0 caused alignment = Infinity/NaN.
+      const lookback = Math.max(1, Math.min(i, 5));
       for (let j = i - lookback; j < i; j++) {
         if (j < 0) continue;
         if (recent[j].close > recent[j].open) momentum++;

@@ -178,17 +178,31 @@ function calcIchimoku(candles: WorkerRequest['candles'], conversion: number, bas
   const kijun = midHL(highs, lows, base, 0);
 
   // Senkou A = (Tenkan + Kijun) / 2, shifted forward by 'base' periods
-  const senkouA: (number | null)[] = [];
+  // V225 FIX: Apply displacement — Senkou Span A must be shifted 'base' periods ahead.
+  // The old code placed Senkou A at the calculation index (no shift), causing
+  // the Ichimoku cloud to be drawn at the wrong position.
+  const senkouA: (number | null)[] = new Array(n).fill(null);
   for (let i = 0; i < n; i++) {
     if (tenkan[i] !== null && kijun[i] !== null) {
-      senkouA.push((tenkan[i]! + kijun[i]!) / 2);
-    } else {
-      senkouA.push(null);
+      const targetIdx = i + base;  // Shift forward by 'base' periods
+      if (targetIdx < n) {
+        senkouA[targetIdx] = (tenkan[i]! + kijun[i]!) / 2;
+      }
     }
   }
 
   // Senkou B = midpoint of highest high and lowest low over spanB periods, shifted forward
-  const senkouB = midHL(highs, lows, spanB, 0);
+  // V225 FIX: Apply displacement — Senkou Span B must be shifted 'base' periods ahead.
+  const rawSenkouB = midHL(highs, lows, spanB, 0);
+  const senkouB: (number | null)[] = new Array(n).fill(null);
+  for (let i = 0; i < n; i++) {
+    if (rawSenkouB[i] !== null) {
+      const targetIdx = i + base;  // Shift forward by 'base' periods
+      if (targetIdx < n) {
+        senkouB[targetIdx] = rawSenkouB[i];
+      }
+    }
+  }
 
   // Chikou = close shifted back by base periods
   const chikou: (number | null)[] = [];
@@ -285,12 +299,14 @@ function calcADX(candles: WorkerRequest['candles'], period: number): (number | n
     ));
   }
 
-  // Smoothed averages
+  // V225 FIX: Wilder's smoothing initial value must be AVERAGE (sum/p), not raw sum.
+  // The old code pushed raw `sum` which is p× too large, making ALL subsequent
+  // smoothed values p× too large. DI/ADX values were completely wrong.
   function smooth(arr: number[], p: number): number[] {
     const result: number[] = [];
     let sum = 0;
     for (let i = 0; i < arr.length; i++) {
-      if (i < p) { sum += arr[i]; if (i === p - 1) result.push(sum); else result.push(0); continue; }
+      if (i < p) { sum += arr[i]; if (i === p - 1) result.push(sum / p); else result.push(0); continue; }
       const val = result[i - 1] - result[i - 1] / p + arr[i];
       result.push(val);
     }

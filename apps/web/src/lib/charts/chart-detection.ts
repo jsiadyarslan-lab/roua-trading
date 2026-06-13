@@ -698,7 +698,10 @@ export function detectBOS(candles: CandleData[], swings: SwingPoint[]): Detected
   // ATR-relative threshold: two breaks are "same level" if within ATR/4
   const atr = candles.length >= 14 ? (() => {
     const sl2 = candles.slice(-14);
-    const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
+    // V225 FIX: True Range must use PREVIOUS candle's close, not current candle's close.
+    // The old code used c.close (current candle's own close) which is mathematically wrong.
+    // True Range = max(high-low, |high-prevClose|, |low-prevClose|)
+    const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.low, Math.abs(c.high - sl2[i - 1].close), Math.abs(c.low - sl2[i - 1].close)));
     return trs.reduce((s, v) => s + v, 0) / trs.length;
   })() : candles.length > 0 ? (candles[candles.length - 1].high - candles[candles.length - 1].low) : 0;
 

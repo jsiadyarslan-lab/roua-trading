@@ -365,11 +365,16 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
     seriesRefs.current.delete(cellId);
     volumeSeriesRefs.current.delete(cellId);
 
-    setCells(prev => prev.map(c => c.id === cellId ? { ...c, symbol: newSymbol } : c));
+    // V225 FIX: Single setCells call — update the specific cell AND sync-mode cells
+    // in one update. The old code called setCells twice: first for the specific cell,
+    // then for ALL cells in sync mode. The second call overwrote the first because
+    // React batches state updates, causing the specific cell change to be lost.
+    setCells(prev => syncMode
+      ? prev.map(c => ({ ...c, symbol: newSymbol }))
+      : prev.map(c => c.id === cellId ? { ...c, symbol: newSymbol } : c)
+    );
 
-    // Sync mode: apply to all cells
     if (syncMode) {
-      setCells(prev => prev.map(c => ({ ...c, symbol: newSymbol })));
       // Remove all chart instances to recreate
       chartInstancesRef.current.forEach((ch) => { try { ch.remove(); } catch {} });
       chartInstancesRef.current.clear();
@@ -387,11 +392,13 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
     seriesRefs.current.delete(cellId);
     volumeSeriesRefs.current.delete(cellId);
 
-    setCells(prev => prev.map(c => c.id === cellId ? { ...c, timeframe: tf } : c));
+    // V225 FIX: Single setCells call for timeframe change (same pattern as symbol)
+    setCells(prev => syncMode
+      ? prev.map(c => ({ ...c, timeframe: tf }))
+      : prev.map(c => c.id === cellId ? { ...c, timeframe: tf } : c)
+    );
 
-    // Sync mode
     if (syncMode) {
-      setCells(prev => prev.map(c => ({ ...c, timeframe: tf })));
       chartInstancesRef.current.forEach((ch) => { try { ch.remove(); } catch {} });
       chartInstancesRef.current.clear();
       seriesRefs.current.clear();

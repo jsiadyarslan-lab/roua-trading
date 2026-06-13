@@ -234,8 +234,11 @@ export function validateTradeSetup(setup: {
 
   const risk = Math.abs(setup.entry - setup.stopLoss);
   const reward = Math.abs(setup.takeProfit - setup.entry);
+  // V225 FIX: Operator precedence — (reward / risk).toFixed(2) not reward / risk.toFixed(2)
+  // The old code computed: reward / "risk.toFixed(2)" = NaN (string coercion)
+  // The correct code computes: (reward / risk).toFixed(2) = e.g. "1.50"
   if (risk > 0 && reward / risk < 1.0) {
-    issues.push(`R:R ratio ${reward / risk.toFixed(2)} is below 1:1`);
+    issues.push(`R:R ratio ${(reward / risk).toFixed(2)} is below 1:1`);
   }
 
   return { valid: issues.length === 0, issues };

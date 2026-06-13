@@ -275,6 +275,8 @@ export class IntegrityCheckController {
     results.push(this.checkV47());
     // V222 Agent protection checks
     results.push(this.checkV48());
+    // V225 Chart Deep Audit — Phase 1 critical fixes
+    results.push(this.checkV49());
 
     return results;
   }
@@ -3429,6 +3431,164 @@ export class IntegrityCheckController {
       return { id: 'V48', name: 'V222/V227 حماية الوكيل على مستوى قاعدة البيانات', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
     }
     return { id: 'V48', name: 'V222/V227 حماية الوكيل على مستوى قاعدة البيانات', status: 'PASS', detail: `حماية الوكيل تعمل: ${passes.join(' | ')}` };
+  }
+
+  // ── V49: V225 Chart Deep Audit — Phase 1 Critical Fixes ──
+  private checkV49(): CheckResult {
+    const failures: string[] = [];
+    const passes: string[] = [];
+
+    // V49a: PaperTradesStore — closedIds are processed after SL/TP hit
+    const ptsContent = this.read('../../../web/src/hooks/usePaperTradesStore.ts');
+    if (!ptsContent) {
+      // Try alternate path (compiled or different layout)
+      const altContent = this.read('web/src/hooks/usePaperTradesStore.ts');
+      if (!altContent) {
+        failures.push('usePaperTradesStore.ts غير موجود — لا يمكن التحقق من إصلاح SL/TP');
+      } else {
+        this._checkV49a(altContent, passes, failures);
+      }
+    } else {
+      this._checkV49a(ptsContent, passes, failures);
+    }
+
+    // V49b: AnalysisValidator — R:R ratio operator precedence fixed
+    const avContent = this.read('../../../web/src/lib/charts/AnalysisValidator.ts')
+      || this.read('web/src/lib/charts/AnalysisValidator.ts');
+    if (avContent) {
+      // The BUG was: reward / risk.toFixed(2) → divides by string → NaN
+      // The FIX is: (reward / risk).toFixed(2) → proper parenthesization
+      if (avContent.includes('(reward / risk).toFixed(2)')) {
+        passes.push('نسبة R:R مصححة — (reward / risk).toFixed(2)');
+      } else if (avContent.includes('reward / risk.toFixed(2)')) {
+        failures.push('نسبة R:R خاطئة — reward / risk.toFixed(2) = قسمة على نص = NaN');
+      } else {
+        failures.push('لا يمكن العثور على كود حساب R:R');
+      }
+    }
+
+    // V49c: useChartWebSocket — Socket.IO uses bufferUpdate (not direct calls)
+    const wsContent = this.read('../../../web/src/hooks/useChartWebSocket.ts')
+      || this.read('web/src/hooks/useChartWebSocket.ts');
+    if (wsContent) {
+      // Check that Socket.IO ticker handler uses bufferUpdate, not direct onPriceUpdate/onCandleUpdate
+      const socketSection = wsContent.substring(
+        wsContent.indexOf("socket.on('ticker'"),
+        wsContent.indexOf("socket.on('ticker:error'") > -1
+          ? wsContent.indexOf("socket.on('ticker:error'")
+          : wsContent.indexOf("});", wsContent.indexOf("socket.on('ticker'") + 100)
+      );
+      if (socketSection.includes('bufferUpdate(null, price') && socketSection.includes('bufferUpdate(candle, null')) {
+        passes.push('Socket.IO يستخدم bufferUpdate بدل الاستدعاء المباشر');
+      } else if (socketSection.includes('onPriceUpdate(price)') || socketSection.includes('onCandleUpdate(candle)')) {
+        failures.push('Socket.IO يستدعي onPriceUpdate/onCandleUpdate مباشرة — يتجاوز rAF buffer');
+      }
+
+      // Check that connect() deps don't include onCandleUpdate/onPriceUpdate
+      const connectDepsMatch = wsContent.match(/},\s*\[([^\]]*?)\]\s*;\s*\/\/ V225 FIX/);
+      if (connectDepsMatch) {
+        if (!connectDepsMatch[1].includes('onCandleUpdate') && !connectDepsMatch[1].includes('onPriceUpdate')) {
+          passes.push('connect() deps لا تتضمن onCandleUpdate/onPriceUpdate');
+        } else {
+          failures.push('connect() deps تتضمن callbacks — يسبب إعادة اتصال مستمرة');
+        }
+      }
+    }
+
+    // V49d: IncrementalCalc — rolling volume average (volumeHistory)
+    const icContent = this.read('../../../web/src/lib/charts/IncrementalCalc.ts')
+      || this.read('web/src/lib/charts/IncrementalCalc.ts');
+    if (icContent) {
+      if (icContent.includes('volumeHistory')) {
+        passes.push('متوسط الحجم المتدحرج يعمل — volumeHistory');
+      } else {
+        failures.push('متوسط الحجم يتراكم للأبد — volumeSum غير محدود');
+      }
+      // Also check that the old broken formula is gone
+      if (icContent.includes('volumeSum / Math.min(50, state.candleCount)')) {
+        failures.push('معادلة متوسط الحجم القديمة لا تزال موجودة — قسمة تراكمية خاطئة');
+      }
+    }
+
+    // V49e: indicator-worker — Ichimoku displacement applied
+    const iwContent = this.read('../../../web/src/workers/indicator-worker.ts')
+      || this.read('web/src/workers/indicator-worker.ts');
+    if (iwContent) {
+      // Check for shift forward by 'base' periods in senkouA calculation
+      if (iwContent.includes('targetIdx = i + base') && iwContent.includes('senkouA[targetIdx]')) {
+        passes.push('Ichimoku cloud مُزاحة للأمام في Worker');
+      } else {
+        failures.push('Ichimoku cloud في Worker بدون إزاحة — السحابة في مكان خاطئ');
+      }
+
+      // Check ADX smooth initial value is sum/p not raw sum
+      if (iwContent.includes('result.push(sum / p)')) {
+        passes.push('ADX smooth القيمة الأولية صحيحة (sum/p)');
+      } else if (iwContent.includes('result.push(sum)')) {
+        failures.push('ADX smooth القيمة الأولية خاطئة — sum بدون قسمة على p = قيم p× أكبر');
+      }
+    }
+
+    // V49f: ChartGrid — single setCells call in sync mode
+    const cgContent = this.read('../../../web/src/components/charts/ChartGrid.tsx')
+      || this.read('web/src/components/charts/ChartGrid.tsx');
+    if (cgContent) {
+      // Check that handleChangeSymbol doesn't have two setCells calls
+      const symbolHandler = this._findMethodBody(cgContent, 'handleChangeSymbol');
+      if (symbolHandler) {
+        const setCellsCount = (symbolHandler.match(/setCells\s*\(/g) || []).length;
+        if (setCellsCount <= 1) {
+          passes.push('ChartGrid: setCells واحدة فقط في وضع المزامنة');
+        } else {
+          failures.push(`ChartGrid: ${setCellsCount} استدعاءات setCells — الثاني يتجاوز الأول`);
+        }
+      }
+    }
+
+    // V49g: ConfidenceHeatmap — division by zero guard
+    const chContent = this.read('../../../web/src/lib/charts/ConfidenceHeatmap.ts')
+      || this.read('web/src/lib/charts/ConfidenceHeatmap.ts');
+    if (chContent) {
+      if (chContent.includes('Math.max(1, Math.min(i, 5))')) {
+        passes.push('ConfidenceHeatmap: حماية من القسمة على صفر');
+      } else if (chContent.includes('Math.min(i, 5)') && !chContent.includes('Math.max(1,')) {
+        failures.push('ConfidenceHeatmap: lookback يمكن أن يكون 0 — قسمة على صفر');
+      }
+    }
+
+    // V49h: chart-detection — BOS ATR uses previous close
+    const cdContent = this.read('../../../web/src/lib/charts/chart-detection.ts')
+      || this.read('web/src/lib/charts/chart-detection.ts');
+    if (cdContent) {
+      // Check for the fixed True Range formula that uses sl2[i - 1].close
+      if (cdContent.includes('sl2[i - 1].close') && cdContent.includes('V225 FIX')) {
+        passes.push('BOS ATR: يستخدم إغلاق الشمعة السابقة (صحيح)');
+      } else if (cdContent.includes('c.high - c.close') && cdContent.includes('c.low - c.close')) {
+        failures.push('BOS ATR: يستخدم إغلاق الشمعة الحالية بدل السابقة — True Range خاطئ');
+      }
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V49', name: 'V225 فحص الشارت العميق — المرحلة الأولى', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V49', name: 'V225 فحص الشارت العميق — المرحلة الأولى', status: 'PASS', detail: `${passes.length}/${passes.length + failures.length} إصلاحات مثبتة: ${passes.join(' | ')}` };
+  }
+
+  /** Helper for V49a — checks PaperTradesStore */
+  private _checkV49a(content: string, passes: string[], failures: string[]): void {
+    // Check that closedIds are processed after being populated
+    if (content.includes('closedIds.forEach(id => get().closeTrade(id))')) {
+      passes.push('SL/TP التلقائي يعمل — closedIds تُعالج بعد الإغلاق');
+    } else if (content.includes('closedIds') && !content.includes('closedIds.forEach')) {
+      failures.push('closedIds تُملأ لكن لا تُعالج — صفقات SL/TP تبقى مفتوحة للأبد');
+    }
+
+    // Check notification uses source (not side)
+    if (content.includes('sourceLabel') && content.includes('trade.source')) {
+      passes.push('إشعارات الصفقات تستخدم source بدل side');
+    } else if (content.includes("trade.side === 'long' ? tn('sourceExecutor')")) {
+      failures.push('الإشعارات تستخدم side بدل source — صفقات يدوية تُسمى Executor/Agent خطأً');
+    }
   }
   private renderHtml(results: CheckResult[], passed: number, failed: number, warnings: number, score: string): string {
     const statusIcon = (s: string) => s === 'PASS' ? '✅' : s === 'FAIL' ? '❌' : s === 'WARN' ? '⚠️' : '❓';

@@ -25,6 +25,7 @@ export interface IncrementalState {
   lowestLow: number;
   avgVolume: number;
   volumeSum: number;
+  volumeHistory: number[];  // V225 FIX: Rolling window for volume average
   candleCount: number;
 
   // Running EMA for quick trend detection
@@ -54,6 +55,7 @@ export function createIncrementalState(): IncrementalState {
     lowestLow: Infinity,
     avgVolume: 0,
     volumeSum: 0,
+    volumeHistory: [],  // V225 FIX
     candleCount: 0,
     ema9: 0,
     ema20: 0,
@@ -89,7 +91,8 @@ export function initializeState(
   state.highestHigh = safeMax(candles.slice(-100).map(c => c.high));
   state.lowestLow = safeMin(candles.slice(-100).map(c => c.low));
   state.volumeSum = candles.slice(-50).reduce((s, c) => s + c.volume, 0);
-  state.avgVolume = state.volumeSum / Math.min(50, candles.length);
+  state.volumeHistory = candles.slice(-50).map(c => c.volume);  // V225 FIX
+  state.avgVolume = state.volumeSum / state.volumeHistory.length;
   state.candleCount = candles.length;
   state.lastCandleTime = candles[candles.length - 1].time;
   state.lastCandleCount = candles.length;
@@ -140,8 +143,16 @@ export function updateIncremental(
   // ── Running stats ──
   if (newCandle.high > state.highestHigh) state.highestHigh = newCandle.high;
   if (newCandle.low < state.lowestLow) state.lowestLow = newCandle.low;
+  // V225 FIX: Rolling volume average — maintain a window of the last 50 candles.
+  // The old code accumulated volumeSum FOREVER but divided by min(50, candleCount).
+  // After 1000 candles, volumeSum had 1000 candles of volume but divided by 50,
+  // making avgVolume ~20x too high. Now we use a fixed-size rolling window.
   state.volumeSum += newCandle.volume;
-  state.avgVolume = state.volumeSum / Math.min(50, state.candleCount);
+  if (state.volumeHistory.length >= 50) {
+    state.volumeSum -= state.volumeHistory.shift()!;
+  }
+  state.volumeHistory.push(newCandle.volume);
+  state.avgVolume = state.volumeSum / state.volumeHistory.length;
 
   // ── Quick pivot check ──
   // Track potential new swing points without full ZigZag recalc

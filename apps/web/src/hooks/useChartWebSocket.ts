@@ -502,7 +502,11 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           if (quote) {
             const price = quote.price || quote.close || quote.lastPrice;
             if (price && price > 0) {
-              onPriceUpdate(price);
+              // V225 FIX: Use bufferUpdate() instead of direct calls.
+              // The old code called onPriceUpdate/onCandleUpdate directly,
+              // bypassing the rAF buffer and causing multiple React state
+              // updates per animation frame.
+              bufferUpdate(null, price, false);
 
               // Create synthetic candle from ticker data
               // FIX: Sanitize OHLC — near-flat candles from ticker render as dots.
@@ -523,7 +527,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
                 close: s.close,
                 volume: quote.volume || 0,
               };
-              onCandleUpdate(candle);
+              bufferUpdate(candle, null, false);
             }
           }
         });
@@ -553,7 +557,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
       // Dynamic import failed — fall back to Binance WS
       connectBinanceFallback();
     });
-  }, [symbol, timeframe, enabled, cleanup, connectBinanceFallback, onCandleUpdate, onPriceUpdate]);
+  }, [symbol, timeframe, enabled, cleanup, connectBinanceFallback]); // V225 FIX: Removed onCandleUpdate/onPriceUpdate from deps — already using refs
 
   // ── Reconnect ──────────────────────────────────────────
   const reconnect = useCallback(() => {

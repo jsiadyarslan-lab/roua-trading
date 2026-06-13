@@ -165,6 +165,18 @@ export const usePaperTradesStore = create<PaperTradesState>()(
 
         if (!changed) return
         set({ trades })
+
+        // V225 FIX: Process auto-closed trades — move them from active to closed.
+        // Previously, closedIds was populated but never processed, meaning trades
+        // that hit SL/TP stayed in the active list with _status='closed' forever.
+        // Now we call closeTrade() for each auto-closed trade to properly
+        // realize P&L, send notification, and move to closedTrades list.
+        if (closedIds.length > 0) {
+          // Use setTimeout to avoid nested Zustand set() calls which can batch incorrectly
+          setTimeout(() => {
+            closedIds.forEach(id => get().closeTrade(id))
+          }, 0)
+        }
       },
 
       updateTrade: (id, updates) => {
@@ -223,7 +235,10 @@ export const usePaperTradesStore = create<PaperTradesState>()(
               priority: isProfit ? 'high' : 'urgent',
               action: isProfit ? 'CLOSE' : 'WARN',
               title: `${sourceLabel}: ${isProfit ? tn('closeProfit') : tn('closeLoss')} ${trade.symbol}`,
-              body: `${trade.side === 'long' ? tn('sourceExecutor') : tn('sourceAgent')} ${trade.qty} ${trade.symbol} @ $${exitPrice.toFixed(2)} — ${isProfit ? '+' : ''}$${realizedPnl.toFixed(2)} (${isProfit ? '+' : ''}${realizedPct.toFixed(1)}%)`,
+              // V225 FIX: Use trade.source for source label, not trade.side.
+              // Previously, long trades were labeled "Executor" and short trades "Agent"
+              // regardless of their actual source. Now correctly uses source field.
+              body: `${sourceLabel} ${trade.qty} ${trade.symbol} @ $${exitPrice.toFixed(2)} — ${isProfit ? '+' : ''}$${realizedPnl.toFixed(2)} (${isProfit ? '+' : ''}${realizedPct.toFixed(1)}%)`,
               pair: trade.symbol,
               price: exitPrice,
             })

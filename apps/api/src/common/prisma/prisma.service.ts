@@ -8,6 +8,17 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   private connectInProgress = false;
   private connected = false;
   private consecutiveFailures = 0;
+
+  // ── V222 FIX: Agent Position Protection ──
+  // BUG HISTORY: The original V222 code had 4 critical bugs:
+  //   1) this.$extends({...}) — result not saved, extension NEVER applied
+  //   2) self.position.findUnique() — would recurse if fix #1 was applied
+  //   3) updateMany only LOGGED warnings — never blocked Agent closes
+  //   4) $transaction() not routed through extended client — tx.position.updateMany()
+  //      inside closePosition() bypassed ALL protection
+  private _extendedClient: any = null;
+  private _basePositionFindUnique: any = null;
+
   private static _dbAvailable = false;
   private static _lastError: string | null = null;
   private static _dbUrlPrefix: string | null = null;
@@ -101,15 +112,24 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
    *
    * This is the ULTIMATE defense against premature Agent position closes.
    * It intercepts ALL position.update() and position.updateMany() calls
-   * at the Prisma level. If the update sets status='CLOSED' for an Agent
-   * position held < 48h, AND the closeReason is NOT SL/TP, it BLOCKS the update.
+   * at the Prisma level — including those inside $transaction callbacks.
+   *
+   * If the update sets status='CLOSED' for an Agent position held < 48h,
+   * AND the closeReason is NOT SL/TP, it BLOCKS the update.
    *
    * This works regardless of:
    * - Which code path calls the update (PositionMonitor, Agent, ExchangeSync, etc.)
    * - Whether old compiled JS is running on Railway (pre-V184/V213/V214)
    * - Direct prisma.position.update() calls that bypass TradingService
+   * - tx.position.updateMany() inside interactive transactions (closePosition)
    *
    * The ONLY exceptions are SL/TP closes (valid trading exits).
+   *
+   * HOW IT WORKS (4 fixes applied):
+   *   FIX 1: Save $extends() result — old code discarded it, so extension never applied
+   *   FIX 2: Store base findUnique before $extends — prevents infinite recursion
+   *   FIX 3: updateMany BLOCKS (not just warns) — was the critical loophole
+   *   FIX 4: Override $transaction to route through extended client — protects tx.position
    */
   private _applyAgentProtectionExtension(): void {
     const logger = this.logger;
@@ -118,23 +138,38 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     const AGENT_MIN_HOLDING_MS = AGENT_MIN_HOLDING_HOURS * H;
     const self = this;
 
+    // FIX 2: Store base position.findUnique BEFORE creating the extension.
+    // The extension's update/updateMany handlers need to read position data to
+    // check if it's an Agent position. We must use the base (un-extended)
+    // delegate to avoid any risk of recursion through the extension layer.
+    //
+    // IMPORTANT: We store this BEFORE Object.defineProperty overrides `position`,
+    // so it captures the original (un-extended) PrismaClient position delegate.
+    const basePositionDelegate = this.position;
+    this._basePositionFindUnique = basePositionDelegate.findUnique.bind(basePositionDelegate);
+
     try {
-      this.$extends({
+      // FIX 1: this.$extends() returns a NEW client — we MUST save it!
+      // The old code called this.$extends({...}) without saving the result,
+      // so the extension was created and immediately GARBAGE COLLECTED.
+      // ALL position.update()/updateMany() calls went through the raw
+      // PrismaClient — protection was completely silent and non-functional.
+      this._extendedClient = this.$extends({
         name: 'V222_AgentProtection',
         query: {
           position: {
             async update({ args, query }) {
               const data = args.data as any;
-              // Only intercept updates that set status to CLOSED
               const newStatus = typeof data?.status === 'string' ? data.status : data?.status?.set;
               if (newStatus === 'CLOSED') {
                 const where = args.where as any;
                 const positionId = where?.id;
 
                 if (positionId) {
-                  // Read the current position using the SAME PrismaClient (self)
                   try {
-                    const current = await self.position.findUnique({ where: { id: positionId } });
+                    // FIX 2: Use base findUnique (stored before extension)
+                    // to avoid any risk of recursion through the extension layer.
+                    const current = await self._basePositionFindUnique({ where: { id: positionId } });
 
                     if (current && current.source === 'agent' && current.openedAt) {
                       const holdingMs = Date.now() - new Date(current.openedAt).getTime();
@@ -153,20 +188,58 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
                       }
                     }
                   } catch (readErr: any) {
-                    // If we can't read the position, log but don't block
                     logger.warn(`V222: Could not read position ${positionId} for protection check: ${readErr.message}`);
                   }
                 }
               }
               return query(args);
             },
+            // FIX 3: updateMany now BLOCKS Agent closes < 48h (same as update).
+            //
+            // Previously, updateMany only LOGGED a warning but still executed
+            // the close. This was the CRITICAL GAP because closePosition()
+            // uses tx.position.updateMany() in its main transaction path
+            // (trading.service.ts line ~1181). Every Agent position close
+            // went through this loophole.
             async updateMany({ args, query }) {
               const data = args.data as any;
-              if (data?.status === 'CLOSED') {
-                logger.warn(
-                  `🚨 V222: updateMany with status=CLOSED detected — this bypasses Agent protection. ` +
-                  `Consider using individual update() calls instead.`
-                );
+              const newStatus = typeof data?.status === 'string' ? data.status : data?.status?.set;
+
+              if (newStatus === 'CLOSED') {
+                const where = args.where as any;
+
+                // If where.id is specified, check the individual position
+                if (where?.id) {
+                  try {
+                    const current = await self._basePositionFindUnique({ where: { id: where.id } });
+
+                    if (current && current.source === 'agent' && current.openedAt) {
+                      const holdingMs = Date.now() - new Date(current.openedAt).getTime();
+                      const closeReason = String(data.closeReason || data.closeReason?.set || '').toUpperCase();
+                      const isSLTP = closeReason.includes('STOP_LOSS') || closeReason.includes('TAKE_PROFIT');
+
+                      if (holdingMs < AGENT_MIN_HOLDING_MS && !isSLTP) {
+                        logger.error(
+                          `🚨 V222 DB-LEVEL BLOCK (updateMany): Agent position ${where.id} ` +
+                          `attempted close at ${(holdingMs / H).toFixed(1)}h (< ${AGENT_MIN_HOLDING_HOURS}h). ` +
+                          `closeReason="${closeReason || 'EMPTY'}". BLOCKED.`
+                        );
+                        // Return fake result to prevent the close
+                        return { count: 0 };
+                      }
+                    }
+                  } catch (readErr: any) {
+                    logger.warn(`V222: Could not read position for updateMany check: ${readErr.message}`);
+                  }
+                } else {
+                  // Batch updateMany without specific ID — cannot verify individual
+                  // positions. Log loudly because this MAY close Agent positions.
+                  logger.error(
+                    `🚨 V222 CRITICAL: updateMany status=CLOSED without specific ID — ` +
+                    `CANNOT verify Agent protection! where=${JSON.stringify(where)} ` +
+                    `closeReason=${JSON.stringify(data.closeReason)}`
+                  );
+                }
               }
               return query(args);
             },
@@ -174,12 +247,63 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         },
       });
 
-      logger.log(`🛡️ V222: Agent Position Protection active — Agent positions < ${AGENT_MIN_HOLDING_HOURS}h are protected at DB level`);
+      // FIX 1 (continued): Override the 'position' instance property with a getter
+      // that routes through the extended client. Without this override, ALL
+      // this.position.update()/updateMany() calls go through the base PrismaClient
+      // position delegate, completely bypassing the V222 extension.
+      //
+      // We use Object.defineProperty because PrismaClient sets `position` as
+      // an instance property in its constructor, which shadows prototype getters.
+      Object.defineProperty(this, 'position', {
+        get() {
+          // Route through extended client (has V222 protection) when available
+          if (self._extendedClient) {
+            return self._extendedClient.position;
+          }
+          // Fallback: use the base delegate (no protection) if extension failed
+          return basePositionDelegate;
+        },
+        configurable: true,
+      });
+
+      logger.log(
+        `🛡️ V222: Agent Position Protection ACTIVE — ` +
+        `positions < ${AGENT_MIN_HOLDING_HOURS}h protected at DB level. ` +
+        `Extended client + position getter + $transaction override all active.`
+      );
     } catch (extendErr: any) {
       // $extends may not work in all Prisma versions — don't crash the app
+      this._extendedClient = null;
       logger.warn(`V222: Could not apply Agent protection extension: ${extendErr.message} — relying on V214 code-level protection`);
     }
   }
+
+  /**
+   * FIX 4: Override $transaction to route through the extended client.
+   *
+   * Without this override, code like:
+   *   this.prisma.$transaction(async (tx) => {
+   *     tx.position.updateMany({ where: {id}, data: { status: 'CLOSED' } })
+   *   })
+   * would create a `tx` that does NOT have the V222 extension applied.
+   * The `tx.position.updateMany()` call would bypass ALL Agent protection.
+   *
+   * This is the EXACT path that closePosition() uses (trading.service.ts ~1181)
+   * to close Agent positions — the main loophole causing 4-hour closures.
+   *
+   * In Prisma 6.x, calling $transaction on an extended client DOES apply
+   * extensions to the transaction client (tx). So routing through the
+   * extended client ensures tx.position.update/updateMany are protected.
+   */
+  $transaction(arg: any, ...rest: any[]): any {
+    if (this._extendedClient) {
+      return this._extendedClient.$transaction(arg, ...rest);
+    }
+    return super.$transaction(arg, ...rest);
+  }
+
+  // V222 FIX: Expose protection status for monitoring/diagnostics
+  get agentProtectionActive(): boolean { return this._extendedClient !== null; }
 
   /**
    * Auto-migrate missing columns that are defined in the Prisma schema

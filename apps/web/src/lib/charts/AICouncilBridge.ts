@@ -560,7 +560,8 @@ export function recordModelOutcome(model: AIModel, wasCorrect: boolean): void {
   if (!perf) return;
 
   if (wasCorrect) perf.correctPredictions++;
-  perf.winRate = perf.correctPredictions / perf.totalPredictions;
+  // V225 FIX: Guard against division by zero if totalPredictions is corrupted
+  perf.winRate = perf.totalPredictions > 0 ? perf.correctPredictions / perf.totalPredictions : 0;
 
   // EMA update
   const alpha = 0.15;

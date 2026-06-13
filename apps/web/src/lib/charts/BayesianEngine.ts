@@ -421,8 +421,9 @@ export function extractSignalsFromAnalysis(analysis: Record<string, any>): Bayes
     // Simple RSI(14) approximation: if available from patterns
     const bullCount = (analysis.patterns || []).filter((p: any) => p.direction === 'bullish').length;
     const bearCount = (analysis.patterns || []).filter((p: any) => p.direction === 'bearish').length;
+    // V225 FIX: Guard against 0/0 = NaN when both counts are zero
+    const ratio = (bullCount + bearCount) > 0 ? bullCount / (bullCount + bearCount) : 0.5;
     if (bullCount + bearCount >= 3) {
-      const ratio = bullCount / (bullCount + bearCount);
       if (ratio > 0.65) {
         signals.push({ source: 'momentum:patternRatio', direction: 'bullish', weight: 0.4, confidence: ratio });
       } else if (ratio < 0.35) {

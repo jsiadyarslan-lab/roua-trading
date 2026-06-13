@@ -13,6 +13,7 @@ import { useAgentStore, AgentStatus, StrategyType, MarketRegime, RegimeInfo } fr
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations } from 'next-intl'
 import { fmtPriceLocale } from '@/lib/price-format'
+import { safeToFixed } from '@/lib/charts/chart-utils'
 
 /* ═══════════════════════════════════════════════
    Design Tokens — matching Roua Trading theme
@@ -1350,7 +1351,7 @@ export default function AutonomousTraderPage() {
             <div style={{ padding: 20, textAlign: 'center' }}>
               <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginBottom: 8 }}>{t('winRate')}</div>
               <div style={{ fontFamily: FONT_MONO, fontSize: 24, fontWeight: 900, color: winRateColor }}>
-                {performance.winRate.toFixed(1)}%
+                {safeToFixed(performance.winRate, 1)}%
               </div>
               <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 4 }}>
                 {performance.winningTrades} {t('wins')} / {performance.losingTrades} {t('losses')}
@@ -1361,7 +1362,7 @@ export default function AutonomousTraderPage() {
             <div style={{ padding: 20, textAlign: 'center' }}>
               <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginBottom: 8 }}>{t('profitFactorLabel')}</div>
               <div style={{ fontFamily: FONT_MONO, fontSize: 24, fontWeight: 900, color: performance.profitFactor >= 1.5 ? T.green : T.amber }}>
-                {performance.profitFactor.toFixed(2)}
+                {safeToFixed(performance.profitFactor, 2)}
               </div>
             </div>
           </GlassCard>
@@ -1369,7 +1370,7 @@ export default function AutonomousTraderPage() {
             <div style={{ padding: 20, textAlign: 'center' }}>
               <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginBottom: 8 }}>{t('maxDrawdownLabel')}</div>
               <div style={{ fontFamily: FONT_MONO, fontSize: 24, fontWeight: 900, color: T.red }}>
-                {performance.maxDrawdownPercent.toFixed(1)}%
+                {safeToFixed(performance.maxDrawdownPercent, 1)}%
               </div>
               <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.text3, marginTop: 4 }}>
                 ${Math.abs(performance.maxDrawdown).toLocaleString('en', { maximumFractionDigits: 2 })}
@@ -1391,7 +1392,7 @@ export default function AutonomousTraderPage() {
               <DetailMetric label={t('avgLoss')} value={formatUSD(performance.averageLoss)} color={T.red} />
               <DetailMetric label={t('bestTrade')} value={formatUSD(performance.bestTrade)} color={T.green} />
               <DetailMetric label={t('worstTrade')} value={formatUSD(performance.worstTrade)} color={T.red} />
-              <DetailMetric label={t('sharpeRatio')} value={performance.sharpeRatio.toFixed(2)} color={performance.sharpeRatio >= 1 ? T.green : T.amber} />
+              <DetailMetric label={t('sharpeRatio')} value={safeToFixed(performance.sharpeRatio, 2)} color={Number.isFinite(performance.sharpeRatio) && performance.sharpeRatio >= 1 ? T.green : T.amber} />
               <DetailMetric label={t('consecutiveWins')} value={String(performance.consecutiveWins)} color={T.green} />
               <DetailMetric label={t('consecutiveLoss')} value={String(performance.consecutiveLosses)} color={T.red} />
               <DetailMetric label={t('avgHoldDuration')} value={`${Math.round(performance.averageHoldingTime)} ${t('minutes')}`} />

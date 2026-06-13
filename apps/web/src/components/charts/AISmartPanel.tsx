@@ -28,6 +28,7 @@ import { getBayesianEngine, extractSignalsFromAnalysis } from '@/lib/charts/Baye
 import { getPatternStateMachine } from '@/lib/charts/PatternStateMachine';
 import { detectElliottSMCFusion } from '@/lib/charts/ElliottSMCFusion';
 import { calcAdaptiveTPSL, getDynamicThresholds } from '@/lib/charts/ATRAdapter';
+import { safeToFixed, safeNum } from '@/lib/charts/chart-utils';
 import { getPatternPerformanceTracker } from '@/lib/charts/PatternPerformance';
 import { buildHeatmap, type HeatmapResult } from '@/lib/charts/ConfidenceHeatmap';
 import { runFullVerification, type FullVerificationReport, type EngineVerificationResult } from '@/lib/charts/EngineVerification';
@@ -1129,7 +1130,8 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const sigAr = signal?.dir === 'BUY' ? t('buy') : signal?.dir === 'SELL' ? t('sell') : t('wait');
   const sigIcon = signal?.dir === 'BUY' ? '▲' : signal?.dir === 'SELL' ? '▼' : '◆';
   const pct = Math.round((signal?.conf || 0) * 100);
-  const fp = (n: number) => n > 999 ? n.toFixed(2) : n.toFixed(5);
+  // V225 FIX: fp() now guards against NaN/Infinity — prevents "NaN" appearing in UI
+  const fp = (n: number) => Number.isFinite(n) ? (n > 999 ? n.toFixed(2) : n.toFixed(5)) : '—';
   const strengthLabel = (s: string) => s === 'strong' ? t('strong') : s === 'medium' ? t('medium') : t('weak');
   const support = levels.filter(l => l.type === 'support').slice(0, 4);
   const resistance = levels.filter(l => l.type === 'resistance').slice(0, 4);
@@ -1330,7 +1332,9 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                       ))}
                     </div>
                     {(() => {
-                      const rr = Math.abs((signal.tp - signal.entry) / (signal.sl - signal.entry || 1));
+                      // V225 FIX: Guard against undefined tp/sl/entry producing NaN
+                      const rr = (signal.tp != null && signal.sl != null && signal.entry != null)
+                        ? Math.abs((signal.tp - signal.entry) / (signal.sl - signal.entry || 1)) : 0;
                       const isWeak = rr < 1.5;
                       const isCritical = rr < 1.2;
                       return (
@@ -1346,7 +1350,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                             <span style={{
                               color: isCritical ? C.red : isWeak ? '#f59e0b' : C.text,
                               fontSize: 9, fontWeight: 700, fontFamily: 'monospace',
-                            }}>1:{rr.toFixed(2)}</span>
+                            }}>1:{safeToFixed(rr, 2, '—')}</span>
                           </div>
                           {(isWeak) && (
                             <div style={{
@@ -1577,10 +1581,10 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     <div style={{ height: '100%', borderRadius: 2, width: `${wyckoffAdvanced.confidence * 100}%`, background: wyckoffAdvanced.direction === 'bullish' ? C.green : C.red, transition: 'width 0.5s' }} />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 8, fontSize: 9 }}>
-                    <div><span style={{ color: C.dim }}>أعلى النطاق:</span> <span style={{ color: C.text, fontFamily: 'monospace' }}>{wyckoffAdvanced.range.high.toFixed(2)}</span></div>
-                    <div><span style={{ color: C.dim }}>أدنى النطاق:</span> <span style={{ color: C.text, fontFamily: 'monospace' }}>{wyckoffAdvanced.range.low.toFixed(2)}</span></div>
-                    <div><span style={{ color: C.dim }}>الدعم:</span> <span style={{ color: C.green, fontFamily: 'monospace' }}>{wyckoffAdvanced.support.toFixed(2)}</span></div>
-                    <div><span style={{ color: C.dim }}>المقاومة:</span> <span style={{ color: C.red, fontFamily: 'monospace' }}>{wyckoffAdvanced.resistance.toFixed(2)}</span></div>
+                    <div><span style={{ color: C.dim }}>أعلى النطاق:</span> <span style={{ color: C.text, fontFamily: 'monospace' }}>{safeToFixed(wyckoffAdvanced.range?.high, 2)}</span></div>
+                    <div><span style={{ color: C.dim }}>أدنى النطاق:</span> <span style={{ color: C.text, fontFamily: 'monospace' }}>{safeToFixed(wyckoffAdvanced.range?.low, 2)}</span></div>
+                    <div><span style={{ color: C.dim }}>الدعم:</span> <span style={{ color: C.green, fontFamily: 'monospace' }}>{safeToFixed(wyckoffAdvanced.support, 2)}</span></div>
+                    <div><span style={{ color: C.dim }}>المقاومة:</span> <span style={{ color: C.red, fontFamily: 'monospace' }}>{safeToFixed(wyckoffAdvanced.resistance, 2)}</span></div>
                   </div>
                 </div>
 
@@ -1602,7 +1606,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                           </div>
                           <div style={{ color: C.mut, fontSize: 8 }}>{evt.description}</div>
                         </div>
-                        <span style={{ color: C.mut, fontFamily: 'monospace', fontSize: 8 }}>V:{(evt.volume / 1000).toFixed(0)}K</span>
+                        <span style={{ color: C.mut, fontFamily: 'monospace', fontSize: 8 }}>V:{safeToFixed((evt.volume ?? 0) / 1000, 0)}K</span>
                       </div>
                     ))
                   )}
@@ -1646,7 +1650,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                         </span>
                       </div>
                       <div style={{ padding: '1px 6px', borderRadius: 3, fontSize: 8, fontWeight: 700, background: 'rgba(245,158,11,0.12)', color: C.yellow, border: '1px solid rgba(245,158,11,0.2)' }}>
-                        {(elliottAdvanced.dominantCount.probability * 100).toFixed(0)}%
+                        {(safeToFixed((elliottAdvanced.dominantCount.probability ?? 0) * 100, 0))}%
                       </div>
                     </div>
                     <div style={{ width: '100%', height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
@@ -1654,7 +1658,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     </div>
                     <div style={{ color: C.dim, fontSize: 9, marginTop: 4 }}>{elliottAdvanced.dominantCount.label}</div>
                     {elliottAdvanced.dominantCount.targetPrice !== null && (
-                      <div style={{ color: C.dim, fontSize: 9, marginTop: 2 }}>الهدف: <span style={{ color: C.text, fontFamily: 'monospace' }}>{elliottAdvanced.dominantCount.targetPrice.toFixed(2)}</span></div>
+                      <div style={{ color: C.dim, fontSize: 9, marginTop: 2 }}>الهدف: <span style={{ color: C.text, fontFamily: 'monospace' }}>{safeToFixed(elliottAdvanced.dominantCount.targetPrice, 2)}</span></div>
                     )}
                   </div>
                 )}
@@ -1671,8 +1675,8 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     ].map(({ label, val, target }) => (
                       <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 6px', background: 'rgba(255,255,255,0.02)', borderRadius: 4, marginBottom: 2 }}>
                         <span style={{ color: C.dim, fontSize: 9 }}>{label}</span>
-                        <span style={{ fontFamily: 'monospace', fontSize: 9, color: Math.abs(val - target) / target < 0.08 ? C.green : C.yellow }}>
-                          {val.toFixed(3)}{Math.abs(val - target) / target < 0.08 ? ` ≈ ${target}` : ''}
+                        <span style={{ fontFamily: 'monospace', fontSize: 9, color: Number.isFinite(val) && target > 0 && Math.abs(val - target) / target < 0.08 ? C.green : C.yellow }}>
+                          {safeToFixed(val, 3)}{Number.isFinite(val) && target > 0 && Math.abs(val - target) / target < 0.08 ? ` ≈ ${target}` : ''}
                         </span>
                       </div>
                     ))}
@@ -1691,7 +1695,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                           <span style={{ color: C.mut, fontSize: 8 }}>{count.label}</span>
-                          <span style={{ padding: '1px 4px', borderRadius: 3, fontSize: 8, fontFamily: 'monospace', background: 'rgba(255,255,255,0.04)', color: C.dim }}>{(count.probability * 100).toFixed(0)}%</span>
+                          <span style={{ padding: '1px 4px', borderRadius: 3, fontSize: 8, fontFamily: 'monospace', background: 'rgba(255,255,255,0.04)', color: C.dim }}>{safeToFixed((count.probability ?? 0) * 100, 0)}%</span>
                         </div>
                       </div>
                     ))}
@@ -1978,7 +1982,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                   </div>
                   <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
                     <div style={{ color: C.mut, fontSize: 7 }}>متوسط R:R</div>
-                    <div style={{ color: C.cyan, fontSize: 10, fontWeight: 700 }}>1:{proposalStats.avgRR.toFixed(1)}</div>
+                    <div style={{ color: C.cyan, fontSize: 10, fontWeight: 700 }}>1:{safeToFixed(proposalStats.avgRR, 1, '—')}</div>
                   </div>
                 </div>
               </div>
@@ -2003,10 +2007,10 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                       </span>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 3, fontSize: 8 }}>
-                      <div><span style={{ color: C.mut }}>دخول:</span> <span style={{ color: C.text, fontFamily: 'monospace' }}>{proposal.entryPrice.toFixed(2)}</span></div>
-                      <div><span style={{ color: C.mut }}>وقف:</span> <span style={{ color: C.red, fontFamily: 'monospace' }}>{proposal.stopLoss.toFixed(2)}</span></div>
-                      <div><span style={{ color: C.mut }}>هدف:</span> <span style={{ color: C.green, fontFamily: 'monospace' }}>{proposal.takeProfits[2].toFixed(2)}</span></div>
-                      <div><span style={{ color: C.mut }}>حجم:</span> <span style={{ color: C.text, fontFamily: 'monospace' }}>{proposal.positionSize.toFixed(4)}</span></div>
+                      <div><span style={{ color: C.mut }}>دخول:</span> <span style={{ color: C.text, fontFamily: 'monospace' }}>{safeToFixed(proposal.entryPrice, 2)}</span></div>
+                      <div><span style={{ color: C.mut }}>وقف:</span> <span style={{ color: C.red, fontFamily: 'monospace' }}>{safeToFixed(proposal.stopLoss, 2)}</span></div>
+                      <div><span style={{ color: C.mut }}>هدف:</span> <span style={{ color: C.green, fontFamily: 'monospace' }}>{safeToFixed(proposal.takeProfits?.[2], 2)}</span></div>
+                      <div><span style={{ color: C.mut }}>حجم:</span> <span style={{ color: C.text, fontFamily: 'monospace' }}>{safeToFixed(proposal.positionSize, 4)}</span></div>
                     </div>
                     <div style={{ color: C.mut, fontSize: 7.5, marginTop: 3 }}>{proposal.descriptionAr}</div>
                     <div style={{ display: 'flex', gap: 3, marginTop: 3, flexWrap: 'wrap' }}>

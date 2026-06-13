@@ -521,7 +521,8 @@ export function generateTradeProposal(opts: {
   const rewardAmount = positionSize * reward;
 
   // ── Confidence ──
-  const avgSignalConf = agreeingSignals.reduce((s, sig) => s + sig.confidence, 0) / agreeingSignals.length;
+  // V225 FIX: Fallback for missing confidence values — prevents NaN propagation
+  const avgSignalConf = agreeingSignals.reduce((s, sig) => s + (sig.confidence ?? 0.5), 0) / agreeingSignals.length;
   let confidence = Math.min(0.95, avgSignalConf * (confluenceScore / 100) * 1.1);
 
   // Boost confidence if MTF agrees
@@ -816,7 +817,7 @@ export function getProposalStats(): {
     breakeven: all.filter(p => p.status === 'breakeven').length,
     expired: history.filter(p => p.status === 'expired').length,
     winRate: completed.length > 0 ? wins.length / completed.length : 0,
-    avgRR: completed.length > 0 ? completed.reduce((s, p) => s + p.rrRatio, 0) / completed.length : 0,
+    avgRR: completed.length > 0 ? completed.reduce((s, p) => s + (Number.isFinite(p.rrRatio) ? p.rrRatio : 0), 0) / completed.length : 0,
     totalPnL,
     avgQualityScore: Math.round(avgQuality),
     dailyPnL,

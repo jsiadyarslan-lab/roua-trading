@@ -93,7 +93,8 @@ export function getDynamicThresholds(candles: CandleData[]) {
   
   // Adaptive confidence thresholds based on volatility
   // In high volatility, we need stronger signals to be confident
-  const volFactor = atr / close;
+  // V225 FIX: Guard against close=0 producing Infinity
+  const volFactor = close > 0 ? atr / close : 0;
   const highConf = regime === 'extreme' ? 0.8 : regime === 'high' ? 0.75 : 0.7;
   const medConf = regime === 'extreme' ? 0.6 : regime === 'high' ? 0.55 : 0.5;
   

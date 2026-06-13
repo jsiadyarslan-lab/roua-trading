@@ -332,3 +332,24 @@ export function safeMin(arr: number[]): number {
   }
   return min;
 }
+
+/**
+ * V225 FIX: Safe number formatting — prevents "NaN" and "Infinity" from
+ * appearing in the UI. Every .toFixed() call on a computed value should
+ * use this instead of calling .toFixed() directly.
+ *
+ * @param val - The value to format (can be anything — NaN, undefined, etc.)
+ * @param digits - Number of decimal places (default 2)
+ * @param fallback - String to show when value is not a finite number (default '—')
+ */
+export function safeToFixed(val: unknown, digits: number = 2, fallback: string = '—'): string {
+  return typeof val === 'number' && Number.isFinite(val) ? val.toFixed(digits) : fallback;
+}
+
+/**
+ * V225 FIX: Safe number for computation — returns 0 for NaN/Infinity/undefined.
+ * Use when feeding computed values into further calculations.
+ */
+export function safeNum(val: unknown, fallback: number = 0): number {
+  return typeof val === 'number' && Number.isFinite(val) ? val : fallback;
+}

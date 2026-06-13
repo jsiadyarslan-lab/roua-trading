@@ -3379,10 +3379,56 @@ export class IntegrityCheckController {
       }
     }
 
-    if (failures.length > 0) {
-      return { id: 'V48', name: 'V222 حماية الوكيل على مستوى قاعدة البيانات', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    // V48f: V227 FIX — $extends() result is saved (not discarded)
+    // BUG: The original V222 code called this.$extends({...}) without saving
+    // the result. $extends() returns a NEW client and does NOT modify `this`.
+    // So the extension was GARBAGE COLLECTED and protection NEVER worked.
+    if (prismaContent.includes('this._extendedClient = this.$extends(')) {
+      passes.push('V227 FIX 1: نتيجة $extends() محفوظة في _extendedClient');
+    } else {
+      failures.push('V227 FIX 1: نتيجة $extends() غير محفوظة — الحماية لا تعمل أبداً!');
     }
-    return { id: 'V48', name: 'V222 حماية الوكيل على مستوى قاعدة البيانات', status: 'PASS', detail: `حماية الوكيل تعمل: ${passes.join(' | ')}` };
+
+    // V48g: V227 FIX — Base findUnique stored before extension (no recursion)
+    if (prismaContent.includes('this._basePositionFindUnique')) {
+      passes.push('V227 FIX 2: findUnique الأساسي مخزّن قبل الامتداد (منع الاستدعاء الدوري)');
+    } else {
+      failures.push('V227 FIX 2: findUnique غير مخزّن — خطر استدعاء دوري لا نهائي');
+    }
+
+    // V48h: V227 FIX — updateMany BLOCKS (not just warns)
+    // BUG: The old V222 code only logged a warning for updateMany but still
+    // executed the close. closePosition() uses tx.position.updateMany() —
+    // this was the EXACT path that closed Agent positions at 4 hours.
+    if (prismaContent.includes('DB-LEVEL BLOCK (updateMany)')) {
+      passes.push('V227 FIX 3: updateMany يمنع إغلاق الوكيل < 48 ساعة (لم يعد مجرد تحذير)');
+    } else {
+      failures.push('V227 FIX 3: updateMany لا يمنع الإغلاق — الثغرة الرئيسية لا تزال موجودة!');
+    }
+
+    // V48i: V227 FIX — $transaction routed through extended client
+    // Without this, tx.position.updateMany() inside closePosition() would
+    // bypass ALL V222 protection. The `tx` object doesn't inherit extensions
+    // unless $transaction is called on the extended client.
+    if (prismaContent.includes('this._extendedClient.$transaction')) {
+      passes.push('V227 FIX 4: $transaction يمر عبر العميل الممدد — tx.position محمي');
+    } else {
+      failures.push('V227 FIX 4: $transaction لا يمر عبر العميل الممدد — tx.position.updateMany() يتفادى الحماية!');
+    }
+
+    // V48j: V227 FIX — Object.defineProperty overrides position getter
+    // Without this, this.position.update() goes through the base PrismaClient
+    // delegate (no extension), completely bypassing V222.
+    if (prismaContent.includes("Object.defineProperty(this, 'position'")) {
+      passes.push('V227 FIX 1b: position getter يُوجّه عبر العميل الممدد');
+    } else {
+      failures.push('V227 FIX 1b: position getter غير موجود — this.position.update() يتفادى الحماية');
+    }
+
+    if (failures.length > 0) {
+      return { id: 'V48', name: 'V222/V227 حماية الوكيل على مستوى قاعدة البيانات', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+    }
+    return { id: 'V48', name: 'V222/V227 حماية الوكيل على مستوى قاعدة البيانات', status: 'PASS', detail: `حماية الوكيل تعمل: ${passes.join(' | ')}` };
   }
   private renderHtml(results: CheckResult[], passed: number, failed: number, warnings: number, score: string): string {
     const statusIcon = (s: string) => s === 'PASS' ? '✅' : s === 'FAIL' ? '❌' : s === 'WARN' ? '⚠️' : '❓';

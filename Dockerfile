@@ -141,6 +141,9 @@ COPY --from=builder --chown=webuser:roua /app/apps/web/messages ./apps/web/messa
 COPY --from=builder --chown=webuser:roua /app/apps/web/i18n ./apps/web/i18n
 COPY --from=builder --chown=webuser:roua /app/apps/web/package.json ./apps/web/
 COPY --from=builder --chown=webuser:roua /app/apps/web/next.config.ts ./apps/web/
+# Web source files — needed by integrity check V49 to verify chart fixes.
+# Without these, the API cannot verify V225+ fixes in the production container.
+COPY --from=builder --chown=webuser:roua /app/apps/web/src ./apps/web/src
 # Shared package
 COPY --from=builder --chown=webuser:roua /app/packages/shared ./packages/shared
 

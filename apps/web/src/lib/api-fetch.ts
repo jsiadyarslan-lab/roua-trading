@@ -303,21 +303,47 @@ export async function closePositionUnified(
         body: JSON.stringify(body),
       })
 
+      const responseData = await res.json().catch(() => ({}))
+
+      // V227: Check for blockedByV214 — V214 returns HTTP 200 with blockedByV214:true
+      // when a non-SL/TP close of an Agent position <48h is blocked.
+      // This should NOT happen anymore since controller sends source:'USER',
+      // but handle defensively — try force-close with USER_ prefix.
+      if (res.ok && responseData.blockedByV214) {
+        try {
+          const forceRes = await fetch('/api/trading/positions/force-close', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              positionId: nestjsId,
+              reason: `USER_FORCE_CLOSE_BYPASS: ${responseData.reason || 'V214 blocked'}`,
+            }),
+          })
+          if (forceRes.ok) {
+            options?.onClosed?.()
+            return { success: true, source: 'nestjs', forceClosed: true }
+          }
+          return { success: false, error: responseData.reason || 'V214 blocked close', source: 'nestjs' }
+        } catch {
+          return { success: false, error: responseData.reason || 'V214 blocked close', source: 'nestjs' }
+        }
+      }
+
       if (res.ok) {
         options?.onClosed?.()
         return { success: true, source: 'nestjs' }
       }
 
       // On auth errors, fall through to Alpaca (maybe the position is Alpaca-only)
+      // V227: Use responseData already parsed above — don't call res.json() again
       if (res.status === 401 || res.status === 403) {
         // Fall through to Alpaca — but only if positionId is NOT a UUID
         // (a UUID sent to Alpaca will always fail)
         if (isNestJsId(positionId)) {
-          const data = await res.json().catch(() => ({}))
-          return { success: false, error: data.error || data.message || 'فشل المصادقة', source: 'nestjs' }
+          return { success: false, error: responseData.error || responseData.message || 'فشل المصادقة', source: 'nestjs' }
         }
       } else {
-        const data = await res.json().catch(() => ({}))
+        const data = responseData
         const errMsg = data.message || data.error || ''
 
         // OPTIMISTIC_LOCK_FAILURE — retry once

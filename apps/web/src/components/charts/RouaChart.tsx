@@ -252,75 +252,65 @@ function MiniChartHeader({
 }
 
 // ── Price-Synced Candle Timer Component ──
-// Styled like a price-scale label: sits right below the last-price label
+// Styled like a price-scale label: sticks right below the last-price label
 // on the right edge and changes color with candle direction (green/red).
+// Uses direct DOM manipulation (no React state for position) to prevent
+// dancing during drag — same approach as trade overlay labels.
 function PriceSyncedTimer({ chart, currentPrice, countdown, isBull, compact }: {
   chart: any; currentPrice: number; countdown: string; isBull: boolean; compact?: boolean;
 }) {
-  const [y, setY] = useState<number | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
 
   // FIX: Use refs for chart methods to avoid re-running the effect when `chart`
   // object changes (which happens every render since useChart returns a new object).
-  // Only re-subscribe when currentPrice actually changes.
   const getPriceCoordinateRef = useRef(chart.getPriceCoordinate);
   useEffect(() => { getPriceCoordinateRef.current = chart.getPriceCoordinate; }, [chart.getPriceCoordinate]);
 
-  // Synchronous DOM update — يُستدعى مباشرة في onVisibleRangeChange بدون RAF
-  const syncOverlayPositions = useCallback(() => {
+  // Direct DOM position update — no React state, no re-render, no dancing
+  const updatePosition = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
     const getPriceCoordinate = getPriceCoordinateRef.current;
     if (!getPriceCoordinate) return;
-    const overlayContainer = document.querySelector('.roua-overlay-layer') as HTMLElement;
-    if (!overlayContainer) return;
-    // نحصل على الـ price lines من الـ DOM عبر data attributes
-    const labels = overlayContainer.querySelectorAll('[data-trade-label]') as NodeListOf<HTMLElement>;
-    labels.forEach(el => {
-      const priceStr = el.getAttribute('data-price');
-      if (!priceStr) return;
-      const price = parseFloat(priceStr);
-      if (!price || isNaN(price)) return;
-      const y = getPriceCoordinate(price);
-      if (y !== null) {
-        el.style.transform = `translateY(${y - 24}px)`;
+    try {
+      const coord = getPriceCoordinate(currentPrice);
+      if (coord !== null) {
+        // Position RIGHT BELOW the price label.
+        // lightweight-charts price label height is ~18px (font + padding).
+        // We place our timer immediately below it with no gap.
+        el.style.top = (coord + 18) + 'px';
+        el.style.display = 'flex';
+      } else {
+        el.style.display = 'none';
       }
-    });
-  }, []);
-  const onVisibleRangeChangeRef = useRef(chart.onVisibleRangeChange);
-  useEffect(() => { onVisibleRangeChangeRef.current = chart.onVisibleRangeChange; }, [chart.onVisibleRangeChange]);
+    } catch { /* chart may be destroyed */ }
+  }, [currentPrice]);
 
+  // Update position on mount and when currentPrice changes
   useEffect(() => {
-    const update = () => {
-      try {
-        const getPriceCoordinate = getPriceCoordinateRef.current;
-        const coord = getPriceCoordinate ? getPriceCoordinate(currentPrice) : null;
-        setY(coord);
-      } catch { /* chart may be destroyed */ }
-    };
-    update();
+    updatePosition();
 
-    // Try useChart's onVisibleRangeChange first, fall back to IChartApi timeScale subscription
+    // Subscribe to visible range changes (horizontal scroll/zoom)
     let unsub: (() => void) | null = null;
-    const onVisibleRangeChange = onVisibleRangeChangeRef.current;
+    const onVisibleRangeChange = chart.onVisibleRangeChange;
     if (onVisibleRangeChange) {
-      unsub = onVisibleRangeChange(update);
+      unsub = onVisibleRangeChange(updatePosition);
     } else if (chart.chartRef?.current?.timeScale) {
-      const handler = () => update();
+      const handler = () => updatePosition();
       try { chart.chartRef.current.timeScale().subscribeVisibleLogicalRangeChange(handler); } catch {}
       unsub = () => { try { chart.chartRef.current.timeScale().unsubscribeVisibleLogicalRangeChange(handler); } catch {} };
     }
 
-    // FIX: Detect price-scale drag via pointer/wheel events for instant repositioning.
-    // lightweight-charts v5 has no subscribeVisiblePriceRangeChange, so we listen
-    // for user interactions on the chart container and update the timer position
-    // in the next animation frame — same approach as trade overlay sync.
+    // Detect price-scale drag via pointer/wheel events for instant repositioning
     const chartEl = chart.containerRef?.current as HTMLElement | null;
     let timerRaf = 0;
     const onPointerMove = () => {
       cancelAnimationFrame(timerRaf);
-      timerRaf = requestAnimationFrame(update);
+      timerRaf = requestAnimationFrame(updatePosition);
     };
     const onWheel = () => {
       cancelAnimationFrame(timerRaf);
-      timerRaf = requestAnimationFrame(update);
+      timerRaf = requestAnimationFrame(updatePosition);
     };
 
     if (chartEl) {
@@ -328,9 +318,9 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull, compact }: {
       chartEl.addEventListener('wheel', onWheel, { passive: true });
     }
 
-    // Reduced from 2000ms to 500ms — price label coordinate needs reasonably
-    // fast updates, and the RAF-based drag detection handles the interactive case
-    const interval = setInterval(update, 500);
+    // Periodic fallback for price-scale changes (no subscribeVisiblePriceRangeChange in v5)
+    const interval = setInterval(updatePosition, 1000);
+
     return () => {
       unsub?.(); clearInterval(interval);
       cancelAnimationFrame(timerRaf);
@@ -339,29 +329,26 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull, compact }: {
         chartEl.removeEventListener('wheel', onWheel);
       }
     };
-  // FIX: Only depend on currentPrice, not `chart` (which changes every render)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPrice]);
-
-  if (y === null) return null;
+  }, [currentPrice, updatePosition]);
 
   // Colors match the price-scale last-price label
   const bgColor = isBull ? '#3fb950' : '#f85149';
-
-  // Scale down for compact (multi-chart) cells
   const scale = compact ? 0.85 : 1;
 
   return (
     <div
+      ref={ref}
+      data-candle-timer="true"
       style={{
         position: 'absolute',
-        top: y + (compact ? 7 : 11),   // tighter gap in compact mode
+        top: 0,  // Updated via direct DOM manipulation
         right: 0,
         zIndex: 5,
         pointerEvents: 'none',
         display: 'flex',
         justifyContent: 'flex-end',
-        paddingRight: 2,    // flush with the price scale right edge
+        paddingRight: 2,
       }}
     >
       <div style={{
@@ -371,7 +358,7 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull, compact }: {
         fontSize: 10 * scale,
         fontWeight: 700,
         padding: compact ? '1px 5px' : '2px 7px',
-        borderRadius: '0 0 3px 3px',   // rounded bottom only (top sits under price label)
+        borderRadius: '0 0 3px 3px',
         minWidth: 44 * scale,
         textAlign: 'center',
         letterSpacing: 0.4,
@@ -542,6 +529,8 @@ export default function RouaChart({
 
   const candlesRef = useRef<CandleData[]>([]);
   const prevPriceRef = useRef(currentPrice);
+  const currentPriceRef = useRef(currentPrice);
+  currentPriceRef.current = currentPrice;
   const [pricePulse, setPricePulse] = useState(false);
 
   // ── Track current timeframe to ignore stale WebSocket updates ──
@@ -1696,6 +1685,17 @@ export default function RouaChart({
         el.style.height = Math.max(height, 1) + 'px';
       }
     });
+    // Update candle countdown timer position
+    const timerEl = overlayContainer.querySelector('[data-candle-timer]') as HTMLElement | null;
+    if (timerEl && currentPriceRef.current) {
+      const timerY = getPriceCoordinate(currentPriceRef.current);
+      if (timerY !== null) {
+        timerEl.style.top = (timerY + 18) + 'px';
+        timerEl.style.display = 'flex';
+      } else {
+        timerEl.style.display = 'none';
+      }
+    }
   }, []);
 
   // ── Recalculate overlay positions (runs on every scroll/zoom via rAF) ──

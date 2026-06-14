@@ -15,8 +15,8 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Embed the git commit SHA into the Docker image
-# V244: Fix label dancing — block scheduleOverlayUpdate during drag + fix offset mismatch
-ARG BUILD_CACHE=V244
+# V245: Fix timer dancing — direct DOM positioning (no React state) + stick below price label
+ARG BUILD_CACHE=V245
 ARG GIT_COMMIT=unknown
 # V216: Declare RAILWAY_GIT_COMMIT_SHA so Docker doesn't warn about undefined variable
 ARG RAILWAY_GIT_COMMIT_SHA=

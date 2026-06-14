@@ -1854,7 +1854,7 @@ export default function RouaChart({
             overlays.forEach((ov, i) => {
               const el = labelEls[i] as HTMLElement;
               if (el) {
-                el.style.transform = `translateY(${ov.y - 9}px)`;
+                el.style.transform = `translateY(${ov.y - 24}px)`;
               }
             });
           }
@@ -1877,13 +1877,20 @@ export default function RouaChart({
   // React error #185 (infinite update depth exceeded).
   useEffect(() => {
     let unsub: (() => void) | null = null;
+    let isDragging = false;
+    let dragEndTimer: ReturnType<typeof setTimeout> | null = null;
+
     const onVisibleRangeChange = onVisibleRangeChangeRef.current;
     if (onVisibleRangeChange) {
-      // syncOverlayPositions: يعمل synchronously في نفس الـ frame → لا تأخر بصري
-      // scheduleOverlayUpdate: يُزامن React state (أقل تكراراً)
       const handleRangeChange = () => {
-        syncOverlayPositions();      // فوري — نفس frame الـ canvas
-        scheduleOverlayUpdateRef.current(); // state sync عند الحاجة
+        if (isDragging) {
+          // During drag: direct DOM only — no React re-render (prevents dancing)
+          syncOverlayPositions();
+        } else {
+          // Not dragging: safe to do full state sync
+          syncOverlayPositions();
+          scheduleOverlayUpdateRef.current();
+        }
       };
       unsub = onVisibleRangeChange(handleRangeChange);
     }
@@ -1892,21 +1899,19 @@ export default function RouaChart({
 
     // Periodic overlay refresh to catch vertical price-scale changes
     // (lightweight-charts v5 has no priceScale subscribeVisiblePriceRangeChange)
-    const priceScaleInterval = setInterval(scheduleOverlayUpdate, 1000);
+    // During drag, we skip the full state update to prevent React re-render
+    // which causes label dancing (labels jump between DOM-correct and state-old positions)
+    const priceScaleInterval = setInterval(() => {
+      if (!isDragging) {
+        scheduleOverlayUpdateRef.current();
+      } else {
+        syncOverlayPositions();
+      }
+    }, 1000);
 
     // FIX: Detect price-scale drag (mouse wheel / pointer drag on price axis)
-    // lightweight-charts v5 doesn't emit events for price-scale changes,
-    // so we listen for pointer/wheel events on the chart container.
-    //
-    // CRITICAL: During drag, we ONLY do direct DOM updates (syncOverlayPositions).
-    // We do NOT call scheduleOverlayUpdate because it triggers setTradeOverlays()
-    // which causes React re-render, and React re-creates elements at their OLD
-    // state positions → elements jump between correct (DOM) and old (state)
-    // positions = "dancing" effect. The periodic interval handles state sync.
     const chartEl = chart.containerRef?.current as HTMLElement | null;
     let dragRaf = 0;
-    let isDragging = false;
-    let dragEndTimer: ReturnType<typeof setTimeout> | null = null;
 
     const onPointerDown = () => {
       isDragging = true;
@@ -1914,14 +1919,13 @@ export default function RouaChart({
     const onPointerUp = () => {
       isDragging = false;
       // After drag ends, do a full state sync with a small delay
-      // to ensure lightweight-charts has finished its internal layout
       if (dragEndTimer) clearTimeout(dragEndTimer);
       dragEndTimer = setTimeout(() => {
         scheduleOverlayUpdateRef.current();
-      }, 100);
+      }, 150);
     };
     const onPointerMove = () => {
-      if (!isDragging) return; // Only during active drag
+      if (!isDragging) return;
       cancelAnimationFrame(dragRaf);
       dragRaf = requestAnimationFrame(() => {
         syncOverlayPositions(); // Direct DOM only — no React re-render
@@ -1932,6 +1936,11 @@ export default function RouaChart({
       dragRaf = requestAnimationFrame(() => {
         syncOverlayPositions(); // Direct DOM only during wheel scroll
       });
+      // After wheel stops, sync state
+      if (dragEndTimer) clearTimeout(dragEndTimer);
+      dragEndTimer = setTimeout(() => {
+        scheduleOverlayUpdateRef.current();
+      }, 200);
     };
 
     if (chartEl) {

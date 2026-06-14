@@ -319,8 +319,8 @@ async function bootstrap() {
         // V219: Version info for deployment verification
         // This allows checking which code is ACTUALLY running on Railway
         version: {
-          code: 'V229',
-          agentProtection: 'ENABLED', // V214+V216: Agent positions protected from premature close
+          code: 'V230',
+          agentProtection: 'V214_ONLY', // V230: V222 Prisma extension removed (was causing 500s), V214 service-level protection active
           portfolioUnification: 'ENABLED', // V217: RiskManager & RiskCalculator use same formula
           unifiedValuation: 'ENABLED', // V218: PortfolioValuationService = single source of truth
           priceValidation: 'ENABLED', // V218: Price validation layer prevents BTC $1,921 bug

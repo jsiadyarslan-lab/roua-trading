@@ -678,7 +678,7 @@ export class TradingController {
     const request: ClosePositionRequest = {
       positionId: body.positionId,
       quantity: body.quantity != null ? Number(body.quantity) : undefined,
-      closeReason: 'USER_MANUAL', // V227: 'USER_' prefix so V222 Prisma defense allows user-initiated closes
+      closeReason: 'USER_MANUAL', // V227: 'USER_' prefix for V214 — user-initiated closes always pass
       source: 'USER', // V227: Allow through V214 defense — traders MUST be able to close their own positions
     };
 

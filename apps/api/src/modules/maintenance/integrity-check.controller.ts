@@ -3316,43 +3316,50 @@ export class IntegrityCheckController {
     return { id: 'V47', name: 'V221 فصل الرصيد عن الحقوق', status: 'PASS', detail: `فصل الرصيد عن الحقوق يعمل: ${passes.join(' | ')}` };
   }
 
-  // ── V48: V222 — Agent Position Protection at DB Level ──
-  // Verifies that Agent positions < 48h cannot be closed, even by old code.
+  // ── V48: V214 — Agent Position Protection at Service Level ──
+  // V230: V222 Prisma extension REMOVED — was causing 500 errors.
+  // Now relies on V214 in TradingService which provides the same protection.
   private checkV48(): CheckResult {
     const failures: string[] = [];
     const passes: string[] = [];
 
-    // V48a: PrismaService has V222 Agent protection extension
+    // V48a: V222 Prisma extension is REMOVED (V230) — no longer expected
     const prismaContent = this.read('common/prisma/prisma.service.ts');
     if (!prismaContent) {
-      return { id: 'V48', name: 'V222 حماية الوكيل على مستوى قاعدة البيانات', status: 'MISSING', detail: 'ملف prisma.service.ts غير موجود' };
+      return { id: 'V48', name: 'V214 حماية الوكيل على مستوى الكود', status: 'MISSING', detail: 'ملف prisma.service.ts غير موجود' };
     }
 
-    if (prismaContent.includes('V222_AgentProtection')) {
-      passes.push('Prisma $extends V222_AgentProtection موجود');
+    // V230: V222 extension should NOT exist — it was causing 500 errors
+    if (!prismaContent.includes('V222_AgentProtection')) {
+      passes.push('V230: V222 Prisma extension تمت إزالته — لم يعد يسبب أخطاء 500');
     } else {
-      failures.push('Prisma $extends V222_AgentProtection غير موجود — الكود القديم قد يغلق صفقات الوكيل عند 4 ساعات');
-    }
-
-    // V48b: Protection checks for Agent + 48h + SL/TP exception
-    if (prismaContent.includes('AGENT_MIN_HOLDING_HOURS = 48')) {
-      passes.push('حد أدنى 48 ساعة لصفقات الوكيل');
-    } else {
-      failures.push('حد أدنى 48 ساعة غير موجود — صفقات الوكيل ستُغلق مبكراً');
-    }
-
-    if (prismaContent.includes("STOP_LOSS') || closeReason.includes('TAKE_PROFIT")) {
-      passes.push('استثناء SL/TP — الإغلاق عبر وقف الخسارة/جني الأرباح مسموح');
-    } else {
-      failures.push('لا استثناء SL/TP — حتى إغلاقات وقف الخسارة ستُمنع!');
+      failures.push('V222 Prisma extension لا يزال موجود — قد يسبب أخطاء 500!');
     }
 
     // V48c: TradingService V214 code-level protection still exists
     const tsContent = this.read('modules/trading/trading.service.ts');
     if (tsContent) {
       if (tsContent.includes('blockedByV214') || tsContent.includes('AGENT_MIN_HOLDING_HOURS')) {
-        passes.push('V214 حماية على مستوى الكود لا يزال موجود (طبقة إضافية)');
+        passes.push('V214 حماية على مستوى الكود موجود (الحماية الأساسية)');
+      } else {
+        failures.push('V214 حماية على مستوى الكود غير موجود — صفقات الوكيل معرضة!');
       }
+
+      // V230: V214 must allow USER-initiated closes
+      if (tsContent.includes('isUserInitiated') || tsContent.includes("source === 'USER'")) {
+        passes.push('V214 يسمح بإغلاق المستخدم اليدوي');
+      } else {
+        failures.push('V214 لا يسمح بإغلاق المستخدم — الإغلاق اليدوي محظور!');
+      }
+
+      // V214 must allow SL/TP closes
+      if (tsContent.includes('isSLTPClose') || tsContent.includes("STOP_LOSS") && tsContent.includes("TAKE_PROFIT")) {
+        passes.push('V214 يسمح بإغلاق وقف الخسارة وجني الأرباح');
+      } else {
+        failures.push('V214 لا يسمح بإغلاق SL/TP — هذا خطير!');
+      }
+    } else {
+      failures.push('ملف trading.service.ts غير موجود');
     }
 
     // V48d: PositionMonitor has hardcoded 48h for Agent
@@ -3368,69 +3375,18 @@ export class IntegrityCheckController {
     // V48e: Agent service does NOT have 4h close logic
     const agentContent = this.read('agents/autonomous-trader/agent.service.ts');
     if (agentContent) {
-      // Check for OLD 4h close pattern (this was the root cause)
-      // V226 FIX: Use regex with word boundary to avoid false positive from
-      // '24 * 60 * 60 * 1000' which contains '4 * 60 * 60 * 1000' as substring.
-      // The 4h pattern is always preceded by '= ' or '((' or start of expression,
-      // never by another digit like '2' in '24'.
       const hasOld4hClose = /(?<!\d)4\s*\*\s*60\s*\*\s*60\s*\*\s*1000/.test(agentContent) && agentContent.includes('position.openedAt');
       if (hasOld4hClose) {
-        failures.push('الوكيل يحتوي على كود إغلاق 4 ساعات قديم! — سيُمنع بواسطة V222 لكن يجب إزالته');
+        failures.push('الوكيل يحتوي على كود إغلاق 4 ساعات قديم! — V214 سيمنعه لكن يجب إزالته');
       } else {
         passes.push('الوكيل لا يحتوي على كود إغلاق 4 ساعات (تمت إزالته في V184)');
       }
     }
 
-    // V48f: V227 FIX — $extends() result is saved (not discarded)
-    // BUG: The original V222 code called this.$extends({...}) without saving
-    // the result. $extends() returns a NEW client and does NOT modify `this`.
-    // So the extension was GARBAGE COLLECTED and protection NEVER worked.
-    if (prismaContent.includes('this._extendedClient = this.$extends(')) {
-      passes.push('V227 FIX 1: نتيجة $extends() محفوظة في _extendedClient');
-    } else {
-      failures.push('V227 FIX 1: نتيجة $extends() غير محفوظة — الحماية لا تعمل أبداً!');
-    }
-
-    // V48g: V227 FIX — Base findUnique stored before extension (no recursion)
-    if (prismaContent.includes('this._basePositionFindUnique')) {
-      passes.push('V227 FIX 2: findUnique الأساسي مخزّن قبل الامتداد (منع الاستدعاء الدوري)');
-    } else {
-      failures.push('V227 FIX 2: findUnique غير مخزّن — خطر استدعاء دوري لا نهائي');
-    }
-
-    // V48h: V227 FIX — updateMany BLOCKS (not just warns)
-    // BUG: The old V222 code only logged a warning for updateMany but still
-    // executed the close. closePosition() uses tx.position.updateMany() —
-    // this was the EXACT path that closed Agent positions at 4 hours.
-    if (prismaContent.includes('DB-LEVEL BLOCK (updateMany)')) {
-      passes.push('V227 FIX 3: updateMany يمنع إغلاق الوكيل < 48 ساعة (لم يعد مجرد تحذير)');
-    } else {
-      failures.push('V227 FIX 3: updateMany لا يمنع الإغلاق — الثغرة الرئيسية لا تزال موجودة!');
-    }
-
-    // V48i: V227 FIX — $transaction routed through extended client
-    // Without this, tx.position.updateMany() inside closePosition() would
-    // bypass ALL V222 protection. The `tx` object doesn't inherit extensions
-    // unless $transaction is called on the extended client.
-    if (prismaContent.includes('this._extendedClient.$transaction')) {
-      passes.push('V227 FIX 4: $transaction يمر عبر العميل الممدد — tx.position محمي');
-    } else {
-      failures.push('V227 FIX 4: $transaction لا يمر عبر العميل الممدد — tx.position.updateMany() يتفادى الحماية!');
-    }
-
-    // V48j: V227 FIX — Object.defineProperty overrides position getter
-    // Without this, this.position.update() goes through the base PrismaClient
-    // delegate (no extension), completely bypassing V222.
-    if (prismaContent.includes("Object.defineProperty(this, 'position'")) {
-      passes.push('V227 FIX 1b: position getter يُوجّه عبر العميل الممدد');
-    } else {
-      failures.push('V227 FIX 1b: position getter غير موجود — this.position.update() يتفادى الحماية');
-    }
-
     if (failures.length > 0) {
-      return { id: 'V48', name: 'V222/V227 حماية الوكيل على مستوى قاعدة البيانات', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
+      return { id: 'V48', name: 'V214/V230 حماية الوكيل على مستوى الكود', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
     }
-    return { id: 'V48', name: 'V222/V227 حماية الوكيل على مستوى قاعدة البيانات', status: 'PASS', detail: `حماية الوكيل تعمل: ${passes.join(' | ')}` };
+    return { id: 'V48', name: 'V214/V230 حماية الوكيل على مستوى الكود', status: 'PASS', detail: `حماية الوكيل تعمل: ${passes.join(' | ')}` };
   }
 
   // ── V49: V225 Chart Deep Audit — Phase 1 Critical Fixes ──

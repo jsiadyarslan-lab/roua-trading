@@ -425,11 +425,14 @@ export const usePaperTradesStore = create<PaperTradesState>()(
               // Filter out numeric-only symbols
               const base = t.symbol.split('/')[0]
               if (/^\d+$/.test(base)) return false
-              // V227: Filter out trades stuck with _status='closed' — they'll be
-              // properly closed by the stuck-trades handler above
-              if ((t as any)._status === 'closed') return false
-              // FIX: REMOVED the filter that deleted bot/executor/agent trades.
-              // All valid trades are kept regardless of source.
+              // V230: DO NOT filter out _status='closed' trades here.
+              // Previously, trades stuck with _status='closed' were filtered out
+              // of validTrades AND scheduled for closeTrade() via setTimeout.
+              // But the filter ran FIRST (synchronous), removing them from the store.
+              // Then closeTrade() couldn't find them (100ms later) → trades LOST.
+              // Now: keep them in validTrades, let the stuck-trades handler
+              // close them properly via closeTrade() which moves them to closedTrades.
+              // All valid trades are kept regardless of source (bot/executor/agent).
               return true
             })
 

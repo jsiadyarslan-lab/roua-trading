@@ -369,6 +369,8 @@ export function AlpacaPositions() {
 
       // CRITICAL FIX: SmartExecutor positions live in NestJS DB, not Alpaca.
       // Use POST /api/trading/positions/close with the real DB position id.
+      // V230: Controller sends source:'USER' + closeReason:'USER_MANUAL', so
+      // V214 defense allows the close. No need for force-close fallback.
       if (pos.dbId) {
         const response = await fetch('/api/trading/positions/close', {
           method: 'POST',
@@ -376,72 +378,34 @@ export function AlpacaPositions() {
           body: JSON.stringify({ positionId: pos.dbId }),
         })
         const json = await response.json()
-        // V227: Check for blockedByV214 — this means the close was blocked by the defense.
-        // This should NOT happen anymore since controller now sends source:'USER',
-        // but handle it defensively — try force-close as fallback.
         if (response.ok && !json.blockedByV214) {
           closeSuccess = true
         } else if (json.blockedByV214) {
-          // V227: V214 blocked the close — try force-close with explicit user source
+          // V230: This should NOT happen — controller sends source:'USER'.
+          // But handle defensively — try force-close with USER prefix in reason.
           try {
             const forceRes = await fetch('/api/trading/positions/force-close', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 positionId: pos.dbId,
-                reason: `USER_FORCE_CLOSE: ${json.reason || 'V214 blocked'}`,
+                reason: `USER_FORCE_CLOSE: ${json.reason || 'blocked'}`,
               }),
             })
             if (forceRes.ok) {
               closeSuccess = true
             } else {
-              closeError = json.reason || 'V214 blocked close'
+              closeError = json.reason || 'Close blocked'
             }
           } catch {
-            closeError = json.reason || 'V214 blocked close'
+            closeError = json.reason || 'Close blocked'
           }
         } else {
-          // FIX: If NestJS close fails, try the unified close as fallback
-          // instead of immediately showing an error. The NestJS route might
-          // be down or the position might have been closed already.
+          // Close failed for other reason (not found, already closed, API error)
           if (json.message?.includes('not found') || json.message?.includes('already closed')) {
-            // Position was already closed or doesn't exist — treat as success
             closeSuccess = true
           } else {
-            // Try unified close as fallback before giving up
-            try {
-              const { closePositionUnified } = await import('@/lib/api-fetch')
-              const result = await closePositionUnified(
-                pos.rawSymbol ?? pos.symbol,
-                undefined,
-                { dbId: pos.dbId || undefined }
-              )
-              if (result.success) {
-                closeSuccess = true
-              } else {
-                // FIX V114: If unified close also failed, try force-close directly
-                // as last resort. This prevents positions from getting stuck OPEN.
-                try {
-                  const forceRes = await fetch('/api/trading/positions/force-close', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      positionId: pos.dbId,
-                      reason: `USER_V114_FALLBACK: unified close also failed`,
-                    }),
-                  })
-                  if (forceRes.ok) {
-                    closeSuccess = true
-                  } else {
-                    closeError = result.error || json.message || t('unknownError')
-                  }
-                } catch {
-                  closeError = result.error || json.message || t('unknownError')
-                }
-              }
-            } catch {
-              closeError = json.message || json.error || t('unknownError')
-            }
+            closeError = json.message || json.error || t('unknownError')
           }
         }
       } else {
@@ -745,6 +709,7 @@ export function AlpacaPositions() {
                       body: JSON.stringify({ positionId: pos.dbId }),
                     })
                     if (res.ok) return { ok: true }
+                    // V230: Try force-close with USER prefix as fallback
                     const forceRes = await fetch('/api/trading/positions/force-close', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },

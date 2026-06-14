@@ -47,6 +47,16 @@ export class DrawingManager {
   // M2 FIX: Store userId from React layer instead of using require().
   private userId: string | undefined;
 
+  // V253 FIX: Cross-timeframe drawing support.
+  // Tracks which localStorage bucket each drawing came from, so we can:
+  // 1. Load all-tf drawings from other timeframe buckets
+  // 2. Save changes back to the correct bucket
+  // 3. Move drawings between buckets when scope changes
+  private drawingBucket: Map<string, string> = new Map();
+  // Tracks all buckets we loaded from (so we can update them on save,
+  // even if drawings were deleted or moved out)
+  private loadedBuckets: Set<string> = new Set();
+
   constructor(symbol: string, timeframe?: string, userId?: string) {
     this.symbol = symbol;
     this.timeframe = timeframe || '';
@@ -71,6 +81,8 @@ export class DrawingManager {
       timeframe: this.timeframe || undefined,
     };
     this.drawings.set(drawing.id, drawing);
+    // V253: New drawings belong to the current timeframe bucket
+    this.drawingBucket.set(drawing.id, this.getStorageKey());
     this.saveToStorage();
     return drawing;
   }
@@ -78,6 +90,17 @@ export class DrawingManager {
   update(id: string, updates: Partial<Pick<Drawing, 'points' | 'color' | 'lineWidth' | 'opacity' | 'lineStyle' | 'scope' | 'timeframe'>>): Drawing | null {
     const drawing = this.drawings.get(id);
     if (!drawing) return null;
+
+    // V253: When scope changes to single-tf, update timeframe to current TF
+    // and move the drawing to the current timeframe bucket. This ensures:
+    // - The drawing is visible only on the current TF
+    // - The drawing is stored in the current TF's bucket
+    // - The old bucket is updated to remove this drawing
+    if (updates.scope === 'single-tf' && drawing.scope !== 'single-tf') {
+      updates.timeframe = this.timeframe || undefined;
+      this.drawingBucket.set(id, this.getStorageKey());
+    }
+
     Object.assign(drawing, updates);
     this.saveToStorage();
     return drawing;
@@ -85,6 +108,7 @@ export class DrawingManager {
 
   delete(id: string): boolean {
     const deleted = this.drawings.delete(id);
+    this.drawingBucket.delete(id);
     if (deleted) this.saveToStorage();
     return deleted;
   }
@@ -98,7 +122,19 @@ export class DrawingManager {
   }
 
   clearAll(): void {
-    this.drawings.clear();
+    // V253: Only clear drawings belonging to the current timeframe bucket.
+    // Cross-timeframe all-tf drawings from other buckets should be preserved.
+    const currentKey = this.getStorageKey();
+    const toDelete: string[] = [];
+    for (const [id, bucket] of this.drawingBucket) {
+      if (bucket === currentKey) {
+        toDelete.push(id);
+      }
+    }
+    for (const id of toDelete) {
+      this.drawings.delete(id);
+      this.drawingBucket.delete(id);
+    }
     this.saveToStorage();
   }
 
@@ -111,6 +147,8 @@ export class DrawingManager {
     this.symbol = symbol;
     if (timeframe !== undefined) this.timeframe = timeframe;
     this.drawings.clear();
+    this.drawingBucket.clear();
+    this.loadedBuckets.clear();
     this.loadFromStorage();
   }
 
@@ -119,6 +157,8 @@ export class DrawingManager {
     if (this.timeframe === timeframe) return;
     this.timeframe = timeframe;
     this.drawings.clear();
+    this.drawingBucket.clear();
+    this.loadedBuckets.clear();
     this.loadFromStorage();
   }
 
@@ -133,9 +173,52 @@ export class DrawingManager {
     if (typeof window === 'undefined') return false;
     try {
       const allDrawings = this.getAllStoredDrawings();
-      const symbolDrawings = this.getAll();
-      // H2 FIX: Use composite key (symbol:timeframe) instead of just symbol
-      allDrawings[this.getStorageKey()] = symbolDrawings;
+      const currentKey = this.getStorageKey();
+
+      // V253: Save drawings grouped by their source bucket.
+      // This correctly handles:
+      // 1. Current TF drawings → saved to current bucket
+      // 2. Cross-TF all-tf drawings → saved back to their original bucket
+      // 3. Drawings moved between buckets (scope change) → saved to new bucket
+
+      // Step 1: Save ALL current-bucket drawings (we loaded all of them, so safe to overwrite)
+      const currentBucketDrawings: Drawing[] = [];
+      const otherBucketDrawings: Map<string, Drawing[]> = new Map();
+
+      for (const [id, drawing] of this.drawings) {
+        const bucket = this.drawingBucket.get(id) || currentKey;
+        if (bucket === currentKey) {
+          currentBucketDrawings.push(drawing);
+        } else {
+          if (!otherBucketDrawings.has(bucket)) otherBucketDrawings.set(bucket, []);
+          otherBucketDrawings.get(bucket)!.push(drawing);
+        }
+      }
+
+      // Overwrite current bucket completely (we loaded all its drawings)
+      allDrawings[currentKey] = currentBucketDrawings;
+
+      // Step 2: For other loaded buckets, merge our all-tf drawings with
+      // their existing single-tf drawings (which we didn't load into memory)
+      for (const bucket of this.loadedBuckets) {
+        if (bucket === currentKey) continue;
+
+        // Get existing single-tf drawings from this bucket that we didn't load
+        const existingInBucket = allDrawings[bucket] || [];
+        const singleTfDrawings = existingInBucket.filter(d => d.scope !== 'all-tf');
+
+        // Get our in-memory all-tf drawings for this bucket
+        const ourAllTfDrawings = otherBucketDrawings.get(bucket) || [];
+
+        // Merge: single-tf (untouched) + our all-tf (possibly modified/moved)
+        const merged = [...singleTfDrawings, ...ourAllTfDrawings];
+        if (merged.length === 0) {
+          delete allDrawings[bucket];
+        } else {
+          allDrawings[bucket] = merged;
+        }
+      }
+
       // M2: Pass userId to getStorageKey instead of using require()
       const json = JSON.stringify(allDrawings);
       localStorage.setItem(getStorageKey(this.userId), json);
@@ -175,16 +258,48 @@ export class DrawingManager {
         } catch { /* Legacy data corrupted — skip migration */ }
       }
 
-      // H2 FIX: Load drawings by composite key (symbol:timeframe)
-      const symbolDrawings = allDrawings[this.getStorageKey()] || [];
+      // V253 FIX: Load drawings from BOTH the current timeframe bucket
+      // AND all-tf drawings from other timeframe buckets for the same symbol.
+      // Previously, only the current bucket was loaded, meaning all-tf drawings
+      // created on other timeframes were invisible — making the "All TF" option
+      // in the context menu non-functional.
+
+      const currentKey = this.getStorageKey();
       this.drawings.clear();
-      symbolDrawings.forEach(d => {
+      this.drawingBucket.clear();
+      this.loadedBuckets.clear();
+
+      // Load ALL drawings from the current timeframe bucket
+      const currentDrawings = allDrawings[currentKey] || [];
+      this.loadedBuckets.add(currentKey);
+      currentDrawings.forEach(d => {
         // Backfill lineStyle for drawings saved before this feature existed
         if (!d.lineStyle) d.lineStyle = 'solid';
         // Backfill scope for drawings saved before this feature existed
         if (!d.scope) d.scope = 'all-tf';
         this.drawings.set(d.id, d);
+        this.drawingBucket.set(d.id, currentKey);
       });
+
+      // Load all-tf drawings from OTHER timeframe buckets for the same symbol.
+      // This is what makes the "All TF" visibility feature actually work.
+      const symbolPrefix = `${this.symbol}:`;
+      for (const [key, drawings] of Object.entries(allDrawings)) {
+        if (key === currentKey) continue;
+        // Only scan buckets belonging to the same symbol
+        if (!key.startsWith(symbolPrefix) && key !== this.symbol) continue;
+        if (!drawings || drawings.length === 0) continue;
+
+        this.loadedBuckets.add(key);
+        for (const d of drawings) {
+          // Only load all-tf drawings (single-tf drawings belong to their own TF only)
+          if (d.scope === 'all-tf' && !this.drawings.has(d.id)) {
+            if (!d.lineStyle) d.lineStyle = 'solid';
+            this.drawings.set(d.id, d);
+            this.drawingBucket.set(d.id, key);
+          }
+        }
+      }
     } catch {
       // Corrupted data — start fresh
     }
@@ -209,7 +324,13 @@ export class DrawingManager {
   importDrawings(json: string): boolean {
     try {
       const drawings: Drawing[] = JSON.parse(json);
-      drawings.forEach(d => this.drawings.set(d.id, d));
+      const currentKey = this.getStorageKey();
+      drawings.forEach(d => {
+        this.drawings.set(d.id, d);
+        // V253: Assign imported drawings to the appropriate bucket
+        const bucket = d.timeframe ? `${d.symbol}:${d.timeframe}` : currentKey;
+        this.drawingBucket.set(d.id, bucket);
+      });
       this.saveToStorage();
       return true;
     } catch {

@@ -787,21 +787,31 @@ export class TradingService {
     // (which come from old code on Railway that sends closeReason='MANUAL' at 4h).
     const isUserInitiated = request.source === 'USER';
 
-    if (isAgentPosition && !isSLTPClose && !isUserInitiated) {
+    // V237: Also block MAX_HOLDING_TIME closeReason — this is produced by OLD Agent code
+    // (pre-V224) that still has the 4h hardcoded close. Even if the Agent somehow
+    // produces this reason, we block it here. MAX_HOLDING_TIME should NEVER appear
+    // as a closeReason — it was removed in V224 and replaced by Position Monitor's
+    // TIME_EXPIRED (which uses dynamic 48h for Agent positions).
+    const isMaxHoldingClose = closeReasonStr === 'MAX_HOLDING_TIME';
+
+    if (isAgentPosition && (!isSLTPClose || isMaxHoldingClose) && !isUserInitiated) {
       const holdingMs = position.openedAt
         ? Date.now() - new Date(position.openedAt).getTime()
         : 0;
       const holdingHours = holdingMs / (60 * 60 * 1000);
       const AGENT_MIN_HOLDING_HOURS = 48;
 
-      if (holdingHours < AGENT_MIN_HOLDING_HOURS) {
-        // Agent position hasn't reached 48h — BLOCK the close (SYSTEM-originated only)
+      // V237: Also block MAX_HOLDING_TIME even if holdingHours >= 48h — this
+      // closeReason should NEVER be used for Agent positions. The Position Monitor
+      // uses TIME_EXPIRED for time-based closes, not MAX_HOLDING_TIME.
+      if (holdingHours < AGENT_MIN_HOLDING_HOURS || isMaxHoldingClose) {
+        // Agent position hasn't reached 48h OR using forbidden closeReason — BLOCK
         this.logger.error(
-          `🚨 V214 BLOCKED: Attempted to close Agent position ${position.id} (${position.symbol}) ` +
+          `🚨 V237 BLOCKED: Attempted to close Agent position ${position.id} (${position.symbol}) ` +
           `at ${holdingHours.toFixed(1)}h — Agent positions must be held for ${AGENT_MIN_HOLDING_HOURS}h minimum. ` +
           `closeReason="${request.closeReason || 'EMPTY'}" source="${request.source || 'SYSTEM'}" — ` +
           `Only SL/TP closes and USER-initiated closes are allowed before ${AGENT_MIN_HOLDING_HOURS}h. ` +
-          `This close was likely triggered by OLD code (pre-V184) still running on Railway.`
+          `${isMaxHoldingClose ? 'MAX_HOLDING_TIME is FORBIDDEN for Agent positions (removed in V224).' : 'This close was likely triggered by OLD code (pre-V184) still running on Railway.'}`
         );
 
         // Instead of throwing (which would break things), just skip and return
@@ -810,16 +820,47 @@ export class TradingService {
           order: null,
           pnl: 0,
           position,
-          blockedByV214: true,
-          reason: `Agent position held ${holdingHours.toFixed(1)}h — minimum is ${AGENT_MIN_HOLDING_HOURS}h`,
+          blockedByV237: true,
+          blockedReason: isMaxHoldingClose ? 'MAX_HOLDING_TIME_FORBIDDEN' : `Agent position held ${holdingHours.toFixed(1)}h — minimum is ${AGENT_MIN_HOLDING_HOURS}h`,
         };
       }
 
       // Agent position has reached 48h — allow the close
       this.logger.log(
-        `✅ V214 ALLOWED: Agent position ${position.id} (${position.symbol}) held ${holdingHours.toFixed(1)}h ` +
+        `✅ V237 ALLOWED: Agent position ${position.id} (${position.symbol}) held ${holdingHours.toFixed(1)}h ` +
         `≥ ${AGENT_MIN_HOLDING_HOURS}h — close allowed. closeReason="${request.closeReason}"`
       );
+    }
+
+    // V237: Smart Executor minimum holding time defense
+    // Smart Executor positions with TIME_EXPIRED were closing at exactly 4h because
+    // the old _getMaxHoldingMs returned 4h for M1/M5 (pre-V223 code on Railway).
+    // Block any TIME_EXPIRED close of Smart Executor positions before 6 hours.
+    // This is a safety net until V223 code is properly deployed on Railway.
+    const isSmartExecutorPosition = position.source === 'smart_executor';
+    const isTimeExpiredClose = closeReasonStr === 'TIME_EXPIRED';
+
+    if (isSmartExecutorPosition && isTimeExpiredClose && !isUserInitiated) {
+      const holdingMs = position.openedAt
+        ? Date.now() - new Date(position.openedAt).getTime()
+        : 0;
+      const holdingHours = holdingMs / (60 * 60 * 1000);
+      const SMART_EXECUTOR_MIN_HOURS = 6; // Minimum 6h before TIME_EXPIRED can close
+
+      if (holdingHours < SMART_EXECUTOR_MIN_HOURS) {
+        this.logger.error(
+          `🚨 V237 BLOCKED: Attempted TIME_EXPIRED close of Smart Executor position ${position.id} (${position.symbol}) ` +
+          `at ${holdingHours.toFixed(1)}h — minimum is ${SMART_EXECUTOR_MIN_HOURS}h. ` +
+          `This was likely triggered by old _getMaxHoldingMs (pre-V223) returning 4h for M1/M5.`
+        );
+        return {
+          order: null,
+          pnl: 0,
+          position,
+          blockedByV237: true,
+          blockedReason: `Smart Executor TIME_EXPIRED at ${holdingHours.toFixed(1)}h — minimum is ${SMART_EXECUTOR_MIN_HOURS}h (V223: M1/M5=8h)`,
+        };
+      }
     }
 
     // FIX: Optimistic locking — if another request already closed this position

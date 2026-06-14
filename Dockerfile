@@ -15,9 +15,9 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Embed the git commit SHA into the Docker image
-# NOTE: ARG BUILD_CACHE was REMOVED — it busted ALL Docker layer cache
-# on every version bump, causing 30+ minute full rebuilds.
-# Use Railway's "Redeploy" button for clean rebuilds instead.
+# V237: Re-enabled BUILD_CACHE to force clean rebuild — old cached layers
+# were deploying stale compiled JS despite source code updates.
+ARG BUILD_CACHE=V237
 ARG GIT_COMMIT=unknown
 # V216: Declare RAILWAY_GIT_COMMIT_SHA so Docker doesn't warn about undefined variable
 ARG RAILWAY_GIT_COMMIT_SHA=

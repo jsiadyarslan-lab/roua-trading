@@ -319,7 +319,7 @@ async function bootstrap() {
         // V219: Version info for deployment verification
         // This allows checking which code is ACTUALLY running on Railway
         version: {
-          code: 'V230',
+          code: 'V237',
           agentProtection: 'V214_ONLY', // V230: V222 Prisma extension removed (was causing 500s), V214 service-level protection active
           portfolioUnification: 'ENABLED', // V217: RiskManager & RiskCalculator use same formula
           unifiedValuation: 'ENABLED', // V218: PortfolioValuationService = single source of truth

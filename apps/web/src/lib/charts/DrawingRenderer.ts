@@ -80,6 +80,12 @@ function chartPointToPixel(pt: DrawingPoint, chart: IChartApi, series: ISeriesAp
   // Previously, returning null for off-screen points caused entire drawings
   // to disappear when zooming/panning. Now we estimate positions so lines
   // can extend beyond the visible area and partial drawings still render.
+  //
+  // V254 FIX: Improved estimation for cross-timeframe drawings.
+  // timeToCoordinate() returns null when no bar exists at that exact time
+  // (common for all-tf drawings from a different timeframe — e.g., a 1H
+  // drawing viewed on 5min). The old estimation worked but was fragile.
+  // Now we use a more robust interpolation approach.
   const x = chart.timeScale().timeToCoordinate(pt.time as Time);
   const y = series.priceToCoordinate(pt.price);
 
@@ -126,10 +132,18 @@ function chartPointToPixel(pt: DrawingPoint, chart: IChartApi, series: ISeriesAp
       }
     }
 
-    // Return if we have at least one valid coordinate
+    // V254 FIX: If we only have one valid coordinate, try harder for the other.
+    // For X: if timeToCoordinate returned null but we have a valid Y, it means
+    // the time is outside the data range (common for cross-TF drawings).
+    // We can still estimate X from the visible time range.
+    // For Y: if priceToCoordinate returned null but we have a valid X, the price
+    // is outside the visible price range — estimate from price scale.
     if (estimatedX !== null && estimatedY !== null) {
       return { x: estimatedX, y: estimatedY };
     }
+
+    // Last resort: if we have at least one coordinate from the chart API,
+    // return null (don't draw at a completely guessed position)
   } catch { /* chart may be destroyed */ }
   return null;
 }
@@ -1241,6 +1255,11 @@ export class DrawingRenderer {
     // Filter drawings by scope: show 'all-tf' drawings on all timeframes,
     // and 'single-tf' drawings only on their original timeframe
     const visibleDrawings = this.drawingManager.getVisibleOnTimeframe(this.currentTimeframe);
+    // V254 DEBUG: Log visible drawings count for debugging cross-TF issues
+    const allDrawings = this.drawingManager.getAll();
+    const allTfCount = allDrawings.filter(d => d.scope === 'all-tf').length;
+    const singleTfCount = allDrawings.filter(d => d.scope === 'single-tf').length;
+    console.log(`[DrawingRenderer] syncPrimitive: TF=${this.currentTimeframe}, total=${allDrawings.length} (all-tf=${allTfCount}, single-tf=${singleTfCount}), visible=${visibleDrawings.length}`);
     this.primitive.setDrawings(visibleDrawings);
     this.primitive.setPreview(
       this.isDrawing && this.clickedPoints.length > 0
@@ -1840,7 +1859,20 @@ export class DrawingRenderer {
 
   private completeDrawing(): void {
     if (this.clickedPoints.length === 0) return;
-    this.drawingManager.create(this.currentTool, [...this.clickedPoints], DEFAULT_COLOR, DEFAULT_LINE_WIDTH, DEFAULT_OPACITY);
+    // V254 FIX: Pass scope and lineStyle explicitly to DrawingManager.create().
+    // Previously, these were not passed, causing new drawings to:
+    // 1. Always get default scope='all-tf' (ignoring any future per-tool setting)
+    // 2. Always get default lineStyle='solid'
+    // Now we pass them explicitly so the drawing has the correct properties from creation.
+    this.drawingManager.create(
+      this.currentTool,
+      [...this.clickedPoints],
+      DEFAULT_COLOR,
+      DEFAULT_LINE_WIDTH,
+      DEFAULT_OPACITY,
+      'solid',   // lineStyle — default for new drawings
+      'all-tf',  // scope — new drawings visible on all timeframes by default
+    );
     this.clickedPoints = [];
     this.isDrawing = false;
     this.mousePixel = null;

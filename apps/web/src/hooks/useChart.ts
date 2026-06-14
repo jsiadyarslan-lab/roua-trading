@@ -270,7 +270,13 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       }));
 
       // Capture drawings from DrawingManager
-      const drawings = drawingManagerRef.current?.getAll() || [];
+      // V254 FIX: Filter to only save drawings visible on the current timeframe.
+      // getAll() includes cross-TF drawings from other buckets, which would cause
+      // duplication if saved under the current timeframe's Zustand config.
+      const allDrawings = drawingManagerRef.current?.getAll() || [];
+      const drawings = allDrawings.filter(d =>
+        d.scope === 'all-tf' || d.timeframe === timeframe
+      );
 
       // Capture visible range from chart
       let visibleRange: { from: number; to: number } | null = null;
@@ -402,29 +408,35 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         activeIndicatorsRef.current = restoredIndicators;
       }
 
-      // Restore drawings — requires DrawingManager to be initialized
-      // V253 FIX: Only import drawings that belong to this timeframe's bucket.
-      // The store may contain cross-TF drawings from other timeframes that were
-      // saved alongside the current TF's drawings. Importing ALL of them would
-      // overwrite the correct cross-TF drawings loaded by loadFromStorage().
-      // Now we only import drawings whose bucket matches the current timeframe.
-      if (saved.drawings && saved.drawings.length > 0 && drawingsReady) {
-        // Clear only current-bucket drawings loaded from localStorage
-        drawingManagerRef.current!.clearAll();
-        // Filter: only import drawings that belong to the current timeframe
-        const currentBucket = `${symbol}:${timeframe}`;
-        const adaptedDrawings = saved.drawings
-          .map(d => ({ ...d, symbol }))
-          .filter(d => {
-            // Import single-tf drawings for this timeframe
-            if (d.scope === 'single-tf' && d.timeframe === timeframe) return true;
-            // Import all-tf drawings that were ORIGINALLY created on this timeframe
-            if (d.scope === 'all-tf' && (!d.timeframe || d.timeframe === timeframe)) return true;
-            // Skip cross-TF drawings from other timeframes — they're already loaded
-            return false;
-          });
-        if (adaptedDrawings.length > 0) {
-          drawingManagerRef.current!.importDrawings(JSON.stringify(adaptedDrawings));
+      // Restore drawings — V254 FIX: Completely redesigned drawing restoration.
+      // OLD BUG: clearAll() + importDrawings() from Zustand store would DESTROY
+      // cross-TF drawings loaded by loadFromStorage(), because:
+      // 1. clearAll() wipes current-bucket drawings and calls saveToStorage()
+      // 2. saveToStorage() overwrites localStorage with incomplete data
+      // 3. importDrawings() replaces with Zustand store data (which may be stale)
+      // NEW APPROACH: DrawingManager.loadFromStorage() is the single source of truth.
+      // It already loaded ALL drawings from localStorage (including cross-TF all-tf
+      // drawings from other timeframe buckets). We ONLY import from Zustand store if
+      // localStorage has NO drawings for this timeframe (first time / cleared browser).
+      if (drawingsReady) {
+        const existingDrawings = drawingManagerRef.current!.getAll();
+        const currentTfDrawings = existingDrawings.filter(d =>
+          d.scope === 'all-tf' || d.timeframe === timeframe
+        );
+
+        if (currentTfDrawings.length === 0 && saved.drawings && saved.drawings.length > 0) {
+          // localStorage is empty for this timeframe — restore from Zustand store
+          // This handles first-time load, cleared browser data, etc.
+          const adaptedDrawings = saved.drawings
+            .map(d => ({ ...d, symbol }))
+            .filter(d => {
+              if (d.scope === 'single-tf' && d.timeframe === timeframe) return true;
+              if (d.scope === 'all-tf' && (!d.timeframe || d.timeframe === timeframe)) return true;
+              return false;
+            });
+          if (adaptedDrawings.length > 0) {
+            drawingManagerRef.current!.importDrawings(JSON.stringify(adaptedDrawings));
+          }
         }
         // Redraw with retries — the DrawingRenderer may not be ready yet
         // (it's loaded asynchronously via dynamic import)
@@ -906,8 +918,13 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           key: ind.key, params: ind.params, color: ind.color, opacity: ind.opacity, visible: ind.visible,
         }));
         const drawings = drawingManagerRef.current?.getAll() || [];
+        // V254 FIX: Filter drawings to only save those visible on the old symbol's timeframe.
+        // getAll() may include cross-TF drawings from other buckets.
+        const drawingsForOldSymbol = drawings.filter(d =>
+          d.scope === 'all-tf' || d.timeframe === prevTimeframeRef.current
+        );
         store.saveChartConfig(oldSymbol, prevTimeframeRef.current, {
-          chartType: settings.type, settings, indicators, drawings, activeTool,
+          chartType: settings.type, settings, indicators, drawings: drawingsForOldSymbol, activeTool,
           visibleRange: null, // Can't capture old visible range reliably
         });
       } catch { /* ignore save errors during symbol switch */ }
@@ -993,6 +1010,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
     // FIX: Save state for the PREVIOUS timeframe before switching.
     // Same pattern as symbol switch — save for old timeframe explicitly.
+    // V254 FIX: Only save drawings that BELONG to the old timeframe's bucket.
+    // getAll() returns cross-TF drawings from other buckets too, which would
+    // cause duplication if saved under the old timeframe's Zustand config.
     if (restoredConfigRef.current && prevTimeframeRef.current !== timeframe) {
       try {
         const store = useChartStateStore.getState();
@@ -1000,9 +1020,15 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         const indicators: SerializedIndicator[] = Array.from(activeIndicatorsRef.current.values()).map(ind => ({
           key: ind.key, params: ind.params, color: ind.color, opacity: ind.opacity, visible: ind.visible,
         }));
-        const drawings = drawingManagerRef.current?.getAll() || [];
+        // V254: Only save drawings that are visible on the old timeframe
+        // (single-tf for old TF + all-tf drawings). This avoids saving
+        // cross-TF drawings that were loaded from other buckets.
+        const allDrawings = drawingManagerRef.current?.getAll() || [];
+        const drawingsForOldTf = allDrawings.filter(d =>
+          d.scope === 'all-tf' || d.timeframe === oldTf
+        );
         store.saveChartConfig(symbol, oldTf, {
-          chartType: settings.type, settings, indicators, drawings, activeTool,
+          chartType: settings.type, settings, indicators, drawings: drawingsForOldTf, activeTool,
           visibleRange: null,
         });
       } catch { /* ignore save errors during timeframe switch */ }
@@ -1615,6 +1641,17 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       // that was JUST set by the fetch (race condition on symbol switch).
       // استخدام ref بدل closure — دائماً يحوي الرمز الحالي وليس القديم
       lastLoadedDataKeyRef.current = `${currentSymbolRef.current}:${currentTimeframeRef.current}`;
+
+      // V254 FIX: Force redraw drawings after candle data is loaded.
+      // Cross-TF drawings (all-tf) loaded from other timeframe buckets need
+      // chartPointToPixel() to convert their time/price to screen coordinates.
+      // This conversion depends on having candle data in the chart — without it,
+      // timeToCoordinate() returns null and drawings are invisible.
+      // By calling redraw AFTER setData, we ensure the primitive re-renders
+      // with the correct coordinate conversions now that candles are available.
+      if (drawingRendererRef.current) {
+        drawingRendererRef.current.redraw();
+      }
     } catch (e) {
       console.error('[useChart] setCandles setData error:', e);
     }

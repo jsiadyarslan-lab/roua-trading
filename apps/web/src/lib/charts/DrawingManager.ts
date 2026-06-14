@@ -160,14 +160,15 @@ export class DrawingManager {
   }
 
   /** Set only the timeframe (when symbol stays the same but timeframe changes).
-   * V253 FIX: Removed early return — always reload to ensure cross-TF
-   * drawings are properly loaded even when switching back to the same TF. */
+   * V254 FIX: Always reload and log detailed info for debugging cross-TF issues. */
   setTimeframe(timeframe: string): void {
+    const oldTf = this.timeframe;
     this.timeframe = timeframe;
     this.drawings.clear();
     this.drawingBucket.clear();
     this.loadedBuckets.clear();
     this.loadFromStorage();
+    console.log(`[DrawingManager] setTimeframe: ${oldTf} → ${timeframe}, loaded ${this.drawings.size} drawings, buckets: [${Array.from(this.loadedBuckets).join(', ')}]`);
   }
 
   /** Get the composite storage key for the current symbol+timeframe */
@@ -277,6 +278,10 @@ export class DrawingManager {
       this.drawingBucket.clear();
       this.loadedBuckets.clear();
 
+      // V254 DEBUG: Log all bucket keys in localStorage for this symbol
+      const allBucketKeys = Object.keys(allDrawings);
+      console.log(`[DrawingManager] loadFromStorage: currentKey=${currentKey}, allBuckets=[${allBucketKeys.join(', ')}]`);
+
       // Load ALL drawings from the current timeframe bucket
       const currentDrawings = allDrawings[currentKey] || [];
       this.loadedBuckets.add(currentKey);
@@ -300,6 +305,8 @@ export class DrawingManager {
         if (!drawings || drawings.length === 0) continue;
 
         this.loadedBuckets.add(key);
+        const allTfInBucket = drawings.filter(d => !d.scope || d.scope === 'all-tf');
+        console.log(`[DrawingManager] Cross-TF scan: bucket=${key}, total=${drawings.length}, all-tf=${allTfInBucket.length}`);
         for (const d of drawings) {
           // V253 FIX: Backfill scope BEFORE checking it!
           // Drawings saved before the scope feature was added have no scope property,

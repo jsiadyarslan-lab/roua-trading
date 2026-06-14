@@ -73,7 +73,6 @@ import {
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
-import { TIMEFRAMES } from '@/lib/charts/types'
 import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { useAuthStore } from '@/lib/auth-store'
 import { NotificationCenter } from '@/components/dashboard/NotificationCenter'
@@ -1136,80 +1135,6 @@ function SubNavDropdown({
   )
 }
 
-/* ─── Candle Countdown Timer (Global Header) ─── */
-function CandleCountdown() {
-  const timeframe = useSymbolStore((s) => s.timeframe)
-  const [countdown, setCountdown] = useState('—')
-  const [isUrgent, setIsUrgent] = useState(false)
-
-  useEffect(() => {
-    const tick = () => {
-      const tf = TIMEFRAMES.find(t => t.value === timeframe)
-      const minutes = tf?.minutes || 15
-      const intervalMs = minutes * 60 * 1000
-      const remaining = intervalMs - (Date.now() % intervalMs)
-      const totalSeconds = Math.max(0, Math.floor(remaining / 1000))
-      const mins = Math.floor(totalSeconds / 60)
-      const secs = totalSeconds % 60
-      setCountdown(`${mins}:${secs.toString().padStart(2, '0')}`)
-      setIsUrgent(totalSeconds <= 60)
-    }
-
-    tick()
-    let intervalId: ReturnType<typeof setInterval> = setInterval(tick, 1000)
-
-    const handleVisibility = () => {
-      if (document.visibilityState === 'hidden') {
-        clearInterval(intervalId)
-      } else {
-        tick()
-        intervalId = setInterval(tick, 1000)
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibility)
-    return () => { clearInterval(intervalId); document.removeEventListener('visibilitychange', handleVisibility) }
-  }, [timeframe])
-
-  const tfLabel = TIMEFRAMES.find(t => t.value === timeframe)?.label || timeframe
-
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 5,
-      padding: '0 10px', height: 28, borderRadius: 6,
-      background: isUrgent
-        ? 'rgba(255,71,87,0.12)'
-        : 'rgba(255,255,255,0.04)',
-      border: isUrgent
-        ? '1px solid rgba(255,71,87,0.30)'
-        : '1px solid rgba(255,255,255,0.08)',
-      transition: 'all 0.3s',
-      flexShrink: 0,
-      cursor: 'default',
-    }}>
-      <Clock size={12} color={isUrgent ? T.danger : T.info} style={{ flexShrink: 0 }} />
-      <span style={{
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 10, fontWeight: 700,
-        color: isUrgent ? T.danger : T.info,
-        letterSpacing: 0.5,
-        whiteSpace: 'nowrap',
-        transition: 'color 0.3s',
-      }}>
-        {countdown}
-      </span>
-      <span style={{
-        fontFamily: "'Cairo', sans-serif",
-        fontSize: 8, fontWeight: 600,
-        color: T.text3,
-        whiteSpace: 'nowrap',
-        opacity: 0.7,
-      }}>
-        {tfLabel}
-      </span>
-    </div>
-  )
-}
-
 function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: TradingMode) => void }) {
   const t = useTranslations()
   const pathname = usePathname()
@@ -1371,9 +1296,6 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
       </div>
 
       <div style={{ flex: 1 }} />
-
-      {/* ── Candle Countdown Timer ── */}
-      <CandleCountdown />
 
       {/* Mode Switcher (Trader / Investor / AI) */}
       <div style={{

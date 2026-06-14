@@ -2813,20 +2813,6 @@ export default function RouaChart({
           )}
           <div style={{ flex: 1 }} />
 
-          {/* Candle Countdown Timer */}
-          {candleCountdown && candleCountdown !== '—' && (
-            <span style={{
-              color: '#00D4FF', fontSize: 9, fontWeight: 700,
-              fontFamily: "'JetBrains Mono', monospace",
-              background: 'rgba(0,212,255,0.08)',
-              border: '1px solid rgba(0,212,255,0.15)',
-              borderRadius: 3, padding: '0 4px', lineHeight: '16px',
-              flexShrink: 0,
-            }}>
-              {candleCountdown}
-            </span>
-          )}
-
           {/* Expand/Collapse button */}
           {onToggleExpand && (
             <button onClick={e => { e.stopPropagation(); onToggleExpand(); }}
@@ -3401,18 +3387,21 @@ export default function RouaChart({
           )}
 
           {/* ── Price-Synced Candle Timer (Desktop Only) ── */}
-          {!mobile && currentPrice && candleCountdown && (
-            <PriceSyncedTimer
-              chart={chart}
-              currentPrice={currentPrice}
-              countdown={candleCountdown}
-              isBull={(() => {
-                const lc = candlesRef.current[candlesRef.current.length - 1];
-                return lc ? currentPrice >= lc.open : true;
-              })()}
-              compact={compact}
-            />
-          )}
+          {!mobile && candleCountdown && (() => {
+            const resolvedPrice = currentPrice || (candlesRef.current.length > 0 ? candlesRef.current[candlesRef.current.length - 1].close : null);
+            return resolvedPrice ? (
+              <PriceSyncedTimer
+                chart={chart}
+                currentPrice={resolvedPrice}
+                countdown={candleCountdown}
+                isBull={(() => {
+                  const lc = candlesRef.current[candlesRef.current.length - 1];
+                  return lc ? resolvedPrice >= lc.open : true;
+                })()}
+                compact={compact}
+              />
+            ) : null;
+          })()}
 
           {/* Candle countdown removed from chart — shown only in header via CrosshairOverlay */}
           </div>{/* ── Overlay Layer close ── */}

@@ -261,76 +261,36 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull, compact }: {
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
-  // FIX: Use refs for chart methods to avoid re-running the effect when `chart`
-  // object changes (which happens every render since useChart returns a new object).
-  const getPriceCoordinateRef = useRef(chart.getPriceCoordinate);
-  useEffect(() => { getPriceCoordinateRef.current = chart.getPriceCoordinate; }, [chart.getPriceCoordinate]);
+  // FIX: Store currentPrice in a data attribute so syncOverlayPositions can
+  // update this element's position without needing React re-renders.
+  // This eliminates the "dancing" caused by the timer's own position updates
+  // fighting with syncOverlayPositions during price-scale drag.
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.setAttribute('data-timer-price', String(currentPrice));
+    }
+  }, [currentPrice]);
 
-  // Direct DOM position update — no React state, no re-render, no dancing
-  const updatePosition = useCallback(() => {
+  // Set initial position only — all subsequent position updates are handled
+  // by syncOverlayPositions() in the main chart component, which uses the
+  // [data-candle-timer] selector and data-timer-price attribute.
+  // This avoids duplicate position-update loops that caused dancing.
+  useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const getPriceCoordinate = getPriceCoordinateRef.current;
+    const getPriceCoordinate = chart.getPriceCoordinate;
     if (!getPriceCoordinate) return;
     try {
       const coord = getPriceCoordinate(currentPrice);
       if (coord !== null) {
-        // Position RIGHT BELOW the price label.
-        // lightweight-charts price label height is ~18px (font + padding).
-        // We place our timer immediately below it with no gap.
         el.style.top = (coord + 18) + 'px';
         el.style.display = 'flex';
       } else {
         el.style.display = 'none';
       }
     } catch { /* chart may be destroyed */ }
-  }, [currentPrice]);
-
-  // Update position on mount and when currentPrice changes
-  useEffect(() => {
-    updatePosition();
-
-    // Subscribe to visible range changes (horizontal scroll/zoom)
-    let unsub: (() => void) | null = null;
-    const onVisibleRangeChange = chart.onVisibleRangeChange;
-    if (onVisibleRangeChange) {
-      unsub = onVisibleRangeChange(updatePosition);
-    } else if (chart.chartRef?.current?.timeScale) {
-      const handler = () => updatePosition();
-      try { chart.chartRef.current.timeScale().subscribeVisibleLogicalRangeChange(handler); } catch {}
-      unsub = () => { try { chart.chartRef.current.timeScale().unsubscribeVisibleLogicalRangeChange(handler); } catch {} };
-    }
-
-    // Detect price-scale drag via pointer/wheel events for instant repositioning
-    const chartEl = chart.containerRef?.current as HTMLElement | null;
-    let timerRaf = 0;
-    const onPointerMove = () => {
-      cancelAnimationFrame(timerRaf);
-      timerRaf = requestAnimationFrame(updatePosition);
-    };
-    const onWheel = () => {
-      cancelAnimationFrame(timerRaf);
-      timerRaf = requestAnimationFrame(updatePosition);
-    };
-
-    if (chartEl) {
-      chartEl.addEventListener('pointermove', onPointerMove);
-      chartEl.addEventListener('wheel', onWheel, { passive: true });
-    }
-
-    // Periodic fallback for price-scale changes (no subscribeVisiblePriceRangeChange in v5)
-    const interval = setInterval(updatePosition, 1000);
-
-    return () => {
-      unsub?.(); clearInterval(interval);
-      cancelAnimationFrame(timerRaf);
-      if (chartEl) {
-        chartEl.removeEventListener('pointermove', onPointerMove);
-        chartEl.removeEventListener('wheel', onWheel);
-      }
-    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPrice, updatePosition]);
+  }, [currentPrice]);
 
   // Colors match the price-scale last-price label
   const bgColor = isBull ? '#3fb950' : '#f85149';
@@ -340,9 +300,10 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull, compact }: {
     <div
       ref={ref}
       data-candle-timer="true"
+      data-timer-price={String(currentPrice)}
       style={{
         position: 'absolute',
-        top: 0,  // Updated via direct DOM manipulation
+        top: 0,  // Updated via syncOverlayPositions() direct DOM manipulation
         right: 0,
         zIndex: 5,
         pointerEvents: 'none',
@@ -713,6 +674,12 @@ export default function RouaChart({
           // ── Symbol control ──
           setSymbol: (symbol: string) => {
             useMultiChartStore.getState().updateChartConfig(chartId, { symbol });
+            // Sync global store so header ticker, watchlist, and URL reflect the active cell's symbol
+            // This prevents the global selectedSymbol from being stale when exiting multi-chart mode
+            const { activeChartId } = useMultiChartStore.getState();
+            if (activeChartId === chartId) {
+              useSymbolStore.getState().setSelectedSymbol(symbol);
+            }
           },
           // ── Template control ──
           saveTemplate: (name: string) => { chart.saveTemplate(name); },
@@ -1685,15 +1652,22 @@ export default function RouaChart({
         el.style.height = Math.max(height, 1) + 'px';
       }
     });
-    // Update candle countdown timer position
+    // Update candle countdown timer position using data-timer-price attribute
+    // (set by PriceSyncedTimer component) — avoids dependency on currentPriceRef
     const timerEl = overlayContainer.querySelector('[data-candle-timer]') as HTMLElement | null;
-    if (timerEl && currentPriceRef.current) {
-      const timerY = getPriceCoordinate(currentPriceRef.current);
-      if (timerY !== null) {
-        timerEl.style.top = (timerY + 18) + 'px';
-        timerEl.style.display = 'flex';
-      } else {
-        timerEl.style.display = 'none';
+    if (timerEl) {
+      const timerPriceStr = timerEl.getAttribute('data-timer-price');
+      const timerPrice = timerPriceStr ? parseFloat(timerPriceStr) : currentPriceRef.current;
+      if (timerPrice && !isNaN(timerPrice)) {
+        const timerY = getPriceCoordinate(timerPrice);
+        if (timerY !== null) {
+          // lightweight-charts v5 last-price label is ~18px tall.
+          // Position timer right below it (sticking to it, not overlapping).
+          timerEl.style.top = (timerY + 18) + 'px';
+          timerEl.style.display = 'flex';
+        } else {
+          timerEl.style.display = 'none';
+        }
       }
     }
   }, []);

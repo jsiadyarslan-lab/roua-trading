@@ -73,6 +73,7 @@ import {
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
+import { useMultiChartStore, getActiveChartControl } from '@/hooks/useMultiChartStore'
 import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { useAuthStore } from '@/lib/auth-store'
 import { NotificationCenter } from '@/components/dashboard/NotificationCenter'
@@ -433,6 +434,7 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
   )
   const quotes = new Map(SYMBOLS.map(s => globalQuotes[s] ? [s, globalQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][])
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
+  const isMultiChart = useMultiChartStore(state => state.isMultiChart)
 
   const prevPrices = useRef<Record<string, number>>({})
   const [flashState, setFlashState] = useState<Record<string, 'up' | 'down' | null>>({})
@@ -486,7 +488,13 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
 
         return (
           <div key={sym} 
-            onClick={() => setSelectedSymbol(sym)}
+            onClick={() => {
+              if (isMultiChart) {
+                const ctrl = getActiveChartControl();
+                if (ctrl) { ctrl.setSymbol(sym); return; }
+              }
+              setSelectedSymbol(sym);
+            }}
             style={{
             flex: 1, display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',

@@ -1450,6 +1450,7 @@ export class DrawingRenderer {
 
   private contextMenuEl: HTMLDivElement | null = null;
   private contextMenuDrawingId: string | null = null;
+  private contextMenuCloseHandler: ((e: MouseEvent) => void) | null = null;
 
   private static readonly COLORS = [
     '#fbbf24', '#f59e0b', '#ef4444', '#f85149', '#fb7185',
@@ -1668,13 +1669,20 @@ export class DrawingRenderer {
     deleteBtn.addEventListener('click', () => this.deleteDrawing());
     menu.appendChild(deleteBtn);
 
+    // ── Prevent clicks inside menu from closing it ──
+    menu.addEventListener('mousedown', (e) => { e.stopPropagation(); });
+
     // ── Close on outside click ──
+    // Remove any previous close handler first
+    if (this.contextMenuCloseHandler) {
+      document.removeEventListener('mousedown', this.contextMenuCloseHandler);
+    }
     const closeOnOutside = (e: MouseEvent) => {
       if (!menu.contains(e.target as Node)) {
         this.closeContextMenu();
-        document.removeEventListener('mousedown', closeOnOutside);
       }
     };
+    this.contextMenuCloseHandler = closeOnOutside;
     setTimeout(() => document.addEventListener('mousedown', closeOnOutside), 0);
 
     // ── Position adjustment (keep within viewport) ──
@@ -1701,6 +1709,10 @@ export class DrawingRenderer {
   }
 
   private closeContextMenu(): void {
+    if (this.contextMenuCloseHandler) {
+      document.removeEventListener('mousedown', this.contextMenuCloseHandler);
+      this.contextMenuCloseHandler = null;
+    }
     if (this.contextMenuEl) {
       this.contextMenuEl.remove();
       this.contextMenuEl = null;
@@ -1713,11 +1725,17 @@ export class DrawingRenderer {
     this.drawingManager.update(this.contextMenuDrawingId, { [prop]: value });
     this.syncPrimitive();
     this.onDrawingChange?.();
-    // Re-open menu with updated drawing to refresh UI
+    // Rebuild menu in-place to reflect the updated drawing properties
     const drawing = this.drawingManager.get(this.contextMenuDrawingId);
     if (drawing && this.contextMenuEl) {
       const rect = this.contextMenuEl.getBoundingClientRect();
-      this.closeContextMenu();
+      // Remove old close handler before rebuilding
+      if (this.contextMenuCloseHandler) {
+        document.removeEventListener('mousedown', this.contextMenuCloseHandler);
+        this.contextMenuCloseHandler = null;
+      }
+      this.contextMenuEl.remove();
+      this.contextMenuEl = null;
       this.showContextMenu(rect.left, rect.top, drawing);
     }
   }

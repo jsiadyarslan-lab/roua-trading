@@ -45,6 +45,12 @@ import { buildAICouncilPrompt, buildAIAnalysisPayload, queryAICouncil, compareAI
 import { createIncrementalState, initializeState, updateIncremental, needsFullRecalc, getQuickTrend, getQuickVolatilityRegime, type IncrementalState } from '@/lib/charts/IncrementalCalc';
 import { logError, logWarn, logInfo, getErrorCount, getRecentErrors } from '@/lib/charts/AnalysisLogger';
 import { validateAnalysis, validateTradeSetup } from '@/lib/charts/AnalysisValidator';
+// ── Revolutionary Feature Engines ──
+import { runVisualBacktest, quickBacktest, type BacktestSignalResult, type BacktestStats } from '@/lib/charts/VisualBacktestEngine';
+import { detectConfluenceZones, type ConfluenceZone } from '@/lib/charts/ConfluenceZones';
+import { explainSignal, type SignalExplanation } from '@/lib/charts/AIExplanationEngine';
+import { recordCorrelationEvent, evaluateCorrelationEvents, computeCorrelationMatrix, type CorrelationMatrix } from '@/lib/charts/CorrelationEngine';
+import { predictPatternCompletion, type PatternPrediction } from '@/lib/charts/PredictivePatternCompletion';
 
 const C = {
   bg: '#0a0e17', card: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.09)',
@@ -105,7 +111,7 @@ const PATTERN_KEYS: Record<string, string> = {
   'Inverse Head and Shoulders': 'patternInverseHeadAndShoulders',
 };
 
-type Tab = 'signal' | 'patterns' | 'wyckoff' | 'elliott' | 'levels' | 'smc' | 'advanced' | 'alerts' | 'trades' | 'mtf' | 'adaptive' | 'rules' | 'paper' | 'scanner' | 'council';
+type Tab = 'signal' | 'patterns' | 'wyckoff' | 'elliott' | 'levels' | 'smc' | 'advanced' | 'alerts' | 'trades' | 'mtf' | 'adaptive' | 'rules' | 'paper' | 'scanner' | 'council' | 'backtest' | 'confluence' | 'explain' | 'correlate' | 'predict';
 
 interface Props {
   symbol: string;
@@ -185,6 +191,14 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const [aiBridgePayload, setAiBridgePayload] = useState<AIAnalysisPayload | null>(null);
   const [aiVsAlgoStats, setAiVsAlgoStats] = useState<ReturnType<typeof getAIvsAlgoStats> | null>(null);
   const [councilAnalyses, setCouncilAnalyses] = useState<Array<{ model: string; direction: string; confidence: number; reasoning: string }>>([]);
+  // Revolutionary features state
+  const [backtestStats, setBacktestStats] = useState<BacktestStats | null>(null);
+  const [backtestSignals, setBacktestSignals] = useState<BacktestSignalResult[]>([]);
+  const [confluenceZones, setConfluenceZones] = useState<ConfluenceZone[]>([]);
+  const [signalExplanation, setSignalExplanation] = useState<SignalExplanation | null>(null);
+  const [explainSource, setExplainSource] = useState<string>('');
+  const [correlationMatrix, setCorrelationMatrix] = useState<CorrelationMatrix | null>(null);
+  const [patternPredictions, setPatternPredictions] = useState<PatternPrediction[]>([]);
 
   // ── Refs to avoid stale closure ─────────────────────────────
   const runRef = useRef(false);
@@ -686,6 +700,61 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           }
         }).catch(() => { /* AI Council query failed — fallback to algo only */ });
       } catch { /* AI Council Bridge fallback */ }
+
+      // ── Revolutionary: Visual Backtest ────────────────────────────
+      try {
+        const btResult = quickBacktest(c, allPatterns.map(p => ({
+          source: p.type || 'unknown',
+          direction: p.direction as 'bullish' | 'bearish' | 'neutral',
+          confidence: p.confidence,
+          price: p.price || price,
+          candleIndex: p.candleIndex || c.length - 1,
+        })));
+        setBacktestStats(btResult.stats);
+        setBacktestSignals(btResult.signals);
+      } catch { /* Visual Backtest fallback */ }
+
+      // ── Revolutionary: Confluence Zones ────────────────────────────
+      try {
+        const zones = detectConfluenceZones({
+          patterns: allPatterns,
+          smcData,
+          elliottResult: elliottAdvanced,
+          wyckoffResult: wyckoffAdvanced,
+          srLevels: srLevels.map(l => ({ price: l.price, type: l.type as string, strength: typeof l.strength === 'number' ? l.strength : l.strength === 'strong' ? 0.9 : l.strength === 'medium' ? 0.6 : 0.3 })),
+          currentPrice: price,
+          volumeProfile,
+        });
+        setConfluenceZones(zones);
+      } catch { /* Confluence Zones fallback */ }
+
+      // ── Revolutionary: Correlation Engine ──────────────────────────
+      try {
+        // Record all current signals as correlation events
+        for (const p of allPatterns.filter(p => p.direction !== 'neutral').slice(0, 10)) {
+          recordCorrelationEvent({
+            source: p.type || 'unknown',
+            direction: p.direction as 'bullish' | 'bearish',
+            confidence: p.confidence,
+            price: p.price || price,
+          });
+        }
+        // Evaluate past events against current price
+        evaluateCorrelationEvents(price);
+        // Compute the correlation matrix
+        const matrix = computeCorrelationMatrix();
+        setCorrelationMatrix(matrix);
+      } catch { /* Correlation Engine fallback */ }
+
+      // ── Revolutionary: Predictive Pattern Completion ───────────────
+      try {
+        const predictions = predictPatternCompletion({
+          candles: c,
+          patterns: allPatterns,
+          currentPrice: price,
+        });
+        setPatternPredictions(predictions);
+      } catch { /* Predictive Pattern Completion fallback */ }
 
       // ── Send patterns to chart (including harmonic + classic) ─────
       // FIX: Calculate entry/exit from ATR-adaptive levels for the Entry overlay
@@ -1291,7 +1360,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
       {/* Tabs — two-row compact grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', borderBottom: `1px solid ${C.border}`, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
-        {([['signal', t('tabSignal')], ['patterns', t('tabPatterns')], ['wyckoff', 'WY'], ['elliott', 'EW'], ['levels', t('tabLevels')], ['smc', t('tabSmc')], ['mtf', 'MTF'], ['alerts', '🚨'], ['trades', '💰'], ['advanced', t('tabAdvanced')], ['adaptive', '🧠'], ['rules', '📐'], ['paper', '📝'], ['scanner', '🔍'], ['council', '🤖']] as [Tab, string][]).map(([k, l]) => (
+        {([['signal', t('tabSignal')], ['patterns', t('tabPatterns')], ['wyckoff', 'WY'], ['elliott', 'EW'], ['levels', t('tabLevels')], ['smc', t('tabSmc')], ['mtf', 'MTF'], ['alerts', '🚨'], ['trades', '💰'], ['advanced', t('tabAdvanced')], ['adaptive', '🧠'], ['rules', '📐'], ['paper', '📝'], ['scanner', '🔍'], ['council', '🤖'], ['backtest', '⏪'], ['confluence', '🎯'], ['explain', '❓'], ['correlate', '🔗'], ['predict', '🔮']] as [Tab, string][]).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} style={{ padding: '3px 2px', background: tab===k?'rgba(34,211,238,0.08)':'none', border: 'none', borderBottom: `2px solid ${tab === k ? C.cyan : 'transparent'}`, color: tab === k ? C.cyan : C.dim, fontSize: 9, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', transition: 'all 0.15s', fontWeight: tab===k?700:400, whiteSpace: 'nowrap', textAlign: 'center' }}>{l}</button>
         ))}
       </div>
@@ -2591,6 +2660,407 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
             {!aiBridgePayload && councilAnalyses.length === 0 && (
               <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>شغّل التحليل أولاً لرؤية بيانات مجلس AI</div>
+            )}
+          </div>
+        )}
+
+        {/* ═══ Revolutionary: Visual Backtest ═══ */}
+        {tab === 'backtest' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            <div style={{ background: `${C.blue}08`, border: `1px solid ${C.blue}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+              <div style={{ color: C.blue, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>⏪ اختبار بصري — Visual Backtest</div>
+              <div style={{ fontSize: 8, color: C.dim }}>يعيد تشغيل الإشارات التاريخية ويتتبع ربحيتها. أخضر = إشارة صحيحة، أحمر = خاطئة، أصفر = قيد الانتظار.</div>
+            </div>
+
+            {backtestStats && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4, marginBottom: 10 }}>
+                <div style={{ background: `${C.green}10`, border: `1px solid ${C.green}30`, borderRadius: 5, padding: '6px 8px', textAlign: 'center' }}>
+                  <div style={{ color: C.mut, fontSize: 7 }}>نسبة النجاح</div>
+                  <div style={{ color: C.green, fontSize: 14, fontWeight: 800, fontFamily: 'monospace' }}>{Math.round(backtestStats.winRate * 100)}%</div>
+                </div>
+                <div style={{ background: `${C.cyan}10`, border: `1px solid ${C.cyan}30`, borderRadius: 5, padding: '6px 8px', textAlign: 'center' }}>
+                  <div style={{ color: C.mut, fontSize: 7 }}>إجمالي الإشارات</div>
+                  <div style={{ color: C.cyan, fontSize: 14, fontWeight: 800, fontFamily: 'monospace' }}>{backtestStats.totalSignals}</div>
+                </div>
+                <div style={{ background: `${C.gold}10`, border: `1px solid ${C.gold}30`, borderRadius: 5, padding: '6px 8px', textAlign: 'center' }}>
+                  <div style={{ color: C.mut, fontSize: 7 }}>متوسط الربح</div>
+                  <div style={{ color: C.gold, fontSize: 14, fontWeight: 800, fontFamily: 'monospace' }}>{backtestStats.avgPnLPct.toFixed(2)}%</div>
+                </div>
+              </div>
+            )}
+
+            {backtestStats && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 3, marginBottom: 10 }}>
+                <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                  <div style={{ color: C.green, fontSize: 9, fontWeight: 700 }}>{backtestStats.wins}</div>
+                  <div style={{ color: C.mut, fontSize: 7 }}>نجاح</div>
+                </div>
+                <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                  <div style={{ color: C.red, fontSize: 9, fontWeight: 700 }}>{backtestStats.losses}</div>
+                  <div style={{ color: C.mut, fontSize: 7 }}>خسارة</div>
+                </div>
+                <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                  <div style={{ color: C.yellow, fontSize: 9, fontWeight: 700 }}>{backtestStats.breakevens}</div>
+                  <div style={{ color: C.mut, fontSize: 7 }}>تعادل</div>
+                </div>
+                <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                  <div style={{ color: C.dim, fontSize: 9, fontWeight: 700 }}>{backtestStats.pending}</div>
+                  <div style={{ color: C.mut, fontSize: 7 }}>منتظرة</div>
+                </div>
+              </div>
+            )}
+
+            {/* Per-source win rates */}
+            {backtestStats && Object.entries(backtestStats.bySource).length > 0 && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ color: C.blue, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>📊 نسبة النجاح حسب المصدر</div>
+                {Object.entries(backtestStats.bySource).sort((a, b) => b[1].winRate - a[1].winRate).map(([source, stats]: [string, any]) => (
+                  <div key={source} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, padding: '3px 6px', background: C.card, borderRadius: 4 }}>
+                    <span style={{ fontSize: 8, color: C.text, fontWeight: 600, flex: 1 }}>{source}</span>
+                    <div style={{ width: 50, height: 5, background: C.dim + '20', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ width: `${stats.winRate * 100}%`, height: '100%', background: stats.winRate > 0.6 ? C.green : stats.winRate > 0.4 ? C.yellow : C.red, borderRadius: 3 }} />
+                    </div>
+                    <span style={{ fontSize: 8, fontFamily: 'monospace', color: stats.winRate > 0.6 ? C.green : stats.winRate > 0.4 ? C.yellow : C.red, fontWeight: 700, width: 32, textAlign: 'right' }}>{Math.round(stats.winRate * 100)}%</span>
+                    <span style={{ fontSize: 7, color: C.mut, width: 20, textAlign: 'right' }}>({stats.total})</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Recent backtest signals */}
+            {backtestSignals.length > 0 && (
+              <div>
+                <div style={{ color: C.blue, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>📋 آخر الإشارات المُختبرة</div>
+                {backtestSignals.slice(0, 15).map((s, i) => {
+                  const outCol = s.outcome === 'win' ? C.green : s.outcome === 'loss' ? C.red : s.outcome === 'breakeven' ? C.yellow : C.dim;
+                  const outAr = s.outcome === 'win' ? '✓ نجاح' : s.outcome === 'loss' ? '✗ خسارة' : s.outcome === 'breakeven' ? '◆ تعادل' : '⏳ منتظرة';
+                  return (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 6px', background: C.card, borderRadius: 4, marginBottom: 2, borderLeft: `2px solid ${outCol}` }}>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <span style={{ fontSize: 8, color: s.direction === 'bullish' ? C.green : s.direction === 'bearish' ? C.red : C.dim }}>{s.direction === 'bullish' ? '▲' : '▼'}</span>
+                        <span style={{ fontSize: 7.5, color: C.text }}>{s.source}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <span style={{ fontSize: 7, color: C.mut }}>{s.pnlPct >= 0 ? '+' : ''}{s.pnlPct.toFixed(2)}%</span>
+                        <span style={{ fontSize: 7.5, color: outCol, fontWeight: 700 }}>{outAr}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {!backtestStats && <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>شغّل التحليل أولاً لرؤية نتائج الاختبار البصري</div>}
+          </div>
+        )}
+
+        {/* ═══ Revolutionary: Confluence Zones ═══ */}
+        {tab === 'confluence' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            <div style={{ background: `${C.gold}08`, border: `1px solid ${C.gold}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+              <div style={{ color: C.gold, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>🎯 مناطق التقارب — Confluence Zones</div>
+              <div style={{ fontSize: 8, color: C.dim }}>يحدد المناطق التي تتفق فيها عدة محركات تحليل على نفس مستوى السعر. كلما زاد عدد الإشارات المتفقّة، زادت قوة المنطقة.</div>
+            </div>
+
+            {confluenceZones.length > 0 ? (
+              <div>
+                <div style={{ color: C.gold, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>📍 المناطق المكتشفة ({confluenceZones.length})</div>
+                {confluenceZones.sort((a, b) => b.score - a.score).map((z, i) => {
+                  const strengthCol = z.strength === 'extreme' ? C.red : z.strength === 'strong' ? C.gold : z.strength === 'moderate' ? C.cyan : C.dim;
+                  const strengthAr = z.strength === 'extreme' ? 'قصوى' : z.strength === 'strong' ? 'قوية' : z.strength === 'moderate' ? 'متوسطة' : 'ضعيفة';
+                  return (
+                    <div key={z.id} style={{ background: C.card, borderRadius: 5, padding: '6px 8px', marginBottom: 6, borderLeft: `3px solid ${strengthCol}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                          <span style={{ fontSize: 8.5, color: z.direction === 'bullish' ? C.green : z.direction === 'bearish' ? C.red : C.dim, fontWeight: 700 }}>
+                            {z.direction === 'bullish' ? '▲ صاعد' : z.direction === 'bearish' ? '▼ هابط' : '◆ محايد'}
+                          </span>
+                          <span style={{ fontSize: 8, color: strengthCol, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: strengthCol + '15' }}>{strengthAr}</span>
+                        </div>
+                        <span style={{ fontSize: 9, fontFamily: 'monospace', color: C.text, fontWeight: 700 }}>{z.price.toFixed(2)}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+                        <div style={{ flex: 1, background: `${C.gold}08`, borderRadius: 3, padding: '2px 4px', textAlign: 'center' }}>
+                          <div style={{ color: C.gold, fontSize: 9, fontWeight: 700 }}>{z.score}%</div>
+                          <div style={{ color: C.mut, fontSize: 6.5 }}>تقارب</div>
+                        </div>
+                        <div style={{ flex: 1, background: `${C.cyan}08`, borderRadius: 3, padding: '2px 4px', textAlign: 'center' }}>
+                          <div style={{ color: C.cyan, fontSize: 9, fontWeight: 700 }}>{z.signalCount}</div>
+                          <div style={{ color: C.mut, fontSize: 6.5 }}>إشارات</div>
+                        </div>
+                        <div style={{ flex: 1, background: `${C.purple}08`, borderRadius: 3, padding: '2px 4px', textAlign: 'center' }}>
+                          <div style={{ color: C.purple, fontSize: 9, fontWeight: 700 }}>{z.distancePct.toFixed(1)}%</div>
+                          <div style={{ color: C.mut, fontSize: 6.5 }}>مسافة</div>
+                        </div>
+                      </div>
+                      {/* Signals in this zone */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                        {z.signals.map((sig, j) => (
+                          <span key={j} style={{ fontSize: 7, padding: '1px 4px', borderRadius: 2, background: (sig.direction === 'bullish' ? C.green : sig.direction === 'bearish' ? C.red : C.dim) + '15', color: sig.direction === 'bullish' ? C.green : sig.direction === 'bearish' ? C.red : C.dim }}>
+                            {sig.labelAr}
+                          </span>
+                        ))}
+                      </div>
+                      {z.isActive && <div style={{ marginTop: 3, fontSize: 7.5, color: C.gold, fontWeight: 700 }}>⚡ السعر قريب من هذه المنطقة</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>شغّل التحليل أولاً لرؤية مناطق التقارب</div>
+            )}
+          </div>
+        )}
+
+        {/* ═══ Revolutionary: AI Explanation (Why?) ═══ */}
+        {tab === 'explain' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            <div style={{ background: `${C.purple}08`, border: `1px solid ${C.purple}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+              <div style={{ color: C.purple, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>❓ لماذا؟ — AI Explanation</div>
+              <div style={{ fontSize: 8, color: C.dim }}>اضغط على أي إشارة لمعرفة لماذا تم تفعيلها، ما البيانات الداعمة، وما الذي يُبطله أو يؤكده.</div>
+            </div>
+
+            {/* Signal selector */}
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ color: C.purple, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>اختر إشارة للشرح:</div>
+              <div style={{ maxHeight: 120, overflowY: 'auto' }}>
+                {patterns.filter(p => p.direction !== 'neutral').slice(0, 20).map((p, i) => {
+                  const isSelected = explainSource === `${p.type}_${i}`;
+                  const col = p.direction === 'bullish' ? C.green : C.red;
+                  return (
+                    <button key={i} onClick={() => {
+                      const src = `${p.type}_${i}`;
+                      setExplainSource(src);
+                      try {
+                        const explanation = explainSignal({
+                          source: p.type || 'unknown',
+                          direction: p.direction as 'bullish' | 'bearish',
+                          confidence: p.confidence,
+                          price: p.price || 0,
+                          regime: volRegime,
+                          relatedSignals: patterns.filter(rp => rp.direction !== 'neutral' && rp.type !== p.type).slice(0, 5).map(rp => ({
+                            source: rp.type || 'unknown',
+                            direction: rp.direction as 'bullish' | 'bearish',
+                            confidence: rp.confidence,
+                          })),
+                        });
+                        setSignalExplanation(explanation);
+                      } catch { setSignalExplanation(null); }
+                    }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', padding: '4px 8px', borderRadius: 4, border: `1px solid ${isSelected ? C.purple : C.border}`, background: isSelected ? `${C.purple}15` : C.card, color: C.text, fontSize: 8, cursor: 'pointer', outline: 'none', marginBottom: 2, fontFamily: 'inherit', textAlign: 'left' }}>
+                      <span style={{ color: col, fontWeight: 600 }}>{p.direction === 'bullish' ? '▲' : '▼'} {p.type}</span>
+                      <span style={{ color: C.mut, fontSize: 7 }}>{Math.round(p.confidence * 100)}%</span>
+                    </button>
+                  );
+                })}
+                {patterns.filter(p => p.direction !== 'neutral').length === 0 && (
+                  <div style={{ color: C.mut, fontSize: 8, padding: 10, textAlign: 'center' }}>لا توجد إشارات بعد — شغّل التحليل أولاً</div>
+                )}
+              </div>
+            </div>
+
+            {/* Explanation result */}
+            {signalExplanation && (
+              <div>
+                <div style={{ background: C.card, borderRadius: 6, padding: '8px 10px', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                    <span style={{ color: signalExplanation.signal.direction === 'bullish' ? C.green : signalExplanation.signal.direction === 'bearish' ? C.red : C.dim, fontSize: 10, fontWeight: 800 }}>
+                      {signalExplanation.signal.direction === 'bullish' ? '▲ صاعد' : signalExplanation.signal.direction === 'bearish' ? '▼ هابط' : '◆ محايد'}
+                    </span>
+                    <span style={{ color: C.purple, fontSize: 9, fontWeight: 700 }}>{signalExplanation.signal.source}</span>
+                  </div>
+                  <div style={{ fontSize: 8.5, color: C.text, lineHeight: 1.5, marginBottom: 6 }}>{signalExplanation.explanationAr}</div>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <span style={{ fontSize: 7.5, padding: '2px 5px', borderRadius: 3, background: `${C.green}10`, color: C.green, border: `1px solid ${C.green}30` }}>✓ تأكيد: {signalExplanation.confirmationAr}</span>
+                    <span style={{ fontSize: 7.5, padding: '2px 5px', borderRadius: 3, background: `${C.red}10`, color: C.red, border: `1px solid ${C.red}30` }}>✗ إبطال: {signalExplanation.invalidationAr}</span>
+                  </div>
+                </div>
+
+                {/* Factors */}
+                {signalExplanation.factors.length > 0 && (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ color: C.cyan, fontSize: 9, fontWeight: 700, marginBottom: 4 }}>🔧 العوامل المؤثرة</div>
+                    {signalExplanation.factors.map((f, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 6px', background: C.card, borderRadius: 4, marginBottom: 2 }}>
+                        <span style={{ fontSize: 7, color: f.supports ? C.green : C.red }}>{f.supports ? '✓' : '✗'}</span>
+                        <span style={{ fontSize: 7.5, color: C.text, flex: 1 }}>{f.nameAr}: {f.contributionAr}</span>
+                        <div style={{ width: 30, height: 4, background: C.dim + '20', borderRadius: 2, overflow: 'hidden' }}>
+                          <div style={{ width: `${f.weight * 100}%`, height: '100%', background: f.supports ? C.green : C.red, borderRadius: 2 }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Related signals */}
+                {signalExplanation.relatedSignals.length > 0 && (
+                  <div>
+                    <div style={{ color: C.gold, fontSize: 9, fontWeight: 700, marginBottom: 4 }}>🔗 إشارات مرتبطة</div>
+                    {signalExplanation.relatedSignals.map((rs, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 6px', background: C.card, borderRadius: 3, marginBottom: 1 }}>
+                        <span style={{ fontSize: 7.5, color: rs.agrees ? C.green : C.red }}>{rs.agrees ? '✓' : '✗'} {rs.labelAr}</span>
+                        <span style={{ fontSize: 7, color: C.mut }}>{rs.direction === 'bullish' ? 'صاعد' : rs.direction === 'bearish' ? 'هابط' : 'محايد'}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Risk level */}
+                <div style={{ marginTop: 8, padding: '4px 8px', borderRadius: 4, background: signalExplanation.riskLevel === 'low' ? `${C.green}08` : signalExplanation.riskLevel === 'medium' ? `${C.yellow}08` : `${C.red}08`, border: `1px solid ${signalExplanation.riskLevel === 'low' ? C.green : signalExplanation.riskLevel === 'medium' ? C.yellow : C.red}30` }}>
+                  <span style={{ fontSize: 8, color: signalExplanation.riskLevel === 'low' ? C.green : signalExplanation.riskLevel === 'medium' ? C.yellow : C.red, fontWeight: 700 }}>
+                    مستوى المخاطرة: {signalExplanation.riskLevel === 'low' ? 'منخفض' : signalExplanation.riskLevel === 'medium' ? 'متوسط' : 'مرتفع'}
+                  </span>
+                  {signalExplanation.historicalWinRate !== null && (
+                    <span style={{ fontSize: 7.5, color: C.dim, marginRight: 8 }}>| تاريخياً: {Math.round(signalExplanation.historicalWinRate * 100)}% نجاح</span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══ Revolutionary: Correlation Engine ═══ */}
+        {tab === 'correlate' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            <div style={{ background: `${C.cyan}08`, border: `1px solid ${C.cyan}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+              <div style={{ color: C.cyan, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>🔗 محرك الارتباط — Correlation Engine</div>
+              <div style={{ fontSize: 8, color: C.dim }}>يتتبع أي مجموعات الإشارات تعمل أفضل معاً. يعلم أن "BOS صاعد + ويكوف تراكم" نسبة نجاحها 72% بينما "BOS صاعد وحده" 54% فقط.</div>
+            </div>
+
+            {correlationMatrix && (
+              <>
+                {/* Top Combinations */}
+                {correlationMatrix.topCombinations.length > 0 && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ color: C.gold, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>🏆 أفضل التركيبات</div>
+                    {correlationMatrix.topCombinations.map((combo, i) => {
+                      const col = combo.direction === 'bullish' ? C.green : C.red;
+                      return (
+                        <div key={i} style={{ background: C.card, borderRadius: 5, padding: '6px 8px', marginBottom: 4, borderLeft: `3px solid ${col}` }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                            <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                              {combo.sources.map((s, j) => (
+                                <span key={j} style={{ fontSize: 7, padding: '1px 4px', borderRadius: 2, background: `${C.cyan}15`, color: C.cyan }}>{s}</span>
+                              ))}
+                            </div>
+                            <span style={{ fontSize: 9, fontFamily: 'monospace', color: col, fontWeight: 800 }}>{Math.round(combo.winRate * 100)}%</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: 7.5, color: C.dim }}>{combo.descriptionAr}</span>
+                            <span style={{ fontSize: 7, color: C.mut }}>({combo.sampleSize} عينة)</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Pairwise Correlations */}
+                {correlationMatrix.correlations.length > 0 && (
+                  <div>
+                    <div style={{ color: C.cyan, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>📊 ارتباطات ثنائية</div>
+                    {correlationMatrix.correlations
+                      .filter(c => c.sampleSize >= 2)
+                      .sort((a, b) => b.lift - a.lift)
+                      .slice(0, 15)
+                      .map((corr, i) => {
+                        const liftCol = corr.lift > 1.3 ? C.green : corr.lift > 1.0 ? C.cyan : corr.lift > 0.8 ? C.yellow : C.red;
+                        return (
+                          <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr auto auto', gap: 4, padding: '3px 6px', background: C.card, borderRadius: 4, marginBottom: 2, alignItems: 'center' }}>
+                            <span style={{ fontSize: 7.5, color: C.text, fontWeight: 600 }}>{corr.sourceA}</span>
+                            <span style={{ fontSize: 8, color: C.mut }}>×</span>
+                            <span style={{ fontSize: 7.5, color: C.text, fontWeight: 600 }}>{corr.sourceB}</span>
+                            <span style={{ fontSize: 8, fontFamily: 'monospace', color: liftCol, fontWeight: 700 }}>×{corr.lift.toFixed(2)}</span>
+                            <span style={{ fontSize: 7, color: C.mut }}>{Math.round(corr.combinedWinRate * 100)}%</span>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+
+                {correlationMatrix.correlations.length === 0 && correlationMatrix.topCombinations.length === 0 && (
+                  <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>تحتاج بيانات أكثر لبناء ارتباطات — استخدم التحليل لعدة شموع</div>
+                )}
+              </>
+            )}
+
+            {!correlationMatrix && <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>شغّل التحليل أولاً لرؤية الارتباطات</div>}
+          </div>
+        )}
+
+        {/* ═══ Revolutionary: Predictive Pattern Completion ═══ */}
+        {tab === 'predict' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            <div style={{ background: `${C.red}08`, border: `1px solid ${C.red}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+              <div style={{ color: '#ff6b6b', fontSize: 9, fontWeight: 700, marginBottom: 5 }}>🔮 توقع اكتمال الأنماط — Predictive Completion</div>
+              <div style={{ fontSize: 8, color: C.dim }}>عندما يكون النمط مكتمل جزئياً، يتنبأ هذا المحرك أين ستكتمل النقاط المتبقية. يمكنك الاستعداد قبل اكتمال النمط والدخول بأسعار أفضل.</div>
+            </div>
+
+            {patternPredictions.length > 0 ? (
+              <div>
+                <div style={{ color: '#ff6b6b', fontSize: 9, fontWeight: 700, marginBottom: 5 }}>🔮 أنماط قيد التشكّل ({patternPredictions.length})</div>
+                {patternPredictions.map((pred, i) => {
+                  const dirCol = pred.predictedDirection === 'bullish' ? C.green : C.red;
+                  const completionCol = pred.completionPct >= 80 ? C.green : pred.completionPct >= 60 ? C.yellow : C.cyan;
+                  return (
+                    <div key={i} style={{ background: C.card, borderRadius: 6, padding: '8px 10px', marginBottom: 8, borderLeft: `3px solid ${dirCol}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                        <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                          <span style={{ fontSize: 9, color: dirCol, fontWeight: 800 }}>{pred.predictedDirection === 'bullish' ? '▲' : '▼'} {pred.patternTypeAr}</span>
+                          <span style={{ fontSize: 7.5, color: C.mut }}>({pred.patternType})</span>
+                        </div>
+                        <span style={{ fontSize: 8, color: completionCol, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: completionCol + '15' }}>{Math.round(pred.completionPct)}% مكتمل</span>
+                      </div>
+
+                      {/* Completion progress bar */}
+                      <div style={{ width: '100%', height: 6, background: C.dim + '20', borderRadius: 3, overflow: 'hidden', marginBottom: 6 }}>
+                        <div style={{ width: `${pred.completionPct}%`, height: '100%', background: `linear-gradient(90deg, ${C.cyan}, ${completionCol})`, borderRadius: 3, transition: 'width 0.3s' }} />
+                      </div>
+
+                      <div style={{ fontSize: 8, color: C.dim, lineHeight: 1.5, marginBottom: 5 }}>{pred.descriptionAr}</div>
+
+                      {/* Completion Zone */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 3, marginBottom: 5 }}>
+                        <div style={{ background: `${dirCol}08`, borderRadius: 3, padding: '3px 5px', textAlign: 'center' }}>
+                          <div style={{ color: C.mut, fontSize: 6.5 }}>منطقة الاكتمال</div>
+                          <div style={{ color: dirCol, fontSize: 8.5, fontWeight: 700, fontFamily: 'monospace' }}>{pred.completionZone.center.toFixed(2)}</div>
+                        </div>
+                        <div style={{ background: `${C.cyan}08`, borderRadius: 3, padding: '3px 5px', textAlign: 'center' }}>
+                          <div style={{ color: C.mut, fontSize: 6.5 }}>حد أعلى</div>
+                          <div style={{ color: C.cyan, fontSize: 8.5, fontWeight: 700, fontFamily: 'monospace' }}>{pred.completionZone.high.toFixed(2)}</div>
+                        </div>
+                        <div style={{ background: `${C.purple}08`, borderRadius: 3, padding: '3px 5px', textAlign: 'center' }}>
+                          <div style={{ color: C.mut, fontSize: 6.5 }}>حد أدنى</div>
+                          <div style={{ color: C.purple, fontSize: 8.5, fontWeight: 700, fontFamily: 'monospace' }}>{pred.completionZone.low.toFixed(2)}</div>
+                        </div>
+                      </div>
+
+                      {/* Predicted Points */}
+                      {pred.predictedPoints.length > 0 && (
+                        <div>
+                          <div style={{ color: C.gold, fontSize: 8, fontWeight: 700, marginBottom: 3 }}>النقاط المتوقعة:</div>
+                          {pred.predictedPoints.map((pt, j) => (
+                            <div key={j} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 5px', background: C.dim + '05', borderRadius: 3, marginBottom: 1 }}>
+                              <span style={{ fontSize: 7.5, color: dirCol, fontWeight: 600 }}>النقطة {pt.label}</span>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <span style={{ fontSize: 7.5, color: C.text, fontFamily: 'monospace' }}>{pt.price.toFixed(2)}</span>
+                                <span style={{ fontSize: 7, color: C.mut }}>ثقة {Math.round(pt.confidence * 100)}%</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div style={{ marginTop: 4, fontSize: 7.5, color: C.mut }}>
+                        ⏱ تقدير: ~{pred.estimatedCandlesToCompletion} شمعة | ثقة التوقع: {Math.round(pred.confidence * 100)}%
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>
+                {patterns.length > 0 ? 'لا توجد أنماط قيد التشكّل حالياً — جرب فترات زمنية مختلفة' : 'شغّل التحليل أولاً لرؤية توقعات الأنماط'}
+              </div>
             )}
           </div>
         )}

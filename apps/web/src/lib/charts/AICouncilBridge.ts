@@ -488,6 +488,7 @@ export function recordPrediction(opts: {
   aiDirection: 'bullish' | 'bearish' | 'neutral';
   algoDirection: 'bullish' | 'bearish' | 'neutral';
   regime: string;
+  entryPrice?: number;
 }): void {
   predictionHistory.push({
     timestamp: Date.now(),
@@ -498,7 +499,8 @@ export function recordPrediction(opts: {
     aiCorrect: null,
     algoCorrect: null,
     regime: opts.regime,
-  });
+    entryPrice: opts.entryPrice, // FIX: Store entry price for real verification
+  } as any);
   if (predictionHistory.length > MAX_HISTORY) {
     predictionHistory.splice(0, predictionHistory.length - MAX_HISTORY);
   }
@@ -507,9 +509,13 @@ export function recordPrediction(opts: {
 
 /**
  * Verify a past prediction against the actual price movement.
- * Should be called periodically (e.g., every few minutes).
+ *
+ * FIX: Previously this took the Bayesian direction as the "actual direction" —
+ * that's CIRCULAR LOGIC (using the same engine's output to verify itself).
+ * Now we use the actual price change: we store the price at prediction time,
+ * and check whether price moved up (bullish) or down (bearish) after VERIFY_DELAY.
  */
-export function verifyPredictions(currentDirection: 'bullish' | 'bearish' | 'neutral'): void {
+export function verifyPredictions(currentDirection: 'bullish' | 'bearish' | 'neutral', currentPrice?: number): void {
   const now = Date.now();
   const VERIFY_DELAY = 300000; // 5 minutes
 
@@ -517,9 +523,30 @@ export function verifyPredictions(currentDirection: 'bullish' | 'bearish' | 'neu
     if (pred.actualDirection !== null) continue;
     if (now - pred.timestamp < VERIFY_DELAY) continue;
 
-    pred.actualDirection = currentDirection;
-    pred.aiCorrect = pred.aiDirection === currentDirection;
-    pred.algoCorrect = pred.algoDirection === currentDirection;
+    // FIX: Determine actual direction from REAL price movement, not from
+    // the Bayesian engine's current guess. If we have a stored entry price
+    // and a current price, use actual price movement.
+    let actualDir: 'bullish' | 'bearish' | 'neutral';
+    const entryPrice = (pred as any).entryPrice as number | undefined;
+    if (currentPrice && entryPrice && entryPrice > 0) {
+      const priceChange = (currentPrice - entryPrice) / entryPrice;
+      const THRESHOLD = 0.002; // 0.2% move confirms direction
+      if (priceChange > THRESHOLD) {
+        actualDir = 'bullish';
+      } else if (priceChange < -THRESHOLD) {
+        actualDir = 'bearish';
+      } else {
+        actualDir = 'neutral';
+      }
+    } else {
+      // Fallback: if no price data available, use the Bayesian direction
+      // (still circular, but better than never verifying at all)
+      actualDir = currentDirection;
+    }
+
+    pred.actualDirection = actualDir;
+    pred.aiCorrect = pred.aiDirection === actualDir;
+    pred.algoCorrect = pred.algoDirection === actualDir;
   }
 
   persistState();

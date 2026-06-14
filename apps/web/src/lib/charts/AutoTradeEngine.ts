@@ -163,10 +163,10 @@ export interface DailyStats {
 const DEFAULT_RISK: RiskParams = {
   riskPerTrade: 0.01,       // 1% risk per trade
   accountBalance: 10000,    // $10,000 default
-  minRRRatio: 2.0,          // Minimum 1:2 R:R
+  minRRRatio: 1.5,          // Minimum 1:1.5 R:R (was 2.0 — too strict for crypto)
   maxPositionFraction: 0.1, // Max 10% of account in one position
-  minConfluence: 60,        // Minimum 60% confluence score
-  minAgreeingSignals: 3,    // Minimum 3 agreeing signals
+  minConfluence: 40,        // Minimum 40% confluence score (was 60 — too strict)
+  minAgreeingSignals: 2,    // Minimum 2 agreeing signals (was 3 — too strict for low-signal markets)
   maxSLPct: 0.03,           // Max 3% SL distance
   atrSLMultiplier: 2.0,     // 2x ATR for SL fallback
   dailyLossLimit: 0.03,     // 3% daily loss limit
@@ -532,7 +532,7 @@ export function generateTradeProposal(opts: {
   // If MTF is available and disagrees, require higher confluence
   if (mtfConfluence && mtfConfluence.direction !== direction && mtfConfluence.score > 60) {
     // MTF disagrees with our direction — need stronger local confluence
-    if (confluenceScore < 75) return null;
+    if (confluenceScore < 55) return null; // Was 75 — too strict when MTF disagrees
   }
 
   // ── Calculate Entry, SL, TP ──

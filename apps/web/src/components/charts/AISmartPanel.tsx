@@ -184,6 +184,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const [scanLoading, setScanLoading] = useState(false);
   const [aiBridgePayload, setAiBridgePayload] = useState<AIAnalysisPayload | null>(null);
   const [aiVsAlgoStats, setAiVsAlgoStats] = useState<ReturnType<typeof getAIvsAlgoStats> | null>(null);
+  const [councilAnalyses, setCouncilAnalyses] = useState<Array<{ model: string; direction: string; confidence: number; reasoning: string }>>([]);
 
   // ── Refs to avoid stale closure ─────────────────────────────
   const runRef = useRef(false);
@@ -668,7 +669,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         });
         setAiBridgePayload(bridgePayload);
         setAiVsAlgoStats(getAIvsAlgoStats());
-        verifyPredictions(bayesianDir === 'bullish' ? 'bullish' : bayesianDir === 'bearish' ? 'bearish' : 'neutral');
+        verifyPredictions(bayesianDir === 'bullish' ? 'bullish' : bayesianDir === 'bearish' ? 'bearish' : 'neutral', price);
       } catch { /* AI Council Bridge fallback */ }
 
       // ── Send patterns to chart (including harmonic + classic) ─────
@@ -853,6 +854,16 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           const models = sseResult.analyses?.length || sseResult.meta?.modelsResponded || 0;
           const councilConf = (sseResult.consensusScore || 50) / 100;
 
+          // FIX: Store council model analyses for display in council tab
+          if (sseResult.analyses && Array.isArray(sseResult.analyses)) {
+            setCouncilAnalyses(sseResult.analyses.map((a: any) => ({
+              model: a.role || a.model || a.name || 'AI',
+              direction: a.recommendation || a.direction || 'WAIT',
+              confidence: a.confidence || a.score || 50,
+              reasoning: a.reasoning || a.analysis || '',
+            })));
+          }
+
           // Merge council + Bayesian for enhanced signal
           const mergedDir = bayesianConf > 0.55
             ? (bayesianDir === 'bullish' ? 'BUY' : bayesianDir === 'bearish' ? 'SELL' : dir)
@@ -905,6 +916,16 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
               const dir = rec === 'BUY' ? 'BUY' : rec === 'SELL' ? 'SELL' : 'WAIT';
               const models = d.data.meta?.modelsResponded || d.data.analyses?.length || 0;
               const councilConf = (d.data.consensusScore || 50) / 100;
+
+              // FIX: Store council model analyses for display in council tab
+              if (d.data.analyses && Array.isArray(d.data.analyses)) {
+                setCouncilAnalyses(d.data.analyses.map((a: any) => ({
+                  model: a.role || a.model || a.name || 'AI',
+                  direction: a.recommendation || a.direction || 'WAIT',
+                  confidence: a.confidence || a.score || 50,
+                  reasoning: a.reasoning || a.analysis || '',
+                })));
+              }
 
               const mergedDir = bayesianConf > 0.55
                 ? (bayesianDir === 'bullish' ? 'BUY' : bayesianDir === 'bearish' ? 'SELL' : dir)
@@ -2276,6 +2297,90 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             {!paperAccountState && (
               <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>لم تبدأ التداول الوهمي بعد. سيتم فتح صفقات تلقائياً عند التقارب العالي.</div>
             )}
+
+            {/* FIX: Quick Trade Execution Buttons */}
+            {paperAccountState && signal && signal.dir !== 'WAIT' && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ color: C.gold, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>⚡ تنفيذ سريع</div>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button
+                    onClick={() => {
+                      try {
+                        const curPrice = priceRef.current || 0;
+                        const curCandles = candlesRef.current;
+                        const curSym = symbolRef.current;
+                        if (!curPrice) return;
+                        const dir = signal.dir === 'BUY' ? 'long' as const : 'short' as const;
+                        const entry = signal.entry || curPrice;
+                        const sl = signal.sl || (dir === 'long' ? entry * 0.98 : entry * 1.02);
+                        const tp = signal.tp || (dir === 'long' ? entry * 1.04 : entry * 0.96);
+                        const trade = openPaperTrade({
+                          symbol: curSym,
+                          direction: dir,
+                          entryPrice: entry,
+                          stopLoss: sl,
+                          takeProfits: [tp, dir === 'long' ? entry + (tp - entry) * 1.5 : entry - (entry - tp) * 1.5, dir === 'long' ? entry + (tp - entry) * 2 : entry - (entry - tp) * 2],
+                          entryReasonAr: `إشارة ${dir === 'long' ? 'صاعد' : 'هابط'} — ثقة ${Math.round(signal.conf * 100)}%`,
+                          entrySignals: ['council-consensus'],
+                          confluenceScore: Math.round(signal.conf * 100),
+                          timeframe: 'auto',
+                          regimeAtEntry: volRegime || 'normal',
+                        });
+                        if (trade) {
+                          setPaperAccountState(getPaperAccount());
+                          setPaperTradesList(getPaperTrades().slice(0, 10));
+                          setPaperComparison(getPerformanceComparison());
+                          // Add execution marker on chart
+                          const execMarker: AlertMarkerData = {
+                            time: (curCandles?.[curCandles.length - 1]?.time || Date.now() / 1000) as any,
+                            price: entry,
+                            label: `${dir === 'long' ? 'BUY' : 'SELL'}@${entry.toFixed(2)}`,
+                            direction: dir === 'long' ? 'bullish' : 'bearish',
+                            confidence: signal.conf,
+                            type: 'execution',
+                          };
+                          setChartAlerts(prev => [...prev, execMarker].slice(-12));
+                        }
+                      } catch { /* Trade execution failed */ }
+                    }}
+                    style={{
+                      flex: 1, padding: '6px 0', borderRadius: 5, border: 'none', cursor: 'pointer',
+                      background: signal.dir === 'BUY' ? `${C.green}25` : `${C.red}25`,
+                      color: signal.dir === 'BUY' ? C.green : C.red,
+                      fontSize: 9, fontWeight: 700,
+                    }}
+                  >
+                    {signal.dir === 'BUY' ? '▲ شراء' : '▼ بيع'} @ {signal.entry?.toFixed(2) || priceRef.current?.toFixed(2) || '—'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      try {
+                        const curPrice = priceRef.current || 0;
+                        const openTrades = getOpenPaperTrades();
+                        for (const t of openTrades) {
+                          closePaperTrade(t.id, curPrice, 'إغلاق يدوي');
+                        }
+                        setPaperAccountState(getPaperAccount());
+                        setPaperTradesList(getPaperTrades().slice(0, 10));
+                        setPaperComparison(getPerformanceComparison());
+                      } catch { /* Close failed */ }
+                    }}
+                    style={{
+                      padding: '6px 12px', borderRadius: 5, border: 'none', cursor: 'pointer',
+                      background: `${C.dim}15`, color: C.dim,
+                      fontSize: 8, fontWeight: 600,
+                    }}
+                  >
+                    إغلاق الكل
+                  </button>
+                </div>
+                {getOpenPaperTrades().length > 0 && (
+                  <div style={{ marginTop: 4, fontSize: 7.5, color: C.dim }}>
+                    صفقات مفتوحة: {getOpenPaperTrades().length} | SL: {signal.sl?.toFixed(2)} | TP: {signal.tp?.toFixed(2)}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -2370,9 +2475,56 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         {tab === 'council' && (
           <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
             <div style={{ background: `${C.purple}08`, border: `1px solid ${C.purple}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
-              <div style={{ color: C.purple, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>🤖 جسر AI Council — مقارنة الذكاء الاصطناعي مع الخوارزميات</div>
+              <div style={{ color: C.purple, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>🤖 مجلس AI — توقعات النماذج الحية</div>
               <div style={{ fontSize: 8, color: C.dim }}>يمرر بيانات التحليل الفعلية إلى نماذج الذكاء الاصطناعي ويقارن توقعاتها مع المحركات الخوارزمية.</div>
             </div>
+
+            {/* LIVE Council Model Results — NEW */}
+            {councilAnalyses.length > 0 && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ color: C.purple, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>🔬 توقعات النماذج ({councilAnalyses.length} نماذج)</div>
+                {councilAnalyses.map((a, i) => {
+                  const dirCol = a.direction === 'BUY' ? C.green : a.direction === 'SELL' ? C.red : C.dim;
+                  const dirAr = a.direction === 'BUY' ? 'شراء' : a.direction === 'SELL' ? 'بيع' : 'انتظار';
+                  const dirIcon = a.direction === 'BUY' ? '▲' : a.direction === 'SELL' ? '▼' : '◆';
+                  return (
+                    <div key={i} style={{ background: C.card, borderRadius: 5, padding: '6px 8px', marginBottom: 4, borderLeft: `2px solid ${dirCol}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, color: C.text, fontWeight: 600 }}>{a.model}</span>
+                        <span style={{ fontSize: 8.5, color: dirCol, fontWeight: 700 }}>{dirIcon} {dirAr}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: a.reasoning ? 3 : 0 }}>
+                        <span style={{ fontSize: 7.5, color: C.mut }}>ثقة: {typeof a.confidence === 'number' ? Math.round(a.confidence) : a.confidence}%</span>
+                        <div style={{ width: 60, height: 4, background: C.dim + '20', borderRadius: 2, overflow: 'hidden' }}>
+                          <div style={{ width: `${typeof a.confidence === 'number' ? a.confidence : 50}%`, height: '100%', background: dirCol, borderRadius: 2 }} />
+                        </div>
+                      </div>
+                      {a.reasoning && (
+                        <div style={{ fontSize: 7, color: C.dim, lineHeight: 1.3, maxHeight: 30, overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.reasoning.substring(0, 120)}</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Current Signal from Council */}
+            {signal && councilAnalyses.length > 0 && (
+              <div style={{ background: `${signal.dir === 'BUY' ? C.green : signal.dir === 'SELL' ? C.red : C.dim}10`, border: `1px solid ${signal.dir === 'BUY' ? C.green : signal.dir === 'SELL' ? C.red : C.dim}30`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: signal.dir === 'BUY' ? C.green : signal.dir === 'SELL' ? C.red : C.dim }}>
+                    {signal.dir === 'BUY' ? '▲ إجماع صاعد' : signal.dir === 'SELL' ? '▼ إجماع هابط' : '◆ انتظار'}
+                  </span>
+                  <span style={{ fontSize: 8, color: C.mut }}>ثقة {Math.round(signal.conf * 100)}%</span>
+                </div>
+                {signal.bayesianDir && (
+                  <div style={{ marginTop: 4, fontSize: 7.5, color: C.dim }}>
+                    بايزي: {signal.bayesianDir === 'BUY' ? 'صاعد' : signal.bayesianDir === 'SELL' ? 'هابط' : 'محايد'} ({Math.round((signal.bayesianConf || 0) * 100)}%)
+                    {signal.fusionScore !== undefined && ` | تقارب: ${signal.fusionScore}%`}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* AI vs Algorithm Stats */}
             {aiVsAlgoStats && (
@@ -2391,11 +2543,11 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
               </div>
             )}
 
-            {/* Bridge Payload Preview */}
+            {/* Bridge Payload Preview (collapsed by default — secondary info) */}
             {aiBridgePayload && (
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ color: C.cyan, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>البيانات المُمررة للذكاء الاصطناعي</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 8 }}>
+              <details style={{ marginBottom: 10 }}>
+                <summary style={{ color: C.cyan, fontSize: 9, fontWeight: 700, cursor: 'pointer', marginBottom: 5 }}>البيانات المُمررة للذكاء الاصطناعي</summary>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 8, marginTop: 5 }}>
                   <div style={{ background: C.card, borderRadius: 4, padding: '3px 6px' }}><span style={{ color: C.mut }}>الرمز:</span> <span style={{ color: C.text }}>{aiBridgePayload.symbol}</span></div>
                   <div style={{ background: C.card, borderRadius: 4, padding: '3px 6px' }}><span style={{ color: C.mut }}>السعر:</span> <span style={{ color: C.text }}>{aiBridgePayload.currentPrice.toFixed(2)}</span></div>
                   <div style={{ background: C.card, borderRadius: 4, padding: '3px 6px' }}><span style={{ color: C.mut }}>النظام:</span> <span style={{ color: C.text }}>{aiBridgePayload.regime}</span></div>
@@ -2405,27 +2557,25 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                   <div style={{ background: C.card, borderRadius: 4, padding: '3px 6px' }}><span style={{ color: C.mut }}>ويكوف:</span> <span style={{ color: C.text }}>{aiBridgePayload.wyckoffSummary.scheme}</span></div>
                   <div style={{ background: C.card, borderRadius: 4, padding: '3px 6px' }}><span style={{ color: C.mut }}>إليوت:</span> <span style={{ color: C.text }}>{aiBridgePayload.elliottSummary.dominantDirection}</span></div>
                 </div>
-              </div>
+                {aiBridgePayload.keyPatterns.length > 0 && (
+                  <div style={{ marginTop: 6 }}>
+                    <div style={{ color: C.green, fontSize: 8, fontWeight: 600, marginBottom: 3 }}>الأنماط:</div>
+                    {aiBridgePayload.keyPatterns.map((p, i) => {
+                      const col = p.direction === 'bullish' ? C.green : p.direction === 'bearish' ? C.red : C.dim;
+                      return (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 6px', borderRadius: 3, background: C.card, marginBottom: 1 }}>
+                          <span style={{ fontSize: 7.5, color: col }}>{p.direction === 'bullish' ? '▲' : '▼'} {p.labelAr}</span>
+                          <span style={{ fontSize: 7, color: C.mut }}>{Math.round(p.confidence * 100)}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </details>
             )}
 
-            {/* Key Patterns sent to AI */}
-            {aiBridgePayload && aiBridgePayload.keyPatterns.length > 0 && (
-              <div>
-                <div style={{ color: C.green, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>الأنماط الرئيسية للذكاء الاصطناعي</div>
-                {aiBridgePayload.keyPatterns.map((p, i) => {
-                  const col = p.direction === 'bullish' ? C.green : p.direction === 'bearish' ? C.red : C.dim;
-                  return (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 8px', borderRadius: 4, background: C.card, marginBottom: 2 }}>
-                      <span style={{ fontSize: 8.5, color: col }}>{p.direction === 'bullish' ? '▲' : '▼'} {p.labelAr}</span>
-                      <span style={{ fontSize: 8, color: C.mut }}>{Math.round(p.confidence * 100)}%</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {!aiBridgePayload && (
-              <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>شغّل التحليل أولاً لرؤية بيانات الجسر</div>
+            {!aiBridgePayload && councilAnalyses.length === 0 && (
+              <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>شغّل التحليل أولاً لرؤية بيانات مجلس AI</div>
             )}
           </div>
         )}

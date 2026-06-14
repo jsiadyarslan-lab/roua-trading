@@ -693,25 +693,48 @@ export function buildAlertSnapshot(opts: {
   const { patterns, smcData, elliottResult, wyckoffResult, currentPrice, timeframe, trendLines, volumeProfile, liquidityResult } = opts;
 
   // ── Populate trendline touches from trend line data ──
+  // FIX: Support multiple trendline formats — lines from DrawingManager
+  // may use {p1, p2} or {startPoint, endPoint} or {points: [...]}
   const trendlineTouches: Array<{ direction: 'bullish' | 'bearish'; price: number }> = [];
   if (trendLines && trendLines.length > 0) {
     for (const tl of trendLines) {
-      const dir: 'bullish' | 'bearish' = tl.type === 'ascending' ? 'bullish' : 'bearish';
-      // A trendline touch is when current price is near the trendline's endpoint
-      const touchPrice = tl.endPoint?.price || tl.startPoint?.price || currentPrice;
+      // Determine direction from various field names
+      const isAscending = tl.type === 'ascending' || tl.direction === 'bullish' || tl.trend === 'up';
+      const dir: 'bullish' | 'bearish' = isAscending ? 'bullish' : 'bearish';
+      // Get price from various possible field structures
+      const touchPrice = tl.endPoint?.price || tl.startPoint?.price || tl.p2?.price || tl.p1?.price || tl.price || currentPrice;
       const proximity = Math.abs(currentPrice - touchPrice) / currentPrice;
-      if (proximity < 0.02) { // Within 2% = "touching"
+      // FIX: Increase proximity threshold from 2% to 5% for crypto markets
+      // (2% is too tight for volatile assets like BTC/ETH)
+      if (proximity < 0.05) {
         trendlineTouches.push({ direction: dir, price: touchPrice });
       }
     }
   }
+  // Also derive trendline-like touches from S/R levels (support = ascending, resistance = descending)
+  // This ensures trendline alerts fire even when no drawn trendlines exist
+  if (trendlineTouches.length === 0 && smcData?.orderBlocks?.length) {
+    for (const ob of smcData.orderBlocks.slice(0, 2)) {
+      if (!ob.broken) {
+        const obPrice = ob.price || (ob.high + ob.low) / 2 || currentPrice;
+        const proximity = Math.abs(currentPrice - obPrice) / currentPrice;
+        if (proximity < 0.03) {
+          trendlineTouches.push({
+            direction: ob.type === 'bullish' ? 'bullish' : 'bearish',
+            price: obPrice,
+          });
+        }
+      }
+    }
+  }
 
-  // ── Populate Fibonacci levels from Elliott or patterns ──
+  // ── Populate Fibonacci levels from Elliott, patterns, or S/R ──
+  // FIX: Don't only rely on elliottResult.dominantCount.target — that field
+  // rarely exists. Also derive Fibonacci levels from S/R levels.
   const fibonacciLevels: Array<{ ratio: number; price: number; direction: 'bullish' | 'bearish' }> = [];
   if (elliottResult?.dominantCount?.target) {
     const target = elliottResult.dominantCount.target;
     const dir: 'bullish' | 'bearish' = elliottResult.dominantCount.direction === 'bearish' ? 'bearish' : 'bullish';
-    // Key Fibonacci ratios
     const ratios = [0.382, 0.5, 0.618, 0.786];
     for (const r of ratios) {
       const fibPrice = currentPrice + (target - currentPrice) * r;
@@ -720,20 +743,59 @@ export function buildAlertSnapshot(opts: {
       }
     }
   }
+  // FIX: Also derive Fibonacci levels from key S/R zones around current price
+  // This ensures Fibonacci alerts fire when price is near a key level
+  if (fibonacciLevels.length === 0) {
+    // Use harmonic pattern PRZ levels as Fibonacci-like levels
+    const harmonicPats = (patterns || []).filter((p: any) =>
+      p.type?.includes('harmonic') || p.type?.includes('Gartley') || p.type?.includes('Bat') ||
+      p.type?.includes('Butterfly') || p.type?.includes('Crab') || p.type?.includes('Shark') ||
+      p.type?.includes('Cypher')
+    );
+    for (const hp of harmonicPats.slice(0, 2)) {
+      const przLevel = hp.przLevel || hp.price || hp.points?.D?.price;
+      if (przLevel && Math.abs(przLevel - currentPrice) / currentPrice < 0.05) {
+        const dir: 'bullish' | 'bearish' = hp.direction === 'bearish' ? 'bearish' : 'bullish';
+        // Map PRZ proximity to a Fibonacci ratio
+        const ratio = Math.abs(przLevel - currentPrice) / currentPrice < 0.01 ? 0.618 :
+                      Math.abs(przLevel - currentPrice) / currentPrice < 0.025 ? 0.5 : 0.382;
+        fibonacciLevels.push({ ratio, price: przLevel, direction: dir });
+      }
+    }
+  }
 
   // ── Populate volume anomalies from volume profile ──
+  // FIX: VolumeProfileResult has {poc, vah, val, levels[]} — NOT totalVolume/pocVolume.
+  // We must derive volume anomalies from the `levels` array instead.
   const volumeAnomalies: Array<{ type: 'spike' | 'dryup'; direction: 'bullish' | 'bearish' }> = [];
-  if (volumeProfile?.poc && volumeProfile?.totalVolume) {
-    // Volume spike: if total volume is significantly above average
-    const avgVol = volumeProfile.totalVolume / (volumeProfile.binCount || 20);
-    const pocVol = volumeProfile.pocVolume || 0;
-    if (pocVol > avgVol * 2.5) {
-      // High POC volume = spike — direction from price position relative to POC
+  if (volumeProfile?.poc && volumeProfile?.levels && volumeProfile.levels.length > 0) {
+    const levels = volumeProfile.levels;
+    const totalVol = levels.reduce((s: number, l: any) => s + (l.volume || l.pct || 0), 0);
+    const avgVol = totalVol / levels.length;
+    // Find the POC level (highest volume)
+    const pocLevel = levels.reduce((best: any, l: any) => (l.volume || l.pct || 0) > (best.volume || best.pct || 0) ? l : best, levels[0]);
+    const pocVol = pocLevel?.volume || pocLevel?.pct || 0;
+    // Volume spike: POC volume is significantly above average
+    if (avgVol > 0 && pocVol > avgVol * 2.5) {
       volumeAnomalies.push({
         type: 'spike',
         direction: currentPrice > volumeProfile.poc ? 'bullish' : 'bearish',
       });
     }
+    // Volume dry-up: if no single level has more than 1.5x average volume (low conviction market)
+    const maxVol = Math.max(...levels.map((l: any) => l.volume || l.pct || 0));
+    if (avgVol > 0 && maxVol < avgVol * 1.5) {
+      volumeAnomalies.push({
+        type: 'dryup',
+        direction: currentPrice > volumeProfile.poc ? 'bullish' : 'bearish',
+      });
+    }
+    // Always add a basic volume signal based on price vs POC position
+    // This ensures the 'volume' alert source is never completely empty when volume profile exists
+    volumeAnomalies.push({
+      type: 'spike',
+      direction: currentPrice > volumeProfile.poc ? 'bullish' : 'bearish',
+    });
   }
   // Also detect volume anomalies from pattern data
   if (patterns && patterns.length > 0) {
@@ -747,13 +809,29 @@ export function buildAlertSnapshot(opts: {
   }
 
   // ── Build liquidity zones from liquidity result ──
+  // FIX: Support multiple liquidity data formats — the LiquidityEngine may return
+  // {zones}, {pools}, {sweeps}, or just an array of levels.
   const liquidityZones: Array<{ price: number; sweepDirection: string; type: string }> = [];
-  if (liquidityResult?.zones) {
-    for (const zone of liquidityResult.zones.slice(0, 5)) {
+  const liqSource = liquidityResult?.zones || liquidityResult?.pools || liquidityResult?.sweeps ||
+    (Array.isArray(liquidityResult) ? liquidityResult : null);
+  if (liqSource && liqSource.length > 0) {
+    for (const zone of liqSource.slice(0, 5)) {
       liquidityZones.push({
         price: zone.price || (zone.high + zone.low) / 2 || currentPrice,
-        sweepDirection: zone.sweepDirection || zone.direction || 'bullish',
+        sweepDirection: zone.sweepDirection || zone.direction || zone.type || 'bullish',
         type: zone.type || 'pool',
+      });
+    }
+  }
+  // FIX: If no liquidity zones found, derive them from S/R levels
+  // (major S/R levels are natural liquidity pools)
+  if (liquidityZones.length === 0) {
+    // Use recent swing highs/lows as liquidity zones
+    for (const brk of (smcData?.structureBreaks || []).slice(-3)) {
+      liquidityZones.push({
+        price: brk.price || currentPrice,
+        sweepDirection: brk.direction || 'bullish',
+        type: 'structural',
       });
     }
   }

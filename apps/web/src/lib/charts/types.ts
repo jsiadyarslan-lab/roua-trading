@@ -56,11 +56,20 @@ export type DrawingTool =
   | 'horizontal-ray'    // شعاع أفقي
   | 'vertical'          // خط رأسي
   | 'cross-line'        // خط متقاطع
+  | 'arrow-line'        // خط بسهم
+  | 'double-arrow'      // خط بسهم مزدوج
+  | 'curved-line'       // خط منحني
+  | 'parallel-line'     // خط متوازي
+  | 'stepped-line'      // خط متدرج
+  | 'bezier-curve'      // منحنى بيزيه
   // ── Channels ──
   | 'channel'           // قناة متوازية
   | 'regression-trend'  // اتجاه انحدار
   | 'flat-top-bottom'   // قمة/قاع مسطحة
   | 'disjoint-channel'  // قناة منفصلة
+  | 'fib-channel'       // قناة فيبوناتشي
+  | 'std-dev-channel'   // قناة الانحراف المعياري
+  | 'inside-channel'    // قناة داخلية
   // ── Forks ──
   | 'andrews-pitchfork' // شوكة أندروز
   | 'schiff-pitchfork'  // شوكة شيف
@@ -72,23 +81,63 @@ export type DrawingTool =
   | 'fib-spiral'        // حلزون فيبوناتشي
   | 'fib-wedge'         // إسفين فيبوناتشي
   | 'fib-time-zone'     // مناطق زمنية فيبوناتشي
+  | 'fib-circles'       // دوائر فيبوناتشي
+  | 'fib-speed-resist'  // مقاومة سرعة فيبوناتشي
+  | 'fib-speed-fan'     // مروحة سرعة فيبوناتشي
+  | 'fib-time-ext'      // امتداد زمني فيبوناتشي
   // ── Gann ──
   | 'gann-box'          // صندوق جان
   | 'gann-square'       // مربع جان
   | 'gann-fan'          // مروحة جان
+  | 'gann-grid'         // شبكة جان
+  | 'gann-diamond'      // معين جان
+  | 'gann-hexagon'      // سداسي جان
   // ── Shapes ──
   | 'rectangle'         // مستطيل
   | 'triangle'          // مثلث
   | 'circle'            // دائرة
   | 'ellipse'           // قطع ناقص
+  | 'rounded-rect'      // مستطيل مدور
+  | 'diamond'           // معين
+  | 'parallelogram'     // متوازي أضلاع
+  | 'pentagon'          // خماسي
+  | 'hexagon'           // سداسي
+  | 'star'              // نجمة
   // ── Annotations ──
   | 'text-annotation'   // تعليق نصي
   | 'price-label'       // تسمية سعرية
   | 'note'              // ملاحظة
+  | 'callout'           // تعليق مبوب
+  | 'balloon'           // بالون
+  | 'flag'              // علم
+  | 'thumb-up'          // إعجاب
+  | 'thumb-down'        // عدم إعجاب
   // ── Markers ──
   | 'x-marker'          // علامة X
   | 'arrow'             // سهم
-  | 'price-range';      // نطاق سعري
+  | 'price-range'       // نطاق سعري
+  // ── Measurement ──
+  | 'measure'           // قياس
+  | 'risk-reward'       // نسبة المخاطرة/العائد
+  | 'date-range'        // نطاق زمني
+  | 'time-cycle'        // دورة زمنية
+  // ── Patterns ──
+  | 'head-shoulders'    // رأس وكتفين
+  | 'inv-head-shoulders'// رأس وكتفين معكوس
+  | 'abcd'              // نمط ABCD
+  | 'cypher'            // نمط سايفر
+  | 'bat'               // نمط الخفاش
+  | 'butterfly'         // نمط الفراشة
+  | 'crab'              // نمط السرطان
+  | 'shark'             // نمط القرش
+  | 'three-drives'      // ثلاث دفعات
+  | 'wolf-wave'         // موجة الذئب
+  // ── Elliott ──
+  | 'elliott-impulse'   // موجة دافع إليوت
+  | 'elliott-corrective'// موجة تصحيحية إليوت
+  | 'elliott-triangle'  // مثلث إليوت
+  | 'elliott-combo'     // تركيب إليوت
+  | 'elliott-diagonal'  // قطر إليوت
 
 // ── Drawing Tool Categories ──
 export interface DrawingToolCategory {
@@ -105,14 +154,14 @@ export const DRAWING_CATEGORIES: DrawingToolCategory[] = [
     labelAr: 'الخطوط',
     labelEn: 'Lines',
     icon: '📐',
-    tools: ['trendline', 'ray', 'info-line', 'extended-line', 'trend-angle', 'horizontal', 'horizontal-ray', 'vertical', 'cross-line'],
+    tools: ['trendline', 'ray', 'info-line', 'extended-line', 'trend-angle', 'horizontal', 'horizontal-ray', 'vertical', 'cross-line', 'arrow-line', 'double-arrow', 'curved-line', 'parallel-line', 'stepped-line', 'bezier-curve'],
   },
   {
     key: 'channels',
     labelAr: 'القنوات',
     labelEn: 'Channels',
     icon: '📊',
-    tools: ['channel', 'regression-trend', 'flat-top-bottom', 'disjoint-channel'],
+    tools: ['channel', 'regression-trend', 'flat-top-bottom', 'disjoint-channel', 'fib-channel', 'std-dev-channel', 'inside-channel'],
   },
   {
     key: 'forks',
@@ -126,28 +175,56 @@ export const DRAWING_CATEGORIES: DrawingToolCategory[] = [
     labelAr: 'فيبوناتشي',
     labelEn: 'Fibonacci',
     icon: '📏',
-    tools: ['fibonacci', 'fib-extension', 'fib-fan', 'fib-spiral', 'fib-wedge', 'fib-time-zone'],
+    tools: ['fibonacci', 'fib-extension', 'fib-fan', 'fib-spiral', 'fib-wedge', 'fib-time-zone', 'fib-circles', 'fib-speed-resist', 'fib-speed-fan', 'fib-time-ext'],
   },
   {
     key: 'gann',
     labelAr: 'جان',
     labelEn: 'Gann',
-    icon: '📐',
-    tools: ['gann-box', 'gann-square', 'gann-fan'],
+    icon: '🔮',
+    tools: ['gann-box', 'gann-square', 'gann-fan', 'gann-grid', 'gann-diamond', 'gann-hexagon'],
   },
   {
     key: 'shapes',
     labelAr: 'الأشكال',
     labelEn: 'Shapes',
     icon: '⬜',
-    tools: ['rectangle', 'triangle', 'circle', 'ellipse'],
+    tools: ['rectangle', 'triangle', 'circle', 'ellipse', 'rounded-rect', 'diamond', 'parallelogram', 'pentagon', 'hexagon', 'star'],
   },
   {
     key: 'annotations',
     labelAr: 'التعليقات',
     labelEn: 'Annotations',
     icon: '📝',
-    tools: ['text-annotation', 'price-label', 'note'],
+    tools: ['text-annotation', 'price-label', 'note', 'callout', 'balloon', 'flag', 'thumb-up', 'thumb-down'],
+  },
+  {
+    key: 'markers',
+    labelAr: 'العلامات',
+    labelEn: 'Markers',
+    icon: '📍',
+    tools: ['x-marker', 'arrow', 'price-range'],
+  },
+  {
+    key: 'measurement',
+    labelAr: 'القياس',
+    labelEn: 'Measurement',
+    icon: '📏',
+    tools: ['measure', 'risk-reward', 'date-range', 'time-cycle'],
+  },
+  {
+    key: 'patterns',
+    labelAr: 'الأنماط',
+    labelEn: 'Patterns',
+    icon: '🎯',
+    tools: ['head-shoulders', 'inv-head-shoulders', 'abcd', 'cypher', 'bat', 'butterfly', 'crab', 'shark', 'three-drives', 'wolf-wave'],
+  },
+  {
+    key: 'elliott',
+    labelAr: 'إليوت',
+    labelEn: 'Elliott',
+    icon: '🌊',
+    tools: ['elliott-impulse', 'elliott-corrective', 'elliott-triangle', 'elliott-combo', 'elliott-diagonal'],
   },
 ];
 

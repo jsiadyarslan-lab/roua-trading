@@ -372,12 +372,21 @@ export class DrawingManager {
   static requiredPoints(tool: DrawingTool): number {
     switch (tool) {
       case 'cursor':            return 0;
+      // ── 1-point tools ──
       case 'horizontal':        return 1;
       case 'horizontal-ray':    return 1;
       case 'vertical':          return 1;
       case 'x-marker':          return 1;
       case 'price-label':       return 1;
       case 'note':              return 1;
+      case 'flag':              return 1;
+      case 'thumb-up':          return 1;
+      case 'thumb-down':        return 1;
+      case 'gann-fan':          return 1;
+      case 'gann-grid':         return 1;
+      case 'time-cycle':        return 1;
+      case 'callout':           return 1;
+      case 'balloon':           return 1;
       // ── 2-point tools ──
       case 'trendline':         return 2;
       case 'ray':               return 2;
@@ -385,15 +394,27 @@ export class DrawingManager {
       case 'extended-line':     return 2;
       case 'trend-angle':       return 2;
       case 'cross-line':        return 2;
+      case 'arrow-line':        return 2;
+      case 'double-arrow':      return 2;
+      case 'curved-line':       return 2;
+      case 'parallel-line':     return 2;
+      case 'stepped-line':      return 2;
       case 'fibonacci':         return 2;
       case 'fib-extension':     return 2;
       case 'fib-fan':           return 2;
       case 'fib-spiral':        return 2;
       case 'fib-wedge':         return 2;
       case 'fib-time-zone':     return 2;
+      case 'fib-circles':       return 2;
+      case 'fib-speed-resist':  return 2;
+      case 'fib-speed-fan':     return 2;
+      case 'fib-time-ext':      return 2;
       case 'rectangle':         return 2;
       case 'circle':            return 2;
       case 'ellipse':           return 2;
+      case 'rounded-rect':      return 2;
+      case 'diamond':           return 2;
+      case 'parallelogram':     return 2;
       case 'arrow':             return 2;
       case 'price-range':       return 2;
       case 'text-annotation':   return 2;
@@ -401,6 +422,19 @@ export class DrawingManager {
       case 'flat-top-bottom':   return 2;
       case 'gann-box':          return 2;
       case 'gann-square':       return 2;
+      case 'gann-diamond':      return 2;
+      case 'gann-hexagon':      return 2;
+      case 'measure':           return 2;
+      case 'risk-reward':       return 2;
+      case 'date-range':        return 2;
+      case 'inv-head-shoulders':return 2;
+      case 'elliott-impulse':   return 2;
+      case 'elliott-corrective':return 2;
+      case 'elliott-triangle':  return 2;
+      case 'elliott-combo':     return 2;
+      case 'elliott-diagonal':  return 2;
+      case 'std-dev-channel':   return 2;
+      case 'inside-channel':    return 2;
       // ── 3-point tools ──
       case 'channel':           return 3;
       case 'triangle':          return 3;
@@ -408,10 +442,20 @@ export class DrawingManager {
       case 'andrews-pitchfork': return 3;
       case 'schiff-pitchfork':  return 3;
       case 'modified-schiff':   return 3;
-      // H13 FIX: Gann Fan originates from a single pivot point.
-      // Previously required 3 clicks but only used the first point, creating
-      // confusing UX where 2 extra clicks were needed for no purpose.
-      case 'gann-fan':          return 1;
+      case 'bezier-curve':      return 3;
+      case 'fib-channel':       return 3;
+      case 'pentagon':          return 3;
+      case 'hexagon':           return 3;
+      case 'star':              return 3;
+      case 'head-shoulders':    return 3;
+      case 'abcd':              return 3;
+      case 'cypher':            return 3;
+      case 'bat':               return 3;
+      case 'butterfly':         return 3;
+      case 'crab':              return 3;
+      case 'shark':             return 3;
+      case 'three-drives':      return 3;
+      case 'wolf-wave':         return 3;
       default:                  return 0;
     }
   }
@@ -429,11 +473,20 @@ export class DrawingManager {
       'horizontal-ray':    { ar: 'شعاع أفقي',            en: 'Horizontal Ray' },
       'vertical':          { ar: 'خط رأسي',             en: 'Vertical Line' },
       'cross-line':        { ar: 'خط متقاطع',            en: 'Cross Line' },
+      'arrow-line':        { ar: 'خط بسهم',              en: 'Arrow Line' },
+      'double-arrow':      { ar: 'سهم مزدوج',            en: 'Double Arrow' },
+      'curved-line':       { ar: 'خط منحني',             en: 'Curved Line' },
+      'parallel-line':     { ar: 'خط متوازي',            en: 'Parallel Line' },
+      'stepped-line':      { ar: 'خط متدرج',             en: 'Stepped Line' },
+      'bezier-curve':      { ar: 'منحنى بيزيه',           en: 'Bezier Curve' },
       // Channels
       'channel':           { ar: 'قناة متوازية',          en: 'Parallel Channel' },
       'regression-trend':  { ar: 'اتجاه انحدار',          en: 'Regression Trend' },
       'flat-top-bottom':   { ar: 'قمة/قاع مسطحة',         en: 'Flat Top/Bottom' },
       'disjoint-channel':  { ar: 'قناة منفصلة',           en: 'Disjoint Channel' },
+      'fib-channel':       { ar: 'قناة فيبوناتشي',         en: 'Fib Channel' },
+      'std-dev-channel':   { ar: 'قناة الانحراف المعياري',   en: 'Std Dev Channel' },
+      'inside-channel':    { ar: 'قناة داخلية',            en: 'Inside Channel' },
       // Forks
       'andrews-pitchfork': { ar: 'شوكة أندروز',           en: 'Andrews Pitchfork' },
       'schiff-pitchfork':  { ar: 'شوكة شيف',             en: 'Schiff Pitchfork' },
@@ -445,23 +498,63 @@ export class DrawingManager {
       'fib-spiral':        { ar: 'حلزون فيبوناتشي',       en: 'Fib Spiral' },
       'fib-wedge':         { ar: 'إسفين فيبوناتشي',       en: 'Fib Wedge' },
       'fib-time-zone':     { ar: 'مناطق زمنية فيبوناتشي',   en: 'Fib Time Zone' },
+      'fib-circles':       { ar: 'دوائر فيبوناتشي',        en: 'Fib Circles' },
+      'fib-speed-resist':  { ar: 'مقاومة سرعة فيبوناتشي',   en: 'Fib Speed Resist' },
+      'fib-speed-fan':     { ar: 'مروحة سرعة فيبوناتشي',    en: 'Fib Speed Fan' },
+      'fib-time-ext':      { ar: 'امتداد زمني فيبوناتشي',   en: 'Fib Time Ext' },
       // Gann
       'gann-box':          { ar: 'صندوق جان',            en: 'Gann Box' },
       'gann-square':       { ar: 'مربع جان',             en: 'Gann Square' },
       'gann-fan':          { ar: 'مروحة جان',            en: 'Gann Fan' },
+      'gann-grid':         { ar: 'شبكة جان',              en: 'Gann Grid' },
+      'gann-diamond':      { ar: 'معين جان',              en: 'Gann Diamond' },
+      'gann-hexagon':      { ar: 'سداسي جان',             en: 'Gann Hexagon' },
       // Shapes
       'rectangle':         { ar: 'مستطيل',              en: 'Rectangle' },
       'triangle':          { ar: 'مثلث',                en: 'Triangle' },
       'circle':            { ar: 'دائرة',               en: 'Circle' },
       'ellipse':           { ar: 'قطع ناقص',             en: 'Ellipse' },
+      'rounded-rect':      { ar: 'مستطيل مدور',           en: 'Rounded Rect' },
+      'diamond':           { ar: 'معين',                 en: 'Diamond' },
+      'parallelogram':     { ar: 'متوازي أضلاع',          en: 'Parallelogram' },
+      'pentagon':          { ar: 'خماسي',                en: 'Pentagon' },
+      'hexagon':           { ar: 'سداسي',                en: 'Hexagon' },
+      'star':              { ar: 'نجمة',                 en: 'Star' },
       // Annotations
       'text-annotation':   { ar: 'تعليق نصي',            en: 'Text Annotation' },
       'price-label':       { ar: 'تسمية سعرية',           en: 'Price Label' },
       'note':              { ar: 'ملاحظة',               en: 'Note' },
+      'callout':           { ar: 'تعليق مبوب',            en: 'Callout' },
+      'balloon':           { ar: 'بالون',                 en: 'Balloon' },
+      'flag':              { ar: 'علم',                  en: 'Flag' },
+      'thumb-up':          { ar: 'إعجاب',                en: 'Thumb Up' },
+      'thumb-down':        { ar: 'عدم إعجاب',             en: 'Thumb Down' },
       // Markers
       'x-marker':          { ar: 'علامة X',              en: 'X Mark' },
       'arrow':             { ar: 'سهم',                  en: 'Arrow' },
       'price-range':       { ar: 'نطاق سعري',            en: 'Price Range' },
+      // Measurement
+      'measure':           { ar: 'قياس',                  en: 'Measure' },
+      'risk-reward':       { ar: 'مخاطرة/عائد',           en: 'Risk/Reward' },
+      'date-range':        { ar: 'نطاق زمني',             en: 'Date Range' },
+      'time-cycle':        { ar: 'دورة زمنية',            en: 'Time Cycle' },
+      // Patterns
+      'head-shoulders':    { ar: 'رأس وكتفين',            en: 'Head & Shoulders' },
+      'inv-head-shoulders':{ ar: 'رأس وكتفين معكوس',       en: 'Inv Head & Shoulders' },
+      'abcd':              { ar: 'نمط ABCD',              en: 'ABCD Pattern' },
+      'cypher':            { ar: 'نمط سايفر',             en: 'Cypher Pattern' },
+      'bat':               { ar: 'نمط الخفاش',            en: 'Bat Pattern' },
+      'butterfly':         { ar: 'نمط الفراشة',           en: 'Butterfly Pattern' },
+      'crab':              { ar: 'نمط السرطان',           en: 'Crab Pattern' },
+      'shark':             { ar: 'نمط القرش',             en: 'Shark Pattern' },
+      'three-drives':      { ar: 'ثلاث دفعات',            en: 'Three Drives' },
+      'wolf-wave':         { ar: 'موجة الذئب',            en: 'Wolf Wave' },
+      // Elliott
+      'elliott-impulse':   { ar: 'موجة دافع إليوت',        en: 'Elliott Impulse' },
+      'elliott-corrective':{ ar: 'موجة تصحيحية إليوت',     en: 'Elliott Corrective' },
+      'elliott-triangle':  { ar: 'مثلث إليوت',             en: 'Elliott Triangle' },
+      'elliott-combo':     { ar: 'تركيب إليوت',            en: 'Elliott Combo' },
+      'elliott-diagonal':  { ar: 'قطر إليوت',             en: 'Elliott Diagonal' },
     };
     return labels[tool] || { ar: tool, en: tool };
   }
@@ -479,11 +572,20 @@ export class DrawingManager {
       'horizontal-ray':    '⟶',
       'vertical':          '┃',
       'cross-line':        '╋',
+      'arrow-line':        '→',
+      'double-arrow':      '⟷',
+      'curved-line':       '〜',
+      'parallel-line':     '║',
+      'stepped-line':      '⌐',
+      'bezier-curve':      '⌇',
       // Channels
       'channel':           '║',
       'regression-trend':  '📈',
       'flat-top-bottom':   '⬒',
       'disjoint-channel':  '║',
+      'fib-channel':       '⟐',
+      'std-dev-channel':   '⟊',
+      'inside-channel':    '⊲',
       // Forks
       'andrews-pitchfork': '🔱',
       'schiff-pitchfork':  '🔱',
@@ -495,23 +597,63 @@ export class DrawingManager {
       'fib-spiral':        '🌀',
       'fib-wedge':         '◭',
       'fib-time-zone':     '⏱',
+      'fib-circles':       '◎',
+      'fib-speed-resist':  '◠',
+      'fib-speed-fan':     '⌔',
+      'fib-time-ext':      '⏳',
       // Gann
       'gann-box':          '⬜',
       'gann-square':       '🔲',
       'gann-fan':          '🏮',
+      'gann-grid':         '⊞',
+      'gann-diamond':      '◇',
+      'gann-hexagon':      '⬡',
       // Shapes
       'rectangle':         '▭',
       'triangle':          '△',
       'circle':            '○',
       'ellipse':           '⬭',
+      'rounded-rect':      '▢',
+      'diamond':           '◇',
+      'parallelogram':     '▱',
+      'pentagon':          '⬠',
+      'hexagon':           '⬡',
+      'star':              '☆',
       // Annotations
       'text-annotation':   '💬',
       'price-label':       '🏷',
       'note':              '📌',
+      'callout':           '💬',
+      'balloon':           '💭',
+      'flag':              '🚩',
+      'thumb-up':          '👍',
+      'thumb-down':        '👎',
       // Markers
       'x-marker':          '✕',
       'arrow':             '→',
       'price-range':       '⇳',
+      // Measurement
+      'measure':           '📏',
+      'risk-reward':       '⚖',
+      'date-range':        '📅',
+      'time-cycle':        '🔄',
+      // Patterns
+      'head-shoulders':    '🏔',
+      'inv-head-shoulders':'🏔',
+      'abcd':              'Z',
+      'cypher':            'ℂ',
+      'bat':               '🦇',
+      'butterfly':         '🦋',
+      'crab':              '🦀',
+      'shark':             '🦈',
+      'three-drives':      '3⃣',
+      'wolf-wave':         '🐺',
+      // Elliott
+      'elliott-impulse':   '🌊',
+      'elliott-corrective':'🔄',
+      'elliott-triangle':  '🔺',
+      'elliott-combo':     '🔀',
+      'elliott-diagonal':  '⚡',
     };
     return icons[tool] || '?';
   }

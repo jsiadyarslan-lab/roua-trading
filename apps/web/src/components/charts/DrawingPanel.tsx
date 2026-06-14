@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-// ROUA Trading Chart — Drawing Panel (53+ tools with categories)
+// ROUA Trading Chart — Drawing Panel (83+ tools with categories)
 // ═══════════════════════════════════════════════════════════
 
 'use client';
@@ -30,6 +30,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
       const icon = DrawingManager.getToolIcon(tool);
       const shortcuts: Partial<Record<DrawingTool, string>> = {
         'cursor': 'Esc', 'trendline': 'T', 'horizontal': 'H', 'fibonacci': 'F', 'rectangle': 'R', 'vertical': 'V',
+        'arrow-line': 'A', 'measure': 'M', 'risk-reward': 'W', 'diamond': 'D',
       };
       allTools.push({
         key: tool,

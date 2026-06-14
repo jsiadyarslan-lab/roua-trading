@@ -368,6 +368,61 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
       case 'arrow': if (pts.length >= 2) this.drawArrow(ctx, pts[0], pts[1], d); break;
       case 'price-range': if (pts.length >= 2) this.drawPriceRange(ctx, pts[0], pts[1], d); break;
       case 'text-annotation': if (pts.length >= 2) this.drawTextAnnotation(ctx, pts[0], pts[1], d); break;
+      // ── New Lines ──
+      case 'arrow-line': if (pts.length >= 2) this.drawArrowLine(ctx, pts[0], pts[1], d); break;
+      case 'double-arrow': if (pts.length >= 2) this.drawDoubleArrow(ctx, pts[0], pts[1], d); break;
+      case 'curved-line': if (pts.length >= 2) this.drawCurvedLine(ctx, pts[0], pts[1], d); break;
+      case 'parallel-line': if (pts.length >= 2) this.drawParallelLine(ctx, pts[0], pts[1], d); break;
+      case 'stepped-line': if (pts.length >= 2) this.drawSteppedLine(ctx, pts[0], pts[1], d); break;
+      case 'bezier-curve': if (pts.length >= 3) this.drawBezierCurve(ctx, pts[0], pts[1], pts[2], d); break;
+      // ── New Channels ──
+      case 'fib-channel': if (pts.length >= 3) this.drawFibChannel(ctx, pts[0], pts[1], pts[2], d); break;
+      case 'std-dev-channel': if (pts.length >= 2) this.drawStdDevChannel(ctx, pts[0], pts[1], d); break;
+      case 'inside-channel': if (pts.length >= 2) this.drawInsideChannel(ctx, pts[0], pts[1], d); break;
+      // ── New Fibonacci ──
+      case 'fib-circles': if (pts.length >= 2) this.drawFibCircles(ctx, pts[0], pts[1], d); break;
+      case 'fib-speed-resist': if (pts.length >= 2) this.drawFibSpeedResist(ctx, pts[0], pts[1], d); break;
+      case 'fib-speed-fan': if (pts.length >= 2) this.drawFibSpeedFan(ctx, pts[0], pts[1], d); break;
+      case 'fib-time-ext': if (pts.length >= 2) this.drawFibTimeExt(ctx, pts[0], pts[1], canvasW, canvasH, d); break;
+      // ── New Gann ──
+      case 'gann-grid': if (pts.length >= 1) this.drawGannGrid(ctx, pts[0], canvasW, canvasH, d); break;
+      case 'gann-diamond': if (pts.length >= 2) this.drawGannDiamond(ctx, pts[0], pts[1], d); break;
+      case 'gann-hexagon': if (pts.length >= 2) this.drawGannHexagon(ctx, pts[0], pts[1], d); break;
+      // ── New Shapes ──
+      case 'rounded-rect': if (pts.length >= 2) this.drawRoundedRect(ctx, pts[0], pts[1], d); break;
+      case 'diamond': if (pts.length >= 2) this.drawDiamond(ctx, pts[0], pts[1], d); break;
+      case 'parallelogram': if (pts.length >= 2) this.drawParallelogram(ctx, pts[0], pts[1], d); break;
+      case 'pentagon': if (pts.length >= 3) this.drawPentagon(ctx, pts[0], pts[1], pts[2], d); break;
+      case 'hexagon': if (pts.length >= 3) this.drawHexagonShape(ctx, pts[0], pts[1], pts[2], d); break;
+      case 'star': if (pts.length >= 3) this.drawStar(ctx, pts[0], pts[1], pts[2], d); break;
+      // ── New Annotations ──
+      case 'callout': if (pts.length >= 1) this.drawCallout(ctx, pts[0], d); break;
+      case 'balloon': if (pts.length >= 1) this.drawBalloon(ctx, pts[0], d); break;
+      case 'flag': if (pts.length >= 1) this.drawFlag(ctx, pts[0], d); break;
+      case 'thumb-up': if (pts.length >= 1) this.drawThumbUp(ctx, pts[0], d); break;
+      case 'thumb-down': if (pts.length >= 1) this.drawThumbDown(ctx, pts[0], d); break;
+      // ── New Measurement ──
+      case 'measure': if (pts.length >= 2) this.drawMeasure(ctx, pts[0], pts[1], d); break;
+      case 'risk-reward': if (pts.length >= 2) this.drawRiskReward(ctx, pts[0], pts[1], d); break;
+      case 'date-range': if (pts.length >= 2) this.drawDateRange(ctx, pts[0], pts[1], canvasW, canvasH, d); break;
+      case 'time-cycle': if (pts.length >= 1) this.drawTimeCycle(ctx, pts[0], canvasW, canvasH, d); break;
+      // ── New Patterns ──
+      case 'head-shoulders': if (pts.length >= 3) this.drawHeadShoulders(ctx, pts[0], pts[1], pts[2], d); break;
+      case 'inv-head-shoulders': if (pts.length >= 2) this.drawInvHeadShoulders(ctx, pts[0], pts[1], d); break;
+      case 'abcd': if (pts.length >= 3) this.drawABCD(ctx, pts[0], pts[1], pts[2], d); break;
+      case 'cypher': if (pts.length >= 3) this.drawCypher(ctx, pts[0], pts[1], pts[2], d); break;
+      case 'bat': if (pts.length >= 3) this.drawBat(ctx, pts[0], pts[1], pts[2], d); break;
+      case 'butterfly': if (pts.length >= 3) this.drawButterfly(ctx, pts[0], pts[1], pts[2], d); break;
+      case 'crab': if (pts.length >= 3) this.drawCrab(ctx, pts[0], pts[1], pts[2], d); break;
+      case 'shark': if (pts.length >= 3) this.drawShark(ctx, pts[0], pts[1], pts[2], d); break;
+      case 'three-drives': if (pts.length >= 3) this.drawThreeDrives(ctx, pts[0], pts[1], pts[2], d); break;
+      case 'wolf-wave': if (pts.length >= 3) this.drawWolfWave(ctx, pts[0], pts[1], pts[2], d); break;
+      // ── New Elliott ──
+      case 'elliott-impulse': if (pts.length >= 2) this.drawElliottImpulse(ctx, pts[0], pts[1], d); break;
+      case 'elliott-corrective': if (pts.length >= 2) this.drawElliottCorrective(ctx, pts[0], pts[1], d); break;
+      case 'elliott-triangle': if (pts.length >= 2) this.drawElliottTriangle(ctx, pts[0], pts[1], d); break;
+      case 'elliott-combo': if (pts.length >= 2) this.drawElliottCombo(ctx, pts[0], pts[1], d); break;
+      case 'elliott-diagonal': if (pts.length >= 2) this.drawElliottDiagonal(ctx, pts[0], pts[1], d); break;
     }
 
     ctx.restore();
@@ -447,6 +502,103 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
       case 'price-label': this.drawPriceLabelMarker(ctx, pts[0] || mouse, d); break;
       case 'note': this.drawNote(ctx, pts[0] || mouse, d); break;
       case 'text-annotation': if (pts.length >= 1) this.drawTextAnnotation(ctx, pts[0], mouse, d); break;
+      // ── New Lines preview ──
+      case 'arrow-line': if (pts.length >= 1) this.drawArrowLine(ctx, pts[0], mouse, d); break;
+      case 'double-arrow': if (pts.length >= 1) this.drawDoubleArrow(ctx, pts[0], mouse, d); break;
+      case 'curved-line': if (pts.length >= 1) this.drawCurvedLine(ctx, pts[0], mouse, d); break;
+      case 'parallel-line': if (pts.length >= 1) this.drawParallelLine(ctx, pts[0], mouse, d); break;
+      case 'stepped-line': if (pts.length >= 1) this.drawSteppedLine(ctx, pts[0], mouse, d); break;
+      case 'bezier-curve':
+        if (pts.length === 1) this.drawCurvedLine(ctx, pts[0], mouse, d);
+        else if (pts.length >= 2) this.drawBezierCurve(ctx, pts[0], pts[1], mouse, d);
+        break;
+      // ── New Channels preview ──
+      case 'fib-channel':
+        if (pts.length === 1) this.drawTrendLine(ctx, pts[0], mouse, d);
+        else if (pts.length >= 2) this.drawFibChannel(ctx, pts[0], pts[1], mouse, d);
+        break;
+      case 'std-dev-channel': if (pts.length >= 1) this.drawStdDevChannel(ctx, pts[0], mouse, d); break;
+      case 'inside-channel': if (pts.length >= 1) this.drawInsideChannel(ctx, pts[0], mouse, d); break;
+      // ── New Fibonacci preview ──
+      case 'fib-circles': if (pts.length >= 1) this.drawFibCircles(ctx, pts[0], mouse, d); break;
+      case 'fib-speed-resist': if (pts.length >= 1) this.drawFibSpeedResist(ctx, pts[0], mouse, d); break;
+      case 'fib-speed-fan': if (pts.length >= 1) this.drawFibSpeedFan(ctx, pts[0], mouse, d); break;
+      case 'fib-time-ext': if (pts.length >= 1) this.drawFibTimeExt(ctx, pts[0], mouse, canvasW, canvasH, d); break;
+      // ── New Gann preview ──
+      case 'gann-grid': this.drawGannGrid(ctx, pts[0] || mouse, canvasW, canvasH, d); break;
+      case 'gann-diamond': if (pts.length >= 1) this.drawGannDiamond(ctx, pts[0], mouse, d); break;
+      case 'gann-hexagon': if (pts.length >= 1) this.drawGannHexagon(ctx, pts[0], mouse, d); break;
+      // ── New Shapes preview ──
+      case 'rounded-rect': if (pts.length >= 1) this.drawRoundedRect(ctx, pts[0], mouse, d); break;
+      case 'diamond': if (pts.length >= 1) this.drawDiamond(ctx, pts[0], mouse, d); break;
+      case 'parallelogram': if (pts.length >= 1) this.drawParallelogram(ctx, pts[0], mouse, d); break;
+      case 'pentagon':
+        if (pts.length <= 2) { if (pts.length >= 1) this.drawCircle(ctx, pts[0], mouse, d); }
+        else this.drawPentagon(ctx, pts[0], pts[1], mouse, d);
+        break;
+      case 'hexagon':
+        if (pts.length <= 2) { if (pts.length >= 1) this.drawCircle(ctx, pts[0], mouse, d); }
+        else this.drawHexagonShape(ctx, pts[0], pts[1], mouse, d);
+        break;
+      case 'star':
+        if (pts.length <= 2) { if (pts.length >= 1) this.drawCircle(ctx, pts[0], mouse, d); }
+        else this.drawStar(ctx, pts[0], pts[1], mouse, d);
+        break;
+      // ── New Annotations preview ──
+      case 'callout': this.drawCallout(ctx, pts[0] || mouse, d); break;
+      case 'balloon': this.drawBalloon(ctx, pts[0] || mouse, d); break;
+      case 'flag': this.drawFlag(ctx, pts[0] || mouse, d); break;
+      case 'thumb-up': this.drawThumbUp(ctx, pts[0] || mouse, d); break;
+      case 'thumb-down': this.drawThumbDown(ctx, pts[0] || mouse, d); break;
+      // ── New Measurement preview ──
+      case 'measure': if (pts.length >= 1) this.drawMeasure(ctx, pts[0], mouse, d); break;
+      case 'risk-reward': if (pts.length >= 1) this.drawRiskReward(ctx, pts[0], mouse, d); break;
+      case 'date-range': if (pts.length >= 1) this.drawDateRange(ctx, pts[0], mouse, canvasW, canvasH, d); break;
+      case 'time-cycle': this.drawTimeCycle(ctx, pts[0] || mouse, canvasW, canvasH, d); break;
+      // ── New Patterns preview ──
+      case 'head-shoulders':
+        if (pts.length === 1) this.drawTrendLine(ctx, pts[0], mouse, d);
+        else if (pts.length >= 2) this.drawHeadShoulders(ctx, pts[0], pts[1], mouse, d);
+        break;
+      case 'inv-head-shoulders': if (pts.length >= 1) this.drawInvHeadShoulders(ctx, pts[0], mouse, d); break;
+      case 'abcd':
+        if (pts.length === 1) this.drawTrendLine(ctx, pts[0], mouse, d);
+        else if (pts.length >= 2) this.drawABCD(ctx, pts[0], pts[1], mouse, d);
+        break;
+      case 'cypher':
+        if (pts.length === 1) this.drawTrendLine(ctx, pts[0], mouse, d);
+        else if (pts.length >= 2) this.drawCypher(ctx, pts[0], pts[1], mouse, d);
+        break;
+      case 'bat':
+        if (pts.length === 1) this.drawTrendLine(ctx, pts[0], mouse, d);
+        else if (pts.length >= 2) this.drawBat(ctx, pts[0], pts[1], mouse, d);
+        break;
+      case 'butterfly':
+        if (pts.length === 1) this.drawTrendLine(ctx, pts[0], mouse, d);
+        else if (pts.length >= 2) this.drawButterfly(ctx, pts[0], pts[1], mouse, d);
+        break;
+      case 'crab':
+        if (pts.length === 1) this.drawTrendLine(ctx, pts[0], mouse, d);
+        else if (pts.length >= 2) this.drawCrab(ctx, pts[0], pts[1], mouse, d);
+        break;
+      case 'shark':
+        if (pts.length === 1) this.drawTrendLine(ctx, pts[0], mouse, d);
+        else if (pts.length >= 2) this.drawShark(ctx, pts[0], pts[1], mouse, d);
+        break;
+      case 'three-drives':
+        if (pts.length === 1) this.drawTrendLine(ctx, pts[0], mouse, d);
+        else if (pts.length >= 2) this.drawThreeDrives(ctx, pts[0], pts[1], mouse, d);
+        break;
+      case 'wolf-wave':
+        if (pts.length === 1) this.drawTrendLine(ctx, pts[0], mouse, d);
+        else if (pts.length >= 2) this.drawWolfWave(ctx, pts[0], pts[1], mouse, d);
+        break;
+      // ── New Elliott preview ──
+      case 'elliott-impulse': if (pts.length >= 1) this.drawElliottImpulse(ctx, pts[0], mouse, d); break;
+      case 'elliott-corrective': if (pts.length >= 1) this.drawElliottCorrective(ctx, pts[0], mouse, d); break;
+      case 'elliott-triangle': if (pts.length >= 1) this.drawElliottTriangle(ctx, pts[0], mouse, d); break;
+      case 'elliott-combo': if (pts.length >= 1) this.drawElliottCombo(ctx, pts[0], mouse, d); break;
+      case 'elliott-diagonal': if (pts.length >= 1) this.drawElliottDiagonal(ctx, pts[0], mouse, d); break;
     }
 
     ctx.restore();
@@ -1071,6 +1223,727 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
     if (dx !== 0) { const tR = (canvasW - ox) / dx, tL = -ox / dx; tMax = dx > 0 ? tR : tL; }
     if (dy !== 0) { const tB = (canvasH - oy) / dy, tT = -oy / dy; tMax = Math.min(tMax, dy > 0 ? tB : tT); }
     return tMax;
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  NEW DRAWING ROUTINES — 50 additional tools (V256)
+  // ══════════════════════════════════════════════════════════
+
+  // ── Arrow Line ────────────────────────────────────────
+  private drawArrowLine(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, _d?: any): void {
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    this.drawArrowHead(ctx, a, b);
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Double Arrow ──────────────────────────────────────
+  private drawDoubleArrow(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, _d?: any): void {
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    this.drawArrowHead(ctx, a, b);
+    this.drawArrowHead(ctx, b, a);
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Arrow Head helper ─────────────────────────────────
+  private drawArrowHead(ctx: CanvasRenderingContext2D, from: PixelPoint, to: PixelPoint): void {
+    const angle = Math.atan2(to.y - from.y, to.x - from.x);
+    const sz = ARROW_HEAD_SIZE;
+    ctx.beginPath();
+    ctx.moveTo(to.x, to.y);
+    ctx.lineTo(to.x - sz * Math.cos(angle - Math.PI / 6), to.y - sz * Math.sin(angle - Math.PI / 6));
+    ctx.lineTo(to.x - sz * Math.cos(angle + Math.PI / 6), to.y - sz * Math.sin(angle + Math.PI / 6));
+    ctx.closePath(); ctx.fill();
+  }
+
+  // ── Curved Line ───────────────────────────────────────
+  private drawCurvedLine(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, _d?: any): void {
+    const midX = (a.x + b.x) / 2;
+    const midY = (a.y + b.y) / 2;
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const cx = midX - dy * 0.2, cy = midY + dx * 0.2;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.quadraticCurveTo(cx, cy, b.x, b.y); ctx.stroke();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Parallel Line ─────────────────────────────────────
+  private drawParallelLine(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, _d?: any): void {
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len === 0) return;
+    const nx = -dy / len * 20, ny = dx / len * 20;
+    ctx.save(); ctx.globalAlpha *= 0.5;
+    ctx.beginPath(); ctx.moveTo(a.x + nx, a.y + ny); ctx.lineTo(b.x + nx, b.y + ny); ctx.stroke();
+    ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Stepped Line ──────────────────────────────────────
+  private drawSteppedLine(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, _d?: any): void {
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Bezier Curve (3-point) ────────────────────────────
+  private drawBezierCurve(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, c: PixelPoint, _d?: any): void {
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.quadraticCurveTo(b.x, b.y, c.x, c.y); ctx.stroke();
+    this.drawDot(ctx, a); this.drawDot(ctx, b); this.drawDot(ctx, c);
+  }
+
+  // ── Fibonacci Channel (3-point) ───────────────────────
+  private drawFibChannel(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, c: PixelPoint, _d?: any): void {
+    // Main line from a to b, parallel line through c
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    const offset = { x: c.x - a.x, y: c.y - a.y };
+    ctx.beginPath(); ctx.moveTo(a.x + offset.x, a.y + offset.y); ctx.lineTo(b.x + offset.x, b.y + offset.y); ctx.stroke();
+    // Fib levels
+    for (const level of [38.2, 50, 61.8]) {
+      const t = level / 100;
+      const px = a.x + offset.x * t, py = a.y + offset.y * t;
+      const qx = b.x + offset.x * t, qy = b.y + offset.y * t;
+      ctx.save(); ctx.globalAlpha *= 0.5; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(qx, qy); ctx.stroke();
+      ctx.restore();
+    }
+    this.drawDot(ctx, a); this.drawDot(ctx, b); this.drawDot(ctx, c);
+  }
+
+  // ── Standard Deviation Channel ────────────────────────
+  private drawStdDevChannel(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len === 0) { this.drawDot(ctx, a); this.drawDot(ctx, b); return; }
+    const nx = -dy / len * 30, ny = dx / len * 30;
+    ctx.save(); ctx.globalAlpha *= 0.7;
+    ctx.beginPath(); ctx.moveTo(a.x + nx, a.y + ny); ctx.lineTo(b.x + nx, b.y + ny); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(a.x - nx, a.y - ny); ctx.lineTo(b.x - nx, b.y - ny); ctx.stroke();
+    // Fill
+    ctx.globalAlpha *= 0.15; ctx.fillStyle = d.color;
+    ctx.beginPath();
+    ctx.moveTo(a.x + nx, a.y + ny); ctx.lineTo(b.x + nx, b.y + ny);
+    ctx.lineTo(b.x - nx, b.y - ny); ctx.lineTo(a.x - nx, a.y - ny);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Inside Channel ────────────────────────────────────
+  private drawInsideChannel(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, _d?: any): void {
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len === 0) { this.drawDot(ctx, a); this.drawDot(ctx, b); return; }
+    const nx = -dy / len * 15, ny = dx / len * 15;
+    ctx.save(); ctx.globalAlpha *= 0.6;
+    ctx.beginPath(); ctx.moveTo(a.x + nx, a.y + ny); ctx.lineTo(b.x + nx, b.y + ny); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(a.x - nx, a.y - ny); ctx.lineTo(b.x - nx, b.y - ny); ctx.stroke();
+    ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Fibonacci Circles ─────────────────────────────────
+  private drawFibCircles(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, _d?: any): void {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const baseRadius = Math.sqrt(dx * dx + dy * dy);
+    if (baseRadius === 0) return;
+    for (const level of FIBONACCI_LEVELS) {
+      const r = baseRadius * (level / 100);
+      if (r < 1) continue;
+      const color = FIBONACCI_COLORS[level] || DEFAULT_COLOR;
+      ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = level === 50 ? 1.5 : 1; ctx.globalAlpha *= 0.5;
+      ctx.beginPath(); ctx.arc(a.x, a.y, r, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Fibonacci Speed Resistance ────────────────────────
+  private drawFibSpeedResist(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, _d?: any): void {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    for (const level of [33.3, 50, 66.7]) {
+      const t = level / 100;
+      const ex = a.x + dx * t, ey = a.y + dy * t;
+      ctx.save(); ctx.globalAlpha *= 0.6; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Fibonacci Speed Fan ───────────────────────────────
+  private drawFibSpeedFan(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, _d?: any): void {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    for (const level of [38.2, 50, 61.8]) {
+      const t = level / 100;
+      const ex = a.x + dx, ey = a.y + dy * t;
+      const color = FIBONACCI_COLORS[level] || DEFAULT_COLOR;
+      ctx.save(); ctx.strokeStyle = color; ctx.globalAlpha *= 0.6;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Fibonacci Time Extension ──────────────────────────
+  private drawFibTimeExt(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, canvasW: number, canvasH: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const dx = b.x - a.x;
+    if (dx === 0) { this.drawDot(ctx, a); this.drawDot(ctx, b); return; }
+    for (const level of FIB_EXTENSION_LEVELS) {
+      const x = a.x + dx * (level / 100);
+      if (x < 0 || x > canvasW) continue;
+      const color = FIBONACCI_COLORS[level] || DEFAULT_COLOR;
+      ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = (level === 0 || level === 100) ? 1.5 : 1; ctx.globalAlpha = d.isPreview ? 0.35 : 0.5;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvasH); ctx.stroke();
+      if (!d.isPreview) {
+        ctx.globalAlpha = 0.7; ctx.font = "9px 'JetBrains Mono', monospace"; ctx.fillStyle = color;
+        ctx.fillText(`${level}%`, x + 4, 12);
+      }
+      ctx.restore();
+    }
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Gann Grid ─────────────────────────────────────────
+  private drawGannGrid(ctx: CanvasRenderingContext2D, pt: PixelPoint, canvasW: number, canvasH: number, _d?: any): void {
+    const spacing = 50;
+    ctx.save(); ctx.globalAlpha *= 0.3;
+    for (let x = pt.x % spacing; x < canvasW; x += spacing) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvasH); ctx.stroke();
+    }
+    for (let y = pt.y % spacing; y < canvasH; y += spacing) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvasW, y); ctx.stroke();
+    }
+    ctx.restore();
+    this.drawDot(ctx, pt);
+  }
+
+  // ── Gann Diamond ──────────────────────────────────────
+  private drawGannDiamond(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, _d?: any): void {
+    const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
+    const hw = Math.abs(b.x - a.x) / 2, hh = Math.abs(b.y - a.y) / 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - hh);
+    ctx.lineTo(cx + hw, cy);
+    ctx.lineTo(cx, cy + hh);
+    ctx.lineTo(cx - hw, cy);
+    ctx.closePath(); ctx.stroke();
+    ctx.save(); ctx.globalAlpha *= 0.1; ctx.fill(); ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Gann Hexagon ──────────────────────────────────────
+  private drawGannHexagon(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, _d?: any): void {
+    const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
+    const r = Math.max(1, Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2) / 2);
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI / 3) * i - Math.PI / 6;
+      const px = cx + r * Math.cos(angle), py = cy + r * Math.sin(angle);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.stroke();
+    ctx.save(); ctx.globalAlpha *= 0.1; ctx.fill(); ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Rounded Rectangle ─────────────────────────────────
+  private drawRoundedRect(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, _d?: any): void {
+    const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
+    const w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
+    const r = Math.min(12, w / 4, h / 4);
+    ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.stroke();
+    ctx.save(); ctx.globalAlpha *= 0.08; ctx.fill(); ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Diamond ───────────────────────────────────────────
+  private drawDiamond(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, _d?: any): void {
+    const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
+    const hw = Math.abs(b.x - a.x) / 2, hh = Math.abs(b.y - a.y) / 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - hh);
+    ctx.lineTo(cx + hw, cy);
+    ctx.lineTo(cx, cy + hh);
+    ctx.lineTo(cx - hw, cy);
+    ctx.closePath(); ctx.stroke();
+    ctx.save(); ctx.globalAlpha *= 0.1; ctx.fill(); ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Parallelogram ─────────────────────────────────────
+  private drawParallelogram(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, _d?: any): void {
+    const skew = Math.abs(b.x - a.x) * 0.15;
+    const x1 = Math.min(a.x, b.x), y1 = Math.min(a.y, b.y);
+    const x2 = Math.max(a.x, b.x), y2 = Math.max(a.y, b.y);
+    ctx.beginPath();
+    ctx.moveTo(x1 + skew, y1);
+    ctx.lineTo(x2 + skew, y1);
+    ctx.lineTo(x2 - skew, y2);
+    ctx.lineTo(x1 - skew, y2);
+    ctx.closePath(); ctx.stroke();
+    ctx.save(); ctx.globalAlpha *= 0.1; ctx.fill(); ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Pentagon (3-point: center + radius point + rotation) ──
+  private drawPentagon(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, c: PixelPoint, _d?: any): void {
+    const radius = Math.max(1, Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2));
+    const rotAngle = Math.atan2(c.y - a.y, c.x - a.x);
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const angle = rotAngle + (2 * Math.PI / 5) * i - Math.PI / 2;
+      const px = a.x + radius * Math.cos(angle), py = a.y + radius * Math.sin(angle);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.stroke();
+    ctx.save(); ctx.globalAlpha *= 0.1; ctx.fill(); ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b); this.drawDot(ctx, c);
+  }
+
+  // ── Hexagon Shape (3-point: center + radius + rotation) ──
+  private drawHexagonShape(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, c: PixelPoint, _d?: any): void {
+    const radius = Math.max(1, Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2));
+    const rotAngle = Math.atan2(c.y - a.y, c.x - a.x);
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const angle = rotAngle + (Math.PI / 3) * i - Math.PI / 6;
+      const px = a.x + radius * Math.cos(angle), py = a.y + radius * Math.sin(angle);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.stroke();
+    ctx.save(); ctx.globalAlpha *= 0.1; ctx.fill(); ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b); this.drawDot(ctx, c);
+  }
+
+  // ── Star (3-point: center + outer radius + rotation) ──
+  private drawStar(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, c: PixelPoint, _d?: any): void {
+    const outerR = Math.max(1, Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2));
+    const innerR = outerR * 0.4;
+    const rotAngle = Math.atan2(c.y - a.y, c.x - a.x);
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const angle = rotAngle + (Math.PI / 5) * i - Math.PI / 2;
+      const r = i % 2 === 0 ? outerR : innerR;
+      const px = a.x + r * Math.cos(angle), py = a.y + r * Math.sin(angle);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.stroke();
+    ctx.save(); ctx.globalAlpha *= 0.1; ctx.fill(); ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b); this.drawDot(ctx, c);
+  }
+
+  // ── Callout ───────────────────────────────────────────
+  private drawCallout(ctx: CanvasRenderingContext2D, pt: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const text = d.isPreview ? '\u{1F4AC}' : this.formatPrice(this.pp(d, 0) ?? 0);
+    ctx.save(); ctx.font = "bold 11px 'JetBrains Mono', monospace";
+    const tw = ctx.measureText(text).width;
+    const padX = 8, padY = 4, boxW = tw + padX * 2, boxH = 18 + padY * 2;
+    const bx = pt.x + 10, by = pt.y - boxH - 10;
+    ctx.globalAlpha = 0.9; ctx.fillStyle = '#151A22';
+    ctx.beginPath(); ctx.roundRect(bx, by, boxW, boxH, 4); ctx.fill();
+    ctx.strokeStyle = d.color; ctx.lineWidth = 1; ctx.stroke();
+    // Arrow pointer
+    ctx.beginPath(); ctx.moveTo(pt.x + 4, by + boxH); ctx.lineTo(pt.x, pt.y); ctx.lineTo(pt.x + 12, by + boxH); ctx.fillStyle = '#151A22'; ctx.fill();
+    ctx.globalAlpha = 0.95; ctx.fillStyle = d.color; ctx.fillText(text, bx + padX, by + padY + 12);
+    ctx.restore();
+    this.drawDot(ctx, pt);
+  }
+
+  // ── Balloon ───────────────────────────────────────────
+  private drawBalloon(ctx: CanvasRenderingContext2D, pt: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const text = d.isPreview ? '\u{1F4AD}' : this.formatPrice(this.pp(d, 0) ?? 0);
+    ctx.save(); ctx.font = "11px 'JetBrains Mono', monospace";
+    const tw = ctx.measureText(text).width;
+    const r = Math.max(16, (tw + 16) / 2);
+    const cy = pt.y - r - 8;
+    ctx.globalAlpha = 0.85; ctx.fillStyle = 'rgba(21,26,34,0.9)';
+    ctx.beginPath(); ctx.arc(pt.x, cy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = d.color; ctx.lineWidth = 1; ctx.stroke();
+    // Tail
+    ctx.beginPath(); ctx.moveTo(pt.x - 5, cy + r - 2); ctx.lineTo(pt.x, pt.y); ctx.lineTo(pt.x + 5, cy + r - 2); ctx.fill();
+    ctx.globalAlpha = 0.95; ctx.fillStyle = d.color;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(text, pt.x, cy); ctx.textAlign = 'start';
+    ctx.restore();
+    this.drawDot(ctx, pt);
+  }
+
+  // ── Flag ──────────────────────────────────────────────
+  private drawFlag(ctx: CanvasRenderingContext2D, pt: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    ctx.beginPath(); ctx.moveTo(pt.x, pt.y); ctx.lineTo(pt.x, pt.y - 24); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pt.x, pt.y - 24); ctx.lineTo(pt.x + 14, pt.y - 18); ctx.lineTo(pt.x, pt.y - 12); ctx.closePath();
+    ctx.save(); ctx.globalAlpha *= 0.7; ctx.fill(); ctx.restore();
+    this.drawDot(ctx, pt);
+  }
+
+  // ── Thumb Up ──────────────────────────────────────────
+  private drawThumbUp(ctx: CanvasRenderingContext2D, pt: PixelPoint, _d?: any): void {
+    ctx.save(); ctx.font = '18px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('\u{1F44D}', pt.x, pt.y); ctx.textAlign = 'start'; ctx.restore();
+    this.drawDot(ctx, pt);
+  }
+
+  // ── Thumb Down ────────────────────────────────────────
+  private drawThumbDown(ctx: CanvasRenderingContext2D, pt: PixelPoint, _d?: any): void {
+    ctx.save(); ctx.font = '18px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('\u{1F44E}', pt.x, pt.y); ctx.textAlign = 'start'; ctx.restore();
+    this.drawDot(ctx, pt);
+  }
+
+  // ── Measure Tool ──────────────────────────────────────
+  private drawMeasure(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    // Horizontal & vertical dashed guides
+    ctx.save(); ctx.setLineDash([3, 3]); ctx.globalAlpha *= 0.4;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, a.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(b.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    ctx.restore();
+    if (!d.isPreview) {
+      const priceA = this.pp(d, 0), priceB = this.pp(d, 1);
+      const priceDist = priceA !== null && priceB !== null ? Math.abs(priceB - priceA) : 0;
+      const pctChange = priceA && priceA !== 0 ? ((priceB ?? 0) - priceA) / priceA * 100 : 0;
+      const bars = Math.abs(d.points[1].time - d.points[0].time);
+      const midX = (a.x + b.x) / 2, midY = (a.y + b.y) / 2;
+      ctx.save(); ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = d.color; ctx.globalAlpha = 0.9;
+      ctx.fillText(`\u0394 ${this.formatPrice(priceDist)}  (${pctChange >= 0 ? '+' : ''}${pctChange.toFixed(2)}%)`, midX + 6, midY - 6);
+      ctx.fillText(`${bars} bars`, midX + 6, midY + 6);
+      ctx.restore();
+    }
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Risk/Reward ───────────────────────────────────────
+  private drawRiskReward(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const priceA = this.pp(d, 0), priceB = this.pp(d, 1);
+    if (priceA === null || priceB === null) { this.drawTrendLine(ctx, a, b, d); return; }
+    const isLong = priceB > priceA;
+    const entry = priceA, tp = priceB;
+    const sl = isLong ? entry - (tp - entry) : entry + (entry - tp);
+    const rr = Math.abs(tp - entry) / Math.abs(entry - sl);
+    // Entry line
+    ctx.beginPath(); ctx.moveTo(a.x - 20, a.y); ctx.lineTo(a.x + 20, a.y); ctx.stroke();
+    // TP line
+    ctx.save(); ctx.strokeStyle = '#3fb950'; ctx.setLineDash([4, 4]);
+    const tpY = this._series.priceToCoordinate(tp);
+    if (tpY !== null) { ctx.beginPath(); ctx.moveTo(a.x - 30, tpY); ctx.lineTo(a.x + 30, tpY); ctx.stroke(); }
+    ctx.restore();
+    // SL line
+    ctx.save(); ctx.strokeStyle = '#f85149'; ctx.setLineDash([4, 4]);
+    const slY = this._series.priceToCoordinate(sl);
+    if (slY !== null) { ctx.beginPath(); ctx.moveTo(a.x - 30, slY); ctx.lineTo(a.x + 30, slY); ctx.stroke(); }
+    ctx.restore();
+    // Label
+    if (!d.isPreview) {
+      ctx.save(); ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = d.color; ctx.globalAlpha = 0.9;
+      ctx.fillText(`R:R = 1:${rr.toFixed(2)}`, a.x + 24, a.y);
+      ctx.fillText(`TP: ${this.formatPrice(tp)}`, a.x + 24, (tpY ?? a.y) + 4);
+      ctx.fillText(`SL: ${this.formatPrice(sl)}`, a.x + 24, (slY ?? a.y) + 4);
+      ctx.restore();
+    }
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Date Range ────────────────────────────────────────
+  private drawDateRange(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, canvasW: number, canvasH: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const x1 = Math.min(a.x, b.x), x2 = Math.max(a.x, b.x);
+    ctx.save(); ctx.globalAlpha *= 0.15; ctx.fillStyle = d.color;
+    ctx.fillRect(x1, 0, x2 - x1, canvasH);
+    ctx.restore();
+    ctx.beginPath(); ctx.moveTo(x1, 0); ctx.lineTo(x1, canvasH); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x2, 0); ctx.lineTo(x2, canvasH); ctx.stroke();
+    if (!d.isPreview && d.points.length >= 2) {
+      const dateA = new Date(d.points[0].time * 1000);
+      const dateB = new Date(d.points[1].time * 1000);
+      const days = Math.abs(d.points[1].time - d.points[0].time) / 86400;
+      ctx.save(); ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = d.color; ctx.globalAlpha = 0.9;
+      ctx.fillText(`${days.toFixed(0)} days`, x1 + 4, 14);
+      ctx.fillText(dateA.toLocaleDateString('en', { month: 'short', day: 'numeric' }), x1, canvasH - 8);
+      ctx.fillText(dateB.toLocaleDateString('en', { month: 'short', day: 'numeric' }), x2, canvasH - 8);
+      ctx.restore();
+    }
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Time Cycle ────────────────────────────────────────
+  private drawTimeCycle(ctx: CanvasRenderingContext2D, pt: PixelPoint, canvasW: number, canvasH: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const baseInterval = 60; // 60px default cycle spacing
+    for (let x = pt.x; x < canvasW; x += baseInterval) {
+      ctx.save(); ctx.globalAlpha *= 0.3; ctx.setLineDash([2, 4]);
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvasH); ctx.stroke();
+      ctx.restore();
+    }
+    for (let x = pt.x - baseInterval; x > 0; x -= baseInterval) {
+      ctx.save(); ctx.globalAlpha *= 0.3; ctx.setLineDash([2, 4]);
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvasH); ctx.stroke();
+      ctx.restore();
+    }
+    // Emphasize origin
+    ctx.beginPath(); ctx.moveTo(pt.x, 0); ctx.lineTo(pt.x, canvasH); ctx.stroke();
+    if (!d.isPreview && d.points[0]) this.drawTimeLabel(ctx, pt.x, canvasH - 20, d.points[0].time);
+    this.drawDot(ctx, pt);
+  }
+
+  // ── Head & Shoulders (3-point) ────────────────────────
+  private drawHeadShoulders(ctx: CanvasRenderingContext2D, left: PixelPoint, head: PixelPoint, right: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const shoulderY = (left.y + right.y) / 2; // Neckline
+    // Draw the pattern outline
+    ctx.beginPath();
+    ctx.moveTo(left.x, left.y);
+    ctx.lineTo((left.x + head.x) / 2, shoulderY); // Left trough
+    ctx.lineTo(head.x, head.y); // Head peak
+    ctx.lineTo((head.x + right.x) / 2, shoulderY); // Right trough
+    ctx.lineTo(right.x, right.y);
+    ctx.stroke();
+    // Neckline
+    ctx.save(); ctx.setLineDash([6, 4]); ctx.globalAlpha *= 0.6;
+    ctx.beginPath(); ctx.moveTo(left.x, shoulderY); ctx.lineTo(right.x, shoulderY); ctx.stroke();
+    ctx.restore();
+    if (!d.isPreview) {
+      ctx.save(); ctx.font = "9px 'JetBrains Mono', monospace"; ctx.fillStyle = d.color; ctx.globalAlpha = 0.8;
+      ctx.fillText('L', left.x - 4, left.y - 6);
+      ctx.fillText('H', head.x - 3, head.y - 6);
+      ctx.fillText('R', right.x - 4, right.y - 6);
+      ctx.restore();
+    }
+    this.drawDot(ctx, left); this.drawDot(ctx, head); this.drawDot(ctx, right);
+  }
+
+  // ── Inverse Head & Shoulders ──────────────────────────
+  private drawInvHeadShoulders(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const cx = (a.x + b.x) / 2;
+    const headY = Math.max(a.y, b.y) + Math.abs(b.y - a.y) * 0.5;
+    const shoulderY = Math.min(a.y, b.y);
+    ctx.beginPath();
+    ctx.moveTo(a.x, shoulderY);
+    ctx.lineTo(a.x + (cx - a.x) * 0.5, headY);
+    ctx.lineTo(cx, headY);
+    ctx.lineTo(cx + (b.x - cx) * 0.5, headY);
+    ctx.lineTo(b.x, shoulderY);
+    ctx.stroke();
+    // Neckline
+    ctx.save(); ctx.setLineDash([6, 4]); ctx.globalAlpha *= 0.6;
+    ctx.beginPath(); ctx.moveTo(a.x, shoulderY); ctx.lineTo(b.x, shoulderY); ctx.stroke();
+    ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── ABCD Pattern (3-point) ────────────────────────────
+  private drawABCD(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, c: PixelPoint, _d?: any): void {
+    // D is projected: CD = AB in length and time
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const dPt = { x: c.x + dx, y: c.y + dy };
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+    ctx.lineTo(c.x, c.y); ctx.lineTo(dPt.x, dPt.y);
+    ctx.stroke();
+    // Labels
+    ctx.save(); ctx.font = "9px 'JetBrains Mono', monospace"; ctx.globalAlpha = 0.8;
+    ctx.fillText('A', a.x + 4, a.y - 4);
+    ctx.fillText('B', b.x + 4, b.y - 4);
+    ctx.fillText('C', c.x + 4, c.y - 4);
+    ctx.fillText('D', dPt.x + 4, dPt.y - 4);
+    ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b); this.drawDot(ctx, c);
+  }
+
+  // ── Cypher Pattern (3-point) ──────────────────────────
+  private drawCypher(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, c: PixelPoint, _d?: any): void {
+    // X=A, A=B, B=C, C projected (0.786 retracement of XA, then 1.272 extension)
+    const dx = c.x - a.x, dy = c.y - a.y;
+    const dPt = { x: c.x + dx * 0.272, y: c.y + dy * 0.272 };
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+    ctx.lineTo(c.x, c.y); ctx.lineTo(dPt.x, dPt.y);
+    ctx.stroke();
+    this.drawDot(ctx, a); this.drawDot(ctx, b); this.drawDot(ctx, c);
+  }
+
+  // ── Bat Pattern (3-point) ─────────────────────────────
+  private drawBat(ctx: CanvasRenderingContext2D, x: PixelPoint, a: PixelPoint, b: PixelPoint, _d?: any): void {
+    const dx = a.x - x.x, dy = a.y - x.y;
+    const cPt = { x: a.x + dx * 0.382, y: a.y + dy * 0.886 };
+    const dPt = { x: a.x + dx * 0.886, y: a.y + dy * 0.886 };
+    ctx.beginPath();
+    ctx.moveTo(x.x, x.y); ctx.lineTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y); ctx.lineTo(cPt.x, cPt.y);
+    ctx.lineTo(dPt.x, dPt.y);
+    ctx.stroke();
+    ctx.save(); ctx.globalAlpha *= 0.08; ctx.fill(); ctx.restore();
+    this.drawDot(ctx, x); this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Butterfly Pattern (3-point) ───────────────────────
+  private drawButterfly(ctx: CanvasRenderingContext2D, x: PixelPoint, a: PixelPoint, b: PixelPoint, _d?: any): void {
+    const dx = a.x - x.x, dy = a.y - x.y;
+    const cPt = { x: a.x - dx * 0.786, y: a.y + dy * 0.786 };
+    const dPt = { x: a.x - dx * 1.272, y: a.y + dy * 1.272 };
+    ctx.beginPath();
+    ctx.moveTo(x.x, x.y); ctx.lineTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y); ctx.lineTo(cPt.x, cPt.y);
+    ctx.lineTo(dPt.x, dPt.y);
+    ctx.stroke();
+    this.drawDot(ctx, x); this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Crab Pattern (3-point) ────────────────────────────
+  private drawCrab(ctx: CanvasRenderingContext2D, x: PixelPoint, a: PixelPoint, b: PixelPoint, _d?: any): void {
+    const dx = a.x - x.x, dy = a.y - x.y;
+    const cPt = { x: a.x + dx * 0.382, y: a.y + dy * 0.618 };
+    const dPt = { x: a.x + dx * 1.618, y: a.y + dy * 1.618 };
+    ctx.beginPath();
+    ctx.moveTo(x.x, x.y); ctx.lineTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y); ctx.lineTo(cPt.x, cPt.y);
+    ctx.lineTo(dPt.x, dPt.y);
+    ctx.stroke();
+    this.drawDot(ctx, x); this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Shark Pattern (3-point) ───────────────────────────
+  private drawShark(ctx: CanvasRenderingContext2D, x: PixelPoint, a: PixelPoint, b: PixelPoint, _d?: any): void {
+    const dx = a.x - x.x, dy = a.y - x.y;
+    const cPt = { x: a.x + dx * 0.886, y: a.y + dy * 0.886 };
+    const dPt = { x: a.x + dx * 1.13, y: a.y + dy * 1.13 };
+    ctx.beginPath();
+    ctx.moveTo(x.x, x.y); ctx.lineTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y); ctx.lineTo(cPt.x, cPt.y);
+    ctx.lineTo(dPt.x, dPt.y);
+    ctx.stroke();
+    this.drawDot(ctx, x); this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Three Drives (3-point) ────────────────────────────
+  private drawThreeDrives(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, c: PixelPoint, _d?: any): void {
+    // Three drives pattern: 3 peaks at 1.272 extension
+    const drive1 = { x: a.x + (b.x - a.x) * 0.618, y: a.y + (b.y - a.y) * 0.618 };
+    const drive2 = { x: b.x + (c.x - b.x) * 0.618, y: b.y + (c.y - b.y) * 0.618 };
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y); ctx.lineTo(drive1.x, drive1.y);
+    ctx.lineTo(b.x, b.y); ctx.lineTo(drive2.x, drive2.y);
+    ctx.lineTo(c.x, c.y);
+    ctx.stroke();
+    this.drawDot(ctx, a); this.drawDot(ctx, b); this.drawDot(ctx, c);
+  }
+
+  // ── Wolf Wave (3-point) ───────────────────────────────
+  private drawWolfWave(ctx: CanvasRenderingContext2D, p1: PixelPoint, p2: PixelPoint, p3: PixelPoint, _d?: any): void {
+    // Wolf wave: 5-point pattern with target line
+    const dx = p2.x - p1.x;
+    const p4 = { x: p3.x + dx * 0.5, y: p3.y + (p2.y - p1.y) * 0.5 };
+    const p5 = { x: p3.x + dx, y: p1.y };
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+    ctx.lineTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y);
+    ctx.lineTo(p5.x, p5.y);
+    ctx.stroke();
+    // Target line
+    ctx.save(); ctx.setLineDash([4, 4]); ctx.globalAlpha *= 0.5;
+    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p5.x, p5.y); ctx.stroke();
+    ctx.restore();
+    this.drawDot(ctx, p1); this.drawDot(ctx, p2); this.drawDot(ctx, p3);
+  }
+
+  // ── Elliott Impulse (2-point) ─────────────────────────
+  private drawElliottImpulse(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    // 5-wave impulse
+    const waves = [
+      { x: a.x + dx * 0.236, y: a.y + dy * 0.382 },
+      { x: a.x + dx * 0.382, y: a.y + dy * 0.236 },
+      { x: a.x + dx * 0.618, y: a.y + dy * 0.786 },
+      { x: a.x + dx * 0.764, y: a.y + dy * 0.618 },
+      { x: b.x, y: b.y },
+    ];
+    ctx.beginPath(); ctx.moveTo(a.x, a.y);
+    for (const w of waves) ctx.lineTo(w.x, w.y);
+    ctx.stroke();
+    // Labels
+    if (!d.isPreview) {
+      ctx.save(); ctx.font = "9px 'JetBrains Mono', monospace"; ctx.fillStyle = d.color; ctx.globalAlpha = 0.8;
+      ctx.fillText('1', waves[0].x, waves[0].y - 6);
+      ctx.fillText('2', waves[1].x, waves[1].y + 12);
+      ctx.fillText('3', waves[2].x, waves[2].y - 6);
+      ctx.fillText('4', waves[3].x, waves[3].y + 12);
+      ctx.fillText('5', b.x, b.y - 6);
+      ctx.restore();
+    }
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Elliott Corrective (2-point) ──────────────────────
+  private drawElliottCorrective(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    // 3-wave correction (A-B-C)
+    const wA = { x: a.x + dx * 0.382, y: a.y + dy * 0.618 };
+    const wB = { x: a.x + dx * 0.618, y: a.y + dy * 0.382 };
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(wA.x, wA.y);
+    ctx.lineTo(wB.x, wB.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+    if (!d.isPreview) {
+      ctx.save(); ctx.font = "9px 'JetBrains Mono', monospace"; ctx.fillStyle = d.color; ctx.globalAlpha = 0.8;
+      ctx.fillText('A', wA.x, wA.y - 6);
+      ctx.fillText('B', wB.x, wB.y + 12);
+      ctx.fillText('C', b.x, b.y - 6);
+      ctx.restore();
+    }
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Elliott Triangle (2-point) ────────────────────────
+  private drawElliottTriangle(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, _d?: any): void {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    // Contracting triangle (5 legs)
+    const pts = [
+      { x: a.x + dx * 0.2, y: a.y + dy * 0.6 },
+      { x: a.x + dx * 0.4, y: a.y + dy * 0.3 },
+      { x: a.x + dx * 0.6, y: a.y + dy * 0.5 },
+      { x: a.x + dx * 0.8, y: a.y + dy * 0.35 },
+    ];
+    ctx.beginPath(); ctx.moveTo(a.x, a.y);
+    for (const p of pts) ctx.lineTo(p.x, p.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Elliott Combo (2-point) ───────────────────────────
+  private drawElliottCombo(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    // Combo: impulse + correction
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    this.drawElliottImpulse(ctx, a, mid, d);
+    this.drawElliottCorrective(ctx, mid, b, d);
+  }
+
+  // ── Elliott Diagonal (2-point) ────────────────────────
+  private drawElliottDiagonal(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, _d?: any): void {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    // Diagonal: 5-wave with each wave being smaller
+    const waves = [
+      { x: a.x + dx * 0.15, y: a.y + dy * 0.35 },
+      { x: a.x + dx * 0.30, y: a.y + dy * 0.10 },
+      { x: a.x + dx * 0.55, y: a.y + dy * 0.70 },
+      { x: a.x + dx * 0.75, y: a.y + dy * 0.40 },
+    ];
+    ctx.beginPath(); ctx.moveTo(a.x, a.y);
+    for (const w of waves) ctx.lineTo(w.x, w.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+    // Diagonal boundary lines
+    ctx.save(); ctx.globalAlpha *= 0.3; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(waves[0].x, waves[0].y); ctx.lineTo(waves[3].x, waves[3].y); ctx.stroke();
+    ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
   }
 }
 

@@ -283,10 +283,11 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull, compact }: {
     try {
       const coord = getPriceCoordinate(currentPrice);
       if (coord !== null) {
-        // getPriceCoordinate returns the center of the price label.
-        // Price label is ~18px tall, so bottom edge = coord + 9.
+        // getPriceCoordinate returns the Y of the price on the price scale.
+        // The price label (green/red box) is centered around this Y.
+        // Label height is ~20px in lightweight-charts v5, so bottom edge = coord + 10.
         // Place timer directly below with no gap (sticking to label).
-        el.style.top = (coord + 9) + 'px';
+        el.style.top = (coord + 10) + 'px';
         el.style.display = 'flex';
       } else {
         el.style.display = 'none';
@@ -1663,12 +1664,11 @@ export default function RouaChart({
       if (timerPrice && !isNaN(timerPrice)) {
         const timerY = getPriceCoordinate(timerPrice);
         if (timerY !== null) {
-          // lightweight-charts v5 last-price label is ~18px tall.
-          // Position timer right below it (sticking to it, not overlapping).
-          // getPriceCoordinate returns the center of the price label.
-          // Price label is ~18px tall, so bottom edge = timerY + 9.
+          // getPriceCoordinate returns the Y of the price on the price scale.
+          // The price label (green/red box) is centered around this Y.
+          // Label height is ~20px in lightweight-charts v5, so bottom edge = timerY + 10.
           // Place timer directly below with no gap (sticking to label).
-          timerEl.style.top = (timerY + 9) + 'px';
+          timerEl.style.top = (timerY + 10) + 'px';
           timerEl.style.display = 'flex';
         } else {
           timerEl.style.display = 'none';

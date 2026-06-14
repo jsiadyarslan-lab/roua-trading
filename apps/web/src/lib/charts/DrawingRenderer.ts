@@ -57,18 +57,93 @@ interface PreviewData {
 // COORDINATE HELPERS
 // ═══════════════════════════════════════════════════════════
 
+// Timeframe to seconds mapping — used for snapping future time estimates
+const TF_SECONDS: Record<string, number> = {
+  '1s': 1, '5s': 5, '15s': 15, '30s': 30,
+  '1min': 60, '5min': 300, '15min': 900, '30min': 1800,
+  '1h': 3600, '2h': 7200, '4h': 14400,
+  '1day': 86400, '1week': 604800, '1month': 2592000, '3month': 7776000,
+};
+
 function chartPointToPixel(pt: DrawingPoint, chart: IChartApi, series: ISeriesApi<SeriesType>): PixelPoint | null {
   const x = chart.timeScale().timeToCoordinate(pt.time as Time);
   const y = series.priceToCoordinate(pt.price);
-  if (x === null || y === null) return null;
-  return { x, y };
+  if (y === null) return null;
+
+  if (x !== null) return { x, y };
+
+  // Future time: estimate pixel position from visible time range
+  // lightweight-charts' timeToCoordinate returns null for times without candle data
+  try {
+    const logicalRange = chart.timeScale().getVisibleLogicalRange();
+    const coordRange = chart.timeScale().getVisibleRange();
+    if (!logicalRange || !coordRange) return null;
+    const chartWidth = chart.timeScale().width();
+    if (chartWidth <= 0) return null;
+
+    const fromTime = coordRange.from as number;
+    const toTime = coordRange.to as number;
+    const barCount = logicalRange.to - logicalRange.from;
+    const timeSpan = toTime - fromTime;
+    if (timeSpan <= 0 || barCount <= 0) return null;
+
+    // Calculate bar spacing and candle interval from visible range
+    const barSpacing = chartWidth / barCount;
+    const candleInterval = timeSpan / barCount;
+
+    // Convert time to bar index, then to pixel position
+    const barsFromStart = (pt.time - fromTime) / candleInterval;
+    const barFromX = logicalRange.from * barSpacing;
+    const estimatedX = barFromX + barsFromStart * barSpacing;
+
+    // Only return if the point would be visible on the chart canvas
+    if (estimatedX >= -200 && estimatedX <= chartWidth + 200) {
+      return { x: estimatedX, y };
+    }
+  } catch { /* chart may be destroyed */ }
+  return null;
 }
 
 function pixelToChartPoint(x: number, y: number, chart: IChartApi, series: ISeriesApi<SeriesType>): DrawingPoint | null {
   const time = chart.timeScale().coordinateToTime(x);
   const price = series.coordinateToPrice(y);
-  if (time === null || price === null) return null;
-  return { time: time as number, price };
+  if (price === null) return null;
+
+  if (time !== null) {
+    return { time: time as number, price };
+  }
+
+  // Future position: estimate time from pixel coordinate
+  // lightweight-charts' coordinateToTime returns null when no bar exists at that position
+  // (e.g., clicking to the right of the last candle)
+  try {
+    const logicalRange = chart.timeScale().getVisibleLogicalRange();
+    const coordRange = chart.timeScale().getVisibleRange();
+    if (!logicalRange || !coordRange) return null;
+    const chartWidth = chart.timeScale().width();
+    if (chartWidth <= 0) return null;
+
+    const fromTime = coordRange.from as number;
+    const toTime = coordRange.to as number;
+    const barCount = logicalRange.to - logicalRange.from;
+    const timeSpan = toTime - fromTime;
+    if (timeSpan <= 0 || barCount <= 0) return null;
+
+    // Calculate bar spacing and candle interval from visible range
+    const barSpacing = chartWidth / barCount;
+    const candleInterval = timeSpan / barCount;
+
+    // The x coordinate relative to the first visible bar
+    const barFromX = logicalRange.from * barSpacing;
+    const barsFromStart = (x - barFromX) / barSpacing;
+    const estimatedTime = fromTime + barsFromStart * candleInterval;
+
+    // Snap to nearest candle interval boundary for clean alignment
+    const snappedTime = Math.round(estimatedTime / candleInterval) * candleInterval;
+
+    return { time: snappedTime, price };
+  } catch { /* chart may be destroyed */ }
+  return null;
 }
 
 // ═══════════════════════════════════════════════════════════

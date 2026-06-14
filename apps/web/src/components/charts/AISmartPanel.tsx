@@ -491,6 +491,9 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           wyckoffResult: wyckoffAdvanced,
           currentPrice: price,
           timeframe: 'auto',
+          trendLines,
+          volumeProfile,
+          liquidityResult,
         });
         const alerts = evaluateSmartAlerts(alertSnapshot);
         setSmartAlerts(alerts);
@@ -502,14 +505,60 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
       // ── Phase 3: Auto-Trade Proposal ────────────────────────────
       try {
+        // IMPROVED: Lower threshold — include even single strong signals
+        // Also include SMC signals (BOS/CHoCH) and volume signals
         const tradeSignals = allPatterns
-          .filter(p => p.direction !== 'neutral' && p.confidence >= 0.4)
+          .filter(p => p.direction !== 'neutral' && p.confidence >= 0.3)
           .map(p => ({
             source: p.type || 'unknown',
             direction: p.direction,
             confidence: p.confidence,
             keyLevel: p.price || price,
           }));
+
+        // Add SMC structure breaks as trade signals (strong directional)
+        for (const brk of (smcData?.structureBreaks || []).slice(-3)) {
+          tradeSignals.push({
+            source: `smc:${brk.type}`,
+            direction: brk.direction === 'bullish' ? 'bullish' as const : 'bearish' as const,
+            confidence: 0.6,
+            keyLevel: brk.price || price,
+          });
+        }
+
+        // Add Bayesian result as a signal (if strong enough)
+        if (bayesianConf > 0.45 && bayesianDir !== 'neutral') {
+          tradeSignals.push({
+            source: 'bayesian',
+            direction: bayesianDir as 'bullish' | 'bearish',
+            confidence: bayesianConf,
+            keyLevel: price,
+          });
+        }
+
+        // Add fusion result as a signal
+        if (fusionScore > 40) {
+          tradeSignals.push({
+            source: 'elliott-smc-fusion',
+            direction: fusionResult?.direction === 'bearish' ? 'bearish' as const : 'bullish' as const,
+            confidence: fusionScore / 100,
+            keyLevel: price,
+          });
+        }
+
+        // If no signals yet, create one from the dominant pattern direction
+        if (tradeSignals.length === 0) {
+          const bullCount = allPatterns.filter(p => p.direction === 'bullish').length;
+          const bearCount = allPatterns.filter(p => p.direction === 'bearish').length;
+          if (bullCount + bearCount > 0) {
+            tradeSignals.push({
+              source: 'pattern-count',
+              direction: bullCount > bearCount ? 'bullish' as const : 'bearish' as const,
+              confidence: Math.max(bullCount, bearCount) / (bullCount + bearCount + 1),
+              keyLevel: price,
+            });
+          }
+        }
 
         const confluenceDir = tradeSignals.filter(s => s.direction === 'bullish').length >
           tradeSignals.filter(s => s.direction === 'bearish').length ? 'bullish' : 'bearish';

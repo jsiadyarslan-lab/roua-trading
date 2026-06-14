@@ -357,15 +357,47 @@ function calculateTakeProfits(
 }
 
 /**
+ * Calculate Kelly fraction from trade history.
+ * Kelly criterion: K = W - (1-W) / R
+ *   where W = win rate, R = average win / average loss
+ * Capped at 0.25 (quarter-Kelly) — professional standard to avoid over-betting.
+ */
+function calculateKellyFraction(): number {
+  const history = Array.from(tradeHistory.values());
+  const completed = history.filter(p => p.status === 'hit_tp1' || p.status === 'hit_tp2' || p.status === 'hit_tp3' || p.status === 'hit_sl');
+  if (completed.length < 10) return 0; // Not enough data for reliable Kelly
+
+  const wins = completed.filter(p => p.status !== 'hit_sl');
+  const losses = completed.filter(p => p.status === 'hit_sl');
+
+  if (losses.length === 0) return 0.25; // All wins — cap at quarter-Kelly
+
+  const winRate = wins.length / completed.length;
+  const avgWin = wins.length > 0 ? wins.reduce((s, p) => s + Math.abs(p.pnl.netPnL), 0) / wins.length : 0;
+  const avgLoss = losses.reduce((s, p) => s + Math.abs(p.pnl.netPnL), 0) / losses.length;
+
+  if (avgLoss === 0) return 0.25;
+
+  const rawKelly = winRate - (1 - winRate) / (avgWin / avgLoss);
+  const kellyFraction = Math.min(0.25, Math.max(0, rawKelly));
+
+  return kellyFraction;
+}
+
+/**
  * Calculate position size based on risk parameters.
- * positionSize = (accountBalance × riskPerTrade) / |entry - stopLoss|
+ * Uses Kelly-capped risk fraction when sufficient trade history exists.
+ * positionSize = (accountBalance × effectiveRiskFraction) / |entry - stopLoss|
  */
 function calculatePositionSize(
   entryPrice: number,
   stopLoss: number,
   params: RiskParams,
 ): number {
-  const riskAmount = params.accountBalance * params.riskPerTrade;
+  // Use Kelly-capped fraction if available, otherwise fall back to fixed riskPerTrade
+  const kellyFraction = calculateKellyFraction();
+  const effectiveRisk = kellyFraction > 0 ? kellyFraction : params.riskPerTrade;
+  const riskAmount = params.accountBalance * effectiveRisk;
   const slDistance = Math.abs(entryPrice - stopLoss);
 
   if (slDistance === 0) return 0;

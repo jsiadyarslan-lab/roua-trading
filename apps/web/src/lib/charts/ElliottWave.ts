@@ -63,7 +63,10 @@ export function detectElliottWaves(candles: CandleData[]): ElliottPattern | null
       if (w3len > w1len && w3len > w5len) {
         // Wave 2 must not retrace more than 100% of wave 1
         if (w2.price > w0.price && w4.price > w2.price) {
-          const fib618 = w0.price + (w1.price - w0.price) * 1.618;
+          // 61.8% retracement of Wave 1 from Wave 2 end
+          const fib618 = (w2?.price || w1.price) + (w1.price - w0.price) * 0.618;
+          // 161.8% extension from Wave 2 end
+          const fib1618 = (w2?.price || w1.price) + (w1.price - w0.price) * 1.618;
           return {
             type: '5-wave', direction: 'bullish',
             waves: [
@@ -75,7 +78,7 @@ export function detectElliottWaves(candles: CandleData[]): ElliottPattern | null
             ],
             currentWave: '5',
             confidence: 0.68,
-            nextTarget: fib618,
+            nextTarget: fib1618,
           };
         }
       }

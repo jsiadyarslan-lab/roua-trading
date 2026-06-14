@@ -159,7 +159,7 @@ function estimateEntryPrice(currentPrice: number, entry: SignalHistoryEntry, age
     return currentPrice / (1 + driftPerHour * ageHours);
   } else if (entry.direction === 'bearish') {
     // If signal was bearish and price went down, entry was higher than current
-    return currentPrice / (1 - driftPerHour * ageHours);
+    return currentPrice / Math.max(0.001, 1 - driftPerHour * ageHours);
   }
   return currentPrice;
 }
@@ -290,10 +290,13 @@ export function getBayesianEngine(candles?: CandleData[]): BayesianEngine {
       let confidence: number;
 
       const margin = Math.abs(posteriorBullish - posteriorBearish);
-      if (margin < 0.1) {
-        // Too close to call — neutral
+      // IMPROVED: Lower neutral threshold from 0.1 to 0.05
+      // This reduces the "always neutral" bias — even a slight posterior
+      // advantage is now actionable. The old 0.1 threshold meant the
+      // system needed 60/40 split to say anything, which was too conservative.
+      if (margin < 0.05) {
         direction = 'neutral';
-        confidence = margin; // Low confidence
+        confidence = margin;
       } else if (posteriorBullish > posteriorBearish) {
         direction = 'bullish';
         confidence = posteriorBullish;

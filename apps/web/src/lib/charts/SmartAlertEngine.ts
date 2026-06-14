@@ -178,8 +178,8 @@ const DEFAULT_RULES: AlertRule[] = [
     id: 'harmonic-ob-confluence',
     nameAr: 'نمط هارمونيك + بلوك أوامر ضمن PRZ',
     conditions: [
-      { source: 'harmonic', direction: 'any', timeframe: 'any', minConfidence: 0.6 },
-      { source: 'orderblock', direction: 'any', timeframe: 'any', minConfidence: 0.5 },
+      { source: 'harmonic', direction: 'any', timeframe: 'any', minConfidence: 0.5 },
+      { source: 'orderblock', direction: 'any', timeframe: 'any' },
     ],
     logic: 'AND',
     priority: 'critical',
@@ -190,10 +190,10 @@ const DEFAULT_RULES: AlertRule[] = [
   },
   {
     id: 'bos-fvg-mtf',
-    nameAr: 'BOS صاعد + فجوة قيمة غير مغلّية',
+    nameAr: 'BOS + فجوة قيمة غير مغلّية',
     conditions: [
-      { source: 'bos', direction: 'bullish', timeframe: 'any', minConfidence: 0.5 },
-      { source: 'fvg', direction: 'bullish', timeframe: 'any' },
+      { source: 'bos', direction: 'any', timeframe: 'any' },
+      { source: 'fvg', direction: 'any', timeframe: 'any' },
     ],
     logic: 'AND',
     priority: 'high',
@@ -204,10 +204,10 @@ const DEFAULT_RULES: AlertRule[] = [
   },
   {
     id: 'wyckoff-spring-bos',
-    nameAr: 'سبرينج ويكوف + BOS صاعد',
+    nameAr: 'سبرينج ويكوف + BOS',
     conditions: [
-      { source: 'wyckoff', direction: 'bullish', timeframe: 'any', subType: 'spring' },
-      { source: 'bos', direction: 'bullish', timeframe: 'any', minConfidence: 0.6 },
+      { source: 'wyckoff', direction: 'any', timeframe: 'any', subType: 'spring' },
+      { source: 'bos', direction: 'any', timeframe: 'any' },
     ],
     logic: 'AND',
     priority: 'critical',
@@ -218,10 +218,10 @@ const DEFAULT_RULES: AlertRule[] = [
   },
   {
     id: 'elliott-impulse-ob',
-    nameAr: 'موجة نبضة إليوت + بلوك أوامر مؤكد',
+    nameAr: 'موجة إليوت + بلوك أوامر',
     conditions: [
-      { source: 'elliott', direction: 'any', timeframe: 'any', subType: 'impulse', minConfidence: 0.6 },
-      { source: 'orderblock', direction: 'any', timeframe: 'any', minConfidence: 0.6 },
+      { source: 'elliott', direction: 'any', timeframe: 'any', minConfidence: 0.4 },
+      { source: 'orderblock', direction: 'any', timeframe: 'any' },
     ],
     logic: 'AND',
     priority: 'high',
@@ -234,9 +234,9 @@ const DEFAULT_RULES: AlertRule[] = [
     id: 'triple-confluence',
     nameAr: 'تقارب ثلاثي: هارمونيك + BOS + ويكوف',
     conditions: [
-      { source: 'harmonic', direction: 'any', timeframe: 'any', minConfidence: 0.5 },
-      { source: 'bos', direction: 'any', timeframe: 'any', minConfidence: 0.5 },
-      { source: 'wyckoff', direction: 'any', timeframe: 'any', minConfidence: 0.4 },
+      { source: 'harmonic', direction: 'any', timeframe: 'any', minConfidence: 0.4 },
+      { source: 'bos', direction: 'any', timeframe: 'any' },
+      { source: 'wyckoff', direction: 'any', timeframe: 'any' },
     ],
     logic: 'AND',
     priority: 'critical',
@@ -250,12 +250,80 @@ const DEFAULT_RULES: AlertRule[] = [
     nameAr: 'UTAD توزيع + CHoCH هابط',
     conditions: [
       { source: 'wyckoff', direction: 'bearish', timeframe: 'any', subType: 'utad' },
-      { source: 'choch', direction: 'bearish', timeframe: 'any', minConfidence: 0.6 },
+      { source: 'choch', direction: 'bearish', timeframe: 'any' },
     ],
     logic: 'AND',
     priority: 'critical',
     enabled: true,
     cooldownMs: 600000,
+    maxTriggers: 0,
+    createdAt: Date.now(),
+  },
+  // ── NEW: OR-based rules that actually fire frequently ──
+  {
+    id: 'any-bos',
+    nameAr: 'كسر هيكل (BOS) مؤكد',
+    conditions: [
+      { source: 'bos', direction: 'any', timeframe: 'any' },
+    ],
+    logic: 'OR',
+    priority: 'high',
+    enabled: true,
+    cooldownMs: 300000,
+    maxTriggers: 0,
+    createdAt: Date.now(),
+  },
+  {
+    id: 'any-choch',
+    nameAr: 'تغير شخصية (CHoCH)',
+    conditions: [
+      { source: 'choch', direction: 'any', timeframe: 'any' },
+    ],
+    logic: 'OR',
+    priority: 'high',
+    enabled: true,
+    cooldownMs: 300000,
+    maxTriggers: 0,
+    createdAt: Date.now(),
+  },
+  {
+    id: 'harmonic-or-fvg',
+    nameAr: 'نمط هارمونيك أو فجوة قيمة',
+    conditions: [
+      { source: 'harmonic', direction: 'any', timeframe: 'any', minConfidence: 0.5 },
+      { source: 'fvg', direction: 'any', timeframe: 'any' },
+    ],
+    logic: 'OR',
+    priority: 'medium',
+    enabled: true,
+    cooldownMs: 300000,
+    maxTriggers: 0,
+    createdAt: Date.now(),
+  },
+  {
+    id: 'elliott-or-wyckoff',
+    nameAr: 'إشارة إليوت أو ويكوف',
+    conditions: [
+      { source: 'elliott', direction: 'any', timeframe: 'any', minConfidence: 0.4 },
+      { source: 'wyckoff', direction: 'any', timeframe: 'any' },
+    ],
+    logic: 'OR',
+    priority: 'medium',
+    enabled: true,
+    cooldownMs: 300000,
+    maxTriggers: 0,
+    createdAt: Date.now(),
+  },
+  {
+    id: 'volume-spike',
+    nameAr: 'شذوذ حجم تداول',
+    conditions: [
+      { source: 'volume', direction: 'any', timeframe: 'any' },
+    ],
+    logic: 'OR',
+    priority: 'medium',
+    enabled: true,
+    cooldownMs: 300000,
     maxTriggers: 0,
     createdAt: Date.now(),
   },
@@ -311,7 +379,8 @@ function evaluateCondition(
     case 'wyckoff': {
       if (snapshot.wyckoffResult) {
         const w = snapshot.wyckoffResult;
-        if (dirMatch(w.direction) && confMatch(w.confidence) && subMatch(w.currentPhase) || subMatch(w.events.join(','))) {
+        // FIX: Proper operator precedence — subMatch(phase OR events) is a group
+        if (dirMatch(w.direction) && confMatch(w.confidence) && (subMatch(w.currentPhase) || subMatch(w.events.join(',')))) {
           return { matched: true, confidence: w.confidence, direction: w.direction, keyLevel: snapshot.currentPrice };
         }
       }
@@ -382,7 +451,15 @@ function evaluateCondition(
     }
 
     case 'liquidity': {
-      // Handled by LiquidityZones integration
+      // Liquidity zones from the snapshot — check for active/swept zones
+      if ((snapshot as any).liquidityZones) {
+        for (const lz of (snapshot as any).liquidityZones) {
+          const lzDir: 'bullish' | 'bearish' = lz.sweepDirection === 'bullish' ? 'bullish' : 'bearish';
+          if (dirMatch(lzDir)) {
+            return { matched: true, confidence: 0.6, direction: lzDir, keyLevel: lz.price || snapshot.currentPrice };
+          }
+        }
+      }
       break;
     }
   }
@@ -609,8 +686,77 @@ export function buildAlertSnapshot(opts: {
   wyckoffResult?: any;
   currentPrice: number;
   timeframe: string;
+  trendLines?: any[];
+  volumeProfile?: any;
+  liquidityResult?: any;
 }): AnalysisSnapshot {
-  const { patterns, smcData, elliottResult, wyckoffResult, currentPrice, timeframe } = opts;
+  const { patterns, smcData, elliottResult, wyckoffResult, currentPrice, timeframe, trendLines, volumeProfile, liquidityResult } = opts;
+
+  // ── Populate trendline touches from trend line data ──
+  const trendlineTouches: Array<{ direction: 'bullish' | 'bearish'; price: number }> = [];
+  if (trendLines && trendLines.length > 0) {
+    for (const tl of trendLines) {
+      const dir: 'bullish' | 'bearish' = tl.type === 'ascending' ? 'bullish' : 'bearish';
+      // A trendline touch is when current price is near the trendline's endpoint
+      const touchPrice = tl.endPoint?.price || tl.startPoint?.price || currentPrice;
+      const proximity = Math.abs(currentPrice - touchPrice) / currentPrice;
+      if (proximity < 0.02) { // Within 2% = "touching"
+        trendlineTouches.push({ direction: dir, price: touchPrice });
+      }
+    }
+  }
+
+  // ── Populate Fibonacci levels from Elliott or patterns ──
+  const fibonacciLevels: Array<{ ratio: number; price: number; direction: 'bullish' | 'bearish' }> = [];
+  if (elliottResult?.dominantCount?.target) {
+    const target = elliottResult.dominantCount.target;
+    const dir: 'bullish' | 'bearish' = elliottResult.dominantCount.direction === 'bearish' ? 'bearish' : 'bullish';
+    // Key Fibonacci ratios
+    const ratios = [0.382, 0.5, 0.618, 0.786];
+    for (const r of ratios) {
+      const fibPrice = currentPrice + (target - currentPrice) * r;
+      if (Math.abs(fibPrice - currentPrice) / currentPrice < 0.05) {
+        fibonacciLevels.push({ ratio: r, price: fibPrice, direction: dir });
+      }
+    }
+  }
+
+  // ── Populate volume anomalies from volume profile ──
+  const volumeAnomalies: Array<{ type: 'spike' | 'dryup'; direction: 'bullish' | 'bearish' }> = [];
+  if (volumeProfile?.poc && volumeProfile?.totalVolume) {
+    // Volume spike: if total volume is significantly above average
+    const avgVol = volumeProfile.totalVolume / (volumeProfile.binCount || 20);
+    const pocVol = volumeProfile.pocVolume || 0;
+    if (pocVol > avgVol * 2.5) {
+      // High POC volume = spike — direction from price position relative to POC
+      volumeAnomalies.push({
+        type: 'spike',
+        direction: currentPrice > volumeProfile.poc ? 'bullish' : 'bearish',
+      });
+    }
+  }
+  // Also detect volume anomalies from pattern data
+  if (patterns && patterns.length > 0) {
+    const highVolPatterns = patterns.filter((p: any) => p.volumeSignal === 'spike' || p.type?.includes('volume'));
+    for (const p of highVolPatterns) {
+      volumeAnomalies.push({
+        type: 'spike',
+        direction: p.direction === 'bearish' ? 'bearish' : 'bullish',
+      });
+    }
+  }
+
+  // ── Build liquidity zones from liquidity result ──
+  const liquidityZones: Array<{ price: number; sweepDirection: string; type: string }> = [];
+  if (liquidityResult?.zones) {
+    for (const zone of liquidityResult.zones.slice(0, 5)) {
+      liquidityZones.push({
+        price: zone.price || (zone.high + zone.low) / 2 || currentPrice,
+        sweepDirection: zone.sweepDirection || zone.direction || 'bullish',
+        type: zone.type || 'pool',
+      });
+    }
+  }
 
   return {
     harmonicPatterns: (patterns || [])
@@ -655,10 +801,11 @@ export function buildAlertSnapshot(opts: {
         timeframe,
       })),
     },
-    trendlineTouches: [],
-    fibonacciLevels: [],
-    volumeAnomalies: [],
+    trendlineTouches,
+    fibonacciLevels,
+    volumeAnomalies,
+    liquidityZones,
     currentPrice,
     timeframe,
-  };
+  } as AnalysisSnapshot & { liquidityZones: Array<{ price: number; sweepDirection: string; type: string }> };
 }

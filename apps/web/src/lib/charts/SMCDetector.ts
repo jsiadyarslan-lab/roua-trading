@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import type { CandleData } from './types';
+import { calcATR } from './ATRAdapter';
 
 export interface OrderBlock {
   type: 'bullish' | 'bearish';
@@ -33,19 +34,6 @@ export interface StructureBreak {
   price: number;
   prevSwingTime: number;
   prevSwingPrice: number;
-}
-
-// ── ATR ──────────────────────────────────────────────────
-function calcATR(candles: CandleData[], period = 14): number {
-  if (candles.length < period + 1) return 0;
-  let atr = 0;
-  for (let i = candles.length - period; i < candles.length; i++) {
-    const prev = candles[i - 1];
-    const c = candles[i];
-    const tr = Math.max(c.high - c.low, Math.abs(c.high - prev.close), Math.abs(c.low - prev.close));
-    atr += tr;
-  }
-  return atr / period;
 }
 
 // ── Order Blocks ─────────────────────────────────────────

@@ -184,6 +184,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // without the overhead of full indicator rebuild.
   const indicatorRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // FIX (4.6): Per-instance indicator renderer — each chart instance gets its own
+  // ChartIndicatorRenderer so that activeOscillatorScales is not shared across
+  // multiple charts in a SmartGrid/ChartGrid layout.
+  const indicatorRendererRef = useRef<import('../lib/charts/chart-indicator-renderer').ChartIndicatorRenderer | null>(null);
+
   // ── Indicator Cache ─────────────────────────────────
   // Stores the last calculated results for each indicator keyed by
   // a hash of (indicatorKey + params + candleDataSignature).
@@ -1168,7 +1173,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     if (activeIndicators.size === 0) return;
 
     const { calculateIndicator } = await import('../lib/charts/IndicatorCalculator');
-    const { updateIndicatorSeriesData } = await import('../lib/charts/chart-indicator-renderer');
+    // FIX (4.6): Use per-instance ChartIndicatorRenderer instead of module-level functions
+    const { createIndicatorRenderer } = await import('../lib/charts/chart-indicator-renderer');
+    if (!indicatorRendererRef.current) {
+      indicatorRendererRef.current = createIndicatorRenderer();
+    }
+    const renderer = indicatorRendererRef.current!;
     const { LineSeries, AreaSeries, HistogramSeries: LCHistogram } = await import('lightweight-charts');
 
     for (const [_, indicator] of activeIndicators) {
@@ -1192,8 +1202,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           });
         }
 
+        // FIX (4.6): Use per-instance renderer methods instead of module-level functions
         // Try in-place update first
-        const { missingKeys } = updateIndicatorSeriesData(
+        const { missingKeys } = renderer.updateIndicatorSeriesData(
           { overlaySeries: overlaySeriesRef.current, oscillatorSeries: oscillatorSeriesRef.current },
           indicator,
           results,
@@ -1202,7 +1213,6 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
         // If any series are missing (e.g., new indicator), fall back to full render
         if (missingKeys.length > 0) {
-          const { renderIndicatorSeries } = await import('../lib/charts/chart-indicator-renderer');
           // Remove existing series for this indicator first
           const existingKeys = Array.from(overlaySeriesRef.current.keys()).filter(k => k.startsWith(indicator.key));
           existingKeys.forEach(k => {
@@ -1214,7 +1224,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
             const s = oscillatorSeriesRef.current.get(k);
             if (s) { try { chart.removeSeries(s); } catch {} oscillatorSeriesRef.current.delete(k); }
           });
-          renderIndicatorSeries(chart, {
+          // FIX (4.6): Use per-instance renderer method
+          renderer.renderIndicatorSeries(chart, {
             overlaySeries: overlaySeriesRef.current,
             oscillatorSeries: oscillatorSeriesRef.current,
             volumeSeries: volumeSeriesRef.current, // M6 REAL FIX: Pass volume series for dynamic margin adjustment
@@ -1420,10 +1431,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
     const { LineSeries, AreaSeries, HistogramSeries: LCHistogram } = await import('lightweight-charts');
 
-    // Delegate indicator series rendering to the extracted utility
-    // (reduces this callback from ~500 lines to a single call)
-    const { renderIndicatorSeries } = await import('../lib/charts/chart-indicator-renderer');
-    renderIndicatorSeries(chart, {
+    // FIX (4.6): Use per-instance ChartIndicatorRenderer instead of module-level function
+    const { createIndicatorRenderer } = await import('../lib/charts/chart-indicator-renderer');
+    if (!indicatorRendererRef.current) {
+      indicatorRendererRef.current = createIndicatorRenderer();
+    }
+    indicatorRendererRef.current!.renderIndicatorSeries(chart, {
       overlaySeries: overlaySeriesRef.current,
       oscillatorSeries: oscillatorSeriesRef.current,
       volumeSeries: volumeSeriesRef.current, // M6 REAL FIX: Pass volume series for dynamic margin adjustment
@@ -1656,10 +1669,14 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // H8 FIX: Clean up orphaned price scales and recalculate margins
     // after removing an oscillator. Without this, the price scale for the
     // removed oscillator persists as an invisible orphan, wasting space.
-    import('../lib/charts/chart-indicator-renderer').then(({ cleanupOrphanedScales }) => {
+    // FIX (4.6): Use per-instance renderer instead of module-level function
+    import('../lib/charts/chart-indicator-renderer').then(({ createIndicatorRenderer }) => {
       const c = chartInstanceRef.current;
       if (c) {
-        cleanupOrphanedScales(c, {
+        if (!indicatorRendererRef.current) {
+          indicatorRendererRef.current = createIndicatorRenderer();
+        }
+        indicatorRendererRef.current!.cleanupOrphanedScales(c, {
           overlaySeries: overlaySeriesRef.current,
           oscillatorSeries: oscillatorSeriesRef.current,
           volumeSeries: volumeSeriesRef.current, // M6 REAL FIX

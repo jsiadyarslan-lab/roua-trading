@@ -8,12 +8,16 @@
 
 import { useEffect, useRef } from 'react';
 import type { IChartApi, ISeriesApi, SeriesType, MouseEventParams } from 'lightweight-charts';
+import { getAllChartInstances } from '@/hooks/multi-chart-registry';
 
 interface ChartEntry {
   id: string;
   chart: IChartApi;
   mainSeries: ISeriesApi<SeriesType>;
 }
+
+// FIX (5.6): Global mutex prevents crosshair sync loops across all chart instances
+let isGlobalSyncing = false;
 
 /**
  * useChartSync — Automatic crosshair + scroll/zoom sync.
@@ -28,8 +32,6 @@ interface ChartEntry {
  * - Performance: ~0.1ms/frame overhead for 4 charts (negligible)
  */
 export function useChartSync(entries: ChartEntry[]) {
-  // Mutex flag to prevent re-entrant sync loops
-  const isSyncingRef = useRef(false);
 
   // Keep a ref to entries to avoid unsub/resub on every render
   const entriesRef = useRef(entries);
@@ -43,10 +45,10 @@ export function useChartSync(entries: ChartEntry[]) {
 
     entries.forEach((source, sourceIdx) => {
       const handler = (param: MouseEventParams) => {
-        if (isSyncingRef.current) return;
-        isSyncingRef.current = true;
+        if (isGlobalSyncing) return;
+        isGlobalSyncing = true;
 
-        // FIX: Read from entriesRef.current to get latest chart/series refs
+        // FIX (5.6): Read from entriesRef.current to get latest chart/series refs
         // instead of stale closure-captured `entries`
         const currentEntries = entriesRef.current;
 
@@ -86,7 +88,7 @@ export function useChartSync(entries: ChartEntry[]) {
             });
           }
         } finally {
-          isSyncingRef.current = false;
+          isGlobalSyncing = false;
         }
       };
 
@@ -114,10 +116,10 @@ export function useChartSync(entries: ChartEntry[]) {
 
     entries.forEach((source) => {
       const handler = (range: { from: number; to: number } | null) => {
-        if (isSyncingRef.current || !range) return;
-        isSyncingRef.current = true;
+        if (isGlobalSyncing || !range) return;
+        isGlobalSyncing = true;
 
-        // FIX: Read from entriesRef.current to get latest chart/series refs
+        // FIX (5.6): Read from entriesRef.current to get latest chart/series refs
         const currentEntries = entriesRef.current;
 
         try {
@@ -131,7 +133,7 @@ export function useChartSync(entries: ChartEntry[]) {
             }
           });
         } finally {
-          isSyncingRef.current = false;
+          isGlobalSyncing = false;
         }
       };
 

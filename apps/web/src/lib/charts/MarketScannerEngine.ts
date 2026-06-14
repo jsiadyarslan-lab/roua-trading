@@ -14,6 +14,7 @@
 // ═══════════════════════════════════════════════════════════════════════
 
 import type { CandleData } from './types';
+import { calcATR } from './ATRAdapter'; // UNIFY (4.2): Single source of truth for ATR
 import { safeMax, safeMin } from './chart-utils';
 
 // ── Types ───────────────────────────────────────────────────────────
@@ -326,7 +327,7 @@ function analyzeAssetQuick(
   const keySignal = signals.sort((a, b) => b.confidence - a.confidence)[0];
 
   // Regime
-  const atr = calcQuickATR(candles, 14);
+  const atr = calcATR(candles, 14); // UNIFY (4.2): Using ATRAdapter
   const regime = atr / price > 0.025 ? 'volatile' : atr / price > 0.015 ? 'trending' : atr / price < 0.005 ? 'quiet' : 'ranging';
 
   return {
@@ -375,19 +376,7 @@ function calcQuickRSI(closes: number[], period: number): number | null {
   return 100 - (100 / (1 + rs));
 }
 
-function calcQuickATR(candles: CandleData[], period: number): number {
-  if (candles.length < period + 1) return 0;
-  let sum = 0;
-  for (let i = candles.length - period; i < candles.length; i++) {
-    const tr = Math.max(
-      candles[i].high - candles[i].low,
-      Math.abs(candles[i].high - candles[i - 1]?.close || candles[i].open),
-      Math.abs(candles[i].low - candles[i - 1]?.close || candles[i].open),
-    );
-    sum += tr;
-  }
-  return sum / period;
-}
+// calcQuickATR: replaced by calcATR from ATRAdapter (UNIFY 4.2)
 
 function detectQuickSR(candles: CandleData[]): Array<{ price: number; type: 'support' | 'resistance'; strength: number }> {
   const levels: Array<{ price: number; type: 'support' | 'resistance'; strength: number }> = [];

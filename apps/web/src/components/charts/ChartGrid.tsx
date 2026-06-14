@@ -9,110 +9,46 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import type { ChartType } from '@/lib/charts/types';
 import { ScopedStyle } from '@/components/ScopedStyle';
+// UNIFY (4.4): Import shared grid types, constants, and utilities
+import {
+  type GridConfig,
+  type GridCell,
+  type CellState,
+  GRID_CONFIGS,
+  POPULAR_PAIRS,
+  TIMEFRAME_OPTIONS,
+  GRID_COLORS,
+  DEFAULT_CELL_STATE,
+  createDefaultCells,
+  parseCandleData,
+  computeChangePercent,
+} from '@/lib/charts/grid-utils';
 
 // ── Types ────────────────────────────────────────────────
+// UNIFY (4.4): GridConfig, GridCell, CellState now imported from grid-utils
+
 interface ChartGridProps {
   onClose: () => void;
   defaultSymbol: string;
   defaultTimeframe: string;
 }
 
-interface GridConfig {
-  cols: number;
-  rows: number;
-  label: string;
-  icon: string;
-}
-
-interface GridCell {
-  id: string;
-  symbol: string;
-  timeframe: string;
-  chartType: ChartType;
-}
-
-interface CellState {
-  loading: boolean;
-  error: string | null;
-  currentPrice: number | null;
-  prevPrice: number | null;
-  candleCount: number;
-  changePercent: number | null;
-}
+// Local CellState alias — ChartGrid doesn't use dataSource/lastUpdated/retryCount
+// but the shared type is a superset, so we just use it directly.
+// Cells that don't set those fields will have them as their defaults.
 
 // ── Constants ────────────────────────────────────────────
-const GRID_CONFIGS: GridConfig[] = [
-  { cols: 1, rows: 1, label: '1×1', icon: '▪' },
-  { cols: 2, rows: 1, label: '2×1', icon: '▬▬' },
-  { cols: 1, rows: 2, label: '1×2', icon: '▮▮' },
-  { cols: 2, rows: 2, label: '2×2', icon: '▦' },
-  { cols: 3, rows: 1, label: '3×1', icon: '▬▬▬' },
-  { cols: 1, rows: 3, label: '1×3', icon: '▮▮▮' },
-  { cols: 3, rows: 2, label: '3×2', icon: '⬓' },
-  { cols: 2, rows: 3, label: '2×3', icon: '⬒' },
-];
+// UNIFY (4.4): GRID_CONFIGS, POPULAR_PAIRS, TIMEFRAME_OPTIONS now imported from grid-utils
 
-const POPULAR_PAIRS = [
-  'BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'XRP/USDT', 'SOL/USDT',
-  'ADA/USDT', 'DOGE/USDT', 'EUR/USD', 'GBP/USD', 'USD/JPY',
-  'AUD/USD', 'USD/CAD', 'XAU/USD', 'XAG/USD', 'US30', 'NAS100',
-];
+// Backward-compatible alias for this component
+const TIMEFRAME_BUTTONS = TIMEFRAME_OPTIONS;
 
-const TIMEFRAME_BUTTONS = [
-  { value: '1min', label: '1m' },
-  { value: '5min', label: '5m' },
-  { value: '15min', label: '15m' },
-  { value: '1h', label: '1H' },
-  { value: '4h', label: '4H' },
-  { value: '1day', label: '1D' },
-];
-
+// UNIFY (4.4): Use shared GRID_COLORS + local overrides for ChartGrid-specific colors
 const C = {
-  bg: '#0B0E14',
-  card: '#151A22',
-  cardBorder: '#2A313C',
+  ...GRID_COLORS,
   cardBorderLight: 'rgba(42,49,60,0.6)',
-  grid: 'rgba(42,49,60,0.25)',
-  text: '#F0F2F5',
-  textDim: '#8B92A8',
-  textMuted: '#4B5563',
-  cyan: '#00D4FF',
-  success: '#00FFA3',
-  danger: '#FF4757',
-  gold: '#d4af37',
-  upColor: '#3fb950',
-  downColor: '#f85149',
   headerBg: 'rgba(21,26,34,0.95)',
 };
-
-let cellIdCounter = 0;
-
-// ── Default cells for a given grid config ──
-function createDefaultCells(
-  config: GridConfig,
-  defaultSymbol: string,
-  defaultTimeframe: string,
-  existingCells?: Map<string, GridCell>,
-): GridCell[] {
-  const count = config.cols * config.rows;
-  const cells: GridCell[] = [];
-  const symbols = POPULAR_PAIRS;
-  const tfs = ['15min', '1h', '4h', '1day', '5min', '1min'];
-
-  for (let i = 0; i < count; i++) {
-    const existingId = existingCells ? Array.from(existingCells.keys())[i] : undefined;
-    const existing = existingId && existingCells ? existingCells.get(existingId) : undefined;
-
-    cells.push({
-      id: `cell-${cellIdCounter++}`,
-      symbol: existing?.symbol ?? (i === 0 ? defaultSymbol : symbols[i % symbols.length]),
-      timeframe: existing?.timeframe ?? (i === 0 ? defaultTimeframe : tfs[i % tfs.length]),
-      chartType: existing?.chartType ?? 'candle',
-    });
-  }
-
-  return cells;
-}
 
 // ── Grid Icon SVG Generator ──
 function GridIcon({ cols, rows, size = 16, active = false }: { cols: number; rows: number; size?: number; active?: boolean }) {
@@ -178,13 +114,11 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
   } | null>(null);
 
   // ── Cell State Management ──
+  // UNIFY (4.4): Uses DEFAULT_CELL_STATE from grid-utils for consistent defaults
   const updateCellState = useCallback((cellId: string, update: Partial<CellState>) => {
     setCellStates(prev => {
       const next = new Map(prev);
-      const existing = next.get(cellId) || {
-        loading: true, error: null, currentPrice: null,
-        prevPrice: null, candleCount: 0, changePercent: null,
-      };
+      const existing = next.get(cellId) || { ...DEFAULT_CELL_STATE };
       next.set(cellId, { ...existing, ...update });
       return next;
     });
@@ -208,34 +142,15 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
         return;
       }
 
-      const candleData = j.data
-        .map((c: any) => ({
-          time: Math.floor(new Date(c.timestamp).getTime() / 1000),
-          open: Number(c.open) || 0,
-          high: Number(c.high) || 0,
-          low: Number(c.low) || 0,
-          close: Number(c.close) || 0,
-          volume: Number(c.volume) || 0,
-        }))
-        .filter((d: any) => !isNaN(d.time) && d.time > 0 && !isNaN(d.close));
-
-      // Deduplicate and sort
-      const seen = new Set<number>();
-      const unique = candleData.filter((d: any) => {
-        if (seen.has(d.time)) return false;
-        seen.add(d.time);
-        return true;
-      });
-      unique.sort((a: any, b: any) => a.time - b.time);
+      // UNIFY (4.4): Use shared parseCandleData + computeChangePercent
+      const unique = parseCandleData(j.data);
 
       if (unique.length === 0) {
         updateCellState(cell.id, { loading: false, error: t('noValidData'), candleCount: 0 });
         return;
       }
 
-      const currentPrice = unique[unique.length - 1].close;
-      const prevPrice = unique.length > 1 ? unique[unique.length - 2].close : null;
-      const changePercent = prevPrice ? ((currentPrice - prevPrice) / prevPrice) * 100 : null;
+      const { currentPrice, prevPrice, changePercent } = computeChangePercent(unique);
 
       const { createChart, CandlestickSeries, LineSeries, AreaSeries, HistogramSeries } = await import('lightweight-charts');
 

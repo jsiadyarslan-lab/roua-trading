@@ -245,12 +245,17 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
 
         // UX: Push real-time notification to user
         if (this.notificationService) {
+          // FIX (5.5): Include trade source (auto-trade, manual, signal, paper-trade)
+          // in notification data so the frontend can display WHERE the trade
+          // came from instead of just showing BUY/SELL side.
+          const tradeSource = message.source || (credential.exchange === 'paper-trading' ? 'paper-trade' : 'manual');
+          const sourceLabel = this._getSourceLabel(tradeSource);
           this.notificationService.sendNotification({
             userId: message.userId,
             type: 'ORDER_FILLED',
             priority: 'HIGH',
-            title: `تم تنفيذ أمر ${message.side === 'BUY' ? 'شراء' : 'بيع'} ${message.symbol}`,
-            body: `تم تنفيذ ${filledQuantity} ${message.symbol} بسعر ${averagePrice}`,
+            title: `تم تنفيذ أمر ${sourceLabel} — ${message.side === 'BUY' ? 'شراء' : 'بيع'} ${message.symbol}`,
+            body: `تم تنفيذ ${filledQuantity} ${message.symbol} بسعر ${averagePrice} [${sourceLabel}]`,
             data: {
               orderId: message.orderId,
               symbol: message.symbol,
@@ -258,6 +263,7 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
               quantity: filledQuantity,
               averagePrice,
               exchangeOrderId: result?.id,
+              tradeSource,
             },
             source: 'trade',
             action: message.side === 'BUY' ? 'BUY' : 'SELL',
@@ -282,17 +288,21 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
 
         // UX: Push real-time rejection notification to user
         if (this.notificationService) {
+          // FIX (5.5): Include trade source in rejection notification too
+          const tradeSource = message.source || (credential.exchange === 'paper-trading' ? 'paper-trade' : 'manual');
+          const sourceLabel = this._getSourceLabel(tradeSource);
           this.notificationService.sendNotification({
             userId: message.userId,
             type: 'ORDER_REJECTED',
             priority: 'HIGH',
-            title: `تم رفض أمر ${message.side === 'BUY' ? 'شراء' : 'بيع'} ${message.symbol}`,
+            title: `تم رفض أمر ${sourceLabel} — ${message.side === 'BUY' ? 'شراء' : 'بيع'} ${message.symbol}`,
             body: `السبب: ${errorMessage.substring(0, 150)}`,
             data: {
               orderId: message.orderId,
               symbol: message.symbol,
               side: message.side,
               reason: errorMessage,
+              tradeSource,
             },
             source: 'trade',
             action: 'WARN',
@@ -465,6 +475,22 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
         );
       }
     }
+  }
+
+  // FIX (5.5): Map trade source values to human-readable Arabic labels
+  // for notification titles. This gives better context than just BUY/SELL.
+  private _getSourceLabel(source: string): string {
+    const sourceLabels: Record<string, string> = {
+      'auto-trade': 'تداول تلقائي',
+      'auto_paper': 'تداول تلقائي',
+      'smart_executor': 'تداول تلقائي',
+      'manual': 'يدوي',
+      'user_manual': 'يدوي',
+      'signal': 'إشارة',
+      'paper-trade': 'تداول ورقي',
+      'agent': 'وكيل ذكي',
+    };
+    return sourceLabels[source] || source;
   }
 
   // ── Private: RabbitMQ Connection ──

@@ -6,6 +6,11 @@
 'use client';
 
 import { ChartDiagOverlay } from './ChartDiagOverlay';
+// SPLIT (3.2): Extracted sub-components
+import { ChartTradePanel } from './ChartTradePanel';
+import { ChartOverlayPanel } from './ChartOverlayPanel';
+import type { TradeOverlayItem, FillZone, DragState as OverlayDragState } from './ChartOverlayPanel';
+import { ChartGridCellHeader } from './ChartGridCellHeader';
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { createPortal } from 'react-dom';
@@ -19,7 +24,7 @@ import { usePaperTradesStore } from '@/hooks/usePaperTradesStore';
 import type { CandleData, CrosshairData, ChartType, DrawingTool, ActiveIndicator, AIPattern, NewsMarker } from '@/lib/charts/types';
 import { TIMEFRAMES, INDICATOR_CONFIGS } from '@/lib/charts/types';
 import { sanitizeOhlc } from '@/lib/charts/chart-utils';
-import { ChartToolbar } from './ChartToolbar';
+import { ChartToolbar, type ChartToolbarConfig, type FeatureToggles, type ChartToolbarActions, type MultiChartConfig } from './ChartToolbar';
 import { CrosshairOverlay } from './CrosshairOverlay';
 import { DrawingPanel } from './DrawingPanel';
 import { IndicatorPanel } from './IndicatorPanel';
@@ -30,7 +35,8 @@ import { WatchlistOverlay } from './WatchlistOverlay';
 import { AIPatternPanel } from './AIPatternPanel';
 import { AISmartPanel } from './AISmartPanel';
 import { runPatternEngine } from '@/lib/charts/pattern-engine';
-import { drawAllPatterns, clearAllPatterns } from '@/lib/charts/pattern-renderer';
+// FIX (4.6): Import per-instance factory instead of module-level functions
+import { PatternRenderer, createPatternRenderer } from '@/lib/charts/pattern-renderer';
 import { resetOverlayRegistry } from '@/lib/charts/OverlayRegistry';
 import { resetFallbackEntryCache } from '@/lib/charts/overlay-renderer';
 import { detectProfessionalTrendLines, type TrendLine } from '@/lib/charts/ProfessionalTrendLines';
@@ -55,7 +61,8 @@ import { ChartReplay } from './ChartReplay';
 import { MiniHeatmap } from './MiniHeatmap';
 import { fetchSignalsForChart, fetchStrategicBriefs, convertToChartMarkers } from '@/lib/charts/chart-signals';
 import { CommandPalette, useCommandPalette, createChartCommands } from './CommandPalette';
-import { cancelAnimatedPattern, getActiveAnimations } from '@/lib/charts/AnimatedPatterns';
+// FIX (4.6): Import per-instance factory instead of module-level functions
+import { AnimatedPatternManager, createAnimatedPatternManager } from '@/lib/charts/AnimatedPatterns';
 import { createIncrementalState, initializeState, updateIncremental, needsFullRecalc } from '@/lib/charts/IncrementalCalc';
 import { renderHeatmapOnChart, type HeatmapResult } from '@/lib/charts/ConfidenceHeatmap';
 import { detectTrendLines } from './AIPatternPanel';
@@ -161,6 +168,8 @@ function MiniChartHeader({
       {/* Symbol selector */}
       <select value={symbol} onClick={e => e.stopPropagation()}
         onChange={e => onSymbolChange(e.target.value)}
+        // FIX (5.4): aria-label for symbol selector dropdown
+        aria-label="Select symbol"
         style={{
           background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)',
           borderRadius: 3, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace",
@@ -180,6 +189,9 @@ function MiniChartHeader({
           return (
             <button key={tf.value}
               onClick={e => { e.stopPropagation(); onTimeframeChange(tf.value); }}
+              // FIX (5.4): aria-label + aria-pressed for timeframe toggle
+              aria-label={`Timeframe ${tf.label}`}
+              aria-pressed={active}
               style={{
                 background: active ? 'rgba(0,212,255,0.15)' : 'transparent',
                 border: active ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent',
@@ -219,6 +231,8 @@ function MiniChartHeader({
 
       {canClose && onClose && (
         <button onClick={e => { e.stopPropagation(); onClose(); }}
+          // FIX (5.4): aria-label for icon-only close button
+          aria-label="Close chart"
           style={{
             background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
             borderRadius: 2, color: '#4B5563', width: 18, height: 18, cursor: 'pointer',
@@ -568,6 +582,22 @@ export default function RouaChart({
     }).catch(() => {});
   }, []);
 
+  // FIX (4.6): Per-instance PatternRenderer and AnimatedPatternManager.
+  // Each RouaChart gets its own renderer/animation state so that pattern
+  // drawing and animations don't bleed across charts in a multi-chart grid.
+  const patternRendererRef = useRef<PatternRenderer | null>(null);
+  const animatedPatternManagerRef = useRef<AnimatedPatternManager | null>(null);
+  useEffect(() => {
+    patternRendererRef.current = createPatternRenderer();
+    animatedPatternManagerRef.current = createAnimatedPatternManager();
+    return () => {
+      patternRendererRef.current?.destroy();
+      patternRendererRef.current = null;
+      animatedPatternManagerRef.current?.reset();
+      animatedPatternManagerRef.current = null;
+    };
+  }, []);
+
   // ── Track current overlay flags for WebSocket-triggered re-render ──
   const currentOverlaysRef = useRef<{
     sr: boolean; trend: boolean; harmonic: boolean; fvg: boolean;
@@ -620,10 +650,13 @@ export default function RouaChart({
     // pattern-renderer. Without this, switching from BTC → ETH keeps
     // BTC's incremental state and drawn patterns, causing incorrect
     // pattern detection and stale series references on the chart.
+    // FIX (4.6): Reset per-instance pattern renderer state as well
     try {
       import('@/lib/charts/pattern-engine').then(mod => {
         mod.resetPatternEngineState();
       }).catch(() => {});
+      // FIX (4.6): Reset per-instance renderer first, then fallback singleton
+      patternRendererRef.current?.reset();
       import('@/lib/charts/pattern-renderer').then(mod => {
         mod.resetPatternRendererState();
       }).catch(() => {});
@@ -1634,9 +1667,39 @@ export default function RouaChart({
   const dragStateRef = useRef<typeof dragState>(null);
   useEffect(() => { dragStateRef.current = dragState; }, [dragState]);
 
-  const [fillZones, setFillZones] = useState<Array<{
-    top: number; height: number; type: 'sl' | 'tp'; key: string;
-  }>>([]);
+  const [fillZones, setFillZones] = useState<Array<FillZone>>([]);
+
+  // SPLIT (3.2): Callbacks for ChartOverlayPanel drag handling
+  const handleOverlayStartDrag = useCallback((key: string, type: 'sl' | 'tp', clientY: number, price: number, positionKey: string) => {
+    setDragState({ key, type, startY: clientY, currentY: clientY, originalPrice: price, positionKey });
+  }, []);
+  const handleOverlayDragMove = useCallback((clientY: number) => {
+    setDragState(prev => prev ? { ...prev, currentY: clientY } : null);
+  }, []);
+  const handleOverlayDragEnd = useCallback((clientY: number) => {
+    if (!dragStateRef.current) return;
+    const ds = dragStateRef.current;
+    const deltaY = clientY - ds.startY;
+    if (Math.abs(deltaY) > 2) {
+      const getPriceCoord = chart.getPriceCoordinate;
+      if (getPriceCoord) {
+        const baseCoord = getPriceCoord(ds.originalPrice);
+        const refCoord  = getPriceCoord(ds.originalPrice * 1.001);
+        if (baseCoord !== null && refCoord !== null) {
+          const pxPerUnit = Math.abs(baseCoord - refCoord) / (ds.originalPrice * 0.001);
+          if (pxPerUnit > 0) {
+            const priceChange = -deltaY / pxPerUnit;
+            const newPrice = Math.max(0.00001, ds.originalPrice + priceChange);
+            const decimals = ds.originalPrice > 100 ? 2 : ds.originalPrice > 1 ? 4 : 6;
+            onSLTPDragRef.current?.(ds.key, ds.type, parseFloat(newPrice.toFixed(decimals)));
+          }
+        }
+      }
+    }
+    setDragState(null);
+  }, [chart.getPriceCoordinate]);
+  const handleOverlayDragCancel = useCallback(() => setDragState(null), []);
+
   // PERF: Refs for overlay throttling — avoid re-rendering the entire 3000+ line
   // RouaChart component on every scroll frame. Instead of calling setState on
   // every rAF, we use direct DOM manipulation for position updates and only
@@ -2216,11 +2279,15 @@ export default function RouaChart({
     aiEntryExitMarkerRef.current = null;
     setAiPatterns([]);
     // Cancel any active animated patterns
+    // FIX (4.6): Use per-instance animation manager instead of module-level functions
     try {
       const chartApi = chartRef_.current?.current;
-      const active = getActiveAnimations();
-      for (const anim of active) {
-        try { cancelAnimatedPattern(chartApi, anim.patternId); } catch {}
+      const manager = animatedPatternManagerRef.current;
+      if (manager) {
+        const active = manager.getActiveAnimations();
+        for (const anim of active) {
+          try { manager.cancelAnimatedPattern(chartApi, anim.patternId); } catch {}
+        }
       }
     } catch {}
   }, []); // FIX: Empty deps — uses refs for all chart method access
@@ -2783,192 +2850,113 @@ export default function RouaChart({
       <ChartDiagOverlay connectionState={ws.connectionState} />
       {/* ── TOOLBAR ── */}
       {isGridCell ? (
-        /* Grid Cell Header — interactive bar with symbol selector, timeframe buttons + close.
-         * The MAIN toolbar at the top controls this chart (drawing, indicators,
-         * zoom, etc.). This header shows: symbol selector + timeframe + close button.
-         * Click anywhere on this header to make this the active chart. */
-        <div
-          onMouseDown={onActivate}
-          style={{
-            display: 'flex', alignItems: 'center', height: 28, padding: '0 6px',
-            borderBottom: isActive ? '1.5px solid rgba(0,212,255,0.5)' : '1px solid #1E2530',
-            background: isActive ? 'rgba(0,212,255,0.06)' : 'rgba(17,22,32,0.95)',
-            boxShadow: isActive ? '0 0 12px rgba(0,212,255,0.12)' : 'none',
-            flexShrink: 0, gap: 4, direction: 'ltr', cursor: 'default',
+        // SPLIT (3.2): Grid Cell Header extracted to ChartGridCellHeader
+        <ChartGridCellHeader
+          onActivate={onActivate!}
+          isActive={!!isActive}
+          symbol={effectiveSymbol}
+          timeframe={effectiveTimeframe}
+          onSymbolChange={(newSymbol: string) => {
+            if (chartId) {
+              useMultiChartStore.getState().updateChartConfig(chartId, { symbol: newSymbol });
+            }
           }}
-        >
-          {/* Symbol selector dropdown */}
-          <select value={effectiveSymbol} onClick={e => e.stopPropagation()}
-            onChange={e => {
-              e.stopPropagation();
-              const newSymbol = e.target.value;
-              if (chartId) {
-                useMultiChartStore.getState().updateChartConfig(chartId, { symbol: newSymbol });
-              }
-            }}
-            style={{
-              background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)',
-              borderRadius: 3, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 10, fontWeight: 700, padding: '1px 4px', cursor: 'pointer',
-              outline: 'none', maxWidth: 95, flexShrink: 0,
-            }}
-          >
-            {POPULAR_SYMBOLS_MINI.map(p => (
-              <option key={p} value={p} style={{ background: '#111620', color: '#F0F2F5' }}>{p}</option>
-            ))}
-          </select>
-
-          {/* Timeframe buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 1, overflow: 'hidden' }}>
-            {TIMEFRAME_MINI.map(tf => {
-              const active = effectiveTimeframe === tf.value;
-              return (
-                <button key={tf.value}
-                  onClick={e => { e.stopPropagation(); if (chartId) useMultiChartStore.getState().updateChartConfig(chartId, { timeframe: tf.value }); }}
-                  style={{
-                    background: active ? 'rgba(0,212,255,0.15)' : 'transparent',
-                    border: active ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent',
-                    borderRadius: 2, color: active ? '#00D4FF' : '#4B5563',
-                    fontFamily: "'JetBrains Mono', monospace", fontSize: 8,
-                    fontWeight: active ? 700 : 500, padding: '0 3px', height: 18,
-                    cursor: 'pointer', whiteSpace: 'nowrap',
-                  }}
-                >{tf.label}</button>
-              );
-            })}
-          </div>
-          {chart.isPaused && (
-            <span style={{ color: '#fbbf24', fontSize: 8, fontWeight: 700 }}>⏸</span>
-          )}
-          {feedState === 'waiting' && (
-            <div style={{ width: 8, height: 8, border: '2px solid #1E2530',
-              borderTopColor: '#00D4FF', borderRadius: '50%', animation: 'mcSpin 1s linear infinite' }} />
-          )}
-          <div style={{ flex: 1 }} />
-          {/* Expand/Collapse button */}
-          {onToggleExpand && (
-            <button onClick={e => { e.stopPropagation(); onToggleExpand(); }}
-              style={{
-                background: isExpanded ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.04)',
-                border: isExpanded ? '1px solid rgba(0,212,255,0.3)' : '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 2, color: isExpanded ? '#00D4FF' : '#4B5563', width: 16, height: 16, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-                flexShrink: 0, transition: 'all 0.15s ease',
-              }}
-              title={isExpanded ? 'Collapse' : 'Maximize'}
-            >
-              {isExpanded ? (
-                /* Minimize icon (4 corners inward) */
-                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
-                </svg>
-              ) : (
-                /* Maximize icon (4 corners outward) */
-                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" />
-                  <line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
-                </svg>
-              )}
-            </button>
-          )}
-          {canClose && onClose && (
-            <button onClick={e => { e.stopPropagation(); onClose(); }}
-              style={{
-                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 2, color: '#4B5563', width: 16, height: 16, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-                flexShrink: 0,
-              }}
-              title="Close chart"
-            >
-              <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          )}
-        </div>
+          onTimeframeChange={(tf: string) => {
+            if (chartId) useMultiChartStore.getState().updateChartConfig(chartId, { timeframe: tf });
+          }}
+          isPaused={!!chart.isPaused}
+          feedState={feedState}
+          canToggleExpand={!!onToggleExpand}
+          isExpanded={!!isExpanded}
+          onToggleExpand={onToggleExpand!}
+          canClose={!!(canClose && onClose)}
+          onClose={onClose!}
+        />
       ) : (!hideToolbar ? <ChartToolbar
-        symbol={isMultiChart ? (charts.find(c => c.id === activeChartId)?.symbol || selectedSymbol_) : selectedSymbol_}
-        timeframe={isMultiChart ? (charts.find(c => c.id === activeChartId)?.timeframe || timeframe_) : timeframe_}
-        chartType={isMultiChart ? (charts.find(c => c.id === activeChartId)?.chartType || chart.settings.type) : chart.settings.type}
-        onSetSymbol={isMultiChart ? ((sym: string) => {
-          getActiveChartControl()?.setSymbol(sym);
-        }) : ((sym: string) => {
-          setSelectedSymbol(sym);
-        })}
-        onSetTimeframe={isMultiChart ? ((tf: string) => {
-          const ctrl = getActiveChartControl();
-          if (ctrl) { /* timeframe is updated via updateChartConfig in RouaChart mini instance */ }
-          const activeCell = charts.find(c => c.id === activeChartId);
-          if (activeCell) useMultiChartStore.getState().updateChartConfig(activeChartId, { timeframe: tf });
-        }) : setTimeframe}
-        onSetChartType={isMultiChart ? ((type: ChartType) => {
-          const ctrl = getActiveChartControl();
-          if (ctrl) ctrl.setChartType(type);
-        }) : chart.setChartType}
-        onZoomIn={isMultiChart ? (() => { getActiveChartControl()?.zoomIn(); }) : chart.zoomIn}
-        onZoomOut={isMultiChart ? (() => { getActiveChartControl()?.zoomOut(); }) : chart.zoomOut}
-        onResetView={isMultiChart ? (() => { getActiveChartControl()?.resetView(); }) : chart.resetView}
-        onToggleDrawings={isMultiChart ? (() => { getActiveChartControl()?.toggleDrawings(); }) : () => setShowDrawingPanel(!showDrawingPanel)}
-        onToggleIndicators={isMultiChart ? (() => { getActiveChartControl()?.toggleIndicators(); }) : () => setShowIndicatorPanel(!showIndicatorPanel)}
-        onExportPNG={isMultiChart ? (() => { getActiveChartControl()?.exportPNG(); }) : chart.exportPNG}
-        onExportCSV={isMultiChart ? (() => { getActiveChartControl()?.exportCSV(); }) : chart.exportCSV}
-        onExportSVG={isMultiChart ? (() => { getActiveChartControl()?.exportSVG(); }) : chart.exportSVG}
-        onToggleFullscreen={onToggleChartFullscreen || chart.toggleFullscreen}
-        isFullscreen={isChartFullscreen || chart.isFullscreen}
-        activeTool={isMultiChart ? (getActiveChartControl()?.activeTool || 'cursor') : chart.activeTool}
-        onSetTool={isMultiChart ? ((tool: DrawingTool) => { getActiveChartControl()?.setTool(tool); }) : chart.setTool}
-        onClearDrawings={isMultiChart ? (() => { getActiveChartControl()?.clearDrawings(); }) : chart.clearDrawings}
-        isPaused={isMultiChart ? (getActiveChartControl()?.isPaused || false) : chart.isPaused}
-        onTogglePause={isMultiChart ? (() => { getActiveChartControl()?.togglePause(); }) : chart.togglePause}
-        mobile={mobile}
-        height={toolbarHeight}
-        // ── New Toolbar Props ──
-        onToggleVolumeProfile={isMultiChart ? (() => { getActiveChartControl()?.toggleVolumeProfile(); }) : () => setShowVolumeProfile(!showVolumeProfile)}
-        onToggleAIPanel={isMultiChart ? (() => { getActiveChartControl()?.toggleAIPanel(); }) : () => setShowAIPanel(!showAIPanel)}
-        onToggleChartTrading={isMultiChart ? (() => { getActiveChartControl()?.toggleChartTrading(); }) : () => setShowChartTrading(!showChartTrading)}
-        onToggleTemplateManager={() => setShowTemplateManager(!showTemplateManager)}
-        onToggleWatchlist={isMultiChart ? (() => { getActiveChartControl()?.toggleWatchlist(); }) : () => setShowWatchlist(!showWatchlist)}
-        onToggleChartSettings={isMultiChart ? (() => { getActiveChartControl()?.toggleChartSettings(); }) : () => setShowChartSettings(!showChartSettings)}
-        showVolumeProfile={isMultiChart ? (getActiveChartControl()?.isVolumeProfileOpen || false) : showVolumeProfile}
-        showAIPanel={isMultiChart ? (getActiveChartControl()?.isAIPanelOpen || false) : showAIPanel}
-        showChartTrading={isMultiChart ? (getActiveChartControl()?.isChartTradingOpen || false) : showChartTrading}
-        showWatchlist={isMultiChart ? (getActiveChartControl()?.isWatchlistOpen || false) : showWatchlist}
-        onToggleCompare={isMultiChart ? (() => { getActiveChartControl()?.toggleCompare(); }) : () => setShowCompare(!showCompare)}
-        onToggleSmartGrid={() => {
-          if (isMultiChart) {
-            // Already in multi-chart mode → reset to single
-            resetToSingle(selectedSymbol_, timeframe_);
-          } else {
-            // Enter multi-chart mode with 2x1 layout
-            addChart(selectedSymbol_, timeframe_);
-          }
+        // FIX (5.7): Grouped props — was 56 individual props, now 4 grouped objects
+        config={{
+          symbol: isMultiChart ? (charts.find(c => c.id === activeChartId)?.symbol || selectedSymbol_) : selectedSymbol_,
+          timeframe: isMultiChart ? (charts.find(c => c.id === activeChartId)?.timeframe || timeframe_) : timeframe_,
+          chartType: isMultiChart ? (charts.find(c => c.id === activeChartId)?.chartType || chart.settings.type) : chart.settings.type,
+          activeTool: isMultiChart ? (getActiveChartControl()?.activeTool || 'cursor') : chart.activeTool,
+          isPaused: isMultiChart ? (getActiveChartControl()?.isPaused || false) : chart.isPaused,
+          isFullscreen: isChartFullscreen || chart.isFullscreen,
+          mobile,
+          height: toolbarHeight,
         }}
-        onToggleShare={isMultiChart ? (() => { getActiveChartControl()?.toggleShare(); }) : () => setShowShare(!showShare)}
-        showCompare={isMultiChart ? (getActiveChartControl()?.isCompareOpen || false) : showCompare}
-        // ── 5 New Feature Toolbar Props ──
-        showFootprint={isMultiChart ? (getActiveChartControl()?.isFootprintOpen || false) : showFootprint}
-        onToggleFootprint={isMultiChart ? (() => { getActiveChartControl()?.toggleFootprint(); }) : () => setShowFootprint(!showFootprint)}
-        showAlerts={isMultiChart ? (getActiveChartControl()?.isAlertsOpen || false) : showAlerts}
-        onToggleAlerts={isMultiChart ? (() => { getActiveChartControl()?.toggleAlerts(); }) : () => setShowAlerts(!showAlerts)}
-        showPatternProgress={isMultiChart ? (getActiveChartControl()?.isPatternProgressOpen || false) : showPatternProgress}
-        onTogglePatternProgress={isMultiChart ? (() => { getActiveChartControl()?.togglePatternProgress(); }) : () => setShowPatternProgress(!showPatternProgress)}
-        // ── 3 Revolutionary Feature Toolbar Props ──
-        showReplay={isMultiChart ? (getActiveChartControl()?.isReplayOpen || false) : showReplay}
-        onToggleReplay={isMultiChart ? (() => { getActiveChartControl()?.toggleReplay(); }) : () => setShowReplay(!showReplay)}
-        showHeatmap={isMultiChart ? (getActiveChartControl()?.isHeatmapOpen || false) : showHeatmap}
-        onToggleHeatmap={isMultiChart ? (() => { getActiveChartControl()?.toggleHeatmap(); }) : () => setShowHeatmap(!showHeatmap)}
-        // ── 4 AI Streaming Toolbar Prop ──
-        showAIStream={isMultiChart ? (getActiveChartControl()?.isAIStreamOpen || false) : showAIStream}
-        onToggleAIStream={isMultiChart ? (() => { getActiveChartControl()?.toggleAIStream(); }) : () => setShowAIStream(!showAIStream)}
-        priceAlertsCount={priceAlertsCount}
-        // ── Multi-Chart Toolbar Props ──
-        isMultiChart={isMultiChart}
-        onAddChart={() => addChart(selectedSymbol_, timeframe_)}
-        onRemoveChart={() => removeChart(activeChartId)}
-        onToggleLayoutSelector={() => setShowLayoutSelector(!showLayoutSelector)}
-        showLayoutSelector={showLayoutSelector}
-        chartCount={charts.length}
+        features={{
+          showVolumeProfile: isMultiChart ? (getActiveChartControl()?.isVolumeProfileOpen || false) : showVolumeProfile,
+          showAIPanel: isMultiChart ? (getActiveChartControl()?.isAIPanelOpen || false) : showAIPanel,
+          showChartTrading: isMultiChart ? (getActiveChartControl()?.isChartTradingOpen || false) : showChartTrading,
+          showWatchlist: isMultiChart ? (getActiveChartControl()?.isWatchlistOpen || false) : showWatchlist,
+          showCompare: isMultiChart ? (getActiveChartControl()?.isCompareOpen || false) : showCompare,
+          showFootprint: isMultiChart ? (getActiveChartControl()?.isFootprintOpen || false) : showFootprint,
+          showAlerts: isMultiChart ? (getActiveChartControl()?.isAlertsOpen || false) : showAlerts,
+          showPatternProgress: isMultiChart ? (getActiveChartControl()?.isPatternProgressOpen || false) : showPatternProgress,
+          showReplay: isMultiChart ? (getActiveChartControl()?.isReplayOpen || false) : showReplay,
+          showHeatmap: isMultiChart ? (getActiveChartControl()?.isHeatmapOpen || false) : showHeatmap,
+          showAIStream: isMultiChart ? (getActiveChartControl()?.isAIStreamOpen || false) : showAIStream,
+          priceAlertsCount,
+        }}
+        actions={{
+          onSetTimeframe: isMultiChart ? ((tf: string) => {
+            const ctrl = getActiveChartControl();
+            if (ctrl) { /* timeframe is updated via updateChartConfig in RouaChart mini instance */ }
+            const activeCell = charts.find(c => c.id === activeChartId);
+            if (activeCell) useMultiChartStore.getState().updateChartConfig(activeChartId, { timeframe: tf });
+          }) : setTimeframe,
+          onSetSymbol: isMultiChart ? ((sym: string) => {
+            getActiveChartControl()?.setSymbol(sym);
+          }) : ((sym: string) => {
+            setSelectedSymbol(sym);
+          }),
+          onSetChartType: isMultiChart ? ((type: ChartType) => {
+            const ctrl = getActiveChartControl();
+            if (ctrl) ctrl.setChartType(type);
+          }) : chart.setChartType,
+          onZoomIn: isMultiChart ? (() => { getActiveChartControl()?.zoomIn(); }) : chart.zoomIn,
+          onZoomOut: isMultiChart ? (() => { getActiveChartControl()?.zoomOut(); }) : chart.zoomOut,
+          onResetView: isMultiChart ? (() => { getActiveChartControl()?.resetView(); }) : chart.resetView,
+          onToggleDrawings: isMultiChart ? (() => { getActiveChartControl()?.toggleDrawings(); }) : () => setShowDrawingPanel(!showDrawingPanel),
+          onToggleIndicators: isMultiChart ? (() => { getActiveChartControl()?.toggleIndicators(); }) : () => setShowIndicatorPanel(!showIndicatorPanel),
+          onExportPNG: isMultiChart ? (() => { getActiveChartControl()?.exportPNG(); }) : chart.exportPNG,
+          onExportCSV: isMultiChart ? (() => { getActiveChartControl()?.exportCSV(); }) : chart.exportCSV,
+          onExportSVG: isMultiChart ? (() => { getActiveChartControl()?.exportSVG(); }) : chart.exportSVG,
+          onToggleFullscreen: onToggleChartFullscreen || chart.toggleFullscreen,
+          onSetTool: isMultiChart ? ((tool: DrawingTool) => { getActiveChartControl()?.setTool(tool); }) : chart.setTool,
+          onClearDrawings: isMultiChart ? (() => { getActiveChartControl()?.clearDrawings(); }) : chart.clearDrawings,
+          onTogglePause: isMultiChart ? (() => { getActiveChartControl()?.togglePause(); }) : chart.togglePause,
+          // Feature toggle callbacks
+          onToggleVolumeProfile: isMultiChart ? (() => { getActiveChartControl()?.toggleVolumeProfile(); }) : () => setShowVolumeProfile(!showVolumeProfile),
+          onToggleAIPanel: isMultiChart ? (() => { getActiveChartControl()?.toggleAIPanel(); }) : () => setShowAIPanel(!showAIPanel),
+          onToggleChartTrading: isMultiChart ? (() => { getActiveChartControl()?.toggleChartTrading(); }) : () => setShowChartTrading(!showChartTrading),
+          onToggleTemplateManager: () => setShowTemplateManager(!showTemplateManager),
+          onToggleWatchlist: isMultiChart ? (() => { getActiveChartControl()?.toggleWatchlist(); }) : () => setShowWatchlist(!showWatchlist),
+          onToggleChartSettings: isMultiChart ? (() => { getActiveChartControl()?.toggleChartSettings(); }) : () => setShowChartSettings(!showChartSettings),
+          onToggleCompare: isMultiChart ? (() => { getActiveChartControl()?.toggleCompare(); }) : () => setShowCompare(!showCompare),
+          onToggleSmartGrid: () => {
+            if (isMultiChart) {
+              resetToSingle(selectedSymbol_, timeframe_);
+            } else {
+              addChart(selectedSymbol_, timeframe_);
+            }
+          },
+          onToggleShare: isMultiChart ? (() => { getActiveChartControl()?.toggleShare(); }) : () => setShowShare(!showShare),
+          onToggleFootprint: isMultiChart ? (() => { getActiveChartControl()?.toggleFootprint(); }) : () => setShowFootprint(!showFootprint),
+          onToggleAlerts: isMultiChart ? (() => { getActiveChartControl()?.toggleAlerts(); }) : () => setShowAlerts(!showAlerts),
+          onTogglePatternProgress: isMultiChart ? (() => { getActiveChartControl()?.togglePatternProgress(); }) : () => setShowPatternProgress(!showPatternProgress),
+          onToggleReplay: isMultiChart ? (() => { getActiveChartControl()?.toggleReplay(); }) : () => setShowReplay(!showReplay),
+          onToggleHeatmap: isMultiChart ? (() => { getActiveChartControl()?.toggleHeatmap(); }) : () => setShowHeatmap(!showHeatmap),
+          onToggleAIStream: isMultiChart ? (() => { getActiveChartControl()?.toggleAIStream(); }) : () => setShowAIStream(!showAIStream),
+        }}
+        multiChart={isMultiChart ? {
+          isMultiChart,
+          onAddChart: () => addChart(selectedSymbol_, timeframe_),
+          onRemoveChart: () => removeChart(activeChartId),
+          onToggleLayoutSelector: () => setShowLayoutSelector(!showLayoutSelector),
+          showLayoutSelector,
+          chartCount: charts.length,
+        } : undefined}
       /> : null
       )}
 
@@ -3008,6 +2996,9 @@ export default function RouaChart({
                       changeLayout(key, selectedSymbol_, timeframe_);
                       setShowLayoutSelector(false);
                     }}
+                    // FIX (5.4): aria-label + aria-pressed for layout selector button
+                    aria-label={`Chart layout ${m.label} ${m.cols}x${m.rows}`}
+                    aria-pressed={isActive}
                     style={{
                       display: 'flex',
                       flexDirection: 'column',
@@ -3108,315 +3099,60 @@ export default function RouaChart({
 
             {/* Symbol Watermark — REMOVED: name already shown in toolbar/CrosshairOverlay */}
 
-            {/* ── Fill Zones (colored bands between entry-SL/TP) ── */}
-            {fillZones.map(zone => (
-              <div
-                key={zone.key}
-                data-zone={zone.key}
-                style={{
-                  position: 'absolute',
-                  top: zone.top,
-                  left: 0,
-                  right: 0,
-                  height: Math.max(zone.height, 1),
-                  // SL zone: red gradient (danger zone)
-                  // TP zone: green gradient (profit zone)
-                  background: zone.type === 'sl'
-                    ? 'rgba(248, 81, 73, 0.10)'
-                    : 'rgba(63, 185, 80, 0.10)',
-                  borderTop: zone.type === 'sl'
-                    ? '1px dashed rgba(248, 81, 73, 0.35)'
-                    : '1px dashed rgba(63, 185, 80, 0.35)',
-                  borderBottom: zone.type === 'sl'
-                    ? '1px dashed rgba(248, 81, 73, 0.35)'
-                    : '1px dashed rgba(63, 185, 80, 0.35)',
-                  pointerEvents: 'none',
-                  zIndex: 2,
-                  willChange: 'top, height',
-                }}
-              />
-            ))}
-
-            {/* ── Trade Line Labels — LEFT side HTML overlays ── */}
-            {/* ── Trade Line Labels — redesigned ──
-                Layout:
-                - RIGHT axis: price value (via axisLabelVisible on createPriceLine)
-                - LEFT side: label (SL/TP/Entry) + P&L, positioned ABOVE the line
-                - SL/TP have drag handles for interactive adjustment */}
-            {tradeOverlays.map(ov => {
-              if (ov.y === null) return null;
-              const isEntry = ov.type === 'entry';
-              const isSL   = ov.type === 'sl';
-              const isTP   = ov.type === 'tp';
-
-              const color = isEntry ? (ov.direction === 'long' ? '#00D4FF' : '#FF8C42')
-                          : isSL   ? '#FF4757'
-                          : '#00FFA3';
-              const bgSolid = isEntry ? (ov.direction === 'long' ? 'rgba(0,212,255,0.25)' : 'rgba(255,140,66,0.25)')
-                            : isSL   ? 'rgba(248,81,73,0.30)'
-                            : 'rgba(0,255,163,0.25)';
-
-              // Label text: SL / TP / Entry direction
-              const typeLabel = isEntry
-                ? (ov.direction === 'long' ? '▲ Entry' : '▼ Entry')
-                : isSL ? 'SL' : 'TP';
-
-              // P&L text for SL/TP
-              const pnlText = !isEntry && ov.linePnl !== undefined
-                ? ` ${ov.linePnl >= 0 ? '+' : ''}$${Math.abs(ov.linePnl).toFixed(2)}`
-                : '';
-
-              const isDraggable = (isSL || isTP);
-
-              return (
-                <div key={ov.key} data-trade-label={ov.key} data-price={String(ov.price)} style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 6,
-                  zIndex: 15,
-                  pointerEvents: isDraggable ? 'auto' : 'none',
-                  touchAction: isDraggable ? 'none' : 'auto',
-                  // Position ABOVE the line (label height ~20px + 4px gap)
-                  transform: `translateY(${ov.y - 24}px)`,
-                  willChange: 'transform',
-                  cursor: isDraggable ? 'ns-resize' : 'default',
-                  userSelect: 'none',
-                }}
-                  onMouseDown={isDraggable ? (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const posKey = ov.key.replace(/-(sl|tp)-.*$/, '');
-                    setDragState({ key: ov.key, type: ov.type as 'sl'|'tp',
-                      startY: e.clientY, currentY: e.clientY,
-                      originalPrice: ov.price, positionKey: posKey });
-                  } : undefined}
-                >
-                  {/* Main label badge */}
-                  <div style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    background: bgSolid,
-                    border: `1.5px solid ${color}`,
-                    borderRadius: 4,
-                    padding: '2px 7px 2px 6px',
-                    boxShadow: `0 0 8px ${color}55, 0 2px 4px rgba(0,0,0,0.4)`,
-                  }}>
-                    <span style={{
-                      color,
-                      fontFamily: "'JetBrains Mono', monospace",
-                      fontSize: 10,
-                      fontWeight: 800,
-                      letterSpacing: 0.5,
-                      whiteSpace: 'nowrap',
-                    }}>
-                      {typeLabel}
-                    </span>
-                    {pnlText && (
-                      <span style={{
-                        color: ov.linePnl !== undefined && ov.linePnl >= 0 ? '#00FFA3' : '#FF4757',
-                        fontFamily: "'JetBrains Mono', monospace",
-                        fontSize: 10,
-                        fontWeight: 700,
-                        whiteSpace: 'nowrap',
-                        borderLeft: `1px solid ${color}44`,
-                        paddingLeft: 4,
-                        marginLeft: 1,
-                      }}>
-                        {pnlText}
-                      </span>
-                    )}
-                    {/* Drag handle icon for SL/TP */}
-                    {isDraggable && (
-                      <span style={{
-                        color: color + 'AA',
-                        fontSize: 8,
-                        marginLeft: 2,
-                        lineHeight: 1,
-                      }}>⇕</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* ── Drag overlay: captures mouse during SL/TP drag ── */}
-            {dragState && (
-              <div style={{
-                position: 'absolute', inset: 0, zIndex: 100,
-                cursor: 'ns-resize', background: 'transparent',
-              }}
-                onMouseMove={(e) => {
-                  if (!dragStateRef.current) return;
-                  setDragState(prev => prev ? { ...prev, currentY: e.clientY } : null);
-                }}
-                onMouseUp={(e) => {
-                  if (!dragStateRef.current) return;
-                  const ds = dragStateRef.current;
-                  const deltaY = e.clientY - ds.startY;
-                  if (Math.abs(deltaY) > 2) {
-                    const getPriceCoord = chart.getPriceCoordinate;
-                    if (getPriceCoord) {
-                      const baseCoord = getPriceCoord(ds.originalPrice);
-                      // Use 0.1% price change to estimate pixels-per-unit
-                      const refCoord  = getPriceCoord(ds.originalPrice * 1.001);
-                      if (baseCoord !== null && refCoord !== null) {
-                        const pxPerUnit = Math.abs(baseCoord - refCoord) / (ds.originalPrice * 0.001);
-                        if (pxPerUnit > 0) {
-                          const priceChange = -deltaY / pxPerUnit;
-                          const newPrice = Math.max(0.00001, ds.originalPrice + priceChange);
-                          const decimals = ds.originalPrice > 100 ? 2 : ds.originalPrice > 1 ? 4 : 6;
-                          onSLTPDragRef.current?.(ds.key, ds.type, parseFloat(newPrice.toFixed(decimals)));
-                        }
-                      }
-                    }
-                  }
-                  setDragState(null);
-                }}
-                onMouseLeave={() => setDragState(null)}
-              />
-            )}
+            {/* SPLIT (3.2): Fill Zones + Trade Line Labels + Drag Overlay extracted to ChartOverlayPanel */}
+            <ChartOverlayPanel
+              fillZones={fillZones}
+              tradeOverlays={tradeOverlays as TradeOverlayItem[]}
+              dragState={dragState as OverlayDragState | null}
+              onStartDrag={handleOverlayStartDrag}
+              onDragMove={handleOverlayDragMove}
+              onDragEnd={handleOverlayDragEnd}
+              onDragCancel={handleOverlayDragCancel}
+            />
 
             {/* Volume Profile moved to draggable panel below */}
 
-          {/* ── Quick Trade Controls — Left Side ── */}
-          {!mobile && currentPrice && (
-            <div
-              className="roua-quick-trade"
-              style={{
-                position: 'absolute',
-                top: 32,
-                left: 10,
-                zIndex: 100,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 3,
-                borderRadius: 10,
-                background: 'rgba(8,10,18,0.88)',
-                backdropFilter: 'blur(24px) saturate(2)',
-                border: '1px solid rgba(255,255,255,0.07)',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-                padding: tradePanelCollapsed ? '3px' : '5px 6px',
-                pointerEvents: (chart.activeTool === 'cursor' && !mobile) ? 'auto' : 'none',
-                overflow: 'hidden',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              {/* Collapse Toggle — top center */}
-              <button
-                onClick={() => setTradePanelCollapsed(!tradePanelCollapsed)}
-                style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: 'none',
-                  borderRadius: 4,
-                  color: 'rgba(255,255,255,0.35)',
-                  width: tradePanelCollapsed ? 20 : '100%',
-                  height: 14,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  outline: 'none',
-                  padding: 0,
-                }}
-              >
-                <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <polyline points={tradePanelCollapsed ? "1 1 5 5 9 1" : "1 5 5 1 9 5"} />
-                </svg>
-              </button>
-
-              {/* Trade Buttons (collapsible) */}
-              {!tradePanelCollapsed && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {/* Buy Button */}
-                  <button
-                    className="roua-btn-buy"
-                    onClick={() => {
-                      const { addTrade } = usePaperTradesStore.getState();
-                      const lastClose = candlesRef.current[candlesRef.current.length - 1]?.close || 0;
-                      const resolvedPrice = (typeof currentPrice === 'number' && currentPrice > 0) ? currentPrice : lastClose;
-                      addTrade({
-                        symbol: selectedSymbol_,
-                        side: 'long',
-                        qty: lotSize,
-                        entryPrice: resolvedPrice,
-                        currentPrice: resolvedPrice,
-                        entryTime: Date.now(),
-                        strategy: 'quick',
-                        source: 'manual',
-                      });
-                    }}
-                    style={{
-                      background: '#00C853',
-                      border: 'none',
-                      borderRadius: 5,
-                      color: '#000',
-                      padding: '4px 9px',
-                      fontSize: 10,
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      fontFamily: "'Cairo', sans-serif",
-                      letterSpacing: 0.5,
-                      outline: 'none',
-                      transition: 'opacity 0.15s',
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
-                    onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-                  >
-                    {tc('buyArrow')}
-                  </button>
-
-                  {/* LOT */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 5, padding: '2px 4px' }}>
-                    <button onClick={() => setLotSize(Math.max(0.01, +(lotSize - 0.01).toFixed(2)))}
-                      style={{ background: 'none', border: 'none', color: '#888', fontSize: 12, cursor: 'pointer', padding: '0 2px', outline: 'none' }}>−</button>
-                    <span style={{ color: '#ccc', fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", minWidth: 28, textAlign: 'center' }}>{lotSize.toFixed(2)}</span>
-                    <button onClick={() => setLotSize(+(lotSize + 0.01).toFixed(2))}
-                      style={{ background: 'none', border: 'none', color: '#888', fontSize: 12, cursor: 'pointer', padding: '0 2px', outline: 'none' }}>+</button>
-                  </div>
-
-                  {/* Sell Button */}
-                  <button
-                    className="roua-btn-sell"
-                    onClick={() => {
-                      const { addTrade } = usePaperTradesStore.getState();
-                      const lastClose = candlesRef.current[candlesRef.current.length - 1]?.close || 0;
-                      const resolvedPrice = (typeof currentPrice === 'number' && currentPrice > 0) ? currentPrice : lastClose;
-                      addTrade({
-                        symbol: selectedSymbol_,
-                        side: 'short',
-                        qty: lotSize,
-                        entryPrice: resolvedPrice,
-                        currentPrice: resolvedPrice,
-                        entryTime: Date.now(),
-                        strategy: 'quick',
-                        source: 'manual',
-                      });
-                    }}
-                    style={{
-                      background: '#F44336',
-                      border: 'none',
-                      borderRadius: 5,
-                      color: '#fff',
-                      padding: '4px 9px',
-                      fontSize: 10,
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      fontFamily: "'Cairo', sans-serif",
-                      letterSpacing: 0.5,
-                      outline: 'none',
-                      transition: 'opacity 0.15s',
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
-                    onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-                  >
-                    {tc('sellArrow')}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+          {/* SPLIT (3.2): Quick Trade Controls extracted to ChartTradePanel */}
+          <ChartTradePanel
+            visible={!mobile && !!currentPrice}
+            activeTool={chart.activeTool}
+            collapsed={tradePanelCollapsed}
+            onToggleCollapsed={() => setTradePanelCollapsed(!tradePanelCollapsed)}
+            lotSize={lotSize}
+            onSetLotSize={setLotSize}
+            onBuyLong={() => {
+              const { addTrade } = usePaperTradesStore.getState();
+              const lastClose = candlesRef.current[candlesRef.current.length - 1]?.close || 0;
+              const resolvedPrice = (typeof currentPrice === 'number' && currentPrice > 0) ? currentPrice : lastClose;
+              addTrade({
+                symbol: selectedSymbol_,
+                side: 'long',
+                qty: lotSize,
+                entryPrice: resolvedPrice,
+                currentPrice: resolvedPrice,
+                entryTime: Date.now(),
+                strategy: 'quick',
+                source: 'manual',
+              });
+            }}
+            onSellShort={() => {
+              const { addTrade } = usePaperTradesStore.getState();
+              const lastClose = candlesRef.current[candlesRef.current.length - 1]?.close || 0;
+              const resolvedPrice = (typeof currentPrice === 'number' && currentPrice > 0) ? currentPrice : lastClose;
+              addTrade({
+                symbol: selectedSymbol_,
+                side: 'short',
+                qty: lotSize,
+                entryPrice: resolvedPrice,
+                currentPrice: resolvedPrice,
+                entryTime: Date.now(),
+                strategy: 'quick',
+                source: 'manual',
+              });
+            }}
+            buyLabel={tc('buyArrow')}
+            sellLabel={tc('sellArrow')}
+          />
 
           {/* ── Price-Synced Candle Timer (Desktop Only) ── */}
           {!mobile && currentPrice && candleCountdown && (

@@ -6,7 +6,7 @@
 
 import type { CandleData } from './types';
 import { calcATR } from './ATRAdapter';
-import { detectZigZag, type SwingPoint } from './zigzag';
+import { computeZigZag, type SwingPoint } from './chart-detection'; // UNIFY (4.3)
 import { safeMax, safeMin } from './chart-utils';
 
 // ── Incremental State ────────────────────────────────────
@@ -17,6 +17,8 @@ export interface IncrementalState {
   trueRanges: number[];  // Circular buffer for ATR calc
   // PERF (3.6): Running sum for ATR to avoid slice/reduce on every tick
   trueRangeSum: number;
+  trueRangeRingHead: number;    // PERF (3.5): Ring buffer head for trueRanges
+  trueRangeRingCount: number;   // PERF (3.5): Ring buffer filled count
 
   // Running pivot tracking
   lastPivots: SwingPoint[];
@@ -55,6 +57,8 @@ export function createIncrementalState(): IncrementalState {
     atrPeriod: 14,
     trueRanges: [],
     trueRangeSum: 0,
+    trueRangeRingHead: 0,
+    trueRangeRingCount: 0,
     lastPivots: [],
     pivotBuffer: [],
     highestHigh: 0,
@@ -93,7 +97,7 @@ export function initializeState(
   state.ema50 = calcEMA(closes, 50);
 
   // Initial pivots from ZigZag
-  state.lastPivots = detectZigZag(candles, { depth: 5, deviation: 0.003, backstep: 3, maxPivots: 30 });
+  state.lastPivots = computeZigZag(candles, 2.0, 5).slice(-30) // UNIFY (4.3): Using computeZigZag directly
 
   // Initial stats
   state.highestHigh = safeMax(candles.slice(-100).map(c => c.high));
@@ -108,16 +112,20 @@ export function initializeState(
   state.volumeSum = last50.reduce((s, c) => s + c.volume, 0);
   state.avgVolume = state.volumeSum / last50.length;
   // PERF (3.6): Initialize ATR running sum from the last atrPeriod true ranges
-  state.trueRanges = [];
+  state.trueRanges = new Array(state.atrPeriod).fill(0);
   state.trueRangeSum = 0;
+  state.trueRangeRingHead = 0;
+  state.trueRangeRingCount = 0;
   for (let i = Math.max(1, candles.length - state.atrPeriod); i < candles.length; i++) {
     const tr = Math.max(
       candles[i].high - candles[i].low,
       Math.abs(candles[i].high - candles[i - 1].close),
       Math.abs(candles[i].low - candles[i - 1].close)
     );
-    state.trueRanges.push(tr);
+    state.trueRanges[state.trueRangeRingHead] = tr;
     state.trueRangeSum += tr;
+    state.trueRangeRingHead = (state.trueRangeRingHead + 1) % state.atrPeriod;
+    state.trueRangeRingCount = Math.min(state.trueRangeRingCount + 1, state.atrPeriod);
   }
   state.candleCount = candles.length;
   state.lastCandleTime = candles[candles.length - 1].time;
@@ -148,12 +156,18 @@ export function updateIncremental(
       Math.abs(newCandle.high - prevCandle.close),
       Math.abs(newCandle.low - prevCandle.close)
     );
-    state.trueRanges.push(tr);
-    state.trueRangeSum += tr;
-    if (state.trueRanges.length > state.atrPeriod) {
-      const evicted = state.trueRanges.shift()!;
-      state.trueRangeSum -= evicted;
+    // PERF (3.5): Ring buffer for trueRanges — replaces Array.shift() which is O(n)
+    if (state.trueRanges.length < state.atrPeriod) {
+      state.trueRanges.push(0); // Pre-allocate
     }
+    if (state.trueRangeRingCount >= state.atrPeriod) {
+      state.trueRangeSum -= state.trueRanges[state.trueRangeRingHead];
+    } else {
+      state.trueRangeRingCount++;
+    }
+    state.trueRanges[state.trueRangeRingHead] = tr;
+    state.trueRangeSum += tr;
+    state.trueRangeRingHead = (state.trueRangeRingHead + 1) % state.atrPeriod;
     // ATR from running sum — O(1)
     if (state.trueRanges.length >= state.atrPeriod) {
       state.atr = state.trueRangeSum / state.atrPeriod;

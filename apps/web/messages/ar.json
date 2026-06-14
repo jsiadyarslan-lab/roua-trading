@@ -4917,6 +4917,11 @@
     "autoExecuteError": {
       "title": "خطأ في التنفيذ التلقائي",
       "body": "فشل الاتصال: {error}"
-    }
+    },
+    "tradeSourceAutoTrade": "تداول تلقائي",
+    "tradeSourceManual": "يدوي",
+    "tradeSourceSignal": "إشارة",
+    "tradeSourcePaperTrade": "تداول ورقي",
+    "tradeSourceAgent": "وكيل ذكي"
   }
 }

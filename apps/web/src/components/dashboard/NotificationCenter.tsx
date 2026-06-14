@@ -10,6 +10,7 @@ import {
   Notification,
   NotifSource,
   NotifAction,
+  TradeSource,
 } from '@/hooks/useNotificationStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
@@ -108,6 +109,36 @@ const ACTION_COLOR: Record<NotifAction, string> = {
   CANCEL: '#FF9500',
 }
 
+// FIX (5.5): Map trade source values to i18n keys for display in notifications.
+// Shows WHERE the trade came from (auto-trade, manual, signal, etc.)
+// instead of just BUY/SELL side.
+const TRADE_SOURCE_LABELS: Record<string, string> = {
+  'auto-trade': 'Auto Trade',
+  'auto_paper': 'Auto Trade',
+  'smart_executor': 'Auto Trade',
+  'smart-executor': 'Auto Trade',
+  'manual': 'Manual',
+  'user_manual': 'Manual',
+  'signal': 'Signal',
+  'paper-trade': 'Paper Trade',
+  'paper_trade': 'Paper Trade',
+  'agent': 'Agent',
+}
+
+// FIX (5.5): Color for trade source badges
+const TRADE_SOURCE_COLOR: Record<string, string> = {
+  'auto-trade': '#A259FF',
+  'auto_paper': '#A259FF',
+  'smart_executor': '#A259FF',
+  'smart-executor': '#A259FF',
+  'manual': '#00D4FF',
+  'user_manual': '#00D4FF',
+  'signal': '#FFB800',
+  'paper-trade': '#8B92A8',
+  'paper_trade': '#8B92A8',
+  'agent': '#A259FF',
+}
+
 function timeAgo(ts: number) {
   const s = Math.floor((Date.now() - ts) / 1000)
   if (s < 60) return `${s}s`
@@ -158,6 +189,17 @@ function ToastCard({
 
   const color = SRC_COLOR[notif.source]
   const actionColor = ACTION_COLOR[notif.action]
+  // FIX (5.5): Determine badge display — show trade source when available
+  // (auto-trade, manual, signal, paper-trade) instead of just BUY/SELL side.
+  const tradeSourceLabel = notif.tradeSource
+    ? (TRADE_SOURCE_LABELS[notif.tradeSource] || notif.tradeSource)
+    : null
+  const tradeSourceColor = notif.tradeSource
+    ? (TRADE_SOURCE_COLOR[notif.tradeSource] || actionColor)
+    : actionColor
+  const badgeLabel = tradeSourceLabel
+    || (notif.action === 'BUY' ? tc('buy') : notif.action === 'SELL' ? tc('sell') : notif.action)
+  const badgeColor = tradeSourceLabel ? tradeSourceColor : actionColor
   const canExecute =
     (notif.action === 'BUY' || notif.action === 'SELL') &&
     typeof notif.pair === 'string' &&
@@ -350,16 +392,14 @@ function ToastCard({
                   fontSize: 8,
                   padding: '1px 5px',
                   borderRadius: 3,
-                  background: `${actionColor}20`,
-                  color: actionColor,
+                  background: `${badgeColor}20`,
+                  color: badgeColor,
                   fontWeight: 800,
                 }}
               >
-                {notif.action === 'BUY'
-                  ? tc('buy')
-                  : notif.action === 'SELL'
-                    ? tc('sell')
-                    : notif.action}
+                {/* FIX (5.5): Show trade source (auto-trade, manual, signal, paper-trade)
+                    instead of just BUY/SELL side for trade notifications */}
+                {badgeLabel}
               </span>
             </div>
 
@@ -504,6 +544,16 @@ function NotificationItem({
   const actionColor = ACTION_COLOR[notif.action]
   const { setSelectedSymbol } = useSymbolStore()
 
+  // FIX (5.5): Determine badge display — show trade source when available
+  const itemTradeSourceLabel = notif.tradeSource
+    ? (TRADE_SOURCE_LABELS[notif.tradeSource] || notif.tradeSource)
+    : null
+  const itemBadgeLabel = itemTradeSourceLabel
+    || (notif.action === 'BUY' ? tc('buy') : notif.action === 'SELL' ? tc('sell') : notif.action)
+  const itemBadgeColor = itemTradeSourceLabel
+    ? (TRADE_SOURCE_COLOR[notif.tradeSource!] || actionColor)
+    : actionColor
+
   return (
     <div
       onClick={() => {
@@ -567,16 +617,13 @@ function NotificationItem({
                 fontSize: 8,
                 padding: '1px 5px',
                 borderRadius: 3,
-                background: `${actionColor}20`,
-                color: actionColor,
+                background: `${itemBadgeColor}20`,
+                color: itemBadgeColor,
                 fontWeight: 800,
               }}
             >
-              {notif.action === 'BUY'
-                ? tc('buy')
-                : notif.action === 'SELL'
-                  ? tc('sell')
-                  : notif.action}
+              {/* FIX (5.5): Show trade source instead of side */}
+              {itemBadgeLabel}
             </span>
           </div>
         )}

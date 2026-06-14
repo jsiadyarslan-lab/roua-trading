@@ -116,6 +116,8 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
         </span>
         <button
           onClick={onClose}
+          // FIX (5.4): aria-label for icon-only close button
+          aria-label="Close drawing panel"
           style={{
             background: 'none',
             border: 'none',
@@ -135,6 +137,8 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
         value={search}
         onChange={e => setSearch(e.target.value)}
         placeholder={tc('search')}
+        // FIX (5.4): aria-label for search input
+        aria-label="Search drawing tools"
         style={{
           width: '100%',
           padding: '5px 8px',
@@ -163,6 +167,9 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
           {/* Cursor */}
           <button
             onClick={(e) => { selectTool('cursor', e); }}
+            // FIX (5.4): aria-label + aria-pressed for cursor tool
+            aria-label={tc('cursor')}
+            aria-pressed={activeTool === 'cursor'}
             style={{
               padding: '3px 8px',
               background: activeTool === 'cursor' ? COLORS.activeBg : activeCategory === null ? 'rgba(0,212,255,0.1)' : 'none',
@@ -184,6 +191,9 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
             <button
               key={cat.key}
               onClick={() => setActiveCategory(activeCategory === cat.key ? null : cat.key)}
+              // FIX (5.4): aria-label + aria-pressed for category tab
+              aria-label={cat.labelAr}
+              aria-pressed={activeCategory === cat.key}
               style={{
                 padding: '3px 6px',
                 background: activeCategory === cat.key ? 'rgba(0,212,255,0.15)' : 'none',
@@ -260,6 +270,8 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
       {/* Clear All */}
       <button
         onClick={onClearAll}
+        // FIX (5.4): aria-label for clear all button
+        aria-label={tc('clearAllDrawings')}
         style={{
           width: '100%',
           marginTop: 8,
@@ -298,6 +310,8 @@ function renderToolButton(
       onClick={(e) => {
         selectTool(tool.key, e);
       }}
+      // FIX (5.4): aria-label for drawing tool button
+      aria-label={`${tool.labelAr} (${tool.labelEn})`}
       title={`${tool.labelAr} (${tool.labelEn})${tool.shortcut ? ` [${tool.shortcut}]` : ''}`}
       style={{
         display: 'flex',

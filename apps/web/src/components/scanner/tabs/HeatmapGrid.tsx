@@ -7,25 +7,15 @@ import type { HeatmapItem } from '../hooks/useScannerData'
 import { ScopedStyle } from '@/components/ScopedStyle'
 import { useLocale } from 'next-intl'
 import { getLocalizedAssetName, safeStr } from '@/lib/utils'
-
-function safeMax(arr: number[]): number {
-  if (arr.length === 0) return -Infinity;
-  let max = arr[0];
-  for (let i = 1; i < arr.length; i++) { if (arr[i] > max) max = arr[i]; }
-  return max;
-}
-function safeMin(arr: number[]): number {
-  if (arr.length === 0) return Infinity;
-  let min = arr[0];
-  for (let i = 1; i < arr.length; i++) { if (arr[i] < min) min = arr[i]; }
-  return min;
-}
+// UNIFY (4.4): Import shared grid utilities (safeMax, GRID_COLORS)
+import { safeMax, GRID_COLORS } from '@/lib/charts/grid-utils'
 
 const T = {
-  bg: '#0B0E14', bg2: '#1A1D29', card: '#1A1D29', surface: '#1A1D29',
+  ...GRID_COLORS,
+  bg2: '#1A1D29', card: '#1A1D29', surface: '#1A1D29',
   green: '#00FFA3', greenDim: '#00CC82', red: '#FF4757', redDim: '#FF3344',
-  cyan: '#00D4FF', text: '#F0F2F5', text2: '#8B92A8', text3: '#8B92A8',
   border: 'rgba(255,255,255,0.06)', border2: 'rgba(0,212,255,0.16)',
+  text2: '#8B92A8', text3: '#8B92A8',
 }
 
 type SortMode = 'changePercent' | 'volume' | 'technicalScore'

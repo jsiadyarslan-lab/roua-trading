@@ -117,15 +117,30 @@ const chartInstanceRegistry = new Map<string, IChartApi>();
 const mainSeriesRegistry = new Map<string, ISeriesApi<SeriesType>>();
 const chartControlRegistry = new Map<string, ChartControlAPI>();
 
+// FIX (5.6): Registry change notification for reactive sync
+type RegistryListener = () => void;
+const registryListeners = new Set<RegistryListener>();
+
+export function subscribeRegistryChange(listener: RegistryListener): () => void {
+  registryListeners.add(listener);
+  return () => registryListeners.delete(listener);
+}
+
+function notifyRegistryChange(): void {
+  registryListeners.forEach(l => l());
+}
+
 export function registerChartInstance(id: string, chart: IChartApi, mainSeries: ISeriesApi<SeriesType>) {
   chartInstanceRegistry.set(id, chart);
   mainSeriesRegistry.set(id, mainSeries);
+  notifyRegistryChange();
 }
 
 export function unregisterChartInstance(id: string) {
   chartInstanceRegistry.delete(id);
   mainSeriesRegistry.delete(id);
   chartControlRegistry.delete(id);
+  notifyRegistryChange();
 }
 
 export function getChartInstance(id: string): IChartApi | undefined {

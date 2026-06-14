@@ -99,6 +99,11 @@ export function detectElliottWaves(candles: CandleData[]): ElliottPattern | null
       const w3len = w2.price - w3.price;
       const w5len = w4.price - w5.price;
       if (w3len > w1len && w3len > w5len && w2.price < w0.price && w4.price < w2.price) {
+        // Bearish Fibonacci extensions (mirror of bullish logic)
+        // Wave 1 amplitude = w0.price - w1.price, projected downward from wave 2 top
+        const w1amp = w0.price - w1.price;
+        const fib618 = w2.price - w1amp * 0.618;   // 61.8% extension from wave 2 top
+        const fib1618 = w2.price - w1amp * 1.618;   // 161.8% extension from wave 2 top
         return {
           type: '5-wave', direction: 'bearish',
           waves: [
@@ -110,7 +115,7 @@ export function detectElliottWaves(candles: CandleData[]): ElliottPattern | null
           ],
           currentWave: '5',
           confidence: 0.65,
-          nextTarget: w5.price * 0.97,
+          nextTarget: fib1618,
         };
       }
     }

@@ -2791,6 +2791,27 @@ export default function RouaChart({
               borderTopColor: '#00D4FF', borderRadius: '50%', animation: 'mcSpin 1s linear infinite' }} />
           )}
           <div style={{ flex: 1 }} />
+
+          {/* Candle Countdown Timer — shows time remaining until next candle closes */}
+          {candleCountdown && candleCountdown !== '—' && (
+            <span style={{
+              color: (() => {
+                const lc = candlesRef.current[candlesRef.current.length - 1];
+                return lc ? (currentPrice >= lc.open ? '#3fb950' : '#f85149') : '#3fb950';
+              })(),
+              fontSize: 9, fontWeight: 700,
+              fontFamily: "'JetBrains Mono', monospace",
+              padding: '1px 5px', borderRadius: 2,
+              background: (() => {
+                const lc = candlesRef.current[candlesRef.current.length - 1];
+                return lc ? (currentPrice >= lc.open ? 'rgba(63,185,80,0.1)' : 'rgba(248,81,73,0.1)') : 'rgba(63,185,80,0.1)';
+              })(),
+              letterSpacing: 0.3,
+            }}>
+              {candleCountdown}
+            </span>
+          )}
+
           {/* Expand/Collapse button */}
           {onToggleExpand && (
             <button onClick={e => { e.stopPropagation(); onToggleExpand(); }}

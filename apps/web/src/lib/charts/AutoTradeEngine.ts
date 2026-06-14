@@ -513,14 +513,27 @@ export function generateTradeProposal(opts: {
   const params = getRiskParams();
 
   // ── Gate 1: Minimum confluence ──
-  if (confluenceScore < params.minConfluence) return null;
+  // FIX: Allow single high-confidence signals to bypass minimum confluence.
+  // Previously, minConfluence=40 was required even for a 95% confident harmonic
+  // pattern. Now, if a single signal has confidence >= 0.8, we lower the threshold.
+  const hasHighConfidenceSignal = signals.some(s => s.confidence >= 0.8 && s.direction === direction);
+  const effectiveMinConfluence = hasHighConfidenceSignal
+    ? Math.max(20, params.minConfluence - 20)  // Lower threshold if high-confidence signal exists
+    : params.minConfluence;
+  if (confluenceScore < effectiveMinConfluence) return null;
 
   // ── Gate 2: Direction must be clear ──
   if (direction === 'neutral') return null;
 
   // ── Gate 3: Minimum agreeing signals ──
+  // FIX: Allow single high-confidence signal to bypass minimum count.
+  // A harmonic Gartley at 85% confidence is tradeable alone — no need
+  // to wait for 2+ signals that may never arrive simultaneously.
   const agreeingSignals = signals.filter(s => s.direction === direction);
-  if (agreeingSignals.length < params.minAgreeingSignals) return null;
+  const effectiveMinSignals = hasHighConfidenceSignal
+    ? 1  // High-confidence signal can trade alone
+    : params.minAgreeingSignals;
+  if (agreeingSignals.length < effectiveMinSignals) return null;
 
   // ── Gate 4: Daily loss limit ──
   if (checkDailyLossLimit(params)) return null;

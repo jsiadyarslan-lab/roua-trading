@@ -41,7 +41,7 @@ import { runAdaptiveBayesian, detectMarketRegime, recordAdaptiveOutcome, getSour
 import { evaluateAllVisualRules, getVisualRules, type VisualRule, type RuleEvaluationResult, type RuleAnalysisData, SIGNAL_BLOCK_LIBRARY, CONNECTOR_LABELS_AR, CATEGORY_LABELS_AR } from '@/lib/charts/VisualRuleBuilder';
 import { getPaperAccount, openPaperTrade, closePaperTrade, autoEvaluatePaperTrades, getPaperTrades, getOpenPaperTrades, getPerformanceComparison, type PaperTrade, type PaperAccount } from '@/lib/charts/PaperTradingEngine';
 import { runMarketScan, runSingleAssetScan, getScanUniverse, type MarketScanResult, type AssetScanResult, SECTOR_LABELS_AR } from '@/lib/charts/MarketScannerEngine';
-import { buildAICouncilPrompt, buildAIAnalysisPayload, compareAIWithAlgorithm, recordPrediction, verifyPredictions, getAIvsAlgoStats, getModelPerformances, type AIAnalysisPayload, type AICouncilBridgeResult, type AIModel } from '@/lib/charts/AICouncilBridge';
+import { buildAICouncilPrompt, buildAIAnalysisPayload, queryAICouncil, compareAIWithAlgorithm, recordPrediction, verifyPredictions, getAIvsAlgoStats, getModelPerformances, type AIAnalysisPayload, type AICouncilBridgeResult, type AIModel } from '@/lib/charts/AICouncilBridge';
 import { createIncrementalState, initializeState, updateIncremental, needsFullRecalc, getQuickTrend, getQuickVolatilityRegime, type IncrementalState } from '@/lib/charts/IncrementalCalc';
 import { logError, logWarn, logInfo, getErrorCount, getRecentErrors } from '@/lib/charts/AnalysisLogger';
 import { validateAnalysis, validateTradeSetup } from '@/lib/charts/AnalysisValidator';
@@ -669,7 +669,22 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         });
         setAiBridgePayload(bridgePayload);
         setAiVsAlgoStats(getAIvsAlgoStats());
-        verifyPredictions(bayesianDir === 'bullish' ? 'bullish' : bayesianDir === 'bearish' ? 'bearish' : 'neutral', price);
+        // FIX: Use real price movement for verification, not Bayesian direction
+        verifyPredictions('neutral', price);
+
+        // ── Actually query the AI Council (was missing before!) ──
+        // This sends the analysis payload to the AI model and gets a real prediction
+        queryAICouncil(bridgePayload).then(result => {
+          if (result) {
+            const { prediction, comparison } = result;
+            setCouncilAnalyses([{
+              model: prediction.model,
+              direction: prediction.direction,
+              confidence: prediction.confidence,
+              reasoning: prediction.reasoningAr,
+            }]);
+          }
+        }).catch(() => { /* AI Council query failed — fallback to algo only */ });
       } catch { /* AI Council Bridge fallback */ }
 
       // ── Send patterns to chart (including harmonic + classic) ─────

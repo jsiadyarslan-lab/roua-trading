@@ -29,7 +29,7 @@ export type AlertSignalSource =
   | 'liquidity';     // Liquidity sweep
 
 /** Logical operators for combining conditions */
-export type LogicOp = 'AND' | 'OR' | 'NOT';
+export type LogicOp = 'AND' | 'OR' | 'NOT' | 'WEIGHTED';
 
 /** Direction filter */
 export type DirectionFilter = 'bullish' | 'bearish' | 'any';
@@ -181,7 +181,7 @@ const DEFAULT_RULES: AlertRule[] = [
       { source: 'harmonic', direction: 'any', timeframe: 'any', minConfidence: 0.5 },
       { source: 'orderblock', direction: 'any', timeframe: 'any' },
     ],
-    logic: 'AND',
+    logic: 'WEIGHTED',
     priority: 'critical',
     enabled: true,
     cooldownMs: 300000,
@@ -195,7 +195,7 @@ const DEFAULT_RULES: AlertRule[] = [
       { source: 'bos', direction: 'any', timeframe: 'any' },
       { source: 'fvg', direction: 'any', timeframe: 'any' },
     ],
-    logic: 'AND',
+    logic: 'WEIGHTED',
     priority: 'high',
     enabled: true,
     cooldownMs: 300000,
@@ -209,7 +209,7 @@ const DEFAULT_RULES: AlertRule[] = [
       { source: 'wyckoff', direction: 'any', timeframe: 'any', subType: 'spring' },
       { source: 'bos', direction: 'any', timeframe: 'any' },
     ],
-    logic: 'AND',
+    logic: 'WEIGHTED',
     priority: 'critical',
     enabled: true,
     cooldownMs: 600000,
@@ -223,7 +223,7 @@ const DEFAULT_RULES: AlertRule[] = [
       { source: 'elliott', direction: 'any', timeframe: 'any', minConfidence: 0.4 },
       { source: 'orderblock', direction: 'any', timeframe: 'any' },
     ],
-    logic: 'AND',
+    logic: 'WEIGHTED',
     priority: 'high',
     enabled: true,
     cooldownMs: 300000,
@@ -238,7 +238,7 @@ const DEFAULT_RULES: AlertRule[] = [
       { source: 'bos', direction: 'any', timeframe: 'any' },
       { source: 'wyckoff', direction: 'any', timeframe: 'any' },
     ],
-    logic: 'AND',
+    logic: 'WEIGHTED',
     priority: 'critical',
     enabled: true,
     cooldownMs: 600000,
@@ -252,7 +252,7 @@ const DEFAULT_RULES: AlertRule[] = [
       { source: 'wyckoff', direction: 'bearish', timeframe: 'any', subType: 'utad' },
       { source: 'choch', direction: 'bearish', timeframe: 'any' },
     ],
-    logic: 'AND',
+    logic: 'WEIGHTED',
     priority: 'critical',
     enabled: true,
     cooldownMs: 600000,
@@ -327,6 +327,114 @@ const DEFAULT_RULES: AlertRule[] = [
     maxTriggers: 0,
     createdAt: Date.now(),
   },
+  // ── NEW: Single-source high-value alert rules ──
+  {
+    id: 'any-orderblock',
+    nameAr: 'بلوك أوامر نشط',
+    conditions: [
+      { source: 'orderblock', direction: 'any', timeframe: 'any' },
+    ],
+    logic: 'OR',
+    priority: 'medium',
+    enabled: true,
+    cooldownMs: 180000, // 3 min — more frequent than multi-source alerts
+    maxTriggers: 0,
+    createdAt: Date.now(),
+  },
+  {
+    id: 'any-fvg',
+    nameAr: 'فجوة قيمة غير مغلّية',
+    conditions: [
+      { source: 'fvg', direction: 'any', timeframe: 'any' },
+    ],
+    logic: 'OR',
+    priority: 'medium',
+    enabled: true,
+    cooldownMs: 180000,
+    maxTriggers: 0,
+    createdAt: Date.now(),
+  },
+  {
+    id: 'any-harmonic',
+    nameAr: 'نمط هارمونيك مكتمل',
+    conditions: [
+      { source: 'harmonic', direction: 'any', timeframe: 'any', minConfidence: 0.5 },
+    ],
+    logic: 'OR',
+    priority: 'high',
+    enabled: true,
+    cooldownMs: 300000,
+    maxTriggers: 0,
+    createdAt: Date.now(),
+  },
+  {
+    id: 'any-wyckoff',
+    nameAr: 'إشارة ويكوف',
+    conditions: [
+      { source: 'wyckoff', direction: 'any', timeframe: 'any' },
+    ],
+    logic: 'OR',
+    priority: 'medium',
+    enabled: true,
+    cooldownMs: 180000,
+    maxTriggers: 0,
+    createdAt: Date.now(),
+  },
+  {
+    id: 'trendline-fib-confluence',
+    nameAr: 'تقارب ترند + فيبوناتشي',
+    conditions: [
+      { source: 'trendline', direction: 'any', timeframe: 'any' },
+      { source: 'fibonacci', direction: 'any', timeframe: 'any' },
+    ],
+    logic: 'OR', // Either one is notable at this confluence zone
+    priority: 'high',
+    enabled: true,
+    cooldownMs: 300000,
+    maxTriggers: 0,
+    createdAt: Date.now(),
+  },
+  {
+    id: 'liquidity-sweep',
+    nameAr: 'اكتساح سيولة',
+    conditions: [
+      { source: 'liquidity', direction: 'any', timeframe: 'any' },
+    ],
+    logic: 'OR',
+    priority: 'high',
+    enabled: true,
+    cooldownMs: 180000,
+    maxTriggers: 0,
+    createdAt: Date.now(),
+  },
+  {
+    id: 'smc-bullish-confluence',
+    nameAr: 'تقارب SMC صاعد',
+    conditions: [
+      { source: 'bos', direction: 'bullish', timeframe: 'any' },
+      { source: 'orderblock', direction: 'bullish', timeframe: 'any' },
+    ],
+    logic: 'WEIGHTED',
+    priority: 'high',
+    enabled: true,
+    cooldownMs: 300000,
+    maxTriggers: 0,
+    createdAt: Date.now(),
+  },
+  {
+    id: 'smc-bearish-confluence',
+    nameAr: 'تقارب SMC هابط',
+    conditions: [
+      { source: 'bos', direction: 'bearish', timeframe: 'any' },
+      { source: 'orderblock', direction: 'bearish', timeframe: 'any' },
+    ],
+    logic: 'WEIGHTED',
+    priority: 'high',
+    enabled: true,
+    cooldownMs: 300000,
+    maxTriggers: 0,
+    createdAt: Date.now(),
+  },
 ];
 
 // Initialize default rules
@@ -369,8 +477,10 @@ function evaluateCondition(
     case 'elliott': {
       if (snapshot.elliottResult) {
         const e = snapshot.elliottResult;
-        if (dirMatch(e.direction) && confMatch(e.confidence) && subMatch(e.waveType)) {
-          return { matched: true, confidence: e.confidence, direction: e.direction, keyLevel: snapshot.currentPrice };
+        // FIX: Elliott result uses 'dominantDirection' not 'direction'
+        const eDir = (e as any).dominantDirection || (e as any).direction || 'neutral';
+        if (dirMatch(eDir) && confMatch(e.confidence) && subMatch(e.waveType)) {
+          return { matched: true, confidence: e.confidence, direction: eDir as 'bullish' | 'bearish' | 'neutral', keyLevel: snapshot.currentPrice };
         }
       }
       break;
@@ -490,6 +600,7 @@ function evaluateRule(rule: AlertRule, snapshot: AnalysisSnapshot): TriggeredAle
 
   // Apply logic
   let triggered = false;
+  let weightedScore = 0; // For WEIGHTED logic
   switch (rule.logic) {
     case 'AND':
       triggered = results.every(r => r.matched);
@@ -499,6 +610,16 @@ function evaluateRule(rule: AlertRule, snapshot: AnalysisSnapshot): TriggeredAle
       break;
     case 'NOT':
       triggered = !results.some(r => r.matched);
+      break;
+    case 'WEIGHTED':
+      // WEIGHTED: Trigger if >=50% of conditions match (partial confluence)
+      // This is the key fix — AND rules with 2+ conditions rarely fire
+      // because ALL conditions must be present simultaneously.
+      // WEIGHTED allows partial confluence to trigger alerts.
+      const matchCount = results.filter(r => r.matched).length;
+      const totalConditions = results.length;
+      weightedScore = totalConditions > 0 ? matchCount / totalConditions : 0;
+      triggered = matchCount > 0 && weightedScore >= 0.5; // At least 50% match
       break;
   }
 

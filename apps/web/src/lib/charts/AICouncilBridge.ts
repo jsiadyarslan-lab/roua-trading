@@ -646,105 +646,90 @@ export function getAIvsAlgoStats(): {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// REAL AI COUNCIL — Uses z-ai-web-dev-sdk to call actual AI models
+// REAL AI COUNCIL — Calls /api/ai/smart-council to reach actual AI models
+// (z-ai-web-dev-sdk on server, GROQ as fallback)
 // ═══════════════════════════════════════════════════════════════════════
 
+/** Cooldown to prevent spamming the AI API */
+let lastAICallTime = 0;
+const AI_CALL_COOLDOWN = 15000; // 15 seconds minimum between AI calls
+
 /**
- * Call the AI Council using z-ai-web-dev-sdk.
+ * Call the AI Council via the /api/ai/smart-council API route.
+ * This is client-safe — the actual AI SDK calls happen server-side.
+ *
  * Sends the analysis payload as a prompt and parses the AI's prediction.
- * This is the REAL implementation — previously this was just building payloads
- * without sending them anywhere.
+ * Falls back gracefully if the API is unavailable.
  */
 export async function queryAICouncil(payload: AIAnalysisPayload): Promise<{
   prediction: AIModelPrediction;
   comparison: AIAlgorithmComparison;
 } | null> {
   try {
+    // Cooldown check — don't spam the AI
+    const now = Date.now();
+    if (now - lastAICallTime < AI_CALL_COOLDOWN) return null;
+    lastAICallTime = now;
+
+    const startTime = now;
+
     // Build the prompt from the analysis payload
     const prompt = buildAICouncilPrompt(payload);
 
-    // Call z-ai-web-dev-sdk (server-side only — this function should be
-    // called from an API route, not directly from client code)
-    const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default.create());
-
-    const completion = await ZAI.chat.completions.create({
-      messages: [
-        {
-          role: 'system',
-          content: `أنت محلل فني خبير في أسواق العملات الرقمية. حلل البيانات المقدمة وأعطِ توقعك.
-أجب بهذا التنسيق فقط:
-اتجاه: [صاعد/هابط/محايد]
-ثقة: [رقم من 50 إلى 95]
-الأسباب: [شرح مختصر بالعربية]`,
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      temperature: 0.3,
-      max_tokens: 300,
+    // Call our API route (server-side handles z-ai-web-dev-sdk / GROQ)
+    const response = await fetch('/api/ai/smart-council', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt,
+        symbol: payload.symbol,
+        currentPrice: payload.currentPrice,
+      }),
     });
 
-    const responseText = completion.choices?.[0]?.message?.content || '';
-    const startTime = Date.now();
-
-    // Parse the AI response
-    let direction: 'bullish' | 'bearish' | 'neutral' = 'neutral';
-    let confidence = 0.5;
-    let reasoningAr = responseText;
-
-    if (responseText.includes('صاعد') || responseText.toLowerCase().includes('bullish')) {
-      direction = 'bullish';
-    } else if (responseText.includes('هابط') || responseText.toLowerCase().includes('bearish')) {
-      direction = 'bearish';
+    if (!response.ok) {
+      // Rate limited or server error — return null
+      return null;
     }
 
-    // Extract confidence number
-    const confMatch = responseText.match(/ثقة[:\s]*(\d+)/) || responseText.match(/confidence[:\s]*(\d+)/i);
-    if (confMatch) {
-      confidence = Math.min(0.95, Math.max(0.3, parseInt(confMatch[1]) / 100));
-    } else {
-      // Default confidence based on direction certainty
-      confidence = direction === 'neutral' ? 0.35 : 0.55;
+    const data = await response.json();
+    if (!data.success || !data.prediction) {
+      return null;
     }
 
-    // Extract reasoning
-    const reasonMatch = responseText.match(/الأسباب[:\s]*(.+)/s);
-    if (reasonMatch) {
-      reasoningAr = reasonMatch[1].trim().substring(0, 200);
-    }
+    const { direction, confidence, reasoningAr, model } = data.prediction;
 
     const prediction: AIModelPrediction = {
-      model: 'gpt4' as AIModel,
-      direction,
-      confidence,
-      reasoningAr,
+      model: (model || 'zai-llm') as AIModel,
+      direction: direction as 'bullish' | 'bearish' | 'neutral',
+      confidence: confidence as number,
+      reasoningAr: reasoningAr || '',
       keyFactors: payload.keyPatterns.slice(0, 3).map(p => p.labelAr),
       timestamp: Date.now(),
       responseTimeMs: Date.now() - startTime,
     };
 
     // Record the prediction
-    recordModelPrediction('gpt4', prediction);
+    recordModelPrediction((model || 'gpt4') as AIModel, prediction);
 
     // Compare with algorithmic prediction
     const comparison = compareAIWithAlgorithm(
-      { direction, confidence },
+      { direction: prediction.direction, confidence: prediction.confidence },
       { direction: payload.algorithmicPrediction.direction, confidence: payload.algorithmicPrediction.confidence },
       payload,
     );
 
-    // Record for AI vs Algo tracking
+    // Record for AI vs Algo tracking with entry price for real verification
     recordPrediction({
       symbol: payload.symbol,
-      aiDirection: direction,
+      aiDirection: prediction.direction,
       algoDirection: payload.algorithmicPrediction.direction,
       regime: payload.regime,
+      entryPrice: payload.currentPrice,
     });
 
     return { prediction, comparison };
-  } catch (error) {
+  } catch {
     // AI Council failed — return null (fallback to algorithmic only)
     return null;
   }

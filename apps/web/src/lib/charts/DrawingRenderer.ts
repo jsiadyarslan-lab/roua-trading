@@ -37,6 +37,16 @@ const FIBONACCI_COLORS: Record<number, string> = {
   100:  'rgba(63,185,80,0.6)',
 };
 const ARROW_HEAD_SIZE = 10;
+
+// Convert lineStyle enum to canvas setLineDash array
+function lineStyleToDash(style: Drawing['lineStyle'] | undefined): number[] {
+  switch (style) {
+    case 'dashed': return [8, 4];
+    case 'dotted': return [2, 3];
+    case 'dashdot': return [8, 3, 2, 3];
+    default: return []; // solid
+  }
+}
 const X_MARKER_SIZE = 8;
 const FIB_EXTENSION_LEVELS = [0, 61.8, 100, 127.2, 161.8, 200, 261.8, 323.6, 423.6];
 const FIB_FAN_LEVELS = [38.2, 50, 61.8];
@@ -202,7 +212,7 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
     if (pts.length === 0) return;
 
     ctx.save();
-    ctx.setLineDash([]);
+    ctx.setLineDash(lineStyleToDash(drawing.lineStyle));
     ctx.globalAlpha = drawing.opacity;
     ctx.strokeStyle = drawing.color;
     ctx.fillStyle = drawing.color;
@@ -1100,7 +1110,7 @@ export class DrawingRenderer {
     this.boundMouseDown = this.onMouseDown.bind(this);
     this.boundMouseMove = this.onMouseMove.bind(this);
     this.boundMouseUp = this.onMouseUp.bind(this);
-    this.boundContextMenu = (e: MouseEvent) => e.preventDefault();
+    this.boundContextMenu = this.onContextMenu.bind(this);
     this.boundKeyDown = this.onKeyDown.bind(this);
     // Capture-phase handlers to block chart scroll/zoom during drawing
     this.boundWheelCapture = this.onWheelCapture.bind(this);
@@ -1427,10 +1437,297 @@ export class DrawingRenderer {
   private onKeyDown(e: KeyboardEvent): void {
     if (e.key === 'Escape') {
       this.cancelDrawing();
+      this.closeContextMenu();
       this.currentTool = 'cursor';
       this.setChartInteractionEnabled(true);
       this.container.style.cursor = '';
     }
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  CONTEXT MENU — Right-click on drawing opens settings
+  // ══════════════════════════════════════════════════════════
+
+  private contextMenuEl: HTMLDivElement | null = null;
+  private contextMenuDrawingId: string | null = null;
+
+  private static readonly COLORS = [
+    '#fbbf24', '#f59e0b', '#ef4444', '#f85149', '#fb7185',
+    '#22d3ee', '#06b6d4', '#3b82f6', '#6366f1', '#a855f7',
+    '#00FFA3', '#3fb950', '#10b981', '#ec4899', '#ffffff',
+  ];
+
+  private static readonly LINE_WIDTHS = [1, 1.5, 2, 3, 4];
+
+  private static readonly LINE_STYLES: Array<{ value: Drawing['lineStyle']; label: string; dash: number[] }> = [
+    { value: 'solid', label: '━━━', dash: [] },
+    { value: 'dashed', label: '┅ ┅ ┅', dash: [8, 4] },
+    { value: 'dotted', label: '· · · · ·', dash: [2, 3] },
+    { value: 'dashdot', label: '┅· ┅·', dash: [8, 3, 2, 3] },
+  ];
+
+  private onContextMenu(e: MouseEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    this.closeContextMenu();
+
+    const rect = this.container.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    // Find which drawing was clicked
+    let hitDrawing: Drawing | null = null;
+    for (const drawing of this.drawingManager.getAll()) {
+      if (this.isPointNearDrawing(x, y, drawing)) {
+        hitDrawing = drawing;
+        break;
+      }
+    }
+
+    if (!hitDrawing) return;
+
+    this.contextMenuDrawingId = hitDrawing.id;
+    this.showContextMenu(e.clientX, e.clientY, hitDrawing);
+  }
+
+  private isPointNearDrawing(x: number, y: number, drawing: Drawing): boolean {
+    if (drawing.type === 'horizontal' || drawing.type === 'horizontal-ray') {
+      const pp = this.chartPointToPixel(drawing.points[0]);
+      return pp !== null && Math.abs(y - pp.y) < DrawingRenderer.PROXIMITY_THRESHOLD;
+    }
+    if (drawing.type === 'vertical') {
+      const pp = this.chartPointToPixel(drawing.points[0]);
+      return pp !== null && Math.abs(x - pp.x) < DrawingRenderer.PROXIMITY_THRESHOLD;
+    }
+
+    const pts = drawing.points.map(p => this.chartPointToPixel(p)).filter((p): p is PixelPoint => p !== null);
+    if (pts.length === 0) return false;
+
+    // Check proximity to any point
+    for (const pt of pts) {
+      if (Math.abs(x - pt.x) < DrawingRenderer.PROXIMITY_THRESHOLD && Math.abs(y - pt.y) < DrawingRenderer.PROXIMITY_THRESHOLD) {
+        return true;
+      }
+    }
+
+    // Check proximity to any segment
+    if (pts.length >= 2) {
+      for (let i = 0; i < pts.length - 1; i++) {
+        if (this.isPointNearSegment(x, y, pts[i], pts[i + 1])) return true;
+      }
+    }
+
+    return false;
+  }
+
+  private showContextMenu(clientX: number, clientY: number, drawing: Drawing): void {
+    const menu = document.createElement('div');
+    menu.className = 'roua-drawing-menu';
+    menu.style.cssText = `
+      position: fixed; left: ${clientX}px; top: ${clientY}px;
+      z-index: 99999; background: #1a1b26; border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px; padding: 8px 0; min-width: 180px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5); font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; color: #e0e0e0; user-select: none;
+    `;
+
+    // ── Color Section ──
+    this.addMenuSection(menu, 'Color');
+    const colorGrid = document.createElement('div');
+    colorGrid.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;padding:4px 10px;';
+    for (const c of DrawingRenderer.COLORS) {
+      const btn = document.createElement('div');
+      btn.style.cssText = `
+        width:18px;height:18px;border-radius:4px;cursor:pointer;
+        background:${c};border:2px solid ${drawing.color === c ? '#fff' : 'transparent'};
+        transition:border 0.15s;
+      `;
+      btn.addEventListener('mouseenter', () => { btn.style.borderColor = '#fff'; });
+      btn.addEventListener('mouseleave', () => { btn.style.borderColor = drawing.color === c ? '#fff' : 'transparent'; });
+      btn.addEventListener('click', () => this.updateDrawingProperty('color', c));
+      colorGrid.appendChild(btn);
+    }
+    menu.appendChild(colorGrid);
+
+    // ── Custom Color ──
+    const customColorRow = document.createElement('div');
+    customColorRow.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 10px;';
+    const customInput = document.createElement('input');
+    customInput.type = 'color';
+    customInput.value = drawing.color;
+    customInput.style.cssText = 'width:24px;height:24px;border:none;background:none;cursor:pointer;padding:0;';
+    const customLabel = document.createElement('span');
+    customLabel.textContent = drawing.color.toUpperCase();
+    customLabel.style.cssText = 'font-size:10px;color:#888;';
+    customInput.addEventListener('input', (e) => {
+      const val = (e.target as HTMLInputElement).value;
+      customLabel.textContent = val.toUpperCase();
+      this.updateDrawingProperty('color', val);
+    });
+    customColorRow.appendChild(customInput);
+    customColorRow.appendChild(customLabel);
+    menu.appendChild(customColorRow);
+
+    // ── Line Width Section ──
+    this.addMenuSection(menu, 'Width');
+    const widthRow = document.createElement('div');
+    widthRow.style.cssText = 'display:flex;gap:4px;padding:4px 10px;align-items:center;';
+    for (const w of DrawingRenderer.LINE_WIDTHS) {
+      const btn = document.createElement('div');
+      btn.style.cssText = `
+        display:flex;align-items:center;justify-content:center;
+        width:28px;height:22px;border-radius:4px;cursor:pointer;
+        background:${drawing.lineWidth === w ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.05)'};
+        border:1px solid ${drawing.lineWidth === w ? 'rgba(0,212,255,0.4)' : 'rgba(255,255,255,0.08)'};
+        transition:background 0.15s;
+      `;
+      const line = document.createElement('div');
+      line.style.cssText = `width:16px;height:${Math.max(1, w)}px;background:${drawing.color};border-radius:1px;`;
+      btn.appendChild(line);
+      btn.addEventListener('click', () => this.updateDrawingProperty('lineWidth', w));
+      btn.addEventListener('mouseenter', () => { btn.style.background = 'rgba(0,212,255,0.1)'; });
+      btn.addEventListener('mouseleave', () => { btn.style.background = drawing.lineWidth === w ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.05)'; });
+      widthRow.appendChild(btn);
+    }
+    menu.appendChild(widthRow);
+
+    // ── Line Style Section ──
+    this.addMenuSection(menu, 'Style');
+    const styleRow = document.createElement('div');
+    styleRow.style.cssText = 'display:flex;gap:4px;padding:4px 10px;flex-direction:column;';
+    for (const ls of DrawingRenderer.LINE_STYLES) {
+      const btn = document.createElement('div');
+      btn.style.cssText = `
+        display:flex;align-items:center;gap:8px;padding:4px 8px;
+        border-radius:4px;cursor:pointer;
+        background:${drawing.lineStyle === ls.value ? 'rgba(0,212,255,0.15)' : 'transparent'};
+        transition:background 0.15s;
+      `;
+      // Draw the style preview as an SVG line
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', '40');
+      svg.setAttribute('height', '10');
+      svg.style.cssText = 'flex-shrink:0;';
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', '0'); line.setAttribute('y1', '5');
+      line.setAttribute('x2', '40'); line.setAttribute('y2', '5');
+      line.setAttribute('stroke', drawing.color);
+      line.setAttribute('stroke-width', '2');
+      if (ls.dash.length > 0) line.setAttribute('stroke-dasharray', ls.dash.join(','));
+      svg.appendChild(line);
+      btn.appendChild(svg);
+      const label = document.createElement('span');
+      label.textContent = ls.value;
+      label.style.cssText = 'font-size:10px;text-transform:capitalize;color:#aaa;';
+      btn.appendChild(label);
+      btn.addEventListener('click', () => this.updateDrawingProperty('lineStyle', ls.value));
+      btn.addEventListener('mouseenter', () => { btn.style.background = 'rgba(0,212,255,0.1)'; });
+      btn.addEventListener('mouseleave', () => { btn.style.background = drawing.lineStyle === ls.value ? 'rgba(0,212,255,0.15)' : 'transparent'; });
+      styleRow.appendChild(btn);
+    }
+    menu.appendChild(styleRow);
+
+    // ── Opacity Section ──
+    this.addMenuSection(menu, 'Opacity');
+    const opacityRow = document.createElement('div');
+    opacityRow.style.cssText = 'display:flex;align-items:center;gap:8px;padding:4px 10px;';
+    const opacitySlider = document.createElement('input');
+    opacitySlider.type = 'range';
+    opacitySlider.min = '0.1';
+    opacitySlider.max = '1';
+    opacitySlider.step = '0.1';
+    opacitySlider.value = String(drawing.opacity);
+    opacitySlider.style.cssText = 'flex:1;accent-color:#00d4ff;height:4px;';
+    const opacityLabel = document.createElement('span');
+    opacityLabel.textContent = `${Math.round(drawing.opacity * 100)}%`;
+    opacityLabel.style.cssText = 'font-size:10px;color:#888;min-width:32px;text-align:right;';
+    opacitySlider.addEventListener('input', (e) => {
+      const val = parseFloat((e.target as HTMLInputElement).value);
+      opacityLabel.textContent = `${Math.round(val * 100)}%`;
+      this.updateDrawingProperty('opacity', val);
+    });
+    opacityRow.appendChild(opacitySlider);
+    opacityRow.appendChild(opacityLabel);
+    menu.appendChild(opacityRow);
+
+    // ── Divider ──
+    const divider = document.createElement('div');
+    divider.style.cssText = 'height:1px;background:rgba(255,255,255,0.08);margin:6px 0;';
+    menu.appendChild(divider);
+
+    // ── Delete Button ──
+    const deleteBtn = document.createElement('div');
+    deleteBtn.style.cssText = `
+      display:flex;align-items:center;gap:8px;padding:6px 12px;
+      cursor:pointer;color:#f85149;border-radius:4px;margin:0 4px;
+      transition:background 0.15s;
+    `;
+    deleteBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg><span style="font-size:11px;">Delete</span>`;
+    deleteBtn.addEventListener('mouseenter', () => { deleteBtn.style.background = 'rgba(248,81,73,0.1)'; });
+    deleteBtn.addEventListener('mouseleave', () => { deleteBtn.style.background = 'transparent'; });
+    deleteBtn.addEventListener('click', () => this.deleteDrawing());
+    menu.appendChild(deleteBtn);
+
+    // ── Close on outside click ──
+    const closeOnOutside = (e: MouseEvent) => {
+      if (!menu.contains(e.target as Node)) {
+        this.closeContextMenu();
+        document.removeEventListener('mousedown', closeOnOutside);
+      }
+    };
+    setTimeout(() => document.addEventListener('mousedown', closeOnOutside), 0);
+
+    // ── Position adjustment (keep within viewport) ──
+    document.body.appendChild(menu);
+    const menuRect = menu.getBoundingClientRect();
+    if (menuRect.right > window.innerWidth) {
+      menu.style.left = `${clientX - menuRect.width}px`;
+    }
+    if (menuRect.bottom > window.innerHeight) {
+      menu.style.top = `${clientY - menuRect.height}px`;
+    }
+
+    this.contextMenuEl = menu;
+  }
+
+  private addMenuSection(menu: HTMLDivElement, label: string): void {
+    const section = document.createElement('div');
+    section.style.cssText = `
+      font-size:9px;color:#666;text-transform:uppercase;letter-spacing:0.8px;
+      padding:6px 10px 2px;
+    `;
+    section.textContent = label;
+    menu.appendChild(section);
+  }
+
+  private closeContextMenu(): void {
+    if (this.contextMenuEl) {
+      this.contextMenuEl.remove();
+      this.contextMenuEl = null;
+    }
+    this.contextMenuDrawingId = null;
+  }
+
+  private updateDrawingProperty(prop: string, value: any): void {
+    if (!this.contextMenuDrawingId) return;
+    this.drawingManager.update(this.contextMenuDrawingId, { [prop]: value });
+    this.syncPrimitive();
+    this.onDrawingChange?.();
+    // Re-open menu with updated drawing to refresh UI
+    const drawing = this.drawingManager.get(this.contextMenuDrawingId);
+    if (drawing && this.contextMenuEl) {
+      const rect = this.contextMenuEl.getBoundingClientRect();
+      this.closeContextMenu();
+      this.showContextMenu(rect.left, rect.top, drawing);
+    }
+  }
+
+  private deleteDrawing(): void {
+    if (!this.contextMenuDrawingId) return;
+    this.drawingManager.delete(this.contextMenuDrawingId);
+    this.closeContextMenu();
+    this.syncPrimitive();
+    this.onDrawingChange?.();
   }
 
   // ══════════════════════════════════════════════════════════

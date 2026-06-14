@@ -163,6 +163,7 @@ export interface Drawing {
   color: string;
   lineWidth: number;
   opacity: number;
+  lineStyle: 'solid' | 'dashed' | 'dotted' | 'dashdot';
   symbol: string;     // Associated symbol
   createdAt: number;
 }

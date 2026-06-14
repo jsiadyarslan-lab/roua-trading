@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://www.tradingview.com/charting-library-docs/latest/customization/Featuresets",
+    "name": "Featuresets | Advanced Charts Documentation - TradingView",
+    "snippet": "Featureset is a string literal that allows showing or hiding UI elements and changing the chart's behavior.",
+    "host_name": "www.tradingview.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=W-_b0wuRahs",
+    "name": "How To Use TradingView Drawing Tools | Trading Tutorials - YouTube",
+    "snippet": "In this video we will go through all of the drawing tools on TradingView so that you can master them. This how to trade tutorial will give ...\nIn the full menu, we have many of the same style settings that were displayed in the quick menu. We can also elect to change properties of ...",
+    "host_name": "www.youtube.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.tradingview.com/support/solutions/43000518124-horizontal-line-drawing-tool",
+    "name": "Horizontal line drawing tool - TradingView",
+    "snippet": "Can change the color, opacity and thickness of the horizontal line as well as the line style. Price label. Toggles the visibility of the price value of the ...",
+    "host_name": "www.tradingview.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.tradingview.com/support/solutions/43000518117-parallel-channel-drawing-tool",
+    "name": "Parallel channel drawing tool - TradingView",
+    "snippet": "Use the clock icon in floating drawing toolbar or in right click menu on the parallel channel itself: Then select a condition, periodicity and preferable ...",
+    "host_name": "www.tradingview.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=DgVrvLJKADc",
+    "name": "How to Master Trend Line Tools on TradingView: Tutorial - YouTube",
+    "snippet": "Welcome to our comprehensive tutorial about trend line tools. We will explore each tool, from trend lines to various drawing options, ...",
+    "host_name": "www.youtube.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]

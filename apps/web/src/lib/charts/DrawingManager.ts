@@ -56,7 +56,7 @@ export class DrawingManager {
 
   // ── CRUD Operations ────────────────────────────────────
 
-  create(type: DrawingTool, points: DrawingPoint[], color: string = '#fbbf24', lineWidth: number = 1.5, opacity: number = 0.8): Drawing {
+  create(type: DrawingTool, points: DrawingPoint[], color: string = '#fbbf24', lineWidth: number = 1.5, opacity: number = 0.8, lineStyle: Drawing['lineStyle'] = 'solid'): Drawing {
     const drawing: Drawing = {
       id: `draw-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       type,
@@ -64,6 +64,7 @@ export class DrawingManager {
       color,
       lineWidth,
       opacity,
+      lineStyle,
       symbol: this.symbol,
       createdAt: Date.now(),
     };
@@ -72,7 +73,7 @@ export class DrawingManager {
     return drawing;
   }
 
-  update(id: string, updates: Partial<Pick<Drawing, 'points' | 'color' | 'lineWidth' | 'opacity'>>): Drawing | null {
+  update(id: string, updates: Partial<Pick<Drawing, 'points' | 'color' | 'lineWidth' | 'opacity' | 'lineStyle'>>): Drawing | null {
     const drawing = this.drawings.get(id);
     if (!drawing) return null;
     Object.assign(drawing, updates);
@@ -175,7 +176,11 @@ export class DrawingManager {
       // H2 FIX: Load drawings by composite key (symbol:timeframe)
       const symbolDrawings = allDrawings[this.getStorageKey()] || [];
       this.drawings.clear();
-      symbolDrawings.forEach(d => this.drawings.set(d.id, d));
+      symbolDrawings.forEach(d => {
+        // Backfill lineStyle for drawings saved before this feature existed
+        if (!d.lineStyle) d.lineStyle = 'solid';
+        this.drawings.set(d.id, d);
+      });
     } catch {
       // Corrupted data — start fresh
     }

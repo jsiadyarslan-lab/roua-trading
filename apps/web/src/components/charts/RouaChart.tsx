@@ -1629,6 +1629,7 @@ export default function RouaChart({
 
   const [fillZones, setFillZones] = useState<Array<{
     top: number; height: number; type: 'sl' | 'tp'; key: string;
+    topPrice: number; bottomPrice: number;
   }>>([]);
   // PERF: Refs for overlay throttling — avoid re-rendering the entire 3000+ line
   // RouaChart component on every scroll frame. Instead of calling setState on
@@ -1662,12 +1663,13 @@ export default function RouaChart({
   useEffect(() => { getPriceCoordinateRef.current = chart.getPriceCoordinate; }, [chart.getPriceCoordinate]);
 
   // Synchronous DOM update — يُستدعى مباشرة في onVisibleRangeChange بدون RAF
+  // Updates both trade labels AND fill zones instantly via direct DOM manipulation.
   const syncOverlayPositions = useCallback(() => {
     const getPriceCoordinate = getPriceCoordinateRef.current;
     if (!getPriceCoordinate) return;
     const overlayContainer = document.querySelector('.roua-overlay-layer') as HTMLElement;
     if (!overlayContainer) return;
-    // نحصل على الـ price lines من الـ DOM عبر data attributes
+    // Update trade labels using data-price attributes
     const labels = overlayContainer.querySelectorAll('[data-trade-label]') as NodeListOf<HTMLElement>;
     labels.forEach(el => {
       const priceStr = el.getAttribute('data-price');
@@ -1677,6 +1679,21 @@ export default function RouaChart({
       const y = getPriceCoordinate(price);
       if (y !== null) {
         el.style.transform = `translateY(${y - 24}px)`;
+      }
+    });
+    // Update fill zones using data-top-price / data-bottom-price attributes
+    const zoneEls = overlayContainer.querySelectorAll('[data-zone]') as NodeListOf<HTMLElement>;
+    zoneEls.forEach(el => {
+      const topPriceStr = el.getAttribute('data-top-price');
+      const bottomPriceStr = el.getAttribute('data-bottom-price');
+      if (!topPriceStr || !bottomPriceStr) return;
+      const topY = getPriceCoordinate(parseFloat(topPriceStr));
+      const bottomY = getPriceCoordinate(parseFloat(bottomPriceStr));
+      if (topY !== null && bottomY !== null) {
+        const top = Math.min(topY, bottomY);
+        const height = Math.abs(bottomY - topY);
+        el.style.top = top + 'px';
+        el.style.height = Math.max(height, 1) + 'px';
       }
     });
   }, []);
@@ -1740,6 +1757,8 @@ export default function RouaChart({
             top: Math.min(entryY, slY),
             height: Math.abs(entryY - slY),
             type: 'sl', key: `${prefix}sl-zone`,
+            topPrice: Math.min(entryPrice, sl),
+            bottomPrice: Math.max(entryPrice, sl),
           });
         }
         if (tpY !== null && entryY !== null) {
@@ -1747,6 +1766,8 @@ export default function RouaChart({
             top: Math.min(entryY, tpY),
             height: Math.abs(entryY - tpY),
             type: 'tp', key: `${prefix}tp-zone`,
+            topPrice: Math.min(entryPrice, tp!),
+            bottomPrice: Math.max(entryPrice, tp!),
           });
         }
       };
@@ -1871,39 +1892,62 @@ export default function RouaChart({
 
     // Periodic overlay refresh to catch vertical price-scale changes
     // (lightweight-charts v5 has no priceScale subscribeVisiblePriceRangeChange)
-    // Reduced from 3000ms to 500ms for snappier overlay repositioning
-    const priceScaleInterval = setInterval(scheduleOverlayUpdate, 500);
+    const priceScaleInterval = setInterval(scheduleOverlayUpdate, 1000);
 
     // FIX: Detect price-scale drag (mouse wheel / pointer drag on price axis)
     // lightweight-charts v5 doesn't emit events for price-scale changes,
-    // so we listen for pointer/wheel events on the chart container and
-    // trigger an immediate overlay update via requestAnimationFrame.
+    // so we listen for pointer/wheel events on the chart container.
+    //
+    // CRITICAL: During drag, we ONLY do direct DOM updates (syncOverlayPositions).
+    // We do NOT call scheduleOverlayUpdate because it triggers setTradeOverlays()
+    // which causes React re-render, and React re-creates elements at their OLD
+    // state positions → elements jump between correct (DOM) and old (state)
+    // positions = "dancing" effect. The periodic interval handles state sync.
     const chartEl = chart.containerRef?.current as HTMLElement | null;
     let dragRaf = 0;
+    let isDragging = false;
+    let dragEndTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const onPointerDown = () => {
+      isDragging = true;
+    };
+    const onPointerUp = () => {
+      isDragging = false;
+      // After drag ends, do a full state sync with a small delay
+      // to ensure lightweight-charts has finished its internal layout
+      if (dragEndTimer) clearTimeout(dragEndTimer);
+      dragEndTimer = setTimeout(() => {
+        scheduleOverlayUpdateRef.current();
+      }, 100);
+    };
     const onPointerMove = () => {
+      if (!isDragging) return; // Only during active drag
       cancelAnimationFrame(dragRaf);
       dragRaf = requestAnimationFrame(() => {
-        syncOverlayPositions();
-        scheduleOverlayUpdateRef.current();
+        syncOverlayPositions(); // Direct DOM only — no React re-render
       });
     };
     const onWheel = () => {
       cancelAnimationFrame(dragRaf);
       dragRaf = requestAnimationFrame(() => {
-        syncOverlayPositions();
-        scheduleOverlayUpdateRef.current();
+        syncOverlayPositions(); // Direct DOM only during wheel scroll
       });
     };
 
     if (chartEl) {
+      chartEl.addEventListener('pointerdown', onPointerDown);
+      chartEl.addEventListener('pointerup', onPointerUp);
       chartEl.addEventListener('pointermove', onPointerMove);
       chartEl.addEventListener('wheel', onWheel, { passive: true });
     }
 
     return () => {
       unsub?.(); clearTimeout(timer); clearInterval(priceScaleInterval);
+      if (dragEndTimer) clearTimeout(dragEndTimer);
       cancelAnimationFrame(dragRaf);
       if (chartEl) {
+        chartEl.removeEventListener('pointerdown', onPointerDown);
+        chartEl.removeEventListener('pointerup', onPointerUp);
         chartEl.removeEventListener('pointermove', onPointerMove);
         chartEl.removeEventListener('wheel', onWheel);
       }
@@ -3142,6 +3186,8 @@ export default function RouaChart({
               <div
                 key={zone.key}
                 data-zone={zone.key}
+                data-top-price={zone.topPrice}
+                data-bottom-price={zone.bottomPrice}
                 style={{
                   position: 'absolute',
                   top: zone.top,

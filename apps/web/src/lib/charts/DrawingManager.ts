@@ -56,7 +56,7 @@ export class DrawingManager {
 
   // ── CRUD Operations ────────────────────────────────────
 
-  create(type: DrawingTool, points: DrawingPoint[], color: string = '#fbbf24', lineWidth: number = 1.5, opacity: number = 0.8, lineStyle: Drawing['lineStyle'] = 'solid'): Drawing {
+  create(type: DrawingTool, points: DrawingPoint[], color: string = '#fbbf24', lineWidth: number = 1.5, opacity: number = 0.8, lineStyle: Drawing['lineStyle'] = 'solid', scope: Drawing['scope'] = 'all-tf'): Drawing {
     const drawing: Drawing = {
       id: `draw-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       type,
@@ -67,13 +67,15 @@ export class DrawingManager {
       lineStyle,
       symbol: this.symbol,
       createdAt: Date.now(),
+      scope,
+      timeframe: this.timeframe || undefined,
     };
     this.drawings.set(drawing.id, drawing);
     this.saveToStorage();
     return drawing;
   }
 
-  update(id: string, updates: Partial<Pick<Drawing, 'points' | 'color' | 'lineWidth' | 'opacity' | 'lineStyle'>>): Drawing | null {
+  update(id: string, updates: Partial<Pick<Drawing, 'points' | 'color' | 'lineWidth' | 'opacity' | 'lineStyle' | 'scope' | 'timeframe'>>): Drawing | null {
     const drawing = this.drawings.get(id);
     if (!drawing) return null;
     Object.assign(drawing, updates);
@@ -179,6 +181,8 @@ export class DrawingManager {
       symbolDrawings.forEach(d => {
         // Backfill lineStyle for drawings saved before this feature existed
         if (!d.lineStyle) d.lineStyle = 'solid';
+        // Backfill scope for drawings saved before this feature existed
+        if (!d.scope) d.scope = 'all-tf';
         this.drawings.set(d.id, d);
       });
     } catch {

@@ -166,6 +166,10 @@ export interface Drawing {
   lineStyle: 'solid' | 'dashed' | 'dotted' | 'dashdot';
   symbol: string;     // Associated symbol
   createdAt: number;
+  /** Whether this drawing is visible on all timeframes or only the one it was created on */
+  scope: 'single-tf' | 'all-tf';
+  /** The timeframe this drawing was created on (only relevant when scope='single-tf') */
+  timeframe?: string;
 }
 
 // ── Indicator Types ─────────────────────────────────────

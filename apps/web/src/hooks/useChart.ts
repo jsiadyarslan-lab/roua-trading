@@ -730,6 +730,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         const currentTool = activeToolRef.current ?? activeTool;
         renderer.setTool(currentTool);
         renderer.start();
+        // Set the initial timeframe for scope filtering
+        (renderer as any).setTimeframe(timeframe);
         drawingRendererRef.current = renderer as any;
       }).catch(console.error);
     }
@@ -991,6 +993,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // changed (same symbol), because DrawingManager only tracked symbol.
     if (drawingManagerRef.current) {
       drawingManagerRef.current.setTimeframe(timeframe);
+    }
+    // Also update DrawingRenderer's timeframe for scope filtering (single-tf vs all-tf)
+    if (drawingRendererRef.current) {
+      (drawingRendererRef.current as any).setTimeframe(timeframe);
     }
 
     // Cancel any pending indicator re-apply from a previous setCandles call

@@ -76,19 +76,23 @@ const TF_SECONDS: Record<string, number> = {
 };
 
 function chartPointToPixel(pt: DrawingPoint, chart: IChartApi, series: ISeriesApi<SeriesType>): PixelPoint | null {
+  // FIX: Always compute a position, even if it's off-screen.
+  // Previously, returning null for off-screen points caused entire drawings
+  // to disappear when zooming/panning. Now we estimate positions so lines
+  // can extend beyond the visible area and partial drawings still render.
   const x = chart.timeScale().timeToCoordinate(pt.time as Time);
   const y = series.priceToCoordinate(pt.price);
-  if (y === null) return null;
 
-  if (x !== null) return { x, y };
+  // If both coordinates are available, use them directly
+  if (x !== null && y !== null) return { x, y };
 
-  // Future time: estimate pixel position from visible time range
-  // lightweight-charts' timeToCoordinate returns null for times without candle data
+  // Try to estimate missing coordinates from visible range
   try {
     const logicalRange = chart.timeScale().getVisibleLogicalRange();
     const coordRange = chart.timeScale().getVisibleRange();
     if (!logicalRange || !coordRange) return null;
     const chartWidth = chart.timeScale().width();
+    const chartHeight = (series as any).priceScale?.()?.height?.() ?? 0;
     if (chartWidth <= 0) return null;
 
     const fromTime = coordRange.from as number;
@@ -97,18 +101,34 @@ function chartPointToPixel(pt: DrawingPoint, chart: IChartApi, series: ISeriesAp
     const timeSpan = toTime - fromTime;
     if (timeSpan <= 0 || barCount <= 0) return null;
 
-    // Calculate bar spacing and candle interval from visible range
     const barSpacing = chartWidth / barCount;
     const candleInterval = timeSpan / barCount;
-
-    // Convert time to bar index, then to pixel position
-    const barsFromStart = (pt.time - fromTime) / candleInterval;
     const barFromX = logicalRange.from * barSpacing;
-    const estimatedX = barFromX + barsFromStart * barSpacing;
 
-    // Only return if the point would be visible on the chart canvas
-    if (estimatedX >= -200 && estimatedX <= chartWidth + 200) {
-      return { x: estimatedX, y };
+    // Estimate X from time if timeToCoordinate returned null
+    let estimatedX: number | null = x;
+    if (x === null) {
+      const barsFromStart = (pt.time - fromTime) / candleInterval;
+      estimatedX = barFromX + barsFromStart * barSpacing;
+    }
+
+    // Estimate Y from price if priceToCoordinate returned null
+    // Use the visible price range to calculate a proportional position
+    let estimatedY: number | null = y;
+    if (y === null) {
+      const priceRange = (series as any).priceScale?.()?.getVisiblePriceRange?.();
+      if (priceRange) {
+        const { from, to } = priceRange;
+        if (to !== from && chartHeight > 0) {
+          const ratio = (pt.price - from) / (to - from);
+          estimatedY = chartHeight - ratio * chartHeight;
+        }
+      }
+    }
+
+    // Return if we have at least one valid coordinate
+    if (estimatedX !== null && estimatedY !== null) {
+      return { x: estimatedX, y: estimatedY };
     }
   } catch { /* chart may be destroyed */ }
   return null;
@@ -1007,6 +1027,8 @@ class DrawingSeriesPrimitive implements ISeriesPrimitiveBase<SeriesAttachedParam
   private _preview: PreviewData | null = null;
 
   private _attached = false;
+  // FIX: Subscribe to visible range changes so drawings re-render on zoom/pan
+  private _visibleRangeHandler: ((range: any) => void) | null = null;
 
   constructor() {
     // PaneView will be re-created in attached() with real chart/series refs
@@ -1022,9 +1044,21 @@ class DrawingSeriesPrimitive implements ISeriesPrimitiveBase<SeriesAttachedParam
     (this as any)._paneView = new DrawingPaneView(this._chart, this._series);
     // Push current data to view
     this._paneView.update(this._drawings, this._preview);
+
+    // FIX: Re-render drawings whenever the visible range changes (zoom/pan)
+    // Without this, drawings disappear or appear at wrong positions when zooming
+    try {
+      this._visibleRangeHandler = () => { this.requestUpdate(); };
+      this._chart.timeScale().subscribeVisibleLogicalRangeChange(this._visibleRangeHandler);
+    } catch { /* chart may not support subscription */ }
   }
 
   detached(): void {
+    // FIX: Unsubscribe from visible range changes
+    if (this._visibleRangeHandler && this._chart) {
+      try { this._chart.timeScale().unsubscribeVisibleLogicalRangeChange(this._visibleRangeHandler); } catch { /* ignore */ }
+      this._visibleRangeHandler = null;
+    }
     this._chart = null;
     this._series = null;
     this._requestUpdate = null;
@@ -1086,6 +1120,9 @@ export class DrawingRenderer {
   private dragOriginalPoints: DrawingPoint[] = [];
   private dragStartChartPoint: DrawingPoint | null = null;
   private dragPointIndex: number = -1;
+
+  /** Current timeframe for scope filtering */
+  private currentTimeframe: string = '';
 
   private boundMouseDown: (e: MouseEvent) => void;
   private boundMouseMove: (e: MouseEvent) => void;
@@ -1187,13 +1224,26 @@ export class DrawingRenderer {
     this.syncPrimitive();
   }
 
+  /** Set the current timeframe — used for scope filtering (single-tf vs all-tf) */
+  setTimeframe(tf: string): void {
+    if (this.currentTimeframe === tf) return;
+    this.currentTimeframe = tf;
+    this.syncPrimitive();
+  }
+
   // ══════════════════════════════════════════════════════════
   //  PRIMITIVE SYNC — Pushes all data to the series primitive
   // ══════════════════════════════════════════════════════════
 
   private syncPrimitive(): void {
     if (!this.primitive) return;
-    this.primitive.setDrawings(this.drawingManager.getAll());
+    // Filter drawings by scope: show 'all-tf' drawings on all timeframes,
+    // and 'single-tf' drawings only on their original timeframe
+    const allDrawings = this.drawingManager.getAll();
+    const visibleDrawings = allDrawings.filter(d =>
+      d.scope === 'all-tf' || d.timeframe === this.currentTimeframe
+    );
+    this.primitive.setDrawings(visibleDrawings);
     this.primitive.setPreview(
       this.isDrawing && this.clickedPoints.length > 0
         ? { points: this.clickedPoints, mousePixel: this.mousePixel, tool: this.currentTool }
@@ -1330,6 +1380,8 @@ export class DrawingRenderer {
       const x = e.clientX - rect.left, y = e.clientY - rect.top;
 
       for (const drawing of this.drawingManager.getAll()) {
+        // Skip drawings hidden on this timeframe
+        if (drawing.scope === 'single-tf' && drawing.timeframe !== this.currentTimeframe) continue;
         if (drawing.type === 'horizontal') {
           const pp = this.chartPointToPixel(drawing.points[0]);
           if (pp && Math.abs(y - pp.y) < DrawingRenderer.PROXIMITY_THRESHOLD) { this.startDrag(drawing, e); this.container.style.cursor = 'ns-resize'; return; }
@@ -1401,6 +1453,8 @@ export class DrawingRenderer {
       const x = e.clientX - rect.left, y = e.clientY - rect.top;
       let near = false;
       for (const drawing of this.drawingManager.getAll()) {
+        // Skip drawings hidden on this timeframe
+        if (drawing.scope === 'single-tf' && drawing.timeframe !== this.currentTimeframe) continue;
         if (drawing.type === 'horizontal') { const pp = this.chartPointToPixel(drawing.points[0]); if (pp && Math.abs(y - pp.y) < DrawingRenderer.PROXIMITY_THRESHOLD) { near = true; break; } }
         else if (drawing.type === 'vertical') { const pp = this.chartPointToPixel(drawing.points[0]); if (pp && Math.abs(x - pp.x) < DrawingRenderer.PROXIMITY_THRESHOLD) { near = true; break; } }
         else {
@@ -1476,9 +1530,11 @@ export class DrawingRenderer {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    // Find which drawing was clicked
+    // Find which drawing was clicked (only visible drawings matching scope filter)
     let hitDrawing: Drawing | null = null;
     for (const drawing of this.drawingManager.getAll()) {
+      // Skip drawings that are hidden on this timeframe
+      if (drawing.scope === 'single-tf' && drawing.timeframe !== this.currentTimeframe) continue;
       if (this.isPointNearDrawing(x, y, drawing)) {
         hitDrawing = drawing;
         break;
@@ -1650,6 +1706,38 @@ export class DrawingRenderer {
     opacityRow.appendChild(opacitySlider);
     opacityRow.appendChild(opacityLabel);
     menu.appendChild(opacityRow);
+
+    // ── Timeframe Scope Section ──
+    this.addMenuSection(menu, 'Visibility');
+    const scopeRow = document.createElement('div');
+    scopeRow.style.cssText = 'display:flex;gap:4px;padding:4px 10px;';
+    const scopeOptions: Array<{ value: Drawing['scope']; label: string; desc: string }> = [
+      { value: 'all-tf', label: 'All TF', desc: 'Visible on all timeframes' },
+      { value: 'single-tf', label: 'This TF', desc: `Only on ${this.currentTimeframe || 'current'}` },
+    ];
+    for (const so of scopeOptions) {
+      const btn = document.createElement('div');
+      btn.style.cssText = `
+        display:flex;flex-direction:column;align-items:center;justify-content:center;
+        flex:1;padding:5px 4px;border-radius:4px;cursor:pointer;
+        background:${drawing.scope === so.value ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.05)'};
+        border:1px solid ${drawing.scope === so.value ? 'rgba(0,212,255,0.4)' : 'rgba(255,255,255,0.08)'};
+        transition:background 0.15s;
+      `;
+      const lbl = document.createElement('span');
+      lbl.textContent = so.label;
+      lbl.style.cssText = 'font-size:10px;font-weight:600;color:#e0e0e0;';
+      const desc = document.createElement('span');
+      desc.textContent = so.desc;
+      desc.style.cssText = 'font-size:8px;color:#888;margin-top:1px;';
+      btn.appendChild(lbl);
+      btn.appendChild(desc);
+      btn.addEventListener('click', () => this.updateDrawingProperty('scope', so.value));
+      btn.addEventListener('mouseenter', () => { btn.style.background = 'rgba(0,212,255,0.1)'; });
+      btn.addEventListener('mouseleave', () => { btn.style.background = drawing.scope === so.value ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.05)'; });
+      scopeRow.appendChild(btn);
+    }
+    menu.appendChild(scopeRow);
 
     // ── Divider ──
     const divider = document.createElement('div');

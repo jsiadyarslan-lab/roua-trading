@@ -30,7 +30,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     const isDev = process.env.NODE_ENV !== 'production';
 
     // FIX v13: Add connection_limit via URL params.
-    // V228 FIX: Changed from connection_limit=1 to connection_limit=2.
+    // V229 FIX: Changed from connection_limit=2 to connection_limit=3.
     //
     // ROOT CAUSE of 500 errors: The V222 Agent Protection extension's
     // update/updateMany handlers call _basePositionFindUnique() to read
@@ -45,23 +45,26 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     //   5. _basePositionFindUnique() waits for a connection → DEADLOCK
     //   6. Transaction times out → 500 Internal Server Error
     //
-    // This deadlock was HIDDEN because V222 had 4 bugs (result not saved,
-    // so extension was never applied). Once V227 fixed all 4 bugs, the
-    // extension became active for the first time and the deadlock appeared.
+    // V228 increased to 2, but under concurrent load with multiple
+    // simultaneous requests (e.g., getOpenPositions + position monitor +
+    // user close attempt), 2 connections can STILL deadlock:
+    //   1. Request A: $transaction() → acquires conn1
+    //   2. Request B: setRlsUserId() → acquires conn2
+    //   3. Request A: V222 extension needs read → no connections available → timeout
     //
-    // connection_limit=2 prevents the deadlock: the V222 extension's read
-    // can use the second connection while the transaction holds the first.
-    // Total connections: 2 per PrismaClient = well within Railway's limits.
+    // connection_limit=3 prevents this: even with 2 connections busy,
+    // the V222 extension's read can use the third.
+    // Total connections: 3 per PrismaClient = well within Railway's limits.
     const dbUrl = (() => {
       try {
         const u = new URL(process.env.DATABASE_URL || '');
-        u.searchParams.set('connection_limit', '2');
+        u.searchParams.set('connection_limit', '3');
         u.searchParams.set('pool_timeout', '10');
         return u.toString();
       } catch {
         const base = process.env.DATABASE_URL || '';
         const sep = base.includes('?') ? '&' : '?';
-        return `${base}${sep}connection_limit=2&pool_timeout=10`;
+        return `${base}${sep}connection_limit=3&pool_timeout=10`;
       }
     })();
     PrismaService._dbUrlPrefix = dbUrl.substring(0, 30) + '...';
@@ -123,6 +126,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       // an Agent position held < 48h (and closeReason is NOT SL/TP), we BLOCK it.
       this._applyAgentProtectionExtension();
     }
+
+    // V229: Log whether extension was applied — critical for diagnostics
+    this.logger.log(
+      `📦 PrismaService initialized: connected=${connected}, ` +
+      `extension=${this._extendedClient ? 'ACTIVE' : 'NOT_APPLIED'}, ` +
+      `connection_limit=3`
+    );
   }
 
   /**
@@ -166,28 +176,28 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     const basePositionDelegate = this.position;
     this._basePositionFindUnique = basePositionDelegate.findUnique.bind(basePositionDelegate);
 
-    // V228: Safe read helper with timeout to prevent deadlocks.
-    // If _basePositionFindUnique() takes longer than 3 seconds (e.g., connection
+    // V229: Safe read helper with timeout to prevent deadlocks.
+    // If _basePositionFindUnique() takes longer than 1 second (e.g., connection
     // pool exhausted), we PASS THROUGH the update instead of blocking.
-    // This is safe because:
-    //   1. V214 in TradingService.closePosition() provides primary protection
-    //   2. The timeout only fires during connection pool exhaustion (rare)
-    //   3. Passing through is always safer than deadlocking the entire API
+    // V229: Reduced from 3s to 1s — a 3s timeout on every position.update()
+    // that sets status=CLOSED adds unacceptable latency for trading operations.
+    // If we can't read the position in 1s, the DB is overloaded and we should
+    // pass through (V214 in TradingService provides primary protection).
     const safeReadPosition = async (positionId: string): Promise<any | null> => {
-      const READ_TIMEOUT_MS = 3000;
+      const READ_TIMEOUT_MS = 1000;
       try {
         const result = await Promise.race([
           self._basePositionFindUnique({ where: { id: positionId } }),
           new Promise<null>((resolve) =>
             setTimeout(() => {
-              logger.warn(`V228: Position read for ${positionId} timed out after ${READ_TIMEOUT_MS}ms — passing through (V214 provides primary protection)`);
+              logger.warn(`V229: Position read for ${positionId} timed out after ${READ_TIMEOUT_MS}ms — passing through (V214 provides primary protection)`);
               resolve(null);
             }, READ_TIMEOUT_MS)
           ),
         ]);
         return result;
       } catch (readErr: any) {
-        logger.warn(`V228: Could not read position ${positionId} for protection check: ${readErr.message} — passing through`);
+        logger.warn(`V229: Could not read position ${positionId} for protection check: ${readErr.message} — passing through`);
         return null;
       }
     };
@@ -202,88 +212,91 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         name: 'V222_AgentProtection',
         query: {
           position: {
+            // V229: Wrapped in try-catch — if the extension handler throws
+            // for ANY reason (unexpected data, Prisma internal error, etc.),
+            // we MUST pass through the query instead of causing a 500 error.
+            // The V214 code-level protection in TradingService is the primary
+            // defense. The V222 DB-level extension is a secondary safety net.
+            // A broken safety net should NEVER crash the entire trading API.
             async update({ args, query }) {
-              const data = args.data as any;
-              const newStatus = typeof data?.status === 'string' ? data.status : data?.status?.set;
-              if (newStatus === 'CLOSED') {
-                const where = args.where as any;
-                const positionId = where?.id;
+              try {
+                const data = args.data as any;
+                const newStatus = typeof data?.status === 'string' ? data.status : data?.status?.set;
+                if (newStatus === 'CLOSED') {
+                  const where = args.where as any;
+                  const positionId = where?.id;
 
-                if (positionId) {
-                  // V228: Use safeReadPosition with timeout instead of raw _basePositionFindUnique
-                  const current = await safeReadPosition(positionId);
+                  if (positionId) {
+                    const current = await safeReadPosition(positionId);
 
-                  if (current && current.source === 'agent' && current.openedAt) {
-                    const holdingMs = Date.now() - new Date(current.openedAt).getTime();
-                    const closeReason = String(data.closeReason || data.closeReason?.set || '').toUpperCase();
-                    const isSLTP = closeReason.includes('STOP_LOSS') || closeReason.includes('TAKE_PROFIT');
-                    // V227: USER-initiated closes ALWAYS pass through — traders must be
-                    // able to close their own positions at any time. Only block SYSTEM closes.
-                    const isUserClose = closeReason.includes('USER');
+                    if (current && current.source === 'agent' && current.openedAt) {
+                      const holdingMs = Date.now() - new Date(current.openedAt).getTime();
+                      const closeReason = String(data.closeReason || data.closeReason?.set || '').toUpperCase();
+                      const isSLTP = closeReason.includes('STOP_LOSS') || closeReason.includes('TAKE_PROFIT');
+                      const isUserClose = closeReason.includes('USER');
 
-                    if (holdingMs < AGENT_MIN_HOLDING_MS && !isSLTP && !isUserClose) {
-                      logger.error(
-                        `🚨 V222 DB-LEVEL BLOCK: Agent position ${positionId} (${current.symbol}) ` +
-                        `attempted close at ${(holdingMs / H).toFixed(1)}h (< ${AGENT_MIN_HOLDING_HOURS}h). ` +
-                        `closeReason="${closeReason || 'EMPTY'}". ` +
-                        `BLOCKED at Prisma level — position stays OPEN.`
-                      );
-                      // Return the current position without closing it
-                      return current;
+                      if (holdingMs < AGENT_MIN_HOLDING_MS && !isSLTP && !isUserClose) {
+                        logger.error(
+                          `🚨 V222 DB-LEVEL BLOCK: Agent position ${positionId} (${current.symbol}) ` +
+                          `attempted close at ${(holdingMs / H).toFixed(1)}h (< ${AGENT_MIN_HOLDING_HOURS}h). ` +
+                          `closeReason="${closeReason || 'EMPTY'}". ` +
+                          `BLOCKED at Prisma level — position stays OPEN.`
+                        );
+                        return current;
+                      }
                     }
                   }
-                  // V228: If current is null (read timed out or failed), PASS THROUGH.
-                  // V214 in TradingService provides primary protection — don't deadlock.
                 }
+              } catch (handlerErr: any) {
+                // V229: NEVER let the extension handler crash the API.
+                // Log the error and pass through — V214 provides primary protection.
+                logger.error(
+                  `V229: V222 update handler ERROR (passing through): ${handlerErr?.message}. ` +
+                  `This is non-fatal — V214 code-level protection still guards Agent positions.`
+                );
               }
               return query(args);
             },
-            // FIX 3: updateMany now BLOCKS Agent closes < 48h (same as update).
-            //
-            // Previously, updateMany only LOGGED a warning but still executed
-            // the close. This was the CRITICAL GAP because closePosition()
-            // uses tx.position.updateMany() in its main transaction path
-            // (trading.service.ts line ~1181). Every Agent position close
-            // went through this loophole.
             async updateMany({ args, query }) {
-              const data = args.data as any;
-              const newStatus = typeof data?.status === 'string' ? data.status : data?.status?.set;
+              try {
+                const data = args.data as any;
+                const newStatus = typeof data?.status === 'string' ? data.status : data?.status?.set;
 
-              if (newStatus === 'CLOSED') {
-                const where = args.where as any;
+                if (newStatus === 'CLOSED') {
+                  const where = args.where as any;
 
-                // If where.id is specified, check the individual position
-                if (where?.id) {
-                  // V228: Use safeReadPosition with timeout
-                  const current = await safeReadPosition(where.id);
+                  if (where?.id) {
+                    const current = await safeReadPosition(where.id);
 
-                  if (current && current.source === 'agent' && current.openedAt) {
-                    const holdingMs = Date.now() - new Date(current.openedAt).getTime();
-                    const closeReason = String(data.closeReason || data.closeReason?.set || '').toUpperCase();
-                    const isSLTP = closeReason.includes('STOP_LOSS') || closeReason.includes('TAKE_PROFIT');
-                    // V227: USER-initiated closes ALWAYS pass through
-                    const isUserClose = closeReason.includes('USER');
+                    if (current && current.source === 'agent' && current.openedAt) {
+                      const holdingMs = Date.now() - new Date(current.openedAt).getTime();
+                      const closeReason = String(data.closeReason || data.closeReason?.set || '').toUpperCase();
+                      const isSLTP = closeReason.includes('STOP_LOSS') || closeReason.includes('TAKE_PROFIT');
+                      const isUserClose = closeReason.includes('USER');
 
-                    if (holdingMs < AGENT_MIN_HOLDING_MS && !isSLTP && !isUserClose) {
-                      logger.error(
-                        `🚨 V222 DB-LEVEL BLOCK (updateMany): Agent position ${where.id} ` +
-                        `attempted close at ${(holdingMs / H).toFixed(1)}h (< ${AGENT_MIN_HOLDING_HOURS}h). ` +
-                        `closeReason="${closeReason || 'EMPTY'}". BLOCKED.`
-                      );
-                      // Return fake result to prevent the close
-                      return { count: 0 };
+                      if (holdingMs < AGENT_MIN_HOLDING_MS && !isSLTP && !isUserClose) {
+                        logger.error(
+                          `🚨 V222 DB-LEVEL BLOCK (updateMany): Agent position ${where.id} ` +
+                          `attempted close at ${(holdingMs / H).toFixed(1)}h (< ${AGENT_MIN_HOLDING_HOURS}h). ` +
+                          `closeReason="${closeReason || 'EMPTY'}". BLOCKED.`
+                        );
+                        return { count: 0 };
+                      }
                     }
+                  } else {
+                    logger.error(
+                      `🚨 V222 CRITICAL: updateMany status=CLOSED without specific ID — ` +
+                      `CANNOT verify Agent protection! where=${JSON.stringify(where)} ` +
+                      `closeReason=${JSON.stringify(data.closeReason)}`
+                    );
                   }
-                  // V228: If current is null (read timed out), PASS THROUGH
-                } else {
-                  // Batch updateMany without specific ID — cannot verify individual
-                  // positions. Log loudly because this MAY close Agent positions.
-                  logger.error(
-                    `🚨 V222 CRITICAL: updateMany status=CLOSED without specific ID — ` +
-                    `CANNOT verify Agent protection! where=${JSON.stringify(where)} ` +
-                    `closeReason=${JSON.stringify(data.closeReason)}`
-                  );
                 }
+              } catch (handlerErr: any) {
+                // V229: NEVER let the extension handler crash the API.
+                logger.error(
+                  `V229: V222 updateMany handler ERROR (passing through): ${handlerErr?.message}. ` +
+                  `This is non-fatal — V214 code-level protection still guards Agent positions.`
+                );
               }
               return query(args);
             },
@@ -408,6 +421,44 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       },
     ];
 
+    // V229: Auto-create tables that may be missing. If `prisma migrate deploy`
+    // was skipped, entire tables might not exist, causing "relation does not exist"
+    // errors that crash entire modules (e.g., RiskEventAuditService → TradingModule).
+    const tableMigrations: { table: string; sql: string }[] = [
+      {
+        table: 'RiskEvent',
+        sql: `CREATE TABLE IF NOT EXISTS "RiskEvent" (
+          "id" TEXT NOT NULL,
+          "userId" TEXT NOT NULL,
+          "eventType" TEXT NOT NULL,
+          "severity" TEXT NOT NULL DEFAULT 'info',
+          "message" TEXT,
+          "metadata" TEXT,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "RiskEvent_pkey" PRIMARY KEY ("id")
+        )`,
+      },
+    ];
+
+    for (const migration of tableMigrations) {
+      try {
+        await this.$executeRawUnsafe(migration.sql);
+        this.logger.log(`📦 Auto-migration: Table ${migration.table} created or already exists ✅`);
+      } catch (error: any) {
+        this.logger.warn(`📦 Auto-migration: Table ${migration.table} creation failed: ${error?.message?.substring(0, 200)}`);
+      }
+    }
+
+    // V229: Create indexes for RiskEvent if they don't exist
+    try {
+      await this.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "RiskEvent_userId_idx" ON "RiskEvent"("userId")`);
+      await this.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "RiskEvent_createdAt_idx" ON "RiskEvent"("createdAt")`);
+      await this.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "RiskEvent_userId_createdAt_idx" ON "RiskEvent"("userId", "createdAt")`);
+      this.logger.log(`📦 Auto-migration: RiskEvent indexes created ✅`);
+    } catch (err: any) {
+      this.logger.warn(`📦 Auto-migration: RiskEvent indexes failed: ${err?.message?.substring(0, 200)}`);
+    }
+
     for (const migration of migrations) {
       try {
         await this.$executeRawUnsafe(migration.sql);
@@ -515,6 +566,20 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       const connected = await this.tryConnect();
       if (!connected) {
         this.scheduleReconnect();
+      } else {
+        // V229: Apply V222 extension on reconnection if it wasn't applied at startup.
+        // If the initial connection timed out (15s), _applyAgentProtectionExtension()
+        // was never called. Now that we're connected, apply it + run auto-migrations.
+        if (!this._extendedClient) {
+          this.logger.log(`📦 V229: Reconnected — applying auto-migrations and V222 extension now`);
+          try {
+            await this.autoMigrateMissingColumns();
+            this._applyAgentProtectionExtension();
+            this.logger.log(`📦 V229: Auto-migrations and V222 extension applied on reconnection ✅`);
+          } catch (reconnectErr: any) {
+            this.logger.warn(`📦 V229: Auto-migrations/extension failed on reconnection: ${reconnectErr?.message?.substring(0, 200)}`);
+          }
+        }
       }
     }, delay);
   }

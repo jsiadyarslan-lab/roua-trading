@@ -84,10 +84,26 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   const reconnectAttemptsRef = useRef(0);
   const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isClosingRef = useRef(false);
+  // PERF (3.7): AbortController for all REST fetches — enables proper cancellation
+  // when the component unmounts or symbol/timeframe changes mid-flight.
+  // Without this, orphaned fetch handlers could update state after unmount.
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [connectionState, setConnectionState] = useState<'connecting' | 'connected' | 'disconnected' | 'fallback'>('disconnected');
   // PERF: rAF batching buffer for WebSocket messages
   const rafBufferRef = useRef<WSBuffer>({ candle: null, price: null, isKlineClosed: false });
   const rafIdRef = useRef<number>(0);
+  // PERF (3.8): Heartbeat timeout detection — if no WS message received within
+  // HEARTBEAT_TIMEOUT_MS, assume the connection is stale and force reconnect.
+  // This catches "zombie connections" where the WS appears open but the server
+  // stopped sending data (e.g., network route changed, proxy dropped silently).
+  const lastMessageTimeRef = useRef<number>(0);
+  const heartbeatCheckRef = useRef<NodeJS.Timeout | null>(null);
+  const HEARTBEAT_TIMEOUT_MS = 30_000; // 30 seconds — if no message, reconnect
+  // PERF (3.9): Data backfill after reconnection — fetch the latest candle
+  // immediately after reconnecting to fill any gap during the disconnection period.
+  // Without this, the chart shows a gap between the last pre-disconnect candle
+  // and the first post-reconnect WS update.
+  const needsBackfillRef = useRef(false);
   // FIX: 24-hour connection rotation — Binance disconnects after 24h.
   // We proactively reconnect 10 minutes before the 24h mark.
   const connectionStartTimeRef = useRef<number>(0);
@@ -130,6 +146,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   // Buffer a WS update — coalesces multiple updates per frame
   const bufferUpdate = useCallback((candle: CandleData | null, price: number | null, isKlineClosed: boolean = false) => {
     if (isClosingRef.current) return;
+    lastMessageTimeRef.current = Date.now();  // PERF (3.8): Track last message time for heartbeat
     const buf = rafBufferRef.current;
     if (candle) {
       buf.candle = candle; // Latest candle wins (coalesce)
@@ -146,6 +163,12 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   // ── Cleanup ────────────────────────────────────────────
   const cleanup = useCallback(() => {
     isClosingRef.current = true;
+
+    // PERF (3.7): Abort any in-flight REST fetches
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
 
     // Cancel rAF buffer
     if (rafIdRef.current !== 0) {
@@ -164,6 +187,12 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     if (pingIntervalRef.current) {
       clearInterval(pingIntervalRef.current);
       pingIntervalRef.current = null;
+    }
+
+    // PERF (3.8): Clear heartbeat timeout check
+    if (heartbeatCheckRef.current) {
+      clearInterval(heartbeatCheckRef.current);
+      heartbeatCheckRef.current = null;
     }
 
     // Disconnect Socket.IO
@@ -206,6 +235,11 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   const fetchLatestCandle = useCallback(async () => {
     if (!symbol) return;
 
+    // PERF (3.7): Create a new AbortController for each fetch cycle.
+    // Previous controller (if any) is aborted in cleanup or connect().
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       // FIX: Route through backend ExchangeGateway REST API first
       // This ensures data consistency with the rest of the platform
@@ -213,6 +247,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
       const res = await fetch(`${apiBase}/api/exchange/quote/${encodeURIComponent(symbol)}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,  // PERF (3.7): Abortable
       });
 
       if (res.ok) {
@@ -257,7 +292,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
         const interval = BINANCE_INTERVALS[timeframe] || '1m';
         const url = `${BINANCE_URLS.rest}/klines?symbol=${binanceSymbol.toUpperCase()}&interval=${interval}&limit=2`;
 
-        const binanceRes = await fetch(url);
+        const binanceRes = await fetch(url, { signal: controller.signal });  // PERF (3.7): Abortable
         if (!binanceRes.ok) return;
 
         const data = await binanceRes.json();
@@ -275,7 +310,9 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           onPriceUpdateRef.current(candle.close);
         }
       }
-    } catch {
+    } catch (err: any) {
+      // PERF (3.7): Don't log aborted requests as errors
+      if (err?.name === 'AbortError') return;
       // Silent fail — will retry
     }
   }, [symbol, timeframe]); // BUG #5 FIX: Removed onCandleUpdate/onPriceUpdate deps — now using refs
@@ -315,6 +352,27 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
       ws.onopen = () => {
         setConnectionState('connected');
         reconnectAttemptsRef.current = 0;
+        lastMessageTimeRef.current = Date.now();  // PERF (3.8): Initialize heartbeat timer
+
+        // PERF (3.8): Start heartbeat timeout check — if no message received
+        // within HEARTBEAT_TIMEOUT_MS, the connection is stale → force reconnect
+        if (heartbeatCheckRef.current) clearInterval(heartbeatCheckRef.current);
+        heartbeatCheckRef.current = setInterval(() => {
+          if (isClosingRef.current) return;
+          const elapsed = Date.now() - lastMessageTimeRef.current;
+          if (elapsed > HEARTBEAT_TIMEOUT_MS && wsRef.current) {
+            console.warn('[useChartWebSocket] Heartbeat timeout — no data for', elapsed, 'ms, reconnecting...');
+            try { wsRef.current.close(); } catch {}
+            wsRef.current = null;
+          }
+        }, HEARTBEAT_TIMEOUT_MS / 2);  // Check every 15s for 30s timeout
+
+        // PERF (3.9): Data backfill after reconnection — fetch latest candle
+        // to fill any gap during the disconnection period
+        if (needsBackfillRef.current) {
+          needsBackfillRef.current = false;
+          fetchLatestCandle();  // Fire-and-forget: fills gap immediately
+        }
       };
 
       ws.onmessage = (event) => {
@@ -359,6 +417,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
       ws.onclose = () => {
         setConnectionState('disconnected');
         wsRef.current = null;
+        needsBackfillRef.current = true;  // PERF (3.9): Mark for backfill on next reconnect
 
         if (pingIntervalRef.current) {
           clearInterval(pingIntervalRef.current);

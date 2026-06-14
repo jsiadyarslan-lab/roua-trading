@@ -15,6 +15,8 @@ export interface IncrementalState {
   atr: number;
   atrPeriod: number;
   trueRanges: number[];  // Circular buffer for ATR calc
+  // PERF (3.6): Running sum for ATR to avoid slice/reduce on every tick
+  trueRangeSum: number;
 
   // Running pivot tracking
   lastPivots: SwingPoint[];
@@ -26,6 +28,9 @@ export interface IncrementalState {
   avgVolume: number;
   volumeSum: number;
   volumeHistory: number[];  // V225 FIX: Rolling window for volume average
+  // PERF (3.5): Ring buffer indices for volumeHistory (replaces Array.shift())
+  volumeRingHead: number;   // Next write position
+  volumeRingCount: number;  // Number of filled slots (≤ volumeHistory.length)
   candleCount: number;
 
   // Running EMA for quick trend detection
@@ -49,6 +54,7 @@ export function createIncrementalState(): IncrementalState {
     atr: 0,
     atrPeriod: 14,
     trueRanges: [],
+    trueRangeSum: 0,
     lastPivots: [],
     pivotBuffer: [],
     highestHigh: 0,
@@ -56,6 +62,8 @@ export function createIncrementalState(): IncrementalState {
     avgVolume: 0,
     volumeSum: 0,
     volumeHistory: [],  // V225 FIX
+    volumeRingHead: 0,   // PERF (3.5)
+    volumeRingCount: 0,  // PERF (3.5)
     candleCount: 0,
     ema9: 0,
     ema20: 0,
@@ -90,9 +98,27 @@ export function initializeState(
   // Initial stats
   state.highestHigh = safeMax(candles.slice(-100).map(c => c.high));
   state.lowestLow = safeMin(candles.slice(-100).map(c => c.low));
-  state.volumeSum = candles.slice(-50).reduce((s, c) => s + c.volume, 0);
-  state.volumeHistory = candles.slice(-50).map(c => c.volume);  // V225 FIX
-  state.avgVolume = state.volumeSum / state.volumeHistory.length;
+  const last50 = candles.slice(-50);
+  state.volumeHistory = new Array(50).fill(0);
+  for (let i = 0; i < last50.length; i++) {
+    state.volumeHistory[i] = last50[i].volume;
+  }
+  state.volumeRingHead = last50.length % 50;  // PERF (3.5): Ring buffer head
+  state.volumeRingCount = last50.length;        // PERF (3.5): Filled count
+  state.volumeSum = last50.reduce((s, c) => s + c.volume, 0);
+  state.avgVolume = state.volumeSum / last50.length;
+  // PERF (3.6): Initialize ATR running sum from the last atrPeriod true ranges
+  state.trueRanges = [];
+  state.trueRangeSum = 0;
+  for (let i = Math.max(1, candles.length - state.atrPeriod); i < candles.length; i++) {
+    const tr = Math.max(
+      candles[i].high - candles[i].low,
+      Math.abs(candles[i].high - candles[i - 1].close),
+      Math.abs(candles[i].low - candles[i - 1].close)
+    );
+    state.trueRanges.push(tr);
+    state.trueRangeSum += tr;
+  }
   state.candleCount = candles.length;
   state.lastCandleTime = candles[candles.length - 1].time;
   state.lastCandleCount = candles.length;
@@ -112,7 +138,10 @@ export function updateIncremental(
   state.candleCount++;
   state.lastCandleTime = newCandle.time;
 
-  // ── ATR: Incremental True Range ──
+  // ── ATR: Incremental True Range with running sum ──
+  // PERF (3.6): Maintain running sum instead of slice/reduce on every tick.
+  // Old: state.trueRanges.slice(-state.atrPeriod).reduce((s,v) => s+v, 0) / period
+  // That's O(n) per tick. New: O(1) with running sum — add new, subtract evicted.
   if (prevCandle) {
     const tr = Math.max(
       newCandle.high - newCandle.low,
@@ -120,12 +149,14 @@ export function updateIncremental(
       Math.abs(newCandle.low - prevCandle.close)
     );
     state.trueRanges.push(tr);
+    state.trueRangeSum += tr;
     if (state.trueRanges.length > state.atrPeriod) {
-      state.trueRanges.shift();
+      const evicted = state.trueRanges.shift()!;
+      state.trueRangeSum -= evicted;
     }
-    // Recalculate ATR from buffer
+    // ATR from running sum — O(1)
     if (state.trueRanges.length >= state.atrPeriod) {
-      state.atr = state.trueRanges.slice(-state.atrPeriod).reduce((s, v) => s + v, 0) / state.atrPeriod;
+      state.atr = state.trueRangeSum / state.atrPeriod;
     }
   }
 
@@ -143,16 +174,27 @@ export function updateIncremental(
   // ── Running stats ──
   if (newCandle.high > state.highestHigh) state.highestHigh = newCandle.high;
   if (newCandle.low < state.lowestLow) state.lowestLow = newCandle.low;
-  // V225 FIX: Rolling volume average — maintain a window of the last 50 candles.
-  // The old code accumulated volumeSum FOREVER but divided by min(50, candleCount).
-  // After 1000 candles, volumeSum had 1000 candles of volume but divided by 50,
-  // making avgVolume ~20x too high. Now we use a fixed-size rolling window.
-  state.volumeSum += newCandle.volume;
-  if (state.volumeHistory.length >= 50) {
-    state.volumeSum -= state.volumeHistory.shift()!;
+  // PERF (3.5): Ring buffer for volume average — replaces Array.shift() which is O(n).
+  // Old: volumeHistory.shift() copies all remaining elements on every tick.
+  // New: Overwrite at ring head position, O(1) with no copy.
+  const VOLUME_RING_SIZE = 50;
+  // Ensure the ring buffer is allocated
+  if (state.volumeHistory.length < VOLUME_RING_SIZE) {
+    state.volumeHistory = new Array(VOLUME_RING_SIZE).fill(0);
+    state.volumeRingHead = 0;
+    state.volumeRingCount = 0;
   }
-  state.volumeHistory.push(newCandle.volume);
-  state.avgVolume = state.volumeSum / state.volumeHistory.length;
+  // If ring is full, subtract the value we're about to overwrite
+  if (state.volumeRingCount >= VOLUME_RING_SIZE) {
+    state.volumeSum -= state.volumeHistory[state.volumeRingHead];
+  } else {
+    state.volumeRingCount++;
+  }
+  // Write at the head position and advance
+  state.volumeHistory[state.volumeRingHead] = newCandle.volume;
+  state.volumeSum += newCandle.volume;
+  state.volumeRingHead = (state.volumeRingHead + 1) % VOLUME_RING_SIZE;
+  state.avgVolume = state.volumeSum / state.volumeRingCount;
 
   // ── Quick pivot check ──
   // Track potential new swing points without full ZigZag recalc

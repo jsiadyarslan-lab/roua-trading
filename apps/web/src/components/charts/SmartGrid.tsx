@@ -20,28 +20,44 @@ import type { CandleData, ActiveIndicator } from '@/lib/charts/types';
 import { INDICATOR_CONFIGS } from '@/lib/charts/types';
 import { calculateIndicator } from '@/lib/charts/IndicatorCalculator';
 
-// ── Request Queue — limits concurrent fetches to prevent ERR_NETWORK_CHANGED ──
+// ── Request Queue — limits concurrent fetches + deduplicates by URL ──
+// PERF (3.10): Added dedup — if the same URL is already in the queue or
+// currently being fetched, skip the duplicate request. This prevents
+// multiple SmartGrid cells from fetching the same symbol+timeframe
+// simultaneously (e.g., two cells showing BTC/USD 1h).
 class RequestQueue {
-  private queue: Array<() => Promise<void>> = [];
+  private queue: Array<{ task: () => Promise<void>; url: string }> = [];
   private running = 0;
   private maxConcurrency: number;
+  private inFlight: Set<string> = new Set();     // PERF (3.10): URLs currently being fetched
+  private queued: Set<string> = new Set();        // PERF (3.10): URLs waiting in queue
 
   constructor(maxConcurrency = 2) {
     this.maxConcurrency = maxConcurrency;
   }
 
-  push(task: () => Promise<void>) {
-    this.queue.push(task);
+  push(task: () => Promise<void>, url?: string) {
+    // PERF (3.10): Skip if this URL is already in-flight or queued
+    if (url) {
+      if (this.inFlight.has(url) || this.queued.has(url)) return;
+      this.queued.add(url);
+    }
+    this.queue.push({ task, url: url || '' });
     this.runNext();
   }
 
   private runNext() {
     if (this.running >= this.maxConcurrency || this.queue.length === 0) return;
     this.running++;
-    const task = this.queue.shift()!;
+    const { task, url } = this.queue.shift()!;
+    if (url) {
+      this.queued.delete(url);
+      this.inFlight.add(url);
+    }
     task()
       .catch(() => {})
       .finally(() => {
+        if (url) this.inFlight.delete(url);
         this.running--;
         this.runNext();
       });
@@ -918,6 +934,7 @@ export function SmartGrid({
       console.log('[SmartGrid] Fetching:', url);
 
       // Use request queue to limit concurrent fetches and prevent network flood
+      // PERF (3.10): Pass URL for dedup — skip if same URL is already in-flight
       const res = await new Promise<Response>((resolve, reject) => {
         fetchQueue.push(async () => {
           try {
@@ -935,7 +952,7 @@ export function SmartGrid({
           } catch (err) {
             reject(err);
           }
-        });
+        }, url);  // PERF (3.10): Pass URL for dedup
       });
       const j = await res.json();
       console.log('[SmartGrid] Response for', cell.symbol, cell.timeframe, ':', j.success, j.data?.length, 'candles, source:', j.source || j.data?.[0]?.source);

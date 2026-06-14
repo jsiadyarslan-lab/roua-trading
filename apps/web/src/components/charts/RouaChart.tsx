@@ -44,6 +44,7 @@ const SmartGrid = dynamic(() => import('./SmartGrid').then(m => ({ default: m.Sm
 import { LAYOUT_METAS, type LayoutConfig, getAllChartInstances, getAllMainSeries, getChartControl, getAllChartControls, registerChartInstance, unregisterChartInstance, registerChartControl, unregisterChartControl, type ChartControlAPI, type CellChartState } from '@/hooks/multi-chart-registry';
 import { useMultiChartStore, getActiveChartControl } from '@/hooks/useMultiChartStore';
 import { useChartSync } from '@/hooks/useChartSync';
+import { usePanelState, type PanelStateAPI } from '@/hooks/usePanelState';
 import ShareChart from './ShareChart';
 import { FootprintChart } from './FootprintChart';
 import { AlertPanel } from './AlertPanel';
@@ -418,63 +419,76 @@ export default function RouaChart({
   const feedStateRef = useRef(feedState);
   useEffect(() => { feedStateRef.current = feedState; }, [feedState]);
   const [candleCountdown, setCandleCountdown] = useState('—');
-  const [lotSize, setLotSize] = useState(0.01);
-  const [tradePanelCollapsed, setTradePanelCollapsed] = useState(false);
-  const [showDrawingPanel, setShowDrawingPanel] = useState(false);
-  const [showIndicatorPanel, setShowIndicatorPanel] = useState(false);
-  const [settingsIndicator, setSettingsIndicator] = useState<ActiveIndicator | null>(null);
-  const [showSettingsPanel, setShowSettingsPanel] = useState(false);
 
-  // ── New Panel States ──
-  const [showVolumeProfile, setShowVolumeProfile] = useState(false);
-  const [showAIPanel, setShowAIPanel] = useState(false);
-  const showAIPanelRef = useRef(showAIPanel);
-  showAIPanelRef.current = showAIPanel; // synchronous: needed by ChartControlAPI getters
-  const showDrawingPanelRef = useRef(showDrawingPanel);
-  showDrawingPanelRef.current = showDrawingPanel;
-  const showIndicatorPanelRef = useRef(showIndicatorPanel);
-  showIndicatorPanelRef.current = showIndicatorPanel;
+  // PERF (3.2): Consolidated panel state — replaces 20+ useState + useRef pairs
+  const panelState = usePanelState();
+  // Destructure for convenient access (keeps existing code working)
+  const { state: ps, panelsRef, toggle: togglePanel, show: showPanel, hide: hidePanel, set: setPanel } = panelState;
+  // Derive individual values for backwards compatibility with existing JSX
+  const lotSize = ps.lotSize;
+  const setLotSize = panelState.setLotSize;
+  const tradePanelCollapsed = ps.tradePanelCollapsed;
+  const setTradePanelCollapsed = panelState.setTradePanelCollapsed;
+  const showDrawingPanel = ps.panels.drawing;
+  const setShowDrawingPanel = (v: boolean) => setPanel('drawing', v);
+  const showIndicatorPanel = ps.panels.indicator;
+  const setShowIndicatorPanel = (v: boolean) => setPanel('indicator', v);
+  const settingsIndicator = ps.settingsIndicator;
+  const setSettingsIndicator = panelState.setSettingsIndicator;
+  const showSettingsPanel = ps.panels.settings;
+  const setShowSettingsPanel = (v: boolean) => setPanel('settings', v);
+  const showVolumeProfile = ps.panels.volumeProfile;
+  const setShowVolumeProfile = (v: boolean) => setPanel('volumeProfile', v);
+  const showAIPanel = ps.panels.aiPanel;
+  const setShowAIPanel = (v: boolean) => setPanel('aiPanel', v);
+  const showAIPanelRef = panelsRef;  // PERF (3.2): Single ref for all panel states
+  const showDrawingPanelRef = panelsRef;
+  const showIndicatorPanelRef = panelsRef;
   const [aiPanelCandles, setAiPanelCandles] = useState<CandleData[]>([]);
-  const [showChartTrading, setShowChartTrading] = useState(false);
-  const [showTemplateManager, setShowTemplateManager] = useState(false);
-  const [showWatchlist, setShowWatchlist] = useState(false);
-  const [showChartSettings, setShowChartSettings] = useState(false);
-  const [showCompare, setShowCompare] = useState(false);
-  const [compareSymbol, setCompareSymbol] = useState('');
-  const [showSmartGrid, setShowSmartGrid] = useState(false);
-  const [showShare, setShowShare] = useState(false);
-  const [showLayoutSelector, setShowLayoutSelector] = useState(false);
-  // ── 5 New Feature States ──
-  const [showFootprint, setShowFootprint] = useState(false);
-  const [showAlerts, setShowAlerts] = useState(false);
-  const [showPatternProgress, setShowPatternProgress] = useState(false);
-  // ── 3 Revolutionary Feature States ──
-  const [showReplay, setShowReplay] = useState(false);
-  const [showHeatmap, setShowHeatmap] = useState(false);
-  const [showAIStream, setShowAIStream] = useState(false);
-  // ── Panel state refs (for ChartControlAPI getters — avoid stale closures) ──
-  const showVolumeProfileRef = useRef(showVolumeProfile);
-  showVolumeProfileRef.current = showVolumeProfile; // synchronous: needed by ChartControlAPI getters
-  const showChartTradingRef = useRef(showChartTrading);
-  showChartTradingRef.current = showChartTrading; // synchronous: needed by ChartControlAPI getters
-  const showWatchlistRef = useRef(showWatchlist);
-  showWatchlistRef.current = showWatchlist; // synchronous: needed by ChartControlAPI getters
-  const showCompareRef = useRef(showCompare);
-  showCompareRef.current = showCompare; // synchronous: needed by ChartControlAPI getters
-  const showFootprintRef = useRef(showFootprint);
-  showFootprintRef.current = showFootprint; // synchronous: needed by ChartControlAPI getters
-  const showAlertsRef = useRef(showAlerts);
-  showAlertsRef.current = showAlerts; // synchronous: needed by ChartControlAPI getters
-  const showPatternProgressRef = useRef(showPatternProgress);
-  showPatternProgressRef.current = showPatternProgress; // synchronous: needed by ChartControlAPI getters
-  const showReplayRef = useRef(showReplay);
-  showReplayRef.current = showReplay; // synchronous: needed by ChartControlAPI getters
-  const showHeatmapRef = useRef(showHeatmap);
-  showHeatmapRef.current = showHeatmap; // synchronous: needed by ChartControlAPI getters
-  const showAIStreamRef = useRef(showAIStream);
-  showAIStreamRef.current = showAIStream; // synchronous: needed by ChartControlAPI getters
-  // ── Quick Trade Panel State ──
-  const [showQuickTrade, setShowQuickTrade] = useState(false);
+  const showChartTrading = ps.panels.chartTrading;
+  const setShowChartTrading = (v: boolean) => setPanel('chartTrading', v);
+  const showTemplateManager = ps.panels.templateManager;
+  const setShowTemplateManager = (v: boolean) => setPanel('templateManager', v);
+  const showWatchlist = ps.panels.watchlist;
+  const setShowWatchlist = (v: boolean) => setPanel('watchlist', v);
+  const showChartSettings = ps.panels.chartSettings;
+  const setShowChartSettings = (v: boolean) => setPanel('chartSettings', v);
+  const showCompare = ps.panels.compare;
+  const setShowCompare = (v: boolean) => setPanel('compare', v);
+  const compareSymbol = ps.compareSymbol;
+  const setCompareSymbol = panelState.setCompareSymbol;
+  const showSmartGrid = ps.panels.smartGrid;
+  const setShowSmartGrid = (v: boolean) => setPanel('smartGrid', v);
+  const showShare = ps.panels.share;
+  const setShowShare = (v: boolean) => setPanel('share', v);
+  const showLayoutSelector = ps.panels.layoutSelector;
+  const setShowLayoutSelector = (v: boolean) => setPanel('layoutSelector', v);
+  const showFootprint = ps.panels.footprint;
+  const setShowFootprint = (v: boolean) => setPanel('footprint', v);
+  const showAlerts = ps.panels.alerts;
+  const setShowAlerts = (v: boolean) => setPanel('alerts', v);
+  const showPatternProgress = ps.panels.patternProgress;
+  const setShowPatternProgress = (v: boolean) => setPanel('patternProgress', v);
+  const showReplay = ps.panels.replay;
+  const setShowReplay = (v: boolean) => setPanel('replay', v);
+  const showHeatmap = ps.panels.heatmap;
+  const setShowHeatmap = (v: boolean) => setPanel('heatmap', v);
+  const showAIStream = ps.panels.aiStream;
+  const setShowAIStream = (v: boolean) => setPanel('aiStream', v);
+  const showQuickTrade = ps.panels.quickTrade;
+  const setShowQuickTrade = (v: boolean) => setPanel('quickTrade', v);
+  // Panel state refs (for ChartControlAPI getters — avoid stale closures)
+  // PERF (3.2): All panel refs now use panelsRef.current[key] instead of individual refs
+  const showVolumeProfileRef = panelsRef;
+  const showChartTradingRef = panelsRef;
+  const showWatchlistRef = panelsRef;
+  const showCompareRef = panelsRef;
+  const showFootprintRef = panelsRef;
+  const showAlertsRef = panelsRef;
+  const showPatternProgressRef = panelsRef;
+  const showReplayRef = panelsRef;
+  const showHeatmapRef = panelsRef;
+  const showAIStreamRef = panelsRef;
   // ── Command Palette (Ctrl+K) ──
   const { isOpen: cmdPaletteOpen, setIsOpen: setCmdPaletteOpen } = useCommandPalette();
   // ── Incremental Calculation State ──
@@ -494,6 +508,26 @@ export default function RouaChart({
   const lastAnalysisResultRef = useRef<any>(null);
 
   const candlesRef = useRef<CandleData[]>([]);
+  // PERF (3.1): Map<time,index> for O(1) candle lookup by time.
+  // Replaces candlesRef.current.findIndex(c => c.time === alignedTime)
+  // which was O(n) on every WebSocket tick (~1 tick/second).
+  // The map is rebuilt whenever candlesRef is reassigned (setData, append, clear).
+  const timeIndexMapRef = useRef<Map<number, number>>(new Map());
+
+  // Rebuild the time→index map from the current candles array
+  const rebuildTimeIndexMap = useCallback(() => {
+    const map = new Map<number, number>();
+    const candles = candlesRef.current;
+    for (let i = 0; i < candles.length; i++) {
+      map.set(candles[i].time, i);
+    }
+    timeIndexMapRef.current = map;
+  }, []);
+
+  // O(1) lookup by time — returns -1 if not found
+  const getCandleIndexByTime = useCallback((time: number): number => {
+    return timeIndexMapRef.current.get(time) ?? -1;
+  }, []);
   const prevPriceRef = useRef(currentPrice);
   const [pricePulse, setPricePulse] = useState(false);
 
@@ -552,6 +586,11 @@ export default function RouaChart({
   // candlesRef.current.length === 0 and all WebSocket updates were dropped.
   const candlesClearedAtRef = useRef(0);
   const CANDLES_CLEAR_TIMEOUT_MS = 10_000; // Allow WebSocket after 10s even if fetch failed
+  // PERF (3.4): Cap candles to prevent unbounded memory growth.
+  // Each candle holds ~100 bytes (OHLCV + time + metadata). At 1000 candles = ~100KB.
+  // Without a cap, a chart left open for days would accumulate 100K+ candles (~10MB+)
+  // causing sluggish rendering and setData() calls on every WS tick.
+  const MAX_VISIBLE_CANDLES = 2000;
   // FIX: Pagination — track whether we're loading older data and whether
   // there's more data to load. When the user scrolls left past the initial
   // 1000 candles, we fetch older data using Binance's startTime parameter.
@@ -570,6 +609,7 @@ export default function RouaChart({
     // Clear RouaChart's candlesRef immediately on timeframe or symbol change
     // to prevent stale WebSocket onCandleUpdate from pushing old data
     candlesRef.current = [];
+    timeIndexMapRef.current.clear(); // PERF (3.1): Clear map when candles are cleared
     candlesClearedAtRef.current = Date.now();
     prevSymbolRef.current = selectedSymbol_;
     // FIX: Reset pagination state on symbol/timeframe change
@@ -607,8 +647,8 @@ export default function RouaChart({
   useEffect(() => {
     if (chartActions) {
       chartActions.current = {
-        toggleIndicators: () => setShowIndicatorPanel(prev => !prev),
-        toggleDrawings: () => setShowDrawingPanel(prev => !prev),
+        toggleIndicators: () => togglePanel('indicator'),
+        toggleDrawings: () => togglePanel('drawing'),
         setTool: chart.setTool,
         zoomIn: chart.zoomIn,
         zoomOut: chart.zoomOut,
@@ -658,22 +698,23 @@ export default function RouaChart({
           removePriceLine: chart.removePriceLine,
           setCrosshairMode: chart.setCrosshairMode,
           // ── Panel toggles — route main toolbar actions to this mini chart ──
-          toggleDrawings: () => { setShowDrawingPanel(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
-          toggleIndicators: () => { setShowIndicatorPanel(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
-          toggleAIPanel: () => { setShowAIPanel(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
-          toggleVolumeProfile: () => { setShowVolumeProfile(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
-          toggleChartTrading: () => { setShowChartTrading(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
-          toggleTemplateManager: () => { setShowTemplateManager(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
-          toggleWatchlist: () => { setShowWatchlist(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
-          toggleChartSettings: () => { setShowChartSettings(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
-          toggleCompare: () => { setShowCompare(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
-          toggleFootprint: () => { setShowFootprint(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
-          toggleAlerts: () => { setShowAlerts(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
-          togglePatternProgress: () => { setShowPatternProgress(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
-          toggleReplay: () => { setShowReplay(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
-          toggleHeatmap: () => { setShowHeatmap(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
-          toggleAIStream: () => { setShowAIStream(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
-          toggleShare: () => { setShowShare(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          // PERF (3.2): Use togglePanel() from usePanelState instead of useState callback
+          toggleDrawings: () => { togglePanel('drawing'); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleIndicators: () => { togglePanel('indicator'); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleAIPanel: () => { togglePanel('aiPanel'); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleVolumeProfile: () => { togglePanel('volumeProfile'); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleChartTrading: () => { togglePanel('chartTrading'); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleTemplateManager: () => { togglePanel('templateManager'); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleWatchlist: () => { togglePanel('watchlist'); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleChartSettings: () => { togglePanel('chartSettings'); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleCompare: () => { togglePanel('compare'); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleFootprint: () => { togglePanel('footprint'); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleAlerts: () => { togglePanel('alerts'); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          togglePatternProgress: () => { togglePanel('patternProgress'); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleReplay: () => { togglePanel('replay'); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleHeatmap: () => { togglePanel('heatmap'); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleAIStream: () => { togglePanel('aiStream'); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleShare: () => { togglePanel('share'); useMultiChartStore.getState().bumpPanelStateVersion(); },
           // ── Symbol control ──
           setSymbol: (symbol: string) => {
             useMultiChartStore.getState().updateChartConfig(chartId, { symbol });
@@ -715,19 +756,19 @@ export default function RouaChart({
             // (this is handled by the templateRestoreFlagRef in useChart)
           },
           // ── Panel state getters (use refs to avoid stale closures) ──
-          get isAIPanelOpen() { return showAIPanelRef.current; },
-          get isVolumeProfileOpen() { return showVolumeProfileRef.current; },
-          get isChartTradingOpen() { return showChartTradingRef.current; },
-          get isWatchlistOpen() { return showWatchlistRef.current; },
-          get isCompareOpen() { return showCompareRef.current; },
-          get isFootprintOpen() { return showFootprintRef.current; },
-          get isAlertsOpen() { return showAlertsRef.current; },
-          get isPatternProgressOpen() { return showPatternProgressRef.current; },
-          get isReplayOpen() { return showReplayRef.current; },
-          get isHeatmapOpen() { return showHeatmapRef.current; },
-          get isAIStreamOpen() { return showAIStreamRef.current; },
-          get isDrawingPanelOpen() { return showDrawingPanelRef.current; },
-          get isIndicatorPanelOpen() { return showIndicatorPanelRef.current; },
+          get isAIPanelOpen() { return panelsRef.current.aiPanel; },
+          get isVolumeProfileOpen() { return panelsRef.current.volumeProfile; },
+          get isChartTradingOpen() { return panelsRef.current.chartTrading; },
+          get isWatchlistOpen() { return panelsRef.current.watchlist; },
+          get isCompareOpen() { return panelsRef.current.compare; },
+          get isFootprintOpen() { return panelsRef.current.footprint; },
+          get isAlertsOpen() { return panelsRef.current.alerts; },
+          get isPatternProgressOpen() { return panelsRef.current.patternProgress; },
+          get isReplayOpen() { return panelsRef.current.replay; },
+          get isHeatmapOpen() { return panelsRef.current.heatmap; },
+          get isAIStreamOpen() { return panelsRef.current.aiStream; },
+          get isDrawingPanelOpen() { return panelsRef.current.drawing; },
+          get isIndicatorPanelOpen() { return panelsRef.current.indicator; },
         };
         registerChartControl(chartId, controlApi);
         return true;
@@ -862,7 +903,8 @@ export default function RouaChart({
       // destroying/recreating indicator series. For NEW candles (new time
       // period), we still use setCandles() with skipIndicatorRebuild:true
       // which preserves indicators while setting the full dataset.
-      const idx = candlesRef.current.findIndex(c => c.time === alignedTime);
+      // PERF (3.1): O(1) lookup via Map instead of O(n) findIndex
+      const idx = getCandleIndexByTime(alignedTime);
       const isNewCandle = idx < 0;
 
       if (idx >= 0) {
@@ -904,6 +946,14 @@ export default function RouaChart({
         const s = sanitizeOhlc(alignedCandle.open, alignedCandle.high, alignedCandle.low, alignedCandle.close);
         const sanitizedCandle = { ...alignedCandle, open: s.open, high: s.high, low: s.low, close: s.close };
         candlesRef.current.push(sanitizedCandle);
+        // PERF (3.1): Add new candle's time to the index map
+        timeIndexMapRef.current.set(sanitizedCandle.time, candlesRef.current.length - 1);
+        // PERF (3.4): Trim oldest candles if exceeding max visible count
+        if (candlesRef.current.length > MAX_VISIBLE_CANDLES) {
+          const trimCount = candlesRef.current.length - MAX_VISIBLE_CANDLES;
+          candlesRef.current = candlesRef.current.slice(trimCount);
+          rebuildTimeIndexMap();
+        }
         // PERF FIX: Use updateCandleRef (O(1) series.update) instead of full setData()
         // setData() destroys and recreates all indicator series → "rubbery" animation
         // updateCandleRef only updates the single new candle, indicators stay intact
@@ -947,7 +997,7 @@ export default function RouaChart({
         // ALWAYS update aiPanelCandles when a new candle arrives —
         // don't gate this on throttle. The AISmartPanel needs fresh data
         // to trigger its own overlay change callback.
-        if (showAIPanelRef.current) {
+        if (panelsRef.current.aiPanel) {
           setAiPanelCandles([...candlesRef.current]);
         }
 
@@ -1107,7 +1157,7 @@ export default function RouaChart({
 
         // Also update aiPanelCandles so AISmartPanel's candleSignatureRef
         // effect triggers onOverlayChange for the next cycle
-        if (showAIPanelRef.current) {
+        if (panelsRef.current.aiPanel) {
           setAiPanelCandles(prev => {
             const next = candlesRef.current;
             // Only update if candle data actually changed (avoid infinite loop)
@@ -1204,6 +1254,7 @@ export default function RouaChart({
         if (changed) {
           const merged = (Array.from(existingMap.values()) as CandleData[]).sort((a, b) => a.time - b.time);
           candlesRef.current = merged;
+          rebuildTimeIndexMap(); // PERF (3.1): Rebuild map after merge
           setCandlesRef.current(merged, { skipIndicatorRebuild: true });
         }
       } catch { /* non-critical */ }
@@ -1269,6 +1320,7 @@ export default function RouaChart({
           // Sort by time (lightweight-charts v5 requires strictly ascending time)
           unique.sort((a, b) => a.time - b.time);
           candlesRef.current = unique;
+          rebuildTimeIndexMap(); // PERF (3.1): Rebuild map after dedup
           // Run pattern engine after candles are updated
           // FIX: Use ref to avoid stale closure over chart.setCandles
           // Pass clearExternal:true because this is a timeframe/symbol change —
@@ -1277,7 +1329,7 @@ export default function RouaChart({
           console.log(`[RouaChart] Setting ${unique.length} candles on chart for ${selectedSymbol_} ${timeframe_}`);
           setCandlesRef.current(unique, { clearExternal: true });
           // Update AI panel candles if panel is open so overlays can redraw
-          if (showAIPanelRef.current) {
+          if (panelsRef.current.aiPanel) {
             setAiPanelCandles([...unique]);
           }
           // REVOLUTIONARY: Initialize incremental computation state
@@ -1345,13 +1397,14 @@ export default function RouaChart({
 
       // Data is already sorted by construction (oldest → newest)
       candlesRef.current = candles;
+      rebuildTimeIndexMap(); // PERF (3.1): Rebuild map after historical fetch
       // Re-run pattern engine on realtime update (throttled)
       // FIX: Use ref to avoid stale closure
       // Pass clearExternal:true because this is a timeframe/symbol change —
       // simulated data means the timeframe changed.
       setCandlesRef.current(candles, { clearExternal: true });
       // Update AI panel candles if panel is open so overlays can redraw
-      if (showAIPanelRef.current) {
+      if (panelsRef.current.aiPanel) {
         setAiPanelCandles([...candles]);
       }
       // FIX: Auto-fit after simulated data too
@@ -1435,6 +1488,7 @@ export default function RouaChart({
               return true;
             });
             candlesRef.current = unique;
+          rebuildTimeIndexMap(); // PERF (3.1): Rebuild map after dedup
             // Use setCandles to update the chart — skip indicator rebuild
             // since we're just prepending older data (indicators don't change)
             setCandlesRef.current(unique, { skipIndicatorRebuild: true });
@@ -3315,10 +3369,10 @@ export default function RouaChart({
 
                   {/* LOT */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 5, padding: '2px 4px' }}>
-                    <button onClick={() => setLotSize(prev => Math.max(0.01, +(prev - 0.01).toFixed(2)))}
+                    <button onClick={() => setLotSize(Math.max(0.01, +(lotSize - 0.01).toFixed(2)))}
                       style={{ background: 'none', border: 'none', color: '#888', fontSize: 12, cursor: 'pointer', padding: '0 2px', outline: 'none' }}>−</button>
                     <span style={{ color: '#ccc', fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", minWidth: 28, textAlign: 'center' }}>{lotSize.toFixed(2)}</span>
-                    <button onClick={() => setLotSize(prev => +(prev + 0.01).toFixed(2))}
+                    <button onClick={() => setLotSize(+(lotSize + 0.01).toFixed(2))}
                       style={{ background: 'none', border: 'none', color: '#888', fontSize: 12, cursor: 'pointer', padding: '0 2px', outline: 'none' }}>+</button>
                   </div>
 

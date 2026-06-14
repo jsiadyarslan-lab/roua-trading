@@ -283,7 +283,10 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull, compact }: {
     try {
       const coord = getPriceCoordinate(currentPrice);
       if (coord !== null) {
-        el.style.top = (coord + 18) + 'px';
+        // getPriceCoordinate returns the center of the price label.
+        // Price label is ~18px tall, so bottom edge = coord + 9.
+        // Place timer directly below with no gap (sticking to label).
+        el.style.top = (coord + 9) + 'px';
         el.style.display = 'flex';
       } else {
         el.style.display = 'none';
@@ -318,14 +321,13 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull, compact }: {
         fontFamily: "'JetBrains Mono', monospace",
         fontSize: 10 * scale,
         fontWeight: 700,
-        padding: compact ? '1px 5px' : '2px 7px',
+        padding: compact ? '1px 5px' : '1px 7px',
         borderRadius: '0 0 3px 3px',
         minWidth: 44 * scale,
         textAlign: 'center',
         letterSpacing: 0.4,
         lineHeight: compact ? '11px' : '14px',
-        boxShadow: `0 2px 8px ${isBull ? 'rgba(63,185,80,0.35)' : 'rgba(248,81,73,0.35)'}`,
-        borderLeft: `${compact ? 2 : 3}px solid ${bgColor}`,
+        boxShadow: `0 1px 4px ${isBull ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)'}`,
       }}>
         {countdown}
       </div>
@@ -1663,7 +1665,10 @@ export default function RouaChart({
         if (timerY !== null) {
           // lightweight-charts v5 last-price label is ~18px tall.
           // Position timer right below it (sticking to it, not overlapping).
-          timerEl.style.top = (timerY + 18) + 'px';
+          // getPriceCoordinate returns the center of the price label.
+          // Price label is ~18px tall, so bottom edge = timerY + 9.
+          // Place timer directly below with no gap (sticking to label).
+          timerEl.style.top = (timerY + 9) + 'px';
           timerEl.style.display = 'flex';
         } else {
           timerEl.style.display = 'none';

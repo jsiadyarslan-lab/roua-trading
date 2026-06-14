@@ -438,11 +438,20 @@ export function useChart(options: UseChartOptions): UseChartReturn {
             drawingManagerRef.current!.importDrawings(JSON.stringify(adaptedDrawings));
           }
         }
-        // Redraw with retries — the DrawingRenderer may not be ready yet
-        // (it's loaded asynchronously via dynamic import)
+        // V255 FIX: Use requestRender() instead of redraw() here.
+        // At this point during timeframe switch, the chart may not have
+        // candle data yet (setCandles hasn't been called). Calling redraw()
+        // would push drawing data to the primitive, which then tries to
+        // render with an empty coordinate system — causing "dancing".
+        // requestRender() only tells the primitive to re-render on the next
+        // frame with its CURRENT data, which is a no-op if nothing changed.
+        // The actual correct rendering will happen when setCandles() calls
+        // redraw() after loading new candle data.
         const tryRedraw = (attempt = 0) => {
           if (drawingRendererRef.current) {
-            drawingRendererRef.current.redraw();
+            // Use requestRender (lightweight) instead of redraw (heavy)
+            // redraw() will be called by setCandles() after candle data loads
+            drawingRendererRef.current.requestRender();
           } else if (attempt < 10) {
             setTimeout(() => tryRedraw(attempt + 1), 300);
           }
@@ -898,7 +907,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       if (drawingManagerRef.current) {
         drawingManagerRef.current.setSymbol(symbol, timeframe);
       }
-      drawingRendererRef.current?.redraw();
+      // V255 FIX: Use requestRender() instead of redraw() to avoid flickering
+      drawingRendererRef.current?.requestRender();
       restoreChartStateRef.current();
       console.log(`[useChart] Symbol effect SKIPPED clearing — data already loaded for ${currentDataKey} (${candlesRef.current.length} candles)`);
       return;
@@ -934,7 +944,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     if (drawingManagerRef.current) {
       drawingManagerRef.current.setSymbol(symbol, timeframe);
     }
-    drawingRendererRef.current?.redraw();
+    // V255 FIX: Don't call redraw() here — chart still has old symbol's candle data.
+    // The full redraw will happen in setCandles() after new symbol's data loads.
+    // Using requestRender() as a lightweight placeholder that won't cause dancing.
+    drawingRendererRef.current?.requestRender();
     // Clear overlay series when symbol changes
     overlaySeriesRef.current.forEach((series) => {
       chartInstanceRef.current?.removeSeries(series);
@@ -1043,13 +1056,13 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     if (drawingManagerRef.current) {
       drawingManagerRef.current.setTimeframe(timeframe);
     }
-    // V253 FIX: Always update DrawingRenderer's timeframe and force redraw.
-    // Removed early return — always re-syncs even if TF hasn't changed,
-    // because the DrawingManager may have new cross-TF drawings loaded.
+    // V255 FIX: Update DrawingRenderer's timeframe but DON'T redraw yet.
+    // The chart has no candle data at this point (cleared below), so any
+    // redraw would use wrong/empty coordinate system, causing "dancing".
+    // The actual redraw will happen AFTER setCandles() loads new data.
     if (drawingRendererRef.current) {
       (drawingRendererRef.current as any).setTimeframe(timeframe);
-      // Safety redraw — ensures primitive picks up the latest drawings
-      drawingRendererRef.current.redraw();
+      // DO NOT call redraw() here — chart data is about to be cleared
     }
 
     // Cancel any pending indicator re-apply from a previous setCandles call
@@ -1369,6 +1382,15 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       }
 
       // لا نُحدَّث المؤشرات مع كل tick — فقط عند فتح شمعة جديدة
+
+      // V255 FIX: Request drawing re-render after candle data update.
+      // When the last candle's price changes, the chart might auto-scroll
+      // or the Y-axis range might change, requiring drawings to re-calculate
+      // their pixel positions. Using requestRender() (lightweight) instead of
+      // redraw() (heavy) because drawing DATA hasn't changed, only coordinates.
+      if (drawingRendererRef.current) {
+        drawingRendererRef.current.requestRender();
+      }
     } else if (lastCandle && time !== null && time > (lastCandle.time as number)) {
       chartDiag.newCandleFired++; chartDiag.lastKlineAt = Date.now(); chartDiag.lastCandleTime = time as number;
       // ── شمعة جديدة: الوقت أكبر من آخر شمعة ──────────────────────────
@@ -1395,6 +1417,14 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           volumeSeriesRef.current.update({ time: time as Time, value: candle.volume || 0, color: newCandle.close >= newCandle.open ? SHARED_COLORS.volumeUp : SHARED_COLORS.volumeDown } as any);
         }
       } catch { /* chart destroyed */ }
+
+      // V255 FIX: Request drawing re-render after new candle is added.
+      // When a new candle appears, the chart auto-scrolls, changing the
+      // visible range. Drawings need to recalculate their pixel positions
+      // to move with the chart. Using requestRender() for performance.
+      if (drawingRendererRef.current) {
+        drawingRendererRef.current.requestRender();
+      }
 
       // تحديث المؤشرات عند فتح شمعة جديدة فقط
       if (indicatorRefreshTimerRef.current) clearTimeout(indicatorRefreshTimerRef.current);
@@ -1642,13 +1672,14 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       // استخدام ref بدل closure — دائماً يحوي الرمز الحالي وليس القديم
       lastLoadedDataKeyRef.current = `${currentSymbolRef.current}:${currentTimeframeRef.current}`;
 
-      // V254 FIX: Force redraw drawings after candle data is loaded.
-      // Cross-TF drawings (all-tf) loaded from other timeframe buckets need
-      // chartPointToPixel() to convert their time/price to screen coordinates.
-      // This conversion depends on having candle data in the chart — without it,
-      // timeToCoordinate() returns null and drawings are invisible.
-      // By calling redraw AFTER setData, we ensure the primitive re-renders
-      // with the correct coordinate conversions now that candles are available.
+      // V255 FIX: Force redraw drawings after candle data is loaded.
+      // This is THE critical redraw point — the only place where we do a
+      // full redraw() (which re-pushes all drawing data to the primitive).
+      // All other places use requestRender() (lightweight, just re-renders).
+      // This is because setCandles() is the point where the chart's coordinate
+      // system is fully established (candle data is set), so drawings can be
+      // correctly positioned. Before this, the chart has no data, so any
+      // redraw would produce wrong coordinates (causing "dancing lines").
       if (drawingRendererRef.current) {
         drawingRendererRef.current.redraw();
       }

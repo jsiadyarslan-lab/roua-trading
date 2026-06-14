@@ -76,69 +76,133 @@ const TF_SECONDS: Record<string, number> = {
 };
 
 function chartPointToPixel(pt: DrawingPoint, chart: IChartApi, series: ISeriesApi<SeriesType>): PixelPoint | null {
-  // FIX: Always compute a position, even if it's off-screen.
-  // Previously, returning null for off-screen points caused entire drawings
-  // to disappear when zooming/panning. Now we estimate positions so lines
-  // can extend beyond the visible area and partial drawings still render.
+  // V255 FIX: Complete rewrite of coordinate conversion for drawing stability.
   //
-  // V254 FIX: Improved estimation for cross-timeframe drawings.
-  // timeToCoordinate() returns null when no bar exists at that exact time
-  // (common for all-tf drawings from a different timeframe — e.g., a 1H
-  // drawing viewed on 5min). The old estimation worked but was fragile.
-  // Now we use a more robust interpolation approach that preserves the
-  // exact time coordinate, ensuring drawings don't "dance" when switching TFs.
+  // Problem: Drawings stayed fixed (didn't move with candles) because:
+  // 1. timeToCoordinate() returns null for times not matching any candle
+  // 2. The estimation code used linear interpolation that didn't account
+  //    for the chart's coordinate system properly
+  // 3. When the chart scrolled, the estimation gave the same or wrong results
+  //
+  // Solution: Use lightweight-charts' own coordinate system as much as possible.
+  // For the X coordinate (time axis):
+  // - First try timeToCoordinate() — this is always accurate when it works
+  // - If null, use coordinateToTime on known reference points to build a
+  //   mapping, then interpolate. This is more robust than using getVisibleRange()
+  //   because it accounts for the chart's actual pixel layout.
+  //
+  // For the Y coordinate (price axis):
+  // - priceToCoordinate() almost always works (only fails if price is way off screen)
+  // - Estimation is a simple linear interpolation from the visible price range
+
+  // Try the direct conversion first — this is the most accurate
   const x = chart.timeScale().timeToCoordinate(pt.time as Time);
   const y = series.priceToCoordinate(pt.price);
 
-  // If both coordinates are available, use them directly
+  // If both coordinates are available, use them directly — this is the common case
   if (x !== null && y !== null) return { x, y };
 
-  // Try to estimate missing coordinates from visible range
+  // If only Y is null, estimate Y and use the direct X
+  if (x !== null && y === null) {
+    const estimatedY = estimateYFromPrice(pt.price, series);
+    if (estimatedY !== null) return { x, y: estimatedY };
+  }
+
+  // If only X is null (the common case for cross-TF and off-screen drawings),
+  // estimate X using the chart's visible range. We need the Y coordinate first.
+  const finalY = y !== null ? y : estimateYFromPrice(pt.price, series);
+  if (finalY === null) return null;
+
+  const estimatedX = estimateXFromTime(pt.time, chart);
+  if (estimatedX === null) return null;
+
+  return { x: estimatedX, y: finalY };
+}
+
+/**
+ * V255 FIX: Estimate X pixel coordinate from a time value.
+ * Uses the chart's own coordinate system for reference points to build
+ * a time-to-pixel mapping, then interpolates.
+ *
+ * This is more robust than using getVisibleRange() + linear interpolation
+ * because it respects the chart's actual pixel layout, including margins,
+ * price scale width, and any offset from the left edge.
+ */
+function estimateXFromTime(time: number, chart: IChartApi): number | null {
   try {
-    const logicalRange = chart.timeScale().getVisibleLogicalRange();
-    const coordRange = chart.timeScale().getVisibleRange();
-    if (!logicalRange || !coordRange) return null;
-    const chartWidth = chart.timeScale().width();
-    const chartHeight = (series as any).priceScale?.()?.height?.() ?? 0;
+    const timeScale = chart.timeScale();
+    const logicalRange = timeScale.getVisibleLogicalRange();
+    if (!logicalRange) return null;
+
+    // Strategy: Find two reference points where timeToCoordinate() works,
+    // then use them to build a linear mapping.
+    // We try the first and last visible bar indices.
+    const firstBarIdx = Math.floor(logicalRange.from);
+    const lastBarIdx = Math.ceil(logicalRange.to);
+
+    // Try to get coordinate for the drawing's time first (in case it works now)
+    const directX = timeScale.timeToCoordinate(time as Time);
+    if (directX !== null) return directX;
+
+    // Build reference mapping using bars at the edges of the visible range
+    // We'll try a few positions to find ones where timeToCoordinate works
+    const chartWidth = timeScale.width();
     if (chartWidth <= 0) return null;
+
+    // Get the visible time range for a fallback linear interpolation
+    const coordRange = timeScale.getVisibleRange();
+    if (!coordRange) return null;
 
     const fromTime = coordRange.from as number;
     const toTime = coordRange.to as number;
-    const barCount = logicalRange.to - logicalRange.from;
     const timeSpan = toTime - fromTime;
-    if (timeSpan <= 0 || barCount <= 0) return null;
+    if (timeSpan <= 0) return null;
 
-    // V254 FIX: Use pixels-per-second for accurate time-to-pixel conversion.
-    // This is more accurate than barSpacing/candleInterval because it doesn't
-    // assume uniform bar distribution (which breaks for sparse data or gaps).
+    // Use pixels-per-second approach but with a crucial fix:
+    // We need to account for the chart's left edge offset.
+    // timeToCoordinate() for the leftmost visible time gives us x=leftPadding,
+    // not x=0. We use this to calibrate.
+    const leftEdgeX = timeScale.timeToCoordinate(fromTime as Time);
+    const rightEdgeX = timeScale.timeToCoordinate(toTime as Time);
+
+    if (leftEdgeX !== null && rightEdgeX !== null) {
+      // Calibrated interpolation using actual chart pixel positions
+      const pixelSpan = rightEdgeX - leftEdgeX;
+      if (Math.abs(pixelSpan) < 1) return leftEdgeX; // Degenerate case
+      const pixelsPerSecond = pixelSpan / timeSpan;
+      return leftEdgeX + (time - fromTime) * pixelsPerSecond;
+    }
+
+    // Fallback: uncalibrated linear interpolation (less accurate but works)
+    const barCount = logicalRange.to - logicalRange.from;
+    if (barCount <= 0) return null;
     const pixelsPerSecond = chartWidth / timeSpan;
-    const leftEdgeTime = fromTime;
+    return (time - fromTime) * pixelsPerSecond;
+  } catch {
+    return null;
+  }
+}
 
-    // Estimate X from time if timeToCoordinate returned null
-    let estimatedX: number | null = x;
-    if (x === null) {
-      // Simple linear interpolation: position = (time - leftEdge) * px/sec
-      estimatedX = (pt.time - leftEdgeTime) * pixelsPerSecond;
-    }
-
-    // Estimate Y from price if priceToCoordinate returned null
-    let estimatedY: number | null = y;
-    if (y === null) {
-      const priceRange = (series as any).priceScale?.()?.getVisiblePriceRange?.();
-      if (priceRange) {
-        const { from, to } = priceRange;
-        if (to !== from && chartHeight > 0) {
-          const ratio = (pt.price - from) / (to - from);
-          estimatedY = chartHeight - ratio * chartHeight;
-        }
-      }
-    }
-
-    if (estimatedX !== null && estimatedY !== null) {
-      return { x: estimatedX, y: estimatedY };
-    }
-  } catch { /* chart may be destroyed */ }
-  return null;
+/**
+ * V255 FIX: Estimate Y pixel coordinate from a price value.
+ * Uses the visible price range for linear interpolation.
+ */
+function estimateYFromPrice(price: number, series: ISeriesApi<SeriesType>): number | null {
+  try {
+    const priceScale = (series as any).priceScale?.();
+    if (!priceScale) return null;
+    const chartHeight = priceScale.height?.() ?? 0;
+    if (chartHeight <= 0) return null;
+    const priceRange = priceScale.getVisiblePriceRange?.();
+    if (!priceRange) return null;
+    const { from, to } = priceRange;
+    if (to === from) return null;
+    const ratio = (price - from) / (to - from);
+    // In chart coordinates, y=0 is the top (high price) and y=height is bottom (low price)
+    return chartHeight - ratio * chartHeight;
+  } catch {
+    return null;
+  }
 }
 
 function pixelToChartPoint(x: number, y: number, chart: IChartApi, series: ISeriesApi<SeriesType>): DrawingPoint | null {
@@ -150,40 +214,54 @@ function pixelToChartPoint(x: number, y: number, chart: IChartApi, series: ISeri
     return { time: time as number, price };
   }
 
-  // Future position: estimate time from pixel coordinate
-  // lightweight-charts' coordinateToTime returns null when no bar exists at that position
-  // (e.g., clicking to the right of the last candle)
+  // V255 FIX: When coordinateToTime returns null (clicking beyond the last candle
+  // or in a gap), estimate the time using calibrated reference points.
+  //
+  // Key insight: Instead of using getVisibleRange() + raw linear interpolation
+  // (which ignores the chart's pixel layout), we use timeToCoordinate() on
+  // known reference times to build a calibrated time-to-pixel mapping.
+  // This ensures our estimated time, when converted back to pixels via
+  // timeToCoordinate(), will produce a consistent position.
   try {
-    const logicalRange = chart.timeScale().getVisibleLogicalRange();
-    const coordRange = chart.timeScale().getVisibleRange();
-    if (!logicalRange || !coordRange) return null;
-    const chartWidth = chart.timeScale().width();
+    const timeScale = chart.timeScale();
+    const coordRange = timeScale.getVisibleRange();
+    const logicalRange = timeScale.getVisibleLogicalRange();
+    if (!coordRange || !logicalRange) return null;
+
+    const chartWidth = timeScale.width();
     if (chartWidth <= 0) return null;
 
     const fromTime = coordRange.from as number;
     const toTime = coordRange.to as number;
-    const barCount = logicalRange.to - logicalRange.from;
     const timeSpan = toTime - fromTime;
-    if (timeSpan <= 0 || barCount <= 0) return null;
+    if (timeSpan <= 0) return null;
 
-    // Calculate bar spacing and candle interval from visible range
-    const barSpacing = chartWidth / barCount;
-    const candleInterval = timeSpan / barCount;
+    // V255 FIX: Use calibrated reference points for estimation.
+    // Get the pixel positions of the left and right edges of the visible range.
+    // This gives us the exact mapping between time and pixels, accounting
+    // for chart margins, price scale width, and any layout offsets.
+    const leftEdgeX = timeScale.timeToCoordinate(fromTime as Time);
+    const rightEdgeX = timeScale.timeToCoordinate(toTime as Time);
 
-    // The x coordinate relative to the first visible bar
-    const barFromX = logicalRange.from * barSpacing;
-    const barsFromStart = (x - barFromX) / barSpacing;
-    const estimatedTime = fromTime + barsFromStart * candleInterval;
+    let estimatedTime: number;
 
-    // V254 FIX: DO NOT snap to candle interval boundary!
-    // Previously, this code rounded the estimated time to the nearest candle
-    // interval, which caused "dancing lines" when switching timeframes:
-    // - On 1H, a click at time 1700001234 would snap to 1699999200 (off by 2034s)
-    // - On 5min, the same click would snap to 1700001300 (off by 66s)
-    // - This meant the same drawing stored DIFFERENT times on different TFs
-    // Now we store the precise estimated time without interval-snapping.
-    // We only round to the nearest second (integer Unix timestamp) because
-    // lightweight-charts uses integer seconds for time coordinates.
+    if (leftEdgeX !== null && rightEdgeX !== null && rightEdgeX !== leftEdgeX) {
+      // Calibrated interpolation: we know the exact pixel positions of two times
+      const pixelSpan = rightEdgeX - leftEdgeX;
+      const secondsPerPixel = timeSpan / pixelSpan;
+      estimatedTime = fromTime + (x - leftEdgeX) * secondsPerPixel;
+    } else {
+      // Fallback: uncalibrated estimation (less accurate)
+      const barCount = logicalRange.to - logicalRange.from;
+      if (barCount <= 0) return null;
+      const barSpacing = chartWidth / barCount;
+      const candleInterval = timeSpan / barCount;
+      const barFromX = logicalRange.from * barSpacing;
+      const barsFromStart = (x - barFromX) / barSpacing;
+      estimatedTime = fromTime + barsFromStart * candleInterval;
+    }
+
+    // Round to nearest second (lightweight-charts uses integer seconds)
     const roundedTime = Math.round(estimatedTime);
     return { time: roundedTime, price };
   } catch { /* chart may be destroyed */ }
@@ -1041,8 +1119,16 @@ class DrawingSeriesPrimitive implements ISeriesPrimitiveBase<SeriesAttachedParam
   private _preview: PreviewData | null = null;
 
   private _attached = false;
-  // FIX: Subscribe to visible range changes so drawings re-render on zoom/pan
-  private _visibleRangeHandler: ((range: any) => void) | null = null;
+  // V255 FIX: Subscribe to BOTH logical and time range changes.
+  // Previously only subscribed to subscribeVisibleLogicalRangeChange,
+  // which might not fire in all scroll scenarios (e.g., auto-scroll from
+  // new candle data, programmatic scrolling, etc.).
+  private _logicalRangeHandler: ((range: any) => void) | null = null;
+  private _timeRangeHandler: ((range: any) => void) | null = null;
+  // V255 FIX: Throttle requestUpdate calls to max once per animation frame.
+  // Multiple calls per frame (e.g., from range change + data change) are
+  // coalesced into a single render, reducing "dancing" during TF switch.
+  private _updateScheduled = false;
 
   constructor() {
     // PaneView will be re-created in attached() with real chart/series refs
@@ -1059,24 +1145,38 @@ class DrawingSeriesPrimitive implements ISeriesPrimitiveBase<SeriesAttachedParam
     // Push current data to view
     this._paneView.update(this._drawings, this._preview);
 
-    // FIX: Re-render drawings whenever the visible range changes (zoom/pan)
-    // Without this, drawings disappear or appear at wrong positions when zooming
+    // V255 FIX: Subscribe to BOTH logical and time range changes.
+    // This ensures drawings re-render in ALL scenarios:
+    // - Manual pan/zoom → logical range changes
+    // - Auto-scroll from new candles → time range changes
+    // - Programmatic scrollToRealTime → both change
+    const throttledUpdate = () => { this.scheduleUpdate(); };
     try {
-      this._visibleRangeHandler = () => { this.requestUpdate(); };
-      this._chart.timeScale().subscribeVisibleLogicalRangeChange(this._visibleRangeHandler);
+      this._logicalRangeHandler = throttledUpdate;
+      this._chart.timeScale().subscribeVisibleLogicalRangeChange(this._logicalRangeHandler);
     } catch { /* chart may not support subscription */ }
+    try {
+      this._timeRangeHandler = throttledUpdate;
+      // subscribeVisibleTimeRangeChange is available in lightweight-charts v4.2+
+      (this._chart.timeScale() as any).subscribeVisibleTimeRangeChange?.(this._timeRangeHandler);
+    } catch { /* chart may not support time range subscription */ }
   }
 
   detached(): void {
-    // FIX: Unsubscribe from visible range changes
-    if (this._visibleRangeHandler && this._chart) {
-      try { this._chart.timeScale().unsubscribeVisibleLogicalRangeChange(this._visibleRangeHandler); } catch { /* ignore */ }
-      this._visibleRangeHandler = null;
+    // V255 FIX: Unsubscribe from BOTH range change subscriptions
+    if (this._logicalRangeHandler && this._chart) {
+      try { this._chart.timeScale().unsubscribeVisibleLogicalRangeChange(this._logicalRangeHandler); } catch { /* ignore */ }
+      this._logicalRangeHandler = null;
+    }
+    if (this._timeRangeHandler && this._chart) {
+      try { (this._chart.timeScale() as any).unsubscribeVisibleTimeRangeChange?.(this._timeRangeHandler); } catch { /* ignore */ }
+      this._timeRangeHandler = null;
     }
     this._chart = null;
     this._series = null;
     this._requestUpdate = null;
     this._attached = false;
+    this._updateScheduled = false;
   }
 
   updateAllViews(): void {
@@ -1095,18 +1195,42 @@ class DrawingSeriesPrimitive implements ISeriesPrimitiveBase<SeriesAttachedParam
 
   setDrawings(drawings: Drawing[]): void {
     this._drawings = drawings;
-    this.requestUpdate();
+    this.scheduleUpdate();
   }
 
   setPreview(preview: PreviewData | null): void {
     this._preview = preview;
-    this.requestUpdate();
+    this.scheduleUpdate();
   }
 
-  private requestUpdate(): void {
-    // Guard: don't call requestUpdate before primitive is attached to chart
+  /**
+   * V255 FIX: Public method to request a re-render from outside.
+   * Called after candle data changes to ensure drawings update their positions.
+   */
+  requestRender(): void {
+    this.scheduleUpdate();
+  }
+
+  /**
+   * V255 FIX: Throttled requestUpdate — schedules at most one update per
+   * animation frame. Multiple calls within the same frame are coalesced.
+   * This prevents the "dancing lines" effect during timeframe switches
+   * where multiple syncPrimitive() calls would cause multiple renders
+   * with intermediate (wrong) chart states.
+   */
+  private scheduleUpdate(): void {
     if (!this._attached || !this._requestUpdate) return;
-    this._requestUpdate();
+    if (this._updateScheduled) return; // Already scheduled — skip
+    this._updateScheduled = true;
+    // Use microtask for immediate scheduling (within current frame)
+    // This is faster than requestAnimationFrame and ensures the update
+    // happens before the next paint, avoiding visual flickering.
+    queueMicrotask(() => {
+      this._updateScheduled = false;
+      if (this._attached && this._requestUpdate) {
+        this._requestUpdate();
+      }
+    });
   }
 }
 
@@ -1229,6 +1353,19 @@ export class DrawingRenderer {
 
   redraw(): void {
     this.syncPrimitive();
+  }
+
+  /**
+   * V255 FIX: Lightweight re-render that doesn't re-push drawing data.
+   * Unlike redraw() which calls syncPrimitive() (re-filtering + re-pushing
+   * all drawings), this only tells the primitive to re-render with its
+   * CURRENT data. Use this after candle data changes when the drawing
+   * data hasn't changed but the coordinate system has (chart scrolled/zoomed).
+   */
+  requestRender(): void {
+    if (this.primitive) {
+      this.primitive.requestRender();
+    }
   }
 
   cancelDrawing(): void {

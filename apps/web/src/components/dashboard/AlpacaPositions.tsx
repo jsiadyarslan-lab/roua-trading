@@ -427,7 +427,7 @@ export function AlpacaPositions() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                       positionId: pos.dbId,
-                      reason: `V114 individual close fallback: unified close also failed`,
+                      reason: `USER_V114_FALLBACK: unified close also failed`,
                     }),
                   })
                   if (forceRes.ok) {
@@ -748,7 +748,7 @@ export function AlpacaPositions() {
                     const forceRes = await fetch('/api/trading/positions/force-close', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ positionId: pos.dbId, reason: 'Close All' }),
+                      body: JSON.stringify({ positionId: pos.dbId, reason: 'USER_CLOSE_ALL' }),
                     })
                     return { ok: forceRes.ok }
                   }

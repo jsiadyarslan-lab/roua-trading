@@ -361,7 +361,7 @@ export async function closePositionUnified(
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 positionId: nestjsId,
-                reason: `Auto force-close: ${errMsg.substring(0, 100)}`,
+                reason: `USER_AUTO_FORCE_CLOSE: ${errMsg.substring(0, 100)}`,
               }),
             })
             if (forceRes.ok) {
@@ -386,7 +386,7 @@ export async function closePositionUnified(
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 positionId: nestjsId,
-                reason: `V114 auto force-close: ${errMsg.substring(0, 100)}`,
+                reason: `USER_V114_FORCE_CLOSE: ${errMsg.substring(0, 100)}`,
               }),
             })
             if (forceRes.ok) {
@@ -428,7 +428,7 @@ export async function closePositionUnified(
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               positionId: nestjsId,
-              reason: `Auto force-close: NestJS unreachable — ${catchErr?.message || 'network error'}`,
+              reason: `USER_FORCE_CLOSE: NestJS unreachable — ${catchErr?.message || 'network error'}`,
             }),
           })
           if (forceRes.ok) {

@@ -678,7 +678,8 @@ export class TradingController {
     const request: ClosePositionRequest = {
       positionId: body.positionId,
       quantity: body.quantity != null ? Number(body.quantity) : undefined,
-      closeReason: 'MANUAL', // V141: User manually closed the position
+      closeReason: 'USER_MANUAL', // V227: 'USER_' prefix so V222 Prisma defense allows user-initiated closes
+      source: 'USER', // V227: Allow through V214 defense — traders MUST be able to close their own positions
     };
 
     if (!request.positionId) {

@@ -782,8 +782,12 @@ export class TradingService {
     const closeReasonStr = (request.closeReason || '').toUpperCase();
     const isSLTPClose = closeReasonStr.includes('STOP_LOSS') || closeReasonStr.includes('TAKE_PROFIT');
     const isManualClose = closeReasonStr === 'MANUAL' || closeReasonStr === '';
+    // V227: USER-initiated closes ALWAYS pass through — traders must be able to close
+    // their own positions at any time. Only block SYSTEM-originated non-SL/TP closes
+    // (which come from old code on Railway that sends closeReason='MANUAL' at 4h).
+    const isUserInitiated = request.source === 'USER';
 
-    if (isAgentPosition && !isSLTPClose) {
+    if (isAgentPosition && !isSLTPClose && !isUserInitiated) {
       const holdingMs = position.openedAt
         ? Date.now() - new Date(position.openedAt).getTime()
         : 0;
@@ -791,12 +795,12 @@ export class TradingService {
       const AGENT_MIN_HOLDING_HOURS = 48;
 
       if (holdingHours < AGENT_MIN_HOLDING_HOURS) {
-        // Agent position hasn't reached 48h — BLOCK the close
+        // Agent position hasn't reached 48h — BLOCK the close (SYSTEM-originated only)
         this.logger.error(
           `🚨 V214 BLOCKED: Attempted to close Agent position ${position.id} (${position.symbol}) ` +
           `at ${holdingHours.toFixed(1)}h — Agent positions must be held for ${AGENT_MIN_HOLDING_HOURS}h minimum. ` +
-          `closeReason="${request.closeReason || 'EMPTY'}" — ` +
-          `Only SL/TP closes are allowed before ${AGENT_MIN_HOLDING_HOURS}h. ` +
+          `closeReason="${request.closeReason || 'EMPTY'}" source="${request.source || 'SYSTEM'}" — ` +
+          `Only SL/TP closes and USER-initiated closes are allowed before ${AGENT_MIN_HOLDING_HOURS}h. ` +
           `This close was likely triggered by OLD code (pre-V184) still running on Railway.`
         );
 
@@ -1479,8 +1483,10 @@ export class TradingService {
     const isAgentForceClose = position.source === 'agent';
     const reasonUpper = (reason || '').toUpperCase();
     const isSLTPForceClose = reasonUpper.includes('STOP_LOSS') || reasonUpper.includes('TAKE_PROFIT');
+    // V227: Allow USER-initiated force-closes — traders must be able to close their own positions
+    const isUserForceClose = reasonUpper.includes('USER');
 
-    if (isAgentForceClose && !isSLTPForceClose) {
+    if (isAgentForceClose && !isSLTPForceClose && !isUserForceClose) {
       const holdingMs = position.openedAt
         ? Date.now() - new Date(position.openedAt).getTime()
         : 0;

@@ -119,6 +119,10 @@ export interface ClosePositionRequest {
   positionId: string;
   quantity?: number; // partial close if less than position quantity
   closeReason?: string; // V141: Why the position was closed (STOP_LOSS, TAKE_PROFIT, MANUAL, AUTO_STALE, STRATEGY_EXIT, etc.)
+  /** V227: Who initiated the close — 'USER' for manual button clicks, 'SYSTEM' for automated closes.
+   * V214 defense only blocks SYSTEM-originated non-SL/TP closes for Agent positions <48h.
+   * USER-initiated closes ALWAYS pass through — traders must be able to close their own positions. */
+  source?: 'USER' | 'SYSTEM';
 }
 
 export interface RiskCheckResult {

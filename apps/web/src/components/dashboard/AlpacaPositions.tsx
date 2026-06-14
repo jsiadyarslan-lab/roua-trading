@@ -143,7 +143,7 @@ export function AlpacaPositions() {
     const r = reason.toUpperCase()
     if (r.includes('STOP_LOSS') || r === 'STOP_LOSS_HIT') return { label: t('reasonStopLoss'), color: T.danger }
     if (r.includes('TAKE_PROFIT') || r === 'TAKE_PROFIT_HIT') return { label: t('reasonTakeProfit'), color: T.success }
-    if (r === 'MANUAL') return { label: t('reasonManual'), color: T.text2 }
+    if (r === 'MANUAL' || r === 'USER_MANUAL') return { label: t('reasonManual'), color: T.text2 }
     if (r.includes('TIME_EXPIRED')) return { label: t('reasonAuto'), color: T.amber }
     if (r === 'AUTO_CLOSE') return { label: t('reasonAuto'), color: T.amber }
     if (r.includes('STALE') || r.includes('AUTO')) return { label: t('reasonAuto'), color: T.amber }
@@ -347,7 +347,7 @@ export function AlpacaPositions() {
 
     // Paper trade (local BotEngine) — close in store
     if (pos.isPaper) {
-      closePaperTrade(id)
+      closePaperTrade(id, 'MANUAL') // V227: Pass closeReason for proper tracking
       // FIX: Refresh account balance after closing paper trade
       refreshAfterTrade()
       addNotification({
@@ -376,8 +376,30 @@ export function AlpacaPositions() {
           body: JSON.stringify({ positionId: pos.dbId }),
         })
         const json = await response.json()
-        if (response.ok) {
+        // V227: Check for blockedByV214 — this means the close was blocked by the defense.
+        // This should NOT happen anymore since controller now sends source:'USER',
+        // but handle it defensively — try force-close as fallback.
+        if (response.ok && !json.blockedByV214) {
           closeSuccess = true
+        } else if (json.blockedByV214) {
+          // V227: V214 blocked the close — try force-close with explicit user source
+          try {
+            const forceRes = await fetch('/api/trading/positions/force-close', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                positionId: pos.dbId,
+                reason: `USER_FORCE_CLOSE: ${json.reason || 'V214 blocked'}`,
+              }),
+            })
+            if (forceRes.ok) {
+              closeSuccess = true
+            } else {
+              closeError = json.reason || 'V214 blocked close'
+            }
+          } catch {
+            closeError = json.reason || 'V214 blocked close'
+          }
         } else {
           // FIX: If NestJS close fails, try the unified close as fallback
           // instead of immediately showing an error. The NestJS route might
@@ -871,6 +893,8 @@ export function AlpacaPositions() {
                 const isLong = ct.side === 'long'
                 const pnlUp = ct.realizedPnl >= 0
                 const closedSourceBadge = getTradeSourceLabel(true, ct.source, undefined, undefined, t)
+                // V227: Show closeReason badge for paper trades (STOP_LOSS, TAKE_PROFIT, MANUAL)
+                const paperCloseReasonBadge = getCloseReasonLabel(ct.closeReason)
                 return (
                   <div key={ct.id} style={{
                     borderRadius: 8, border: `1px solid ${pnlUp ? 'rgba(0,255,163,0.12)' : 'rgba(255,71,87,0.12)'}`,
@@ -884,6 +908,10 @@ export function AlpacaPositions() {
                         <span style={{ fontSize: 9, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{ct.symbol}</span>
                         {closedSourceBadge && (
                           <span style={{ padding: '1px 4px', borderRadius: 999, background: closedSourceBadge.bg, border: `1px solid ${closedSourceBadge.border}`, color: closedSourceBadge.color, fontSize: 5.5, fontWeight: 800 }}>{closedSourceBadge.label}</span>
+                        )}
+                        {/* V227: Close Reason Badge for paper trades */}
+                        {paperCloseReasonBadge && (
+                          <span style={{ padding: '1px 4px', borderRadius: 999, background: `${paperCloseReasonBadge.color}18`, border: `1px solid ${paperCloseReasonBadge.color}30`, color: paperCloseReasonBadge.color, fontSize: 5.5, fontWeight: 800 }}>{paperCloseReasonBadge.label}</span>
                         )}
                       </div>
                       <span style={{ fontSize: 9, fontWeight: 900, color: pnlUp ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace" }}>

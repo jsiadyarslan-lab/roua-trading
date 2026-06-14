@@ -47,6 +47,8 @@ export interface ClosedPaperTrade {
   closeTime: number
   strategy?: string
   source: 'bot' | 'manual' | 'executor' | 'agent'
+  /** V227: Why the trade was closed — STOP_LOSS, TAKE_PROFIT, MANUAL, TIME_EXPIRED */
+  closeReason?: string
 }
 
 interface PaperTradesState {
@@ -56,7 +58,7 @@ interface PaperTradesState {
   updatePrice: (symbol: string, price: number) => void
   updateTrade: (id: string, updates: Partial<PaperTrade>) => void
   removeTrade: (id: string) => void
-  closeTrade: (id: string) => void
+  closeTrade: (id: string, closeReason?: string) => void
   clearAll: () => void
   clearClosedTrades: () => void
   syncWithServer?: () => Promise<void>
@@ -121,7 +123,8 @@ export const usePaperTradesStore = create<PaperTradesState>()(
         const normalizedSymbol = symbol.toUpperCase().replace(/\//g, '')
         const currentTrades = get().trades
         let changed = false
-        const closedIds: string[] = []  // FIX: Track trades that hit SL/TP for auto-close
+        // V227: Track both ID and reason for SL/TP auto-close
+        const closedInfo: Array<{id: string, reason: string}> = []
 
         const trades = currentTrades.map((t) => {
           const tradeSymbol = t.symbol.toUpperCase().replace(/\//g, '')
@@ -146,14 +149,14 @@ export const usePaperTradesStore = create<PaperTradesState>()(
           if (!(t as any)._status || (t as any)._status !== 'closed') {
             if (t.sl && t.sl > 0) {
               if ((t.side === 'long' && price <= t.sl) || (t.side === 'short' && price >= t.sl)) {
-                closedIds.push(t.id)
+                closedInfo.push({id: t.id, reason: 'STOP_LOSS'})
                 changed = true
                 return { ...t, currentPrice, unrealizedPnl: pnl, unrealizedPct: pct, _status: 'closed', closePrice: t.sl }
               }
             }
             if (t.tp && t.tp > 0) {
               if ((t.side === 'long' && price >= t.tp) || (t.side === 'short' && price <= t.tp)) {
-                closedIds.push(t.id)
+                closedInfo.push({id: t.id, reason: 'TAKE_PROFIT'})
                 changed = true
                 return { ...t, currentPrice, unrealizedPnl: pnl, unrealizedPct: pct, _status: 'closed', closePrice: t.tp }
               }
@@ -172,10 +175,11 @@ export const usePaperTradesStore = create<PaperTradesState>()(
         // that hit SL/TP stayed in the active list with _status='closed' forever.
         // Now we call closeTrade() for each auto-closed trade to properly
         // realize P&L, send notification, and move to closedTrades list.
-        if (closedIds.length > 0) {
+        // V227: Also pass the closeReason (STOP_LOSS / TAKE_PROFIT) through.
+        if (closedInfo.length > 0) {
           // Use setTimeout to avoid nested Zustand set() calls which can batch incorrectly
           setTimeout(() => {
-            closedIds.forEach(id => get().closeTrade(id))
+            closedInfo.forEach(info => get().closeTrade(info.id, info.reason))
           }, 0)
         }
       },
@@ -192,17 +196,33 @@ export const usePaperTradesStore = create<PaperTradesState>()(
         triggerBackgroundSync()
       },
 
-      closeTrade: (id) => {
+      closeTrade: (id, closeReason?) => {
         set((state) => {
           const trade = state.trades.find((t) => t.id === id)
           if (!trade) return state
 
-          const exitPrice = trade.currentPrice || trade.entryPrice
+          // V227 FIX: Use closePrice (exact SL/TP level) when available.
+          // Previously, closeTrade() always used currentPrice (tick price at that moment),
+          // which is NOT the exact SL/TP level for auto-closed trades. This caused
+          // inaccurate PnL calculations — e.g. SL at 2500 but closed at 2499.85.
+          const closePriceOverride = (trade as any).closePrice as number | undefined
+          const exitPrice = (closePriceOverride && closePriceOverride > 0)
+            ? closePriceOverride
+            : (trade.currentPrice || trade.entryPrice)
           const diff = trade.side === 'long'
             ? exitPrice - trade.entryPrice
             : trade.entryPrice - exitPrice
           const realizedPnl = diff * trade.qty
           const realizedPct = trade.entryPrice > 0 ? (diff / trade.entryPrice) * 100 : 0
+
+          // V227: Determine closeReason if not explicitly provided.
+          // Infer from closePrice vs SL/TP comparison.
+          let reason = closeReason
+          if (!reason && closePriceOverride) {
+            if (trade.sl && Math.abs(closePriceOverride - trade.sl) < 0.0001) reason = 'STOP_LOSS'
+            else if (trade.tp && Math.abs(closePriceOverride - trade.tp) < 0.0001) reason = 'TAKE_PROFIT'
+          }
+          if (!reason) reason = 'MANUAL'
 
           const closedTrade: ClosedPaperTrade = {
             id: trade.id,
@@ -219,6 +239,7 @@ export const usePaperTradesStore = create<PaperTradesState>()(
             closeTime: Date.now(),
             strategy: trade.strategy,
             source: trade.source,
+            closeReason: reason,
           }
 
           // ── Send notification for closed position ──
@@ -332,10 +353,33 @@ export const usePaperTradesStore = create<PaperTradesState>()(
           // - Trades with zero/negative entry price
           // - Trades with trade value < $1 (dust)
           // - Trades with numeric-only symbols
+          // - V227: Trades stuck with _status='closed' (SL/TP hit but page
+          //   refreshed before closeTrade() processed them)
           //
           // ALL valid trades (including bot/executor/agent) are preserved.
           // ═══════════════════════════════════════════════════════════════
           if (state && state.trades && state.trades.length > 0) {
+            // V227: Properly close trades stuck with _status='closed'
+            // (SL/TP was hit, closePrice was set, but closeTrade() never ran
+            // because page refreshed before setTimeout fired)
+            const stuckTrades = state.trades.filter((t: any) => (t as any)._status === 'closed')
+            if (stuckTrades.length > 0) {
+              console.warn(
+                `[PaperTradesStore] V227: Found ${stuckTrades.length} trade(s) stuck with _status='closed' — properly closing them`
+              )
+              // Defer closeTrade calls to avoid nested sets during rehydration
+              setTimeout(() => {
+                stuckTrades.forEach((t: any) => {
+                  // Infer closeReason from closePrice vs SL/TP
+                  let reason: string | undefined
+                  const closePrice = (t as any).closePrice
+                  if (closePrice && t.sl && Math.abs(closePrice - t.sl) < 0.0001) reason = 'STOP_LOSS'
+                  else if (closePrice && t.tp && Math.abs(closePrice - t.tp) < 0.0001) reason = 'TAKE_PROFIT'
+                  usePaperTradesStore.getState().closeTrade(t.id, reason)
+                })
+              }, 100)
+            }
+
             const validTrades = state.trades.filter((t: PaperTrade) => {
               // Filter out phantom/invalid trades
               if (!t.entryPrice || t.entryPrice <= 0) return false
@@ -345,6 +389,9 @@ export const usePaperTradesStore = create<PaperTradesState>()(
               // Filter out numeric-only symbols
               const base = t.symbol.split('/')[0]
               if (/^\d+$/.test(base)) return false
+              // V227: Filter out trades stuck with _status='closed' — they'll be
+              // properly closed by the stuck-trades handler above
+              if ((t as any)._status === 'closed') return false
               // FIX: REMOVED the filter that deleted bot/executor/agent trades.
               // All valid trades are kept regardless of source.
               return true

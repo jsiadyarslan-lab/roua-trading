@@ -563,7 +563,8 @@ export function BotEngine() {
     const sessionLoss = pnl < 0 ? currentStats.sessionLoss + pnl : currentStats.sessionLoss
 
     // Properly archive the trade to closedTrades[] instead of just deleting it
-    closePaperTrade(trade.id)
+    // V227: Pass closeReason for proper tracking (STOP_LOSS / TAKE_PROFIT)
+    closePaperTrade(trade.id, reason === 'SL' ? 'STOP_LOSS' : reason === 'TP' ? 'TAKE_PROFIT' : 'MANUAL')
     patchStats({
       profit: Number(profit.toFixed(2)),
       wins,

@@ -175,8 +175,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
                       const holdingMs = Date.now() - new Date(current.openedAt).getTime();
                       const closeReason = String(data.closeReason || data.closeReason?.set || '').toUpperCase();
                       const isSLTP = closeReason.includes('STOP_LOSS') || closeReason.includes('TAKE_PROFIT');
+                      // V227: USER-initiated closes ALWAYS pass through — traders must be
+                      // able to close their own positions at any time. Only block SYSTEM closes.
+                      const isUserClose = closeReason.includes('USER');
 
-                      if (holdingMs < AGENT_MIN_HOLDING_MS && !isSLTP) {
+                      if (holdingMs < AGENT_MIN_HOLDING_MS && !isSLTP && !isUserClose) {
                         logger.error(
                           `🚨 V222 DB-LEVEL BLOCK: Agent position ${positionId} (${current.symbol}) ` +
                           `attempted close at ${(holdingMs / H).toFixed(1)}h (< ${AGENT_MIN_HOLDING_HOURS}h). ` +
@@ -217,8 +220,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
                       const holdingMs = Date.now() - new Date(current.openedAt).getTime();
                       const closeReason = String(data.closeReason || data.closeReason?.set || '').toUpperCase();
                       const isSLTP = closeReason.includes('STOP_LOSS') || closeReason.includes('TAKE_PROFIT');
+                      // V227: USER-initiated closes ALWAYS pass through
+                      const isUserClose = closeReason.includes('USER');
 
-                      if (holdingMs < AGENT_MIN_HOLDING_MS && !isSLTP) {
+                      if (holdingMs < AGENT_MIN_HOLDING_MS && !isSLTP && !isUserClose) {
                         logger.error(
                           `🚨 V222 DB-LEVEL BLOCK (updateMany): Agent position ${where.id} ` +
                           `attempted close at ${(holdingMs / H).toFixed(1)}h (< ${AGENT_MIN_HOLDING_HOURS}h). ` +

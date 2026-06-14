@@ -238,8 +238,8 @@ function MiniChartHeader({
 // ── Price-Synced Candle Timer Component ──
 // Styled like a price-scale label: sits right below the last-price label
 // on the right edge and changes color with candle direction (green/red).
-function PriceSyncedTimer({ chart, currentPrice, countdown, isBull }: {
-  chart: any; currentPrice: number; countdown: string; isBull: boolean;
+function PriceSyncedTimer({ chart, currentPrice, countdown, isBull, compact }: {
+  chart: any; currentPrice: number; countdown: string; isBull: boolean; compact?: boolean;
 }) {
   const [y, setY] = useState<number | null>(null);
 
@@ -304,11 +304,14 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull }: {
   // Colors match the price-scale last-price label
   const bgColor = isBull ? '#3fb950' : '#f85149';
 
+  // Scale down for compact (multi-chart) cells
+  const scale = compact ? 0.85 : 1;
+
   return (
     <div
       style={{
         position: 'absolute',
-        top: y + 11,        // directly below the price label (~20px tall + 1px gap)
+        top: y + (compact ? 7 : 11),   // tighter gap in compact mode
         right: 0,
         zIndex: 5,
         pointerEvents: 'none',
@@ -321,16 +324,16 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull }: {
         background: bgColor,
         color: '#fff',
         fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 10,
+        fontSize: 10 * scale,
         fontWeight: 700,
-        padding: '2px 7px',
+        padding: compact ? '1px 5px' : '2px 7px',
         borderRadius: '0 0 3px 3px',   // rounded bottom only (top sits under price label)
-        minWidth: 44,
+        minWidth: 44 * scale,
         textAlign: 'center',
         letterSpacing: 0.4,
-        lineHeight: '14px',
+        lineHeight: compact ? '11px' : '14px',
         boxShadow: `0 2px 8px ${isBull ? 'rgba(63,185,80,0.35)' : 'rgba(248,81,73,0.35)'}`,
-        borderLeft: `3px solid ${bgColor}`,
+        borderLeft: `${compact ? 2 : 3}px solid ${bgColor}`,
       }}>
         {countdown}
       </div>
@@ -2792,26 +2795,6 @@ export default function RouaChart({
           )}
           <div style={{ flex: 1 }} />
 
-          {/* Candle Countdown Timer — shows time remaining until next candle closes */}
-          {candleCountdown && candleCountdown !== '—' && (
-            <span style={{
-              color: (() => {
-                const lc = candlesRef.current[candlesRef.current.length - 1];
-                return lc ? (currentPrice >= lc.open ? '#3fb950' : '#f85149') : '#3fb950';
-              })(),
-              fontSize: 9, fontWeight: 700,
-              fontFamily: "'JetBrains Mono', monospace",
-              padding: '1px 5px', borderRadius: 2,
-              background: (() => {
-                const lc = candlesRef.current[candlesRef.current.length - 1];
-                return lc ? (currentPrice >= lc.open ? 'rgba(63,185,80,0.1)' : 'rgba(248,81,73,0.1)') : 'rgba(63,185,80,0.1)';
-              })(),
-              letterSpacing: 0.3,
-            }}>
-              {candleCountdown}
-            </span>
-          )}
-
           {/* Expand/Collapse button */}
           {onToggleExpand && (
             <button onClick={e => { e.stopPropagation(); onToggleExpand(); }}
@@ -3395,6 +3378,7 @@ export default function RouaChart({
                 const lc = candlesRef.current[candlesRef.current.length - 1];
                 return lc ? currentPrice >= lc.open : true;
               })()}
+              compact={compact}
             />
           )}
 

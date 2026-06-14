@@ -51,7 +51,7 @@ export interface TradeProposal {
   /** Confidence of the proposal (0-1) */
   confidence: number;
   /** Current status of the proposal */
-  status: 'pending' | 'active' | 'hit_tp1' | 'hit_tp2' | 'hit_tp3' | 'hit_sl' | 'breakeven' | 'expired' | 'closed';
+  status: 'pending' | 'active' | 'hit_tp1' | 'hit_tp2' | 'hit_tp3' | 'hit_sl' | 'trail_sl' | 'breakeven' | 'expired' | 'closed';
   /** Timestamp when proposed */
   proposedAt: number;
   /** Arabic description */
@@ -653,14 +653,18 @@ export function autoEvaluateProposals(currentPrice: number, candles?: CandleData
 
     if (proposal.direction === 'bullish') {
       if (currentPrice <= effectiveSL) {
-        newStatus = proposal.currentTrailSL ? 'breakeven' : 'hit_sl';
+        // FIX: Classify trailing stop hits as 'trail_sl' instead of 'breakeven'.
+        // A trailing stop can be hit at any price level — if the trail followed
+        // price up and then reversed, the exit could be in profit, not breakeven.
+        // 'breakeven' is reserved for the TP1 move-SL-to-entry behavior.
+        newStatus = proposal.currentTrailSL ? 'trail_sl' : 'hit_sl';
         // Calculate P&L for SL hit
         const slDistance = Math.abs(proposal.entryPrice - effectiveSL);
         pnlChange = -proposal.positionSize * slDistance;
       }
     } else {
       if (currentPrice >= effectiveSL) {
-        newStatus = proposal.currentTrailSL ? 'breakeven' : 'hit_sl';
+        newStatus = proposal.currentTrailSL ? 'trail_sl' : 'hit_sl';
         const slDistance = Math.abs(proposal.entryPrice - effectiveSL);
         pnlChange = -proposal.positionSize * slDistance;
       }

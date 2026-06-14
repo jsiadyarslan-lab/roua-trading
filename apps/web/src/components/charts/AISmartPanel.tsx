@@ -952,6 +952,12 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Run analysis once when panel first receives valid candles ──
+  // This replaces the auto-analyze on every candle change.
+  // Now it only runs when the panel is actually open and has data.
+  // FIX: Moved hasRunInitialRef BEFORE the auto-detection effect that reads it.
+  const hasRunInitialRef = useRef(false);
+
   // ── AUTO-DETECTION: Re-enabled with smart throttling ──────
   // Only auto-analyzes when a NEW candle is added (candle count increases),
   // not on every re-render. Also generates alerts for high-confidence patterns.
@@ -960,14 +966,12 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
     // Only trigger when candle count actually increases (new candle from WebSocket)
     if (candles.length <= lastCandleCountRef.current) return;
     lastCandleCountRef.current = candles.length;
+    // FIX: Don't run if initial analysis hasn't happened yet (handled by separate effect)
+    if (!hasRunInitialRef.current) return;
     analyzeThrottled();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candles?.length]);
 
-  // ── Run analysis once when panel first receives valid candles ──
-  // This replaces the auto-analyze on every candle change.
-  // Now it only runs when the panel is actually open and has data.
-  const hasRunInitialRef = useRef(false);
   useEffect(() => {
     if (candles && candles.length >= 20 && !hasRunInitialRef.current && !runRef.current) {
       hasRunInitialRef.current = true;
@@ -1103,7 +1107,9 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
     // analysis updates. No need to force a re-analysis here.
     if (isTimeframeChange) {
       const timer = safeTimeout(() => {
-        runRef.current = false; // Reset guard to allow re-analysis
+        // FIX: Don't reset runRef.current — let the ongoing analyze() finish
+        // naturally and set runRef.current = false in its finally block.
+        // Previously, resetting it here could allow a SECOND concurrent analysis.
         lastAnalyzeTimeRef.current = 0; // Reset throttle
         analyze();
       }, 300);

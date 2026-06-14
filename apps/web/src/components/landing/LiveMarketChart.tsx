@@ -6,7 +6,10 @@ import { Activity } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 /* ── Types ── */
-interface CandleData {
+// FIX: Renamed from CandleData to DemoCandleData to avoid confusion with
+// the canonical CandleData in @/lib/charts/types (which uses `time: number`).
+// This local type uses `time: string` (ISO date) for lightweight-charts.
+interface DemoCandleData {
   time: string
   open: number
   high: number
@@ -15,8 +18,8 @@ interface CandleData {
 }
 
 /* ── Generate realistic OHLC data ── */
-function generateCandleData(count: number): CandleData[] {
-  const data: CandleData[] = []
+function generateCandleData(count: number): DemoCandleData[] {
+  const data: DemoCandleData[] = []
   let basePrice = 67000
   const now = new Date()
 

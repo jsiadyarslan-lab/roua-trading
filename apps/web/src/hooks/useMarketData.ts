@@ -103,7 +103,10 @@ export function useSingleQuote(symbol: string, refreshInterval = 6000) {
   }
 }
 
-export interface CandleData {
+// FIX: Renamed from CandleData to ApiCandleData to avoid confusion with
+// the canonical CandleData type in @/lib/charts/types (which uses `time: number`).
+// This type represents raw API responses from the exchange history endpoint.
+export interface ApiCandleData {
   timestamp: string
   open: number
   high: number
@@ -114,7 +117,7 @@ export interface CandleData {
 }
 
 export function useHistoricalCandles(symbol: string, interval: string = '1h') {
-  const [candles, setCandles] = useState<CandleData[]>([])
+  const [candles, setCandles] = useState<ApiCandleData[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchData = useCallback(async () => {

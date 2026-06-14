@@ -51,7 +51,16 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
   const [speed, setSpeed] = useState<ReplaySpeed>(1);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const totalCandles = candles.length;
+  // FIX: Keep a ref to the full original data so unmount/stop always restores
+  // the complete dataset, even if the `candles` prop has been sliced by a prior render.
+  const fullCandlesRef = useRef<CandleData[]>(candles);
+  // Only update the ref when the incoming candles array GROWS (new data from WebSocket).
+  // Never shrink it — slicing for replay reduces visible data, not the source.
+  if (candles.length > fullCandlesRef.current.length) {
+    fullCandlesRef.current = candles;
+  }
+
+  const totalCandles = fullCandlesRef.current.length;
 
   // ── Auto-play interval ──
   useEffect(() => {
@@ -80,19 +89,20 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
   // ── Update chart data when replay index changes ──
   useEffect(() => {
     if (totalCandles === 0) return;
-    const visibleCandles = candles.slice(0, replayIndex);
+    const visibleCandles = fullCandlesRef.current.slice(0, replayIndex);
     setCandles(visibleCandles);
-  }, [replayIndex, candles, setCandles, totalCandles]);
+  }, [replayIndex, setCandles, totalCandles]);
 
   // ── Restore full data on unmount ──
   useEffect(() => {
     return () => {
-      // Restore all candles when closing replay mode
-      if (candles.length > 0) {
-        setCandles(candles);
+      // FIX: Restore from fullCandlesRef, not from the `candles` prop
+      // which may have been sliced to a subset during replay.
+      if (fullCandlesRef.current.length > 0) {
+        setCandles(fullCandlesRef.current);
       }
     };
-  }, [candles, setCandles]);
+  }, [setCandles]);
 
   // ── Handlers ──
   const handlePlay = useCallback(() => {
@@ -110,8 +120,9 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
   const handleStop = useCallback(() => {
     setIsPlaying(false);
     setReplayIndex(totalCandles);
-    setCandles(candles);
-  }, [candles, setCandles, totalCandles]);
+    // FIX: Restore from fullCandlesRef to always show complete data
+    setCandles(fullCandlesRef.current);
+  }, [setCandles, totalCandles]);
 
   const handleStepForward = useCallback(() => {
     setIsPlaying(false);
@@ -135,7 +146,7 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
 
   // ── Current bar info ──
   const currentCandle = replayIndex > 0 && replayIndex <= totalCandles
-    ? candles[replayIndex - 1]
+    ? fullCandlesRef.current[replayIndex - 1]
     : null;
 
   const formatDateTime = (time: number) => {

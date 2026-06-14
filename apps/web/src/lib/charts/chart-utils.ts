@@ -156,6 +156,8 @@ export const CHART_COLORS = {
   // Candle colors
   upColor: '#3fb950',
   downColor: '#f85149',
+  upWick: '#3fb950',
+  downWick: '#f85149',
 
   // Volume histogram colors (used in useChart.ts setCandles and updateCandle)
   volumeUp: 'rgba(63,185,80,0.25)',

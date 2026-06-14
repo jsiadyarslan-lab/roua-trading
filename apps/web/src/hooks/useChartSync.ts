@@ -46,32 +46,33 @@ export function useChartSync(entries: ChartEntry[]) {
         if (isSyncingRef.current) return;
         isSyncingRef.current = true;
 
+        // FIX: Read from entriesRef.current to get latest chart/series refs
+        // instead of stale closure-captured `entries`
+        const currentEntries = entriesRef.current;
+
         try {
           if (!param.time) {
             // Mouse left chart — clear crosshair on all others
-            entries.forEach((target, targetIdx) => {
+            currentEntries.forEach((target, targetIdx) => {
               if (targetIdx !== sourceIdx) {
                 try { target.chart.clearCrosshairPosition(); } catch {}
               }
             });
           } else {
             // Mouse moved — set crosshair on all other charts
-            entries.forEach((target, targetIdx) => {
+            currentEntries.forEach((target, targetIdx) => {
               if (targetIdx !== sourceIdx) {
                 try {
-                  // Try to get data point from source series. During chart
-                  // teardown/data transitions lightweight-charts can emit a
-                  // crosshair event without a seriesData map.
                   const seriesData = param.seriesData;
+                  const sourceEntry = currentEntries[sourceIdx];
+                  const sourceSeries = sourceEntry?.mainSeries ?? source.mainSeries;
                   const sourceData = seriesData && typeof (seriesData as any).get === 'function'
-                    ? seriesData.get(source.mainSeries)
+                    ? seriesData.get(sourceSeries)
                     : null;
                   if (sourceData) {
-                    // setCrosshairPosition(dataPoint, time, series) - dataPoint has value field
                     const value = (sourceData as any).value ?? (sourceData as any).close ?? 0;
                     target.chart.setCrosshairPosition(value, param.time!, target.mainSeries);
                   } else if (param.time) {
-                    // Fallback: use time-only positioning
                     target.chart.setCrosshairPosition(
                       undefined as any,
                       param.time!,
@@ -80,7 +81,6 @@ export function useChartSync(entries: ChartEntry[]) {
                   }
                 } catch {
                   // Silently fail — crosshair position may not be valid
-                  // for charts with different data ranges
                 }
               }
             });
@@ -117,8 +117,11 @@ export function useChartSync(entries: ChartEntry[]) {
         if (isSyncingRef.current || !range) return;
         isSyncingRef.current = true;
 
+        // FIX: Read from entriesRef.current to get latest chart/series refs
+        const currentEntries = entriesRef.current;
+
         try {
-          entries.forEach((target) => {
+          currentEntries.forEach((target) => {
             if (target.id !== source.id) {
               try {
                 target.chart.timeScale().setVisibleLogicalRange(range);

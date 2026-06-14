@@ -1289,6 +1289,19 @@ export function SmartGrid({
     setActiveConfig(config);
     setCells(prev => {
       const count = config.cols * config.rows;
+      // FIX: Destroy chart instances for cells being removed when grid shrinks.
+      // Previously, prev.slice(0, count) removed cells from React state but left
+      // chart instances, canvas contexts, and data arrays leaking in memory.
+      if (prev.length > count) {
+        for (let i = count; i < prev.length; i++) {
+          destroyCellChart(prev[i].id);
+          // Also clean up React-managed state Maps
+          setCellStates(s => { const m = new Map(s); m.delete(prev[i].id); return m; });
+          setCellToolOpen(s => { const m = new Map(s); m.delete(prev[i].id); return m; });
+          setCellIndicators(s => { const m = new Map(s); m.delete(prev[i].id); return m; });
+          cellCandleDataRef.current.delete(prev[i].id);
+        }
+      }
       if (prev.length >= count) return prev.slice(0, count);
       const newCells = [...prev];
       while (newCells.length < count) {

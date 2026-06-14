@@ -33,6 +33,33 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
   // and relies solely on the onSave callback → addIndicator → debouncedSaveChartState.
 
   const handleSave = () => {
+    // FIX: Validate params against constraints before saving
+    const constraints = config?.paramConstraints;
+    if (constraints) {
+      const validated: Record<string, number> = {};
+      for (const [key, value] of Object.entries(params)) {
+        const c = constraints[key];
+        if (c) {
+          // Clamp value to [min, max] bounds
+          let v = value;
+          if (isNaN(v) || v < c.min) v = c.min;
+          if (v > c.max) v = c.max;
+          // Round to step precision
+          if (c.step) v = Math.round(v / c.step) * c.step;
+          validated[key] = v;
+        } else {
+          validated[key] = isNaN(value) ? (config?.defaultParams[key] ?? 1) : value;
+        }
+      }
+      onSave({
+        ...indicator,
+        params: validated,
+        color,
+        opacity,
+        visible: true,
+      });
+      return;
+    }
     onSave({
       ...indicator,
       params,
@@ -105,7 +132,9 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
       </div>
 
       {/* Parameters */}
-      {Object.entries(params).map(([key, value]) => (
+      {Object.entries(params).map(([key, value]) => {
+        const constraint = config?.paramConstraints?.[key];
+        return (
         <div key={key} style={{ marginBottom: 8 }}>
           <label style={{
             display: 'block',
@@ -115,18 +144,25 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
             fontFamily: "'Cairo', sans-serif",
           }}>
             {paramLabels[key] || key}
+            {constraint && <span style={{ fontSize: 8, color: COLORS.textMuted, marginRight: 4 }}>({constraint.min}–{constraint.max})</span>}
           </label>
           <input
             type="number"
             value={value}
-            onChange={e => setParams(p => ({ ...p, [key]: parseFloat(e.target.value) || 0 }))}
-            step={key.includes('step') || key.includes('multiplier') ? 0.01 : 1}
-            min={0}
+            onChange={e => {
+              const raw = parseFloat(e.target.value);
+              // FIX: Don't silently convert NaN to 0; keep the input editable.
+              // Validation is enforced on save via handleSave.
+              setParams(p => ({ ...p, [key]: isNaN(raw) ? raw : raw }));
+            }}
+            step={constraint?.step ?? (key.includes('step') || key.includes('multiplier') ? 0.01 : 1)}
+            min={constraint?.min ?? 0}
+            max={constraint?.max}
             style={{
               width: '100%',
               padding: '4px 8px',
               background: COLORS.bg,
-              border: '1px solid rgba(255,255,255,0.08)',
+              border: `1px solid ${value < (constraint?.min ?? 0) || value > (constraint?.max ?? Infinity) ? 'rgba(248,81,73,0.6)' : 'rgba(255,255,255,0.08)'}`,
               borderRadius: 4,
               color: COLORS.text,
               fontSize: 11,
@@ -135,7 +171,8 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
             }}
           />
         </div>
-      ))}
+        );
+      })}
 
       {/* Color */}
       <div style={{ marginBottom: 8 }}>

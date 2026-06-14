@@ -126,17 +126,22 @@ export class DrawingManager {
 
   // ── Persistence ────────────────────────────────────────
 
-  private saveToStorage(): void {
-    if (typeof window === 'undefined') return;
+  private saveToStorage(): boolean {
+    if (typeof window === 'undefined') return false;
     try {
       const allDrawings = this.getAllStoredDrawings();
       const symbolDrawings = this.getAll();
       // H2 FIX: Use composite key (symbol:timeframe) instead of just symbol
       allDrawings[this.getStorageKey()] = symbolDrawings;
       // M2: Pass userId to getStorageKey instead of using require()
-      localStorage.setItem(getStorageKey(this.userId), JSON.stringify(allDrawings));
+      const json = JSON.stringify(allDrawings);
+      localStorage.setItem(getStorageKey(this.userId), json);
+      // FIX: Verify the write succeeded by reading back and comparing length
+      const verify = localStorage.getItem(getStorageKey(this.userId));
+      return verify !== null && verify.length === json.length;
     } catch {
       // localStorage might be full or unavailable
+      return false;
     }
   }
 
@@ -154,11 +159,14 @@ export class DrawingManager {
             const legacyData = JSON.parse(legacyRaw);
             if (legacyData && Object.keys(legacyData).length > 0) {
               allDrawings = legacyData;
-              // Save to user-isolated key
-              // M2: Pass userId to getStorageKey instead of using require()
-              localStorage.setItem(getStorageKey(this.userId), JSON.stringify(legacyData));
-              // Remove legacy key to prevent re-migration
-              localStorage.removeItem(LEGACY_STORAGE_KEY);
+              // FIX: Save to user-isolated key FIRST, then verify before deleting legacy
+              const json = JSON.stringify(legacyData);
+              localStorage.setItem(getStorageKey(this.userId), json);
+              // Only remove the legacy key after confirming the new key was written
+              const verify = localStorage.getItem(getStorageKey(this.userId));
+              if (verify !== null && verify.length === json.length) {
+                localStorage.removeItem(LEGACY_STORAGE_KEY);
+              }
             }
           }
         } catch { /* Legacy data corrupted — skip migration */ }

@@ -181,6 +181,45 @@ export interface OverlayInput {
   } | null;
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// SHARED HELPERS — extracted from both renderOverlays and renderAnalysisOverlays
+// to eliminate ~60 lines of duplicated boilerplate (closedCandles, ATR, safeAddPriceLine).
+// ═══════════════════════════════════════════════════════════════════════
+
+/** Compute closed candles (exclude forming candle) and ATR from the input candles */
+function prepareOverlayContext(candles: CandleData[]) {
+  const closedCandles = candles.length > 1 ? candles.slice(0, -1) : candles;
+  const _atrPeriod = 14;
+  const atr = closedCandles.length >= _atrPeriod ? (() => {
+    const sl = closedCandles.slice(-_atrPeriod);
+    const trs = sl.map((c, i) => i === 0
+      ? c.high - c.low
+      : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low)
+    );
+    return trs.reduce((s, v) => s + v, 0) / trs.length;
+  })() : (closedCandles.length > 0 ? closedCandles[closedCandles.length - 1].close * 0.01 : 1);
+  return { closedCandles, atr };
+}
+
+/** Create a safeAddPriceLine helper bound to the given candles and registry */
+function createSafePriceLineFn(
+  candles: CandleData[],
+  addPriceLine: ((id: string, price: number, color: string, label: string, lineWidth: number, lineStyle: number, axisLabelVisible: boolean) => void) | undefined,
+  registry: OverlayRegistry,
+) {
+  return (id: string, price: number, color: string, label: string, lw: number, ls: number, axisVisible: boolean, _type: OverlayType) => {
+    if (!addPriceLine) return;
+    const range = candles.slice(-30);
+    const high = safeMax(range.map(c => c.high));
+    const low = safeMin(range.map(c => c.low));
+    const maxDist = (high - low) * 3;
+    const lastPrice = candles[candles.length - 1].close;
+    if (Math.abs(price - lastPrice) > maxDist) return;
+    addPriceLine(id, price, color, label, lw, ls, axisVisible);
+    registry.addPriceLineId(_type, id);
+  };
+}
+
 /**
  * Main rendering function — draws overlays using ISeriesPrimitive.
  * This replaces the old LineSeries-based approach.
@@ -232,42 +271,12 @@ export function renderOverlays(
   }
 
   // ── Run ZigZag detection on CLOSED candles only ──
-  // FIX: Exclude the last (forming) candle from detection. The forming
-  // candle's high/low/close change on every WebSocket tick, causing
-  // ZigZag swing points to shift → signature changes → primitives
-  // destroyed+recreated → "dancing lines". Only closed candles produce
-  // stable swing points that don't change between ticks.
-  const closedCandles = candles.length > 1 ? candles.slice(0, -1) : candles;
+  // FIX: Use shared prepareOverlayContext helper instead of duplicating
+  const { closedCandles, atr } = prepareOverlayContext(candles);
   const swings = computeZigZag(closedCandles);
 
-  // ── PHASE 3: Compute ATR ONCE and reuse everywhere ──
-  // Previously, ATR was calculated 6 times inline with identical code.
-  // Now it's computed once here and reused by all overlays that need it.
-  const _atrPeriod = 14;
-  const atr = closedCandles.length >= _atrPeriod ? (() => {
-    const sl = closedCandles.slice(-_atrPeriod);
-    const trs = sl.map((c, i) => i === 0
-      ? c.high - c.low
-      : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low)
-    );
-    return trs.reduce((s, v) => s + v, 0) / trs.length;
-  })() : (closedCandles.length > 0 ? closedCandles[closedCandles.length - 1].close * 0.01 : 1);
-
   // ── Helper: safe price line ──
-  // FIX: Also register the price line ID with the OverlayRegistry so
-  // it gets removed when the overlay type is cleared (toggled off).
-  const safeAddPriceLine = (id: string, price: number, color: string, label: string, lw: number, ls: number, axisVisible: boolean, _type: OverlayType) => {
-    if (!addPriceLine) return;
-    const range = candles.slice(-30);
-    const high = safeMax(range.map(c => c.high));
-    const low = safeMin(range.map(c => c.low));
-    const maxDist = (high - low) * 3;
-    const lastPrice = candles[candles.length - 1].close;
-    if (Math.abs(price - lastPrice) > maxDist) return;
-    addPriceLine(id, price, color, label, lw, ls, axisVisible);
-    // Register this price line ID with the overlay type so it's cleaned up on toggle off
-    registry.addPriceLineId(_type, id);
-  };
+  const safeAddPriceLine = createSafePriceLineFn(candles, addPriceLine, registry);
 
   // ═══════════════════════════════════════════════════════════════
   // S/R — Support/Resistance using clustering + horizontal lines
@@ -1644,8 +1653,8 @@ export function renderAnalysisOverlays(
   const registry = getOverlayRegistry();
   registry.init(series, removePriceLine ?? undefined);
 
-  // Use closed candles for stable calculations (same as renderOverlays)
-  const closedCandles = candles.length > 1 ? candles.slice(0, -1) : candles;
+  // FIX: Use shared prepareOverlayContext helper instead of duplicating
+  const { closedCandles, atr } = prepareOverlayContext(candles);
 
   const ov = overlays || {};
   const showVP = ov.vp === true;
@@ -1654,29 +1663,8 @@ export function renderAnalysisOverlays(
   const showLiq = ov.liq === true;
   const showTrade = ov.trade === true;
 
-  // PHASE 3: Compute ATR once for this render cycle (same as renderOverlays)
-  const _atrPeriod = 14;
-  const atr = closedCandles.length >= _atrPeriod ? (() => {
-    const sl = closedCandles.slice(-_atrPeriod);
-    const trs = sl.map((c, i) => i === 0
-      ? c.high - c.low
-      : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low)
-    );
-    return trs.reduce((s, v) => s + v, 0) / trs.length;
-  })() : (closedCandles.length > 0 ? closedCandles[closedCandles.length - 1].close * 0.01 : 1);
-
   // ── Helper: safe price line ──
-  const safeAddPriceLine = (id: string, price: number, color: string, label: string, lw: number, ls: number, axisVisible: boolean, _type: OverlayType) => {
-    if (!addPriceLine) return;
-    const range = candles.slice(-30);
-    const high = safeMax(range.map(c => c.high));
-    const low = safeMin(range.map(c => c.low));
-    const maxDist = (high - low) * 3;
-    const lastPrice = candles[candles.length - 1].close;
-    if (Math.abs(price - lastPrice) > maxDist) return;
-    addPriceLine(id, price, color, label, lw, ls, axisVisible);
-    registry.addPriceLineId(_type, id);
-  };
+  const safeAddPriceLine = createSafePriceLineFn(candles, addPriceLine, registry);
 
   // ── VP: Volume Profile (analysis-dependent) ──
   if (showVP) {

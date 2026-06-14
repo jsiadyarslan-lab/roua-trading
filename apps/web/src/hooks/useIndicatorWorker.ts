@@ -92,10 +92,24 @@ export function useIndicatorWorker(): UseIndicatorWorkerReturn {
     params: Record<string, number> = {}
   ): Promise<any> => {
     if (!workerRef.current) {
-      // Fallback: calculate on main thread
-      // This is a simplified fallback — full calculations would import from IndicatorCalculator
-      console.warn('[IndicatorWorker] Falling back to main thread calculation');
-      return null;
+      // FIX: Real main-thread fallback using IndicatorCalculator.
+      // Previously returned null, which silently dropped indicator calculations.
+      try {
+        const { calculateIndicator } = await import('@/lib/charts/IndicatorCalculator');
+        const activeIndicator = {
+          key: indicator as any,
+          params,
+          color: '#58a6ff',
+          opacity: 0.8,
+          visible: true,
+        };
+        const result = await calculateIndicator(activeIndicator, candles);
+        console.warn(`[IndicatorWorker] Main-thread fallback for ${indicator} succeeded`);
+        return result;
+      } catch (err) {
+        console.error(`[IndicatorWorker] Main-thread fallback failed for ${indicator}:`, err);
+        return null;
+      }
     }
 
     const id = `${indicator}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;

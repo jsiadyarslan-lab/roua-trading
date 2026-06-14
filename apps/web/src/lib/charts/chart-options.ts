@@ -7,14 +7,11 @@
 import type { DeepPartial, ChartOptions } from 'lightweight-charts';
 
 // ── Chart Color Constants ────────────────────────────────
-export const CHART_COLORS = {
-  grid: 'rgba(42,49,60,0.5)',
-  crosshair: 'rgba(160,200,220,0.3)',
-  upColor: '#3fb950',
-  downColor: '#f85149',
-  upWick: '#3fb950',
-  downWick: '#f85149',
-};
+// FIX: Re-export from chart-utils.ts (single source of truth).
+// Previously this file had its own CHART_COLORS definition that duplicated
+// and could diverge from the one in chart-utils.ts.
+import { CHART_COLORS } from './chart-utils';
+export { CHART_COLORS };
 
 // ── Mobile Color Constants (MT5 style) ──
 const MOBILE_UP = '#4CAF50';   // MT5 green

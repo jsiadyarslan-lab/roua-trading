@@ -11,7 +11,10 @@ interface TradePoint {
   exitPrice: number;
 }
 
-interface CandleData {
+// FIX: Renamed from CandleData to SimCandleData to avoid confusion with
+// the canonical CandleData in @/lib/charts/types (which uses `time: number`).
+// This local type uses `time: string` (ISO date) for lightweight-charts.
+interface SimCandleData {
   time: string;
   open: number;
   high: number;
@@ -25,7 +28,7 @@ interface TradeChartProps {
 }
 
 // Generate simulated OHLC candlestick data from trade prices
-function generateCandleData(trades: TradePoint[]): CandleData[] {
+function generateCandleData(trades: TradePoint[]): SimCandleData[] {
   if (!trades || trades.length === 0) return [];
 
   const allPrices = trades.flatMap((t) => [t.entryPrice, t.exitPrice]);
@@ -33,7 +36,7 @@ function generateCandleData(trades: TradePoint[]): CandleData[] {
   const maxPrice = Math.max(...allPrices);
   const range = maxPrice - minPrice || 1;
 
-  const candles: CandleData[] = [];
+  const candles: SimCandleData[] = [];
   const startDate = new Date('2025-01-01');
 
   for (let i = 0; i < 60; i++) {

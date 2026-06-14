@@ -85,7 +85,8 @@ function chartPointToPixel(pt: DrawingPoint, chart: IChartApi, series: ISeriesAp
   // timeToCoordinate() returns null when no bar exists at that exact time
   // (common for all-tf drawings from a different timeframe — e.g., a 1H
   // drawing viewed on 5min). The old estimation worked but was fragile.
-  // Now we use a more robust interpolation approach.
+  // Now we use a more robust interpolation approach that preserves the
+  // exact time coordinate, ensuring drawings don't "dance" when switching TFs.
   const x = chart.timeScale().timeToCoordinate(pt.time as Time);
   const y = series.priceToCoordinate(pt.price);
 
@@ -107,19 +108,20 @@ function chartPointToPixel(pt: DrawingPoint, chart: IChartApi, series: ISeriesAp
     const timeSpan = toTime - fromTime;
     if (timeSpan <= 0 || barCount <= 0) return null;
 
-    const barSpacing = chartWidth / barCount;
-    const candleInterval = timeSpan / barCount;
-    const barFromX = logicalRange.from * barSpacing;
+    // V254 FIX: Use pixels-per-second for accurate time-to-pixel conversion.
+    // This is more accurate than barSpacing/candleInterval because it doesn't
+    // assume uniform bar distribution (which breaks for sparse data or gaps).
+    const pixelsPerSecond = chartWidth / timeSpan;
+    const leftEdgeTime = fromTime;
 
     // Estimate X from time if timeToCoordinate returned null
     let estimatedX: number | null = x;
     if (x === null) {
-      const barsFromStart = (pt.time - fromTime) / candleInterval;
-      estimatedX = barFromX + barsFromStart * barSpacing;
+      // Simple linear interpolation: position = (time - leftEdge) * px/sec
+      estimatedX = (pt.time - leftEdgeTime) * pixelsPerSecond;
     }
 
     // Estimate Y from price if priceToCoordinate returned null
-    // Use the visible price range to calculate a proportional position
     let estimatedY: number | null = y;
     if (y === null) {
       const priceRange = (series as any).priceScale?.()?.getVisiblePriceRange?.();
@@ -132,18 +134,9 @@ function chartPointToPixel(pt: DrawingPoint, chart: IChartApi, series: ISeriesAp
       }
     }
 
-    // V254 FIX: If we only have one valid coordinate, try harder for the other.
-    // For X: if timeToCoordinate returned null but we have a valid Y, it means
-    // the time is outside the data range (common for cross-TF drawings).
-    // We can still estimate X from the visible time range.
-    // For Y: if priceToCoordinate returned null but we have a valid X, the price
-    // is outside the visible price range — estimate from price scale.
     if (estimatedX !== null && estimatedY !== null) {
       return { x: estimatedX, y: estimatedY };
     }
-
-    // Last resort: if we have at least one coordinate from the chart API,
-    // return null (don't draw at a completely guessed position)
   } catch { /* chart may be destroyed */ }
   return null;
 }
@@ -182,10 +175,17 @@ function pixelToChartPoint(x: number, y: number, chart: IChartApi, series: ISeri
     const barsFromStart = (x - barFromX) / barSpacing;
     const estimatedTime = fromTime + barsFromStart * candleInterval;
 
-    // Snap to nearest candle interval boundary for clean alignment
-    const snappedTime = Math.round(estimatedTime / candleInterval) * candleInterval;
-
-    return { time: snappedTime, price };
+    // V254 FIX: DO NOT snap to candle interval boundary!
+    // Previously, this code rounded the estimated time to the nearest candle
+    // interval, which caused "dancing lines" when switching timeframes:
+    // - On 1H, a click at time 1700001234 would snap to 1699999200 (off by 2034s)
+    // - On 5min, the same click would snap to 1700001300 (off by 66s)
+    // - This meant the same drawing stored DIFFERENT times on different TFs
+    // Now we store the precise estimated time without interval-snapping.
+    // We only round to the nearest second (integer Unix timestamp) because
+    // lightweight-charts uses integer seconds for time coordinates.
+    const roundedTime = Math.round(estimatedTime);
+    return { time: roundedTime, price };
   } catch { /* chart may be destroyed */ }
   return null;
 }

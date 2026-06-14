@@ -2695,59 +2695,22 @@ export default function RouaChart({
   useEffect(() => {
     const combinedMarkers: any[] = [];
 
-    // Add news markers
+    // Add news markers (not arrows — these are event markers)
     if (newsMarkers.length) {
       const newsChartMarkers = createNewsChartMarkers(newsMarkers);
       combinedMarkers.push(...newsChartMarkers);
     }
 
-    // Add direct pattern markers from handlePatternsDetected (always fresh)
-    if (aiDirectMarkers.length > 0) {
-      combinedMarkers.push(...aiDirectMarkers);
-    }
-
-    // Add AI pattern markers — show Arabic name on candle
-    if (aiPatterns.length) {
-      // Get valid candle times from the chart data
-      const candleTimes = (candlesRef.current || []).map(c => c.time as number);
-      const usedTimes = new Set<number>();
-      aiPatterns.forEach(p => {
-        // Snap to nearest actual candle time
-        let t = p.time as number;
-        if (candleTimes.length > 0) {
-          const nearest = candleTimes.reduce((a, b) => Math.abs(b - t) < Math.abs(a - t) ? b : a);
-          t = nearest;
-        }
-        if (usedTimes.has(t)) return;
-        usedTimes.add(t);
-        const label = p.type;
-        const shortLabel = label.length > 6 ? label.slice(0, 6) : label;
-        combinedMarkers.push({
-          time: t as any,
-          position: (p.direction === 'bullish' ? 'belowBar' : 'aboveBar') as 'belowBar' | 'aboveBar',
-          color: p.direction === 'bullish' ? '#00FFA3' : p.direction === 'bearish' ? '#FF4757' : '#fbbf24',
-          shape: (p.direction === 'bullish' ? 'arrowUp' : 'arrowDown') as 'arrowUp' | 'arrowDown',
-          text: shortLabel,
-        });
-      });
-    }
-
-    // Add trading signal markers (BUY/SELL/WAIT)
-    if (signalMarkers.length) {
-      combinedMarkers.push(...signalMarkers);
-    }
-
-    // Add AI entry/exit marker (from last handlePatternsDetected call)
-    if (aiEntryExitMarkerRef.current) {
-      combinedMarkers.push(aiEntryExitMarkerRef.current);
-    }
+    // REMOVED: AI pattern arrows, trading signal arrows, strategic brief arrows,
+    // and AI entry/exit arrows — all permanently removed per user request.
+    // Only news markers remain on the chart.
 
     // Sort by time and apply
     combinedMarkers.sort((a, b) => (a.time as number) - (b.time as number));
     chart.setMarkers(combinedMarkers);
   // chart.setMarkers is stable (useCallback), safe to omit from deps
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [newsMarkers, aiPatterns, signalMarkers, aiDirectMarkers]);
+  }, [newsMarkers]);
 
   // ── Multi-Chart Grid (memoized) ──
   // FIX: Use useMemo instead of IIFE to prevent React from treating the grid

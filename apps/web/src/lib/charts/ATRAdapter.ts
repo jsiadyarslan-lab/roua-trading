@@ -104,6 +104,11 @@ export function getDynamicThresholds(candles: CandleData[]) {
     atrMultiplier: regime === 'extreme' ? 1.5 : regime === 'high' ? 1.8 : 2,
     volatilityFactor: volFactor,
     volatilityRegime: regime,
+    atrValue: atr,
+    pullback: close > 0 ? atr / close : 0.02,
+    peakSimilarity: regime === 'extreme' ? 0.03 : regime === 'high' ? 0.04 : 0.05,
+    shoulderTolerance: regime === 'extreme' ? 0.02 : regime === 'high' ? 0.03 : 0.04,
+    breakoutConfirm: atr * (regime === 'extreme' ? 0.5 : 1.0),
   };
 }
 

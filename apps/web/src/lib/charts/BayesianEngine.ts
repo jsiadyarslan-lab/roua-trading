@@ -19,6 +19,8 @@ export interface BayesianConsensus {
   prior: { bullish: number; bearish: number };
   /** Per-signal likelihood contributions */
   likelihoods: Array<{ source: string; likelihoodBull: number; likelihoodBear: number }>;
+  /** Key price levels from signal sources (optional, populated by UI layer) */
+  keyLevels?: Array<{ price: number; label: string; type: 'support' | 'resistance' }>;
 }
 
 export interface BayesianSignal {

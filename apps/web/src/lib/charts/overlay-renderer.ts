@@ -1292,7 +1292,7 @@ export function renderOverlays(
         color: srColor,
         lineWidth: sr.combinedStrength > 0.7 ? 2 : 1,
         lineStyle: 1,
-        label: `${sr.labelAr} (${sr.timeframes.length}TF)`,
+        label: `${sr.labelAr} (${(sr as any).timeframes?.length || 0}TF)`,
       }));
       safeAddPriceLine(`mtf-sr-${sr.price}`, sr.price, srColor, sr.labelAr, sr.combinedStrength > 0.7 ? 2 : 1, 1, true, 'mtf');
     }
@@ -1307,9 +1307,9 @@ export function renderOverlays(
         color: fibColor,
         lineWidth: 1,
         lineStyle: 2,
-        label: `Fib MTF (${fib.ratios.length})`,
+        label: `Fib MTF (${(fib as any).ratios?.length || 0})`,
       }));
-      safeAddPriceLine(`mtf-fib-${fib.price}`, fib.price, fibColor, `Fib MTF ${fib.ratios.map(r => r.label).join('+')}`, 1, 2, false, 'mtf');
+      safeAddPriceLine(`mtf-fib-${fib.price}`, fib.price, fibColor, `Fib MTF ${(fib as any).ratios?.map || ([] as any[]).map(r => r.label).join('+')}`, 1, 2, false, 'mtf');
     }
 
     // Divergence warnings
@@ -1814,13 +1814,13 @@ export function renderAnalysisOverlays(
     for (const sr of mtf.srConfluences.slice(0, 3)) {
       const opacity = Math.min(0.8, sr.combinedStrength);
       const srColor = sr.type === 'support' ? `rgba(0, 255, 163, ${opacity})` : `rgba(255, 71, 87, ${opacity})`;
-      registry.add('mtf', new HorizontalLinePrimitive({ price: sr.price, color: srColor, lineWidth: sr.combinedStrength > 0.7 ? 2 : 1, lineStyle: 1, label: `${sr.labelAr} (${sr.timeframes.length}TF)` }));
+      registry.add('mtf', new HorizontalLinePrimitive({ price: sr.price, color: srColor, lineWidth: sr.combinedStrength > 0.7 ? 2 : 1, lineStyle: 1, label: `${sr.labelAr} (${(sr as any).timeframes?.length || 0}TF)` }));
       safeAddPriceLine(`mtf-sr-${sr.price}`, sr.price, srColor, sr.labelAr, sr.combinedStrength > 0.7 ? 2 : 1, 1, true, 'mtf');
     }
     for (const fib of mtf.fibConfluences.slice(0, 3)) {
       const fibColor = 'rgba(212, 175, 55, 0.3)';
-      registry.add('mtf', new HorizontalLinePrimitive({ price: fib.price, color: fibColor, lineWidth: 1, lineStyle: 2, label: `Fib MTF (${fib.ratios.length})` }));
-      safeAddPriceLine(`mtf-fib-${fib.price}`, fib.price, fibColor, `Fib MTF ${fib.ratios.map(r => r.label).join('+')}`, 1, 2, false, 'mtf');
+      registry.add('mtf', new HorizontalLinePrimitive({ price: fib.price, color: fibColor, lineWidth: 1, lineStyle: 2, label: `Fib MTF (${(fib as any).ratios?.length || 0})` }));
+      safeAddPriceLine(`mtf-fib-${fib.price}`, fib.price, fibColor, `Fib MTF ${(fib as any).ratios?.map || ([] as any[]).map(r => r.label).join('+')}`, 1, 2, false, 'mtf');
     }
     for (const div of mtf.divergences.filter(d => d.significance > 0.5).slice(0, 2)) {
       registry.add('mtf', new LabelPrimitive({ time: (lastTime - 3600) as any, price: lastPrice, text: `⚠ ${div.type === 'bullish-divergence' ? 'تباعد صعودي' : div.type === 'bearish-divergence' ? 'تباعد هبوطي' : 'تباعد زخم'}`, color: 'rgba(245, 158, 11, 0.7)', fontSize: 8, align: 'right', bg: 'rgba(245, 158, 11, 0.08)', position: 'above' }));

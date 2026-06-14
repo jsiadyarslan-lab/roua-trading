@@ -718,10 +718,10 @@ export function autoEvaluateProposals(currentPrice: number, candles?: CandleData
     // ── Check Take Profit hits ──
     if (!newStatus) {
       if (proposal.direction === 'bullish') {
-        if (currentPrice >= proposal.takeProfits[2] && proposal.status !== 'hit_tp3') {
+        if (currentPrice >= proposal.takeProfits[2] && (proposal.status as string) !== 'hit_tp3') {
           newStatus = 'hit_tp3';
           pnlChange = proposal.positionSize * Math.abs(proposal.takeProfits[2] - proposal.entryPrice);
-        } else if (currentPrice >= proposal.takeProfits[1] && proposal.status !== 'hit_tp2') {
+        } else if (currentPrice >= proposal.takeProfits[1] && (proposal.status as string) !== 'hit_tp2') {
           newStatus = 'hit_tp2';
           // Partial close P&L
           if (proposal.partialCloses.length > 0 && !proposal.partialCloses[1].executed) {
@@ -744,10 +744,10 @@ export function autoEvaluateProposals(currentPrice: number, candles?: CandleData
           }
         }
       } else {
-        if (currentPrice <= proposal.takeProfits[2] && proposal.status !== 'hit_tp3') {
+        if (currentPrice <= proposal.takeProfits[2] && (proposal.status as string) !== 'hit_tp3') {
           newStatus = 'hit_tp3';
           pnlChange = proposal.positionSize * Math.abs(proposal.takeProfits[2] - proposal.entryPrice);
-        } else if (currentPrice <= proposal.takeProfits[1] && proposal.status !== 'hit_tp2') {
+        } else if (currentPrice <= proposal.takeProfits[1] && (proposal.status as string) !== 'hit_tp2') {
           newStatus = 'hit_tp2';
           if (proposal.partialCloses.length > 0 && !proposal.partialCloses[1].executed) {
             proposal.partialCloses[1].executed = true;
@@ -770,7 +770,7 @@ export function autoEvaluateProposals(currentPrice: number, candles?: CandleData
 
     // ── Trailing Stop Update ──
     if (!newStatus && params.enableTrailingStop && atr > 0) {
-      const hasHitTP1 = proposal.status === 'breakeven' || proposal.status === 'hit_tp1' || proposal.status === 'hit_tp2';
+      const hasHitTP1 = proposal.status === 'breakeven' || (proposal.status as string) === 'hit_tp1' || (proposal.status as string) === 'hit_tp2';
 
       if (hasHitTP1) {
         // Activate trailing stop

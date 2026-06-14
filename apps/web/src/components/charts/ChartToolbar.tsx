@@ -779,7 +779,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
             key={tool.key}
             style={activeTool === tool.key ? activeBtnStyle : btnStyle}
             onClick={() => onSetTool(tool.key)}
-            title={tool.i18nKey ? t(tool.i18nKey) : tool.title}
+            title={tool.i18nKey ? t(tool.i18nKey) : (tool as any).title || ''}
           >
             {tool.icon}
           </button>

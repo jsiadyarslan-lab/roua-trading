@@ -428,8 +428,8 @@ function CellToolOverlay({
                   onClick={() => onExecuteTrade(
                     aiData.signal === 'BUY' ? 'long' : 'short',
                     aiData.entry!,
-                    aiData.sl || aiData.entry * (aiData.signal === 'BUY' ? 0.98 : 1.02),
-                    aiData.tp || aiData.entry * (aiData.signal === 'BUY' ? 1.02 : 0.98),
+                    aiData.sl || aiData.entry! * (aiData.signal === 'BUY' ? 0.98 : 1.02),
+                    aiData.tp || aiData.entry! * (aiData.signal === 'BUY' ? 1.02 : 0.98),
                   )}
                   style={{
                     width: '100%', padding: '3px 0', borderRadius: 4,

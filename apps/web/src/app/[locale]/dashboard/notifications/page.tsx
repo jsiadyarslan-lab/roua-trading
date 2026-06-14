@@ -647,7 +647,7 @@ function EmptyState({ filterLabel, t }: { filterLabel: string; t: (key: string) 
       }}>
         {filterLabel === t('filterAll')
           ? t('emptyDescAll')
-          : t('emptyDescFiltered', { filter: filterLabel })}
+          : `${t('emptyDescFiltered')} ${filterLabel}`}
       </p>
     </motion.div>
   )

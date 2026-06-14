@@ -1733,17 +1733,17 @@ export default function RouaChart({
         // Fill zones: only draw when both boundary lines are visible
         if (slY !== null && entryY !== null) {
           zones.push({
-            top: Math.min(entryY, slY),
-            height: Math.abs(entryY - slY),
+            top: Math.min(entryY!, slY!),
+            height: Math.abs(entryY! - slY!),
             type: 'sl', key: `${prefix}sl-zone`,
-            topPrice: Math.min(entryPrice, sl),
-            bottomPrice: Math.max(entryPrice, sl),
+            topPrice: Math.min(entryPrice, sl!),
+            bottomPrice: Math.max(entryPrice, sl!),
           });
         }
         if (tpY !== null && entryY !== null) {
           zones.push({
-            top: Math.min(entryY, tpY),
-            height: Math.abs(entryY - tpY),
+            top: Math.min(entryY!, tpY),
+            height: Math.abs(entryY! - tpY),
             type: 'tp', key: `${prefix}tp-zone`,
             topPrice: Math.min(entryPrice, tp!),
             bottomPrice: Math.max(entryPrice, tp!),

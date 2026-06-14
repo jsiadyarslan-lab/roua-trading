@@ -248,10 +248,10 @@ export function explainSignal(opts: {
 
   return {
     signal: { source, direction, confidence, price },
-    explanationAr: explanation.explanation || explanation,
+    explanationAr: (typeof explanation === 'string' ? explanation : (explanation as any).explanation) || String(explanation),
     factors,
-    invalidationAr: explanation.invalidation || 'أغلق السعر خارج منطقة الإشارة',
-    confirmationAr: explanation.confirmation || 'ارتداد السعر من المنطقة مع حجم مرتفع',
+    invalidationAr: (typeof explanation === 'object' && explanation != null ? (explanation as any).invalidation : null) || 'أغلق السعر خارج منطقة الإشارة',
+    confirmationAr: (typeof explanation === 'object' && explanation != null ? (explanation as any).confirmation : null) || 'ارتداد السعر من المنطقة مع حجم مرتفع',
     relatedSignals,
     historicalWinRate: historicalWinRate ?? null,
     regime: regime || 'غير محدد',

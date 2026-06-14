@@ -569,13 +569,13 @@ export function verifyConfidenceHeatmap(): EngineVerificationResult {
   });
 
   // ── Check 3: Direction not always based on candle color ──
-  const resultWithSignals = buildHeatmap(candles, {
+  const resultWithSignals = buildHeatmap(candles, [{
     smcData: {
       orderBlocks: [{ type: 'bullish', time: candles[0].time, endTime: candles[99].time, high: 65500, low: 64800, price: 65000 }],
       fvgs: [],
       structureBreaks: [{ type: 'bullish_bos', direction: 'bullish', time: candles[20].time, endTime: candles[99].time, price: 65500 }],
     },
-  });
+  }] as any);
 
   const bullishPoints = resultWithSignals.points.filter(p => p.direction === 'bullish');
   const bearishPoints = resultWithSignals.points.filter(p => p.direction === 'bearish');
@@ -608,7 +608,7 @@ export function verifyConfidenceHeatmap(): EngineVerificationResult {
 
   // ── Check 6: More signals = higher confidence ──
   const noSignalResult = buildHeatmap(candles, []);
-  const withSignalResult = buildHeatmap(candles, {
+  const withSignalResult = buildHeatmap(candles, [{
     smcData: {
       orderBlocks: [
         { type: 'bullish', time: candles[50].time, endTime: candles[99].time, high: 65500, low: 64800, price: 65000 },
@@ -618,7 +618,7 @@ export function verifyConfidenceHeatmap(): EngineVerificationResult {
       structureBreaks: [{ type: 'bullish_bos', direction: 'bullish', time: candles[20].time, endTime: candles[99].time, price: 65600 }],
     },
     patterns: [{ type: 'Gartley', direction: 'bullish', confidence: 0.8, time: candles[60].time, points: { X: { time: candles[40].time }, D: { time: candles[80].time, price: 65500 } }, przLevel: 65500 }],
-  });
+  }] as any);
 
   checks.push({
     name: 'More signals → higher average confidence',

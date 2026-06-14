@@ -51,6 +51,7 @@ const T = {
   danger: SharedT.danger,
   warning: SharedT.warning,
   info: SharedT.info,
+  amber: SharedT.amber,
   text: SharedT.text,
   text2: SharedT.text2,
   text3: SharedT.text3,

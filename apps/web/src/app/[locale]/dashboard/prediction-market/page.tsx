@@ -1285,8 +1285,8 @@ export default function PredictionMarketPage() {
                 <div style={{
                   position: 'absolute', top: '-30px', right: '-30px',
                   width: '100px', height: '100px',
-                  background: voteConfig(voteData.vote).color === 'var(--profit)' ? '#00FFC6' :
-                    voteConfig(voteData.vote).color === 'var(--loss)' ? '#FF4D4D' : '#FFB800',
+                  background: voteConfig(voteData.vote, t).color === 'var(--profit)' ? '#00FFC6' :
+                    voteConfig(voteData.vote, t).color === 'var(--loss)' ? '#FF4D4D' : '#FFB800',
                   filter: 'blur(50px)', opacity: 0.08,
                   pointerEvents: 'none',
                 }} />

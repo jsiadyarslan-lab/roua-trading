@@ -582,7 +582,7 @@ export function useExecutionEngine() {
 
       setExecutionState(finalResult.filledAvgPrice ? 'filled' : 'accepted')
       setStatus({
-        msg: tn('orderSuccessStatus', { side: side === 'buy' ? tc('buy') : tc('sell'), qty: finalResult.qty, symbol: finalResult.symbol, filled, source: sourceLabel, orderId: finalResult.orderId?.slice(0, 8) || '' }),
+        msg: tn('orderSuccessStatus' as any, { side: side === 'buy' ? tc('buy') : tc('sell'), qty: String(finalResult.qty), symbol: finalResult.symbol, filled: String(filled), source: sourceLabel, orderId: String(finalResult.orderId?.slice(0, 8) || '') } as any),
         type: 'success',
       })
 
@@ -590,8 +590,8 @@ export function useExecutionEngine() {
         source: 'trade',
         priority: 'high',
         action: side === 'buy' ? 'BUY' : 'SELL',
-        title: tn('orderFillTitle', { side: side === 'buy' ? tc('buy') : tc('sell'), symbol: finalResult.symbol }),
-        body: tn('orderFillDesc', { qty: finalResult.qty, symbol: finalResult.symbol, filled, source: sourceLabel }),
+        title: tn('orderFillTitle' as any, { side: String(side === 'buy' ? tc('buy') : tc('sell')), symbol: finalResult.symbol } as any),
+        body: tn('orderFillDesc' as any, { qty: String(finalResult.qty), symbol: finalResult.symbol, filled: String(filled), source: sourceLabel } as any),
         pair: finalResult.symbol || localSymbol,
         price: finalResult.filledAvgPrice || currentPrice,
       })

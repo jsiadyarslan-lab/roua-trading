@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Extract reasoning
-      const reasonMatch = responseText.match(/الأسباب[:\s]*(.+)/s);
+      const reasonMatch = responseText.match(/الأسباب[:\s]*([\s\S]+)/);
       if (reasonMatch) {
         reasoningAr = reasonMatch[1].trim().substring(0, 200);
       }
@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
             confidence = Math.min(0.95, Math.max(0.3, parseInt(confMatch[1]) / 100));
           }
 
-          const reasonMatch = responseText.match(/الأسباب[:\s]*(.+)/s);
+          const reasonMatch = responseText.match(/الأسباب[:\s]*([\s\S]+)/);
           if (reasonMatch) {
             reasoningAr = reasonMatch[1].trim().substring(0, 200);
           }

@@ -467,14 +467,14 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       // ── 8. REVOLUTIONARY: Confidence Heatmap (Real Signal-Based) ──
       try {
         // Pass full analysis data for signal-range extraction
-        const heatmap = buildHeatmap(c, {
+        const heatmap = buildHeatmap(c, [{
           patterns: allPatterns,
           smcData,
           elliottPattern,
           wyckoff,
           volumeProfile,
           geoPatterns,
-        });
+        }] as any);
         setHeatmapResult(heatmap);
         onHeatmapRef.current?.(heatmap);
       } catch { /* Heatmap fallback */ }
@@ -708,20 +708,52 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           direction: p.direction as 'bullish' | 'bearish' | 'neutral',
           confidence: p.confidence,
           price: p.price || price,
-          candleIndex: p.candleIndex || c.length - 1,
+          candleIndex: p.candleIndex ?? c.length - 1,
         })));
         setBacktestStats(btResult.stats);
-        setBacktestSignals(btResult.signals);
+        setBacktestSignals(btResult.results);
       } catch { /* Visual Backtest fallback */ }
 
       // ── Revolutionary: Confluence Zones ────────────────────────────
       try {
         const zones = detectConfluenceZones({
-          patterns: allPatterns,
-          smcData,
-          elliottResult: elliottAdvanced,
-          wyckoffResult: wyckoffAdvanced,
-          srLevels: srLevels.map(l => ({ price: l.price, type: l.type as string, strength: typeof l.strength === 'number' ? l.strength : l.strength === 'strong' ? 0.9 : l.strength === 'medium' ? 0.6 : 0.3 })),
+          harmonicPatterns: allPatterns
+            .filter((p: any) => p.type?.includes('harmonic') || p.type?.includes('Gartley') || p.type?.includes('Bat') || p.type?.includes('Butterfly') || p.type?.includes('Crab') || p.type?.includes('Shark') || p.type?.includes('Cypher'))
+            .map((p: any) => ({
+              type: p.type || 'unknown',
+              direction: (p.direction || 'neutral') as 'bullish' | 'bearish',
+              confidence: p.confidence || 0.5,
+              przLevel: p.przLevel || p.price || price,
+            })),
+          smcData: {
+            orderBlocks: (smcData?.orderBlocks || []).map((ob: any) => ({
+              type: ob.type as 'bullish' | 'bearish',
+              strength: ob.strength || 0.5,
+              price: ob.price || (ob.high + ob.low) / 2,
+              high: ob.high, low: ob.low, broken: ob.broken,
+            })),
+            fvgs: (smcData?.fvgs || []).map((fvg: any) => ({
+              type: fvg.type as 'bullish' | 'bearish',
+              filled: fvg.filled || false,
+              midPrice: fvg.midPrice || (fvg.high + fvg.low) / 2,
+              high: fvg.high, low: fvg.low,
+            })),
+            structureBreaks: smcData?.structureBreaks,
+          },
+          elliottResult: elliottAdvanced?.dominantCount ? {
+            dominantDirection: elliottAdvanced.dominantCount.direction as 'bullish' | 'bearish' | 'neutral',
+            confidence: elliottAdvanced.dominantCount.confidence || 0.5,
+          } : undefined,
+          wyckoffResult: wyckoffAdvanced ? {
+            currentPhase: (wyckoffAdvanced as any).currentPhase || (wyckoffAdvanced as any).phase || 'none',
+            direction: ((wyckoffAdvanced as any).direction || (wyckoffAdvanced as any).bias || 'neutral') as 'bullish' | 'bearish' | 'neutral',
+            confidence: (wyckoffAdvanced as any).confidence || 0.5,
+          } : undefined,
+          srLevels: srLevels.map(l => ({
+            price: l.price,
+            type: (l.type === 'support' ? 'support' : 'resistance') as 'support' | 'resistance',
+            strength: typeof l.strength === 'number' ? l.strength : l.strength === 'strong' ? 0.9 : l.strength === 'medium' ? 0.6 : 0.3,
+          })),
           currentPrice: price,
           volumeProfile,
         });
@@ -735,7 +767,6 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           recordCorrelationEvent({
             source: p.type || 'unknown',
             direction: p.direction as 'bullish' | 'bearish',
-            confidence: p.confidence,
             price: p.price || price,
           });
         }
@@ -750,7 +781,12 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       try {
         const predictions = predictPatternCompletion({
           candles: c,
-          patterns: allPatterns,
+          detectedPatterns: allPatterns.filter(p => p.direction !== 'neutral').map(p => ({
+            type: p.type,
+            direction: p.direction as 'bullish' | 'bearish',
+            confidence: p.confidence,
+            points: (p.points || p.shapePoints || []).map(pt => ({ label: '', price: pt.price })),
+          })),
           currentPrice: price,
         });
         setPatternPredictions(predictions);
@@ -861,8 +897,8 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             alertsDedupRef.current.add(alertKey);
             safeTimeout(() => alertsDedupRef.current.delete(alertKey), 300000);
             newAlerts.push({
-              time: (hp.points?.D?.time || c[c.length - 1].time) as any,
-              price: hp.przLevel || hp.points?.D?.price || price,
+              time: ((hp.points as any)?.D?.time || c[c.length - 1].time) as any,
+              price: hp.przLevel || (hp.points as any)?.D?.price || price,
               label: `${hp.type}${hp.direction === 'bullish' ? '↑' : '↓'}`,
               direction: hp.direction as 'bullish' | 'bearish',
               confidence: hp.confidence || 0.6,
@@ -2838,7 +2874,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                           confidence: p.confidence,
                           price: p.price || 0,
                           regime: volRegime,
-                          relatedSignals: patterns.filter(rp => rp.direction !== 'neutral' && rp.type !== p.type).slice(0, 5).map(rp => ({
+                          allSignals: patterns.filter(rp => rp.direction !== 'neutral' && rp.type !== p.type).slice(0, 5).map(rp => ({
                             source: rp.type || 'unknown',
                             direction: rp.direction as 'bullish' | 'bearish',
                             confidence: rp.confidence,

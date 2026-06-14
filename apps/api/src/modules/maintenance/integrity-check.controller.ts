@@ -3569,6 +3569,33 @@ export class IntegrityCheckController {
       }
     }
 
+    // V49i: AIPatternPanel — PatternTypeStats uses successRate not winRate
+    // BUG: pp.winRate was used instead of pp.successRate → undefined * 100 = NaN
+    // FIX: pp.successRate and pp.totalOccurrences (correct field names from PatternTypeStats)
+    const apContent = this.read('../../web/src/components/charts/AIPatternPanel.tsx')
+      || this.read('../../../web/src/components/charts/AIPatternPanel.tsx');
+    if (apContent) {
+      // Look in the Pattern Performance rendering section
+      const perfSection = apContent.substring(
+        apContent.indexOf('historicalPatternPerformance'),
+        apContent.indexOf('historicalPatternPerformance') > -1
+          ? Math.min(apContent.length, apContent.indexOf('historicalPatternPerformance') + 1500)
+          : apContent.length
+      );
+      if (perfSection) {
+        if (perfSection.includes('pp.successRate') && !perfSection.includes('pp.winRate')) {
+          passes.push('AIPatternPanel: يستخدم successRate (صحيح) بدل winRate (NaN)');
+        } else if (perfSection.includes('pp.winRate') && !perfSection.includes('pp.successRate')) {
+          failures.push('AIPatternPanel: pp.winRate غير معرّف في PatternTypeStats → NaN');
+        }
+        if (perfSection.includes('pp.totalOccurrences') && !perfSection.includes('pp.totalTrades')) {
+          passes.push('AIPatternPanel: يستخدم totalOccurrences (صحيح) بدل totalTrades');
+        } else if (perfSection.includes('pp.totalTrades') && !perfSection.includes('pp.totalOccurrences')) {
+          failures.push('AIPatternPanel: pp.totalTrades غير معرّف في PatternTypeStats → undefined');
+        }
+      }
+    }
+
     if (failures.length > 0) {
       return { id: 'V49', name: 'V225 فحص الشارت العميق — المرحلة الأولى', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
     }

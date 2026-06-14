@@ -1816,20 +1816,26 @@ export function AIPatternPanel({
                   <div style={{ fontSize: 9, color: C.gold, fontWeight: 700, fontFamily: "'Cairo', sans-serif", marginBottom: 3 }}>
                     {`📈 ${t('historicalPatternPerformance')}`}
                   </div>
-                  {patternPerformance.slice(0, 6).map((pp, i) => (
+                  {patternPerformance.slice(0, 6).map((pp, i) => {
+                    // V226 FIX: Use correct PatternTypeStats field names (successRate, totalOccurrences)
+                    // Old code used pp.winRate / pp.totalTrades which are undefined → NaN
+                    const rate = typeof pp.successRate === 'number' && !isNaN(pp.successRate) ? pp.successRate : 0;
+                    const count = typeof pp.totalOccurrences === 'number' ? pp.totalOccurrences : 0;
+                    return (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                       <span style={{ fontSize: 9, color: C.textDim, fontFamily: "'Cairo', sans-serif" }}>{pp.patternType}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ fontSize: 8, color: C.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>{pp.totalTrades} {t('trade')}</span>
+                        <span style={{ fontSize: 8, color: C.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>{count} {t('trade')}</span>
                         <span style={{
                           fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace",
-                          color: pp.winRate >= 0.6 ? C.success : pp.winRate >= 0.4 ? C.warning : C.danger,
+                          color: rate >= 0.6 ? C.success : rate >= 0.4 ? C.warning : C.danger,
                         }}>
-                          {(pp.winRate * 100).toFixed(0)}%
+                          {(rate * 100).toFixed(0)}%
                         </span>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 

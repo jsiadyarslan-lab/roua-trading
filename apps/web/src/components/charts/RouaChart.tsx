@@ -494,6 +494,14 @@ export default function RouaChart({
   const lastAnalysisResultRef = useRef<any>(null);
 
   const candlesRef = useRef<CandleData[]>([]);
+  // PERF (3.1): Map<time,index> for O(1) candle lookup — replaces findIndex
+  const timeIndexMapRef = useRef<Map<number, number>>(new Map());
+  const rebuildTimeIndexMap = useCallback(() => {
+    const map = new Map<number, number>();
+    const candles = candlesRef.current;
+    for (let i = 0; i < candles.length; i++) map.set(candles[i].time, i);
+    timeIndexMapRef.current = map;
+  }, []);
   const prevPriceRef = useRef(currentPrice);
   const [pricePulse, setPricePulse] = useState(false);
 
@@ -570,6 +578,7 @@ export default function RouaChart({
     // Clear RouaChart's candlesRef immediately on timeframe or symbol change
     // to prevent stale WebSocket onCandleUpdate from pushing old data
     candlesRef.current = [];
+    timeIndexMapRef.current.clear();
     candlesClearedAtRef.current = Date.now();
     prevSymbolRef.current = selectedSymbol_;
     // FIX: Reset pagination state on symbol/timeframe change
@@ -862,7 +871,8 @@ export default function RouaChart({
       // destroying/recreating indicator series. For NEW candles (new time
       // period), we still use setCandles() with skipIndicatorRebuild:true
       // which preserves indicators while setting the full dataset.
-      const idx = candlesRef.current.findIndex(c => c.time === alignedTime);
+      // PERF (3.1): O(1) Map lookup instead of O(n) findIndex
+      const idx = timeIndexMapRef.current.get(alignedTime) ?? -1;
       const isNewCandle = idx < 0;
 
       if (idx >= 0) {
@@ -904,6 +914,7 @@ export default function RouaChart({
         const s = sanitizeOhlc(alignedCandle.open, alignedCandle.high, alignedCandle.low, alignedCandle.close);
         const sanitizedCandle = { ...alignedCandle, open: s.open, high: s.high, low: s.low, close: s.close };
         candlesRef.current.push(sanitizedCandle);
+        timeIndexMapRef.current.set(sanitizedCandle.time, candlesRef.current.length - 1);
         // PERF FIX: Use updateCandleRef (O(1) series.update) instead of full setData()
         // setData() destroys and recreates all indicator series → "rubbery" animation
         // updateCandleRef only updates the single new candle, indicators stay intact
@@ -1204,6 +1215,7 @@ export default function RouaChart({
         if (changed) {
           const merged = (Array.from(existingMap.values()) as CandleData[]).sort((a, b) => a.time - b.time);
           candlesRef.current = merged;
+          rebuildTimeIndexMap();
           setCandlesRef.current(merged, { skipIndicatorRebuild: true });
         }
       } catch { /* non-critical */ }
@@ -1269,6 +1281,7 @@ export default function RouaChart({
           // Sort by time (lightweight-charts v5 requires strictly ascending time)
           unique.sort((a, b) => a.time - b.time);
           candlesRef.current = unique;
+          rebuildTimeIndexMap();
           // Run pattern engine after candles are updated
           // FIX: Use ref to avoid stale closure over chart.setCandles
           // Pass clearExternal:true because this is a timeframe/symbol change —
@@ -1345,6 +1358,7 @@ export default function RouaChart({
 
       // Data is already sorted by construction (oldest → newest)
       candlesRef.current = candles;
+      rebuildTimeIndexMap();
       // Re-run pattern engine on realtime update (throttled)
       // FIX: Use ref to avoid stale closure
       // Pass clearExternal:true because this is a timeframe/symbol change —
@@ -1435,6 +1449,7 @@ export default function RouaChart({
               return true;
             });
             candlesRef.current = unique;
+            rebuildTimeIndexMap();
             // Use setCandles to update the chart — skip indicator rebuild
             // since we're just prepending older data (indicators don't change)
             setCandlesRef.current(unique, { skipIndicatorRebuild: true });

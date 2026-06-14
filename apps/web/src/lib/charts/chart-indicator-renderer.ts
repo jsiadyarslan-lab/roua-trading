@@ -264,11 +264,14 @@ export function renderIndicatorSeries(
   }
 
   else if (indicator.key === 'psar') {
+    // PERF (3.3): Build Map<time,index> once for O(1) PSAR candle lookup
+    const candleTimeMap = new Map<number, number>();
+    for (let i = 0; i < candles.length; i++) candleTimeMap.set(candles[i].time, i);
     const psarData: { time: Time; value: number; color?: string }[] = [];
     results.forEach((r: any) => {
       const val = r.values?.psar;
       if (isValidNumber(val) && isValidNumber(r.time)) {
-        const candleIdx = candles.findIndex(c => c.time === r.time);
+        const candleIdx = candleTimeMap.get(r.time as number) ?? -1;
         const candle = candleIdx >= 0 ? candles[candleIdx] : null;
         const isBullish = candle ? val < candle.close : true;
         psarData.push({ time: r.time as Time, value: val, color: isBullish ? '#3fb950' : '#f85149' });
@@ -830,12 +833,15 @@ export function updateIndicatorSeriesData(
     tryUpdate('donchian-fill-lower', lowerData);
   }
   else if (indicator.key === 'psar') {
+    // PERF (3.3): Build Map<time,index> once for O(1) PSAR candle lookup
+    const candleTimeMap = new Map<number, number>();
+    for (let i = 0; i < candles.length; i++) candleTimeMap.set(candles[i].time, i);
     const bullData: { time: any; value: number }[] = [];
     const bearData: { time: any; value: number }[] = [];
     results.forEach((r: any) => {
       const val = r.values?.psar;
       if (isValidNumber(val) && isValidNumber(r.time)) {
-        const candleIdx = candles.findIndex(c => c.time === r.time);
+        const candleIdx = candleTimeMap.get(r.time as number) ?? -1;
         const candle = candleIdx >= 0 ? candles[candleIdx] : null;
         const isBullish = candle ? val < candle.close : true;
         if (isBullish) bullData.push({ time: r.time, value: val });

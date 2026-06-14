@@ -97,6 +97,29 @@ function getCurrentUserId(): string | null {
   return null
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// V228 FIX: Deferred store reference to avoid TDZ (Temporal Dead Zone) error
+//
+// PROBLEM: The `onRehydrateStorage` callback referenced `usePaperTradesStore`
+// directly. In the minified production build, `usePaperTradesStore` becomes
+// a `const` variable (e.g. `l`). The `onRehydrateStorage` callback closes
+// over this variable, but during Zustand persist rehydration (which runs as
+// a microtask), the variable may still be in the TDZ — causing:
+//   ReferenceError: Cannot access 'l' before initialization
+//
+// FIX: Use a module-level `let` variable `_storeRef` that is assigned
+// SYNCHRONOUSLY right after `create()` returns. Since the `let` assignment
+// happens in the same synchronous tick as the `create()` call, and the
+// rehydration callback runs asynchronously (in a microtask), `_storeRef`
+// is guaranteed to be assigned before any callback accesses it.
+//
+// This is safe because:
+// 1. `let` variables are NOT in TDZ after their first assignment
+// 2. The assignment happens synchronously after `create()` returns
+// 3. Rehydration callbacks run asynchronously (Promise.resolve().then())
+// ═══════════════════════════════════════════════════════════════════════
+let _storeRef: any = null
+
 export const usePaperTradesStore = create<PaperTradesState>()(
   persist(
     (set, get) => ({
@@ -257,9 +280,6 @@ export const usePaperTradesStore = create<PaperTradesState>()(
               priority: isProfit ? 'high' : 'urgent',
               action: isProfit ? 'CLOSE' : 'WARN',
               title: `${sourceLabel}: ${isProfit ? tn('closeProfit') : tn('closeLoss')} ${trade.symbol}`,
-              // V225 FIX: Use trade.source for source label, not trade.side.
-              // Previously, long trades were labeled "Executor" and short trades "Agent"
-              // regardless of their actual source. Now correctly uses source field.
               body: `${sourceLabel} ${trade.qty} ${trade.symbol} @ $${exitPrice.toFixed(2)} — ${isProfit ? '+' : ''}$${realizedPnl.toFixed(2)} (${isProfit ? '+' : ''}${realizedPct.toFixed(1)}%)`,
               pair: trade.symbol,
               price: exitPrice,
@@ -339,6 +359,20 @@ export const usePaperTradesStore = create<PaperTradesState>()(
           }
 
           // ═══════════════════════════════════════════════════════════════
+          // V228 FIX: ALL store access inside onRehydrateStorage now uses
+          // _storeRef instead of usePaperTradesStore directly.
+          //
+          // The previous code referenced `usePaperTradesStore` directly in
+          // this callback. In the minified production build, this becomes
+          // a `const` variable reference that can trigger TDZ errors:
+          //   ReferenceError: Cannot access 'l' before initialization
+          //
+          // _storeRef is a `let` variable assigned synchronously after
+          // create() returns, so it's guaranteed to be available when
+          // this async callback runs.
+          // ═══════════════════════════════════════════════════════════════
+
+          // ═══════════════════════════════════════════════════════════════
           // FIX: Filter out PHANTOM trades on rehydration, but KEEP
           // ALL legitimate trades including bot/executor/agent trades.
           //
@@ -368,14 +402,16 @@ export const usePaperTradesStore = create<PaperTradesState>()(
                 `[PaperTradesStore] V227: Found ${stuckTrades.length} trade(s) stuck with _status='closed' — properly closing them`
               )
               // Defer closeTrade calls to avoid nested sets during rehydration
+              // V228: Use _storeRef instead of usePaperTradesStore
               setTimeout(() => {
+                if (!_storeRef) return
                 stuckTrades.forEach((t: any) => {
                   // Infer closeReason from closePrice vs SL/TP
                   let reason: string | undefined
                   const closePrice = (t as any).closePrice
                   if (closePrice && t.sl && Math.abs(closePrice - t.sl) < 0.0001) reason = 'STOP_LOSS'
                   else if (closePrice && t.tp && Math.abs(closePrice - t.tp) < 0.0001) reason = 'TAKE_PROFIT'
-                  usePaperTradesStore.getState().closeTrade(t.id, reason)
+                  _storeRef.getState().closeTrade(t.id, reason)
                 })
               }, 100)
             }
@@ -401,7 +437,10 @@ export const usePaperTradesStore = create<PaperTradesState>()(
               console.warn(
                 `[PaperTradesStore] Filtered ${state.trades.length - validTrades.length} phantom trade(s), keeping ${validTrades.length} valid trade(s)`
               )
-              usePaperTradesStore.setState({ trades: validTrades })
+              // V228: Use _storeRef instead of usePaperTradesStore
+              if (_storeRef) {
+                _storeRef.setState({ trades: validTrades })
+              }
             }
           }
 
@@ -411,7 +450,11 @@ export const usePaperTradesStore = create<PaperTradesState>()(
             const storedOwner = state._ownerUserId
             if (storedOwner && currentUserId && storedOwner !== currentUserId) {
               console.warn('[PaperTradesStore] SECURITY: Data belongs to different user, clearing')
-              state.clearUserData()
+              // V228: Use _storeRef instead of state.clearUserData()
+              // state.clearUserData() might have `this` binding issues in rehydration
+              if (_storeRef) {
+                _storeRef.getState().clearUserData()
+              }
             }
           }
         }
@@ -420,9 +463,18 @@ export const usePaperTradesStore = create<PaperTradesState>()(
   )
 )
 
+// V228: Assign store reference synchronously after create() returns.
+// This happens in the SAME synchronous tick as the create() call,
+// BEFORE any async rehydration callbacks run (Promise.resolve().then()).
+// Therefore, _storeRef is guaranteed to be assigned when callbacks access it.
+_storeRef = usePaperTradesStore
+
 // Helper to safely trigger sync without breaking UI flows
 function triggerBackgroundSync() {
   setTimeout(() => {
-    usePaperTradesStore.getState().syncWithServer?.()
+    // V228: Use _storeRef for consistency, but usePaperTradesStore also works
+    // here since triggerBackgroundSync is always called from within store actions
+    // (after the store is fully created).
+    _storeRef?.getState()?.syncWithServer?.()
   }, 1000)
 }

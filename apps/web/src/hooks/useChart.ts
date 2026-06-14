@@ -403,12 +403,29 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       }
 
       // Restore drawings — requires DrawingManager to be initialized
+      // V253 FIX: Only import drawings that belong to this timeframe's bucket.
+      // The store may contain cross-TF drawings from other timeframes that were
+      // saved alongside the current TF's drawings. Importing ALL of them would
+      // overwrite the correct cross-TF drawings loaded by loadFromStorage().
+      // Now we only import drawings whose bucket matches the current timeframe.
       if (saved.drawings && saved.drawings.length > 0 && drawingsReady) {
-        // Clear any drawings loaded from localStorage by setSymbol()
-        // and replace them with the template's drawings from the store
+        // Clear only current-bucket drawings loaded from localStorage
         drawingManagerRef.current!.clearAll();
-        const adaptedDrawings = saved.drawings.map(d => ({ ...d, symbol }));
-        drawingManagerRef.current!.importDrawings(JSON.stringify(adaptedDrawings));
+        // Filter: only import drawings that belong to the current timeframe
+        const currentBucket = `${symbol}:${timeframe}`;
+        const adaptedDrawings = saved.drawings
+          .map(d => ({ ...d, symbol }))
+          .filter(d => {
+            // Import single-tf drawings for this timeframe
+            if (d.scope === 'single-tf' && d.timeframe === timeframe) return true;
+            // Import all-tf drawings that were ORIGINALLY created on this timeframe
+            if (d.scope === 'all-tf' && (!d.timeframe || d.timeframe === timeframe)) return true;
+            // Skip cross-TF drawings from other timeframes — they're already loaded
+            return false;
+          });
+        if (adaptedDrawings.length > 0) {
+          drawingManagerRef.current!.importDrawings(JSON.stringify(adaptedDrawings));
+        }
         // Redraw with retries — the DrawingRenderer may not be ready yet
         // (it's loaded asynchronously via dynamic import)
         const tryRedraw = (attempt = 0) => {
@@ -730,9 +747,13 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         const currentTool = activeToolRef.current ?? activeTool;
         renderer.setTool(currentTool);
         renderer.start();
-        // Set the initial timeframe for scope filtering
-        (renderer as any).setTimeframe(timeframe);
+        // V253 FIX: Use the LATEST timeframe from ref, not the stale closure value.
+        // This fixes a race condition where the user switches timeframes before
+        // the dynamic import resolves — the closure value would be the old timeframe.
+        const latestTimeframe = currentTimeframeRef.current;
+        (renderer as any).setTimeframe(latestTimeframe);
         drawingRendererRef.current = renderer as any;
+        console.log(`[useChart] DrawingRenderer initialized with TF=${latestTimeframe}`);
       }).catch(console.error);
     }
 
@@ -991,12 +1012,18 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // H15 FIX: Update DrawingManager with new timeframe when timeframe changes.
     // Previously, drawings from the old timeframe persisted when only the timeframe
     // changed (same symbol), because DrawingManager only tracked symbol.
+    // V253: setTimeframe always reloads (no early return) to ensure cross-TF
+    // drawings are loaded from other timeframe buckets.
     if (drawingManagerRef.current) {
       drawingManagerRef.current.setTimeframe(timeframe);
     }
-    // Also update DrawingRenderer's timeframe for scope filtering (single-tf vs all-tf)
+    // V253 FIX: Always update DrawingRenderer's timeframe and force redraw.
+    // Removed early return — always re-syncs even if TF hasn't changed,
+    // because the DrawingManager may have new cross-TF drawings loaded.
     if (drawingRendererRef.current) {
       (drawingRendererRef.current as any).setTimeframe(timeframe);
+      // Safety redraw — ensures primitive picks up the latest drawings
+      drawingRendererRef.current.redraw();
     }
 
     // Cancel any pending indicator re-apply from a previous setCandles call

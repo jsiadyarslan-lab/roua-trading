@@ -121,6 +121,13 @@ export class DrawingManager {
     return Array.from(this.drawings.values());
   }
 
+  /** Get only drawings that should be visible on the current timeframe */
+  getVisibleOnTimeframe(tf: string): Drawing[] {
+    return this.getAll().filter(d =>
+      d.scope === 'all-tf' || d.timeframe === tf
+    );
+  }
+
   clearAll(): void {
     // V253: Only clear drawings belonging to the current timeframe bucket.
     // Cross-timeframe all-tf drawings from other buckets should be preserved.
@@ -152,9 +159,10 @@ export class DrawingManager {
     this.loadFromStorage();
   }
 
-  /** Set only the timeframe (when symbol stays the same but timeframe changes) */
+  /** Set only the timeframe (when symbol stays the same but timeframe changes).
+   * V253 FIX: Removed early return — always reload to ensure cross-TF
+   * drawings are properly loaded even when switching back to the same TF. */
   setTimeframe(timeframe: string): void {
-    if (this.timeframe === timeframe) return;
     this.timeframe = timeframe;
     this.drawings.clear();
     this.drawingBucket.clear();
@@ -284,6 +292,7 @@ export class DrawingManager {
       // Load all-tf drawings from OTHER timeframe buckets for the same symbol.
       // This is what makes the "All TF" visibility feature actually work.
       const symbolPrefix = `${this.symbol}:`;
+      let crossTfCount = 0;
       for (const [key, drawings] of Object.entries(allDrawings)) {
         if (key === currentKey) continue;
         // Only scan buckets belonging to the same symbol
@@ -292,14 +301,22 @@ export class DrawingManager {
 
         this.loadedBuckets.add(key);
         for (const d of drawings) {
+          // V253 FIX: Backfill scope BEFORE checking it!
+          // Drawings saved before the scope feature was added have no scope property,
+          // so d.scope would be undefined, which fails the 'all-tf' check.
+          if (!d.scope) d.scope = 'all-tf';
+          if (!d.lineStyle) d.lineStyle = 'solid';
+
           // Only load all-tf drawings (single-tf drawings belong to their own TF only)
           if (d.scope === 'all-tf' && !this.drawings.has(d.id)) {
-            if (!d.lineStyle) d.lineStyle = 'solid';
             this.drawings.set(d.id, d);
             this.drawingBucket.set(d.id, key);
+            crossTfCount++;
           }
         }
       }
+
+      console.log(`[DrawingManager] Loaded ${this.drawings.size} drawings for ${currentKey} (${crossTfCount} cross-TF from ${this.loadedBuckets.size} buckets)`);
     } catch {
       // Corrupted data — start fresh
     }
@@ -326,10 +343,15 @@ export class DrawingManager {
       const drawings: Drawing[] = JSON.parse(json);
       const currentKey = this.getStorageKey();
       drawings.forEach(d => {
+        // Backfill scope for imported drawings
+        if (!d.scope) d.scope = 'all-tf';
+        if (!d.lineStyle) d.lineStyle = 'solid';
         this.drawings.set(d.id, d);
         // V253: Assign imported drawings to the appropriate bucket
         const bucket = d.timeframe ? `${d.symbol}:${d.timeframe}` : currentKey;
         this.drawingBucket.set(d.id, bucket);
+        // Track loaded bucket
+        this.loadedBuckets.add(bucket);
       });
       this.saveToStorage();
       return true;

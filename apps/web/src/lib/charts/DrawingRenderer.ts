@@ -1224,9 +1224,10 @@ export class DrawingRenderer {
     this.syncPrimitive();
   }
 
-  /** Set the current timeframe — used for scope filtering (single-tf vs all-tf) */
+  /** Set the current timeframe — used for scope filtering (single-tf vs all-tf)
+   * V253 FIX: Always re-sync even if timeframe hasn't changed, because
+   * the DrawingManager may have been updated (e.g., cross-TF drawings loaded). */
   setTimeframe(tf: string): void {
-    if (this.currentTimeframe === tf) return;
     this.currentTimeframe = tf;
     this.syncPrimitive();
   }
@@ -1239,10 +1240,7 @@ export class DrawingRenderer {
     if (!this.primitive) return;
     // Filter drawings by scope: show 'all-tf' drawings on all timeframes,
     // and 'single-tf' drawings only on their original timeframe
-    const allDrawings = this.drawingManager.getAll();
-    const visibleDrawings = allDrawings.filter(d =>
-      d.scope === 'all-tf' || d.timeframe === this.currentTimeframe
-    );
+    const visibleDrawings = this.drawingManager.getVisibleOnTimeframe(this.currentTimeframe);
     this.primitive.setDrawings(visibleDrawings);
     this.primitive.setPreview(
       this.isDrawing && this.clickedPoints.length > 0

@@ -199,8 +199,6 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
           // i18n translation data
           notificationType: 'botSignal',
           params: { side: sideLabel, message: log.msg || '' },
-          // FIX (5.5): Bot signals are auto-trade source
-          tradeSource: 'auto-trade',
         })
       }
     }
@@ -310,8 +308,6 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
           // i18n translation data
           notificationType: 'sharpMove',
           params: { symbol, change: changeStr },
-          // FIX (5.5): Sharp market moves are signal-based
-          tradeSource: 'signal',
         })
       }
     })

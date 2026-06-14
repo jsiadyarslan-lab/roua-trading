@@ -340,11 +340,7 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
   // ── Horizontal Line ────────────────────────────────────
   private drawHorizontalLine(ctx: CanvasRenderingContext2D, pt: PixelPoint, canvasW: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
     ctx.beginPath(); ctx.moveTo(0, pt.y); ctx.lineTo(canvasW, pt.y); ctx.stroke();
-    // FIX (5.2): Horizontal line preview shows actual price
-    const price = d.isPreview
-      ? (this._series.coordinateToPrice(pt.y) ?? this.pp(d, 0) ?? 0)
-      : (this.pp(d, 0) ?? 0);
-    this.drawPriceLabel(ctx, canvasW - 2, pt.y, price);
+    if (!d.isPreview) this.drawPriceLabel(ctx, canvasW - 2, pt.y, this.pp(d, 0) ?? 0);
   }
 
   // ── Vertical Line ──────────────────────────────────────
@@ -356,11 +352,7 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
   // ── Horizontal Ray ─────────────────────────────────────
   private drawHorizontalRay(ctx: CanvasRenderingContext2D, pt: PixelPoint, canvasW: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
     ctx.beginPath(); ctx.moveTo(pt.x, pt.y); ctx.lineTo(canvasW, pt.y); ctx.stroke();
-    // FIX (5.2): Horizontal ray preview shows actual price
-    const price = d.isPreview
-      ? (this._series.coordinateToPrice(pt.y) ?? this.pp(d, 0) ?? 0)
-      : (this.pp(d, 0) ?? 0);
-    this.drawPriceLabel(ctx, canvasW - 2, pt.y, price);
+    if (!d.isPreview) this.drawPriceLabel(ctx, canvasW - 2, pt.y, this.pp(d, 0) ?? 0);
     this.drawDot(ctx, pt);
   }
 
@@ -368,12 +360,7 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
   private drawCrossLine(ctx: CanvasRenderingContext2D, a: PixelPoint, canvasW: number, canvasH: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
     ctx.beginPath(); ctx.moveTo(0, a.y); ctx.lineTo(canvasW, a.y); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(a.x, 0); ctx.lineTo(a.x, canvasH); ctx.stroke();
-    // FIX (5.2): Cross line preview shows actual price
-    const price = d.isPreview
-      ? (this._series.coordinateToPrice(a.y) ?? this.pp(d, 0) ?? 0)
-      : (this.pp(d, 0) ?? 0);
-    this.drawPriceLabel(ctx, canvasW - 2, a.y, price);
-    if (!d.isPreview && d.points[0]) this.drawTimeLabel(ctx, a.x, canvasH - 20, d.points[0].time);
+    if (!d.isPreview) { this.drawPriceLabel(ctx, canvasW - 2, a.y, this.pp(d, 0) ?? 0); if (d.points[0]) this.drawTimeLabel(ctx, a.x, canvasH - 20, d.points[0].time); }
     this.drawDot(ctx, a);
   }
 
@@ -858,11 +845,7 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
 
   // ── Price Label Marker ─────────────────────────────────
   private drawPriceLabelMarker(ctx: CanvasRenderingContext2D, pt: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
-    // FIX (5.2): Price label marker preview shows actual price
-    const price = d.isPreview
-      ? (this._series.coordinateToPrice(pt.y) ?? this.pp(d, 0) ?? 0)
-      : (this.pp(d, 0) ?? 0);
-    const text = this.formatPrice(price);
+    const price = this.pp(d, 0) ?? 0, text = this.formatPrice(price);
     ctx.save(); ctx.font = "10px 'JetBrains Mono', monospace";
     const textW = ctx.measureText(text).width, padX = 6, padY = 3;
     const rx = pt.x - textW / 2 - padX, ry = pt.y - 6 - padY, rw = textW + padX * 2, rh = 12 + padY * 2;

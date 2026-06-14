@@ -19,67 +19,29 @@ import { useChartStateStore, type SmartGridPersistConfig, type SmartGridCellConf
 import type { CandleData, ActiveIndicator } from '@/lib/charts/types';
 import { INDICATOR_CONFIGS } from '@/lib/charts/types';
 import { calculateIndicator } from '@/lib/charts/IndicatorCalculator';
-// UNIFY (4.4): Import shared grid types, constants, and utilities
-import {
-  type GridConfig,
-  type GridCell,
-  type CellState,
-  type DataSource,
-  GRID_CONFIGS,
-  POPULAR_PAIRS,
-  TIMEFRAME_OPTIONS,
-  MTF_DEFAULT_TIMEFRAMES,
-  DEFAULT_GRID_CONFIG_INDEX,
-  GRID_COLORS,
-  DEFAULT_CELL_STATE,
-  SOURCE_LABELS,
-  createMTFCells,
-  nextCellId,
-  parseCandleData,
-  computeChangePercent,
-  detectDataSource,
-  normalizeSymbol,
-  waitForDimensions,
-} from '@/lib/charts/grid-utils';
 
-// ── Request Queue — limits concurrent fetches + deduplicates by URL ──
-// PERF (3.10): Added dedup — if the same URL is already in the queue or
-// currently being fetched, skip the duplicate request. This prevents
-// multiple SmartGrid cells from fetching the same symbol+timeframe
-// simultaneously (e.g., two cells showing BTC/USD 1h).
+// ── Request Queue — limits concurrent fetches to prevent ERR_NETWORK_CHANGED ──
 class RequestQueue {
-  private queue: Array<{ task: () => Promise<void>; url: string }> = [];
+  private queue: Array<() => Promise<void>> = [];
   private running = 0;
   private maxConcurrency: number;
-  private inFlight: Set<string> = new Set();     // PERF (3.10): URLs currently being fetched
-  private queued: Set<string> = new Set();        // PERF (3.10): URLs waiting in queue
 
   constructor(maxConcurrency = 2) {
     this.maxConcurrency = maxConcurrency;
   }
 
-  push(task: () => Promise<void>, url?: string) {
-    // PERF (3.10): Skip if this URL is already in-flight or queued
-    if (url) {
-      if (this.inFlight.has(url) || this.queued.has(url)) return;
-      this.queued.add(url);
-    }
-    this.queue.push({ task, url: url || '' });
+  push(task: () => Promise<void>) {
+    this.queue.push(task);
     this.runNext();
   }
 
   private runNext() {
     if (this.running >= this.maxConcurrency || this.queue.length === 0) return;
     this.running++;
-    const { task, url } = this.queue.shift()!;
-    if (url) {
-      this.queued.delete(url);
-      this.inFlight.add(url);
-    }
+    const task = this.queue.shift()!;
     task()
       .catch(() => {})
       .finally(() => {
-        if (url) this.inFlight.delete(url);
         this.running--;
         this.runNext();
       });
@@ -89,13 +51,39 @@ class RequestQueue {
 const fetchQueue = new RequestQueue(2);
 
 // ── Types ────────────────────────────────────────────────
-// UNIFY (4.4): GridConfig, GridCell, CellState, DataSource now imported from grid-utils
-
 interface SmartGridProps {
   onClose: () => void;
   defaultSymbol: string;
   defaultTimeframe: string;
   onSwitchToChart?: (symbol: string, timeframe: string, openTool?: string) => void;
+}
+
+interface GridConfig {
+  cols: number;
+  rows: number;
+  label: string;
+  icon: string;
+}
+
+interface GridCell {
+  id: string;
+  symbol: string;
+  timeframe: string;
+  chartType: 'candle' | 'line' | 'area';
+}
+
+type DataSource = 'loading' | 'binance' | 'coingecko' | 'yahoo' | 'twelvedata' | 'unavailable';
+
+interface CellState {
+  loading: boolean;
+  error: string | null;
+  currentPrice: number | null;
+  prevPrice: number | null;
+  candleCount: number;
+  changePercent: number | null;
+  dataSource: DataSource;
+  lastUpdated: number | null;
+  retryCount: number;
 }
 
 // ── Unified trade info for chart rendering ──
@@ -111,18 +99,136 @@ interface TradeInfo {
 }
 
 // ── Constants ────────────────────────────────────────────
-// UNIFY (4.4): GRID_CONFIGS, POPULAR_PAIRS, TIMEFRAME_OPTIONS, MTF_DEFAULT_TIMEFRAMES,
-// SOURCE_LABELS now imported from grid-utils.
+const GRID_CONFIGS: GridConfig[] = [
+  { cols: 2, rows: 2, label: '2x2', icon: '▦' },
+  { cols: 3, rows: 1, label: '3x1', icon: '▬▬▬' },
+  { cols: 1, rows: 3, label: '1x3', icon: '▮▮▮' },
+  { cols: 3, rows: 2, label: '3x2', icon: '⬓' },
+  { cols: 2, rows: 3, label: '2x3', icon: '⬒' },
+  { cols: 1, rows: 1, label: '1x1', icon: '▪' },
+  { cols: 2, rows: 1, label: '2x1', icon: '▬▬' },
+  { cols: 1, rows: 2, label: '1x2', icon: '▮▮' },
+];
 
-// UNIFY (4.4): Use shared GRID_COLORS + local overrides for SmartGrid-specific colors
+const POPULAR_PAIRS = [
+  'BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'XRP/USDT', 'SOL/USDT',
+  'ADA/USDT', 'DOGE/USDT', 'DOT/USDT', 'AVAX/USDT', 'LINK/USDT',
+  'EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CAD',
+  'XAU/USD', 'XAG/USD', 'US30', 'NAS100', 'SPX500',
+];
+
+const TIMEFRAME_OPTIONS = [
+  { value: '1min', label: '1m' },
+  { value: '5min', label: '5m' },
+  { value: '15min', label: '15m' },
+  { value: '30min', label: '30m' },
+  { value: '1h', label: '1H' },
+  { value: '2h', label: '2H' },
+  { value: '4h', label: '4H' },
+  { value: '1day', label: '1D' },
+  { value: '1week', label: '1W' },
+];
+
+const MTF_DEFAULT_TIMEFRAMES = ['15min', '1h', '4h', '1day', '5min', '1min'];
+
 const C = {
-  ...GRID_COLORS,
+  bg: '#0B0E14',
   card: '#111620',
   cardBorder: '#1E2530',
+  grid: 'rgba(42,49,60,0.25)',
+  text: '#F0F2F5',
+  textDim: '#8B92A8',
+  textMuted: '#4B5563',
+  cyan: '#00D4FF',
+  success: '#00FFA3',
+  danger: '#FF4757',
+  gold: '#d4af37',
+  upColor: '#3fb950',
+  downColor: '#f85149',
+  warning: '#fbbf24',
 };
 
-// UNIFY (4.4): waitForDimensions, detectDataSource, normalizeSymbol, createDefaultCells
-// now imported from grid-utils. SmartGrid uses createMTFCells for MTF mode.
+const SOURCE_LABELS: Record<DataSource, { label: string; color: string }> = {
+  loading: { label: '...', color: C.textMuted },
+  binance: { label: 'Binance', color: C.success },
+  coingecko: { label: 'CoinGecko', color: '#8B5CF6' },
+  yahoo: { label: 'Yahoo', color: '#6366F1' },
+  twelvedata: { label: '12Data', color: '#EC4899' },
+  unavailable: { label: 'Unavailable', color: C.danger },
+};
+
+let cellIdCounter = 0;
+
+function createDefaultCells(config: GridConfig, defaultSymbol: string): GridCell[] {
+  const count = config.cols * config.rows;
+  const cells: GridCell[] = [];
+  for (let i = 0; i < count; i++) {
+    cells.push({
+      id: `cell-${cellIdCounter++}`,
+      symbol: defaultSymbol,
+      timeframe: MTF_DEFAULT_TIMEFRAMES[i % MTF_DEFAULT_TIMEFRAMES.length],
+      chartType: 'candle',
+    });
+  }
+  return cells;
+}
+
+// ── Wait for container to have real dimensions ──
+function waitForDimensions(el: HTMLElement, maxRetries = 30): Promise<{ w: number; h: number }> {
+  return new Promise((resolve) => {
+    const check = (attempt: number) => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      if (w > 0 && h > 0) { resolve({ w, h }); return; }
+      if (attempt >= maxRetries) {
+        const parent = el.parentElement;
+        resolve({ w: parent?.clientWidth || 400, h: parent?.clientHeight || 200 });
+        return;
+      }
+      requestAnimationFrame(() => check(attempt + 1));
+    };
+    check(0);
+  });
+}
+
+// ── Detect data source from API response ──
+function detectDataSource(response: any): DataSource {
+  const source = response?.source || '';
+  const note = response?.note || '';
+  const data = response?.data;
+
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    return 'unavailable';
+  }
+
+  if (data.length > 0) {
+    const firstSource = data[0]?.source || '';
+    const lowerSource = firstSource.toLowerCase();
+    if (lowerSource.includes('binance')) return 'binance';
+    if (lowerSource.includes('coingecko')) return 'coingecko';
+    if (lowerSource.includes('yahoo')) return 'yahoo';
+    if (lowerSource.includes('twelvedata')) return 'twelvedata';
+    if (lowerSource.includes('frankfurter') || lowerSource.includes('ecb')) return 'yahoo';
+    if (lowerSource.includes('exchangerate')) return 'yahoo';
+  }
+
+  const lowerRespSource = source.toLowerCase();
+  if (lowerRespSource.includes('binance')) return 'binance';
+  if (lowerRespSource.includes('coingecko')) return 'coingecko';
+  if (lowerRespSource.includes('yahoo')) return 'yahoo';
+  if (lowerRespSource.includes('twelvedata')) return 'twelvedata';
+
+  if (lowerRespSource === 'demo' || note.includes('غير متاحة') || note.includes('unavailable')) {
+    return 'unavailable';
+  }
+
+  return 'binance';
+}
+
+// ── Normalize symbol for matching ──
+function normalizeSymbol(s: string): string {
+  return s.toUpperCase().replace(/[/\-_]/g, '');
+}
 
 // ═══════════════════════════════════════════════════════════
 // CellToolOverlay — Inline overlay that appears WITHIN a cell
@@ -227,19 +333,13 @@ function CellToolOverlay({
           <button onClick={onFocus} style={{
             background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)',
             borderRadius: 3, color: C.cyan, fontSize: 6.5, fontWeight: 700, cursor: 'pointer', padding: '1px 4px',
-          }}
-          // FIX (5.4): aria-label for focus button
-          aria-label="Focus on chart"
-          >
+          }}>
             Focus
           </button>
           <button onClick={onClose} style={{
             background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer',
             fontSize: 10, lineHeight: 1, padding: '0 2px',
-          }}
-          // FIX (5.4): aria-label for icon-only close button
-          aria-label="Close AI panel"
-          >x</button>
+          }}>x</button>
         </div>
 
         {/* Content */}
@@ -312,11 +412,9 @@ function CellToolOverlay({
                   onClick={() => onExecuteTrade(
                     aiData.signal === 'BUY' ? 'long' : 'short',
                     aiData.entry!,
-                    aiData.sl || aiData.entry! * (aiData.signal === 'BUY' ? 0.98 : 1.02),
-                    aiData.tp || aiData.entry! * (aiData.signal === 'BUY' ? 1.02 : 0.98),
+                    aiData.sl || aiData.entry * (aiData.signal === 'BUY' ? 0.98 : 1.02),
+                    aiData.tp || aiData.entry * (aiData.signal === 'BUY' ? 1.02 : 0.98),
                   )}
-                  // FIX (5.4): aria-label for AI trade execution button
-                  aria-label={`Execute ${aiData.signal === 'BUY' ? 'buy' : 'sell'} trade`}
                   style={{
                     width: '100%', padding: '3px 0', borderRadius: 4,
                     background: `${signalColor}20`, border: `1px solid ${signalColor}40`,
@@ -386,16 +484,10 @@ function CellToolOverlay({
           <button onClick={onFocus} style={{
             background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)',
             borderRadius: 3, color: C.cyan, fontSize: 6.5, fontWeight: 700, cursor: 'pointer', padding: '1px 4px',
-          }}
-          // FIX (5.4): aria-label for focus button
-          aria-label="Focus on chart"
-          >Focus</button>
+          }}>Focus</button>
           <button onClick={onClose} style={{
             background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 10, padding: '0 2px',
-          }}
-          // FIX (5.4): aria-label for icon-only close button
-          aria-label="Close trade panel"
-          >x</button>
+          }}>x</button>
         </div>
         <div style={{ padding: '6px 8px', display: 'flex', gap: 6 }}>
           <button onClick={() => {
@@ -408,10 +500,7 @@ function CellToolOverlay({
             background: `${C.upColor}20`, border: `1px solid ${C.upColor}40`,
             color: C.upColor, fontSize: 9, fontWeight: 800, cursor: 'pointer',
             fontFamily: "'Cairo',sans-serif",
-          }}
-          // FIX (5.4): aria-label for buy button
-          aria-label="Buy long"
-          >
+          }}>
             شراء / Long
           </button>
           <button onClick={() => {
@@ -424,10 +513,7 @@ function CellToolOverlay({
             background: `${C.downColor}20`, border: `1px solid ${C.downColor}40`,
             color: C.downColor, fontSize: 9, fontWeight: 800, cursor: 'pointer',
             fontFamily: "'Cairo',sans-serif",
-          }}
-          // FIX (5.4): aria-label for sell button
-          aria-label="Sell short"
-          >
+          }}>
             بيع / Short
           </button>
         </div>
@@ -480,16 +566,10 @@ function CellToolOverlay({
           <button onClick={onFocus} style={{
             background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)',
             borderRadius: 3, color: C.cyan, fontSize: 6.5, fontWeight: 700, cursor: 'pointer', padding: '1px 4px',
-          }}
-          // FIX (5.4): aria-label for focus button
-          aria-label="Focus on chart"
-          >Focus</button>
+          }}>Focus</button>
           <button onClick={onClose} style={{
             background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 10, padding: '0 2px',
-          }}
-          // FIX (5.4): aria-label for icon-only close button
-          aria-label="Close drawing panel"
-          >x</button>
+          }}>x</button>
         </div>
         <div style={{ padding: '4px 6px', fontSize: 7, color: C.textMuted, textAlign: 'center', fontFamily: "'Cairo',sans-serif", borderBottom: `1px solid ${C.cardBorder}` }}>
           اختر أداة ثم اضغط Focus للرسم على الشارت الرئيسي
@@ -550,17 +630,11 @@ function CellToolOverlay({
           <button onClick={onFocus} style={{
             background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)',
             borderRadius: 3, color: C.cyan, fontSize: 6.5, fontWeight: 700, cursor: 'pointer', padding: '1px 4px',
-          }}
-          // FIX (5.4): aria-label for focus button
-          aria-label="Focus on chart"
-          >Focus</button>
+          }}>Focus</button>
           <button onClick={onClose} style={{
             background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer',
             fontSize: 10, lineHeight: 1, padding: '0 2px',
-          }}
-          // FIX (5.4): aria-label for icon-only close button
-          aria-label="Close indicators panel"
-          >x</button>
+          }}>x</button>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '4px 4px', maxHeight: 180 }}>
           {overlayIndicators.map(config => {
@@ -571,11 +645,6 @@ function CellToolOverlay({
                 borderRadius: 3, transition: 'background 0.15s',
                 background: isOn ? 'rgba(0,212,255,0.1)' : 'transparent',
               }}
-              // FIX (5.4): role + aria-pressed for clickable indicator toggle div
-              role="button"
-              aria-pressed={isOn}
-              aria-label={`${config.labelEn} indicator${isOn ? ' (active)' : ''}`}
-              tabIndex={0}
               onClick={() => onToggleIndicator?.(cellId, config.key, !isOn)}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = isOn ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.04)'; }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isOn ? 'rgba(0,212,255,0.1)' : 'transparent'; }}
@@ -607,11 +676,6 @@ function CellToolOverlay({
                     borderRadius: 3, transition: 'background 0.15s',
                     background: isOn ? 'rgba(0,212,255,0.1)' : 'transparent',
                   }}
-                  // FIX (5.4): role + aria-pressed for clickable oscillator indicator toggle div
-                  role="button"
-                  aria-pressed={isOn}
-                  aria-label={`${config.labelEn} indicator${isOn ? ' (active)' : ''}`}
-                  tabIndex={0}
                   onClick={() => onToggleIndicator?.(cellId, config.key, !isOn)}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = isOn ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.04)'; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isOn ? 'rgba(0,212,255,0.1)' : 'transparent'; }}
@@ -725,8 +789,7 @@ export function SmartGrid({
         if (match) return match;
       }
     } catch {}
-    // UNIFY (4.4): Use DEFAULT_GRID_CONFIG_INDEX (2×2) consistent with grid-utils ordering
-    return GRID_CONFIGS[DEFAULT_GRID_CONFIG_INDEX];
+    return GRID_CONFIGS[0];
   });
   const [cells, setCells] = useState<GridCell[]>(() => {
     // Restore saved cells if available
@@ -735,14 +798,14 @@ export function SmartGrid({
       if (saved && saved.cells && saved.cells.length > 0) {
         // Restore cells with new IDs to avoid ID conflicts
         return saved.cells.map(c => ({
-          id: nextCellId(),
+          id: `cell-${cellIdCounter++}`,
           symbol: c.symbol,
           timeframe: c.timeframe,
           chartType: c.chartType || 'candle',
         }));
       }
     } catch {}
-    return createMTFCells(GRID_CONFIGS[DEFAULT_GRID_CONFIG_INDEX], defaultSymbol);
+    return createDefaultCells(GRID_CONFIGS[0], defaultSymbol);
   });
   const [cellStates, setCellStates] = useState<Map<string, CellState>>(new Map());
   const [activeCellId, setActiveCellId] = useState<string>('');
@@ -772,12 +835,11 @@ export function SmartGrid({
     smartGridSaveTimerRef.current = setTimeout(() => {
       try {
         const store = useChartStateStore.getState();
-        // UNIFY (4.4): Cast chartType to SmartGridCellConfig's narrower type for persistence
         const cellConfigs: SmartGridCellConfig[] = cells.map(c => ({
           id: c.id,
           symbol: c.symbol,
           timeframe: c.timeframe,
-          chartType: c.chartType as 'candle' | 'line' | 'area',
+          chartType: c.chartType,
         }));
         store.saveSmartGridConfig({
           activeLayout: activeConfig.label,
@@ -793,11 +855,14 @@ export function SmartGrid({
     };
   }, [cells, activeConfig]);
 
-  // UNIFY (4.4): Uses DEFAULT_CELL_STATE from grid-utils for consistent defaults
   const updateCellState = useCallback((cellId: string, update: Partial<CellState>) => {
     setCellStates(prev => {
       const next = new Map(prev);
-      const existing = next.get(cellId) || { ...DEFAULT_CELL_STATE };
+      const existing = next.get(cellId) || {
+        loading: true, error: null, currentPrice: null, prevPrice: null,
+        candleCount: 0, changePercent: null, dataSource: 'loading' as DataSource,
+        lastUpdated: null, retryCount: 0,
+      };
       next.set(cellId, { ...existing, ...update });
       return next;
     });
@@ -853,7 +918,6 @@ export function SmartGrid({
       console.log('[SmartGrid] Fetching:', url);
 
       // Use request queue to limit concurrent fetches and prevent network flood
-      // PERF (3.10): Pass URL for dedup — skip if same URL is already in-flight
       const res = await new Promise<Response>((resolve, reject) => {
         fetchQueue.push(async () => {
           try {
@@ -871,7 +935,7 @@ export function SmartGrid({
           } catch (err) {
             reject(err);
           }
-        }, url);  // PERF (3.10): Pass URL for dedup
+        });
       });
       const j = await res.json();
       console.log('[SmartGrid] Response for', cell.symbol, cell.timeframe, ':', j.success, j.data?.length, 'candles, source:', j.source || j.data?.[0]?.source);
@@ -879,8 +943,19 @@ export function SmartGrid({
       detectedSource = detectDataSource(j);
 
       if (j.success && j.data && j.data.length > 0) {
-        // UNIFY (4.4): Use shared parseCandleData
-        candleData = parseCandleData(j.data);
+        candleData = j.data
+          .map((c: any) => ({
+            time: Math.floor(new Date(c.timestamp).getTime() / 1000),
+            open: Number(c.open) || 0, high: Number(c.high) || 0,
+            low: Number(c.low) || 0, close: Number(c.close) || 0,
+            volume: Number(c.volume) || 0,
+          }))
+          .filter((d: any) => !isNaN(d.time) && d.time > 0 && !isNaN(d.close));
+
+        // Deduplicate by time
+        const seen = new Set<number>();
+        candleData = candleData.filter((d: any) => { if (seen.has(d.time)) return false; seen.add(d.time); return true; });
+        candleData.sort((a: any, b: any) => a.time - b.time);
       }
 
       if (candleData.length === 0) {
@@ -905,8 +980,9 @@ export function SmartGrid({
       // Store candle data for AI panel overlay
       cellCandleDataRef.current.set(cell.id, candleData as any);
 
-      // UNIFY (4.4): Use shared computeChangePercent
-      const { currentPrice, prevPrice, changePercent } = computeChangePercent(candleData);
+      const currentPrice = candleData[candleData.length - 1].close;
+      const prevPrice = candleData.length > 1 ? candleData[candleData.length - 2].close : null;
+      const changePercent = prevPrice && prevPrice !== 0 ? ((currentPrice - prevPrice) / prevPrice) * 100 : null;
 
       // Guard: skip if cell was destroyed during fetch
       if (!container.isConnected || controller.signal.aborted || (cellVersionRef.current.get(cell.id) || 0) !== currentVersion) {
@@ -1230,7 +1306,7 @@ export function SmartGrid({
       const newCells = [...prev];
       while (newCells.length < count) {
         newCells.push({
-          id: nextCellId(),
+          id: `cell-${cellIdCounter++}`,
           symbol: prev[0]?.symbol || defaultSymbol,
           timeframe: MTF_DEFAULT_TIMEFRAMES[newCells.length % MTF_DEFAULT_TIMEFRAMES.length],
           chartType: 'candle',
@@ -1657,8 +1733,6 @@ export function SmartGrid({
         {compactMode && (
           <button style={{ ...tbBtn, background: 'rgba(0,212,255,0.12)', color: C.cyan, border: '1px solid rgba(0,212,255,0.25)' }}
             onClick={() => setCompactMode(false)}
-            // FIX (5.4): aria-label for expand button
-            aria-label="Expand grid"
             onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>
             Expand
           </button>
@@ -1667,9 +1741,7 @@ export function SmartGrid({
         {/* Focus — switches to main chart and closes SmartGrid */}
         {activeCell && onSwitchToChart && (
           <button style={{ ...tbBtn, background: 'rgba(0,212,255,0.12)', color: C.cyan, border: '1px solid rgba(0,212,255,0.25)' }}
-            onClick={() => handleFocusChart(activeCell)}
-            // FIX (5.4): aria-label for focus button
-            aria-label="Focus on main chart">
+            onClick={() => handleFocusChart(activeCell)}>
             Focus
           </button>
         )}
@@ -1682,36 +1754,24 @@ export function SmartGrid({
               background: cellToolOpen.get(activeCell.id) === 'drawing' ? 'rgba(0,212,255,0.2)' : undefined,
               color: cellToolOpen.get(activeCell.id) === 'drawing' ? C.cyan : undefined,
             }} onClick={() => handleOpenTool(activeCell, 'drawing')}
-              // FIX (5.4): aria-label + aria-pressed for drawing tool toggle
-              aria-label="Drawing tools"
-              aria-pressed={cellToolOpen.get(activeCell.id) === 'drawing'}
               onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>Draw</button>
             <button style={{
               ...tbBtn,
               background: cellToolOpen.get(activeCell.id) === 'indicators' ? 'rgba(0,212,255,0.2)' : undefined,
               color: cellToolOpen.get(activeCell.id) === 'indicators' ? C.cyan : undefined,
             }} onClick={() => handleOpenTool(activeCell, 'indicators')}
-              // FIX (5.4): aria-label + aria-pressed for indicators tool toggle
-              aria-label="Indicators"
-              aria-pressed={cellToolOpen.get(activeCell.id) === 'indicators'}
               onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>Ind</button>
             <button style={{
               ...tbBtn,
               background: cellToolOpen.get(activeCell.id) === 'ai' ? 'rgba(0,212,255,0.2)' : undefined,
               color: cellToolOpen.get(activeCell.id) === 'ai' ? C.cyan : undefined,
             }} onClick={() => handleOpenTool(activeCell, 'ai')}
-              // FIX (5.4): aria-label + aria-pressed for AI tool toggle
-              aria-label="AI analysis"
-              aria-pressed={cellToolOpen.get(activeCell.id) === 'ai'}
               onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>AI</button>
             <button style={{
               ...tbBtn,
               background: cellToolOpen.get(activeCell.id) === 'trading' ? 'rgba(0,212,255,0.2)' : undefined,
               color: cellToolOpen.get(activeCell.id) === 'trading' ? C.cyan : undefined,
             }} onClick={() => handleOpenTool(activeCell, 'trading')}
-              // FIX (5.4): aria-label + aria-pressed for trading tool toggle
-              aria-label="Quick trade"
-              aria-pressed={cellToolOpen.get(activeCell.id) === 'trading'}
               onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>Trade</button>
           </>
         )}
@@ -1726,25 +1786,13 @@ export function SmartGrid({
         )}
 
         {/* Zoom */}
-        <button style={tbBtn} onClick={handleZoomOut}
-          // FIX (5.4): aria-label for icon-only zoom button
-          aria-label="Zoom out"
-        >-</button>
-        <button style={tbBtn} onClick={handleFitContent}
-          // FIX (5.4): aria-label for icon-only fit content button
-          aria-label="Fit content"
-        >&lt;-&gt;</button>
-        <button style={tbBtn} onClick={handleZoomIn}
-          // FIX (5.4): aria-label for icon-only zoom button
-          aria-label="Zoom in"
-        >+</button>
+        <button style={tbBtn} onClick={handleZoomOut}>-</button>
+        <button style={tbBtn} onClick={handleFitContent}>&lt;-&gt;</button>
+        <button style={tbBtn} onClick={handleZoomIn}>+</button>
 
         {/* Fullscreen toggle */}
         <button style={{ ...tbBtn, background: isFullscreen ? 'rgba(0,212,255,0.15)' : undefined, color: isFullscreen ? C.cyan : undefined, border: isFullscreen ? '1px solid rgba(0,212,255,0.3)' : undefined }} onClick={() => setFullscreenCellId(prev => prev ? null : (activeCellId || cells[0]?.id || null))}
           onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}
-          // FIX (5.4): aria-label + aria-pressed for fullscreen toggle
-          aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen grid'}
-          aria-pressed={isFullscreen}
           title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen grid'}>
           {isFullscreen ? '⤓' : '⤢'}
         </button>
@@ -1753,11 +1801,7 @@ export function SmartGrid({
 
         {/* Grid config */}
         <div style={{ position: 'relative' }}>
-          <button style={tbBtn} onClick={() => setShowGridSelector(!showGridSelector)}
-            // FIX (5.4): aria-label + aria-expanded for grid config selector
-            aria-label="Grid layout"
-            aria-expanded={showGridSelector}
-          >
+          <button style={tbBtn} onClick={() => setShowGridSelector(!showGridSelector)}>
             {activeConfig.icon} {activeConfig.label}
           </button>
           {showGridSelector && (
@@ -1775,8 +1819,6 @@ export function SmartGrid({
         <div style={{ flex: 1 }} />
 
         <button style={{ ...tbBtn, width: 26, height: 26, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => { if (compactMode) { setCompactMode(false); return; } onClose(); }}
-          // FIX (5.4): aria-label for icon-only close/expand button
-          aria-label={compactMode ? 'Expand grid' : 'Close grid'}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,71,87,0.15)'; (e.currentTarget as HTMLElement).style.color = C.danger; }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'; (e.currentTarget as HTMLElement).style.color = C.textDim; }}>
           X
@@ -1803,9 +1845,6 @@ export function SmartGrid({
               onClick={() => setActiveCellId(cell.id)}
               onDoubleClick={() => handleFocusChart(cell)}
               onContextMenu={(e) => { e.preventDefault(); handleOpenTool(cell, 'ai'); }}
-              // FIX (5.4): role + aria-label for grid cell region
-              role="region"
-              aria-label={`${cell.symbol} ${TIMEFRAME_OPTIONS.find(tf => tf.value === cell.timeframe)?.label || cell.timeframe} chart`}
               style={{
                 background: C.card, display: 'flex', flexDirection: 'column', overflow: 'hidden',
                 borderRadius: 6, border: isActive ? '1px solid rgba(0,212,255,0.4)' : `1px solid ${C.cardBorder}`,
@@ -1816,8 +1855,6 @@ export function SmartGrid({
               {/* Cell Header */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '2px 5px', borderBottom: `1px solid ${C.cardBorder}`, background: isActive ? 'rgba(0,212,255,0.03)' : 'transparent', flexShrink: 0 }}>
                 <select value={cell.symbol} onClick={e => e.stopPropagation()} onChange={e => handleChangeSymbol(cell.id, e.target.value)}
-                  // FIX (5.4): aria-label for symbol selector dropdown
-                  aria-label="Select symbol for cell"
                   style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)', borderRadius: 3, color: C.cyan, fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, fontWeight: 700, padding: '1px 3px', cursor: 'pointer', outline: 'none', maxWidth: 70 }}>
                   {POPULAR_PAIRS.map(p => <option key={p} value={p} style={{ background: C.card, color: C.text }}>{p}</option>)}
                 </select>
@@ -1825,9 +1862,6 @@ export function SmartGrid({
                 <div style={{ display: 'flex', gap: 1 }}>
                   {TIMEFRAME_OPTIONS.slice(0, 6).map(tf => (
                     <button key={tf.value} onClick={e => { e.stopPropagation(); handleChangeTimeframe(cell.id, tf.value); }}
-                      // FIX (5.4): aria-label + aria-pressed for timeframe toggle
-                      aria-label={`Timeframe ${tf.label}`}
-                      aria-pressed={cell.timeframe === tf.value}
                       style={{ padding: '1px 2px', borderRadius: 2, fontSize: 6.5, fontWeight: 700, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', border: 'none', background: cell.timeframe === tf.value ? 'rgba(0,212,255,0.15)' : 'transparent', color: cell.timeframe === tf.value ? C.cyan : C.textMuted }}>
                       {tf.label}
                     </button>
@@ -1861,8 +1895,6 @@ export function SmartGrid({
 
 
                 <select value={cell.chartType} onClick={e => e.stopPropagation()} onChange={e => handleChangeChartType(cell.id, e.target.value as any)}
-                  // FIX (5.4): aria-label for chart type selector
-                  aria-label="Select chart type"
                   style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.cardBorder}`, borderRadius: 3, color: C.textDim, fontSize: 7.5, padding: '0px 2px', cursor: 'pointer', outline: 'none' }}>
                   <option value="candle" style={{ background: C.card }}>Candle</option>
                   <option value="line" style={{ background: C.card }}>Line</option>
@@ -1870,9 +1902,6 @@ export function SmartGrid({
                 </select>
 
                 <button onClick={e => { e.stopPropagation(); setFullscreenCellId(prev => prev === cell.id ? null : cell.id); }}
-                  // FIX (5.4): aria-label + aria-pressed for icon-only fullscreen toggle
-                  aria-label={fullscreenCellId === cell.id ? 'Exit fullscreen' : 'Fullscreen cell'}
-                  aria-pressed={fullscreenCellId === cell.id}
                   style={{ background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 9, padding: 0, outline: 'none' }}>
                   {fullscreenCellId === cell.id ? 'v' : '^'}
                 </button>
@@ -1906,8 +1935,6 @@ export function SmartGrid({
                     </span>
                     <button
                       onClick={e => { e.stopPropagation(); handleRetry(cell); }}
-                      // FIX (5.4): aria-label for retry button
-                      aria-label="Retry loading data"
                       style={{
                         background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.3)',
                         borderRadius: 4, color: C.cyan, padding: '4px 12px', fontSize: 8, fontWeight: 700,

@@ -115,10 +115,6 @@ export type NotifSource = 'bot' | 'ai' | 'scanner' | 'trade' | 'system' | 'agent
 export type NotifPriority = 'urgent' | 'high' | 'medium' | 'low'
 export type NotifAction = 'BUY' | 'SELL' | 'INFO' | 'WARN' | 'CLOSE' | 'CANCEL'
 
-// FIX (5.5): Trade source indicates where the trade originated from,
-// providing better context than just buy/sell side.
-export type TradeSource = 'auto-trade' | 'manual' | 'signal' | 'paper-trade' | 'smart-executor' | 'agent' | 'auto_paper' | 'user_manual'
-
 export interface Notification {
   id: string
   source: NotifSource
@@ -135,10 +131,6 @@ export interface Notification {
   notificationType?: string
   /** Parameters for i18n interpolation */
   params?: Record<string, string | number>
-  // FIX (5.5): Trade source indicates where the trade originated from
-  // (auto-trade, manual, signal, paper-trade, etc.) — provides better
-  // context than just showing the side (BUY/SELL).
-  tradeSource?: TradeSource
 }
 
 interface NotifSettings {

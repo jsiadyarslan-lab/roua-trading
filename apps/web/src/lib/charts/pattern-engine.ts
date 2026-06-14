@@ -5,7 +5,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import type { CandleData } from './types';
-import { computeZigZag, type SwingPoint } from './chart-detection'; // UNIFY (4.3)
+import { detectZigZag, type SwingPoint } from './zigzag';
 import { createIncrementalState, initializeState, updateIncremental, needsFullRecalc, getQuickTrend, type IncrementalState } from './IncrementalCalc';
 import { getDynamicThresholds, adjustQualityForVolatility } from './ATRAdapter';
 
@@ -63,7 +63,7 @@ function scoreQuality(
   trendStrength: number,  // 0–1
 ): QualityScore {
   const clarity = Math.max(1, Math.min(10, Math.round((1 - priceDeviation) * 10)));
-  const uniformity = Math.max(1, Math.min(10, pivots.length > 0 ? 5 : 0)); // UNIFY (4.3): SwingPoint no longer has strength, use default
+  const uniformity = Math.max(1, Math.min(10, pivots.reduce((s, p) => s + p.strength, 0) / pivots.length));
   const initialTrend = Math.max(1, Math.min(10, Math.round(trendStrength * 10)));
   const overall = Math.round((clarity * 0.4 + uniformity * 0.3 + initialTrend * 0.3));
   return { clarity, uniformity, initialTrend, overall };
@@ -85,14 +85,14 @@ function trendStrength(candles: CandleData[], fromIndex: number, toIndex: number
 export function detectDoubleTop(
   candles: CandleData[],
   pivots?: SwingPoint[]): DetectedPattern[] {
-  const swings = pivots || computeZigZag(candles); // UNIFY (4.3)
+  const swings = pivots || detectZigZag(candles);
   const patterns: DetectedPattern[] = [];
 
   // ── REVOLUTIONARY: ATR-based dynamic thresholds ──
   const thresholds = getDynamicThresholds(candles);
 
-  const highs = swings.filter(p => p.type === 'HIGH');
-  const lows = swings.filter(p => p.type === 'LOW');
+  const highs = swings.filter(p => p.type === 'high');
+  const lows = swings.filter(p => p.type === 'low');
 
   for (let i = 0; i < highs.length - 1; i++) {
     const h1 = highs[i];
@@ -186,14 +186,14 @@ export function detectDoubleBottom(
   candles: CandleData[],
   pivots?: SwingPoint[]
 ): DetectedPattern[] {
-  const swings = pivots || computeZigZag(candles); // UNIFY (4.3)
+  const swings = pivots || detectZigZag(candles);
   const patterns: DetectedPattern[] = [];
 
   // ── REVOLUTIONARY: ATR-based dynamic thresholds ──
   const thresholds = getDynamicThresholds(candles);
 
-  const lows = swings.filter(p => p.type === 'LOW');
-  const highs = swings.filter(p => p.type === 'HIGH');
+  const lows = swings.filter(p => p.type === 'low');
+  const highs = swings.filter(p => p.type === 'high');
 
   for (let i = 0; i < lows.length - 1; i++) {
     const l1 = lows[i];
@@ -304,12 +304,12 @@ export function detectTriangles(
   candles: CandleData[],
   pivots?: SwingPoint[]
 ): DetectedPattern[] {
-  const swings = pivots || computeZigZag(candles); // UNIFY (4.3)
+  const swings = pivots || detectZigZag(candles);
   const patterns: DetectedPattern[] = [];
   if (swings.length < 6) return patterns;
 
-  const highs = swings.filter(p => p.type === 'HIGH').slice(-6);
-  const lows  = swings.filter(p => p.type === 'LOW').slice(-6);
+  const highs = swings.filter(p => p.type === 'high').slice(-6);
+  const lows  = swings.filter(p => p.type === 'low').slice(-6);
   if (highs.length < 3 || lows.length < 3) return patterns;
 
   const highReg = linearRegression(highs.map((p, i) => ({ x: i, y: p.price })));
@@ -407,12 +407,12 @@ export function detectChannels(
   candles: CandleData[],
   pivots?: SwingPoint[]
 ): DetectedPattern[] {
-  const swings = pivots || computeZigZag(candles); // UNIFY (4.3)
+  const swings = pivots || detectZigZag(candles);
   const patterns: DetectedPattern[] = [];
   if (swings.length < 6) return patterns;
 
-  const highs = swings.filter(p => p.type === 'HIGH').slice(-5);
-  const lows  = swings.filter(p => p.type === 'LOW').slice(-5);
+  const highs = swings.filter(p => p.type === 'high').slice(-5);
+  const lows  = swings.filter(p => p.type === 'low').slice(-5);
   if (highs.length < 3 || lows.length < 3) return patterns;
 
   const highReg = linearRegression(highs.map((p, i) => ({ x: i, y: p.price })));
@@ -492,12 +492,12 @@ export function detectWedges(
   candles: CandleData[],
   pivots?: SwingPoint[]
 ): DetectedPattern[] {
-  const swings = pivots || computeZigZag(candles); // UNIFY (4.3)
+  const swings = pivots || detectZigZag(candles);
   const patterns: DetectedPattern[] = [];
   if (swings.length < 6) return patterns;
 
-  const highs = swings.filter(p => p.type === 'HIGH').slice(-5);
-  const lows  = swings.filter(p => p.type === 'LOW').slice(-5);
+  const highs = swings.filter(p => p.type === 'high').slice(-5);
+  const lows  = swings.filter(p => p.type === 'low').slice(-5);
   if (highs.length < 3 || lows.length < 3) return patterns;
 
   const highReg = linearRegression(highs.map((p, i) => ({ x: i, y: p.price })));
@@ -580,14 +580,14 @@ export function detectHeadAndShoulders(
   candles: CandleData[],
   pivots?: SwingPoint[]
 ): DetectedPattern[] {
-  const swings = pivots || computeZigZag(candles); // UNIFY (4.3)
+  const swings = pivots || detectZigZag(candles);
   const patterns: DetectedPattern[] = [];
 
   // ── REVOLUTIONARY: ATR-based dynamic thresholds ──
   const thresholds = getDynamicThresholds(candles);
 
-  const highs = swings.filter(p => p.type === 'HIGH');
-  const lows  = swings.filter(p => p.type === 'LOW');
+  const highs = swings.filter(p => p.type === 'high');
+  const lows  = swings.filter(p => p.type === 'low');
 
   // ── Head & Shoulders (bearish) ──
   for (let i = 0; i < highs.length - 2; i++) {
@@ -818,7 +818,7 @@ export function detectHarmonics(
   candles: CandleData[],
   pivots?: SwingPoint[]
 ): DetectedPattern[] {
-  const swings = pivots || computeZigZag(candles); // UNIFY (4.3)
+  const swings = pivots || detectZigZag(candles);
   const patterns: DetectedPattern[] = [];
   if (swings.length < 5) return patterns;
 
@@ -970,7 +970,7 @@ export function runPatternEngine(
   _lastCandleCount = currentLen;
   _lastCandleTime = lastCandle.time;
 
-  const pivots = computeZigZag(candles); // UNIFY (4.3)
+  const pivots = detectZigZag(candles);
   const minQ = config?.minQuality ?? 4;
 
   const allPatterns: DetectedPattern[] = [

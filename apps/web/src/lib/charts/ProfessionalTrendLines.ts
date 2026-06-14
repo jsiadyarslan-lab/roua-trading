@@ -23,7 +23,6 @@
 // ═══════════════════════════════════════════════════════════════════════
 
 import type { CandleData } from './types';
-import { calcATR } from './ATRAdapter'; // UNIFY (4.2): Single source of truth for ATR
 
 export interface TrendLine {
   startPoint: { time: number; price: number };
@@ -46,7 +45,26 @@ interface SwingPoint {
   type: 'high' | 'low';
 }
 
-// calcATR: replaced by import from ATRAdapter (UNIFY 4.2)
+/**
+ * Calculate ATR (Average True Range) for dynamic tolerance.
+ * Returns the ATR value for the last `period` candles.
+ */
+function calcATR(candles: CandleData[], period: number = 14): number {
+  if (candles.length < 2) return 0;
+  const len = Math.min(period, candles.length - 1);
+  let sum = 0;
+  for (let i = candles.length - len; i < candles.length; i++) {
+    const c = candles[i];
+    const p = candles[i - 1];
+    const tr = Math.max(
+      c.high - c.low,
+      Math.abs(c.high - p.close),
+      Math.abs(c.low - p.close)
+    );
+    sum += tr;
+  }
+  return sum / len;
+}
 
 /**
  * ZigZag-based swing point detection.

@@ -12,36 +12,10 @@ import { TIMEFRAMES } from '@/lib/charts/types';
 import { ScopedStyle } from '@/components/ScopedStyle';
 import { useTranslations } from 'next-intl';
 
-// FIX (5.7): Grouped chart display configuration — reduces top-level prop count
-export interface ChartToolbarConfig {
+interface ChartToolbarProps {
   symbol: string;
   timeframe: string;
   chartType: ChartType;
-  activeTool: DrawingTool;
-  isPaused: boolean;
-  isFullscreen?: boolean;
-  mobile: boolean;
-  height: number;
-}
-
-// FIX (5.7): Grouped feature toggle visibility states
-export interface FeatureToggles {
-  showVolumeProfile?: boolean;
-  showAIPanel?: boolean;
-  showChartTrading?: boolean;
-  showWatchlist?: boolean;
-  showCompare?: boolean;
-  showFootprint?: boolean;
-  showAlerts?: boolean;
-  showPatternProgress?: boolean;
-  showReplay?: boolean;
-  showHeatmap?: boolean;
-  showAIStream?: boolean;
-  priceAlertsCount?: number;
-}
-
-// FIX (5.7): Grouped toolbar action callbacks
-export interface ChartToolbarActions {
   onSetTimeframe: (tf: string) => void;
   onSetSymbol?: (symbol: string) => void;
   onSetChartType: (type: ChartType) => void;
@@ -54,43 +28,52 @@ export interface ChartToolbarActions {
   onExportCSV: () => void;
   onExportSVG: () => void;
   onToggleFullscreen: () => void;
+  isFullscreen?: boolean;
+  activeTool: DrawingTool;
   onSetTool: (tool: DrawingTool) => void;
   onClearDrawings: () => void;
+  isPaused: boolean;
   onTogglePause: () => void;
-  // Feature toggle callbacks
+  mobile: boolean;
+  height: number;
+  // ── Existing Feature Toggle Props ──
   onToggleVolumeProfile?: () => void;
   onToggleAIPanel?: () => void;
   onToggleChartTrading?: () => void;
   onToggleTemplateManager?: () => void;
   onToggleWatchlist?: () => void;
   onToggleChartSettings?: () => void;
+  showVolumeProfile?: boolean;
+  showAIPanel?: boolean;
+  showChartTrading?: boolean;
+  showWatchlist?: boolean;
   onToggleCompare?: () => void;
   onToggleSmartGrid?: () => void;
   onToggleShare?: () => void;
+  showCompare?: boolean;
+  // ── 5 New Feature Toggle Props ──
+  showFootprint?: boolean;
   onToggleFootprint?: () => void;
+  showAlerts?: boolean;
   onToggleAlerts?: () => void;
+  showPatternProgress?: boolean;
   onTogglePatternProgress?: () => void;
+  // ── 3 Revolutionary Feature Toggle Props ──
+  showReplay?: boolean;
   onToggleReplay?: () => void;
+  showHeatmap?: boolean;
   onToggleHeatmap?: () => void;
+  priceAlertsCount?: number;
+  // ── 4 AI Streaming Toggle Prop ──
+  showAIStream?: boolean;
   onToggleAIStream?: () => void;
-}
-
-// FIX (5.7): Grouped multi-chart configuration
-export interface MultiChartConfig {
+  // ── Multi-Chart Props ──
   isMultiChart?: boolean;
   onAddChart?: () => void;
   onRemoveChart?: () => void;
   onToggleLayoutSelector?: () => void;
   showLayoutSelector?: boolean;
   chartCount?: number;
-}
-
-// FIX (5.7): Refactored from 56 individual props → 4 grouped props
-interface ChartToolbarProps {
-  config: ChartToolbarConfig;
-  features: FeatureToggles;
-  actions: ChartToolbarActions;
-  multiChart?: MultiChartConfig;
 }
 
 // Chart type keys — labels resolved via i18n in the component
@@ -115,33 +98,31 @@ const TOOLBAR_SYMBOLS = [
   'ADA/USDT', 'DOGE/USDT', 'EUR/USD', 'GBP/USD', 'XAU/USD',
 ];
 
-export function ChartToolbar({ config, features, actions, multiChart }: ChartToolbarProps) {
-  // FIX (5.7): Destructure from grouped prop objects for readability
+export function ChartToolbar(props: ChartToolbarProps) {
   const {
-    symbol, timeframe, chartType, activeTool,
-    isPaused, isFullscreen, mobile, height,
-  } = config;
-  const {
-    showVolumeProfile, showAIPanel, showChartTrading, showWatchlist,
-    showCompare, showFootprint, showAlerts, showPatternProgress,
-    showReplay, showHeatmap, showAIStream, priceAlertsCount,
-  } = features;
-  const {
+    symbol, timeframe, chartType,
     onSetTimeframe, onSetChartType, onSetSymbol,
     onZoomIn, onZoomOut, onResetView,
     onToggleDrawings, onToggleIndicators,
     onExportPNG, onExportCSV, onExportSVG, onToggleFullscreen,
-    onSetTool, onClearDrawings, onTogglePause,
+    activeTool, onSetTool, onClearDrawings,
+    isPaused, onTogglePause, mobile, height,
     onToggleVolumeProfile, onToggleAIPanel, onToggleChartTrading,
     onToggleTemplateManager, onToggleWatchlist, onToggleChartSettings,
-    onToggleCompare, onToggleSmartGrid, onToggleShare,
-    onToggleFootprint, onToggleAlerts, onTogglePatternProgress,
-    onToggleReplay, onToggleHeatmap, onToggleAIStream,
-  } = actions;
-  const {
+    showVolumeProfile, showAIPanel, showChartTrading, showWatchlist,
+    onToggleCompare, onToggleSmartGrid, onToggleShare, showCompare,
+    showFootprint, onToggleFootprint,
+    showAlerts, onToggleAlerts,
+    showPatternProgress, onTogglePatternProgress,
+    showReplay, onToggleReplay,
+    showHeatmap, onToggleHeatmap,
+    showAIStream, onToggleAIStream,
+    priceAlertsCount,
+    isFullscreen,
+    // ── Multi-Chart Props ──
     isMultiChart, onAddChart, onRemoveChart,
     onToggleLayoutSelector, showLayoutSelector, chartCount,
-  } = multiChart ?? {};
+  } = props;
 
   const t = useTranslations('chartToolbar');
   const [showChartTypePanel, setShowChartTypePanel] = useState(false);
@@ -379,9 +360,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
                 transition: 'all 0.1s',
               }}
               onClick={() => { onSetTimeframe(tf.value); setShowTimeframePanel(false); }}
-              // FIX (5.4): aria-label + aria-pressed for timeframe option
-              aria-label={`Timeframe ${tf.label}`}
-              aria-pressed={isActive}
               onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(0,212,255,0.1)'; }}
               onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = '#1a1f2e'; }}
             >
@@ -494,9 +472,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
             <button
               style={{ ...btnStyle, padding: '0 6px' }}
               onClick={() => setShowChartTypePanel(!showChartTypePanel)}
-              // FIX (5.4): aria-label + aria-expanded for chart type selector
-              aria-label={t('chartType')}
-              aria-expanded={showChartTypePanel}
               title={t('chartType')}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -521,9 +496,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
                 padding: '0 7px',
               }}
               onClick={() => setShowTimeframePanel(!showTimeframePanel)}
-              // FIX (5.4): aria-label + aria-expanded for timeframe selector
-              aria-label={t('timeframe')}
-              aria-expanded={showTimeframePanel}
             >
               {tfLabel}
               <svg width="8" height="8" viewBox="0 0 10 6" fill="currentColor" style={{ marginInlineStart: 2 }}>
@@ -538,8 +510,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
           <button
             style={fullscreenBtnStyle}
             onClick={onToggleFullscreen}
-            // FIX (5.4): aria-label for fullscreen toggle
-            aria-label={isFullscreen ? t('exitFullscreen') : t('enterFullscreen')}
             title={isFullscreen ? t('exitFullscreen') : t('enterFullscreen')}
           >
             {fullscreenIcon}
@@ -551,9 +521,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
           <button
             style={activeTool === 'cursor' ? activeBtnStyle : btnStyle}
             onClick={() => onSetTool('cursor')}
-            // FIX (5.4): aria-label + aria-pressed for cursor tool
-            aria-label={t('cursor')}
-            aria-pressed={activeTool === 'cursor'}
             title={t('cursor')}
           >
             ↖
@@ -563,8 +530,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
           <button
             style={{ ...btnStyle, width: 'auto', padding: '0 5px', fontWeight: 700 }}
             onClick={onToggleIndicators}
-            // FIX (5.4): aria-label for indicators toggle
-            aria-label={t('indicators')}
             title={t('indicators')}
           >
             IND
@@ -573,14 +538,8 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
           <div style={sepStyle} />
 
           {/* Zoom In/Out */}
-          <button style={btnStyle} onClick={onZoomIn}
-            // FIX (5.4): aria-label for icon-only zoom button
-            aria-label={t('zoomIn')}
-            title={t('zoomIn')}>+</button>
-          <button style={btnStyle} onClick={onZoomOut}
-            // FIX (5.4): aria-label for icon-only zoom button
-            aria-label={t('zoomOut')}
-            title={t('zoomOut')}>−</button>
+          <button style={btnStyle} onClick={onZoomIn} title={t('zoomIn')}>+</button>
+          <button style={btnStyle} onClick={onZoomOut} title={t('zoomOut')}>−</button>
 
           <div style={sepStyle} />
 
@@ -589,9 +548,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
             <button
               style={toggleBtnStyle(!!showAIPanel)}
               onClick={onToggleAIPanel}
-              // FIX (5.4): aria-label + aria-pressed for AI toggle
-              aria-label="AI analysis"
-              aria-pressed={!!showAIPanel}
               title="AI"
             >
               AI
@@ -603,9 +559,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
             <button
               style={toggleBtnStyle(!!showAIStream)}
               onClick={onToggleAIStream}
-              // FIX (5.4): aria-label + aria-pressed for AI stream toggle
-              aria-label="AI Live Stream"
-              aria-pressed={!!showAIStream}
               title="AI Live Stream"
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -619,9 +572,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
             <button
               style={toggleBtnStyle(!!showChartTrading)}
               onClick={onToggleChartTrading}
-              // FIX (5.4): aria-label + aria-pressed for chart trading toggle
-              aria-label={t('chartTrading')}
-              aria-pressed={!!showChartTrading}
               title={t('chartTrading')}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -635,9 +585,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
             <button
               style={toggleBtnStyle(!!showCompare)}
               onClick={onToggleCompare}
-              // FIX (5.4): aria-label + aria-pressed for compare toggle
-              aria-label={t('compareAsset')}
-              aria-pressed={!!showCompare}
               title={t('compareAsset')}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -651,8 +598,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
             <button
               style={btnStyle}
               onClick={onToggleSmartGrid}
-              // FIX (5.4): aria-label for smart grid toggle
-              aria-label={t('chartGridTooltip')}
               title={t('chartGridTooltip')}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -666,8 +611,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
             <button
               style={btnStyle}
               onClick={onToggleShare}
-              // FIX (5.4): aria-label for share toggle
-              aria-label={t('shareChart')}
               title={t('shareChart')}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -682,9 +625,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
             <button
               style={toggleBtnStyle(!!showReplay)}
               onClick={onToggleReplay}
-              // FIX (5.4): aria-label + aria-pressed for replay toggle
-              aria-label="Chart Replay Mode"
-              aria-pressed={!!showReplay}
               title="Chart Replay Mode"
             >
               ⏪
@@ -696,9 +636,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
             <button
               style={toggleBtnStyle(!!showHeatmap)}
               onClick={onToggleHeatmap}
-              // FIX (5.4): aria-label + aria-pressed for heatmap toggle
-              aria-label="Mini Heatmap"
-              aria-pressed={!!showHeatmap}
               title="Mini Heatmap"
             >
               🔲
@@ -715,9 +652,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
               fontWeight: 700,
             }}
             onClick={onTogglePause}
-            // FIX (5.4): aria-label + aria-pressed for play/pause toggle
-            aria-label={isPaused ? t('playUpdate') : t('pauseUpdate')}
-            aria-pressed={!isPaused}
             title={isPaused ? t('play') : t('pause')}
           >
             {isPaused ? '▶' : '⏸'}
@@ -727,11 +661,7 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
 
           {/* More tools menu (overflow) */}
           <div ref={exportRef} style={{ position: 'relative' }}>
-            <button style={btnStyle} onClick={() => setShowExportPanel(!showExportPanel)}
-              // FIX (5.4): aria-label + aria-expanded for more tools menu
-              aria-label={t('more')}
-              aria-expanded={showExportPanel}
-              title={t('more')}>
+            <button style={btnStyle} onClick={() => setShowExportPanel(!showExportPanel)} title={t('more')}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
               </svg>
@@ -770,9 +700,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
           <button
             style={btnStyle}
             onClick={() => setShowChartTypePanel(!showChartTypePanel)}
-            // FIX (5.4): aria-label + aria-expanded for chart type selector
-            aria-label={t('chartType')}
-            aria-expanded={showChartTypePanel}
             title={t('chartType')}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -790,8 +717,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
           <>
             <select value={symbol}
               onChange={e => onSetSymbol(e.target.value)}
-              // FIX (5.4): aria-label for symbol selector dropdown
-              aria-label="Select symbol"
               style={{
                 background: 'rgba(0,212,255,0.08)',
                 border: '1px solid rgba(0,212,255,0.25)',
@@ -827,9 +752,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
               padding: '0 8px',
             }}
             onClick={() => setShowTimeframePanel(!showTimeframePanel)}
-            // FIX (5.4): aria-label + aria-expanded for timeframe selector
-            aria-label={t('timeframe')}
-            aria-expanded={showTimeframePanel}
           >
             {tfLabel}
             <svg width="9" height="9" viewBox="0 0 10 6" fill="currentColor" style={{ marginInlineStart: 3 }}>
@@ -844,8 +766,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
         <button
           style={fullscreenBtnStyle}
           onClick={onToggleFullscreen}
-          // FIX (5.4): aria-label for fullscreen toggle
-          aria-label={isFullscreen ? t('exitFullscreen') : t('enterFullscreen')}
           title={isFullscreen ? t('exitFullscreen') : t('enterFullscreen')}
         >
           {fullscreenIcon}
@@ -859,30 +779,21 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
             key={tool.key}
             style={activeTool === tool.key ? activeBtnStyle : btnStyle}
             onClick={() => onSetTool(tool.key)}
-            // FIX (5.4): aria-label + aria-pressed for drawing tool
-            aria-label={t(tool.i18nKey)}
-            aria-pressed={activeTool === tool.key}
-            title={t(tool.i18nKey)}
+            title={tool.i18nKey ? t(tool.i18nKey) : tool.title}
           >
             {tool.icon}
           </button>
         ))}
 
         {/* Drawing Panel */}
-        <button style={btnStyle} onClick={onToggleDrawings}
-          // FIX (5.4): aria-label for drawing panel toggle
-          aria-label={t('drawings')}
-          title={t('drawings')}>
+        <button style={btnStyle} onClick={onToggleDrawings} title={t('drawings')}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/>
           </svg>
         </button>
 
         {/* Clear Drawings */}
-        <button style={{ ...btnStyle, color: COLORS.danger }} onClick={onClearDrawings}
-          // FIX (5.4): aria-label for clear drawings button
-          aria-label={t('clearDrawings')}
-          title={t('clearDrawings')}>
+        <button style={{ ...btnStyle, color: COLORS.danger }} onClick={onClearDrawings} title={t('clearDrawings')}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/>
           </svg>
@@ -891,26 +802,17 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
         <div style={sepStyle} />
 
         {/* Zoom */}
-        <button style={btnStyle} onClick={onZoomIn}
-          // FIX (5.4): aria-label for icon-only zoom in button
-          aria-label={`${t('zoomIn')} (+)`}
-          title={`${t('zoomIn')} (+)`}>
+        <button style={btnStyle} onClick={onZoomIn} title={`${t('zoomIn')} (+)`}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
           </svg>
         </button>
-        <button style={btnStyle} onClick={onZoomOut}
-          // FIX (5.4): aria-label for icon-only zoom out button
-          aria-label={`${t('zoomOut')} (-)`}
-          title={`${t('zoomOut')} (-)`}>
+        <button style={btnStyle} onClick={onZoomOut} title={`${t('zoomOut')} (-)`}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/>
           </svg>
         </button>
-        <button style={{ ...btnStyle, fontWeight: 700, width: 'auto', padding: '0 5px', fontFamily: "'Cairo', sans-serif" }} onClick={onResetView}
-          // FIX (5.4): aria-label for reset view button
-          aria-label={t('resetView')}
-          title={t('resetView')}>
+        <button style={{ ...btnStyle, fontWeight: 700, width: 'auto', padding: '0 5px', fontFamily: "'Cairo', sans-serif" }} onClick={onResetView} title={t('resetView')}>
           ⊡
         </button>
 
@@ -920,8 +822,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
         <button
           style={{ ...btnStyle, width: 'auto', padding: '0 7px', fontWeight: 700 }}
           onClick={onToggleIndicators}
-          // FIX (5.4): aria-label for indicators toggle
-          aria-label={t('indicators')}
           title={t('indicators')}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginInlineEnd: 3 }}>
@@ -937,9 +837,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
           <button
             style={toggleBtnStyle(!!showVolumeProfile)}
             onClick={onToggleVolumeProfile}
-            // FIX (5.4): aria-label + aria-pressed for volume profile toggle
-            aria-label={t('volumeProfile')}
-            aria-pressed={!!showVolumeProfile}
             title={t('volumeProfile')}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -953,9 +850,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
           <button
             style={toggleBtnStyle(!!showAIPanel)}
             onClick={onToggleAIPanel}
-            // FIX (5.4): aria-label + aria-pressed for AI toggle
-            aria-label={t('aiPatternAnalysis')}
-            aria-pressed={!!showAIPanel}
             title={t('aiPatternAnalysis')}
           >
             🧠 AI
@@ -967,9 +861,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
           <button
             style={toggleBtnStyle(!!showAIStream)}
             onClick={onToggleAIStream}
-            // FIX (5.4): aria-label + aria-pressed for AI stream toggle
-            aria-label="AI Live Stream (SSE)"
-            aria-pressed={!!showAIStream}
             title="AI Live Stream (SSE)"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -984,9 +875,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
           <button
             style={toggleBtnStyle(!!showPatternProgress)}
             onClick={onTogglePatternProgress}
-            // FIX (5.4): aria-label + aria-pressed for pattern progress toggle
-            aria-label={t('livePatternProgress')}
-            aria-pressed={!!showPatternProgress}
             title={t('livePatternProgress')}
           >
             📈
@@ -1000,9 +888,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
           <button
             style={toggleBtnStyle(!!showFootprint)}
             onClick={onToggleFootprint}
-            // FIX (5.4): aria-label + aria-pressed for footprint toggle
-            aria-label="Footprint Chart"
-            aria-pressed={!!showFootprint}
             title="Footprint Chart"
           >
             👣
@@ -1018,9 +903,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
           <button
             style={toggleBtnStyle(!!showChartTrading)}
             onClick={onToggleChartTrading}
-            // FIX (5.4): aria-label + aria-pressed for chart trading toggle
-            aria-label={t('chartTrading')}
-            aria-pressed={!!showChartTrading}
             title={t('chartTrading')}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1036,9 +918,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
           <button
             style={toggleBtnStyle(!!showCompare)}
             onClick={onToggleCompare}
-            // FIX (5.4): aria-label + aria-pressed for compare toggle
-            aria-label={t('compareAsset')}
-            aria-pressed={!!showCompare}
             title={t('compareAsset')}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1052,9 +931,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
           <button
             style={toggleBtnStyle(!!isMultiChart)}
             onClick={onToggleSmartGrid}
-            // FIX (5.4): aria-label + aria-pressed for smart grid toggle
-            aria-label={isMultiChart ? t('exitMultiChart') || 'Exit Multi-Chart' : t('chartGridTooltip')}
-            aria-pressed={!!isMultiChart}
             title={isMultiChart ? t('exitMultiChart') || 'Exit Multi-Chart' : t('chartGridTooltip')}
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1075,8 +951,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
               padding: '0 5px',
             }}
             onClick={onToggleLayoutSelector}
-            // FIX (5.4): aria-label for layout selector button
-            aria-label="Chart Layout"
             title="Chart Layout"
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1091,8 +965,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
           <button
             style={btnStyle}
             onClick={onToggleShare}
-            // FIX (5.4): aria-label for share toggle
-            aria-label={t('shareChart')}
             title={t('shareChart')}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1107,8 +979,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
           <button
             style={btnStyle}
             onClick={onToggleTemplateManager}
-            // FIX (5.4): aria-label for template manager button
-            aria-label={t('templateManager')}
             title={t('templateManager')}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1122,9 +992,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
           <button
             style={toggleBtnStyle(!!showWatchlist)}
             onClick={onToggleWatchlist}
-            // FIX (5.4): aria-label + aria-pressed for watchlist toggle
-            aria-label={t('watchlist')}
-            aria-pressed={!!showWatchlist}
             title={t('watchlist')}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1135,10 +1002,7 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
 
         {/* Chart Settings */}
         {onToggleChartSettings && (
-          <button style={btnStyle} onClick={onToggleChartSettings}
-            // FIX (5.4): aria-label for chart settings button
-            aria-label={t('chartSettings')}
-            title={t('chartSettings')}>
+          <button style={btnStyle} onClick={onToggleChartSettings} title={t('chartSettings')}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
@@ -1150,9 +1014,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
           <button
             style={toggleBtnStyle(!!showAlerts)}
             onClick={onToggleAlerts}
-            // FIX (5.4): aria-label + aria-pressed for alerts toggle
-            aria-label={t('alerts')}
-            aria-pressed={!!showAlerts}
             title={t('alerts')}
           >
             🔔
@@ -1168,9 +1029,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
           <button
             style={toggleBtnStyle(!!showReplay)}
             onClick={onToggleReplay}
-            // FIX (5.4): aria-label + aria-pressed for replay toggle
-            aria-label="Chart Replay Mode (Bar-by-Bar)"
-            aria-pressed={!!showReplay}
             title="Chart Replay Mode (Bar-by-Bar)"
           >
             ⏪
@@ -1182,9 +1040,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
           <button
             style={toggleBtnStyle(!!showHeatmap)}
             onClick={onToggleHeatmap}
-            // FIX (5.4): aria-label + aria-pressed for heatmap toggle
-            aria-label="Mini Heatmap"
-            aria-pressed={!!showHeatmap}
             title="Mini Heatmap"
           >
             🔲
@@ -1232,9 +1087,6 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
             fontWeight: 700,
           }}
           onClick={onTogglePause}
-          // FIX (5.4): aria-label + aria-pressed for play/pause toggle
-          aria-label={isPaused ? `${t('playUpdate')} (Space)` : `${t('pauseUpdate')} (Space)`}
-          aria-pressed={!isPaused}
           title={isPaused ? `${t('playUpdate')} (Space)` : `${t('pauseUpdate')} (Space)`}
         >
           {isPaused ? '▶' : '⏸'}
@@ -1244,11 +1096,7 @@ export function ChartToolbar({ config, features, actions, multiChart }: ChartToo
 
         {/* Export */}
         <div ref={exportRef} style={{ position: 'relative' }}>
-          <button style={btnStyle} onClick={() => setShowExportPanel(!showExportPanel)}
-            // FIX (5.4): aria-label + aria-expanded for export menu
-            aria-label={t('export')}
-            aria-expanded={showExportPanel}
-            title={t('export')}>
+          <button style={btnStyle} onClick={() => setShowExportPanel(!showExportPanel)} title={t('export')}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
             </svg>

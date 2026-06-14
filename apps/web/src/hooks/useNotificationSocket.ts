@@ -128,9 +128,6 @@ export function useNotificationSocket() {
           // i18n data for frontend translation — always set notificationType
           notificationType: data.data?.notificationType || socketTypeToNotifType[data.type] || undefined,
           params: data.data?.params || {},
-          // FIX (5.5): Propagate trade source from backend notification data
-          // so the UI can show WHERE the trade came from (auto-trade, manual, signal, etc.)
-          tradeSource: data.data?.tradeSource as any || undefined,
         })
 
         // FIX: If the notification is about a trade execution, refresh positions + balance

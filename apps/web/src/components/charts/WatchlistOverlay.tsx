@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useMarketStore } from '@/hooks/useMarketStore';
 import type { QuoteData } from '@/hooks/useMarketStore';
 
@@ -46,32 +46,19 @@ export function WatchlistOverlay({
   visible = true,
 }: WatchlistOverlayProps) {
   const globalQuotes = useMarketStore(state => state.quotes);
-  const priceHistoryRef = useRef<Map<string, number[]>>(new Map());
-  const MAX_HISTORY_POINTS = 50;
 
   // Build sparkline data from market store
   const sparklines = useMemo((): SparklineData[] => {
     return symbols.map(symbol => {
       const quote = globalQuotes[symbol];
-      if (!quote || !quote.price) return null;
-      
-      // FIX (5.3): Track real price history for sparklines
-      const history = priceHistoryRef.current.get(symbol) || [];
-      const lastPrice = history.length > 0 ? history[history.length - 1] : 0;
-      if (quote.price !== lastPrice) {
-        history.push(quote.price);
-        if (history.length > MAX_HISTORY_POINTS) history.splice(0, history.length - MAX_HISTORY_POINTS);
-        priceHistoryRef.current.set(symbol, history);
-      }
-      
       return {
         symbol,
-        price: quote.price,
-        change: quote.change || 0,
-        changePercent: quote.changePercent || 0,
-        points: history,
+        price: quote?.price || 0,
+        change: quote?.change || 0,
+        changePercent: quote?.changePercent || 0,
+        points: generateMiniPoints(quote),
       };
-    }).filter((s): s is SparklineData => s !== null && s.price > 0);
+    }).filter(s => s.price > 0);
   }, [globalQuotes, symbols]);
 
   const COLORS = {
@@ -107,9 +94,6 @@ export function WatchlistOverlay({
           <button
             key={spark.symbol}
             onClick={() => onSelectSymbol(spark.symbol)}
-            // FIX (5.4): aria-label + aria-pressed for watchlist symbol button
-            aria-label={`${spark.symbol} ${spark.changePercent >= 0 ? '+' : ''}${spark.changePercent.toFixed(1)}%`}
-            aria-pressed={isSelected}
             style={{
               display: 'flex',
               flexDirection: 'column',
@@ -176,4 +160,24 @@ export function WatchlistOverlay({
   );
 }
 
+// ── Helper: Generate mini sparkline points ───────────────
+function generateMiniPoints(quote: QuoteData | undefined): number[] {
+  if (!quote || !quote.price) return [];
 
+  const price = quote.price;
+  const volatility = price * 0.002;
+  const points: number[] = [];
+
+  // Generate 20 synthetic points around the current price
+  // In production, this would use actual 24h price history
+  for (let i = 0; i < 20; i++) {
+    const trend = (i / 20) * quote.changePercent * price * 0.01;
+    const noise = (Math.random() - 0.5) * volatility;
+    points.push(price + trend + noise);
+  }
+
+  // Ensure the last point matches the current price
+  points[points.length - 1] = price;
+
+  return points;
+}

@@ -46,10 +46,6 @@ export class DrawingManager {
   private timeframe: string = '';
   // M2 FIX: Store userId from React layer instead of using require().
   private userId: string | undefined;
-  // FIX (5.1): Undo/Redo stacks for drawing operations
-  private undoStack: Array<{ action: 'create' | 'update' | 'delete'; drawing: Drawing; previousState?: Drawing }> = [];
-  private redoStack: Array<{ action: 'create' | 'update' | 'delete'; drawing: Drawing; previousState?: Drawing }> = [];
-  private maxUndoLevels = 50;
 
   constructor(symbol: string, timeframe?: string, userId?: string) {
     this.symbol = symbol;
@@ -73,34 +69,21 @@ export class DrawingManager {
     };
     this.drawings.set(drawing.id, drawing);
     this.saveToStorage();
-    this.pushUndo({ action: 'create', drawing: JSON.parse(JSON.stringify(drawing)) });
     return drawing;
   }
 
   update(id: string, updates: Partial<Pick<Drawing, 'points' | 'color' | 'lineWidth' | 'opacity'>>): Drawing | null {
     const drawing = this.drawings.get(id);
     if (!drawing) return null;
-    const previousDrawing = JSON.parse(JSON.stringify(drawing));
     Object.assign(drawing, updates);
     this.saveToStorage();
-    this.pushUndo({ action: 'update', drawing: JSON.parse(JSON.stringify(drawing)), previousState: JSON.parse(JSON.stringify(previousDrawing)) });
     return drawing;
   }
 
   delete(id: string): boolean {
-    const deletedDrawing = this.drawings.get(id);
     const deleted = this.drawings.delete(id);
-    if (deletedDrawing) this.pushUndo({ action: 'delete', drawing: JSON.parse(JSON.stringify(deletedDrawing)) });
     if (deleted) this.saveToStorage();
     return deleted;
-  }
-
-  private pushUndo(entry: { action: 'create' | 'update' | 'delete'; drawing: Drawing; previousState?: Drawing }): void {
-    this.undoStack.push(entry);
-    this.redoStack = []; // Clear redo on new action
-    if (this.undoStack.length > this.maxUndoLevels) {
-      this.undoStack.shift();
-    }
   }
 
   get(id: string): Drawing | null {
@@ -112,54 +95,9 @@ export class DrawingManager {
   }
 
   clearAll(): void {
-    // Push all drawings as delete entries for undo
-    this.drawings.forEach(d => this.pushUndo({ action: 'delete', drawing: JSON.parse(JSON.stringify(d)) }));
     this.drawings.clear();
     this.saveToStorage();
   }
-
-  // FIX (5.1): Undo the last drawing action
-  undo(): boolean {
-    if (this.undoStack.length === 0) return false;
-    const entry = this.undoStack.pop()!;
-    switch (entry.action) {
-      case 'create':
-        this.drawings.delete(entry.drawing.id);
-        break;
-      case 'update':
-        this.drawings.set(entry.drawing.id, entry.previousState!);
-        break;
-      case 'delete':
-        this.drawings.set(entry.drawing.id, entry.drawing);
-        break;
-    }
-    this.redoStack.push(entry);
-    this.saveToStorage();
-    return true;
-  }
-
-  // FIX (5.1): Redo the last undone action
-  redo(): boolean {
-    if (this.redoStack.length === 0) return false;
-    const entry = this.redoStack.pop()!;
-    switch (entry.action) {
-      case 'create':
-        this.drawings.set(entry.drawing.id, entry.drawing);
-        break;
-      case 'update':
-        this.drawings.set(entry.drawing.id, entry.drawing);
-        break;
-      case 'delete':
-        this.drawings.delete(entry.drawing.id);
-        break;
-    }
-    this.undoStack.push(entry);
-    this.saveToStorage();
-    return true;
-  }
-
-  get canUndo(): boolean { return this.undoStack.length > 0; }
-  get canRedo(): boolean { return this.redoStack.length > 0; }
 
   // ── Symbol Management ──────────────────────────────────
 
@@ -167,8 +105,6 @@ export class DrawingManager {
    * Drawings are now keyed by `${symbol}:${timeframe}`, so changing
    * either one loads the correct set of drawings. */
   setSymbol(symbol: string, timeframe?: string): void {
-    this.undoStack = [];
-    this.redoStack = [];
     this.symbol = symbol;
     if (timeframe !== undefined) this.timeframe = timeframe;
     this.drawings.clear();
@@ -178,8 +114,6 @@ export class DrawingManager {
   /** Set only the timeframe (when symbol stays the same but timeframe changes) */
   setTimeframe(timeframe: string): void {
     if (this.timeframe === timeframe) return;
-    this.undoStack = [];
-    this.redoStack = [];
     this.timeframe = timeframe;
     this.drawings.clear();
     this.loadFromStorage();

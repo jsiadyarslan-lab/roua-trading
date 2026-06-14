@@ -4917,11 +4917,6 @@
     "autoExecuteError": {
       "title": "Auto-execute Error",
       "body": "Connection failed: {error}"
-    },
-    "tradeSourceAutoTrade": "Auto Trade",
-    "tradeSourceManual": "Manual",
-    "tradeSourceSignal": "Signal",
-    "tradeSourcePaperTrade": "Paper Trade",
-    "tradeSourceAgent": "Agent"
+    }
   }
 }

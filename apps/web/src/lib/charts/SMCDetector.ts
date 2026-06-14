@@ -5,7 +5,6 @@
 // ═══════════════════════════════════════════════════════════
 
 import type { CandleData } from './types';
-import { calcATR } from './ATRAdapter'; // UNIFY (4.2): Single source of truth for ATR
 
 export interface OrderBlock {
   type: 'bullish' | 'bearish';
@@ -36,7 +35,18 @@ export interface StructureBreak {
   prevSwingPrice: number;
 }
 
-// ── ATR: imported from ATRAdapter (UNIFY 4.2) ────────────
+// ── ATR ──────────────────────────────────────────────────
+function calcATR(candles: CandleData[], period = 14): number {
+  if (candles.length < period + 1) return 0;
+  let atr = 0;
+  for (let i = candles.length - period; i < candles.length; i++) {
+    const prev = candles[i - 1];
+    const c = candles[i];
+    const tr = Math.max(c.high - c.low, Math.abs(c.high - prev.close), Math.abs(c.low - prev.close));
+    atr += tr;
+  }
+  return atr / period;
+}
 
 // ── Order Blocks ─────────────────────────────────────────
 export function detectOrderBlocks(candles: CandleData[], lookback = 50): OrderBlock[] {
@@ -97,59 +107,36 @@ export function detectFVG(candles: CandleData[], lookback = 50): FairValueGap[] 
   return fvgs.filter(f => !f.filled).slice(-6);
 }
 
-// FIX (4.10): Distinguish BOS (continuation) from CHoCH (reversal)
-// BOS = break in same direction as prevailing trend
-// CHoCH = break in opposite direction (reversal signal)
+// ── BOS / CHoCH ──────────────────────────────────────────
 export function detectStructureBreaks(candles: CandleData[], lookback = 100): StructureBreak[] {
   if (candles.length < 10) return [];
   const slice = candles.slice(-lookback);
   const breaks: StructureBreak[] = [];
 
   // Find swing highs and lows
-  const swingHighs: { time: number; price: number; index: number }[] = [];
-  const swingLows: { time: number; price: number; index: number }[] = [];
+  const swingHighs: { time: number; price: number }[] = [];
+  const swingLows: { time: number; price: number }[] = [];
 
   for (let i = 2; i < slice.length - 2; i++) {
     const c = slice[i];
     if (c.high > slice[i-1].high && c.high > slice[i-2].high && c.high > slice[i+1].high && c.high > slice[i+2].high) {
-      swingHighs.push({ time: c.time, price: c.high, index: i });
+      swingHighs.push({ time: c.time, price: c.high });
     }
     if (c.low < slice[i-1].low && c.low < slice[i-2].low && c.low < slice[i+1].low && c.low < slice[i+2].low) {
-      swingLows.push({ time: c.time, price: c.low, index: i });
+      swingLows.push({ time: c.time, price: c.low });
     }
   }
 
-  if (swingHighs.length < 2 && swingLows.length < 2) return [];
-
-  // Determine prevailing trend from swing structure
-  let trend: 'bullish' | 'bearish' | 'ranging' = 'ranging';
-  const recentHighs = swingHighs.slice(-3);
-  const recentLows = swingLows.slice(-3);
-  
-  if (recentHighs.length >= 2 && recentLows.length >= 2) {
-    const hh = recentHighs[recentHighs.length - 1].price > recentHighs[recentHighs.length - 2].price;
-    const hl = recentLows[recentLows.length - 1].price > recentLows[recentLows.length - 2].price;
-    const lh = recentHighs[recentHighs.length - 1].price < recentHighs[recentHighs.length - 2].price;
-    const ll = recentLows[recentLows.length - 1].price < recentLows[recentLows.length - 2].price;
-    
-    if (hh && hl) trend = 'bullish';
-    else if (lh && ll) trend = 'bearish';
-  }
-
-  const last = slice[slice.length - 1];
+  // Detect BOS/CHoCH
   const lastHigh = swingHighs[swingHighs.length - 1];
   const lastLow = swingLows[swingLows.length - 1];
+  const last = slice[slice.length - 1];
 
-  // Bullish break above swing high
   if (lastHigh && last.close > lastHigh.price) {
-    const type = trend === 'bearish' ? 'CHoCH' : 'BOS';
-    breaks.push({ type, direction: 'bullish', time: last.time, price: lastHigh.price, prevSwingTime: lastHigh.time, prevSwingPrice: lastHigh.price });
+    breaks.push({ type: 'BOS', direction: 'bullish', time: last.time, price: lastHigh.price, prevSwingTime: lastHigh.time, prevSwingPrice: lastHigh.price });
   }
-  
-  // Bearish break below swing low
   if (lastLow && last.close < lastLow.price) {
-    const type = trend === 'bullish' ? 'CHoCH' : 'BOS';
-    breaks.push({ type, direction: 'bearish', time: last.time, price: lastLow.price, prevSwingTime: lastLow.time, prevSwingPrice: lastLow.price });
+    breaks.push({ type: 'BOS', direction: 'bearish', time: last.time, price: lastLow.price, prevSwingTime: lastLow.time, prevSwingPrice: lastLow.price });
   }
 
   return breaks.slice(-4);

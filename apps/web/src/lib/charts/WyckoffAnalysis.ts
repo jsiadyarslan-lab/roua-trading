@@ -15,8 +15,7 @@ export interface WyckoffResult {
 export function detectWyckoff(candles: CandleData[]): WyckoffResult {
   if (candles.length < 30) return { phase: 'Unknown', labelAr: 'غير محدد', confidence: 0, events: [], bias: 'neutral' };
 
-  // FIX (4.9): Increased from 60→200 — Wyckoff phases span 100-300+ candles
-  const slice = candles.slice(-200);
+  const slice = candles.slice(-60);
   const prices = slice.map(c => c.close);
   const volumes = slice.map(c => c.volume);
   const avgVol = volumes.reduce((s,v) => s+v, 0) / volumes.length;
@@ -29,9 +28,8 @@ export function detectWyckoff(candles: CandleData[]): WyckoffResult {
   const posInRange = (current - minP) / (range || 1);
 
   // Volume trend: compare first half vs second half
-  const third = Math.floor(volumes.length / 3);
-  const vol1st = volumes.slice(0, third).reduce((s,v) => s+v, 0) / third;
-  const vol2nd = volumes.slice(-third).reduce((s,v) => s+v, 0) / third;
+  const vol1st = volumes.slice(0, 30).reduce((s,v) => s+v, 0) / 30;
+  const vol2nd = volumes.slice(30).reduce((s,v) => s+v, 0) / 30;
   const volTrend = vol2nd / vol1st;
 
   // Price trend: linear regression slope

@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://www.tradingview.com/support/solutions/43000703396-drawing-tools-available-on-tradingview",
+    "name": "Drawing tools available on TradingView",
+    "snippet": "Drawing tools available on TradingView · Cursors · Trend line tools · Fibonacci and Gann tools · Patterns · Forecasting and measurement tools · Geometric shapes ...",
+    "host_name": "www.tradingview.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.tradingview.com/charting-library-docs/latest/ui_elements/drawings/Drawings-List",
+    "name": "Drawings List | Advanced Charts Documentation - TradingView",
+    "snippet": "This article lists all available drawings in the library and available actions with them. Tools​. Trend Line Tools​. Trend Line; Arrow; Ray; Info Line; Extended ...",
+    "host_name": "www.tradingview.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.tradingview.com/support/solutions/43000746464-getting-started-with-supercharts",
+    "name": "Getting started with Supercharts - TradingView",
+    "snippet": "From it, you can access drawing tools to make notes, add comments, mark trends and patterns, perform measurements and forecasts, and calculate price levels.",
+    "host_name": "www.tradingview.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.tradingview.com/support/solutions/43000484389-how-to-restore-hidden-drawings-indicators-charts",
+    "name": "How to restore hidden drawings/indicators/charts? - TradingView",
+    "snippet": "Click on the Object Tree and Data Window button, located on the right toolbar. Use the available options to hide, show, or remove the drawings, indicators and/ ...",
+    "host_name": "www.tradingview.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=APfLDVFLiBY",
+    "name": "The Fibonacci Trend Drawing Tool: Tutorial - YouTube",
+    "snippet": "Trend lines + Fibonacci Extensions combined into one tool. This video will show you how it works, why it matters, and all the different ways ...",
+    "host_name": "www.youtube.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://lightningchart.com/js-charts/trader/docs/drawing-tools/available-drawing-tools",
+    "name": "List of available drawing tools | LightningChart® JS Trader",
+    "snippet": "Draws vertical lines corresponding to elapsed time periods based on Fibonacci number sequence. Can be used to spot potential price reversal points. Gann tools​.",
+    "host_name": "lightningchart.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.multicharts.com/features/drawing-tools",
+    "name": "Drawing tools - MultiCharts",
+    "snippet": "These tools allow you to focus on trends, support and resistance, gaps, pivots, triangles, and other price patterns. Trend Lines, Andrews' Pitchfork, Fibonacci ...",
+    "host_name": "www.multicharts.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.wealthcharts.com/kb/category/charts/chart-settings/Drawing-Tools",
+    "name": "Drawing Tools | Knowledgebase - WealthCharts",
+    "snippet": "WealthCharts offers a wide range of drawing tools for your charts - ranging from simple lines to complex Fibonacci or Gann-based tools.",
+    "host_name": "www.wealthcharts.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://help.tradestation.com/10_00/eng/tradestationhelp/do/gann_fan_drawing_object.htm",
+    "name": "Gann Fan Drawing Object",
+    "snippet": "A Gann Fan is an analytical drawing tool used to identify price breakouts and the strength of those breakouts. The Gann Fan is drawn using a series of angled ...",
+    "host_name": "help.tradestation.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=O9Sa4Y1Kdf8",
+    "name": "How to Use Fibonacci Gann & Other Advanced Drawing Tools with",
+    "snippet": "In this video, I show you the Fibonacci Gann and other advanced drawing tools in Ninjatrader. You'll learn how to set up these tools and how ...",
+    "host_name": "www.youtube.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

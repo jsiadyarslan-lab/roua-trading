@@ -302,12 +302,17 @@ function calcADX(candles: WorkerRequest['candles'], period: number): (number | n
   // V225 FIX: Wilder's smoothing initial value must be AVERAGE (sum/p), not raw sum.
   // The old code pushed raw `sum` which is p× too large, making ALL subsequent
   // smoothed values p× too large. DI/ADX values were completely wrong.
+  // V226 FIX: Wilder's smoothing must divide arr[i] by p.
+  // Old buggy formula: result[i-1] - result[i-1]/p + arr[i]
+  //   = result[i-1]*(1-1/p) + arr[i]  ← arr[i] NOT divided, values grow without bound
+  // Correct Wilder's:   (result[i-1]*(p-1) + arr[i]) / p
+  //   = result[i-1]*(1-1/p) + arr[i]/p  ← arr[i] properly divided
   function smooth(arr: number[], p: number): number[] {
     const result: number[] = [];
     let sum = 0;
     for (let i = 0; i < arr.length; i++) {
       if (i < p) { sum += arr[i]; if (i === p - 1) result.push(sum / p); else result.push(0); continue; }
-      const val = result[i - 1] - result[i - 1] / p + arr[i];
+      const val = (result[i - 1] * (p - 1) + arr[i]) / p;
       result.push(val);
     }
     return result;

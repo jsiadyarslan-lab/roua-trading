@@ -142,7 +142,8 @@ export const usePaperTradesStore = create<PaperTradesState>()(
           }
 
           // FIX: Auto-close trade when SL or TP is hit
-          if (!(t as any).status || (t as any).status !== 'closed') {
+          // V226 FIX: Check _status (with underscore) — the SL/TP code sets _status, not status
+          if (!(t as any)._status || (t as any)._status !== 'closed') {
             if (t.sl && t.sl > 0) {
               if ((t.side === 'long' && price <= t.sl) || (t.side === 'short' && price >= t.sl)) {
                 closedIds.push(t.id)

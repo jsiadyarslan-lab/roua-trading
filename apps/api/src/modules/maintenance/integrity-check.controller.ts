@@ -3527,6 +3527,15 @@ export class IntegrityCheckController {
       } else if (iwContent.includes('result.push(sum)')) {
         failures.push('ADX smooth القيمة الأولية خاطئة — sum بدون قسمة على p = قيم p× أكبر');
       }
+
+      // V226: Check ADX ongoing Wilder's smoothing uses correct formula
+      // Buggy: result[i-1] - result[i-1]/p + arr[i]  (arr[i] not divided)
+      // Fixed: (result[i-1] * (p-1) + arr[i]) / p   (Wilder's canonical form)
+      if (iwContent.includes('(result[i - 1] * (p - 1) + arr[i]) / p')) {
+        passes.push('ADX Wilder\'s صيغة التنعيم المستمرة صحيحة');
+      } else if (iwContent.includes('result[i - 1] - result[i - 1] / p + arr[i]')) {
+        failures.push('ADX صيغة Wilder خاطئة — arr[i] بدون قسمة على p = قيم تنمو بلا حدود');
+      }
     }
 
     // V49f: ChartGrid — single setCells call in sync mode
@@ -3609,6 +3618,13 @@ export class IntegrityCheckController {
       passes.push('SL/TP التلقائي يعمل — closedIds تُعالج بعد الإغلاق');
     } else if (content.includes('closedIds') && !content.includes('closedIds.forEach')) {
       failures.push('closedIds تُملأ لكن لا تُعالج — صفقات SL/TP تبقى مفتوحة للأبد');
+    }
+
+    // V226: Check that the guard uses _status (not status) — the SL/TP code sets _status
+    if (content.includes("._status") && content.includes("._status !== 'closed'")) {
+      passes.push('حارس SL/TP يفحص _status (صحيح) — يتطابق مع الحقل المُعيَّن');
+    } else if (content.includes(".status !== 'closed'") && !content.includes("._status !== 'closed'")) {
+      failures.push('حارس SL/TP يفحص .status لكن الكود يضع ._status — الحارس لا يعمل أبداً');
     }
 
     // Check notification uses source (not side)

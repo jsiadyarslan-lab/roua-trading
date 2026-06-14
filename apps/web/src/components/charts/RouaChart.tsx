@@ -308,9 +308,37 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull, compact }: {
       unsub = () => { try { chart.chartRef.current.timeScale().unsubscribeVisibleLogicalRangeChange(handler); } catch {} };
     }
 
-    // PERF: 2000ms — price label coordinate doesn't need sub-second updates
-    const interval = setInterval(update, 2000);
-    return () => { unsub?.(); clearInterval(interval); };
+    // FIX: Detect price-scale drag via pointer/wheel events for instant repositioning.
+    // lightweight-charts v5 has no subscribeVisiblePriceRangeChange, so we listen
+    // for user interactions on the chart container and update the timer position
+    // in the next animation frame — same approach as trade overlay sync.
+    const chartEl = chart.containerRef?.current as HTMLElement | null;
+    let timerRaf = 0;
+    const onPointerMove = () => {
+      cancelAnimationFrame(timerRaf);
+      timerRaf = requestAnimationFrame(update);
+    };
+    const onWheel = () => {
+      cancelAnimationFrame(timerRaf);
+      timerRaf = requestAnimationFrame(update);
+    };
+
+    if (chartEl) {
+      chartEl.addEventListener('pointermove', onPointerMove);
+      chartEl.addEventListener('wheel', onWheel, { passive: true });
+    }
+
+    // Reduced from 2000ms to 500ms — price label coordinate needs reasonably
+    // fast updates, and the RAF-based drag detection handles the interactive case
+    const interval = setInterval(update, 500);
+    return () => {
+      unsub?.(); clearInterval(interval);
+      cancelAnimationFrame(timerRaf);
+      if (chartEl) {
+        chartEl.removeEventListener('pointermove', onPointerMove);
+        chartEl.removeEventListener('wheel', onWheel);
+      }
+    };
   // FIX: Only depend on currentPrice, not `chart` (which changes every render)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPrice]);
@@ -1843,10 +1871,43 @@ export default function RouaChart({
 
     // Periodic overlay refresh to catch vertical price-scale changes
     // (lightweight-charts v5 has no priceScale subscribeVisiblePriceRangeChange)
-    // PERF: 3000ms — positions update via DOM manipulation between full state updates
-    const priceScaleInterval = setInterval(scheduleOverlayUpdate, 3000);
+    // Reduced from 3000ms to 500ms for snappier overlay repositioning
+    const priceScaleInterval = setInterval(scheduleOverlayUpdate, 500);
 
-    return () => { unsub?.(); clearTimeout(timer); clearInterval(priceScaleInterval); };
+    // FIX: Detect price-scale drag (mouse wheel / pointer drag on price axis)
+    // lightweight-charts v5 doesn't emit events for price-scale changes,
+    // so we listen for pointer/wheel events on the chart container and
+    // trigger an immediate overlay update via requestAnimationFrame.
+    const chartEl = chart.containerRef?.current as HTMLElement | null;
+    let dragRaf = 0;
+    const onPointerMove = () => {
+      cancelAnimationFrame(dragRaf);
+      dragRaf = requestAnimationFrame(() => {
+        syncOverlayPositions();
+        scheduleOverlayUpdateRef.current();
+      });
+    };
+    const onWheel = () => {
+      cancelAnimationFrame(dragRaf);
+      dragRaf = requestAnimationFrame(() => {
+        syncOverlayPositions();
+        scheduleOverlayUpdateRef.current();
+      });
+    };
+
+    if (chartEl) {
+      chartEl.addEventListener('pointermove', onPointerMove);
+      chartEl.addEventListener('wheel', onWheel, { passive: true });
+    }
+
+    return () => {
+      unsub?.(); clearTimeout(timer); clearInterval(priceScaleInterval);
+      cancelAnimationFrame(dragRaf);
+      if (chartEl) {
+        chartEl.removeEventListener('pointermove', onPointerMove);
+        chartEl.removeEventListener('wheel', onWheel);
+      }
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty deps — stable refs used inside
 

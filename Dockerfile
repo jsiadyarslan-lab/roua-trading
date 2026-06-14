@@ -15,8 +15,8 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Embed the git commit SHA into the Docker image
-# V241: PriceSyncedTimer works in multi-chart (fallback to last candle close price)
-ARG BUILD_CACHE=V241
+# V242: Fix slow overlay/timer reposition on price-scale drag — pointer events + faster polling
+ARG BUILD_CACHE=V242
 ARG GIT_COMMIT=unknown
 # V216: Declare RAILWAY_GIT_COMMIT_SHA so Docker doesn't warn about undefined variable
 ARG RAILWAY_GIT_COMMIT_SHA=

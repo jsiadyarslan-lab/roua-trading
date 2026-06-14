@@ -15,9 +15,8 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Embed the git commit SHA into the Docker image
-# V238: Remove redundant mini-toolbar countdown; PriceSyncedTimer already
-# handles candle timer on right edge for both main & multi-chart.
-ARG BUILD_CACHE=V238
+# V239: Add global candle countdown timer in AppHeader MainNav strip
+ARG BUILD_CACHE=V239
 ARG GIT_COMMIT=unknown
 # V216: Declare RAILWAY_GIT_COMMIT_SHA so Docker doesn't warn about undefined variable
 ARG RAILWAY_GIT_COMMIT_SHA=

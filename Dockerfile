@@ -15,8 +15,8 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Embed the git commit SHA into the Docker image
-# V239: Add global candle countdown timer in AppHeader MainNav strip
-ARG BUILD_CACHE=V239
+# V240: Candle countdown in multi-chart grid cell headers + AppHeader global timer
+ARG BUILD_CACHE=V240
 ARG GIT_COMMIT=unknown
 # V216: Declare RAILWAY_GIT_COMMIT_SHA so Docker doesn't warn about undefined variable
 ARG RAILWAY_GIT_COMMIT_SHA=

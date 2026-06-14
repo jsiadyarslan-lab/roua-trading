@@ -132,11 +132,13 @@ const TIMEFRAME_MINI = [
 function MiniChartHeader({
   symbol, timeframe, currentPrice, changePercent, isPaused, loading,
   onSymbolChange, onTimeframeChange, onActivate, onClose, canClose, isActive,
+  candleCountdown,
 }: {
   symbol: string; timeframe: string; currentPrice: number | null;
   changePercent: number | null; isPaused: boolean; loading: boolean;
   onSymbolChange: (s: string) => void; onTimeframeChange: (tf: string) => void;
   onActivate: () => void; onClose?: () => void; canClose?: boolean; isActive: boolean;
+  candleCountdown?: string;
 }) {
   const isPositive = changePercent !== null && changePercent >= 0;
   const fmtPrice = (p: number) => {
@@ -199,6 +201,20 @@ function MiniChartHeader({
           borderTopColor: '#00D4FF', borderRadius: '50%', animation: 'mcSpin 1s linear infinite' }} />
       )}
       {isPaused && !loading && <span style={{ color: '#fbbf24', fontSize: 8, fontWeight: 700 }}>⏸</span>}
+
+      {/* Candle Countdown Timer */}
+      {candleCountdown && !loading && (
+        <span style={{
+          color: '#00D4FF', fontSize: 9, fontWeight: 700,
+          fontFamily: "'JetBrains Mono', monospace",
+          background: 'rgba(0,212,255,0.08)',
+          border: '1px solid rgba(0,212,255,0.15)',
+          borderRadius: 3, padding: '0 4px', lineHeight: '16px',
+          flexShrink: 0,
+        }}>
+          {candleCountdown}
+        </span>
+      )}
 
       {currentPrice !== null && !loading && (
         <>
@@ -2664,6 +2680,7 @@ export default function RouaChart({
             symbol={expandedCell.symbol}
             timeframe={expandedCell.timeframe}
             chartType={expandedCell.chartType}
+            compact
             isActive={true}
             onActivate={() => setActiveChartId(expandedCell.id)}
             onClose={charts.length > 1 ? () => removeChart(expandedCell.id) : undefined}
@@ -2694,6 +2711,7 @@ export default function RouaChart({
             symbol={cell.symbol}
             timeframe={cell.timeframe}
             chartType={cell.chartType}
+            compact
             isActive={activeChartId === cell.id}
             onActivate={() => setActiveChartId(cell.id)}
             onClose={charts.length > 1 ? () => removeChart(cell.id) : undefined}
@@ -2794,6 +2812,20 @@ export default function RouaChart({
               borderTopColor: '#00D4FF', borderRadius: '50%', animation: 'mcSpin 1s linear infinite' }} />
           )}
           <div style={{ flex: 1 }} />
+
+          {/* Candle Countdown Timer */}
+          {candleCountdown && candleCountdown !== '—' && (
+            <span style={{
+              color: '#00D4FF', fontSize: 9, fontWeight: 700,
+              fontFamily: "'JetBrains Mono', monospace",
+              background: 'rgba(0,212,255,0.08)',
+              border: '1px solid rgba(0,212,255,0.15)',
+              borderRadius: 3, padding: '0 4px', lineHeight: '16px',
+              flexShrink: 0,
+            }}>
+              {candleCountdown}
+            </span>
+          )}
 
           {/* Expand/Collapse button */}
           {onToggleExpand && (

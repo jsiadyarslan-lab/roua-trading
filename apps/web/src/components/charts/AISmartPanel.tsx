@@ -54,6 +54,7 @@ import { predictPatternCompletion, type PatternPrediction } from '@/lib/charts/P
 import { recordPrediction as recordAdaptivePrediction, resolvePrediction, autoResolvePredictions, getAdaptiveIntelligenceState, calibrateConfidence, getSourceWeight, getAllSourceWeights, recordAnalysisPredictions, type AdaptiveIntelligenceState, type SignalSource as IntelligenceSignalSource } from '@/lib/charts/AdaptiveIntelligenceEngine';
 import { computeScenarios, type ScenarioResult, type Scenario } from '@/lib/charts/ScenarioEngine';
 import { detectSprings, type SpringDetectionResult, type SpringDetection } from '@/lib/charts/SpringDetectionEngine';
+import { journalTradeProposal, syncJournalWithProposals, computeJournalStats, getJournalEntries, exportJournalJSON, generateReportHTML, clearJournal, type JournalEntry, type JournalStats } from '@/lib/charts/TradeJournal';
 
 const C = {
   bg: '#0a0e17', card: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.09)',
@@ -114,7 +115,7 @@ const PATTERN_KEYS: Record<string, string> = {
   'Inverse Head and Shoulders': 'patternInverseHeadAndShoulders',
 };
 
-type Tab = 'signal' | 'patterns' | 'wyckoff' | 'elliott' | 'levels' | 'smc' | 'advanced' | 'alerts' | 'trades' | 'mtf' | 'adaptive' | 'rules' | 'paper' | 'scanner' | 'council' | 'backtest' | 'confluence' | 'explain' | 'correlate' | 'predict' | 'intelligence' | 'scenario' | 'spring';
+type Tab = 'signal' | 'patterns' | 'wyckoff' | 'elliott' | 'levels' | 'smc' | 'advanced' | 'alerts' | 'trades' | 'mtf' | 'adaptive' | 'rules' | 'paper' | 'scanner' | 'council' | 'backtest' | 'confluence' | 'explain' | 'correlate' | 'predict' | 'intelligence' | 'scenario' | 'spring' | 'journal';
 
 interface Props {
   symbol: string;
@@ -205,6 +206,10 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const [adaptiveIntelligence, setAdaptiveIntelligence] = useState<AdaptiveIntelligenceState | null>(null);
   const [scenarioResult, setScenarioResult] = useState<ScenarioResult | null>(null);
   const [springResult, setSpringResult] = useState<SpringDetectionResult | null>(null);
+
+  // ── Trade Journal State ──
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+  const [journalStats, setJournalStats] = useState<JournalStats | null>(null);
 
   // ── Refs to avoid stale closure ─────────────────────────────
   const runRef = useRef(false);
@@ -688,6 +693,17 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
         if (proposal) {
           setTradeProposals(prev => [proposal, ...prev.slice(0, 9)]);
+          // ── Auto-journal this proposal ──
+          try {
+            journalTradeProposal({
+              proposal,
+              symbol: (window as any).__roua_symbol || 'UNKNOWN',
+              regime: volRegime || 'unknown',
+              revolutionaryBoost: revBoost,
+            });
+            setJournalEntries(getJournalEntries());
+            setJournalStats(computeJournalStats());
+          } catch { /* Journal fallback */ }
         }
         setProposalStats(getProposalStats());
       } catch { /* Auto-Trade fallback */ }
@@ -1591,7 +1607,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
       {/* Tabs — two-row compact grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', borderBottom: `1px solid ${C.border}`, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
-        {([['signal', t('tabSignal')], ['patterns', t('tabPatterns')], ['wyckoff', 'WY'], ['elliott', 'EW'], ['levels', t('tabLevels')], ['smc', t('tabSmc')], ['mtf', 'MTF'], ['alerts', '🚨'], ['trades', '💰'], ['advanced', t('tabAdvanced')], ['adaptive', '🧠'], ['rules', '📐'], ['paper', '📝'], ['scanner', '🔍'], ['council', '🤖'], ['backtest', '⏪'], ['confluence', '🎯'], ['explain', '❓'], ['correlate', '🔗'], ['predict', '🔮'], ['intelligence', '🔬'], ['scenario', '🎲'], ['spring', '🌀']] as [Tab, string][]).map(([k, l]) => (
+        {([['signal', t('tabSignal')], ['patterns', t('tabPatterns')], ['wyckoff', 'WY'], ['elliott', 'EW'], ['levels', t('tabLevels')], ['smc', t('tabSmc')], ['mtf', 'MTF'], ['alerts', '🚨'], ['trades', '💰'], ['advanced', t('tabAdvanced')], ['adaptive', '🧠'], ['rules', '📐'], ['paper', '📝'], ['scanner', '🔍'], ['council', '🤖'], ['backtest', '⏪'], ['confluence', '🎯'], ['explain', '❓'], ['correlate', '🔗'], ['predict', '🔮'], ['intelligence', '🔬'], ['scenario', '🎲'], ['spring', '🌀'], ['journal', '📋']] as [Tab, string][]).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} style={{ padding: '3px 2px', background: tab===k?'rgba(34,211,238,0.08)':'none', border: 'none', borderBottom: `2px solid ${tab === k ? C.cyan : 'transparent'}`, color: tab === k ? C.cyan : C.dim, fontSize: 9, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', transition: 'all 0.15s', fontWeight: tab===k?700:400, whiteSpace: 'nowrap', textAlign: 'center' }}>{l}</button>
         ))}
       </div>
@@ -3561,6 +3577,177 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
               </div>
             ) : (
               <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>شغّل التحليل أولاً لكشف السوستات</div>
+            )}
+          </div>
+        )}
+
+        {/* ═══ Trade Journal ═══ */}
+        {tab === 'journal' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            <div style={{ background: `${C.gold}08`, border: `1px solid ${C.gold}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+              <div style={{ color: C.gold, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>📋 سجل التداول التلقائي — Trade Journal</div>
+              <div style={{ fontSize: 7.5, color: C.dim }}>يُسجّل كل اقتراح تداول تلقائياً مع نتائجه — دليلك لإثبات أداء النظام</div>
+            </div>
+
+            {/* Stats Summary */}
+            {journalStats && journalStats.closedTrades > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, marginBottom: 8 }}>
+                <div style={{ background: C.card, borderRadius: 4, padding: '5px 4px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 7, color: C.mut }}>نسبة النجاح</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: journalStats.winRate >= 0.5 ? C.green : C.red }}>{Math.round(journalStats.winRate * 100)}%</div>
+                </div>
+                <div style={{ background: C.card, borderRadius: 4, padding: '5px 4px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 7, color: C.mut }}>إجمالي الربح</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: journalStats.totalPnL >= 0 ? C.green : C.red }}>{journalStats.totalPnL >= 0 ? '+' : ''}{journalStats.totalPnL}</div>
+                </div>
+                <div style={{ background: C.card, borderRadius: 4, padding: '5px 4px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 7, color: C.mut }}>معامل الربح</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.gold }}>{journalStats.profitFactor >= 999 ? '∞' : journalStats.profitFactor}</div>
+                </div>
+                <div style={{ background: C.card, borderRadius: 4, padding: '5px 4px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 7, color: C.mut }}>متوسط R</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.cyan }}>{journalStats.avgRMultiple}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Extended Stats */}
+            {journalStats && journalStats.closedTrades > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4, marginBottom: 8 }}>
+                <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px' }}>
+                  <div style={{ fontSize: 7, color: C.mut }}>صفقات</div>
+                  <div style={{ display: 'flex', gap: 4, fontSize: 8 }}>
+                    <span style={{ color: C.text }}>{journalStats.closedTrades} مغلقة</span>
+                    <span style={{ color: C.dim }}>|</span>
+                    <span style={{ color: C.green }}>{journalStats.wins} ربح</span>
+                    <span style={{ color: C.red }}>{journalStats.losses} خسارة</span>
+                  </div>
+                </div>
+                <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px' }}>
+                  <div style={{ fontSize: 7, color: C.mut }}>أداء الاتجاه</div>
+                  <div style={{ display: 'flex', gap: 6, fontSize: 8 }}>
+                    <span style={{ color: C.green }}>شراء {Math.round(journalStats.byDirection.bullish.winRate * 100)}%</span>
+                    <span style={{ color: C.red }}>بيع {Math.round(journalStats.byDirection.bearish.winRate * 100)}%</span>
+                  </div>
+                </div>
+                <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px' }}>
+                  <div style={{ fontSize: 7, color: C.mut }}>أقصى تراجع</div>
+                  <div style={{ fontSize: 8, color: C.red }}>{journalStats.maxDrawdown} | شارب: {journalStats.sharpeEstimate}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Boost Impact */}
+            {journalStats && journalStats.boostTradesCount > 0 && (
+              <div style={{ background: `${C.cyan}06`, border: `1px solid ${C.cyan}15`, borderRadius: 4, padding: '5px 7px', marginBottom: 8 }}>
+                <div style={{ fontSize: 7.5, color: C.cyan, fontWeight: 700 }}>تأثير المحركات الثورية</div>
+                <div style={{ display: 'flex', gap: 10, fontSize: 8, marginTop: 3 }}>
+                  <span style={{ color: C.green }}>مع تعزيز: {Math.round(journalStats.boostTradesWinRate * 100)}%</span>
+                  <span style={{ color: C.dim }}>بدون: {Math.round(journalStats.noBoostTradesWinRate * 100)}%</span>
+                  <span style={{ color: journalStats.boostLift >= 1 ? C.green : C.red }}>تحسن: {journalStats.boostLift > 0 ? `${Math.round((journalStats.boostLift - 1) * 100)}%` : '—'}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Export Buttons */}
+            <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+              <button onClick={() => {
+                const json = exportJournalJSON();
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = `roua-journal-${new Date().toISOString().split('T')[0]}.json`;
+                a.click(); URL.revokeObjectURL(url);
+              }} style={{ flex: 1, background: `${C.gold}15`, border: `1px solid ${C.gold}30`, borderRadius: 4, padding: '5px', color: C.gold, fontSize: 8, cursor: 'pointer', fontWeight: 600 }}>
+                تصدير JSON
+              </button>
+              <button onClick={() => {
+                const html = generateReportHTML();
+                const blob = new Blob([html], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = `roua-report-${new Date().toISOString().split('T')[0]}.html`;
+                a.click(); URL.revokeObjectURL(url);
+              }} style={{ flex: 1, background: `${C.green}15`, border: `1px solid ${C.green}30`, borderRadius: 4, padding: '5px', color: C.green, fontSize: 8, cursor: 'pointer', fontWeight: 600 }}>
+                تقرير PDF (HTML)
+              </button>
+              <button onClick={() => {
+                if (confirm('هل أنت متأكد من مسح السجل؟ هذا لا يمكن التراجع عنه.')) {
+                  clearJournal();
+                  setJournalEntries([]);
+                  setJournalStats(null);
+                }
+              }} style={{ background: `${C.red}10`, border: `1px solid ${C.red}20`, borderRadius: 4, padding: '5px 8px', color: C.red, fontSize: 8, cursor: 'pointer' }}>
+                مسح
+              </button>
+            </div>
+
+            {/* Weekly Breakdown */}
+            {journalStats && journalStats.weeklyBreakdown.length > 0 && (
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ color: C.cyan, fontSize: 8.5, fontWeight: 700, marginBottom: 4 }}>الأداء الأسبوعي</div>
+                <div style={{ display: 'flex', gap: 2, height: 30, alignItems: 'flex-end' }}>
+                  {journalStats.weeklyBreakdown.map((w, i) => {
+                    const maxPnl = Math.max(...journalStats.weeklyBreakdown.map(x => Math.abs(x.pnl)), 1);
+                    const h = Math.max(3, Math.abs(w.pnl) / maxPnl * 28);
+                    return (
+                      <div key={i} title={`${w.week}: ${w.pnl} (${Math.round(w.winRate * 100)}%)`}
+                        style={{ flex: 1, height: h, background: w.pnl >= 0 ? C.green : C.red, borderRadius: '2px 2px 0 0', opacity: 0.7, minHeight: 3 }} />
+                    );
+                  })}
+                </div>
+                <div style={{ display: 'flex', gap: 2, fontSize: 5.5, color: C.mut, marginTop: 1 }}>
+                  {journalStats.weeklyBreakdown.map((w, i) => (
+                    <div key={i} style={{ flex: 1, textAlign: 'center' }}>{w.week.slice(-2)}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Trade Entries */}
+            <div style={{ color: C.cyan, fontSize: 8.5, fontWeight: 700, marginBottom: 4 }}>
+              الصفقات ({journalEntries.length})
+            </div>
+            {journalEntries.length === 0 ? (
+              <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>
+                لا توجد صفقات مسجلة بعد — ستظهر هنا تلقائياً عند اقتراح صفقات
+              </div>
+            ) : (
+              journalEntries.slice(0, 30).map((entry) => {
+                const isWin = entry.realizedPnL > 0;
+                const isLoss = entry.realizedPnL < 0;
+                const statusColor = entry.status === 'pending' ? C.dim : isWin ? C.green : isLoss ? C.red : C.gold;
+                const statusLabel = entry.status === 'hit_tp1' ? 'TP1 ✓' : entry.status === 'hit_tp2' ? 'TP2 ✓' : entry.status === 'hit_tp3' ? 'TP3 ✓' : entry.status === 'hit_sl' ? 'SL ✗' : entry.status === 'trail_sl' ? 'Trail' : entry.status === 'pending' ? 'معلق' : entry.status;
+                return (
+                  <div key={entry.id} style={{ background: C.card, borderRadius: 4, padding: '5px 7px', marginBottom: 3, borderLeft: `2px solid ${statusColor}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                        <span style={{ fontSize: 8, color: entry.direction === 'bullish' ? C.green : C.red, fontWeight: 700 }}>
+                          {entry.direction === 'bullish' ? '▲' : '▼'}
+                        </span>
+                        <span style={{ fontSize: 8, color: C.text, fontWeight: 600 }}>{entry.entryPrice.toFixed(2)}</span>
+                        <span style={{ fontSize: 7, color: statusColor, fontWeight: 700 }}>{statusLabel}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <span style={{ fontSize: 7.5, color: C.dim }}>{entry.date}</span>
+                        <span style={{ fontSize: 8, color: isWin ? C.green : isLoss ? C.red : C.dim, fontWeight: 700, fontFamily: 'monospace' }}>
+                          {entry.realizedPnL !== 0 ? `${entry.realizedPnL > 0 ? '+' : ''}${entry.realizedPnL.toFixed(2)}` : '—'}
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 6.5, color: C.mut, marginTop: 2 }}>
+                      R:R 1:{entry.rrRatio} | ثقة {Math.round(entry.confidence * 100)}% | {entry.agreeingSignals.map(s => s.source).join(' + ')}
+                      {entry.boostFactorsActive.length > 0 && <span style={{ color: C.cyan }}> | ⚡ {entry.boostFactorsActive.join(', ')}</span>}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+
+            {journalEntries.length > 30 && (
+              <div style={{ textAlign: 'center', fontSize: 7.5, color: C.mut, padding: '5px 0' }}>
+                عرض آخر 30 من {journalEntries.length} — صدّر JSON للبيانات الكاملة
+              </div>
             )}
           </div>
         )}

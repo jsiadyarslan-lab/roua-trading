@@ -417,7 +417,7 @@ export default function RouaChart({
   useEffect(() => { feedStateRef.current = feedState; }, [feedState]);
   const [candleCountdown, setCandleCountdown] = useState('—');
   const [lotSize, setLotSize] = useState(0.01);
-  const [tradePanelCollapsed, setTradePanelCollapsed] = useState(false);
+  const [tradePanelCollapsed, setTradePanelCollapsed] = useState(true);
   const [tradeSide, setTradeSide] = useState<'buy' | 'sell'>('buy');
   const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop'>('market');
   const [tradeSl, setTradeSl] = useState('');
@@ -3317,7 +3317,7 @@ export default function RouaChart({
             const bid = resolvedPrice - spreadVal / 2;
             const ask = resolvedPrice + spreadVal / 2;
 
-            // ── Collapsed: MT5 One-Click Panel (SELL | Volume | BUY) ──
+            // ── Collapsed: MT5 One-Click Panel (SELL | ▼ Vol ▲ | BUY) ──
             if (tradePanelCollapsed) {
               return (
                 <div
@@ -3330,13 +3330,14 @@ export default function RouaChart({
                     display: 'flex',
                     alignItems: 'stretch',
                     gap: 0,
-                    borderRadius: 4,
-                    background: 'rgba(240,240,240,0.95)',
-                    border: '1px solid #BBB',
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
+                    borderRadius: 5,
+                    background: 'rgba(18,18,22,0.96)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
                     pointerEvents: (chart.activeTool === 'cursor' && !mobile) ? 'auto' : 'none',
                     overflow: 'hidden',
                     fontFamily: "'JetBrains Mono', monospace",
+                    backdropFilter: 'blur(10px)',
                   }}
                 >
                   {/* SELL button with BID price */}
@@ -3350,48 +3351,64 @@ export default function RouaChart({
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      padding: '4px 10px',
-                      background: '#D32F2F',
+                      padding: '5px 10px 4px',
+                      background: 'linear-gradient(180deg, #FF5252 0%, #D32F2F 50%, #B71C1C 100%)',
                       border: 'none',
-                      borderRight: '1px solid rgba(0,0,0,0.15)',
+                      borderRight: '1px solid rgba(0,0,0,0.3)',
                       color: '#FFF',
                       cursor: 'pointer',
-                      minWidth: 58,
+                      minWidth: 60,
+                      transition: 'all 0.12s ease',
                     }}
+                    onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.15)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.filter = 'none'; }}
                   >
                     <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: 1, lineHeight: 1 }}>SELL</span>
-                    <span style={{ fontSize: 9, fontWeight: 700, lineHeight: 1.3 }}>{bid.toFixed(pDec)}</span>
+                    <span style={{ fontSize: 9, fontWeight: 700, lineHeight: 1.3, marginTop: 1 }}>{bid.toFixed(pDec)}</span>
                   </button>
-                  {/* Volume input */}
+                  {/* Volume with ▲▼ arrows */}
                   <div style={{
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    padding: '2px 4px',
-                    background: '#FFF',
-                    minWidth: 44,
+                    padding: '2px 3px',
+                    background: 'rgba(30,30,36,0.95)',
+                    minWidth: 40,
                   }}>
-                    <input
-                      type="number"
-                      value={lotSize}
-                      onChange={e => { const v = parseFloat(e.target.value); if (v > 0) setLotSize(v); }}
-                      step="0.01"
+                    <button
+                      onClick={() => setLotSize(prev => +(prev + 0.01).toFixed(2))}
                       style={{
-                        width: 36,
-                        textAlign: 'center' as const,
-                        padding: '1px 0',
-                        border: '1px solid #CCC',
-                        borderRadius: 2,
-                        fontSize: 9,
-                        fontWeight: 700,
-                        fontFamily: "'JetBrains Mono', monospace",
-                        color: '#333',
-                        background: '#FFF',
-                        outline: 'none',
-                        direction: 'ltr' as const,
+                        background: 'none',
+                        border: 'none',
+                        color: '#AAA',
+                        cursor: 'pointer',
+                        fontSize: 7,
+                        lineHeight: 1,
+                        padding: '0 0 1px',
+                        display: 'block',
                       }}
-                    />
+                    >▲</button>
+                    <span style={{
+                      fontSize: 9,
+                      fontWeight: 800,
+                      color: '#FFF',
+                      lineHeight: 1.2,
+                      padding: '0 2px',
+                    }}>{lotSize.toFixed(2)}</span>
+                    <button
+                      onClick={() => setLotSize(prev => Math.max(0.01, +(prev - 0.01).toFixed(2)))}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#AAA',
+                        cursor: 'pointer',
+                        fontSize: 7,
+                        lineHeight: 1,
+                        padding: '1px 0 0',
+                        display: 'block',
+                      }}
+                    >▼</button>
                   </div>
                   {/* BUY button with ASK price */}
                   <button
@@ -3404,17 +3421,20 @@ export default function RouaChart({
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      padding: '4px 10px',
-                      background: '#2E7D32',
+                      padding: '5px 10px 4px',
+                      background: 'linear-gradient(180deg, #69F0AE 0%, #00C853 50%, #009624 100%)',
                       border: 'none',
-                      borderLeft: '1px solid rgba(0,0,0,0.15)',
+                      borderLeft: '1px solid rgba(0,0,0,0.3)',
                       color: '#FFF',
                       cursor: 'pointer',
-                      minWidth: 58,
+                      minWidth: 60,
+                      transition: 'all 0.12s ease',
                     }}
+                    onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.15)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.filter = 'none'; }}
                   >
                     <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: 1, lineHeight: 1 }}>BUY</span>
-                    <span style={{ fontSize: 9, fontWeight: 700, lineHeight: 1.3 }}>{ask.toFixed(pDec)}</span>
+                    <span style={{ fontSize: 9, fontWeight: 700, lineHeight: 1.3, marginTop: 1 }}>{ask.toFixed(pDec)}</span>
                   </button>
                   {/* Expand button */}
                   <button
@@ -3424,19 +3444,22 @@ export default function RouaChart({
                       alignItems: 'center',
                       justifyContent: 'center',
                       padding: '0 5px',
-                      background: '#E0E0E0',
+                      background: 'rgba(255,255,255,0.06)',
                       border: 'none',
-                      borderLeft: '1px solid rgba(0,0,0,0.15)',
-                      color: '#666',
+                      borderLeft: '1px solid rgba(255,255,255,0.06)',
+                      color: '#888',
                       cursor: 'pointer',
                       fontSize: 9,
+                      transition: 'color 0.12s',
                     }}
+                    onMouseEnter={e => { e.currentTarget.style.color = '#FFF'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = '#888'; }}
                   >▸</button>
                 </div>
               );
             }
 
-            // ── Expanded: MT5-Style Execution Panel ──
+            // ── Expanded: MT5-Style Execution Panel (Dark Theme) ──
             const execPrice = tradeSide === 'buy' ? ask : bid;
             return (
               <div
@@ -3448,14 +3471,15 @@ export default function RouaChart({
                   zIndex: 100,
                   display: 'flex',
                   flexDirection: 'column',
-                  borderRadius: 4,
-                  background: '#F5F5F5',
-                  border: '1px solid #BBB',
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+                  borderRadius: 6,
+                  background: 'rgba(18,18,22,0.97)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
                   overflow: 'hidden',
                   pointerEvents: (chart.activeTool === 'cursor' && !mobile) ? 'auto' : 'none',
                   width: 220,
                   fontFamily: "'JetBrains Mono', monospace",
+                  backdropFilter: 'blur(12px)',
                 }}
               >
                 {/* ── Header: Symbol + Collapse ── */}
@@ -3463,21 +3487,21 @@ export default function RouaChart({
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  padding: '5px 8px',
-                  background: '#E8E8E8',
-                  borderBottom: '1px solid #CCC',
+                  padding: '6px 10px 5px',
+                  background: 'rgba(255,255,255,0.03)',
+                  borderBottom: '1px solid rgba(255,255,255,0.06)',
                 }}>
-                  <span style={{ fontSize: 11, color: '#333', fontWeight: 800, letterSpacing: 0.5 }}>{selectedSymbol_}</span>
+                  <span style={{ fontSize: 12, color: '#FFF', fontWeight: 800, letterSpacing: 0.5 }}>{selectedSymbol_}</span>
                   <button
                     onClick={() => setTradePanelCollapsed(true)}
                     style={{
-                      background: '#D0D0D0',
-                      border: '1px solid #BBB',
-                      color: '#555',
+                      background: 'rgba(255,255,255,0.06)',
+                      border: 'none',
+                      color: '#888',
                       cursor: 'pointer',
-                      fontSize: 9,
-                      padding: '1px 5px',
-                      borderRadius: 2,
+                      fontSize: 10,
+                      padding: '2px 6px',
+                      borderRadius: 3,
                       fontWeight: 700,
                       lineHeight: 1,
                     }}
@@ -3487,28 +3511,28 @@ export default function RouaChart({
                 {/* ── BID / ASK Display ── */}
                 <div style={{
                   display: 'flex',
-                  padding: '6px 8px 4px',
+                  padding: '7px 10px 5px',
                   gap: 4,
                 }}>
                   <div style={{ flex: 1, textAlign: 'center' as const }}>
-                    <div style={{ fontSize: 7, color: '#D32F2F', fontWeight: 700, letterSpacing: 1 }}>BID</div>
-                    <div style={{ fontSize: 15, color: '#D32F2F', fontWeight: 800, letterSpacing: -0.3, lineHeight: 1.2 }}>{bid.toFixed(pDec)}</div>
+                    <div style={{ fontSize: 7, color: '#FF5252', fontWeight: 700, letterSpacing: 1 }}>BID</div>
+                    <div style={{ fontSize: 16, color: '#FF5252', fontWeight: 800, letterSpacing: -0.3, lineHeight: 1.2 }}>{bid.toFixed(pDec)}</div>
                   </div>
-                  <div style={{ width: 1, background: '#CCC' }} />
+                  <div style={{ width: 1, background: 'rgba(255,255,255,0.08)' }} />
                   <div style={{ flex: 1, textAlign: 'center' as const }}>
-                    <div style={{ fontSize: 7, color: '#2E7D32', fontWeight: 700, letterSpacing: 1 }}>ASK</div>
-                    <div style={{ fontSize: 15, color: '#2E7D32', fontWeight: 800, letterSpacing: -0.3, lineHeight: 1.2 }}>{ask.toFixed(pDec)}</div>
+                    <div style={{ fontSize: 7, color: '#69F0AE', fontWeight: 700, letterSpacing: 1 }}>ASK</div>
+                    <div style={{ fontSize: 16, color: '#69F0AE', fontWeight: 800, letterSpacing: -0.3, lineHeight: 1.2 }}>{ask.toFixed(pDec)}</div>
                   </div>
                 </div>
 
                 {/* ── Spread ── */}
                 <div style={{
                   textAlign: 'center' as const,
-                  padding: '0 8px 5px',
-                  borderBottom: '1px solid #DDD',
+                  padding: '0 10px 6px',
+                  borderBottom: '1px solid rgba(255,255,255,0.06)',
                 }}>
-                  <span style={{ fontSize: 7, color: '#999', letterSpacing: 1 }}>SPREAD </span>
-                  <span style={{ fontSize: 8, color: '#666', fontWeight: 700 }}>
+                  <span style={{ fontSize: 7, color: '#555', letterSpacing: 1 }}>SPREAD </span>
+                  <span style={{ fontSize: 8, color: '#888', fontWeight: 700 }}>
                     {pDec <= 2 ? spreadVal.toFixed(1) : Math.round(spreadVal * Math.pow(10, pDec))}
                   </span>
                 </div>
@@ -3516,7 +3540,7 @@ export default function RouaChart({
                 {/* ── Order Type Tabs: Market / Limit / Stop ── */}
                 <div style={{
                   display: 'flex',
-                  padding: '5px 8px 0',
+                  padding: '5px 10px 0',
                   gap: 2,
                 }}>
                   {(['market', 'limit', 'stop'] as const).map(ot => (
@@ -3526,11 +3550,10 @@ export default function RouaChart({
                       style={{
                         flex: 1,
                         padding: '4px 0',
-                        background: orderType === ot ? '#FFF' : '#E8E8E8',
-                        border: orderType === ot ? '1px solid #999' : '1px solid #CCC',
-                        borderBottom: orderType === ot ? '1px solid #999' : '1px solid transparent',
-                        borderRadius: '2px 2px 0 0',
-                        color: orderType === ot ? '#333' : '#999',
+                        background: orderType === ot ? 'rgba(255,255,255,0.08)' : 'transparent',
+                        border: orderType === ot ? '1px solid rgba(255,255,255,0.15)' : '1px solid transparent',
+                        borderRadius: '3px 3px 0 0',
+                        color: orderType === ot ? '#FFF' : '#555',
                         fontSize: 9,
                         fontWeight: orderType === ot ? 800 : 600,
                         cursor: 'pointer',
@@ -3543,29 +3566,28 @@ export default function RouaChart({
                 </div>
 
                 {/* ── Form Area ── */}
-                <div style={{ padding: '5px 8px', background: '#FFF', borderTop: '1px solid #999' }}>
+                <div style={{ padding: '6px 10px', background: 'rgba(0,0,0,0.2)', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                   {/* Volume */}
-                  <div style={{ marginBottom: 5 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                      <span style={{ fontSize: 8, color: '#666', fontWeight: 700 }}>Volume</span>
-                    </div>
+                  <div style={{ marginBottom: 6 }}>
+                    <span style={{ fontSize: 7, color: '#666', fontWeight: 700, letterSpacing: 1, display: 'block', marginBottom: 3 }}>VOLUME</span>
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
-                      border: '1px solid #CCC',
-                      borderRadius: 2,
+                      background: 'rgba(0,0,0,0.3)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: 4,
                       overflow: 'hidden',
                     }}>
                       <button
                         onClick={() => setLotSize(prev => Math.max(0.01, +(prev - 0.01).toFixed(2)))}
                         style={{
-                          background: '#F0F0F0',
+                          background: 'rgba(255,255,255,0.04)',
                           border: 'none',
-                          borderRight: '1px solid #CCC',
-                          color: '#555',
-                          fontSize: 12,
+                          borderRight: '1px solid rgba(255,255,255,0.06)',
+                          color: '#AAA',
+                          fontSize: 13,
                           cursor: 'pointer',
-                          padding: '3px 7px',
+                          padding: '4px 8px',
                           outline: 'none',
                           fontWeight: 700,
                           lineHeight: 1,
@@ -3579,13 +3601,13 @@ export default function RouaChart({
                         style={{
                           flex: 1,
                           textAlign: 'center' as const,
-                          padding: '3px 0',
+                          padding: '4px 0',
                           border: 'none',
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: 700,
                           fontFamily: "'JetBrains Mono', monospace",
-                          color: '#333',
-                          background: '#FFF',
+                          color: '#FFF',
+                          background: 'transparent',
                           outline: 'none',
                           direction: 'ltr' as const,
                         }}
@@ -3593,13 +3615,13 @@ export default function RouaChart({
                       <button
                         onClick={() => setLotSize(prev => +(prev + 0.01).toFixed(2))}
                         style={{
-                          background: '#F0F0F0',
+                          background: 'rgba(255,255,255,0.04)',
                           border: 'none',
-                          borderLeft: '1px solid #CCC',
-                          color: '#555',
-                          fontSize: 12,
+                          borderLeft: '1px solid rgba(255,255,255,0.06)',
+                          color: '#AAA',
+                          fontSize: 13,
                           cursor: 'pointer',
-                          padding: '3px 7px',
+                          padding: '4px 8px',
                           outline: 'none',
                           fontWeight: 700,
                           lineHeight: 1,
@@ -3609,8 +3631,8 @@ export default function RouaChart({
                   </div>
 
                   {/* Stop Loss */}
-                  <div style={{ marginBottom: 5 }}>
-                    <span style={{ fontSize: 8, color: '#D32F2F', fontWeight: 700, display: 'block', marginBottom: 2 }}>Stop Loss</span>
+                  <div style={{ marginBottom: 6 }}>
+                    <span style={{ fontSize: 7, color: '#FF5252', fontWeight: 700, letterSpacing: 1, display: 'block', marginBottom: 2 }}>STOP LOSS</span>
                     <input
                       type="number"
                       value={tradeSl}
@@ -3618,23 +3640,23 @@ export default function RouaChart({
                       placeholder={tradeSide === 'buy' ? (resolvedPrice * 0.98).toFixed(pDec) : (resolvedPrice * 1.02).toFixed(pDec)}
                       style={{
                         width: '100%',
-                        padding: '3px 6px',
-                        border: '1px solid #E0B0B0',
-                        borderRadius: 2,
-                        color: '#D32F2F',
+                        padding: '4px 8px',
+                        background: 'rgba(255,82,82,0.06)',
+                        border: '1px solid rgba(255,82,82,0.2)',
+                        borderRadius: 4,
+                        color: '#FF5252',
                         fontSize: 10,
                         fontFamily: "'JetBrains Mono', monospace",
                         outline: 'none',
                         direction: 'ltr' as const,
                         boxSizing: 'border-box' as const,
-                        background: '#FFF5F5',
                       }}
                     />
                   </div>
 
                   {/* Take Profit */}
                   <div>
-                    <span style={{ fontSize: 8, color: '#2E7D32', fontWeight: 700, display: 'block', marginBottom: 2 }}>Take Profit</span>
+                    <span style={{ fontSize: 7, color: '#69F0AE', fontWeight: 700, letterSpacing: 1, display: 'block', marginBottom: 2 }}>TAKE PROFIT</span>
                     <input
                       type="number"
                       value={tradeTp}
@@ -3642,16 +3664,16 @@ export default function RouaChart({
                       placeholder={tradeSide === 'buy' ? (resolvedPrice * 1.03).toFixed(pDec) : (resolvedPrice * 0.97).toFixed(pDec)}
                       style={{
                         width: '100%',
-                        padding: '3px 6px',
-                        border: '1px solid #B0D8B0',
-                        borderRadius: 2,
-                        color: '#2E7D32',
+                        padding: '4px 8px',
+                        background: 'rgba(105,240,174,0.06)',
+                        border: '1px solid rgba(105,240,174,0.2)',
+                        borderRadius: 4,
+                        color: '#69F0AE',
                         fontSize: 10,
                         fontFamily: "'JetBrains Mono', monospace",
                         outline: 'none',
                         direction: 'ltr' as const,
                         boxSizing: 'border-box' as const,
-                        background: '#F5FFF5',
                       }}
                     />
                   </div>
@@ -3660,7 +3682,7 @@ export default function RouaChart({
                 {/* ── SELL / BUY Buttons ── */}
                 <div style={{
                   display: 'flex',
-                  padding: '6px 8px 8px',
+                  padding: '6px 10px 9px',
                   gap: 4,
                 }}>
                   <button
@@ -3669,22 +3691,25 @@ export default function RouaChart({
                       const { addTrade } = usePaperTradesStore.getState();
                       addTrade({ symbol: selectedSymbol_, side: 'short', qty: lotSize, entryPrice: bid, currentPrice: bid, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.background = '#B71C1C'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = '#D32F2F'; }}
                     style={{
                       flex: 1,
                       padding: '8px 0',
-                      background: tradeSide === 'sell' ? '#D32F2F' : '#E57373',
-                      border: 'none',
-                      borderRadius: 3,
+                      background: tradeSide === 'sell'
+                        ? 'linear-gradient(180deg, #FF5252 0%, #D32F2F 50%, #B71C1C 100%)'
+                        : 'rgba(255,82,82,0.15)',
+                      border: tradeSide === 'sell' ? 'none' : '1px solid rgba(255,82,82,0.3)',
+                      borderRadius: 4,
                       color: '#FFF',
                       fontSize: 11,
                       fontWeight: 900,
                       cursor: 'pointer',
                       letterSpacing: 0.5,
-                      transition: 'background 0.12s ease',
+                      transition: 'all 0.12s ease',
                       textTransform: 'uppercase' as const,
+                      boxShadow: tradeSide === 'sell' ? '0 2px 8px rgba(211,47,47,0.4)' : 'none',
                     }}
+                    onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.15)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.filter = 'none'; }}
                   >
                     SELL {bid.toFixed(pDec)}
                   </button>
@@ -3694,22 +3719,25 @@ export default function RouaChart({
                       const { addTrade } = usePaperTradesStore.getState();
                       addTrade({ symbol: selectedSymbol_, side: 'long', qty: lotSize, entryPrice: ask, currentPrice: ask, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.background = '#1B5E20'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = tradeSide === 'buy' ? '#2E7D32' : '#66BB6A'; }}
                     style={{
                       flex: 1,
                       padding: '8px 0',
-                      background: tradeSide === 'buy' ? '#2E7D32' : '#66BB6A',
-                      border: 'none',
-                      borderRadius: 3,
+                      background: tradeSide === 'buy'
+                        ? 'linear-gradient(180deg, #69F0AE 0%, #00C853 50%, #009624 100%)'
+                        : 'rgba(105,240,174,0.15)',
+                      border: tradeSide === 'buy' ? 'none' : '1px solid rgba(105,240,174,0.3)',
+                      borderRadius: 4,
                       color: '#FFF',
                       fontSize: 11,
                       fontWeight: 900,
                       cursor: 'pointer',
                       letterSpacing: 0.5,
-                      transition: 'background 0.12s ease',
+                      transition: 'all 0.12s ease',
                       textTransform: 'uppercase' as const,
+                      boxShadow: tradeSide === 'buy' ? '0 2px 8px rgba(0,200,83,0.4)' : 'none',
                     }}
+                    onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.15)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.filter = 'none'; }}
                   >
                     BUY {ask.toFixed(pDec)}
                   </button>

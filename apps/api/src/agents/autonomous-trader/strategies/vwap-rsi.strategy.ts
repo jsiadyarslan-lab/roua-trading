@@ -12,9 +12,15 @@ import { MarketAnalysis, EvaluatedSignal, StrategyType, StrategySignal, OrderSid
  * high-probability intraday entries. This is one of the most popular
  * strategies among professional traders and institutional algorithms.
  *
- * Since real VWAP requires tick-level volume data, we approximate VWAP
- * using EMA21 as a proxy (the "fair value" benchmark) combined with
- * Bollinger Bands for volatility context and RSI for momentum.
+ * V-PHASE2: Previously used EMA21 as VWAP proxy — this is fundamentally wrong.
+ * VWAP = Volume-Weighted Average Price. EMA21 is just a price moving average.
+ * They measure completely different things: VWAP shows where institutional volume
+ * transacted, EMA21 shows price trend direction.
+ *
+ * Now uses Typical Price VWAP: (High + Low + Close) / 3, which is the standard
+ * approximation used by professional traders when tick-level VWAP is unavailable.
+ * This is much closer to real VWAP than EMA21 because it accounts for
+ * intrabar price distribution (not just closing prices).
  *
  * Characteristics:
  * - Win rate: 55-65% (solid when VWAP + RSI align)
@@ -62,23 +68,26 @@ export class VWAPRSIStrategy extends BaseStrategy {
     this.rsiBuyMax = params.vwapRsiBuyMax ?? 70;
     this.rsiSellMin = params.vwapRsiSellMin ?? 30;
     this.rsiSellMax = params.vwapRsiSellMax ?? 50;
-    this.minRiskRewardRatio = 1.0; // Lowered from 1.3 — to match risk calculator strategy-specific minimum
-    this.minConfidence = 30; // Lowered from 35 — to allow more VWAP+RSI signals
+    this.minRiskRewardRatio = 1.2; // V-PHASE2: raised from 1.0 — VWAP strategy must have decent R:R
+    this.minConfidence = 40; // V-PHASE2: raised from 30 — consistent with base strategy minimum
   }
 
   protected analyze(market: MarketAnalysis): StrategyAnalysis {
     const { rsi, macd, bollingerBands, ema, atr, price } = market;
 
-    // VWAP proxy: EMA21 serves as the "fair value" benchmark
-    const vwapProxy = ema.ema21;
+    // V-PHASE2 FIX: Use Typical Price VWAP instead of EMA21 proxy.
+    // Typical Price = (High + Low + Close) / 3 — standard VWAP approximation
+    // when tick-level volume data is unavailable. Much closer to real VWAP
+    // than EMA21 because it accounts for intrabar price distribution.
+    const vwap = (market.high24h + market.low24h + price) / 3;
 
     // Price relative to VWAP
-    const aboveVWAP = price > vwapProxy;
-    const belowVWAP = price < vwapProxy;
+    const aboveVWAP = price > vwap;
+    const belowVWAP = price < vwap;
 
-    // Price crossing VWAP (close to it = crossing)
-    const crossingAboveVWAP = aboveVWAP && (price - vwapProxy) / vwapProxy < 0.005;
-    const crossingBelowVWAP = belowVWAP && (vwapProxy - price) / vwapProxy < 0.005;
+    // Price crossing VWAP (within 0.3% = fresh cross — V-PHASE2 tightened from 0.5%)
+    const crossingAboveVWAP = aboveVWAP && (price - vwap) / vwap < 0.003;
+    const crossingBelowVWAP = belowVWAP && (vwap - price) / vwap < 0.003;
 
     // RSI momentum zones
     const rsiBullishZone = rsi > this.rsiBuyMin && rsi < this.rsiBuyMax;
@@ -136,10 +145,10 @@ export class VWAPRSIStrategy extends BaseStrategy {
         rsi,
         macdCrossover: macd.crossover,
       },
-      reasoning: this._buildReasoning(direction, price, vwapProxy, rsi, macd.crossover, bollingerBands.percentB),
+      reasoning: this._buildReasoning(direction, price, vwap, rsi, macd.crossover, bollingerBands.percentB),
       metadata: {
         strategy: 'VWAP_RSI',
-        vwapProxy,
+        vwap, // V-PHASE2: now real Typical Price VWAP, not EMA21 proxy
         priceVsVWAP: aboveVWAP ? 'ABOVE' : belowVWAP ? 'BELOW' : 'AT',
         rsi,
         macdHistogram: macd.histogram,
@@ -228,7 +237,7 @@ export class VWAPRSIStrategy extends BaseStrategy {
     const parts: string[] = [];
 
     if (direction === 'BUY') {
-      parts.push(`السعر فوق VWAP (${price.toFixed(2)} > ${vwap.toFixed(2)})`);
+      parts.push(`السعر فوق VWAP (${price.toFixed(2)} > ${vwap.toFixed(2)}) — V-PHASE2: Typical Price VWAP`);
       if (rsi > 50 && rsi < 70) parts.push(`RSI في منطقة صعودية (${rsi.toFixed(1)})`);
       if (macdCrossover === 'BULLISH') parts.push('تقاطع MACD صعودي');
       if (bbPercentB > 0.5) parts.push(`فوق منتصف بولنجر (%B=${bbPercentB.toFixed(2)})`);

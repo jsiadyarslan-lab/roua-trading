@@ -486,15 +486,17 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
       const tpDistance = Math.abs(command.takeProfit - referencePrice);
       if (slDistance > 0) {
         const riskRewardRatio = tpDistance / slDistance;
-        // V178: Strategy-specific minimum R:R (matches RiskCalculator STRATEGY_MIN_RR table)
+        // V-PHASE2: Updated STRATEGY_MIN_RR to match RiskCalculator STRATEGY_MIN_RR table.
+        // Previously DCA=0.4 was dead code (DCA strategy enforces 1.5+ after Phase 1).
+        // Grid raised 0.8→1.2, VWAP_RSI raised 1.0→1.2, Mean Reversion raised 0.8→1.0.
         const STRATEGY_MIN_RR: Record<string, number> = {
-          dca: 0.4,
-          grid: 0.8,
-          mean_reversion: 0.8,
-          scalping: 1.0,
-          vwap_rsi: 1.0,
-          momentum_breakout: 1.2,
-          swing: 1.5,
+          dca: 1.5,              // V-PHASE2: was 0.4 — DCA strategy now enforces minRiskRewardRatio=1.5
+          grid: 1.2,             // V-PHASE2: was 0.8 — grid needs decent R:R
+          mean_reversion: 1.0,   // V-PHASE2: was 0.8 — strategy now produces 1.25:1 minimum
+          scalping: 1.0,         // unchanged
+          vwap_rsi: 1.2,         // V-PHASE2: was 1.0 — strategy R:R is 1.67:1
+          momentum_breakout: 1.2, // unchanged
+          swing: 1.5,            // unchanged
         };
         const strategyKey = (command.strategy || command.source || '').toLowerCase();
         const minRR = STRATEGY_MIN_RR[strategyKey] || 1.2; // Default 1.2 (was flat 1.5)

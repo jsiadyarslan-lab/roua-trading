@@ -331,78 +331,9 @@ export class MarketAnalyzerService {
     return parts.join(' — ');
   }
 
-  private _buildMinimalAnalysis(symbol: string, quote: any): MarketAnalysis {
-    // CRITICAL FIX: Produce usable ATR and indicator values even with limited data.
-    // Without a valid ATR, the strategy cannot calculate SL/TP levels,
-    // and the risk calculator will reject all trades (riskRewardRatio = 0).
-    // Use a percentage-based ATR estimate: ~2% for crypto, ~1% for stocks/forex.
-    const isCrypto = symbol.includes('USDT') || symbol.includes('BTC') || symbol.includes('ETH');
-    const estimatedAtr = isCrypto
-      ? quote.price * 0.02   // 2% ATR for crypto (typical daily move)
-      : quote.price * 0.01;  // 1% ATR for stocks/forex
-
-    // Generate more actionable indicator values from quote data
-    // CRITICAL: Must produce RSI < 40 or > 60 and BB percentB < 0.3 or > 0.7
-    // so the scalping strategy can actually generate signals with limited data.
-    const changePercent = Math.abs(quote.changePercent || 0);
-    const changeDir = (quote.changePercent || 0) > 0 ? 1 : (quote.changePercent || 0) < 0 ? -1 : 0;
-
-    // Amplified RSI: push values toward extremes based on price movement
-    // This ensures the scalping strategy can trigger on meaningful moves
-    let estimatedRsi = 50;
-    if (changeDir > 0) {
-      estimatedRsi = Math.min(70, 50 + Math.abs(quote.changePercent || 0) * 5);
-    } else if (changeDir < 0) {
-      estimatedRsi = Math.max(30, 50 - Math.abs(quote.changePercent || 0) * 5);
-    }
-
-    // Amplified Bollinger percentB: push toward extremes for signal generation
-    let estimatedPercentB = 0.5;
-    if (changeDir > 0) {
-      estimatedPercentB = Math.min(0.85, 0.5 + Math.abs(quote.changePercent || 0) * 0.08);
-    } else if (changeDir < 0) {
-      estimatedPercentB = Math.max(0.15, 0.5 - Math.abs(quote.changePercent || 0) * 0.08);
-    }
-
-    const histogramDirection = changeDir;
-
-    return {
-      symbol,
-      timestamp: new Date(),
-      price: quote.price,
-      change24h: quote.change || 0,
-      changePercent24h: quote.changePercent || 0,
-      volume24h: quote.volume || 0,
-      high24h: quote.high || quote.price * 1.01,
-      low24h: quote.low || quote.price * 0.99,
-      rsi: estimatedRsi,
-      macd: {
-        macd: histogramDirection * quote.price * 0.001,
-        signal: 0,
-        histogram: histogramDirection * quote.price * 0.0005,
-        crossover: histogramDirection > 0 ? 'BULLISH' : histogramDirection < 0 ? 'BEARISH' : 'NONE',
-      },
-      bollingerBands: {
-        upper: quote.price * 1.02,
-        middle: quote.price,
-        lower: quote.price * 0.98,
-        bandwidth: 0.04,
-        percentB: estimatedPercentB,
-      },
-      ema: {
-        ema9: quote.price * (1 + (quote.changePercent || 0) * 0.002),
-        ema21: quote.price,
-        ema50: quote.price,
-      },
-      atr: estimatedAtr,
-      volatility: changePercent > 3 ? 'HIGH' : changePercent > 1 ? 'MEDIUM' : 'LOW',
-      trend: (quote.changePercent || 0) > 1 ? 'BULLISH' : (quote.changePercent || 0) < -1 ? 'BEARISH' : 'SIDEWAYS',
-      trendStrength: Math.min(60, Math.abs(quote.changePercent || 0) * 15),
-      aiConfidence: 50,
-      aiSignal: (quote.changePercent || 0) > 1.5 ? StrategySignal.BUY
-        : (quote.changePercent || 0) < -1.5 ? StrategySignal.SELL
-        : StrategySignal.NEUTRAL,
-      aiReasoning: 'تحليل مبسط — بيانات غير كافية للتحليل الكامل',
-    };
-  }
+  // V-PHASE2: _buildMinimalAnalysis() REMOVED — it was dead code that fabricated
+  // indicators from minimal data (estimating RSI from 24h change, fabricating MACD
+  // values, creating synthetic Bollinger Bands). Strategies would then generate
+  // REAL trades based on this MADE-UP data. This was extremely dangerous.
+  // If insufficient real data is available, analyze() now returns null (set in Phase 1).
 }

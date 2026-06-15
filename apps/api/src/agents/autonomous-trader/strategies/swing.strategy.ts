@@ -136,8 +136,13 @@ export class SwingStrategy extends BaseStrategy {
       hasOpportunity,
       direction,
       strength,
-      requiresTrend: false, // FIX: Changed from true — swing can trade in mild sideways too
-                                // SIDEWAYS rejection was killing too many valid signals
+      // V-PHASE2 FIX: Swing REQUIRES a trend — it's a trend-following strategy.
+      // Previously changed to false because SIDEWAYS rejection was killing signals.
+      // The real fix: our analyze() method now includes mildUptrend/mildDowntrend
+      // as valid trend signals (not just strongUptrend/strongDowntrend), so the
+      // trend filter will pass for mild trends too. Only pure SIDEWAYS (no EMA
+      // alignment at all) will be rejected — which is correct for swing trading.
+      requiresTrend: true,
       spreadTooWide: false,
       indicators: {
         trendAlignment,

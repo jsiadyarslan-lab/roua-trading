@@ -70,20 +70,19 @@ export class RiskCalculatorService {
 
   /**
    * Strategy-specific minimum risk-reward ratios.
-   * Different strategies have different R:R expectations:
-   * - DCA: Very low R:R (0.5) because it has 70-80% win rate
-   * - Mean Reversion: Low R:R (1.0) because it targets the mean, not large moves
-   * - Scalping: Moderate R:R (1.0) because it takes small quick profits
-   * - Other strategies: Standard R:R (1.2)
+   * V-PHASE2: Updated to match the actual strategy R:R outputs after Phase 1+2 fixes.
+   * Previously, DCA had 0.4 (dead code — DCA strategy now enforces 1.5+).
+   * Grid raised from 0.8 to 1.2 (grid needs decent R:R to be profitable).
+   * Mean Reversion raised from 0.8 to 1.0 (Phase 1 fixed its TP to 2.5x ATR).
    */
   private readonly STRATEGY_MIN_RR: Record<string, number> = {
-    [StrategyType.DCA]: 0.4,
-    [StrategyType.MEAN_REVERSION]: 0.8,
-    [StrategyType.SCALPING]: 1.0,
-    [StrategyType.GRID]: 0.8,
-    [StrategyType.VWAP_RSI]: 1.0,
-    [StrategyType.SWING]: 1.5,
-    [StrategyType.MOMENTUM_BREAKOUT]: 1.2,
+    [StrategyType.DCA]: 1.5,              // V-PHASE2: was 0.4 — dead code, DCA strategy enforces 1.5
+    [StrategyType.MEAN_REVERSION]: 1.0,   // V-PHASE2: was 0.8 — strategy now produces 1.25:1 minimum
+    [StrategyType.SCALPING]: 1.0,         // unchanged — 1.5x ATR TP / 1x ATR SL = 1.5:1
+    [StrategyType.GRID]: 1.2,             // V-PHASE2: was 0.8 — grid needs decent R:R
+    [StrategyType.VWAP_RSI]: 1.2,         // V-PHASE2: was 1.0 — strategy R:R is 1.67:1
+    [StrategyType.SWING]: 1.5,            // unchanged — swing uses 2:1 (4x ATR TP / 2x ATR SL)
+    [StrategyType.MOMENTUM_BREAKOUT]: 1.2, // unchanged — 2:1 R:R
   };
 
   /**

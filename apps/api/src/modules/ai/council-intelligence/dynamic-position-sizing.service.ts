@@ -159,6 +159,11 @@ export class DynamicPositionSizingService {
     }
 
     // ── Factor 5: Correlation Risk ──
+    // V-PHASE2 FIX: Store correlation as a separate factor instead of pre-multiplying
+    // into finalMultiplier. Previously, finalMultiplier was used as BOTH an accumulator
+    // for correlation AND multiplied again at the end — causing double-counting.
+    // Now: correlation is a dedicated reduction factor, multiplied once in the final calc.
+    let correlationFactor = 1.0;
     try {
       const corrMultiplier = await this.correlationService.getPositionSizeMultiplier(
         params.userId,
@@ -167,15 +172,15 @@ export class DynamicPositionSizingService {
         params.existingPositions,
       );
       if (corrMultiplier < 1.0) {
+        correlationFactor = corrMultiplier;
         factors.reasoning.push(`ارتباط مع صفقات مفتوحة → ${corrMultiplier}×`);
-        // Apply as an additional reduction
-        factors.finalMultiplier *= corrMultiplier;
       }
     } catch {
       factors.reasoning.push('فحص الارتباط غير متاح → 1.0×');
     }
 
     // ── Calculate Final Multiplier ──
+    // V-PHASE2 FIX: Each factor is multiplied EXACTLY ONCE. No double-counting.
     let multiplier = 1.0;
     multiplier *= factors.consensusScoreFactor;
     multiplier *= factors.regimeAlignmentFactor;
@@ -186,7 +191,7 @@ export class DynamicPositionSizingService {
     multiplier *= factors.councilSplitFactor;
     multiplier *= factors.recentLossesFactor;
     multiplier *= factors.volatilityFactor;
-    multiplier *= factors.finalMultiplier; // correlation already factored in
+    multiplier *= correlationFactor; // Correlation applied once, not twice
 
     // Clamp to bounds
     factors.finalMultiplier = Math.max(MIN_MULTIPLIER, Math.min(MAX_MULTIPLIER, multiplier));

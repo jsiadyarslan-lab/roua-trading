@@ -3305,14 +3305,17 @@ export default function RouaChart({
 
             {/* Volume Profile rendered as overlay below */}
 
-          {/* ── Quick Trade Widget — Professional Execution Panel ── */}
+          {/* ── Quick Trade Widget — MetaTrader-Style Execution Panel ── */}
           {!mobile && currentPrice && (() => {
             const resolvedPrice = (typeof currentPrice === 'number' && currentPrice > 0) ? currentPrice : (candlesRef.current[candlesRef.current.length - 1]?.close || 0);
             const spreadVal = resolvedPrice * 0.0005;
-            const spreadPct = '0.050';
             const pDec = resolvedPrice > 1000 ? 2 : resolvedPrice > 1 ? 4 : 6;
+            // BID = slightly below mid, ASK = slightly above mid
+            const bid = resolvedPrice - spreadVal / 2;
+            const ask = resolvedPrice + spreadVal / 2;
+            const spreadPips = pDec <= 2 ? spreadVal.toFixed(1) : Math.round(spreadVal * Math.pow(10, pDec));
 
-            // ── Collapsed: Minimal pill ──
+            // ── Collapsed: Horizontal bar (MetaTrader collapsed style) ──
             if (tradePanelCollapsed) {
               return (
                 <div
@@ -3324,37 +3327,44 @@ export default function RouaChart({
                     zIndex: 100,
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 4,
+                    gap: 6,
                     padding: '4px 8px',
-                    borderRadius: 8,
-                    background: 'rgba(13,17,23,0.92)',
-                    backdropFilter: 'blur(20px) saturate(2)',
-                    border: '1px solid rgba(48,54,61,0.6)',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+                    borderRadius: 4,
+                    background: '#1E1E1E',
+                    border: '1px solid #333',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
                     pointerEvents: (chart.activeTool === 'cursor' && !mobile) ? 'auto' : 'none',
-                    transition: 'all 0.2s ease',
+                    transition: 'all 0.15s ease',
                   }}
                 >
-                  <span style={{ fontSize: 11, color: '#E6EDF3', fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
+                  {/* Symbol */}
+                  <span style={{ fontSize: 10, color: '#FFF', fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
+                    {selectedSymbol_}
+                  </span>
+                  {/* Price */}
+                  <span style={{ fontSize: 10, color: '#FFF', fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
                     {resolvedPrice.toFixed(pDec)}
                   </span>
+                  {/* Expand */}
                   <button onClick={() => setTradePanelCollapsed(false)}
-                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', padding: '0 2px', fontSize: 10 }}>▲</button>
-                  <button onClick={() => {
-                    const { addTrade } = usePaperTradesStore.getState();
-                    addTrade({ symbol: selectedSymbol_, side: 'long', qty: lotSize, entryPrice: resolvedPrice, currentPrice: resolvedPrice, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
-                  }}
-                    style={{ padding: '3px 8px', background: 'linear-gradient(135deg, #00C853, #00E676)', border: 'none', borderRadius: 4, color: '#000', fontSize: 9, fontWeight: 800, cursor: 'pointer', fontFamily: "'Cairo', sans-serif" }}>شراء</button>
+                    style={{ background: '#333', border: 'none', color: '#AAA', cursor: 'pointer', padding: '1px 5px', fontSize: 9, borderRadius: 2 }}>▸</button>
+                  {/* SELL mini */}
                   <button onClick={() => {
                     const { addTrade } = usePaperTradesStore.getState();
                     addTrade({ symbol: selectedSymbol_, side: 'short', qty: lotSize, entryPrice: resolvedPrice, currentPrice: resolvedPrice, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
                   }}
-                    style={{ padding: '3px 8px', background: 'linear-gradient(135deg, #FF1744, #FF5252)', border: 'none', borderRadius: 4, color: '#fff', fontSize: 9, fontWeight: 800, cursor: 'pointer', fontFamily: "'Cairo', sans-serif" }}>بيع</button>
+                    style={{ padding: '3px 10px', background: 'linear-gradient(to bottom, #FF4444, #CC0000)', border: '1px solid #990000', borderRadius: 3, color: '#FFF', fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace" }}>SELL</button>
+                  {/* BUY mini */}
+                  <button onClick={() => {
+                    const { addTrade } = usePaperTradesStore.getState();
+                    addTrade({ symbol: selectedSymbol_, side: 'long', qty: lotSize, entryPrice: resolvedPrice, currentPrice: resolvedPrice, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
+                  }}
+                    style={{ padding: '3px 10px', background: 'linear-gradient(to bottom, #00B0FF, #0066CC)', border: '1px solid #004C99', borderRadius: 3, color: '#FFF', fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace" }}>BUY</button>
                 </div>
               );
             }
 
-            // ── Expanded: Professional widget ──
+            // ── Expanded: MetaTrader-Style Panel ──
             return (
               <div
                 className="roua-quick-trade"
@@ -3365,149 +3375,140 @@ export default function RouaChart({
                   zIndex: 100,
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 0,
-                  borderRadius: 10,
-                  background: 'rgba(13,17,23,0.94)',
-                  backdropFilter: 'blur(24px) saturate(2)',
-                  border: '1px solid rgba(48,54,61,0.6)',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.02) inset',
+                  borderRadius: 6,
+                  background: '#1A1A1A',
+                  border: '1px solid #333',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
                   overflow: 'hidden',
                   pointerEvents: (chart.activeTool === 'cursor' && !mobile) ? 'auto' : 'none',
-                  transition: 'all 0.2s ease',
-                  width: 180,
-                  fontFamily: "'Cairo', sans-serif",
+                  transition: 'all 0.15s ease',
+                  width: 200,
+                  fontFamily: "'JetBrains Mono', monospace",
                 }}
               >
-                {/* ── Header: Symbol + Collapse ── */}
+                {/* ── Header: Symbol + Timeframe + Collapse ── */}
                 <div style={{
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  padding: '6px 10px 4px',
-                  borderBottom: '1px solid rgba(48,54,61,0.5)',
+                  padding: '6px 8px 4px',
+                  background: '#222',
+                  borderBottom: '1px solid #333',
                 }}>
-                  <span style={{ fontSize: 9, color: '#58A6FF', fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 0.3 }}>
-                    {selectedSymbol_}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ fontSize: 11, color: '#FFF', fontWeight: 700 }}>{selectedSymbol_}</span>
+                    <span style={{ fontSize: 8, color: '#888', background: '#333', padding: '1px 4px', borderRadius: 2 }}>{timeframe_ || 'M1'}</span>
+                  </div>
                   <button onClick={() => setTradePanelCollapsed(true)}
-                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: 10, padding: '0 2px' }}>▼</button>
+                    style={{ background: '#333', border: 'none', color: '#888', cursor: 'pointer', fontSize: 9, padding: '1px 5px', borderRadius: 2, fontWeight: 700 }}>▾</button>
                 </div>
 
-                {/* ── Price Section ── */}
+                {/* ── BID / ASK Price Section ── */}
                 <div style={{
-                  padding: '6px 10px 4px',
-                  background: 'linear-gradient(135deg, rgba(0,200,83,0.03) 0%, transparent 50%, rgba(255,23,68,0.03) 100%)',
+                  padding: '6px 8px',
+                  background: '#1A1A1A',
+                  borderBottom: '1px solid #2A2A2A',
                 }}>
-                  <div style={{
-                    fontSize: 17,
-                    color: '#E6EDF3',
-                    fontWeight: 800,
-                    fontFamily: "'JetBrains Mono', monospace",
-                    lineHeight: 1.2,
-                    letterSpacing: -0.3,
-                  }}>
-                    {resolvedPrice.toFixed(pDec)}
+                  {/* BID */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                    <span style={{ fontSize: 8, color: '#FF4444', fontWeight: 600, letterSpacing: 1 }}>BID</span>
+                    <span style={{ fontSize: 14, color: '#FF4444', fontWeight: 700, letterSpacing: -0.3 }}>
+                      {bid.toFixed(pDec)}
+                    </span>
                   </div>
-                  <div style={{ fontSize: 8, color: '#484F58', fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>
-                    سبريد: {spreadVal.toFixed(pDec)} ({spreadPct}%)
+                  {/* ASK */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                    <span style={{ fontSize: 8, color: '#00B0FF', fontWeight: 600, letterSpacing: 1 }}>ASK</span>
+                    <span style={{ fontSize: 14, color: '#00B0FF', fontWeight: 700, letterSpacing: -0.3 }}>
+                      {ask.toFixed(pDec)}
+                    </span>
+                  </div>
+                  {/* Spread */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 7, color: '#666' }}>SPREAD</span>
+                    <span style={{ fontSize: 9, color: '#AAA' }}>{spreadPips}</span>
                   </div>
                 </div>
 
-                {/* ── Lot Size Selector ── */}
-                <div style={{ padding: '5px 10px 4px' }}>
+                {/* ── Lot Size ── */}
+                <div style={{
+                  padding: '6px 8px',
+                  borderBottom: '1px solid #2A2A2A',
+                }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-                    <span style={{ fontSize: 8, color: '#8B949E', fontWeight: 600 }}>حجم الصفقة</span>
-                    <span style={{ fontSize: 7, color: '#484F58', fontFamily: "'JetBrains Mono', monospace" }}>LOT</span>
+                    <span style={{ fontSize: 8, color: '#888', fontWeight: 600 }}>VOLUME</span>
                   </div>
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    background: 'rgba(13,17,23,0.8)',
-                    border: '1px solid rgba(48,54,61,0.6)',
-                    borderRadius: 5,
+                    background: '#111',
+                    border: '1px solid #333',
+                    borderRadius: 3,
                     overflow: 'hidden',
                   }}>
                     <button onClick={() => setLotSize(prev => Math.max(0.01, +(prev - 0.01).toFixed(2)))}
-                      style={{ background: 'none', border: 'none', color: '#8B949E', fontSize: 13, cursor: 'pointer', padding: '4px 6px', outline: 'none', fontWeight: 700 }}>−</button>
-                    <span style={{ flex: 1, textAlign: 'center', color: '#E6EDF3', fontSize: 11, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>{lotSize.toFixed(2)}</span>
+                      style={{ background: '#2A2A2A', border: 'none', borderRight: '1px solid #333', color: '#CCC', fontSize: 14, cursor: 'pointer', padding: '5px 8px', outline: 'none', fontWeight: 700, lineHeight: 1 }}>−</button>
+                    <span style={{ flex: 1, textAlign: 'center', color: '#FFF', fontSize: 12, fontWeight: 700, padding: '4px 0' }}>{lotSize.toFixed(2)}</span>
                     <button onClick={() => setLotSize(prev => +(prev + 0.01).toFixed(2))}
-                      style={{ background: 'none', border: 'none', color: '#8B949E', fontSize: 13, cursor: 'pointer', padding: '4px 6px', outline: 'none', fontWeight: 700 }}>+</button>
-                  </div>
-                  {/* Quick lot presets */}
-                  <div style={{ display: 'flex', gap: 2, marginTop: 3 }}>
-                    {[0.01, 0.05, 0.1, 0.5, 1.0].map(v => (
-                      <button key={v} onClick={() => setLotSize(v)}
-                        style={{
-                          flex: 1,
-                          padding: '2px 0',
-                          background: lotSize === v ? 'rgba(0,212,255,0.1)' : 'rgba(255,255,255,0.02)',
-                          border: `1px solid ${lotSize === v ? 'rgba(0,212,255,0.25)' : 'rgba(255,255,255,0.04)'}`,
-                          borderRadius: 3,
-                          color: lotSize === v ? '#58A6FF' : '#484F58',
-                          fontSize: 7,
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          fontFamily: "'JetBrains Mono', monospace",
-                          transition: 'all 0.12s',
-                        }}
-                      >
-                        {v}
-                      </button>
-                    ))}
+                      style={{ background: '#2A2A2A', border: 'none', borderLeft: '1px solid #333', color: '#CCC', fontSize: 14, cursor: 'pointer', padding: '5px 8px', outline: 'none', fontWeight: 700, lineHeight: 1 }}>+</button>
                   </div>
                 </div>
 
-                {/* ── Buy / Sell Buttons ── */}
-                <div style={{ padding: '5px 10px 8px', display: 'flex', gap: 4 }}>
+                {/* ── SELL Button (full width, red) ── */}
+                <div style={{ padding: '6px 8px 3px' }}>
                   <button
                     onClick={() => {
                       const { addTrade } = usePaperTradesStore.getState();
-                      addTrade({ symbol: selectedSymbol_, side: 'long', qty: lotSize, entryPrice: resolvedPrice, currentPrice: resolvedPrice, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
+                      addTrade({ symbol: selectedSymbol_, side: 'short', qty: lotSize, entryPrice: bid, currentPrice: bid, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
                     }}
                     style={{
-                      flex: 1,
-                      padding: '7px 0',
-                      background: 'linear-gradient(135deg, #00C853 0%, #00E676 100%)',
-                      border: 'none',
-                      borderRadius: 6,
-                      color: '#003300',
-                      fontSize: 10,
-                      fontWeight: 900,
+                      width: '100%',
+                      padding: '8px 0',
+                      background: 'linear-gradient(to bottom, #FF4444, #CC0000)',
+                      border: '1px solid #990000',
+                      borderRadius: 4,
+                      color: '#FFF',
+                      fontSize: 12,
+                      fontWeight: 700,
                       cursor: 'pointer',
-                      fontFamily: "'Cairo', sans-serif",
-                      letterSpacing: 0.5,
-                      boxShadow: '0 2px 10px rgba(0,200,83,0.25)',
-                      transition: 'all 0.15s',
+                      fontFamily: "'JetBrains Mono', monospace",
+                      letterSpacing: 1,
+                      boxShadow: '0 2px 6px rgba(204,0,0,0.3)',
+                      transition: 'all 0.12s',
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 18px rgba(0,200,83,0.4)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,200,83,0.25)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(to bottom, #FF5555, #DD0000)'; e.currentTarget.style.boxShadow = '0 3px 10px rgba(204,0,0,0.5)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(to bottom, #FF4444, #CC0000)'; e.currentTarget.style.boxShadow = '0 2px 6px rgba(204,0,0,0.3)'; }}
                   >
-                    ▲ شراء
+                    SELL  {bid.toFixed(pDec)}
                   </button>
+                </div>
+
+                {/* ── BUY Button (full width, blue) ── */}
+                <div style={{ padding: '3px 8px 8px' }}>
                   <button
                     onClick={() => {
                       const { addTrade } = usePaperTradesStore.getState();
-                      addTrade({ symbol: selectedSymbol_, side: 'short', qty: lotSize, entryPrice: resolvedPrice, currentPrice: resolvedPrice, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
+                      addTrade({ symbol: selectedSymbol_, side: 'long', qty: lotSize, entryPrice: ask, currentPrice: ask, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
                     }}
                     style={{
-                      flex: 1,
-                      padding: '7px 0',
-                      background: 'linear-gradient(135deg, #FF1744 0%, #FF5252 100%)',
-                      border: 'none',
-                      borderRadius: 6,
-                      color: '#330000',
-                      fontSize: 10,
-                      fontWeight: 900,
+                      width: '100%',
+                      padding: '8px 0',
+                      background: 'linear-gradient(to bottom, #00B0FF, #0066CC)',
+                      border: '1px solid #004C99',
+                      borderRadius: 4,
+                      color: '#FFF',
+                      fontSize: 12,
+                      fontWeight: 700,
                       cursor: 'pointer',
-                      fontFamily: "'Cairo', sans-serif",
-                      letterSpacing: 0.5,
-                      boxShadow: '0 2px 10px rgba(255,23,68,0.25)',
-                      transition: 'all 0.15s',
+                      fontFamily: "'JetBrains Mono', monospace",
+                      letterSpacing: 1,
+                      boxShadow: '0 2px 6px rgba(0,102,204,0.3)',
+                      transition: 'all 0.12s',
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 18px rgba(255,23,68,0.4)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 10px rgba(255,23,68,0.25)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(to bottom, #00C0FF, #0077DD)'; e.currentTarget.style.boxShadow = '0 3px 10px rgba(0,102,204,0.5)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(to bottom, #00B0FF, #0066CC)'; e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,102,204,0.3)'; }}
                   >
-                    ▼ بيع
+                    BUY  {ask.toFixed(pDec)}
                   </button>
                 </div>
               </div>

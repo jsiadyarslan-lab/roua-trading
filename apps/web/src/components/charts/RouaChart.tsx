@@ -3305,144 +3305,214 @@ export default function RouaChart({
 
             {/* Volume Profile rendered as overlay below */}
 
-          {/* ── Quick Trade Controls — Left Side ── */}
-          {!mobile && currentPrice && (
-            <div
-              className="roua-quick-trade"
-              style={{
-                position: 'absolute',
-                top: 32,
-                left: 10,
-                zIndex: 100,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 3,
-                borderRadius: 10,
-                background: 'rgba(8,10,18,0.88)',
-                backdropFilter: 'blur(24px) saturate(2)',
-                border: '1px solid rgba(255,255,255,0.07)',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-                padding: tradePanelCollapsed ? '3px' : '5px 6px',
-                pointerEvents: (chart.activeTool === 'cursor' && !mobile) ? 'auto' : 'none',
-                overflow: 'hidden',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              {/* Collapse Toggle — top center */}
-              <button
-                onClick={() => setTradePanelCollapsed(!tradePanelCollapsed)}
+          {/* ── Quick Trade Widget — Professional Execution Panel ── */}
+          {!mobile && currentPrice && (() => {
+            const resolvedPrice = (typeof currentPrice === 'number' && currentPrice > 0) ? currentPrice : (candlesRef.current[candlesRef.current.length - 1]?.close || 0);
+            const spreadVal = resolvedPrice * 0.0005;
+            const spreadPct = '0.050';
+            const pDec = resolvedPrice > 1000 ? 2 : resolvedPrice > 1 ? 4 : 6;
+
+            // ── Collapsed: Minimal pill ──
+            if (tradePanelCollapsed) {
+              return (
+                <div
+                  className="roua-quick-trade"
+                  style={{
+                    position: 'absolute',
+                    top: 32,
+                    left: 10,
+                    zIndex: 100,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '4px 8px',
+                    borderRadius: 8,
+                    background: 'rgba(13,17,23,0.92)',
+                    backdropFilter: 'blur(20px) saturate(2)',
+                    border: '1px solid rgba(48,54,61,0.6)',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+                    pointerEvents: (chart.activeTool === 'cursor' && !mobile) ? 'auto' : 'none',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <span style={{ fontSize: 11, color: '#E6EDF3', fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
+                    {resolvedPrice.toFixed(pDec)}
+                  </span>
+                  <button onClick={() => setTradePanelCollapsed(false)}
+                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', padding: '0 2px', fontSize: 10 }}>▲</button>
+                  <button onClick={() => {
+                    const { addTrade } = usePaperTradesStore.getState();
+                    addTrade({ symbol: selectedSymbol_, side: 'long', qty: lotSize, entryPrice: resolvedPrice, currentPrice: resolvedPrice, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
+                  }}
+                    style={{ padding: '3px 8px', background: 'linear-gradient(135deg, #00C853, #00E676)', border: 'none', borderRadius: 4, color: '#000', fontSize: 9, fontWeight: 800, cursor: 'pointer', fontFamily: "'Cairo', sans-serif" }}>شراء</button>
+                  <button onClick={() => {
+                    const { addTrade } = usePaperTradesStore.getState();
+                    addTrade({ symbol: selectedSymbol_, side: 'short', qty: lotSize, entryPrice: resolvedPrice, currentPrice: resolvedPrice, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
+                  }}
+                    style={{ padding: '3px 8px', background: 'linear-gradient(135deg, #FF1744, #FF5252)', border: 'none', borderRadius: 4, color: '#fff', fontSize: 9, fontWeight: 800, cursor: 'pointer', fontFamily: "'Cairo', sans-serif" }}>بيع</button>
+                </div>
+              );
+            }
+
+            // ── Expanded: Professional widget ──
+            return (
+              <div
+                className="roua-quick-trade"
                 style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: 'none',
-                  borderRadius: 4,
-                  color: 'rgba(255,255,255,0.35)',
-                  width: tradePanelCollapsed ? 20 : '100%',
-                  height: 14,
-                  cursor: 'pointer',
+                  position: 'absolute',
+                  top: 32,
+                  left: 10,
+                  zIndex: 100,
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  outline: 'none',
-                  padding: 0,
+                  flexDirection: 'column',
+                  gap: 0,
+                  borderRadius: 10,
+                  background: 'rgba(13,17,23,0.94)',
+                  backdropFilter: 'blur(24px) saturate(2)',
+                  border: '1px solid rgba(48,54,61,0.6)',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.02) inset',
+                  overflow: 'hidden',
+                  pointerEvents: (chart.activeTool === 'cursor' && !mobile) ? 'auto' : 'none',
+                  transition: 'all 0.2s ease',
+                  width: 180,
+                  fontFamily: "'Cairo', sans-serif",
                 }}
               >
-                <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <polyline points={tradePanelCollapsed ? "1 1 5 5 9 1" : "1 5 5 1 9 5"} />
-                </svg>
-              </button>
+                {/* ── Header: Symbol + Collapse ── */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '6px 10px 4px',
+                  borderBottom: '1px solid rgba(48,54,61,0.5)',
+                }}>
+                  <span style={{ fontSize: 9, color: '#58A6FF', fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 0.3 }}>
+                    {selectedSymbol_}
+                  </span>
+                  <button onClick={() => setTradePanelCollapsed(true)}
+                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: 10, padding: '0 2px' }}>▼</button>
+                </div>
 
-              {/* Trade Buttons (collapsible) */}
-              {!tradePanelCollapsed && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {/* Buy Button */}
-                  <button
-                    className="roua-btn-buy"
-                    onClick={() => {
-                      const { addTrade } = usePaperTradesStore.getState();
-                      const lastClose = candlesRef.current[candlesRef.current.length - 1]?.close || 0;
-                      const resolvedPrice = (typeof currentPrice === 'number' && currentPrice > 0) ? currentPrice : lastClose;
-                      addTrade({
-                        symbol: selectedSymbol_,
-                        side: 'long',
-                        qty: lotSize,
-                        entryPrice: resolvedPrice,
-                        currentPrice: resolvedPrice,
-                        entryTime: Date.now(),
-                        strategy: 'quick',
-                        source: 'manual',
-                      });
-                    }}
-                    style={{
-                      background: '#00C853',
-                      border: 'none',
-                      borderRadius: 5,
-                      color: '#000',
-                      padding: '4px 9px',
-                      fontSize: 10,
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      fontFamily: "'Cairo', sans-serif",
-                      letterSpacing: 0.5,
-                      outline: 'none',
-                      transition: 'opacity 0.15s',
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
-                    onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-                  >
-                    {tc('buyArrow')}
-                  </button>
-
-                  {/* LOT */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 5, padding: '2px 4px' }}>
-                    <button onClick={() => setLotSize(prev => Math.max(0.01, +(prev - 0.01).toFixed(2)))}
-                      style={{ background: 'none', border: 'none', color: '#888', fontSize: 12, cursor: 'pointer', padding: '0 2px', outline: 'none' }}>−</button>
-                    <span style={{ color: '#ccc', fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", minWidth: 28, textAlign: 'center' }}>{lotSize.toFixed(2)}</span>
-                    <button onClick={() => setLotSize(prev => +(prev + 0.01).toFixed(2))}
-                      style={{ background: 'none', border: 'none', color: '#888', fontSize: 12, cursor: 'pointer', padding: '0 2px', outline: 'none' }}>+</button>
+                {/* ── Price Section ── */}
+                <div style={{
+                  padding: '6px 10px 4px',
+                  background: 'linear-gradient(135deg, rgba(0,200,83,0.03) 0%, transparent 50%, rgba(255,23,68,0.03) 100%)',
+                }}>
+                  <div style={{
+                    fontSize: 17,
+                    color: '#E6EDF3',
+                    fontWeight: 800,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    lineHeight: 1.2,
+                    letterSpacing: -0.3,
+                  }}>
+                    {resolvedPrice.toFixed(pDec)}
                   </div>
+                  <div style={{ fontSize: 8, color: '#484F58', fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>
+                    سبريد: {spreadVal.toFixed(pDec)} ({spreadPct}%)
+                  </div>
+                </div>
 
-                  {/* Sell Button */}
+                {/* ── Lot Size Selector ── */}
+                <div style={{ padding: '5px 10px 4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                    <span style={{ fontSize: 8, color: '#8B949E', fontWeight: 600 }}>حجم الصفقة</span>
+                    <span style={{ fontSize: 7, color: '#484F58', fontFamily: "'JetBrains Mono', monospace" }}>LOT</span>
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    background: 'rgba(13,17,23,0.8)',
+                    border: '1px solid rgba(48,54,61,0.6)',
+                    borderRadius: 5,
+                    overflow: 'hidden',
+                  }}>
+                    <button onClick={() => setLotSize(prev => Math.max(0.01, +(prev - 0.01).toFixed(2)))}
+                      style={{ background: 'none', border: 'none', color: '#8B949E', fontSize: 13, cursor: 'pointer', padding: '4px 6px', outline: 'none', fontWeight: 700 }}>−</button>
+                    <span style={{ flex: 1, textAlign: 'center', color: '#E6EDF3', fontSize: 11, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>{lotSize.toFixed(2)}</span>
+                    <button onClick={() => setLotSize(prev => +(prev + 0.01).toFixed(2))}
+                      style={{ background: 'none', border: 'none', color: '#8B949E', fontSize: 13, cursor: 'pointer', padding: '4px 6px', outline: 'none', fontWeight: 700 }}>+</button>
+                  </div>
+                  {/* Quick lot presets */}
+                  <div style={{ display: 'flex', gap: 2, marginTop: 3 }}>
+                    {[0.01, 0.05, 0.1, 0.5, 1.0].map(v => (
+                      <button key={v} onClick={() => setLotSize(v)}
+                        style={{
+                          flex: 1,
+                          padding: '2px 0',
+                          background: lotSize === v ? 'rgba(0,212,255,0.1)' : 'rgba(255,255,255,0.02)',
+                          border: `1px solid ${lotSize === v ? 'rgba(0,212,255,0.25)' : 'rgba(255,255,255,0.04)'}`,
+                          borderRadius: 3,
+                          color: lotSize === v ? '#58A6FF' : '#484F58',
+                          fontSize: 7,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          fontFamily: "'JetBrains Mono', monospace",
+                          transition: 'all 0.12s',
+                        }}
+                      >
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* ── Buy / Sell Buttons ── */}
+                <div style={{ padding: '5px 10px 8px', display: 'flex', gap: 4 }}>
                   <button
-                    className="roua-btn-sell"
                     onClick={() => {
                       const { addTrade } = usePaperTradesStore.getState();
-                      const lastClose = candlesRef.current[candlesRef.current.length - 1]?.close || 0;
-                      const resolvedPrice = (typeof currentPrice === 'number' && currentPrice > 0) ? currentPrice : lastClose;
-                      addTrade({
-                        symbol: selectedSymbol_,
-                        side: 'short',
-                        qty: lotSize,
-                        entryPrice: resolvedPrice,
-                        currentPrice: resolvedPrice,
-                        entryTime: Date.now(),
-                        strategy: 'quick',
-                        source: 'manual',
-                      });
+                      addTrade({ symbol: selectedSymbol_, side: 'long', qty: lotSize, entryPrice: resolvedPrice, currentPrice: resolvedPrice, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
                     }}
                     style={{
-                      background: '#F44336',
+                      flex: 1,
+                      padding: '7px 0',
+                      background: 'linear-gradient(135deg, #00C853 0%, #00E676 100%)',
                       border: 'none',
-                      borderRadius: 5,
-                      color: '#fff',
-                      padding: '4px 9px',
+                      borderRadius: 6,
+                      color: '#003300',
                       fontSize: 10,
-                      fontWeight: 800,
+                      fontWeight: 900,
                       cursor: 'pointer',
                       fontFamily: "'Cairo', sans-serif",
                       letterSpacing: 0.5,
-                      outline: 'none',
-                      transition: 'opacity 0.15s',
+                      boxShadow: '0 2px 10px rgba(0,200,83,0.25)',
+                      transition: 'all 0.15s',
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
-                    onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+                    onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 18px rgba(0,200,83,0.4)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,200,83,0.25)'; e.currentTarget.style.transform = 'translateY(0)'; }}
                   >
-                    {tc('sellArrow')}
+                    ▲ شراء
+                  </button>
+                  <button
+                    onClick={() => {
+                      const { addTrade } = usePaperTradesStore.getState();
+                      addTrade({ symbol: selectedSymbol_, side: 'short', qty: lotSize, entryPrice: resolvedPrice, currentPrice: resolvedPrice, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '7px 0',
+                      background: 'linear-gradient(135deg, #FF1744 0%, #FF5252 100%)',
+                      border: 'none',
+                      borderRadius: 6,
+                      color: '#330000',
+                      fontSize: 10,
+                      fontWeight: 900,
+                      cursor: 'pointer',
+                      fontFamily: "'Cairo', sans-serif",
+                      letterSpacing: 0.5,
+                      boxShadow: '0 2px 10px rgba(255,23,68,0.25)',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 18px rgba(255,23,68,0.4)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 10px rgba(255,23,68,0.25)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                  >
+                    ▼ بيع
                   </button>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            );
+          })()}
 
           {/* ── Price-Synced Candle Timer (Desktop Only) ── */}
           {!mobile && candleCountdown && (() => {

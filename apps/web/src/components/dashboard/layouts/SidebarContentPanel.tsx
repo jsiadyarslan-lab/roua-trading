@@ -57,19 +57,19 @@ export function SidebarContentPanel({
     <section
       className="flex flex-col min-w-0 min-h-0"
       style={{
-        background: `linear-gradient(180deg, #1E2233, #1A1D29)`,
+        background: `linear-gradient(180deg, #050508, #000000)`,
         direction: 'inherit',
       }}
     >
       {/* Tab content — no header, full height for content */}
       <div
         className="flex-1 min-h-0 overflow-hidden"
-        style={{ background: 'linear-gradient(180deg, rgba(8,13,20,0.92), rgba(6,10,16,0.98))' }}
+        style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.95), rgba(0,0,0,0.98))' }}
       >
         <div
           className="h-full min-h-0 overflow-hidden rounded-lg border border-[rgba(0,212,255,0.10)]"
           style={{
-            background: 'linear-gradient(180deg, rgba(14,20,30,0.98), rgba(8,12,19,0.98))',
+            background: 'linear-gradient(180deg, rgba(0,0,0,0.98), rgba(5,5,8,0.98))',
             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.02), 0 6px 14px rgba(0,0,0,0.12)',
           }}
         >

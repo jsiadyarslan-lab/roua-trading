@@ -75,7 +75,7 @@ export default async function DashboardLayout({
   return (
     <MarketProvider>
       <AuthGuard>
-        <div style={{ minHeight: '100dvh', background: '#0B0E14', direction: dir, display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}
+        <div style={{ minHeight: '100dvh', background: '#000000', direction: dir, display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}
           className="dashboard-root">
           <GuestBanner />
           {/* AppHeader مخفي على الجوال — m2-shell عنده header خاص */}

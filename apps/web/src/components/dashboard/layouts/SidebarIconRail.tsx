@@ -77,7 +77,7 @@ export function SidebarIconRail({
         minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
-        background: `linear-gradient(180deg, #0A0D14, #0E1118)`,
+        background: `linear-gradient(180deg, #000000, #050508)`,
         borderInlineStart: '1px solid rgba(0,212,255,0.12)',
         direction: 'inherit',
         position: 'relative',
@@ -185,7 +185,7 @@ export function SidebarIconRail({
                     padding: '0 2px',
                     boxShadow: `0 0 6px ${tab.accent}66`,
                     zIndex: 2,
-                    border: '1.5px solid #0A0D14',
+                    border: '1.5px solid #000000',
                   }}
                 >
                   {badgeCount > 99 ? '99+' : badgeCount}

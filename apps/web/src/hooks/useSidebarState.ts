@@ -32,18 +32,19 @@ const TAB_ORDER: TabId[] = [
 const STORAGE_KEY = 'roua-sidebar-collapsed'
 
 function getInitialCollapsed(): boolean {
-  if (typeof window === 'undefined') return false
+  if (typeof window === 'undefined') return true
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
-    return stored === 'true'
+    // Default collapsed (true) if no stored preference
+    return stored === null ? true : stored === 'true'
   } catch {
-    return false
+    return true
   }
 }
 
 export function useSidebarState() {
   const [activeTab, setActiveTab] = useState<TabId>('portfolio')
-  const [collapsed, setCollapsedState] = useState<boolean>(false)
+  const [collapsed, setCollapsedState] = useState<boolean>(true)
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false)
   const [searchQuery, setSearchQuery] = useState<string>('')
 

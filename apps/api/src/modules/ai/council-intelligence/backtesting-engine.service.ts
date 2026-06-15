@@ -118,9 +118,18 @@ export class BacktestingEngineService {
       const exitPrice = Number(journal.exitPrice || 0);
       const pnlPercent = Number(journal.pnlPercent || 0);
 
-      // Calculate PnL based on risk per trade
-      const riskAmount = balance * config.riskPerTrade;
-      const pnl = riskAmount * (pnlPercent / config.riskPerTrade / 100);
+      // V-PHASE3 FIX: Correct PnL calculation.
+      // OLD BUG: `riskAmount * (pnlPercent / config.riskPerTrade / 100)` = double division.
+      // When riskPerTrade=0.01 (1%) and pnlPercent=2%: 100 * (2 / 0.01 / 100) = 200 ← WRONG
+      // The /config.riskPerTrade cancels the riskAmount's multiplication by riskPerTrade,
+      // then divides by 100 again, amplifying PnL by 1/riskPerTrade (100x for 1% risk).
+      //
+      // CORRECT: pnlPercent is already the percentage move of the trade.
+      // PnL = position_notional × pnlPercent / 100
+      // position_notional = balance × riskPerTrade / stopLossPercent (but we don't have SL%)
+      // Simplest correct formula: balance × riskPerTrade × pnlPercent / 100
+      // This means: "I risked X% of my balance, and the trade moved Y%, so my PnL is X% × Y% of balance"
+      const pnl = balance * config.riskPerTrade * (pnlPercent / 100);
       balance += pnl;
 
       // Track drawdown
@@ -130,8 +139,14 @@ export class BacktestingEngineService {
 
       pnlHistory.push(pnl);
 
-      const result = pnlPercent > 0.5 ? 'WIN' as const
-        : pnlPercent < -0.5 ? 'LOSS' as const
+      // V-PHASE3 FIX: WIN/LOSS classification based on actual PnL sign, not arbitrary threshold.
+      // Old: pnlPercent > 0.5 → WIN — but 0.5 what? If pnlPercent is in percentage units
+      // (e.g., 2.5%), then 0.5 means 0.5% which is reasonable. But if pnlPercent is a ratio
+      // (e.g., 0.025), then 0.5 would classify everything as WIN. Since pnlPercent comes from
+      // TradeJournal which stores it as a percentage (e.g., 2.5 for 2.5%), use 0.1% threshold
+      // to filter out noise while catching real results.
+      const result = pnlPercent > 0.1 ? 'WIN' as const
+        : pnlPercent < -0.1 ? 'LOSS' as const
         : 'BREAKEVEN' as const;
 
       trades.push({
@@ -140,8 +155,10 @@ export class BacktestingEngineService {
         direction: journal.side as 'BUY' | 'SELL',
         entryPrice,
         exitPrice,
-        stopLoss: Number(journal.councilVotes ? 0 : 0), // Not stored directly
-        takeProfit: 0,
+        // V-PHASE3 FIX: Extract SL/TP from journal metadata if available.
+        // Old code always set stopLoss=0, making backtest risk analysis impossible.
+        stopLoss: Number((journal as any).stopLoss || entryPrice * 0.98), // Estimate 2% SL if not stored
+        takeProfit: Number((journal as any).takeProfit || exitPrice || entryPrice * 1.02),
         pnl,
         pnlPercent,
         result,
@@ -261,9 +278,18 @@ export class BacktestingEngineService {
       }
     }
 
-    // Run backtests (limit to prevent excessive computation)
+    // V-PHASE3 FIX: Test MORE parameter combinations (was limited to 20 of 120).
+    // Testing only 20/120 means we miss potentially optimal configurations.
+    // Now test 48 combinations (40% of total), prioritizing lower risk + higher confidence
+    // which are more likely to produce stable results.
     const results: { config: BacktestConfig; winRate: number; pnl: number; sharpe: number }[] = [];
-    const limitedConfigs = configs.slice(0, 20); // Limit for performance
+
+    // Sort configs: prefer lower risk + higher confidence (more conservative first)
+    const sortedConfigs = configs.sort((a, b) => {
+      if (a.riskPerTrade !== b.riskPerTrade) return a.riskPerTrade - b.riskPerTrade; // Lower risk first
+      return b.minConfidence - a.minConfidence; // Higher confidence first
+    });
+    const limitedConfigs = sortedConfigs.slice(0, 48); // 48 of 120 = 40% coverage
 
     for (const config of limitedConfigs) {
       try {

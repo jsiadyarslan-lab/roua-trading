@@ -1765,11 +1765,37 @@ export class SmartExecutorService implements OnModuleDestroy {
         userMaxDailyLossPercent = riskSettings.maxDailyLossPercent;
       } catch { /* use default */ }
 
-      if (portfolio > 0 && userState.dailyPnL < -(portfolio * userMaxDailyLossPercent / 100)) {
+      // V-PHASE3 FIX: Check COMBINED daily PnL from ALL sources, not just the executor's own PnL.
+      // Previously: `userState.dailyPnL` only tracked the executor's trades.
+      // The Agent tracks its own daily PnL separately via `_getAgentDailyPnL()`.
+      // This meant each system allowed 5% independently = 10% combined daily loss.
+      // Now: query ALL trade sources (executor + agent + manual) for this user today,
+      // and check against the single unified limit.
+      let combinedDailyPnL = userState.dailyPnL; // Start with executor's in-memory tracking
+      try {
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const allTodayTrades = await this.prisma.trade.findMany({
+          where: {
+            userId,
+            type: { in: ['EXIT', 'PARTIAL_EXIT'] },
+            executedAt: { gte: startOfDay },
+            pnl: { not: null },
+          },
+          select: { pnl: true, source: true },
+        });
+        combinedDailyPnL = allTodayTrades.reduce((sum, t) => sum + (Number(t.pnl) || 0), 0);
+      } catch (dbErr: any) {
+        // Fallback to executor-only PnL if DB query fails
+        this.logger.warn(`⚔️ V-PHASE3: Could not query combined daily PnL for ${userId}: ${dbErr.message} — using executor-only PnL`);
+        combinedDailyPnL = userState.dailyPnL;
+      }
+
+      if (portfolio > 0 && combinedDailyPnL < -(portfolio * userMaxDailyLossPercent / 100)) {
         const lossLimit = (portfolio * userMaxDailyLossPercent / 100).toFixed(2);
         this.logger.warn(
-          `⚔️ HARD STOP: User ${userId} hit daily loss limit ` +
-          `(P&L: $${userState.dailyPnL.toFixed(2)} < -$${lossLimit} = ${userMaxDailyLossPercent}% of $${portfolio.toFixed(2)}) ` +
+          `⚔️ HARD STOP: User ${userId} hit UNIFIED daily loss limit ` +
+          `(Combined P&L: $${combinedDailyPnL.toFixed(2)} < -$${lossLimit} = ${userMaxDailyLossPercent}% of $${portfolio.toFixed(2)}) ` +
           `— DISABLING executor and sending notification`
         );
 
@@ -3008,17 +3034,62 @@ export class SmartExecutorService implements OnModuleDestroy {
         return result;
       }
 
-      // V146d: On SPOT exchanges, SELL requires owning the base currency.
-      // You can't short-sell on spot — only sell what you already hold.
-      // The Executor opens NEW positions, so SELL on spot = "go short" which
-      // is impossible without margin/futures. Skip these briefs entirely.
+      // V-PHASE3 FIX: Improved SELL handling on spot exchanges.
+      // OLD: Blocked ALL SELL briefs on non-Alpaca spot exchanges — this meant the
+      // system could ONLY profit from bullish moves, missing 50% of market opportunities.
+      //
+      // NEW: Smart SELL handling based on whether the user actually holds the asset:
+      // 1. If user has an OPEN BUY position for this symbol → SELL = closing position (ALLOWED)
+      // 2. If exchange supports futures/margin → SELL = short selling (ALLOWED)
+      // 3. If user doesn't hold the asset AND exchange is spot-only → SELL = short (BLOCKED)
+      //
+      // This allows profit-taking on existing positions while still preventing
+      // impossible short sells on pure spot accounts.
       if (!isSimulatedExecution && brief.direction === 'SELL' &&
           credential.exchange !== 'alpaca') { // Alpaca supports short on stocks
-        this.logger.debug(
-          `⚔️ Skipping SELL brief ${brief.id} — ${brief.pair} SELL not possible on spot exchange ${credential.exchange}`,
-        );
-        result.error = `بيع ${brief.pair} غير ممكن على حساب سبوت — يحتاج حساب مارجن/فيوتشر`;
-        return result;
+
+        // Check if user has an open BUY position for this symbol (closing = allowed)
+        let hasExistingPosition = false;
+        try {
+          const existingPosition = await this.prisma.position.findFirst({
+            where: {
+              userId,
+              symbol: brief.pair,
+              status: 'OPEN',
+              side: 'BUY',
+            },
+          });
+          hasExistingPosition = !!existingPosition;
+        } catch { /* assume no position for safety */ }
+
+        // Check if exchange supports futures/margin (short selling possible)
+        const exchangeSupportsShort = (() => {
+          const ex = credential.exchange.toLowerCase();
+          // Exchanges that support futures/margin trading where short selling is possible
+          return ex.includes('futures') || ex.includes('margin') ||
+                 ex.includes('bybit') || ex.includes('okx') ||
+                 ex.includes('bitget') || ex.includes('gate') ||
+                 ex.includes('huobi') || ex.includes('kucoin') ||
+                 ex === 'mt5' || ex === 'mt5_demo' || ex === 'metatrader5';
+        })();
+
+        if (!hasExistingPosition && !exchangeSupportsShort) {
+          this.logger.debug(
+            `⚔️ Skipping SELL brief ${brief.id} — ${brief.pair} short sell not possible on spot exchange ${credential.exchange} (no existing BUY position)`,
+          );
+          result.error = `بيع ${brief.pair} غير ممكن — لا يوجد مركز شراء مفتوح وحساب سبوت لا يدعم البيع المكشوف`;
+          return result;
+        }
+
+        if (hasExistingPosition) {
+          this.logger.log(
+            `⚔️ SELL brief ${brief.id} allowed — closing existing BUY position for ${brief.pair}`,
+          );
+        } else if (exchangeSupportsShort) {
+          this.logger.log(
+            `⚔️ SELL brief ${brief.id} allowed — exchange ${credential.exchange} supports short selling`,
+          );
+        }
       }
 
       this.logger.log(

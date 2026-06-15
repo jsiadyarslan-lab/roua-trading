@@ -266,20 +266,15 @@ export class RiskCalculatorService {
   /**
    * Check if daily loss limit has been reached
    *
-   * FIX (V133): Two critical bugs fixed:
+   * V-PHASE3 FIX: Now checks COMBINED daily PnL from ALL sources (executor + agent + manual),
+   * not just the agent's own trades. Previously, each system tracked its own 5% limit
+   * independently, allowing a combined 10% daily drawdown. Now both systems check the
+   * unified total, so the 5% limit is enforced across ALL trading sources combined.
    *
-   * 1. CROSS-SOURCE CONTAMINATION: Previously, _getDailyPnL() counted losses
-   *    from ALL sources (smart_executor, auto_paper, user_manual, etc.), not just
-   *    the agent's own trades. This meant the Smart Executor's losses could trigger
-   *    the Agent's daily limit, even though the Agent itself had zero trades.
-   *    Now: only count trades where source='agent'.
-   *
-   * 2. PAPER-TRADING BYPASS: RiskGatekeeperService.checkDailyDrawdownLimit()
-   *    bypasses the daily limit for paper-trading-only users (no real credentials).
-   *    But this function had NO such bypass, causing paper-trading agents to be
-   *    stopped by a daily loss limit on virtual money — defeating the purpose of
-   *    paper trading (learning/testing). Now: if user has no real credentials,
-   *    the daily limit check is bypassed for the agent too, matching RiskGatekeeper.
+   * Original V133 fixes preserved:
+   * 1. PAPER-TRADING BYPASS: If user has no real credentials, daily limit is bypassed
+   *    (paper trading is for learning/testing).
+   * 2. CROSS-SOURCE TRACKING: Now counts ALL sources instead of just agent's own.
    */
   async isDailyLimitReached(userId: string, maxDailyLossPercent: number): Promise<boolean> {
     // ── FIX #2 (V133): Bypass daily limit for paper-trading-only users ──
@@ -307,9 +302,10 @@ export class RiskCalculatorService {
       );
     }
 
-    // FIX #1: Only count the AGENT's own realized losses, not Smart Executor's.
-    // Previously, this called _getDailyPnL(userId) which counted ALL sources.
-    const dailyPnL = await this._getAgentDailyPnL(userId);
+    // V-PHASE3: Use combined daily PnL from ALL sources (not just agent's own).
+    // Previously only counted source='agent' trades, allowing executor + agent
+    // to each lose 5% independently = 10% combined. Now counts ALL sources.
+    const dailyPnL = await this._getCombinedDailyPnL(userId);
     const portfolioValue = await this._getPortfolioValue(userId);
 
     if (portfolioValue <= 0) return false;
@@ -478,16 +474,34 @@ export class RiskCalculatorService {
   }
 
   /**
-   * V133 FIX: Get daily P&L from the AGENT's own trades ONLY.
-   *
-   * Previously, isDailyLimitReached() used _getDailyPnL() which counted
-   * ALL trade sources. This caused CROSS-SOURCE CONTAMINATION:
-   *   - Smart Executor loses $500 → Agent sees daily loss = $500
-   *   - Agent immediately hits DAILY_LIMIT_REACHED
-   *   - User sees "تجاوز الحد اليومي" even though Agent had zero trades
-   *
-   * Now: Only count trades where source='agent' for the agent's daily limit.
-   * This matches how SmartExecutor tracks its own daily PnL separately.
+   * V-PHASE3: Get combined daily PnL from ALL trade sources.
+   * This ensures the daily loss limit is enforced across ALL trading systems
+   * (Smart Executor + Agent + Manual) combined, not per-system independently.
+   */
+  private async _getCombinedDailyPnL(userId: string): Promise<number> {
+    try {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const trades = await this.prisma.trade.findMany({
+        where: {
+          userId,
+          executedAt: { gte: todayStart },
+          type: { in: ['EXIT', 'PARTIAL_EXIT'] },
+          pnl: { not: null },
+        },
+      });
+
+      return trades.reduce((sum, t) => sum + Number(t.pnl || 0), 0);
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * V133: Get daily PnL from the AGENT's own trades ONLY.
+   * @deprecated Use _getCombinedDailyPnL() for daily limit checks.
+   * Kept for internal reporting/diagnostics where agent-specific PnL is needed.
    */
   private async _getAgentDailyPnL(userId: string): Promise<number> {
     try {

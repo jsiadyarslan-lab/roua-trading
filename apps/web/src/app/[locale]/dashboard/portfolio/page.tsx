@@ -39,6 +39,11 @@ import { usePaperTradesStore, ClosedPaperTrade } from '@/hooks/usePaperTradesSto
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { fetchPositionsUnified, fetchSummaryUnified, closePositionUnified } from '@/lib/api-fetch'
 import { fmtPriceLocale } from '@/lib/price-format'
+import {
+  getJournalEntries, computeJournalStats, generateReportHTML,
+  exportJournalJSON, getJournalEntryCount, clearJournal,
+  type JournalEntry, type JournalStats,
+} from '@/lib/charts/TradeJournal'
 
 /* ── Theme ── */
 import { T } from '@/lib/unified-tokens'
@@ -219,7 +224,7 @@ function formatDuration(start: string | number, end: string | number) {
 export default function PortfolioPage() {
   const t = useTranslations('dashboard.portfolio')
   const tc = useTranslations('common')
-  const [tab, setTab] = useState<'positions' | 'performance' | 'risk' | 'coach'>('positions')
+  const [tab, setTab] = useState<'positions' | 'performance' | 'risk' | 'journal' | 'coach'>('positions')
   const [positions, setPositions] = useState<Position[]>([])
   const [closedPositions, setClosedPositions] = useState<Position[]>([])
   const [trades, setTrades] = useState<Trade[]>([])
@@ -246,6 +251,45 @@ export default function PortfolioPage() {
   const [showPanicConfirm, setShowPanicConfirm] = useState(false)
   const [closingAll, setClosingAll] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+
+  // ── Journal state ──
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([])
+  const [journalStats, setJournalStats] = useState<JournalStats | null>(null)
+
+  // Refresh journal data on mount and tab switch
+  useEffect(() => {
+    if (tab === 'journal' || journalEntries.length === 0) {
+      setJournalEntries(getJournalEntries())
+      setJournalStats(computeJournalStats())
+    }
+  }, [tab])
+
+  // PDF export handler
+  const handleExportPDF = useCallback(() => {
+    const html = generateReportHTML()
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const win = window.open(url, '_blank')
+    if (win) {
+      win.onload = () => {
+        win.print()
+      }
+    }
+    // Cleanup after delay
+    setTimeout(() => URL.revokeObjectURL(url), 60000)
+  }, [])
+
+  // JSON export handler
+  const handleExportJSON = useCallback(() => {
+    const json = exportJournalJSON()
+    const blob = new Blob([json], { type: 'application/json;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `roua_journal_${new Date().toISOString().split('T')[0]}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+  }, [])
 
   // FIX: Inject scoped CSS via useEffect instead of <style> tag
   // <style> tags in client components cause "Node cannot be found" in Next.js 16
@@ -1001,6 +1045,7 @@ export default function PortfolioPage() {
         <TabButton label={t('tabTrades')} icon={Activity} active={tab === 'positions'} onClick={() => setTab('positions')} count={positions.length + closedPositions.length + closedPaperTrades.length} />
         <TabButton label={t('tabPerformance')} icon={TrendingUp} active={tab === 'performance'} onClick={() => setTab('performance')} />
         <TabButton label={t('tabRisk')} icon={Shield} active={tab === 'risk'} onClick={() => setTab('risk')} />
+        <TabButton label='سجل التداول' icon={FileText} active={tab === 'journal'} onClick={() => setTab('journal')} count={getJournalEntryCount()} />
         <TabButton label={t('tabCoach')} icon={Brain} active={tab === 'coach'} onClick={() => setTab('coach')} />
       </div>
 
@@ -1741,6 +1786,574 @@ export default function PortfolioPage() {
               </div>
             </div>
           </div>
+        </>
+      )}
+
+      {/* ════════════════════════════════════════════ */}
+      {/* TAB: سجل التداول الذكي                         */}
+      {/* ════════════════════════════════════════════ */}
+      {tab === 'journal' && (
+        <>
+          {/* Journal Header with Export Buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            <div style={{ width: 3, height: 20, borderRadius: 2, background: T.amber }} />
+            <span style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 900, fontSize: 15, color: T.text }}>
+              سجل التداول الذكي
+            </span>
+            <div style={{ flex: 1 }} />
+            {journalEntries.length > 0 && (
+              <>
+                <button
+                  onClick={handleExportPDF}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    padding: '6px 14px', borderRadius: 8,
+                    border: `0.5px solid ${T.amber}44`, background: `${T.amber}14`,
+                    color: T.amber, fontFamily: "'Cairo', sans-serif",
+                    fontSize: 10, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                  }}
+                >
+                  <FileText size={12} />
+                  تقرير PDF للمستثمرين
+                </button>
+                <button
+                  onClick={handleExportJSON}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    padding: '5px 10px', borderRadius: 7,
+                    border: `0.5px solid ${T.border}`, background: T.card,
+                    color: T.text2, fontFamily: "'Cairo', sans-serif",
+                    fontSize: 9, cursor: 'pointer', transition: 'all 0.2s',
+                  }}
+                >
+                  <Download size={10} />
+                  JSON
+                </button>
+              </>
+            )}
+          </div>
+
+          {journalEntries.length === 0 ? (
+            <div style={{
+              background: T.card, border: `0.5px solid ${T.border}`,
+              borderRadius: 10, padding: 40, textAlign: 'center',
+            }}>
+              <FileText size={40} style={{ color: T.text3, opacity: 0.3, margin: '0 auto 12px' }} />
+              <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 6 }}>
+                لا توجد بيانات تداول بعد
+              </div>
+              <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.text3, lineHeight: 1.7 }}>
+                سيتم تسجيل كل اقتراح تداول تلقائياً عند استخدامه.
+                <br />
+                استخدم نظام التداول الآلي على الشارت لبدء تجميع البيانات.
+                <br />
+                <span style={{ color: T.amber, fontSize: 10 }}>
+                  كل يوم استخدام = دليل إضافي لأداء النظام
+                </span>
+              </div>
+            </div>
+          ) : journalStats ? (
+            <>
+              {/* ── Journal Core Stats ── */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                <StatCard
+                  label='إجمالي الاقتراحات' value={String(journalStats.totalTrades)}
+                  color={T.blue} icon={Activity}
+                  sub={`${journalStats.closedTrades} مغلق · ${journalStats.pendingTrades} معلق`}
+                />
+                <StatCard
+                  label='نسبة النجاح'
+                  value={`${Math.round(journalStats.winRate * 100)}%`}
+                  color={journalStats.winRate >= 0.5 ? T.green : T.red}
+                  icon={Target}
+                  note={journalStats.winRate >= 0.6 ? 'ممتاز' : journalStats.winRate >= 0.45 ? 'جيد' : journalStats.closedTrades > 0 ? 'يحتاج تحسين' : undefined}
+                  sub={`${journalStats.wins} رابح · ${journalStats.losses} خاسر`}
+                />
+                <StatCard
+                  label='صافي الربح'
+                  value={`${journalStats.totalPnL >= 0 ? '+' : ''}${journalStats.totalPnL}`}
+                  color={journalStats.totalPnL >= 0 ? T.green : T.red}
+                  icon={TrendingUp}
+                />
+                <StatCard
+                  label='معامل الربح'
+                  value={journalStats.profitFactor >= 999 ? '999+' : String(journalStats.profitFactor)}
+                  color={T.green} icon={Award}
+                  note={journalStats.profitFactor >= 2 ? 'ممتاز' : journalStats.profitFactor >= 1.5 ? 'جيد' : undefined}
+                />
+                <StatCard
+                  label='متوسط R'
+                  value={String(journalStats.avgRMultiple)}
+                  color={journalStats.avgRMultiple > 0 ? T.green : T.red}
+                  icon={BarChart2}
+                />
+                <StatCard
+                  label='شارب المقدر'
+                  value={String(journalStats.sharpeEstimate)}
+                  color={T.purple} icon={Award}
+                />
+                <StatCard
+                  label='أقصى تراجع'
+                  value={String(journalStats.maxDrawdown)}
+                  color={T.red} icon={TrendingDown}
+                />
+                <StatCard
+                  label='متوسط R:R'
+                  value={`1:${journalStats.avgRR.toFixed(1)}`}
+                  color={T.cyan} icon={Target}
+                />
+              </div>
+
+              {/* ── Charts Row: Win Rate Over Time + Weekly P&L ── */}
+              <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+                {/* Cumulative P&L Curve from Journal */}
+                <div style={{
+                  flex: '1 1 400px',
+                  background: T.card, border: `0.5px solid ${T.border}`,
+                  borderRadius: 10, padding: '12px 14px',
+                }}>
+                  <div style={{
+                    fontFamily: "'Cairo', sans-serif", fontWeight: 700,
+                    fontSize: 12, color: T.text, marginBottom: 8,
+                  }}>منحنى الربح التراكمي (سجل التداول)</div>
+                  {journalStats.weeklyBreakdown.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={220}>
+                      <AreaChart data={journalStats.weeklyBreakdown}>
+                        <defs>
+                          <linearGradient id="jPnlGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={T.green} stopOpacity={0.3} />
+                            <stop offset="95%" stopColor={T.green} stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="week" tick={{ fontSize: 9, fill: T.text2 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 9, fill: T.text2 }} axisLine={false} tickLine={false} width={50} />
+                        <Tooltip
+                          contentStyle={{ background: T.bg2, border: `0.5px solid ${T.border2}`, borderRadius: 8, fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}
+                          formatter={(val: any, name: string) => {
+                            if (name === 'cumulativePnL') return [`$${Number(val).toFixed(2)}`, 'الربح التراكمي']
+                            return [val, name]
+                          }}
+                        />
+                        <Area type="monotone" dataKey="cumulativePnL" stroke={T.green} fill="url(#jPnlGrad)" strokeWidth={2} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.text3 }}>لا توجد بيانات أسبوعية بعد</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Weekly Win Rate Bar Chart */}
+                <div style={{
+                  flex: '1 1 400px',
+                  background: T.card, border: `0.5px solid ${T.border}`,
+                  borderRadius: 10, padding: '12px 14px',
+                }}>
+                  <div style={{
+                    fontFamily: "'Cairo', sans-serif", fontWeight: 700,
+                    fontSize: 12, color: T.text, marginBottom: 8,
+                  }}>نسبة النجاح الأسبوعية</div>
+                  {journalStats.weeklyBreakdown.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={journalStats.weeklyBreakdown}>
+                        <XAxis dataKey="week" tick={{ fontSize: 9, fill: T.text2 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 9, fill: T.text2 }} axisLine={false} tickLine={false} width={40} domain={[0, 100]} />
+                        <Tooltip
+                          contentStyle={{ background: T.bg2, border: `0.5px solid ${T.border2}`, borderRadius: 8, fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}
+                          formatter={(val: any) => [`${Number(val).toFixed(1)}%`, 'نسبة النجاح']}
+                        />
+                        <Bar dataKey={(d: any) => Math.round(d.winRate * 100)} radius={[4, 4, 0, 0]}>
+                          {journalStats.weeklyBreakdown.map((w, i) => (
+                            <Cell key={w.week + '-' + i} fill={w.winRate >= 0.5 ? T.green : T.red} opacity={0.8} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.text3 }}>لا توجد بيانات أسبوعية بعد</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Direction & Source Breakdown ── */}
+              <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+                {/* Direction Breakdown */}
+                <div style={{
+                  flex: '1 1 300px',
+                  background: T.card, border: `0.5px solid ${T.border}`,
+                  borderRadius: 10, padding: '14px',
+                }}>
+                  <div style={{
+                    fontFamily: "'Cairo', sans-serif", fontWeight: 700,
+                    fontSize: 12, color: T.text, marginBottom: 10,
+                  }}>الأداء حسب الاتجاه</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {/* Bullish */}
+                    <div style={{ padding: '10px', background: T.bg, borderRadius: 8, border: `0.5px solid ${T.green}22` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, fontWeight: 700, color: T.green }}>▲ شراء (صاعد)</span>
+                        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 800, color: journalStats.byDirection.bullish.winRate >= 0.5 ? T.green : T.red }}>
+                          {Math.round(journalStats.byDirection.bullish.winRate * 100)}%
+                        </span>
+                      </div>
+                      <div style={{ height: 5, borderRadius: 3, background: `${T.green}15`, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', borderRadius: 3, background: T.green, width: `${journalStats.byDirection.bullish.winRate * 100}%`, transition: 'width 0.3s' }} />
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 9 }}>
+                        <span style={{ fontFamily: "'Cairo', sans-serif", color: T.text3 }}>{journalStats.byDirection.bullish.trades} صفقة</span>
+                        <span style={{ fontFamily: "'JetBrains Mono', monospace", color: journalStats.byDirection.bullish.pnl >= 0 ? T.green : T.red }}>{journalStats.byDirection.bullish.pnl >= 0 ? '+' : ''}{journalStats.byDirection.bullish.pnl}</span>
+                      </div>
+                    </div>
+                    {/* Bearish */}
+                    <div style={{ padding: '10px', background: T.bg, borderRadius: 8, border: `0.5px solid ${T.red}22` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, fontWeight: 700, color: T.red }}>▼ بيع (هابط)</span>
+                        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 800, color: journalStats.byDirection.bearish.winRate >= 0.5 ? T.green : T.red }}>
+                          {Math.round(journalStats.byDirection.bearish.winRate * 100)}%
+                        </span>
+                      </div>
+                      <div style={{ height: 5, borderRadius: 3, background: `${T.red}15`, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', borderRadius: 3, background: T.red, width: `${journalStats.byDirection.bearish.winRate * 100}%`, transition: 'width 0.3s' }} />
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 9 }}>
+                        <span style={{ fontFamily: "'Cairo', sans-serif", color: T.text3 }}>{journalStats.byDirection.bearish.trades} صفقة</span>
+                        <span style={{ fontFamily: "'JetBrains Mono', monospace", color: journalStats.byDirection.bearish.pnl >= 0 ? T.green : T.red }}>{journalStats.byDirection.bearish.pnl >= 0 ? '+' : ''}{journalStats.byDirection.bearish.pnl}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Signal Source Breakdown */}
+                <div style={{
+                  flex: '1 1 300px',
+                  background: T.card, border: `0.5px solid ${T.border}`,
+                  borderRadius: 10, padding: '14px',
+                }}>
+                  <div style={{
+                    fontFamily: "'Cairo', sans-serif", fontWeight: 700,
+                    fontSize: 12, color: T.text, marginBottom: 10,
+                  }}>أفضل مصادر الإشارة</div>
+                  {Object.entries(journalStats.bySource).length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {Object.entries(journalStats.bySource)
+                        .sort(([, a], [, b]) => b.winRate - a.winRate)
+                        .slice(0, 8)
+                        .map(([source, data]) => (
+                          <div key={source} style={{
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            padding: '6px 8px', borderRadius: 6,
+                            background: T.bg, border: `0.5px solid ${data.winRate >= 0.5 ? T.green : T.red}18`,
+                          }}>
+                            <span style={{
+                              fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700,
+                              color: data.winRate >= 0.5 ? T.green : T.red, minWidth: 40,
+                            }}>{Math.round(data.winRate * 100)}%</span>
+                            <span style={{ flex: 1, fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{source}</span>
+                            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text3 }}>{data.trades}</span>
+                            <span style={{
+                              fontFamily: "'JetBrains Mono', monospace", fontSize: 9,
+                              color: data.pnl >= 0 ? T.green : T.red,
+                            }}>{data.pnl >= 0 ? '+' : ''}{Math.round(data.pnl * 100) / 100}</span>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div style={{ padding: 20, textAlign: 'center' }}>
+                      <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.text3 }}>لا توجد بيانات مصادر بعد</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Boost Impact Section ── */}
+              {journalStats.boostTradesCount > 0 && (
+                <div style={{
+                  background: T.card, border: `0.5px solid ${T.amber}22`,
+                  borderRadius: 10, padding: '14px', marginBottom: 12,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <div style={{ width: 3, height: 16, borderRadius: 2, background: T.amber }} />
+                    <span style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 700, fontSize: 12, color: T.text }}>
+                      تأثير المحركات الثورية
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                    <div style={{ flex: '1 1 140px', padding: '10px', background: T.bg, borderRadius: 8, textAlign: 'center' }}>
+                      <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.amber, marginBottom: 4 }}>مع التعزيز الثوري</div>
+                      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 20, fontWeight: 800, color: journalStats.boostTradesWinRate >= 0.5 ? T.green : T.red }}>
+                        {Math.round(journalStats.boostTradesWinRate * 100)}%
+                      </div>
+                      <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>{journalStats.boostTradesCount} صفقة</div>
+                    </div>
+                    <div style={{ flex: '1 1 140px', padding: '10px', background: T.bg, borderRadius: 8, textAlign: 'center' }}>
+                      <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text2, marginBottom: 4 }}>بدون تعزيز</div>
+                      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 20, fontWeight: 800, color: journalStats.noBoostTradesWinRate >= 0.5 ? T.green : T.red }}>
+                        {Math.round(journalStats.noBoostTradesWinRate * 100)}%
+                      </div>
+                      <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>{journalStats.noBoostTradesCount} صفقة</div>
+                    </div>
+                    <div style={{ flex: '1 1 140px', padding: '10px', background: T.bg, borderRadius: 8, textAlign: 'center', border: `0.5px solid ${journalStats.boostLift >= 1 ? T.green : T.red}22` }}>
+                      <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text2, marginBottom: 4 }}>التحسن</div>
+                      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 20, fontWeight: 800, color: journalStats.boostLift >= 1 ? T.green : T.red }}>
+                        {journalStats.boostLift > 0 ? `${journalStats.boostLift >= 1 ? '+' : ''}${Math.round((journalStats.boostLift - 1) * 100)}%` : '—'}
+                      </div>
+                      <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>تحسن التعزيز</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Regime Performance ── */}
+              {Object.keys(journalStats.byRegime).length > 0 && (
+                <div style={{
+                  background: T.card, border: `0.5px solid ${T.border}`,
+                  borderRadius: 10, padding: '14px', marginBottom: 12,
+                }}>
+                  <div style={{
+                    fontFamily: "'Cairo', sans-serif", fontWeight: 700,
+                    fontSize: 12, color: T.text, marginBottom: 10,
+                  }}>الأداء حسب نظام السوق</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {Object.entries(journalStats.byRegime).map(([regime, data]) => (
+                      <div key={regime} style={{
+                        flex: '1 1 120px', padding: '10px', background: T.bg, borderRadius: 8,
+                        border: `0.5px solid ${data.winRate >= 0.5 ? T.green : T.red}18`,
+                        textAlign: 'center',
+                      }}>
+                        <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, fontWeight: 700, color: T.text, marginBottom: 4 }}>{regime}</div>
+                        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 16, fontWeight: 800, color: data.winRate >= 0.5 ? T.green : T.red }}>
+                          {Math.round(data.winRate * 100)}%
+                        </div>
+                        <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>{data.trades} صفقة · {data.wins} رابح</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Recent Journal Entries ── */}
+              <div style={{
+                background: T.card, border: `0.5px solid ${T.border}`,
+                borderRadius: 10, overflow: 'hidden',
+              }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center',
+                  padding: '8px 14px', gap: 8,
+                  borderBottom: `0.5px solid ${T.border}`,
+                  background: `linear-gradient(90deg, ${T.amber}0a, transparent)`,
+                }}>
+                  <div style={{ width: 3, height: 14, borderRadius: 2, background: T.amber }} />
+                  <span style={{
+                    fontFamily: "'Cairo', sans-serif", fontWeight: 700,
+                    fontSize: 12, color: T.text, flex: 1,
+                  }}>آخر اقتراحات التداول</span>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text3 }}>
+                    {journalEntries.length} سجل
+                  </span>
+                </div>
+
+                {journalEntries.length === 0 ? (
+                  <div style={{ padding: 24, textAlign: 'center' }}>
+                    <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.text3 }}>لا توجد سجلات</span>
+                  </div>
+                ) : isMobile ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 8 }}>
+                    {journalEntries.slice(0, 15).map((entry) => {
+                      const isWin = entry.realizedPnL > 0
+                      const isResolved = ['hit_tp1','hit_tp2','hit_tp3','hit_sl','trail_sl','breakeven','expired','closed'].includes(entry.status)
+                      return (
+                        <div key={entry.id} style={{
+                          background: 'rgba(255,255,255,0.02)',
+                          border: `0.5px solid ${isResolved ? (isWin ? T.green : T.red) : T.border}22`,
+                          borderRadius: 8, padding: '8px 10px',
+                          display: 'flex', flexDirection: 'column', gap: 4,
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, color: T.text }}>{entry.symbol}</span>
+                              <span style={{
+                                padding: '1px 5px', borderRadius: 3,
+                                fontFamily: "'JetBrains Mono', monospace", fontSize: 8, fontWeight: 700,
+                                background: entry.direction === 'bullish' ? `${T.green}18` : `${T.red}18`,
+                                color: entry.direction === 'bullish' ? T.green : T.red,
+                              }}>{entry.direction === 'bullish' ? '▲ شراء' : '▼ بيع'}</span>
+                            </div>
+                            {isResolved ? (
+                              <span style={{
+                                fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700,
+                                color: isWin ? T.green : T.red,
+                              }}>{isWin ? '+' : ''}{Math.round(entry.realizedPnL * 100) / 100}</span>
+                            ) : (
+                              <span style={{
+                                padding: '1px 5px', borderRadius: 3,
+                                fontFamily: "'Cairo', sans-serif", fontSize: 8,
+                                background: `${T.amber}14`, color: T.amber,
+                              }}>معلق</span>
+                            )}
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 3, fontSize: 9 }}>
+                            <div><span style={{ color: T.text3 }}>دخول: </span><span style={{ color: T.text2 }}>{entry.entryPrice}</span></div>
+                            <div><span style={{ color: T.text3 }}>SL: </span><span style={{ color: T.red }}>{entry.stopLoss}</span></div>
+                            <div><span style={{ color: T.text3 }}>R:R: </span><span style={{ color: T.text2 }}>1:{entry.rrRatio}</span></div>
+                          </div>
+                          <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 8, color: T.text3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {entry.date} · {entry.regime} · ثقة: {Math.round(entry.confidence * 100)}%
+                            {entry.boostFactorsActive.length > 0 && <span style={{ color: T.amber }}> · +{entry.boostFactorsActive.length} تعزيز</span>}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <div style={{ minWidth: 900 }}>
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: '80px 55px 70px 70px 60px 55px 55px 70px 55px 70px 80px 60px',
+                        padding: '5px 14px', gap: 0,
+                        borderBottom: `0.5px solid ${T.border}`,
+                      }}>
+                        {['التاريخ','الاتجاه','الدخول','SL','TP1','R:R','ثقة','النتيجة','R','الربح','الإشارات','التعزيز'].map((h) => (
+                          <div key={h} style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3, textAlign: 'center' }}>{h}</div>
+                        ))}
+                      </div>
+                      {journalEntries.slice(0, 25).map((entry, i) => {
+                        const isWin = entry.realizedPnL > 0
+                        const isResolved = ['hit_tp1','hit_tp2','hit_tp3','hit_sl','trail_sl','breakeven','expired','closed'].includes(entry.status)
+                        const statusLabel = entry.status === 'hit_tp1' ? 'TP1' : entry.status === 'hit_tp2' ? 'TP2' : entry.status === 'hit_tp3' ? 'TP3' : entry.status === 'hit_sl' ? 'SL' : entry.status === 'trail_sl' ? 'Trail' : entry.status === 'breakeven' ? 'BE' : isResolved ? 'مغلق' : 'معلق'
+                        return (
+                          <div key={entry.id} style={{
+                            display: 'grid',
+                            gridTemplateColumns: '80px 55px 70px 70px 60px 55px 55px 70px 55px 70px 80px 60px',
+                            padding: '6px 14px', gap: 0,
+                            borderBottom: i < Math.min(journalEntries.length, 25) - 1 ? `0.5px solid ${T.border}` : 'none',
+                            alignItems: 'center',
+                            background: i % 2 === 0 ? 'rgba(255,255,255,0.005)' : 'transparent',
+                          }}>
+                            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text2, textAlign: 'center' }}>{entry.date}</div>
+                            <div style={{ textAlign: 'center' }}>
+                              <span style={{
+                                padding: '1px 5px', borderRadius: 3,
+                                fontFamily: "'JetBrains Mono', monospace", fontSize: 8, fontWeight: 700,
+                                background: entry.direction === 'bullish' ? `${T.green}18` : `${T.red}18`,
+                                color: entry.direction === 'bullish' ? T.green : T.red,
+                              }}>{entry.direction === 'bullish' ? '▲' : '▼'}</span>
+                            </div>
+                            <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text2 }}>{entry.entryPrice}</div>
+                            <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.red }}>{entry.stopLoss}</div>
+                            <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.green }}>{entry.takeProfits[0] || '—'}</div>
+                            <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text2 }}>1:{entry.rrRatio}</div>
+                            <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text2 }}>{Math.round(entry.confidence * 100)}%</div>
+                            <div style={{ textAlign: 'center' }}>
+                              <span style={{
+                                padding: '1px 5px', borderRadius: 3,
+                                fontFamily: "'JetBrains Mono', monospace", fontSize: 8, fontWeight: 700,
+                                background: !isResolved ? `${T.amber}14` : isWin ? `${T.green}18` : `${T.red}18`,
+                                color: !isResolved ? T.amber : isWin ? T.green : T.red,
+                              }}>{statusLabel}</span>
+                            </div>
+                            <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: entry.rMultiple > 0 ? T.green : entry.rMultiple < 0 ? T.red : T.text2 }}>{entry.rMultiple > 0 ? '+' : ''}{entry.rMultiple}R</div>
+                            <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700, color: isWin ? T.green : !isResolved ? T.text3 : T.red }}>{isResolved ? (isWin ? '+' : '') + (Math.round(entry.realizedPnL * 100) / 100) : '—'}</div>
+                            <div style={{ textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {entry.agreeingSignals.slice(0, 2).map(s => s.source).join(', ')}
+                              {entry.agreeingSignals.length > 2 && <span style={{ color: T.text3, fontSize: 8 }}> +{entry.agreeingSignals.length - 2}</span>}
+                            </div>
+                            <div style={{ textAlign: 'center' }}>
+                              {entry.boostFactorsActive.length > 0 ? (
+                                <span style={{
+                                  padding: '1px 4px', borderRadius: 3,
+                                  fontFamily: "'JetBrains Mono', monospace", fontSize: 7, fontWeight: 700,
+                                  background: `${T.amber}14`, color: T.amber,
+                                }}>+{entry.boostFactorsActive.length}</span>
+                              ) : (
+                                <span style={{ color: T.text3, fontSize: 8 }}>—</span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Consecutive Stats ── */}
+              <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                <div style={{
+                  flex: 1, padding: '10px 14px', background: T.card,
+                  border: `0.5px solid ${T.green}22`, borderRadius: 10,
+                  display: 'flex', alignItems: 'center', gap: 10,
+                }}>
+                  <TrendingUp size={16} color={T.green} />
+                  <div>
+                    <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>أطول سلسلة رابحة</div>
+                    <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 18, fontWeight: 800, color: T.green }}>{journalStats.maxConsecutiveWins}</div>
+                  </div>
+                </div>
+                <div style={{
+                  flex: 1, padding: '10px 14px', background: T.card,
+                  border: `0.5px solid ${T.red}22`, borderRadius: 10,
+                  display: 'flex', alignItems: 'center', gap: 10,
+                }}>
+                  <TrendingDown size={16} color={T.red} />
+                  <div>
+                    <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>أطول سلسلة خاسرة</div>
+                    <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 18, fontWeight: 800, color: T.red }}>{journalStats.maxConsecutiveLosses}</div>
+                  </div>
+                </div>
+                <div style={{
+                  flex: 1, padding: '10px 14px', background: T.card,
+                  border: `0.5px solid ${T.blue}22`, borderRadius: 10,
+                  display: 'flex', alignItems: 'center', gap: 10,
+                }}>
+                  <Clock size={16} color={T.blue} />
+                  <div>
+                    <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>متوسط مدة الصفقة</div>
+                    <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 18, fontWeight: 800, color: T.cyan }}>
+                      {journalStats.avgDurationMinutes >= 60
+                        ? `${Math.floor(journalStats.avgDurationMinutes / 60)}h ${Math.round(journalStats.avgDurationMinutes % 60)}m`
+                        : `${Math.round(journalStats.avgDurationMinutes)}m`
+                      }
+                    </div>
+                  </div>
+                </div>
+                <div style={{
+                  flex: 1, padding: '10px 14px', background: T.card,
+                  border: `0.5px solid ${T.purple}22`, borderRadius: 10,
+                  display: 'flex', alignItems: 'center', gap: 10,
+                }}>
+                  <Activity size={16} color={T.purple} />
+                  <div>
+                    <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>صفقات/يوم</div>
+                    <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 18, fontWeight: 800, color: T.purple }}>{journalStats.tradesPerDay}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Investor Notice ── */}
+              <div style={{
+                background: `${T.green}08`, border: `0.5px solid ${T.green}22`,
+                borderRadius: 10, padding: '12px 16px', marginTop: 12,
+                display: 'flex', gap: 8, alignItems: 'flex-start',
+              }}>
+                <Award size={14} style={{ color: T.green, marginTop: 2, flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, fontWeight: 700, color: T.green, marginBottom: 2 }}>
+                    دليل أداء النظام
+                  </div>
+                  <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text3, lineHeight: 1.7 }}>
+                    هذه البيانات تُسجّل تلقائياً من نظام التداول الآلي على بيانات حية.
+                    استخدم زر "تقرير PDF للمستثمرين" لتصدير تقرير احترافي.
+                    <br />
+                    <span style={{ color: T.amber }}>تنبيه:</span> النتائج السابقة لا تضمن النتائج المستقبلية. هذه بيانات تداول ورقي على أسعار حية.
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : null}
         </>
       )}
 

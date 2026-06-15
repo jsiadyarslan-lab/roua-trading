@@ -202,8 +202,8 @@ const DEFAULT_RISK: RiskParams = {
   accountBalance: 10000,    // $10,000 default
   minRRRatio: 1.5,          // Minimum 1:1.5 R:R (was 2.0 — too strict for crypto)
   maxPositionFraction: 0.1, // Max 10% of account in one position
-  minConfluence: 40,        // Minimum 40% confluence score (was 60 — too strict)
-  minAgreeingSignals: 2,    // Minimum 2 agreeing signals (was 3 — too strict for low-signal markets)
+  minConfluence: 55,        // V262: Raised from 40 → 55 for higher quality proposals
+  minAgreeingSignals: 3,    // V262: Raised from 2 → 3 — need stronger consensus
   maxSLPct: 0.03,           // Max 3% SL distance
   atrSLMultiplier: 2.0,     // 2x ATR for SL fallback
   dailyLossLimit: 0.03,     // 3% daily loss limit
@@ -553,12 +553,11 @@ export function generateTradeProposal(opts: {
   const params = getRiskParams();
 
   // ── Gate 1: Minimum confluence ──
-  // FIX: Allow single high-confidence signals to bypass minimum confluence.
-  // Previously, minConfluence=40 was required even for a 95% confident harmonic
-  // pattern. Now, if a single signal has confidence >= 0.8, we lower the threshold.
-  const hasHighConfidenceSignal = signals.some(s => s.confidence >= 0.8 && s.direction === direction);
-  const effectiveMinConfluence = hasHighConfidenceSignal
-    ? Math.max(20, params.minConfluence - 20)  // Lower threshold if high-confidence signal exists
+  // V262: Raised from 40 → 55. Higher threshold = fewer but better proposals.
+  // Exception: single ultra-high-confidence signal (≥0.9) can bypass with 40%.
+  const hasUltraHighConfidence = signals.some(s => s.confidence >= 0.9 && s.direction === direction);
+  const effectiveMinConfluence = hasUltraHighConfidence
+    ? Math.max(40, params.minConfluence - 15)  // Still need 40% even for ultra-high-confidence
     : params.minConfluence;
   if (confluenceScore < effectiveMinConfluence) return null;
 
@@ -566,12 +565,11 @@ export function generateTradeProposal(opts: {
   if (direction === 'neutral') return null;
 
   // ── Gate 3: Minimum agreeing signals ──
-  // FIX: Allow single high-confidence signal to bypass minimum count.
-  // A harmonic Gartley at 85% confidence is tradeable alone — no need
-  // to wait for 2+ signals that may never arrive simultaneously.
+  // V262: Raised from 2 → 3. Need real consensus, not coincidence.
+  // Exception: single signal with ≥0.9 confidence can trade with 1 supporting signal.
   const agreeingSignals = signals.filter(s => s.direction === direction);
-  const effectiveMinSignals = hasHighConfidenceSignal
-    ? 1  // High-confidence signal can trade alone
+  const effectiveMinSignals = hasUltraHighConfidence
+    ? 2  // Ultra-high-confidence needs at least 1 other supporting signal
     : params.minAgreeingSignals;
   if (agreeingSignals.length < effectiveMinSignals) return null;
 
@@ -887,20 +885,62 @@ export function autoEvaluateProposals(currentPrice: number, candles?: CandleData
       }
     }
 
-    // ── Trailing Stop Update ──
+    // ── Smart Trailing Stop Update (V262) ──
+    // Enhanced trailing that:
+    // 1. Uses adaptive ATR (tighter in low-vol, wider in high-vol)
+    // 2. Locks in profit progressively (tighter as price moves in our favor)
+    // 3. Only moves trail when price moves enough (step-based, not every tick)
     if (!newStatus && params.enableTrailingStop && atr > 0) {
       const hasHitTP1 = proposal.status === 'breakeven' || (proposal.status as string) === 'hit_tp1' || (proposal.status as string) === 'hit_tp2';
 
       if (hasHitTP1) {
-        // Activate trailing stop
+        // ── Adaptive ATR multiplier ──
+        // The further price moves in our favor, the tighter the trail becomes.
+        // At TP1: trailDistance = 1.5 × ATR (default, room to breathe)
+        // At TP2: trailDistance = 1.0 × ATR (tighter, protecting more profit)
+        // Beyond TP2: trailDistance = 0.7 × ATR (very tight, locking profit)
+        const profitDistance = proposal.direction === 'bullish'
+          ? currentPrice - proposal.entryPrice
+          : proposal.entryPrice - currentPrice;
+        const risk = Math.abs(proposal.entryPrice - proposal.stopLoss);
+        const profitInR = risk > 0 ? profitDistance / risk : 0;
+
+        let adaptiveATRMultiplier: number;
+        if (profitInR >= 2.0) {
+          // Beyond TP2 — very tight trail
+          adaptiveATRMultiplier = 0.7;
+        } else if (profitInR >= 1.5) {
+          // At TP2 level — tighter trail
+          adaptiveATRMultiplier = 1.0;
+        } else if (profitInR >= 1.0) {
+          // At TP1 level — normal trail
+          adaptiveATRMultiplier = params.trailATRMultiplier;
+        } else {
+          // Not yet at TP1 — don't trail yet (breakeven handles this)
+          adaptiveATRMultiplier = params.trailATRMultiplier;
+        }
+
+        const trailDist = atr * adaptiveATRMultiplier;
+
+        // ── Step-based trailing ──
+        // Only move trail if new position is at least 0.2 × ATR better
+        // This prevents tiny movements from constantly shifting the trail
+        const minStepSize = atr * 0.2;
+
         if (proposal.direction === 'bullish') {
-          const newTrailSL = currentPrice - atr * params.trailATRMultiplier;
-          if (!proposal.currentTrailSL || newTrailSL > proposal.currentTrailSL) {
+          const newTrailSL = currentPrice - trailDist;
+          if (!proposal.currentTrailSL) {
+            // First trail activation
+            proposal.currentTrailSL = Math.round(newTrailSL * 100) / 100;
+          } else if (newTrailSL > proposal.currentTrailSL + minStepSize) {
+            // Only move if improvement exceeds minimum step
             proposal.currentTrailSL = Math.round(newTrailSL * 100) / 100;
           }
         } else {
-          const newTrailSL = currentPrice + atr * params.trailATRMultiplier;
-          if (!proposal.currentTrailSL || newTrailSL < proposal.currentTrailSL) {
+          const newTrailSL = currentPrice + trailDist;
+          if (!proposal.currentTrailSL) {
+            proposal.currentTrailSL = Math.round(newTrailSL * 100) / 100;
+          } else if (newTrailSL < proposal.currentTrailSL - minStepSize) {
             proposal.currentTrailSL = Math.round(newTrailSL * 100) / 100;
           }
         }
@@ -923,7 +963,17 @@ export function autoEvaluateProposals(currentPrice: number, candles?: CandleData
     if (newStatus) {
       proposal.status = newStatus;
       // Move completed trades to history
-      if (newStatus === 'hit_tp3' || newStatus === 'hit_sl') {
+      // V262: trail_sl is also a completed trade — it's the smart exit
+      if (newStatus === 'hit_tp3' || newStatus === 'hit_sl' || newStatus === 'trail_sl') {
+        // For trail_sl: calculate P&L based on trail stop level vs entry
+        if (newStatus === 'trail_sl' && proposal.currentTrailSL) {
+          const trailPnL = proposal.direction === 'bullish'
+            ? (proposal.currentTrailSL - proposal.entryPrice) * proposal.positionSize
+            : (proposal.entryPrice - proposal.currentTrailSL) * proposal.positionSize;
+          proposal.pnl.realized += trailPnL;
+          proposal.pnl.fees += proposal.positionSize * proposal.entryPrice * 0.001;
+          proposal.pnl.netPnL = proposal.pnl.realized - proposal.pnl.fees;
+        }
         tradeHistory.set(proposal.id, { ...proposal });
       }
     }
@@ -966,8 +1016,10 @@ export function getProposalStats(): {
 } {
   const all = Array.from(proposals.values());
   const history = Array.from(tradeHistory.values());
-  const completed = history.filter(p => p.status === 'hit_tp1' || p.status === 'hit_tp2' || p.status === 'hit_tp3' || p.status === 'hit_sl');
-  const wins = history.filter(p => p.status === 'hit_tp1' || p.status === 'hit_tp2' || p.status === 'hit_tp3');
+  const completed = history.filter(p => p.status === 'hit_tp1' || p.status === 'hit_tp2' || p.status === 'hit_tp3' || p.status === 'hit_sl' || p.status === 'trail_sl');
+  // V262: trail_sl counts as a WIN if it exited in profit (trailSL better than entry)
+  const wins = history.filter(p => p.status === 'hit_tp1' || p.status === 'hit_tp2' || p.status === 'hit_tp3'
+    || (p.status === 'trail_sl' && p.pnl.netPnL > 0));
 
   const totalPnL = history.reduce((s, p) => s + p.pnl.netPnL, 0);
   const avgQuality = completed.length > 0

@@ -774,6 +774,14 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         setPaperComparison(getPerformanceComparison());
       } catch { /* Paper Trading fallback */ }
 
+      // ── Phase 5: Auto-Trade Proposal Evaluation (SL/TP/Trailing Stop) ──
+      try {
+        const evaluatedProposals = autoEvaluateProposals(price, c);
+        if (evaluatedProposals.length > 0) {
+          setTradeProposals(getTradeProposals());
+        }
+      } catch { /* Auto-Trade evaluation fallback */ }
+
       // ── Phase 5: AI Council Bridge ─────────────────────────────────
       try {
         const bridgePayload = buildAIAnalysisPayload({

@@ -42,7 +42,7 @@ export class SwingStrategy extends BaseStrategy {
     super(params);
     this.holdingPeriodHours = params.swingHoldingPeriodHours ?? 48;
     this.minRiskRewardRatio = 1.5; // Swing requires good R:R (using ATR 2x/4x gives 2:1)
-    this.minConfidence = 30; // Lowered from 40 — was still too strict, signals in 30-40 range are valid
+    this.minConfidence = 40; // V-PHASE1: Raised from 30 to 40 — consistent with base strategy
   }
 
   protected analyze(market: MarketAnalysis): StrategyAnalysis {

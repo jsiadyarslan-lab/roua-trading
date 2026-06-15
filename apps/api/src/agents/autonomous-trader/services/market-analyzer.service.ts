@@ -66,8 +66,13 @@ export class MarketAnalyzerService {
       const startDate = new Date(endDate.getTime() - 90 * 24 * 60 * 60 * 1000); // 90 days
       const candles = await this.exchangeService.getHistoricalData(symbol, '1h', startDate, endDate);
       if (!candles || candles.length < 50) {
-        this.logger.warn(`Insufficient historical data for ${symbol} (${candles?.length ?? 0} candles)`);
-        return this._buildMinimalAnalysis(symbol, quote);
+        this.logger.warn(`Insufficient historical data for ${symbol} (${candles?.length ?? 0} candles) — V-PHASE1: refusing to trade on fabricated data`);
+        // V-PHASE1: Return null instead of fabricating indicators from minimal data.
+        // Previously _buildMinimalAnalysis() estimated RSI from 24h change, fabricated
+        // MACD values, and created synthetic Bollinger Bands. Strategies would then
+        // generate REAL trades based on this MADE-UP data. This is extremely dangerous.
+        // Now: if we don't have enough real data, we simply don't trade this symbol.
+        return null;
       }
 
       // Parse candle data (UnifiedCandle format)

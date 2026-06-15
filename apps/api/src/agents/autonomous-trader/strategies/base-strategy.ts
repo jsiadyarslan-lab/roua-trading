@@ -25,7 +25,7 @@ export abstract class BaseStrategy {
 
   protected params: StrategyParams;
   protected minRiskRewardRatio: number = 1.0; // Minimum R:R ratio (lowered from 1.2 to match risk calculator strategy-specific minimums)
-  protected minConfidence: number = 20; // Minimum confidence to generate signal (lowered from 25 — many valid signals score 20-30, especially in ranging markets)
+  protected minConfidence: number = 40; // V-PHASE1: Raised from 20 to 40 — low threshold generated too many weak signals causing losses
 
   constructor(params: StrategyParams) {
     this.params = params;

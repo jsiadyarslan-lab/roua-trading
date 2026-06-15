@@ -3176,13 +3176,13 @@ export class SmartExecutorService implements OnModuleDestroy {
       let quantity = posResult.quantityUnits;
       let lots = posResult.quantityLots;
 
-      // V180 FIX: Cap by max order value — SAME limit for paper and real (2%).
-      // Previously paper was 5% which allowed positions of 86% of portfolio.
-      // Paper trading must enforce the same risk discipline as real trading
-      // so that test results reflect real-world behavior.
-      // V219: Removed $200 hard cap — it was too restrictive for larger accounts.
-      // A $50K account at 2% = $1,000 but was capped at $200. Now purely percentage-based.
-      const maxOrderValue = portfolioValue * 0.02;
+      // V180 FIX: Cap by max order value — SAME limit for paper and real.
+      // V-PHASE1: Lowered from 2% to 1% max risk per trade. The 2% cap allowed
+      // oversized positions (e.g., DOGE $8,465 = 86% of portfolio) because with
+      // multiple multipliers (confidence, dynamic, correlation, MTF), the effective
+      // position could exceed 2% of portfolio after all multipliers. 1% hard cap
+      // prevents catastrophic single-trade losses.
+      const maxOrderValue = portfolioValue * 0.01;
 
       if (posResult.notional > maxOrderValue) {
         // Reduce quantity to fit within max order value

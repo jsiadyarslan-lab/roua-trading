@@ -59,7 +59,7 @@ export class MeanReversionStrategy extends BaseStrategy {
     this.bbUpperThreshold = params.meanReversionBbUpper ?? 0.80;  // FIX: Lowered from 0.85 to 0.80 — percentB > 0.85 is extremely rare
     this.deviationMultiplier = params.meanReversionDeviation ?? 1.2; // FIX: Lowered from 1.5 to 1.2 — 1.5σ deviation is too strict for typical markets
     this.minRiskRewardRatio = 1.0; // Mean reversion: ATR-based TP gives R:R >= 1.25
-    this.minConfidence = 25; // FIX: Lowered from 30 — many valid reversion signals score 25-35
+    this.minConfidence = 40; // V-PHASE1: Raised from 25 to 40 — consistent with base strategy
   }
 
   protected analyze(market: MarketAnalysis): StrategyAnalysis {
@@ -83,9 +83,13 @@ export class MeanReversionStrategy extends BaseStrategy {
     const rsiOverbought = rsi > this.rsiOverbought;
     const stronglyOverbought = rsi > 75;
 
-    // Count confirming signals for each direction
-    const buyConfirmations = [deeplyBelowMean, belowBbLower, rsiOversold, market.trend !== 'BULLISH'].filter(Boolean).length;
-    const sellConfirmations = [deeplyAboveMean, aboveBbUpper, rsiOverbought, market.trend !== 'BEARISH'].filter(Boolean).length;
+    // V-PHASE1: Fixed inverted trend filter for Mean Reversion.
+    // Old: market.trend !== 'BULLISH' counted BEARISH/SIDEWAYS as "confirmation" for BUY.
+    // In BEARISH trend, mean reversion BUY signals are catching falling knives — the mean moves away.
+    // New: Only SIDEWAYS is valid for mean reversion. BEARISH trend = no BUY reversion.
+    // SELL filter similarly: only SIDEWAYS, not BULLISH.
+    const buyConfirmations = [deeplyBelowMean, belowBbLower, rsiOversold, market.trend === 'SIDEWAYS'].filter(Boolean).length;
+    const sellConfirmations = [deeplyAboveMean, aboveBbUpper, rsiOverbought, market.trend === 'SIDEWAYS'].filter(Boolean).length;
 
     let direction: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
     let strength = 0;

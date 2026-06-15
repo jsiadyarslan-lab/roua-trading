@@ -418,6 +418,10 @@ export default function RouaChart({
   const [candleCountdown, setCandleCountdown] = useState('—');
   const [lotSize, setLotSize] = useState(0.01);
   const [tradePanelCollapsed, setTradePanelCollapsed] = useState(false);
+  const [tradeSide, setTradeSide] = useState<'buy' | 'sell'>('buy');
+  const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop'>('market');
+  const [tradeSl, setTradeSl] = useState('');
+  const [tradeTp, setTradeTp] = useState('');
   const [showDrawingPanel, setShowDrawingPanel] = useState(false);
   const [showIndicatorPanel, setShowIndicatorPanel] = useState(false);
   const [settingsIndicator, setSettingsIndicator] = useState<ActiveIndicator | null>(null);
@@ -3310,12 +3314,9 @@ export default function RouaChart({
             const resolvedPrice = (typeof currentPrice === 'number' && currentPrice > 0) ? currentPrice : (candlesRef.current[candlesRef.current.length - 1]?.close || 0);
             const spreadVal = resolvedPrice * 0.0005;
             const pDec = resolvedPrice > 1000 ? 2 : resolvedPrice > 1 ? 4 : 6;
-            // BID = slightly below mid, ASK = slightly above mid
-            const bid = resolvedPrice - spreadVal / 2;
-            const ask = resolvedPrice + spreadVal / 2;
             const spreadPips = pDec <= 2 ? spreadVal.toFixed(1) : Math.round(spreadVal * Math.pow(10, pDec));
 
-            // ── Collapsed: Horizontal bar (MetaTrader collapsed style) ──
+            // ── Collapsed: Thin horizontal pill (MetaTrader style) ──
             if (tradePanelCollapsed) {
               return (
                 <div
@@ -3327,44 +3328,89 @@ export default function RouaChart({
                     zIndex: 100,
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 6,
-                    padding: '4px 8px',
-                    borderRadius: 4,
-                    background: '#1E1E1E',
-                    border: '1px solid #333',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                    gap: 4,
+                    padding: '3px 6px',
+                    borderRadius: 14,
+                    background: 'rgba(20,20,24,0.95)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.6)',
                     pointerEvents: (chart.activeTool === 'cursor' && !mobile) ? 'auto' : 'none',
-                    transition: 'all 0.15s ease',
+                    transition: 'all 0.2s ease',
+                    backdropFilter: 'blur(8px)',
                   }}
                 >
-                  {/* Symbol */}
-                  <span style={{ fontSize: 10, color: '#FFF', fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
-                    {selectedSymbol_}
-                  </span>
                   {/* Price */}
-                  <span style={{ fontSize: 10, color: '#FFF', fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
+                  <span style={{ fontSize: 11, color: '#FFF', fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", letterSpacing: -0.3 }}>
                     {resolvedPrice.toFixed(pDec)}
                   </span>
-                  {/* Expand */}
-                  <button onClick={() => setTradePanelCollapsed(false)}
-                    style={{ background: '#333', border: 'none', color: '#AAA', cursor: 'pointer', padding: '1px 5px', fontSize: 9, borderRadius: 2 }}>▸</button>
-                  {/* SELL mini */}
-                  <button onClick={() => {
-                    const { addTrade } = usePaperTradesStore.getState();
-                    addTrade({ symbol: selectedSymbol_, side: 'short', qty: lotSize, entryPrice: resolvedPrice, currentPrice: resolvedPrice, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
-                  }}
-                    style={{ padding: '3px 10px', background: 'linear-gradient(to bottom, #FF4444, #CC0000)', border: '1px solid #990000', borderRadius: 3, color: '#FFF', fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace" }}>SELL</button>
-                  {/* BUY mini */}
-                  <button onClick={() => {
-                    const { addTrade } = usePaperTradesStore.getState();
-                    addTrade({ symbol: selectedSymbol_, side: 'long', qty: lotSize, entryPrice: resolvedPrice, currentPrice: resolvedPrice, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
-                  }}
-                    style={{ padding: '3px 10px', background: 'linear-gradient(to bottom, #00B0FF, #0066CC)', border: '1px solid #004C99', borderRadius: 3, color: '#FFF', fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace" }}>BUY</button>
+                  {/* Spread */}
+                  <span style={{ fontSize: 7, color: '#666', fontFamily: "'JetBrains Mono', monospace" }}>
+                    {spreadPips}
+                  </span>
+                  {/* Divider */}
+                  <span style={{ width: 1, height: 12, background: 'rgba(255,255,255,0.1)', display: 'inline-block' }} />
+                  {/* BUY mini pill */}
+                  <button
+                    onClick={() => {
+                      setTradeSide('buy');
+                      const { addTrade } = usePaperTradesStore.getState();
+                      addTrade({ symbol: selectedSymbol_, side: 'long', qty: lotSize, entryPrice: resolvedPrice, currentPrice: resolvedPrice, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
+                    }}
+                    style={{
+                      padding: '2px 8px',
+                      background: '#00C853',
+                      border: 'none',
+                      borderRadius: 8,
+                      color: '#FFF',
+                      fontSize: 8,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      fontFamily: "'JetBrains Mono', monospace",
+                      letterSpacing: 0.5,
+                      lineHeight: '14px',
+                    }}
+                  >BUY</button>
+                  {/* SELL mini pill */}
+                  <button
+                    onClick={() => {
+                      setTradeSide('sell');
+                      const { addTrade } = usePaperTradesStore.getState();
+                      addTrade({ symbol: selectedSymbol_, side: 'short', qty: lotSize, entryPrice: resolvedPrice, currentPrice: resolvedPrice, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
+                    }}
+                    style={{
+                      padding: '2px 8px',
+                      background: '#FF1744',
+                      border: 'none',
+                      borderRadius: 8,
+                      color: '#FFF',
+                      fontSize: 8,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      fontFamily: "'JetBrains Mono', monospace",
+                      letterSpacing: 0.5,
+                      lineHeight: '14px',
+                    }}
+                  >SELL</button>
+                  {/* Expand arrow */}
+                  <button
+                    onClick={() => setTradePanelCollapsed(false)}
+                    style={{
+                      background: 'rgba(255,255,255,0.06)',
+                      border: 'none',
+                      color: '#888',
+                      cursor: 'pointer',
+                      padding: '2px 4px',
+                      fontSize: 8,
+                      borderRadius: 4,
+                      lineHeight: 1,
+                    }}
+                  >▲</button>
                 </div>
               );
             }
 
-            // ── Expanded: MetaTrader-Style Panel ──
+            // ── Expanded: MetaTrader-Style Execution Panel ──
+            const execPrice = tradeSide === 'buy' ? resolvedPrice + spreadVal / 2 : resolvedPrice - spreadVal / 2;
             return (
               <div
                 className="roua-quick-trade"
@@ -3375,140 +3421,277 @@ export default function RouaChart({
                   zIndex: 100,
                   display: 'flex',
                   flexDirection: 'column',
-                  borderRadius: 6,
-                  background: '#1A1A1A',
-                  border: '1px solid #333',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+                  borderRadius: 8,
+                  background: 'rgba(20,20,24,0.97)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.7)',
                   overflow: 'hidden',
                   pointerEvents: (chart.activeTool === 'cursor' && !mobile) ? 'auto' : 'none',
-                  transition: 'all 0.15s ease',
-                  width: 200,
+                  transition: 'all 0.2s ease',
+                  width: 210,
                   fontFamily: "'JetBrains Mono', monospace",
+                  backdropFilter: 'blur(12px)',
                 }}
               >
-                {/* ── Header: Symbol + Timeframe + Collapse ── */}
+                {/* ── Header: Symbol + Collapse ── */}
                 <div style={{
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  padding: '6px 8px 4px',
-                  background: '#222',
-                  borderBottom: '1px solid #333',
+                  padding: '7px 10px 5px',
+                  borderBottom: '1px solid rgba(255,255,255,0.06)',
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <span style={{ fontSize: 11, color: '#FFF', fontWeight: 700 }}>{selectedSymbol_}</span>
-                    <span style={{ fontSize: 8, color: '#888', background: '#333', padding: '1px 4px', borderRadius: 2 }}>{timeframe_ || 'M1'}</span>
-                  </div>
-                  <button onClick={() => setTradePanelCollapsed(true)}
-                    style={{ background: '#333', border: 'none', color: '#888', cursor: 'pointer', fontSize: 9, padding: '1px 5px', borderRadius: 2, fontWeight: 700 }}>▾</button>
+                  <span style={{ fontSize: 12, color: '#FFF', fontWeight: 800, letterSpacing: 0.5 }}>{selectedSymbol_}</span>
+                  <button
+                    onClick={() => setTradePanelCollapsed(true)}
+                    style={{
+                      background: 'rgba(255,255,255,0.06)',
+                      border: 'none',
+                      color: '#888',
+                      cursor: 'pointer',
+                      fontSize: 10,
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                      fontWeight: 700,
+                      lineHeight: 1,
+                    }}
+                  >▾</button>
                 </div>
 
-                {/* ── BID / ASK Price Section ── */}
+                {/* ── Price Display ── */}
                 <div style={{
-                  padding: '6px 8px',
-                  background: '#1A1A1A',
-                  borderBottom: '1px solid #2A2A2A',
+                  padding: '8px 10px 6px',
+                  textAlign: 'center',
                 }}>
-                  {/* BID */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                    <span style={{ fontSize: 8, color: '#FF4444', fontWeight: 600, letterSpacing: 1 }}>BID</span>
-                    <span style={{ fontSize: 14, color: '#FF4444', fontWeight: 700, letterSpacing: -0.3 }}>
-                      {bid.toFixed(pDec)}
-                    </span>
+                  <div style={{
+                    fontSize: 22,
+                    fontWeight: 900,
+                    color: '#FFF',
+                    letterSpacing: -0.5,
+                    lineHeight: 1.1,
+                  }}>
+                    {resolvedPrice.toFixed(pDec)}
                   </div>
-                  {/* ASK */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                    <span style={{ fontSize: 8, color: '#00B0FF', fontWeight: 600, letterSpacing: 1 }}>ASK</span>
-                    <span style={{ fontSize: 14, color: '#00B0FF', fontWeight: 700, letterSpacing: -0.3 }}>
-                      {ask.toFixed(pDec)}
-                    </span>
-                  </div>
-                  {/* Spread */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 7, color: '#666' }}>SPREAD</span>
-                    <span style={{ fontSize: 9, color: '#AAA' }}>{spreadPips}</span>
+                  <div style={{
+                    fontSize: 8,
+                    color: '#555',
+                    marginTop: 2,
+                    letterSpacing: 1,
+                  }}>
+                    SPREAD {spreadPips}
                   </div>
                 </div>
 
-                {/* ── Lot Size ── */}
+                {/* ── Buy / Sell Toggle ── */}
                 <div style={{
-                  padding: '6px 8px',
-                  borderBottom: '1px solid #2A2A2A',
+                  display: 'flex',
+                  padding: '0 10px 6px',
+                  gap: 4,
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-                    <span style={{ fontSize: 8, color: '#888', fontWeight: 600 }}>VOLUME</span>
-                  </div>
+                  <button
+                    onClick={() => setTradeSide('buy')}
+                    style={{
+                      flex: 1,
+                      padding: '7px 0',
+                      background: tradeSide === 'buy' ? '#00C853' : 'rgba(0,200,83,0.1)',
+                      border: tradeSide === 'buy' ? '1px solid #00C853' : '1px solid rgba(0,200,83,0.25)',
+                      borderRadius: 5,
+                      color: tradeSide === 'buy' ? '#FFF' : '#00C853',
+                      fontSize: 11,
+                      fontWeight: 900,
+                      cursor: 'pointer',
+                      letterSpacing: 0.5,
+                      transition: 'all 0.15s ease',
+                    }}
+                  >BUY</button>
+                  <button
+                    onClick={() => setTradeSide('sell')}
+                    style={{
+                      flex: 1,
+                      padding: '7px 0',
+                      background: tradeSide === 'sell' ? '#FF1744' : 'rgba(255,23,68,0.1)',
+                      border: tradeSide === 'sell' ? '1px solid #FF1744' : '1px solid rgba(255,23,68,0.25)',
+                      borderRadius: 5,
+                      color: tradeSide === 'sell' ? '#FFF' : '#FF1744',
+                      fontSize: 11,
+                      fontWeight: 900,
+                      cursor: 'pointer',
+                      letterSpacing: 0.5,
+                      transition: 'all 0.15s ease',
+                    }}
+                  >SELL</button>
+                </div>
+
+                {/* ── Order Type Tabs: Market / Limit / Stop ── */}
+                <div style={{
+                  display: 'flex',
+                  padding: '0 10px 6px',
+                  gap: 2,
+                }}>
+                  {(['market', 'limit', 'stop'] as const).map(ot => (
+                    <button
+                      key={ot}
+                      onClick={() => setOrderType(ot)}
+                      style={{
+                        flex: 1,
+                        padding: '4px 0',
+                        background: orderType === ot ? 'rgba(255,255,255,0.08)' : 'transparent',
+                        border: orderType === ot ? '1px solid rgba(255,255,255,0.15)' : '1px solid transparent',
+                        borderRadius: 3,
+                        color: orderType === ot ? '#FFF' : '#555',
+                        fontSize: 9,
+                        fontWeight: orderType === ot ? 800 : 600,
+                        cursor: 'pointer',
+                        letterSpacing: 0.5,
+                        textTransform: 'uppercase',
+                        transition: 'all 0.12s ease',
+                      }}
+                    >{ot}</button>
+                  ))}
+                </div>
+
+                {/* ── Volume / Lot Size ── */}
+                <div style={{ padding: '0 10px 5px' }}>
+                  <div style={{ fontSize: 7, color: '#555', fontWeight: 700, letterSpacing: 1, marginBottom: 3 }}>VOLUME</div>
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    background: '#111',
-                    border: '1px solid #333',
-                    borderRadius: 3,
+                    background: 'rgba(0,0,0,0.4)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 4,
                     overflow: 'hidden',
                   }}>
-                    <button onClick={() => setLotSize(prev => Math.max(0.01, +(prev - 0.01).toFixed(2)))}
-                      style={{ background: '#2A2A2A', border: 'none', borderRight: '1px solid #333', color: '#CCC', fontSize: 14, cursor: 'pointer', padding: '5px 8px', outline: 'none', fontWeight: 700, lineHeight: 1 }}>−</button>
-                    <span style={{ flex: 1, textAlign: 'center', color: '#FFF', fontSize: 12, fontWeight: 700, padding: '4px 0' }}>{lotSize.toFixed(2)}</span>
-                    <button onClick={() => setLotSize(prev => +(prev + 0.01).toFixed(2))}
-                      style={{ background: '#2A2A2A', border: 'none', borderLeft: '1px solid #333', color: '#CCC', fontSize: 14, cursor: 'pointer', padding: '5px 8px', outline: 'none', fontWeight: 700, lineHeight: 1 }}>+</button>
+                    <button
+                      onClick={() => setLotSize(prev => Math.max(0.01, +(prev - 0.01).toFixed(2)))}
+                      style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        border: 'none',
+                        borderRight: '1px solid rgba(255,255,255,0.06)',
+                        color: '#AAA',
+                        fontSize: 13,
+                        cursor: 'pointer',
+                        padding: '4px 8px',
+                        outline: 'none',
+                        fontWeight: 700,
+                        lineHeight: 1,
+                      }}
+                    >−</button>
+                    <span style={{ flex: 1, textAlign: 'center', color: '#FFF', fontSize: 11, fontWeight: 700, padding: '4px 0' }}>{lotSize.toFixed(2)}</span>
+                    <button
+                      onClick={() => setLotSize(prev => +(prev + 0.01).toFixed(2))}
+                      style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        border: 'none',
+                        borderLeft: '1px solid rgba(255,255,255,0.06)',
+                        color: '#AAA',
+                        fontSize: 13,
+                        cursor: 'pointer',
+                        padding: '4px 8px',
+                        outline: 'none',
+                        fontWeight: 700,
+                        lineHeight: 1,
+                      }}
+                    >+</button>
                   </div>
                 </div>
 
-                {/* ── SELL Button (full width, red) ── */}
-                <div style={{ padding: '6px 8px 3px' }}>
-                  <button
-                    onClick={() => {
-                      const { addTrade } = usePaperTradesStore.getState();
-                      addTrade({ symbol: selectedSymbol_, side: 'short', qty: lotSize, entryPrice: bid, currentPrice: bid, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
-                    }}
+                {/* ── Stop Loss ── */}
+                <div style={{ padding: '0 10px 4px' }}>
+                  <div style={{ fontSize: 7, color: '#FF1744', fontWeight: 700, letterSpacing: 1, marginBottom: 2 }}>STOP LOSS</div>
+                  <input
+                    type="number"
+                    value={tradeSl}
+                    onChange={e => setTradeSl(e.target.value)}
+                    placeholder={tradeSide === 'buy' ? (resolvedPrice * 0.98).toFixed(pDec) : (resolvedPrice * 1.02).toFixed(pDec)}
                     style={{
                       width: '100%',
-                      padding: '8px 0',
-                      background: 'linear-gradient(to bottom, #FF4444, #CC0000)',
-                      border: '1px solid #990000',
+                      padding: '5px 8px',
+                      background: 'rgba(255,23,68,0.05)',
+                      border: '1px solid rgba(255,23,68,0.15)',
                       borderRadius: 4,
-                      color: '#FFF',
-                      fontSize: 12,
-                      fontWeight: 700,
-                      cursor: 'pointer',
+                      color: '#FF1744',
+                      fontSize: 10,
                       fontFamily: "'JetBrains Mono', monospace",
-                      letterSpacing: 1,
-                      boxShadow: '0 2px 6px rgba(204,0,0,0.3)',
-                      transition: 'all 0.12s',
+                      outline: 'none',
+                      direction: 'ltr' as const,
+                      boxSizing: 'border-box' as const,
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(to bottom, #FF5555, #DD0000)'; e.currentTarget.style.boxShadow = '0 3px 10px rgba(204,0,0,0.5)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(to bottom, #FF4444, #CC0000)'; e.currentTarget.style.boxShadow = '0 2px 6px rgba(204,0,0,0.3)'; }}
-                  >
-                    SELL  {bid.toFixed(pDec)}
-                  </button>
+                  />
                 </div>
 
-                {/* ── BUY Button (full width, blue) ── */}
-                <div style={{ padding: '3px 8px 8px' }}>
+                {/* ── Take Profit ── */}
+                <div style={{ padding: '0 10px 5px' }}>
+                  <div style={{ fontSize: 7, color: '#00C853', fontWeight: 700, letterSpacing: 1, marginBottom: 2 }}>TAKE PROFIT</div>
+                  <input
+                    type="number"
+                    value={tradeTp}
+                    onChange={e => setTradeTp(e.target.value)}
+                    placeholder={tradeSide === 'buy' ? (resolvedPrice * 1.03).toFixed(pDec) : (resolvedPrice * 0.97).toFixed(pDec)}
+                    style={{
+                      width: '100%',
+                      padding: '5px 8px',
+                      background: 'rgba(0,200,83,0.05)',
+                      border: '1px solid rgba(0,200,83,0.15)',
+                      borderRadius: 4,
+                      color: '#00C853',
+                      fontSize: 10,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      outline: 'none',
+                      direction: 'ltr' as const,
+                      boxSizing: 'border-box' as const,
+                    }}
+                  />
+                </div>
+
+                {/* ── EXECUTE Button ── */}
+                <div style={{ padding: '4px 10px 9px' }}>
                   <button
                     onClick={() => {
                       const { addTrade } = usePaperTradesStore.getState();
-                      addTrade({ symbol: selectedSymbol_, side: 'long', qty: lotSize, entryPrice: ask, currentPrice: ask, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
+                      addTrade({
+                        symbol: selectedSymbol_,
+                        side: tradeSide === 'buy' ? 'long' : 'short',
+                        qty: lotSize,
+                        entryPrice: execPrice,
+                        currentPrice: execPrice,
+                        entryTime: Date.now(),
+                        strategy: 'quick',
+                        source: 'manual',
+                      });
                     }}
                     style={{
                       width: '100%',
-                      padding: '8px 0',
-                      background: 'linear-gradient(to bottom, #00B0FF, #0066CC)',
-                      border: '1px solid #004C99',
-                      borderRadius: 4,
+                      padding: '9px 0',
+                      background: tradeSide === 'buy'
+                        ? 'linear-gradient(to bottom, #00E676, #00C853)'
+                        : 'linear-gradient(to bottom, #FF5252, #FF1744)',
+                      border: 'none',
+                      borderRadius: 5,
                       color: '#FFF',
                       fontSize: 12,
-                      fontWeight: 700,
+                      fontWeight: 900,
                       cursor: 'pointer',
-                      fontFamily: "'JetBrains Mono', monospace",
-                      letterSpacing: 1,
-                      boxShadow: '0 2px 6px rgba(0,102,204,0.3)',
-                      transition: 'all 0.12s',
+                      letterSpacing: 1.5,
+                      boxShadow: tradeSide === 'buy'
+                        ? '0 2px 8px rgba(0,200,83,0.4)'
+                        : '0 2px 8px rgba(255,23,68,0.4)',
+                      transition: 'all 0.15s ease',
+                      textTransform: 'uppercase' as const,
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(to bottom, #00C0FF, #0077DD)'; e.currentTarget.style.boxShadow = '0 3px 10px rgba(0,102,204,0.5)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(to bottom, #00B0FF, #0066CC)'; e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,102,204,0.3)'; }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.transform = 'scale(1.02)';
+                      e.currentTarget.style.boxShadow = tradeSide === 'buy'
+                        ? '0 4px 16px rgba(0,200,83,0.5)'
+                        : '0 4px 16px rgba(255,23,68,0.5)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = tradeSide === 'buy'
+                        ? '0 2px 8px rgba(0,200,83,0.4)'
+                        : '0 2px 8px rgba(255,23,68,0.4)';
+                    }}
                   >
-                    BUY  {ask.toFixed(pDec)}
+                    EXECUTE
                   </button>
                 </div>
               </div>

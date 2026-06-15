@@ -3463,7 +3463,7 @@ export default function RouaChart({
 
           {/* Candle countdown removed from chart — shown only in header via CrosshairOverlay */}
 
-          {/* ── Volume Profile Overlay — renders INSIDE chart, synced with price scale ── */}
+          {/* ── Volume Profile Overlay — renders INSIDE chart plotting area, left of price scale ── */}
           {showVolumeProfile && (
             <VolumeProfile
               candles={candlesRef.current}
@@ -3472,6 +3472,7 @@ export default function RouaChart({
               rows={24}
               visible={showVolumeProfile}
               containerHeight={chart.containerRef?.current?.offsetHeight ?? 400}
+              priceScaleWidth={70}
             />
           )}
 

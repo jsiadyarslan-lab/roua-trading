@@ -1,11 +1,12 @@
 // ═══════════════════════════════════════════════════════════
-// ROUA Trading Chart — Chart Trading Panel
-// Floating order panel with SL/TP drag on chart
+// ROUA Trading Chart — Chart Trading Panel (v2 — Professional)
+// Collapsible glassmorphism execution widget
+// Inspired by TradingView / Bybit / Binance order panels
 // ═══════════════════════════════════════════════════════════
 
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from '@/hooks/use-toast';
 
@@ -14,6 +15,7 @@ interface ChartTradingProps {
   currentPrice: number;
   onClose: () => void;
   onPlaceOrder: (order: ChartOrderData) => void;
+  spread?: number;
 }
 
 interface ChartOrderData {
@@ -25,7 +27,27 @@ interface ChartOrderData {
   tp?: number;
 }
 
-export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder }: ChartTradingProps) {
+// ── Color Palette ──────────────────────────────────────────
+const C = {
+  bg: 'rgba(13, 17, 23, 0.92)',
+  surface: 'rgba(22, 27, 34, 0.95)',
+  input: 'rgba(13, 17, 23, 0.8)',
+  border: 'rgba(48, 54, 61, 0.7)',
+  borderFocus: 'rgba(0, 212, 255, 0.4)',
+  text: '#E6EDF3',
+  text2: '#8B949E',
+  text3: '#484F58',
+  cyan: '#58A6FF',
+  buy: '#00C853',
+  buyHover: '#00E676',
+  buyBg: 'rgba(0, 200, 83, 0.08)',
+  sell: '#FF1744',
+  sellHover: '#FF5252',
+  sellBg: 'rgba(255, 23, 68, 0.08)',
+  gold: '#FFD54F',
+};
+
+export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spread }: ChartTradingProps) {
   const tn = useTranslations('notifications.trading');
   const tc = useTranslations('dashboard.chart');
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
@@ -34,44 +56,43 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder }: Ch
   const [sl, setSl] = useState('');
   const [tp, setTp] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Calculate Risk/Reward Ratio
+  // Estimate spread if not provided (0.05% default)
+  const estimatedSpread = spread ?? (currentPrice * 0.0005);
+  const spreadPct = ((estimatedSpread / currentPrice) * 100).toFixed(3);
+
+  // RR Ratio
   const rrRatio = useCallback(() => {
     const entry = currentPrice;
     const slVal = parseFloat(sl);
     const tpVal = parseFloat(tp);
-
     if (!slVal || !tpVal || !entry) return null;
-
     const risk = Math.abs(entry - slVal);
     const reward = Math.abs(tpVal - entry);
-
     if (risk === 0) return null;
     return (reward / risk).toFixed(2);
   }, [currentPrice, sl, tp]);
 
-  // Estimate P&L
+  // P&L estimate
   const estimatePnL = useCallback(() => {
     const qty = parseFloat(quantity);
     const tpVal = parseFloat(tp);
     if (!qty || !tpVal || !currentPrice) return null;
-
     const diff = side === 'buy' ? tpVal - currentPrice : currentPrice - tpVal;
     return (diff * qty).toFixed(2);
   }, [quantity, tp, currentPrice, side]);
 
+  // Quick quantity presets
+  const quickAmounts = ['0.01', '0.05', '0.1', '0.5', '1.0'];
+
   const handleSubmit = async () => {
-    // FIX: Enforce mandatory stop-loss BEFORE sending to backend.
-    // The backend will reject orders without SL anyway (RiskGatekeeper #1),
-    // but we check here first for a better user experience with a clear
-    // Arabic error message instead of a generic 403.
     const slVal = parseFloat(sl);
     if (!slVal || slVal <= 0) {
       toast({ title: '⛔ ' + tn('stopLossRequired'), variant: 'destructive' });
       return;
     }
-
-    // Validate SL direction relative to entry price and side
     if (side === 'buy' && slVal >= currentPrice) {
       toast({ title: '⛔ ' + tn('slMustBeBelowEntry'), variant: 'destructive' });
       return;
@@ -80,7 +101,6 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder }: Ch
       toast({ title: '⛔ ' + tn('slMustBeAboveEntry'), variant: 'destructive' });
       return;
     }
-
     const qty = parseFloat(quantity);
     if (!qty || qty <= 0) {
       toast({ title: '⛔ ' + tn('qtyMustBePositive'), variant: 'destructive' });
@@ -102,193 +122,464 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder }: Ch
     }
   };
 
-  const COLORS = {
-    card: '#151A22',
-    border: 'rgba(42,49,60,0.9)',
-    cyan: '#00D4FF',
-    text: '#F0F2F5',
-    textSecondary: '#8B92A8',
-    textMuted: '#8B92A8',
-    success: '#00FFA3',
-    danger: '#FF4757',
-    warning: '#fbbf24',
-    bg: '#0B0E14',
-  };
-
   const rr = rrRatio();
   const pnl = estimatePnL();
+  const priceDecimals = currentPrice > 1000 ? 2 : currentPrice > 1 ? 4 : 6;
+  const isBuy = side === 'buy';
 
-  return (
-    <div style={{
-      background: COLORS.card,
-      border: '1px solid rgba(0,212,255,0.2)',
-      borderRadius: 10,
-      padding: 12,
-      zIndex: 500,
-      boxShadow: '0 15px 45px rgba(0,0,0,0.85)',
-      backdropFilter: 'blur(10px)',
-      width: 240,
-    }}>
-      {/* Header */}
-      <div data-drag-handle style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, cursor: 'grab' }}>
-        <span style={{ fontSize: 11, color: COLORS.text, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
-          📊 {tc('tradeOrder')}
-        </span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', fontSize: 14 }}>✕</button>
-      </div>
-
-      {/* Symbol + Price */}
+  // ── Collapsed State: Minimal pill with price + buy/sell ──
+  if (collapsed) {
+    return (
       <div style={{
         display: 'flex',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        padding: '6px 8px',
-        background: COLORS.bg,
-        borderRadius: 6,
-        marginBottom: 8,
+        gap: 8,
+        padding: '6px 10px',
+        background: C.bg,
+        backdropFilter: 'blur(24px)',
+        border: `1px solid ${C.border}`,
+        borderRadius: 10,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+        userSelect: 'none',
       }}>
-        <span style={{ fontSize: 10, color: COLORS.cyan, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>{symbol}</span>
-        <span style={{ fontSize: 12, color: COLORS.text, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
-          {currentPrice.toFixed(currentPrice > 1000 ? 2 : 5)}
+        {/* Symbol */}
+        <span style={{
+          fontSize: 10,
+          color: C.cyan,
+          fontWeight: 700,
+          fontFamily: "'JetBrains Mono', monospace",
+          whiteSpace: 'nowrap',
+        }}>
+          {symbol}
         </span>
-      </div>
 
-      {/* Side Toggle */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-        {(['buy', 'sell'] as const).map(s => (
+        {/* Price */}
+        <span style={{
+          fontSize: 13,
+          color: C.text,
+          fontWeight: 700,
+          fontFamily: "'JetBrains Mono', monospace",
+          whiteSpace: 'nowrap',
+        }}>
+          {currentPrice.toFixed(priceDecimals)}
+        </span>
+
+        {/* Expand button */}
+        <button
+          onClick={() => setCollapsed(false)}
+          style={{
+            background: 'none',
+            border: `1px solid ${C.border}`,
+            borderRadius: 4,
+            color: C.text2,
+            cursor: 'pointer',
+            padding: '2px 6px',
+            fontSize: 10,
+            fontFamily: "'Cairo', sans-serif",
+            lineHeight: 1,
+          }}
+        >
+          ▲
+        </button>
+
+        {/* Quick Buy/Sell */}
+        <div style={{ display: 'flex', gap: 4 }}>
           <button
-            key={s}
-            onClick={() => setSide(s)}
+            onClick={() => { setSide('buy'); setCollapsed(false); }}
             style={{
-              flex: 1,
-              padding: '6px 0',
-              background: side === s ? (s === 'buy' ? COLORS.success : COLORS.danger) : 'transparent',
-              border: `1px solid ${s === 'buy' ? COLORS.success : COLORS.danger}`,
-              borderRadius: 6,
-              color: side === s ? '#000' : (s === 'buy' ? COLORS.success : COLORS.danger),
-              fontSize: 10,
-              fontWeight: 700,
+              padding: '3px 10px',
+              background: C.buy,
+              border: 'none',
+              borderRadius: 4,
+              color: '#000',
+              fontSize: 9,
+              fontWeight: 800,
               cursor: 'pointer',
               fontFamily: "'Cairo', sans-serif",
-              transition: 'all 0.15s',
             }}
           >
-            {s === 'buy' ? tc('buy') : tc('sell')}
+            شراء
           </button>
-        ))}
-      </div>
-
-      {/* Order Type */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-        {(['market', 'limit', 'stop'] as const).map(t => (
           <button
-            key={t}
-            onClick={() => setOrderType(t)}
+            onClick={() => { setSide('sell'); setCollapsed(false); }}
             style={{
-              flex: 1,
-              padding: '4px 0',
-              background: orderType === t ? 'rgba(0,212,255,0.1)' : 'transparent',
-              border: `1px solid ${orderType === t ? COLORS.cyan : 'rgba(255,255,255,0.08)'}`,
+              padding: '3px 10px',
+              background: C.sell,
+              border: 'none',
               borderRadius: 4,
-              color: orderType === t ? COLORS.cyan : COLORS.textMuted,
+              color: '#fff',
               fontSize: 9,
-              fontWeight: 600,
+              fontWeight: 800,
               cursor: 'pointer',
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "'Cairo', sans-serif",
             }}
           >
-            {t === 'market' ? tc('market') : t === 'limit' ? tc('limit') : tc('stop')}
+            بيع
           </button>
-        ))}
-      </div>
-
-      {/* Quantity */}
-      <div style={{ marginBottom: 8 }}>
-        <label style={{ display: 'block', fontSize: 9, color: COLORS.textMuted, marginBottom: 3, fontFamily: "'Cairo', sans-serif" }}>{tc('quantity')}</label>
-        <input
-          type="number"
-          value={quantity}
-          onChange={e => setQuantity(e.target.value)}
-          step="0.01"
-          min="0"
-          style={{
-            width: '100%',
-            padding: '5px 8px',
-            background: COLORS.bg,
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 4,
-            color: COLORS.text,
-            fontSize: 11,
-            fontFamily: "'JetBrains Mono', monospace",
-            outline: 'none',
-          }}
-        />
-      </div>
-
-      {/* SL / TP */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-        <div style={{ flex: 1 }}>
-          <label style={{ display: 'block', fontSize: 9, color: COLORS.danger, marginBottom: 3, fontFamily: "'Cairo', sans-serif" }}>{tc('stopLoss')} 🔴</label>
-          <input
-            type="number"
-            value={sl}
-            onChange={e => setSl(e.target.value)}
-            placeholder={side === 'buy' ? tc('slBelowPrice') : tc('slAbovePrice')}
-            step="0.0001"
-            style={{
-              width: '100%',
-              padding: '4px 6px',
-              background: COLORS.bg,
-              border: '1px solid rgba(248,81,73,0.2)',
-              borderRadius: 4,
-              color: COLORS.text,
-              fontSize: 10,
-              fontFamily: "'JetBrains Mono', monospace",
-              outline: 'none',
-            }}
-          />
         </div>
-        <div style={{ flex: 1 }}>
-          <label style={{ display: 'block', fontSize: 9, color: COLORS.success, marginBottom: 3, fontFamily: "'Cairo', sans-serif" }}>{tc('takeProfit')} 🟢</label>
-          <input
-            type="number"
-            value={tp}
-            onChange={e => setTp(e.target.value)}
-            placeholder={side === 'buy' ? tc('tpAbovePrice') : tc('tpBelowPrice')}
-            step="0.0001"
+      </div>
+    );
+  }
+
+  // ── Expanded State ──
+  return (
+    <div style={{
+      background: C.bg,
+      backdropFilter: 'blur(24px)',
+      border: `1px solid ${isBuy ? 'rgba(0,200,83,0.15)' : 'rgba(255,23,68,0.15)'}`,
+      borderRadius: 12,
+      width: 280,
+      overflow: 'hidden',
+      boxShadow: `0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.03) inset`,
+      userSelect: 'none',
+      fontFamily: "'Cairo', sans-serif",
+    }}>
+      {/* ── Header ── */}
+      <div
+        data-drag-handle
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '8px 12px',
+          cursor: 'grab',
+          borderBottom: `1px solid ${C.border}`,
+          background: 'rgba(255,255,255,0.02)',
+        }}
+      >
+        <span style={{ fontSize: 11, color: C.text, fontWeight: 700, letterSpacing: 0.3 }}>
+          تنفيذ صفقة
+        </span>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {/* Collapse button */}
+          <button
+            onClick={() => setCollapsed(true)}
             style={{
-              width: '100%',
-              padding: '4px 6px',
-              background: COLORS.bg,
-              border: '1px solid rgba(63,185,80,0.2)',
-              borderRadius: 4,
-              color: COLORS.text,
-              fontSize: 10,
-              fontFamily: "'JetBrains Mono', monospace",
-              outline: 'none',
+              background: 'none',
+              border: 'none',
+              color: C.text2,
+              cursor: 'pointer',
+              fontSize: 12,
+              padding: '0 2px',
+              opacity: 0.7,
             }}
-          />
+            title="طي"
+          >
+            ▼
+          </button>
+          {/* Close button */}
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: C.text2,
+              cursor: 'pointer',
+              fontSize: 13,
+              padding: '0 2px',
+              opacity: 0.7,
+            }}
+          >
+            ✕
+          </button>
         </div>
       </div>
 
-      {/* RR Ratio + PnL Estimate */}
-      {(rr || pnl) && (
+      {/* ── Price + Spread Section ── */}
+      <div style={{
+        padding: '10px 12px 8px',
+        background: 'linear-gradient(135deg, rgba(0,200,83,0.04) 0%, rgba(0,0,0,0) 50%, rgba(255,23,68,0.04) 100%)',
+        borderBottom: `1px solid ${C.border}`,
+      }}>
+        {/* Symbol */}
+        <div style={{ fontSize: 10, color: C.cyan, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", marginBottom: 2 }}>
+          {symbol}
+        </div>
+
+        {/* Current Price — Large */}
+        <div style={{
+          fontSize: 22,
+          color: isBuy ? C.buy : C.sell,
+          fontWeight: 800,
+          fontFamily: "'JetBrains Mono', monospace",
+          lineHeight: 1.2,
+          letterSpacing: -0.5,
+        }}>
+          {currentPrice.toFixed(priceDecimals)}
+        </div>
+
+        {/* Spread */}
+        <div style={{
+          display: 'flex',
+          gap: 10,
+          marginTop: 4,
+          fontSize: 9,
+          color: C.text3,
+          fontFamily: "'JetBrains Mono', monospace",
+        }}>
+          <span>سبريد: <span style={{ color: C.text2 }}>{estimatedSpread.toFixed(priceDecimals)}</span></span>
+          <span>({spreadPct}%)</span>
+        </div>
+      </div>
+
+      {/* ── Side Toggle (Buy/Sell) ── */}
+      <div style={{ padding: '8px 12px 4px' }}>
+        <div style={{
+          display: 'flex',
+          borderRadius: 6,
+          overflow: 'hidden',
+          border: `1px solid ${C.border}`,
+        }}>
+          {(['buy', 'sell'] as const).map(s => {
+            const active = side === s;
+            const isB = s === 'buy';
+            return (
+              <button
+                key={s}
+                onClick={() => setSide(s)}
+                style={{
+                  flex: 1,
+                  padding: '7px 0',
+                  background: active
+                    ? isB
+                      ? 'linear-gradient(135deg, #00C853 0%, #00E676 100%)'
+                      : 'linear-gradient(135deg, #FF1744 0%, #FF5252 100%)'
+                    : isB ? C.buyBg : C.sellBg,
+                  border: 'none',
+                  color: active ? '#000' : (isB ? C.buy : C.sell),
+                  fontSize: 11,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  fontFamily: "'Cairo', sans-serif",
+                  transition: 'all 0.15s ease',
+                  letterSpacing: 0.5,
+                }}
+              >
+                {isB ? '▲ شراء' : '▼ بيع'}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Order Type Tabs ── */}
+      <div style={{ padding: '4px 12px 6px' }}>
+        <div style={{ display: 'flex', gap: 3 }}>
+          {(['market', 'limit', 'stop'] as const).map(t => {
+            const active = orderType === t;
+            const labels: Record<string, string> = { market: 'سوقي', limit: 'محدد', stop: 'أمر شرطي' };
+            return (
+              <button
+                key={t}
+                onClick={() => setOrderType(t)}
+                style={{
+                  flex: 1,
+                  padding: '4px 0',
+                  background: active ? 'rgba(0,212,255,0.1)' : 'transparent',
+                  border: `1px solid ${active ? 'rgba(0,212,255,0.3)' : C.border}`,
+                  borderRadius: 4,
+                  color: active ? C.cyan : C.text3,
+                  fontSize: 9,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: "'Cairo', sans-serif",
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {labels[t]}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Quantity Section ── */}
+      <div style={{ padding: '2px 12px 6px' }}>
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 4,
+        }}>
+          <label style={{ fontSize: 9, color: C.text2, fontWeight: 600 }}>حجم الصفقة</label>
+          <span style={{ fontSize: 8, color: C.text3, fontFamily: "'JetBrains Mono', monospace" }}>USDT</span>
+        </div>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          background: C.input,
+          border: `1px solid ${C.border}`,
+          borderRadius: 6,
+          overflow: 'hidden',
+          transition: 'border-color 0.15s',
+        }}>
+          <input
+            type="number"
+            value={quantity}
+            onChange={e => setQuantity(e.target.value)}
+            step="0.01"
+            min="0"
+            style={{
+              flex: 1,
+              padding: '7px 10px',
+              background: 'transparent',
+              border: 'none',
+              color: C.text,
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: "'JetBrains Mono', monospace",
+              outline: 'none',
+              minWidth: 0,
+            }}
+          />
+        </div>
+        {/* Quick Amount Buttons */}
+        <div style={{ display: 'flex', gap: 3, marginTop: 5 }}>
+          {quickAmounts.map(a => (
+            <button
+              key={a}
+              onClick={() => setQuantity(a)}
+              style={{
+                flex: 1,
+                padding: '3px 0',
+                background: quantity === a ? 'rgba(0,212,255,0.1)' : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${quantity === a ? 'rgba(0,212,255,0.25)' : 'rgba(255,255,255,0.05)'}`,
+                borderRadius: 3,
+                color: quantity === a ? C.cyan : C.text3,
+                fontSize: 8,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: "'JetBrains Mono', monospace",
+                transition: 'all 0.12s',
+              }}
+            >
+              {a}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── SL/TP Section ── */}
+      <div style={{ padding: '0px 12px 6px' }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {/* Stop Loss */}
+          <div style={{ flex: 1 }}>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 3,
+              fontSize: 9,
+              color: C.sell,
+              fontWeight: 600,
+              marginBottom: 3,
+            }}>
+              <span style={{
+                width: 5,
+                height: 5,
+                borderRadius: '50%',
+                background: C.sell,
+                display: 'inline-block',
+              }} />
+              وقف خسارة
+            </label>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              background: C.input,
+              border: `1px solid ${sl ? 'rgba(255,23,68,0.3)' : C.border}`,
+              borderRadius: 5,
+              overflow: 'hidden',
+            }}>
+              <input
+                type="number"
+                value={sl}
+                onChange={e => setSl(e.target.value)}
+                placeholder={side === 'buy' ? 'أقل من السعر' : 'أعلى من السعر'}
+                step={currentPrice > 1000 ? '0.01' : '0.0001'}
+                style={{
+                  flex: 1,
+                  padding: '6px 8px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: C.text,
+                  fontSize: 11,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  outline: 'none',
+                  minWidth: 0,
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Take Profit */}
+          <div style={{ flex: 1 }}>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 3,
+              fontSize: 9,
+              color: C.buy,
+              fontWeight: 600,
+              marginBottom: 3,
+            }}>
+              <span style={{
+                width: 5,
+                height: 5,
+                borderRadius: '50%',
+                background: C.buy,
+                display: 'inline-block',
+              }} />
+              جني أرباح
+            </label>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              background: C.input,
+              border: `1px solid ${tp ? 'rgba(0,200,83,0.3)' : C.border}`,
+              borderRadius: 5,
+              overflow: 'hidden',
+            }}>
+              <input
+                type="number"
+                value={tp}
+                onChange={e => setTp(e.target.value)}
+                placeholder={side === 'buy' ? 'أعلى من السعر' : 'أقل من السعر'}
+                step={currentPrice > 1000 ? '0.01' : '0.0001'}
+                style={{
+                  flex: 1,
+                  padding: '6px 8px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: C.text,
+                  fontSize: 11,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  outline: 'none',
+                  minWidth: 0,
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── RR + PnL Info ── */}
+      {(rr || pnl) && (
+        <div style={{
+          margin: '0 12px 6px',
           padding: '5px 8px',
-          background: COLORS.bg,
-          borderRadius: 4,
-          marginBottom: 8,
+          background: C.input,
+          borderRadius: 5,
+          display: 'flex',
+          justifyContent: 'space-between',
         }}>
           {rr && (
-            <span style={{ fontSize: 9, color: COLORS.textSecondary, fontFamily: "'JetBrains Mono', monospace" }}>
-              RR: <b style={{ color: parseFloat(rr) >= 2 ? COLORS.success : COLORS.warning }}>{rr}</b>
+            <span style={{ fontSize: 9, color: C.text2, fontFamily: "'JetBrains Mono', monospace" }}>
+              R:R <b style={{ color: parseFloat(rr) >= 2 ? C.buy : C.gold }}>{rr}</b>
             </span>
           )}
           {pnl && (
-            <span style={{ fontSize: 9, color: COLORS.textSecondary, fontFamily: "'JetBrains Mono', monospace" }}>
-              P&L: <b style={{ color: parseFloat(pnl) > 0 ? COLORS.success : parseFloat(pnl) < 0 ? COLORS.danger : COLORS.textSecondary }}>
+            <span style={{ fontSize: 9, color: C.text2, fontFamily: "'JetBrains Mono', monospace" }}>
+              P&L <b style={{ color: parseFloat(pnl) > 0 ? C.buy : parseFloat(pnl) < 0 ? C.sell : C.text2 }}>
                 {parseFloat(pnl) > 0 ? '+' : ''}{pnl}$
               </b>
             </span>
@@ -296,26 +587,54 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder }: Ch
         </div>
       )}
 
-      {/* Submit */}
-      <button
-        onClick={handleSubmit}
-        disabled={submitting || !parseFloat(quantity)}
-        style={{
-          width: '100%',
-          padding: '8px 0',
-          background: side === 'buy' ? COLORS.success : COLORS.danger,
-          border: 'none',
-          borderRadius: 6,
-          color: '#000',
-          fontSize: 11,
-          fontWeight: 700,
-          cursor: submitting ? 'wait' : 'pointer',
-          fontFamily: "'Cairo', sans-serif",
-          opacity: submitting ? 0.6 : 1,
-        }}
-      >
-        {submitting ? tc('submitting') : side === 'buy' ? tc('buySubmit') : tc('sellSubmit')}
-      </button>
+      {/* ── Execution Button ── */}
+      <div style={{ padding: '4px 12px 10px' }}>
+        <button
+          onClick={handleSubmit}
+          disabled={submitting || !parseFloat(quantity)}
+          style={{
+            width: '100%',
+            padding: '10px 0',
+            background: isBuy
+              ? 'linear-gradient(135deg, #00C853 0%, #00E676 50%, #69F0AE 100%)'
+              : 'linear-gradient(135deg, #FF1744 0%, #FF5252 50%, #FF8A80 100%)',
+            border: 'none',
+            borderRadius: 8,
+            color: isBuy ? '#003300' : '#330000',
+            fontSize: 13,
+            fontWeight: 900,
+            cursor: submitting ? 'wait' : 'pointer',
+            opacity: submitting ? 0.6 : 1,
+            fontFamily: "'Cairo', sans-serif",
+            letterSpacing: 0.5,
+            boxShadow: isBuy
+              ? '0 4px 15px rgba(0,200,83,0.3), 0 0 30px rgba(0,200,83,0.1)'
+              : '0 4px 15px rgba(255,23,68,0.3), 0 0 30px rgba(255,23,68,0.1)',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          {submitting
+            ? 'جارٍ التنفيذ...'
+            : isBuy
+              ? '▲  شراء / LONG'
+              : '▼  بيع / SHORT'
+          }
+        </button>
+      </div>
+
+      {/* ── Footer ── */}
+      <div style={{
+        padding: '6px 12px',
+        borderTop: `1px solid ${C.border}`,
+        display: 'flex',
+        justifyContent: 'space-between',
+        fontSize: 8,
+        color: C.text3,
+        fontFamily: "'JetBrains Mono', monospace",
+      }}>
+        <span>رصيد: 10,000.00 USDT</span>
+        <span>رسمة: ~0.05%</span>
+      </div>
     </div>
   );
 }

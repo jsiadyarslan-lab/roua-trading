@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
-// ROUA Trading Chart — Volume Profile (Overlay v2)
-// Renders INSIDE the chart area, aligned with the price scale.
-// Uses priceToCoordinate() to sync bars with the chart's Y axis.
+// ROUA Trading Chart — Volume Profile (Overlay v3)
+// Renders INSIDE the chart plotting area, to the LEFT of
+// the price scale. Uses priceToCoordinate() for Y-axis sync.
 // ═══════════════════════════════════════════════════════════
 
 'use client';
@@ -24,12 +24,14 @@ interface VolumeProfileProps {
   rows?: number;
   visible?: boolean;
   containerHeight?: number;
+  /** Width of the right price scale in px (default: 70) */
+  priceScaleWidth?: number;
 }
 
 interface VolumeRow {
-  priceLow: number;   // bottom of the row's price range
-  priceHigh: number;  // top of the row's price range
-  price: number;      // midpoint
+  priceLow: number;
+  priceHigh: number;
+  price: number;
   volume: number;
   buyVolume: number;
   sellVolume: number;
@@ -42,11 +44,12 @@ export function VolumeProfile({
   rows = 24,
   visible = true,
   containerHeight = 400,
+  priceScaleWidth = 70,
 }: VolumeProfileProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
 
-  // Calculate volume profile data — bins based on ALL candle range
+  // Calculate volume profile data
   const profile = useMemo((): VolumeRow[] => {
     if (!candles.length) return [];
 
@@ -88,7 +91,7 @@ export function VolumeProfile({
     return rowMap;
   }, [candles, rows]);
 
-  // Render using priceToCoordinate for perfect alignment
+  // Render using priceToCoordinate for perfect Y-axis alignment
   useEffect(() => {
     if (!visible || !profile.length || !candleSeries) return;
 
@@ -114,28 +117,26 @@ export function VolumeProfile({
       const maxVol = safeMax(profile.map(r => r.volume));
       if (maxVol === 0) return;
 
-      // Semi-transparent background so bars are readable over chart
-      ctx.fillStyle = 'rgba(12, 14, 20, 0.45)';
+      // Semi-transparent background
+      ctx.fillStyle = 'rgba(12, 14, 20, 0.40)';
       ctx.fillRect(0, 0, w, h);
 
-      // Draw each row using priceToCoordinate for Y alignment
+      // Draw each row
       for (let i = 0; i < profile.length; i++) {
         const row = profile[i];
         if (row.volume === 0) continue;
 
-        // Get Y coordinates for this price row's boundaries
         const yHigh = candleSeries.priceToCoordinate(row.priceHigh);
         const yLow = candleSeries.priceToCoordinate(row.priceLow);
 
-        // Skip if outside visible chart area
         if (yHigh === null || yLow === null) continue;
 
         const rowTop = yHigh;
         const rowH = Math.max(1, yLow - yHigh);
 
-        // Skip rows that are completely offscreen
         if (rowTop + rowH < 0 || rowTop > h) continue;
 
+        // Bars grow from RIGHT edge toward center (left)
         const totalW = (row.volume / maxVol) * (w - 8);
         const buyW = (row.buyVolume / row.volume) * totalW;
         const sellW = totalW - buyW;
@@ -157,7 +158,7 @@ export function VolumeProfile({
 
         // Price label on every 4th row
         if (i % 4 === 0) {
-          ctx.fillStyle = 'rgba(255,255,255,0.25)';
+          ctx.fillStyle = 'rgba(255,255,255,0.22)';
           ctx.font = `${Math.max(7, Math.min(rowH * 0.6, 9))}px 'JetBrains Mono', monospace`;
           ctx.textAlign = 'left';
           ctx.fillText(
@@ -168,7 +169,7 @@ export function VolumeProfile({
         }
       }
 
-      // POC line — highlight the row with highest volume
+      // POC line
       const pocRow = profile.reduce((a, b) => b.volume > a.volume ? b : a);
       const pocY = candleSeries.priceToCoordinate(pocRow.price);
       if (pocY !== null && pocY >= 0 && pocY <= h) {
@@ -181,7 +182,6 @@ export function VolumeProfile({
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // POC label
         ctx.fillStyle = 'rgba(255, 215, 0, 0.6)';
         ctx.font = "bold 8px 'JetBrains Mono', monospace";
         ctx.textAlign = 'left';
@@ -189,11 +189,8 @@ export function VolumeProfile({
       }
     };
 
-    // Initial render
     renderFrame();
 
-    // Re-render periodically to stay synced with chart pan/zoom
-    // (priceToCoordinate changes when user scrolls/zooms)
     const intervalId = setInterval(renderFrame, 500);
 
     return () => {
@@ -204,10 +201,11 @@ export function VolumeProfile({
 
   if (!visible) return null;
 
+  // Position to the LEFT of the price scale, not on top of it
   return (
     <div style={{
       position: 'absolute',
-      right: 0,
+      right: `${priceScaleWidth}px`,
       top: 0,
       bottom: 0,
       width: `${width}px`,

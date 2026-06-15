@@ -3007,7 +3007,7 @@
       "tfStrategy": "استراتيجية الأطر:"
     },
     "orderBook": {
-      "live": "LIVE",
+      "live": "مباشر",
       "connecting": "الاتصال",
       "sim": "تجريبي",
       "liveDepth": "عمق مباشر",

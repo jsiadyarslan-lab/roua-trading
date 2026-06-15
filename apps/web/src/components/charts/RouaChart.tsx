@@ -3303,7 +3303,7 @@ export default function RouaChart({
               />
             )}
 
-            {/* Volume Profile moved to draggable panel below */}
+            {/* Volume Profile rendered as overlay below */}
 
           {/* ── Quick Trade Controls — Left Side ── */}
           {!mobile && currentPrice && (
@@ -3462,6 +3462,19 @@ export default function RouaChart({
           })()}
 
           {/* Candle countdown removed from chart — shown only in header via CrosshairOverlay */}
+
+          {/* ── Volume Profile Overlay — renders INSIDE chart, synced with price scale ── */}
+          {showVolumeProfile && (
+            <VolumeProfile
+              candles={candlesRef.current}
+              candleSeries={chart.candleSeriesRef?.current ?? null}
+              width={80}
+              rows={24}
+              visible={showVolumeProfile}
+              containerHeight={chart.containerRef?.current?.offsetHeight ?? 400}
+            />
+          )}
+
           </div>{/* ── Overlay Layer close ── */}
 
           {/* FIX: Drawing Panel — rendered via Portal + DraggablePanel (same as all
@@ -3507,18 +3520,7 @@ export default function RouaChart({
           getPortalRoot()
         )}
 
-        {/* Volume Profile (draggable) — rendered via Portal */}
-        {showVolumeProfile && createPortal(
-          <DraggablePanel defaultPosition={{ top: 50, right: 10 }} minWidth={260} minHeight={200}>
-            <VolumeProfile
-              candles={candlesRef.current}
-              width={240}
-              rows={24}
-              visible={showVolumeProfile}
-            />
-          </DraggablePanel>,
-          getPortalRoot()
-        )}
+        {/* Volume Profile — now rendered as overlay inside chart area (see above) */}
 
 
 

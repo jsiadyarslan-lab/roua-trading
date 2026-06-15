@@ -1,12 +1,14 @@
 // ═══════════════════════════════════════════════════════════
-// ROUA Trading Chart — Volume Profile
-// Displays volume traded at each price level on the right side
+// ROUA Trading Chart — Volume Profile (Overlay v2)
+// Renders INSIDE the chart area, aligned with the price scale.
+// Uses priceToCoordinate() to sync bars with the chart's Y axis.
 // ═══════════════════════════════════════════════════════════
 
 'use client';
 
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import type { CandleData } from '@/lib/charts/types';
+import type { ISeriesApi, SeriesType } from 'lightweight-charts';
 
 function safeMax(arr: number[]): number {
   if (arr.length === 0) return -Infinity;
@@ -14,31 +16,37 @@ function safeMax(arr: number[]): number {
   for (let i = 1; i < arr.length; i++) { if (arr[i] > max) max = arr[i]; }
   return max;
 }
-function safeMin(arr: number[]): number {
-  if (arr.length === 0) return Infinity;
-  let min = arr[0];
-  for (let i = 1; i < arr.length; i++) { if (arr[i] < min) min = arr[i]; }
-  return min;
-}
 
 interface VolumeProfileProps {
   candles: CandleData[];
+  candleSeries: ISeriesApi<SeriesType> | null;
   width?: number;
   rows?: number;
   visible?: boolean;
+  containerHeight?: number;
 }
 
 interface VolumeRow {
-  price: number;
+  priceLow: number;   // bottom of the row's price range
+  priceHigh: number;  // top of the row's price range
+  price: number;      // midpoint
   volume: number;
   buyVolume: number;
   sellVolume: number;
 }
 
-export function VolumeProfile({ candles, width = 80, rows = 24, visible = true }: VolumeProfileProps) {
+export function VolumeProfile({
+  candles,
+  candleSeries,
+  width = 80,
+  rows = 24,
+  visible = true,
+  containerHeight = 400,
+}: VolumeProfileProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rafRef = useRef<number>(0);
 
-  // Calculate volume profile data
+  // Calculate volume profile data — bins based on ALL candle range
   const profile = useMemo((): VolumeRow[] => {
     if (!candles.length) return [];
 
@@ -53,6 +61,8 @@ export function VolumeProfile({ candles, width = 80, rows = 24, visible = true }
 
     const step = (maxPrice - minPrice) / rows;
     const rowMap: VolumeRow[] = Array.from({ length: rows }, (_, i) => ({
+      priceLow: minPrice + step * i,
+      priceHigh: minPrice + step * (i + 1),
       price: minPrice + step * (i + 0.5),
       volume: 0,
       buyVolume: 0,
@@ -61,16 +71,16 @@ export function VolumeProfile({ candles, width = 80, rows = 24, visible = true }
 
     candles.forEach(c => {
       const isBull = c.close >= c.open;
-      // Distribute volume across the candle's range
       const startIdx = Math.max(0, Math.floor((c.low - minPrice) / step));
       const endIdx = Math.min(rows - 1, Math.floor((c.high - minPrice) / step));
 
       for (let i = startIdx; i <= endIdx; i++) {
-        rowMap[i].volume += c.volume / (endIdx - startIdx + 1);
+        const share = c.volume / (endIdx - startIdx + 1);
+        rowMap[i].volume += share;
         if (isBull) {
-          rowMap[i].buyVolume += c.volume / (endIdx - startIdx + 1);
+          rowMap[i].buyVolume += share;
         } else {
-          rowMap[i].sellVolume += c.volume / (endIdx - startIdx + 1);
+          rowMap[i].sellVolume += share;
         }
       }
     });
@@ -78,83 +88,132 @@ export function VolumeProfile({ candles, width = 80, rows = 24, visible = true }
     return rowMap;
   }, [candles, rows]);
 
-  // Render on canvas
+  // Render using priceToCoordinate for perfect alignment
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !visible || !profile.length) return;
+    if (!visible || !profile.length || !candleSeries) return;
 
-    const renderCanvas = () => {
+    const renderFrame = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
       const dpr = window.devicePixelRatio || 1;
-      const h = Math.max(canvas.parentElement?.clientHeight || 0, canvas.parentElement?.offsetHeight || 0, 400);
-      canvas.width = width * dpr;
+      const w = width;
+      const h = containerHeight;
+
+      canvas.width = w * dpr;
       canvas.height = h * dpr;
-      canvas.style.width = `${width}px`;
+      canvas.style.width = `${w}px`;
       canvas.style.height = `${h}px`;
 
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, width, h);
+      ctx.clearRect(0, 0, w, h);
 
       const maxVol = safeMax(profile.map(r => r.volume));
       if (maxVol === 0) return;
 
-      const rowH = h / rows;
+      // Semi-transparent background so bars are readable over chart
+      ctx.fillStyle = 'rgba(12, 14, 20, 0.45)';
+      ctx.fillRect(0, 0, w, h);
 
-      profile.forEach((row, i) => {
-        if (row.volume === 0) return;
+      // Draw each row using priceToCoordinate for Y alignment
+      for (let i = 0; i < profile.length; i++) {
+        const row = profile[i];
+        if (row.volume === 0) continue;
 
-        const totalW = (row.volume / maxVol) * (width - 4);
+        // Get Y coordinates for this price row's boundaries
+        const yHigh = candleSeries.priceToCoordinate(row.priceHigh);
+        const yLow = candleSeries.priceToCoordinate(row.priceLow);
+
+        // Skip if outside visible chart area
+        if (yHigh === null || yLow === null) continue;
+
+        const rowTop = yHigh;
+        const rowH = Math.max(1, yLow - yHigh);
+
+        // Skip rows that are completely offscreen
+        if (rowTop + rowH < 0 || rowTop > h) continue;
+
+        const totalW = (row.volume / maxVol) * (w - 8);
         const buyW = (row.buyVolume / row.volume) * totalW;
         const sellW = totalW - buyW;
 
-        const y = i * rowH;
+        const barX = w - 4 - totalW;
 
-        // Buy volume (green) — starts from left edge of the bar
-        ctx.fillStyle = 'rgba(63,185,80,0.25)';
-        ctx.fillRect(width - 2 - totalW, y, buyW, rowH - 1);
+        // Buy volume (green)
+        ctx.fillStyle = 'rgba(63,185,80,0.30)';
+        ctx.fillRect(barX, rowTop, buyW, rowH);
 
-        // Sell volume (red) — starts right after buy volume
-        ctx.fillStyle = 'rgba(248,81,73,0.25)';
-        ctx.fillRect(width - 2 - totalW + buyW, y, sellW, rowH - 1);
+        // Sell volume (red)
+        ctx.fillStyle = 'rgba(248,81,73,0.30)';
+        ctx.fillRect(barX + buyW, rowTop, sellW, rowH);
 
         // Border
-        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
         ctx.lineWidth = 0.5;
-        ctx.strokeRect(width - 2 - totalW, y, totalW, rowH - 1);
+        ctx.strokeRect(barX, rowTop, totalW, rowH);
 
-        // Price label (small, right-aligned inside bar)
+        // Price label on every 4th row
         if (i % 4 === 0) {
-          ctx.fillStyle = 'rgba(255,255,255,0.2)';
-          ctx.font = `${Math.max(7, rowH * 0.5)}px 'JetBrains Mono', monospace`;
-          ctx.textAlign = 'right';
-          ctx.fillText(row.price.toFixed(row.price > 1000 ? 0 : 2), width - 4, y + rowH * 0.75);
+          ctx.fillStyle = 'rgba(255,255,255,0.25)';
+          ctx.font = `${Math.max(7, Math.min(rowH * 0.6, 9))}px 'JetBrains Mono', monospace`;
+          ctx.textAlign = 'left';
+          ctx.fillText(
+            row.price.toFixed(row.price > 1000 ? 0 : 2),
+            3,
+            rowTop + rowH * 0.7
+          );
         }
-      });
+      }
+
+      // POC line — highlight the row with highest volume
+      const pocRow = profile.reduce((a, b) => b.volume > a.volume ? b : a);
+      const pocY = candleSeries.priceToCoordinate(pocRow.price);
+      if (pocY !== null && pocY >= 0 && pocY <= h) {
+        ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(0, pocY);
+        ctx.lineTo(w, pocY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // POC label
+        ctx.fillStyle = 'rgba(255, 215, 0, 0.6)';
+        ctx.font = "bold 8px 'JetBrains Mono', monospace";
+        ctx.textAlign = 'left';
+        ctx.fillText('POC', 3, pocY - 3);
+      }
     };
 
-    renderCanvas();
+    // Initial render
+    renderFrame();
 
-    // ResizeObserver to re-render on container resize
-    const parent = canvas.parentElement;
-    if (parent) {
-      const ro = new ResizeObserver(() => {
-        renderCanvas();
-      });
-      ro.observe(parent);
-      return () => ro.disconnect();
-    }
-  }, [profile, width, rows, visible]);
+    // Re-render periodically to stay synced with chart pan/zoom
+    // (priceToCoordinate changes when user scrolls/zooms)
+    const intervalId = setInterval(renderFrame, 500);
+
+    return () => {
+      clearInterval(intervalId);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [profile, width, rows, visible, candleSeries, containerHeight]);
 
   if (!visible) return null;
 
   return (
     <div style={{
-      position: 'relative',
-      width: '100%',
-      height: '100%',
-      pointerEvents: 'auto',
+      position: 'absolute',
+      right: 0,
+      top: 0,
+      bottom: 0,
+      width: `${width}px`,
+      pointerEvents: 'none',
+      overflow: 'hidden',
+      zIndex: 4,
     }}>
       <canvas ref={canvasRef} style={{ display: 'block' }} />
 
@@ -167,6 +226,7 @@ export function VolumeProfile({ candles, width = 80, rows = 24, visible = true }
         color: 'rgba(255,255,255,0.3)',
         fontFamily: "'JetBrains Mono', monospace",
         letterSpacing: 0.5,
+        pointerEvents: 'none',
       }}>
         VOL PROFILE
       </div>

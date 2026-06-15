@@ -386,7 +386,8 @@
       "joinFree": "انضم الآن — مجاناً",
       "launchNow": "أطلق رؤى الآن",
       "joinCaption": "انضم لآلاف المتداولين الذين يثقون في رؤى لاتخاذ قرارات أذكى",
-      "noCreditCard": "لا حاجة لبطاقة ائتمانية · إعداد في أقل من دقيقة"
+      "noCreditCard": "لا حاجة لبطاقة ائتمانية · إعداد في أقل من دقيقة",
+      "ctaSecondary": "شاهد العرض المباشر"
     },
     "liveChart": {
       "title": "تتبع السوق في الوقت الفعلي",
@@ -1238,9 +1239,9 @@
       "actSellMarketLabel": "بيع (Sell Market)",
       "actSellMarketSub": "أمر سوق بيع",
       "actBuyLimitLabel": "شراء محدد",
-      "actBuyLimitSub": "Limit Buy",
+      "actBuyLimitSub": "شراء محدد",
       "actSellLimitLabel": "بيع محدد",
-      "actSellLimitSub": "Limit Sell",
+      "actSellLimitSub": "بيع محدد",
       "riskStopLossLabel": "وقف الخسارة",
       "riskStopLossSub": "وقف الخسارة",
       "riskTakeProfitLabel": "جني الأرباح",

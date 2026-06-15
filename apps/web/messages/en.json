@@ -386,7 +386,8 @@
       "joinFree": "Join Now — Free",
       "launchNow": "Launch Roua Now",
       "joinCaption": "Join thousands of traders who trust Roua for smarter decisions",
-      "noCreditCard": "No credit card required · Setup in under a minute"
+      "noCreditCard": "No credit card required · Setup in under a minute",
+      "ctaSecondary": "Watch Live Demo"
     },
     "liveChart": {
       "title": "Track Markets in Real-Time",

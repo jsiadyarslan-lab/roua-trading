@@ -1171,10 +1171,10 @@
       "daySat": "Sáb",
       "daySun": "Dom",
       "tradingScheduleInfo": "Los horarios están en UTC. Al activarse, no se abrirán nuevas posiciones fuera de las horas y días especificados. Las posiciones abiertas no se cerrarán automáticamente.",
-      "extNotifChannelsTitle": "External Notification Channels",
-      "extNotifChannelsSubtitle": "Receive trading alerts on your phone via Telegram or Discord",
-      "telegramBotTokenDesc": "Telegram bot token",
-      "telegramChatIdDesc": "Telegram chat ID",
+      "extNotifChannelsTitle": "Canales de notificación externos",
+      "extNotifChannelsSubtitle": "Reciba alertas de trading en su teléfono a través de Telegram o Discord",
+      "telegramBotTokenDesc": "Token del bot de Telegram",
+      "telegramChatIdDesc": "ID de chat de Telegram",
       "discordWebhookDesc": "URL de webhook de Discord",
       "extNotifEnable": "Habilitar Notificaciones Externas",
       "extNotifEnableDesc": "Enviar alertas a través de canales externos",
@@ -4454,7 +4454,8 @@
       "noCreditCard": "No se requiere tarjeta de crédito · Configuración en menos de un minuto",
       "launchNow": "Lanzar Roua Ahora",
       "titlePart1": "Listo para Conectar tus Cuentas",
-      "title": "¿Listo para Conectar tus Cuentas de Forma Inteligente?"
+      "title": "¿Listo para Conectar tus Cuentas de Forma Inteligente?",
+      "ctaSecondary": "Ver demo en vivo"
     },
     "howItWorks": {
       "step1Desc": "Inicia sesión en menos de 30 segundos mediante Google o Passkey. Sin contraseñas, sin complejidad.",

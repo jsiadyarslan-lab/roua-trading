@@ -878,7 +878,7 @@
       "notificationTitle": "Roua — {চিহ্ন}",
       "slAbovePrice": "দামের উপরে",
       "slMustBeBelowBuyEntry": "ক্রয় আদেশের জন্য স্টপ লস অবশ্যই প্রবেশ মূল্যের নিচে হতে হবে",
-      "stdDev": "Std Dev",
+      "stdDev": "প্রমাণ বিচ্যুতি",
       "submitting": "⏳ জমা দেওয়া হচ্ছে...",
       "bestTrade": "সেরা বাণিজ্য",
       "multiplier": "গুণক",
@@ -1767,7 +1767,7 @@
     "chartGrid": {
       "close": "বন্ধ",
       "free": "বিনামূল্যে",
-      "sync": "SYNC",
+      "sync": "সিঙ্ক",
       "syncOn": "সিঙ্ক চালু: পরিবর্তনগুলি সমস্ত চার্টে প্রযোজ্য৷",
       "multiChartGrid": "মাল্টি-চার্ট গ্রিড",
       "noData": "কোন তথ্য নেই",
@@ -3024,7 +3024,8 @@
       "joinCaption": "হাজার হাজার ব্যবসায়ীদের সাথে যোগ দিন যারা বুদ্ধিমান সিদ্ধান্তের জন্য Roua বিশ্বাস করেন",
       "startLinking": "অ্যাকাউন্ট লিঙ্ক করা শুরু করুন",
       "joinUniverse": "মহাবিশ্বে যোগ দিন",
-      "noCreditCard": "কোনো ক্রেডিট কার্ডের প্রয়োজন নেই · এক মিনিটের মধ্যে সেটআপ"
+      "noCreditCard": "কোনো ক্রেডিট কার্ডের প্রয়োজন নেই · এক মিনিটের মধ্যে সেটআপ",
+      "ctaSecondary": "লাইভ ডেমো দেখুন"
     },
     "countdown": {
       "seconds": "সেকেন্ড",
@@ -3139,9 +3140,9 @@
     "pressForAnalysis": "বিশ্লেষণের জন্য ⟳ টিপুন",
     "resistance": "প্রতিরোধ",
     "normal": "স্বাভাবিক",
-    "emaBullish": "EMA↑ • {bull} bullish {bear} bearish",
+    "emaBullish": "EMA↑ • {bull} বুলিশ {bear} বিয়ারিশ",
     "failed": "ব্যর্থ হয়েছে",
-    "emaBearish": "EMA↓ • {bull} bullish {bear} bearish",
+    "emaBearish": "EMA↓ • {bull} বুলিশ {bear} বিয়ারিশ",
     "overlayHarmonic": "হারমোনিক",
     "patterns": "নিদর্শন",
     "tabSmc": "এসএমসি",

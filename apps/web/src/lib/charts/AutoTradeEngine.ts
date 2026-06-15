@@ -88,6 +88,43 @@ export interface TradeSignal {
   keyLevel: number;
 }
 
+/**
+ * Optional boost data from revolutionary engines.
+ * All fields are optional — if not provided, behavior is identical to before.
+ * This allows the revolutionary engines to enhance trade decisions
+ * WITHOUT changing any existing code path.
+ */
+export interface RevolutionaryBoost {
+  /** Confluence zone near current price — boosts confluenceScore if strong */
+  confluenceZoneBoost?: {
+    score: number;         // Zone score 0-100
+    direction: 'bullish' | 'bearish' | 'neutral';
+    isActive: boolean;     // Price is inside/near the zone
+    signalCount: number;   // How many signals cluster in this zone
+  };
+  /** Per-source win rates from visual backtest — weights signal confidence */
+  backtestSourceWeights?: Record<string, {
+    winRate: number;       // 0-1 historical win rate for this source
+    sampleSize: number;    // How many signals evaluated
+  }>;
+  /** Best correlation combo that includes one of our signals — boosts confidence */
+  correlationBoost?: {
+    combinedWinRate: number;  // 0-1 combined win rate
+    lift: number;             // >1 = improvement over individual signal
+    partnerSource: string;    // The other source in the combo
+  };
+  /** Pattern prediction near completion — adds an early signal */
+  predictionNearCompletion?: {
+    patternType: string;
+    predictedDirection: 'bullish' | 'bearish';
+    completionPct: number;   // 0-100 how complete
+    confidence: number;      // Prediction confidence 0-1
+    targetPrice: number;     // Expected completion price
+  };
+  /** Risk assessment from AI explanation — can reduce confidence */
+  explanationRisk?: 'low' | 'medium' | 'high';
+}
+
 /** Partial close schedule */
 export interface PartialClose {
   /** Price level for partial close */
@@ -503,11 +540,14 @@ export function generateTradeProposal(opts: {
     agreeingTFs: number;
   };
   volRegime?: string;
+  /** Optional boost from revolutionary engines — has NO effect if not provided */
+  revolutionaryBoost?: RevolutionaryBoost;
 }): TradeProposal | null {
   const {
     candles, direction, confluenceScore, signals,
     patternInvalidation, patternTarget, patternSource,
     currentPrice, timeframe, mtfConfluence, volRegime,
+    revolutionaryBoost,
   } = opts;
 
   const params = getRiskParams();
@@ -575,6 +615,80 @@ export function generateTradeProposal(opts: {
     confidence = Math.min(0.95, confidence + mtfConfluence.score * 0.001);
   }
 
+  // ── Revolutionary Engine Boosts ──
+  // All boosts are GUARDED — they only apply if revolutionary data is provided.
+  // If no revolutionaryBoost is passed, this entire block is skipped.
+
+  let effectiveConfluenceScore = confluenceScore;
+  let revBoostDescription = '';
+
+  if (revolutionaryBoost) {
+    // 1. Confluence Zone Boost: If price is near a strong active zone that
+    //    agrees with our direction, boost confluenceScore by up to 15 points
+    if (revolutionaryBoost.confluenceZoneBoost) {
+      const czb = revolutionaryBoost.confluenceZoneBoost;
+      if (czb.isActive && czb.direction === direction) {
+        const zoneBoost = Math.min(15, Math.round(czb.score * 0.15));
+        effectiveConfluenceScore = Math.min(100, effectiveConfluenceScore + zoneBoost);
+        revBoostDescription += ` | منطقة تقارب ${czb.signalCount} إشارات (+${zoneBoost})`;
+      }
+    }
+
+    // 2. Backtest Source Weights: Adjust signal confidence based on historical
+    //    win rates. Sources with >60% win rate get a small boost, <40% get reduced.
+    if (revolutionaryBoost.backtestSourceWeights) {
+      for (const sig of agreeingSignals) {
+        const w = revolutionaryBoost.backtestSourceWeights[sig.source];
+        if (w && w.sampleSize >= 5) {
+          if (w.winRate > 0.6) {
+            sig.confidence = Math.min(0.95, sig.confidence * (1 + (w.winRate - 0.5) * 0.2));
+          } else if (w.winRate < 0.4) {
+            sig.confidence = Math.max(0.1, sig.confidence * (0.8 + w.winRate * 0.5));
+          }
+        }
+      }
+    }
+
+    // 3. Correlation Boost: If a known high-performing combo exists that
+    //    matches our signals, boost confidence proportionally
+    if (revolutionaryBoost.correlationBoost) {
+      const cb = revolutionaryBoost.correlationBoost;
+      if (cb.lift > 1.1 && cb.combinedWinRate > 0.55) {
+        const corrBoost = Math.min(0.08, (cb.lift - 1) * 0.05);
+        confidence = Math.min(0.95, confidence + corrBoost);
+        revBoostDescription += ` | تركيبة ${cb.partnerSource} (تحسن ${Math.round(cb.lift * 100 - 100)}%)`;
+      }
+    }
+
+    // 4. Prediction Near Completion: If a pattern is near completion in our
+    //    direction, add it as an extra agreeing signal (only if >= 70% complete)
+    if (revolutionaryBoost.predictionNearCompletion) {
+      const pred = revolutionaryBoost.predictionNearCompletion;
+      if (pred.predictedDirection === direction && pred.completionPct >= 70 && pred.confidence >= 0.4) {
+        agreeingSignals.push({
+          source: `prediction:${pred.patternType}`,
+          direction: pred.predictedDirection,
+          confidence: pred.confidence * (pred.completionPct / 100),
+          keyLevel: pred.targetPrice,
+        });
+        revBoostDescription += ` | نمط ${pred.patternType} ${pred.completionPct}% مكتمل`;
+      }
+    }
+
+    // 5. Explanation Risk: If AI explanation rates this as HIGH risk,
+    //    reduce confidence. If LOW risk, small boost.
+    if (revolutionaryBoost.explanationRisk === 'high') {
+      confidence = Math.max(0.1, confidence * 0.85);
+      revBoostDescription += ' | ⚠️ مخاطر عالية';
+    } else if (revolutionaryBoost.explanationRisk === 'low') {
+      confidence = Math.min(0.95, confidence + 0.03);
+    }
+
+    // Recalculate avg signal confidence after weight adjustments
+    const adjustedAvgConf = agreeingSignals.reduce((s, sig) => s + (sig.confidence ?? 0.5), 0) / agreeingSignals.length;
+    confidence = Math.min(0.95, adjustedAvgConf * (effectiveConfluenceScore / 100) * 1.1);
+  }
+
   // ── Quality Score ──
   const qualityScore = calculateQualityScore({
     confluenceScore,
@@ -601,6 +715,11 @@ export function generateTradeProposal(opts: {
     descriptionAr += ` | MTF: ${mtfConfluence.agreeingTFs} فريمات`;
   }
 
+  // Append revolutionary boost description if any
+  if (revBoostDescription) {
+    descriptionAr += revBoostDescription;
+  }
+
   const proposal: TradeProposal = {
     id: `trade_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     direction,
@@ -611,7 +730,7 @@ export function generateTradeProposal(opts: {
     riskAmount: Math.round(riskAmount * 100) / 100,
     rewardAmount: Math.round(rewardAmount * 100) / 100,
     rrRatio: Math.round(rrRatio * 100) / 100,
-    confluenceScore,
+    confluenceScore: effectiveConfluenceScore,
     agreeingSignals,
     patternSource: patternSource || 'confluence',
     confidence,

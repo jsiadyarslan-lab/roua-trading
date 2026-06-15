@@ -515,6 +515,14 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           trendLines,
           volumeProfile,
           liquidityResult,
+          // Revolutionary: Pass pattern predictions for early alerts
+          patternPredictions: patternPredictions?.map(p => ({
+            patternType: p.patternType,
+            predictedDirection: p.predictedDirection,
+            completionPct: p.completionPct,
+            confidence: p.confidence,
+            targetPrice: p.completionZone?.center || price,
+          })),
         });
         const alerts = evaluateSmartAlerts(alertSnapshot);
         setSmartAlerts(alerts);
@@ -589,6 +597,78 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             (tradeSignals.length || 1)) * 100
         );
 
+        // ── Build Revolutionary Boost from previous cycle data ──
+        // NOTE: We use state values from the PREVIOUS analysis cycle here.
+        // This is safe because the data updates every cycle and the values
+        // are only a few seconds stale. On first cycle, they'll be empty
+        // and the boost is simply skipped (no effect).
+        const revBoost: import('@/lib/charts/AutoTradeEngine').RevolutionaryBoost = {};
+
+        // 1. Confluence Zone Boost — find best zone matching our direction
+        if (confluenceZones && confluenceZones.length > 0) {
+          const matchingZone = confluenceZones
+            .filter(z => z.direction === confluenceDir && z.isActive)
+            .sort((a, b) => b.score - a.score)[0];
+          if (matchingZone) {
+            revBoost.confluenceZoneBoost = {
+              score: matchingZone.score,
+              direction: matchingZone.direction,
+              isActive: matchingZone.isActive,
+              signalCount: matchingZone.signalCount,
+            };
+          }
+        }
+
+        // 2. Backtest Source Weights — map per-source win rates
+        if (backtestStats?.bySource) {
+          const weights: Record<string, { winRate: number; sampleSize: number }> = {};
+          for (const [source, data] of Object.entries(backtestStats.bySource)) {
+            if (data.total >= 5) {
+              weights[source] = { winRate: data.winRate, sampleSize: data.total };
+            }
+          }
+          if (Object.keys(weights).length > 0) {
+            revBoost.backtestSourceWeights = weights;
+          }
+        }
+
+        // 3. Correlation Boost — find best combo that includes one of our signals
+        if (correlationMatrix?.topCombinations && correlationMatrix.topCombinations.length > 0) {
+          const ourSources = new Set(tradeSignals.map(s => s.source));
+          const bestCombo = correlationMatrix.topCombinations.find(combo =>
+            combo.winRate > 0.5 && combo.sources.some(s => ourSources.has(s))
+          );
+          if (bestCombo) {
+            const partner = bestCombo.sources.find(s => !ourSources.has(s)) || bestCombo.sources[0];
+            revBoost.correlationBoost = {
+              combinedWinRate: bestCombo.winRate,
+              lift: bestCombo.winRate / (tradeSignals[0]?.confidence || 0.5),
+              partnerSource: partner,
+            };
+          }
+        }
+
+        // 4. Prediction Near Completion — find pattern matching our direction
+        if (patternPredictions && patternPredictions.length > 0) {
+          const nearCompletion = patternPredictions
+            .filter(p => p.predictedDirection === confluenceDir && p.completionPct >= 60)
+            .sort((a, b) => b.completionPct - a.completionPct)[0];
+          if (nearCompletion) {
+            revBoost.predictionNearCompletion = {
+              patternType: nearCompletion.patternType,
+              predictedDirection: nearCompletion.predictedDirection,
+              completionPct: nearCompletion.completionPct,
+              confidence: nearCompletion.confidence,
+              targetPrice: nearCompletion.completionZone?.center || price,
+            };
+          }
+        }
+
+        // 5. Explanation Risk — from AI explanation if available
+        if (signalExplanation?.riskLevel) {
+          revBoost.explanationRisk = signalExplanation.riskLevel;
+        }
+
         const proposal = generateTradeProposal({
           candles: c,
           direction: confluenceDir,
@@ -603,6 +683,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             agreeingTFs: mtfResult.agreeingTFs,
           } : undefined,
           volRegime,
+          revolutionaryBoost: revBoost,
         });
 
         if (proposal) {

@@ -810,8 +810,16 @@ export function buildAlertSnapshot(opts: {
   trendLines?: any[];
   volumeProfile?: any;
   liquidityResult?: any;
+  /** Optional: Pattern predictions from PredictivePatternCompletion engine */
+  patternPredictions?: Array<{
+    patternType: string;
+    predictedDirection: 'bullish' | 'bearish';
+    completionPct: number;
+    confidence: number;
+    targetPrice: number;
+  }>;
 }): AnalysisSnapshot {
-  const { patterns, smcData, elliottResult, wyckoffResult, currentPrice, timeframe, trendLines, volumeProfile, liquidityResult } = opts;
+  const { patterns, smcData, elliottResult, wyckoffResult, currentPrice, timeframe, trendLines, volumeProfile, liquidityResult, patternPredictions } = opts;
 
   // ── Populate trendline touches from trend line data ──
   // FIX: Support multiple trendline formats — lines from DrawingManager
@@ -966,7 +974,21 @@ export function buildAlertSnapshot(opts: {
         confidence: p.confidence || 0.5,
         przLevel: p.przLevel || p.price || p.points?.D?.price || currentPrice,
         timeframe,
-      })),
+      }))
+      // ── Revolutionary: Add pattern predictions as harmonic-like alerts ──
+      // If a pattern is ≥ 70% complete and has ≥ 0.4 confidence, treat it
+      // as a near-completion harmonic pattern so alert rules fire for it
+      .concat(
+        (patternPredictions || [])
+          .filter(pred => pred.completionPct >= 70 && pred.confidence >= 0.4)
+          .map(pred => ({
+            type: `partial-${pred.patternType}`,
+            direction: pred.predictedDirection as 'bullish' | 'bearish' | 'neutral',
+            confidence: pred.confidence * (pred.completionPct / 100),
+            przLevel: pred.targetPrice,
+            timeframe,
+          }))
+      ),
     elliottResult: elliottResult?.dominantCount ? {
       dominantDirection: elliottResult.dominantCount.direction || 'neutral',
       confidence: elliottResult.dominantCount.confidence || 0.5,

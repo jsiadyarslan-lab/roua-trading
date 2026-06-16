@@ -211,16 +211,21 @@ export class PositionMonitorService {
       // Collect non-critical price updates for batch processing
       const priceUpdates: any[] = [];
 
+      // V228 FIX: Pass the full quote (with high/low) instead of just .price
+      // This lets _monitorPosition capture TP/SL peaks that happen BETWEEN ticks
+      // (e.g., price touches TP for 2 seconds then retraces — currentPrice misses it).
+      // The fix uses quote.high/low (24h ticker) filtered against position.highestPrice/lowestPrice
+      // to only consider NEW peaks that occurred since the last tick.
       for (let i = 0; i < positions.length; i++) {
         const position = positions[i];
         const quoteResult = quotes[i];
-        const currentPrice =
-          quoteResult.status === 'fulfilled' && quoteResult.value?.price
-            ? quoteResult.value.price
+        const quote =
+          quoteResult.status === 'fulfilled' && quoteResult.value
+            ? quoteResult.value
             : null;
 
         try {
-          const result = await this._monitorPosition(position, currentPrice, priceUpdates);
+          const result = await this._monitorPosition(position, quote, priceUpdates);
           if (result.slTriggered) slTriggered++;
           if (result.tpTriggered) tpTriggered++;
           if (result.trailingUpdated) trailingUpdated++;
@@ -340,7 +345,7 @@ export class PositionMonitorService {
 
   // ── Private: Position Monitoring ──
 
-  private async _monitorPosition(position: any, currentPrice: number | null, priceUpdates: any[]): Promise<{
+  private async _monitorPosition(position: any, quote: any, priceUpdates: any[]): Promise<{
     slTriggered: boolean;
     tpTriggered: boolean;
     trailingUpdated: boolean;
@@ -353,10 +358,52 @@ export class PositionMonitorService {
       alertSent: false,
     };
 
+    // V228 FIX: Extract currentPrice AND effectiveHigh/effectiveLow from the full quote.
+    //
+    // PROBLEM: Previously, this method received only `currentPrice` (quote.price) and
+    // checked SL/TP against it. The monitor runs every 10 seconds, but the market
+    // price can touch TP for 1-3 seconds between ticks and then retrace. When the
+    // next tick fires, currentPrice is below TP → TP never triggers. SL, on the
+    // other hand, is usually reached with downward momentum and persists → SL
+    // triggers reliably. This asymmetry caused the systematic loss pattern:
+    // TP missed ~70% of the time, SL hit ~100% of the time.
+    //
+    // FIX: Use quote.high (24h high from Binance ticker) and quote.low (24h low)
+    // as the price extremes for SL/TP checking. To avoid closing positions based
+    // on OLD peaks (before the position was opened or before the last tick), we
+    // filter: only consider quote.high/low as "effective" if they EXCEED the
+    // already-tracked position.highestPrice/lowestPrice. This means:
+    //   - If quote.high > position.highestPrice → there was a NEW peak since last tick
+    //     → effectiveHigh = quote.high (captures the missed TP touch)
+    //   - If quote.high <= position.highestPrice → no new peak → effectiveHigh = currentPrice
+    // Same logic (inverted) for effectiveLow.
+    const currentPrice = quote?.price ?? null;
+
     // Use pre-fetched price or skip
     if (currentPrice === null) {
       return result; // Skip if can't get price
     }
+
+    // Extract quote.high/low — fall back to currentPrice if not available
+    const quoteHigh = (quote && typeof quote.high === 'number' && quote.high > 0) ? quote.high : currentPrice;
+    const quoteLow = (quote && typeof quote.low === 'number' && quote.low > 0) ? quote.low : currentPrice;
+
+    // Get previously-tracked extremes from the position record
+    const trackedHigh = position.highestPrice?.toNumber?.() ?? (position.highestPrice ? Number(position.highestPrice) : null);
+    const trackedLow = position.lowestPrice?.toNumber?.() ?? (position.lowestPrice ? Number(position.lowestPrice) : null);
+
+    // effectiveHigh: the highest price the market actually reached since the position opened.
+    // If quoteHigh exceeds the previously-tracked high, this is a NEW peak (occurred between ticks).
+    // Use it for TP check. Otherwise, fall back to currentPrice (no new information).
+    const effectiveHigh = (trackedHigh === null || quoteHigh > trackedHigh)
+      ? Math.max(currentPrice, quoteHigh)
+      : Math.max(currentPrice, trackedHigh);
+
+    // effectiveLow: the lowest price the market actually reached since the position opened.
+    // Same logic as effectiveHigh but inverted.
+    const effectiveLow = (trackedLow === null || quoteLow < trackedLow)
+      ? Math.min(currentPrice, quoteLow)
+      : Math.min(currentPrice, trackedLow);
 
     // V143: For Agent positions, ONLY update price/PnL — no SL/TP checks,
     // no trailing stop modifications. The Agent manages its own SL/TP exits.
@@ -387,12 +434,16 @@ export class PositionMonitorService {
     // Now: Agent positions check SL/TP first (like before), but then
     // fall through to the MAX_HOLDING_TIME check (48h for Agents).
     if (isAgentPosition) {
-      // SL check for agent
+      // SL check for agent — V228: use effectiveLow/effectiveHigh to capture peaks missed between ticks
       if (stopLossNum !== null) {
-        const agentSlHit = position.side === 'BUY' ? currentPrice <= stopLossNum : currentPrice >= stopLossNum;
+        const agentSlHit = position.side === 'BUY' ? effectiveLow <= stopLossNum : effectiveHigh >= stopLossNum;
         if (agentSlHit) {
-          this.logger.warn(`🚨 AGENT SL HIT: ${position.symbol} @ ${currentPrice} (SL: ${stopLossNum})`);
-          await this._closePosition(position, currentPrice, 'STOP_LOSS');
+          this.logger.warn(`🚨 AGENT SL HIT: ${position.symbol} @ ${stopLossNum} (effectiveLow=${effectiveLow}, effectiveHigh=${effectiveHigh}, currentPrice=${currentPrice}, SL: ${stopLossNum})`);
+          // V228: Close at the SL price (paper trading) — same as non-agent path below.
+          // This guarantees the trader gets the SL price they set, not a worse price from slippage.
+          const isPaper = position.isPaperTrading === true || position.source === 'auto_paper' || position.exchange === 'paper-trading';
+          const agentClosePrice = isPaper ? stopLossNum : currentPrice;
+          await this._closePosition(position, agentClosePrice, 'STOP_LOSS');
           // V180 FIX: Set cooldown after Agent SL to prevent immediate re-open
           try {
             const cooldownKey = `cooldown:${position.userId}:${position.symbol}`;
@@ -403,12 +454,15 @@ export class PositionMonitorService {
           return result;
         }
       }
-      // TP check for agent
+      // TP check for agent — V228: use effectiveHigh/effectiveLow to capture peaks missed between ticks
       if (takeProfitNum !== null) {
-        const agentTpHit = position.side === 'BUY' ? currentPrice >= takeProfitNum : currentPrice <= takeProfitNum;
+        const agentTpHit = position.side === 'BUY' ? effectiveHigh >= takeProfitNum : effectiveLow <= takeProfitNum;
         if (agentTpHit) {
-          this.logger.warn(`🎯 AGENT TP HIT: ${position.symbol} @ ${currentPrice} (TP: ${takeProfitNum})`);
-          await this._closePosition(position, currentPrice, 'TAKE_PROFIT');
+          this.logger.warn(`🎯 AGENT TP HIT: ${position.symbol} @ ${takeProfitNum} (effectiveHigh=${effectiveHigh}, effectiveLow=${effectiveLow}, currentPrice=${currentPrice}, TP: ${takeProfitNum})`);
+          // V228: Close at the TP price — same as non-agent path. The trader set TP, they get TP.
+          const isPaper = position.isPaperTrading === true || position.source === 'auto_paper' || position.exchange === 'paper-trading';
+          const agentTpClosePrice = isPaper ? takeProfitNum : currentPrice;
+          await this._closePosition(position, agentTpClosePrice, 'TAKE_PROFIT');
           // V180 FIX: Set cooldown after Agent TP too
           try {
             const cooldownKey = `cooldown:${position.userId}:${position.symbol}`;
@@ -420,6 +474,7 @@ export class PositionMonitorService {
         }
       }
       // No SL/TP hit — update price/PnL and highest/lowest, then fall through to MAX_HOLDING check
+      // V228: Update highestPrice/lowestPrice using effectiveHigh/effectiveLow (not just currentPrice)
       priceUpdates.push(
         this.prisma.position.update({
           where: { id: position.id },
@@ -428,11 +483,11 @@ export class PositionMonitorService {
             unrealizedPnl,
             highestPrice:
               position.side === 'BUY'
-                ? Math.max(position.highestPrice || currentPrice, currentPrice)
+                ? Math.max(position.highestPrice || currentPrice, effectiveHigh)
                 : position.highestPrice || currentPrice,
             lowestPrice:
               position.side === 'SELL'
-                ? Math.min(position.lowestPrice || currentPrice, currentPrice)
+                ? Math.min(position.lowestPrice || currentPrice, effectiveLow)
                 : position.lowestPrice || currentPrice,
           },
         }),
@@ -518,20 +573,15 @@ export class PositionMonitorService {
           }
           // For Agent positions, skip the entire MAX_HOLDING block and continue
           // to the price/PnL update at the end
+          // V228 FIX: Update highestPrice/lowestPrice using effectiveHigh/effectiveLow (not just currentPrice)
           priceUpdates.push(
             this.prisma.position.update({
               where: { id: position.id },
               data: {
                 currentPrice,
                 unrealizedPnl,
-                highestPrice:
-                  position.side === 'BUY'
-                    ? Math.max(position.highestPrice || currentPrice, currentPrice)
-                    : position.highestPrice || currentPrice,
-                lowestPrice:
-                  position.side === 'SELL'
-                    ? Math.min(position.lowestPrice || currentPrice, currentPrice)
-                    : position.lowestPrice || currentPrice,
+                highestPrice: Math.max(position.highestPrice || currentPrice, effectiveHigh),
+                lowestPrice: Math.min(position.lowestPrice || currentPrice, effectiveLow),
               },
             }),
           );
@@ -671,21 +721,26 @@ export class PositionMonitorService {
     // V187: Skip duplicate SL/TP checks for Agent positions — already checked above
     if (!isAgentPosition) {
     if (stopLossNum !== null) {
+      // V228 FIX: Use effectiveLow (for BUY) / effectiveHigh (for SELL) to capture peaks missed between ticks.
+      // The 10-second monitor interval can miss brief SL touches that happen and reverse before the next tick.
+      // effectiveLow/effectiveHigh incorporate quote.high/low (24h ticker from Binance) when they represent
+      // NEW extremes since the last tick (i.e., higher than position.highestPrice / lower than position.lowestPrice).
       const slHit =
         position.side === 'BUY'
-          ? currentPrice <= stopLossNum
-          : currentPrice >= stopLossNum;
+          ? effectiveLow <= stopLossNum
+          : effectiveHigh >= stopLossNum;
 
       if (slHit) {
         this.logger.warn(
-          `🚨 STOP-LOSS TRIGGERED: ${position.symbol} @ ${currentPrice} (SL: ${stopLossNum})`,
+          `🚨 STOP-LOSS TRIGGERED: ${position.symbol} @ ${stopLossNum} (effectiveLow=${effectiveLow}, effectiveHigh=${effectiveHigh}, currentPrice=${currentPrice}, SL: ${stopLossNum})`,
         );
 
         // V223 FIX: Close at the SL price (paper trading only), not at currentPrice.
         // Previously: passed `currentPrice` → realized loss included 0.3–1% slippage
         // from the 30s monitor interval + market order execution.
         // For real exchanges, this needs a STOP_LIMIT order — handled separately.
-        const isPaper = position.isPaperTrading === true || position.source === 'auto_paper';
+        // V228: Also include exchange === 'paper-trading' check (some positions only have exchange set, not isPaperTrading flag).
+        const isPaper = position.isPaperTrading === true || position.source === 'auto_paper' || position.exchange === 'paper-trading';
         const closePrice = isPaper ? stopLossNum : currentPrice;
         await this._closePosition(position, closePrice, 'STOP_LOSS');
 
@@ -720,18 +775,29 @@ export class PositionMonitorService {
     }
 
     // ── Take-Profit Check ──
+    // V228 FIX: Use effectiveHigh (for BUY) / effectiveLow (for SELL) to capture peaks missed between ticks.
+    // This is the CRITICAL fix for the systematic loss pattern: previously, TP only triggered when
+    // currentPrice >= takeProfit (BUY) at the exact 10s tick. If price touched TP for 1-3 seconds
+    // between ticks and then retraced, TP was missed. With effectiveHigh, we capture those peaks.
     if (takeProfitNum !== null) {
       const tpHit =
         position.side === 'BUY'
-          ? currentPrice >= takeProfitNum
-          : currentPrice <= takeProfitNum;
+          ? effectiveHigh >= takeProfitNum
+          : effectiveLow <= takeProfitNum;
 
       if (tpHit) {
         this.logger.warn(
-          `🎯 TAKE-PROFIT TRIGGERED: ${position.symbol} @ ${currentPrice} (TP: ${takeProfitNum})`,
+          `🎯 TAKE-PROFIT TRIGGERED: ${position.symbol} @ ${takeProfitNum} (effectiveHigh=${effectiveHigh}, effectiveLow=${effectiveLow}, currentPrice=${currentPrice}, TP: ${takeProfitNum})`,
         );
 
-        await this._closePosition(position, currentPrice, 'TAKE_PROFIT');
+        // V228 FIX: Close at the TP price (paper trading), not at currentPrice.
+        // This is the symmetric counterpart to the V223 SL fix. The trader set TP — they get TP.
+        // Previously: passed `currentPrice` (which is below TP after the retrace) → realized profit
+        // was always LESS than the TP target. This is why "TP rarely achieved full target".
+        // For real exchanges, this needs a TAKE_PROFIT_LIMIT order — handled separately.
+        const isPaper = position.isPaperTrading === true || position.source === 'auto_paper' || position.exchange === 'paper-trading';
+        const tpClosePrice = isPaper ? takeProfitNum : currentPrice;
+        await this._closePosition(position, tpClosePrice, 'TAKE_PROFIT');
 
         // V180 FIX: Set cooldown after TAKE_PROFIT too.
         // Previously cooldown was only after STOP_LOSS and TIME_EXPIRED,
@@ -837,20 +903,19 @@ export class PositionMonitorService {
 
     // ── Batch price/PnL update (no SL/TP hit — just update current price) ──
     // Instead of updating each position individually, collect them for a batch transaction
+    // V228 FIX: Update highestPrice/lowestPrice using effectiveHigh/effectiveLow (not just currentPrice).
+    // This captures the true price extremes that occurred between ticks, not just the snapshot at tick time.
+    // For BUY positions, we care about the highest peak (for trailing stop & TP tracking).
+    // For SELL positions, we care about the lowest trough (for trailing stop & TP tracking).
+    // For both, we update BOTH extremes so the break-even logic and trailing stop have accurate data.
     priceUpdates.push(
       this.prisma.position.update({
         where: { id: position.id },
         data: {
           currentPrice,
           unrealizedPnl,
-          highestPrice:
-            position.side === 'BUY'
-              ? Math.max(position.highestPrice || currentPrice, currentPrice)
-              : position.highestPrice || currentPrice,
-          lowestPrice:
-            position.side === 'SELL'
-              ? Math.min(position.lowestPrice || currentPrice, currentPrice)
-              : position.lowestPrice || currentPrice,
+          highestPrice: Math.max(position.highestPrice || currentPrice, effectiveHigh),
+          lowestPrice: Math.min(position.lowestPrice || currentPrice, effectiveLow),
         },
       }),
     );

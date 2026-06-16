@@ -701,7 +701,17 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
             where: { userId: command.userId },
             select: { paperBalance: true, paperCryptoLeverage: true, paperForexLeverage: true },
           });
-          const paperBalance = settings?.paperBalance ? Number(settings.paperBalance) : 0;
+          // V232 FIX: Use DEFAULT_PAPER_BALANCE (10000) when paperBalance is 0 or missing.
+          // Previously, this returned 0, which caused ALL paper trades to be rejected
+          // with "هامش الورق غير كافٍ. المتاح: $0" — even for users who never traded.
+          // The credentials.service.ts:735 already uses 10000 as fallback — this
+          // aligns the risk service with that behavior.
+          const DEFAULT_PAPER_BALANCE = parseFloat(
+            this.configService.get('DEFAULT_PAPER_BALANCE', '10000'),
+          ) || 10000;
+          const paperBalance = settings?.paperBalance && Number(settings.paperBalance) > 0
+            ? Number(settings.paperBalance)
+            : DEFAULT_PAPER_BALANCE;
           const cryptoLev = settings?.paperCryptoLeverage ? Number(settings.paperCryptoLeverage) : 1;
           const forexLev = settings?.paperForexLeverage ? Number(settings.paperForexLeverage) : 50;
 

@@ -1320,12 +1320,24 @@ export class TradingService {
       // Non-critical — trade repetition tracking failure should not block closes
     }
 
-    // FIX: Clear Smart Executor processed keys for this position so new briefs
-    // for the same symbol can be executed. Without this, the processedKey
-    // `smart-executor:processed:{briefId}:{userId}` persists for 24 hours,
-    // blocking the executor from opening new positions for this user+symbol
-    // after the old position was closed.
-    this._clearProcessedKeysForPosition(userId, position.symbol).catch(() => {});
+    // V222 FIX: REMOVED _clearProcessedKeysForPosition call.
+    //
+    // PROBLEM: This function was clearing SmartExecutor's processed keys
+    // IMMEDIATELY after close, allowing the executor to generate and submit
+    // new briefs for the same symbol within the next 10-second tick.
+    // This was a DIRECT cause of flip-flop trading:
+    //   1. Position closed → processed keys cleared
+    //   2. SmartExecutor tick (10s) → generates new brief for same symbol
+    //   3. OrderDispatcher/UnifiedRisk → Redis checks may fail silently
+    //   4. Position re-opened → user sees immediate re-open
+    //
+    // FIX: Let processed keys expire naturally (24h TTL). New briefs have
+    // new briefIds so they won't be blocked. Old briefs being blocked for
+    // 24h is GOOD — it prevents the executor from re-executing stale briefs.
+    // The V222 DB cooldown in _updatePosition is the bulletproof protection.
+    //
+    // OLD CODE (REMOVED):
+    // this._clearProcessedKeysForPosition(userId, position.symbol).catch(() => {});
 
     // V172d FIX: Return MARGIN + PnL to paperBalance atomically on close.
     if (position.exchange === 'paper-trading') {
@@ -1684,9 +1696,31 @@ export class TradingService {
       `NO exchange order was executed. DB updated only.`,
     );
 
-    // FIX: Clear Smart Executor processed keys for this position so new briefs
-    // for the same symbol can be executed after force close.
-    this._clearProcessedKeysForPosition(userId, position.symbol).catch(() => {});
+    // V222 FIX: REMOVED _clearProcessedKeysForPosition — same as closePosition.
+    // See closePosition's comment for full explanation.
+    // OLD CODE (REMOVED):
+    // this._clearProcessedKeysForPosition(userId, position.symbol).catch(() => {});
+
+    // V222 FIX: Set symbol-lock + direction-lock + cooldown after force-close.
+    // Previously, forceClosePosition did NOT set these Redis keys, meaning:
+    //   - SmartExecutor's cooldown check would NOT block the symbol
+    //   - UnifiedRiskService CHECK 8 would NOT block the symbol
+    // This was a critical gap — if a position was force-closed (V114 fallback),
+    // nothing prevented immediate re-open except the DB cooldown in _updatePosition.
+    try {
+      const closedSide = position.side;
+      const repDirLockKey = `trade-rep:dir-lock:${userId}:${position.symbol}:${closedSide}`;
+      await this.redis.set(repDirLockKey, '1', 30 * 60 * 1000); // 30 min same-direction lockout
+
+      const symbolLockKey = `trade-rep:symbol-lock:${userId}:${position.symbol}`;
+      await this.redis.set(symbolLockKey, '1', 15 * 60 * 1000); // 15 min both-directions lockout
+
+      const cooldownKey = `cooldown:${userId}:${position.symbol}`;
+      await this.redis.set(cooldownKey, 'FORCE_CLOSE', 15 * 60 * 1000); // 15 min cooldown for SmartExecutor
+    } catch (lockErr: any) {
+      this.logger.warn(`V222: Failed to set symbol-lock after force-close: ${lockErr.message}`);
+      // Non-critical — V222 DB cooldown in _updatePosition is the backup
+    }
 
     // V172d FIX: Return MARGIN + PnL to paperBalance atomically on force-close.
     if (position.exchange === 'paper-trading') {
@@ -2841,6 +2875,57 @@ export class TradingService {
           },
         });
       } else {
+        // ═══════════════════════════════════════════════════════════════════
+        // V222 BULLETPROOF: DB-level cooldown — block ALL positions on a
+        // symbol that was closed within the last 15 minutes, REGARDLESS of
+        // direction, source, or which code path opened/closed the position.
+        //
+        // This is the FINAL safety net. Even if:
+        //   - Redis is down (symbol-lock keys not set/read)
+        //   - OrderDispatcher checks were bypassed
+        //   - SmartExecutor cooldown check failed
+        //   - forceClosePosition didn't set symbol-lock
+        //   - MT5 sync closed the position without any cooldown
+        // This DB check WILL prevent flip-flop trades.
+        // ═══════════════════════════════════════════════════════════════════
+        const COOLDOWN_MINUTES = 15;
+        const recentlyClosed = await db.position.findFirst({
+          where: {
+            userId,
+            symbol: request.symbol,
+            status: { in: ['CLOSED', 'LIQUIDATED'] },
+            closedAt: { gte: new Date(Date.now() - COOLDOWN_MINUTES * 60 * 1000) },
+          },
+          orderBy: { closedAt: 'desc' },
+        });
+        if (recentlyClosed) {
+          const closedAgo = Math.round((Date.now() - new Date(recentlyClosed.closedAt!).getTime()) / 60000);
+          this.logger.warn(
+            `🛡️ V222 DB-COOLDOWN in _updatePosition: BLOCKED ${side} on ${request.symbol} — ` +
+            `position closed ${closedAgo} min ago (cooldown: ${COOLDOWN_MINUTES} min). ` +
+            `Source: ${request.source || 'unknown'}`
+          );
+          throw new Error(
+            `BLOCKED_BY_COOLDOWN: تم إغلاق مركز على ${request.symbol} قبل ${closedAgo} دقيقة — ` +
+            `انتظر ${COOLDOWN_MINUTES - closedAgo} دقيقة قبل فتح مركز جديد`
+          );
+        }
+
+        // Also check for ANY existing open position (regardless of direction)
+        // This prevents opposite-direction hedging at the lowest level
+        const anyExistingOpen = await db.position.findFirst({
+          where: { userId, symbol: request.symbol, status: 'OPEN' },
+        });
+        if (anyExistingOpen) {
+          this.logger.warn(
+            `🛡️ V222 DUPLICATE-BLOCK in _updatePosition: BLOCKED ${side} on ${request.symbol} — ` +
+            `existing ${anyExistingOpen.side} position (${anyExistingOpen.source}) already open`
+          );
+          throw new Error(
+            `BLOCKED_BY_DUPLICATE: يوجد مركز ${anyExistingOpen.side} مفتوح لـ ${request.symbol} — لا يمكن فتح مركز آخر`
+          );
+        }
+
         // Open new position
         const { stopLoss, takeProfit } =
           this.unifiedRisk.getDefaultLevels(fillPrice, side);

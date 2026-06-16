@@ -913,10 +913,38 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
     return { allowed: true };
   }
 
-  /** CHECK 8: Trade Repetition Filter */
+  /** CHECK 8: Trade Repetition Filter + V222 DB Cooldown */
   async checkTradeRepetitionFilter(command: OrderCommand): Promise<RiskCheckResult> {
     try {
       const { userId, symbol, side } = command;
+
+      // ═══════════════════════════════════════════════════════════════════
+      // V222 BULLETPROOF: DB-level cooldown — checked FIRST, before Redis.
+      // This check is 100% reliable regardless of Redis availability.
+      // If a position was CLOSED on this symbol within the last 15 min,
+      // block ALL new positions (both directions, all sources).
+      // ═══════════════════════════════════════════════════════════════════
+      const COOLDOWN_MINUTES = 15;
+      const recentlyClosed = await this.prisma.position.findFirst({
+        where: {
+          userId,
+          symbol,
+          status: { in: ['CLOSED', 'LIQUIDATED'] },
+          closedAt: { gte: new Date(Date.now() - COOLDOWN_MINUTES * 60 * 1000) },
+        },
+        orderBy: { closedAt: 'desc' },
+      });
+      if (recentlyClosed) {
+        const closedAgo = Math.round((Date.now() - new Date(recentlyClosed.closedAt!).getTime()) / 60000);
+        this.logger.warn(
+          `🛡️ V222 RISK-COOLDOWN: Blocked ${side} on ${symbol} — position closed ${closedAgo} min ago`
+        );
+        return {
+          allowed: false,
+          reason: `تم إغلاق مركز على ${symbol} قبل ${closedAgo} دقيقة — انتظر ${COOLDOWN_MINUTES - closedAgo} دقيقة`,
+          failedCheck: 'TRADE_REPETITION',
+        };
+      }
 
       // V221 FIX: Symbol-level lockout — blocks BOTH directions for 15 minutes.
       // Prevents flip-flop pattern: BUY → SL → SELL immediately → SL → BUY ...
@@ -948,8 +976,17 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
       }
 
       return { allowed: true };
-    } catch {
-      return { allowed: true };
+    } catch (err: any) {
+      // V222 FIX: FAIL-CLOSED — if the DB cooldown check fails, BLOCK the trade.
+      // Previously this was fail-open (return allowed: true), meaning if Redis
+      // or DB had an error, the trade would go through — enabling flip-flop.
+      // Now: if we can't verify the symbol is safe, we block it.
+      this.logger.error(`V222 RISK-COOLDOWN check failed: ${err.message} — BLOCKING trade for safety`);
+      return {
+        allowed: false,
+        reason: `فشل فحص التكرار — تم حظر الصفقة احتياطياً`,
+        failedCheck: 'TRADE_REPETITION',
+      };
     }
   }
 

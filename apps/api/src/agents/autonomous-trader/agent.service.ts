@@ -1610,6 +1610,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
           // V221 FIX: Check cooldown — skip symbols that recently hit SL.
           // The Position Monitor sets cooldown:{userId}:{symbol} after SL,
           // but the Agent was not checking it. This caused flip-flop trades.
+          // V222: FAIL-CLOSED — if Redis check fails, SKIP the brief.
           try {
             const cooldownKey = `cooldown:${userId}:${brief.pair}`;
             const cooldownReason = await this.redis.get(cooldownKey);
@@ -1617,10 +1618,15 @@ export class AutonomousTraderAgentService implements OnModuleInit {
               this.logger.debug(`🧠 Skipping brief ${brief.id} — ${brief.pair} on cooldown (${cooldownReason})`);
               continue;
             }
-          } catch { /* proceed if Redis unavailable */ }
+          } catch (redisErr: any) {
+            // V222 FAIL-CLOSED: If Redis is down, skip this brief for safety
+            this.logger.warn(`🧠 V222 Cooldown check failed for ${brief.pair}: ${redisErr.message} — skipping brief`);
+            continue;
+          }
 
           // V221 FIX: Check symbol-level lockout — skip symbols that were
           // recently closed in ANY direction. Prevents flip-flop pattern.
+          // V222: FAIL-CLOSED — if Redis check fails, SKIP the brief.
           try {
             const symbolLockKey = `trade-rep:symbol-lock:${userId}:${brief.pair}`;
             const symbolLocked = await this.redis.get(symbolLockKey);
@@ -1628,7 +1634,35 @@ export class AutonomousTraderAgentService implements OnModuleInit {
               this.logger.debug(`🧠 Skipping brief ${brief.id} — ${brief.pair} symbol-locked (recently closed)`);
               continue;
             }
-          } catch { /* proceed if Redis unavailable */ }
+          } catch (redisErr: any) {
+            // V222 FAIL-CLOSED: If Redis is down, skip this brief for safety
+            this.logger.warn(`🧠 V222 Symbol-lock check failed for ${brief.pair}: ${redisErr.message} — skipping brief`);
+            continue;
+          }
+
+          // V222 BULLETPROOF: DB-level cooldown — skip if position was recently closed.
+          // This is independent of Redis and 100% reliable.
+          try {
+            const COOLDOWN_MINUTES = 15;
+            const recentlyClosed = await this.prisma.position.findFirst({
+              where: {
+                userId,
+                symbol: brief.pair,
+                status: { in: ['CLOSED', 'LIQUIDATED'] },
+                closedAt: { gte: new Date(Date.now() - COOLDOWN_MINUTES * 60 * 1000) },
+              },
+              orderBy: { closedAt: 'desc' },
+            });
+            if (recentlyClosed) {
+              const closedAgo = Math.round((Date.now() - new Date(recentlyClosed.closedAt!).getTime()) / 60000);
+              this.logger.debug(`🧠 V222 DB-COOLDOWN: Skipping ${brief.pair} — position closed ${closedAgo} min ago`);
+              continue;
+            }
+          } catch (dbErr: any) {
+            // V222 FAIL-CLOSED: If DB check fails, skip this brief for safety
+            this.logger.warn(`🧠 V222 DB cooldown check failed for ${brief.pair}: ${dbErr.message} — skipping brief`);
+            continue;
+          }
 
           // V141 FIX: Check for same-direction position only (not just any position).
           // Previously, if the Smart Executor had a BUY on BTC/USDT, the Agent

@@ -1911,13 +1911,41 @@ export class SmartExecutorService implements OnModuleDestroy {
     const rgMaxPositions = rgParams.maxOpenPositions;
     const effectiveMaxPositions = Math.min(executorMaxPositions, rgMaxPositions);
 
-    // V176/V221 FIX: Check cooldown + symbol-lock before opening any new positions.
+    // V176/V221/V222 FIX: Check cooldown + symbol-lock + DB cooldown before opening any new positions.
     // Issue #11: After TIME_EXPIRED/STOP_LOSS auto-close, the SmartExecutor
     // immediately re-opened the same position, creating trades every 8-10 seconds.
     // V221: Also check symbol-level lockout (blocks BOTH directions after any close).
+    // V222: Also check DB-level cooldown (100% reliable, no Redis dependency).
     try {
       const cooldownBriefs: string[] = [];
       for (const brief of briefs) {
+        // V222 BULLETPROOF: DB-level cooldown — checked FIRST, before Redis.
+        // This is 100% reliable regardless of Redis availability.
+        try {
+          const COOLDOWN_MINUTES = 15;
+          const recentlyClosed = await this.prisma.position.findFirst({
+            where: {
+              userId,
+              symbol: brief.pair,
+              status: { in: ['CLOSED', 'LIQUIDATED'] },
+              closedAt: { gte: new Date(Date.now() - COOLDOWN_MINUTES * 60 * 1000) },
+            },
+            orderBy: { closedAt: 'desc' },
+          });
+          if (recentlyClosed) {
+            this.logger.debug(
+              `⏳ V222 DB-COOLDOWN: Skipping ${brief.pair} for user ${userId} — position closed recently`,
+            );
+            cooldownBriefs.push(brief.pair);
+            continue;
+          }
+        } catch (dbErr: any) {
+          // V222 FAIL-CLOSED: If DB check fails, block this brief
+          this.logger.warn(`V222 DB cooldown check failed for ${brief.pair}: ${dbErr.message} — blocking brief`);
+          cooldownBriefs.push(brief.pair);
+          continue;
+        }
+
         // Check Position Monitor cooldown (set after SL/TP auto-close)
         const cooldownKey = `cooldown:${userId}:${brief.pair}`;
         const cooldownReason = await this.redis.get(cooldownKey);
@@ -1953,7 +1981,11 @@ export class SmartExecutorService implements OnModuleDestroy {
         }
       }
     } catch (cooldownErr: any) {
-      this.logger.warn(`V176+V221 Cooldown check failed: ${cooldownErr.message} — continuing without cooldown check`);
+      // V222 FIX: FAIL-CLOSED — if cooldown check fails, SKIP ALL briefs for safety.
+      // Previously this was fail-open ("continuing without cooldown check"), meaning
+      // if Redis was down, ALL briefs would pass through — enabling flip-flop trades.
+      this.logger.error(`V222 Cooldown check failed: ${cooldownErr.message} — SKIPPING all briefs for safety`);
+      return;
     }
 
     // ═══════════════════════════════════════════════════════════════════

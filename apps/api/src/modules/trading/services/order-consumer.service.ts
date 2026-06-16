@@ -373,6 +373,42 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
             },
           });
         } else {
+          // ═══════════════════════════════════════════════════════════════════
+          // V222 BULLETPROOF: DB-level cooldown — block ALL new positions on
+          // a symbol that was closed within the last 15 minutes. This catches
+          // the V2 BullMQ queue path which bypasses OrderDispatcher checks.
+          // ═══════════════════════════════════════════════════════════════════
+          const COOLDOWN_MINUTES = 15;
+          const recentlyClosed = await tx.position.findFirst({
+            where: {
+              userId: message.userId,
+              symbol: message.symbol,
+              status: { in: ['CLOSED', 'LIQUIDATED'] },
+              closedAt: { gte: new Date(Date.now() - COOLDOWN_MINUTES * 60 * 1000) },
+            },
+            orderBy: { closedAt: 'desc' },
+          });
+          if (recentlyClosed) {
+            const closedAgo = Math.round((Date.now() - new Date(recentlyClosed.closedAt!).getTime()) / 60000);
+            this.logger.warn(
+              `🛡️ V222 QUEUE-COOLDOWN: BLOCKED ${message.side} on ${message.symbol} — ` +
+              `position closed ${closedAgo} min ago (cooldown: ${COOLDOWN_MINUTES} min)`
+            );
+            return; // Drop the order — don't create position
+          }
+
+          // Also check for ANY existing open position (regardless of direction)
+          const anyExistingOpen = await tx.position.findFirst({
+            where: { userId: message.userId, symbol: message.symbol, status: 'OPEN' },
+          });
+          if (anyExistingOpen) {
+            this.logger.warn(
+              `🛡️ V222 QUEUE-DUPLICATE: BLOCKED ${message.side} on ${message.symbol} — ` +
+              `existing ${anyExistingOpen.side} position already open`
+            );
+            return; // Drop the order
+          }
+
           // Open new position
           await tx.position.create({
             data: {

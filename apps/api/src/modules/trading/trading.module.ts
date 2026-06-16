@@ -15,6 +15,7 @@ import { NotificationModule } from '../notification/notification.module';
 import { OrderController } from './controllers/order.controller';
 import { IdempotencyService } from './services/idempotency.service';
 import { RiskGatekeeperService } from './services/risk-gatekeeper.service';
+import { UnifiedRiskService } from './services/unified-risk.service';
 import { OrderStateManagerService } from './services/order-state-manager.service';
 import { PositionManagerService } from './services/position-manager.service';
 import { OrderProducerService } from './services/order-producer.service';
@@ -69,7 +70,8 @@ import { ExternalCircuitBreakerService } from './services/external-circuit-break
  * New Engine Services:
  * - OrderController: New order pipeline (idempotency → risk → queue)
  * - IdempotencyService: Duplicate order prevention (Redis)
- * - RiskGatekeeperService: 5-point pre-trade validation
+ * - RiskGatekeeperService: 5-point pre-trade validation (DEPRECATED — use UnifiedRiskService)
+ * - UnifiedRiskService: V219 — ONE unified risk service replacing 3 conflicting ones
  * - OrderStateManagerService: Order lifecycle + event sourcing
  * - PositionManagerService: Portfolio tracking with live P&L
  * - OrderProducerService: RabbitMQ order publisher
@@ -105,6 +107,7 @@ import { ExternalCircuitBreakerService } from './services/external-circuit-break
     // New engine services
     IdempotencyService,
     RiskGatekeeperService,
+    UnifiedRiskService,  // V219: Unified risk service — ONE gate, ONE set of rules
     OrderStateManagerService,
     PositionManagerService,
     OrderProducerService,
@@ -151,6 +154,7 @@ import { ExternalCircuitBreakerService } from './services/external-circuit-break
     RiskManagerService,
     IdempotencyService,
     RiskGatekeeperService,
+    UnifiedRiskService,  // V219: Export for SmartExecutor, Agent, etc.
     OrderStateManagerService,
     PositionManagerService,
     OrderProducerService,

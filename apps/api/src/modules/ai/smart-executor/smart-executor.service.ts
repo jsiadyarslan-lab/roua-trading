@@ -39,6 +39,7 @@ import { TradingBriefDTO, StrictRules, EXECUTOR_TIMEFRAMES, isExecutorTimeframe,
 import { ExecutorStatus, ExecutionResult, ExecutorConfig, UserExecutorState } from './smart-executor.types';
 import { PlaceOrderRequest, OrderSide, OrderType } from '../../trading/trading.types';
 import { RiskGatekeeperService } from '../../trading/services/risk-gatekeeper.service';
+import { UnifiedRiskService } from '../../trading/services/unified-risk.service';
 import { AIOrchestratorService } from '../services/ai-orchestrator.service';
 import { OrderSideEnum, OrderTypeEnum } from '../../trading/events/order.events';
 import { NotificationService } from '../../notification/notification.service';
@@ -102,6 +103,7 @@ export class SmartExecutorService implements OnModuleDestroy {
     private readonly tradingService: TradingService,
     private readonly councilService: StrategicCouncilService,
     private readonly riskGatekeeper: RiskGatekeeperService,
+    private readonly unifiedRisk: UnifiedRiskService,
     private readonly notificationService: NotificationService,
     // FIX: Removed @Inject(forwardRef(...)) — SmartExecutorModule already imports
     // AiModule via forwardRef, so AIOrchestratorService is available without
@@ -1906,7 +1908,7 @@ export class SmartExecutorService implements OnModuleDestroy {
     //   2. Log the REAL reason trades are being blocked
     //   3. Give the user clear feedback about which limit is binding
     // ═══════════════════════════════════════════════════════════════════
-    const rgParams = this.riskGatekeeper.getRiskParameters();
+    const rgParams = this.unifiedRisk.getRiskParameters();
     const rgMaxPositions = rgParams.maxOpenPositions;
     const effectiveMaxPositions = Math.min(executorMaxPositions, rgMaxPositions);
 
@@ -2687,7 +2689,7 @@ export class SmartExecutorService implements OnModuleDestroy {
             result.error?.includes('POSITION_SIZE_LIMIT') ||
             result.error?.includes('الحد الأقصى');
           if (isPositionLimitRejection) {
-            const rgParams = this.riskGatekeeper.getRiskParameters();
+            const rgParams = this.unifiedRisk.getRiskParameters();
             const totalPos = await this.prisma.position.count({
               where: { userId, status: 'OPEN', entryPrice: { gt: 0 } },
             }).catch(() => -1);
@@ -3904,9 +3906,9 @@ export class SmartExecutorService implements OnModuleDestroy {
               const riskAmount = Math.max(portfolioValue * riskPercent, 10);
               const priceRisk = Math.abs(testPrice - testBrief.stopLoss);
 
-              // Run RiskGatekeeper
+              // V219: Use UnifiedRiskService instead of RiskGatekeeper
               try {
-                const riskResult = await this.riskGatekeeper.validateOrder({
+                const riskResult = await this.unifiedRisk.validateOrder({
                   userId: testUserId,
                   exchangeCredentialId: cred.id,
                   symbol: testBrief.pair,

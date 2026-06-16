@@ -25,6 +25,7 @@ import { Response } from 'express';
 import { TradingService } from './trading.service';
 import { RiskManagerService } from './risk-manager.service';
 import { RiskGatekeeperService } from './services/risk-gatekeeper.service';
+import { UnifiedRiskService } from './services/unified-risk.service';
 import { IdempotencyService } from './services/idempotency.service';
 import { OrderStateManagerService } from './services/order-state-manager.service';
 import { PositionManagerService } from './services/position-manager.service';
@@ -75,6 +76,7 @@ export class TradingController {
     private readonly tradingService: TradingService,
     private readonly riskManager: RiskManagerService,
     private readonly riskGatekeeper: RiskGatekeeperService,
+    private readonly unifiedRisk: UnifiedRiskService,
     // #18: V2 services — optional so controller still works if V2 infra is down
     @Optional() private readonly idempotencyService?: IdempotencyService,
     @Optional() private readonly stateManager?: OrderStateManagerService,
@@ -279,7 +281,7 @@ export class TradingController {
     }
 
     // ── Step 4: Run risk checks ──
-    const riskResult = await this.riskGatekeeper.validateOrder(command);
+    const riskResult = await this.unifiedRisk.validateOrder(command);
 
     if (!riskResult.allowed) {
       await this.stateManager!.rejectOrder(
@@ -364,8 +366,8 @@ export class TradingController {
     req: any,
     res: Response,
   ) {
-    // ── Risk Gatekeeper Check ──
-    const riskResult = await this.riskGatekeeper.validateOrder({
+    // ── V219: Risk Check via UnifiedRiskService ──
+    const riskResult = await this.unifiedRisk.validateOrder({
       userId,
       exchangeCredentialId: request.credentialId,
       symbol: request.symbol,
@@ -926,7 +928,7 @@ export class TradingController {
    */
   @Get('risk/parameters')
   async getRiskParameters() {
-    return this.riskManager.getRiskParameters();
+    return this.unifiedRisk.getRiskParameters();
   }
 
   /**
@@ -946,7 +948,7 @@ export class TradingController {
       );
     }
 
-    return this.riskManager.calculatePositionSize(
+    return this.unifiedRisk.calculatePositionSize(
       portfolioValue,
       entryPrice,
       stopLossPrice,

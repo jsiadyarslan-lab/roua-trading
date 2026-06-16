@@ -16,6 +16,7 @@ import { isMarketOpen } from '../../common/utils/market-hours.util';
 import { MarketAnalyzerService } from './services/market-analyzer.service';
 import { SignalEvaluatorService } from './services/signal-evaluator.service';
 import { RiskCalculatorService } from './services/risk-calculator.service';
+import { UnifiedRiskService } from '../../modules/trading/services/unified-risk.service';
 import { OrderExecutorService } from './services/order-executor.service';
 import { StrategicCouncilService } from '../../modules/ai/strategic-council/strategic-council.service';
 import { TradingBriefDTO, AGENT_TIMEFRAMES, TIMEFRAME_RR, isAgentTimeframe, isSymbolSupportedByExchange } from '../../modules/ai/strategic-council/strategic-council.types';
@@ -112,6 +113,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     private readonly marketAnalyzer: MarketAnalyzerService,
     private readonly signalEvaluator: SignalEvaluatorService,
     private readonly riskCalculator: RiskCalculatorService,
+    private readonly unifiedRisk: UnifiedRiskService,
     private readonly orderExecutor: OrderExecutorService,
     private readonly councilService: StrategicCouncilService,  // V145: No longer @Optional — module imports StrategicCouncilModule
     @Optional() private readonly tradeCoordination: TradeCoordinationService,  // #18: Trade coordination service
@@ -1520,7 +1522,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     }
 
     // Check if daily loss limit reached
-    const dailyLimitReached = await this.riskCalculator.isDailyLimitReached(
+    const dailyLimitReached = await this.unifiedRisk.isDailyLimitReached(
       userId,
       state.config.maxDailyLossPercent,
     );
@@ -1729,7 +1731,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
             metadata: { briefId: brief.id, timeframe: brief.timeframe, source: 'council' },
           };
 
-          const risk = await this.riskCalculator.assessRisk(userId, signal, state.config);
+          const risk = await this.unifiedRisk.assessRisk(userId, signal, state.config);
 
           if (!risk.canTrade) {
             signalsRejected++;

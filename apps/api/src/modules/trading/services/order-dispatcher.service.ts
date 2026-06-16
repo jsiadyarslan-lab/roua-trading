@@ -3,6 +3,7 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import { IdempotencyService } from './idempotency.service';
 import { RiskGatekeeperService } from './risk-gatekeeper.service';
+import { UnifiedRiskService } from './unified-risk.service';
 import { OrderStateManagerService } from './order-state-manager.service';
 import { TradingService } from '../trading.service';
 import { OrderSide, OrderType } from '../trading.types';
@@ -42,6 +43,7 @@ export class OrderDispatcherService {
     private readonly redis: RedisService,
     private readonly idempotency: IdempotencyService,
     private readonly riskGatekeeper: RiskGatekeeperService,
+    private readonly unifiedRisk: UnifiedRiskService,
     private readonly stateManager: OrderStateManagerService,
     private readonly tradingService: TradingService,
   ) {}
@@ -179,7 +181,9 @@ export class OrderDispatcherService {
         source: request.source,  // V145: Pass source to RiskGatekeeper for source-aware position counting
       };
 
-      const riskCheck = await this.riskGatekeeper.validateOrder(command);
+      // V219: Use UnifiedRiskService instead of RiskGatekeeper
+      // This is the SINGLE risk gate — no more double-check in TradingService
+      const riskCheck = await this.unifiedRisk.validateOrder(command);
       if (!riskCheck.allowed) {
         await this.idempotency.releaseLock(sourceIdempotencyKey);
         try { await this.idempotency.releaseLock(symbolSourceIdempotencyKey); } catch {}

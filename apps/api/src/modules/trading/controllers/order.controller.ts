@@ -34,6 +34,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { IdempotencyService } from '../services/idempotency.service';
 import { RiskGatekeeperService } from '../services/risk-gatekeeper.service';
+import { UnifiedRiskService } from '../services/unified-risk.service';
 import { OrderStateManagerService } from '../services/order-state-manager.service';
 import { PositionManagerService } from '../services/position-manager.service';
 import { OrderProducerService } from '../services/order-producer.service';
@@ -73,6 +74,7 @@ export class OrderController {
   constructor(
     private readonly idempotencyService: IdempotencyService,
     private readonly riskGatekeeper: RiskGatekeeperService,
+    private readonly unifiedRisk: UnifiedRiskService,
     private readonly stateManager: OrderStateManagerService,
     private readonly positionManager: PositionManagerService,
     private readonly orderProducer: OrderProducerService,
@@ -129,8 +131,8 @@ export class OrderController {
       throw error;
     }
 
-    // ── Step 5: Run risk checks ──
-    const riskResult = await this.riskGatekeeper.validateOrder(command);
+    // ── Step 5: Run risk checks (V219: UnifiedRiskService) ──
+    const riskResult = await this.unifiedRisk.validateOrder(command);
 
     if (!riskResult.allowed) {
       await this.stateManager.rejectOrder(

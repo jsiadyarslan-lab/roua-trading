@@ -12,6 +12,7 @@ import { RedisService } from '../../common/redis/redis.service';
 import { CredentialsService } from '../portfolio/credentials/credentials.service';
 import { ExchangeService } from '../exchange/exchange.service';
 import { RiskManagerService } from './risk-manager.service';
+import { UnifiedRiskService } from './services/unified-risk.service';
 import { AuditService } from '../../audit/audit.service';
 import { getSymbolMetadata, AssetClass, calculateMargin } from './services/symbol-metadata';
 import * as ccxt from 'ccxt';
@@ -53,6 +54,7 @@ export class TradingService {
     private readonly credentialsService: CredentialsService,
     private readonly exchangeService: ExchangeService,
     private readonly riskManager: RiskManagerService,
+    private readonly unifiedRisk: UnifiedRiskService,
     private readonly auditService: AuditService,
     @Optional() private readonly executionGateway?: ExecutionGatewayService, // V226: MT5 execution (optional = safe)
   ) {
@@ -214,17 +216,29 @@ export class TradingService {
     // Now: skipRiskCheck === true → must explicitly opt-in to skip.
     // Controllers set skipRiskCheck=true after RiskGatekeeper validates.
     // Internal calls without a controller MUST go through risk check.
+    // V219: Removed double risk check (RiskManager.checkOrderRisk).
+    // Previously, orders went through BOTH RiskGatekeeper AND RiskManager,
+    // which could CONTRADICT each other (Gatekeeper uses 2% max position,
+    // RiskManager uses 20%). Now UnifiedRiskService.validateOrder() is the
+    // SINGLE risk gate — called once by OrderDispatcher/Controller.
+    // This code path is now only for internal calls that skipRiskCheck=false.
     const skipRiskCheck = request.skipRiskCheck === true;
     if (!skipRiskCheck) {
-      const riskCheck = await this.riskManager.checkOrderRisk(
+      const riskCheck = await this.unifiedRisk.validateOrder({
         userId,
-        request.symbol,
-        request.side,
-        request.quantity,
-        currentPrice,
-        credential.exchange,
-        credential.id,
-      );
+        exchangeCredentialId: credential.id,
+        symbol: request.symbol,
+        side: request.side as any,
+        type: (request.type || 'MARKET') as any,
+        quantity: request.quantity,
+        price: currentPrice,
+        stopLoss: request.stopLoss || 0,
+        takeProfit: request.takeProfit,
+        idempotencyKey: `internal-${Date.now()}`,
+        isPaperTrading: credential.exchange === 'paper-trading',
+        source: request.source,
+        strategy: request.strategy,
+      });
 
       if (!riskCheck.allowed) {
         await this.auditService.log({
@@ -2823,13 +2837,13 @@ export class TradingService {
       } else {
         // Open new position
         const { stopLoss, takeProfit } =
-          this.riskManager.getDefaultLevels(fillPrice, side);
+          this.unifiedRisk.getDefaultLevels(fillPrice, side);
 
         try {
           // CRITICAL FIX: Use SL/TP from the request (brief) if provided.
           // Previously, takeProfit was always overwritten with the default level,
           // ignoring the brief's calculated TP. Only fall back to defaults if not set.
-          const defaultLevels = this.riskManager.getDefaultLevels(fillPrice, side);
+          const defaultLevels = this.unifiedRisk.getDefaultLevels(fillPrice, side);
           const finalStopLoss = request.stopLoss ?? defaultLevels.stopLoss;
           const finalTakeProfit = request.takeProfit ?? defaultLevels.takeProfit;
 

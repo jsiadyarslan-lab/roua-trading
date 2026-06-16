@@ -113,6 +113,9 @@ export interface PlaceOrderRequest {
   /** V204: Trading timeframe (M1, M5, M15, H1, H4, D1, W1) — persisted in Position
    * for position-monitor MAX_HOLDING calculation. Was only in Redis (lost on restart). */
   timeframe?: string;
+  /** V219: Strategy name for strategy-aware R:R validation.
+   * Values: 'dca' | 'grid' | 'mean_reversion' | 'scalping' | 'vwap_rsi' | 'momentum_breakout' | 'swing' */
+  strategy?: string;
 }
 
 export interface ClosePositionRequest {

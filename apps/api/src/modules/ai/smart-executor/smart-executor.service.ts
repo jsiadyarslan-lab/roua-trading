@@ -1911,14 +1911,14 @@ export class SmartExecutorService implements OnModuleDestroy {
     const rgMaxPositions = rgParams.maxOpenPositions;
     const effectiveMaxPositions = Math.min(executorMaxPositions, rgMaxPositions);
 
-    // V176 FIX: Check cooldown before opening any new positions.
+    // V176/V221 FIX: Check cooldown + symbol-lock before opening any new positions.
     // Issue #11: After TIME_EXPIRED/STOP_LOSS auto-close, the SmartExecutor
     // immediately re-opened the same position, creating trades every 8-10 seconds.
-    // The position monitor now sets a 5-minute cooldown per userId+symbol.
-    // We must check this cooldown before processing any briefs.
+    // V221: Also check symbol-level lockout (blocks BOTH directions after any close).
     try {
       const cooldownBriefs: string[] = [];
       for (const brief of briefs) {
+        // Check Position Monitor cooldown (set after SL/TP auto-close)
         const cooldownKey = `cooldown:${userId}:${brief.pair}`;
         const cooldownReason = await this.redis.get(cooldownKey);
         if (cooldownReason) {
@@ -1926,22 +1926,34 @@ export class SmartExecutorService implements OnModuleDestroy {
             `⏳ V176 COOLDOWN: Skipping ${brief.pair} for user ${userId} — cooldown active (reason: ${cooldownReason})`,
           );
           cooldownBriefs.push(brief.pair);
+          continue;
+        }
+        // V221: Check symbol-level lockout (set after ANY position close — manual or auto)
+        // This prevents flip-flop: BUY → close → SELL immediately
+        const symbolLockKey = `trade-rep:symbol-lock:${userId}:${brief.pair}`;
+        const symbolLocked = await this.redis.get(symbolLockKey);
+        if (symbolLocked) {
+          this.logger.debug(
+            `⏳ V221 SYMBOL-LOCK: Skipping ${brief.pair} for user ${userId} — symbol locked (recently closed)`,
+          );
+          cooldownBriefs.push(brief.pair);
+          continue;
         }
       }
-      // Filter out briefs that are in cooldown
+      // Filter out briefs that are in cooldown or symbol-locked
       if (cooldownBriefs.length > 0) {
         const before = briefs.length;
         briefs = briefs.filter(b => !cooldownBriefs.includes(b.pair));
         this.logger.debug(
-          `⏳ V176: Filtered ${cooldownBriefs.length} cooldown briefs (${before} → ${briefs.length} remaining)`,
+          `⏳ V176+V221: Filtered ${cooldownBriefs.length} blocked briefs (${before} → ${briefs.length} remaining)`,
         );
         if (briefs.length === 0) {
-          this.logger.debug(`⏳ V176: All briefs for user ${userId} are in cooldown — skipping cycle`);
+          this.logger.debug(`⏳ All briefs for user ${userId} are blocked — skipping cycle`);
           return;
         }
       }
     } catch (cooldownErr: any) {
-      this.logger.warn(`V176 Cooldown check failed: ${cooldownErr.message} — continuing without cooldown check`);
+      this.logger.warn(`V176+V221 Cooldown check failed: ${cooldownErr.message} — continuing without cooldown check`);
     }
 
     // ═══════════════════════════════════════════════════════════════════

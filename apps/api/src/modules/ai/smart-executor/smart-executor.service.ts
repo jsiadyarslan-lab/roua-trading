@@ -251,6 +251,24 @@ export class SmartExecutorService implements OnModuleDestroy {
       //
       // Instead: Only delete states that have enabled=false (already disabled).
       try {
+        // V-PHASE-FIX: Clean up colon-corrupted DB entries caused by the bug in line 430.
+        // The old code: state.key.replace('SMART_EXECUTOR_USER_STATE', '') left the ':'
+        // separator, so userId became ':realId', and was stored back to DB with key
+        // 'SMART_EXECUTOR_USER_STATE::realId'. After N restarts, keys accumulate N colons.
+        // We delete entries where the key contains '::' (double+ colons after the prefix).
+        try {
+          const corruptedStates = await this.prisma.setting.deleteMany({
+            where: {
+              key: { startsWith: `${this.DB_USER_STATE_KEY}::` },
+            },
+          });
+          if (corruptedStates.count > 0) {
+            this.logger.log(`⚔️ STARTUP: Cleaned up ${corruptedStates.count} colon-corrupted DB executor state(s)`);
+          }
+        } catch (cleanErr: any) {
+          this.logger.warn(`⚔️ Failed to clean corrupted DB states: ${cleanErr.message}`);
+        }
+
         const disabledStates = await this.prisma.setting.deleteMany({
           where: {
             key: { startsWith: this.DB_USER_STATE_KEY },
@@ -427,7 +445,13 @@ export class SmartExecutorService implements OnModuleDestroy {
 
           for (const state of enabledStates) {
             try {
-              const userId = state.key.replace(this.DB_USER_STATE_KEY, '');
+              // V-PHASE-FIX: Include the colon separator in replace() to prevent
+              // colon accumulation bug. Old: replace('SMART_EXECUTOR_USER_STATE', '')
+              // left the colon → userId became ':realId' → Redis key 'smart-executor:user::realId'
+              // → next restart reads back ':realId' → writes 'smart-executor:user:::realId' etc.
+              // After N restarts: N colons prefixed, creating phantom users and preventing
+              // credential lookup (DB has userId='realId', executor queries ':realId').
+              const userId = state.key.replace(`${this.DB_USER_STATE_KEY}:`, '');
               const stateData = JSON.parse(state.value);
 
               // Re-populate Redis from DB

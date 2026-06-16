@@ -30,12 +30,12 @@ import { MarketAnalysis, EvaluatedSignal, StrategyType, StrategySignal, OrderSid
  *
  * Entry Conditions:
  * ┌─────────────────────────────────────────────────────────────┐
- * │ BUY:  Price crosses above VWAP proxy (EMA21)               │
+ * │ BUY:  Price crosses above Typical Price VWAP               │
  * │       + RSI > 50 and < 70 (bullish momentum, not overbought)│
  * │       + MACD histogram positive                             │
  * │       + Bollinger %B > 0.5 (above midpoint)                │
  * │                                                             │
- * │ SELL: Price crosses below VWAP proxy (EMA21)               │
+ * │ SELL: Price crosses below Typical Price VWAP               │
  * │       + RSI < 50 and > 30 (bearish momentum, not oversold) │
  * │       + MACD histogram negative                             │
  * │       + Bollinger %B < 0.5 (below midpoint)                │

@@ -102,21 +102,20 @@ export class SwingStrategy extends BaseStrategy {
     let mtfAlignment: StrategyAnalysis['indicators']['mtfAlignment'] = null;
     let mtfAlignmentScore = 0;
 
+    // V-PHASE-FIX: Use local variables instead of (this as any).__d1Data
+    // The old pattern stored temporary data on the class instance, which is NOT
+    // thread-safe — if two concurrent analyze() calls run, they'd overwrite each
+    // other's data. Now we pass D1/H4 data through local variables.
+    let d1DataLocal: { trend: string; trendStrength: number } | null = null;
+    let h4DataLocal: { trend: string; trendStrength: number } | null = null;
+
     if (mtfContext) {
       mtfAlignment = mtfContext.mtfAlignment;
       mtfAlignmentScore = mtfContext.mtfAlignmentScore;
 
       // Find the D1 (daily) timeframe data
-      const d1Data = mtfContext.higherTimeframes.find(h => h.timeframe === 'D1');
-      const h4Data = mtfContext.higherTimeframes.find(h => h.timeframe === 'H4');
-
-      // We'll apply D1 check after direction is determined
-      // For now, store the data
-      (this as any).__d1Data = d1Data || null;
-      (this as any).__h4Data = h4Data || null;
-    } else {
-      (this as any).__d1Data = null;
-      (this as any).__h4Data = null;
+      d1DataLocal = mtfContext.higherTimeframes.find(h => h.timeframe === 'D1') || null;
+      h4DataLocal = mtfContext.higherTimeframes.find(h => h.timeframe === 'H4') || null;
     }
 
     // Determine direction and strength
@@ -175,27 +174,25 @@ export class SwingStrategy extends BaseStrategy {
     // V-PHASE3: Apply D1 (daily) confirmation/rejection
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     if (direction !== 'NEUTRAL' && mtfContext) {
-      const d1Data = (this as any).__d1Data as { trend: string; trendStrength: number } | null;
-
-      if (d1Data) {
+      if (d1DataLocal) {
         if (direction === 'BUY') {
-          if (d1Data.trend === 'BEARISH' && d1Data.trendStrength > 30) {
+          if (d1DataLocal.trend === 'BEARISH' && d1DataLocal.trendStrength > 30) {
             // D1 opposes BUY — hard reject for swing
             mtfReject = true;
             mtfBoost = -strength; // Reduce strength to 0
             mtfConfidenceAdj = -20;
-          } else if (d1Data.trend === 'BULLISH') {
+          } else if (d1DataLocal.trend === 'BULLISH') {
             // D1 confirms BUY — boost
             mtfBoost = Math.round(strength * 0.2); // +20% strength
             mtfConfidenceAdj = 10;
           }
         } else if (direction === 'SELL') {
-          if (d1Data.trend === 'BULLISH' && d1Data.trendStrength > 30) {
+          if (d1DataLocal.trend === 'BULLISH' && d1DataLocal.trendStrength > 30) {
             // D1 opposes SELL — hard reject for swing
             mtfReject = true;
             mtfBoost = -strength; // Reduce strength to 0
             mtfConfidenceAdj = -20;
-          } else if (d1Data.trend === 'BEARISH') {
+          } else if (d1DataLocal.trend === 'BEARISH') {
             // D1 confirms SELL — boost
             mtfBoost = Math.round(strength * 0.2); // +20% strength
             mtfConfidenceAdj = 10;
@@ -204,9 +201,7 @@ export class SwingStrategy extends BaseStrategy {
       }
     }
 
-    // Clean up temporary data
-    delete (this as any).__d1Data;
-    delete (this as any).__h4Data;
+    // V-PHASE-FIX: No more cleanup needed — using local variables instead of instance properties
 
     // Apply MTF boost/penalty
     strength = Math.max(0, Math.min(100, strength + mtfBoost));

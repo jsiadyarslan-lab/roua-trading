@@ -329,6 +329,9 @@ export class MarketRegimeService {
   // ── Private Methods ──
 
   private _getDefaultRegime(symbol: string): RegimeResult {
+    // V-PHASE-FIX: Unified default values with the inline safe result in detectRegime()
+    // Previously: adx=20, rrAdjustment=1.0 here vs adx=0, rrAdjustment=0.7 in detectRegime()
+    // Inconsistent defaults could cause different behavior depending on which code path is hit.
     return {
       regime: 'RANGE',
       confidence: 0,
@@ -337,11 +340,11 @@ export class MarketRegimeService {
       volatilityIndex: 50,
       sma50: 0,
       sma200: 0,
-      adx: 20,
+      adx: 0,            // Was 20 — unified to 0 (no data = zero ADX)
       atr: 0,
       rsi: 50,
       recommendedAction: 'NEUTRAL',
-      rrAdjustment: 1.0,
+      rrAdjustment: 0.7, // Was 1.0 — unified to 0.7 (conservative when no data)
     };
   }
 

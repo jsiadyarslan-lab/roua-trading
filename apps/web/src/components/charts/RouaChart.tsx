@@ -2654,22 +2654,24 @@ export default function RouaChart({
       return;
     }
 
-    // ── Optimistic UI update: record locally so chart reflects the trade immediately ──
-    // This mirrors what QuickExecutionMini does — local state is updated regardless of
-    // backend outcome, and the backend response reconciles the canonical record.
-    const { addTrade } = usePaperTradesStore.getState();
-    addTrade({
-      symbol: selectedSymbol_,
-      side: order.side === 'buy' ? 'long' : 'short',
-      qty: order.quantity,
-      entryPrice: resolvedEntryPrice,
-      currentPrice: resolvedEntryPrice,
-      sl: order.sl || undefined,
-      tp: order.tp || undefined,
-      entryTime: Date.now(),
-      strategy: 'manual',
-      source: 'manual',
-    });
+    // V233 FIX: REMOVED optimistic addPaperTrade before backend confirmation.
+    //
+    // ROOT CAUSE of "trades stacking in one position" bug:
+    //   Previously, addPaperTrade() was called BEFORE the fetch. If the backend
+    //   rejected the order (e.g., existing position on same symbol — OrderDispatcher
+    //   blocks this), the paper trade was STILL added to the local store.
+    //   This created PHANTOM trades that accumulated:
+    //     - DB: 1 real position
+    //     - paperTrades store: 3 phantom entries (1 real + 2 rejected)
+    //   AlpacaPositions deduplicates by symbol → shows 1 position.
+    //   When user closes it, the next phantom appears, then the next, etc.
+    //
+    // FIX: Only add paper trade AFTER backend confirms success. On failure,
+    // don't add anything — the error toast tells the user why it was rejected.
+    //
+    // The chart TP/SL lines will appear after refreshAfterTrade() fetches the
+    // new DB position (~500ms). This is acceptable — the success toast appears
+    // immediately, and the position lines appear shortly after.
 
     // ── Submit to backend ──
     try {
@@ -2692,18 +2694,36 @@ export default function RouaChart({
       const j = await res.json().catch(() => ({} as any));
 
       if (j.success !== false && res.ok) {
+        // V233: Only add paper trade AFTER backend confirms success.
+        // This ensures the local store only has trades that actually exist in the DB.
+        const { addTrade } = usePaperTradesStore.getState();
+        addTrade({
+          symbol: selectedSymbol_,
+          side: order.side === 'buy' ? 'long' : 'short',
+          qty: order.quantity,
+          entryPrice: resolvedEntryPrice,
+          currentPrice: resolvedEntryPrice,
+          sl: order.sl || undefined,
+          tp: order.tp || undefined,
+          entryTime: Date.now(),
+          strategy: 'manual',
+          source: 'manual',
+        });
+
         setOrderError(`✅ تم تنفيذ ${order.side === 'buy' ? 'شراء' : 'بيع'} ${order.quantity} ${selectedSymbol_}`);
         setTimeout(() => setOrderError(null), 3500);
         // Refresh positions store so the new position appears in the Positions page
         try { usePositionsStore.getState().refreshAfterTrade?.(); } catch { /* non-critical */ }
       } else {
-        // Backend rejected the order — show the error but keep the optimistic local entry
-        // (user can see it on the chart even if the backend rejected, matching QuickExecutionMini behavior)
+        // V233: Backend rejected — DO NOT add paper trade. Show the error only.
+        // Previously, the paper trade was already added (optimistic) and never removed,
+        // creating phantom positions that showed up one-by-one on close.
         const reason = j.message || j.error || j.reason || 'فشل تنفيذ الأمر';
         setOrderError(`⚠️ ${reason}`);
         setTimeout(() => setOrderError(null), 6000);
       }
     } catch (err: any) {
+      // V233: Network error — DO NOT add paper trade.
       setOrderError(`⚠️ خطأ في الاتصال: ${err?.message || err}`);
       setTimeout(() => setOrderError(null), 6000);
     }

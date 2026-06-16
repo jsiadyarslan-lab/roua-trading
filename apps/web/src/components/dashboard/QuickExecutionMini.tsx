@@ -255,7 +255,25 @@ export function QuickExecutionMini({
           price: currentPrice,
         })
         // refreshAfterTrade now fetches from /api/trading/positions (DB) — picks up the new DB position
+        // V230.1: Force-refresh by clearing the debounce timestamp so refreshAfterTrade
+        // doesn't skip the immediate fetch (3s debounce was eating the first refresh).
+        ;(usePositionsStore as any).setState({ _lastRefreshAfterTrade: 0 } as any)
         refreshAfterTrade()
+
+        // V230.1: Update the widget's local account state so margin/balance display
+        // refreshes immediately (the local account was previously updated by
+        // fetch('/api/alpaca/account') which we removed in V230 — restore it by
+        // reading from usePositionsStore.account which is populated by fetchAccount()).
+        // Wait 500ms for the backend transaction to commit, then refresh.
+        setTimeout(() => {
+          const storeAccount = usePositionsStore.getState().account
+          if (storeAccount) {
+            setAccount({
+              cash: Number(storeAccount.cash) || 0,
+              buyingPower: Number(storeAccount.buyingPower) || 0,
+            })
+          }
+        }, 500)
       } else {
         // NestJS rejected the order — show the actual reason from the backend
         const reason = j.message || j.error || j.reason || t('executionFailed')

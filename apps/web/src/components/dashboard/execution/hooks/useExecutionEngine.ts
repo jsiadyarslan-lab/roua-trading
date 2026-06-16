@@ -145,59 +145,87 @@ export function useExecutionEngine() {
   }, [])
 
   // Load account balance
+  // V231 UNIFIED: Read from usePositionsStore.account (NestJS /api/portfolio/credentials/balances)
+  // instead of /api/alpaca/account which returns 503 when Alpaca is not configured.
+  // The positions store already fetches the correct balance for the active account
+  // (paper-trading OR real exchange) via fetchAccount().
   const loadAccount = useCallback(async () => {
     try {
-      const res = await fetch('/api/alpaca/account')
-      const j = await res.json()
-      // FIX: Gracefully handle 503 (Alpaca credentials not configured)
-      // Instead of crashing, just leave account as null so the UI shows
-      // "غير متصل" instead of a broken state.
-      if (j.success && j.data) {
-        setAccount({ cash: j.data.cash ?? 0, buyingPower: j.data.buyingPower ?? 0 })
-      } else if (j.offline || j.error === 'ALPACA_CREDENTIALS_NOT_CONFIGURED') {
-        // Alpaca not connected — use fallback zero balance
-        setAccount({ cash: 0, buyingPower: 0 })
+      const storeAccount = usePositionsStore.getState().account
+      if (storeAccount) {
+        setAccount({
+          cash: Number(storeAccount.cash) || 0,
+          buyingPower: Number(storeAccount.buyingPower) || 0,
+        })
+        return
       }
+      // Fallback: trigger a fetch from the store, then read after a short delay
+      await usePositionsStore.getState().fetchAccount()
+      setTimeout(() => {
+        const acc = usePositionsStore.getState().account
+        if (acc) {
+          setAccount({
+            cash: Number(acc.cash) || 0,
+            buyingPower: Number(acc.buyingPower) || 0,
+          })
+        } else {
+          setAccount({ cash: 0, buyingPower: 0 })
+        }
+      }, 500)
     } catch {
-      // Network error — leave account as null
+      setAccount({ cash: 0, buyingPower: 0 })
     }
   }, [])
 
   // Load open orders
+  // V231 UNIFIED: Read from NestJS /api/trading/positions (DB) instead of
+  // /api/alpaca/orders?status=open which returns 503 when Alpaca is not configured.
+  // The DB positions are the source of truth — they include paper-trading positions
+  // created by TradingService.placeOrder (chart buttons + widget + smart executor).
   const loadOpenOrders = useCallback(async () => {
     try {
-      const res = await fetch('/api/alpaca/orders?status=open&limit=10')
-      const j = await res.json()
-      // FIX: Gracefully handle 503 (Alpaca credentials not configured)
-      if (j.success && Array.isArray(j.data)) {
-        setRecentOrders(j.data.map((o: any) => ({
-          id: o.id,
-          symbol: o.symbol,
-          side: o.side,
-          type: o.type,
-          status: o.status,
-          qty: o.qty,
-          filledQty: o.filledQty,
-          filledAvgPrice: o.filledAvgPrice,
-          limitPrice: o.limitPrice,
-          submittedAt: o.submittedAt,
-          createdAt: o.createdAt,
-          source: 'alpaca' as const,
-        })))
-      } else if (j.offline || j.error === 'ALPACA_CREDENTIALS_NOT_CONFIGURED') {
-        // Alpaca not connected — show empty orders list
+      const activeCredId = usePositionsStore.getState().activeCredentialId
+      const credParam = activeCredId ? `?credentialId=${encodeURIComponent(activeCredId)}` : ''
+      const res = await fetch(`/api/trading/positions${credParam}`)
+      if (!res.ok) {
+        setRecentOrders([])
+        return
+      }
+      const data = await res.json()
+      const raw = Array.isArray(data) ? data : (data.data || data.positions || [])
+      if (Array.isArray(raw)) {
+        // Map DB positions (OPEN status) to the recentOrders format expected by the UI
+        setRecentOrders(raw
+          .filter((p: any) => p && p.status === 'OPEN' && p.symbol)
+          .map((p: any) => ({
+            id: p.id,
+            symbol: p.symbol,
+            side: (p.side || '').toLowerCase(),
+            type: 'market',
+            status: 'filled',
+            qty: Number(p.quantity) || 0,
+            filledQty: Number(p.quantity) || 0,
+            filledAvgPrice: Number(p.entryPrice) || undefined,
+            limitPrice: undefined,
+            submittedAt: p.openedAt,
+            createdAt: p.openedAt,
+            source: 'nestjs' as const,
+          }))
+        )
+      } else {
         setRecentOrders([])
       }
     } catch {
-      // Network error — keep existing orders
+      setRecentOrders([])
     }
   }, [])
 
   // Cancel an open order
+  // V231 UNIFIED: Use NestJS /api/trading/orders/:id instead of /api/alpaca/orders
   const cancelOrder = useCallback(async (orderId: string) => {
     try {
-      const res = await fetch(`/api/alpaca/orders?orderId=${orderId}`, { method: 'DELETE' })
-      const j = await res.json()
+      const res = await fetch(`/api/trading/orders/${orderId}`, { method: 'DELETE' })
+      const j = await res.json().catch(() => ({} as any))
       if (j.success || res.ok) {
         setRecentOrders(prev => prev.filter(o => o.id !== orderId))
         addNotification({
@@ -499,59 +527,20 @@ export function useExecutionEngine() {
         throw new Error('No credentials')
       }
     } catch (e: any) {
-      // ── Path 2: Alpaca Direct (fallback) ──
-      // FIX: Only try Alpaca if we don't already have a result from NestJS.
-      // Previously, the catch block always executed the Alpaca fallback,
-      // even when NestJS had already accepted the order successfully
-      // (just with a polling timeout), creating DOUBLE ORDERS.
-      if (result) {
-        // NestJS already handled this order — skip Alpaca fallback
-      } else {
-      setUsedNestJS(false)
-      try {
-        const res = await fetch('/api/alpaca/orders', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        })
-        const j = await res.json()
-
-        if (j.success) {
-          // FIX: Validate orderId exists — Alpaca might return success without orderId
-          // in edge cases, which would cause crashes downstream when accessing result.orderId
-          const orderId = j.orderId || j.id || j.data?.orderId
-          if (!orderId) {
-            result = {
-              success: false,
-              source: 'alpaca',
-              error: tn('orderIdMissing'),
-            }
-          } else {
-          result = {
-            success: true,
-            orderId,
-            symbol: j.symbol || localSymbol,
-            side: j.side || side,
-            qty: j.qty || quantity,
-            filledAvgPrice: j.filledAvgPrice ? parseFloat(j.filledAvgPrice) : undefined,
-            source: 'alpaca',
-          }
-          }
-        } else {
-          result = {
-            success: false,
-            source: 'alpaca',
-            error: j.error || tn('executionFailed', { error: '' }).replace(': ', ''),
-          }
-        }
-      } catch (e: any) {
+      // V231: REMOVED Alpaca fallback. NestJS handles ALL execution paths including
+      // paper-trading (via TradingService._executePaperTrade). Falling back to Alpaca
+      // created 503 errors when Alpaca was not configured, and could create DOUBLE
+      // orders if both paths succeeded.
+      //
+      // If NestJS failed, surface the actual error to the user instead of trying
+      // a second execution path that would also fail.
+      if (!result) {
         result = {
           success: false,
-          source: 'alpaca',
-          error: tn('networkError'),
+          source: 'nestjs',
+          error: e?.message || tn('networkError'),
         }
       }
-      } // end else (Alpaca fallback)
     }
 
     // ── Handle result ──

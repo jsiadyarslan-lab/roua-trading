@@ -55,8 +55,8 @@ export class DCAStrategy extends BaseStrategy {
     this.baseBuyMultiplier = params.dcaBaseMultiplier ?? 1.0;
     this.discountThreshold = params.dcaDiscountRsi ?? 40;
     this.skipThreshold = params.dcaSkipRsi ?? 70;
-    this.minRiskRewardRatio = 0.5; // DCA accepts low R:R (high win rate compensates)
-    this.minConfidence = 25; // Very low threshold — DCA is designed to work in any condition
+    this.minRiskRewardRatio = 1.5; // V-PHASE1: Raised from 0.5 to 1.5 — DCA with SL at 0.8:1 R:R is mathematically unsound. With SL, DCA needs minimum 1.5:1. Without SL, DCA doesn't need this check at all. Since our DCA uses SL, we enforce proper R:R.
+    this.minConfidence = 40; // V-PHASE1: Raised from 25 to 40 — consistent with base strategy threshold
   }
 
   protected analyze(market: MarketAnalysis): StrategyAnalysis {
@@ -164,15 +164,17 @@ export class DCAStrategy extends BaseStrategy {
     const sizeMultiplier = (analysis.metadata?.sizeMultiplier as number) || 1.0;
 
     if (side === OrderSide.BUY) {
-      // DCA BUY: SL below recent support, TP based on ATR (not just EMA21)
-      // CRITICAL FIX: When price > EMA21, targeting EMA21 gives a NEGATIVE reward!
-      // Instead, always use ATR-based TP which guarantees positive R:R
-      const stopLoss = market.price - market.atr * 2.5; // Wide SL — DCA is long-term
-      const takeProfit = market.price + market.atr * 2.0; // ATR-based TP — always positive reward
+      // V-PHASE1: DCA BUY with proper risk-reward.
+      // Old: SL=2.5x ATR, TP=2.0x ATR → R:R=0.8:1 (risking $2.50 to make $2.00).
+      // This is mathematically unsound — even 80% win rate barely breaks even.
+      // New: SL=1.5x ATR, TP=3.0x ATR → R:R=2.0:1 (proper risk-reward for DCA with SL).
+      // Wider TP gives room for the position to breathe and capture trend moves.
+      const stopLoss = market.price - market.atr * 1.5;
+      const takeProfit = market.price + market.atr * 3.0;
 
       const risk = Math.abs(market.price - stopLoss);
       const reward = Math.abs(takeProfit - market.price);
-      const riskRewardRatio = risk > 0 ? reward / risk : 0.8; // Default 0.8 if calculation fails
+      const riskRewardRatio = risk > 0 ? reward / risk : 2.0; // Default 2.0 if calculation fails
 
       return {
         id: '', // Will be set by BaseStrategy.evaluate

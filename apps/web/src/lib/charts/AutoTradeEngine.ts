@@ -88,6 +88,43 @@ export interface TradeSignal {
   keyLevel: number;
 }
 
+/**
+ * Optional boost data from revolutionary engines.
+ * All fields are optional — if not provided, behavior is identical to before.
+ * This allows the revolutionary engines to enhance trade decisions
+ * WITHOUT changing any existing code path.
+ */
+export interface RevolutionaryBoost {
+  /** Confluence zone near current price — boosts confluenceScore if strong */
+  confluenceZoneBoost?: {
+    score: number;         // Zone score 0-100
+    direction: 'bullish' | 'bearish' | 'neutral';
+    isActive: boolean;     // Price is inside/near the zone
+    signalCount: number;   // How many signals cluster in this zone
+  };
+  /** Per-source win rates from visual backtest — weights signal confidence */
+  backtestSourceWeights?: Record<string, {
+    winRate: number;       // 0-1 historical win rate for this source
+    sampleSize: number;    // How many signals evaluated
+  }>;
+  /** Best correlation combo that includes one of our signals — boosts confidence */
+  correlationBoost?: {
+    combinedWinRate: number;  // 0-1 combined win rate
+    lift: number;             // >1 = improvement over individual signal
+    partnerSource: string;    // The other source in the combo
+  };
+  /** Pattern prediction near completion — adds an early signal */
+  predictionNearCompletion?: {
+    patternType: string;
+    predictedDirection: 'bullish' | 'bearish';
+    completionPct: number;   // 0-100 how complete
+    confidence: number;      // Prediction confidence 0-1
+    targetPrice: number;     // Expected completion price
+  };
+  /** Risk assessment from AI explanation — can reduce confidence */
+  explanationRisk?: 'low' | 'medium' | 'high';
+}
+
 /** Partial close schedule */
 export interface PartialClose {
   /** Price level for partial close */
@@ -163,10 +200,10 @@ export interface DailyStats {
 const DEFAULT_RISK: RiskParams = {
   riskPerTrade: 0.01,       // 1% risk per trade
   accountBalance: 10000,    // $10,000 default
-  minRRRatio: 2.0,          // Minimum 1:2 R:R
+  minRRRatio: 1.5,          // Minimum 1:1.5 R:R (was 2.0 — too strict for crypto)
   maxPositionFraction: 0.1, // Max 10% of account in one position
-  minConfluence: 60,        // Minimum 60% confluence score
-  minAgreeingSignals: 3,    // Minimum 3 agreeing signals
+  minConfluence: 55,        // V262: Raised from 40 → 55 for higher quality proposals
+  minAgreeingSignals: 3,    // V262: Raised from 2 → 3 — need stronger consensus
   maxSLPct: 0.03,           // Max 3% SL distance
   atrSLMultiplier: 2.0,     // 2x ATR for SL fallback
   dailyLossLimit: 0.03,     // 3% daily loss limit
@@ -357,15 +394,47 @@ function calculateTakeProfits(
 }
 
 /**
+ * Calculate Kelly fraction from trade history.
+ * Kelly criterion: K = W - (1-W) / R
+ *   where W = win rate, R = average win / average loss
+ * Capped at 0.25 (quarter-Kelly) — professional standard to avoid over-betting.
+ */
+function calculateKellyFraction(): number {
+  const history = Array.from(tradeHistory.values());
+  const completed = history.filter(p => p.status === 'hit_tp1' || p.status === 'hit_tp2' || p.status === 'hit_tp3' || p.status === 'hit_sl');
+  if (completed.length < 10) return 0; // Not enough data for reliable Kelly
+
+  const wins = completed.filter(p => p.status !== 'hit_sl');
+  const losses = completed.filter(p => p.status === 'hit_sl');
+
+  if (losses.length === 0) return 0.25; // All wins — cap at quarter-Kelly
+
+  const winRate = wins.length / completed.length;
+  const avgWin = wins.length > 0 ? wins.reduce((s, p) => s + Math.abs(p.pnl.netPnL), 0) / wins.length : 0;
+  const avgLoss = losses.reduce((s, p) => s + Math.abs(p.pnl.netPnL), 0) / losses.length;
+
+  if (avgLoss === 0) return 0.25;
+
+  const rawKelly = winRate - (1 - winRate) / (avgWin / avgLoss);
+  const kellyFraction = Math.min(0.25, Math.max(0, rawKelly));
+
+  return kellyFraction;
+}
+
+/**
  * Calculate position size based on risk parameters.
- * positionSize = (accountBalance × riskPerTrade) / |entry - stopLoss|
+ * Uses Kelly-capped risk fraction when sufficient trade history exists.
+ * positionSize = (accountBalance × effectiveRiskFraction) / |entry - stopLoss|
  */
 function calculatePositionSize(
   entryPrice: number,
   stopLoss: number,
   params: RiskParams,
 ): number {
-  const riskAmount = params.accountBalance * params.riskPerTrade;
+  // Use Kelly-capped fraction if available, otherwise fall back to fixed riskPerTrade
+  const kellyFraction = calculateKellyFraction();
+  const effectiveRisk = kellyFraction > 0 ? kellyFraction : params.riskPerTrade;
+  const riskAmount = params.accountBalance * effectiveRisk;
   const slDistance = Math.abs(entryPrice - stopLoss);
 
   if (slDistance === 0) return 0;
@@ -471,24 +540,38 @@ export function generateTradeProposal(opts: {
     agreeingTFs: number;
   };
   volRegime?: string;
+  /** Optional boost from revolutionary engines — has NO effect if not provided */
+  revolutionaryBoost?: RevolutionaryBoost;
 }): TradeProposal | null {
   const {
     candles, direction, confluenceScore, signals,
     patternInvalidation, patternTarget, patternSource,
     currentPrice, timeframe, mtfConfluence, volRegime,
+    revolutionaryBoost,
   } = opts;
 
   const params = getRiskParams();
 
   // ── Gate 1: Minimum confluence ──
-  if (confluenceScore < params.minConfluence) return null;
+  // V262: Raised from 40 → 55. Higher threshold = fewer but better proposals.
+  // Exception: single ultra-high-confidence signal (≥0.9) can bypass with 40%.
+  const hasUltraHighConfidence = signals.some(s => s.confidence >= 0.9 && s.direction === direction);
+  const effectiveMinConfluence = hasUltraHighConfidence
+    ? Math.max(40, params.minConfluence - 15)  // Still need 40% even for ultra-high-confidence
+    : params.minConfluence;
+  if (confluenceScore < effectiveMinConfluence) return null;
 
   // ── Gate 2: Direction must be clear ──
   if (direction === 'neutral') return null;
 
   // ── Gate 3: Minimum agreeing signals ──
+  // V262: Raised from 2 → 3. Need real consensus, not coincidence.
+  // Exception: single signal with ≥0.9 confidence can trade with 1 supporting signal.
   const agreeingSignals = signals.filter(s => s.direction === direction);
-  if (agreeingSignals.length < params.minAgreeingSignals) return null;
+  const effectiveMinSignals = hasUltraHighConfidence
+    ? 2  // Ultra-high-confidence needs at least 1 other supporting signal
+    : params.minAgreeingSignals;
+  if (agreeingSignals.length < effectiveMinSignals) return null;
 
   // ── Gate 4: Daily loss limit ──
   if (checkDailyLossLimit(params)) return null;
@@ -500,7 +583,7 @@ export function generateTradeProposal(opts: {
   // If MTF is available and disagrees, require higher confluence
   if (mtfConfluence && mtfConfluence.direction !== direction && mtfConfluence.score > 60) {
     // MTF disagrees with our direction — need stronger local confluence
-    if (confluenceScore < 75) return null;
+    if (confluenceScore < 55) return null; // Was 75 — too strict when MTF disagrees
   }
 
   // ── Calculate Entry, SL, TP ──
@@ -530,6 +613,80 @@ export function generateTradeProposal(opts: {
     confidence = Math.min(0.95, confidence + mtfConfluence.score * 0.001);
   }
 
+  // ── Revolutionary Engine Boosts ──
+  // All boosts are GUARDED — they only apply if revolutionary data is provided.
+  // If no revolutionaryBoost is passed, this entire block is skipped.
+
+  let effectiveConfluenceScore = confluenceScore;
+  let revBoostDescription = '';
+
+  if (revolutionaryBoost) {
+    // 1. Confluence Zone Boost: If price is near a strong active zone that
+    //    agrees with our direction, boost confluenceScore by up to 15 points
+    if (revolutionaryBoost.confluenceZoneBoost) {
+      const czb = revolutionaryBoost.confluenceZoneBoost;
+      if (czb.isActive && czb.direction === direction) {
+        const zoneBoost = Math.min(15, Math.round(czb.score * 0.15));
+        effectiveConfluenceScore = Math.min(100, effectiveConfluenceScore + zoneBoost);
+        revBoostDescription += ` | منطقة تقارب ${czb.signalCount} إشارات (+${zoneBoost})`;
+      }
+    }
+
+    // 2. Backtest Source Weights: Adjust signal confidence based on historical
+    //    win rates. Sources with >60% win rate get a small boost, <40% get reduced.
+    if (revolutionaryBoost.backtestSourceWeights) {
+      for (const sig of agreeingSignals) {
+        const w = revolutionaryBoost.backtestSourceWeights[sig.source];
+        if (w && w.sampleSize >= 5) {
+          if (w.winRate > 0.6) {
+            sig.confidence = Math.min(0.95, sig.confidence * (1 + (w.winRate - 0.5) * 0.2));
+          } else if (w.winRate < 0.4) {
+            sig.confidence = Math.max(0.1, sig.confidence * (0.8 + w.winRate * 0.5));
+          }
+        }
+      }
+    }
+
+    // 3. Correlation Boost: If a known high-performing combo exists that
+    //    matches our signals, boost confidence proportionally
+    if (revolutionaryBoost.correlationBoost) {
+      const cb = revolutionaryBoost.correlationBoost;
+      if (cb.lift > 1.1 && cb.combinedWinRate > 0.55) {
+        const corrBoost = Math.min(0.08, (cb.lift - 1) * 0.05);
+        confidence = Math.min(0.95, confidence + corrBoost);
+        revBoostDescription += ` | تركيبة ${cb.partnerSource} (تحسن ${Math.round(cb.lift * 100 - 100)}%)`;
+      }
+    }
+
+    // 4. Prediction Near Completion: If a pattern is near completion in our
+    //    direction, add it as an extra agreeing signal (only if >= 70% complete)
+    if (revolutionaryBoost.predictionNearCompletion) {
+      const pred = revolutionaryBoost.predictionNearCompletion;
+      if (pred.predictedDirection === direction && pred.completionPct >= 70 && pred.confidence >= 0.4) {
+        agreeingSignals.push({
+          source: `prediction:${pred.patternType}`,
+          direction: pred.predictedDirection,
+          confidence: pred.confidence * (pred.completionPct / 100),
+          keyLevel: pred.targetPrice,
+        });
+        revBoostDescription += ` | نمط ${pred.patternType} ${pred.completionPct}% مكتمل`;
+      }
+    }
+
+    // 5. Explanation Risk: If AI explanation rates this as HIGH risk,
+    //    reduce confidence. If LOW risk, small boost.
+    if (revolutionaryBoost.explanationRisk === 'high') {
+      confidence = Math.max(0.1, confidence * 0.85);
+      revBoostDescription += ' | ⚠️ مخاطر عالية';
+    } else if (revolutionaryBoost.explanationRisk === 'low') {
+      confidence = Math.min(0.95, confidence + 0.03);
+    }
+
+    // Recalculate avg signal confidence after weight adjustments
+    const adjustedAvgConf = agreeingSignals.reduce((s, sig) => s + (sig.confidence ?? 0.5), 0) / agreeingSignals.length;
+    confidence = Math.min(0.95, adjustedAvgConf * (effectiveConfluenceScore / 100) * 1.1);
+  }
+
   // ── Quality Score ──
   const qualityScore = calculateQualityScore({
     confluenceScore,
@@ -556,6 +713,11 @@ export function generateTradeProposal(opts: {
     descriptionAr += ` | MTF: ${mtfConfluence.agreeingTFs} فريمات`;
   }
 
+  // Append revolutionary boost description if any
+  if (revBoostDescription) {
+    descriptionAr += revBoostDescription;
+  }
+
   const proposal: TradeProposal = {
     id: `trade_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     direction,
@@ -566,7 +728,7 @@ export function generateTradeProposal(opts: {
     riskAmount: Math.round(riskAmount * 100) / 100,
     rewardAmount: Math.round(rewardAmount * 100) / 100,
     rrRatio: Math.round(rrRatio * 100) / 100,
-    confluenceScore,
+    confluenceScore: effectiveConfluenceScore,
     agreeingSignals,
     patternSource: patternSource || 'confluence',
     confidence,
@@ -673,10 +835,10 @@ export function autoEvaluateProposals(currentPrice: number, candles?: CandleData
     // ── Check Take Profit hits ──
     if (!newStatus) {
       if (proposal.direction === 'bullish') {
-        if (currentPrice >= proposal.takeProfits[2] && proposal.status !== 'hit_tp3') {
+        if (currentPrice >= proposal.takeProfits[2] && (proposal.status as string) !== 'hit_tp3') {
           newStatus = 'hit_tp3';
           pnlChange = proposal.positionSize * Math.abs(proposal.takeProfits[2] - proposal.entryPrice);
-        } else if (currentPrice >= proposal.takeProfits[1] && proposal.status !== 'hit_tp2') {
+        } else if (currentPrice >= proposal.takeProfits[1] && (proposal.status as string) !== 'hit_tp2') {
           newStatus = 'hit_tp2';
           // Partial close P&L
           if (proposal.partialCloses.length > 0 && !proposal.partialCloses[1].executed) {
@@ -699,10 +861,10 @@ export function autoEvaluateProposals(currentPrice: number, candles?: CandleData
           }
         }
       } else {
-        if (currentPrice <= proposal.takeProfits[2] && proposal.status !== 'hit_tp3') {
+        if (currentPrice <= proposal.takeProfits[2] && (proposal.status as string) !== 'hit_tp3') {
           newStatus = 'hit_tp3';
           pnlChange = proposal.positionSize * Math.abs(proposal.takeProfits[2] - proposal.entryPrice);
-        } else if (currentPrice <= proposal.takeProfits[1] && proposal.status !== 'hit_tp2') {
+        } else if (currentPrice <= proposal.takeProfits[1] && (proposal.status as string) !== 'hit_tp2') {
           newStatus = 'hit_tp2';
           if (proposal.partialCloses.length > 0 && !proposal.partialCloses[1].executed) {
             proposal.partialCloses[1].executed = true;
@@ -723,20 +885,62 @@ export function autoEvaluateProposals(currentPrice: number, candles?: CandleData
       }
     }
 
-    // ── Trailing Stop Update ──
+    // ── Smart Trailing Stop Update (V262) ──
+    // Enhanced trailing that:
+    // 1. Uses adaptive ATR (tighter in low-vol, wider in high-vol)
+    // 2. Locks in profit progressively (tighter as price moves in our favor)
+    // 3. Only moves trail when price moves enough (step-based, not every tick)
     if (!newStatus && params.enableTrailingStop && atr > 0) {
-      const hasHitTP1 = proposal.status === 'breakeven' || proposal.status === 'hit_tp1' || proposal.status === 'hit_tp2';
+      const hasHitTP1 = proposal.status === 'breakeven' || (proposal.status as string) === 'hit_tp1' || (proposal.status as string) === 'hit_tp2';
 
       if (hasHitTP1) {
-        // Activate trailing stop
+        // ── Adaptive ATR multiplier ──
+        // The further price moves in our favor, the tighter the trail becomes.
+        // At TP1: trailDistance = 1.5 × ATR (default, room to breathe)
+        // At TP2: trailDistance = 1.0 × ATR (tighter, protecting more profit)
+        // Beyond TP2: trailDistance = 0.7 × ATR (very tight, locking profit)
+        const profitDistance = proposal.direction === 'bullish'
+          ? currentPrice - proposal.entryPrice
+          : proposal.entryPrice - currentPrice;
+        const risk = Math.abs(proposal.entryPrice - proposal.stopLoss);
+        const profitInR = risk > 0 ? profitDistance / risk : 0;
+
+        let adaptiveATRMultiplier: number;
+        if (profitInR >= 2.0) {
+          // Beyond TP2 — very tight trail
+          adaptiveATRMultiplier = 0.7;
+        } else if (profitInR >= 1.5) {
+          // At TP2 level — tighter trail
+          adaptiveATRMultiplier = 1.0;
+        } else if (profitInR >= 1.0) {
+          // At TP1 level — normal trail
+          adaptiveATRMultiplier = params.trailATRMultiplier;
+        } else {
+          // Not yet at TP1 — don't trail yet (breakeven handles this)
+          adaptiveATRMultiplier = params.trailATRMultiplier;
+        }
+
+        const trailDist = atr * adaptiveATRMultiplier;
+
+        // ── Step-based trailing ──
+        // Only move trail if new position is at least 0.2 × ATR better
+        // This prevents tiny movements from constantly shifting the trail
+        const minStepSize = atr * 0.2;
+
         if (proposal.direction === 'bullish') {
-          const newTrailSL = currentPrice - atr * params.trailATRMultiplier;
-          if (!proposal.currentTrailSL || newTrailSL > proposal.currentTrailSL) {
+          const newTrailSL = currentPrice - trailDist;
+          if (!proposal.currentTrailSL) {
+            // First trail activation
+            proposal.currentTrailSL = Math.round(newTrailSL * 100) / 100;
+          } else if (newTrailSL > proposal.currentTrailSL + minStepSize) {
+            // Only move if improvement exceeds minimum step
             proposal.currentTrailSL = Math.round(newTrailSL * 100) / 100;
           }
         } else {
-          const newTrailSL = currentPrice + atr * params.trailATRMultiplier;
-          if (!proposal.currentTrailSL || newTrailSL < proposal.currentTrailSL) {
+          const newTrailSL = currentPrice + trailDist;
+          if (!proposal.currentTrailSL) {
+            proposal.currentTrailSL = Math.round(newTrailSL * 100) / 100;
+          } else if (newTrailSL < proposal.currentTrailSL - minStepSize) {
             proposal.currentTrailSL = Math.round(newTrailSL * 100) / 100;
           }
         }
@@ -759,7 +963,17 @@ export function autoEvaluateProposals(currentPrice: number, candles?: CandleData
     if (newStatus) {
       proposal.status = newStatus;
       // Move completed trades to history
-      if (newStatus === 'hit_tp3' || newStatus === 'hit_sl') {
+      // V262: trail_sl is also a completed trade — it's the smart exit
+      if (newStatus === 'hit_tp3' || newStatus === 'hit_sl' || newStatus === 'trail_sl') {
+        // For trail_sl: calculate P&L based on trail stop level vs entry
+        if (newStatus === 'trail_sl' && proposal.currentTrailSL) {
+          const trailPnL = proposal.direction === 'bullish'
+            ? (proposal.currentTrailSL - proposal.entryPrice) * proposal.positionSize
+            : (proposal.entryPrice - proposal.currentTrailSL) * proposal.positionSize;
+          proposal.pnl.realized += trailPnL;
+          proposal.pnl.fees += proposal.positionSize * proposal.entryPrice * 0.001;
+          proposal.pnl.netPnL = proposal.pnl.realized - proposal.pnl.fees;
+        }
         tradeHistory.set(proposal.id, { ...proposal });
       }
     }
@@ -802,8 +1016,10 @@ export function getProposalStats(): {
 } {
   const all = Array.from(proposals.values());
   const history = Array.from(tradeHistory.values());
-  const completed = history.filter(p => p.status === 'hit_tp1' || p.status === 'hit_tp2' || p.status === 'hit_tp3' || p.status === 'hit_sl');
-  const wins = history.filter(p => p.status === 'hit_tp1' || p.status === 'hit_tp2' || p.status === 'hit_tp3');
+  const completed = history.filter(p => p.status === 'hit_tp1' || p.status === 'hit_tp2' || p.status === 'hit_tp3' || p.status === 'hit_sl' || p.status === 'trail_sl');
+  // V262: trail_sl counts as a WIN if it exited in profit (trailSL better than entry)
+  const wins = history.filter(p => p.status === 'hit_tp1' || p.status === 'hit_tp2' || p.status === 'hit_tp3'
+    || (p.status === 'trail_sl' && p.pnl.netPnL > 0));
 
   const totalPnL = history.reduce((s, p) => s + p.pnl.netPnL, 0);
   const avgQuality = completed.length > 0

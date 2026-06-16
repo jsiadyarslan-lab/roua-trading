@@ -18,6 +18,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
+import { RedisService } from '../../../common/redis/redis.service';
 
 export interface PortfolioValuation {
   totalValue: number;
@@ -31,10 +32,13 @@ export interface PortfolioValuation {
 @Injectable()
 export class PortfolioValuationService {
   private readonly logger = new Logger(PortfolioValuationService.name);
+  private readonly CACHE_PREFIX = 'portfolio-valuation:';
+  private readonly CACHE_TTL_MS = 15 * 1000; // V-PHASE3: 15-second cache to reduce DB load
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly redis: RedisService,
   ) {}
 
   /**
@@ -43,15 +47,35 @@ export class PortfolioValuationService {
    * This is the ONLY method that should be used to calculate portfolio value
    * across ALL services (RiskManager, RiskCalculator, ExposureManager, etc.).
    *
+   * V-PHASE3: Added Redis caching (15s TTL) to reduce DB queries.
+   * Previously, every tick (10s for executor, 60s for agent) called this
+   * for every user, causing excessive DB load. With caching, the same
+   * valuation is reused within 15 seconds across all services.
+   *
    * @param userId - The user ID
    * @param isPaperTrading - Whether the user is paper-trading only
    * @returns PortfolioValuation with detailed breakdown
    */
   async getValuation(userId: string, isPaperTrading = false): Promise<PortfolioValuation> {
-    if (isPaperTrading) {
-      return this._getPaperValuation(userId);
-    }
-    return this._getRealValuation(userId);
+    // V-PHASE3: Check cache first
+    const cacheKey = `${this.CACHE_PREFIX}${userId}:${isPaperTrading ? 'paper' : 'real'}`;
+    try {
+      const cached = await this.redis.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch { /* Redis unavailable — proceed without cache */ }
+
+    const valuation = isPaperTrading
+      ? await this._getPaperValuation(userId)
+      : await this._getRealValuation(userId);
+
+    // V-PHASE3: Cache the result
+    try {
+      await this.redis.set(cacheKey, JSON.stringify(valuation), this.CACHE_TTL_MS);
+    } catch { /* Redis unavailable — skip caching */ }
+
+    return valuation;
   }
 
   /**

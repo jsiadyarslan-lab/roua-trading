@@ -260,7 +260,7 @@ const _newsPromises: Record<string, Promise<NewsItem[]>> = {}
 function fetchNewsData(locale: string): Promise<NewsItem[]> {
   const cached = _newsCacheByLocale[locale]
   if (cached && Date.now() - cached.at < NEWS_TTL_MS) return Promise.resolve(cached.items)
-  if (_newsPromises[locale]) return _newsPromises[locale]
+  if (_newsPromises[locale] !== undefined) return _newsPromises[locale]
   _newsPromises[locale] = fetch(`/api/news/feed?lang=${locale}`, { cache: 'no-store' })
     .then(r => r.ok ? r.json() : [])
     .then((d: unknown) => {

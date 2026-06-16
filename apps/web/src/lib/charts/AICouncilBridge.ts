@@ -488,6 +488,7 @@ export function recordPrediction(opts: {
   aiDirection: 'bullish' | 'bearish' | 'neutral';
   algoDirection: 'bullish' | 'bearish' | 'neutral';
   regime: string;
+  entryPrice?: number;
 }): void {
   predictionHistory.push({
     timestamp: Date.now(),
@@ -498,7 +499,8 @@ export function recordPrediction(opts: {
     aiCorrect: null,
     algoCorrect: null,
     regime: opts.regime,
-  });
+    entryPrice: opts.entryPrice, // FIX: Store entry price for real verification
+  } as any);
   if (predictionHistory.length > MAX_HISTORY) {
     predictionHistory.splice(0, predictionHistory.length - MAX_HISTORY);
   }
@@ -507,9 +509,13 @@ export function recordPrediction(opts: {
 
 /**
  * Verify a past prediction against the actual price movement.
- * Should be called periodically (e.g., every few minutes).
+ *
+ * FIX: Previously this took the Bayesian direction as the "actual direction" —
+ * that's CIRCULAR LOGIC (using the same engine's output to verify itself).
+ * Now we use the actual price change: we store the price at prediction time,
+ * and check whether price moved up (bullish) or down (bearish) after VERIFY_DELAY.
  */
-export function verifyPredictions(currentDirection: 'bullish' | 'bearish' | 'neutral'): void {
+export function verifyPredictions(currentDirection: 'bullish' | 'bearish' | 'neutral', currentPrice?: number): void {
   const now = Date.now();
   const VERIFY_DELAY = 300000; // 5 minutes
 
@@ -517,9 +523,30 @@ export function verifyPredictions(currentDirection: 'bullish' | 'bearish' | 'neu
     if (pred.actualDirection !== null) continue;
     if (now - pred.timestamp < VERIFY_DELAY) continue;
 
-    pred.actualDirection = currentDirection;
-    pred.aiCorrect = pred.aiDirection === currentDirection;
-    pred.algoCorrect = pred.algoDirection === currentDirection;
+    // FIX: Determine actual direction from REAL price movement, not from
+    // the Bayesian engine's current guess. If we have a stored entry price
+    // and a current price, use actual price movement.
+    let actualDir: 'bullish' | 'bearish' | 'neutral';
+    const entryPrice = (pred as any).entryPrice as number | undefined;
+    if (currentPrice && entryPrice && entryPrice > 0) {
+      const priceChange = (currentPrice - entryPrice) / entryPrice;
+      const THRESHOLD = 0.002; // 0.2% move confirms direction
+      if (priceChange > THRESHOLD) {
+        actualDir = 'bullish';
+      } else if (priceChange < -THRESHOLD) {
+        actualDir = 'bearish';
+      } else {
+        actualDir = 'neutral';
+      }
+    } else {
+      // Fallback: if no price data available, use the Bayesian direction
+      // (still circular, but better than never verifying at all)
+      actualDir = currentDirection;
+    }
+
+    pred.actualDirection = actualDir;
+    pred.aiCorrect = pred.aiDirection === actualDir;
+    pred.algoCorrect = pred.algoDirection === actualDir;
   }
 
   persistState();
@@ -616,4 +643,94 @@ export function getAIvsAlgoStats(): {
     agreementRate: Math.round((agreed / verified.length) * 100) / 100,
     bestModel,
   };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// REAL AI COUNCIL — Calls /api/ai/smart-council to reach actual AI models
+// (z-ai-web-dev-sdk on server, GROQ as fallback)
+// ═══════════════════════════════════════════════════════════════════════
+
+/** Cooldown to prevent spamming the AI API */
+let lastAICallTime = 0;
+const AI_CALL_COOLDOWN = 15000; // 15 seconds minimum between AI calls
+
+/**
+ * Call the AI Council via the /api/ai/smart-council API route.
+ * This is client-safe — the actual AI SDK calls happen server-side.
+ *
+ * Sends the analysis payload as a prompt and parses the AI's prediction.
+ * Falls back gracefully if the API is unavailable.
+ */
+export async function queryAICouncil(payload: AIAnalysisPayload): Promise<{
+  prediction: AIModelPrediction;
+  comparison: AIAlgorithmComparison;
+} | null> {
+  try {
+    // Cooldown check — don't spam the AI
+    const now = Date.now();
+    if (now - lastAICallTime < AI_CALL_COOLDOWN) return null;
+    lastAICallTime = now;
+
+    const startTime = now;
+
+    // Build the prompt from the analysis payload
+    const prompt = buildAICouncilPrompt(payload);
+
+    // Call our API route (server-side handles z-ai-web-dev-sdk / GROQ)
+    const response = await fetch('/api/ai/smart-council', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt,
+        symbol: payload.symbol,
+        currentPrice: payload.currentPrice,
+      }),
+    });
+
+    if (!response.ok) {
+      // Rate limited or server error — return null
+      return null;
+    }
+
+    const data = await response.json();
+    if (!data.success || !data.prediction) {
+      return null;
+    }
+
+    const { direction, confidence, reasoningAr, model } = data.prediction;
+
+    const prediction: AIModelPrediction = {
+      model: (model || 'zai-llm') as AIModel,
+      direction: direction as 'bullish' | 'bearish' | 'neutral',
+      confidence: confidence as number,
+      reasoningAr: reasoningAr || '',
+      keyFactors: payload.keyPatterns.slice(0, 3).map(p => p.labelAr),
+      timestamp: Date.now(),
+      responseTimeMs: Date.now() - startTime,
+    };
+
+    // Record the prediction
+    recordModelPrediction((model || 'gpt4') as AIModel, prediction);
+
+    // Compare with algorithmic prediction
+    const comparison = compareAIWithAlgorithm(
+      { direction: prediction.direction, confidence: prediction.confidence },
+      { direction: payload.algorithmicPrediction.direction, confidence: payload.algorithmicPrediction.confidence },
+      payload,
+    );
+
+    // Record for AI vs Algo tracking with entry price for real verification
+    recordPrediction({
+      symbol: payload.symbol,
+      aiDirection: prediction.direction,
+      algoDirection: payload.algorithmicPrediction.direction,
+      regime: payload.regime,
+      entryPrice: payload.currentPrice,
+    });
+
+    return { prediction, comparison };
+  } catch {
+    // AI Council failed — return null (fallback to algorithmic only)
+    return null;
+  }
 }

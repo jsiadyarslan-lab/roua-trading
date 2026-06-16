@@ -19,6 +19,8 @@ export interface BayesianConsensus {
   prior: { bullish: number; bearish: number };
   /** Per-signal likelihood contributions */
   likelihoods: Array<{ source: string; likelihoodBull: number; likelihoodBear: number }>;
+  /** Key price levels from signal sources (optional, populated by UI layer) */
+  keyLevels?: Array<{ price: number; label: string; type: 'support' | 'resistance' }>;
 }
 
 export interface BayesianSignal {
@@ -159,7 +161,7 @@ function estimateEntryPrice(currentPrice: number, entry: SignalHistoryEntry, age
     return currentPrice / (1 + driftPerHour * ageHours);
   } else if (entry.direction === 'bearish') {
     // If signal was bearish and price went down, entry was higher than current
-    return currentPrice / (1 - driftPerHour * ageHours);
+    return currentPrice / Math.max(0.001, 1 - driftPerHour * ageHours);
   }
   return currentPrice;
 }
@@ -261,18 +263,48 @@ export function getBayesianEngine(candles?: CandleData[]): BayesianEngine {
         : { bullish: 0.5, bearish: 0.5 };
 
       // Step 2: Calculate likelihoods P(signals | bullish) and P(signals | bearish)
-      // Under Naive Bayes assumption of conditional independence:
-      // P(signals | direction) = product of P(each_signal | direction)
-      let likelihoodBullish = 1.0;
-      let likelihoodBearish = 1.0;
+      // FIX: Use WEIGHTED GEOMETRIC MEAN instead of pure product multiplication.
+      // The problem with pure product: if you have 5 signals with P(bull|sig)=0.6,
+      // product = 0.6^5 = 0.0777. But P(bear|sig)=0.4, product = 0.4^5 = 0.0102.
+      // The ratio is 7.6:1, which is good. BUT if signals are mixed (3 bull at 0.6,
+      // 2 bear at 0.4), the products nearly cancel: 0.6^3 * 0.4^2 = 0.034 vs
+      // 0.4^3 * 0.6^2 = 0.023. Ratio only 1.5:1 → system says "neutral".
+      //
+      // FIX: Apply signal weight as an EXPONENT on the likelihood ratio.
+      // Strong signals (weight > 1) amplify their contribution, while weak
+      // signals (weight < 1) have reduced influence. This prevents the
+      // "converge to neutral" problem when signals disagree.
+      let logLikelihoodBullish = 0;
+      let logLikelihoodBearish = 0;
       const likelihoods: Array<{ source: string; likelihoodBull: number; likelihoodBear: number }> = [];
 
       for (const sig of signals) {
         const pBull = calculateLikelihood(sig.source, sig.direction, 'bullish', sig.confidence);
         const pBear = calculateLikelihood(sig.source, sig.direction, 'bearish', sig.confidence);
-        likelihoodBullish *= pBull;
-        likelihoodBearish *= pBear;
+        // Apply signal weight as exponent: strong signals dominate
+        const w = Math.max(0.3, sig.weight || 1.0);
+        logLikelihoodBullish += Math.log(Math.max(1e-10, pBull)) * w;
+        logLikelihoodBearish += Math.log(Math.max(1e-10, pBear)) * w;
         likelihoods.push({ source: sig.source, likelihoodBull: pBull, likelihoodBear: pBear });
+      }
+
+      // Convert back from log space
+      let likelihoodBullish = Math.exp(logLikelihoodBullish);
+      let likelihoodBearish = Math.exp(logLikelihoodBearish);
+
+      // FIX: Boost strong consensus signals
+      // If a clear majority of signals agree on direction, boost that direction's likelihood
+      const bullCount = signals.filter(s => s.direction === 'bullish').length;
+      const bearCount = signals.filter(s => s.direction === 'bearish').length;
+      const totalDir = bullCount + bearCount;
+      if (totalDir >= 2) {
+        const bullRatio = bullCount / totalDir;
+        const consensusBoost = Math.abs(bullRatio - 0.5) * 2; // 0 to 1
+        if (bullRatio > 0.6) {
+          likelihoodBullish *= (1 + consensusBoost * 0.5); // Up to 1.5x boost for strong bull consensus
+        } else if (bullRatio < 0.4) {
+          likelihoodBearish *= (1 + consensusBoost * 0.5); // Up to 1.5x boost for strong bear consensus
+        }
       }
 
       // Step 3: Apply Bayes' Theorem
@@ -290,10 +322,13 @@ export function getBayesianEngine(candles?: CandleData[]): BayesianEngine {
       let confidence: number;
 
       const margin = Math.abs(posteriorBullish - posteriorBearish);
-      if (margin < 0.1) {
-        // Too close to call — neutral
+      // IMPROVED: Lower neutral threshold from 0.05 to 0.03
+      // Even a slight posterior advantage is now actionable.
+      // The system should have an opinion whenever possible — neutral
+      // is only for genuinely ambiguous situations (posterior ≈ 50/50).
+      if (margin < 0.03) {
         direction = 'neutral';
-        confidence = margin; // Low confidence
+        confidence = margin;
       } else if (posteriorBullish > posteriorBearish) {
         direction = 'bullish';
         confidence = posteriorBullish;

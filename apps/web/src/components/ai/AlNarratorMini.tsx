@@ -401,7 +401,7 @@ export function AlNarratorMini({
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
               }}>
                 <span style={{ fontSize: 9, color: 'var(--accent)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Crosshair size={10} /> {t('smartRecommendationTitle', { symbol: selectedSymbol })}
+                  <Crosshair size={10} /> {t('smartRecommendationTitle', { symbol: String(selectedSymbol) })}
                 </span>
                 <button
                   onClick={() => setShowRecommendation(false)}

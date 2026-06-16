@@ -276,7 +276,7 @@ export function DeepAnalysisModal() {
                     <IndicatorBadge label={t('deep.risk')} value={data.aiAnalysis.riskLevel === 'LOW' ? t('deep.low') : data.aiAnalysis.riskLevel === 'HIGH' ? t('deep.high') : t('deep.medium')} status={data.aiAnalysis.riskLevel === 'LOW' ? 'bullish' : data.aiAnalysis.riskLevel === 'HIGH' ? 'bearish' : 'warning'} />
                   </div>
                   <p style={{ fontSize: 10, color: T.text2, fontFamily: "'Cairo', sans-serif", lineHeight: 1.7, margin: 0 }}>
-                    {locale === 'ar' ? data.aiAnalysis.analysisAr : (data.aiAnalysis.analysisEn || data.aiAnalysis.analysisAr)}
+                    {locale === 'ar' ? data.aiAnalysis.analysisAr : ((data.aiAnalysis as any).analysisEn || data.aiAnalysis.analysisAr)}
                   </p>
                 </div>
               )}

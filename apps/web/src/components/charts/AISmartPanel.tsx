@@ -41,10 +41,20 @@ import { runAdaptiveBayesian, detectMarketRegime, recordAdaptiveOutcome, getSour
 import { evaluateAllVisualRules, getVisualRules, type VisualRule, type RuleEvaluationResult, type RuleAnalysisData, SIGNAL_BLOCK_LIBRARY, CONNECTOR_LABELS_AR, CATEGORY_LABELS_AR } from '@/lib/charts/VisualRuleBuilder';
 import { getPaperAccount, openPaperTrade, closePaperTrade, autoEvaluatePaperTrades, getPaperTrades, getOpenPaperTrades, getPerformanceComparison, type PaperTrade, type PaperAccount } from '@/lib/charts/PaperTradingEngine';
 import { runMarketScan, runSingleAssetScan, getScanUniverse, type MarketScanResult, type AssetScanResult, SECTOR_LABELS_AR } from '@/lib/charts/MarketScannerEngine';
-import { buildAICouncilPrompt, buildAIAnalysisPayload, compareAIWithAlgorithm, recordPrediction, verifyPredictions, getAIvsAlgoStats, getModelPerformances, type AIAnalysisPayload, type AICouncilBridgeResult, type AIModel } from '@/lib/charts/AICouncilBridge';
+import { buildAICouncilPrompt, buildAIAnalysisPayload, queryAICouncil, compareAIWithAlgorithm, recordPrediction, verifyPredictions, getAIvsAlgoStats, getModelPerformances, type AIAnalysisPayload, type AICouncilBridgeResult, type AIModel } from '@/lib/charts/AICouncilBridge';
 import { createIncrementalState, initializeState, updateIncremental, needsFullRecalc, getQuickTrend, getQuickVolatilityRegime, type IncrementalState } from '@/lib/charts/IncrementalCalc';
 import { logError, logWarn, logInfo, getErrorCount, getRecentErrors } from '@/lib/charts/AnalysisLogger';
 import { validateAnalysis, validateTradeSetup } from '@/lib/charts/AnalysisValidator';
+// ── Revolutionary Feature Engines ──
+import { runVisualBacktest, quickBacktest, type BacktestSignalResult, type BacktestStats } from '@/lib/charts/VisualBacktestEngine';
+import { detectConfluenceZones, type ConfluenceZone } from '@/lib/charts/ConfluenceZones';
+import { explainSignal, type SignalExplanation } from '@/lib/charts/AIExplanationEngine';
+import { recordCorrelationEvent, evaluateCorrelationEvents, computeCorrelationMatrix, type CorrelationMatrix } from '@/lib/charts/CorrelationEngine';
+import { predictPatternCompletion, type PatternPrediction } from '@/lib/charts/PredictivePatternCompletion';
+import { recordPrediction as recordAdaptivePrediction, resolvePrediction, autoResolvePredictions, getAdaptiveIntelligenceState, calibrateConfidence, getSourceWeight, getAllSourceWeights, recordAnalysisPredictions, type AdaptiveIntelligenceState, type SignalSource as IntelligenceSignalSource } from '@/lib/charts/AdaptiveIntelligenceEngine';
+import { computeScenarios, type ScenarioResult, type Scenario } from '@/lib/charts/ScenarioEngine';
+import { detectSprings, type SpringDetectionResult, type SpringDetection } from '@/lib/charts/SpringDetectionEngine';
+import { journalTradeProposal, syncJournalWithProposals, computeJournalStats, getJournalEntries, exportJournalJSON, generateReportHTML, clearJournal, type JournalEntry, type JournalStats } from '@/lib/charts/TradeJournal';
 
 const C = {
   bg: '#0a0e17', card: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.09)',
@@ -105,7 +115,7 @@ const PATTERN_KEYS: Record<string, string> = {
   'Inverse Head and Shoulders': 'patternInverseHeadAndShoulders',
 };
 
-type Tab = 'signal' | 'patterns' | 'wyckoff' | 'elliott' | 'levels' | 'smc' | 'advanced' | 'alerts' | 'trades' | 'mtf' | 'adaptive' | 'rules' | 'paper' | 'scanner' | 'council';
+type Tab = 'signal' | 'patterns' | 'wyckoff' | 'elliott' | 'levels' | 'smc' | 'advanced' | 'alerts' | 'trades' | 'mtf' | 'adaptive' | 'rules' | 'paper' | 'scanner' | 'council' | 'backtest' | 'confluence' | 'explain' | 'correlate' | 'predict' | 'intelligence' | 'scenario' | 'spring' | 'journal';
 
 interface Props {
   symbol: string;
@@ -184,6 +194,22 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const [scanLoading, setScanLoading] = useState(false);
   const [aiBridgePayload, setAiBridgePayload] = useState<AIAnalysisPayload | null>(null);
   const [aiVsAlgoStats, setAiVsAlgoStats] = useState<ReturnType<typeof getAIvsAlgoStats> | null>(null);
+  const [councilAnalyses, setCouncilAnalyses] = useState<Array<{ model: string; direction: string; confidence: number; reasoning: string }>>([]);
+  // Revolutionary features state
+  const [backtestStats, setBacktestStats] = useState<BacktestStats | null>(null);
+  const [backtestSignals, setBacktestSignals] = useState<BacktestSignalResult[]>([]);
+  const [confluenceZones, setConfluenceZones] = useState<ConfluenceZone[]>([]);
+  const [signalExplanation, setSignalExplanation] = useState<SignalExplanation | null>(null);
+  const [explainSource, setExplainSource] = useState<string>('');
+  const [correlationMatrix, setCorrelationMatrix] = useState<CorrelationMatrix | null>(null);
+  const [patternPredictions, setPatternPredictions] = useState<PatternPrediction[]>([]);
+  const [adaptiveIntelligence, setAdaptiveIntelligence] = useState<AdaptiveIntelligenceState | null>(null);
+  const [scenarioResult, setScenarioResult] = useState<ScenarioResult | null>(null);
+  const [springResult, setSpringResult] = useState<SpringDetectionResult | null>(null);
+
+  // ── Trade Journal State ──
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+  const [journalStats, setJournalStats] = useState<JournalStats | null>(null);
 
   // ── Refs to avoid stale closure ─────────────────────────────
   const runRef = useRef(false);
@@ -452,14 +478,14 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       // ── 8. REVOLUTIONARY: Confidence Heatmap (Real Signal-Based) ──
       try {
         // Pass full analysis data for signal-range extraction
-        const heatmap = buildHeatmap(c, {
+        const heatmap = buildHeatmap(c, [{
           patterns: allPatterns,
           smcData,
           elliottPattern,
           wyckoff,
           volumeProfile,
           geoPatterns,
-        });
+        }] as any);
         setHeatmapResult(heatmap);
         onHeatmapRef.current?.(heatmap);
       } catch { /* Heatmap fallback */ }
@@ -491,6 +517,17 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           wyckoffResult: wyckoffAdvanced,
           currentPrice: price,
           timeframe: 'auto',
+          trendLines,
+          volumeProfile,
+          liquidityResult,
+          // Revolutionary: Pass pattern predictions for early alerts
+          patternPredictions: patternPredictions?.map(p => ({
+            patternType: p.patternType,
+            predictedDirection: p.predictedDirection,
+            completionPct: p.completionPct,
+            confidence: p.confidence,
+            targetPrice: p.completionZone?.center || price,
+          })),
         });
         const alerts = evaluateSmartAlerts(alertSnapshot);
         setSmartAlerts(alerts);
@@ -502,14 +539,60 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
       // ── Phase 3: Auto-Trade Proposal ────────────────────────────
       try {
+        // IMPROVED: Lower threshold — include even single strong signals
+        // Also include SMC signals (BOS/CHoCH) and volume signals
         const tradeSignals = allPatterns
-          .filter(p => p.direction !== 'neutral' && p.confidence >= 0.4)
+          .filter(p => p.direction !== 'neutral' && p.confidence >= 0.3)
           .map(p => ({
             source: p.type || 'unknown',
             direction: p.direction,
             confidence: p.confidence,
             keyLevel: p.price || price,
           }));
+
+        // Add SMC structure breaks as trade signals (strong directional)
+        for (const brk of (smcData?.structureBreaks || []).slice(-3)) {
+          tradeSignals.push({
+            source: `smc:${brk.type}`,
+            direction: brk.direction === 'bullish' ? 'bullish' as const : 'bearish' as const,
+            confidence: 0.6,
+            keyLevel: brk.price || price,
+          });
+        }
+
+        // Add Bayesian result as a signal (if strong enough)
+        if (bayesianConf > 0.45 && bayesianDir !== 'neutral') {
+          tradeSignals.push({
+            source: 'bayesian',
+            direction: bayesianDir as 'bullish' | 'bearish',
+            confidence: bayesianConf,
+            keyLevel: price,
+          });
+        }
+
+        // Add fusion result as a signal
+        if (fusionScore > 40) {
+          tradeSignals.push({
+            source: 'elliott-smc-fusion',
+            direction: fusionResult?.direction === 'bearish' ? 'bearish' as const : 'bullish' as const,
+            confidence: fusionScore / 100,
+            keyLevel: price,
+          });
+        }
+
+        // If no signals yet, create one from the dominant pattern direction
+        if (tradeSignals.length === 0) {
+          const bullCount = allPatterns.filter(p => p.direction === 'bullish').length;
+          const bearCount = allPatterns.filter(p => p.direction === 'bearish').length;
+          if (bullCount + bearCount > 0) {
+            tradeSignals.push({
+              source: 'pattern-count',
+              direction: bullCount > bearCount ? 'bullish' as const : 'bearish' as const,
+              confidence: Math.max(bullCount, bearCount) / (bullCount + bearCount + 1),
+              keyLevel: price,
+            });
+          }
+        }
 
         const confluenceDir = tradeSignals.filter(s => s.direction === 'bullish').length >
           tradeSignals.filter(s => s.direction === 'bearish').length ? 'bullish' : 'bearish';
@@ -518,6 +601,78 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           (tradeSignals.filter(s => s.direction === confluenceDir).reduce((sum, s) => sum + s.confidence, 0) /
             (tradeSignals.length || 1)) * 100
         );
+
+        // ── Build Revolutionary Boost from previous cycle data ──
+        // NOTE: We use state values from the PREVIOUS analysis cycle here.
+        // This is safe because the data updates every cycle and the values
+        // are only a few seconds stale. On first cycle, they'll be empty
+        // and the boost is simply skipped (no effect).
+        const revBoost: import('@/lib/charts/AutoTradeEngine').RevolutionaryBoost = {};
+
+        // 1. Confluence Zone Boost — find best zone matching our direction
+        if (confluenceZones && confluenceZones.length > 0) {
+          const matchingZone = confluenceZones
+            .filter(z => z.direction === confluenceDir && z.isActive)
+            .sort((a, b) => b.score - a.score)[0];
+          if (matchingZone) {
+            revBoost.confluenceZoneBoost = {
+              score: matchingZone.score,
+              direction: matchingZone.direction,
+              isActive: matchingZone.isActive,
+              signalCount: matchingZone.signalCount,
+            };
+          }
+        }
+
+        // 2. Backtest Source Weights — map per-source win rates
+        if (backtestStats?.bySource) {
+          const weights: Record<string, { winRate: number; sampleSize: number }> = {};
+          for (const [source, data] of Object.entries(backtestStats.bySource)) {
+            if (data.total >= 5) {
+              weights[source] = { winRate: data.winRate, sampleSize: data.total };
+            }
+          }
+          if (Object.keys(weights).length > 0) {
+            revBoost.backtestSourceWeights = weights;
+          }
+        }
+
+        // 3. Correlation Boost — find best combo that includes one of our signals
+        if (correlationMatrix?.topCombinations && correlationMatrix.topCombinations.length > 0) {
+          const ourSources = new Set(tradeSignals.map(s => s.source));
+          const bestCombo = correlationMatrix.topCombinations.find(combo =>
+            combo.winRate > 0.5 && combo.sources.some(s => ourSources.has(s))
+          );
+          if (bestCombo) {
+            const partner = bestCombo.sources.find(s => !ourSources.has(s)) || bestCombo.sources[0];
+            revBoost.correlationBoost = {
+              combinedWinRate: bestCombo.winRate,
+              lift: bestCombo.winRate / (tradeSignals[0]?.confidence || 0.5),
+              partnerSource: partner,
+            };
+          }
+        }
+
+        // 4. Prediction Near Completion — find pattern matching our direction
+        if (patternPredictions && patternPredictions.length > 0) {
+          const nearCompletion = patternPredictions
+            .filter(p => p.predictedDirection === confluenceDir && p.completionPct >= 60)
+            .sort((a, b) => b.completionPct - a.completionPct)[0];
+          if (nearCompletion) {
+            revBoost.predictionNearCompletion = {
+              patternType: nearCompletion.patternType,
+              predictedDirection: nearCompletion.predictedDirection,
+              completionPct: nearCompletion.completionPct,
+              confidence: nearCompletion.confidence,
+              targetPrice: nearCompletion.completionZone?.center || price,
+            };
+          }
+        }
+
+        // 5. Explanation Risk — from AI explanation if available
+        if (signalExplanation?.riskLevel) {
+          revBoost.explanationRisk = signalExplanation.riskLevel;
+        }
 
         const proposal = generateTradeProposal({
           candles: c,
@@ -533,10 +688,22 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             agreeingTFs: mtfResult.agreeingTFs,
           } : undefined,
           volRegime,
+          revolutionaryBoost: revBoost,
         });
 
         if (proposal) {
           setTradeProposals(prev => [proposal, ...prev.slice(0, 9)]);
+          // ── Auto-journal this proposal ──
+          try {
+            journalTradeProposal({
+              proposal,
+              symbol: (window as any).__roua_symbol || 'UNKNOWN',
+              regime: volRegime || 'unknown',
+              revolutionaryBoost: revBoost,
+            });
+            setJournalEntries(getJournalEntries());
+            setJournalStats(computeJournalStats());
+          } catch { /* Journal fallback */ }
         }
         setProposalStats(getProposalStats());
       } catch { /* Auto-Trade fallback */ }
@@ -607,6 +774,14 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         setPaperComparison(getPerformanceComparison());
       } catch { /* Paper Trading fallback */ }
 
+      // ── Phase 5: Auto-Trade Proposal Evaluation (SL/TP/Trailing Stop) ──
+      try {
+        const evaluatedProposals = autoEvaluateProposals(price, c);
+        if (evaluatedProposals.length > 0) {
+          setTradeProposals(getTradeProposals());
+        }
+      } catch { /* Auto-Trade evaluation fallback */ }
+
       // ── Phase 5: AI Council Bridge ─────────────────────────────────
       try {
         const bridgePayload = buildAIAnalysisPayload({
@@ -619,8 +794,222 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         });
         setAiBridgePayload(bridgePayload);
         setAiVsAlgoStats(getAIvsAlgoStats());
-        verifyPredictions(bayesianDir === 'bullish' ? 'bullish' : bayesianDir === 'bearish' ? 'bearish' : 'neutral');
+        // FIX: Use real price movement for verification, not Bayesian direction
+        verifyPredictions('neutral', price);
+
+        // ── Actually query the AI Council (was missing before!) ──
+        // This sends the analysis payload to the AI model and gets a real prediction
+        queryAICouncil(bridgePayload).then(result => {
+          if (result) {
+            const { prediction, comparison } = result;
+            setCouncilAnalyses([{
+              model: prediction.model,
+              direction: prediction.direction,
+              confidence: prediction.confidence,
+              reasoning: prediction.reasoningAr,
+            }]);
+          }
+        }).catch(() => { /* AI Council query failed — fallback to algo only */ });
       } catch { /* AI Council Bridge fallback */ }
+
+      // ── Revolutionary: Visual Backtest ────────────────────────────
+      try {
+        const btResult = quickBacktest(c, allPatterns.map(p => ({
+          source: p.type || 'unknown',
+          direction: p.direction as 'bullish' | 'bearish' | 'neutral',
+          confidence: p.confidence,
+          price: p.price || price,
+          candleIndex: p.candleIndex ?? c.length - 1,
+        })));
+        setBacktestStats(btResult.stats);
+        setBacktestSignals(btResult.results);
+      } catch { /* Visual Backtest fallback */ }
+
+      // ── Revolutionary: Confluence Zones ────────────────────────────
+      try {
+        const zones = detectConfluenceZones({
+          harmonicPatterns: allPatterns
+            .filter((p: any) => p.type?.includes('harmonic') || p.type?.includes('Gartley') || p.type?.includes('Bat') || p.type?.includes('Butterfly') || p.type?.includes('Crab') || p.type?.includes('Shark') || p.type?.includes('Cypher'))
+            .map((p: any) => ({
+              type: p.type || 'unknown',
+              direction: (p.direction || 'neutral') as 'bullish' | 'bearish',
+              confidence: p.confidence || 0.5,
+              przLevel: p.przLevel || p.price || price,
+            })),
+          smcData: {
+            orderBlocks: (smcData?.orderBlocks || []).map((ob: any) => ({
+              type: ob.type as 'bullish' | 'bearish',
+              strength: ob.strength || 0.5,
+              price: ob.price || (ob.high + ob.low) / 2,
+              high: ob.high, low: ob.low, broken: ob.broken,
+            })),
+            fvgs: (smcData?.fvgs || []).map((fvg: any) => ({
+              type: fvg.type as 'bullish' | 'bearish',
+              filled: fvg.filled || false,
+              midPrice: fvg.midPrice || (fvg.high + fvg.low) / 2,
+              high: fvg.high, low: fvg.low,
+            })),
+            structureBreaks: smcData?.structureBreaks,
+          },
+          elliottResult: elliottAdvanced?.dominantCount ? {
+            dominantDirection: elliottAdvanced.dominantCount.direction as 'bullish' | 'bearish' | 'neutral',
+            confidence: elliottAdvanced.dominantCount.confidence || 0.5,
+          } : undefined,
+          wyckoffResult: wyckoffAdvanced ? {
+            currentPhase: (wyckoffAdvanced as any).currentPhase || (wyckoffAdvanced as any).phase || 'none',
+            direction: ((wyckoffAdvanced as any).direction || (wyckoffAdvanced as any).bias || 'neutral') as 'bullish' | 'bearish' | 'neutral',
+            confidence: (wyckoffAdvanced as any).confidence || 0.5,
+          } : undefined,
+          srLevels: srLevels.map(l => ({
+            price: l.price,
+            type: (l.type === 'support' ? 'support' : 'resistance') as 'support' | 'resistance',
+            strength: typeof l.strength === 'number' ? l.strength : l.strength === 'strong' ? 0.9 : l.strength === 'medium' ? 0.6 : 0.3,
+          })),
+          currentPrice: price,
+          volumeProfile,
+        });
+        setConfluenceZones(zones);
+      } catch { /* Confluence Zones fallback */ }
+
+      // ── Revolutionary: Correlation Engine ──────────────────────────
+      try {
+        // Record all current signals as correlation events
+        for (const p of allPatterns.filter(p => p.direction !== 'neutral').slice(0, 10)) {
+          recordCorrelationEvent({
+            source: p.type || 'unknown',
+            direction: p.direction as 'bullish' | 'bearish',
+            price: p.price || price,
+          });
+        }
+        // Evaluate past events against current price
+        evaluateCorrelationEvents(price);
+        // Compute the correlation matrix
+        const matrix = computeCorrelationMatrix();
+        setCorrelationMatrix(matrix);
+      } catch { /* Correlation Engine fallback */ }
+
+      // ── Revolutionary: Predictive Pattern Completion ───────────────
+      try {
+        const predictions = predictPatternCompletion({
+          candles: c,
+          detectedPatterns: allPatterns.filter(p => p.direction !== 'neutral').map(p => ({
+            type: p.type,
+            direction: p.direction as 'bullish' | 'bearish',
+            confidence: p.confidence,
+            points: (p.points || p.shapePoints || []).map(pt => ({ label: '', price: pt.price })),
+          })),
+          currentPrice: price,
+        });
+        setPatternPredictions(predictions);
+      } catch { /* Predictive Pattern Completion fallback */ }
+
+      // ── Revolutionary #6: Adaptive Intelligence Engine ────────
+      try {
+        // Auto-resolve pending predictions from previous runs
+        autoResolvePredictions(price);
+
+        // Record current signals as new predictions for learning
+        const adaptiveSignals: Array<{ source: IntelligenceSignalSource; direction: 'bullish' | 'bearish' | 'neutral'; confidence: number; price: number }> = allPatterns
+          .filter(p => p.direction !== 'neutral' && p.confidence >= 0.3)
+          .map(p => ({
+            source: (p.type?.includes('harmonic') || p.type?.includes('Gartley') || p.type?.includes('Bat') ? 'harmonic'
+              : p.type?.includes('elliott') || p.type?.includes('Elliott') ? 'elliott'
+              : p.type?.includes('wyckoff') || p.type?.includes('Wyckoff') ? 'wyckoff'
+              : p.type?.includes('BOS') ? 'bos'
+              : p.type?.includes('CHoCH') ? 'choch'
+              : p.type?.includes('OB') || p.type?.includes('Order Block') ? 'orderblock'
+              : p.type?.includes('FVG') ? 'fvg'
+              : p.type?.includes('candlestick') ? 'candlestick'
+              : 'bayesian') as IntelligenceSignalSource,
+            direction: p.direction as 'bullish' | 'bearish' | 'neutral',
+            confidence: p.confidence,
+            price: p.price || price,
+          }));
+        // Add SMC signals
+        for (const brk of (smcData?.structureBreaks || []).slice(-3)) {
+          adaptiveSignals.push({
+            source: (brk.type === 'BOS' ? 'bos' : 'choch') as IntelligenceSignalSource,
+            direction: brk.direction === 'bullish' ? 'bullish' : 'bearish',
+            confidence: 0.6,
+            price: brk.price || price,
+          });
+        }
+        // Add Bayesian signal
+        if (bayesianConf > 0.4 && bayesianDir !== 'neutral') {
+          adaptiveSignals.push({
+            source: 'bayesian' as IntelligenceSignalSource,
+            direction: bayesianDir as 'bullish' | 'bearish',
+            confidence: bayesianConf,
+            price,
+          });
+        }
+        recordAnalysisPredictions({
+          signals: adaptiveSignals.slice(0, 10),
+          regime: (volRegime === 'trending' ? 'trending' : volRegime === 'ranging' ? 'ranging' : volRegime === 'volatile' ? 'volatile' : 'quiet') as any,
+          timeframe: 'auto',
+        });
+        const aiState = getAdaptiveIntelligenceState(
+          (volRegime === 'trending' ? 'trending' : volRegime === 'ranging' ? 'ranging' : volRegime === 'volatile' ? 'volatile' : 'quiet') as any,
+        );
+        setAdaptiveIntelligence(aiState);
+      } catch { /* Adaptive Intelligence fallback */ }
+
+      // ── Revolutionary #7: Scenario Engine ─────────────────────
+      try {
+        const bullCount = allPatterns.filter(p => p.direction === 'bullish').length;
+        const bearCount = allPatterns.filter(p => p.direction === 'bearish').length;
+        const neutCount = allPatterns.filter(p => p.direction === 'neutral').length;
+        const avgBullConf = bullCount > 0 ? allPatterns.filter(p => p.direction === 'bullish').reduce((s, p) => s + p.confidence, 0) / bullCount : 0.5;
+        const avgBearConf = bearCount > 0 ? allPatterns.filter(p => p.direction === 'bearish').reduce((s, p) => s + p.confidence, 0) / bearCount : 0.5;
+
+        const scenarios = computeScenarios({
+          candles: c,
+          currentPrice: price,
+          bullishSignals: bullCount,
+          bearishSignals: bearCount,
+          neutralSignals: neutCount,
+          avgBullishConf: avgBullConf,
+          avgBearishConf: avgBearConf,
+          smcData: {
+            orderBlocks: (smcData?.orderBlocks || []).map((ob: any) => ({ type: ob.type, price: (ob.high + ob.low) / 2, strength: ob.strength || 0.5, broken: ob.broken || false })),
+            fvgs: (smcData?.fvgs || []).map((fvg: any) => ({ type: fvg.type, midPrice: (fvg.high + fvg.low) / 2, filled: fvg.filled || false })),
+            structureBreaks: (smcData?.structureBreaks || []).map((brk: any) => ({ type: brk.type, direction: brk.direction, price: brk.price })),
+          },
+          supports: srLevels.filter(l => l.type === 'support').map(l => l.price),
+          resistances: srLevels.filter(l => l.type === 'resistance').map(l => l.price),
+          harmonicPatterns: allPatterns.filter(p => p.type?.includes('harmonic') || p.type?.includes('Gartley')).map(p => ({ type: p.type, direction: p.direction, confidence: p.confidence, przLevel: p.przLevel || p.price || price })),
+          regime: volRegime,
+          pocPrice: volumeProfile?.poc,
+          timeframe: 'auto',
+        });
+        setScenarioResult(scenarios);
+      } catch { /* Scenario Engine fallback */ }
+
+      // ── Revolutionary #8: Spring Detection Engine ─────────────
+      try {
+        const springs = detectSprings({
+          candles: c,
+          currentPrice: price,
+          supports: srLevels.filter(l => l.type === 'support').map(l => l.price),
+          resistances: srLevels.filter(l => l.type === 'resistance').map(l => l.price),
+          orderBlocks: (smcData?.orderBlocks || []).map((ob: any) => ({
+            type: ob.type,
+            price: (ob.high + ob.low) / 2,
+            high: ob.high,
+            low: ob.low,
+            strength: ob.strength || 0.5,
+            broken: ob.broken || false,
+          })),
+          wyckoffSprings: wyckoffAdvanced?.events?.filter((e: any) => e.type?.includes('spring') || e.type?.includes('thrust')).map((e: any) => ({
+            type: e.type,
+            direction: e.direction || 'bullish',
+            confidence: 0.6,
+          })),
+          structureBreaks: (smcData?.structureBreaks || []).map((brk: any) => ({ type: brk.type, direction: brk.direction, price: brk.price })),
+          recentBreaks: (smcData?.structureBreaks || []).slice(-3).map((brk: any) => ({ type: brk.type, direction: brk.direction, price: brk.price })),
+        });
+        setSpringResult(springs);
+      } catch { /* Spring Detection fallback */ }
 
       // ── Send patterns to chart (including harmonic + classic) ─────
       // FIX: Calculate entry/exit from ATR-adaptive levels for the Entry overlay
@@ -727,8 +1116,8 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             alertsDedupRef.current.add(alertKey);
             safeTimeout(() => alertsDedupRef.current.delete(alertKey), 300000);
             newAlerts.push({
-              time: (hp.points?.D?.time || c[c.length - 1].time) as any,
-              price: hp.przLevel || hp.points?.D?.price || price,
+              time: ((hp.points as any)?.D?.time || c[c.length - 1].time) as any,
+              price: hp.przLevel || (hp.points as any)?.D?.price || price,
               label: `${hp.type}${hp.direction === 'bullish' ? '↑' : '↓'}`,
               direction: hp.direction as 'bullish' | 'bearish',
               confidence: hp.confidence || 0.6,
@@ -804,6 +1193,16 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           const models = sseResult.analyses?.length || sseResult.meta?.modelsResponded || 0;
           const councilConf = (sseResult.consensusScore || 50) / 100;
 
+          // FIX: Store council model analyses for display in council tab
+          if (sseResult.analyses && Array.isArray(sseResult.analyses)) {
+            setCouncilAnalyses(sseResult.analyses.map((a: any) => ({
+              model: a.role || a.model || a.name || 'AI',
+              direction: a.recommendation || a.direction || 'WAIT',
+              confidence: a.confidence || a.score || 50,
+              reasoning: a.reasoning || a.analysis || '',
+            })));
+          }
+
           // Merge council + Bayesian for enhanced signal
           const mergedDir = bayesianConf > 0.55
             ? (bayesianDir === 'bullish' ? 'BUY' : bayesianDir === 'bearish' ? 'SELL' : dir)
@@ -856,6 +1255,16 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
               const dir = rec === 'BUY' ? 'BUY' : rec === 'SELL' ? 'SELL' : 'WAIT';
               const models = d.data.meta?.modelsResponded || d.data.analyses?.length || 0;
               const councilConf = (d.data.consensusScore || 50) / 100;
+
+              // FIX: Store council model analyses for display in council tab
+              if (d.data.analyses && Array.isArray(d.data.analyses)) {
+                setCouncilAnalyses(d.data.analyses.map((a: any) => ({
+                  model: a.role || a.model || a.name || 'AI',
+                  direction: a.recommendation || a.direction || 'WAIT',
+                  confidence: a.confidence || a.score || 50,
+                  reasoning: a.reasoning || a.analysis || '',
+                })));
+              }
 
               const mergedDir = bayesianConf > 0.55
                 ? (bayesianDir === 'bullish' ? 'BUY' : bayesianDir === 'bearish' ? 'SELL' : dir)
@@ -1206,7 +1615,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
       {/* Tabs — two-row compact grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', borderBottom: `1px solid ${C.border}`, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
-        {([['signal', t('tabSignal')], ['patterns', t('tabPatterns')], ['wyckoff', 'WY'], ['elliott', 'EW'], ['levels', t('tabLevels')], ['smc', t('tabSmc')], ['mtf', 'MTF'], ['alerts', '🚨'], ['trades', '💰'], ['advanced', t('tabAdvanced')], ['adaptive', '🧠'], ['rules', '📐'], ['paper', '📝'], ['scanner', '🔍'], ['council', '🤖']] as [Tab, string][]).map(([k, l]) => (
+        {([['signal', t('tabSignal')], ['patterns', t('tabPatterns')], ['wyckoff', 'WY'], ['elliott', 'EW'], ['levels', t('tabLevels')], ['smc', t('tabSmc')], ['mtf', 'MTF'], ['alerts', '🚨'], ['trades', '💰'], ['advanced', t('tabAdvanced')], ['adaptive', '🧠'], ['rules', '📐'], ['paper', '📝'], ['scanner', '🔍'], ['council', '🤖'], ['backtest', '⏪'], ['confluence', '🎯'], ['explain', '❓'], ['correlate', '🔗'], ['predict', '🔮'], ['intelligence', '🔬'], ['scenario', '🎲'], ['spring', '🌀'], ['journal', '📋']] as [Tab, string][]).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} style={{ padding: '3px 2px', background: tab===k?'rgba(34,211,238,0.08)':'none', border: 'none', borderBottom: `2px solid ${tab === k ? C.cyan : 'transparent'}`, color: tab === k ? C.cyan : C.dim, fontSize: 9, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', transition: 'all 0.15s', fontWeight: tab===k?700:400, whiteSpace: 'nowrap', textAlign: 'center' }}>{l}</button>
         ))}
       </div>
@@ -2227,6 +2636,90 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             {!paperAccountState && (
               <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>لم تبدأ التداول الوهمي بعد. سيتم فتح صفقات تلقائياً عند التقارب العالي.</div>
             )}
+
+            {/* FIX: Quick Trade Execution Buttons */}
+            {paperAccountState && signal && signal.dir !== 'WAIT' && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ color: C.gold, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>⚡ تنفيذ سريع</div>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button
+                    onClick={() => {
+                      try {
+                        const curPrice = priceRef.current || 0;
+                        const curCandles = candlesRef.current;
+                        const curSym = symbolRef.current;
+                        if (!curPrice) return;
+                        const dir = signal.dir === 'BUY' ? 'long' as const : 'short' as const;
+                        const entry = signal.entry || curPrice;
+                        const sl = signal.sl || (dir === 'long' ? entry * 0.98 : entry * 1.02);
+                        const tp = signal.tp || (dir === 'long' ? entry * 1.04 : entry * 0.96);
+                        const trade = openPaperTrade({
+                          symbol: curSym,
+                          direction: dir,
+                          entryPrice: entry,
+                          stopLoss: sl,
+                          takeProfits: [tp, dir === 'long' ? entry + (tp - entry) * 1.5 : entry - (entry - tp) * 1.5, dir === 'long' ? entry + (tp - entry) * 2 : entry - (entry - tp) * 2],
+                          entryReasonAr: `إشارة ${dir === 'long' ? 'صاعد' : 'هابط'} — ثقة ${Math.round(signal.conf * 100)}%`,
+                          entrySignals: ['council-consensus'],
+                          confluenceScore: Math.round(signal.conf * 100),
+                          timeframe: 'auto',
+                          regimeAtEntry: volRegime || 'normal',
+                        });
+                        if (trade) {
+                          setPaperAccountState(getPaperAccount());
+                          setPaperTradesList(getPaperTrades().slice(0, 10));
+                          setPaperComparison(getPerformanceComparison());
+                          // Add execution marker on chart
+                          const execMarker: AlertMarkerData = {
+                            time: (curCandles?.[curCandles.length - 1]?.time || Date.now() / 1000) as any,
+                            price: entry,
+                            label: `${dir === 'long' ? 'BUY' : 'SELL'}@${entry.toFixed(2)}`,
+                            direction: dir === 'long' ? 'bullish' : 'bearish',
+                            confidence: signal.conf,
+                            type: 'execution',
+                          };
+                          setChartAlerts(prev => [...prev, execMarker].slice(-12));
+                        }
+                      } catch { /* Trade execution failed */ }
+                    }}
+                    style={{
+                      flex: 1, padding: '6px 0', borderRadius: 5, border: 'none', cursor: 'pointer',
+                      background: signal.dir === 'BUY' ? `${C.green}25` : `${C.red}25`,
+                      color: signal.dir === 'BUY' ? C.green : C.red,
+                      fontSize: 9, fontWeight: 700,
+                    }}
+                  >
+                    {signal.dir === 'BUY' ? '▲ شراء' : '▼ بيع'} @ {signal.entry?.toFixed(2) || priceRef.current?.toFixed(2) || '—'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      try {
+                        const curPrice = priceRef.current || 0;
+                        const openTrades = getOpenPaperTrades();
+                        for (const t of openTrades) {
+                          closePaperTrade(t.id, curPrice, 'إغلاق يدوي');
+                        }
+                        setPaperAccountState(getPaperAccount());
+                        setPaperTradesList(getPaperTrades().slice(0, 10));
+                        setPaperComparison(getPerformanceComparison());
+                      } catch { /* Close failed */ }
+                    }}
+                    style={{
+                      padding: '6px 12px', borderRadius: 5, border: 'none', cursor: 'pointer',
+                      background: `${C.dim}15`, color: C.dim,
+                      fontSize: 8, fontWeight: 600,
+                    }}
+                  >
+                    إغلاق الكل
+                  </button>
+                </div>
+                {getOpenPaperTrades().length > 0 && (
+                  <div style={{ marginTop: 4, fontSize: 7.5, color: C.dim }}>
+                    صفقات مفتوحة: {getOpenPaperTrades().length} | SL: {signal.sl?.toFixed(2)} | TP: {signal.tp?.toFixed(2)}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -2321,9 +2814,56 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         {tab === 'council' && (
           <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
             <div style={{ background: `${C.purple}08`, border: `1px solid ${C.purple}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
-              <div style={{ color: C.purple, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>🤖 جسر AI Council — مقارنة الذكاء الاصطناعي مع الخوارزميات</div>
+              <div style={{ color: C.purple, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>🤖 مجلس AI — توقعات النماذج الحية</div>
               <div style={{ fontSize: 8, color: C.dim }}>يمرر بيانات التحليل الفعلية إلى نماذج الذكاء الاصطناعي ويقارن توقعاتها مع المحركات الخوارزمية.</div>
             </div>
+
+            {/* LIVE Council Model Results — NEW */}
+            {councilAnalyses.length > 0 && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ color: C.purple, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>🔬 توقعات النماذج ({councilAnalyses.length} نماذج)</div>
+                {councilAnalyses.map((a, i) => {
+                  const dirCol = a.direction === 'BUY' ? C.green : a.direction === 'SELL' ? C.red : C.dim;
+                  const dirAr = a.direction === 'BUY' ? 'شراء' : a.direction === 'SELL' ? 'بيع' : 'انتظار';
+                  const dirIcon = a.direction === 'BUY' ? '▲' : a.direction === 'SELL' ? '▼' : '◆';
+                  return (
+                    <div key={i} style={{ background: C.card, borderRadius: 5, padding: '6px 8px', marginBottom: 4, borderLeft: `2px solid ${dirCol}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, color: C.text, fontWeight: 600 }}>{a.model}</span>
+                        <span style={{ fontSize: 8.5, color: dirCol, fontWeight: 700 }}>{dirIcon} {dirAr}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: a.reasoning ? 3 : 0 }}>
+                        <span style={{ fontSize: 7.5, color: C.mut }}>ثقة: {typeof a.confidence === 'number' ? Math.round(a.confidence) : a.confidence}%</span>
+                        <div style={{ width: 60, height: 4, background: C.dim + '20', borderRadius: 2, overflow: 'hidden' }}>
+                          <div style={{ width: `${typeof a.confidence === 'number' ? a.confidence : 50}%`, height: '100%', background: dirCol, borderRadius: 2 }} />
+                        </div>
+                      </div>
+                      {a.reasoning && (
+                        <div style={{ fontSize: 7, color: C.dim, lineHeight: 1.3, maxHeight: 30, overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.reasoning.substring(0, 120)}</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Current Signal from Council */}
+            {signal && councilAnalyses.length > 0 && (
+              <div style={{ background: `${signal.dir === 'BUY' ? C.green : signal.dir === 'SELL' ? C.red : C.dim}10`, border: `1px solid ${signal.dir === 'BUY' ? C.green : signal.dir === 'SELL' ? C.red : C.dim}30`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: signal.dir === 'BUY' ? C.green : signal.dir === 'SELL' ? C.red : C.dim }}>
+                    {signal.dir === 'BUY' ? '▲ إجماع صاعد' : signal.dir === 'SELL' ? '▼ إجماع هابط' : '◆ انتظار'}
+                  </span>
+                  <span style={{ fontSize: 8, color: C.mut }}>ثقة {Math.round(signal.conf * 100)}%</span>
+                </div>
+                {signal.bayesianDir && (
+                  <div style={{ marginTop: 4, fontSize: 7.5, color: C.dim }}>
+                    بايزي: {signal.bayesianDir === 'BUY' ? 'صاعد' : signal.bayesianDir === 'SELL' ? 'هابط' : 'محايد'} ({Math.round((signal.bayesianConf || 0) * 100)}%)
+                    {signal.fusionScore !== undefined && ` | تقارب: ${signal.fusionScore}%`}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* AI vs Algorithm Stats */}
             {aiVsAlgoStats && (
@@ -2342,11 +2882,11 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
               </div>
             )}
 
-            {/* Bridge Payload Preview */}
+            {/* Bridge Payload Preview (collapsed by default — secondary info) */}
             {aiBridgePayload && (
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ color: C.cyan, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>البيانات المُمررة للذكاء الاصطناعي</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 8 }}>
+              <details style={{ marginBottom: 10 }}>
+                <summary style={{ color: C.cyan, fontSize: 9, fontWeight: 700, cursor: 'pointer', marginBottom: 5 }}>البيانات المُمررة للذكاء الاصطناعي</summary>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 8, marginTop: 5 }}>
                   <div style={{ background: C.card, borderRadius: 4, padding: '3px 6px' }}><span style={{ color: C.mut }}>الرمز:</span> <span style={{ color: C.text }}>{aiBridgePayload.symbol}</span></div>
                   <div style={{ background: C.card, borderRadius: 4, padding: '3px 6px' }}><span style={{ color: C.mut }}>السعر:</span> <span style={{ color: C.text }}>{aiBridgePayload.currentPrice.toFixed(2)}</span></div>
                   <div style={{ background: C.card, borderRadius: 4, padding: '3px 6px' }}><span style={{ color: C.mut }}>النظام:</span> <span style={{ color: C.text }}>{aiBridgePayload.regime}</span></div>
@@ -2356,27 +2896,866 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                   <div style={{ background: C.card, borderRadius: 4, padding: '3px 6px' }}><span style={{ color: C.mut }}>ويكوف:</span> <span style={{ color: C.text }}>{aiBridgePayload.wyckoffSummary.scheme}</span></div>
                   <div style={{ background: C.card, borderRadius: 4, padding: '3px 6px' }}><span style={{ color: C.mut }}>إليوت:</span> <span style={{ color: C.text }}>{aiBridgePayload.elliottSummary.dominantDirection}</span></div>
                 </div>
+                {aiBridgePayload.keyPatterns.length > 0 && (
+                  <div style={{ marginTop: 6 }}>
+                    <div style={{ color: C.green, fontSize: 8, fontWeight: 600, marginBottom: 3 }}>الأنماط:</div>
+                    {aiBridgePayload.keyPatterns.map((p, i) => {
+                      const col = p.direction === 'bullish' ? C.green : p.direction === 'bearish' ? C.red : C.dim;
+                      return (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 6px', borderRadius: 3, background: C.card, marginBottom: 1 }}>
+                          <span style={{ fontSize: 7.5, color: col }}>{p.direction === 'bullish' ? '▲' : '▼'} {p.labelAr}</span>
+                          <span style={{ fontSize: 7, color: C.mut }}>{Math.round(p.confidence * 100)}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </details>
+            )}
+
+            {!aiBridgePayload && councilAnalyses.length === 0 && (
+              <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>شغّل التحليل أولاً لرؤية بيانات مجلس AI</div>
+            )}
+          </div>
+        )}
+
+        {/* ═══ Revolutionary: Visual Backtest ═══ */}
+        {tab === 'backtest' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            <div style={{ background: `${C.blue}08`, border: `1px solid ${C.blue}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+              <div style={{ color: C.blue, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>⏪ اختبار بصري — Visual Backtest</div>
+              <div style={{ fontSize: 8, color: C.dim }}>يعيد تشغيل الإشارات التاريخية ويتتبع ربحيتها. أخضر = إشارة صحيحة، أحمر = خاطئة، أصفر = قيد الانتظار.</div>
+            </div>
+
+            {backtestStats && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4, marginBottom: 10 }}>
+                <div style={{ background: `${C.green}10`, border: `1px solid ${C.green}30`, borderRadius: 5, padding: '6px 8px', textAlign: 'center' }}>
+                  <div style={{ color: C.mut, fontSize: 7 }}>نسبة النجاح</div>
+                  <div style={{ color: C.green, fontSize: 14, fontWeight: 800, fontFamily: 'monospace' }}>{Math.round(backtestStats.winRate * 100)}%</div>
+                </div>
+                <div style={{ background: `${C.cyan}10`, border: `1px solid ${C.cyan}30`, borderRadius: 5, padding: '6px 8px', textAlign: 'center' }}>
+                  <div style={{ color: C.mut, fontSize: 7 }}>إجمالي الإشارات</div>
+                  <div style={{ color: C.cyan, fontSize: 14, fontWeight: 800, fontFamily: 'monospace' }}>{backtestStats.totalSignals}</div>
+                </div>
+                <div style={{ background: `${C.gold}10`, border: `1px solid ${C.gold}30`, borderRadius: 5, padding: '6px 8px', textAlign: 'center' }}>
+                  <div style={{ color: C.mut, fontSize: 7 }}>متوسط الربح</div>
+                  <div style={{ color: C.gold, fontSize: 14, fontWeight: 800, fontFamily: 'monospace' }}>{backtestStats.avgPnLPct.toFixed(2)}%</div>
+                </div>
               </div>
             )}
 
-            {/* Key Patterns sent to AI */}
-            {aiBridgePayload && aiBridgePayload.keyPatterns.length > 0 && (
+            {backtestStats && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 3, marginBottom: 10 }}>
+                <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                  <div style={{ color: C.green, fontSize: 9, fontWeight: 700 }}>{backtestStats.wins}</div>
+                  <div style={{ color: C.mut, fontSize: 7 }}>نجاح</div>
+                </div>
+                <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                  <div style={{ color: C.red, fontSize: 9, fontWeight: 700 }}>{backtestStats.losses}</div>
+                  <div style={{ color: C.mut, fontSize: 7 }}>خسارة</div>
+                </div>
+                <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                  <div style={{ color: C.yellow, fontSize: 9, fontWeight: 700 }}>{backtestStats.breakevens}</div>
+                  <div style={{ color: C.mut, fontSize: 7 }}>تعادل</div>
+                </div>
+                <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                  <div style={{ color: C.dim, fontSize: 9, fontWeight: 700 }}>{backtestStats.pending}</div>
+                  <div style={{ color: C.mut, fontSize: 7 }}>منتظرة</div>
+                </div>
+              </div>
+            )}
+
+            {/* Per-source win rates */}
+            {backtestStats && Object.entries(backtestStats.bySource).length > 0 && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ color: C.blue, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>📊 نسبة النجاح حسب المصدر</div>
+                {Object.entries(backtestStats.bySource).sort((a, b) => b[1].winRate - a[1].winRate).map(([source, stats]: [string, any]) => (
+                  <div key={source} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, padding: '3px 6px', background: C.card, borderRadius: 4 }}>
+                    <span style={{ fontSize: 8, color: C.text, fontWeight: 600, flex: 1 }}>{source}</span>
+                    <div style={{ width: 50, height: 5, background: C.dim + '20', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ width: `${stats.winRate * 100}%`, height: '100%', background: stats.winRate > 0.6 ? C.green : stats.winRate > 0.4 ? C.yellow : C.red, borderRadius: 3 }} />
+                    </div>
+                    <span style={{ fontSize: 8, fontFamily: 'monospace', color: stats.winRate > 0.6 ? C.green : stats.winRate > 0.4 ? C.yellow : C.red, fontWeight: 700, width: 32, textAlign: 'right' }}>{Math.round(stats.winRate * 100)}%</span>
+                    <span style={{ fontSize: 7, color: C.mut, width: 20, textAlign: 'right' }}>({stats.total})</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Recent backtest signals */}
+            {backtestSignals.length > 0 && (
               <div>
-                <div style={{ color: C.green, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>الأنماط الرئيسية للذكاء الاصطناعي</div>
-                {aiBridgePayload.keyPatterns.map((p, i) => {
-                  const col = p.direction === 'bullish' ? C.green : p.direction === 'bearish' ? C.red : C.dim;
+                <div style={{ color: C.blue, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>📋 آخر الإشارات المُختبرة</div>
+                {backtestSignals.slice(0, 15).map((s, i) => {
+                  const outCol = s.outcome === 'win' ? C.green : s.outcome === 'loss' ? C.red : s.outcome === 'breakeven' ? C.yellow : C.dim;
+                  const outAr = s.outcome === 'win' ? '✓ نجاح' : s.outcome === 'loss' ? '✗ خسارة' : s.outcome === 'breakeven' ? '◆ تعادل' : '⏳ منتظرة';
                   return (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 8px', borderRadius: 4, background: C.card, marginBottom: 2 }}>
-                      <span style={{ fontSize: 8.5, color: col }}>{p.direction === 'bullish' ? '▲' : '▼'} {p.labelAr}</span>
-                      <span style={{ fontSize: 8, color: C.mut }}>{Math.round(p.confidence * 100)}%</span>
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 6px', background: C.card, borderRadius: 4, marginBottom: 2, borderLeft: `2px solid ${outCol}` }}>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <span style={{ fontSize: 8, color: s.direction === 'bullish' ? C.green : s.direction === 'bearish' ? C.red : C.dim }}>{s.direction === 'bullish' ? '▲' : '▼'}</span>
+                        <span style={{ fontSize: 7.5, color: C.text }}>{s.source}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <span style={{ fontSize: 7, color: C.mut }}>{s.pnlPct >= 0 ? '+' : ''}{s.pnlPct.toFixed(2)}%</span>
+                        <span style={{ fontSize: 7.5, color: outCol, fontWeight: 700 }}>{outAr}</span>
+                      </div>
                     </div>
                   );
                 })}
               </div>
             )}
 
-            {!aiBridgePayload && (
-              <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>شغّل التحليل أولاً لرؤية بيانات الجسر</div>
+            {!backtestStats && <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>شغّل التحليل أولاً لرؤية نتائج الاختبار البصري</div>}
+          </div>
+        )}
+
+        {/* ═══ Revolutionary: Confluence Zones ═══ */}
+        {tab === 'confluence' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            <div style={{ background: `${C.gold}08`, border: `1px solid ${C.gold}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+              <div style={{ color: C.gold, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>🎯 مناطق التقارب — Confluence Zones</div>
+              <div style={{ fontSize: 8, color: C.dim }}>يحدد المناطق التي تتفق فيها عدة محركات تحليل على نفس مستوى السعر. كلما زاد عدد الإشارات المتفقّة، زادت قوة المنطقة.</div>
+            </div>
+
+            {confluenceZones.length > 0 ? (
+              <div>
+                <div style={{ color: C.gold, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>📍 المناطق المكتشفة ({confluenceZones.length})</div>
+                {confluenceZones.sort((a, b) => b.score - a.score).map((z, i) => {
+                  const strengthCol = z.strength === 'extreme' ? C.red : z.strength === 'strong' ? C.gold : z.strength === 'moderate' ? C.cyan : C.dim;
+                  const strengthAr = z.strength === 'extreme' ? 'قصوى' : z.strength === 'strong' ? 'قوية' : z.strength === 'moderate' ? 'متوسطة' : 'ضعيفة';
+                  return (
+                    <div key={z.id} style={{ background: C.card, borderRadius: 5, padding: '6px 8px', marginBottom: 6, borderLeft: `3px solid ${strengthCol}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                          <span style={{ fontSize: 8.5, color: z.direction === 'bullish' ? C.green : z.direction === 'bearish' ? C.red : C.dim, fontWeight: 700 }}>
+                            {z.direction === 'bullish' ? '▲ صاعد' : z.direction === 'bearish' ? '▼ هابط' : '◆ محايد'}
+                          </span>
+                          <span style={{ fontSize: 8, color: strengthCol, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: strengthCol + '15' }}>{strengthAr}</span>
+                        </div>
+                        <span style={{ fontSize: 9, fontFamily: 'monospace', color: C.text, fontWeight: 700 }}>{z.price.toFixed(2)}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+                        <div style={{ flex: 1, background: `${C.gold}08`, borderRadius: 3, padding: '2px 4px', textAlign: 'center' }}>
+                          <div style={{ color: C.gold, fontSize: 9, fontWeight: 700 }}>{z.score}%</div>
+                          <div style={{ color: C.mut, fontSize: 6.5 }}>تقارب</div>
+                        </div>
+                        <div style={{ flex: 1, background: `${C.cyan}08`, borderRadius: 3, padding: '2px 4px', textAlign: 'center' }}>
+                          <div style={{ color: C.cyan, fontSize: 9, fontWeight: 700 }}>{z.signalCount}</div>
+                          <div style={{ color: C.mut, fontSize: 6.5 }}>إشارات</div>
+                        </div>
+                        <div style={{ flex: 1, background: `${C.purple}08`, borderRadius: 3, padding: '2px 4px', textAlign: 'center' }}>
+                          <div style={{ color: C.purple, fontSize: 9, fontWeight: 700 }}>{z.distancePct.toFixed(1)}%</div>
+                          <div style={{ color: C.mut, fontSize: 6.5 }}>مسافة</div>
+                        </div>
+                      </div>
+                      {/* Signals in this zone */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                        {z.signals.map((sig, j) => (
+                          <span key={j} style={{ fontSize: 7, padding: '1px 4px', borderRadius: 2, background: (sig.direction === 'bullish' ? C.green : sig.direction === 'bearish' ? C.red : C.dim) + '15', color: sig.direction === 'bullish' ? C.green : sig.direction === 'bearish' ? C.red : C.dim }}>
+                            {sig.labelAr}
+                          </span>
+                        ))}
+                      </div>
+                      {z.isActive && <div style={{ marginTop: 3, fontSize: 7.5, color: C.gold, fontWeight: 700 }}>⚡ السعر قريب من هذه المنطقة</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>شغّل التحليل أولاً لرؤية مناطق التقارب</div>
+            )}
+          </div>
+        )}
+
+        {/* ═══ Revolutionary: AI Explanation (Why?) ═══ */}
+        {tab === 'explain' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            <div style={{ background: `${C.purple}08`, border: `1px solid ${C.purple}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+              <div style={{ color: C.purple, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>❓ لماذا؟ — AI Explanation</div>
+              <div style={{ fontSize: 8, color: C.dim }}>اضغط على أي إشارة لمعرفة لماذا تم تفعيلها، ما البيانات الداعمة، وما الذي يُبطله أو يؤكده.</div>
+            </div>
+
+            {/* Signal selector */}
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ color: C.purple, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>اختر إشارة للشرح:</div>
+              <div style={{ maxHeight: 120, overflowY: 'auto' }}>
+                {patterns.filter(p => p.direction !== 'neutral').slice(0, 20).map((p, i) => {
+                  const isSelected = explainSource === `${p.type}_${i}`;
+                  const col = p.direction === 'bullish' ? C.green : C.red;
+                  return (
+                    <button key={i} onClick={() => {
+                      const src = `${p.type}_${i}`;
+                      setExplainSource(src);
+                      try {
+                        const explanation = explainSignal({
+                          source: p.type || 'unknown',
+                          direction: p.direction as 'bullish' | 'bearish',
+                          confidence: p.confidence,
+                          price: p.price || 0,
+                          regime: volRegime,
+                          allSignals: patterns.filter(rp => rp.direction !== 'neutral' && rp.type !== p.type).slice(0, 5).map(rp => ({
+                            source: rp.type || 'unknown',
+                            direction: rp.direction as 'bullish' | 'bearish',
+                            confidence: rp.confidence,
+                          })),
+                        });
+                        setSignalExplanation(explanation);
+                      } catch { setSignalExplanation(null); }
+                    }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', padding: '4px 8px', borderRadius: 4, border: `1px solid ${isSelected ? C.purple : C.border}`, background: isSelected ? `${C.purple}15` : C.card, color: C.text, fontSize: 8, cursor: 'pointer', outline: 'none', marginBottom: 2, fontFamily: 'inherit', textAlign: 'left' }}>
+                      <span style={{ color: col, fontWeight: 600 }}>{p.direction === 'bullish' ? '▲' : '▼'} {p.type}</span>
+                      <span style={{ color: C.mut, fontSize: 7 }}>{Math.round(p.confidence * 100)}%</span>
+                    </button>
+                  );
+                })}
+                {patterns.filter(p => p.direction !== 'neutral').length === 0 && (
+                  <div style={{ color: C.mut, fontSize: 8, padding: 10, textAlign: 'center' }}>لا توجد إشارات بعد — شغّل التحليل أولاً</div>
+                )}
+              </div>
+            </div>
+
+            {/* Explanation result */}
+            {signalExplanation && (
+              <div>
+                <div style={{ background: C.card, borderRadius: 6, padding: '8px 10px', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                    <span style={{ color: signalExplanation.signal.direction === 'bullish' ? C.green : signalExplanation.signal.direction === 'bearish' ? C.red : C.dim, fontSize: 10, fontWeight: 800 }}>
+                      {signalExplanation.signal.direction === 'bullish' ? '▲ صاعد' : signalExplanation.signal.direction === 'bearish' ? '▼ هابط' : '◆ محايد'}
+                    </span>
+                    <span style={{ color: C.purple, fontSize: 9, fontWeight: 700 }}>{signalExplanation.signal.source}</span>
+                  </div>
+                  <div style={{ fontSize: 8.5, color: C.text, lineHeight: 1.5, marginBottom: 6 }}>{signalExplanation.explanationAr}</div>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <span style={{ fontSize: 7.5, padding: '2px 5px', borderRadius: 3, background: `${C.green}10`, color: C.green, border: `1px solid ${C.green}30` }}>✓ تأكيد: {signalExplanation.confirmationAr}</span>
+                    <span style={{ fontSize: 7.5, padding: '2px 5px', borderRadius: 3, background: `${C.red}10`, color: C.red, border: `1px solid ${C.red}30` }}>✗ إبطال: {signalExplanation.invalidationAr}</span>
+                  </div>
+                </div>
+
+                {/* Factors */}
+                {signalExplanation.factors.length > 0 && (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ color: C.cyan, fontSize: 9, fontWeight: 700, marginBottom: 4 }}>🔧 العوامل المؤثرة</div>
+                    {signalExplanation.factors.map((f, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 6px', background: C.card, borderRadius: 4, marginBottom: 2 }}>
+                        <span style={{ fontSize: 7, color: f.supports ? C.green : C.red }}>{f.supports ? '✓' : '✗'}</span>
+                        <span style={{ fontSize: 7.5, color: C.text, flex: 1 }}>{f.nameAr}: {f.contributionAr}</span>
+                        <div style={{ width: 30, height: 4, background: C.dim + '20', borderRadius: 2, overflow: 'hidden' }}>
+                          <div style={{ width: `${f.weight * 100}%`, height: '100%', background: f.supports ? C.green : C.red, borderRadius: 2 }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Related signals */}
+                {signalExplanation.relatedSignals.length > 0 && (
+                  <div>
+                    <div style={{ color: C.gold, fontSize: 9, fontWeight: 700, marginBottom: 4 }}>🔗 إشارات مرتبطة</div>
+                    {signalExplanation.relatedSignals.map((rs, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 6px', background: C.card, borderRadius: 3, marginBottom: 1 }}>
+                        <span style={{ fontSize: 7.5, color: rs.agrees ? C.green : C.red }}>{rs.agrees ? '✓' : '✗'} {rs.labelAr}</span>
+                        <span style={{ fontSize: 7, color: C.mut }}>{rs.direction === 'bullish' ? 'صاعد' : rs.direction === 'bearish' ? 'هابط' : 'محايد'}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Risk level */}
+                <div style={{ marginTop: 8, padding: '4px 8px', borderRadius: 4, background: signalExplanation.riskLevel === 'low' ? `${C.green}08` : signalExplanation.riskLevel === 'medium' ? `${C.yellow}08` : `${C.red}08`, border: `1px solid ${signalExplanation.riskLevel === 'low' ? C.green : signalExplanation.riskLevel === 'medium' ? C.yellow : C.red}30` }}>
+                  <span style={{ fontSize: 8, color: signalExplanation.riskLevel === 'low' ? C.green : signalExplanation.riskLevel === 'medium' ? C.yellow : C.red, fontWeight: 700 }}>
+                    مستوى المخاطرة: {signalExplanation.riskLevel === 'low' ? 'منخفض' : signalExplanation.riskLevel === 'medium' ? 'متوسط' : 'مرتفع'}
+                  </span>
+                  {signalExplanation.historicalWinRate !== null && (
+                    <span style={{ fontSize: 7.5, color: C.dim, marginRight: 8 }}>| تاريخياً: {Math.round(signalExplanation.historicalWinRate * 100)}% نجاح</span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══ Revolutionary: Correlation Engine ═══ */}
+        {tab === 'correlate' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            <div style={{ background: `${C.cyan}08`, border: `1px solid ${C.cyan}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+              <div style={{ color: C.cyan, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>🔗 محرك الارتباط — Correlation Engine</div>
+              <div style={{ fontSize: 8, color: C.dim }}>يتتبع أي مجموعات الإشارات تعمل أفضل معاً. يعلم أن "BOS صاعد + ويكوف تراكم" نسبة نجاحها 72% بينما "BOS صاعد وحده" 54% فقط.</div>
+            </div>
+
+            {correlationMatrix && (
+              <>
+                {/* Top Combinations */}
+                {correlationMatrix.topCombinations.length > 0 && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ color: C.gold, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>🏆 أفضل التركيبات</div>
+                    {correlationMatrix.topCombinations.map((combo, i) => {
+                      const col = combo.direction === 'bullish' ? C.green : C.red;
+                      return (
+                        <div key={i} style={{ background: C.card, borderRadius: 5, padding: '6px 8px', marginBottom: 4, borderLeft: `3px solid ${col}` }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                            <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                              {combo.sources.map((s, j) => (
+                                <span key={j} style={{ fontSize: 7, padding: '1px 4px', borderRadius: 2, background: `${C.cyan}15`, color: C.cyan }}>{s}</span>
+                              ))}
+                            </div>
+                            <span style={{ fontSize: 9, fontFamily: 'monospace', color: col, fontWeight: 800 }}>{Math.round(combo.winRate * 100)}%</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: 7.5, color: C.dim }}>{combo.descriptionAr}</span>
+                            <span style={{ fontSize: 7, color: C.mut }}>({combo.sampleSize} عينة)</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Pairwise Correlations */}
+                {correlationMatrix.correlations.length > 0 && (
+                  <div>
+                    <div style={{ color: C.cyan, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>📊 ارتباطات ثنائية</div>
+                    {correlationMatrix.correlations
+                      .filter(c => c.sampleSize >= 2)
+                      .sort((a, b) => b.lift - a.lift)
+                      .slice(0, 15)
+                      .map((corr, i) => {
+                        const liftCol = corr.lift > 1.3 ? C.green : corr.lift > 1.0 ? C.cyan : corr.lift > 0.8 ? C.yellow : C.red;
+                        return (
+                          <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr auto auto', gap: 4, padding: '3px 6px', background: C.card, borderRadius: 4, marginBottom: 2, alignItems: 'center' }}>
+                            <span style={{ fontSize: 7.5, color: C.text, fontWeight: 600 }}>{corr.sourceA}</span>
+                            <span style={{ fontSize: 8, color: C.mut }}>×</span>
+                            <span style={{ fontSize: 7.5, color: C.text, fontWeight: 600 }}>{corr.sourceB}</span>
+                            <span style={{ fontSize: 8, fontFamily: 'monospace', color: liftCol, fontWeight: 700 }}>×{corr.lift.toFixed(2)}</span>
+                            <span style={{ fontSize: 7, color: C.mut }}>{Math.round(corr.combinedWinRate * 100)}%</span>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+
+                {correlationMatrix.correlations.length === 0 && correlationMatrix.topCombinations.length === 0 && (
+                  <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>تحتاج بيانات أكثر لبناء ارتباطات — استخدم التحليل لعدة شموع</div>
+                )}
+              </>
+            )}
+
+            {!correlationMatrix && <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>شغّل التحليل أولاً لرؤية الارتباطات</div>}
+          </div>
+        )}
+
+        {/* ═══ Revolutionary: Predictive Pattern Completion ═══ */}
+        {tab === 'predict' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            <div style={{ background: `${C.red}08`, border: `1px solid ${C.red}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+              <div style={{ color: '#ff6b6b', fontSize: 9, fontWeight: 700, marginBottom: 5 }}>🔮 توقع اكتمال الأنماط — Predictive Completion</div>
+              <div style={{ fontSize: 8, color: C.dim }}>عندما يكون النمط مكتمل جزئياً، يتنبأ هذا المحرك أين ستكتمل النقاط المتبقية. يمكنك الاستعداد قبل اكتمال النمط والدخول بأسعار أفضل.</div>
+            </div>
+
+            {patternPredictions.length > 0 ? (
+              <div>
+                <div style={{ color: '#ff6b6b', fontSize: 9, fontWeight: 700, marginBottom: 5 }}>🔮 أنماط قيد التشكّل ({patternPredictions.length})</div>
+                {patternPredictions.map((pred, i) => {
+                  const dirCol = pred.predictedDirection === 'bullish' ? C.green : C.red;
+                  const completionCol = pred.completionPct >= 80 ? C.green : pred.completionPct >= 60 ? C.yellow : C.cyan;
+                  return (
+                    <div key={i} style={{ background: C.card, borderRadius: 6, padding: '8px 10px', marginBottom: 8, borderLeft: `3px solid ${dirCol}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                        <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                          <span style={{ fontSize: 9, color: dirCol, fontWeight: 800 }}>{pred.predictedDirection === 'bullish' ? '▲' : '▼'} {pred.patternTypeAr}</span>
+                          <span style={{ fontSize: 7.5, color: C.mut }}>({pred.patternType})</span>
+                        </div>
+                        <span style={{ fontSize: 8, color: completionCol, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: completionCol + '15' }}>{Math.round(pred.completionPct)}% مكتمل</span>
+                      </div>
+
+                      {/* Completion progress bar */}
+                      <div style={{ width: '100%', height: 6, background: C.dim + '20', borderRadius: 3, overflow: 'hidden', marginBottom: 6 }}>
+                        <div style={{ width: `${pred.completionPct}%`, height: '100%', background: `linear-gradient(90deg, ${C.cyan}, ${completionCol})`, borderRadius: 3, transition: 'width 0.3s' }} />
+                      </div>
+
+                      <div style={{ fontSize: 8, color: C.dim, lineHeight: 1.5, marginBottom: 5 }}>{pred.descriptionAr}</div>
+
+                      {/* Completion Zone */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 3, marginBottom: 5 }}>
+                        <div style={{ background: `${dirCol}08`, borderRadius: 3, padding: '3px 5px', textAlign: 'center' }}>
+                          <div style={{ color: C.mut, fontSize: 6.5 }}>منطقة الاكتمال</div>
+                          <div style={{ color: dirCol, fontSize: 8.5, fontWeight: 700, fontFamily: 'monospace' }}>{pred.completionZone.center.toFixed(2)}</div>
+                        </div>
+                        <div style={{ background: `${C.cyan}08`, borderRadius: 3, padding: '3px 5px', textAlign: 'center' }}>
+                          <div style={{ color: C.mut, fontSize: 6.5 }}>حد أعلى</div>
+                          <div style={{ color: C.cyan, fontSize: 8.5, fontWeight: 700, fontFamily: 'monospace' }}>{pred.completionZone.high.toFixed(2)}</div>
+                        </div>
+                        <div style={{ background: `${C.purple}08`, borderRadius: 3, padding: '3px 5px', textAlign: 'center' }}>
+                          <div style={{ color: C.mut, fontSize: 6.5 }}>حد أدنى</div>
+                          <div style={{ color: C.purple, fontSize: 8.5, fontWeight: 700, fontFamily: 'monospace' }}>{pred.completionZone.low.toFixed(2)}</div>
+                        </div>
+                      </div>
+
+                      {/* Predicted Points */}
+                      {pred.predictedPoints.length > 0 && (
+                        <div>
+                          <div style={{ color: C.gold, fontSize: 8, fontWeight: 700, marginBottom: 3 }}>النقاط المتوقعة:</div>
+                          {pred.predictedPoints.map((pt, j) => (
+                            <div key={j} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 5px', background: C.dim + '05', borderRadius: 3, marginBottom: 1 }}>
+                              <span style={{ fontSize: 7.5, color: dirCol, fontWeight: 600 }}>النقطة {pt.label}</span>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <span style={{ fontSize: 7.5, color: C.text, fontFamily: 'monospace' }}>{pt.price.toFixed(2)}</span>
+                                <span style={{ fontSize: 7, color: C.mut }}>ثقة {Math.round(pt.confidence * 100)}%</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div style={{ marginTop: 4, fontSize: 7.5, color: C.mut }}>
+                        ⏱ تقدير: ~{pred.estimatedCandlesToCompletion} شمعة | ثقة التوقع: {Math.round(pred.confidence * 100)}%
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>
+                {patterns.length > 0 ? 'لا توجد أنماط قيد التشكّل حالياً — جرب فترات زمنية مختلفة' : 'شغّل التحليل أولاً لرؤية توقعات الأنماط'}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══ Revolutionary #6: Adaptive Intelligence ═══ */}
+        {tab === 'intelligence' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            <div style={{ background: `${C.purple}08`, border: `1px solid ${C.purple}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+              <div style={{ color: C.purple, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>🔬 الذكاء التكيفي — Adaptive Intelligence</div>
+              <div style={{ fontSize: 8, color: C.dim }}>يتعلم النظام من أداء كل محرك تحليل ويُعدّل أوزانه تلقائياً. كلما تداولت أكثر، أصبحت التوقعات أدق.</div>
+            </div>
+
+            {adaptiveIntelligence ? (
+              <div>
+                {/* Summary Stats */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, marginBottom: 8 }}>
+                  <div style={{ background: C.card, borderRadius: 4, padding: '5px 6px', textAlign: 'center' }}>
+                    <div style={{ color: C.mut, fontSize: 6.5 }}>إجمالي التوقعات</div>
+                    <div style={{ color: C.text, fontSize: 11, fontWeight: 700 }}>{adaptiveIntelligence.totalPredictions}</div>
+                  </div>
+                  <div style={{ background: C.card, borderRadius: 4, padding: '5px 6px', textAlign: 'center' }}>
+                    <div style={{ color: C.mut, fontSize: 6.5 }}>معدل الفوز</div>
+                    <div style={{ color: adaptiveIntelligence.overallWinRate > 0.5 ? C.green : C.red, fontSize: 11, fontWeight: 700 }}>{Math.round(adaptiveIntelligence.overallWinRate * 100)}%</div>
+                  </div>
+                  <div style={{ background: C.card, borderRadius: 4, padding: '5px 6px', textAlign: 'center' }}>
+                    <div style={{ color: C.mut, fontSize: 6.5 }}>أفضل محرك</div>
+                    <div style={{ color: C.gold, fontSize: 9, fontWeight: 700 }}>{adaptiveIntelligence.bestSource || '—'}</div>
+                  </div>
+                </div>
+
+                {/* Source Performance Table */}
+                <div style={{ color: C.cyan, fontSize: 8.5, fontWeight: 700, marginBottom: 4 }}>أداء المحركات</div>
+                {adaptiveIntelligence.sources.length > 0 ? adaptiveIntelligence.sources.map((src, i) => (
+                  <div key={i} style={{ background: C.card, borderRadius: 5, padding: '6px 8px', marginBottom: 4, borderLeft: `3px solid ${src.isHot ? C.green : src.emaWinRate < 0.4 ? C.red : C.dim}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                        <span style={{ fontSize: 8, color: src.isHot ? C.green : C.text, fontWeight: 700 }}>{src.source}</span>
+                        {src.isHot && <span style={{ fontSize: 7, color: C.green, fontWeight: 800 }}>🔥</span>}
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <span style={{ fontSize: 7.5, color: src.emaWinRate > 0.5 ? C.green : C.red, fontWeight: 700 }}>فوز: {Math.round(src.emaWinRate * 100)}%</span>
+                        <span style={{ fontSize: 7.5, color: C.cyan, fontWeight: 600 }}>وزن: {src.adaptiveWeight.toFixed(2)}</span>
+                      </div>
+                    </div>
+                    {/* Weight bar */}
+                    <div style={{ width: '100%', height: 4, background: C.dim + '15', borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ width: `${Math.min(100, (src.adaptiveWeight / 3) * 100)}%`, height: '100%', background: `linear-gradient(90deg, ${C.red}, ${C.yellow}, ${C.green})`, borderRadius: 2 }} />
+                    </div>
+                  </div>
+                )) : (
+                  <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 15 }}>لا توجد بيانات أداء بعد — استمر في التحليل لتجميع البيانات</div>
+                )}
+
+                {/* Regime Recommendation */}
+                {adaptiveIntelligence.regimeRecommendation && (
+                  <div style={{ background: `${C.gold}08`, borderRadius: 5, padding: '6px 8px', marginTop: 8, border: `1px solid ${C.gold}20` }}>
+                    <div style={{ color: C.gold, fontSize: 8, fontWeight: 700, marginBottom: 3 }}>🎯 توصية حسب نظام السوق</div>
+                    <div style={{ fontSize: 7.5, color: C.dim, lineHeight: 1.6 }}>{adaptiveIntelligence.regimeRecommendation.messageAr}</div>
+                  </div>
+                )}
+
+                {/* Recent Insights */}
+                {adaptiveIntelligence.insights.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ color: C.cyan, fontSize: 8.5, fontWeight: 700, marginBottom: 4 }}>رؤى التعلم</div>
+                    {adaptiveIntelligence.insights.slice(-5).reverse().map((ins, i) => (
+                      <div key={i} style={{ background: C.card, borderRadius: 4, padding: '4px 6px', marginBottom: 2, borderLeft: `2px solid ${ins.importance === 'critical' ? C.red : ins.importance === 'warning' ? C.yellow : C.cyan}` }}>
+                        <div style={{ fontSize: 7.5, color: C.dim, lineHeight: 1.5 }}>{ins.messageAr}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>شغّل التحليل أولاً لتشغيل الذكاء التكيفي</div>
+            )}
+          </div>
+        )}
+
+        {/* ═══ Revolutionary #7: Scenario Engine ═══ */}
+        {tab === 'scenario' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            <div style={{ background: `${C.blue}08`, border: `1px solid ${C.blue}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+              <div style={{ color: C.blue, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>🎲 محرك السيناريوهات — What If?</div>
+              <div style={{ fontSize: 8, color: C.dim }}>لا يتوقع اتجاه واحد فقط — يحسب عدّة سيناريوهات محتملة مع احتمالاتها وأهدافها السعرية ومستويات الإبطال.</div>
+            </div>
+
+            {scenarioResult ? (
+              <div>
+                {/* Tilt indicator */}
+                <div style={{ background: C.card, borderRadius: 5, padding: '6px 8px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <span style={{ fontSize: 8, color: C.mut }}>الميل: </span>
+                    <span style={{ fontSize: 10, color: scenarioResult.tiltDirection === 'bullish' ? C.green : scenarioResult.tiltDirection === 'bearish' ? C.red : C.yellow, fontWeight: 800 }}>
+                      {scenarioResult.tiltDirection === 'bullish' ? '▲ صاعد' : scenarioResult.tiltDirection === 'bearish' ? '▼ هابط' : '◆ محايد'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <span style={{ fontSize: 7.5, color: C.dim }}>قوة: {Math.round(scenarioResult.tiltStrength * 100)}%</span>
+                    <span style={{ fontSize: 7.5, color: scenarioResult.expectedValue > 0 ? C.green : C.red }}>EV: {scenarioResult.expectedValue > 0 ? '+' : ''}{scenarioResult.expectedValue}</span>
+                  </div>
+                </div>
+
+                {/* Key Level */}
+                <div style={{ background: `${C.gold}08`, borderRadius: 4, padding: '4px 6px', marginBottom: 8, textAlign: 'center' }}>
+                  <span style={{ fontSize: 7.5, color: C.mut }}>المستوى الحرج: </span>
+                  <span style={{ fontSize: 9, color: C.gold, fontWeight: 700 }}>{scenarioResult.keyLevel}</span>
+                  <span style={{ fontSize: 7, color: C.mut }}> ({scenarioResult.keyLevelType === 'support' ? 'دعم' : scenarioResult.keyLevelType === 'resistance' ? 'مقاومة' : 'محوري'})</span>
+                </div>
+
+                {/* Scenarios */}
+                <div style={{ color: C.cyan, fontSize: 8.5, fontWeight: 700, marginBottom: 4 }}>السيناريوهات المحتملة</div>
+                {scenarioResult.scenarios.sort((a, b) => b.probability - a.probability).map((sc, i) => {
+                  const isBull = sc.type.includes('bullish') || sc.type === 'trap_bear';
+                  const dirCol = isBull ? C.green : C.red;
+                  const isDominant = sc.type === scenarioResult.dominantScenario;
+                  return (
+                    <div key={i} style={{ background: C.card, borderRadius: 5, padding: '6px 8px', marginBottom: 5, borderLeft: `3px solid ${dirCol}`, border: isDominant ? `1px solid ${dirCol}40` : undefined }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                          <span style={{ fontSize: 9, color: dirCol, fontWeight: 800 }}>{isBull ? '▲' : '▼'} {sc.nameAr}</span>
+                          {isDominant && <span style={{ fontSize: 7, color: C.gold, fontWeight: 700, background: `${C.gold}15`, padding: '1px 4px', borderRadius: 3 }}>الأرجح</span>}
+                        </div>
+                        <span style={{ fontSize: 9, color: C.text, fontWeight: 700 }}>{Math.round(sc.probability * 100)}%</span>
+                      </div>
+                      {/* Probability bar */}
+                      <div style={{ width: '100%', height: 5, background: C.dim + '15', borderRadius: 3, overflow: 'hidden', marginBottom: 4 }}>
+                        <div style={{ width: `${sc.probability * 100}%`, height: '100%', background: dirCol, borderRadius: 3 }} />
+                      </div>
+                      <div style={{ fontSize: 7.5, color: C.dim, lineHeight: 1.5, marginBottom: 4 }}>{sc.descriptionAr}</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 3 }}>
+                        <div style={{ background: `${dirCol}08`, borderRadius: 3, padding: '3px 5px', textAlign: 'center' }}>
+                          <div style={{ color: C.mut, fontSize: 6.5 }}>الهدف</div>
+                          <div style={{ color: dirCol, fontSize: 8, fontWeight: 700, fontFamily: 'monospace' }}>{sc.priceTarget}</div>
+                        </div>
+                        <div style={{ background: `${C.red}08`, borderRadius: 3, padding: '3px 5px', textAlign: 'center' }}>
+                          <div style={{ color: C.mut, fontSize: 6.5 }}>إبطال</div>
+                          <div style={{ color: C.red, fontSize: 8, fontWeight: 700, fontFamily: 'monospace' }}>{sc.invalidationLevel}</div>
+                        </div>
+                        <div style={{ background: `${C.cyan}08`, borderRadius: 3, padding: '3px 5px', textAlign: 'center' }}>
+                          <div style={{ color: C.mut, fontSize: 6.5 }}>R:R</div>
+                          <div style={{ color: C.cyan, fontSize: 8, fontWeight: 700, fontFamily: 'monospace' }}>1:{sc.riskRewardRatio}</div>
+                        </div>
+                      </div>
+                      {/* Confirming / Contradicting signals */}
+                      {sc.keySignals.length > 0 && (
+                        <div style={{ marginTop: 3, fontSize: 7, color: C.green }}>✓ {sc.keySignals.join(' • ')}</div>
+                      )}
+                      {sc.contradictingSignals.length > 0 && (
+                        <div style={{ fontSize: 7, color: C.red }}>✗ {sc.contradictingSignals.join(' • ')}</div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Warnings */}
+                {scenarioResult.warnings.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    {scenarioResult.warnings.map((w, i) => (
+                      <div key={i} style={{ background: `${C.yellow}08`, borderRadius: 4, padding: '4px 6px', marginBottom: 2, fontSize: 7.5, color: C.yellow }}>⚠️ {w}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>شغّل التحليل أولاً لرؤية السيناريوهات</div>
+            )}
+          </div>
+        )}
+
+        {/* ═══ Revolutionary #8: Spring Detection ═══ */}
+        {tab === 'spring' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            <div style={{ background: `${C.green}08`, border: `1px solid ${C.green}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+              <div style={{ color: C.green, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>🌀 كشف السوستات والفخوخ — Spring & Trap Detection</div>
+              <div style={{ fontSize: 8, color: C.dim }}>يكشف لحظات الاختراق الكاذب حيث يُمسك المتداولون في فخ قبل أن يرتد السعر بقوة. هذه أعلى الاحتمالات في التداول.</div>
+            </div>
+
+            {springResult ? (
+              <div>
+                {/* Signal Strength */}
+                <div style={{ background: C.card, borderRadius: 5, padding: '6px 8px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <span style={{ fontSize: 8, color: C.mut }}>قوة الإشارة: </span>
+                    <span style={{ fontSize: 10, color: springResult.signalStrength > 50 ? C.green : springResult.signalStrength > 25 ? C.yellow : C.mut, fontWeight: 800 }}>{springResult.signalStrength}%</span>
+                  </div>
+                  <div style={{ fontSize: 7.5, color: C.dim }}>{springResult.summaryAr}</div>
+                </div>
+
+                {/* Counts */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 3, marginBottom: 8 }}>
+                  <div style={{ background: C.card, borderRadius: 3, padding: '3px 4px', textAlign: 'center' }}>
+                    <div style={{ color: C.mut, fontSize: 6 }}>سوستة</div>
+                    <div style={{ color: C.green, fontSize: 9, fontWeight: 700 }}>{springResult.counts.spring}</div>
+                  </div>
+                  <div style={{ background: C.card, borderRadius: 3, padding: '3px 4px', textAlign: 'center' }}>
+                    <div style={{ color: C.mut, fontSize: 6 }}>دفع</div>
+                    <div style={{ color: C.red, fontSize: 9, fontWeight: 700 }}>{springResult.counts.upthrust}</div>
+                  </div>
+                  <div style={{ background: C.card, borderRadius: 3, padding: '3px 4px', textAlign: 'center' }}>
+                    <div style={{ color: C.mut, fontSize: 6 }}>اصطياد</div>
+                    <div style={{ color: C.yellow, fontSize: 9, fontWeight: 700 }}>{springResult.counts.stop_hunt}</div>
+                  </div>
+                  <div style={{ background: C.card, borderRadius: 3, padding: '3px 4px', textAlign: 'center' }}>
+                    <div style={{ color: C.mut, fontSize: 6 }}>سوستة</div>
+                    <div style={{ color: C.cyan, fontSize: 9, fontWeight: 700 }}>{springResult.counts.springboard}</div>
+                  </div>
+                </div>
+
+                {/* Best Setup */}
+                {springResult.bestSetup && (
+                  <div style={{ background: `${C.gold}08`, border: `1px solid ${C.gold}30`, borderRadius: 5, padding: '8px 10px', marginBottom: 8 }}>
+                    <div style={{ color: C.gold, fontSize: 9, fontWeight: 700, marginBottom: 4 }}>⭐ أفضل إعداد حالي</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <span style={{ fontSize: 9, color: springResult.bestSetup.direction === 'bullish' ? C.green : C.red, fontWeight: 800 }}>
+                        {springResult.bestSetup.direction === 'bullish' ? '▲' : '▼'} {springResult.bestSetup.nameAr}
+                      </span>
+                      <span style={{ fontSize: 8, color: C.text, fontWeight: 700 }}>ثقة {Math.round(springResult.bestSetup.confidence * 100)}%</span>
+                    </div>
+                    <div style={{ fontSize: 7.5, color: C.dim, lineHeight: 1.5, marginBottom: 4 }}>{springResult.bestSetup.descriptionAr}</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 3 }}>
+                      <div style={{ background: `${C.green}08`, borderRadius: 3, padding: '3px 5px', textAlign: 'center' }}>
+                        <div style={{ color: C.mut, fontSize: 6.5 }}>دخول</div>
+                        <div style={{ color: C.green, fontSize: 8.5, fontWeight: 700, fontFamily: 'monospace' }}>{springResult.bestSetup.entryPrice}</div>
+                      </div>
+                      <div style={{ background: `${C.red}08`, borderRadius: 3, padding: '3px 5px', textAlign: 'center' }}>
+                        <div style={{ color: C.mut, fontSize: 6.5 }}>وقف خسارة</div>
+                        <div style={{ color: C.red, fontSize: 8.5, fontWeight: 700, fontFamily: 'monospace' }}>{springResult.bestSetup.stopLoss}</div>
+                      </div>
+                      <div style={{ background: `${C.cyan}08`, borderRadius: 3, padding: '3px 5px', textAlign: 'center' }}>
+                        <div style={{ color: C.mut, fontSize: 6.5 }}>هدف</div>
+                        <div style={{ color: C.cyan, fontSize: 8.5, fontWeight: 700, fontFamily: 'monospace' }}>{springResult.bestSetup.takeProfit}</div>
+                      </div>
+                    </div>
+                    {springResult.bestSetup.confirmations.length > 0 && (
+                      <div style={{ marginTop: 4, fontSize: 7.5, color: C.green }}>✓ {springResult.bestSetup.confirmations.join(' • ')}</div>
+                    )}
+                  </div>
+                )}
+
+                {/* All Springs */}
+                {springResult.springs.length > 1 && (
+                  <div>
+                    <div style={{ color: C.cyan, fontSize: 8.5, fontWeight: 700, marginBottom: 4 }}>جميع السوستات ({springResult.springs.length})</div>
+                    {springResult.springs.map((sp, i) => {
+                      const dirCol = sp.direction === 'bullish' ? C.green : C.red;
+                      return (
+                        <div key={i} style={{ background: C.card, borderRadius: 4, padding: '5px 7px', marginBottom: 3, borderLeft: `2px solid ${dirCol}`, opacity: sp.isActionable ? 1 : 0.5 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: 8, color: dirCol, fontWeight: 700 }}>{sp.direction === 'bullish' ? '▲' : '▼'} {sp.nameAr}</span>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <span style={{ fontSize: 7.5, color: C.text, fontWeight: 600 }}>ثقة {Math.round(sp.confidence * 100)}%</span>
+                              <span style={{ fontSize: 7.5, color: C.cyan }}>R:R 1:{sp.rrRatio}</span>
+                              {sp.isActionable && <span style={{ fontSize: 7, color: C.green, fontWeight: 700 }}>● قابل للتنفيذ</span>}
+                            </div>
+                          </div>
+                          <div style={{ fontSize: 7, color: C.mut, marginTop: 2 }}>عمر: {sp.ageCandles} شمعة | اختراق: {sp.penetrationDepth.toFixed(2)} | مستوى: {sp.springLevel.toFixed(2)}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {springResult.springs.length === 0 && (
+                  <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>لا توجد سوستات أو فخوخ مكتشفة حالياً — جرب أصولاً أو فريمات أخرى</div>
+                )}
+              </div>
+            ) : (
+              <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>شغّل التحليل أولاً لكشف السوستات</div>
+            )}
+          </div>
+        )}
+
+        {/* ═══ Trade Journal ═══ */}
+        {tab === 'journal' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            <div style={{ background: `${C.gold}08`, border: `1px solid ${C.gold}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+              <div style={{ color: C.gold, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>📋 سجل التداول التلقائي — Trade Journal</div>
+              <div style={{ fontSize: 7.5, color: C.dim }}>يُسجّل كل اقتراح تداول تلقائياً مع نتائجه — دليلك لإثبات أداء النظام</div>
+            </div>
+
+            {/* Stats Summary */}
+            {journalStats && journalStats.closedTrades > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, marginBottom: 8 }}>
+                <div style={{ background: C.card, borderRadius: 4, padding: '5px 4px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 7, color: C.mut }}>نسبة النجاح</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: journalStats.winRate >= 0.5 ? C.green : C.red }}>{Math.round(journalStats.winRate * 100)}%</div>
+                </div>
+                <div style={{ background: C.card, borderRadius: 4, padding: '5px 4px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 7, color: C.mut }}>إجمالي الربح</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: journalStats.totalPnL >= 0 ? C.green : C.red }}>{journalStats.totalPnL >= 0 ? '+' : ''}{journalStats.totalPnL}</div>
+                </div>
+                <div style={{ background: C.card, borderRadius: 4, padding: '5px 4px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 7, color: C.mut }}>معامل الربح</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.gold }}>{journalStats.profitFactor >= 999 ? '∞' : journalStats.profitFactor}</div>
+                </div>
+                <div style={{ background: C.card, borderRadius: 4, padding: '5px 4px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 7, color: C.mut }}>متوسط R</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.cyan }}>{journalStats.avgRMultiple}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Extended Stats */}
+            {journalStats && journalStats.closedTrades > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4, marginBottom: 8 }}>
+                <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px' }}>
+                  <div style={{ fontSize: 7, color: C.mut }}>صفقات</div>
+                  <div style={{ display: 'flex', gap: 4, fontSize: 8 }}>
+                    <span style={{ color: C.text }}>{journalStats.closedTrades} مغلقة</span>
+                    <span style={{ color: C.dim }}>|</span>
+                    <span style={{ color: C.green }}>{journalStats.wins} ربح</span>
+                    <span style={{ color: C.red }}>{journalStats.losses} خسارة</span>
+                  </div>
+                </div>
+                <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px' }}>
+                  <div style={{ fontSize: 7, color: C.mut }}>أداء الاتجاه</div>
+                  <div style={{ display: 'flex', gap: 6, fontSize: 8 }}>
+                    <span style={{ color: C.green }}>شراء {Math.round(journalStats.byDirection.bullish.winRate * 100)}%</span>
+                    <span style={{ color: C.red }}>بيع {Math.round(journalStats.byDirection.bearish.winRate * 100)}%</span>
+                  </div>
+                </div>
+                <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px' }}>
+                  <div style={{ fontSize: 7, color: C.mut }}>أقصى تراجع</div>
+                  <div style={{ fontSize: 8, color: C.red }}>{journalStats.maxDrawdown} | شارب: {journalStats.sharpeEstimate}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Boost Impact */}
+            {journalStats && journalStats.boostTradesCount > 0 && (
+              <div style={{ background: `${C.cyan}06`, border: `1px solid ${C.cyan}15`, borderRadius: 4, padding: '5px 7px', marginBottom: 8 }}>
+                <div style={{ fontSize: 7.5, color: C.cyan, fontWeight: 700 }}>تأثير المحركات الثورية</div>
+                <div style={{ display: 'flex', gap: 10, fontSize: 8, marginTop: 3 }}>
+                  <span style={{ color: C.green }}>مع تعزيز: {Math.round(journalStats.boostTradesWinRate * 100)}%</span>
+                  <span style={{ color: C.dim }}>بدون: {Math.round(journalStats.noBoostTradesWinRate * 100)}%</span>
+                  <span style={{ color: journalStats.boostLift >= 1 ? C.green : C.red }}>تحسن: {journalStats.boostLift > 0 ? `${Math.round((journalStats.boostLift - 1) * 100)}%` : '—'}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Export Buttons */}
+            <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+              <button onClick={() => {
+                const json = exportJournalJSON();
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = `roua-journal-${new Date().toISOString().split('T')[0]}.json`;
+                a.click(); URL.revokeObjectURL(url);
+              }} style={{ flex: 1, background: `${C.gold}15`, border: `1px solid ${C.gold}30`, borderRadius: 4, padding: '5px', color: C.gold, fontSize: 8, cursor: 'pointer', fontWeight: 600 }}>
+                تصدير JSON
+              </button>
+              <button onClick={() => {
+                const html = generateReportHTML();
+                const blob = new Blob([html], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = `roua-report-${new Date().toISOString().split('T')[0]}.html`;
+                a.click(); URL.revokeObjectURL(url);
+              }} style={{ flex: 1, background: `${C.green}15`, border: `1px solid ${C.green}30`, borderRadius: 4, padding: '5px', color: C.green, fontSize: 8, cursor: 'pointer', fontWeight: 600 }}>
+                تقرير PDF (HTML)
+              </button>
+              <button onClick={() => {
+                if (confirm('هل أنت متأكد من مسح السجل؟ هذا لا يمكن التراجع عنه.')) {
+                  clearJournal();
+                  setJournalEntries([]);
+                  setJournalStats(null);
+                }
+              }} style={{ background: `${C.red}10`, border: `1px solid ${C.red}20`, borderRadius: 4, padding: '5px 8px', color: C.red, fontSize: 8, cursor: 'pointer' }}>
+                مسح
+              </button>
+            </div>
+
+            {/* Weekly Breakdown */}
+            {journalStats && journalStats.weeklyBreakdown.length > 0 && (
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ color: C.cyan, fontSize: 8.5, fontWeight: 700, marginBottom: 4 }}>الأداء الأسبوعي</div>
+                <div style={{ display: 'flex', gap: 2, height: 30, alignItems: 'flex-end' }}>
+                  {journalStats.weeklyBreakdown.map((w, i) => {
+                    const maxPnl = Math.max(...journalStats.weeklyBreakdown.map(x => Math.abs(x.pnl)), 1);
+                    const h = Math.max(3, Math.abs(w.pnl) / maxPnl * 28);
+                    return (
+                      <div key={i} title={`${w.week}: ${w.pnl} (${Math.round(w.winRate * 100)}%)`}
+                        style={{ flex: 1, height: h, background: w.pnl >= 0 ? C.green : C.red, borderRadius: '2px 2px 0 0', opacity: 0.7, minHeight: 3 }} />
+                    );
+                  })}
+                </div>
+                <div style={{ display: 'flex', gap: 2, fontSize: 5.5, color: C.mut, marginTop: 1 }}>
+                  {journalStats.weeklyBreakdown.map((w, i) => (
+                    <div key={i} style={{ flex: 1, textAlign: 'center' }}>{w.week.slice(-2)}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Trade Entries */}
+            <div style={{ color: C.cyan, fontSize: 8.5, fontWeight: 700, marginBottom: 4 }}>
+              الصفقات ({journalEntries.length})
+            </div>
+            {journalEntries.length === 0 ? (
+              <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>
+                لا توجد صفقات مسجلة بعد — ستظهر هنا تلقائياً عند اقتراح صفقات
+              </div>
+            ) : (
+              journalEntries.slice(0, 30).map((entry) => {
+                const isWin = entry.realizedPnL > 0;
+                const isLoss = entry.realizedPnL < 0;
+                const statusColor = entry.status === 'pending' ? C.dim : isWin ? C.green : isLoss ? C.red : C.gold;
+                const statusLabel = entry.status === 'hit_tp1' ? 'TP1 ✓' : entry.status === 'hit_tp2' ? 'TP2 ✓' : entry.status === 'hit_tp3' ? 'TP3 ✓' : entry.status === 'hit_sl' ? 'SL ✗' : entry.status === 'trail_sl' ? 'Trail' : entry.status === 'pending' ? 'معلق' : entry.status;
+                return (
+                  <div key={entry.id} style={{ background: C.card, borderRadius: 4, padding: '5px 7px', marginBottom: 3, borderLeft: `2px solid ${statusColor}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                        <span style={{ fontSize: 8, color: entry.direction === 'bullish' ? C.green : C.red, fontWeight: 700 }}>
+                          {entry.direction === 'bullish' ? '▲' : '▼'}
+                        </span>
+                        <span style={{ fontSize: 8, color: C.text, fontWeight: 600 }}>{entry.entryPrice.toFixed(2)}</span>
+                        <span style={{ fontSize: 7, color: statusColor, fontWeight: 700 }}>{statusLabel}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <span style={{ fontSize: 7.5, color: C.dim }}>{entry.date}</span>
+                        <span style={{ fontSize: 8, color: isWin ? C.green : isLoss ? C.red : C.dim, fontWeight: 700, fontFamily: 'monospace' }}>
+                          {entry.realizedPnL !== 0 ? `${entry.realizedPnL > 0 ? '+' : ''}${entry.realizedPnL.toFixed(2)}` : '—'}
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 6.5, color: C.mut, marginTop: 2 }}>
+                      R:R 1:{entry.rrRatio} | ثقة {Math.round(entry.confidence * 100)}% | {entry.agreeingSignals.map(s => s.source).join(' + ')}
+                      {entry.boostFactorsActive.length > 0 && <span style={{ color: C.cyan }}> | ⚡ {entry.boostFactorsActive.join(', ')}</span>}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+
+            {journalEntries.length > 30 && (
+              <div style={{ textAlign: 'center', fontSize: 7.5, color: C.mut, padding: '5px 0' }}>
+                عرض آخر 30 من {journalEntries.length} — صدّر JSON للبيانات الكاملة
+              </div>
             )}
           </div>
         )}

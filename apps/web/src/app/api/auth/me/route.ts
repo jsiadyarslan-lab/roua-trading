@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
 
     const requestedEmail = request.nextUrl.searchParams.get('email')
     // Mobile app support: read session token from cookie OR Authorization header
-    let sessionToken = request.cookies.get('roua_session')?.value
+    let sessionToken: string | undefined = request.cookies.get('roua_session')?.value ?? undefined
     if (!sessionToken) {
       const authHeader = request.headers.get('authorization')
       if (authHeader?.startsWith('Bearer ')) {
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
     }
     // Also check x-roua-session header (custom header sent by mobile app)
     if (!sessionToken) {
-      sessionToken = request.headers.get('x-roua-session')
+      sessionToken = request.headers.get('x-roua-session') ?? undefined
     }
 
     // ── Check existing session ──
@@ -415,7 +415,7 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     // Mobile app support: read session from cookie OR Authorization header
-    let sessionToken = request.cookies.get('roua_session')?.value
+    let sessionToken: string | undefined = request.cookies.get('roua_session')?.value ?? undefined
     if (!sessionToken) {
       const authHeader = request.headers.get('authorization')
       if (authHeader?.startsWith('Bearer ')) {
@@ -423,7 +423,7 @@ export async function DELETE(request: NextRequest) {
       }
     }
     if (!sessionToken) {
-      sessionToken = request.headers.get('x-roua-session')
+      sessionToken = request.headers.get('x-roua-session') ?? undefined
     }
     if (sessionToken) {
       // Mark session as inactive instead of deleting (audit trail)

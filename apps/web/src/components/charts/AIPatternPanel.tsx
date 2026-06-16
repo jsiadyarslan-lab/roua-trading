@@ -1941,7 +1941,7 @@ function buildPatternShape(patternType: string, candle: CandleData, prevCandle?:
 }
 
 // ── Generate Local Entry/Exit (fallback when AI is unavailable) ──
-function generateLocalEntryExit(lastCandle: CandleData, levels: SupportResistanceLevel[], _trendLines: TrendLine[], tFn?: (key: string, params?: Record<string, unknown>) => string): AIEntryExit {
+function generateLocalEntryExit(lastCandle: CandleData, levels: SupportResistanceLevel[], _trendLines: TrendLine[], tFn?: (key: string, params?: any) => string): AIEntryExit {
   const price = lastCandle.close;
   const supports = levels.filter(l => l.type === 'support').sort((a, b) => b.price - a.price);
   const resistances = levels.filter(l => l.type === 'resistance').sort((a, b) => a.price - b.price);

@@ -570,15 +570,23 @@ export function runAdaptiveBayesian(
       }
     } else {
       // Not enough data — use base confidence
+      // FIX: Boost strong signals (confidence > 0.6) to prevent neutral bias.
+      // Weak signals (0.4-0.55) barely differentiate bull vs bear, causing the
+      // likelihood product to converge to ~50/50. Strong signals need a boost.
+      const boostedConf = sig.baseConfidence > 0.6
+        ? Math.min(0.95, sig.baseConfidence * 1.3)  // Boost strong signals by 30%
+        : sig.baseConfidence;
       if (sig.direction === 'bullish') {
-        pBull = Math.max(0.01, sig.baseConfidence);
-        pBear = Math.max(0.01, 1 - sig.baseConfidence);
+        pBull = Math.max(0.01, boostedConf);
+        pBear = Math.max(0.01, 1 - boostedConf);
       } else if (sig.direction === 'bearish') {
-        pBull = Math.max(0.01, 1 - sig.baseConfidence);
-        pBear = Math.max(0.01, sig.baseConfidence);
+        pBull = Math.max(0.01, 1 - boostedConf);
+        pBear = Math.max(0.01, boostedConf);
       } else {
-        pBull = 0.5;
-        pBear = 0.5;
+        // Neutral signals get a small directional push based on adaptiveWeight
+        // instead of being completely uninformative (0.5/0.5)
+        pBull = 0.5 + (adaptiveWeight - 1.0) * 0.05;
+        pBear = 0.5 - (adaptiveWeight - 1.0) * 0.05;
       }
     }
 
@@ -633,7 +641,11 @@ export function runAdaptiveBayesian(
   let confidence: number;
 
   const margin = Math.abs(posteriorBullish - posteriorBearish);
-  if (margin < 0.1) {
+  // FIX: Lower neutral threshold from 0.1 to 0.04 — the old threshold
+  // required a 60/40 split before declaring a direction, which was too
+  // conservative and caused the engine to default to 'neutral' too often.
+  // With 0.04, even a 52/48 split produces a directional signal.
+  if (margin < 0.04) {
     direction = 'neutral';
     confidence = margin;
   } else if (posteriorBullish > posteriorBearish) {

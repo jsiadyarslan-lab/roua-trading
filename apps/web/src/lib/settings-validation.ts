@@ -183,7 +183,7 @@ export function validateUserSetting(
 
   // Validate range constraints
   const range = SETTINGS_RANGES[key as keyof typeof SETTINGS_RANGES]
-  if (range && range.type !== 'enum') {
+  if (range && (range as any).type !== 'enum') {
     const num = Number(value)
     if (isNaN(num)) {
       return { valid: false, error: `قيمة ${key} يجب أن تكون رقم: ${value}` }

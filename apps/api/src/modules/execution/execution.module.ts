@@ -17,6 +17,8 @@ import { OrderLifecycleService } from './services/order-lifecycle.service';
 import { ConnectionResilienceService } from './services/connection-resilience.service';
 import { RateLimiterService } from './services/rate-limiter.service';
 import { OrderQueueProcessor } from './services/order-queue.processor';
+import { AlgoExecutionService } from './services/algo-execution.service'; // V-PHASE4
+import { OrderBookAnalysisService } from './services/orderbook-analysis.service'; // V-PHASE4
 
 /**
  * ExecutionModule — Order Execution Engine
@@ -48,6 +50,9 @@ import { OrderQueueProcessor } from './services/order-queue.processor';
     OrderLifecycleService,
     ConnectionResilienceService,
     RateLimiterService,
+    // V-PHASE4: Advanced execution services
+    AlgoExecutionService,
+    OrderBookAnalysisService,
     // FIX: OrderQueueProcessor is REMOVED from providers when BullMQ is not
     // registered. The @Processor('execution_queue') decorator requires BullMQ
     // queue registration, which we removed to prevent Redis crashes.
@@ -60,6 +65,9 @@ import { OrderQueueProcessor } from './services/order-queue.processor';
     OrderLifecycleService,
     ConnectionResilienceService,
     RateLimiterService,
+    // V-PHASE4: Advanced execution services
+    AlgoExecutionService,
+    OrderBookAnalysisService,
   ],
 })
 export class ExecutionModule {

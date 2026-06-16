@@ -14,9 +14,10 @@ export interface IncrementalState {
   // Running ATR
   atr: number;
   atrPeriod: number;
-  trueRanges: number[];  // Circular buffer for ATR calc
-  // PERF (3.6): Running sum for ATR to avoid slice/reduce on every tick
-  trueRangeSum: number;
+  trueRanges: number[];  // Ring buffer for ATR calc (fixed size = atrPeriod)
+  trHead: number;        // Ring buffer head index
+  trCount: number;       // Ring buffer current fill count
+  trueRangeSum: number;  // Running sum for O(1) ATR recalculation
 
   // Running pivot tracking
   lastPivots: SwingPoint[];
@@ -53,7 +54,9 @@ export function createIncrementalState(): IncrementalState {
   return {
     atr: 0,
     atrPeriod: 14,
-    trueRanges: [],
+    trueRanges: new Array(14).fill(0),
+    trHead: 0,
+    trCount: 0,
     trueRangeSum: 0,
     lastPivots: [],
     pivotBuffer: [],
@@ -61,9 +64,9 @@ export function createIncrementalState(): IncrementalState {
     lowestLow: Infinity,
     avgVolume: 0,
     volumeSum: 0,
-    volumeHistory: [],  // V225 FIX
-    volumeRingHead: 0,   // PERF (3.5)
-    volumeRingCount: 0,  // PERF (3.5)
+    volumeHistory: [],
+    volumeRingHead: 0,
+    volumeRingCount: 0,
     candleCount: 0,
     ema9: 0,
     ema20: 0,
@@ -103,12 +106,15 @@ export function initializeState(
   for (let i = 0; i < last50.length; i++) {
     state.volumeHistory[i] = last50[i].volume;
   }
-  state.volumeRingHead = last50.length % 50;  // PERF (3.5): Ring buffer head
-  state.volumeRingCount = last50.length;        // PERF (3.5): Filled count
+  state.volumeRingHead = last50.length % 50;
+  state.volumeRingCount = last50.length;
   state.volumeSum = last50.reduce((s, c) => s + c.volume, 0);
   state.avgVolume = state.volumeSum / last50.length;
-  // PERF (3.6): Initialize ATR running sum from the last atrPeriod true ranges
-  state.trueRanges = [];
+
+  // Initialize ATR ring buffer from the last atrPeriod true ranges
+  state.trueRanges = new Array(state.atrPeriod).fill(0);
+  state.trHead = 0;
+  state.trCount = 0;
   state.trueRangeSum = 0;
   for (let i = Math.max(1, candles.length - state.atrPeriod); i < candles.length; i++) {
     const tr = Math.max(
@@ -116,7 +122,9 @@ export function initializeState(
       Math.abs(candles[i].high - candles[i - 1].close),
       Math.abs(candles[i].low - candles[i - 1].close)
     );
-    state.trueRanges.push(tr);
+    state.trueRanges[state.trHead] = tr;
+    state.trHead = (state.trHead + 1) % state.atrPeriod;
+    state.trCount++;
     state.trueRangeSum += tr;
   }
   state.candleCount = candles.length;
@@ -138,24 +146,27 @@ export function updateIncremental(
   state.candleCount++;
   state.lastCandleTime = newCandle.time;
 
-  // ── ATR: Incremental True Range with running sum ──
-  // PERF (3.6): Maintain running sum instead of slice/reduce on every tick.
-  // Old: state.trueRanges.slice(-state.atrPeriod).reduce((s,v) => s+v, 0) / period
-  // That's O(n) per tick. New: O(1) with running sum — add new, subtract evicted.
+  // ── ATR: Incremental True Range with ring buffer + running sum ──
+  // O(1) insert and O(1) ATR calculation using running sum.
   if (prevCandle) {
     const tr = Math.max(
       newCandle.high - newCandle.low,
       Math.abs(newCandle.high - prevCandle.close),
       Math.abs(newCandle.low - prevCandle.close)
     );
-    state.trueRanges.push(tr);
-    state.trueRangeSum += tr;
-    if (state.trueRanges.length > state.atrPeriod) {
-      const evicted = state.trueRanges.shift()!;
-      state.trueRangeSum -= evicted;
+    // If ring buffer is full, subtract the value we're about to overwrite
+    if (state.trCount >= state.atrPeriod) {
+      const evictedIdx = state.trHead;
+      state.trueRangeSum -= state.trueRanges[evictedIdx];
+    } else {
+      state.trCount++;
     }
+    // Write to ring buffer at head position
+    state.trueRanges[state.trHead] = tr;
+    state.trueRangeSum += tr;
+    state.trHead = (state.trHead + 1) % state.atrPeriod;
     // ATR from running sum — O(1)
-    if (state.trueRanges.length >= state.atrPeriod) {
+    if (state.trCount >= state.atrPeriod) {
       state.atr = state.trueRangeSum / state.atrPeriod;
     }
   }
@@ -175,8 +186,6 @@ export function updateIncremental(
   if (newCandle.high > state.highestHigh) state.highestHigh = newCandle.high;
   if (newCandle.low < state.lowestLow) state.lowestLow = newCandle.low;
   // PERF (3.5): Ring buffer for volume average — replaces Array.shift() which is O(n).
-  // Old: volumeHistory.shift() copies all remaining elements on every tick.
-  // New: Overwrite at ring head position, O(1) with no copy.
   const VOLUME_RING_SIZE = 50;
   // Ensure the ring buffer is allocated
   if (state.volumeHistory.length < VOLUME_RING_SIZE) {
@@ -197,7 +206,6 @@ export function updateIncremental(
   state.avgVolume = state.volumeSum / state.volumeRingCount;
 
   // ── Quick pivot check ──
-  // Track potential new swing points without full ZigZag recalc
   if (!state.pendingHigh || newCandle.high > state.pendingHigh.price) {
     state.pendingHigh = { price: newCandle.high, index: state.candleCount - 1, time: newCandle.time };
   }
@@ -211,9 +219,7 @@ export function updateIncremental(
 
 // ── Check if full recalculation is needed ────────────────
 export function needsFullRecalc(state: IncrementalState, currentCandleCount: number): boolean {
-  // Full recalc every 50 candles to prevent drift
   if (currentCandleCount - state.lastCandleCount > 50) return true;
-  // Full recalc if ATR drifts too much (sanity check)
   if (state.atr <= 0) return true;
   return false;
 }
@@ -221,12 +227,12 @@ export function needsFullRecalc(state: IncrementalState, currentCandleCount: num
 // ── Get quick trend from EMA state ───────────────────────
 export function getQuickTrend(state: IncrementalState): {
   trend: 'bullish' | 'bearish' | 'neutral';
-  strength: number; // 0-1
+  strength: number;
 } {
   if (state.ema9 === 0 || state.ema20 === 0) return { trend: 'neutral', strength: 0 };
 
   const emaDiff = (state.ema9 - state.ema20) / state.ema20;
-  const strength = Math.min(1, Math.abs(emaDiff) * 50); // Normalize
+  const strength = Math.min(1, Math.abs(emaDiff) * 50);
 
   return {
     trend: emaDiff > 0.001 ? 'bullish' : emaDiff < -0.001 ? 'bearish' : 'neutral',

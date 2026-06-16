@@ -265,7 +265,8 @@ export class AutonomousTraderAgentController {
     const targetSymbol = symbol || 'BTC/USDT';
 
     try {
-      const market = await this.marketAnalyzer.analyze(targetSymbol);
+      // V-PHASE3: Use analyzeForStrategy to include MTF context in regime analysis
+      const market = await this.marketAnalyzer.analyzeForStrategy(targetSymbol, 'AUTO');
       if (!market) {
         return {
           success: false,

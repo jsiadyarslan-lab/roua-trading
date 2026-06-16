@@ -5,8 +5,9 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ExchangeService } from '../../../modules/exchange/exchange.service';
 import { RedisService } from '../../../common/redis/redis.service';
-import { MarketAnalysis, MACDResult, BollingerBandsResult, EMAResult, StrategySignal } from '../types/agent.types';
+import { MarketAnalysis, MACDResult, BollingerBandsResult, EMAResult, StrategySignal, StrategyType } from '../types/agent.types';
 import { calcRsiLatest, calcMacdScalar, calcBollingerBandsScalar, calcEmaLatest, calcAtrLatest } from '../../../common/utils/indicator-algorithms.util';
+import { MultiTimeframeAnalysisService } from './multi-timeframe-analysis.service';
 
 /**
  * MarketAnalyzerService — Real-time market analysis engine
@@ -21,6 +22,11 @@ import { calcRsiLatest, calcMacdScalar, calcBollingerBandsScalar, calcEmaLatest,
  * - Trend detection
  * - AI-enhanced signal generation
  *
+ * V-PHASE3: Now supports strategy-specific timeframes:
+ * - analyze(symbol) — backward-compatible, uses 1h (default)
+ * - analyzeForStrategy(symbol, strategyType) — uses the strategy's primary TF + MTF context
+ * - analyzeForTimeframe(symbol, timeframe) — uses a specific TF
+ *
  * All results are cached in Redis for 30 seconds to avoid
  * redundant API calls during the agent's evaluation cycle.
  */
@@ -29,20 +35,84 @@ export class MarketAnalyzerService {
   private readonly logger = new Logger(MarketAnalyzerService.name);
   private readonly CACHE_TTL = 30000; // 30 seconds
 
+  /** Maps our timeframe labels to ExchangeService interval strings */
+  private static readonly TF_INTERVAL_MAP: Record<string, string> = {
+    M1: '1min', M5: '5min', M15: '15min', M30: '30min',
+    H1: '1h', H4: '4h', D1: '1day', W1: '1week',
+  };
+
+  /** How many days of history to fetch per timeframe */
+  private static readonly TF_HISTORY_DAYS: Record<string, number> = {
+    M1: 3, M5: 10, M15: 20, M30: 30, H1: 60, H4: 120, D1: 365, W1: 730,
+  };
+
   constructor(
     private readonly exchangeService: ExchangeService,
     @Optional() private readonly redis: RedisService,
+    @Optional() private readonly mtfService: MultiTimeframeAnalysisService,
   ) {
-    this.logger.log(`🔍 Market Analyzer initialized (redis=${!!this.redis})`);
+    this.logger.log(`🔍 Market Analyzer initialized (redis=${!!this.redis}, mtf=${!!this.mtfService})`);
   }
 
   /**
-   * Perform full market analysis for a symbol
+   * Perform full market analysis for a symbol (backward-compatible, 1h default)
    */
   async analyze(symbol: string): Promise<MarketAnalysis | null> {
+    return this.analyzeForTimeframe(symbol, 'H1');
+  }
+
+  /**
+   * V-PHASE3: Analyze market data using a strategy's primary timeframe + MTF context
+   *
+   * This is the PREFERRED method for strategy-based analysis:
+   * - SCALPING → M5 candles + M15/H1 confirmation
+   * - SWING → H4 candles + D1 confirmation
+   * - etc.
+   */
+  async analyzeForStrategy(symbol: string, strategyType: StrategyType | string): Promise<MarketAnalysis | null> {
+    const config = this.mtfService?.getStrategyTimeframes(strategyType);
+    const primaryTf = config?.primary || 'H1';
+
+    // Fetch primary timeframe analysis
+    const analysis = await this.analyzeForTimeframe(symbol, primaryTf);
+    if (!analysis) return null;
+
+    // Attach MTF context (fetched in parallel with primary analysis if service available)
+    if (this.mtfService) {
+      try {
+        const mtfContext = await this.mtfService.analyze(symbol, strategyType);
+        analysis.mtfContext = mtfContext;
+
+        if (mtfContext) {
+          this.logger.debug(
+            `🔍 MTF for ${symbol} (${strategyType}): ` +
+            `primary=${mtfContext.primaryTimeframe}, ` +
+            `alignment=${mtfContext.mtfAlignment}, ` +
+            `score=${mtfContext.mtfAlignmentScore}, ` +
+            `higherTFs=[${mtfContext.higherTimeframes.map(h => h.timeframe + ':' + h.trend).join(', ')}]`
+          );
+        }
+      } catch (mtfErr: any) {
+        this.logger.warn(`🔍 MTF analysis failed for ${symbol}: ${mtfErr.message} — proceeding without MTF context`);
+        analysis.mtfContext = null;
+      }
+    }
+
+    return analysis;
+  }
+
+  /**
+   * V-PHASE3: Analyze market data for a specific timeframe
+   *
+   * This replaces the hardcoded '1h' interval in the original analyze() method.
+   * Now strategies can get indicators computed on their native timeframe:
+   * - Scalping: M5 (5-minute candles)
+   * - Swing: H4 (4-hour candles)
+   */
+  async analyzeForTimeframe(symbol: string, timeframe: string): Promise<MarketAnalysis | null> {
     try {
-      // Check cache first (skip if Redis is unavailable)
-      const cacheKey = `agent:market:${symbol}`;
+      // Check cache first (keyed by timeframe now)
+      const cacheKey = `agent:market:${symbol}:${timeframe}`;
       if (this.redis) {
         try {
           const cached = await this.redis.get(cacheKey);
@@ -50,7 +120,7 @@ export class MarketAnalyzerService {
             return JSON.parse(cached);
           }
         } catch (redisErr: any) {
-          this.logger.warn(`Redis cache read failed for ${symbol}: ${redisErr.message} — proceeding without cache`);
+          this.logger.warn(`Redis cache read failed for ${symbol}:${timeframe}: ${redisErr.message} — proceeding without cache`);
         }
       }
 
@@ -61,13 +131,16 @@ export class MarketAnalyzerService {
         return null;
       }
 
-      // Fetch historical data for indicators (60+ days for MACD/EMA200)
+      // V-PHASE3: Fetch historical data for the SPECIFIED timeframe (was hardcoded to '1h')
+      const interval = MarketAnalyzerService.TF_INTERVAL_MAP[timeframe] || '1h';
+      const historyDays = MarketAnalyzerService.TF_HISTORY_DAYS[timeframe] || 60;
+
       const endDate = new Date();
-      const startDate = new Date(endDate.getTime() - 90 * 24 * 60 * 60 * 1000); // 90 days
-      const candles = await this.exchangeService.getHistoricalData(symbol, '1h', startDate, endDate);
+      const startDate = new Date(endDate.getTime() - historyDays * 24 * 60 * 60 * 1000);
+      const candles = await this.exchangeService.getHistoricalData(symbol, interval, startDate, endDate);
       if (!candles || candles.length < 50) {
-        this.logger.warn(`Insufficient historical data for ${symbol} (${candles?.length ?? 0} candles)`);
-        return this._buildMinimalAnalysis(symbol, quote);
+        this.logger.warn(`Insufficient historical data for ${symbol}:${timeframe} (${candles?.length ?? 0} candles) — refusing to trade on fabricated data`);
+        return null;
       }
 
       // Parse candle data (UnifiedCandle format)
@@ -116,6 +189,7 @@ export class MarketAnalyzerService {
         aiConfidence,
         aiSignal,
         aiReasoning,
+        mtfContext: null, // Will be populated by analyzeForStrategy() if MTF service is available
       };
 
       // Cache the result (best-effort — don't fail if Redis is unavailable)
@@ -123,25 +197,42 @@ export class MarketAnalyzerService {
         try {
           await this.redis.set(cacheKey, JSON.stringify(analysis), this.CACHE_TTL);
         } catch (redisErr: any) {
-          this.logger.warn(`Redis cache write failed for ${symbol}: ${redisErr.message} — analysis will not be cached`);
+          this.logger.warn(`Redis cache write failed for ${symbol}:${timeframe}: ${redisErr.message} — analysis will not be cached`);
         }
       }
 
       return analysis;
     } catch (error: any) {
-      this.logger.error(`Market analysis failed for ${symbol}: ${error.message}`);
+      this.logger.error(`Market analysis failed for ${symbol}:${timeframe}: ${error.message}`);
       return null;
     }
   }
 
   /**
-   * Analyze multiple symbols in parallel
+   * Analyze multiple symbols in parallel (backward-compatible, 1h default)
    */
   async analyzeMultiple(symbols: string[]): Promise<Map<string, MarketAnalysis>> {
     const results = new Map<string, MarketAnalysis>();
 
     const promises = symbols.map(async (symbol) => {
       const analysis = await this.analyze(symbol);
+      if (analysis) {
+        results.set(symbol, analysis);
+      }
+    });
+
+    await Promise.allSettled(promises);
+    return results;
+  }
+
+  /**
+   * V-PHASE3: Analyze multiple symbols for a specific strategy (with MTF context)
+   */
+  async analyzeMultipleForStrategy(symbols: string[], strategyType: StrategyType | string): Promise<Map<string, MarketAnalysis>> {
+    const results = new Map<string, MarketAnalysis>();
+
+    const promises = symbols.map(async (symbol) => {
+      const analysis = await this.analyzeForStrategy(symbol, strategyType);
       if (analysis) {
         results.set(symbol, analysis);
       }
@@ -326,78 +417,9 @@ export class MarketAnalyzerService {
     return parts.join(' — ');
   }
 
-  private _buildMinimalAnalysis(symbol: string, quote: any): MarketAnalysis {
-    // CRITICAL FIX: Produce usable ATR and indicator values even with limited data.
-    // Without a valid ATR, the strategy cannot calculate SL/TP levels,
-    // and the risk calculator will reject all trades (riskRewardRatio = 0).
-    // Use a percentage-based ATR estimate: ~2% for crypto, ~1% for stocks/forex.
-    const isCrypto = symbol.includes('USDT') || symbol.includes('BTC') || symbol.includes('ETH');
-    const estimatedAtr = isCrypto
-      ? quote.price * 0.02   // 2% ATR for crypto (typical daily move)
-      : quote.price * 0.01;  // 1% ATR for stocks/forex
-
-    // Generate more actionable indicator values from quote data
-    // CRITICAL: Must produce RSI < 40 or > 60 and BB percentB < 0.3 or > 0.7
-    // so the scalping strategy can actually generate signals with limited data.
-    const changePercent = Math.abs(quote.changePercent || 0);
-    const changeDir = (quote.changePercent || 0) > 0 ? 1 : (quote.changePercent || 0) < 0 ? -1 : 0;
-
-    // Amplified RSI: push values toward extremes based on price movement
-    // This ensures the scalping strategy can trigger on meaningful moves
-    let estimatedRsi = 50;
-    if (changeDir > 0) {
-      estimatedRsi = Math.min(70, 50 + Math.abs(quote.changePercent || 0) * 5);
-    } else if (changeDir < 0) {
-      estimatedRsi = Math.max(30, 50 - Math.abs(quote.changePercent || 0) * 5);
-    }
-
-    // Amplified Bollinger percentB: push toward extremes for signal generation
-    let estimatedPercentB = 0.5;
-    if (changeDir > 0) {
-      estimatedPercentB = Math.min(0.85, 0.5 + Math.abs(quote.changePercent || 0) * 0.08);
-    } else if (changeDir < 0) {
-      estimatedPercentB = Math.max(0.15, 0.5 - Math.abs(quote.changePercent || 0) * 0.08);
-    }
-
-    const histogramDirection = changeDir;
-
-    return {
-      symbol,
-      timestamp: new Date(),
-      price: quote.price,
-      change24h: quote.change || 0,
-      changePercent24h: quote.changePercent || 0,
-      volume24h: quote.volume || 0,
-      high24h: quote.high || quote.price * 1.01,
-      low24h: quote.low || quote.price * 0.99,
-      rsi: estimatedRsi,
-      macd: {
-        macd: histogramDirection * quote.price * 0.001,
-        signal: 0,
-        histogram: histogramDirection * quote.price * 0.0005,
-        crossover: histogramDirection > 0 ? 'BULLISH' : histogramDirection < 0 ? 'BEARISH' : 'NONE',
-      },
-      bollingerBands: {
-        upper: quote.price * 1.02,
-        middle: quote.price,
-        lower: quote.price * 0.98,
-        bandwidth: 0.04,
-        percentB: estimatedPercentB,
-      },
-      ema: {
-        ema9: quote.price * (1 + (quote.changePercent || 0) * 0.002),
-        ema21: quote.price,
-        ema50: quote.price,
-      },
-      atr: estimatedAtr,
-      volatility: changePercent > 3 ? 'HIGH' : changePercent > 1 ? 'MEDIUM' : 'LOW',
-      trend: (quote.changePercent || 0) > 1 ? 'BULLISH' : (quote.changePercent || 0) < -1 ? 'BEARISH' : 'SIDEWAYS',
-      trendStrength: Math.min(60, Math.abs(quote.changePercent || 0) * 15),
-      aiConfidence: 50,
-      aiSignal: (quote.changePercent || 0) > 1.5 ? StrategySignal.BUY
-        : (quote.changePercent || 0) < -1.5 ? StrategySignal.SELL
-        : StrategySignal.NEUTRAL,
-      aiReasoning: 'تحليل مبسط — بيانات غير كافية للتحليل الكامل',
-    };
-  }
+  // V-PHASE2: _buildMinimalAnalysis() REMOVED — it was dead code that fabricated
+  // indicators from minimal data (estimating RSI from 24h change, fabricating MACD
+  // values, creating synthetic Bollinger Bands). Strategies would then generate
+  // REAL trades based on this MADE-UP data. This was extremely dangerous.
+  // If insufficient real data is available, analyze() now returns null (set in Phase 1).
 }

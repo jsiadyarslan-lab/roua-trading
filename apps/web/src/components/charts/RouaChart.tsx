@@ -417,7 +417,11 @@ export default function RouaChart({
   useEffect(() => { feedStateRef.current = feedState; }, [feedState]);
   const [candleCountdown, setCandleCountdown] = useState('—');
   const [lotSize, setLotSize] = useState(0.01);
-  const [tradePanelCollapsed, setTradePanelCollapsed] = useState(false);
+  const [tradePanelCollapsed, setTradePanelCollapsed] = useState(true);
+  const [tradeSide, setTradeSide] = useState<'buy' | 'sell'>('buy');
+  const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop'>('market');
+  const [tradeSl, setTradeSl] = useState('');
+  const [tradeTp, setTradeTp] = useState('');
   const [showDrawingPanel, setShowDrawingPanel] = useState(false);
   const [showIndicatorPanel, setShowIndicatorPanel] = useState(false);
   const [settingsIndicator, setSettingsIndicator] = useState<ActiveIndicator | null>(null);
@@ -1733,17 +1737,17 @@ export default function RouaChart({
         // Fill zones: only draw when both boundary lines are visible
         if (slY !== null && entryY !== null) {
           zones.push({
-            top: Math.min(entryY, slY),
-            height: Math.abs(entryY - slY),
+            top: Math.min(entryY!, slY!),
+            height: Math.abs(entryY! - slY!),
             type: 'sl', key: `${prefix}sl-zone`,
-            topPrice: Math.min(entryPrice, sl),
-            bottomPrice: Math.max(entryPrice, sl),
+            topPrice: Math.min(entryPrice, sl!),
+            bottomPrice: Math.max(entryPrice, sl!),
           });
         }
         if (tpY !== null && entryY !== null) {
           zones.push({
-            top: Math.min(entryY, tpY),
-            height: Math.abs(entryY - tpY),
+            top: Math.min(entryY!, tpY),
+            height: Math.abs(entryY! - tpY),
             type: 'tp', key: `${prefix}tp-zone`,
             topPrice: Math.min(entryPrice, tp!),
             bottomPrice: Math.max(entryPrice, tp!),
@@ -3303,146 +3307,444 @@ export default function RouaChart({
               />
             )}
 
-            {/* Volume Profile moved to draggable panel below */}
+            {/* Volume Profile rendered as overlay below */}
 
-          {/* ── Quick Trade Controls — Left Side ── */}
-          {!mobile && currentPrice && (
-            <div
-              className="roua-quick-trade"
-              style={{
-                position: 'absolute',
-                top: 32,
-                left: 10,
-                zIndex: 100,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 3,
-                borderRadius: 10,
-                background: 'rgba(8,10,18,0.88)',
-                backdropFilter: 'blur(24px) saturate(2)',
-                border: '1px solid rgba(255,255,255,0.07)',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-                padding: tradePanelCollapsed ? '3px' : '5px 6px',
-                pointerEvents: (chart.activeTool === 'cursor' && !mobile) ? 'auto' : 'none',
-                overflow: 'hidden',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              {/* Collapse Toggle — top center */}
-              <button
-                onClick={() => setTradePanelCollapsed(!tradePanelCollapsed)}
+          {/* ── Quick Trade Widget — MetaTrader 5 One-Click Trading Panel ── */}
+          {!mobile && currentPrice && (() => {
+            const resolvedPrice = (typeof currentPrice === 'number' && currentPrice > 0) ? currentPrice : (candlesRef.current[candlesRef.current.length - 1]?.close || 0);
+            const spreadVal = resolvedPrice * 0.0005;
+            const pDec = resolvedPrice > 1000 ? 2 : resolvedPrice > 1 ? 4 : 6;
+            const bid = resolvedPrice - spreadVal / 2;
+            const ask = resolvedPrice + spreadVal / 2;
+
+            // ── Collapsed: MT5 One-Click Panel (SELL | ▼ Vol ▲ | BUY) ──
+            if (tradePanelCollapsed) {
+              return (
+                <div
+                  className="roua-quick-trade"
+                  style={{
+                    position: 'absolute',
+                    top: 32,
+                    left: 10,
+                    zIndex: 100,
+                    display: 'flex',
+                    alignItems: 'stretch',
+                    gap: 0,
+                    borderRadius: 5,
+                    background: 'rgba(18,18,22,0.96)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
+                    pointerEvents: (chart.activeTool === 'cursor' && !mobile) ? 'auto' : 'none',
+                    overflow: 'hidden',
+                    fontFamily: "'JetBrains Mono', monospace",
+                    backdropFilter: 'blur(10px)',
+                  }}
+                >
+                  {/* SELL button with BID price */}
+                  <button
+                    onClick={() => {
+                      const { addTrade } = usePaperTradesStore.getState();
+                      addTrade({ symbol: selectedSymbol_, side: 'short', qty: lotSize, entryPrice: bid, currentPrice: bid, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
+                    }}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '5px 10px 4px',
+                      background: 'linear-gradient(180deg, #FF5252 0%, #D32F2F 50%, #B71C1C 100%)',
+                      border: 'none',
+                      borderRight: '1px solid rgba(0,0,0,0.3)',
+                      color: '#FFF',
+                      cursor: 'pointer',
+                      minWidth: 60,
+                      transition: 'all 0.12s ease',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.15)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.filter = 'none'; }}
+                  >
+                    <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: 1, lineHeight: 1 }}>SELL</span>
+                    <span style={{ fontSize: 9, fontWeight: 700, lineHeight: 1.3, marginTop: 1 }}>{bid.toFixed(pDec)}</span>
+                  </button>
+                  {/* Volume with ▲▼ arrows */}
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '2px 3px',
+                    background: 'rgba(30,30,36,0.95)',
+                    minWidth: 40,
+                  }}>
+                    <button
+                      onClick={() => setLotSize(prev => +(prev + 0.01).toFixed(2))}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#AAA',
+                        cursor: 'pointer',
+                        fontSize: 7,
+                        lineHeight: 1,
+                        padding: '0 0 1px',
+                        display: 'block',
+                      }}
+                    >▲</button>
+                    <span style={{
+                      fontSize: 9,
+                      fontWeight: 800,
+                      color: '#FFF',
+                      lineHeight: 1.2,
+                      padding: '0 2px',
+                    }}>{lotSize.toFixed(2)}</span>
+                    <button
+                      onClick={() => setLotSize(prev => Math.max(0.01, +(prev - 0.01).toFixed(2)))}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#AAA',
+                        cursor: 'pointer',
+                        fontSize: 7,
+                        lineHeight: 1,
+                        padding: '1px 0 0',
+                        display: 'block',
+                      }}
+                    >▼</button>
+                  </div>
+                  {/* BUY button with ASK price */}
+                  <button
+                    onClick={() => {
+                      const { addTrade } = usePaperTradesStore.getState();
+                      addTrade({ symbol: selectedSymbol_, side: 'long', qty: lotSize, entryPrice: ask, currentPrice: ask, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
+                    }}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '5px 10px 4px',
+                      background: 'linear-gradient(180deg, #69F0AE 0%, #00C853 50%, #009624 100%)',
+                      border: 'none',
+                      borderLeft: '1px solid rgba(0,0,0,0.3)',
+                      color: '#FFF',
+                      cursor: 'pointer',
+                      minWidth: 60,
+                      transition: 'all 0.12s ease',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.15)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.filter = 'none'; }}
+                  >
+                    <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: 1, lineHeight: 1 }}>BUY</span>
+                    <span style={{ fontSize: 9, fontWeight: 700, lineHeight: 1.3, marginTop: 1 }}>{ask.toFixed(pDec)}</span>
+                  </button>
+                  {/* Expand button */}
+                  <button
+                    onClick={() => setTradePanelCollapsed(false)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '0 5px',
+                      background: 'rgba(255,255,255,0.06)',
+                      border: 'none',
+                      borderLeft: '1px solid rgba(255,255,255,0.06)',
+                      color: '#888',
+                      cursor: 'pointer',
+                      fontSize: 9,
+                      transition: 'color 0.12s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.color = '#FFF'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = '#888'; }}
+                  >▸</button>
+                </div>
+              );
+            }
+
+            // ── Expanded: MT5-Style Execution Panel (Dark Theme) ──
+            const execPrice = tradeSide === 'buy' ? ask : bid;
+            return (
+              <div
+                className="roua-quick-trade"
                 style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: 'none',
-                  borderRadius: 4,
-                  color: 'rgba(255,255,255,0.35)',
-                  width: tradePanelCollapsed ? 20 : '100%',
-                  height: 14,
-                  cursor: 'pointer',
+                  position: 'absolute',
+                  top: 32,
+                  left: 10,
+                  zIndex: 100,
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  outline: 'none',
-                  padding: 0,
+                  flexDirection: 'column',
+                  borderRadius: 6,
+                  background: 'rgba(18,18,22,0.97)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
+                  overflow: 'hidden',
+                  pointerEvents: (chart.activeTool === 'cursor' && !mobile) ? 'auto' : 'none',
+                  width: 220,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  backdropFilter: 'blur(12px)',
                 }}
               >
-                <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <polyline points={tradePanelCollapsed ? "1 1 5 5 9 1" : "1 5 5 1 9 5"} />
-                </svg>
-              </button>
-
-              {/* Trade Buttons (collapsible) */}
-              {!tradePanelCollapsed && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {/* Buy Button */}
+                {/* ── Header: Symbol + Collapse ── */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '6px 10px 5px',
+                  background: 'rgba(255,255,255,0.03)',
+                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                }}>
+                  <span style={{ fontSize: 12, color: '#FFF', fontWeight: 800, letterSpacing: 0.5 }}>{selectedSymbol_}</span>
                   <button
-                    className="roua-btn-buy"
-                    onClick={() => {
-                      const { addTrade } = usePaperTradesStore.getState();
-                      const lastClose = candlesRef.current[candlesRef.current.length - 1]?.close || 0;
-                      const resolvedPrice = (typeof currentPrice === 'number' && currentPrice > 0) ? currentPrice : lastClose;
-                      addTrade({
-                        symbol: selectedSymbol_,
-                        side: 'long',
-                        qty: lotSize,
-                        entryPrice: resolvedPrice,
-                        currentPrice: resolvedPrice,
-                        entryTime: Date.now(),
-                        strategy: 'quick',
-                        source: 'manual',
-                      });
-                    }}
+                    onClick={() => setTradePanelCollapsed(true)}
                     style={{
-                      background: '#00C853',
+                      background: 'rgba(255,255,255,0.06)',
                       border: 'none',
-                      borderRadius: 5,
-                      color: '#000',
-                      padding: '4px 9px',
-                      fontSize: 10,
-                      fontWeight: 800,
+                      color: '#888',
                       cursor: 'pointer',
-                      fontFamily: "'Cairo', sans-serif",
-                      letterSpacing: 0.5,
-                      outline: 'none',
-                      transition: 'opacity 0.15s',
+                      fontSize: 10,
+                      padding: '2px 6px',
+                      borderRadius: 3,
+                      fontWeight: 700,
+                      lineHeight: 1,
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
-                    onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-                  >
-                    {tc('buyArrow')}
-                  </button>
+                  >▾</button>
+                </div>
 
-                  {/* LOT */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 5, padding: '2px 4px' }}>
-                    <button onClick={() => setLotSize(prev => Math.max(0.01, +(prev - 0.01).toFixed(2)))}
-                      style={{ background: 'none', border: 'none', color: '#888', fontSize: 12, cursor: 'pointer', padding: '0 2px', outline: 'none' }}>−</button>
-                    <span style={{ color: '#ccc', fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", minWidth: 28, textAlign: 'center' }}>{lotSize.toFixed(2)}</span>
-                    <button onClick={() => setLotSize(prev => +(prev + 0.01).toFixed(2))}
-                      style={{ background: 'none', border: 'none', color: '#888', fontSize: 12, cursor: 'pointer', padding: '0 2px', outline: 'none' }}>+</button>
+                {/* ── BID / ASK Display ── */}
+                <div style={{
+                  display: 'flex',
+                  padding: '7px 10px 5px',
+                  gap: 4,
+                }}>
+                  <div style={{ flex: 1, textAlign: 'center' as const }}>
+                    <div style={{ fontSize: 7, color: '#FF5252', fontWeight: 700, letterSpacing: 1 }}>BID</div>
+                    <div style={{ fontSize: 16, color: '#FF5252', fontWeight: 800, letterSpacing: -0.3, lineHeight: 1.2 }}>{bid.toFixed(pDec)}</div>
+                  </div>
+                  <div style={{ width: 1, background: 'rgba(255,255,255,0.08)' }} />
+                  <div style={{ flex: 1, textAlign: 'center' as const }}>
+                    <div style={{ fontSize: 7, color: '#69F0AE', fontWeight: 700, letterSpacing: 1 }}>ASK</div>
+                    <div style={{ fontSize: 16, color: '#69F0AE', fontWeight: 800, letterSpacing: -0.3, lineHeight: 1.2 }}>{ask.toFixed(pDec)}</div>
+                  </div>
+                </div>
+
+                {/* ── Spread ── */}
+                <div style={{
+                  textAlign: 'center' as const,
+                  padding: '0 10px 6px',
+                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                }}>
+                  <span style={{ fontSize: 7, color: '#555', letterSpacing: 1 }}>SPREAD </span>
+                  <span style={{ fontSize: 8, color: '#888', fontWeight: 700 }}>
+                    {pDec <= 2 ? spreadVal.toFixed(1) : Math.round(spreadVal * Math.pow(10, pDec))}
+                  </span>
+                </div>
+
+                {/* ── Order Type Tabs: Market / Limit / Stop ── */}
+                <div style={{
+                  display: 'flex',
+                  padding: '5px 10px 0',
+                  gap: 2,
+                }}>
+                  {(['market', 'limit', 'stop'] as const).map(ot => (
+                    <button
+                      key={ot}
+                      onClick={() => setOrderType(ot)}
+                      style={{
+                        flex: 1,
+                        padding: '4px 0',
+                        background: orderType === ot ? 'rgba(255,255,255,0.08)' : 'transparent',
+                        border: orderType === ot ? '1px solid rgba(255,255,255,0.15)' : '1px solid transparent',
+                        borderRadius: '3px 3px 0 0',
+                        color: orderType === ot ? '#FFF' : '#555',
+                        fontSize: 9,
+                        fontWeight: orderType === ot ? 800 : 600,
+                        cursor: 'pointer',
+                        letterSpacing: 0.5,
+                        textTransform: 'uppercase' as const,
+                        transition: 'all 0.1s ease',
+                      }}
+                    >{ot}</button>
+                  ))}
+                </div>
+
+                {/* ── Form Area ── */}
+                <div style={{ padding: '6px 10px', background: 'rgba(0,0,0,0.2)', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                  {/* Volume */}
+                  <div style={{ marginBottom: 6 }}>
+                    <span style={{ fontSize: 7, color: '#666', fontWeight: 700, letterSpacing: 1, display: 'block', marginBottom: 3 }}>VOLUME</span>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      background: 'rgba(0,0,0,0.3)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: 4,
+                      overflow: 'hidden',
+                    }}>
+                      <button
+                        onClick={() => setLotSize(prev => Math.max(0.01, +(prev - 0.01).toFixed(2)))}
+                        style={{
+                          background: 'rgba(255,255,255,0.04)',
+                          border: 'none',
+                          borderRight: '1px solid rgba(255,255,255,0.06)',
+                          color: '#AAA',
+                          fontSize: 13,
+                          cursor: 'pointer',
+                          padding: '4px 8px',
+                          outline: 'none',
+                          fontWeight: 700,
+                          lineHeight: 1,
+                        }}
+                      >−</button>
+                      <input
+                        type="number"
+                        value={lotSize}
+                        onChange={e => { const v = parseFloat(e.target.value); if (v > 0) setLotSize(v); }}
+                        step="0.01"
+                        style={{
+                          flex: 1,
+                          textAlign: 'center' as const,
+                          padding: '4px 0',
+                          border: 'none',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          fontFamily: "'JetBrains Mono', monospace",
+                          color: '#FFF',
+                          background: 'transparent',
+                          outline: 'none',
+                          direction: 'ltr' as const,
+                        }}
+                      />
+                      <button
+                        onClick={() => setLotSize(prev => +(prev + 0.01).toFixed(2))}
+                        style={{
+                          background: 'rgba(255,255,255,0.04)',
+                          border: 'none',
+                          borderLeft: '1px solid rgba(255,255,255,0.06)',
+                          color: '#AAA',
+                          fontSize: 13,
+                          cursor: 'pointer',
+                          padding: '4px 8px',
+                          outline: 'none',
+                          fontWeight: 700,
+                          lineHeight: 1,
+                        }}
+                      >+</button>
+                    </div>
                   </div>
 
-                  {/* Sell Button */}
+                  {/* Stop Loss */}
+                  <div style={{ marginBottom: 6 }}>
+                    <span style={{ fontSize: 7, color: '#FF5252', fontWeight: 700, letterSpacing: 1, display: 'block', marginBottom: 2 }}>STOP LOSS</span>
+                    <input
+                      type="number"
+                      value={tradeSl}
+                      onChange={e => setTradeSl(e.target.value)}
+                      placeholder={tradeSide === 'buy' ? (resolvedPrice * 0.98).toFixed(pDec) : (resolvedPrice * 1.02).toFixed(pDec)}
+                      style={{
+                        width: '100%',
+                        padding: '4px 8px',
+                        background: 'rgba(255,82,82,0.06)',
+                        border: '1px solid rgba(255,82,82,0.2)',
+                        borderRadius: 4,
+                        color: '#FF5252',
+                        fontSize: 10,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        outline: 'none',
+                        direction: 'ltr' as const,
+                        boxSizing: 'border-box' as const,
+                      }}
+                    />
+                  </div>
+
+                  {/* Take Profit */}
+                  <div>
+                    <span style={{ fontSize: 7, color: '#69F0AE', fontWeight: 700, letterSpacing: 1, display: 'block', marginBottom: 2 }}>TAKE PROFIT</span>
+                    <input
+                      type="number"
+                      value={tradeTp}
+                      onChange={e => setTradeTp(e.target.value)}
+                      placeholder={tradeSide === 'buy' ? (resolvedPrice * 1.03).toFixed(pDec) : (resolvedPrice * 0.97).toFixed(pDec)}
+                      style={{
+                        width: '100%',
+                        padding: '4px 8px',
+                        background: 'rgba(105,240,174,0.06)',
+                        border: '1px solid rgba(105,240,174,0.2)',
+                        borderRadius: 4,
+                        color: '#69F0AE',
+                        fontSize: 10,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        outline: 'none',
+                        direction: 'ltr' as const,
+                        boxSizing: 'border-box' as const,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* ── SELL / BUY Buttons ── */}
+                <div style={{
+                  display: 'flex',
+                  padding: '6px 10px 9px',
+                  gap: 4,
+                }}>
                   <button
-                    className="roua-btn-sell"
                     onClick={() => {
+                      setTradeSide('sell');
                       const { addTrade } = usePaperTradesStore.getState();
-                      const lastClose = candlesRef.current[candlesRef.current.length - 1]?.close || 0;
-                      const resolvedPrice = (typeof currentPrice === 'number' && currentPrice > 0) ? currentPrice : lastClose;
-                      addTrade({
-                        symbol: selectedSymbol_,
-                        side: 'short',
-                        qty: lotSize,
-                        entryPrice: resolvedPrice,
-                        currentPrice: resolvedPrice,
-                        entryTime: Date.now(),
-                        strategy: 'quick',
-                        source: 'manual',
-                      });
+                      addTrade({ symbol: selectedSymbol_, side: 'short', qty: lotSize, entryPrice: bid, currentPrice: bid, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
                     }}
                     style={{
-                      background: '#F44336',
-                      border: 'none',
-                      borderRadius: 5,
-                      color: '#fff',
-                      padding: '4px 9px',
-                      fontSize: 10,
-                      fontWeight: 800,
+                      flex: 1,
+                      padding: '8px 0',
+                      background: tradeSide === 'sell'
+                        ? 'linear-gradient(180deg, #FF5252 0%, #D32F2F 50%, #B71C1C 100%)'
+                        : 'rgba(255,82,82,0.15)',
+                      border: tradeSide === 'sell' ? 'none' : '1px solid rgba(255,82,82,0.3)',
+                      borderRadius: 4,
+                      color: '#FFF',
+                      fontSize: 11,
+                      fontWeight: 900,
                       cursor: 'pointer',
-                      fontFamily: "'Cairo', sans-serif",
                       letterSpacing: 0.5,
-                      outline: 'none',
-                      transition: 'opacity 0.15s',
+                      transition: 'all 0.12s ease',
+                      textTransform: 'uppercase' as const,
+                      boxShadow: tradeSide === 'sell' ? '0 2px 8px rgba(211,47,47,0.4)' : 'none',
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
-                    onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+                    onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.15)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.filter = 'none'; }}
                   >
-                    {tc('sellArrow')}
+                    SELL {bid.toFixed(pDec)}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setTradeSide('buy');
+                      const { addTrade } = usePaperTradesStore.getState();
+                      addTrade({ symbol: selectedSymbol_, side: 'long', qty: lotSize, entryPrice: ask, currentPrice: ask, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '8px 0',
+                      background: tradeSide === 'buy'
+                        ? 'linear-gradient(180deg, #69F0AE 0%, #00C853 50%, #009624 100%)'
+                        : 'rgba(105,240,174,0.15)',
+                      border: tradeSide === 'buy' ? 'none' : '1px solid rgba(105,240,174,0.3)',
+                      borderRadius: 4,
+                      color: '#FFF',
+                      fontSize: 11,
+                      fontWeight: 900,
+                      cursor: 'pointer',
+                      letterSpacing: 0.5,
+                      transition: 'all 0.12s ease',
+                      textTransform: 'uppercase' as const,
+                      boxShadow: tradeSide === 'buy' ? '0 2px 8px rgba(0,200,83,0.4)' : 'none',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.15)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.filter = 'none'; }}
+                  >
+                    BUY {ask.toFixed(pDec)}
                   </button>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            );
+          })()}
 
           {/* ── Price-Synced Candle Timer (Desktop Only) ── */}
           {!mobile && candleCountdown && (() => {
@@ -3462,6 +3764,20 @@ export default function RouaChart({
           })()}
 
           {/* Candle countdown removed from chart — shown only in header via CrosshairOverlay */}
+
+          {/* ── Volume Profile Overlay — renders INSIDE chart plotting area, left of price scale ── */}
+          {showVolumeProfile && (
+            <VolumeProfile
+              candles={candlesRef.current}
+              candleSeries={chart.candleSeriesRef?.current ?? null}
+              width={80}
+              rows={24}
+              visible={showVolumeProfile}
+              containerHeight={chart.containerRef?.current?.offsetHeight ?? 400}
+              priceScaleWidth={70}
+            />
+          )}
+
           </div>{/* ── Overlay Layer close ── */}
 
           {/* FIX: Drawing Panel — rendered via Portal + DraggablePanel (same as all
@@ -3507,18 +3823,7 @@ export default function RouaChart({
           getPortalRoot()
         )}
 
-        {/* Volume Profile (draggable) — rendered via Portal */}
-        {showVolumeProfile && createPortal(
-          <DraggablePanel defaultPosition={{ top: 50, right: 10 }} minWidth={260} minHeight={200}>
-            <VolumeProfile
-              candles={candlesRef.current}
-              width={240}
-              rows={24}
-              visible={showVolumeProfile}
-            />
-          </DraggablePanel>,
-          getPortalRoot()
-        )}
+        {/* Volume Profile — now rendered as overlay inside chart area (see above) */}
 
 
 

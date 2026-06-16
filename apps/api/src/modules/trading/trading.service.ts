@@ -11,7 +11,8 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { CredentialsService } from '../portfolio/credentials/credentials.service';
 import { ExchangeService } from '../exchange/exchange.service';
-import { RiskManagerService } from './risk-manager.service';
+// REMOVED: RiskManagerService — deprecated, replaced by UnifiedRiskService (V219)
+import { UnifiedRiskService } from './services/unified-risk.service';
 import { AuditService } from '../../audit/audit.service';
 import { getSymbolMetadata, AssetClass, calculateMargin } from './services/symbol-metadata';
 import * as ccxt from 'ccxt';
@@ -52,7 +53,7 @@ export class TradingService {
     private readonly redis: RedisService,
     private readonly credentialsService: CredentialsService,
     private readonly exchangeService: ExchangeService,
-    private readonly riskManager: RiskManagerService,
+    private readonly unifiedRisk: UnifiedRiskService,  // V219: Unified risk — replaces RiskManager
     private readonly auditService: AuditService,
     @Optional() private readonly executionGateway?: ExecutionGatewayService, // V226: MT5 execution (optional = safe)
   ) {
@@ -214,17 +215,29 @@ export class TradingService {
     // Now: skipRiskCheck === true → must explicitly opt-in to skip.
     // Controllers set skipRiskCheck=true after RiskGatekeeper validates.
     // Internal calls without a controller MUST go through risk check.
+    // V219: Removed double risk check (RiskManager.checkOrderRisk).
+    // Previously, orders went through BOTH RiskGatekeeper AND RiskManager,
+    // which could CONTRADICT each other (Gatekeeper uses 2% max position,
+    // RiskManager uses 20%). Now UnifiedRiskService.validateOrder() is the
+    // SINGLE risk gate — called once by OrderDispatcher/Controller.
+    // This code path is now only for internal calls that skipRiskCheck=false.
     const skipRiskCheck = request.skipRiskCheck === true;
     if (!skipRiskCheck) {
-      const riskCheck = await this.riskManager.checkOrderRisk(
+      const riskCheck = await this.unifiedRisk.validateOrder({
         userId,
-        request.symbol,
-        request.side,
-        request.quantity,
-        currentPrice,
-        credential.exchange,
-        credential.id,
-      );
+        exchangeCredentialId: credential.id,
+        symbol: request.symbol,
+        side: request.side as any,
+        type: (request.type || 'MARKET') as any,
+        quantity: request.quantity,
+        price: currentPrice,
+        stopLoss: request.stopLoss || 0,
+        takeProfit: request.takeProfit,
+        idempotencyKey: `internal-${Date.now()}`,
+        isPaperTrading: credential.exchange === 'paper-trading',
+        source: request.source,
+        strategy: request.strategy,
+      });
 
       if (!riskCheck.allowed) {
         await this.auditService.log({
@@ -1280,7 +1293,14 @@ export class TradingService {
     try {
       const closedSide = position.side;
       const repDirLockKey = `trade-rep:dir-lock:${userId}:${position.symbol}:${closedSide}`;
-      await this.redis.set(repDirLockKey, '1', 30 * 60 * 1000); // 30 min lockout
+      await this.redis.set(repDirLockKey, '1', 30 * 60 * 1000); // 30 min lockout (same direction)
+
+      // V221 FIX: Symbol-level lockout — blocks BOTH directions for 15 minutes.
+      // Prevents flip-flop pattern: BUY → SL → SELL immediately → SL → BUY ...
+      // The old per-direction lock only blocked the SAME direction, allowing
+      // immediate opposite-direction trades that cancel P&L and burn fees.
+      const symbolLockKey = `trade-rep:symbol-lock:${userId}:${position.symbol}`;
+      await this.redis.set(symbolLockKey, '1', 15 * 60 * 1000); // 15 min lockout (BOTH directions)
 
       const dailyCountKey = `trade-rep:daily:${userId}:${position.symbol}`;
       const currentCount = parseInt(await this.redis.get(dailyCountKey) || '0', 10);
@@ -1300,12 +1320,24 @@ export class TradingService {
       // Non-critical — trade repetition tracking failure should not block closes
     }
 
-    // FIX: Clear Smart Executor processed keys for this position so new briefs
-    // for the same symbol can be executed. Without this, the processedKey
-    // `smart-executor:processed:{briefId}:{userId}` persists for 24 hours,
-    // blocking the executor from opening new positions for this user+symbol
-    // after the old position was closed.
-    this._clearProcessedKeysForPosition(userId, position.symbol).catch(() => {});
+    // V222 FIX: REMOVED _clearProcessedKeysForPosition call.
+    //
+    // PROBLEM: This function was clearing SmartExecutor's processed keys
+    // IMMEDIATELY after close, allowing the executor to generate and submit
+    // new briefs for the same symbol within the next 10-second tick.
+    // This was a DIRECT cause of flip-flop trading:
+    //   1. Position closed → processed keys cleared
+    //   2. SmartExecutor tick (10s) → generates new brief for same symbol
+    //   3. OrderDispatcher/UnifiedRisk → Redis checks may fail silently
+    //   4. Position re-opened → user sees immediate re-open
+    //
+    // FIX: Let processed keys expire naturally (24h TTL). New briefs have
+    // new briefIds so they won't be blocked. Old briefs being blocked for
+    // 24h is GOOD — it prevents the executor from re-executing stale briefs.
+    // The V222 DB cooldown in _updatePosition is the bulletproof protection.
+    //
+    // OLD CODE (REMOVED):
+    // this._clearProcessedKeysForPosition(userId, position.symbol).catch(() => {});
 
     // V172d FIX: Return MARGIN + PnL to paperBalance atomically on close.
     if (position.exchange === 'paper-trading') {
@@ -1664,9 +1696,31 @@ export class TradingService {
       `NO exchange order was executed. DB updated only.`,
     );
 
-    // FIX: Clear Smart Executor processed keys for this position so new briefs
-    // for the same symbol can be executed after force close.
-    this._clearProcessedKeysForPosition(userId, position.symbol).catch(() => {});
+    // V222 FIX: REMOVED _clearProcessedKeysForPosition — same as closePosition.
+    // See closePosition's comment for full explanation.
+    // OLD CODE (REMOVED):
+    // this._clearProcessedKeysForPosition(userId, position.symbol).catch(() => {});
+
+    // V222 FIX: Set symbol-lock + direction-lock + cooldown after force-close.
+    // Previously, forceClosePosition did NOT set these Redis keys, meaning:
+    //   - SmartExecutor's cooldown check would NOT block the symbol
+    //   - UnifiedRiskService CHECK 8 would NOT block the symbol
+    // This was a critical gap — if a position was force-closed (V114 fallback),
+    // nothing prevented immediate re-open except the DB cooldown in _updatePosition.
+    try {
+      const closedSide = position.side;
+      const repDirLockKey = `trade-rep:dir-lock:${userId}:${position.symbol}:${closedSide}`;
+      await this.redis.set(repDirLockKey, '1', 30 * 60 * 1000); // 30 min same-direction lockout
+
+      const symbolLockKey = `trade-rep:symbol-lock:${userId}:${position.symbol}`;
+      await this.redis.set(symbolLockKey, '1', 15 * 60 * 1000); // 15 min both-directions lockout
+
+      const cooldownKey = `cooldown:${userId}:${position.symbol}`;
+      await this.redis.set(cooldownKey, 'FORCE_CLOSE', 15 * 60 * 1000); // 15 min cooldown for SmartExecutor
+    } catch (lockErr: any) {
+      this.logger.warn(`V222: Failed to set symbol-lock after force-close: ${lockErr.message}`);
+      // Non-critical — V222 DB cooldown in _updatePosition is the backup
+    }
 
     // V172d FIX: Return MARGIN + PnL to paperBalance atomically on force-close.
     if (position.exchange === 'paper-trading') {
@@ -2821,15 +2875,66 @@ export class TradingService {
           },
         });
       } else {
+        // ═══════════════════════════════════════════════════════════════════
+        // V222 BULLETPROOF: DB-level cooldown — block ALL positions on a
+        // symbol that was closed within the last 15 minutes, REGARDLESS of
+        // direction, source, or which code path opened/closed the position.
+        //
+        // This is the FINAL safety net. Even if:
+        //   - Redis is down (symbol-lock keys not set/read)
+        //   - OrderDispatcher checks were bypassed
+        //   - SmartExecutor cooldown check failed
+        //   - forceClosePosition didn't set symbol-lock
+        //   - MT5 sync closed the position without any cooldown
+        // This DB check WILL prevent flip-flop trades.
+        // ═══════════════════════════════════════════════════════════════════
+        const COOLDOWN_MINUTES = 15;
+        const recentlyClosed = await db.position.findFirst({
+          where: {
+            userId,
+            symbol: request.symbol,
+            status: { in: ['CLOSED', 'LIQUIDATED'] },
+            closedAt: { gte: new Date(Date.now() - COOLDOWN_MINUTES * 60 * 1000) },
+          },
+          orderBy: { closedAt: 'desc' },
+        });
+        if (recentlyClosed) {
+          const closedAgo = Math.round((Date.now() - new Date(recentlyClosed.closedAt!).getTime()) / 60000);
+          this.logger.warn(
+            `🛡️ V222 DB-COOLDOWN in _updatePosition: BLOCKED ${side} on ${request.symbol} — ` +
+            `position closed ${closedAgo} min ago (cooldown: ${COOLDOWN_MINUTES} min). ` +
+            `Source: ${request.source || 'unknown'}`
+          );
+          throw new Error(
+            `BLOCKED_BY_COOLDOWN: تم إغلاق مركز على ${request.symbol} قبل ${closedAgo} دقيقة — ` +
+            `انتظر ${COOLDOWN_MINUTES - closedAgo} دقيقة قبل فتح مركز جديد`
+          );
+        }
+
+        // Also check for ANY existing open position (regardless of direction)
+        // This prevents opposite-direction hedging at the lowest level
+        const anyExistingOpen = await db.position.findFirst({
+          where: { userId, symbol: request.symbol, status: 'OPEN' },
+        });
+        if (anyExistingOpen) {
+          this.logger.warn(
+            `🛡️ V222 DUPLICATE-BLOCK in _updatePosition: BLOCKED ${side} on ${request.symbol} — ` +
+            `existing ${anyExistingOpen.side} position (${anyExistingOpen.source}) already open`
+          );
+          throw new Error(
+            `BLOCKED_BY_DUPLICATE: يوجد مركز ${anyExistingOpen.side} مفتوح لـ ${request.symbol} — لا يمكن فتح مركز آخر`
+          );
+        }
+
         // Open new position
         const { stopLoss, takeProfit } =
-          this.riskManager.getDefaultLevels(fillPrice, side);
+          this.unifiedRisk.getDefaultLevels(fillPrice, side);
 
         try {
           // CRITICAL FIX: Use SL/TP from the request (brief) if provided.
           // Previously, takeProfit was always overwritten with the default level,
           // ignoring the brief's calculated TP. Only fall back to defaults if not set.
-          const defaultLevels = this.riskManager.getDefaultLevels(fillPrice, side);
+          const defaultLevels = this.unifiedRisk.getDefaultLevels(fillPrice, side);
           const finalStopLoss = request.stopLoss ?? defaultLevels.stopLoss;
           const finalTakeProfit = request.takeProfit ?? defaultLevels.takeProfit;
 

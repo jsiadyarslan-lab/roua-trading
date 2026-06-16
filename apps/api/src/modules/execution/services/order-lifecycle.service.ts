@@ -318,6 +318,36 @@ export class OrderLifecycleService {
             },
           });
         } else {
+          // V222 BULLETPROOF: DB-level cooldown check before creating position
+          const COOLDOWN_MINUTES = 15;
+          const recentlyClosed = await tx.position.findFirst({
+            where: {
+              userId,
+              symbol: order.symbol,
+              status: { in: ['CLOSED', 'LIQUIDATED'] },
+              closedAt: { gte: new Date(Date.now() - COOLDOWN_MINUTES * 60 * 1000) },
+            },
+            orderBy: { closedAt: 'desc' },
+          });
+          if (recentlyClosed) {
+            this.logger.warn(
+              `🛡️ V222 LIFECYCLE-COOLDOWN: BLOCKED ${order.side} on ${order.symbol} — ` +
+              `position closed recently (cooldown: ${COOLDOWN_MINUTES} min)`
+            );
+            return; // Drop — don't create position
+          }
+
+          const anyExistingOpen = await tx.position.findFirst({
+            where: { userId, symbol: order.symbol, status: 'OPEN' },
+          });
+          if (anyExistingOpen) {
+            this.logger.warn(
+              `🛡️ V222 LIFECYCLE-DUPLICATE: BLOCKED ${order.side} on ${order.symbol} — ` +
+              `existing ${anyExistingOpen.side} position already open`
+            );
+            return;
+          }
+
           // Open new position
           const credential = await tx.exchangeCredential.findUnique({
             where: { id: order.exchangeCredentialId },

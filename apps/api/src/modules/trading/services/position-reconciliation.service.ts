@@ -145,6 +145,25 @@ export class PositionReconciliationService implements OnModuleInit, OnModuleDest
             },
           });
         } else {
+          // V222 BULLETPROOF: DB-level cooldown check before creating position from reconciliation
+          const COOLDOWN_MINUTES = 15;
+          const recentlyClosed = await tx.position.findFirst({
+            where: {
+              userId: record.userId,
+              symbol: record.symbol,
+              status: { in: ['CLOSED', 'LIQUIDATED'] },
+              closedAt: { gte: new Date(Date.now() - COOLDOWN_MINUTES * 60 * 1000) },
+            },
+            orderBy: { closedAt: 'desc' },
+          });
+          if (recentlyClosed) {
+            this.logger.warn(
+              `🛡️ V222 RECONCILIATION-COOLDOWN: BLOCKED ${record.side} on ${record.symbol} — ` +
+              `position closed recently (cooldown: ${COOLDOWN_MINUTES} min)`
+            );
+            return; // Don't create position from stale reconciliation
+          }
+
           // Create new position
           await tx.position.create({
             data: {

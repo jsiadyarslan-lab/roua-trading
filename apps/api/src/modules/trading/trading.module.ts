@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ExecutionModule } from '../execution/execution.module';
 import { TradingController } from './trading.controller';
 import { TradingService } from './trading.service';
-import { RiskManagerService } from './risk-manager.service';
+// REMOVED: RiskManagerService — deprecated, replaced by UnifiedRiskService (V219)
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { RedisModule } from '../../common/redis/redis.module';
 import { ExchangeModule } from '../exchange/exchange.module';
@@ -14,7 +14,8 @@ import { NotificationModule } from '../notification/notification.module';
 // New Trading Engine Services
 import { OrderController } from './controllers/order.controller';
 import { IdempotencyService } from './services/idempotency.service';
-import { RiskGatekeeperService } from './services/risk-gatekeeper.service';
+// REMOVED: RiskGatekeeperService — deprecated, replaced by UnifiedRiskService (V219)
+import { UnifiedRiskService } from './services/unified-risk.service';
 import { OrderStateManagerService } from './services/order-state-manager.service';
 import { PositionManagerService } from './services/position-manager.service';
 import { OrderProducerService } from './services/order-producer.service';
@@ -61,15 +62,15 @@ import { ExternalCircuitBreakerService } from './services/external-circuit-break
  *
  * Combines the original trading services with the new engine:
  *
- * Legacy Services:
+ * Services:
  * - TradingService: Order placement with direct execution
- * - RiskManagerService: Basic risk checks
  * - TradingController: Original REST endpoints
+ * - UnifiedRiskService: V219 — ONE unified risk service (replaces RiskManager + RiskGatekeeper + RiskCalculator)
  *
  * New Engine Services:
  * - OrderController: New order pipeline (idempotency → risk → queue)
  * - IdempotencyService: Duplicate order prevention (Redis)
- * - RiskGatekeeperService: 5-point pre-trade validation
+ * - UnifiedRiskService: V219 — ONE unified risk service replacing 3 conflicting ones
  * - OrderStateManagerService: Order lifecycle + event sourcing
  * - PositionManagerService: Portfolio tracking with live P&L
  * - OrderProducerService: RabbitMQ order publisher
@@ -98,13 +99,12 @@ import { ExternalCircuitBreakerService } from './services/external-circuit-break
   ],
   controllers: [TradingController, OrderController],
   providers: [
-    // Legacy services
+    // Core service
     TradingService,
-    RiskManagerService,
 
     // New engine services
     IdempotencyService,
-    RiskGatekeeperService,
+    UnifiedRiskService,  // V219: Unified risk service — ONE gate, ONE set of rules
     OrderStateManagerService,
     PositionManagerService,
     OrderProducerService,
@@ -148,9 +148,8 @@ import { ExternalCircuitBreakerService } from './services/external-circuit-break
   ],
   exports: [
     TradingService,
-    RiskManagerService,
     IdempotencyService,
-    RiskGatekeeperService,
+    UnifiedRiskService,  // V219: Export for SmartExecutor, Agent, etc.
     OrderStateManagerService,
     PositionManagerService,
     OrderProducerService,

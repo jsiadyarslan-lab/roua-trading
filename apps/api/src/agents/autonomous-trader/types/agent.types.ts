@@ -158,6 +158,51 @@ export interface StrategyParams {
 
 // ── Market Analysis ──
 
+/**
+ * V-PHASE3: Multi-Timeframe Context
+ *
+ * Provides higher-timeframe trend and indicator data so strategies
+ * can confirm their signals against the "big picture".
+ *
+ * Strategy-to-Timeframe Mapping:
+ * ┌──────────────────────┬──────────────┬────────────────────────────┐
+ * │ Strategy             │ Primary TF   │ Confirmation TFs           │
+ * ├──────────────────────┼──────────────┼────────────────────────────┤
+ * │ SCALPING             │ M5           │ M15, H1                    │
+ * │ SWING                │ H4           │ D1 (daily confirmation)    │
+ * │ MOMENTUM_BREAKOUT    │ M15          │ H1, H4                     │
+ * │ MEAN_REVERSION       │ M15          │ H1                         │
+ * │ GRID                 │ H1           │ H4                         │
+ * │ DCA                  │ H4           │ D1                         │
+ * │ VWAP_RSI             │ M15          │ H1                         │
+ * └──────────────────────┴──────────────┴────────────────────────────┘
+ */
+export interface HigherTimeframeData {
+  /** Timeframe label (e.g., 'M15', 'H1', 'H4', 'D1') */
+  timeframe: string;
+  /** Trend direction on this timeframe */
+  trend: 'BULLISH' | 'BEARISH' | 'SIDEWAYS';
+  /** RSI value on this timeframe */
+  rsi: number;
+  /** MACD signal direction */
+  macdSignal: 'BULLISH' | 'BEARISH' | 'NONE';
+  /** EMA alignment (9 > 21 > 50 = BULLISH, etc.) */
+  emaAlignment: 'BULLISH' | 'BEARISH' | 'MIXED';
+  /** Trend strength 0-100 */
+  trendStrength: number;
+}
+
+export interface HigherTimeframeContext {
+  /** The strategy's primary timeframe (e.g., 'M5' for scalping, 'H4' for swing) */
+  primaryTimeframe: string;
+  /** Data for each higher/confirmation timeframe */
+  higherTimeframes: HigherTimeframeData[];
+  /** Overall multi-timeframe alignment verdict */
+  mtfAlignment: 'ALIGNED_BULLISH' | 'ALIGNED_BEARISH' | 'MIXED' | 'NEUTRAL';
+  /** Alignment strength 0-100 (100 = all timeframes agree perfectly) */
+  mtfAlignmentScore: number;
+}
+
 export interface MarketAnalysis {
   symbol: string;
   timestamp: Date;
@@ -168,7 +213,7 @@ export interface MarketAnalysis {
   high24h: number;
   low24h: number;
 
-  // Technical Indicators
+  // Technical Indicators (computed on the primary timeframe)
   rsi: number;
   macd: MACDResult;
   bollingerBands: BollingerBandsResult;
@@ -184,6 +229,10 @@ export interface MarketAnalysis {
   aiConfidence: number; // 0-100
   aiSignal: StrategySignal;
   aiReasoning: string;
+
+  // V-PHASE3: Multi-Timeframe Context
+  // Null when MTF analysis is unavailable (e.g., insufficient data for higher TFs)
+  mtfContext?: HigherTimeframeContext | null;
 }
 
 export interface MACDResult {

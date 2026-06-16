@@ -1377,16 +1377,17 @@ export class StrategicCouncilService {
     );
     result.diagnostics?.push(`${pair} ${timeframe}: rec=${consensus.recommendation} score=${consensus.consensusScore}% fallback=${isAIFallback} models=${consensus.analyses?.length || 0} newsRisk=${newsRisk.riskLevel}(${newsRisk.score.toFixed(2)})`);
 
-    // FIX: Even when AI gives HOLD, try technical analysis as fallback.
-    // In active Forex markets, there's ALWAYS a direction. The AI saying HOLD
-    // doesn't mean the market is flat — it means the AI is being cautious.
-    // We use technical momentum to override AI caution and generate actionable signals.
+    // V-PHASE1: Respect AI HOLD decisions instead of overriding them.
+    // Previously, when AI said HOLD, a technical override forced BUY/SELL — this caused
+    // overtrading in ambiguous markets and was a major source of losses. The AI saying HOLD
+    // means "no clear edge" — trading without an edge is gambling, not trading.
+    // Now: HOLD is a valid and respected decision. Only override if technical signal is STRONG
+    // (consensusScore >= 65, not the default 48-55 from RSI-only fallback).
     if (!isAIFallback && consensus.recommendation === 'HOLD') {
-      // AI said HOLD — try technical analysis override before giving up
       const technicalOverride = await this._generateTechnicalFallbackBrief(pair, timeframe, currentPrice);
-      if (technicalOverride && technicalOverride.recommendation !== 'HOLD') {
-        // Technical analysis found a direction — use it instead of HOLD
-        this.logger.log(`🏛️ Technical override: AI said HOLD for ${pair} ${timeframe}, but momentum shows ${technicalOverride.recommendation}`);
+      if (technicalOverride && technicalOverride.recommendation !== 'HOLD' && technicalOverride.consensusScore >= 65) {
+        // Strong technical signal overrides AI caution — only when confidence is genuinely high
+        this.logger.log(`🏛️ Technical override: AI said HOLD for ${pair} ${timeframe}, but STRONG momentum shows ${technicalOverride.recommendation} (score=${technicalOverride.consensusScore})`);
         // Create brief using technical analysis
         const direction: BriefDirection = technicalOverride.recommendation === 'BUY' ? 'BUY' : 'SELL';
         let { entryPrice, stopLoss, takeProfit, strictRules } = this._calculateLevels(currentPrice, direction, timeframe);
@@ -1749,50 +1750,58 @@ export class StrategicCouncilService {
             { role: 'محلل تقني', model: 'Technical/RSI', vote: 'BUY', confidence: confidence, reason: `RSI ${rsi.toFixed(0)} فوق 60 — زخم إيجابي قوي` },
           ],
         };
+      // V-PHASE1: Added HOLD zone for neutral markets. RSI 40-60 with change < 0.3%
+      // is a genuinely ambiguous market — no edge, no trade. Better to wait.
+      // Previously, this block ALWAYS forced BUY or SELL, generating weak signals.
       } else {
-        // V177 FIX #14: RSI 40-60 = neutral zone — use 24h change for direction
-        // This prevents the 85%+ SELL bias caused by RSI hovering slightly below 50
-        if (change24h > 0) {
-          confidence = 48;
-          return {
-            recommendation: 'BUY',
-            consensusScore: confidence,
-            masterStrategy: `تحليل تقني — RSI محايد (${rsi.toFixed(0)})، اتجاه 24h صاعد (${change24h.toFixed(2)}%). وقف خسارة قريب مطلوب.`,
-            analyses: [
-              { role: 'محلل تقني', model: 'Technical/RSI-Neutral+24h', vote: 'BUY', confidence: confidence, reason: `RSI محايد ${rsi.toFixed(0)} مع ارتفاع ${change24h.toFixed(2)}% خلال 24 ساعة` },
-            ],
-          };
+        // RSI 40-60 = neutral zone — check if 24h change is meaningful
+        if (Math.abs(change24h) > 0.3) {
+          // Meaningful 24h change (>0.3%) — use it for direction
+          if (change24h > 0) {
+            confidence = 48;
+            return {
+              recommendation: 'BUY',
+              consensusScore: confidence,
+              masterStrategy: `تحليل تقني — RSI محايد (${rsi.toFixed(0)})، اتجاه 24h صاعد (${change24h.toFixed(2)}%). وقف خسارة قريب مطلوب.`,
+              analyses: [
+                { role: 'محلل تقني', model: 'Technical/RSI-Neutral+24h', vote: 'BUY', confidence: confidence, reason: `RSI محايد ${rsi.toFixed(0)} مع ارتفاع ${change24h.toFixed(2)}% خلال 24 ساعة` },
+              ],
+            };
+          } else {
+            confidence = 48;
+            return {
+              recommendation: 'SELL',
+              consensusScore: confidence,
+              masterStrategy: `تحليل تقني — RSI محايد (${rsi.toFixed(0)})، اتجاه 24h هابط (${change24h.toFixed(2)}%). وقف خسارة قريب مطلوب.`,
+              analyses: [
+                { role: 'محلل تقني', model: 'Technical/RSI-Neutral+24h', vote: 'SELL', confidence: confidence, reason: `RSI محايد ${rsi.toFixed(0)} مع انخفاض ${change24h.toFixed(2)}% خلال 24 ساعة` },
+              ],
+            };
+          }
         } else {
-          confidence = 48;
+          // V-PHASE1: Weak 24h change (<0.3%) + neutral RSI = NO EDGE. Return HOLD.
+          // This is the "smart waiting" that prevents overtrading in flat markets.
           return {
-            recommendation: 'SELL',
-            consensusScore: confidence,
-            masterStrategy: `تحليل تقني — RSI محايد (${rsi.toFixed(0)})، اتجاه 24h هابط (${change24h.toFixed(2)}%). وقف خسارة قريب مطلوب.`,
+            recommendation: 'HOLD',
+            consensusScore: 45,
+            masterStrategy: `سوق محايد — RSI ${rsi.toFixed(0)} وتغير 24h ضعيف (${change24h.toFixed(2)}%). لا حافة واضحة — الانتظار استراتيجية.`,
             analyses: [
-              { role: 'محلل تقني', model: 'Technical/RSI-Neutral+24h', vote: 'SELL', confidence: confidence, reason: `RSI محايد ${rsi.toFixed(0)} مع انخفاض ${change24h.toFixed(2)}% خلال 24 ساعة` },
+              { role: 'محلل تقني', model: 'Technical/Neutral', vote: 'HOLD', confidence: 45, reason: `RSI محايد ${rsi.toFixed(0)} وزخم ضعيف — لا إشارة تداول` },
             ],
           };
         }
       }
 
-      // Priority 4: ULTIMATE FALLBACK — This should now be unreachable
-      // because Priority 3 covers ALL RSI values. But keep as safety net.
-      // Use change24h sign if available, otherwise price mod for determinism.
-      let fallbackDir: 'BUY' | 'SELL';
-      if (change24h !== 0) {
-        fallbackDir = change24h > 0 ? 'BUY' : 'SELL';
-      } else {
-        const priceMod = Math.floor(currentPrice) % 2;
-        fallbackDir = priceMod === 0 ? 'BUY' : 'SELL';
-      }
-      confidence = 45; // FIX: Lowered from 50 — must match executor minConfidence=40
-      this.logger.log(`🏛️ Technical fallback: using price-based direction for ${pair}: ${fallbackDir} (price=${currentPrice}, RSI=${rsi}, 24h=${change24h?.toFixed(2) || 'N/A'}%)`);
+      // V-PHASE1: Ultimate fallback should return HOLD, not force a random direction.
+      // Previously used price modulo to pick BUY/SELL randomly — this is gambling.
+      // If we reached here with no clear signal, the correct action is to wait.
+      this.logger.debug(`🏛️ Technical fallback: no clear signal for ${pair} — returning HOLD (price=${currentPrice}, RSI=${rsi})`);
       return {
-        recommendation: fallbackDir,
-        consensusScore: confidence,
-        masterStrategy: `تحليل تقني — إشارة ضعيفة بناءً على حركة السعر. وقف خسارة قريب جداً مطلوب.`,
+        recommendation: 'HOLD',
+        consensusScore: 40,
+        masterStrategy: `لا إشارة واضحة — السوق محايد أو غير حاسم. الانتظار أفضل من التداول بدون حافة.`,
         analyses: [
-          { role: 'محلل تقني', model: 'Technical/Price-Action', vote: fallbackDir, confidence: confidence, reason: `إشارة اتجاهية ضعيفة بناءً على حركة السعر الحالية` },
+          { role: 'محلل تقني', model: 'Technical/No-Signal', vote: 'HOLD', confidence: 40, reason: `لا إشارة اتجاهية واضحة — الانتظار استراتيجية` },
         ],
       };
     } catch (err: any) {

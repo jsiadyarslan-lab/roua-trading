@@ -116,8 +116,8 @@ export async function POST(req: Request) {
 
     const pref = await db.chartPreference.upsert({
       where: { userId_symbol: { userId, symbol } },
-      update: updateData,
-      create: createData,
+      update: updateData as any,
+      create: createData as any,
     })
 
     return NextResponse.json({ success: true, data: pref })

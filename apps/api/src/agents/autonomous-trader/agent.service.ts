@@ -15,7 +15,8 @@ import { isMarketOpen } from '../../common/utils/market-hours.util';
 
 import { MarketAnalyzerService } from './services/market-analyzer.service';
 import { SignalEvaluatorService } from './services/signal-evaluator.service';
-import { RiskCalculatorService } from './services/risk-calculator.service';
+// REMOVED: RiskCalculatorService — deprecated, replaced by UnifiedRiskService (V219)
+import { UnifiedRiskService } from '../../modules/trading/services/unified-risk.service';
 import { OrderExecutorService } from './services/order-executor.service';
 import { StrategicCouncilService } from '../../modules/ai/strategic-council/strategic-council.service';
 import { TradingBriefDTO, AGENT_TIMEFRAMES, TIMEFRAME_RR, isAgentTimeframe, isSymbolSupportedByExchange } from '../../modules/ai/strategic-council/strategic-council.types';
@@ -111,7 +112,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     @Optional() private readonly tradingService: TradingService,
     private readonly marketAnalyzer: MarketAnalyzerService,
     private readonly signalEvaluator: SignalEvaluatorService,
-    private readonly riskCalculator: RiskCalculatorService,
+    private readonly unifiedRisk: UnifiedRiskService,  // V219: Unified risk — replaces RiskCalculator
     private readonly orderExecutor: OrderExecutorService,
     private readonly councilService: StrategicCouncilService,  // V145: No longer @Optional — module imports StrategicCouncilModule
     @Optional() private readonly tradeCoordination: TradeCoordinationService,  // #18: Trade coordination service
@@ -1520,7 +1521,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     }
 
     // Check if daily loss limit reached
-    const dailyLimitReached = await this.riskCalculator.isDailyLimitReached(
+    const dailyLimitReached = await this.unifiedRisk.isDailyLimitReached(
       userId,
       state.config.maxDailyLossPercent,
     );
@@ -1606,6 +1607,63 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       // ── COUNCIL-BASED EXECUTION: Execute agent briefs from the Council ──
       for (const brief of agentBriefs) {
         try {
+          // V221 FIX: Check cooldown — skip symbols that recently hit SL.
+          // The Position Monitor sets cooldown:{userId}:{symbol} after SL,
+          // but the Agent was not checking it. This caused flip-flop trades.
+          // V222: FAIL-CLOSED — if Redis check fails, SKIP the brief.
+          try {
+            const cooldownKey = `cooldown:${userId}:${brief.pair}`;
+            const cooldownReason = await this.redis.get(cooldownKey);
+            if (cooldownReason) {
+              this.logger.debug(`🧠 Skipping brief ${brief.id} — ${brief.pair} on cooldown (${cooldownReason})`);
+              continue;
+            }
+          } catch (redisErr: any) {
+            // V222 FAIL-CLOSED: If Redis is down, skip this brief for safety
+            this.logger.warn(`🧠 V222 Cooldown check failed for ${brief.pair}: ${redisErr.message} — skipping brief`);
+            continue;
+          }
+
+          // V221 FIX: Check symbol-level lockout — skip symbols that were
+          // recently closed in ANY direction. Prevents flip-flop pattern.
+          // V222: FAIL-CLOSED — if Redis check fails, SKIP the brief.
+          try {
+            const symbolLockKey = `trade-rep:symbol-lock:${userId}:${brief.pair}`;
+            const symbolLocked = await this.redis.get(symbolLockKey);
+            if (symbolLocked) {
+              this.logger.debug(`🧠 Skipping brief ${brief.id} — ${brief.pair} symbol-locked (recently closed)`);
+              continue;
+            }
+          } catch (redisErr: any) {
+            // V222 FAIL-CLOSED: If Redis is down, skip this brief for safety
+            this.logger.warn(`🧠 V222 Symbol-lock check failed for ${brief.pair}: ${redisErr.message} — skipping brief`);
+            continue;
+          }
+
+          // V222 BULLETPROOF: DB-level cooldown — skip if position was recently closed.
+          // This is independent of Redis and 100% reliable.
+          try {
+            const COOLDOWN_MINUTES = 15;
+            const recentlyClosed = await this.prisma.position.findFirst({
+              where: {
+                userId,
+                symbol: brief.pair,
+                status: { in: ['CLOSED', 'LIQUIDATED'] },
+                closedAt: { gte: new Date(Date.now() - COOLDOWN_MINUTES * 60 * 1000) },
+              },
+              orderBy: { closedAt: 'desc' },
+            });
+            if (recentlyClosed) {
+              const closedAgo = Math.round((Date.now() - new Date(recentlyClosed.closedAt!).getTime()) / 60000);
+              this.logger.debug(`🧠 V222 DB-COOLDOWN: Skipping ${brief.pair} — position closed ${closedAgo} min ago`);
+              continue;
+            }
+          } catch (dbErr: any) {
+            // V222 FAIL-CLOSED: If DB check fails, skip this brief for safety
+            this.logger.warn(`🧠 V222 DB cooldown check failed for ${brief.pair}: ${dbErr.message} — skipping brief`);
+            continue;
+          }
+
           // V141 FIX: Check for same-direction position only (not just any position).
           // Previously, if the Smart Executor had a BUY on BTC/USDT, the Agent
           // was blocked from opening its own BTC/USDT BUY on M30/H1 timeframes.
@@ -1729,7 +1787,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
             metadata: { briefId: brief.id, timeframe: brief.timeframe, source: 'council' },
           };
 
-          const risk = await this.riskCalculator.assessRisk(userId, signal, state.config);
+          const risk = await this.unifiedRisk.assessRisk(userId, signal, state.config);
 
           if (!risk.canTrade) {
             signalsRejected++;

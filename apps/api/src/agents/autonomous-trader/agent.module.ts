@@ -15,9 +15,13 @@ import { PortfolioModule } from '../../modules/portfolio/portfolio.module';
 // Agent Services
 import { MarketAnalyzerService } from './services/market-analyzer.service';
 import { SignalEvaluatorService } from './services/signal-evaluator.service';
-import { RiskCalculatorService } from './services/risk-calculator.service';
+// REMOVED: RiskCalculatorService — deprecated, replaced by UnifiedRiskService (V219)
 import { OrderExecutorService } from './services/order-executor.service';
 import { AdaptiveStrategySelectorService } from './services/adaptive-strategy-selector.service';
+import { MultiTimeframeAnalysisService } from './services/multi-timeframe-analysis.service'; // V-PHASE3
+import { SignalQualityClassifierService } from './services/signal-quality-classifier.service'; // V-PHASE4
+import { StrategyABTestingService } from './services/strategy-ab-testing.service'; // V-PHASE4
+import { RLTradeManagerService } from './services/rl-trade-manager.service'; // V-PHASE4
 import { AutonomousTraderAgentService } from './agent.service';
 
 // Agent Controller
@@ -80,20 +84,28 @@ import { AutonomousTraderAgentController, AutonomousTraderPublicController } fro
   controllers: [AutonomousTraderPublicController, AutonomousTraderAgentController],
   providers: [
     // Core Services
+    MultiTimeframeAnalysisService, // V-PHASE3: Must be before MarketAnalyzer (dependency)
     MarketAnalyzerService,
     AdaptiveStrategySelectorService,
     SignalEvaluatorService,
-    RiskCalculatorService,
     OrderExecutorService,
+    // V-PHASE4: Advanced optimization services
+    SignalQualityClassifierService,
+    StrategyABTestingService,
+    RLTradeManagerService,
     AutonomousTraderAgentService,
   ],
   exports: [
     AutonomousTraderAgentService,
     MarketAnalyzerService,
+    MultiTimeframeAnalysisService, // V-PHASE3: Export for SmartExecutor to use strategy-specific MTF
     SignalEvaluatorService,
     AdaptiveStrategySelectorService,
-    RiskCalculatorService,
     OrderExecutorService,
+    // V-PHASE4: Export for SmartExecutor and other modules
+    SignalQualityClassifierService,
+    StrategyABTestingService,
+    RLTradeManagerService,
   ],
 })
 export class AutonomousTraderAgentModule {}

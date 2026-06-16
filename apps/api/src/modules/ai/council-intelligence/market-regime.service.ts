@@ -61,11 +61,14 @@ export class MarketRegimeService {
     const price = quickData.price;
     const rsi = quickData.rsi || 50;
 
-    // Calculate indicators from klines
+    // V-PHASE2 FIX: Calculate indicators from REAL klines only.
+    // If no real klines available, return a safe default regime instead of
+    // fabricating SMA/ADX/ATR from synthetic data.
     let sma50 = price; // defaults
     let sma200 = price;
     let adx = 25;
     let atr = price * 0.02; // 2% default ATR
+    let hasRealData = false;
 
     try {
       const klines = await this._fetchKlines(symbol);
@@ -75,15 +78,52 @@ export class MarketRegimeService {
         sma200 = this._calcSMA(closes, 200);
         adx = this._calcADX(klines);
         atr = this._calcATR(klines);
+        hasRealData = true;
       } else if (klines.length >= 50) {
         const closes = klines.map(k => k.close);
         sma50 = this._calcSMA(closes, 50);
         sma200 = sma50; // Not enough data, assume equal
         adx = this._estimateADX(klines);
         atr = this._calcATR(klines);
+        hasRealData = true;
+      } else if (klines.length > 0) {
+        // Some data but not enough for reliable indicators
+        const closes = klines.map(k => k.close);
+        if (closes.length >= 14) {
+          atr = this._calcATR(klines);
+          adx = this._estimateADX(klines);
+        }
+        hasRealData = false;
       }
     } catch (error) {
       this.logger.warn(`Failed to calculate indicators for ${symbol}: ${error.message}`);
+    }
+
+    // V-PHASE2: If no real klines available, return safe default regime
+    // instead of computing regime on fabricated indicator values
+    if (!hasRealData) {
+      const safeResult: RegimeResult = {
+        regime: 'RANGE',
+        confidence: 0,
+        trendDirection: 'SIDEWAYS',
+        trendStrength: 0,
+        volatilityIndex: 50,
+        sma50: price,
+        sma200: price,
+        adx: 0,
+        atr: price * 0.02,
+        rsi,
+        recommendedAction: 'NEUTRAL',
+        rrAdjustment: 0.7,
+        regimeStartedAt: new Date(),
+      };
+
+      // Cache the safe result
+      try {
+        await this.redis.set(cacheKey, JSON.stringify(safeResult), 300 * 1000);
+      } catch { /* non-critical */ }
+
+      return safeResult;
     }
 
     // ── Regime Detection Logic ──
@@ -289,6 +329,9 @@ export class MarketRegimeService {
   // ── Private Methods ──
 
   private _getDefaultRegime(symbol: string): RegimeResult {
+    // V-PHASE-FIX: Unified default values with the inline safe result in detectRegime()
+    // Previously: adx=20, rrAdjustment=1.0 here vs adx=0, rrAdjustment=0.7 in detectRegime()
+    // Inconsistent defaults could cause different behavior depending on which code path is hit.
     return {
       regime: 'RANGE',
       confidence: 0,
@@ -297,41 +340,36 @@ export class MarketRegimeService {
       volatilityIndex: 50,
       sma50: 0,
       sma200: 0,
-      adx: 20,
+      adx: 0,            // Was 20 — unified to 0 (no data = zero ADX)
       atr: 0,
       rsi: 50,
       recommendedAction: 'NEUTRAL',
-      rrAdjustment: 1.0,
+      rrAdjustment: 0.7, // Was 1.0 — unified to 0.7 (conservative when no data)
     };
   }
 
+  // V-PHASE2 FIX: Removed _generateSyntheticKlines() entirely.
+  // Previously, when real klines were unavailable, this method generated 200 random-walk
+  // candles from the current price. ALL regime calculations on this synthetic data were
+  // essentially random — SMA50/200, ADX, ATR were all fabricated. This caused the system
+  // to detect fake BULL/BEAR regimes and trade on random noise.
+  // Now: if we can't get real klines, we return EMPTY array and the calling code
+  // will fall back to _getDefaultRegime() which returns a safe NEUTRAL/RANGE regime
+  // with zero confidence, preventing any trading on unknown market conditions.
   private async _fetchKlines(symbol: string): Promise<{ close: number; high: number; low: number }[]> {
     try {
       const data = await this.marketData.fetchQuickMarketData(symbol);
-      // MarketDataService may not return klines directly, use a simplified approach
-      // In production, this would fetch from Binance/Bybit klines endpoint
-      // For now, generate synthetic klines from current price as fallback
-      return this._generateSyntheticKlines(data.price);
-    } catch {
+      // If MarketDataService provides klines directly, use them
+      if (data && (data as any).klines && Array.isArray((data as any).klines)) {
+        return (data as any).klines;
+      }
+      // No real klines available — return empty array (NOT synthetic data)
+      this.logger.warn(`⚠️ No real klines available for ${symbol} — regime detection will use safe defaults`);
+      return [];
+    } catch (error) {
+      this.logger.warn(`Failed to fetch klines for ${symbol}: ${error.message} — regime detection will use safe defaults`);
       return [];
     }
-  }
-
-  private _generateSyntheticKlines(price: number): { close: number; high: number; low: number }[] {
-    // Generate 200 synthetic candles from current price for regime calculation
-    // This is a fallback when real klines are unavailable
-    const klines: { close: number; high: number; low: number }[] = [];
-    let p = price;
-    for (let i = 0; i < 200; i++) {
-      const change = p * (Math.random() * 0.02 - 0.01); // ±1% random walk
-      p += change;
-      klines.push({
-        close: p,
-        high: p * (1 + Math.random() * 0.005),
-        low: p * (1 - Math.random() * 0.005),
-      });
-    }
-    return klines;
   }
 
   private _calcSMA(closes: number[], period: number): number {

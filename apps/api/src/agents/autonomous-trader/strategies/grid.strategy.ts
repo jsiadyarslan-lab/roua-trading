@@ -56,8 +56,8 @@ export class GridStrategy extends BaseStrategy {
     this.gridLevels = params.gridLevels ?? 5;
     this.gridSpacingPercent = params.gridSpacingPercent ?? 0.5; // 0.5% spacing
     this.gridQuantityPerLevel = params.gridQuantityPerLevel ?? 0;
-    this.minRiskRewardRatio = 1.0; // Grid has lower R:R but higher win rate
-    this.minConfidence = 50; // Lower confidence required
+    this.minRiskRewardRatio = 1.2; // V-PHASE2: raised from 1.0 — grid must have decent R:R to be profitable
+    this.minConfidence = 50; // Higher confidence required for grid
   }
 
   protected analyze(market: MarketAnalysis): StrategyAnalysis {

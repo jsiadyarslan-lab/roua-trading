@@ -363,6 +363,14 @@ export interface AIPattern {
   shapePoints?: { time: number; price: number }[];  // Polygon vertices to draw
   shapeType?: 'polygon' | 'line' | 'zone' | 'harmonic' | 'classic';         // How to render the shape
   shapeColor?: string;                               // Fill/border color
+  // ── Extended fields for advanced pattern engines (harmonic, Elliott, etc.) ──
+  points?: { time: number; price: number }[];       // Alias for shapePoints (harmonic engines)
+  breakoutPrice?: number;                            // Price level that confirms the pattern
+  przLevel?: number;                                 // PRZ level for harmonic patterns
+  stopLoss?: number;                                 // Suggested stop loss
+  takeProfit?: number;                               // Suggested take profit
+  target?: number;                                   // Pattern price target
+  candleIndex?: number;                              // Candle index in the data array
 }
 
 // ── AI Entry/Exit Analysis ──────────────────────────────

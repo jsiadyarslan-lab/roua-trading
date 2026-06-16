@@ -9,7 +9,8 @@ import { MarketAnalysis, EvaluatedSignal, StrategyType, StrategySignal, OrderSid
  * ScalpingStrategy — High-frequency, small-profit trades
  *
  * Characteristics:
- * - Timeframe: 1-5 minute candles
+ * - Timeframe: M5 (5-minute candles) — V-PHASE3: was 1h, now uses strategy-native M5
+ * - Confirmation: M15 + H1 (multi-timeframe alignment)
  * - Holding period: Seconds to minutes
  * - Take profit: Small (5-20 pips)
  * - Stop loss: Tight (3-10 pips)
@@ -17,12 +18,20 @@ import { MarketAnalysis, EvaluatedSignal, StrategyType, StrategySignal, OrderSid
  *
  * Entry Conditions:
  * ┌─────────────────────────────────────────────────────────────┐
- * │ BUY:  RSI < 35 (oversold) + MACD bullish crossover         │
+ * │ BUY:  RSI < 40 (oversold) + MACD bullish crossover         │
  * │       + Price near lower Bollinger Band + EMA9 > EMA21     │
+ * │       + M15/H1 trend NOT bearish (MTF confirmation)        │
  * │                                                             │
- * │ SELL: RSI > 65 (overbought) + MACD bearish crossover      │
+ * │ SELL: RSI > 60 (overbought) + MACD bearish crossover      │
  * │       + Price near upper Bollinger Band + EMA9 < EMA21    │
+ * │       + M15/H1 trend NOT bullish (MTF confirmation)        │
  * └─────────────────────────────────────────────────────────────┘
+ *
+ * V-PHASE3 MTF Enhancement:
+ * - M15 trend must agree or be neutral (not oppose)
+ * - H1 trend must agree or be neutral (not oppose)
+ * - If M15/H1 oppose → strength reduced by 40%, confidence reduced
+ * - If M15/H1 align → strength boosted by 15%, confidence boosted
  *
  * Risk Management:
  * - ATR-based SL/TP (1x ATR for SL, 1.5x ATR for TP)
@@ -32,7 +41,7 @@ import { MarketAnalysis, EvaluatedSignal, StrategyType, StrategySignal, OrderSid
 export class ScalpingStrategy extends BaseStrategy {
   readonly type = StrategyType.SCALPING;
   readonly name = 'مضاربة سريعة';
-  readonly description = 'استراتيجية المضاربة السريعة — صفقات قصيرة الأجل بأرباح صغيرة متكررة';
+  readonly description = 'استراتيجية المضاربة السريعة — صفقات قصيرة الأجل بأرباح صغيرة متكررة (M5 + تأكيد M15/H1)';
 
   // Scalping-specific parameters
   private readonly maxSpreadPips: number;
@@ -64,16 +73,38 @@ export class ScalpingStrategy extends BaseStrategy {
     const bearishMACD = macd.crossover === 'BEARISH' || macd.histogram < 0;
 
     // Check Bollinger Band position (relaxed from 0.35/0.65 → 0.45/0.55 for more signals)
-    // In typical markets, BB %B oscillates between 0.3-0.7, so wider thresholds capture more
     const nearLowerBand = bollingerBands.percentB < 0.45;
     const nearUpperBand = bollingerBands.percentB > 0.55;
 
-    // REMOVED: Old spread check used ATR/price > 0.5% as a spread proxy.
-    // This was WRONG because ATR is a volatility measure, not spread.
-    // For BTC at $94,500 with ATR $500 → 0.53% → falsely rejected as "spread too wide".
-    // Real spread on crypto exchanges is typically 0.01-0.1%, far below ATR.
-    // Now we only check for EXTREME volatility (already handled in hasOpportunity).
+    // REMOVED: Old spread check — ATR is volatility, not spread
     const spreadTooWide = false;
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // V-PHASE3: MTF (Multi-Timeframe) Confirmation
+    //
+    // للمضاربة: نتحقق من أن M15 و H1 لا يعارضان الإشارة
+    // - إذا كان M15/H1 في نفس الاتجاه → تعزيز القوة (+15)
+    // - إذا كان M15/H1 محايد → لا تأثير
+    // - إذا كان M15/H1 يعارض → تقليل القوة (-40%) + تقليل الثقة
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const mtfContext = market.mtfContext;
+    let mtfBoost = 0;        // Bonus/penalty to strength
+    let mtfConfidenceAdj = 0; // Bonus/penalty to confidence
+    let mtfAlignment: StrategyAnalysis['indicators']['mtfAlignment'] = null;
+    let mtfAlignmentScore = 0;
+
+    if (mtfContext) {
+      mtfAlignment = mtfContext.mtfAlignment;
+      mtfAlignmentScore = mtfContext.mtfAlignmentScore;
+
+      // Check higher timeframes for opposition
+      for (const htf of mtfContext.higherTimeframes) {
+        // For BUY signal: H1 or M15 bearish = opposition
+        // For SELL signal: H1 or M15 bullish = opposition
+        // We only know direction after direction is determined, so we store the data
+        // and apply it below after direction is set.
+      }
+    }
 
     // Determine direction
     let direction: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
@@ -81,31 +112,67 @@ export class ScalpingStrategy extends BaseStrategy {
     let trendAlignment = false;
 
     // BUY signal: oversold + bullish indicators
-    // Relaxed: requires ANY 2 of 4 indicators (no mandatory subset)
-    // Previously required (isOversold || bullishMACD) as mandatory — too strict
     const buySignals = [isOversold, bullishMACD, nearLowerBand, bullishTrend].filter(Boolean).length;
     const sellSignals = [isOverbought, bearishMACD, nearUpperBand, bearishTrend].filter(Boolean).length;
 
-    if (buySignals >= 1) {
+    if (buySignals >= 2) {
       direction = 'BUY';
       strength = this._calculateScalpStrength(
         isOversold, bullishMACD, nearLowerBand, bullishTrend, market.aiSignal,
       );
       trendAlignment = bullishTrend;
+
+      // V-PHASE3: MTF check for BUY — is M15/H1 opposing?
+      if (mtfContext) {
+        const hasBearishOpposition = mtfContext.higherTimeframes.some(
+          htf => htf.trend === 'BEARISH' && htf.trendStrength > 40
+        );
+        const hasBullishConfirmation = mtfContext.higherTimeframes.some(
+          htf => htf.trend === 'BULLISH'
+        );
+
+        if (hasBearishOpposition) {
+          mtfBoost = -Math.round(strength * 0.4); // Reduce strength by 40%
+          mtfConfidenceAdj = -10;
+        } else if (hasBullishConfirmation) {
+          mtfBoost = 15; // Boost strength
+          mtfConfidenceAdj = 5;
+        }
+      }
     }
     // SELL signal: overbought + bearish indicators
-    else if (sellSignals >= 1) {
+    else if (sellSignals >= 2) {
       direction = 'SELL';
       strength = this._calculateScalpStrength(
         isOverbought, bearishMACD, nearUpperBand, bearishTrend, market.aiSignal,
       );
       trendAlignment = bearishTrend;
+
+      // V-PHASE3: MTF check for SELL — is M15/H1 opposing?
+      if (mtfContext) {
+        const hasBullishOpposition = mtfContext.higherTimeframes.some(
+          htf => htf.trend === 'BULLISH' && htf.trendStrength > 40
+        );
+        const hasBearishConfirmation = mtfContext.higherTimeframes.some(
+          htf => htf.trend === 'BEARISH'
+        );
+
+        if (hasBullishOpposition) {
+          mtfBoost = -Math.round(strength * 0.4); // Reduce strength by 40%
+          mtfConfidenceAdj = -10;
+        } else if (hasBearishConfirmation) {
+          mtfBoost = 15; // Boost strength
+          mtfConfidenceAdj = 5;
+        }
+      }
     }
 
-    // Lowered strength threshold from 15 → 10 to allow even subtle opportunities
+    // Apply MTF boost/penalty
+    strength = Math.max(0, Math.min(100, strength + mtfBoost));
+
     const hasOpportunity =
       direction !== 'NEUTRAL' &&
-      strength >= 10 &&
+      strength >= 20 &&
       !spreadTooWide &&
       market.volatility !== 'EXTREME';
 
@@ -121,8 +188,11 @@ export class ScalpingStrategy extends BaseStrategy {
         volumeConfirmation: market.volume24h > 0,
         rsi,
         macdCrossover: macd.crossover,
+        // V-PHASE3: MTF alignment data
+        mtfAlignment,
+        mtfAlignmentScore,
       },
-      reasoning: this._buildReasoning(direction, rsi, macd.crossover, bollingerBands.percentB, ema),
+      reasoning: this._buildReasoning(direction, rsi, macd.crossover, bollingerBands.percentB, ema, mtfContext),
       metadata: {
         strategy: 'SCALPING',
         rsi,
@@ -131,6 +201,16 @@ export class ScalpingStrategy extends BaseStrategy {
         emaCrossover: bullishTrend ? 'BULLISH' : bearishTrend ? 'BEARISH' : 'NONE',
         atr,
         spreadTooWide,
+        // V-PHASE3: MTF metadata
+        mtfAlignment: mtfAlignment || 'N/A',
+        mtfAlignmentScore,
+        mtfBoost,
+        mtfConfidenceAdj,
+        higherTimeframes: mtfContext?.higherTimeframes.map(h => ({
+          tf: h.timeframe,
+          trend: h.trend,
+          strength: h.trendStrength,
+        })) || [],
       },
     };
   }
@@ -148,14 +228,19 @@ export class ScalpingStrategy extends BaseStrategy {
       1.5, // Quick TP: 1.5x ATR
     );
 
-    const confidence = this.calculateConfidence({
-      trendAlignment: analysis.indicators.trendAlignment,
-      indicatorStrength: analysis.strength,
-      volumeConfirmation: analysis.indicators.volumeConfirmation,
-      aiSignal: market.aiSignal,
-      rsi: market.rsi,
-      macdCrossover: analysis.indicators.macdCrossover,
-    });
+    // V-PHASE3: Apply MTF confidence adjustment
+    const mtfConfidenceAdj = (analysis.metadata as any).mtfConfidenceAdj || 0;
+
+    const confidence = Math.max(0, Math.min(100,
+      this.calculateConfidence({
+        trendAlignment: analysis.indicators.trendAlignment,
+        indicatorStrength: analysis.strength,
+        volumeConfirmation: analysis.indicators.volumeConfirmation,
+        aiSignal: market.aiSignal,
+        rsi: market.rsi,
+        macdCrossover: analysis.indicators.macdCrossover,
+      }) + mtfConfidenceAdj
+    ));
 
     return {
       id: '', // Will be set by BaseStrategy.evaluate
@@ -206,6 +291,7 @@ export class ScalpingStrategy extends BaseStrategy {
     macdCrossover: string,
     bbPercentB: number,
     ema: any,
+    mtfContext?: any,
   ): string {
     const parts: string[] = [];
 
@@ -221,6 +307,14 @@ export class ScalpingStrategy extends BaseStrategy {
       if (ema.ema9 < ema.ema21) parts.push('EMA9 تحت EMA21 — اتجاه هبوطي');
     } else {
       parts.push('لا توجد فرصة واضحة');
+    }
+
+    // V-PHASE3: Add MTF reasoning
+    if (mtfContext && direction !== 'NEUTRAL') {
+      const htfSummary = mtfContext.higherTimeframes
+        .map((h: any) => `${h.timeframe}:${h.trend}`)
+        .join(', ');
+      parts.push(`أطر أعلى [${htfSummary}] — توافق: ${mtfContext.mtfAlignment}`);
     }
 
     return parts.join(' | ');

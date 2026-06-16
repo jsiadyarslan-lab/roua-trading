@@ -25,7 +25,9 @@ export abstract class BaseStrategy {
 
   protected params: StrategyParams;
   protected minRiskRewardRatio: number = 1.0; // Minimum R:R ratio (lowered from 1.2 to match risk calculator strategy-specific minimums)
-  protected minConfidence: number = 20; // Minimum confidence to generate signal (lowered from 25 — many valid signals score 20-30, especially in ranging markets)
+  protected minConfidence: number = 40; // V-PHASE1: Raised from 20 to 40 — low threshold generated too many weak signals causing losses
+  protected minIndicators: number = 2;   // V-PHASE-FIX: Minimum confirming indicators before a signal is valid (prevents weak single-indicator signals)
+  protected minStrength: number = 20;    // V-PHASE-FIX: Minimum signal strength before a signal is valid (prevents near-zero strength signals)
 
   constructor(params: StrategyParams) {
     this.params = params;
@@ -64,6 +66,23 @@ export abstract class BaseStrategy {
 
     // Step 7: Validate minimum confidence
     if (signal.confidence < this.minConfidence) {
+      return null;
+    }
+
+    // Step 7.1: V-PHASE-FIX: Validate minimum signal strength from analysis
+    if (analysis.strength < this.minStrength) {
+      return null;
+    }
+
+    // Step 7.2: V-PHASE-FIX: Validate minimum confirming indicators
+    const ind = analysis.indicators;
+    const confirmingCount = [
+      ind.trendAlignment,
+      ind.volumeConfirmation,
+      ind.rsi !== undefined,
+      ind.macdCrossover !== undefined && ind.macdCrossover !== 'NONE',
+    ].filter(Boolean).length;
+    if (confirmingCount < this.minIndicators) {
       return null;
     }
 
@@ -234,6 +253,9 @@ export interface StrategyAnalysis {
     volumeConfirmation: boolean;
     rsi?: number;
     macdCrossover?: 'BULLISH' | 'BEARISH' | 'NONE';
+    // V-PHASE3: MTF alignment — whether higher timeframes confirm this signal
+    mtfAlignment?: 'ALIGNED_BULLISH' | 'ALIGNED_BEARISH' | 'MIXED' | 'NEUTRAL' | null;
+    mtfAlignmentScore?: number; // 0-100
   };
   reasoning: string;
   metadata: Record<string, any>;

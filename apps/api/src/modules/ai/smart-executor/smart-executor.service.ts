@@ -38,7 +38,8 @@ import { StrategicCouncilService } from '../strategic-council/strategic-council.
 import { TradingBriefDTO, StrictRules, EXECUTOR_TIMEFRAMES, isExecutorTimeframe, isSymbolSupportedByExchange } from '../strategic-council/strategic-council.types';
 import { ExecutorStatus, ExecutionResult, ExecutorConfig, UserExecutorState } from './smart-executor.types';
 import { PlaceOrderRequest, OrderSide, OrderType } from '../../trading/trading.types';
-import { RiskGatekeeperService } from '../../trading/services/risk-gatekeeper.service';
+// REMOVED: RiskGatekeeperService — deprecated, replaced by UnifiedRiskService (V219)
+import { UnifiedRiskService } from '../../trading/services/unified-risk.service';
 import { AIOrchestratorService } from '../services/ai-orchestrator.service';
 import { OrderSideEnum, OrderTypeEnum } from '../../trading/events/order.events';
 import { NotificationService } from '../../notification/notification.service';
@@ -101,7 +102,7 @@ export class SmartExecutorService implements OnModuleDestroy {
     private readonly audit: AuditService,
     private readonly tradingService: TradingService,
     private readonly councilService: StrategicCouncilService,
-    private readonly riskGatekeeper: RiskGatekeeperService,
+    private readonly unifiedRisk: UnifiedRiskService,  // V219: Unified risk — replaces RiskGatekeeper
     private readonly notificationService: NotificationService,
     // FIX: Removed @Inject(forwardRef(...)) — SmartExecutorModule already imports
     // AiModule via forwardRef, so AIOrchestratorService is available without
@@ -251,6 +252,24 @@ export class SmartExecutorService implements OnModuleDestroy {
       //
       // Instead: Only delete states that have enabled=false (already disabled).
       try {
+        // V-PHASE-FIX: Clean up colon-corrupted DB entries caused by the bug in line 430.
+        // The old code: state.key.replace('SMART_EXECUTOR_USER_STATE', '') left the ':'
+        // separator, so userId became ':realId', and was stored back to DB with key
+        // 'SMART_EXECUTOR_USER_STATE::realId'. After N restarts, keys accumulate N colons.
+        // We delete entries where the key contains '::' (double+ colons after the prefix).
+        try {
+          const corruptedStates = await this.prisma.setting.deleteMany({
+            where: {
+              key: { startsWith: `${this.DB_USER_STATE_KEY}::` },
+            },
+          });
+          if (corruptedStates.count > 0) {
+            this.logger.log(`⚔️ STARTUP: Cleaned up ${corruptedStates.count} colon-corrupted DB executor state(s)`);
+          }
+        } catch (cleanErr: any) {
+          this.logger.warn(`⚔️ Failed to clean corrupted DB states: ${cleanErr.message}`);
+        }
+
         const disabledStates = await this.prisma.setting.deleteMany({
           where: {
             key: { startsWith: this.DB_USER_STATE_KEY },
@@ -427,7 +446,13 @@ export class SmartExecutorService implements OnModuleDestroy {
 
           for (const state of enabledStates) {
             try {
-              const userId = state.key.replace(this.DB_USER_STATE_KEY, '');
+              // V-PHASE-FIX: Include the colon separator in replace() to prevent
+              // colon accumulation bug. Old: replace('SMART_EXECUTOR_USER_STATE', '')
+              // left the colon → userId became ':realId' → Redis key 'smart-executor:user::realId'
+              // → next restart reads back ':realId' → writes 'smart-executor:user:::realId' etc.
+              // After N restarts: N colons prefixed, creating phantom users and preventing
+              // credential lookup (DB has userId='realId', executor queries ':realId').
+              const userId = state.key.replace(`${this.DB_USER_STATE_KEY}:`, '');
               const stateData = JSON.parse(state.value);
 
               // Re-populate Redis from DB
@@ -1765,11 +1790,37 @@ export class SmartExecutorService implements OnModuleDestroy {
         userMaxDailyLossPercent = riskSettings.maxDailyLossPercent;
       } catch { /* use default */ }
 
-      if (portfolio > 0 && userState.dailyPnL < -(portfolio * userMaxDailyLossPercent / 100)) {
+      // V-PHASE3 FIX: Check COMBINED daily PnL from ALL sources, not just the executor's own PnL.
+      // Previously: `userState.dailyPnL` only tracked the executor's trades.
+      // The Agent tracks its own daily PnL separately via `_getAgentDailyPnL()`.
+      // This meant each system allowed 5% independently = 10% combined daily loss.
+      // Now: query ALL trade sources (executor + agent + manual) for this user today,
+      // and check against the single unified limit.
+      let combinedDailyPnL = userState.dailyPnL; // Start with executor's in-memory tracking
+      try {
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const allTodayTrades = await this.prisma.trade.findMany({
+          where: {
+            userId,
+            type: { in: ['EXIT', 'PARTIAL_EXIT'] },
+            executedAt: { gte: startOfDay },
+            pnl: { not: null },
+          },
+          select: { pnl: true, source: true },
+        });
+        combinedDailyPnL = allTodayTrades.reduce((sum, t) => sum + (Number(t.pnl) || 0), 0);
+      } catch (dbErr: any) {
+        // Fallback to executor-only PnL if DB query fails
+        this.logger.warn(`⚔️ V-PHASE3: Could not query combined daily PnL for ${userId}: ${dbErr.message} — using executor-only PnL`);
+        combinedDailyPnL = userState.dailyPnL;
+      }
+
+      if (portfolio > 0 && combinedDailyPnL < -(portfolio * userMaxDailyLossPercent / 100)) {
         const lossLimit = (portfolio * userMaxDailyLossPercent / 100).toFixed(2);
         this.logger.warn(
-          `⚔️ HARD STOP: User ${userId} hit daily loss limit ` +
-          `(P&L: $${userState.dailyPnL.toFixed(2)} < -$${lossLimit} = ${userMaxDailyLossPercent}% of $${portfolio.toFixed(2)}) ` +
+          `⚔️ HARD STOP: User ${userId} hit UNIFIED daily loss limit ` +
+          `(Combined P&L: $${combinedDailyPnL.toFixed(2)} < -$${lossLimit} = ${userMaxDailyLossPercent}% of $${portfolio.toFixed(2)}) ` +
           `— DISABLING executor and sending notification`
         );
 
@@ -1856,18 +1907,46 @@ export class SmartExecutorService implements OnModuleDestroy {
     //   2. Log the REAL reason trades are being blocked
     //   3. Give the user clear feedback about which limit is binding
     // ═══════════════════════════════════════════════════════════════════
-    const rgParams = this.riskGatekeeper.getRiskParameters();
+    const rgParams = this.unifiedRisk.getRiskParameters();
     const rgMaxPositions = rgParams.maxOpenPositions;
     const effectiveMaxPositions = Math.min(executorMaxPositions, rgMaxPositions);
 
-    // V176 FIX: Check cooldown before opening any new positions.
+    // V176/V221/V222 FIX: Check cooldown + symbol-lock + DB cooldown before opening any new positions.
     // Issue #11: After TIME_EXPIRED/STOP_LOSS auto-close, the SmartExecutor
     // immediately re-opened the same position, creating trades every 8-10 seconds.
-    // The position monitor now sets a 5-minute cooldown per userId+symbol.
-    // We must check this cooldown before processing any briefs.
+    // V221: Also check symbol-level lockout (blocks BOTH directions after any close).
+    // V222: Also check DB-level cooldown (100% reliable, no Redis dependency).
     try {
       const cooldownBriefs: string[] = [];
       for (const brief of briefs) {
+        // V222 BULLETPROOF: DB-level cooldown — checked FIRST, before Redis.
+        // This is 100% reliable regardless of Redis availability.
+        try {
+          const COOLDOWN_MINUTES = 15;
+          const recentlyClosed = await this.prisma.position.findFirst({
+            where: {
+              userId,
+              symbol: brief.pair,
+              status: { in: ['CLOSED', 'LIQUIDATED'] },
+              closedAt: { gte: new Date(Date.now() - COOLDOWN_MINUTES * 60 * 1000) },
+            },
+            orderBy: { closedAt: 'desc' },
+          });
+          if (recentlyClosed) {
+            this.logger.debug(
+              `⏳ V222 DB-COOLDOWN: Skipping ${brief.pair} for user ${userId} — position closed recently`,
+            );
+            cooldownBriefs.push(brief.pair);
+            continue;
+          }
+        } catch (dbErr: any) {
+          // V222 FAIL-CLOSED: If DB check fails, block this brief
+          this.logger.warn(`V222 DB cooldown check failed for ${brief.pair}: ${dbErr.message} — blocking brief`);
+          cooldownBriefs.push(brief.pair);
+          continue;
+        }
+
+        // Check Position Monitor cooldown (set after SL/TP auto-close)
         const cooldownKey = `cooldown:${userId}:${brief.pair}`;
         const cooldownReason = await this.redis.get(cooldownKey);
         if (cooldownReason) {
@@ -1875,22 +1954,38 @@ export class SmartExecutorService implements OnModuleDestroy {
             `⏳ V176 COOLDOWN: Skipping ${brief.pair} for user ${userId} — cooldown active (reason: ${cooldownReason})`,
           );
           cooldownBriefs.push(brief.pair);
+          continue;
+        }
+        // V221: Check symbol-level lockout (set after ANY position close — manual or auto)
+        // This prevents flip-flop: BUY → close → SELL immediately
+        const symbolLockKey = `trade-rep:symbol-lock:${userId}:${brief.pair}`;
+        const symbolLocked = await this.redis.get(symbolLockKey);
+        if (symbolLocked) {
+          this.logger.debug(
+            `⏳ V221 SYMBOL-LOCK: Skipping ${brief.pair} for user ${userId} — symbol locked (recently closed)`,
+          );
+          cooldownBriefs.push(brief.pair);
+          continue;
         }
       }
-      // Filter out briefs that are in cooldown
+      // Filter out briefs that are in cooldown or symbol-locked
       if (cooldownBriefs.length > 0) {
         const before = briefs.length;
         briefs = briefs.filter(b => !cooldownBriefs.includes(b.pair));
         this.logger.debug(
-          `⏳ V176: Filtered ${cooldownBriefs.length} cooldown briefs (${before} → ${briefs.length} remaining)`,
+          `⏳ V176+V221: Filtered ${cooldownBriefs.length} blocked briefs (${before} → ${briefs.length} remaining)`,
         );
         if (briefs.length === 0) {
-          this.logger.debug(`⏳ V176: All briefs for user ${userId} are in cooldown — skipping cycle`);
+          this.logger.debug(`⏳ All briefs for user ${userId} are blocked — skipping cycle`);
           return;
         }
       }
     } catch (cooldownErr: any) {
-      this.logger.warn(`V176 Cooldown check failed: ${cooldownErr.message} — continuing without cooldown check`);
+      // V222 FIX: FAIL-CLOSED — if cooldown check fails, SKIP ALL briefs for safety.
+      // Previously this was fail-open ("continuing without cooldown check"), meaning
+      // if Redis was down, ALL briefs would pass through — enabling flip-flop trades.
+      this.logger.error(`V222 Cooldown check failed: ${cooldownErr.message} — SKIPPING all briefs for safety`);
+      return;
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -2637,7 +2732,7 @@ export class SmartExecutorService implements OnModuleDestroy {
             result.error?.includes('POSITION_SIZE_LIMIT') ||
             result.error?.includes('الحد الأقصى');
           if (isPositionLimitRejection) {
-            const rgParams = this.riskGatekeeper.getRiskParameters();
+            const rgParams = this.unifiedRisk.getRiskParameters();
             const totalPos = await this.prisma.position.count({
               where: { userId, status: 'OPEN', entryPrice: { gt: 0 } },
             }).catch(() => -1);
@@ -3008,17 +3103,62 @@ export class SmartExecutorService implements OnModuleDestroy {
         return result;
       }
 
-      // V146d: On SPOT exchanges, SELL requires owning the base currency.
-      // You can't short-sell on spot — only sell what you already hold.
-      // The Executor opens NEW positions, so SELL on spot = "go short" which
-      // is impossible without margin/futures. Skip these briefs entirely.
+      // V-PHASE3 FIX: Improved SELL handling on spot exchanges.
+      // OLD: Blocked ALL SELL briefs on non-Alpaca spot exchanges — this meant the
+      // system could ONLY profit from bullish moves, missing 50% of market opportunities.
+      //
+      // NEW: Smart SELL handling based on whether the user actually holds the asset:
+      // 1. If user has an OPEN BUY position for this symbol → SELL = closing position (ALLOWED)
+      // 2. If exchange supports futures/margin → SELL = short selling (ALLOWED)
+      // 3. If user doesn't hold the asset AND exchange is spot-only → SELL = short (BLOCKED)
+      //
+      // This allows profit-taking on existing positions while still preventing
+      // impossible short sells on pure spot accounts.
       if (!isSimulatedExecution && brief.direction === 'SELL' &&
           credential.exchange !== 'alpaca') { // Alpaca supports short on stocks
-        this.logger.debug(
-          `⚔️ Skipping SELL brief ${brief.id} — ${brief.pair} SELL not possible on spot exchange ${credential.exchange}`,
-        );
-        result.error = `بيع ${brief.pair} غير ممكن على حساب سبوت — يحتاج حساب مارجن/فيوتشر`;
-        return result;
+
+        // Check if user has an open BUY position for this symbol (closing = allowed)
+        let hasExistingPosition = false;
+        try {
+          const existingPosition = await this.prisma.position.findFirst({
+            where: {
+              userId,
+              symbol: brief.pair,
+              status: 'OPEN',
+              side: 'BUY',
+            },
+          });
+          hasExistingPosition = !!existingPosition;
+        } catch { /* assume no position for safety */ }
+
+        // Check if exchange supports futures/margin (short selling possible)
+        const exchangeSupportsShort = (() => {
+          const ex = credential.exchange.toLowerCase();
+          // Exchanges that support futures/margin trading where short selling is possible
+          return ex.includes('futures') || ex.includes('margin') ||
+                 ex.includes('bybit') || ex.includes('okx') ||
+                 ex.includes('bitget') || ex.includes('gate') ||
+                 ex.includes('huobi') || ex.includes('kucoin') ||
+                 ex === 'mt5' || ex === 'mt5_demo' || ex === 'metatrader5';
+        })();
+
+        if (!hasExistingPosition && !exchangeSupportsShort) {
+          this.logger.debug(
+            `⚔️ Skipping SELL brief ${brief.id} — ${brief.pair} short sell not possible on spot exchange ${credential.exchange} (no existing BUY position)`,
+          );
+          result.error = `بيع ${brief.pair} غير ممكن — لا يوجد مركز شراء مفتوح وحساب سبوت لا يدعم البيع المكشوف`;
+          return result;
+        }
+
+        if (hasExistingPosition) {
+          this.logger.log(
+            `⚔️ SELL brief ${brief.id} allowed — closing existing BUY position for ${brief.pair}`,
+          );
+        } else if (exchangeSupportsShort) {
+          this.logger.log(
+            `⚔️ SELL brief ${brief.id} allowed — exchange ${credential.exchange} supports short selling`,
+          );
+        }
       }
 
       this.logger.log(
@@ -3176,13 +3316,13 @@ export class SmartExecutorService implements OnModuleDestroy {
       let quantity = posResult.quantityUnits;
       let lots = posResult.quantityLots;
 
-      // V180 FIX: Cap by max order value — SAME limit for paper and real (2%).
-      // Previously paper was 5% which allowed positions of 86% of portfolio.
-      // Paper trading must enforce the same risk discipline as real trading
-      // so that test results reflect real-world behavior.
-      // V219: Removed $200 hard cap — it was too restrictive for larger accounts.
-      // A $50K account at 2% = $1,000 but was capped at $200. Now purely percentage-based.
-      const maxOrderValue = portfolioValue * 0.02;
+      // V180 FIX: Cap by max order value — SAME limit for paper and real.
+      // V-PHASE1: Lowered from 2% to 1% max risk per trade. The 2% cap allowed
+      // oversized positions (e.g., DOGE $8,465 = 86% of portfolio) because with
+      // multiple multipliers (confidence, dynamic, correlation, MTF), the effective
+      // position could exceed 2% of portfolio after all multipliers. 1% hard cap
+      // prevents catastrophic single-trade losses.
+      const maxOrderValue = portfolioValue * 0.01;
 
       if (posResult.notional > maxOrderValue) {
         // Reduce quantity to fit within max order value
@@ -3809,9 +3949,9 @@ export class SmartExecutorService implements OnModuleDestroy {
               const riskAmount = Math.max(portfolioValue * riskPercent, 10);
               const priceRisk = Math.abs(testPrice - testBrief.stopLoss);
 
-              // Run RiskGatekeeper
+              // V219: Use UnifiedRiskService instead of RiskGatekeeper
               try {
-                const riskResult = await this.riskGatekeeper.validateOrder({
+                const riskResult = await this.unifiedRisk.validateOrder({
                   userId: testUserId,
                   exchangeCredentialId: cred.id,
                   symbol: testBrief.pair,

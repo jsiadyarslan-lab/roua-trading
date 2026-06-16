@@ -87,6 +87,26 @@ export class TradingController {
   }
 
   /**
+   * V234: Check for existing open position on the same symbol.
+   * Prevents duplicate positions from being created when users click Buy/Sell
+   * multiple times. This check is done BEFORE creating the order record, so
+   * rejected orders don't leave orphan entries in the DB.
+   *
+   * Returns the existing position if found, or null if no conflict.
+   */
+  private async _findExistingOpenPosition(userId: string, symbol: string): Promise<any | null> {
+    try {
+      // Use the tradingService's prisma instance to query positions
+      return await (this.tradingService as any).prisma.position.findFirst({
+        where: { userId, symbol, status: 'OPEN' },
+      });
+    } catch {
+      // If query fails, allow the trade (fail-open for non-critical check)
+      return null;
+    }
+  }
+
+  /**
    * #18: Check if the V2 pipeline (idempotency + state manager + BullMQ) is available.
    */
   private _isV2Available(): boolean {
@@ -240,6 +260,18 @@ export class TradingController {
     req: any,
     res: Response,
   ) {
+    // V234: Block duplicate positions on the same symbol BEFORE creating the order.
+    // This is the same check that OrderDispatcher does for V1 manual trades.
+    // Without this, clicking Buy 3 times on BTC creates 3 separate DB positions
+    // that all appear as one (due to UI dedup by symbol), then show up one-by-one
+    // as the user closes them.
+    const existingPosition = await this._findExistingOpenPosition(userId, request.symbol);
+    if (existingPosition) {
+      throw new ConflictException(
+        `يوجد مركز ${existingPosition.side} مفتوح لـ ${request.symbol} — لا يمكن فتح مركز آخر على نفس الزوج. أغلق المركز الحالي أولاً.`,
+      );
+    }
+
     // ── Step 1: Check idempotency (if key provided) ──
     const idempotencyKey = (body as any).idempotencyKey ||
       `v1-${userId}-${request.symbol}-${request.side}-${request.type}-${request.quantity}-${request.price || 'market'}-${Math.floor(Date.now() / 1000)}`;

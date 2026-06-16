@@ -96,6 +96,25 @@ export class OrderController {
 
     this._validateOrderBusinessLogic(body);
 
+    // V234: Block duplicate positions on the same symbol BEFORE creating the order.
+    // Prevents users from opening 3 BTC positions by clicking Buy 3 times.
+    // The UI dedupes by symbol (shows 1), but DB has 3 — causing the
+    // "close one, another appears" phantom behavior.
+    try {
+      // Access prisma via the unifiedRisk service (which has it injected)
+      const existingPosition = await (this.unifiedRisk as any).prisma.position.findFirst({
+        where: { userId, symbol: body.symbol, status: 'OPEN' },
+      });
+      if (existingPosition) {
+        throw new ConflictException(
+          `يوجد مركز ${existingPosition.side} مفتوح لـ ${body.symbol} — لا يمكن فتح مركز آخر على نفس الزوج. أغلق المركز الحالي أولاً.`,
+        );
+      }
+    } catch (e: any) {
+      if (e instanceof ConflictException) throw e;
+      // If prisma query fails, allow the trade (fail-open)
+    }
+
     // ── Step 2: Check idempotency ──
     const isUnique = await this.idempotencyService.checkAndLock(body.idempotencyKey);
     if (!isUnique) {

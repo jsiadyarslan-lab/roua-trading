@@ -60,8 +60,11 @@ export class TradingService {
     private readonly unifiedRisk: UnifiedRiskService,  // V219: Unified risk — replaces RiskManager
     private readonly auditService: AuditService,
     @Optional() private readonly executionGateway?: ExecutionGatewayService, // V226: MT5 execution (optional = safe)
-    // V223: StrategicCouncilService — @Optional + forwardRef to break circular DI.
-    // Used to invalidate briefs at the source on position close (flip-flop root-cause fix).
+    // V223: StrategicCouncilService — @Global() module provides this. Was @Optional()
+    // before V223.1, which caused silent undefined → brief cancellation never ran.
+    // Still marked @Optional() because TypeScript requires optional params after required ones,
+    // but at runtime DI will always provide it (module is @Global). If DI ever breaks,
+    // the invalidateBriefsForSymbol call will throw loudly inside the try/catch.
     @Optional() @Inject(forwardRef(() => StrategicCouncilService))
     private readonly strategicCouncil?: StrategicCouncilService,
   ) {
@@ -1306,6 +1309,8 @@ export class TradingService {
     try {
       if (this.strategicCouncil?.invalidateBriefsForSymbol) {
         await this.strategicCouncil.invalidateBriefsForSymbol(position.symbol, 'MANUAL_CLOSE');
+      } else {
+        this.logger.error(`❌ V223: strategicCouncil is undefined in trading.service — brief cancellation SKIPPED. This should never happen with @Global() module.`);
       }
     } catch (err: any) {
       // Non-critical — brief invalidation failure must not block close

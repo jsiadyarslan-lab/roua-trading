@@ -82,8 +82,13 @@ export class PositionMonitorService {
     // V185: مجلس الذكاء — @Optional حتى لا يفشل إذا لم يكن الموديول متاحاً
     @Optional() private readonly journal?: TradeJournalService,
     @Optional() private readonly selfHealing?: SelfHealingService,
-    // V223: StrategicCouncilService — @Optional + @Inject(forwardRef) to avoid circular dependency
-    @Optional() @Inject(forwardRef(() => StrategicCouncilService)) private readonly strategicCouncil?: StrategicCouncilService,
+    // V223: StrategicCouncilService — @Global() module provides this. Was @Optional()
+    // before V223.1, which caused silent undefined → brief cancellation never ran.
+    // Still marked @Optional() because TypeScript requires optional params after required ones,
+    // but at runtime DI will always provide it (module is @Global). If DI ever breaks,
+    // the invalidateBriefsForSymbol call will throw loudly inside the try/catch.
+    @Optional() @Inject(forwardRef(() => StrategicCouncilService))
+    private readonly strategicCouncil?: StrategicCouncilService,
   ) {
     this.logger.log('🛡️ Position Monitor initialized — protective surveillance active' + (this.journal ? ' + TradeJournal' : '') + (this.selfHealing ? ' + SelfHealing' : '') + (this.strategicCouncil ? ' + V223 BriefInvalidation' : ''));
   }
@@ -892,12 +897,14 @@ export class PositionMonitorService {
       // V223 FIX: Cancel ALL active briefs for this symbol so the stale brief
       // can't re-fire after the cooldown/processedKey TTL expires. This is
       // the root-cause fix for the flip-flop pattern (BUY→SL→SELL→SL→BUY).
-      if (this.strategicCouncil?.invalidateBriefsForSymbol) {
-        try {
+      try {
+        if (this.strategicCouncil?.invalidateBriefsForSymbol) {
           await this.strategicCouncil.invalidateBriefsForSymbol(position.symbol, `POSITION_CLOSED_${reason}`);
-        } catch (err: any) {
-          this.logger.warn(`⚠️ V223 brief invalidation failed for ${position.symbol}: ${err?.message || err}`);
+        } else {
+          this.logger.error(`❌ V223: strategicCouncil is undefined in position-monitor — brief cancellation SKIPPED. This should never happen with @Global() module.`);
         }
+      } catch (err: any) {
+        this.logger.warn(`⚠️ V223 brief invalidation failed for ${position.symbol}: ${err?.message || err}`);
       }
 
       // V176: Record the trade closed event for real-time performance monitoring

@@ -125,6 +125,36 @@ export class OrderDispatcherService {
         return { success: false, message: `يوجد مركز ${existing.side} مفتوح لـ ${request.symbol} (${existing.source}) — لا يمكن فتح مركز آخر على نفس الزوج` };
       }
 
+      // ═══════════════════════════════════════════════════════════
+      // V221-HOTFIX: DB-level cooldown — check recently CLOSED positions.
+      //
+      // PROBLEM: Redis-based symbol-lock was not preventing immediate re-open
+      // after manual close. Root cause unclear (Redis timing? deploy lag?).
+      // This DB query is BULLETPROOF — it checks the actual position records
+      // and blocks any new position on a symbol that was closed within the
+      // last 15 minutes, regardless of direction or source.
+      //
+      // This is the FINAL safety net — even if all Redis checks fail,
+      // this DB check will prevent flip-flop trades.
+      // ═══════════════════════════════════════════════════════════
+      const COOLDOWN_MINUTES = 15;
+      const recentlyClosed = await this.prisma.position.findFirst({
+        where: {
+          userId: request.userId,
+          symbol: request.symbol,
+          status: { in: ['CLOSED', 'LIQUIDATED'] },
+          closedAt: { gte: new Date(Date.now() - COOLDOWN_MINUTES * 60 * 1000) },
+        },
+        orderBy: { closedAt: 'desc' },
+      });
+      if (recentlyClosed) {
+        const closedAgo = Math.round((Date.now() - new Date(recentlyClosed.closedAt!).getTime()) / 60000);
+        await this.idempotency.releaseLock(sourceIdempotencyKey);
+        try { await this.idempotency.releaseLock(symbolSourceIdempotencyKey); } catch {}
+        this.logger.warn(`🛡️ V221 DB-COOLDOWN: Blocked ${request.source} ${request.side} on ${request.symbol} — position closed ${closedAgo} min ago (cooldown: ${COOLDOWN_MINUTES} min)`);
+        return { success: false, message: `تم إغلاق مركز على ${request.symbol} قبل ${closedAgo} دقيقة — انتظر ${COOLDOWN_MINUTES - closedAgo} دقيقة قبل فتح مركز جديد` };
+      }
+
       const command: OrderCommand = {
         userId: request.userId,
         exchangeCredentialId: request.credentialId,

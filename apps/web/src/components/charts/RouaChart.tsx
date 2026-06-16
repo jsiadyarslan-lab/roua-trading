@@ -2589,7 +2589,7 @@ export default function RouaChart({
   // ── Chart Trading Order Handler ────────────────────────
   const [orderError, setOrderError] = useState<string | null>(null);
   
-  const handlePlaceOrder = useCallback((order: any) => {
+  const handlePlaceOrder = useCallback(async (order: any) => {
     // Validate SL/TP placement
     if (order.side === 'buy') {
       if (order.sl && order.sl >= order.entryPrice) {
@@ -2615,11 +2615,48 @@ export default function RouaChart({
       }
     }
 
-    // Place order via paper trades store
+    // V229 UNIFIED EXECUTION: Send order to backend (NestJS) via /api/trading/orders
+    // Previously, this handler only recorded the trade in the local Zustand store
+    // (usePaperTradesStore), which meant:
+    //   1. Trade was NOT persisted in DB (lost on F5)
+    //   2. Trade was NOT monitored by PositionMonitor (V228 fix did not apply)
+    //   3. Trade bypassed UnifiedRiskService validation
+    //   4. Trade did not appear in the Positions page
+    //
+    // Now: We send the order to the SAME backend endpoint used by QuickExecutionMini.
+    // The backend handles: risk checks, idempotency, paper/real execution, DB persistence,
+    // and the order becomes visible to PositionMonitor (so V228 TP/SL peak capture applies).
+    //
+    // We still call addPaperTrade() as an OPTIMISTIC UPDATE so the chart UI reflects
+    // the new position immediately (before the backend response arrives).
+
     // FIX: Use last candle close as fallback if entryPrice is 0 (e.g. user didn't fill the field)
     const lastClose = candlesRef.current[candlesRef.current.length - 1]?.close || 0;
     const resolvedEntryPrice = (order.entryPrice && order.entryPrice > 0) ? order.entryPrice : lastClose;
 
+    // V229: Get the user's active credentialId from usePositionsStore.
+    // This is the same source used by the rest of the dashboard (PortfolioMini, SmartExecutorPanel, etc.)
+    // If the user has not selected an active account in Settings, we cannot submit to the backend
+    // because /api/trading/orders requires credentialId.
+    const activeCredentialId = usePositionsStore.getState().activeCredentialId;
+    if (!activeCredentialId) {
+      setOrderError('⚠️ يرجى اختيار حساب تداول نشط في الإعدادات أولاً');
+      setTimeout(() => setOrderError(null), 5000);
+      return;
+    }
+
+    // V229: Stop-loss is MANDATORY in the backend (UnifiedRiskService check #1).
+    // If the user did not provide SL, block the order early with a clear message
+    // instead of letting the backend reject it with a generic 400.
+    if (!order.sl || Number(order.sl) <= 0) {
+      setOrderError('⚠️ وقف الخسارة إجباري — يرجى تحديده قبل التنفيذ');
+      setTimeout(() => setOrderError(null), 5000);
+      return;
+    }
+
+    // ── Optimistic UI update: record locally so chart reflects the trade immediately ──
+    // This mirrors what QuickExecutionMini does — local state is updated regardless of
+    // backend outcome, and the backend response reconciles the canonical record.
     const { addTrade } = usePaperTradesStore.getState();
     addTrade({
       symbol: selectedSymbol_,
@@ -2634,8 +2671,43 @@ export default function RouaChart({
       source: 'manual',
     });
 
-    console.log('Chart order placed:', order);
-  }, [selectedSymbol_]);
+    // ── Submit to backend ──
+    try {
+      const body: Record<string, any> = {
+        credentialId: activeCredentialId,
+        symbol:       selectedSymbol_,
+        side:         order.side === 'buy' ? 'BUY' : 'SELL',
+        type:         'MARKET',
+        quantity:     Number(order.quantity),
+        stopLoss:     Number(order.sl),
+      };
+      if (order.tp && Number(order.tp) > 0) body.takeProfit = Number(order.tp);
+      if (resolvedEntryPrice && resolvedEntryPrice > 0) body.price = resolvedEntryPrice;
+
+      const res = await fetch('/api/trading/orders', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(body),
+      });
+      const j = await res.json().catch(() => ({} as any));
+
+      if (j.success !== false && res.ok) {
+        setOrderError(`✅ تم تنفيذ ${order.side === 'buy' ? 'شراء' : 'بيع'} ${order.quantity} ${selectedSymbol_}`);
+        setTimeout(() => setOrderError(null), 3500);
+        // Refresh positions store so the new position appears in the Positions page
+        try { usePositionsStore.getState().refreshAfterTrade?.(); } catch { /* non-critical */ }
+      } else {
+        // Backend rejected the order — show the error but keep the optimistic local entry
+        // (user can see it on the chart even if the backend rejected, matching QuickExecutionMini behavior)
+        const reason = j.message || j.error || j.reason || 'فشل تنفيذ الأمر';
+        setOrderError(`⚠️ ${reason}`);
+        setTimeout(() => setOrderError(null), 6000);
+      }
+    } catch (err: any) {
+      setOrderError(`⚠️ خطأ في الاتصال: ${err?.message || err}`);
+      setTimeout(() => setOrderError(null), 6000);
+    }
+  }, [selectedSymbol_, tc]);
 
   // ── Fetch Active Trading Signals (signalMarkers declared above) ──
   useEffect(() => {

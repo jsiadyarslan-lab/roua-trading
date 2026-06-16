@@ -2778,6 +2778,43 @@ export class TradingService {
           };
       }
 
+      // V236: Place REAL Stop-Loss and Take-Profit orders on Binance (V1 path).
+      // Same logic as binance.adapter.ts — after market order fills, place
+      // STOP_LOSS_LIMIT and TAKE_PROFIT_LIMIT as separate exchange orders.
+      // Non-blocking: if placement fails, PositionMonitor (V228) is the fallback.
+      if (request.stopLoss && request.stopLoss > 0) {
+        try {
+          const closeSide = request.side === 'BUY' ? 'sell' : 'buy';
+          await exchange.createOrder(
+            request.symbol,
+            'STOP_LOSS_LIMIT',
+            closeSide,
+            request.quantity,
+            request.stopLoss,
+            { stopPrice: request.stopLoss, type: 'STOP_LOSS_LIMIT' },
+          );
+          this.logger.log(`🛡️ V236: STOP_LOSS_LIMIT placed at ${request.stopLoss} for ${request.symbol}`);
+        } catch (slErr: any) {
+          this.logger.warn(`⚠️ V236: STOP_LOSS_LIMIT failed for ${request.symbol}: ${slErr.message} — PositionMonitor fallback active`);
+        }
+      }
+      if (request.takeProfit && request.takeProfit > 0) {
+        try {
+          const closeSide = request.side === 'BUY' ? 'sell' : 'buy';
+          await exchange.createOrder(
+            request.symbol,
+            'TAKE_PROFIT_LIMIT',
+            closeSide,
+            request.quantity,
+            request.takeProfit,
+            { stopPrice: request.takeProfit, type: 'TAKE_PROFIT_LIMIT' },
+          );
+          this.logger.log(`🎯 V236: TAKE_PROFIT_LIMIT placed at ${request.takeProfit} for ${request.symbol}`);
+        } catch (tpErr: any) {
+          this.logger.warn(`⚠️ V236: TAKE_PROFIT_LIMIT failed for ${request.symbol}: ${tpErr.message} — PositionMonitor fallback active`);
+        }
+      }
+
       return {
         success: true,
         exchangeOrderId: result.id,

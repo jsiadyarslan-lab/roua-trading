@@ -89,6 +89,56 @@ export class BinanceAdapter implements IExchangeAdapter {
         timestamp: new Date(),
       };
 
+      // V236: Place REAL Stop-Loss and Take-Profit orders on Binance.
+      //
+      // ROOT FIX: Previously, SL/TP were only stored in the DB and monitored
+      // by PositionMonitor (which checks every 10s). This meant:
+      //   - SL was hit at currentPrice (not the SL price) → slippage 0.3-1%
+      //   - TP was often missed (price touched TP for 1-3s then retraced)
+      //
+      // Now: After the main market order fills, we place REAL exchange orders:
+      //   - STOP_LOSS_LIMIT at the SL price (triggers a limit sell at SL)
+      //   - TAKE_PROFIT_LIMIT at the TP price (triggers a limit sell at TP)
+      //
+      // For a BUY position: SL/TP are SELL orders (closing the long)
+      // For a SELL position: SL/TP are BUY orders (closing the short)
+      //
+      // These are NON-BLOCKING: if SL/TP order placement fails, the trade
+      // still succeeds — PositionMonitor acts as a fallback (V228).
+      if (order.stopLoss && order.stopLoss > 0) {
+        try {
+          const closeSide = order.side === 'BUY' ? 'sell' : 'buy';
+          await this.exchange!.createOrder(
+            order.symbol,
+            'STOP_LOSS_LIMIT',
+            closeSide,
+            order.quantity,
+            order.stopLoss, // limit price (sell at this price when triggered)
+            { stopPrice: order.stopLoss, type: 'STOP_LOSS_LIMIT' },
+          );
+          this.logger.log(`🛡️ V236: STOP_LOSS_LIMIT placed at ${order.stopLoss} for ${order.symbol}`);
+        } catch (slErr: any) {
+          // Non-blocking — PositionMonitor is the fallback
+          this.logger.warn(`⚠️ V236: STOP_LOSS_LIMIT failed for ${order.symbol}: ${slErr.message} — PositionMonitor will handle SL`);
+        }
+      }
+      if (order.takeProfit && order.takeProfit > 0) {
+        try {
+          const closeSide = order.side === 'BUY' ? 'sell' : 'buy';
+          await this.exchange!.createOrder(
+            order.symbol,
+            'TAKE_PROFIT_LIMIT',
+            closeSide,
+            order.quantity,
+            order.takeProfit, // limit price
+            { stopPrice: order.takeProfit, type: 'TAKE_PROFIT_LIMIT' },
+          );
+          this.logger.log(`🎯 V236: TAKE_PROFIT_LIMIT placed at ${order.takeProfit} for ${order.symbol}`);
+        } catch (tpErr: any) {
+          this.logger.warn(`⚠️ V236: TAKE_PROFIT_LIMIT failed for ${order.symbol}: ${tpErr.message} — PositionMonitor will handle TP`);
+        }
+      }
+
       // Audit log
       await this._auditLog('ORDER_PLACED', {
         orderId: result.id,

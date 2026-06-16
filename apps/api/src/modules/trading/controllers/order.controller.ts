@@ -33,7 +33,7 @@ import {
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { IdempotencyService } from '../services/idempotency.service';
-import { RiskGatekeeperService } from '../services/risk-gatekeeper.service';
+// REMOVED: RiskGatekeeperService — deprecated, replaced by UnifiedRiskService (V219)
 import { UnifiedRiskService } from '../services/unified-risk.service';
 import { OrderStateManagerService } from '../services/order-state-manager.service';
 import { PositionManagerService } from '../services/position-manager.service';
@@ -73,8 +73,7 @@ export class OrderController {
 
   constructor(
     private readonly idempotencyService: IdempotencyService,
-    private readonly riskGatekeeper: RiskGatekeeperService,
-    private readonly unifiedRisk: UnifiedRiskService,
+    private readonly unifiedRisk: UnifiedRiskService,  // V219: Unified risk — replaces RiskGatekeeper
     private readonly stateManager: OrderStateManagerService,
     private readonly positionManager: PositionManagerService,
     private readonly orderProducer: OrderProducerService,

@@ -11,7 +11,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { CredentialsService } from '../portfolio/credentials/credentials.service';
 import { ExchangeService } from '../exchange/exchange.service';
-import { RiskManagerService } from './risk-manager.service';
+// REMOVED: RiskManagerService — deprecated, replaced by UnifiedRiskService (V219)
 import { UnifiedRiskService } from './services/unified-risk.service';
 import { AuditService } from '../../audit/audit.service';
 import { getSymbolMetadata, AssetClass, calculateMargin } from './services/symbol-metadata';
@@ -53,8 +53,7 @@ export class TradingService {
     private readonly redis: RedisService,
     private readonly credentialsService: CredentialsService,
     private readonly exchangeService: ExchangeService,
-    private readonly riskManager: RiskManagerService,
-    private readonly unifiedRisk: UnifiedRiskService,
+    private readonly unifiedRisk: UnifiedRiskService,  // V219: Unified risk — replaces RiskManager
     private readonly auditService: AuditService,
     @Optional() private readonly executionGateway?: ExecutionGatewayService, // V226: MT5 execution (optional = safe)
   ) {

@@ -23,8 +23,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Response } from 'express';
 import { TradingService } from './trading.service';
-import { RiskManagerService } from './risk-manager.service';
-import { RiskGatekeeperService } from './services/risk-gatekeeper.service';
+// REMOVED: RiskManagerService — deprecated, replaced by UnifiedRiskService (V219)
 import { UnifiedRiskService } from './services/unified-risk.service';
 import { IdempotencyService } from './services/idempotency.service';
 import { OrderStateManagerService } from './services/order-state-manager.service';
@@ -74,9 +73,7 @@ export class TradingController {
 
   constructor(
     private readonly tradingService: TradingService,
-    private readonly riskManager: RiskManagerService,
-    private readonly riskGatekeeper: RiskGatekeeperService,
-    private readonly unifiedRisk: UnifiedRiskService,
+    private readonly unifiedRisk: UnifiedRiskService,  // V219: Unified risk — replaces RiskManager + RiskGatekeeper
     // #18: V2 services — optional so controller still works if V2 infra is down
     @Optional() private readonly idempotencyService?: IdempotencyService,
     @Optional() private readonly stateManager?: OrderStateManagerService,

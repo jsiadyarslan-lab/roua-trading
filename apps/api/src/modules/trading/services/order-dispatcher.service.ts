@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import { IdempotencyService } from './idempotency.service';
-import { RiskGatekeeperService } from './risk-gatekeeper.service';
+// REMOVED: RiskGatekeeperService — deprecated, replaced by UnifiedRiskService (V219)
 import { UnifiedRiskService } from './unified-risk.service';
 import { OrderStateManagerService } from './order-state-manager.service';
 import { TradingService } from '../trading.service';
@@ -42,8 +42,7 @@ export class OrderDispatcherService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly idempotency: IdempotencyService,
-    private readonly riskGatekeeper: RiskGatekeeperService,
-    private readonly unifiedRisk: UnifiedRiskService,
+    private readonly unifiedRisk: UnifiedRiskService,  // V219: Unified risk — replaces RiskGatekeeper
     private readonly stateManager: OrderStateManagerService,
     private readonly tradingService: TradingService,
   ) {}

@@ -38,7 +38,7 @@ import { StrategicCouncilService } from '../strategic-council/strategic-council.
 import { TradingBriefDTO, StrictRules, EXECUTOR_TIMEFRAMES, isExecutorTimeframe, isSymbolSupportedByExchange } from '../strategic-council/strategic-council.types';
 import { ExecutorStatus, ExecutionResult, ExecutorConfig, UserExecutorState } from './smart-executor.types';
 import { PlaceOrderRequest, OrderSide, OrderType } from '../../trading/trading.types';
-import { RiskGatekeeperService } from '../../trading/services/risk-gatekeeper.service';
+// REMOVED: RiskGatekeeperService — deprecated, replaced by UnifiedRiskService (V219)
 import { UnifiedRiskService } from '../../trading/services/unified-risk.service';
 import { AIOrchestratorService } from '../services/ai-orchestrator.service';
 import { OrderSideEnum, OrderTypeEnum } from '../../trading/events/order.events';
@@ -102,8 +102,7 @@ export class SmartExecutorService implements OnModuleDestroy {
     private readonly audit: AuditService,
     private readonly tradingService: TradingService,
     private readonly councilService: StrategicCouncilService,
-    private readonly riskGatekeeper: RiskGatekeeperService,
-    private readonly unifiedRisk: UnifiedRiskService,
+    private readonly unifiedRisk: UnifiedRiskService,  // V219: Unified risk — replaces RiskGatekeeper
     private readonly notificationService: NotificationService,
     // FIX: Removed @Inject(forwardRef(...)) — SmartExecutorModule already imports
     // AiModule via forwardRef, so AIOrchestratorService is available without

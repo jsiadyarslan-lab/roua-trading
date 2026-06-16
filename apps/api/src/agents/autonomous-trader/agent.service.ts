@@ -15,7 +15,7 @@ import { isMarketOpen } from '../../common/utils/market-hours.util';
 
 import { MarketAnalyzerService } from './services/market-analyzer.service';
 import { SignalEvaluatorService } from './services/signal-evaluator.service';
-import { RiskCalculatorService } from './services/risk-calculator.service';
+// REMOVED: RiskCalculatorService — deprecated, replaced by UnifiedRiskService (V219)
 import { UnifiedRiskService } from '../../modules/trading/services/unified-risk.service';
 import { OrderExecutorService } from './services/order-executor.service';
 import { StrategicCouncilService } from '../../modules/ai/strategic-council/strategic-council.service';
@@ -112,8 +112,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     @Optional() private readonly tradingService: TradingService,
     private readonly marketAnalyzer: MarketAnalyzerService,
     private readonly signalEvaluator: SignalEvaluatorService,
-    private readonly riskCalculator: RiskCalculatorService,
-    private readonly unifiedRisk: UnifiedRiskService,
+    private readonly unifiedRisk: UnifiedRiskService,  // V219: Unified risk — replaces RiskCalculator
     private readonly orderExecutor: OrderExecutorService,
     private readonly councilService: StrategicCouncilService,  // V145: No longer @Optional — module imports StrategicCouncilModule
     @Optional() private readonly tradeCoordination: TradeCoordinationService,  // #18: Trade coordination service

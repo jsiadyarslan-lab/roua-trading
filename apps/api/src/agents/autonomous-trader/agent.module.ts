@@ -15,7 +15,7 @@ import { PortfolioModule } from '../../modules/portfolio/portfolio.module';
 // Agent Services
 import { MarketAnalyzerService } from './services/market-analyzer.service';
 import { SignalEvaluatorService } from './services/signal-evaluator.service';
-import { RiskCalculatorService } from './services/risk-calculator.service';
+// REMOVED: RiskCalculatorService — deprecated, replaced by UnifiedRiskService (V219)
 import { OrderExecutorService } from './services/order-executor.service';
 import { AdaptiveStrategySelectorService } from './services/adaptive-strategy-selector.service';
 import { MultiTimeframeAnalysisService } from './services/multi-timeframe-analysis.service'; // V-PHASE3
@@ -88,7 +88,6 @@ import { AutonomousTraderAgentController, AutonomousTraderPublicController } fro
     MarketAnalyzerService,
     AdaptiveStrategySelectorService,
     SignalEvaluatorService,
-    RiskCalculatorService,
     OrderExecutorService,
     // V-PHASE4: Advanced optimization services
     SignalQualityClassifierService,
@@ -102,7 +101,6 @@ import { AutonomousTraderAgentController, AutonomousTraderPublicController } fro
     MultiTimeframeAnalysisService, // V-PHASE3: Export for SmartExecutor to use strategy-specific MTF
     SignalEvaluatorService,
     AdaptiveStrategySelectorService,
-    RiskCalculatorService,
     OrderExecutorService,
     // V-PHASE4: Export for SmartExecutor and other modules
     SignalQualityClassifierService,

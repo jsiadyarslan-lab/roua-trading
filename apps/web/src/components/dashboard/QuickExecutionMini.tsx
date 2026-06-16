@@ -154,115 +154,119 @@ export function QuickExecutionMini({
     setExecutionState('submitting')
     setStatus({ msg: side === 'buy' ? t('sendingBuyOrder') : t('sendingSellOrder'), type: 'loading' })
 
-    try {
-      const body: Record<string, any> = {
-        symbol:   localSymbol,
-        side,
-        qty:      parseFloat(quantity),
-        type:     'market',
-      }
-      if (stopLoss)   body.stop_loss   = parseFloat(stopLoss)
-      if (takeProfit) body.take_profit = parseFloat(takeProfit)
+    // V230 UNIFIED EXECUTION: Route through NestJS /api/trading/orders (NOT /api/alpaca/orders).
+    //
+    // ROOT CAUSE of inconsistent behavior:
+    //   - Chart buttons (V229) → /api/trading/orders → NestJS → DB → PositionMonitor
+    //   - This widget (before V230) → /api/alpaca/orders → Alpaca API directly
+    //   These are TWO COMPLETELY DIFFERENT pipelines. Trades from the widget were
+    //   NOT recorded in the DB Position table, NOT monitored by PositionMonitor
+    //   (so V228 TP/SL peak fix didn't apply), and NOT subject to risk checks.
+    //
+    // FIX: Send to the SAME endpoint as the chart. The NestJS backend handles:
+    //   - Risk validation (UnifiedRiskService)
+    //   - Paper/real execution (TradingService.placeOrder)
+    //   - DB persistence (Position + Trade tables)
+    //   - PositionMonitor visibility (V228 applies)
+    //
+    // REQUIRED FIELDS for /api/trading/orders:
+    //   - credentialId (from activeCredentialId in usePositionsStore)
+    //   - symbol, side (BUY/SELL), type (MARKET), quantity
+    //   - stopLoss (MANDATORY — UnifiedRiskService check #1)
+    //   - takeProfit (optional)
 
-      const res = await fetch('/api/alpaca/orders', {
+    // V230: Get activeCredentialId — same source as chart buttons
+    const activeCredentialId = usePositionsStore.getState().activeCredentialId
+    if (!activeCredentialId) {
+      setExecutionState('rejected')
+      setStatus({ msg: '⚠️ يرجى اختيار حساب تداول نشط في الإعدادات أولاً', type: 'error' })
+      setTimeout(() => setStatus({ msg: '', type: '' }), 5000)
+      setLoading(false)
+      setPendingAction(null)
+      return
+    }
+
+    // V230: stopLoss is MANDATORY in NestJS — block early with clear message
+    if (!stopLoss || parseFloat(stopLoss) <= 0) {
+      setExecutionState('rejected')
+      setStatus({ msg: '⚠️ وقف الخسارة إجباري — يرجى تحديده قبل التنفيذ', type: 'error' })
+      setTimeout(() => setStatus({ msg: '', type: '' }), 5000)
+      setLoading(false)
+      setPendingAction(null)
+      return
+    }
+
+    try {
+      // V230: Body matches NestJS PlaceOrderDto (camelCase, not snake_case)
+      const body: Record<string, any> = {
+        credentialId: activeCredentialId,
+        symbol:       localSymbol,
+        side:         side === 'buy' ? 'BUY' : 'SELL',
+        type:         'MARKET',
+        quantity:     parseFloat(quantity),
+        stopLoss:     parseFloat(stopLoss),
+      }
+      if (takeProfit) body.takeProfit = parseFloat(takeProfit)
+      if (currentPrice && currentPrice > 0) body.price = currentPrice
+
+      const res = await fetch('/api/trading/orders', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(body),
       })
-      const j = await res.json()
+      const j = await res.json().catch(() => ({} as any))
 
-      if (j.success) {
+      // V230: NestJS returns { success: true, data: { orderId, status, ... } }
+      // OR throws an HTTP exception (caught by AllExceptionsFilter → { statusCode, message })
+      if (j.success === true || (res.ok && !j.statusCode)) {
         setExecutionState('accepted')
-        // FIX: Null-safe access to Alpaca response properties.
-        // The Alpaca API may return unexpected response shapes (missing fields, null values).
-        // Previously, accessing j.symbol, j.qty etc. without optional chaining could
-        // cause crashes or undefined values propagating into the UI.
-        const filledPrice = j.filledAvgPrice ? parseFloat(j.filledAvgPrice) : null
-        const filled = filledPrice ? ` @ $${filledPrice.toFixed(2)}` : ''
-        const responseSymbol = j.symbol || localSymbol
-        const responseQty = j.qty || quantity
-        const responseOrderId = j.orderId || j.id || ''
+        const orderId = j.data?.orderId || j.orderId || j.id || ''
+        const filled = currentPrice ? ` @ $${currentPrice.toFixed(2)}` : ''
 
-        // TRACK IN PAPER STORE: This ensures TP/SL lines render immediately even if Alpaca stripped them for crypto
+        // Optimistic UI update — same as chart path
         addPaperTrade({
           symbol: localSymbol,
           side: side === 'buy' ? 'long' : 'short',
           qty: parseFloat(quantity),
-          entryPrice: filledPrice || currentPrice,
+          entryPrice: currentPrice,
           currentPrice: currentPrice,
           tp: takeProfit ? parseFloat(takeProfit) : undefined,
-          sl: stopLoss ? parseFloat(stopLoss) : undefined,
+          sl: parseFloat(stopLoss),
           source: 'manual',
-          entryTime: Date.now() // Paper trades store expects unix ms
+          entryTime: Date.now(),
         })
 
         setStatus({
-          msg:  side === 'buy' ? t('buyExecuted', { qty: responseQty, symbol: responseSymbol, filled }) : t('sellExecuted', { qty: responseQty, symbol: responseSymbol, filled }) + `\n${t('orderId', { id: responseOrderId?.slice(0,8) ?? '' })}`,
+          msg:  side === 'buy'
+            ? t('buyExecuted', { qty: quantity, symbol: localSymbol, filled })
+            : t('sellExecuted', { qty: quantity, symbol: localSymbol, filled }) + `\n${t('orderId', { id: orderId?.slice(0,8) ?? '' })}`,
           type: 'success',
         })
-        setExecutionState(filledPrice ? 'filled' : 'accepted')
+        setExecutionState('filled')
         addNotification({
           source: 'trade',
           priority: 'high',
           action: side === 'buy' ? 'BUY' : 'SELL',
-          title: side === 'buy' ? tc('buy') + ' ' + responseSymbol : tc('sell') + ' ' + responseSymbol,
-          body: side === 'buy' ? t('buyExecuted', { qty: responseQty, symbol: responseSymbol, filled: filled || '' }) : t('sellExecuted', { qty: responseQty, symbol: responseSymbol, filled: filled || '' }),
-          pair: responseSymbol,
-          price: filledPrice || currentPrice,
+          title: side === 'buy' ? tc('buy') + ' ' + localSymbol : tc('sell') + ' ' + localSymbol,
+          body: side === 'buy'
+            ? t('buyExecuted', { qty: quantity, symbol: localSymbol, filled: filled || '' })
+            : t('sellExecuted', { qty: quantity, symbol: localSymbol, filled: filled || '' }),
+          pair: localSymbol,
+          price: currentPrice,
         })
-        // FIX: Use refreshAfterTrade for staggered refresh (immediate + 2s + 5s)
-        // This replaces the manual fetchAccount/fetchPositions calls + setTimeout
+        // refreshAfterTrade now fetches from /api/trading/positions (DB) — picks up the new DB position
         refreshAfterTrade()
-        // Also refresh the local Alpaca account state
-        fetch('/api/alpaca/account').then(r=>r.json()).then(j => {
-          if (j.success && j.data) setAccount({ cash: j.data.cash ?? 0, buyingPower: j.data.buyingPower ?? 0 })
-          else if (j.offline || j.error === 'ALPACA_CREDENTIALS_NOT_CONFIGURED') setAccount({ cash: 0, buyingPower: 0 })
-        }).catch(() => {})
       } else {
-        // FIX: When Alpaca credentials are not configured (503), fall back to
-        // paper-only mode instead of showing an error. The trade still gets
-        // recorded locally so the user sees it in their positions.
-        const isAlpacaOffline = j.offline || j.alpacaStatus === 503 || res.status === 503
-        const isCredentialsMissing = j.error === 'ALPACA_CREDENTIALS_NOT_CONFIGURED'
-
-        if (isAlpacaOffline || isCredentialsMissing) {
-          // Paper-only fallback: Record trade locally without Alpaca execution
-          addPaperTrade({
-            symbol: localSymbol,
-            side: side === 'buy' ? 'long' : 'short',
-            qty: parseFloat(quantity),
-            entryPrice: currentPrice || 0,
-            currentPrice: currentPrice,
-            tp: takeProfit ? parseFloat(takeProfit) : undefined,
-            sl: stopLoss ? parseFloat(stopLoss) : undefined,
-            source: 'manual',
-            entryTime: Date.now()
-          })
-
-          setExecutionState('accepted')
-          setStatus({
-            msg:  side === 'buy' ? t('paperModeBuy', { qty: quantity, symbol: localSymbol }) : t('paperModeSell', { qty: quantity, symbol: localSymbol }),
-            type: 'success',
-          })
-          addNotification({
-            source: 'trade',
-            priority: 'high',
-            action: side === 'buy' ? 'BUY' : 'SELL',
-            title: side === 'buy' ? t('paperTradeBuy', { symbol: localSymbol }) : t('paperTradeSell', { symbol: localSymbol }),
-            body: t('paperRecorded', { qty: quantity, symbol: localSymbol }),
-            pair: localSymbol,
-            price: currentPrice,
-          })
-          // FIX: Use refreshAfterTrade for paper trade fallback too
-          refreshAfterTrade()
-        } else {
-          setExecutionState('rejected')
-          setStatus({ msg: `❌ ${j.error || t('executionFailed')}`, type: 'error' })
-        }
+        // NestJS rejected the order — show the actual reason from the backend
+        const reason = j.message || j.error || j.reason || t('executionFailed')
+        setExecutionState('rejected')
+        setStatus({ msg: `❌ ${reason}`, type: 'error' })
+        setTimeout(() => setStatus({ msg: '', type: '' }), 6000)
       }
-    } catch {
+    } catch (err: any) {
       setExecutionState('rejected')
-      setStatus({ msg: t('networkError'), type: 'error' })
+      setStatus({ msg: t('networkError') + ': ' + (err?.message || err), type: 'error' })
+      setTimeout(() => setStatus({ msg: '', type: '' }), 6000)
     } finally {
       setLoading(false)
       setPendingAction(null)

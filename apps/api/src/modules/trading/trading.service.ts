@@ -1293,7 +1293,14 @@ export class TradingService {
     try {
       const closedSide = position.side;
       const repDirLockKey = `trade-rep:dir-lock:${userId}:${position.symbol}:${closedSide}`;
-      await this.redis.set(repDirLockKey, '1', 30 * 60 * 1000); // 30 min lockout
+      await this.redis.set(repDirLockKey, '1', 30 * 60 * 1000); // 30 min lockout (same direction)
+
+      // V221 FIX: Symbol-level lockout — blocks BOTH directions for 15 minutes.
+      // Prevents flip-flop pattern: BUY → SL → SELL immediately → SL → BUY ...
+      // The old per-direction lock only blocked the SAME direction, allowing
+      // immediate opposite-direction trades that cancel P&L and burn fees.
+      const symbolLockKey = `trade-rep:symbol-lock:${userId}:${position.symbol}`;
+      await this.redis.set(symbolLockKey, '1', 15 * 60 * 1000); // 15 min lockout (BOTH directions)
 
       const dailyCountKey = `trade-rep:daily:${userId}:${position.symbol}`;
       const currentCount = parseInt(await this.redis.get(dailyCountKey) || '0', 10);

@@ -1607,6 +1607,29 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       // ── COUNCIL-BASED EXECUTION: Execute agent briefs from the Council ──
       for (const brief of agentBriefs) {
         try {
+          // V221 FIX: Check cooldown — skip symbols that recently hit SL.
+          // The Position Monitor sets cooldown:{userId}:{symbol} after SL,
+          // but the Agent was not checking it. This caused flip-flop trades.
+          try {
+            const cooldownKey = `cooldown:${userId}:${brief.pair}`;
+            const cooldownReason = await this.redis.get(cooldownKey);
+            if (cooldownReason) {
+              this.logger.debug(`🧠 Skipping brief ${brief.id} — ${brief.pair} on cooldown (${cooldownReason})`);
+              continue;
+            }
+          } catch { /* proceed if Redis unavailable */ }
+
+          // V221 FIX: Check symbol-level lockout — skip symbols that were
+          // recently closed in ANY direction. Prevents flip-flop pattern.
+          try {
+            const symbolLockKey = `trade-rep:symbol-lock:${userId}:${brief.pair}`;
+            const symbolLocked = await this.redis.get(symbolLockKey);
+            if (symbolLocked) {
+              this.logger.debug(`🧠 Skipping brief ${brief.id} — ${brief.pair} symbol-locked (recently closed)`);
+              continue;
+            }
+          } catch { /* proceed if Redis unavailable */ }
+
           // V141 FIX: Check for same-direction position only (not just any position).
           // Previously, if the Smart Executor had a BUY on BTC/USDT, the Agent
           // was blocked from opening its own BTC/USDT BUY on M30/H1 timeframes.

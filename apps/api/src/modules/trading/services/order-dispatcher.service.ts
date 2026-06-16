@@ -105,63 +105,24 @@ export class OrderDispatcherService {
       }
 
       // ═══════════════════════════════════════════════════════════
-      // FIX: Position duplicate check — relaxed for paper trading.
-      // Previous code blocked ANY second position on the same symbol,
-      // even if the direction was different (BUY + SELL hedge).
-      // This caused the "one trade only" bug — the Strategic Council
-      // generates briefs for the same high-conviction pairs (BTC/USDT,
-      // ETH/USDT), and if a position was already open, ALL subsequent
-      // briefs for that pair were rejected, even in paper mode.
+      // V221 FIX: ONE position per symbol — NO opposite-direction hedging.
       //
-      // NEW LOGIC:
-      // - Paper trading: Allow up to 2 positions per symbol (BUY+SELL hedge)
-      //   This enables the executor to open a new position when the old one
-      //   is stale or when the market direction changes.
-      // - Real trading: Strict 1 position per symbol (same as before)
+      // PROBLEM: V146c allowed cross-source opposite direction (BUY from
+      // SmartExecutor + SELL from Agent on same symbol). In practice this
+      // means the user pays spread/slippage TWICE while the positions
+      // cancel each other's P&L. This was the #1 cause of net losses.
+      //
+      // NEW RULE: Only ONE open position per symbol, regardless of source
+      // or direction. If any position exists on a symbol, block new ones.
       // ═══════════════════════════════════════════════════════════
       const existing = await this.prisma.position.findFirst({
         where: { userId: request.userId, symbol: request.symbol, status: 'OPEN' },
-      }); // Note: Prisma returns all scalar fields by default, including openedAt
+      });
       if (existing) {
-        // V146b FIX: Allow Agent to open same-direction positions alongside
-        // Smart Executor. The Agent trades on different timeframes (M30+).
-        // Only reject if the SAME source already has a same-direction position.
-        // ═══════════════════════════════════════════════════════════════════
-        if (existing.side === request.side && existing.source === request.source) {
-          // Same source, same direction — reject as duplicate
-          await this.idempotency.releaseLock(sourceIdempotencyKey);
-          try { await this.idempotency.releaseLock(symbolSourceIdempotencyKey); } catch {}
-          return { success: false, message: `مركز ${existing.side} مفتوح بالفعل لـ ${request.symbol} (مصدر: ${existing.source})` };
-        }
-
-        if (existing.side === request.side && existing.source !== request.source) {
-          // V180 FIX: Block cross-source same-direction within 5 minutes.
-          // Previously ALLOWED → caused 3 DOGE/USDT sells from Smart+Agent
-          // within 2 minutes. Now: check if the existing position was opened
-          // recently (< 5 min). If so, block to prevent duplicate positions.
-          const existingAge = Date.now() - new Date(existing.openedAt).getTime();
-          const CROSS_SOURCE_DEDUP_MS = 5 * 60 * 1000; // 5 minutes
-          if (existingAge < CROSS_SOURCE_DEDUP_MS) {
-            await this.idempotency.releaseLock(sourceIdempotencyKey);
-            try { await this.idempotency.releaseLock(symbolSourceIdempotencyKey); } catch {}
-            return { success: false, message: `مركز ${existing.side} مفتوح حديثاً لـ ${request.symbol} من ${existing.source} (أقل من 5 دقائق) — لا تكرار بين المصادر` };
-          }
-          // Old position (>5 min) — allow (different timeframe/trade)
-          this.logger.log(`[Dispatcher] V180 Cross-source same-direction allowed (old position): ${request.symbol} has ${existing.side}/${existing.source}, ${request.source} opening ${request.side}`);
-        } else if (existing.side !== request.side && existing.source !== request.source) {
-          // V146c: Different source, opposite direction — ALLOW (Agent vs Executor hedge)
-          // The Smart Executor has BUY (M1/M5/M15) and Agent wants SELL (M30/H1/H4).
-          // This is a valid cross-timeframe hedge, not a duplicate position.
-          this.logger.log(`[Dispatcher] V146c Cross-source hedge allowed: ${request.symbol} has ${existing.side}/${existing.source}, ${request.source} opening ${request.side}`);
-        } else if (request.isPaperTrading) {
-          // Paper trading: Opposite direction → allow hedge
-          this.logger.log(`[Dispatcher] V133 Paper hedge allowed: ${request.symbol} has ${existing.side}, opening ${request.side}`);
-        } else {
-          // Real trading: No hedge — reject
-          await this.idempotency.releaseLock(sourceIdempotencyKey);
-          try { await this.idempotency.releaseLock(symbolSourceIdempotencyKey); } catch {}
-          return { success: false, message: `مركز مفتوح بالفعل لـ ${request.symbol} (لا تحوط في التداول الحقيقي)` };
-        }
+        // Block ALL positions on a symbol that already has an open position
+        await this.idempotency.releaseLock(sourceIdempotencyKey);
+        try { await this.idempotency.releaseLock(symbolSourceIdempotencyKey); } catch {}
+        return { success: false, message: `يوجد مركز ${existing.side} مفتوح لـ ${request.symbol} (${existing.source}) — لا يمكن فتح مركز آخر على نفس الزوج` };
       }
 
       const command: OrderCommand = {

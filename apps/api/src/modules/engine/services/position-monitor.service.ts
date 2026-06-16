@@ -58,12 +58,14 @@ export class PositionMonitorService {
    * Now: paper positions older than 48h without SL/TP are auto-closed. */
   private readonly STALE_PAPER_POSITION_MAX_HOURS = 48;
 
-  /** V176 FIX: Cooldown period after auto-close (TIME_EXPIRED, STOP_LOSS).
+  /** V176/V221 FIX: Cooldown period after auto-close (TIME_EXPIRED, STOP_LOSS).
    * Issue #11: DOGE/SOL trades repeating every 8-10 seconds because after
    * TIME_EXPIRED auto-close, the SmartExecutor immediately re-opened the same
-   * position. Now: after auto-close, the same symbol is blocked for 5 minutes.
-   * Key format: cooldown:userId:symbol, Value: closeReason, TTL: 5 minutes */
-  private readonly COOLDOWN_TTL_MS = 5 * 60 * 1000; // 5 minutes
+   * position. Now: after auto-close, the same symbol is blocked for 15 minutes.
+   * V221: Increased from 5 min to 15 min to prevent flip-flop pattern
+   * (BUY → SL → SELL immediately → SL → BUY).
+   * Key format: cooldown:userId:symbol, Value: closeReason, TTL: 15 minutes */
+  private readonly COOLDOWN_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
   /** Is monitor currently running */
   private isMonitoring = false;

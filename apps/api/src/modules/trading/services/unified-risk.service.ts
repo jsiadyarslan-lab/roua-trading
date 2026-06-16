@@ -918,7 +918,15 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
     try {
       const { userId, symbol, side } = command;
 
-      // Direction lockout (30 min)
+      // V221 FIX: Symbol-level lockout — blocks BOTH directions for 15 minutes.
+      // Prevents flip-flop pattern: BUY → SL → SELL immediately → SL → BUY ...
+      const symbolLockKey = `trade-rep:symbol-lock:${userId}:${symbol}`;
+      const symbolLocked = await this.redis?.get(symbolLockKey);
+      if (symbolLocked) {
+        return { allowed: false, reason: `تم إغلاق مركز على ${symbol} مؤخراً — انتظر 15 دقيقة قبل فتح مركز جديد.`, failedCheck: 'TRADE_REPETITION' };
+      }
+
+      // Direction lockout (30 min) — same direction only
       const dirLockKey = `trade-rep:dir-lock:${userId}:${symbol}:${side}`;
       const dirLocked = await this.redis?.get(dirLockKey);
       if (dirLocked) {
@@ -978,7 +986,7 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
     return { allowed: true };
   }
 
-  /** CHECK 10: Duplicate Position — same symbol+strategy block */
+  /** CHECK 10: Duplicate Position — block same symbol regardless of direction/source */
   async checkDuplicatePosition(command: OrderCommand): Promise<RiskCheckResult> {
     if (!command.strategy && !command.source) return { allowed: true };
 
@@ -988,11 +996,21 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
       });
 
       if (existingPosition) {
+        // V221 FIX: Block ALL positions on a symbol that already has one open.
+        // Previously only blocked same strategy/source, allowing opposite-direction
+        // hedging (BUY+SELL on same symbol from different sources) which burned fees
+        // while positions cancelled each other's P&L.
+        if (existingPosition.side !== command.side) {
+          return { allowed: false, reason: `يوجد مركز ${existingPosition.side} مفتوح لـ ${command.symbol} — لا يمكن فتح مركز معاكس على نفس الزوج`, failedCheck: 'DUPLICATE_POSITION' };
+        }
+        // Same direction — check if same source/strategy
         const existingStrategy = (existingPosition as any).strategy || existingPosition.source || '';
         const newStrategy = command.strategy || command.source || '';
         if (existingStrategy === newStrategy) {
           return { allowed: false, reason: `يوجد مركز مفتوح بالفعل لـ ${command.symbol} باستخدام نفس الاستراتيجية (${newStrategy}).`, failedCheck: 'DUPLICATE_POSITION' };
         }
+        // Same direction, different source — also block (duplicate exposure)
+        return { allowed: false, reason: `يوجد مركز ${existingPosition.side} مفتوح لـ ${command.symbol} من ${existingPosition.source} — لا تكرار`, failedCheck: 'DUPLICATE_POSITION' };
       }
     } catch { /* allow */ }
 

@@ -9,22 +9,36 @@ import { MarketAnalysis, EvaluatedSignal, StrategyType, StrategySignal, OrderSid
  * SwingStrategy — Medium-term position trading
  *
  * Characteristics:
- * - Timeframe: 1H-4H candles
+ * - Timeframe: H4 (4-hour candles) — V-PHASE3: was 1h, now uses strategy-native H4
+ * - Confirmation: D1 (daily confirmation) — MUST agree for trade entry
  * - Holding period: Hours to days
  * - Take profit: Moderate (50-200 pips)
  * - Stop loss: Wider (30-100 pips)
- * - Requires: Clear trend, momentum confirmation
+ * - Requires: Clear trend, momentum confirmation, D1 alignment
  *
  * Entry Conditions:
  * ┌─────────────────────────────────────────────────────────────┐
- * │ BUY:  Clear uptrend (EMA9 > EMA21 > EMA50)                │
+ * │ BUY:  Clear uptrend (EMA9 > EMA21 > EMA50) on H4          │
  * │       + RSI pullback to 40-50 zone + MACD histogram        │
  * │       turning positive + Price above EMA21                 │
+ * │       + D1 trend NOT bearish (daily confirmation)          │
  * │                                                             │
- * │ SELL: Clear downtrend (EMA9 < EMA21 < EMA50)              │
+ * │ SELL: Clear downtrend (EMA9 < EMA21 < EMA50) on H4        │
  * │       + RSI pullback to 50-60 zone + MACD histogram        │
  * │       turning negative + Price below EMA21                 │
+ * │       + D1 trend NOT bullish (daily confirmation)          │
  * └─────────────────────────────────────────────────────────────┘
+ *
+ * V-PHASE3 MTF Enhancement:
+ * - D1 trend MUST NOT oppose the signal (mandatory for swing)
+ * - If D1 opposes → signal REJECTED (strength drops to 0)
+ * - If D1 confirms → strength boosted by 20%, confidence +10
+ * - If D1 is neutral → no penalty, no bonus
+ *
+ * Why D1 is critical for swing:
+ *   Swing trades last 1-3 days. A H4 uptrend against a D1
+ *   downtrend is just a pullback — it will reverse. Only
+ *   H4 trends aligned with D1 have staying power.
  *
  * Risk Management:
  * - ATR-based SL/TP (2x ATR for SL, 4x ATR for TP)
@@ -34,7 +48,7 @@ import { MarketAnalysis, EvaluatedSignal, StrategyType, StrategySignal, OrderSid
 export class SwingStrategy extends BaseStrategy {
   readonly type = StrategyType.SWING;
   readonly name = 'تداول سوينغ';
-  readonly description = 'استراتيجية السوينغ — صفقات متوسطة الأجل تعتمد على الاتجاه والزخم';
+  readonly description = 'استراتيجية السوينغ — صفقات متوسطة الأجل تعتمد على الاتجاه والزخم (H4 + تأكيد يومي D1)';
 
   private readonly holdingPeriodHours: number;
 
@@ -55,8 +69,6 @@ export class SwingStrategy extends BaseStrategy {
     const mildDowntrend = ema.ema9 < ema.ema21;
 
     // RSI pullback zones — WIDENED for more signal generation
-    // Old: 35-50 (BUY) / 50-65 (SELL) — too narrow, rarely triggered
-    // New: 30-55 (BUY) / 45-70 (SELL) — captures more pullback opportunities
     const bullishPullback = rsi >= 30 && rsi <= 55;
     const bearishPullback = rsi >= 45 && rsi <= 70;
 
@@ -72,13 +84,47 @@ export class SwingStrategy extends BaseStrategy {
     const nearLowerBand = bollingerBands.percentB < 0.4;
     const nearUpperBand = bollingerBands.percentB > 0.6;
 
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // V-PHASE3: MTF (Multi-Timeframe) Confirmation
+    //
+    // للسوينغ: D1 (اليومي) يجب أن يوافق الإشارة
+    // - إذا كان D1 يعارض → رفض الإشارة بالكامل (قوة = 0)
+    // - إذا كان D1 يؤكد → تعزيز القوة (+20%) + ثقة (+10)
+    // - إذا كان D1 محايد → لا تأثير
+    //
+    // هذا حاسم لأن صفقات السوينغ تدوم 1-3 أيام،
+    // فإذا كان الاتجاه اليومي معاكس فالصفقة ستفشل.
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const mtfContext = market.mtfContext;
+    let mtfBoost = 0;
+    let mtfConfidenceAdj = 0;
+    let mtfReject = false; // D1 opposition = hard reject
+    let mtfAlignment: StrategyAnalysis['indicators']['mtfAlignment'] = null;
+    let mtfAlignmentScore = 0;
+
+    if (mtfContext) {
+      mtfAlignment = mtfContext.mtfAlignment;
+      mtfAlignmentScore = mtfContext.mtfAlignmentScore;
+
+      // Find the D1 (daily) timeframe data
+      const d1Data = mtfContext.higherTimeframes.find(h => h.timeframe === 'D1');
+      const h4Data = mtfContext.higherTimeframes.find(h => h.timeframe === 'H4');
+
+      // We'll apply D1 check after direction is determined
+      // For now, store the data
+      (this as any).__d1Data = d1Data || null;
+      (this as any).__h4Data = h4Data || null;
+    } else {
+      (this as any).__d1Data = null;
+      (this as any).__h4Data = null;
+    }
+
     // Determine direction and strength
     let direction: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
     let strength = 0;
     let trendAlignment = false;
 
     // PATH 1 (Primary): Uptrend + pullback + momentum (original, but with wider RSI)
-    // Changed from 4-condition AND to 3-condition: relaxed priceAboveEMA21 requirement
     if ((strongUptrend || mildUptrend) && bullishPullback && macdBullish) {
       direction = 'BUY';
       strength = this._calculateSwingStrength(
@@ -94,7 +140,7 @@ export class SwingStrategy extends BaseStrategy {
       );
       trendAlignment = strongDowntrend;
     }
-    // PATH 2: Strong MACD crossover with mild trend (original alternative)
+    // PATH 2: Strong MACD crossover with mild trend
     else if (macd.crossover === 'BULLISH' && mildUptrend && rsi < 60) {
       direction = 'BUY';
       strength = 55;
@@ -104,8 +150,7 @@ export class SwingStrategy extends BaseStrategy {
       strength = 55;
       trendAlignment = mildDowntrend;
     }
-    // PATH 3 (NEW): Oversold/Overbought + Bollinger extreme + ANY trend hint
-    // Captures reversal opportunities that the primary path misses
+    // PATH 3: Oversold/Overbought + Bollinger extreme + ANY trend hint
     else if (rsi < 35 && nearLowerBand && (mildUptrend || macdBullish)) {
       direction = 'BUY';
       strength = 45;
@@ -115,8 +160,7 @@ export class SwingStrategy extends BaseStrategy {
       strength = 45;
       trendAlignment = mildDowntrend;
     }
-    // PATH 4 (NEW): Strong EMA alignment alone (no pullback needed)
-    // Captures strong trending moves
+    // PATH 4: Strong EMA alignment alone (no pullback needed)
     else if (strongUptrend && rsi < 65 && macdBullish) {
       direction = 'BUY';
       strength = 50;
@@ -127,7 +171,49 @@ export class SwingStrategy extends BaseStrategy {
       trendAlignment = true;
     }
 
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // V-PHASE3: Apply D1 (daily) confirmation/rejection
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    if (direction !== 'NEUTRAL' && mtfContext) {
+      const d1Data = (this as any).__d1Data as { trend: string; trendStrength: number } | null;
+
+      if (d1Data) {
+        if (direction === 'BUY') {
+          if (d1Data.trend === 'BEARISH' && d1Data.trendStrength > 30) {
+            // D1 opposes BUY — hard reject for swing
+            mtfReject = true;
+            mtfBoost = -strength; // Reduce strength to 0
+            mtfConfidenceAdj = -20;
+          } else if (d1Data.trend === 'BULLISH') {
+            // D1 confirms BUY — boost
+            mtfBoost = Math.round(strength * 0.2); // +20% strength
+            mtfConfidenceAdj = 10;
+          }
+        } else if (direction === 'SELL') {
+          if (d1Data.trend === 'BULLISH' && d1Data.trendStrength > 30) {
+            // D1 opposes SELL — hard reject for swing
+            mtfReject = true;
+            mtfBoost = -strength; // Reduce strength to 0
+            mtfConfidenceAdj = -20;
+          } else if (d1Data.trend === 'BEARISH') {
+            // D1 confirms SELL — boost
+            mtfBoost = Math.round(strength * 0.2); // +20% strength
+            mtfConfidenceAdj = 10;
+          }
+        }
+      }
+    }
+
+    // Clean up temporary data
+    delete (this as any).__d1Data;
+    delete (this as any).__h4Data;
+
+    // Apply MTF boost/penalty
+    strength = Math.max(0, Math.min(100, strength + mtfBoost));
+
+    // If D1 opposes, force no opportunity (swing rule: don't fight the daily)
     const hasOpportunity =
+      !mtfReject &&
       direction !== 'NEUTRAL' &&
       strength >= 20 &&
       market.volatility !== 'EXTREME';
@@ -137,11 +223,6 @@ export class SwingStrategy extends BaseStrategy {
       direction,
       strength,
       // V-PHASE2 FIX: Swing REQUIRES a trend — it's a trend-following strategy.
-      // Previously changed to false because SIDEWAYS rejection was killing signals.
-      // The real fix: our analyze() method now includes mildUptrend/mildDowntrend
-      // as valid trend signals (not just strongUptrend/strongDowntrend), so the
-      // trend filter will pass for mild trends too. Only pure SIDEWAYS (no EMA
-      // alignment at all) will be rejected — which is correct for swing trading.
       requiresTrend: true,
       spreadTooWide: false,
       indicators: {
@@ -150,8 +231,13 @@ export class SwingStrategy extends BaseStrategy {
         volumeConfirmation: market.volume24h > 0,
         rsi,
         macdCrossover: macd.crossover,
+        // V-PHASE3: MTF alignment data
+        mtfAlignment,
+        mtfAlignmentScore,
       },
-      reasoning: this._buildReasoning(direction, strongUptrend, strongDowntrend, rsi, macd.crossover, market.price, ema),
+      reasoning: this._buildReasoning(
+        direction, strongUptrend, strongDowntrend, rsi, macd.crossover, market.price, ema, mtfContext, mtfReject
+      ),
       metadata: {
         strategy: 'SWING',
         strongUptrend,
@@ -161,6 +247,17 @@ export class SwingStrategy extends BaseStrategy {
         priceVsEMA21: priceAboveEMA21 ? 'ABOVE' : 'BELOW',
         emaAlignment: strongUptrend ? 'BULLISH' : strongDowntrend ? 'BEARISH' : 'MIXED',
         holdingPeriodHours: this.holdingPeriodHours,
+        // V-PHASE3: MTF metadata
+        mtfAlignment: mtfAlignment || 'N/A',
+        mtfAlignmentScore,
+        mtfBoost,
+        mtfConfidenceAdj,
+        mtfRejected: mtfReject,
+        higherTimeframes: mtfContext?.higherTimeframes.map(h => ({
+          tf: h.timeframe,
+          trend: h.trend,
+          strength: h.trendStrength,
+        })) || [],
       },
     };
   }
@@ -178,14 +275,19 @@ export class SwingStrategy extends BaseStrategy {
       4.0, // Larger TP: 4x ATR (2:1 R:R)
     );
 
-    const confidence = this.calculateConfidence({
-      trendAlignment: analysis.indicators.trendAlignment,
-      indicatorStrength: analysis.strength,
-      volumeConfirmation: analysis.indicators.volumeConfirmation,
-      aiSignal: market.aiSignal,
-      rsi: market.rsi,
-      macdCrossover: analysis.indicators.macdCrossover,
-    });
+    // V-PHASE3: Apply MTF confidence adjustment
+    const mtfConfidenceAdj = (analysis.metadata as any).mtfConfidenceAdj || 0;
+
+    const confidence = Math.max(0, Math.min(100,
+      this.calculateConfidence({
+        trendAlignment: analysis.indicators.trendAlignment,
+        indicatorStrength: analysis.strength,
+        volumeConfirmation: analysis.indicators.volumeConfirmation,
+        aiSignal: market.aiSignal,
+        rsi: market.rsi,
+        macdCrossover: analysis.indicators.macdCrossover,
+      }) + mtfConfidenceAdj
+    ));
 
     // Swing can use limit orders for better entry
     const orderType = analysis.strength >= 70 ? OrderType.MARKET : OrderType.LIMIT;
@@ -241,21 +343,46 @@ export class SwingStrategy extends BaseStrategy {
     macdCrossover: string,
     price: number,
     ema: any,
+    mtfContext?: any,
+    mtfReject?: boolean,
   ): string {
     const parts: string[] = [];
 
+    // V-PHASE3: If D1 rejected, explain why
+    if (mtfReject) {
+      const d1Data = mtfContext?.higherTimeframes?.find((h: any) => h.timeframe === 'D1');
+      parts.push(`⚠️ مرفوض: الإطار اليومي D1 يعارض (${d1Data?.trend || 'غير معروف'}) — لا ندخل ضد الاتجاه اليومي`);
+      return parts.join(' | ');
+    }
+
     if (direction === 'BUY') {
-      if (strongUptrend) parts.push('اتجاه صعودي قوي (EMA9 > EMA21 > EMA50)');
+      if (strongUptrend) parts.push('اتجاه صعودي قوي على H4 (EMA9 > EMA21 > EMA50)');
       parts.push(`ارتداد RSI إلى منطقة الشراء (${rsi.toFixed(1)})`);
       if (macdCrossover === 'BULLISH') parts.push('تقاطع MACD صعودي');
       parts.push(`السعر (${price.toFixed(2)}) فوق EMA21 (${ema.ema21.toFixed(2)})`);
     } else if (direction === 'SELL') {
-      if (strongDowntrend) parts.push('اتجاه هبوطي قوي (EMA9 < EMA21 < EMA50)');
+      if (strongDowntrend) parts.push('اتجاه هبوطي قوي على H4 (EMA9 < EMA21 < EMA50)');
       parts.push(`ارتداد RSI إلى منطقة البيع (${rsi.toFixed(1)})`);
       if (macdCrossover === 'BEARISH') parts.push('تقاطع MACD هبوطي');
       parts.push(`السعر (${price.toFixed(2)}) تحت EMA21 (${ema.ema21.toFixed(2)})`);
     } else {
       parts.push('لا يوجد اتجاه واضح للسوينغ');
+    }
+
+    // V-PHASE3: Add D1 confirmation reasoning
+    if (mtfContext && direction !== 'NEUTRAL') {
+      const d1Data = mtfContext.higherTimeframes?.find((h: any) => h.timeframe === 'D1');
+      if (d1Data) {
+        if (d1Data.trend === 'BULLISH' && direction === 'BUY') {
+          parts.push('✅ تأكيد يومي: D1 صعودي');
+        } else if (d1Data.trend === 'BEARISH' && direction === 'SELL') {
+          parts.push('✅ تأكيد يومي: D1 هبوطي');
+        } else if (d1Data.trend === 'SIDEWAYS') {
+          parts.push('➖ الإطار اليومي محايد');
+        }
+      } else {
+        parts.push('⚠️ بيانات D1 غير متوفرة');
+      }
     }
 
     return parts.join(' | ');

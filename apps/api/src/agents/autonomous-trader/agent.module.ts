@@ -18,6 +18,7 @@ import { SignalEvaluatorService } from './services/signal-evaluator.service';
 import { RiskCalculatorService } from './services/risk-calculator.service';
 import { OrderExecutorService } from './services/order-executor.service';
 import { AdaptiveStrategySelectorService } from './services/adaptive-strategy-selector.service';
+import { MultiTimeframeAnalysisService } from './services/multi-timeframe-analysis.service'; // V-PHASE3
 import { AutonomousTraderAgentService } from './agent.service';
 
 // Agent Controller
@@ -80,6 +81,7 @@ import { AutonomousTraderAgentController, AutonomousTraderPublicController } fro
   controllers: [AutonomousTraderPublicController, AutonomousTraderAgentController],
   providers: [
     // Core Services
+    MultiTimeframeAnalysisService, // V-PHASE3: Must be before MarketAnalyzer (dependency)
     MarketAnalyzerService,
     AdaptiveStrategySelectorService,
     SignalEvaluatorService,
@@ -90,6 +92,7 @@ import { AutonomousTraderAgentController, AutonomousTraderPublicController } fro
   exports: [
     AutonomousTraderAgentService,
     MarketAnalyzerService,
+    MultiTimeframeAnalysisService, // V-PHASE3: Export for SmartExecutor to use strategy-specific MTF
     SignalEvaluatorService,
     AdaptiveStrategySelectorService,
     RiskCalculatorService,

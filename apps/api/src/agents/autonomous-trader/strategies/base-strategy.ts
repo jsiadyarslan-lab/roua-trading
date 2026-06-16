@@ -234,6 +234,9 @@ export interface StrategyAnalysis {
     volumeConfirmation: boolean;
     rsi?: number;
     macdCrossover?: 'BULLISH' | 'BEARISH' | 'NONE';
+    // V-PHASE3: MTF alignment — whether higher timeframes confirm this signal
+    mtfAlignment?: 'ALIGNED_BULLISH' | 'ALIGNED_BEARISH' | 'MIXED' | 'NEUTRAL' | null;
+    mtfAlignmentScore?: number; // 0-100
   };
   reasoning: string;
   metadata: Record<string, any>;

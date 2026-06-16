@@ -712,6 +712,40 @@ export class StrategicCouncilService {
    * This ensures the executor sees AT MOST ONE brief per pair,
    * eliminating the open→close→open loop entirely.
    */
+  /**
+   * V223 FIX: Cancel ALL active briefs for a symbol when ANY position on that
+   * symbol closes (SL, TP, manual, time-expired). Previously, briefs stayed
+   * ACTIVE in DB after close — the only protection was a 1–15min Redis TTL
+   * `processedKey` and a 15min DB cooldown. After TTL/cooldown expired, the
+   * same stale brief would re-execute → flip-flop (BUY → SL → SELL → SL → BUY).
+   *
+   * Now: brief is cancelled AT THE SOURCE. No TTL, no cooldown race, no stale
+   * brief can ever re-fire. The next council session (every 15min) generates
+   * a fresh brief with fresh market data.
+   */
+  async invalidateBriefsForSymbol(symbol: string, reason: string = 'POSITION_CLOSED'): Promise<number> {
+    if (!symbol) return 0;
+    try {
+      const result = await this.prisma.tradingBrief.updateMany({
+        where: {
+          pair: symbol,
+          isActive: true,
+        },
+        data: {
+          isActive: false,
+          reviewStatus: 'CANCELLED',
+        },
+      });
+      if (result.count > 0) {
+        this.logger.log(`🛑 V223: Cancelled ${result.count} active brief(s) for ${symbol} (${reason})`);
+      }
+      return result.count;
+    } catch (err: any) {
+      this.logger.warn(`⚠️ V223 invalidateBriefsForSymbol(${symbol}) failed: ${err?.message || err}`);
+      return 0;
+    }
+  }
+
   async getConsolidatedBriefs(userId?: string): Promise<TradingBriefDTO[]> {
     const allBriefs = await this.getActiveBriefs(userId);
 

@@ -2,7 +2,7 @@
 // Roua Trading (رؤى) — Position Monitor Service
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger, Optional, forwardRef, Inject } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
@@ -13,6 +13,8 @@ import { PerformanceEventsService } from '../../analytics/services/performance-e
 // V185: مجلس الذكاء — مجلة التداول + الشفاء الذاتي
 import { TradeJournalService } from '../../ai/council-intelligence/trade-journal.service';
 import { SelfHealingService } from '../../ai/council-intelligence/self-healing.service';
+// V223: StrategicCouncilService — to cancel briefs on position close
+import { StrategicCouncilService } from '../../ai/strategic-council/strategic-council.service';
 
 /**
  * Position Monitor Service — Real-Time Position Surveillance
@@ -80,16 +82,20 @@ export class PositionMonitorService {
     // V185: مجلس الذكاء — @Optional حتى لا يفشل إذا لم يكن الموديول متاحاً
     @Optional() private readonly journal?: TradeJournalService,
     @Optional() private readonly selfHealing?: SelfHealingService,
+    // V223: StrategicCouncilService — @Optional + @Inject(forwardRef) to avoid circular dependency
+    @Optional() @Inject(forwardRef(() => StrategicCouncilService)) private readonly strategicCouncil?: StrategicCouncilService,
   ) {
-    this.logger.log('🛡️ Position Monitor initialized — protective surveillance active' + (this.journal ? ' + TradeJournal' : '') + (this.selfHealing ? ' + SelfHealing' : ''));
+    this.logger.log('🛡️ Position Monitor initialized — protective surveillance active' + (this.journal ? ' + TradeJournal' : '') + (this.selfHealing ? ' + SelfHealing' : '') + (this.strategicCouncil ? ' + V223 BriefInvalidation' : ''));
   }
 
   /**
-   * Main monitoring cycle — runs every 30 seconds
+   * Main monitoring cycle — runs every 10 seconds
    *
    * Checks all open positions for SL/TP hits and updates prices.
+   * V223 FIX: Restored to 10s to match MONITOR_INTERVAL_MS and reduce
+   * SL/TP detection latency from 30s → 10s (was causing 0.3–1% slippage per SL hit).
    */
-  @Interval(30000) // restored to 30s to reduce DB load
+  @Interval(10000)
   async runPositionMonitor(): Promise<void> {
     // FIX: Skip cycle when DB is unavailable to prevent connection pool exhaustion
     if (!this.prisma.isAvailable?.()) {
@@ -670,7 +676,13 @@ export class PositionMonitorService {
           `🚨 STOP-LOSS TRIGGERED: ${position.symbol} @ ${currentPrice} (SL: ${stopLossNum})`,
         );
 
-        await this._closePosition(position, currentPrice, 'STOP_LOSS');
+        // V223 FIX: Close at the SL price (paper trading only), not at currentPrice.
+        // Previously: passed `currentPrice` → realized loss included 0.3–1% slippage
+        // from the 30s monitor interval + market order execution.
+        // For real exchanges, this needs a STOP_LIMIT order — handled separately.
+        const isPaper = position.isPaperTrading === true || position.source === 'auto_paper';
+        const closePrice = isPaper ? stopLossNum : currentPrice;
+        await this._closePosition(position, closePrice, 'STOP_LOSS');
 
         // V176 FIX: Set cooldown after STOP_LOSS to prevent immediate re-open
         try {
@@ -876,6 +888,17 @@ export class PositionMonitorService {
           quantity: position.quantity,
         }),
       });
+
+      // V223 FIX: Cancel ALL active briefs for this symbol so the stale brief
+      // can't re-fire after the cooldown/processedKey TTL expires. This is
+      // the root-cause fix for the flip-flop pattern (BUY→SL→SELL→SL→BUY).
+      if (this.strategicCouncil?.invalidateBriefsForSymbol) {
+        try {
+          await this.strategicCouncil.invalidateBriefsForSymbol(position.symbol, `POSITION_CLOSED_${reason}`);
+        } catch (err: any) {
+          this.logger.warn(`⚠️ V223 brief invalidation failed for ${position.symbol}: ${err?.message || err}`);
+        }
+      }
 
       // V176: Record the trade closed event for real-time performance monitoring
       // This is fail-safe — if it errors, we log and continue (never block trading)

@@ -6,6 +6,8 @@ import {
   ForbiddenException,
   OnModuleDestroy,
   Optional,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
@@ -23,6 +25,8 @@ import {
 } from './trading.types';
 import { OrderSide as PrismaOrderSide, OrderType as PrismaOrderType, OrderStatus as PrismaOrderStatus } from './trading.types';
 import { ExecutionGatewayService } from '../execution/gateways/execution-gateway.service';
+// V223: StrategicCouncilService — forwardRef import for cross-module DI
+import { StrategicCouncilService } from '../ai/strategic-council/strategic-council.service';
 /**
  * Trading Engine Service — Roua Trading (رؤى)
  *
@@ -56,6 +60,10 @@ export class TradingService {
     private readonly unifiedRisk: UnifiedRiskService,  // V219: Unified risk — replaces RiskManager
     private readonly auditService: AuditService,
     @Optional() private readonly executionGateway?: ExecutionGatewayService, // V226: MT5 execution (optional = safe)
+    // V223: StrategicCouncilService — @Optional + forwardRef to break circular DI.
+    // Used to invalidate briefs at the source on position close (flip-flop root-cause fix).
+    @Optional() @Inject(forwardRef(() => StrategicCouncilService))
+    private readonly strategicCouncil?: StrategicCouncilService,
   ) {
     this.logger.log(
       '⚡ Trading Engine initialized — ready for execution',
@@ -1288,6 +1296,20 @@ export class TradingService {
     this.logger.log(
       `📈 Position closed: ${position.symbol} — PnL: ${pnl.toFixed(2)} USD`,
     );
+
+    // V223 FIX: Cancel ALL active briefs for this symbol at the SOURCE.
+    // Combined with position-monitor's own call, this covers BOTH paths:
+    //   1. Manual close (closePosition API) → invalidates here
+    //   2. Auto-close (SL/TP/time-expired in position-monitor) → invalidates there
+    // This is the root-cause fix for the flip-flop pattern — the brief cannot
+    // re-fire because it no longer exists as ACTIVE in the DB.
+    try {
+      if (this.strategicCouncil?.invalidateBriefsForSymbol) {
+        await this.strategicCouncil.invalidateBriefsForSymbol(position.symbol, 'MANUAL_CLOSE');
+      }
+    } catch (err: any) {
+      // Non-critical — brief invalidation failure must not block close
+    }
 
     // V177 FIX #17: Update trade repetition tracking after close
     try {

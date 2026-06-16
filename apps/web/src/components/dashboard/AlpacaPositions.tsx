@@ -167,8 +167,25 @@ export function AlpacaPositions() {
     return `${minutes}${t('durationMinShort')}`
   }
 
-  // Collect symbols from all sources to avoid duplicates
-  const seenSymbols = new Set<string>()
+  // V235: Removed `seenSymbols` deduplication.
+  //
+  // ROOT FIX for "trades stacking in one position" bug:
+  //   Previously, this code deduplicated positions by symbol — if 3 BTC
+  //   positions existed in the DB, only 1 was shown. When the user closed
+  //   it, the next one appeared, then the next — the "phantom" behavior.
+  //
+  //   The root cause was that `usePaperTradesStore` (local Zustand) was
+  //   adding trades optimistically, creating duplicates that were hidden
+  //   by this dedup. Now that usePaperTradesStore is a transparent proxy
+  //   (V235 — all no-ops, returns empty arrays), there are no local
+  //   duplicates. Each DB position has a unique ID and should be displayed
+  //   independently — exactly like Binance/Bybit show multiple positions
+  //   on the same symbol (e.g., grid trading creates many small positions).
+  //
+  //   The backend (V234) now blocks duplicate positions on the same symbol
+  //   for manual trades, so in practice there will only be 1 position per
+  //   symbol. But if the backend ever allows multiple (e.g., for grid
+  //   strategies), the UI will display them correctly without hiding any.
 
   const allPositions: Array<
     Position & {
@@ -183,15 +200,17 @@ export function AlpacaPositions() {
     }
   > = []
 
-  // ── Source 1: API positions (from usePositionsStore) ──
+  // ── Source 1: API positions (from usePositionsStore — DB is the source of truth) ──
+  // V235: paperTrades is always [] now (usePaperTradesStore is a proxy).
+  // We keep the `manualPaper` lookup for backward compat, but it will
+  // always be undefined since paperTrades is empty.
   for (const position of positions) {
     if (!position || !position.symbol) continue
     const normalizedSide = normalizeSide(position.side)
+    // V235: paperTrades is always [] — this find() always returns undefined
     const manualPaper = paperTrades.find(
       trade => trade.symbol.replace('/', '') === position.symbol.replace('/', '') && trade.source === 'manual',
     )
-    const key = position.symbol.replace('/', '').toUpperCase()
-    seenSymbols.add(key)
 
     allPositions.push({
       ...position,
@@ -224,20 +243,19 @@ export function AlpacaPositions() {
   }
 
   // ── Source 2: Agent positions (from useAgentStore) ──
-  // FIX: Agent trades were NOT shown in the open positions list before.
-  // They were only visible in the agent widget's log. Now they're merged
-  // into the main positions display with the correct source badge.
-  // CRITICAL FIX: Read the actual `source` from the position data instead
-  // of hardcoding 'agent'. If a position has source='smart_executor' in the DB
-  // but was fetched through the agent store (shouldn't happen normally, but
-  // as a safeguard), we show the correct label.
+  // V235: Removed seenSymbols dedup — each position displays independently.
+  // The agent store may contain positions that overlap with the DB query
+  // (agent positions are also in the DB). To avoid showing the SAME DB
+  // position twice (once from positions[], once from agentPositions[]),
+  // we skip agent positions that have the same ID as an already-added
+  // DB position. This is ID-based dedup (correct), not symbol-based (wrong).
+  const addedIds = new Set<string>(positions.map(p => (p as any)?.id).filter(Boolean))
   for (const ap of agentPositions) {
     if (!ap || !ap.symbol) continue
+    // V235: Skip if this exact position ID was already added from DB
+    if (ap.id && addedIds.has(ap.id)) continue
+    addedIds.add(ap.id)
     const normalizedSide = normalizeSide(ap.side)
-    const key = ap.symbol.replace('/', '').toUpperCase()
-    // Skip if we already have this symbol from the API (avoid duplicates)
-    if (seenSymbols.has(key)) continue
-    seenSymbols.add(key)
 
     // FIX: Don't default to 'agent' — check multiple fields to determine the
     // actual source. The agent store may contain positions from the smart executor
@@ -275,17 +293,21 @@ export function AlpacaPositions() {
   }
 
   // ── Source 3: Paper trades (from usePaperTradesStore) ──
+  // V235: usePaperTradesStore.trades is always [] (transparent proxy).
+  // This loop will never execute — kept for backward compatibility.
+  // Once all callers are migrated to usePositionsStore, this block
+  // and the paperTrades dependency can be removed entirely.
   for (const trade of paperTrades) {
-    // Filter out invalid trades
+    // V235: This loop is dead code — paperTrades is always []
+    // Kept to avoid breaking the type contract. Will never execute.
     if (!trade.entryPrice || trade.entryPrice <= 0) continue
     const tradeValue = Math.abs(trade.qty * trade.entryPrice)
     if (tradeValue < 1) continue
     const base = trade.symbol.split('/')[0]
     if (/^\d+$/.test(base)) continue
-    // Skip if we already have this symbol from API or agent
-    const normalizedSymbol = trade.symbol.replace('/', '').toUpperCase()
-    if (seenSymbols.has(normalizedSymbol)) continue
-    seenSymbols.add(normalizedSymbol)
+    // V235: Use ID-based dedup (consistent with Source 2), not symbol-based
+    if (trade.id && addedIds.has(trade.id)) continue
+    addedIds.add(trade.id)
 
     allPositions.push({
       symbol: trade.symbol,

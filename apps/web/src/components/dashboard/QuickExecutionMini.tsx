@@ -139,17 +139,17 @@ export function QuickExecutionMini({
       }
     }
 
+    // V244: EXECUTE IMMEDIATELY — no confirmation step.
+    // A professional trading platform executes on the first click.
+    // The user already entered SL/TP/qty — no need to ask again.
     setPendingAction(side);
-    setExecutionState('ready')
-    setStatus({ 
-      msg: side === 'buy' ? t('confirmBuy', { qty: quantity, symbol: localSymbol }) : t('confirmSell', { qty: quantity, symbol: localSymbol }), 
-      type: 'confirm' 
-    });
+    executeOrderImmediate(side);
   }
 
-  const executeOrder = async () => {
-    if (!pendingAction || !localSymbol || !quantity) return
-    const side = pendingAction
+  // V244: Extracted execution logic so it can be called directly
+  // from validateAndConfirm without a confirmation step.
+  const executeOrderImmediate = async (side: 'buy' | 'sell') => {
+    if (!localSymbol || !quantity) return
     setLoading(true)
     setExecutionState('submitting')
     setStatus({ msg: side === 'buy' ? t('sendingBuyOrder') : t('sendingSellOrder'), type: 'loading' })
@@ -254,18 +254,19 @@ export function QuickExecutionMini({
           pair: localSymbol,
           price: currentPrice,
         })
-        // refreshAfterTrade now fetches from /api/trading/positions (DB) — picks up the new DB position
-        // V230.1: Force-refresh by clearing the debounce timestamp so refreshAfterTrade
-        // doesn't skip the immediate fetch (3s debounce was eating the first refresh).
-        ;(usePositionsStore as any).setState({ _lastRefreshAfterTrade: 0 } as any)
-        refreshAfterTrade()
-
-        // V230.1: Update the widget's local account state so margin/balance display
-        // refreshes immediately (the local account was previously updated by
-        // fetch('/api/alpaca/account') which we removed in V230 — restore it by
-        // reading from usePositionsStore.account which is populated by fetchAccount()).
-        // Wait 500ms for the backend transaction to commit, then refresh.
+        // V244: Force immediate position + account refresh (no debounce, no delay).
+        // The trade succeeded — the UI must reflect it NOW, not in 3 seconds.
+        Promise.all([
+          usePositionsStore.getState().fetchPositions(),
+          usePositionsStore.getState().fetchAccount(),
+        ]).catch(() => {})
+        // Also schedule a 2nd refresh after 2s in case the DB transaction
+        // hadn't fully committed when the first fetch ran.
         setTimeout(() => {
+          Promise.all([
+            usePositionsStore.getState().fetchPositions(),
+            usePositionsStore.getState().fetchAccount(),
+          ]).catch(() => {})
           const storeAccount = usePositionsStore.getState().account
           if (storeAccount) {
             setAccount({
@@ -273,7 +274,7 @@ export function QuickExecutionMini({
               buyingPower: Number(storeAccount.buyingPower) || 0,
             })
           }
-        }, 500)
+        }, 2000)
       } else {
         // NestJS rejected the order — show the actual reason from the backend
         const reason = j.message || j.error || j.reason || t('executionFailed')

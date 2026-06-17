@@ -130,6 +130,12 @@ export function useExecutionEngine() {
 
   const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // V248: Ref to hold executeOrder — avoids TDZ crash when validateAndConfirm
+  // (defined before executeOrder) tries to call it. The ref is assigned
+  // synchronously after executeOrder is defined, so by the time the user
+  // clicks Buy/Sell, the ref points to the real function.
+  const executeOrderRef = useRef<(side: string) => Promise<void>>(async () => {})
+
   // Current price from market store
   const currentPrice = globalQuotes[localSymbol]?.price ?? 0
 
@@ -324,20 +330,17 @@ export function useExecutionEngine() {
     setPendingAction(side)
     setExecutionState('ready')
 
-    // V247: EXECUTE IMMEDIATELY — no confirmation step.
-    // Use setTimeout(0) to avoid TDZ error — executeOrder is defined
-    // below this useCallback, so calling it synchronously would crash.
-    // setTimeout(0) defers the call to the next event loop tick, by
-    // which time executeOrder is fully initialized.
-    setTimeout(() => executeOrder(), 0)
+    // V248: Execute immediately via ref — avoids TDZ crash.
+    executeOrderRef.current(side)
 
     return true
-  }, [localSymbol, quantity, orderType, limitPrice, stopLoss, takeProfit, currentPrice, clearStatusAfter, executeOrder])
+  }, [localSymbol, quantity, orderType, limitPrice, stopLoss, takeProfit, currentPrice, clearStatusAfter])
 
   // Execute order — tries NestJS first, falls back to Alpaca
-  const executeOrder = useCallback(async () => {
-    if (!pendingAction || !localSymbol || !quantity) return
-    const side = pendingAction
+  // V248: Accept optional side parameter to avoid reading stale pendingAction state.
+  const executeOrder = useCallback(async (sideParam?: string) => {
+    const side = sideParam || pendingAction
+    if (!side || !localSymbol || !quantity) return
 
     // FIX: Check max open positions limit (10) across all sources BEFORE submitting.
     // Count positions from the store + paper trades to enforce the global limit.
@@ -613,6 +616,10 @@ export function useExecutionEngine() {
     setPendingAction(null)
     clearStatusAfter(4000) // 4 seconds — enough to read details
   }, [pendingAction, localSymbol, quantity, orderType, limitPrice, stopLoss, takeProfit, timeInForce, currentPrice, addPaperTrade, addNotification, fetchAccount, fetchPositions, loadAccount, loadOpenOrders, clearStatusAfter, tn, tc])
+
+  // V248: Wire the ref — runs synchronously during render, so by the time
+  // the user clicks, executeOrderRef.current points to the real executeOrder.
+  executeOrderRef.current = executeOrder
 
   // Auto-calculate TP/SL/Qty
   const autoCalculate = useCallback(() => {

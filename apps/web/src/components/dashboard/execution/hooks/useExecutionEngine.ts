@@ -383,43 +383,13 @@ export function useExecutionEngine() {
     // rate limiting, and connection resilience watching.
     try {
       await ensureAuth()
-      // Try to get a credential ID from NestJS portfolio service
-      const credRes = await fetch('/api/portfolio/credentials')
-      const credData = await credRes.json()
-      // FIX: Select the correct credential based on exchange type and symbol.
-      // Previously, always used credentials[0] — if a user has Binance + Alpaca,
-      // stock orders would be sent to Binance or vice versa.
-      // Now: match credential exchange to the symbol type (crypto → Binance, stocks → Alpaca).
-      const rawCredentials = credData.data || credData.credentials || []
-      const credentials = Array.isArray(rawCredentials) ? rawCredentials : []
-      
-      // FIX: Smart credential selection — match exchange to symbol type
-      let credentialId: string | undefined
-      const isCryptoSymbol = (sym: string) => {
-        const cryptoQuotes = ['USDT', 'BUSD', 'USD', 'BTC', 'ETH', 'BNB', 'DAI', 'USDC', 'FDUSD']
-        if (!sym.includes('/')) return false
-        const quote = sym.split('/')[1]
-        return cryptoQuotes.includes(quote)
-      }
-      
-      if (credentials.length === 1) {
-        // Only one credential — use it
-        credentialId = credentials[0]?.id || credentials[0]?.credentialId
-      } else if (credentials.length > 1) {
-        // Multiple credentials — match exchange type to symbol
-        const isCrypto = isCryptoSymbol(localSymbol)
-        // Priority: exact match first, then non-paper, then first available
-        const matched = credentials.find((c: any) => {
-          const ex = (c.exchange || '').toLowerCase()
-          if (isCrypto) return ex.includes('binance') || ex.includes('crypto')
-          return ex.includes('alpaca') || ex.includes('stock')
-        })
-        const nonPaper = credentials.find((c: any) => 
-          (c.exchange || '').toLowerCase() !== 'paper-trading' && c.isValid !== false
-        )
-        credentialId = matched?.id || matched?.credentialId 
-          || nonPaper?.id || nonPaper?.credentialId
-          || credentials[0]?.id || credentials[0]?.credentialId
+      // V256: Use the user's ACTIVE credential — same as chart and QuickExecutionMini.
+      // The old code fetched ALL credentials and tried to "smart match" by exchange type,
+      // which picked MT5 (non-paper) instead of paper-trading when the user had both.
+      // The user already chose their active account in Settings — respect that choice.
+      const credentialId = usePositionsStore.getState().activeCredentialId
+      if (!credentialId) {
+        throw new Error('No active account selected — choose one in Settings')
       }
 
       if (credentialId) {

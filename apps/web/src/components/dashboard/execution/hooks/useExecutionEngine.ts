@@ -324,9 +324,12 @@ export function useExecutionEngine() {
     setPendingAction(side)
     setExecutionState('ready')
 
-    // V245: EXECUTE IMMEDIATELY — no confirmation step.
-    // The user clicked Buy/Sell. Execute now.
-    executeOrder()
+    // V247: EXECUTE IMMEDIATELY — no confirmation step.
+    // Use setTimeout(0) to avoid TDZ error — executeOrder is defined
+    // below this useCallback, so calling it synchronously would crash.
+    // setTimeout(0) defers the call to the next event loop tick, by
+    // which time executeOrder is fully initialized.
+    setTimeout(() => executeOrder(), 0)
 
     return true
   }, [localSymbol, quantity, orderType, limitPrice, stopLoss, takeProfit, currentPrice, clearStatusAfter, executeOrder])

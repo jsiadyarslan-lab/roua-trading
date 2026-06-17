@@ -87,33 +87,44 @@ export class TradingController {
   }
 
   /**
-   * V234/V237: Check for existing open position on the same symbol AND credential.
-   * Prevents duplicate positions on the SAME ACCOUNT — but allows the same symbol
-   * on DIFFERENT accounts (e.g., BTC on Binance + BTC on MT5).
+   * V238: REMOVED duplicate-position check.
    *
-   * V237 FIX: V234 was too strict — it blocked ALL positions on the same symbol
-   * regardless of credentialId. This meant:
-   *   - User has BTC position on Binance
-   *   - User switches to MT5 account
-   *   - User tries to open BTC on MT5 → BLOCKED (409)
-   *   - But the Binance position is not visible in the MT5 view → confusing
+   * PROBLEM: V234/V237 blocked opening a new position when one already
+   * exists on the same symbol+credential. This is WRONG for a professional
+   * trading platform:
    *
-   * Now: Only block if the existing position is on the SAME credentialId.
-   * This allows multi-account trading on the same symbol.
+   *   - Binance Spot: allows buying the same symbol multiple times (averaging)
+   *   - Binance Futures (One-way): merges into one position (averaging)
+   *   - Binance Futures (Hedge): allows long + short simultaneously
+   *   - MT5: each trade is a SEPARATE position with unique ticket
+   *   - Bybit: same as Binance
+   *
+   * A trading platform MUST allow:
+   *   - Averaging down/up (buy more at different prices)
+   *   - Pyramiding (add to winning position)
+   *   - Grid trading (multiple positions at different levels)
+   *   - Hedging (long + short on same symbol, hedge mode)
+   *
+   * The previous V221/V234/V237 checks treated this like a toy —
+   * "one position per symbol" is a game rule, not a trading rule.
+   *
+   * FIX: Remove ALL duplicate-position checks from the backend.
+   * Each order creates a SEPARATE position in the DB (like MT5 tickets).
+   * The UI can optionally merge display by symbol (Binance-style averaging),
+   * but the backend MUST allow multiple positions.
+   *
+   * Safety is still enforced by:
+   *   - UnifiedRiskService (margin, daily loss, position size %)
+   *   - IdempotencyService (prevents double-submit of same order)
+   *   - 15-minute cooldown after SL/TP close (OrderDispatcher V221-hotfix)
    */
-  private async _findExistingOpenPosition(userId: string, symbol: string, credentialId?: string): Promise<any | null> {
-    try {
-      const where: any = { userId, symbol, status: 'OPEN' };
-      // V237: Only filter by credentialId when provided.
-      // This allows the same symbol on different accounts.
-      if (credentialId) {
-        where.credentialId = credentialId;
-      }
-      return await (this.tradingService as any).prisma.position.findFirst({ where });
-    } catch {
-      // If query fails, allow the trade (fail-open for non-critical check)
-      return null;
-    }
+
+  /**
+   * @deprecated V238: This method is no longer used — kept for backward compat.
+   * Always returns null (no existing position found).
+   */
+  private async _findExistingOpenPosition(_userId: string, _symbol: string, _credentialId?: string): Promise<any | null> {
+    return null;
   }
 
   /**
@@ -270,15 +281,12 @@ export class TradingController {
     req: any,
     res: Response,
   ) {
-    // V234/V237: Block duplicate positions on the same symbol AND credential.
-    // V237: Only block if the existing position is on the SAME credentialId.
-    // This allows multi-account trading (BTC on Binance + BTC on MT5).
-    const existingPosition = await this._findExistingOpenPosition(userId, request.symbol, request.credentialId);
-    if (existingPosition) {
-      throw new ConflictException(
-        `يوجد مركز ${existingPosition.side} مفتوح لـ ${request.symbol} على نفس الحساب — لا يمكن فتح مركز آخر. أغلق المركز الحالي أولاً أو استخدم حساباً آخر.`,
-      );
-    }
+    // V238: REMOVED V234/V237 duplicate-position check.
+    // A professional trading platform MUST allow multiple positions on the
+    // same symbol (averaging, pyramiding, grid, hedging). Each order creates
+    // a separate position with a unique ID (like MT5 tickets).
+    // Safety is enforced by UnifiedRiskService (margin, daily loss, etc.)
+    // and IdempotencyService (prevents double-submit of the same order).
 
     // ── Step 1: Check idempotency (if key provided) ──
     const idempotencyKey = (body as any).idempotencyKey ||

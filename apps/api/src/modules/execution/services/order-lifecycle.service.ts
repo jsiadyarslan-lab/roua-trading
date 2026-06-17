@@ -337,16 +337,12 @@ export class OrderLifecycleService {
             return; // Drop — don't create position
           }
 
-          const anyExistingOpen = await tx.position.findFirst({
-            where: { userId, symbol: order.symbol, status: 'OPEN' },
-          });
-          if (anyExistingOpen) {
-            this.logger.warn(
-              `🛡️ V222 LIFECYCLE-DUPLICATE: BLOCKED ${order.side} on ${order.symbol} — ` +
-              `existing ${anyExistingOpen.side} position already open`
-            );
-            return;
-          }
+          // V238: REMOVED V222 "anyExistingOpen" duplicate check.
+          // A professional trading platform MUST allow multiple positions
+          // on the same symbol (averaging, pyramiding, grid, hedging).
+          // Each order creates a SEPARATE position (like MT5 tickets).
+          // The 15-minute cooldown above (V221-hotfix) is sufficient
+          // to prevent flip-flop after SL/TP close.
 
           // Open new position
           const credential = await tx.exchangeCredential.findUnique({

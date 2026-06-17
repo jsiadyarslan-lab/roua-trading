@@ -105,25 +105,28 @@ export class OrderDispatcherService {
       }
 
       // ═══════════════════════════════════════════════════════════
-      // V221 FIX: ONE position per symbol — NO opposite-direction hedging.
+      // V238: REMOVED V221 "ONE position per symbol" check.
       //
-      // PROBLEM: V146c allowed cross-source opposite direction (BUY from
-      // SmartExecutor + SELL from Agent on same symbol). In practice this
-      // means the user pays spread/slippage TWICE while the positions
-      // cancel each other's P&L. This was the #1 cause of net losses.
+      // PROBLEM: V221 blocked ALL new positions on a symbol that already had
+      // an open position. This is WRONG for a professional trading platform:
+      //   - Binance Spot: allows buying the same symbol multiple times
+      //   - Binance Futures (One-way): merges into one position (averaging)
+      //   - Binance Futures (Hedge): allows long + short simultaneously
+      //   - MT5: each trade is a SEPARATE position with unique ticket
       //
-      // NEW RULE: Only ONE open position per symbol, regardless of source
-      // or direction. If any position exists on a symbol, block new ones.
+      // A trading platform MUST allow:
+      //   - Averaging down/up (buy more at different prices)
+      //   - Pyramiding (add to winning position)
+      //   - Grid trading (multiple positions at different levels)
+      //   - Hedging (long + short on same symbol, hedge mode)
+      //
+      // FIX: Remove the "one position per symbol" check entirely.
+      // Each order creates a SEPARATE position in the DB (like MT5 tickets).
+      // Safety is still enforced by:
+      //   - UnifiedRiskService (margin, daily loss, position size %)
+      //   - IdempotencyService (prevents double-submit of same order)
+      //   - 15-minute cooldown after SL/TP close (below)
       // ═══════════════════════════════════════════════════════════
-      const existing = await this.prisma.position.findFirst({
-        where: { userId: request.userId, symbol: request.symbol, status: 'OPEN' },
-      });
-      if (existing) {
-        // Block ALL positions on a symbol that already has an open position
-        await this.idempotency.releaseLock(sourceIdempotencyKey);
-        try { await this.idempotency.releaseLock(symbolSourceIdempotencyKey); } catch {}
-        return { success: false, message: `يوجد مركز ${existing.side} مفتوح لـ ${request.symbol} (${existing.source}) — لا يمكن فتح مركز آخر على نفس الزوج` };
-      }
 
       // ═══════════════════════════════════════════════════════════
       // V221-HOTFIX: DB-level cooldown — check recently CLOSED positions.

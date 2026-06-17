@@ -96,22 +96,12 @@ export class OrderController {
 
     this._validateOrderBusinessLogic(body);
 
-    // V234/V237: Block duplicate positions on the same symbol AND credential.
-    // V237: Only block if the existing position is on the SAME credentialId.
-    // This allows multi-account trading (BTC on Binance + BTC on MT5).
-    try {
-      const existingPosition = await (this.unifiedRisk as any).prisma.position.findFirst({
-        where: { userId, symbol: body.symbol, status: 'OPEN', credentialId: body.exchangeCredentialId },
-      });
-      if (existingPosition) {
-        throw new ConflictException(
-          `يوجد مركز ${existingPosition.side} مفتوح لـ ${body.symbol} على نفس الحساب — لا يمكن فتح مركز آخر. أغلق المركز الحالي أولاً أو استخدم حساباً آخر.`,
-        );
-      }
-    } catch (e: any) {
-      if (e instanceof ConflictException) throw e;
-      // If prisma query fails, allow the trade (fail-open)
-    }
+    // V238: REMOVED V234/V237 duplicate-position check.
+    // A professional trading platform MUST allow multiple positions on the
+    // same symbol (averaging, pyramiding, grid, hedging). Each order creates
+    // a separate position with a unique ID (like MT5 tickets).
+    // Safety is enforced by UnifiedRiskService (margin, daily loss, etc.)
+    // and IdempotencyService (prevents double-submit of the same order).
 
     // ── Step 2: Check idempotency ──
     const isUnique = await this.idempotencyService.checkAndLock(body.idempotencyKey);

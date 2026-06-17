@@ -262,15 +262,44 @@ export class TradingController {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // #18 UNIFIED: Try V2 pipeline first when V2 services are available
+    // V249: MANUAL TRADES = SYNCHRONOUS EXECUTION (V1 path)
+    // AUTOMATED TRADES = ASYNC QUEUE (V2 path)
+    //
+    // PROBLEM: V2 pipeline (BullMQ queue) is ASYNC. The controller creates
+    // an order in PENDING state, sends it to the queue, and returns
+    // immediately. The actual position creation + margin deduction happens
+    // 2-10 seconds later when the queue worker picks it up.
+    //
+    // This caused:
+    //   1. Widget execution takes 6 seconds (polling for completion)
+    //   2. Positions don't appear in Open Positions (position not in DB yet)
+    //   3. Margin not deducted (margin deduction happens in the queue)
+    //   4. Chart button "doesn't work" (returns ACCEPTED but no position)
+    //
+    // FIX: For manual trades (source='user_manual'), use V1 path which
+    // calls TradingService.placeOrder DIRECTLY (synchronous):
+    //   - Position created immediately in DB
+    //   - Margin deducted immediately
+    //   - Returns the filled order with entry price
+    //   - No queue, no polling, no delay
+    //
+    // For automated trades (smart_executor, agent), keep V2 queue —
+    // async execution is fine for bots (they don't need instant feedback).
     // ═══════════════════════════════════════════════════════════════
+    const orderSource = (body as any).source || (request as any).source || 'user_manual';
+    const isManualTrade = orderSource === 'user_manual' || orderSource === 'USER';
+
+    if (isManualTrade) {
+      // V249: Manual trades → V1 synchronous path (immediate execution)
+      return this._placeOrderV1(userId, request, req, res);
+    }
+
+    // Automated trades → V2 async queue
     if (this._isV2Available()) {
       return this._placeOrderV2(userId, body, request, req, res);
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // V1 FALLBACK (DEPRECATED) — used when V2 services are unavailable
-    // ═══════════════════════════════════════════════════════════════
+    // V2 unavailable → V1 fallback
     this.logger.warn('⚠️ V2 pipeline unavailable — falling back to V1 (deprecated)');
     return this._placeOrderV1(userId, request, req, res);
   }
@@ -419,6 +448,12 @@ export class TradingController {
     req: any,
     res: Response,
   ) {
+    // V249: Set source='user_manual' so TradingService creates the position
+    // with the correct source (enables V243 risk bypass + V246 no auto-close)
+    if (!request.source) {
+      request.source = 'user_manual';
+    }
+
     // ── V219: Risk Check via UnifiedRiskService ──
     const riskResult = await this.unifiedRisk.validateOrder({
       userId,
@@ -429,6 +464,7 @@ export class TradingController {
       quantity: request.quantity,
       price: request.price,
       stopLoss: request.stopLoss!,
+      source: request.source,
       idempotencyKey: `v1-${userId}-${request.symbol}-${request.side}-${request.type}-${request.quantity}-${request.price || 'market'}-${Math.floor(Date.now() / 1000)}`,
     });
 

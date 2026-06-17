@@ -324,14 +324,12 @@ export function useExecutionEngine() {
     setPendingAction(side)
     setExecutionState('ready')
 
-    const typeLabel = orderType === 'limit' ? tn('pendingType') : tn('marketType')
-    const limitLabel = orderType === 'limit' && limitPrice ? tn('atPrice', { price: limitPrice }) : ''
-    setStatus({
-      msg: tn('confirmOrder', { type: typeLabel, side: side === 'buy' ? tc('buy') : tc('sell'), qty: quantity, symbol: localSymbol, limit: limitLabel }),
-      type: 'confirm'
-    })
+    // V245: EXECUTE IMMEDIATELY — no confirmation step.
+    // The user clicked Buy/Sell. Execute now.
+    executeOrder()
+
     return true
-  }, [localSymbol, quantity, orderType, limitPrice, stopLoss, takeProfit, currentPrice, clearStatusAfter])
+  }, [localSymbol, quantity, orderType, limitPrice, stopLoss, takeProfit, currentPrice, clearStatusAfter, executeOrder])
 
   // Execute order — tries NestJS first, falls back to Alpaca
   const executeOrder = useCallback(async () => {
@@ -585,9 +583,18 @@ export function useExecutionEngine() {
         price: finalResult.filledAvgPrice || currentPrice,
       })
 
-      // FIX: Use refreshAfterTrade for staggered refresh (immediate + 2s + 5s)
-      // This replaces the manual Promise.all + setTimeout pattern
-      refreshAfterTrade()
+      // V245: Immediate refresh — no debounce, no delay.
+      // fetchPositions + fetchAccount directly, plus a 2s safety net.
+      Promise.all([
+        usePositionsStore.getState().fetchPositions(),
+        usePositionsStore.getState().fetchAccount(),
+      ]).catch(() => {})
+      setTimeout(() => {
+        Promise.all([
+          usePositionsStore.getState().fetchPositions(),
+          usePositionsStore.getState().fetchAccount(),
+        ]).catch(() => {})
+      }, 2000)
       loadOpenOrders().catch(() => {})
     } else {
       setExecutionState('rejected')

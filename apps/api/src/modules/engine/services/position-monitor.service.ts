@@ -545,11 +545,10 @@ export class PositionMonitorService {
       }
     } catch { /* non-critical */ }
 
-    // ── MAX_HOLDING_TIME: Smart Executor + Agent positions ──
-    // Counter-trend (reversal): 45 دقيقة
-    // Smart Executor مع الاتجاه: 4 ساعات
-    // Agent: 48 ساعة (swing trading) — V214: HARD ENFORCED, no fallback to 4h
-    if ((position.source === 'smart_executor' || position.source === 'agent') && position.openedAt) {
+    // V246: MAX_HOLDING_TIME applies ONLY to automated positions.
+    // Manual trades (source='user_manual') are NEVER auto-closed by time.
+    // The user closes them manually whenever they want.
+    if ((position.source === 'smart_executor' || position.source === 'agent' || position.source === 'auto_paper') && position.openedAt) {
       const holdingMs = Date.now() - new Date(position.openedAt).getTime();
 
       const isAgent = position.source === 'agent';

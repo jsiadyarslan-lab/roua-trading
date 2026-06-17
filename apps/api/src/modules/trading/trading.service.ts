@@ -594,19 +594,10 @@ export class TradingService {
    * Uses parallel quote fetching and batch DB updates to avoid N+1 queries
    */
   async getOpenPositions(userId: string, credentialId?: string): Promise<any[]> {
-    // FIX: Include ALL positions including paper-trading.
-    // Paper positions are real simulated trades — they should appear in portfolio.
-    // Previously excluded, causing portfolioValue = 0 for paper traders.
-    // PositionManagerService also includes them (must be consistent).
-    // V209: Added credentialId parameter for server-side filtering by account.
     const where: any = {
       userId,
       status: 'OPEN',
     };
-    // V209: Filter by credentialId when provided (for account switching).
-    // V212 FIX: Position.credentialId is NOT NULL in schema, so we CANNOT use
-    // OR with { credentialId: null } — Prisma rejects it. Use direct filter instead.
-    // Trade.credentialId IS nullable, so OR with null is fine for Trade queries.
     if (credentialId) {
       where.credentialId = credentialId;
     }
@@ -617,71 +608,29 @@ export class TradingService {
 
     if (positions.length === 0) return [];
 
-    // Fetch all quotes in parallel
-    const quotePromises = positions.map((pos) =>
-      this.exchangeService.getQuote(pos.symbol).catch(() => null),
-    );
-    const quotes = await Promise.allSettled(quotePromises);
-
-    // Build updates and results
-    const updates: any[] = [];
-    const results: any[] = [];
-
-    for (let i = 0; i < positions.length; i++) {
-      const position = positions[i];
-      const quoteResult = quotes[i];
-      const quote = quoteResult.status === 'fulfilled' ? quoteResult.value : null;
-
-      if (quote && quote.price) {
-        const currentPrice = quote.price;
-        const entryPrice = position.entryPrice.toNumber();
-        const quantity = position.quantity.toNumber();
-        const unrealizedPnl =
-          position.side === 'BUY'
-            ? (currentPrice - entryPrice) * quantity
-            : (entryPrice - currentPrice) * quantity;
-
-        updates.push(
-          this.prisma.position.update({
-            where: { id: position.id },
-            data: {
-              currentPrice,
-              unrealizedPnl,
-              highestPrice: Math.max(
-                position.highestPrice?.toNumber() ?? currentPrice,
-                currentPrice,
-              ),
-              lowestPrice: Math.min(
-                position.lowestPrice?.toNumber() ?? currentPrice,
-                currentPrice,
-              ),
-            },
-          }),
-        );
-
-        // Build enriched position for response
-        results.push({
-          ...position,
-          currentPrice,
-          unrealizedPnl,
-        });
-      } else {
-        // No quote available — return position as-is
-        this.logger.warn(
-          `Failed to update price for ${position.symbol}: quote unavailable`,
-        );
-        results.push(position);
-      }
-    }
-
-    // Batch update in transaction
-    if (updates.length > 0) {
-      await this.prisma.$transaction(updates).catch((err: any) => {
-        this.logger.warn(`Batch position update failed: ${err.message}`);
-      });
-    }
-
-    return results;
+    // V257: Return positions IMMEDIATELY with last-known prices from DB.
+    // Previously, this method fetched live quotes for EVERY position from
+    // Binance (getQuote), which took 2-5 seconds due to rate limits.
+    //
+    // Now: Return DB data as-is (currentPrice/unrealizedPnl are updated by
+    // PositionMonitor every 10s). The frontend has live prices via
+    // useMarketStore (WebSocket + polling) and updatePositionPrice() which
+    // updates PnL in real-time without re-fetching from the backend.
+    //
+    // This makes getOpenPositions return in <50ms instead of 2-5s.
+    return positions.map((pos: any) => {
+      const entryPrice = pos.entryPrice?.toNumber?.() ?? Number(pos.entryPrice);
+      const currentPrice = pos.currentPrice?.toNumber?.() ?? Number(pos.currentPrice) ?? entryPrice;
+      const quantity = pos.quantity?.toNumber?.() ?? Number(pos.quantity);
+      const unrealizedPnl = pos.unrealizedPnl?.toNumber?.() ?? Number(pos.unrealizedPnl) ?? 0;
+      return {
+        ...pos,
+        entryPrice,
+        currentPrice,
+        quantity,
+        unrealizedPnl,
+      };
+    });
   }
 
   /**

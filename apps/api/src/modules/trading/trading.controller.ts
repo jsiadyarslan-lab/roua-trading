@@ -203,8 +203,13 @@ export class TradingController {
     const userId = req.user.id;
 
     // ── Shared validation (used by both V1 and V2 pipelines) ──
+    // V239: Accept both credentialId (frontend V1) and exchangeCredentialId (V2)
+    const resolvedCredentialId = body.credentialId || (body as any).exchangeCredentialId;
+    if (!resolvedCredentialId) {
+      throw new BadRequestException('credentialId مطلوب');
+    }
     const request: PlaceOrderRequest = {
-      credentialId: body.credentialId,
+      credentialId: resolvedCredentialId,
       symbol: body.symbol,
       side: body.side as OrderSide,
       type: body.type as OrderType,

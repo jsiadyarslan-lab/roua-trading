@@ -27,8 +27,18 @@ import { OrderSide, OrderType } from '../../trading.types';
 // Re-export Prisma enums for DTO use — single source of truth
 
 export class PlaceOrderDto {
+  // V239: Accept BOTH credentialId (V1/frontend) and exchangeCredentialId (V2).
+  // The frontend (chart + widget) sends `credentialId`, while the V2
+  // OrderController expects `exchangeCredentialId`. Both map to the same
+  // ExchangeCredential FK. The controller reads body.credentialId first,
+  // then falls back to body.exchangeCredentialId.
+  @IsOptional()
   @IsString()
-  exchangeCredentialId!: string;
+  credentialId?: string;
+
+  @IsOptional()
+  @IsString()
+  exchangeCredentialId?: string;
 
   @IsString()
   @MaxLength(30)
@@ -60,9 +70,12 @@ export class PlaceOrderDto {
   @Min(0.00001)
   takeProfit?: number;
 
+  // V239: Made optional — frontend (chart/widget) doesn't send this.
+  // The controller generates one if not provided.
+  @IsOptional()
   @IsString()
   @MaxLength(128)
-  idempotencyKey!: string;
+  idempotencyKey?: string;
 
   @IsOptional()
   @IsString()

@@ -104,7 +104,10 @@ export class OrderController {
     // and IdempotencyService (prevents double-submit of the same order).
 
     // ── Step 2: Check idempotency ──
-    const isUnique = await this.idempotencyService.checkAndLock(body.idempotencyKey);
+    // V239: Generate idempotencyKey if not provided by frontend
+    const idempotencyKey = body.idempotencyKey ||
+      `v2-${userId}-${body.symbol}-${body.side}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const isUnique = await this.idempotencyService.checkAndLock(idempotencyKey);
     if (!isUnique) {
       throw new ConflictException(
         'تم استلام هذا الطلب مسبقاً. لا يمكن تكرار نفس idempotencyKey خلال 24 ساعة.',
@@ -114,7 +117,8 @@ export class OrderController {
     // ── Step 3: Build OrderCommand ──
     const command: OrderCommand = {
       userId,
-      exchangeCredentialId: body.exchangeCredentialId,
+      // V239: Accept both credentialId (frontend) and exchangeCredentialId (V2 format)
+      exchangeCredentialId: (body.credentialId || body.exchangeCredentialId) as string,
       symbol: body.symbol,
       side: body.side === 'BUY' ? OrderSideEnum.BUY : OrderSideEnum.SELL,
       type: body.type === 'MARKET' ? OrderTypeEnum.MARKET : OrderTypeEnum.LIMIT,
@@ -122,7 +126,8 @@ export class OrderController {
       price: body.price != null ? Number(body.price) : undefined,
       stopLoss: body.stopLoss != null ? Number(body.stopLoss) : 0,
       takeProfit: body.takeProfit != null ? Number(body.takeProfit) : undefined,
-      idempotencyKey: body.idempotencyKey,
+      // V239: Use generated idempotencyKey
+      idempotencyKey: idempotencyKey,
       clientOrderId: body.clientOrderId,
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
@@ -133,7 +138,7 @@ export class OrderController {
     try {
       order = await this.stateManager.createOrder(command);
     } catch (error: any) {
-      await this.idempotencyService.releaseLock(body.idempotencyKey);
+      await this.idempotencyService.releaseLock(idempotencyKey);
       throw error;
     }
 
@@ -147,7 +152,7 @@ export class OrderController {
         riskResult.failedCheck,
       );
 
-      await this.idempotencyService.releaseLock(body.idempotencyKey);
+      await this.idempotencyService.releaseLock(idempotencyKey);
 
       throw new ForbiddenException(
         `🛡️ تم رفض الطلب: ${riskResult.reason}`,
@@ -217,7 +222,8 @@ export class OrderController {
       data: {
         orderId: order.id,
         status: 'ACCEPTED',
-        idempotencyKey: body.idempotencyKey,
+        // V239: Use generated idempotencyKey
+      idempotencyKey: idempotencyKey,
         riskScore: riskResult.riskScore,
         pipeline: 'v2',
         // #18: Migration hint

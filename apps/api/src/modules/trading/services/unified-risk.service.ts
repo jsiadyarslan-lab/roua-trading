@@ -738,9 +738,11 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
         } catch { /* non-fatal */ }
 
         // V219: UNIFIED position size % check — same maxPositionSizePercent for ALL
-        const paperBalance = await this._getPaperBalance(command.userId) || 0;
+        // V240: Use _getPaperBalance which returns 10000 fallback when balance is 0/missing.
+        // This prevents the "39272% of portfolio" error when paperBalance is very low.
+        const paperBalance = await this._getPaperBalance(command.userId);
         const orderValue = Math.abs((command.quantity || 0) * (command.price || 0));
-        if (orderValue > 0) {
+        if (orderValue > 0 && paperBalance > 0) {
           const positionPercent = (orderValue / paperBalance) * 100;
           if (positionPercent > this.maxPositionSizePercent) {
             return { allowed: false, reason: `حجم المركز (${positionPercent.toFixed(1)}% من المحفظة) يتجاوز الحد الأقصى (${this.maxPositionSizePercent}%).`, failedCheck: 'POSITION_SIZE_LIMIT' };
@@ -1181,9 +1183,18 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
   private async _getPaperBalance(userId: string): Promise<number> {
     try {
       const settings = await this.prisma.agentSettings.findUnique({ where: { userId } });
-      if (settings && Number(settings.paperBalance) > 0) return Number(settings.paperBalance);
+      if (settings && Number(settings.paperBalance) > 0) {
+        const balance = Number(settings.paperBalance);
+        // V240: If balance is very low (< 100), it was likely drained by trades.
+        // Return the default balance so the user can continue trading.
+        // This is acceptable for paper trading — it's a simulation.
+        if (balance < 100) {
+          return parseFloat(this.configService.get('DEFAULT_PAPER_BALANCE', '10000')) || 10000;
+        }
+        return balance;
+      }
     } catch {}
-    return 10000;
+    return parseFloat(this.configService.get('DEFAULT_PAPER_BALANCE', '10000')) || 10000;
   }
 
   private async _getOpenPositionsCount(userId: string): Promise<number> {

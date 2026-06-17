@@ -940,6 +940,7 @@ export class PositionMonitorService {
             ? position.quantity.toNumber() 
             : Number(position.quantity),
           closeReason: reason, // V141: STOP_LOSS or TAKE_PROFIT
+          closePrice: currentPrice, // V264: Pass the exact SL/TP price so closePosition uses it
         },
         undefined,
         undefined,

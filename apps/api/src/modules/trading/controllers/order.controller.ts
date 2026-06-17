@@ -96,18 +96,16 @@ export class OrderController {
 
     this._validateOrderBusinessLogic(body);
 
-    // V234: Block duplicate positions on the same symbol BEFORE creating the order.
-    // Prevents users from opening 3 BTC positions by clicking Buy 3 times.
-    // The UI dedupes by symbol (shows 1), but DB has 3 — causing the
-    // "close one, another appears" phantom behavior.
+    // V234/V237: Block duplicate positions on the same symbol AND credential.
+    // V237: Only block if the existing position is on the SAME credentialId.
+    // This allows multi-account trading (BTC on Binance + BTC on MT5).
     try {
-      // Access prisma via the unifiedRisk service (which has it injected)
       const existingPosition = await (this.unifiedRisk as any).prisma.position.findFirst({
-        where: { userId, symbol: body.symbol, status: 'OPEN' },
+        where: { userId, symbol: body.symbol, status: 'OPEN', credentialId: body.exchangeCredentialId },
       });
       if (existingPosition) {
         throw new ConflictException(
-          `يوجد مركز ${existingPosition.side} مفتوح لـ ${body.symbol} — لا يمكن فتح مركز آخر على نفس الزوج. أغلق المركز الحالي أولاً.`,
+          `يوجد مركز ${existingPosition.side} مفتوح لـ ${body.symbol} على نفس الحساب — لا يمكن فتح مركز آخر. أغلق المركز الحالي أولاً أو استخدم حساباً آخر.`,
         );
       }
     } catch (e: any) {

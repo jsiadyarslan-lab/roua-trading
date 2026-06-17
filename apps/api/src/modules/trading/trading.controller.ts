@@ -87,19 +87,29 @@ export class TradingController {
   }
 
   /**
-   * V234: Check for existing open position on the same symbol.
-   * Prevents duplicate positions from being created when users click Buy/Sell
-   * multiple times. This check is done BEFORE creating the order record, so
-   * rejected orders don't leave orphan entries in the DB.
+   * V234/V237: Check for existing open position on the same symbol AND credential.
+   * Prevents duplicate positions on the SAME ACCOUNT — but allows the same symbol
+   * on DIFFERENT accounts (e.g., BTC on Binance + BTC on MT5).
    *
-   * Returns the existing position if found, or null if no conflict.
+   * V237 FIX: V234 was too strict — it blocked ALL positions on the same symbol
+   * regardless of credentialId. This meant:
+   *   - User has BTC position on Binance
+   *   - User switches to MT5 account
+   *   - User tries to open BTC on MT5 → BLOCKED (409)
+   *   - But the Binance position is not visible in the MT5 view → confusing
+   *
+   * Now: Only block if the existing position is on the SAME credentialId.
+   * This allows multi-account trading on the same symbol.
    */
-  private async _findExistingOpenPosition(userId: string, symbol: string): Promise<any | null> {
+  private async _findExistingOpenPosition(userId: string, symbol: string, credentialId?: string): Promise<any | null> {
     try {
-      // Use the tradingService's prisma instance to query positions
-      return await (this.tradingService as any).prisma.position.findFirst({
-        where: { userId, symbol, status: 'OPEN' },
-      });
+      const where: any = { userId, symbol, status: 'OPEN' };
+      // V237: Only filter by credentialId when provided.
+      // This allows the same symbol on different accounts.
+      if (credentialId) {
+        where.credentialId = credentialId;
+      }
+      return await (this.tradingService as any).prisma.position.findFirst({ where });
     } catch {
       // If query fails, allow the trade (fail-open for non-critical check)
       return null;
@@ -260,15 +270,13 @@ export class TradingController {
     req: any,
     res: Response,
   ) {
-    // V234: Block duplicate positions on the same symbol BEFORE creating the order.
-    // This is the same check that OrderDispatcher does for V1 manual trades.
-    // Without this, clicking Buy 3 times on BTC creates 3 separate DB positions
-    // that all appear as one (due to UI dedup by symbol), then show up one-by-one
-    // as the user closes them.
-    const existingPosition = await this._findExistingOpenPosition(userId, request.symbol);
+    // V234/V237: Block duplicate positions on the same symbol AND credential.
+    // V237: Only block if the existing position is on the SAME credentialId.
+    // This allows multi-account trading (BTC on Binance + BTC on MT5).
+    const existingPosition = await this._findExistingOpenPosition(userId, request.symbol, request.credentialId);
     if (existingPosition) {
       throw new ConflictException(
-        `يوجد مركز ${existingPosition.side} مفتوح لـ ${request.symbol} — لا يمكن فتح مركز آخر على نفس الزوج. أغلق المركز الحالي أولاً.`,
+        `يوجد مركز ${existingPosition.side} مفتوح لـ ${request.symbol} على نفس الحساب — لا يمكن فتح مركز آخر. أغلق المركز الحالي أولاً أو استخدم حساباً آخر.`,
       );
     }
 

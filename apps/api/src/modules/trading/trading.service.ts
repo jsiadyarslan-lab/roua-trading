@@ -666,12 +666,24 @@ export class TradingService {
         0,
       );
 
+      // V262: Return paperBalance from DB so the frontend doesn't use 10000 fallback.
+      let paperBalance = 0;
+      try {
+        const settings = await this.prisma.agentSettings.findUnique({
+          where: { userId },
+          select: { paperBalance: true },
+        });
+        const balance = settings?.paperBalance ? Number(settings.paperBalance) : 0;
+        paperBalance = balance < 100 ? 10000 : balance; // V252: reset if drained
+      } catch { paperBalance = 10000; }
+
       return {
         totalPositions: positions.length,
         totalValue,
         totalUnrealizedPnl,
         totalRealizedPnl,
         usedMargin,
+        paperBalance, // V262: Add this so frontend uses real balance, not 10000 fallback
         positions,
       };
     } catch (error: any) {

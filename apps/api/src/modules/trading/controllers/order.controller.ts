@@ -129,6 +129,10 @@ export class OrderController {
       // V239: Use generated idempotencyKey
       idempotencyKey: idempotencyKey,
       clientOrderId: body.clientOrderId,
+      // V240: Set source='user_manual' so risk check doesn't count manual trades
+      // against the SmartExecutor's 5-position limit. Without this, command.source
+      // is undefined → defaults to 'auto_paper' → counts against executor limit.
+      source: 'user_manual',
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
     };

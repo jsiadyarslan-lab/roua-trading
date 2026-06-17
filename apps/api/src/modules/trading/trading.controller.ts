@@ -317,6 +317,9 @@ export class TradingController {
       takeProfit: request.takeProfit,
       idempotencyKey,
       clientOrderId: (body as any).clientOrderId,
+      // V240: Set source='user_manual' so risk check doesn't count manual trades
+      // against the SmartExecutor's 5-position limit.
+      source: 'user_manual',
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
     };

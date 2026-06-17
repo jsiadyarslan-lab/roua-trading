@@ -159,14 +159,17 @@ export const TIMEFRAME_EXPIRY_MS: Record<BriefTimeframe, number> = {
  *  This should reduce SL hit rate from 36% to below 20%.
  */
 export const TIMEFRAME_RR: Record<BriefTimeframe, { sl: number; tp: number; maxSlippage: number }> = {
-  M1: { sl: 0.010, tp: 0.025, maxSlippage: 0.003 },   // V204: SL 0.5%→1.0%, TP 1.25%→2.5% (1:2.5) — was 36% SL hit rate
-  M5: { sl: 0.015, tp: 0.0375, maxSlippage: 0.004 },   // V204: SL 0.8%→1.5%, TP 2.0%→3.75% (1:2.5)
-  M15: { sl: 0.020, tp: 0.060, maxSlippage: 0.005 },   // V204: SL 1.0%→2.0%, TP 3.0%→6.0% (1:3)
-  M30: { sl: 0.024, tp: 0.072, maxSlippage: 0.006 },   // V204: SL 1.2%→2.4%, TP 3.6%→7.2% (1:3)
-  H1: { sl: 0.025, tp: 0.075, maxSlippage: 0.006 },    // V204: SL 1.5%→2.5%, TP 4.5%→7.5% (1:3)
-  H4: { sl: 0.030, tp: 0.090, maxSlippage: 0.007 },    // V204: SL 2.0%→3.0%, TP 6.0%→9.0% (1:3)
-  D1: { sl: 0.050, tp: 0.125, maxSlippage: 0.010 },    // V204: SL 3.0%→5.0%, TP 7.5%→12.5% (1:2.5) — same as old W1
-  W1: { sl: 0.070, tp: 0.175, maxSlippage: 0.012 },    // V204: SL 5.0%→7.0%, TP 12.5%→17.5% (1:2.5)
+  // V265: Raised minimum SL to 2% for ALL timeframes.
+  // 13 of 34 briefs had SL < 2% → SL hit by normal crypto noise.
+  // DOGE with SL 1.2% = hit within minutes by routine volatility.
+  M1: { sl: 0.020, tp: 0.050, maxSlippage: 0.003 },   // V265: SL 1.0%→2.0%, TP 2.5%→5.0% (1:2.5)
+  M5: { sl: 0.020, tp: 0.050, maxSlippage: 0.004 },   // V265: SL 1.5%→2.0%, TP 3.75%→5.0% (1:2.5)
+  M15: { sl: 0.020, tp: 0.060, maxSlippage: 0.005 },  // V265: SL 2.0% (unchanged), TP 6.0% (1:3)
+  M30: { sl: 0.025, tp: 0.075, maxSlippage: 0.006 },  // V265: SL 2.4%→2.5%, TP 7.2%→7.5% (1:3)
+  H1: { sl: 0.030, tp: 0.090, maxSlippage: 0.006 },   // V265: SL 2.5%→3.0%, TP 7.5%→9.0% (1:3)
+  H4: { sl: 0.030, tp: 0.090, maxSlippage: 0.007 },   // V265: SL 3.0% (unchanged), TP 9.0% (1:3)
+  D1: { sl: 0.050, tp: 0.125, maxSlippage: 0.010 },   // unchanged
+  W1: { sl: 0.070, tp: 0.175, maxSlippage: 0.012 },   // unchanged
 };
 
 /** V177 FIX #13: Minimum risk/reward ratio enforced by RiskGatekeeper.

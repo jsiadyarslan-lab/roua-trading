@@ -427,30 +427,19 @@ export function useExecutionEngine() {
         // This prevents duplicate orders if the user double-clicks or the
         // network retries. The key is a UUID v4 that uniquely identifies
         // this specific order attempt for 24 hours.
-        const idempotencyKey = crypto.randomUUID()
-
         const nestBody = {
-          credentialId: credentialId, // V254: V1 endpoint uses credentialId (not exchangeCredentialId)
+          credentialId: credentialId,
           symbol: localSymbol,
           side: side.toUpperCase(),
           type: orderType.toUpperCase(),
           quantity: parseFloat(quantity),
-          // FIX: Always send price even for market orders — the risk gatekeeper
-          // needs a reference price to validate stop-loss direction. Previously,
-          // market orders sent price=undefined, causing `(command.price || 0)` = 0
-          // in the risk gatekeeper, which made `stopLoss >= 0` always TRUE and
-          // rejected ALL market buy orders.
           price: orderType === 'limit' && limitPrice
             ? parseFloat(limitPrice)
             : currentPrice > 0 ? currentPrice : undefined,
-          // FIX: v2 requires stopLoss (mandatory per RiskGatekeeper rule #1)
-          // If user didn't set one, calculate a default (2% from current price)
           stopLoss: stopLoss ? parseFloat(stopLoss) : currentPrice > 0
             ? (side === 'buy' ? currentPrice * 0.98 : currentPrice * 1.02)
             : undefined,
           takeProfit: takeProfit ? parseFloat(takeProfit) : undefined,
-          idempotencyKey,
-          clientOrderId: idempotencyKey,
         }
 
         const res = await fetch('/api/trading/orders', {

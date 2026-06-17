@@ -545,10 +545,12 @@ export class PositionMonitorService {
       }
     } catch { /* non-critical */ }
 
-    // V246: MAX_HOLDING_TIME applies ONLY to automated positions.
-    // Manual trades (source='user_manual') are NEVER auto-closed by time.
-    // The user closes them manually whenever they want.
-    if ((position.source === 'smart_executor' || position.source === 'agent' || position.source === 'auto_paper') && position.openedAt) {
+    // V260: COMPLETELY REMOVED MAX_HOLDING_TIME for ALL positions.
+    // TIME_EXPIRED was killing profitable trades before TP could be reached.
+    // 12 of 27 trades (44%) were closed at 4h 0m — none hit TP.
+    // SL/TP are the ONLY valid exit reasons. Time-based closes are artificial.
+    // This applies to BOTH manual AND automated positions.
+    if (false && (position.source === 'smart_executor' || position.source === 'agent' || position.source === 'auto_paper') && position.openedAt) {
       const holdingMs = Date.now() - new Date(position.openedAt).getTime();
 
       const isAgent = position.source === 'agent';

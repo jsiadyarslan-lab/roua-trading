@@ -16,7 +16,7 @@
 
 # Embed the git commit SHA into the Docker image
 # V245: Fix timer dancing — direct DOM positioning (no React state) + stick below price label
-ARG BUILD_CACHE=V256
+ARG BUILD_CACHE=V260
 ARG GIT_COMMIT=unknown
 # V216: Declare RAILWAY_GIT_COMMIT_SHA so Docker doesn't warn about undefined variable
 ARG RAILWAY_GIT_COMMIT_SHA=
@@ -85,7 +85,7 @@ RUN cd packages/shared && tsc
 # incomplete build (missing common/, audit/, auth/ directories).
 # This was the ROOT CAUSE of 502 errors on Railway: incomplete JS output
 # → module resolution failures → NestJS crash at startup.
-RUN cd apps/api && rm -rf dist tsconfig.tsbuildinfo && tsc
+RUN cd apps/api && rm -rf dist tsconfig.tsbuildinfo && echo "Build cache: $BUILD_CACHE" && tsc
 
 # Build the Next.js web app — use next directly from PATH.
 RUN cd apps/web && next build --webpack

@@ -430,7 +430,7 @@ export function useExecutionEngine() {
         const idempotencyKey = crypto.randomUUID()
 
         const nestBody = {
-          exchangeCredentialId: credentialId,
+          credentialId: credentialId, // V254: V1 endpoint uses credentialId (not exchangeCredentialId)
           symbol: localSymbol,
           side: side.toUpperCase(),
           type: orderType.toUpperCase(),
@@ -453,57 +453,37 @@ export function useExecutionEngine() {
           clientOrderId: idempotencyKey,
         }
 
-        const res = await fetch('/api/trading/v2/orders', {
+        const res = await fetch('/api/trading/orders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(nestBody),
         })
         const j = await res.json()
 
-        // FIX: v2 returns { success: true, data: { orderId, status: 'ACCEPTED' } }
-        // not { id, filledAvgPrice } like v1. We need to handle the async
-        // response by either polling for completion or treating ACCEPTED as success.
-        if (res.ok && j.success && j.data?.orderId) {
-          // FIX: Validate j.data exists before accessing j.data.orderId
-          // Optional chaining above ensures j.data?.orderId is defined,
-          // but explicitly verify to prevent edge cases.
-          const orderId = j.data?.orderId || j.orderId
-          if (!orderId) {
-            throw new Error('NestJS v2 returned success but no orderId')
-          }
+        // V254: V1 endpoint returns the FILLED order directly (synchronous).
+        // No polling needed — the position is already in the DB.
+        if (res.ok && j.id) {
           result = {
             success: true,
-            orderId,
+            orderId: j.id,
+            symbol: j.symbol || localSymbol,
+            side,
+            qty: String(j.filledQuantity || quantity),
+            filledAvgPrice: j.averagePrice ? parseFloat(j.averagePrice) : undefined,
+            source: 'nestjs',
+          }
+          setUsedNestJS(true)
+        } else if (res.ok && j.success && j.data?.orderId) {
+          // V2 response format (fallback — shouldn't happen with V254)
+          result = {
+            success: true,
+            orderId: j.data.orderId,
             symbol: localSymbol,
             side,
             qty: quantity,
-            filledAvgPrice: undefined, // Will be available after execution completes
+            filledAvgPrice: undefined,
             source: 'nestjs',
           }
-
-          // Poll for order completion (up to 10 seconds)
-          // This gives the BullMQ worker time to execute and report back
-          try {
-            const pollResult = await pollOrderStatus(j.data.orderId, 10000)
-            if (pollResult.status === 'FILLED' && pollResult.averagePrice) {
-              result.filledAvgPrice = pollResult.averagePrice
-            }
-            // FIX: If poll timed out but order was ACCEPTED, do NOT fall through
-            // to Alpaca. The order is still processing via BullMQ and will
-            // eventually execute. Sending a duplicate order to Alpaca would
-            // create a double position. Treat ACCEPTED+TIMEOUT as success.
-            if (pollResult.status === 'TIMEOUT') {
-              this_is_accepted: {
-                // Order is processing — don't create duplicate via Alpaca
-              }
-            }
-          } catch {
-            // Polling failed — order is still ACCEPTED/processing, not an error
-          }
-
-          // Order was accepted by NestJS — do NOT fall through to Alpaca
-          // even if polling timed out. The order will execute via BullMQ.
-          // Falling through would create a DOUBLE ORDER.
           setUsedNestJS(true)
         } else if (res.status === 403 || (j.message && j.message.includes('رفض'))) {
           // Risk gatekeeper rejected

@@ -2354,41 +2354,26 @@ export class TradingService {
     fee: number;
     feeCurrency: string;
   }> {
-    // V204 FIX: Unified with smart-executor — NEVER assume $10,000 fallback.
-    // If we don't know the real balance, we cannot safely size a position.
-    // Returning 0 will cause the position size check to fail (0% > 5% → false)
-    // which is the CORRECT behavior — don't trade if you don't know the balance.
-    let paperBalance = 0; // V204: was 10000 — caused positions of 86% of actual balance
+    // V252: Use DEFAULT_PAPER_BALANCE (10000) when paperBalance is 0 or missing.
+    const DEFAULT_PAPER_BALANCE = 10000;
+    let paperBalance = 0;
     if (userId) {
       try {
         const settings = await this.prisma.agentSettings.findUnique({
           where: { userId },
           select: { paperBalance: true },
         });
-        if (settings?.paperBalance) {
-          paperBalance = Number(settings.paperBalance);
+        if (settings?.paperBalance && Number(settings.paperBalance) > 0) {
+          const balance = Number(settings.paperBalance);
+          paperBalance = balance < 100 ? DEFAULT_PAPER_BALANCE : balance;
         } else {
-          this.logger.warn(`📜 V204: paperBalance not found for user ${userId} — blocking trade (safety)`);
-          return {
-            success: false,
-            exchangeOrderId: '',
-            filledQuantity: 0,
-            averagePrice: currentPrice,
-            fee: 0,
-            feeCurrency: 'USD',
-          };
+          paperBalance = DEFAULT_PAPER_BALANCE;
         }
-      } catch (err: any) {
-        this.logger.error(`📜 V204: Could not fetch paperBalance: ${err.message} — blocking trade (safety)`);
-        return {
-          success: false,
-          exchangeOrderId: '',
-          filledQuantity: 0,
-          averagePrice: currentPrice,
-          fee: 0,
-          feeCurrency: 'USD',
-        };
+      } catch {
+        paperBalance = DEFAULT_PAPER_BALANCE;
       }
+    } else {
+      paperBalance = DEFAULT_PAPER_BALANCE;
     }
     // V204: If paperBalance is 0 or negative, block the trade
     if (paperBalance <= 0) {

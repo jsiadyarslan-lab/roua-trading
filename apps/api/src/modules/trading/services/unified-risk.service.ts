@@ -737,15 +737,20 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
           }
         } catch { /* non-fatal */ }
 
-        // V219: UNIFIED position size % check — same maxPositionSizePercent for ALL
-        // V240: Use _getPaperBalance which returns 10000 fallback when balance is 0/missing.
-        // This prevents the "39272% of portfolio" error when paperBalance is very low.
-        const paperBalance = await this._getPaperBalance(command.userId);
-        const orderValue = Math.abs((command.quantity || 0) * (command.price || 0));
-        if (orderValue > 0 && paperBalance > 0) {
-          const positionPercent = (orderValue / paperBalance) * 100;
-          if (positionPercent > this.maxPositionSizePercent) {
-            return { allowed: false, reason: `حجم المركز (${positionPercent.toFixed(1)}% من المحفظة) يتجاوز الحد الأقصى (${this.maxPositionSizePercent}%).`, failedCheck: 'POSITION_SIZE_LIMIT' };
+        // V242: Skip position size % check for MANUAL trades.
+        // The user is free to trade whatever they want — the margin check
+        // (PAPER_MARGIN_CHECK above) is the only real limit.
+        // The maxPositionSizePercent is for AUTOMATED trades only (executor/agent).
+        const v242OrderSource = command.source || 'user_manual';
+        const isManualTrade = v242OrderSource === 'user_manual' || v242OrderSource === 'USER';
+        if (!isManualTrade) {
+          const paperBalance = await this._getPaperBalance(command.userId);
+          const orderValue = Math.abs((command.quantity || 0) * (command.price || 0));
+          if (orderValue > 0 && paperBalance > 0) {
+            const positionPercent = (orderValue / paperBalance) * 100;
+            if (positionPercent > this.maxPositionSizePercent) {
+              return { allowed: false, reason: `حجم المركز (${positionPercent.toFixed(1)}% من المحفظة) يتجاوز الحد الأقصى (${this.maxPositionSizePercent}%).`, failedCheck: 'POSITION_SIZE_LIMIT' };
+            }
           }
         }
 
@@ -788,9 +793,13 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
       const orderValue = command.quantity * (currentPrice || 0);
       const portfolioValue = await this._getPortfolioValue(command.userId);
 
-      if (portfolioValue > 0) {
+      // V242: Skip position size % check for MANUAL trades (real exchanges too).
+      // The exchange itself enforces margin/balance limits — we don't need
+      // an artificial % cap on top of that for user-initiated trades.
+      const realOrderSource = command.source || 'user_manual';
+      const isRealManualTrade = realOrderSource === 'user_manual' || realOrderSource === 'USER';
+      if (!isRealManualTrade && portfolioValue > 0) {
         const positionPercent = (orderValue / portfolioValue) * 100;
-        // V219: Uses UNIFIED maxPositionSizePercent (was 2% in Gatekeeper vs 20% in RiskManager)
         if (positionPercent > this.maxPositionSizePercent) {
           return { allowed: false, reason: `حجم المركز (${positionPercent.toFixed(1)}% من المحفظة) يتجاوز الحد الأقصى (${this.maxPositionSizePercent}%).`, failedCheck: 'POSITION_SIZE_LIMIT' };
         }

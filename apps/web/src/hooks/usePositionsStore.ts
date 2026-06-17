@@ -511,19 +511,21 @@ export const usePositionsStore = create<PositionsState>()(
       const currentMargin = Number(currentAccount.initialMargin) || 0
 
       let initialMargin: number
-      if (isRealExchange && isBackendMarginFresh && backendMargin > 0) {
-        // TIER 1: Real exchange margin — AUTHORITATIVE
-        // Exchange knows the user's actual leverage setting
-        initialMargin = backendMargin
-      } else if (clientMargin > 0) {
-        // TIER 2: Client-side calculation (user-configured leverage for paper trading)
-        initialMargin = clientMargin
-      } else if (isBackendMarginFresh && backendMargin > 0) {
-        // TIER 3: Fresh backend margin (paper trading backend calc)
+      // V263: ALWAYS use backend margin first (both real AND paper).
+      // Previously, paper trading used clientMargin (TIER 2) which
+      // calculates margin with different leverage than the backend.
+      // This caused the "dancing" between $34 and $338 every 2s:
+      //   - fetchAccount (30s): sets backendMargin (correct)
+      //   - updatePositionPrice (2s): overrides with clientMargin (different leverage)
+      if (isBackendMarginFresh && backendMargin > 0) {
+        // TIER 1: Backend margin — AUTHORITATIVE (both real and paper)
         initialMargin = backendMargin
       } else if (currentMargin > 0) {
-        // TIER 4: Preserve existing margin — don't reset to 0!
+        // TIER 2: Preserve existing margin — don't reset to 0!
         initialMargin = currentMargin
+      } else if (clientMargin > 0) {
+        // TIER 3: Client-side calculation (fallback if no backend margin)
+        initialMargin = clientMargin
       } else {
         initialMargin = 0
       }

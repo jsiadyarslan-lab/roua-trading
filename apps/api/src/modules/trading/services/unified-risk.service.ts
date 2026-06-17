@@ -199,8 +199,59 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
     await this.syncSettingsFromDB();
 
     this.logger.debug(
-      `🛡️ [UNIFIED] Validating order: ${command.side} ${command.quantity} ${command.symbol}`,
+      `🛡️ [UNIFIED] Validating order: ${command.side} ${command.quantity} ${command.symbol} (source: ${command.source || 'unknown'})`,
     );
+
+    // ═══════════════════════════════════════════════════════════════════
+    // V243: COMPLETE SEPARATION — Manual vs Automated risk rules
+    //
+    // PRINCIPLE: A professional trading platform does NOT restrict manual trades.
+    // The user is free to trade whatever size, whatever frequency, whatever
+    // direction they want. The only limits are:
+    //   1. SL direction must be correct (SL below entry for BUY, above for SELL)
+    //   2. Price must be sane (not $34 for BTC)
+    //
+    // All other checks (position size %, daily loss, drawdown, circuit breakers,
+    // trade repetition, max open positions, kill switch) are for AUTOMATED
+    // trading ONLY — they protect the bot from risking too much.
+    //
+    // This matches how Binance/Bybit/MT5 work:
+    //   - Manual trades: no artificial limits (balance/margin is the limit)
+    //   - Trading bots: configurable risk per trade, max positions, daily loss
+    // ═══════════════════════════════════════════════════════════════════
+    const orderSource = command.source || 'user_manual';
+    const isManualTrade = orderSource === 'user_manual' || orderSource === 'USER';
+
+    if (isManualTrade) {
+      // ── MANUAL TRADE PATH: minimal checks only ──
+
+      // Check 1: Stop-loss direction (SL must be on the correct side of entry)
+      const slCheck = await this.enforceStopLoss(command);
+      if (!slCheck.allowed) return slCheck;
+
+      // Check 2: Price sanity (reject obviously wrong prices)
+      const sanityCheck = await this.checkPriceSanity(command);
+      if (!sanityCheck.allowed) return sanityCheck;
+
+      // That's it. No position size %, no daily loss, no drawdown, no
+      // circuit breakers, no trade repetition, no max open positions.
+      // The user is free. The exchange/balance is the only real limit.
+
+      this.riskEventAudit.log({
+        userId: command.userId,
+        service: 'RiskGatekeeper' as any,
+        decision: 'ACCEPT',
+        reason: 'Manual trade — minimal checks passed (SL direction + price sanity)',
+        symbol: command.symbol,
+        source: command.source,
+        riskScore: 0,
+      });
+
+      return { allowed: true, riskScore: 0 };
+    }
+
+    // ── AUTOMATED TRADE PATH: full 10-check pipeline ──
+    // (smart_executor, agent, auto_paper sources)
 
     // Check 1: Stop-loss enforcement + R:R
     const slCheck = await this.enforceStopLoss(command);
@@ -247,9 +298,9 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
 
     this.riskEventAudit.log({
       userId: command.userId,
-      service: 'RiskGatekeeper' as any,  // V219: Uses 'RiskGatekeeper' enum value for compatibility; will be updated when schema adds 'UnifiedRisk'
+      service: 'RiskGatekeeper' as any,
       decision: 'ACCEPT',
-      reason: 'All risk checks passed',
+      reason: 'All risk checks passed (automated)',
       symbol: command.symbol,
       source: command.source,
       riskScore,

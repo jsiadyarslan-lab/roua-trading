@@ -2975,20 +2975,12 @@ export class TradingService {
           );
         }
 
-        // Also check for ANY existing open position (regardless of direction)
-        // This prevents opposite-direction hedging at the lowest level
-        const anyExistingOpen = await db.position.findFirst({
-          where: { userId, symbol: request.symbol, status: 'OPEN' },
-        });
-        if (anyExistingOpen) {
-          this.logger.warn(
-            `🛡️ V222 DUPLICATE-BLOCK in _updatePosition: BLOCKED ${side} on ${request.symbol} — ` +
-            `existing ${anyExistingOpen.side} position (${anyExistingOpen.source}) already open`
-          );
-          throw new Error(
-            `BLOCKED_BY_DUPLICATE: يوجد مركز ${anyExistingOpen.side} مفتوح لـ ${request.symbol} — لا يمكن فتح مركز آخر`
-          );
-        }
+        // V250: REMOVED duplicate-position check in _updatePosition.
+        // A professional trading platform MUST allow multiple positions on
+        // the same symbol (averaging, pyramiding, grid, hedging).
+        // V238 removed this from controllers — but forgot this check
+        // inside TradingService._updatePosition.
+        // Each order creates a SEPARATE position (like MT5 tickets).
 
         // Open new position
         const { stopLoss, takeProfit } =

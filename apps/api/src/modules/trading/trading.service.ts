@@ -1557,6 +1557,38 @@ export class TradingService {
       }
     }
 
+    // V261: Block TIME_EXPIRED force-close of Smart Executor positions.
+    // ROOT CAUSE of 4h auto-close:
+    //   1. PositionMonitor (old Docker cache) detects holdingMs > 4h
+    //   2. Calls _closePosition → closePositionWithRetry → closePosition
+    //   3. V237 blocks TIME_EXPIRED in closePosition (holdingHours < 6h)
+    //   4. closePosition throws error
+    //   5. _closePosition catch block → forceClosePosition (FALLBACK!)
+    //   6. forceClosePosition has NO V237 defense → closes the position!
+    //
+    // This was the BYPASS that defeated ALL previous fixes (V223, V237, V260).
+    // Every tool that tried to fix the 4h close was defeated by this fallback.
+    //
+    // FIX: Block ANY force-close that contains TIME_EXPIRED in the reason
+    // for Smart Executor positions. Only SL/TP/user-initiated closes pass.
+    const isSmartExecutorForceClose = position.source === 'smart_executor';
+    const isTimeExpiredForceClose = reasonUpper.includes('TIME_EXPIRED');
+    if (isSmartExecutorForceClose && isTimeExpiredForceClose && !isSLTPForceClose && !isUserForceClose) {
+      this.logger.error(
+        `🚨 V261 BLOCKED forceClose: Smart Executor position ${position.id} (${position.symbol}) ` +
+        `TIME_EXPIRED force-close BLOCKED. reason="${reason}". ` +
+        `This was the ROOT CAUSE of the 4h auto-close bug — forceClosePosition ` +
+        `was bypassing V237's defense in closePosition.`
+      );
+      return {
+        order: null,
+        pnl: 0,
+        position,
+        blockedByV261: true,
+        reason: `TIME_EXPIRED force-close of Smart Executor position BLOCKED (V261)`,
+      };
+    }
+
     const posQuantity = position.quantity.toNumber();
     const posEntryPrice = position.entryPrice.toNumber();
     const posRealizedPnl = position.realizedPnl?.toNumber() ?? 0;

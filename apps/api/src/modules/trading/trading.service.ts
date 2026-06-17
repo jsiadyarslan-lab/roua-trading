@@ -953,7 +953,11 @@ export class TradingService {
       // Now: Only try getQuote with a 3-second timeout. If it fails or times out,
       // V172: Reduced getQuote timeout 3s → 1s. Paper positions always have
       // currentPrice set by the position monitor — getQuote is rarely needed.
-      let closePrice = posCurrentPrice;
+      // V264: Use closePrice from request if provided (SL/TP exact price).
+      // This fixes the SL slippage bug where closePosition fetched its own
+      // price from DB (stale by 10s) instead of using the SL/TP price that
+      // PositionMonitor detected.
+      let closePrice = request.closePrice || posCurrentPrice;
       if (!closePrice || closePrice <= 0) {
         try {
           const quotePromise = this.exchangeService.getQuote(position.symbol);

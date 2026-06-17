@@ -611,7 +611,47 @@ export const usePositionsStore = create<PositionsState>()(
     }
 
     // ── المحاولة الأولى: أرصدة بيانات الاعتماد (Binance, KuCoin, OKX, etc.) ──
-    // هذا هو المصدر الرئيسي لأرصدة البورصات المرتبطة بالمستخدم
+    // V262: If active credential is paper-trading, skip the slow multi-exchange
+    // balance fetch and use the fast paper balance from DB directly.
+    // The old code called /api/portfolio/credentials/balances which fetches
+    // balances from ALL exchanges (including MT5 which times out at 3s,
+    // and Binance which is rate-limited) → 5-10s delay on every refresh.
+    const activeCredId = get().activeCredentialId
+    const activeExchange = get().exchangeBalances.find((e: any) => e.credentialId === activeCredId)
+    if (activeExchange?.exchange === 'paper-trading' || (!activeExchange && !activeCredId)) {
+      // Paper trading: use fast DB-based balance from positions summary
+      try {
+        const summaryRes = await fetch('/api/trading/positions/summary')
+        if (summaryRes.ok) {
+          const summaryData = await summaryRes.json()
+          const summary = summaryData.data || summaryData
+          const paperBalance = summary?.paperBalance ?? 10000
+          const usedMargin = summary?.usedMargin ?? 0
+          const unrealizedPnl = summary?.unrealizedPnl ?? 0
+          const equity = paperBalance + usedMargin + unrealizedPnl // displayedBalance + PnL
+          const available = paperBalance + unrealizedPnl // free margin
+
+          const account = {
+            cash: paperBalance + usedMargin, // displayedBalance (true wallet)
+            equity,
+            buyingPower: Math.max(0, available),
+            initialMargin: usedMargin,
+            unrealizedPnl,
+            isPaperTrading: true,
+            activeCredentialId: activeCredId,
+            _backendMargin: usedMargin,
+            _marginVersion: Date.now(),
+            isRealExchangeMargin: false,
+          }
+          set({ account, dataSource: 'nestjs', _cacheTimestamp: Date.now() })
+          return
+        }
+      } catch {
+        // Fall through to slow path if summary endpoint fails
+      }
+    }
+
+    // Non-paper or summary failed: use the slow multi-exchange path
     try {
       const res = await fetch('/api/portfolio/credentials/balances')
       // V154 FIX: If session expired (401), STOP — don't fall through to $10,000 fallback

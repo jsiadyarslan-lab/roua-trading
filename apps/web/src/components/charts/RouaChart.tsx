@@ -3436,7 +3436,7 @@ export default function RouaChart({
                   <button
                     onClick={() => {
                       const { addTrade } = usePaperTradesStore.getState();
-                      addTrade({ symbol: selectedSymbol_, side: 'short', qty: lotSize, entryPrice: bid, currentPrice: bid, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
+                      handlePlaceOrder({ side: 'sell', quantity: lotSize, entryPrice: bid, sl: bid * 0.98, tp: bid * 1.02 });
                     }}
                     style={{
                       display: 'flex',
@@ -3506,7 +3506,7 @@ export default function RouaChart({
                   <button
                     onClick={() => {
                       const { addTrade } = usePaperTradesStore.getState();
-                      addTrade({ symbol: selectedSymbol_, side: 'long', qty: lotSize, entryPrice: ask, currentPrice: ask, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
+                      handlePlaceOrder({ side: 'buy', quantity: lotSize, entryPrice: ask, sl: ask * 0.98, tp: ask * 1.02 });
                     }}
                     style={{
                       display: 'flex',
@@ -3781,7 +3781,7 @@ export default function RouaChart({
                     onClick={() => {
                       setTradeSide('sell');
                       const { addTrade } = usePaperTradesStore.getState();
-                      addTrade({ symbol: selectedSymbol_, side: 'short', qty: lotSize, entryPrice: bid, currentPrice: bid, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
+                      handlePlaceOrder({ side: 'sell', quantity: lotSize, entryPrice: bid, sl: bid * 0.98, tp: bid * 1.02 });
                     }}
                     style={{
                       flex: 1,
@@ -3809,7 +3809,7 @@ export default function RouaChart({
                     onClick={() => {
                       setTradeSide('buy');
                       const { addTrade } = usePaperTradesStore.getState();
-                      addTrade({ symbol: selectedSymbol_, side: 'long', qty: lotSize, entryPrice: ask, currentPrice: ask, entryTime: Date.now(), strategy: 'quick', source: 'manual' });
+                      handlePlaceOrder({ side: 'buy', quantity: lotSize, entryPrice: ask, sl: ask * 0.98, tp: ask * 1.02 });
                     }}
                     style={{
                       flex: 1,
@@ -4350,19 +4350,7 @@ export default function RouaChart({
               } catch {}
             }}
             onExecuteTrade={(side, entry, sl, tp) => {
-              const { addTrade } = usePaperTradesStore.getState();
-              addTrade({
-                symbol: selectedSymbol_,
-                side,
-                qty: 0.01,
-                entryPrice: entry,
-                currentPrice: entry,
-                entryTime: Date.now(),
-                strategy: 'ai',
-                source: 'manual',
-                sl,
-                tp,
-              });
+              handlePlaceOrder({ side, quantity: 0.01, entryPrice: entry, sl, tp });
             }}
           />
         </DraggablePanel>

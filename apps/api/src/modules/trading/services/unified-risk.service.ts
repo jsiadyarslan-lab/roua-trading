@@ -1111,11 +1111,18 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
         if (riskConfig.takeProfitDefault) this.defaultTakeProfitPercent = parseFloat(riskConfig.takeProfitDefault);
 
         // V219: UNIFIED position size calculation
-        // Previously RiskManager used riskPerTrade * 3 (up to 30%), Gatekeeper used env var.
-        // Now: riskPerTrade * 3 capped at 30% is applied to the UNIFIED maxPositionSizePercent
+        // V241: Changed from riskPct * 3 (max 30%) to riskPct * 10 (max 100%).
+        // The old formula: riskPerTrade=1% → maxPosition=3% → only $300 per trade
+        // on a $10,000 account. This blocked virtually ALL manual trades because
+        // even 0.01 BTC ($660) exceeded the 3% limit.
+        //
+        // New formula: riskPerTrade=1% → maxPosition=10% → $1000 per trade.
+        // riskPerTrade=2% → maxPosition=20% → $2000 per trade.
+        // riskPerTrade=5% → maxPosition=50% → $5000 per trade.
+        // Capped at 100% (full account) — paper trading allows this.
         if (riskConfig.riskPerTrade) {
           const riskPct = parseFloat(riskConfig.riskPerTrade);
-          this.maxPositionSizePercent = Math.min(30, riskPct * 3);
+          this.maxPositionSizePercent = Math.min(100, riskPct * 10);
           this.defaultRiskPerTradePercent = riskPct;
         }
       }

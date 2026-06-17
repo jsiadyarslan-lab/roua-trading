@@ -342,21 +342,11 @@ export function useExecutionEngine() {
     const side = sideParam || pendingAction
     if (!side || !localSymbol || !quantity) return
 
-    // FIX: Check max open positions limit (10) across all sources BEFORE submitting.
-    // Count positions from the store + paper trades to enforce the global limit.
-    const MAX_OPEN_POSITIONS = 10
-    const currentPositions = usePositionsStore.getState().positions.length
-    const currentPaperTrades = usePaperTradesStore.getState().trades.length
-    const totalOpenPositions = currentPositions + currentPaperTrades
-    if (totalOpenPositions >= MAX_OPEN_POSITIONS) {
-      setExecutionState('rejected')
-      setStatus({
-        msg: tn('maxPositions', { count: totalOpenPositions, max: MAX_OPEN_POSITIONS }),
-        type: 'error'
-      })
-      clearStatusAfter(5000)
-      return
-    }
+    // V258: REMOVED max open positions check for manual trades.
+    // The user is free to open as many positions as they want.
+    // V243 removed this from the backend risk check — but this
+    // FRONTEND check was still blocking at 10 positions.
+    // The backend (V243) allows manual trades with no position limit.
 
     setLoading(true)
     setExecutionState('submitting')

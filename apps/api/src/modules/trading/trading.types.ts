@@ -126,6 +126,10 @@ export interface ClosePositionRequest {
    * V214 defense only blocks SYSTEM-originated non-SL/TP closes for Agent positions <48h.
    * USER-initiated closes ALWAYS pass through — traders must be able to close their own positions. */
   source?: 'USER' | 'SYSTEM';
+  /** V264: The price at which the position should be closed.
+   * For SL/TP hits, this is the stopLossNum or takeProfitNum (the EXACT price the user set).
+   * If not provided, closePosition will fetch the current market price (old behavior). */
+  closePrice?: number;
 }
 
 export interface RiskCheckResult {

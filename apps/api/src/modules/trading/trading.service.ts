@@ -2388,43 +2388,11 @@ export class TradingService {
       };
     }
 
-    // V204 FIX: Unified MAX_POSITION_PERCENT to 2% (was 5% — inconsistent with smart-executor's 2%).
-    // The smart-executor caps at portfolioValue * 0.02, but this service allowed 5%,
-    // creating a loophole where positions passed smart-executor's 2% check but
-    // trading.service's 5% check allowed them through.
-    const MAX_POSITION_PERCENT = 2;
+    // V253: REMOVED MAX_POSITION_PERCENT check — manual trades are free.
+    // V242 removed this from unified-risk.service.ts but _executePaperTrade
+    // had its OWN separate check. Now removed here too.
+    // The margin check (paperBalance > orderValue) is the ONLY limit.
     const orderValue = request.quantity * currentPrice;
-
-    const positionPercent = (orderValue / paperBalance) * 100;
-    if (positionPercent > MAX_POSITION_PERCENT) {
-      this.logger.warn(
-        `📜 V180: Paper trade rejected — positionPercent ${positionPercent.toFixed(1)}% > ${MAX_POSITION_PERCENT}% (orderValue=$${orderValue.toFixed(2)}, paperBalance=$${paperBalance})`,
-      );
-      return {
-        success: false,
-        exchangeOrderId: '',
-        filledQuantity: 0,
-        averagePrice: currentPrice,
-        fee: 0,
-        feeCurrency: 'USD',
-      };
-    }
-
-    // Secondary safety: hard cap as absolute maximum regardless of balance
-    const maxOrderValue = paperBalance * (MAX_POSITION_PERCENT / 100);
-    if (orderValue > maxOrderValue) {
-      this.logger.warn(
-        `📜 V180: Paper trade rejected — orderValue $${orderValue.toFixed(2)} > maxOrderValue $${maxOrderValue.toFixed(2)}`,
-      );
-      return {
-        success: false,
-        exchangeOrderId: '',
-        filledQuantity: 0,
-        averagePrice: currentPrice,
-        fee: 0,
-        feeCurrency: 'USD',
-      };
-    }
 
     // Simulate slippage: 0.1% in the direction of the trade
     const slippagePercent = 0.001;
@@ -2937,27 +2905,28 @@ export class TradingService {
         //   - MT5 sync closed the position without any cooldown
         // This DB check WILL prevent flip-flop trades.
         // ═══════════════════════════════════════════════════════════════════
-        const COOLDOWN_MINUTES = 15;
-        const recentlyClosed = await db.position.findFirst({
-          where: {
-            userId,
-            symbol: request.symbol,
-            status: { in: ['CLOSED', 'LIQUIDATED'] },
-            closedAt: { gte: new Date(Date.now() - COOLDOWN_MINUTES * 60 * 1000) },
-          },
-          orderBy: { closedAt: 'desc' },
-        });
-        if (recentlyClosed) {
-          const closedAgo = Math.round((Date.now() - new Date(recentlyClosed.closedAt!).getTime()) / 60000);
-          this.logger.warn(
-            `🛡️ V222 DB-COOLDOWN in _updatePosition: BLOCKED ${side} on ${request.symbol} — ` +
-            `position closed ${closedAgo} min ago (cooldown: ${COOLDOWN_MINUTES} min). ` +
-            `Source: ${request.source || 'unknown'}`
-          );
-          throw new Error(
-            `BLOCKED_BY_COOLDOWN: تم إغلاق مركز على ${request.symbol} قبل ${closedAgo} دقيقة — ` +
-            `انتظر ${COOLDOWN_MINUTES - closedAgo} دقيقة قبل فتح مركز جديد`
-          );
+        if (request.source !== "user_manual") {
+          const COOLDOWN_MINUTES = 15;
+          const recentlyClosed = await db.position.findFirst({
+            where: {
+              userId,
+              symbol: request.symbol,
+              status: { in: ['CLOSED', 'LIQUIDATED'] },
+              closedAt: { gte: new Date(Date.now() - COOLDOWN_MINUTES * 60 * 1000) },
+            },
+            orderBy: { closedAt: 'desc' },
+          });
+          if (recentlyClosed) {
+            const closedAgo = Math.round((Date.now() - new Date(recentlyClosed.closedAt!).getTime()) / 60000);
+            this.logger.warn(
+              `🛡️ V222 DB-COOLDOWN: BLOCKED ${side} on ${request.symbol} — ` +
+              `position closed ${closedAgo} min ago (cooldown: ${COOLDOWN_MINUTES} min).`
+            );
+            throw new Error(
+              `BLOCKED_BY_COOLDOWN: تم إغلاق مركز على ${request.symbol} قبل ${closedAgo} دقيقة — ` +
+              `انتظر ${COOLDOWN_MINUTES - closedAgo} دقيقة قبل فتح مركز جديد`
+            );
+          }
         }
 
         // V250: REMOVED duplicate-position check in _updatePosition.

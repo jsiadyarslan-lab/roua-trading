@@ -2343,18 +2343,14 @@ export class TradingService {
     // The margin check (paperBalance > orderValue) is the ONLY limit.
     const orderValue = request.quantity * currentPrice;
 
-    // Simulate slippage: 0.1% in the direction of the trade
-    const slippagePercent = 0.001;
-    const rawFillPrice = request.side === 'BUY'
-      ? currentPrice * (1 + slippagePercent)  // Buy slightly higher
-      : currentPrice * (1 - slippagePercent); // Sell slightly lower
-
-    // V146 FIX: Round price to eliminate floating-point artifacts.
-    // Without rounding, `1.08543 * 1.001` produces `1.0865154300000001`
-    // which gets stored in DB and causes display/calculation errors.
-    // Use 5 decimals for forex (pipette precision), 2 for everything else.
-    const priceDecimals = this._priceDecimals(rawFillPrice, request.symbol);
-    const fillPrice = parseFloat(rawFillPrice.toFixed(priceDecimals));
+    // V259: REMOVED slippage simulation.
+    // The chart already sends the exact price (resolvedPrice).
+    // Adding 0.1% slippage on top caused $66+ difference on BTC.
+    // Real exchanges charge slippage naturally — paper trading should
+    // fill at the exact price the user saw on the chart.
+    // V146: Round price to eliminate floating-point artifacts.
+    const priceDecimals = this._priceDecimals(currentPrice, request.symbol);
+    const fillPrice = parseFloat(currentPrice.toFixed(priceDecimals));
 
     // Simulate fee: 0.1%
     const fee = request.quantity * fillPrice * 0.001;

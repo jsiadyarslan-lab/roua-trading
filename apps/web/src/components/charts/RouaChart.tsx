@@ -3436,7 +3436,7 @@ export default function RouaChart({
                   <button
                     onClick={() => {
                       const { addTrade } = usePaperTradesStore.getState();
-                      handlePlaceOrder({ side: 'sell', quantity: lotSize, entryPrice: bid, sl: bid * 0.98, tp: bid * 1.02 });
+                      handlePlaceOrder({ side: 'sell', quantity: lotSize, entryPrice: resolvedPrice, sl: resolvedPrice * 1.02, tp: resolvedPrice * 0.98 });
                     }}
                     style={{
                       display: 'flex',
@@ -3506,7 +3506,7 @@ export default function RouaChart({
                   <button
                     onClick={() => {
                       const { addTrade } = usePaperTradesStore.getState();
-                      handlePlaceOrder({ side: 'buy', quantity: lotSize, entryPrice: ask, sl: ask * 0.98, tp: ask * 1.02 });
+                      handlePlaceOrder({ side: 'buy', quantity: lotSize, entryPrice: resolvedPrice, sl: resolvedPrice * 0.98, tp: resolvedPrice * 1.02 });
                     }}
                     style={{
                       display: 'flex',
@@ -3781,7 +3781,7 @@ export default function RouaChart({
                     onClick={() => {
                       setTradeSide('sell');
                       const { addTrade } = usePaperTradesStore.getState();
-                      handlePlaceOrder({ side: 'sell', quantity: lotSize, entryPrice: bid, sl: bid * 0.98, tp: bid * 1.02 });
+                      handlePlaceOrder({ side: 'sell', quantity: lotSize, entryPrice: resolvedPrice, sl: resolvedPrice * 1.02, tp: resolvedPrice * 0.98 });
                     }}
                     style={{
                       flex: 1,
@@ -3809,7 +3809,7 @@ export default function RouaChart({
                     onClick={() => {
                       setTradeSide('buy');
                       const { addTrade } = usePaperTradesStore.getState();
-                      handlePlaceOrder({ side: 'buy', quantity: lotSize, entryPrice: ask, sl: ask * 0.98, tp: ask * 1.02 });
+                      handlePlaceOrder({ side: 'buy', quantity: lotSize, entryPrice: resolvedPrice, sl: resolvedPrice * 0.98, tp: resolvedPrice * 1.02 });
                     }}
                     style={{
                       flex: 1,

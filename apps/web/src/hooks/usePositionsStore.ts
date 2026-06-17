@@ -627,14 +627,15 @@ export const usePositionsStore = create<PositionsState>()(
           const summary = summaryData.data || summaryData
           const paperBalance = summary?.paperBalance ?? 10000
           const usedMargin = summary?.usedMargin ?? 0
-          const unrealizedPnl = summary?.unrealizedPnl ?? 0
-          const equity = paperBalance + usedMargin + unrealizedPnl // displayedBalance + PnL
-          const available = paperBalance + unrealizedPnl // free margin
-
+          const unrealizedPnl = summary?.totalUnrealizedPnl ?? 0
+          // V262.2: paperBalance from backend = displayedBalance (DB + usedMargin)
+          // cash = displayedBalance (true wallet, what the user sees as "Balance")
+          // equity = displayedBalance + unrealizedPnl
+          // available = displayedBalance - usedMargin + unrealizedPnl = cash - usedMargin + PnL
           const account = {
-            cash: paperBalance + usedMargin, // displayedBalance (true wallet)
-            equity,
-            buyingPower: Math.max(0, available),
+            cash: paperBalance, // displayedBalance (already includes usedMargin from backend)
+            equity: paperBalance + unrealizedPnl,
+            buyingPower: Math.max(0, paperBalance - usedMargin + unrealizedPnl),
             initialMargin: usedMargin,
             unrealizedPnl,
             isPaperTrading: true,

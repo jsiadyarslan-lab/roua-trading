@@ -667,14 +667,20 @@ export class TradingService {
       );
 
       // V262: Return paperBalance from DB so the frontend doesn't use 10000 fallback.
+      // V262.2: Calculate DISPLAYED balance = paperBalance(DB) + usedMargin.
+      // The DB paperBalance has margin DEDUCTED (V176 fix). To show the
+      // true wallet balance, we must ADD BACK the usedMargin.
+      // This matches credentials.service.ts line 797:
+      //   displayedBalance = paperBalanceUsd + usedMargin
       let paperBalance = 0;
       try {
         const settings = await this.prisma.agentSettings.findUnique({
           where: { userId },
           select: { paperBalance: true },
         });
-        const balance = settings?.paperBalance ? Number(settings.paperBalance) : 0;
-        paperBalance = balance < 100 ? 10000 : balance; // V252: reset if drained
+        const dbBalance = settings?.paperBalance ? Number(settings.paperBalance) : 0;
+        // displayedBalance = DB balance + usedMargin (margin locked in open positions)
+        paperBalance = dbBalance + usedMargin;
       } catch { paperBalance = 10000; }
 
       return {

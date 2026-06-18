@@ -35,7 +35,7 @@ import { ExchangeService } from '../../exchange/exchange.service';
 import { AuditService } from '../../../audit/audit.service';
 import { TradingService } from '../../trading/trading.service';
 import { StrategicCouncilService } from '../strategic-council/strategic-council.service';
-import { TradingBriefDTO, StrictRules, EXECUTOR_TIMEFRAMES, isExecutorTimeframe, isSymbolSupportedByExchange } from '../strategic-council/strategic-council.types';
+import { TradingBriefDTO, StrictRules, EXECUTOR_TIMEFRAMES, isExecutorTimeframe, isSymbolSupportedByExchange, TIMEFRAME_RR, BriefTimeframe } from '../strategic-council/strategic-council.types';
 import { ExecutorStatus, ExecutionResult, ExecutorConfig, UserExecutorState } from './smart-executor.types';
 import { PlaceOrderRequest, OrderSide, OrderType } from '../../trading/trading.types';
 // REMOVED: RiskGatekeeperService — deprecated, replaced by UnifiedRiskService (V219)
@@ -3384,24 +3384,32 @@ export class SmartExecutorService implements OnModuleDestroy {
       // FIX: Recalculate SL/TP from current price if brief price is stale
       // A brief from 15 minutes ago has SL/TP based on old entry price.
       // Using stale SL/TP causes incorrect risk levels.
+      //
+      // V269 FIX: Always use TIMEFRAME_RR[timeframe] for SL/TP recalculation
+      // instead of preserving the brief's old ratio. This ensures V265's
+      // minimum SL of 2% is enforced even on briefs created before V265
+      // was deployed (which had SL = 1% for SELL on M1).
+      //
+      // ROOT CAUSE: The old code did:
+      //   rr.sl = 1 + (brief.stopLoss - brief.entryPrice) / brief.entryPrice
+      // which PRESERVED the brief's old SL ratio (e.g., 1% from pre-V265).
+      // This meant SELL trades kept getting SL = 1% even after V265 deployment.
       const priceShift = Math.abs(currentPrice - brief.entryPrice) / brief.entryPrice;
       let execStopLoss = brief.stopLoss;
       let execTakeProfit = brief.takeProfit;
       if (priceShift > 0.001) { // Price moved more than 0.1% from brief
-        const rr = brief.direction === 'BUY'
-          ? { sl: 1 - (brief.entryPrice - brief.stopLoss) / brief.entryPrice,
-              tp: 1 + (brief.takeProfit - brief.entryPrice) / brief.entryPrice }
-          : { sl: 1 + (brief.stopLoss - brief.entryPrice) / brief.entryPrice,
-              tp: 1 - (brief.entryPrice - brief.takeProfit) / brief.entryPrice };
+        // V269: Use TIMEFRAME_RR directly — guarantees V265 minimums are applied
+        const { sl: tfSL, tp: tfTP } = TIMEFRAME_RR[brief.timeframe as BriefTimeframe]
+          || { sl: 0.020, tp: 0.050 }; // fallback: 2% SL, 5% TP
         execStopLoss = brief.direction === 'BUY'
-          ? currentPrice * rr.sl
-          : currentPrice * rr.sl;
+          ? currentPrice * (1 - tfSL)
+          : currentPrice * (1 + tfSL);
         execTakeProfit = brief.direction === 'BUY'
-          ? currentPrice * rr.tp
-          : currentPrice * rr.tp;
+          ? currentPrice * (1 + tfTP)
+          : currentPrice * (1 - tfTP);
         this.logger.debug(
-          `⚔️ Adjusted SL/TP for ${brief.pair}: entry ${brief.entryPrice}→${currentPrice}, ` +
-          `SL ${brief.stopLoss}→${execStopLoss.toFixed(4)}, TP ${brief.takeProfit}→${execTakeProfit.toFixed(4)}`
+          `⚔️ V269 Adjusted SL/TP for ${brief.pair} ${brief.timeframe}: entry ${brief.entryPrice}→${currentPrice}, ` +
+          `SL ${brief.stopLoss}→${execStopLoss.toFixed(4)} (${(tfSL * 100).toFixed(1)}%), TP ${brief.takeProfit}→${execTakeProfit.toFixed(4)} (${(tfTP * 100).toFixed(1)}%)`
         );
       }
 

@@ -319,8 +319,8 @@ async function bootstrap() {
         // V219: Version info for deployment verification
         // This allows checking which code is ACTUALLY running on Railway
         version: {
-          code: 'V237',
-          agentProtection: 'V214_ONLY', // V230: V222 Prisma extension removed (was causing 500s), V214 service-level protection active
+          code: 'V268', // V268: 32-language AI layer + locale-aware formatting + EAToken schema
+          agentProtection: 'V214_V237_V261_TRIPLE_DEFENSE', // V261 closes the forceClose bypass that defeated V237+V214
           portfolioUnification: 'ENABLED', // V217: RiskManager & RiskCalculator use same formula
           unifiedValuation: 'ENABLED', // V218: PortfolioValuationService = single source of truth
           priceValidation: 'ENABLED', // V218: Price validation layer prevents BTC $1,921 bug
@@ -342,6 +342,15 @@ async function bootstrap() {
           mt5FullExecution: 'ENABLED', // V226: TradingService routes MT5 via ExecutionGateway (not CCXT)
           mt5PositionModify: 'ENABLED', // V226: MT5Adapter.modifyPosition() for SL/TP updates on broker
           mt5SymbolSupport: 'ENABLED', // V226: isSymbolSupportedByExchange recognizes MT5 pairs (forex+commodities+crypto)
+          v261ForceCloseDefense: 'ENABLED', // V261: Blocks TIME_EXPIRED force-close of Smart Executor positions
+          v262PaperBalanceFromDB: 'ENABLED', // V262: Returns paperBalance from DB in /account endpoint
+          v263BackendMarginFirst: 'ENABLED', // V263: Always uses backend margin (both real AND paper)
+          v264ClosePriceExact: 'ENABLED', // V264: Uses request.closePrice for SL/TP — fix slippage bug
+          v265MinSL2Percent: 'ENABLED', // V265: All timeframes require SL ≥ 2% (was 0.5-1.5%)
+          v266PositionWebSocket: 'ENABLED', // V266: Real-time WebSocket push for position/account events
+          v267MultilingualAI: 'ENABLED_32_LOCALES', // V267: AI Council emits analysis in 32 UI locales
+          v268ChartPrefSchemaFix: 'ENABLED', // V268: ChartPreference stores extra fields in settings JSON
+          v268EATokenModel: 'ENABLED', // V268: EAToken Prisma model added (was missing — broke EA Bridge)
           commit: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.DEPLOY_COMMIT || 'unknown',
           nodeEnv: process.env.NODE_ENV || 'development',
         },

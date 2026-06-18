@@ -16,6 +16,9 @@ import { SelfHealingService } from '../../ai/council-intelligence/self-healing.s
 // V223: StrategicCouncilService — to cancel briefs on position close
 import { StrategicCouncilService } from '../../ai/strategic-council/strategic-council.service';
 
+/** V270: RegimeType matching MarketRegimeService output */
+type RegimeType = 'BULL' | 'BEAR' | 'RANGE' | 'VOLATILE' | 'TRANSITIONAL';
+
 /**
  * Position Monitor Service — Real-Time Position Surveillance
  *
@@ -89,8 +92,16 @@ export class PositionMonitorService {
     // the invalidateBriefsForSymbol call will throw loudly inside the try/catch.
     @Optional() @Inject(forwardRef(() => StrategicCouncilService))
     private readonly strategicCouncil?: StrategicCouncilService,
+    // V270: MarketRegimeService for regime-aware position management.
+    // Injected via string token (same pattern as AdaptiveSchedule in V267)
+    // to avoid circular import with CouncilIntelligenceModule.
+    @Optional() @Inject('MARKET_REGIME_SERVICE') private readonly regimeService?: any,
   ) {
-    this.logger.log('🛡️ Position Monitor initialized — protective surveillance active' + (this.journal ? ' + TradeJournal' : '') + (this.selfHealing ? ' + SelfHealing' : '') + (this.strategicCouncil ? ' + V223 BriefInvalidation' : ''));
+    this.logger.log('🛡️ Position Monitor initialized — protective surveillance active'
+      + (this.journal ? ' + TradeJournal' : '')
+      + (this.selfHealing ? ' + SelfHealing' : '')
+      + (this.strategicCouncil ? ' + V223 BriefInvalidation' : '')
+      + (this.regimeService ? ' + V270 RegimeAware' : ''));
   }
 
   /**
@@ -902,6 +913,27 @@ export class PositionMonitorService {
 
     } // V187: end of if (!isAgentPosition) — skip SL/TP/trailing for Agent positions
 
+    // ── V270: Regime-Aware Position Management ──
+    // Checks if the market regime has shifted against the position's direction.
+    // Uses a 5-layer filter to avoid false breakouts:
+    //   1. Regime direction vs position direction (opposite?)
+    //   2. Confidence threshold (>60% for action, >40% for tightening)
+    //   3. 3-bar confirmation via Redis (regime must persist for 3 consecutive checks)
+    //   4. ATR spike filter (skip if current candle > 2× ATR — likely news)
+    //   5. Graduated response (tighten → break-even → 50% close → 100% close)
+    //
+    // This is the "missing link" between MarketRegimeService (which detects the regime)
+    // and PositionMonitor (which manages open positions). Previously, the regime was
+    // only used to ADJUST new briefs — existing positions were blind to regime changes.
+    if (this.regimeService?.getCurrentRegime && !isAgentPosition) {
+      try {
+        await this._checkRegimeReversal(position, currentPrice, entryPrice, pnlPercent, effectiveHigh, effectiveLow);
+      } catch (regimeErr: any) {
+        // Non-critical — regime check should never block normal monitoring
+        this.logger.debug(`🛡️ V270 Regime check failed for ${position.symbol}: ${regimeErr?.message || regimeErr}`);
+      }
+    }
+
     // ── Batch price/PnL update (no SL/TP hit — just update current price) ──
     // Instead of updating each position individually, collect them for a batch transaction
     // V228 FIX: Update highestPrice/lowestPrice using effectiveHigh/effectiveLow (not just currentPrice).
@@ -924,10 +956,212 @@ export class PositionMonitorService {
     return result;
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // V270: Regime-Aware Position Management
+  // ═══════════════════════════════════════════════════════════════
+  //
+  // 5-Layer False Breakout Filter:
+  //   Layer 1: Direction check — is regime opposite to position?
+  //   Layer 2: Confidence threshold — is regime confidence high enough?
+  //   Layer 3: 3-bar confirmation — has regime persisted for 3 checks (~30s)?
+  //   Layer 4: ATR spike filter — is current candle abnormally large?
+  //   Layer 5: Graduated response — tighten → break-even → 50% close → 100% close
+  //
+  // This method is called on every 10s monitor tick for each open position.
+  // It NEVER blocks normal SL/TP monitoring — all actions are supplementary.
+  // ═══════════════════════════════════════════════════════════════
+
+  private async _checkRegimeReversal(
+    position: any,
+    currentPrice: number,
+    entryPrice: number,
+    pnlPercent: number,
+    effectiveHigh: number,
+    effectiveLow: number,
+  ): Promise<void> {
+    if (!this.regimeService?.getCurrentRegime) return;
+
+    // ── Layer 1: Get current regime ──
+    let regime: any = null;
+    try {
+      regime = await this.regimeService.getCurrentRegime(position.symbol);
+    } catch { return; }
+    if (!regime || !regime.regime) return;
+
+    const posSide = position.side; // 'BUY' or 'SELL'
+    const marketRegime = regime.regime as RegimeType;
+    const confidence = regime.confidence || 0;
+    const atr = regime.atr || 0;
+    const volatility = regime.volatilityIndex || 0;
+
+    // ── Layer 1: Direction check ──
+    // Is the regime OPPOSITE to the position direction?
+    const isOpposite =
+      (posSide === 'BUY' && (marketRegime === 'BEAR' || regime.trendDirection === 'DOWN')) ||
+      (posSide === 'SELL' && (marketRegime === 'BULL' || regime.trendDirection === 'UP'));
+
+    if (!isOpposite) {
+      // Regime is aligned or neutral — no action needed.
+      // But if VOLATILE, tighten trailing stop (Layer 5: graduated response, level 0)
+      if (marketRegime === 'VOLATILE' && volatility > 60) {
+        await this._tightenTrailingForVolatility(position, currentPrice);
+      }
+      return;
+    }
+
+    // ── Layer 2: Confidence threshold ──
+    // Below 40% confidence → not actionable (noise)
+    // 40-60% → tighten trailing only (protective, no close)
+    // 60-75% → move to break-even (guarantee no loss)
+    // 75%+   → consider closing (confirmed reversal)
+    if (confidence < 40) return; // Too weak — ignore
+
+    // ── Layer 4: ATR spike filter ──
+    // If the current candle range > 2× ATR, this is likely a news spike.
+    // Don't make closing decisions based on abnormal volatility — wait for it to settle.
+    const candleRange = Math.abs(effectiveHigh - effectiveLow);
+    if (atr > 0 && candleRange > 2 * atr) {
+      this.logger.debug(
+        `🛡️ V270: ${position.symbol} ATR spike detected (range=${candleRange.toFixed(4)} > 2×ATR=${(2 * atr).toFixed(4)}) — deferring regime action`
+      );
+      // Still tighten trailing as protection — but don't close
+      await this._tightenTrailingForVolatility(position, currentPrice);
+      return;
+    }
+
+    // ── Layer 3: 3-bar confirmation ──
+    // The regime must persist for 3 consecutive monitor checks (~30 seconds)
+    // before we take aggressive action. This filters out 1-tick regime flickers.
+    const confirmKey = `v270:regime-confirm:${position.id}:${marketRegime}`;
+    let confirmCount = 0;
+    try {
+      const existing = await this.redis.get(confirmKey);
+      confirmCount = existing ? parseInt(existing, 10) : 0;
+    } catch { /* non-critical */ }
+
+    // Increment confirmation counter (TTL = 2 minutes — if no new tick in 2 min, reset)
+    confirmCount++;
+    try {
+      await this.redis.set(confirmKey, String(confirmCount), 120000);
+    } catch { /* non-critical */ }
+
+    const isConfirmed = confirmCount >= 3; // 3 consecutive checks ≈ 30 seconds
+
+    // ── Layer 5: Graduated response ──
+    //
+    // Level 0: VOLATILE regime → tighten trailing (0.5% instead of 1.2%)
+    // Level 1: Opposite regime, confidence 40-60% → tighten trailing
+    // Level 2: Opposite regime, confidence 60-75% → move SL to break-even
+    // Level 3: Opposite regime, confidence 75%+, NOT confirmed → move SL to break-even
+    // Level 4: Opposite regime, confidence 75%+, CONFIRMED (3-bar) → close position
+
+    if (confidence >= 75 && isConfirmed) {
+      // ═══ Level 4: CONFIRMED REVERSAL — CLOSE POSITION ═══
+      this.logger.warn(
+        `🛡️ V270 REGIME_REVERSAL: ${position.symbol} ${posSide} — regime=${marketRegime} ` +
+        `confidence=${confidence}% confirmed=${confirmCount}x — CLOSING position`
+      );
+
+      // Close the position with REGIME_REVERSAL reason
+      await this._closePosition(position, currentPrice, 'REGIME_REVERSAL');
+
+      // Set re-entry quarantine: no new trades on this symbol for 1 hour
+      // This prevents immediately opening a position in the new direction
+      // if the reversal turns out to be fake.
+      try {
+        const quarantineKey = `v270:quarantine:${position.userId}:${position.symbol}`;
+        await this.redis.set(quarantineKey, String(Date.now()), 3600000); // 1 hour TTL
+        this.logger.log(`🛡️ V270: Re-entry quarantine set for ${position.symbol} (1h)`);
+      } catch { /* non-critical */ }
+
+      // Cancel all active briefs for this symbol (V223 pattern)
+      try {
+        if (this.strategicCouncil?.invalidateBriefsForSymbol) {
+          await this.strategicCouncil.invalidateBriefsForSymbol(position.symbol, 'V270_REGIME_REVERSAL');
+        }
+      } catch { /* non-critical */ }
+
+      return;
+    }
+
+    // ═══ Level 2-3: Move SL to break-even ═══
+    // For confidence 60%+ (with or without confirmation), move SL to break-even.
+    // This guarantees the position won't become a loss if the reversal is real.
+    if (confidence >= 60) {
+      const breakEvenSL = posSide === 'BUY'
+        ? entryPrice * 1.0001  // slightly above entry
+        : entryPrice * 0.9999; // slightly below entry
+
+      const currentSL = Number(position.stopLoss) || 0;
+      const shouldMove = posSide === 'BUY'
+        ? currentSL < breakEvenSL
+        : (currentSL === 0 || currentSL > breakEvenSL);
+
+      if (shouldMove) {
+        await this.prisma.position.update({
+          where: { id: position.id },
+          data: { stopLoss: breakEvenSL },
+        });
+        this.logger.log(
+          `🛡️ V270 Regime defense: ${position.symbol} ${posSide} — ` +
+          `regime=${marketRegime} confidence=${confidence}% — SL moved to break-even (${breakEvenSL.toFixed(4)})`
+        );
+      }
+      return;
+    }
+
+    // ═══ Level 1: Tighten trailing stop ═══
+    // For confidence 40-60%, just tighten the trailing stop.
+    // This protects profit without committing to a close.
+    if (confidence >= 40) {
+      await this._tightenTrailingForVolatility(position, currentPrice);
+      this.logger.debug(
+        `🛡️ V270: ${position.symbol} ${posSide} — regime=${marketRegime} ` +
+        `confidence=${confidence}% (low) — trailing tightened`
+      );
+    }
+  }
+
+  /**
+   * V270: Tighten trailing stop for volatile/opposite regime conditions.
+   * Uses 0.5% trailing distance instead of the default 1.2%.
+   * This protects accumulated profit without closing the position.
+   */
+  private async _tightenTrailingForVolatility(position: any, currentPrice: number): Promise<void> {
+    const TIGHT_TRAILING_DISTANCE = 0.005; // 0.5% (vs default 1.2%)
+
+    // Only tighten if position is profitable (trailing stop only makes sense in profit)
+    const entryPrice = Number(position.entryPrice);
+    const pnlPercent = position.side === 'BUY'
+      ? ((currentPrice - entryPrice) / entryPrice) * 100
+      : ((entryPrice - currentPrice) / entryPrice) * 100;
+
+    if (pnlPercent < 1.0) return; // Not enough profit to trail
+
+    const tightTrailingStop = position.side === 'BUY'
+      ? currentPrice * (1 - TIGHT_TRAILING_DISTANCE)
+      : currentPrice * (1 + TIGHT_TRAILING_DISTANCE);
+
+    const currentSL = Number(position.stopLoss) || 0;
+    const shouldUpdate = position.side === 'BUY'
+      ? tightTrailingStop > currentSL
+      : (currentSL === 0 || tightTrailingStop < currentSL);
+
+    if (shouldUpdate) {
+      await this.prisma.position.update({
+        where: { id: position.id },
+        data: { stopLoss: tightTrailingStop },
+      });
+      this.logger.debug(
+        `🛡️ V270 Tight trailing: ${position.symbol} SL → ${tightTrailingStop.toFixed(4)} (0.5% — volatility defense)`
+      );
+    }
+  }
+
   private async _closePosition(
     position: any,
     currentPrice: number,
-    reason: 'STOP_LOSS' | 'TAKE_PROFIT' | 'TIME_EXPIRED' | 'STALE_POSITION',
+    reason: 'STOP_LOSS' | 'TAKE_PROFIT' | 'TIME_EXPIRED' | 'STALE_POSITION' | 'REGIME_REVERSAL',
   ): Promise<void> {
     try {
       // FIX: Use closePositionWithRetry + convert Decimal to number

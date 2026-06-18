@@ -45,6 +45,12 @@ import { AiModule } from '../ai.module';
       provide: 'ADAPTIVE_SCHEDULE_SERVICE',
       useExisting: AdaptiveScheduleService,
     },
+    // V270: Expose MarketRegimeService via a string token so PositionMonitorService
+    // can @Optional() @Inject() it for regime-aware position management.
+    {
+      provide: 'MARKET_REGIME_SERVICE',
+      useExisting: MarketRegimeService,
+    },
   ],
   exports: [
     TradeJournalService,
@@ -58,6 +64,8 @@ import { AiModule } from '../ai.module';
     BacktestingEngineService,
     // V267: Export the string token so @Global() makes it injectable anywhere.
     'ADAPTIVE_SCHEDULE_SERVICE',
+    // V270: Export MarketRegimeService token for PositionMonitor injection.
+    'MARKET_REGIME_SERVICE',
   ],
 })
 export class CouncilIntelligenceModule {}

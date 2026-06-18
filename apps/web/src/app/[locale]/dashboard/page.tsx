@@ -2310,7 +2310,8 @@ export default function DashboardPage() {
                     { label:'الشبكة العصبية', icon:'🧠', href:'/dashboard/neural' },
                   ]},
                   { title:'الذكاء الاصطناعي', items:[
-                    { label:'مجلس AI', icon:'🏛️', href:'/dashboard/ai' },
+                    { label:'المجلس الاستراتيجي', icon:'🏛️', href:'/dashboard/council' },
+                    { label:'مجلس AI', icon:'🧠', href:'/dashboard/ai' },
                     { label:'الوكيل الآلي', icon:'🤖', href:'/dashboard/autonomous-trader' },
                     { label:'الملاذ', icon:'🛡️', href:'/dashboard/sanctuary' },
                     { label:'الاستراتيجيات', icon:'🎯', href:'/dashboard/strategies' },

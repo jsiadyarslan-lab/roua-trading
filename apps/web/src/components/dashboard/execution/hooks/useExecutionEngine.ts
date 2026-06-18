@@ -209,9 +209,10 @@ export function useExecutionEngine() {
             side: (p.side || '').toLowerCase(),
             type: 'market',
             status: 'filled',
-            qty: Number(p.quantity) || 0,
-            filledQty: Number(p.quantity) || 0,
-            filledAvgPrice: Number(p.entryPrice) || undefined,
+            // V268: OpenOrder.qty is typed as string — coerce to match
+            qty: String(Number(p.quantity) || 0),
+            filledQty: String(Number(p.quantity) || 0),
+            filledAvgPrice: p.entryPrice != null ? String(Number(p.entryPrice) || 0) : null,
             limitPrice: undefined,
             submittedAt: p.openedAt,
             createdAt: p.openedAt,

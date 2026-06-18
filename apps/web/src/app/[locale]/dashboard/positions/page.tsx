@@ -369,7 +369,7 @@ export default function PositionsPage() {
   }
 
   const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value) || 0)
+    new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value) || 0)
 
   const formatPrice = (value: number) => {
     if (value >= 1000) return formatCurrency(value)

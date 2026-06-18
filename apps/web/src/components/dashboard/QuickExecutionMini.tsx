@@ -695,8 +695,8 @@ export function QuickExecutionMini({
           
           {status.type === 'confirm' && (
             <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-              <button 
-                onClick={executeOrder}
+              <button
+                onClick={() => executeOrderImmediate('buy')}
                 style={{
                   background: 'var(--success)', border: 'none', borderRadius: 4,
                   padding: '6px 16px', color: '#fff', fontWeight: 800, cursor: 'pointer', fontFamily: "'Cairo', sans-serif"

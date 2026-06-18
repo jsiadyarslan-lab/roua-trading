@@ -486,7 +486,7 @@ export default function TradingPage() {
   const totalUnrealizedPnl = positions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0)
 
   const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(value)
+    new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(value)
 
   const formatPrice = (value: number) => {
     // Use unified price formatting — respects JPY (3dp), BTC (2dp), forex (5dp)

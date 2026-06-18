@@ -9,7 +9,7 @@ import {
 import { toast } from '@/hooks/use-toast'
 import { T as SharedT } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 
 /* ──────────────── Design Tokens (canonical + local extensions) ──────────────── */
 const T = { ...SharedT, silver: '#8B92A8', bronze: '#CD7F32' }
@@ -51,7 +51,15 @@ interface LeaderboardAPIResponse {
 }
 
 /* ──────────────── Helper Functions ──────────────── */
-const formatNumber = (n: number) => n.toLocaleString('en-US')
+// V268: formatNumber now accepts a locale for locale-aware grouping.
+// Default 'en' for backward compat with callers that don't pass locale.
+const formatNumber = (n: number, locale: string = 'en') => {
+  try {
+    return n.toLocaleString(locale);
+  } catch {
+    return n.toLocaleString('en-US');
+  }
+}
 
 const returnTypeColor = (val: number) => val > 0 ? T.green : val < 0 ? T.red : T.text2
 

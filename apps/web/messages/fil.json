@@ -665,7 +665,7 @@
       "overrideLimit": "I-override ang Limit",
       "fromDatabase": "Mula sa Database",
       "emaMixed": "Halo",
-      "strategyMeanReversionDesc": "Mean reversion — mataas na rate ng panalo",
+      "strategyMeanReversionDesc": "Mean reversion — high win rate",
       "enabling": "Paganahin...",
       "totalPnl": "Kabuuang P&L",
       "wins": "panalo",
@@ -1774,7 +1774,7 @@
       "riskGuard": "Risk Guard",
       "optimalQuantity": "Pinakamainam na Dami",
       "advancedSettings": "Mga Advanced na Setting: TP / SL / Panganib",
-      "rejectedByRiskMgmt": "Tinanggihan ng Risk Management System",
+      "rejectedByRiskMgmt": "Rejected by Risk Management System",
       "riskLabel": "Panganib",
       "networkError": "❌ Error sa network — hindi maabot ang provider",
       "activeCount": "{count} Aktibo",
@@ -2733,7 +2733,7 @@
     "correlation": {
       "loading": "Ginagawa ang matrix...",
       "subtitle": "Paano gumagalaw ang{symbol}laban sa iba pang asset",
-      "title": "Matrix ng Correlation",
+      "title": "Correlation Matrix",
       "positiveCorrelation": "Positibong ugnayan: maaaring lumipat sa parehong direksyon.",
       "noData": "Hindi sapat na data para sa ugnayan.",
       "negativeCorrelation": "Baliktad na ugnayan: maaaring mabawi ng isa ang isa."

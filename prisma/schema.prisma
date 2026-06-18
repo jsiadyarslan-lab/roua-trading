@@ -49,6 +49,8 @@ model User {
   telegramChatId      String? // معرّف محادثة Telegram للمستخدم
   userNotifications   UserNotification[]
   notificationPrefs   UserNotificationPreferences?
+  // V268: EA Bridge tokens for MT5 Expert Advisor authentication
+  eaTokens            EAToken[]
 }
 
 enum Tier {
@@ -855,6 +857,27 @@ model VerificationToken {
   @@unique([identifier, token])
   @@index([identifier])
   @@index([expires])
+}
+
+// ── EA Bridge Tokens (V268: previously missing from schema — caused
+//     Prisma errors in /api/ea-bridge/* routes) ──
+
+model EAToken {
+  id               String   @id @default(cuid())
+  userId           String
+  token            String   @unique // ea_live_<24-hex>
+  label            String?  // user-friendly name for the token
+  mt5AccountNumber String?  // MT5 account number this token is bound to
+  mt5Server        String?  // MT5 server name (e.g., "ICMarketsSC-Demo")
+  isActive         Boolean  @default(true)
+  lastHeartbeatAt  DateTime? // last time the EA sent a heartbeat
+  createdAt        DateTime @default(now())
+  lastUsedAt       DateTime?
+  revokedAt        DateTime?
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
 }
 
 // ── Prediction Market Events (Phase 7 — Polymarket Integration) ──

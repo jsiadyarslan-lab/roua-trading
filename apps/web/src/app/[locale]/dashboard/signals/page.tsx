@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from '@/i18n/navigation'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Zap,
@@ -116,11 +116,12 @@ function getSignalConfig(action: 'BUY' | 'SELL' | 'WAIT', t: (key: string) => st
 // ── Signal Card Component ──
 function SignalCard({ signal, index, onRefresh, onCancel, onExecute }: { signal: Signal; index: number; onRefresh: (pair: string) => void; onCancel: (id: string) => void; onExecute: (signal: Signal) => void }) {
   const t = useTranslations('common')
+  const locale = useLocale()
   const config = getSignalConfig(signal.action, t)
   const { Icon } = config
 
   const formatPrice = (p: number | null) =>
-    p ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(p) : '—'
+    p ? new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(p) : '—'
 
   const timeLeft = () => {
     const diff = new Date(signal.expiresAt).getTime() - Date.now()

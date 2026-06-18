@@ -1,4 +1,4 @@
-import { redirect } from '@/i18n/navigation'
+import { redirect } from 'next/navigation'
 
 // FIX: Redirect /dashboard/strategies/builder → /dashboard/strategy-builder
 // The strategy builder page exists at /dashboard/strategy-builder but some

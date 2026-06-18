@@ -32,8 +32,12 @@ async function bootstrap() {
     // FIX #2: Enable graceful shutdown — ensures in-flight requests complete
     // before the process exits, preventing 502 errors during Railway deploys.
     // Without this, SIGTERM kills the process immediately, causing connection drops.
+    // V272: Structured JSON logging when LOG_FORMAT=json (for Datadog/Grafana/ELK).
+    // Default: human-readable NestJS logs (backward compatible).
+    const { StructuredLogger } = await import('./common/logger/structured-logger');
+    const logger = new StructuredLogger();
     const app = await NestFactory.create(AppModule, {
-      logger: ['error', 'warn', 'log'],
+      logger: process.env.LOG_FORMAT === 'json' ? logger : ['error', 'warn', 'log', 'debug'],
     });
     app.enableShutdownHooks();
 
@@ -148,22 +152,13 @@ async function bootstrap() {
     });
 
     // ── Socket.IO Setup ──
-    // Use NestJS's built-in IoAdapter for WebSocket support.
-    // The IoAdapter integrates with NestJS's dependency injection and
-    // lifecycle, ensuring @WebSocketGateway decorators work correctly.
-    //
-    // IMPORTANT: Do NOT create a second manual Socket.IO server.
-    // Previously, a manual SocketIOServer was created after app.listen()
-    // with HTTP listener hijacking (removing all Express listeners and
-    // adding a custom wrapper). This caused:
-    //   1. Dual Socket.IO engines competing on the same HTTP server
-    //   2. Express routing broken — ALL API routes returning 503
-    //   3. @WebSocketGateway decorators not receiving connections
-    //
-    // Instead, Socket.IO polling is handled via Next.js rewrites
-    // in next.config.ts (source: '/socket.io/:path*' → NestJS:3001),
-    // and WebSocket upgrades are handled by the IoAdapter's server.
-    app.useWebSocketAdapter(new IoAdapter(app));
+    // V272: Use Redis adapter for multi-replica WebSocket support.
+    // If REDIS_URL is set, creates a pub/sub bridge so events broadcast
+    // across all Railway replicas. Falls back to single-replica IoAdapter
+    // if Redis is unavailable (zero-downtime deployment guarantee).
+    const { createRedisAdapter } = await import('./common/ws/redis-adapter');
+    const wsAdapter = await createRedisAdapter(app);
+    app.useWebSocketAdapter(wsAdapter);
 
     // Global prefix for all routes
     app.setGlobalPrefix('api');

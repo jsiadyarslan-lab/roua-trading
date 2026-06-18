@@ -511,14 +511,50 @@ export class PredictionMarketService {
   // ── Private Helpers ──
 
   /**
-   * Analyze market trend for related symbols.
-   * Returns a signal from -1.0 (very bearish) to +1.0 (very bullish).
+   * V267: Analyze market trend for related symbols — NO LONGER A STUB.
+   *
+   * Previously this method always returned 0 (TODO comment), meaning the 30% market
+   * signal weight in `calculateAIProbability` contributed nothing. Now we fetch
+   * live prices + 24h change via the AIOrchestrator's market-data helper and
+   * compute a simple trend signal: -1.0 (very bearish) to +1.0 (very bullish).
+   *
+   * Algorithm:
+   *   For each symbol in `symbols`, fetch `changePercent24h` from the orchestrator's
+   *   multi-source price fetcher. Normalize each to [-1, +1] (±5% change → ±1.0,
+   *   clamped). Average across all symbols.
+   *
+   * If the orchestrator is unavailable or all fetches fail, returns 0 (neutral).
    */
   private async _analyzeMarketTrend(symbols: string[]): Promise<number> {
-    // TODO: Integrate with ExchangeService for real price data
-    // For now, return neutral signal
-    // Future: fetch current prices, compute trend indicators
-    return 0;
+    if (!this.orchestrator || !symbols || symbols.length === 0) return 0;
+
+    const signals: number[] = [];
+    for (const symbol of symbols.slice(0, 3)) { // cap at 3 to limit API calls
+      try {
+        // Try as-is (e.g., "BTC") then with /USDT suffix (e.g., "BTC/USDT")
+        const candidates = [symbol, `${symbol}/USDT`, `${symbol}/USD`];
+        let marketData: any = null;
+        for (const candidate of candidates) {
+          try {
+            marketData = await this.orchestrator.fetchQuickMarketData(candidate);
+            if (marketData?.price && marketData.price > 0) break;
+          } catch { /* try next candidate */ }
+        }
+        if (!marketData || !marketData.price) continue;
+
+        const changePercent = Number(marketData.change24h ?? marketData.changePercent ?? 0);
+        if (!isFinite(changePercent)) continue;
+
+        // Normalize: ±5% change → ±1.0 (clamped)
+        const signal = Math.max(-1, Math.min(1, changePercent / 5));
+        signals.push(signal);
+      } catch (err: any) {
+        this.logger.debug(`V267 _analyzeMarketTrend: failed for ${symbol}: ${err?.message || err}`);
+      }
+    }
+
+    if (signals.length === 0) return 0;
+    return signals.reduce((sum, s) => sum + s, 0) / signals.length;
   }
 
   /**

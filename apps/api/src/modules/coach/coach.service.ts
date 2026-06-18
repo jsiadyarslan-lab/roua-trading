@@ -35,9 +35,14 @@ export class CoachService {
 
   /**
    * Get performance advice based on user's trading history
+   *
+   * V267: `language` parameter (default 'ar') controls the AI output locale.
+   * For 'ar' → native Arabic coaching prompt.
+   * For 'en' → native English coaching prompt.
+   * For other 30 locales → English prompt + "Respond ONLY in {language}" directive.
    */
-  async getPerformanceAdvice(userId: string) {
-    this.logger.log(`Generating performance advice for user ${userId}`);
+  async getPerformanceAdvice(userId: string, language: string = 'ar') {
+    this.logger.log(`Generating performance advice for user ${userId} (language: ${language})`);
 
     // 1. Fetch last 50 trades
     const trades = await this.prisma.trade.findMany({
@@ -70,8 +75,29 @@ export class CoachService {
     // 5. Build context for AI
     const contextSummary = this.buildContextSummary(stats, trades.slice(0, 20), closedPositions.slice(0, 20));
 
-    // 6. Call AI orchestrator for analysis
-    const aiPrompt = `أنت مُدرّب ربط حسابات خبير في منصة "رؤى". حلل أداء المتداول بناءً على الإحصائيات التالية وسجل الصفقات. قدم 3-5 نصائح محددة وقابلة للتنفيذ لتحسين الأداء. ركز على إدارة المخاطر، الانضباط، حجم الصفقات، واختيار الأصول. اذكر نقاط القوة والضعف. اجعل النصائح بالعربية ومباشرة.
+    // V267: Build language-aware prompt
+    const normalizedLang = (language || 'ar').toLowerCase();
+    const isArabic = normalizedLang === 'ar';
+    const isEnglish = normalizedLang === 'en';
+    const isExtended = !isArabic && !isEnglish;
+    const LANGUAGE_NAMES: Record<string, string> = {
+      fr: 'French (Français)', tr: 'Turkish (Türkçe)', es: 'Spanish (Español)',
+      zh: 'Chinese (中文)', ru: 'Russian (Русский)', hi: 'Hindi (हिन्दी)',
+      pt: 'Portuguese (Português)', de: 'German (Deutsch)', ja: 'Japanese (日本語)',
+      ko: 'Korean (한국어)', id: 'Indonesian (Bahasa Indonesia)', vi: 'Vietnamese (Tiếng Việt)',
+      th: 'Thai (ภาษาไทย)', it: 'Italian (Italiano)', pl: 'Polish (Polski)',
+      nl: 'Dutch (Nederlands)', ms: 'Malay (Bahasa Melayu)', he: 'Hebrew (עברית)',
+      sv: 'Swedish (Svenska)', uk: 'Ukrainian (Українська)', fa: 'Persian (فارسی)',
+      ur: 'Urdu (اردو)', fil: 'Filipino', da: 'Danish (Dansk)', no: 'Norwegian (Norsk)',
+      fi: 'Finnish (Suomi)', cs: 'Czech (Čeština)', hu: 'Hungarian (Magyar)',
+      ro: 'Romanian (Română)', bn: 'Bengali (বাংলা)',
+    };
+    const languageDirective = isExtended
+      ? `\n\n🌐 LANGUAGE DIRECTIVE: Respond ONLY in ${LANGUAGE_NAMES[normalizedLang] || 'English'}. All advice text, ratings, strengths, weaknesses, and improvement plan MUST be written in ${LANGUAGE_NAMES[normalizedLang] || 'English'}.`
+      : '';
+
+    const aiPrompt = isArabic
+      ? `أنت مُدرّب ربط حسابات خبير في منصة "رؤى". حلل أداء المتداول بناءً على الإحصائيات التالية وسجل الصفقات. قدم 3-5 نصائح محددة وقابلة للتنفيذ لتحسين الأداء. ركز على إدارة المخاطر، الانضباط، حجم الصفقات، واختيار الأصول. اذكر نقاط القوة والضعف. اجعل النصائح بالعربية ومباشرة.
 
 الإحصائيات:
 ${contextSummary}
@@ -85,7 +111,23 @@ ${contextSummary}
 ---
 نقاط_القوة: [نقاط القوة]
 نقاط_الضعف: [نقاط الضعف]
-خطة_تحسين: [خطة التحسين الموصى بها]`;
+خطة_تحسين: [خطة التحسين الموصى بها]`
+      : `${languageDirective}
+You are an expert trading performance coach on the Roua platform. Analyze the trader's performance based on the following statistics and trade history. Provide 3-5 specific, actionable tips to improve performance. Focus on risk management, discipline, position sizing, and asset selection. Mention strengths and weaknesses.
+
+Statistics:
+${contextSummary}
+
+Respond in the following format:
+overall_rating: [Excellent/Good/Needs_Improvement]
+---
+1. [advice type: Warning/Opportunity/Education] first advice text
+2. [advice type: Warning/Opportunity/Education] second advice text
+3. [advice type: Warning/Opportunity/Education] third advice text
+---
+strengths: [strengths]
+weaknesses: [weaknesses]
+improvement_plan: [recommended improvement plan]`;
 
     let adviceText = '';
     let adviceItems: { type: string; icon: string; text: string }[] = [];
@@ -94,7 +136,7 @@ ${contextSummary}
       const result = await this.orchestrator.analyze({
         prompt: aiPrompt,
         type: 'risk_analysis',
-        language: 'ar',
+        language: isArabic ? 'ar' : 'en',
       });
       adviceText = result.content;
 
@@ -133,9 +175,11 @@ ${contextSummary}
 
   /**
    * Ask the coach a specific question
+   *
+   * V267: `language` parameter (default 'ar') controls the AI output locale.
    */
-  async askCoach(userId: string, question: string, contextAdviceId?: string) {
-    this.logger.log(`Coach question from user ${userId}: ${question}`);
+  async askCoach(userId: string, question: string, contextAdviceId?: string, language: string = 'ar') {
+    this.logger.log(`Coach question from user ${userId} (language: ${language}): ${question}`);
 
     // Get user's recent stats for context
     const trades = await this.prisma.trade.findMany({
@@ -158,6 +202,26 @@ ${contextSummary}
     const stats = this.calculateStats(trades, closedPositions, paperPnl);
     const contextSummary = this.buildContextSummary(stats, trades.slice(0, 10), closedPositions.slice(0, 10));
 
+    // V267: Build language-aware prompt
+    const normalizedLang = (language || 'ar').toLowerCase();
+    const isArabic = normalizedLang === 'ar';
+    const isExtended = normalizedLang !== 'ar' && normalizedLang !== 'en';
+    const LANGUAGE_NAMES: Record<string, string> = {
+      fr: 'French (Français)', tr: 'Turkish (Türkçe)', es: 'Spanish (Español)',
+      zh: 'Chinese (中文)', ru: 'Russian (Русский)', hi: 'Hindi (हिन्दी)',
+      pt: 'Portuguese (Português)', de: 'German (Deutsch)', ja: 'Japanese (日本語)',
+      ko: 'Korean (한국어)', id: 'Indonesian (Bahasa Indonesia)', vi: 'Vietnamese (Tiếng Việt)',
+      th: 'Thai (ภาษาไทย)', it: 'Italian (Italiano)', pl: 'Polish (Polski)',
+      nl: 'Dutch (Nederlands)', ms: 'Malay (Bahasa Melayu)', he: 'Hebrew (עברית)',
+      sv: 'Swedish (Svenska)', uk: 'Ukrainian (Українська)', fa: 'Persian (فارسی)',
+      ur: 'Urdu (اردو)', fil: 'Filipino', da: 'Danish (Dansk)', no: 'Norwegian (Norsk)',
+      fi: 'Finnish (Suomi)', cs: 'Czech (Čeština)', hu: 'Hungarian (Magyar)',
+      ro: 'Romanian (Română)', bn: 'Bengali (বাংলা)',
+    };
+    const languageDirective = isExtended
+      ? `\n\n🌐 LANGUAGE DIRECTIVE: Respond ONLY in ${LANGUAGE_NAMES[normalizedLang] || 'English'}. Your full answer MUST be in ${LANGUAGE_NAMES[normalizedLang] || 'English'}.`
+      : '';
+
     // Get previous advice if provided
     // DATA ISOLATION: Use findFirst with userId to prevent IDOR —
     // users must not access other users' advice via contextAdviceId
@@ -167,11 +231,14 @@ ${contextSummary}
         where: { id: contextAdviceId, userId },
       });
       if (prev) {
-        previousAdvice = `\n\nنصيحة سابقة من المُدرّب:\n${prev.adviceText}`;
+        previousAdvice = isArabic
+          ? `\n\nنصيحة سابقة من المُدرّب:\n${prev.adviceText}`
+          : `\n\nPrevious coach advice:\n${prev.adviceText}`;
       }
     }
 
-    const aiPrompt = `أنت مُدرّب ربط حسابات خبير في منصة "رؤى". المتداول يسألك سؤالاً حول أدائه. أجب بالعربية بشكل مهني ومفيد ومباشر.
+    const aiPrompt = isArabic
+      ? `أنت مُدرّب ربط حسابات خبير في منصة "رؤى". المتداول يسألك سؤالاً حول أدائه. أجب بالعربية بشكل مهني ومفيد ومباشر.
 
 إحصائيات المتداول:
 ${contextSummary}
@@ -179,14 +246,24 @@ ${previousAdvice}
 
 سؤال المتداول: ${question}
 
-أجب بشكل مبدد وعملي. قدم خطوات واضحة إن لزم الأمر.`;
+أجب بشكل مبدد وعملي. قدم خطوات واضحة إن لزم الأمر.`
+      : `${languageDirective}
+You are an expert trading performance coach on the Roua platform. A trader is asking you a question about their performance. Respond professionally, helpfully, and directly.
+
+Trader statistics:
+${contextSummary}
+${previousAdvice}
+
+Trader's question: ${question}
+
+Answer in detail and practically. Provide clear steps if needed.`;
 
     let answer = '';
     try {
       const result = await this.orchestrator.analyze({
         prompt: aiPrompt,
         type: 'general',
-        language: 'ar',
+        language: isArabic ? 'ar' : 'en',
       });
       answer = result.content;
     } catch (error: any) {

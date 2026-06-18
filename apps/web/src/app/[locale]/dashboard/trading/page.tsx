@@ -17,7 +17,7 @@ import {
   Clock,
   Ban,
 } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { useAuth } from '@/hooks/useAuth'
 import SubPageLayout from '@/components/dashboard/SubPageLayout'
 import { fetchPositionsUnified } from '@/lib/api-fetch'
@@ -55,6 +55,7 @@ import {
 } from 'recharts'
 import { fmtPriceLocale } from '@/lib/price-format'
 
+import { getDirection } from '@/lib/i18n-utils';
 // ── Types ──
 interface Position {
   id: string
@@ -142,6 +143,8 @@ const STATUS_KEYS: Record<string, { labelKey: string; color: string; bgColor: st
 }
 
 export default function TradingPage() {
+  const locale = useLocale();
+  const dir = getDirection(locale);
   const router = useRouter()
   const { loading: authLoading } = useAuth()
   const t = useTranslations('dashboard.trading')
@@ -1158,7 +1161,7 @@ export default function TradingPage() {
 
       {/* Close Position Confirmation Dialog */}
       <Dialog open={!!closePositionDialog} onOpenChange={(open) => !open && setClosePositionDialog(null)}>
-        <DialogContent className="bg-card border-border" dir="rtl">
+        <DialogContent className="bg-card border-border" dir={dir}>
           <DialogHeader>
             <DialogTitle>{t('confirmClose')}</DialogTitle>
             <DialogDescription>
@@ -1218,7 +1221,7 @@ export default function TradingPage() {
 
       {/* Cancel Order Confirmation Dialog */}
       <Dialog open={!!cancelOrderDialog} onOpenChange={(open) => !open && setCancelOrderDialog(null)}>
-        <DialogContent className="bg-card border-border" dir="rtl">
+        <DialogContent className="bg-card border-border" dir={dir}>
           <DialogHeader>
             <DialogTitle>{t('confirmCancel')}</DialogTitle>
             <DialogDescription>

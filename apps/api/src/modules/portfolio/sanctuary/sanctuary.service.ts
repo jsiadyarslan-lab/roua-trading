@@ -395,12 +395,34 @@ export class SanctuaryService {
     positions: PositionDetail[],
     metrics: RiskMetrics,
     totalValue: number,
+    language: string = 'ar',
   ): Promise<string> {
+    // V267: language-aware risk analysis prompt
+    const normalizedLang = (language || 'ar').toLowerCase();
+    const isArabic = normalizedLang === 'ar';
+    const isExtended = normalizedLang !== 'ar' && normalizedLang !== 'en';
+    const LANGUAGE_NAMES: Record<string, string> = {
+      fr: 'French (Français)', tr: 'Turkish (Türkçe)', es: 'Spanish (Español)',
+      zh: 'Chinese (中文)', ru: 'Russian (Русский)', hi: 'Hindi (हिन्दी)',
+      pt: 'Portuguese (Português)', de: 'German (Deutsch)', ja: 'Japanese (日本語)',
+      ko: 'Korean (한국어)', id: 'Indonesian (Bahasa Indonesia)', vi: 'Vietnamese (Tiếng Việt)',
+      th: 'Thai (ภาษาไทย)', it: 'Italian (Italiano)', pl: 'Polish (Polski)',
+      nl: 'Dutch (Nederlands)', ms: 'Malay (Bahasa Melayu)', he: 'Hebrew (עברית)',
+      sv: 'Swedish (Svenska)', uk: 'Ukrainian (Українська)', fa: 'Persian (فارسی)',
+      ur: 'Urdu (اردو)', fil: 'Filipino', da: 'Danish (Dansk)', no: 'Norwegian (Norsk)',
+      fi: 'Finnish (Suomi)', cs: 'Czech (Čeština)', hu: 'Hungarian (Magyar)',
+      ro: 'Romanian (Română)', bn: 'Bengali (বাংলা)',
+    };
+    const languageDirective = isExtended
+      ? `\n\n🌐 LANGUAGE DIRECTIVE: Respond ONLY in ${LANGUAGE_NAMES[normalizedLang] || 'English'}. All analysis and recommendations MUST be in ${LANGUAGE_NAMES[normalizedLang] || 'English'}.`
+      : '';
+
     const positionsSummary = positions
       .map((p) => `- ${p.symbol}: ${p.quantity} × $${p.currentPrice.toFixed(2)} = $${p.value.toFixed(2)} (${p.weight.toFixed(1)}%)`)
       .join('\n');
 
-    const prompt = `أنت محلل مخاطر مالي في منصة "رؤى لربط الحسابات". حلل المحفظة التالية وقدم توصيات باللغة العربية.
+    const prompt = isArabic
+      ? `أنت محلل مخاطر مالي في منصة "رؤى لربط الحسابات". حلل المحفظة التالية وقدم توصيات باللغة العربية.
 
 📊 المحفظة (القيمة الإجمالية: $${totalValue.toFixed(2)}):
 ${positionsSummary || 'لا توجد أصول'}
@@ -419,12 +441,33 @@ ${positionsSummary || 'لا توجد أصول'}
 3. نصائح لتحسين التنويع
 4. تحذيرات مهمة
 
-أضف دائماً: "هذا التحليل لأغراض تعليمية فقط وليس نصيحة استثمارية."`;
+أضف دائماً: "هذا التحليل لأغراض تعليمية فقط وليس نصيحة استثمارية."`
+      : `${languageDirective}
+You are a financial risk analyst on the Roua Trading platform. Analyze the following portfolio and provide recommendations.
+
+📊 Portfolio (total value: $${totalValue.toFixed(2)}):
+${positionsSummary || 'no assets'}
+
+📐 Risk metrics:
+- Concentration risk: ${metrics.concentrationRisk}/100
+- Diversification score: ${metrics.diversificationScore}/100
+- Largest position: ${metrics.largestPositionWeight}%
+- Position count: ${metrics.positionCount}
+- Value at Risk (95%): $${metrics.varEstimate.toFixed(2)}
+- Estimated volatility: ${metrics.volatilityEstimate}%
+
+Provide:
+1. Comprehensive portfolio risk assessment
+2. Specific recommendations to reduce risk
+3. Diversification improvement tips
+4. Important warnings
+
+Always add: "This analysis is for educational purposes only and is not investment advice."`;
 
     const response = await this.orchestrator.analyze({
       prompt,
       type: 'risk_analysis',
-      language: 'ar',
+      language: isArabic ? 'ar' : 'en',
     });
 
     return response.content;

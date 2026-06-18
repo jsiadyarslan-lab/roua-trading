@@ -83,47 +83,96 @@ export class StrategicCouncilService {
    *
    * Cache key format preserved: `ai:consensus:v8:{symbol}` — existing cached
    * results remain valid.
+   *
+   * V267: `language` now accepts any of the 32 UI locales (ar, en, fr, tr, es,
+   * zh, ru, hi, pt, de, ja, ko, id, vi, th, it, pl, nl, ms, he, sv, uk, fa,
+   * ur, fil, da, no, fi, cs, hu, ro, bn).
+   *
+   * - `ar` → full native Arabic prompts (8 roles + master strategy in Arabic)
+   * - `en` → full native English prompts
+   * - other 30 locales → English prompts + a "Respond ONLY in {languageName}"
+   *   directive prepended to every role's prompt. LLMs (Gemini, Groq, GLM,
+   *   Bedrock, etc.) understand English meta-instructions and can emit content
+   *   in any of their supported languages. This is the same pattern OpenAI,
+   *   Anthropic, and Google recommend for multilingual LLM applications.
    */
-  async getConsensusAnalysis(symbol: string, options?: { forceFresh?: boolean; newsContext?: string; language?: 'ar' | 'en' }): Promise<ConsensusAnalysisResult> {
+  async getConsensusAnalysis(
+    symbol: string,
+    options?: { forceFresh?: boolean; newsContext?: string; language?: string },
+  ): Promise<ConsensusAnalysisResult> {
     const forceFresh = options?.forceFresh ?? false;
     const newsContext = options?.newsContext ?? '';
-    const language = options?.language ?? 'ar';
+    const rawLang = (options?.language ?? 'ar').toLowerCase();
+    // V267: Normalize to one of the 32 supported locales
+    const SUPPORTED_32 = new Set([
+      'ar','en','fr','tr','es','zh','ru','hi','pt','de',
+      'ja','ko','id','vi','th','it','pl','nl','ms','he',
+      'sv','uk','fa','ur','fil','da','no','fi','cs','hu',
+      'ro','bn',
+    ]);
+    const language: 'ar' | 'en' | string = SUPPORTED_32.has(rawLang) ? rawLang : 'ar';
+
+    // V267: For non-ar/non-en locales, we render English prompts + a language directive.
+    // The directive is in English so any LLM can parse it, then asks the model
+    // to emit its full response (role name, reasoning, master strategy) in the
+    // target language. Role names in the `analyses[]` array remain English for
+    // programmatic consistency — only the prose content is localized.
+    const isExtendedLocale = language !== 'ar' && language !== 'en';
+    const LANGUAGE_NAMES: Record<string, string> = {
+      fr: 'French (Français)', tr: 'Turkish (Türkçe)', es: 'Spanish (Español)',
+      zh: 'Chinese (中文)', ru: 'Russian (Русский)', hi: 'Hindi (हिन्दी)',
+      pt: 'Portuguese (Português)', de: 'German (Deutsch)', ja: 'Japanese (日本語)',
+      ko: 'Korean (한국어)', id: 'Indonesian (Bahasa Indonesia)', vi: 'Vietnamese (Tiếng Việt)',
+      th: 'Thai (ภาษาไทย)', it: 'Italian (Italiano)', pl: 'Polish (Polski)',
+      nl: 'Dutch (Nederlands)', ms: 'Malay (Bahasa Melayu)', he: 'Hebrew (עברית)',
+      sv: 'Swedish (Svenska)', uk: 'Ukrainian (Українська)', fa: 'Persian (فارسی)',
+      ur: 'Urdu (اردو)', fil: 'Filipino', da: 'Danish (Dansk)', no: 'Norwegian (Norsk)',
+      fi: 'Finnish (Suomi)', cs: 'Czech (Čeština)', hu: 'Hungarian (Magyar)',
+      ro: 'Romanian (Română)', bn: 'Bengali (বাংলা)',
+    };
+    const languageDirective = isExtendedLocale
+      ? `\n\n🌐 LANGUAGE DIRECTIVE: Respond ONLY in ${LANGUAGE_NAMES[language] || 'English'}. All analysis, reasoning, and explanations MUST be written in ${LANGUAGE_NAMES[language] || 'English'}. The role name in your response header may remain in English, but ALL prose must be in ${LANGUAGE_NAMES[language] || 'English'}. Do NOT mix languages.`
+      : '';
 
     // ── Cache check (Redis only — in-memory disabled for consensus to prevent stale HOLD results) ──
-    const cacheKey = `ai:consensus:v8:${symbol}`;
+    // V267: Cache key includes the language so a French user doesn't get an Arabic cached result.
+    const cacheKey = `ai:consensus:v8:${symbol}:${language}`;
     const redis = this.cache.getRedis();
     if (!forceFresh) {
       try {
         const cached = await redis?.get(cacheKey);
         if (cached) {
           const parsed = JSON.parse(cached);
-          this.logger.debug(`🏛️ Redis cache hit for consensus: ${symbol}`);
+          this.logger.debug(`🏛️ Redis cache hit for consensus: ${symbol} (language: ${language})`);
           return parsed;
         }
       } catch {}
     } else {
-      this.logger.log(`🏛️ ForceFresh=true: bypassing cache for consensus: ${symbol}`);
+      this.logger.log(`🏛️ ForceFresh=true: bypassing cache for consensus: ${symbol} (language: ${language})`);
       try {
         await redis?.del(cacheKey);
       } catch {}
     }
 
-    this.logger.log(`🏛️ Initiating AI Council Consensus for ${symbol} — 8 models + Prediction Market`);
+    this.logger.log(`🏛️ Initiating AI Council Consensus for ${symbol} — 8 models + Prediction Market (language: ${language})`);
 
     try {
       // ── Build decision instructions ──
-      const decisionInstruction = language === 'en'
-        ? '\n\n⛔⛔⛔ CRITICAL decision instructions:\n- You MUST end your response with exactly one line in this format: "DECISION: BUY" or "DECISION: SELL"\n- Writing "DECISION: HOLD" is STRICTLY FORBIDDEN — there is no waiting in active trading!\n- If you are not 100% sure, choose the most probable direction based on analysis\n- Even if signals are conflicting, choose the stronger direction (BUY or SELL)\n- The market always moves — there is no "wait" — pick a direction!\nThis line MUST be the last line of your response.'
+      // V267: For extended locales, use the English decision instruction (LLMs parse it reliably)
+      // and rely on `languageDirective` to localize the surrounding prose.
+      const baseLanguageForPrompts = isExtendedLocale ? 'en' : (language as 'ar' | 'en');
+      const decisionInstruction = baseLanguageForPrompts === 'en'
+        ? `${languageDirective}\n\n⛔⛔⛔ CRITICAL decision instructions:\n- You MUST end your response with exactly one line in this format: "DECISION: BUY" or "DECISION: SELL"\n- Writing "DECISION: HOLD" is STRICTLY FORBIDDEN — there is no waiting in active trading!\n- If you are not 100% sure, choose the most probable direction based on analysis\n- Even if signals are conflicting, choose the stronger direction (BUY or SELL)\n- The market always moves — there is no "wait" — pick a direction!\nThis line MUST be the last line of your response.`
         : '\n\n⛔⛔⛔ تعليمات حاسمة حول القرار:\n- يجب أن تنهي ردك بسطر واحد بالضبط بهذا الشكل: "DECISION: BUY" أو "DECISION: SELL"\n- ممنوع تماماً كتابة "DECISION: HOLD" — لا يوجد انتظار في التداول النشط!\n- إذا لم تكن متأكداً بنسبة 100%، اختر الاتجاه الأكثر احتمالاً بناءً على التحليل\n- حتى لو كانت الإشارات متضاربة، اختر الاتجاه الأقوى (BUY أو SELL)\n- السوق دائماً يتحرك — ليس هناك "انتظار" — اختر اتجاهاً!\nهذا السطر يجب أن يكون آخر سطر في ردك.';
 
       // ── Inject live market data to prevent price hallucinations ──
       const marketDataResult = await this.marketData.fetchQuickMarketData(symbol);
       const marketDataPrefix = marketDataResult.price > 0
-        ? language === 'en'
-          ? `\n⛔⛔⛔ CRITICAL WARNING — Live market data (DO NOT invent prices!):\n- 🔴 Actual current price: ${marketDataResult.price.toLocaleString()}$ — use ONLY this number! Any other price you mention will be false!\n- Real RSI: ${marketDataResult.rsi} (use this value only)\n- MACD: ${marketDataResult.macd}\n\n⚠️ Final warning: If you mention any price other than ${marketDataResult.price.toLocaleString()}$ your entire analysis will be rejected as false. The price is ${marketDataResult.price.toLocaleString()}$ and nothing else.\n`
+        ? baseLanguageForPrompts === 'en'
+          ? `${languageDirective}\n⛔⛔⛔ CRITICAL WARNING — Live market data (DO NOT invent prices!):\n- 🔴 Actual current price: ${marketDataResult.price.toLocaleString()}$ — use ONLY this number! Any other price you mention will be false!\n- Real RSI: ${marketDataResult.rsi} (use this value only)\n- MACD: ${marketDataResult.macd}\n\n⚠️ Final warning: If you mention any price other than ${marketDataResult.price.toLocaleString()}$ your entire analysis will be rejected as false. The price is ${marketDataResult.price.toLocaleString()}$ and nothing else.\n`
           : `\n⛔⛔⛔ تحذير حرج — بيانات السوق الحية (ممنوع اختراع أسعار!):\n- 🔴 السعر الحالي الفعلي: ${marketDataResult.price.toLocaleString()}$ — استخدم هذا الرقم فقط! أي سعر آخر تذكره سيكون كاذباً!\n- مؤشر RSI الحقيقي: ${marketDataResult.rsi} (استخدم هذه القيمة فقط)\n- مؤشر MACD: ${marketDataResult.macd}\n\n⚠️ تحذير نهائي: إذا ذكرت أي سعر غير ${marketDataResult.price.toLocaleString()}$ فتحليلك كله سيكون مرفوضاً وكاذباً. السعر هو ${marketDataResult.price.toLocaleString()}$ فقط لا غير.\n`
-        : language === 'en'
-          ? '\n⚠️⚠️⚠️ Unable to fetch live market data — DO NOT invent any price or number. If you need to mention a price, write "Price unavailable". Any fabricated price makes your analysis unreliable.\n'
+        : baseLanguageForPrompts === 'en'
+          ? `${languageDirective}\n⚠️⚠️⚠️ Unable to fetch live market data — DO NOT invent any price or number. If you need to mention a price, write "Price unavailable". Any fabricated price makes your analysis unreliable.\n`
           : '\n⚠️⚠️⚠️ لم نتمكن من جلب بيانات السوق الحية — ممنوع تماماً اختراع أي سعر أو رقم من عندك. إذا احتجت لذكر السعر اكتب "السعر غير متاح". أي سعر تختلقه سيجعل تحليلك غير موثوق.\n';
 
       // ── Inject news context ──
@@ -166,7 +215,10 @@ export class StrategicCouncilService {
       const contextPrefix = `${regimePrefix}${memoryPrefix}${newsPrefix}`;
 
       // ── Define the 8 Council Roles ──
-      const roles: CouncilRole[] = language === 'en' ? [
+      // V267: For extended locales (fr, zh, ja, etc.), we use the English role definitions
+      // (which already include `languageDirective` via `decisionInstruction` + `marketDataPrefix`).
+      // The LLM will emit its analysis prose in the requested language thanks to the directive.
+      const roles: CouncilRole[] = baseLanguageForPrompts === 'en' ? [
         { id: 'tech',   name: 'Technical Analyst',    model: 'gemini',     fallbackModels: ['groq', 'ollama', 'deepseek', 'glm', 'bedrock', 'huggingface', 'openrouter'],  prompt: `${contextPrefix}${marketDataPrefix}Analyze the technical chart for ${symbol} based on trend, momentum, and resistance levels.${decisionInstruction}` },
         { id: 'sent',   name: 'Sentiment Analyst',     model: 'groq',       fallbackModels: ['deepseek', 'ollama', 'gemini', 'bedrock', 'glm', 'huggingface', 'openrouter'], prompt: `${contextPrefix}${marketDataPrefix}Analyze current market sentiment for ${symbol} from a news and momentum perspective.${decisionInstruction}` },
         { id: 'risk',   name: 'Risk Expert',     model: 'gemini',     fallbackModels: ['cerebras', 'groq', 'ollama', 'deepseek', 'glm', 'mistral', 'nvidia', 'bedrock'],        prompt: `${contextPrefix}${marketDataPrefix}Identify risks of entering a trade on ${symbol} now, stop-loss levels, and worst-case scenario assessment.${decisionInstruction}` },
@@ -437,7 +489,7 @@ export class StrategicCouncilService {
     failedRoles: CouncilRole[],
     roleResponses: Map<string, { name: string; response: AIAnalysisResponse }>,
     symbol: string,
-    language: 'ar' | 'en',
+    language: string,
   ): Promise<void> {
     for (const role of failedRoles) {
       for (const fallbackModel of role.fallbackModels || []) {
@@ -673,7 +725,7 @@ export class StrategicCouncilService {
   private async _generateMasterStrategy(
     analyses: { role: string; model: string; vote: string; confidence: number; reason: string }[],
     symbol: string,
-    language: 'ar' | 'en',
+    language: string,
     recommendation: 'BUY' | 'SELL' | 'HOLD',
     consensusScore: number,
     totalModels: number,

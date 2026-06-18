@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useRouter } from '@/i18n/navigation'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import dynamic from 'next/dynamic'
 import type { QuoteData } from '@/hooks/useMarketStore'
 import { ChevronDown, PanelRight, Zap, X, Target } from 'lucide-react'
@@ -24,6 +24,7 @@ import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { getSymbolLeverage } from '@/lib/margin-calculator'
 import { useSidebarState } from '@/hooks/useSidebarState'
 
+import { getDirection } from '@/lib/i18n-utils';
 const DASHBOARD_SYMBOLS = ['BTC/USD', 'ETH/USD', 'EUR/USD', 'GBP/USD', 'XAU/USD', 'AAPL', 'TSLA']
 
 // Dynamic imports for heavy components (code splitting)
@@ -538,6 +539,8 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
 }
 
 export default function DashboardPage() {
+  const locale = useLocale();
+  const dir = getDirection(locale);
   const t = useTranslations('dashboard.home')
   const tc = useTranslations('common')
   const { collapsed: sidebarCollapsed } = useSidebarState()
@@ -1566,7 +1569,7 @@ export default function DashboardPage() {
            MOBILE V2 — التصميم الجديد
           ═══════════════════════════════════════════ */}
       {isMobileViewport && (
-        <div className="m2-shell" dir="rtl">
+        <div className="m2-shell" dir={dir}>
 
           {/* ── HEADER: لوغو + معلومات الحساب ── */}
           <div style={{

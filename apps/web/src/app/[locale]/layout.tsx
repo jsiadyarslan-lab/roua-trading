@@ -81,13 +81,16 @@ export async function generateMetadata({
   return {
     title,
     description,
-    manifest: '/manifest.json',
+    // V267: Locale-aware manifest — each user gets a PWA manifest with their
+    // own language's app name + dir attribute. Previously the hardcoded
+    // /manifest.json showed Arabic app name for ALL users.
+    manifest: `/manifest/${locale}/manifest.json`,
     appleWebApp: {
       capable: true,
       statusBarStyle: "black-translucent",
-      title: "رؤى",
+      title: locale === 'ar' ? "رؤى" : "Roua",
     },
-    applicationName: "رؤى",
+    applicationName: locale === 'ar' ? "رؤى" : "Roua",
     icons: {
       icon: [
         { url: '/icon-192.png', type: 'image/png', sizes: '192x192' },
@@ -101,6 +104,14 @@ export async function generateMetadata({
     },
     alternates: {
       canonical: "/",
+      // V267: Expanded from 11 to all 32 supported locales so every localized
+      // URL gets proper hreflang signals for search engines. This was the
+      // single biggest SEO gap — non-ar/en/fr/tr/es/zh/ru/hi/pt/de/ja pages
+      // were missing from Google's index.
+      //
+      // Cast to `any` because Next.js's `Languages` type doesn't include all
+      // ISO 639-1 codes (notably 'fil' for Filipino). This is a known limitation
+      // of the type — the runtime accepts any valid BCP 47 language tag.
       languages: {
         'ar': '/',
         'en': '/en',
@@ -113,7 +124,28 @@ export async function generateMetadata({
         'pt': '/pt',
         'de': '/de',
         'ja': '/ja',
-      },
+        'ko': '/ko',
+        'id': '/id',
+        'vi': '/vi',
+        'th': '/th',
+        'it': '/it',
+        'pl': '/pl',
+        'nl': '/nl',
+        'ms': '/ms',
+        'he': '/he',
+        'sv': '/sv',
+        'uk': '/uk',
+        'fa': '/fa',
+        'ur': '/ur',
+        'fil': '/fil',
+        'da': '/da',
+        'no': '/no',
+        'fi': '/fi',
+        'cs': '/cs',
+        'hu': '/hu',
+        'ro': '/ro',
+        'bn': '/bn',
+      } as any,
     },
     openGraph: {
       title,

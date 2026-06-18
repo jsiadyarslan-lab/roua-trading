@@ -12,6 +12,62 @@ import { AuthGuard, Public } from '../../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
 import { AIOrchestratorService } from '../services/ai-orchestrator.service';
 
+/** V267: Supported AI languages — the 32 UI locales supported by the frontend.
+ *  The AI Council, News, Coach, Signals modules now accept this union
+ *  so they can emit analysis in the user's UI language, not just Arabic.
+ *
+ *  This is THE fix that converts "32-language UI" into "32-language AI trading platform".
+ */
+export type AiLocale =
+  | 'ar' | 'en' | 'fr' | 'tr' | 'es' | 'zh' | 'ru' | 'hi' | 'pt' | 'de'
+  | 'ja' | 'ko' | 'id' | 'vi' | 'th' | 'it' | 'pl' | 'nl' | 'ms' | 'he'
+  | 'sv' | 'uk' | 'fa' | 'ur' | 'fil' | 'da' | 'no' | 'fi' | 'cs' | 'hu'
+  | 'ro' | 'bn';
+
+/** V267: Validate that a locale string is one of the 32 supported AI locales. */
+function isAiLocale(value: unknown): value is AiLocale {
+  return typeof value === 'string' && (
+    ['ar','en','fr','tr','es','zh','ru','hi','pt','de',
+     'ja','ko','id','vi','th','it','pl','nl','ms','he',
+     'sv','uk','fa','ur','fil','da','no','fi','cs','hu',
+     'ro','bn'] as const
+  ).includes(value as any);
+}
+
+/** V267: Extract the user's preferred locale from the request.
+ *  Priority: ?lang= query param → Accept-Language header → 'ar' default.
+ */
+function extractLocale(req: any, query?: any): AiLocale {
+  // 1. Explicit query parameter (highest priority)
+  const explicit = query?.lang || query?.language || query?.locale;
+  if (isAiLocale(explicit)) return explicit;
+
+  // 2. User preference from auth payload (if authenticated)
+  const userLocale = req?.user?.locale || req?.user?.language;
+  if (isAiLocale(userLocale)) return userLocale;
+
+  // 3. Accept-Language header (proximity-mapped)
+  const acceptLang = req?.headers?.['accept-language'];
+  if (typeof acceptLang === 'string' && acceptLang.length > 0) {
+    const primary = acceptLang.split(',')[0].trim().split('-')[0].toLowerCase();
+    if (isAiLocale(primary)) return primary as AiLocale;
+    // Common proximity mappings
+    const PROXIMITY: Record<string, AiLocale> = {
+      ca: 'es', gl: 'es',           // Catalan/Galician → Spanish
+      'zh-tw': 'zh', 'zh-hk': 'zh', 'zh-sg': 'zh',
+      'pt-br': 'pt', 'pt-pt': 'pt',
+      bg: 'ru', mk: 'ru', sr: 'ru', hr: 'ru', sl: 'ru', bs: 'ru',
+      az: 'tr', kk: 'tr', uz: 'tr', ky: 'tr', tk: 'tr',
+      ku: 'ar',
+    };
+    const mapped = PROXIMITY[primary];
+    if (mapped) return mapped;
+  }
+
+  // 4. Default to Arabic (matches the platform's defaultLocale in routing.ts)
+  return 'ar';
+}
+
 @Controller('strategic-council')
 @UseGuards(AuthGuard)
 export class StrategicCouncilController {
@@ -80,7 +136,8 @@ export class StrategicCouncilController {
 
   /**
    * POST /api/strategic-council/trigger — Trigger an extraordinary council session
-   * Body: { pairs: string[] }
+   * Body: { pairs: string[], language?: AiLocale }
+   * V267: language parameter propagates to all 8 AI roles + master strategy + brief analysisSummary.
    * FIX: Marked @Public() so the dashboard can trigger sessions without auth.
    * Uses 'system' as userId when no authenticated user is available.
    *
@@ -93,14 +150,22 @@ export class StrategicCouncilController {
   @Public()
   @Post('trigger')
   @Throttle({ default: { limit: 3, ttl: 60000 } })
-  async triggerSession(@Req() req: any, @Body() body: { pairs?: string[] }) {
+  async triggerSession(
+    @Req() req: any,
+    @Body() body: { pairs?: string[]; language?: string },
+  ) {
     const pairs = body.pairs || [];
     if (pairs.length === 0) {
       return { success: false, message: 'حدد زوجاً واحداً على الأقل' };
     }
 
+    // V267: Resolve the AI locale from request (query > body > user > Accept-Language > 'ar')
+    const language: AiLocale = isAiLocale(body.language)
+      ? body.language
+      : extractLocale(req);
+
     const userId = req.user?.id || 'system';
-    this.logger.log(`🏛️ Manual council session triggered by ${userId} for: ${pairs.join(', ')}`);
+    this.logger.log(`🏛️ Manual council session triggered by ${userId} for: ${pairs.join(', ')} (language: ${language})`);
 
     // Check if already in session — return immediately if so
     if (this.councilService.isInSessionNow()) {
@@ -112,9 +177,9 @@ export class StrategicCouncilController {
     }
 
     // Fire-and-forget: Start the session in the background
-    // The frontend will poll /session/last to get results
+    // V267: Pass `language` so the council emits analysis in the user's UI language.
     const sessionId = `manual-${Date.now()}`;
-    this.councilService.forceSessionAsync(sessionId, pairs, userId).catch((err: any) => {
+    this.councilService.forceSessionAsync(sessionId, pairs, userId, language).catch((err: any) => {
       this.logger.error(`🏛️ Background manual session failed: ${err.message}`);
     });
 
@@ -125,6 +190,7 @@ export class StrategicCouncilController {
         sessionId,
         status: 'processing',
         pairs,
+        language,
         message: 'تم بدء الجلسة — راقب النتائج خلال دقيقة واحدة',
       },
     };
@@ -165,13 +231,15 @@ export class StrategicCouncilController {
    * GET /api/strategic-council/debug — Debug endpoint to test consensus + brief creation
    * Returns the consensus result for a pair WITHOUT creating a brief.
    * Helps diagnose why briefs aren't being created.
+   * V267: ?lang= parameter controls the AI output language.
    * FIX: Marked @Public() for diagnostic access.
    */
   @Public()
   @Get('debug')
-  async debugConsensus(@Query('pair') pair?: string) {
+  async debugConsensus(@Req() req: any, @Query('pair') pair?: string, @Query('lang') lang?: string) {
     const testPair = pair || 'BTC/USDT';
-    const diagnostic: any = { pair: testPair, steps: {} };
+    const language: AiLocale = isAiLocale(lang) ? lang : extractLocale(req);
+    const diagnostic: any = { pair: testPair, language, steps: {} };
 
     try {
       // Step 1: Test market data fetch
@@ -189,8 +257,12 @@ export class StrategicCouncilController {
       }
 
       // Step 2: Test consensus analysis (with forceFresh)
+      // V267: Pass `language` so the 8 roles emit analysis in the requested locale.
       try {
-        const consensus = await this.orchestrator.getConsensusAnalysis(testPair, { forceFresh: true });
+        const consensus = await this.orchestrator.getConsensusAnalysis(testPair, {
+          forceFresh: true,
+          language,
+        } as any);
         const isAIFallback = consensus.isFallback === true || consensus.consensusScore === 0;
         const wouldCreateBrief = !isAIFallback && consensus.recommendation !== 'HOLD' && consensus.consensusScore >= 15;
         const direction = consensus.recommendation === 'BUY' ? 'BUY' : consensus.recommendation === 'SELL' ? 'SELL' : 'HOLD';

@@ -12,8 +12,9 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { T as SharedT } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 
+import { getDirection } from '@/lib/i18n-utils';
 /* ═══════════════════════════════════════════════════════
    Design Tokens (canonical + local extensions)
 ═══════════════════════════════════════════════════════ */
@@ -277,6 +278,8 @@ function BenefitCard({ icon, title, description, color }: {
    Main Account Linking Page Component
 ═══════════════════════════════════════════════════════ */
 export default function AccountLinkingPage() {
+  const locale = useLocale();
+  const dir = getDirection(locale);
   useScopedStyle(`@keyframes spin { to { transform: rotate(360deg) } }
         @keyframes pulseGlow { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -791,7 +794,7 @@ export default function AccountLinkingPage() {
                     value={apiKeyInfo.label}
                     onChange={v => setApiKeyInfo(prev => ({ ...prev, label: v }))}
                     placeholder="مثال: حساب Binance الرئيسي"
-                    dir="rtl"
+                    dir={dir}
                   />
 
                   {/* API Key */}

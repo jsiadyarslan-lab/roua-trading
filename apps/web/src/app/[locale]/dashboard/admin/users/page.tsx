@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
+import { getDirection } from '@/lib/i18n-utils';
 import {
   Users,
   Search,
@@ -69,6 +70,8 @@ function getTierStyle(tier: string) {
 
 export default function AdminUsersPage() {
   const tn = useTranslations('notifications.admin')
+  const locale = useLocale();
+  const dir = getDirection(locale);
   const [users, setUsers] = useState<AdminUser[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
@@ -298,7 +301,7 @@ export default function AdminUsersPage() {
               flex: 1, background: 'transparent', border: 'none', outline: 'none',
               color: COLORS.text, fontSize: 12, fontFamily: "'Cairo', sans-serif",
             }}
-            dir="rtl"
+            dir={dir}
           />
           {searchInput && (
             <button onClick={() => { setSearchInput(''); setSearch('') }} style={{ background: 'transparent', border: 'none', color: COLORS.muted, cursor: 'pointer', padding: 0 }}>

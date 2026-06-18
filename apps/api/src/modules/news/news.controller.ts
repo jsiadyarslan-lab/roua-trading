@@ -4,6 +4,7 @@ import {
   Post,
   Query,
   Body,
+  Req,
   Logger,
   InternalServerErrorException,
   BadRequestException,
@@ -117,27 +118,55 @@ export class NewsController {
   /**
    * POST /api/news/analyze
    * Analyze a news text manually
-   * Body: { text: string, symbol?: string }
+   * Body: { text: string, symbol?: string, language?: string }
+   *
+   * V267: `language` parameter controls the AI output locale.
+   * Defaults to 'ar' for backward compat. Accepts any of the 32 UI locales.
    *
    * PROTECTED — requires authentication (uses AI resources)
    */
   @Post('analyze')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
-  async analyzeNewsText(@Body() body: { text: string; symbol?: string }) {
+  async analyzeNewsText(
+    @Body() body: { text: string; symbol?: string; language?: string },
+    @Req() req?: any,
+  ) {
     if (!body.text) {
       throw new BadRequestException('النص مطلوب للتحليل');
     }
+
+    // V267: Resolve language from body > user > Accept-Language > 'ar'
+    const language = body.language
+      || req?.user?.locale
+      || req?.user?.language
+      || this._extractLocaleFromHeader(req)
+      || 'ar';
 
     try {
       const analysis = await this.newsService.analyzeNewsText(
         body.text,
         body.symbol,
+        language,
       );
-      return { success: true, data: analysis };
+      return { success: true, data: analysis, language };
     } catch (error: any) {
       this.logger.error(`Failed to analyze news: ${error.message}`, error.stack);
       throw new InternalServerErrorException('فشل في تحليل الخبر');
     }
+  }
+
+  /** V267: Extract locale from Accept-Language header (best-effort). */
+  private _extractLocaleFromHeader(req: any): string | null {
+    const acceptLang = req?.headers?.['accept-language'];
+    if (typeof acceptLang !== 'string' || acceptLang.length === 0) return null;
+    const primary = acceptLang.split(',')[0].trim().split('-')[0].toLowerCase();
+    const SUPPORTED = new Set([
+      'ar','en','fr','tr','es','zh','ru','hi','pt','de',
+      'ja','ko','id','vi','th','it','pl','nl','ms','he',
+      'sv','uk','fa','ur','fil','da','no','fi','cs','hu',
+      'ro','bn',
+    ]);
+    return SUPPORTED.has(primary) ? primary : null;
   }
 
   /**

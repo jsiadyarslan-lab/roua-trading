@@ -10,7 +10,7 @@
 // تم إلغاؤه واستبداله بهذه الخدمة.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional, Inject } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../common/prisma/prisma.service';
@@ -96,8 +96,13 @@ export class StrategicCouncilService {
     private readonly newsService: NewsService,
     private readonly newsIntegration: NewsIntegrationService,
     private readonly ragService: RagService,
+    // V267: AdaptiveScheduleService is injected via @Optional() + token injection so
+    // the council can benefit from volatility-aware scan intervals WITHOUT a hard
+    // dependency on CouncilIntelligenceModule (which would create a circular import).
+    // The token is provided by CouncilIntelligenceModule (Global).
+    @Optional() @Inject('ADAPTIVE_SCHEDULE_SERVICE') private readonly adaptiveSchedule?: any,
   ) {
-    this.logger.log('🏛️ Strategic Council initialized — THE ONLY consensus engine (with news integration)');
+    this.logger.log('🏛️ Strategic Council initialized — THE ONLY consensus engine (with news integration)' + (this.adaptiveSchedule ? ' + V267 AdaptiveSchedule' : ''));
     // REMOVED: _ensureTradingBriefTable() — all DDL removed from application code.
     // Schema changes must ONLY be done via `prisma migrate deploy` in start.sh.
     // Running DDL from application code causes connection pool exhaustion and
@@ -264,6 +269,10 @@ export class StrategicCouncilService {
    * V130: Agent session runs at :07 and :37 (offset from executor session).
    * This prevents the concurrency bug where runHourlySession() held isInSession=true
    * for 20-30 minutes, causing runAgentSession() to always skip.
+   *
+   * V267: Added Sanctuary halt check (was missing here — only runHourlySession
+   * checked it, so Agent briefs kept generating during a Sanctuary halt).
+   * Now both sessions respect the halt.
    */
   @Cron('7,37 * * * *')
   async runAgentSession(): Promise<void> {
@@ -271,6 +280,15 @@ export class StrategicCouncilService {
     if (!this.prisma.isAvailable?.()) {
       return;
     }
+
+    // V267: Sanctuary halt check (was missing in agent session — fix)
+    try {
+      const haltUntil = await this.redis?.get('council:sanctuary:halt');
+      if (haltUntil && new Date(haltUntil) > new Date()) {
+        this.logger.warn(`🏛️ Agent Council HALTED by Sanctuary until ${haltUntil} — skipping agent briefs`);
+        return;
+      }
+    } catch { /* non-critical — don't block trading */ }
 
     // Check AUTO_TRADING_ENABLED
     try {
@@ -365,6 +383,40 @@ export class StrategicCouncilService {
         return { timestamp: new Date().toISOString(), pairsAnalyzed: 0, briefsIssued: 0, briefsModified: 0, briefsCancelled: 0, briefsExecuted: 0, durationMs: 0 };
       }
     } catch { /* non-critical — don't block trading */ }
+
+    // V267: AdaptiveSchedule check — if the recommended interval for the most-traded
+    // pair exceeds time-since-last-session, skip this tick to save AI costs in calm markets.
+    // This activates the previously-dead AdaptiveSchedule feature (built at
+    // council-intelligence/adaptive-schedule.service.ts:49-187 but never wired into @Cron).
+    if (this.adaptiveSchedule?.getRecommendedInterval) {
+      try {
+        const probeSymbol = 'BTC/USDT'; // representative symbol for the market state
+        const recommendation = await this.adaptiveSchedule.getRecommendedInterval(probeSymbol);
+        if (recommendation?.recommendedIntervalMs && recommendation.recommendedIntervalMs > 15 * 60 * 1000 + 60_000) {
+          // Recommended interval > 16 min — wait until next cron tick (15 min default).
+          this.logger.log(
+            `⏰ V267 AdaptiveSchedule: skipping this tick — recommended interval ${Math.round(recommendation.recommendedIntervalMs / 60000)}min (reason: ${recommendation.adjustmentReason || 'calm market'})`,
+          );
+          return {
+            timestamp: new Date().toISOString(),
+            pairsAnalyzed: 0,
+            briefsIssued: 0,
+            briefsModified: 0,
+            briefsCancelled: 0,
+            briefsExecuted: 0,
+            durationMs: 0,
+            adaptiveSkip: true,
+            adaptiveReason: recommendation.adjustmentReason,
+          } as any;
+        } else if (recommendation?.recommendedIntervalMs && recommendation.recommendedIntervalMs < 5 * 60 * 1000) {
+          this.logger.warn(
+            `⏰ V267 AdaptiveSchedule: HIGH URGENCY — recommended interval ${Math.round(recommendation.recommendedIntervalMs / 60000)}min (reason: ${recommendation.adjustmentReason || 'volatile market'}) — running session immediately`,
+          );
+        }
+      } catch (adaptErr: any) {
+        this.logger.debug(`V267 AdaptiveSchedule check failed (non-critical): ${adaptErr?.message || adaptErr}`);
+      }
+    }
 
     // ═══════════════════════════════════════════════════════════════════
     // FIX: Single AUTO_TRADING_ENABLED check (removed double-guard).
@@ -568,8 +620,20 @@ export class StrategicCouncilService {
    * FIX: This method runs in the background so the HTTP response returns immediately.
    * Previously, the controller awaited forceSession() which took 6-12 minutes,
    * exceeding the 30-second proxy timeout and causing 502 errors on the frontend.
+   *
+   * V267: `language` parameter (default 'ar') propagates to all 8 AI roles +
+   * master strategy + brief analysisSummary. The 32 supported locales are
+   * defined as `AiLocale` in the controller.
    */
-  async forceSessionAsync(sessionId: string, pairs: string[], userId: string): Promise<CouncilSessionResult> {
+  async forceSessionAsync(
+    sessionId: string,
+    pairs: string[],
+    userId: string,
+    language: 'ar' | 'en' | 'fr' | 'tr' | 'es' | 'zh' | 'ru' | 'hi' | 'pt' | 'de'
+      | 'ja' | 'ko' | 'id' | 'vi' | 'th' | 'it' | 'pl' | 'nl' | 'ms' | 'he'
+      | 'sv' | 'uk' | 'fa' | 'ur' | 'fil' | 'da' | 'no' | 'fi' | 'cs' | 'hu'
+      | 'ro' | 'bn' = 'ar',
+  ): Promise<CouncilSessionResult> {
     // Guard against concurrent sessions
     if (this.isExecutorInSession) {
       this.logger.warn('🏛️ Cannot start manual session — previous executor session still running');
@@ -585,7 +649,7 @@ export class StrategicCouncilService {
     }
 
     this.isExecutorInSession = true;
-    this.logger.log(`🏛️ Manual strategic council session [${sessionId}] started by ${userId} for: ${pairs.join(', ')}`);
+    this.logger.log(`🏛️ Manual strategic council session [${sessionId}] started by ${userId} for: ${pairs.join(', ')} (language: ${language})`);
 
     const result: CouncilSessionResult = {
       timestamp: new Date().toISOString(),
@@ -603,7 +667,7 @@ export class StrategicCouncilService {
     try {
       for (const pair of pairs) {
         try {
-          await this._analyzePair(pair, result);
+          await this._analyzePair(pair, result, language);
           result.pairsAnalyzed++;
         } catch (error: any) {
           this.logger.error(`🏛️ Manual council [${sessionId}] failed for ${pair}: ${error.message}`);
@@ -661,9 +725,17 @@ export class StrategicCouncilService {
 
   /**
    * Force a council session for specific pairs (synchronous version — kept for backward compat)
+   * V267: defaults `language` to 'ar' for backward compatibility with existing callers.
    */
-  async forceSession(pairs: string[], userId: string): Promise<CouncilSessionResult> {
-    return this.forceSessionAsync(`sync-${Date.now()}`, pairs, userId);
+  async forceSession(
+    pairs: string[],
+    userId: string,
+    language: 'ar' | 'en' | 'fr' | 'tr' | 'es' | 'zh' | 'ru' | 'hi' | 'pt' | 'de'
+      | 'ja' | 'ko' | 'id' | 'vi' | 'th' | 'it' | 'pl' | 'nl' | 'ms' | 'he'
+      | 'sv' | 'uk' | 'fa' | 'ur' | 'fil' | 'da' | 'no' | 'fi' | 'cs' | 'hu'
+      | 'ro' | 'bn' = 'ar',
+  ): Promise<CouncilSessionResult> {
+    return this.forceSessionAsync(`sync-${Date.now()}`, pairs, userId, language);
   }
 
   // ── Query Methods ──
@@ -1241,7 +1313,14 @@ export class StrategicCouncilService {
    * Analyze a single pair across all timeframes
    * For each timeframe, decide: new brief, modify existing, or cancel
    */
-  private async _analyzePair(pair: string, result: CouncilSessionResult): Promise<void> {
+  private async _analyzePair(
+    pair: string,
+    result: CouncilSessionResult,
+    language: 'ar' | 'en' | 'fr' | 'tr' | 'es' | 'zh' | 'ru' | 'hi' | 'pt' | 'de'
+      | 'ja' | 'ko' | 'id' | 'vi' | 'th' | 'it' | 'pl' | 'nl' | 'ms' | 'he'
+      | 'sv' | 'uk' | 'fa' | 'ur' | 'fil' | 'da' | 'no' | 'fi' | 'cs' | 'hu'
+      | 'ro' | 'bn' = 'ar',
+  ): Promise<void> {
     // FIX: Use orchestrator's fetchQuickMarketData instead of exchangeService.getQuote.
     // exchangeService.getQuote fails on Railway for many pairs (Binance blocked, no TwelveData key).
     // The orchestrator's fetcher uses multiple parallel sources (Binance, CoinGecko, CoinCap, Bybit,
@@ -1313,9 +1392,10 @@ export class StrategicCouncilService {
     }
 
     // Analyze each timeframe
+    // V267: Pass `language` down so each timeframe's brief is generated in the user's locale.
     for (const timeframe of EXECUTOR_TIMEFRAMES) {
       try {
-        await this._analyzePairTimeframe(pair, timeframe, currentPrice, result);
+        await this._analyzePairTimeframe(pair, timeframe, currentPrice, result, language);
       } catch (error: any) {
         this.logger.error(`🏛️ Analysis failed for ${pair} ${timeframe}: ${error.message}`);
         result.diagnostics?.push(`${pair} ${timeframe}: ANALYSIS ERROR: ${error.message}`);
@@ -1334,6 +1414,10 @@ export class StrategicCouncilService {
     timeframe: BriefTimeframe,
     currentPrice: number,
     result: CouncilSessionResult,
+    language: 'ar' | 'en' | 'fr' | 'tr' | 'es' | 'zh' | 'ru' | 'hi' | 'pt' | 'de'
+      | 'ja' | 'ko' | 'id' | 'vi' | 'th' | 'it' | 'pl' | 'nl' | 'ms' | 'he'
+      | 'sv' | 'uk' | 'fa' | 'ur' | 'fil' | 'da' | 'no' | 'fi' | 'cs' | 'hu'
+      | 'ro' | 'bn' = 'ar',
   ): Promise<void> {
     // Find existing active brief for this pair+timeframe
     const existingBrief = await this.prisma.tradingBrief.findFirst({
@@ -1359,9 +1443,12 @@ export class StrategicCouncilService {
     // By forcing fresh AI calls, each Council session gets the CURRENT model state.
     // V143: News context is injected via Redis cache key — the orchestrator reads
     // it as part of the prompt context when generating analysis.
+    // V267: `language` propagates to all 8 AI roles + master strategy so the
+    // brief's analysisSummary is emitted in the user's UI locale.
     const consensus = await this.orchestrator.getConsensusAnalysis(pair, {
       forceFresh: true,
       newsContext: newsContext || undefined,
+      language,
     } as any);
 
     // V143: Adjust confidence based on news risk score.

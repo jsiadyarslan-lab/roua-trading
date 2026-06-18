@@ -22,6 +22,8 @@ import SubPageLayout from '@/components/dashboard/SubPageLayout'
 import { fetchPositionsUnified, fetchSummaryUnified, closePositionUnified } from '@/lib/api-fetch'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 
+import { getDirection } from '@/lib/i18n-utils';
+import { useLocale } from 'next-intl';
 // ── Types ──
 interface Position {
   id: string
@@ -135,6 +137,8 @@ function StatCard({ icon, label, value, subValue, color, gradientFrom, gradientT
 }
 
 export default function PositionsPage() {
+  const locale = useLocale();
+  const dir = getDirection(locale);
   const router = useRouter()
   const { loading: authLoading } = useAuth()
 
@@ -738,7 +742,7 @@ export default function PositionsPage() {
       {/* Close Position Dialog */}
       {closeDialog && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }} onClick={() => setCloseDialog(null)}>
-          <div role="dialog" aria-modal="true" aria-labelledby="close-dialog-title" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', maxWidth: '440px', width: '90%', boxShadow: 'var(--shadow-modal)' }} onClick={(e) => e.stopPropagation()} dir="rtl">
+          <div role="dialog" aria-modal="true" aria-labelledby="close-dialog-title" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', maxWidth: '440px', width: '90%', boxShadow: 'var(--shadow-modal)' }} onClick={(e) => e.stopPropagation()} dir={dir}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
               <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'linear-gradient(135deg, #FF4D4D, #FF6B6B)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <XCircle size={13} stroke="#fff" strokeWidth={2} />
@@ -795,7 +799,7 @@ export default function PositionsPage() {
       {/* Edit SL/TP Dialog */}
       {editDialog && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }} onClick={() => setEditDialog(null)}>
-          <div role="dialog" aria-modal="true" aria-labelledby="edit-dialog-title" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', maxWidth: '400px', width: '90%', boxShadow: 'var(--shadow-modal)' }} onClick={(e) => e.stopPropagation()} dir="rtl">
+          <div role="dialog" aria-modal="true" aria-labelledby="edit-dialog-title" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', maxWidth: '400px', width: '90%', boxShadow: 'var(--shadow-modal)' }} onClick={(e) => e.stopPropagation()} dir={dir}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
               <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'linear-gradient(135deg, #0A84FF, #5E5CE6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Shield size={13} stroke="#fff" strokeWidth={2} />

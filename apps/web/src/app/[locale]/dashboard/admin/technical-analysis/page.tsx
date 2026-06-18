@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { getDirection } from '@/lib/i18n-utils';
+import { useLocale } from 'next-intl';
 import {
   LineChart, Sparkles, TrendingUp, FileText, BarChart3,
   Settings2, Plus, Clock, Eye, ThumbsUp, Share2,
@@ -211,6 +213,8 @@ const btnStyle: React.CSSProperties = {
    Main Page Component
    ═══════════════════════════════════════════════ */
 export default function TechnicalAnalysisPage() {
+  const locale = useLocale();
+  const dir = getDirection(locale);
   const {
     agentState, stats, articles, trendingTopics, contentGaps, logs, loading, error,
     fetchState, fetchStats, fetchFeed, fetchTrending, fetchGaps,
@@ -252,7 +256,7 @@ export default function TechnicalAnalysisPage() {
   return (
     <>
       <style>{TA_CSS}</style>
-      <div dir="rtl" style={{ minHeight: '100vh', background: T.bg, color: T.text, fontFamily: FONT_AR }}>
+      <div dir={dir} style={{ minHeight: '100vh', background: T.bg, color: T.text, fontFamily: FONT_AR }}>
         {/* ── Header ── */}
         <div style={{
           padding: '28px 32px 0',

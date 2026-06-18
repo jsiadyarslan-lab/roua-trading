@@ -5,6 +5,8 @@ import { ScrollText, Filter, RefreshCw, Info, AlertTriangle, XCircle, AlertCircl
 import { COLORS } from '@/lib/admin-ui'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 
+import { getDirection } from '@/lib/i18n-utils';
+import { useLocale } from 'next-intl';
 type LogLevel = 'info' | 'warning' | 'error'
 
 interface LogEntry {
@@ -44,6 +46,8 @@ async function fetchSystemLogs(level: string, search: string): Promise<LogsRespo
 }
 
 export default function AdminSystemLogsPage() {
+  const locale = useLocale();
+  const dir = getDirection(locale);
   useScopedStyle(`@keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 0.8; } }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
@@ -181,7 +185,7 @@ export default function AdminSystemLogsPage() {
         })}
         <div style={{ flex: 1, minWidth: 180, display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.03)', border: `1px solid ${COLORS.border}` }}>
           <Filter size={12} color={COLORS.muted} />
-          <input type="text" placeholder="بحث في السجلات..." value={search} onChange={e => setSearch(e.target.value)} style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: COLORS.text, fontSize: 11, fontFamily: "'Cairo', sans-serif" }} dir="rtl" />
+          <input type="text" placeholder="بحث في السجلات..." value={search} onChange={e => setSearch(e.target.value)} style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: COLORS.text, fontSize: 11, fontFamily: "'Cairo', sans-serif" }} dir={dir} />
         </div>
       </div>
 

@@ -145,16 +145,41 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
    * news analysis endpoint that already has rate limiting (5/min).
    * This reduces AI calls from 8 → 1 per request (87.5% reduction).
    */
-  async analyzeNewsText(text: string, symbol?: string) {
+  async analyzeNewsText(text: string, symbol?: string, language: string = 'ar') {
+    // V267: language parameter controls output locale (ar/en/30 other locales)
+    const normalizedLang = (language || 'ar').toLowerCase();
+    const isArabic = normalizedLang === 'ar';
+    const isExtended = normalizedLang !== 'ar' && normalizedLang !== 'en';
+    const LANGUAGE_NAMES: Record<string, string> = {
+      fr: 'French (Français)', tr: 'Turkish (Türkçe)', es: 'Spanish (Español)',
+      zh: 'Chinese (中文)', ru: 'Russian (Русский)', hi: 'Hindi (हिन्दी)',
+      pt: 'Portuguese (Português)', de: 'German (Deutsch)', ja: 'Japanese (日本語)',
+      ko: 'Korean (한국어)', id: 'Indonesian (Bahasa Indonesia)', vi: 'Vietnamese (Tiếng Việt)',
+      th: 'Thai (ภาษาไทย)', it: 'Italian (Italiano)', pl: 'Polish (Polski)',
+      nl: 'Dutch (Nederlands)', ms: 'Malay (Bahasa Melayu)', he: 'Hebrew (עברית)',
+      sv: 'Swedish (Svenska)', uk: 'Ukrainian (Українська)', fa: 'Persian (فارسی)',
+      ur: 'Urdu (اردو)', fil: 'Filipino', da: 'Danish (Dansk)', no: 'Norwegian (Norsk)',
+      fi: 'Finnish (Suomi)', cs: 'Czech (Čeština)', hu: 'Hungarian (Magyar)',
+      ro: 'Romanian (Română)', bn: 'Bengali (বাংলা)',
+    };
+    const languageDirective = isExtended
+      ? `\n\n🌐 LANGUAGE DIRECTIVE: Respond ONLY in ${LANGUAGE_NAMES[normalizedLang] || 'English'}. All field values MUST be in ${LANGUAGE_NAMES[normalizedLang] || 'English'}.`
+      : '';
     // Single combined prompt: translation + sentiment + trading recommendation
     const result = await this.aiOrchestrator.analyze({
       symbol: symbol || 'GENERAL',
-      prompt: `أنت محلل أخبار مالية محترف. حلل الخبر التالي وأجب بصيغة JSON فقط بدون أي نص آخر:
+      prompt: isArabic
+        ? `أنت محلل أخبار مالية محترف. حلل الخبر التالي وأجب بصيغة JSON فقط بدون أي نص آخر:
 {"translatedTitle": "العنوان المترجم للعربية", "translatedContent": "المحتوى المترجم للعربية", "sentiment": "positive أو negative أو neutral", "sentimentScore": رقم بين -1 و 1, "impactLevel": "high أو medium أو low", "affectedAssets": ["BTC", "ETH"], "summary": "ملخص عربي مختصر في جملة واحدة", "marketImpact": "وصف تأثير الخبر على السوق", "recommendation": "توصية تداول واضحة مع مستوى الدخول والوقف"}
 
-الخبر: ${text.substring(0, 2000)}`,
+الخبر: ${text.substring(0, 2000)}`
+        : `${languageDirective}
+You are a professional financial news analyst. Analyze the following news and respond ONLY in JSON format with no other text:
+{"translatedTitle": "title translated to ${LANGUAGE_NAMES[normalizedLang] || 'English'}", "translatedContent": "content translated to ${LANGUAGE_NAMES[normalizedLang] || 'English'}", "sentiment": "positive or negative or neutral", "sentimentScore": number between -1 and 1, "impactLevel": "high or medium or low", "affectedAssets": ["BTC", "ETH"], "summary": "one-sentence summary in ${LANGUAGE_NAMES[normalizedLang] || 'English'}", "marketImpact": "market impact description", "recommendation": "clear trading recommendation with entry and stop levels"}
+
+News: ${text.substring(0, 2000)}`,
       type: 'sentiment',
-      language: 'ar',
+      language: isArabic ? 'ar' : 'en',
     });
 
     const content = result.content || '';

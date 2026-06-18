@@ -437,9 +437,22 @@ export class AIOrchestratorService {
    *
    * Cache keys remain the same (`ai:consensus:v8:{symbol}`) so existing
    * cached results are not invalidated.
+   *
+   * V267: `language` expanded from `'ar' | 'en'` to accept all 32 UI locales.
+   * The actual prompt rendering happens in StrategicCouncilService — non-Arabic/
+   * non-English locales fall back to a generic English meta-prompt that prepends
+   * "Respond ONLY in {languageName}" so any LLM emits content in the user's locale.
    */
-  async getConsensusAnalysis(symbol: string, options?: { forceFresh?: boolean; newsContext?: string; language?: 'ar' | 'en' }): Promise<ConsensusAnalysisResult> {
-    return this.strategicCouncil.getConsensusAnalysis(symbol, options);
+  async getConsensusAnalysis(
+    symbol: string,
+    options?: {
+      forceFresh?: boolean;
+      newsContext?: string;
+      // V267: accept any of the 32 UI locales — the council renders prompts accordingly.
+      language?: string;
+    },
+  ): Promise<ConsensusAnalysisResult> {
+    return this.strategicCouncil.getConsensusAnalysis(symbol, options as any);
   }
 
   /**

@@ -58,7 +58,30 @@ export class SignalService {
    * 4. Generate comprehensive signal via AI
    * 5. Parse and store signal
    */
-  async generateSignal(userId: string, pair: string) {
+  /**
+   * V267: `language` parameter (default 'ar') controls AI output locale.
+   * Pass any of the 32 UI locales. Non-ar/non-en locales use English prompts
+   * + a "Respond ONLY in {language}" directive.
+   */
+  async generateSignal(userId: string, pair: string, language: string = 'ar') {
+    const normalizedLang = (language || 'ar').toLowerCase();
+    const isArabic = normalizedLang === 'ar';
+    const isExtended = normalizedLang !== 'ar' && normalizedLang !== 'en';
+    const LANGUAGE_NAMES: Record<string, string> = {
+      fr: 'French (Français)', tr: 'Turkish (Türkçe)', es: 'Spanish (Español)',
+      zh: 'Chinese (中文)', ru: 'Russian (Русский)', hi: 'Hindi (हिन्दी)',
+      pt: 'Portuguese (Português)', de: 'German (Deutsch)', ja: 'Japanese (日本語)',
+      ko: 'Korean (한국어)', id: 'Indonesian (Bahasa Indonesia)', vi: 'Vietnamese (Tiếng Việt)',
+      th: 'Thai (ภาษาไทย)', it: 'Italian (Italiano)', pl: 'Polish (Polski)',
+      nl: 'Dutch (Nederlands)', ms: 'Malay (Bahasa Melayu)', he: 'Hebrew (עברית)',
+      sv: 'Swedish (Svenska)', uk: 'Ukrainian (Українська)', fa: 'Persian (فارسی)',
+      ur: 'Urdu (اردو)', fil: 'Filipino', da: 'Danish (Dansk)', no: 'Norwegian (Norsk)',
+      fi: 'Finnish (Suomi)', cs: 'Czech (Čeština)', hu: 'Hungarian (Magyar)',
+      ro: 'Romanian (Română)', bn: 'Bengali (বাংলা)',
+    };
+    const languageDirective = isExtended
+      ? `\n\n🌐 LANGUAGE DIRECTIVE: Respond ONLY in ${LANGUAGE_NAMES[normalizedLang] || 'English'}. All analysis and reasoning MUST be in ${LANGUAGE_NAMES[normalizedLang] || 'English'}.`
+      : '';
     this.logger.log(`📡 Generating signal for ${pair} (user: ${userId})`);
 
     // Step 1: Fetch live market data
@@ -92,19 +115,29 @@ export class SignalService {
     }
 
     // Step 3: Analyze sentiment via AI Orchestrator (was using groqService directly, bypassing orchestrator)
+    // V267: Use the resolved language for the sentiment analysis prompt.
     let sentiment = '';
     try {
       const sentimentResult = await this.orchestrator.analyze({
-        prompt: `حلل مشاعر السوق تجاه ${pair} بناءً على البيانات التالية:
+        prompt: isArabic
+          ? `حلل مشاعر السوق تجاه ${pair} بناءً على البيانات التالية:
 السعر الحالي: ${marketData?.price || 'غير متاح'}
 التغير: ${marketData?.changePercent || 'غير متاح'}%
 الحجم: ${marketData?.volume || 'غير متاح'}
 ${newsContext ? `آخر الأخبار:\n${newsContext}` : ''}
 
-أجب بشكل مختصر: هل المشاعر إيجابية أم سلبية؟ ولماذا؟`,
+أجب بشكل مختصر: هل المشاعر إيجابية أم سلبية؟ ولماذا؟`
+          : `${languageDirective}
+Analyze market sentiment towards ${pair} based on the following data:
+Current price: ${marketData?.price || 'unavailable'}
+Change: ${marketData?.changePercent || 'unavailable'}%
+Volume: ${marketData?.volume || 'unavailable'}
+${newsContext ? `Recent news:\n${newsContext}` : ''}
+
+Answer briefly: is the sentiment positive or negative? Why?`,
         type: 'sentiment',
         symbol: pair,
-        language: 'ar',
+        language: isArabic ? 'ar' : 'en',
       });
 
       if (sentimentResult.confidence > 0) {
@@ -115,7 +148,9 @@ ${newsContext ? `آخر الأخبار:\n${newsContext}` : ''}
     }
 
     // Step 4: Generate comprehensive signal via AI Orchestrator
-    const signalPrompt = `أنت محلل مالي خبير في منصة "رؤى لربط الحسابات". بناءً على البيانات التالية، قدم توصية تداول لـ ${pair}.
+    // V267: language-aware prompt
+    const signalPrompt = isArabic
+      ? `أنت محلل مالي خبير في منصة "رؤى لربط الحسابات". بناءً على البيانات التالية، قدم توصية تداول لـ ${pair}.
 
 📊 بيانات السوق الحالية:
 - السعر: ${marketData?.price || 'غير متاح'} ${marketData?.currency || 'USD'}
@@ -134,7 +169,28 @@ ${newsContext ? `📰 أخبار ذات صلة:\n${newsContext}` : ''}
 سعر الدخول: [رقم]
 وقف الخسارة: [رقم]
 جني الأرباح: [رقم]
-السبب: [شرح مفصل بالعربية عن سبب التوصية]`;
+السبب: [شرح مفصل بالعربية عن سبب التوصية]`
+      : `${languageDirective}
+You are an expert financial analyst on the Roua Trading platform. Based on the following data, provide a trading recommendation for ${pair}.
+
+📊 Current market data:
+- Price: ${marketData?.price || 'unavailable'} ${marketData?.currency || 'USD'}
+- Change: ${marketData?.changePercent || 0}%
+- High: ${marketData?.high || 'unavailable'}
+- Low: ${marketData?.low || 'unavailable'}
+- Volume: ${marketData?.volume || 'unavailable'}
+
+📈 Sentiment analysis: ${sentiment || 'unavailable'}
+
+${newsContext ? `📰 Relevant news:\n${newsContext}` : ''}
+
+Answer in the following exact format (use numbers only, no symbols):
+Action: [Buy/Sell/Wait]
+Confidence: [0-100]
+Entry price: [number]
+Stop loss: [number]
+Take profit: [number]
+Reason: [detailed explanation of the recommendation]`;
 
     let aiResponse: any = null;
     try {
@@ -142,7 +198,7 @@ ${newsContext ? `📰 أخبار ذات صلة:\n${newsContext}` : ''}
         prompt: signalPrompt,
         type: 'signal_generation',
         symbol: pair,
-        language: 'ar',
+        language: isArabic ? 'ar' : 'en',
       });
     } catch (error: any) {
       this.logger.error(`AI signal generation failed: ${error.message}`);

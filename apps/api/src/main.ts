@@ -351,6 +351,10 @@ async function bootstrap() {
           v267MultilingualAI: 'ENABLED_32_LOCALES', // V267: AI Council emits analysis in 32 UI locales
           v268ChartPrefSchemaFix: 'ENABLED', // V268: ChartPreference stores extra fields in settings JSON
           v268EATokenModel: 'ENABLED', // V268: EAToken Prisma model added (was missing — broke EA Bridge)
+          v270RegimeAware: 'ENABLED', // V270: Regime-aware position management
+          v269SLRecalc: 'ENABLED', // V269: Smart Executor uses TIMEFRAME_RR directly
+          // V271: Feature flags — all V261-V270 can be disabled via env vars
+          featureFlags: process.env.DISABLE_V270 === 'true' ? { V270: false } : 'ALL_ENABLED',
           commit: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.DEPLOY_COMMIT || 'unknown',
           nodeEnv: process.env.NODE_ENV || 'development',
         },

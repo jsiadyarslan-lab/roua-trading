@@ -15,6 +15,8 @@ import { TradeJournalService } from '../../ai/council-intelligence/trade-journal
 import { SelfHealingService } from '../../ai/council-intelligence/self-healing.service';
 // V223: StrategicCouncilService — to cancel briefs on position close
 import { StrategicCouncilService } from '../../ai/strategic-council/strategic-council.service';
+// V271: Feature flags
+import { FeatureFlagService } from '../../../common/feature-flags/feature-flag.service';
 
 /** V270: RegimeType matching MarketRegimeService output */
 type RegimeType = 'BULL' | 'BEAR' | 'RANGE' | 'VOLATILE' | 'TRANSITIONAL';
@@ -96,12 +98,14 @@ export class PositionMonitorService {
     // Injected via string token (same pattern as AdaptiveSchedule in V267)
     // to avoid circular import with CouncilIntelligenceModule.
     @Optional() @Inject('MARKET_REGIME_SERVICE') private readonly regimeService?: any,
+    // V271: Feature flags for safe rollback
+    @Optional() private readonly featureFlags?: FeatureFlagService,
   ) {
     this.logger.log('🛡️ Position Monitor initialized — protective surveillance active'
       + (this.journal ? ' + TradeJournal' : '')
       + (this.selfHealing ? ' + SelfHealing' : '')
       + (this.strategicCouncil ? ' + V223 BriefInvalidation' : '')
-      + (this.regimeService ? ' + V270 RegimeAware' : ''));
+      + (this.regimeService && this.featureFlags?.isEnabled('V270') ? ' + V270 RegimeAware' : ''));
   }
 
   /**
@@ -925,7 +929,7 @@ export class PositionMonitorService {
     // This is the "missing link" between MarketRegimeService (which detects the regime)
     // and PositionMonitor (which manages open positions). Previously, the regime was
     // only used to ADJUST new briefs — existing positions were blind to regime changes.
-    if (this.regimeService?.getCurrentRegime && !isAgentPosition) {
+    if (this.regimeService?.getCurrentRegime && !isAgentPosition && this.featureFlags?.isEnabled('V270') !== false) {
       try {
         await this._checkRegimeReversal(position, currentPrice, entryPrice, pnlPercent, effectiveHigh, effectiveLow);
       } catch (regimeErr: any) {

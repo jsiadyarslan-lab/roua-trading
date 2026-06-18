@@ -5,6 +5,8 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { RedisModule } from './common/redis/redis.module';
+// V271: Feature Flags
+import { FeatureFlagModule } from './common/feature-flags/feature-flag.module';
 import { AuthModule } from './auth/auth.module';
 import { ExchangeModule } from './modules/exchange/exchange.module';
 import { AiModule } from './modules/ai/ai.module';
@@ -74,6 +76,9 @@ import { PrismaService } from './common/prisma/prisma.service';
       isGlobal: true,
       envFilePath: ['.env', '../../.env'],
     }),
+
+    // V271: Feature Flags — كل إصلاح قابل للتعطيل بـ env var
+    FeatureFlagModule,
 
     // ── Rate Limiting ──
     ThrottlerModule.forRoot([

@@ -24,9 +24,11 @@
     "@serwist/precaching": "^9.5.11",
     "@serwist/routing": "^9.5.11",
     "@serwist/strategies": "^9.5.11",
+    "@types/jest": "^30.0.0",
     "prisma": "^6.19.3",
     "serwist": "^9.5.11",
     "terser-webpack-plugin": "^5.5.0",
+    "ts-jest": "^29.4.11",
     "turbo": "^2.5.0",
     "typescript": "^5"
   },

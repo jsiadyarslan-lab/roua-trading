@@ -48,6 +48,8 @@ interface PositionsState {
     error?: string
     /** V191: Raw error detail for diagnostics */
     errorDetail?: string
+    /** V268: Used margin (from MT5 streaming updates) */
+    usedMargin?: number
   }>
   /** V175: Active credential ID from user settings — determines which exchange is primary */
   activeCredentialId: string | null

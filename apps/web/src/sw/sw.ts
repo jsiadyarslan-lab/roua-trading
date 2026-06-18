@@ -9,14 +9,14 @@ import { registerRoute, NavigationRoute } from "@serwist/routing";
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
-    __SW_MANIFEST: (string | SerwistManifestEntry)[] | undefined;
+    __SW_MANIFEST: (string | URL | { url: URL | string; revision: string | null })[] | undefined;
   }
 }
 
 declare const self: ServiceWorkerGlobalScope;
 
 const serwist = new Serwist({
-  precacheEntries: self.__SW_MANIFEST,
+  precacheEntries: self.__SW_MANIFEST as any,
   skipWaiting: true,
   clientsClaim: true,
   disableDevLogs: true,
@@ -30,7 +30,10 @@ registerRoute(
       networkTimeoutSeconds: 10,
       plugins: [
         new CacheableResponsePlugin({ statuses: [0, 200] }),
-        new PrecacheFallbackPlugin({ fallbackURL: "/offline.html" }),
+        new PrecacheFallbackPlugin({
+          fallbackUrls: [{ url: "/offline.html" }] as any,
+          serwist,
+        } as any),
       ],
     })
   )
@@ -89,11 +92,14 @@ self.addEventListener("push", (event) => {
       dir: "rtl",
       lang: "ar",
       vibrate: [100, 50, 100],
-      actions: (data.actions as NotificationAction[]) || [
+      // V268: cast actions to any — the Notifications API type in TS lib.dom
+      // doesn't include the `actions` field (it's a Web Notifications extension).
+      // The runtime supports it on Chrome/Edge/Firefox.
+      actions: (data.actions as any) || [
         { action: "open", title: "فتح" },
         { action: "dismiss", title: "إغلاق" },
       ],
-    })
+    } as any)
   );
 });
 

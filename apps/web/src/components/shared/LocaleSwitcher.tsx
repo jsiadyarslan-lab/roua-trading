@@ -128,7 +128,8 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
 
   // Close on outside click
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
+    // Use a generic Event handler so it works for both mousedown and scroll.
+    const handler = (e: Event) => {
       if (
         menuRef.current && !menuRef.current.contains(e.target as Node) &&
         buttonRef.current && !buttonRef.current.contains(e.target as Node)
@@ -137,13 +138,13 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
       }
     };
     if (open) {
-      document.addEventListener('mousedown', handler);
+      document.addEventListener('mousedown', handler as EventListener);
       // Close on scroll
-      window.addEventListener('scroll', handler, true);
+      window.addEventListener('scroll', handler as EventListener, true);
     }
     return () => {
-      document.removeEventListener('mousedown', handler);
-      window.removeEventListener('scroll', handler, true);
+      document.removeEventListener('mousedown', handler as EventListener);
+      window.removeEventListener('scroll', handler as EventListener, true);
     };
   }, [open]);
 

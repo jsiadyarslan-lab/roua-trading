@@ -248,6 +248,7 @@ export function AIPatternPanel({
       // FIX: Add technical indicator context for more accurate AI analysis
       const indicatorContext = buildIndicatorContext(candles);
 
+      // V268: Pass language so the AI chart-analysis route emits content in the user's locale.
       const response = await fetch('/api/ai/chart-analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -255,6 +256,7 @@ export function AIPatternPanel({
           symbol,
           candles: ohlcSummary,
           indicators: indicatorContext,
+          language: locale,
           instruction: `Analyze the following OHLC candlestick data for ${symbol}. Identify any candlestick patterns from this list: Doji, Hammer, Inverted Hammer, Engulfing (Bullish/Bearish), Morning Star, Evening Star, Three White Soldiers, Three Black Crows, Harami, Piercing Line, Dark Cloud Cover, Spinning Top, Marubozu, Shooting Star, Dragonfly Doji, Gravestone Doji. Return ONLY a JSON array of detected patterns. Each pattern object must have: "type" (English name), "timeIndex" (0-based index in the data), "confidence" (0-1), "direction" ("bullish"|"bearish"|"neutral"). Example: [{"type":"Hammer","timeIndex":45,"confidence":0.85,"direction":"bullish"}]`,
         }),
         signal: controller.signal,

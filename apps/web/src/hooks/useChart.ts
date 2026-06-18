@@ -374,7 +374,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         // Defer setChartType to after the current render cycle
         if (chartReady) {
           queueMicrotask(() => {
-            setChartTypeRef.current(saved.chartType!);
+            // V268: guard against undefined ref
+            setChartTypeRef.current?.(saved.chartType!);
           });
         }
       }

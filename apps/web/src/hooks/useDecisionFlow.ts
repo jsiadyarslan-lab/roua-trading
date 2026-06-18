@@ -59,7 +59,7 @@ export function useDecisionFlow() {
             body: JSON.stringify({ symbol: selectedSymbol, language: locale || 'en' }),
             signal: AbortSignal.timeout(20000),
           }),
-          fetch(`/api/ai/narrator?symbol=${encodeURIComponent(selectedSymbol)}`, {
+          fetch(`/api/ai/narrator?symbol=${encodeURIComponent(selectedSymbol)}&language=${encodeURIComponent(locale)}`, {
             cache: 'no-store',
             signal: AbortSignal.timeout(15000),
           }),

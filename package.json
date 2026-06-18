@@ -19,7 +19,13 @@
     "settings:audit": "npx ts-node -P apps/api/tsconfig.json scripts/settings-audit.ts"
   },
   "devDependencies": {
+    "@serwist/cacheable-response": "^9.5.11",
+    "@serwist/expiration": "^9.5.11",
+    "@serwist/precaching": "^9.5.11",
+    "@serwist/routing": "^9.5.11",
+    "@serwist/strategies": "^9.5.11",
     "prisma": "^6.19.3",
+    "serwist": "^9.5.11",
     "terser-webpack-plugin": "^5.5.0",
     "turbo": "^2.5.0",
     "typescript": "^5"
@@ -46,6 +52,7 @@
     "@types/react": "18.3.28",
     "@types/react-dom": "18.3.7",
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "18.3.1",
+    "@types/socket.io-client": "npm:noop@1.0.1"
   }
 }

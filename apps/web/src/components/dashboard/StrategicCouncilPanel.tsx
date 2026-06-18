@@ -181,7 +181,8 @@ export function StrategicCouncilPanel() {
       const res = await fetch('/api/strategic-council/trigger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pairs: ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'] }),
+        // V268: Pass language so triggered session emits briefs in the user's locale.
+        body: JSON.stringify({ pairs: ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'], language: locale }),
       })
       const data = await res.json()
       if (data.offline || res.status === 502) {

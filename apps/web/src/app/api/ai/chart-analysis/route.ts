@@ -339,7 +339,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const { symbol, candles, indicators, instruction } = body;
+    const { symbol, candles, indicators, instruction, language } = body;
 
     if (!candles) {
       console.warn('[ai/chart-analysis] No candles data provided, symbol:', symbol);
@@ -348,6 +348,31 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // V268: Resolve the AI output locale from the request body.
+    // Defaults to 'en' for backward compat (the chart-analysis route emits
+    // structured JSON, so the locale only affects the `reasonAr` field).
+    const SUPPORTED_LOCALES = new Set([
+      'ar','en','fr','tr','es','zh','ru','hi','pt','de',
+      'ja','ko','id','vi','th','it','pl','nl','ms','he',
+      'sv','uk','fa','ur','fil','da','no','fi','cs','hu',
+      'ro','bn',
+    ]);
+    const normalizedLang = typeof language === 'string' && SUPPORTED_LOCALES.has(language.toLowerCase())
+      ? language.toLowerCase()
+      : 'en';
+    const LANGUAGE_NAMES: Record<string, string> = {
+      ar: 'Arabic', fr: 'French', tr: 'Turkish', es: 'Spanish', zh: 'Chinese',
+      ru: 'Russian', hi: 'Hindi', pt: 'Portuguese', de: 'German', ja: 'Japanese',
+      ko: 'Korean', id: 'Indonesian', vi: 'Vietnamese', th: 'Thai', it: 'Italian',
+      pl: 'Polish', nl: 'Dutch', ms: 'Malay', he: 'Hebrew', sv: 'Swedish',
+      uk: 'Ukrainian', fa: 'Persian', ur: 'Urdu', fil: 'Filipino', da: 'Danish',
+      no: 'Norwegian', fi: 'Finnish', cs: 'Czech', hu: 'Hungarian', ro: 'Romanian',
+      bn: 'Bengali',
+    };
+    const languageDirective = normalizedLang !== 'en'
+      ? ` Respond in ${LANGUAGE_NAMES[normalizedLang] || 'English'} only.`
+      : '';
 
     // Determine if this is an entry/exit analysis request
     const isEntryExitRequest = instruction && (
@@ -361,8 +386,8 @@ export async function POST(request: NextRequest) {
 
     try {
       const systemPrompt = isEntryExitRequest
-        ? 'You are an expert technical analyst. Analyze OHLC data and return ONLY a JSON object with: {"direction":"long"|"short","entryPrice":number,"stopLoss":number,"takeProfit":number,"confidence":number,"reasonAr":string}'
-        : 'You are an expert candlestick pattern analyst. Analyze OHLC data and return ONLY a JSON array of patterns. Each: {"type":string,"timeIndex":number,"confidence":number,"direction":"bullish"|"bearish"|"neutral"}';
+        ? `You are an expert technical analyst. Analyze OHLC data and return ONLY a JSON object with: {"direction":"long"|"short","entryPrice":number,"stopLoss":number,"takeProfit":number,"confidence":number,"reasonAr":string}.${languageDirective}`
+        : `You are an expert candlestick pattern analyst. Analyze OHLC data and return ONLY a JSON array of patterns. Each: {"type":string,"timeIndex":number,"confidence":number,"direction":"bullish"|"bearish"|"neutral"}.${languageDirective}`;
 
       const candlesJson = candlesToJson(candles);
       const userMessage = `Analyze ${symbol} OHLC data:\n${candlesJson}`;

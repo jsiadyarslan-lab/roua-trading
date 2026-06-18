@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { Activity, ShieldCheck, Zap, Bell, CheckCircle2, TrendingUp, TrendingDown, Brain, Crosshair } from 'lucide-react'
 import { formatFreshness, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { ScopedStyle } from '@/components/ScopedStyle'
 
 interface Keyword {
@@ -58,11 +58,15 @@ export function AlNarratorMini({
   const [alertToast, setAlertToast] = useState<{ symbol: string; sentiment: string; risk: string; confidence: number; summary: string } | null>(null)
   const t = useTranslations('ai.narrator')
   const tc = useTranslations('common')
+  const locale = useLocale()
 
   const fetchNarrative = useCallback(async () => {
     setLoading(true)
     try {
-      const symbolQuery = selectedSymbol ? `?symbol=${encodeURIComponent(selectedSymbol)}` : ''
+      // V268: Pass language so the narrator emits content in the user's locale.
+      const symbolQuery = selectedSymbol
+        ? `?symbol=${encodeURIComponent(selectedSymbol)}&language=${encodeURIComponent(locale)}`
+        : `?language=${encodeURIComponent(locale)}`
       const res = await fetch(`/api/ai/narrator${symbolQuery}`)
       const json = await res.json()
       if (json.success) {
@@ -79,7 +83,7 @@ export function AlNarratorMini({
     } finally {
       setLoading(false)
     }
-  }, [selectedSymbol])
+  }, [selectedSymbol, locale])
 
   // Fetch active council briefs for the current symbol
   const fetchBriefs = useCallback(async () => {

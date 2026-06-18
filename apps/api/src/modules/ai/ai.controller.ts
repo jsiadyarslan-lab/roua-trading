@@ -75,12 +75,31 @@ export class AiController {
    * (direct calls) work, and the merger combines their results.
    * Security: Rate-limited to 2/min, and the data is not user-sensitive.
    */
+  /**
+   * POST /api/ai/consensus — Multi-model Council of AI consensus vote
+   *
+   * V268: `language` parameter now accepts any of the 32 UI locales.
+   * Previously this was hardcoded to `body.language === 'en' ? 'en' : 'ar'`,
+   * which forced Arabic for ALL non-English locales (fr, ja, zh, ru, etc.).
+   * That defeated V267's multilingual AI layer.
+   *
+   * The actual prompt rendering happens in StrategicCouncilService — non-ar/
+   * non-en locales get English prompts + a "Respond ONLY in {language}" directive.
+   */
   @Public()
   @Post('consensus')
   @Throttle({ default: { limit: 2, ttl: 60000 } })
   async consensus(@Body() body: { symbol?: string; language?: string }) {
     const symbol = body.symbol || 'BTC/USD';
-    const language = body.language === 'en' ? 'en' : 'ar';
+    // V268: Accept any of the 32 supported locales — default 'ar' for backward compat.
+    const SUPPORTED_LOCALES = new Set([
+      'ar','en','fr','tr','es','zh','ru','hi','pt','de',
+      'ja','ko','id','vi','th','it','pl','nl','ms','he',
+      'sv','uk','fa','ur','fil','da','no','fi','cs','hu',
+      'ro','bn',
+    ]);
+    const rawLang = (body.language || 'ar').toLowerCase();
+    const language = SUPPORTED_LOCALES.has(rawLang) ? rawLang : 'ar';
     this.logger.log(`🗳️ AI Council consensus request for ${symbol} (lang: ${language})`);
     const result = await this.orchestrator.getConsensusAnalysis(symbol, { language });
     return { success: true, data: result };

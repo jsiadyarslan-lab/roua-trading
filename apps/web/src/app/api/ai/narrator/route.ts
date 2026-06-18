@@ -163,9 +163,16 @@ function buildNarrativeFromContext(
   scan: any,
   recentNews: any[] = [],
   degraded = false,
-  lang: 'ar' | 'en' | 'fr' | 'tr' | 'es' = 'ar',
+  // V268: Accept any of the 32 supported locales (was limited to 5).
+  // Falls back to 'ar' for unknown locales.
+  lang: string = 'ar',
 ): NarratorPayload {
-  const l = T[lang] || T.ar
+  // Map the 32 locales to one of the 5 with full native translation tables.
+  // For locales without a full translation table, fall back to English
+  // (better than Arabic for a Japanese/French user).
+  const FULLY_TRANSLATED = new Set(['ar', 'en', 'fr', 'tr', 'es']);
+  const effectiveLang = FULLY_TRANSLATED.has(lang) ? (lang as 'ar' | 'en' | 'fr' | 'tr' | 'es') : 'en';
+  const l = T[effectiveLang] || T.ar
   const newsSentiment =
     recentNews.reduce((acc, item) => acc + (typeof item?.sentiment === 'number' ? item.sentiment : 0), 0) /
     (recentNews.length || 1)
@@ -245,8 +252,16 @@ function buildNarrativeFromContext(
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const symbol = searchParams.get('symbol') || 'BTC/USD'
-  const langParam = searchParams.get('lang') || 'ar'
-  const lang = ['ar', 'en', 'fr', 'tr', 'es'].includes(langParam) ? langParam as 'ar' | 'en' | 'fr' | 'tr' | 'es' : 'ar'
+  // V268: Accept both `lang` and `language` query params — the frontend uses `language`.
+  const langParam = searchParams.get('language') || searchParams.get('lang') || 'ar'
+  // V268: Expanded from 5 to 32 supported locales.
+  const SUPPORTED_LOCALES = new Set([
+    'ar','en','fr','tr','es','zh','ru','hi','pt','de',
+    'ja','ko','id','vi','th','it','pl','nl','ms','he',
+    'sv','uk','fa','ur','fil','da','no','fi','cs','hu',
+    'ro','bn',
+  ]);
+  const lang = (SUPPORTED_LOCALES.has(langParam) ? langParam : 'ar') as string
   const origin = req.nextUrl.origin
   let dbReady = false
   let recentNews: any[] = []

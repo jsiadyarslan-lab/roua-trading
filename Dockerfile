@@ -43,6 +43,14 @@ RUN node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.
 # Install all workspace dependencies
 RUN npm ci --legacy-peer-deps
 
+# V268: Remove deprecated @types/socket.io-client@1.4.33 which conflicts with
+# socket.io-client@4.8.3's built-in types. The override in package.json
+# (`@types/socket.io-client: npm:noop@1.0.1`) doesn't always work with
+# workspace hoisting, so we explicitly delete the directory here.
+# This prevents 6 TypeScript errors in useMT5Streaming, useNotificationSocket,
+# useWebSocketTicker hooks (which import { io, Socket } from 'socket.io-client').
+RUN rm -rf node_modules/@types/socket.io-client
+
 # ─────────────────────────────────────────────────────────────
 # Stage 2: Build BOTH applications
 # ─────────────────────────────────────────────────────────────

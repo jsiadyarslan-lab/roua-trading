@@ -7,10 +7,12 @@
 // V185: قبل أن يتكلم أي عضو — يجب أن يعرف وضع السوق
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import { MarketDataService } from '../services/market-data.service';
+// V270 FIX: Import ExchangeService for real klines data
+import { ExchangeService } from '../../exchange/exchange.service';
 
 export type RegimeType = 'BULL' | 'BEAR' | 'RANGE' | 'VOLATILE';
 
@@ -40,8 +42,15 @@ export class MarketRegimeService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly marketData: MarketDataService,
+    // V270 FIX: Inject ExchangeService to fetch real klines for regime detection.
+    // Previously, _fetchKlines tried to get klines from fetchQuickMarketData
+    // which only returns { price, rsi, macd, change24h } — NOT klines.
+    // This caused hasRealData=false → regime always RANGE with 0% confidence
+    // → V270 regime-aware position management never activated.
+    @Optional() @Inject(forwardRef(() => ExchangeService))
+    private readonly exchangeService?: ExchangeService,
   ) {
-    this.logger.log('📊 Market Regime Detection initialized — ما وضع السوق؟');
+    this.logger.log('📊 Market Regime Detection initialized — ما وضع السوق؟' + (this.exchangeService ? ' + V270 RealKlines' : ''));
   }
 
   /**
@@ -357,19 +366,35 @@ export class MarketRegimeService {
   // will fall back to _getDefaultRegime() which returns a safe NEUTRAL/RANGE regime
   // with zero confidence, preventing any trading on unknown market conditions.
   private async _fetchKlines(symbol: string): Promise<{ close: number; high: number; low: number }[]> {
+    // V270 FIX: Use ExchangeService.getHistoricalData() for real OHLCV candles.
+    // Previously tried to get klines from fetchQuickMarketData which doesn't return them.
+    if (this.exchangeService?.getHistoricalData) {
+      try {
+        const candles = await this.exchangeService.getHistoricalData(symbol, '1h');
+        if (candles && candles.length > 0) {
+          // Map UnifiedCandleDto → { close, high, low }
+          return candles.map(c => ({
+            close: Number(c.close),
+            high: Number(c.high),
+            low: Number(c.low),
+          }));
+        }
+      } catch (error: any) {
+        this.logger.warn(`⚠️ ExchangeService.getHistoricalData failed for ${symbol}: ${error.message}`);
+      }
+    }
+
+    // Fallback: try MarketDataService (may have klines from a different source)
     try {
       const data = await this.marketData.fetchQuickMarketData(symbol);
-      // If MarketDataService provides klines directly, use them
       if (data && (data as any).klines && Array.isArray((data as any).klines)) {
         return (data as any).klines;
       }
-      // No real klines available — return empty array (NOT synthetic data)
-      this.logger.warn(`⚠️ No real klines available for ${symbol} — regime detection will use safe defaults`);
-      return [];
-    } catch (error) {
-      this.logger.warn(`Failed to fetch klines for ${symbol}: ${error.message} — regime detection will use safe defaults`);
-      return [];
-    }
+    } catch { /* continue */ }
+
+    // No real klines available — return empty array (NOT synthetic data)
+    this.logger.warn(`⚠️ No real klines available for ${symbol} — regime detection will use safe defaults`);
+    return [];
   }
 
   private _calcSMA(closes: number[], period: number): number {

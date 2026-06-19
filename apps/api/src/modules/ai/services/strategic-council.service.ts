@@ -360,7 +360,7 @@ export class StrategicCouncilService {
       }
 
       // ── Build consensus from results ──
-      const consensusData = await this._buildConsensusFromResults(roleResponses, predictionMarketVote, symbol);
+      const consensusData = await this._buildConsensusFromResults(roleResponses, predictionMarketVote, symbol, language);
 
       // ── Generate master strategy ──
       const totalModels = 8 + (predictionMarketVote ? 1 : 0);
@@ -581,6 +581,7 @@ export class StrategicCouncilService {
     roleResponses: Map<string, { name: string; response: AIAnalysisResponse }>,
     predictionMarketVote: { role: string; model: string; vote: string; confidence: number; reason: string } | null,
     symbol: string,
+    language: string = 'ar',
   ): Promise<{
     analyses: { role: string; model: string; vote: string; confidence: number; reason: string }[];
     buyWeight: number;

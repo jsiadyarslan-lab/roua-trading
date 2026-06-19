@@ -16,6 +16,7 @@ import { EmbeddingService } from './services/embedding.service';
 import { RagService } from './services/rag.service';
 import { AiUsageLoggerService } from './services/ai-usage-logger.service';
 import { AiCacheService } from './services/ai-cache.service';
+import { SmartModelRouter } from './services/smart-model-router.service';
 import { MarketDataService } from './services/market-data.service';
 import { StrategicCouncilService } from './services/strategic-council.service';
 import { PrismaModule } from '../../common/prisma/prisma.module';
@@ -54,6 +55,11 @@ import { CouncilIntelligenceModule } from './council-intelligence/council-intell
     // AI Cache Service — Redis + in-memory caching for AI analysis results
     AiCacheService,
 
+    // V289: Smart Model Router — distributes requests across free-tier providers
+    // to maximize daily quota. Tracks usage per provider, blocks exhausted ones,
+    // dedupes in-flight requests.
+    SmartModelRouter,
+
     // Market Data Service — 9-source price fetching with cross-validation
     MarketDataService,
 
@@ -81,6 +87,7 @@ import { CouncilIntelligenceModule } from './council-intelligence/council-intell
     EmbeddingService,
     AiUsageLoggerService,
     AiCacheService,
+    SmartModelRouter,
     MarketDataService,
   ],
 })

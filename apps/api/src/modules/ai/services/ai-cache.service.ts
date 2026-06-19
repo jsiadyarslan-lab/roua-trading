@@ -23,7 +23,12 @@ export class AiCacheService implements OnModuleDestroy {
     risk_analysis: 15 * 60 * 1000,
     translation: 30 * 60 * 1000,
     general: 10 * 60 * 1000,
-    consensus: 3 * 60 * 1000,
+    // V289: raised consensus TTL from 3 min → 30 min. Market structure doesn't
+    // change meaningfully in 3 minutes. 30 min cuts AI API calls by ~10x for
+    // the same symbol/locale, preserving daily quota on free-tier providers.
+    // Partial (under-3-models) results stay at 1 min so they refresh quickly
+    // once more models come back online.
+    consensus: 30 * 60 * 1000,
     consensus_partial: 1 * 60 * 1000,
   };
 

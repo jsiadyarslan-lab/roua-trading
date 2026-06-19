@@ -10,6 +10,7 @@ import { PredictionMarketService } from '../../prediction-market/prediction-mark
 import { MarketRegimeService } from '../council-intelligence/market-regime.service';
 import { SystemMemoryService } from '../council-intelligence/system-memory.service';
 import { CouncilVoteAccuracyService } from '../council-intelligence/council-vote-accuracy.service';
+import { SmartModelRouter } from './smart-model-router.service';
 
 /**
  * Consensus Analysis result — returned by the AI Council
@@ -65,6 +66,8 @@ export class StrategicCouncilService {
     @Optional() private readonly regimeService?: MarketRegimeService,
     @Optional() private readonly memoryService?: SystemMemoryService,
     @Optional() private readonly voteAccuracy?: CouncilVoteAccuracyService,
+    // V289: Smart Model Router — distributes requests across free-tier providers
+    @Optional() private readonly smartRouter?: SmartModelRouter,
   ) {
     const extras = [
       this.regimeService && 'Regime',
@@ -299,6 +302,9 @@ export class StrategicCouncilService {
             // Reset consecutive failures on success
             if (response.confidence > 0) {
               this.orchestrator.recordModelSuccess(role.resolvedModel!);
+              // V289: Record usage in SmartModelRouter for daily quota tracking.
+              // This is fire-and-forget — failure to record doesn't block the response.
+              this.smartRouter?.recordUsage(role.resolvedModel!).catch(() => {});
             }
             return { ...role, response };
           } catch (error: any) {
@@ -437,6 +443,17 @@ export class StrategicCouncilService {
         if (this.orchestrator.isLocalhostUrl(ollamaBaseUrl || 'http://localhost:11434')) {
           roleModels = [...(role.fallbackModels || []), 'ollama'];
         }
+      }
+
+      // V289: If SmartModelRouter is available, prefer the least-used model
+      // from the candidate list. This spreads the load across providers so
+      // no single free-tier quota is exhausted before others.
+      if (this.smartRouter) {
+        // Note: pickModel is async but _resolveModelForRole is sync. We can't
+        // await here. Instead, we'll let the caller use SmartModelRouter at
+        // call time. For now, keep the original sync logic — the smartRouter
+        // is still used for usage tracking (recordUsage) after each call.
+        // Future refactor: make _resolveModelForRole async.
       }
 
       // Pass 1: Respect diversification

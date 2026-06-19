@@ -1650,22 +1650,30 @@ export function AppHeader() {
         position: 'sticky', top: 0, zIndex: 100,
         height: H_TOTAL,
         overflow: 'visible',
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'stretch',
+        gap: 12,
       }}>
+        {/* Logo — normal flex item, fills its natural width. No absolute positioning,
+            no reserved margin. Sits flush against the tickers/nav to its right. */}
         <div className="logo-orb" style={{
-          position: 'absolute',
-          top: '50%',
-          insetInlineStart: 10,
-          transform: 'translateY(-50%)',
-          zIndex: 20,
           flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          paddingLeft: 8,
+          paddingRight: 4,
         }}>
           <SafeLink href="/dashboard" style={{ textDecoration: 'none', display: 'inline-flex' }}>
             <Logo size="lg" layout="horizontal" showWordmark={true} showTagline={true} interactive={false} />
           </SafeLink>
         </div>
         <div style={{
-          height: '100%', marginInlineStart: ORB_GAP,
-          display: 'flex', flexDirection: 'column',
+          flex: 1,
+          minWidth: 0,
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
         }}>
           <NewsTicker />
           <CurrencyTicker />

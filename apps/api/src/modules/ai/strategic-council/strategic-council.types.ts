@@ -29,6 +29,14 @@ export interface TradingBriefDTO {
   lastReviewedAt: Date;
   reviewStatus: BriefReviewStatus;
   analysisSummary?: string;
+  // V292: Outcome data — populated from TradeJournal (linked by briefId).
+  // These fields are undefined for briefs that were never executed, and
+  // populated only after the corresponding position is closed.
+  outcomePips?: number;       // Signed P&L in price units (e.g., +0.0234 or -125.50)
+  outcomePct?: number;        // Signed P&L as % of entry price
+  closedAt?: Date;            // When the executed position was closed
+  durationMs?: number;        // How long the position was held
+  result?: 'WIN' | 'LOSS' | 'BREAKEVEN';  // Classified result
 }
 
 export interface CouncilSessionResult {

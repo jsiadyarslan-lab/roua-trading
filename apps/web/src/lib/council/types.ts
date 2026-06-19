@@ -30,8 +30,12 @@ export interface TradingBrief {
   lastReviewedAt: string;
   reviewStatus: ReviewStatus;
   analysisSummary?: string;
-  outcomePips?: number;
-  closedAt?: string;
+  // V292: Outcome data — populated from TradeJournal (linked by briefId).
+  outcomePips?: number;       // Signed P&L in dollars
+  outcomePct?: number;        // Signed P&L as % of entry price
+  closedAt?: string;          // When the executed position was closed
+  durationMs?: number;        // How long the position was held
+  result?: 'WIN' | 'LOSS' | 'BREAKEVEN';  // Classified result
 }
 
 export interface CouncilAnalysis {

@@ -1001,6 +1001,11 @@ export class StrategicCouncilService {
    * FIX: Added try-catch to prevent 503 errors when DB schema is out of sync.
    * Previously, if the TradingBrief table didn't have expected columns,
    * Prisma would throw and the controller would return 503.
+   *
+   * V292: Now joins with TradeJournal (by briefId) to populate outcome data
+   * (outcomePips, outcomePct, closedAt, durationMs, result). This connects
+   * the council's briefs to the actual trade results, so the council page's
+   * history table shows real P&L instead of "—".
    */
   async getBriefHistory(userId?: string, limit: number = 100): Promise<TradingBriefDTO[]> {
     try {
@@ -1013,7 +1018,45 @@ export class StrategicCouncilService {
         take: limit,
       });
 
-      return briefs.map((b) => this._toDTO(b));
+      if (briefs.length === 0) return [];
+
+      // V292: Fetch TradeJournal entries linked to these briefs (by briefId).
+      // Only journals with a non-null briefId and a closedAt (closed trades)
+      // contribute outcome data. Open trades show no outcome yet.
+      const briefIds = briefs.map((b) => b.id);
+      const journals = await this.prisma.tradeJournal.findMany({
+        where: {
+          briefId: { in: briefIds },
+          closedAt: { not: null },
+        },
+        // If a brief was executed multiple times (rare but possible), take
+        // the most recent close — that's the final outcome.
+        orderBy: { closedAt: 'desc' },
+      });
+
+      // Index journals by briefId for O(1) lookup
+      const journalByBriefId = new Map<string, any>();
+      for (const j of journals) {
+        if (j.briefId && !journalByBriefId.has(j.briefId)) {
+          journalByBriefId.set(j.briefId, j);
+        }
+      }
+
+      return briefs.map((b) => {
+        const dto = this._toDTO(b);
+        const journal = journalByBriefId.get(b.id);
+        if (journal) {
+          // Compute outcomePips from pnl (already in dollars) — convert to
+          // price units for display. The frontend shows this as the "result"
+          // column. We also expose outcomePct for percentage display.
+          dto.outcomePips = journal.pnl !== null ? Number(journal.pnl) : undefined;
+          dto.outcomePct = journal.pnlPercent !== null ? Number(journal.pnlPercent) : undefined;
+          dto.closedAt = journal.closedAt;
+          dto.durationMs = journal.durationMs;
+          dto.result = journal.result;
+        }
+        return dto;
+      });
     } catch (error: any) {
       this.logger.error(`🏛️ getBriefHistory failed: ${error.message}`);
       // Return empty array instead of crashing — the Strategic Council

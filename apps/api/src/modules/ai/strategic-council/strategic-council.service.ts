@@ -1019,6 +1019,12 @@ export class StrategicCouncilService {
       const where: any = {};
       if (userId) where.userId = userId;
 
+      // V299: Include ALL briefs — active AND inactive. The history table
+      // shows the full timeline with status badges (ACTIVE/MODIFIED/CANCELLED/
+      // EXECUTED) to distinguish them. Previously, when no briefs had expired
+      // yet, the history table appeared empty even though 18+ active briefs
+      // existed. Now active briefs appear in both "Active Briefs" section
+      // (filterable) and "History" section (full timeline).
       const briefs = await this.prisma.tradingBrief.findMany({
         where,
         orderBy: { createdAt: 'desc' },
@@ -1030,32 +1036,35 @@ export class StrategicCouncilService {
       // V292: Fetch TradeJournal entries linked to these briefs (by briefId).
       // Only journals with a non-null briefId and a closedAt (closed trades)
       // contribute outcome data. Open trades show no outcome yet.
+      //
+      // V299: Wrap the TradeJournal query in its own try-catch. If the
+      // TradeJournal table doesn't exist or the query fails (schema mismatch,
+      // connection error, etc.), we still return the briefs without outcome
+      // data — instead of returning an empty array and hiding all history.
       const briefIds = briefs.map((b) => b.id);
-      const journals = await this.prisma.tradeJournal.findMany({
-        where: {
-          briefId: { in: briefIds },
-          closedAt: { not: null },
-        },
-        // If a brief was executed multiple times (rare but possible), take
-        // the most recent close — that's the final outcome.
-        orderBy: { closedAt: 'desc' },
-      });
-
-      // Index journals by briefId for O(1) lookup
       const journalByBriefId = new Map<string, any>();
-      for (const j of journals) {
-        if (j.briefId && !journalByBriefId.has(j.briefId)) {
-          journalByBriefId.set(j.briefId, j);
+      try {
+        const journals = await this.prisma.tradeJournal.findMany({
+          where: {
+            briefId: { in: briefIds },
+            closedAt: { not: null },
+          },
+          orderBy: { closedAt: 'desc' },
+        });
+        for (const j of journals) {
+          if (j.briefId && !journalByBriefId.has(j.briefId)) {
+            journalByBriefId.set(j.briefId, j);
+          }
         }
+      } catch (journalErr: any) {
+        // TradeJournal query failed — return briefs without outcome data
+        this.logger.warn(`🏛️ V299: TradeJournal query failed (returning briefs without outcome): ${journalErr?.message}`);
       }
 
       return briefs.map((b) => {
         const dto = this._toDTO(b);
         const journal = journalByBriefId.get(b.id);
         if (journal) {
-          // Compute outcomePips from pnl (already in dollars) — convert to
-          // price units for display. The frontend shows this as the "result"
-          // column. We also expose outcomePct for percentage display.
           dto.outcomePips = journal.pnl !== null ? Number(journal.pnl) : undefined;
           dto.outcomePct = journal.pnlPercent !== null ? Number(journal.pnlPercent) : undefined;
           dto.closedAt = journal.closedAt;
@@ -1066,8 +1075,6 @@ export class StrategicCouncilService {
       });
     } catch (error: any) {
       this.logger.error(`🏛️ getBriefHistory failed: ${error.message}`);
-      // Return empty array instead of crashing — the Strategic Council
-      // will appear empty but won't return a 503 error
       return [];
     }
   }

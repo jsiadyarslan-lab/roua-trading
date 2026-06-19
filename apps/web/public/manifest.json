@@ -1,11 +1,11 @@
 {
-  "name": "رؤى للتداول — مجلس الذكاء الاصطناعي",
+  "name": "رؤى للتداول",
   "short_name": "رؤى",
-  "description": "أول منصة تداول في العالم بمجلس ذكاء اصطناعي استراتيجي — ثمانية وكلاء AI يتناقشون ويصلون إلى إجماع قبل أي صفقة",
+  "description": "منصة تداول ذكية بالذكاء الاصطناعي",
   "start_url": "/pwa",
   "display": "standalone",
-  "background_color": "#0B0E14",
-  "theme_color": "#0B0E14",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "orientation": "portrait",
   "categories": [
     "finance",

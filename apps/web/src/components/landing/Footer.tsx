@@ -2,7 +2,6 @@
 
 import { ExternalLink, GitBranch, Link2, MessageCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { Logo } from '@/components/brand/Logo'
 
 const SOCIAL_LINKS = [
   { icon: ExternalLink, label: 'Twitter', href: 'https://twitter.com/rouatrading' },
@@ -33,7 +32,26 @@ export default function Footer() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
         <div className="flex flex-col md:flex-row items-center justify-between gap-8">
           {/* Logo */}
-          <Logo size="md" showWordmark={true} showTagline={true} interactive={false} />
+          <div className="flex items-center gap-2.5">
+            <span
+              className="text-2xl font-bold"
+              style={{
+                fontFamily: 'var(--font-ar)',
+                background: 'linear-gradient(135deg, #10B981, #3B82F6)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
+              {tc('brand')}
+            </span>
+            <span
+              className="text-[10px] font-semibold tracking-[0.3em] mt-0.5"
+              style={{ color: '#334155', fontFamily: 'var(--font-brand)' }}
+            >
+              {tc('brandSub')}
+            </span>
+          </div>
 
           {/* Nav Links */}
           <nav className="flex flex-wrap items-center justify-center gap-6">

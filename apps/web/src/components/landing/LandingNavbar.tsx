@@ -3,16 +3,16 @@
 import { useState, useEffect } from 'react'
 import { Link } from '@/i18n/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Menu, X, LogIn, UserPlus } from 'lucide-react'
+import { Menu, X, LogIn, UserPlus, TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTranslations } from 'next-intl'
 import { LocaleSwitcher } from '@/components/shared/LocaleSwitcher'
-import { Logo } from '@/components/brand/Logo'
 
 export default function LandingNavbar() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const t = useTranslations('landing.navbar')
+  const tc = useTranslations('common')
 
   const NAV_ITEMS = [
     { label: t('features'), href: '#features' },
@@ -44,7 +44,35 @@ export default function LandingNavbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">
-            <Logo size="sm" showWordmark={true} showTagline={true} interactive={false} />
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(135deg, #059669, #10B981)',
+                boxShadow: '0 0 20px rgba(16, 185, 129, 0.15)',
+              }}
+            >
+              <TrendingUp className="w-4 h-4 text-white" />
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              <span
+                className="text-xl font-bold"
+                style={{
+                  fontFamily: 'var(--font-ar)',
+                  background: 'linear-gradient(135deg, #10B981, #3B82F6)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                }}
+              >
+                {tc('brand')}
+              </span>
+              <span
+                className="text-[8px] font-semibold tracking-[0.3em] opacity-40"
+                style={{ color: '#94A3B8', fontFamily: 'var(--font-brand)' }}
+              >
+                {tc('brandSub')}
+              </span>
+            </div>
           </Link>
 
           {/* Desktop Nav */}

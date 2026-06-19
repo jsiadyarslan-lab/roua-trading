@@ -78,7 +78,6 @@ import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { useAuthStore } from '@/lib/auth-store'
 import { NotificationCenter } from '@/components/dashboard/NotificationCenter'
 import { LocaleSwitcher } from '@/components/shared/LocaleSwitcher'
-import { Logo } from '@/components/brand/Logo'
 
 /* ─── Design tokens ─── */
 const T = {
@@ -109,7 +108,7 @@ const H_NAV   = 46
 const H_TOTAL = H_NEWS + H_CURR + H_NAV
 const MOBILE_HEADER_H = 48
 const ORB_D   = 108
-const ORB_GAP = 240
+const ORB_GAP = 120
 
 type MarketState = 'bullish' | 'bearish' | 'volatile' | 'neutral'
 
@@ -1650,30 +1649,11 @@ export function AppHeader() {
         position: 'sticky', top: 0, zIndex: 100,
         height: H_TOTAL,
         overflow: 'visible',
-        display: 'flex',
-        flexDirection: 'row',
-        alignItems: 'stretch',
-        gap: 12,
       }}>
-        {/* Logo — normal flex item, fills its natural width. No absolute positioning,
-            no reserved margin. Sits flush against the tickers/nav to its right. */}
-        <div className="logo-orb" style={{
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          paddingLeft: 8,
-          paddingRight: 4,
-        }}>
-          <SafeLink href="/dashboard" style={{ textDecoration: 'none', display: 'inline-flex' }}>
-            <Logo size="lg" layout="horizontal" showWordmark={true} showTagline={true} interactive={false} />
-          </SafeLink>
-        </div>
+        <LogoCircle state={marketState} />
         <div style={{
-          flex: 1,
-          minWidth: 0,
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
+          height: '100%', marginInlineStart: ORB_GAP,
+          display: 'flex', flexDirection: 'column',
         }}>
           <NewsTicker />
           <CurrencyTicker />
@@ -1700,7 +1680,11 @@ export function AppHeader() {
           </button>
 
           <SafeLink href="/dashboard" style={{ textDecoration: "none" }} >
-             <Logo size="sm" showWordmark={true} showTagline={true} interactive={false} />
+             <LogoCircle state={marketState} size="mobile" />
+             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+               <span style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 900, fontSize: 15, color: T.text, whiteSpace: 'nowrap', lineHeight: 1.1 }}>{t('common.brand')}</span>
+               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 7, color: '#00C8FF', letterSpacing: '0.12em', opacity: 0.85, lineHeight: 1 }}>{t('common.brandSub')}</span>
+             </div>
           </SafeLink>
           {/* Ticker مخفي — موجود في m2-ticker أسفل الهيدر */}
 

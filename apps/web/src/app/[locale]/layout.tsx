@@ -44,17 +44,17 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const titles: Record<string, string> = {
-    ar: "رؤى | AI Strategic Council Trading Platform — منصة التداول بمجلس الذكاء الاصطناعي",
-    en: "Roua | AI Strategic Council Trading Platform",
-    fr: "Roua | AI Strategic Council Trading Platform — Plateforme de trading au Conseil IA",
-    tr: "Roua | AI Strategic Council Trading Platform — Stratejik AI Konseyi",
-    es: "Roua | AI Strategic Council Trading Platform — Consejo IA",
-    zh: "Roua | AI Strategic Council Trading Platform — AI战略委员会",
-    ru: "Roua | AI Strategic Council Trading Platform — Стратегический ИИ-Совет",
-    hi: "Roua | AI Strategic Council Trading Platform — एआई सामरिक परिषद",
-    pt: "Roua | AI Strategic Council Trading Platform — Conselho IA",
-    de: "Roua | AI Strategic Council Trading Platform — Strategischer AI-Rat",
-    ja: "Roua | AI Strategic Council Trading Platform — AI戦略評議会",
+    ar: "AI Strategic Council Trading Platform | رؤى للتداول",
+    en: "AI Strategic Council Trading Platform | Roua",
+    fr: "AI Strategic Council Trading Platform | Roua",
+    tr: "AI Strategic Council Trading Platform | Roua",
+    es: "AI Strategic Council Trading Platform | Roua",
+    zh: "AI Strategic Council Trading Platform | Roua",
+    ru: "AI Strategic Council Trading Platform | Roua",
+    hi: "AI Strategic Council Trading Platform | Roua",
+    pt: "AI Strategic Council Trading Platform | Roua",
+    de: "AI Strategic Council Trading Platform | Roua",
+    ja: "AI Strategic Council Trading Platform | Roua",
   };
   const descriptions: Record<string, string> = {
     ar: "رؤى للتداول — أول منصة تداول في العالم بمجلس ذكاء اصطناعي استراتيجي. ثمانية وكلاء AI يتناقشون ويصوتون ويصلون إلى إجماع قبل أي صفقة. AI Strategic Council Trading Platform",

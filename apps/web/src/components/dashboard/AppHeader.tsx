@@ -1660,7 +1660,7 @@ export function AppHeader() {
           flexShrink: 0,
         }}>
           <SafeLink href="/dashboard" style={{ textDecoration: 'none', display: 'inline-flex' }}>
-            <Logo size="lg" showWordmark={true} showTagline={true} interactive={false} />
+            <Logo size="lg" layout="stacked" showWordmark={true} showTagline={true} interactive={false} />
           </SafeLink>
         </div>
         <div style={{

@@ -16,6 +16,7 @@ import { directionColor, directionSoft, statusColor } from '@/lib/council/types'
 import { formatPrice, riskRewardRatio, distancePercent, relativeTime, msRemaining, formatDuration, hexToRgba, formatCountdown } from '@/lib/council/format'
 import { GlassCard, CircularProgress, ConfidenceBar, LiveDot, SectionHeader, StatTile, SkeletonBlock, StatusPill, DirectionBadge } from '@/components/council/primitives'
 import { CouncilSigil } from '@/components/council/CouncilSigil'
+import { FormattedText, LoadMoreButton } from '@/components/council/FormattedText'
 
 // ═══════════════════════════════════════
 // HELPERS
@@ -48,6 +49,10 @@ export default function CouncilPage() {
   const [offline, setOffline] = useState(false)
   const [briefsUpdated, setBriefsUpdated] = useState<Date | null>(null)
   const [isAutoRefreshing, setIsAutoRefreshing] = useState(false)
+  const [activeLimit, setActiveLimit] = useState(6)        // pagination: active briefs
+  const [historyLimit, setHistoryLimit] = useState(10)     // pagination: history briefs
+  const PAGE_SIZE_ACTIVE = 6
+  const PAGE_SIZE_HISTORY = 10
 
   const SYMBOLS = ['BTC/USDT','ETH/USDT','SOL/USDT','BNB/USDT','XRP/USDT','ADA/USDT','DOGE/USDT']
 
@@ -102,6 +107,14 @@ export default function CouncilPage() {
     if (filterStatus !== 'ALL') r = r.filter(b => b.reviewStatus === filterStatus)
     return r
   }, [historyBriefs, filterDir, filterStatus])
+
+  // Reset pagination when filters change
+  useEffect(() => { setActiveLimit(PAGE_SIZE_ACTIVE) }, [filterDir])
+  useEffect(() => { setHistoryLimit(PAGE_SIZE_HISTORY) }, [filterDir, filterStatus])
+
+  // Apply pagination
+  const visibleActive = useMemo(() => fActive.slice(0, activeLimit), [fActive, activeLimit])
+  const visibleHistory = useMemo(() => fHistory.slice(0, historyLimit), [fHistory, historyLimit])
   const perf = useMemo(() => ({
     total: historyBriefs.length,
     executed: historyBriefs.filter(b=>b.reviewStatus==='EXECUTED').length,
@@ -273,9 +286,13 @@ export default function CouncilPage() {
                   <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.16em', textTransform:'uppercase', color:COLORS.council }}>الاستراتيجية الموحّدة</div>
                   <div style={{ flex:1, height:1, background:`linear-gradient(90deg, ${hexToRgba(COLORS.council,0.4)}, transparent)` }} />
                 </div>
-                <motion.p key={councilResult.masterStrategy} initial={{ opacity:0, y:6 }} animate={{ opacity:1, y:0 }} style={{ fontSize:14, lineHeight:1.65, color:COLORS.textSecondary, margin:0 }}>
-                  {councilResult.masterStrategy}
-                </motion.p>
+                <FormattedText
+                  text={councilResult.masterStrategy}
+                  maxLength={400}
+                  dir={loc === 'ar' ? 'rtl' : 'ltr'}
+                  fontSize={14}
+                  accent={COLORS.council}
+                />
               </div>
             )}
           </GlassCard>
@@ -305,7 +322,14 @@ export default function CouncilPage() {
                           </div>
                         </div>
                         <div style={{ padding:'12px 14px' }}>
-                          <p style={{ fontSize:12.5, color:COLORS.textSecondary, lineHeight:1.55, margin:0, minHeight:40 }}>{a.reason}</p>
+                          <FormattedText
+                            text={a.reason}
+                            maxLength={180}
+                            dir={loc === 'ar' ? 'rtl' : 'ltr'}
+                            fontSize={12.5}
+                            accent={dc}
+                            placeholder="لا يوجد شرح متاح"
+                          />
                         </div>
                         <div style={{ padding:'10px 14px 14px', borderTop:`1px solid ${COLORS.border}` }}>
                           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:7 }}>
@@ -341,11 +365,20 @@ export default function CouncilPage() {
               <div style={{ fontSize:13, color:COLORS.textMuted }}>المجلس يراقب الأسواق. ستظهر التوجيهات الجديدة هنا.</div>
             </GlassCard>
           ) : (
-            <motion.div layout style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(340px, 1fr))', gap:16 }}>
-              <AnimatePresence mode="popLayout">
-                {fActive.map((brief, i) => <BriefCard key={brief.id} brief={brief} loc={loc} index={i} expanded={expandedBrief===brief.id} onToggle={()=>setExpandedBrief(expandedBrief===brief.id?null:brief.id)} />)}
-              </AnimatePresence>
-            </motion.div>
+            <>
+              <motion.div layout style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(340px, 1fr))', gap:16 }}>
+                <AnimatePresence mode="popLayout">
+                  {visibleActive.map((brief, i) => <BriefCard key={brief.id} brief={brief} loc={loc} index={i} expanded={expandedBrief===brief.id} onToggle={()=>setExpandedBrief(expandedBrief===brief.id?null:brief.id)} />)}
+                </AnimatePresence>
+              </motion.div>
+              <LoadMoreButton
+                count={visibleActive.length}
+                total={fActive.length}
+                onClick={() => setActiveLimit(l => l + PAGE_SIZE_ACTIVE)}
+                moreLabel="تحميل المزيد من الإشارات"
+                accent={COLORS.council}
+              />
+            </>
           )}
         </section>
 
@@ -368,52 +401,61 @@ export default function CouncilPage() {
                 <div style={{ fontSize:12, color:COLORS.textMuted }}>ستظهر قرارات المجلس السابقة هنا</div>
               </GlassCard>
             ) : (
-              <GlassCard padding={12} style={{ overflow:'hidden', minWidth:540 }}>
-                <div style={{ display:'grid', gridTemplateColumns:'minmax(110px,1.1fr) 60px 70px 80px 110px 90px', gap:12, padding:'8px 14px 10px', fontSize:11, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.textMuted, borderBottom:`1px solid ${COLORS.border}` }}>
-                  <div>الزوج</div><div>اتجاه</div><div>دخول</div><div>ثقة</div><div>حالة</div><div style={{ textAlign:'right' }}>نتيجة</div>
-                </div>
-                <div style={{ display:'flex', flexDirection:'column', gap:6, marginTop:6, maxHeight:460, overflowY:'auto', paddingRight:4 }}>
-                  {fHistory.slice(0,50).map((b, i) => {
-                    const dc = directionColor(b.direction)
-                    const won = b.outcomePips !== undefined && b.outcomePips > 0
-                    const lost = b.outcomePips !== undefined && b.outcomePips < 0
-                    return (
-                      <motion.div key={b.id} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:Math.min(i*0.025,0.4) }}
-                        style={{ display:'grid', gridTemplateColumns:'minmax(110px,1.1fr) 60px 70px 80px 110px 90px', alignItems:'center', gap:12, padding:'12px 14px', borderRadius:10, background:'rgba(255,255,255,0.022)', border:`1px solid ${COLORS.border}`, transition:'background 200ms' }}
-                        onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.04)';e.currentTarget.style.borderColor=COLORS.borderStrong}}
-                        onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.022)';e.currentTarget.style.borderColor=COLORS.border}}>
-                        <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
-                          <div style={{ width:28, height:28, borderRadius:7, background:directionSoft(b.direction), border:`1px solid ${hexToRgba(dc,0.3)}`, color:dc, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                            {b.direction==='BUY'?<TrendingUp size={13} strokeWidth={2.5}/>:<TrendingDown size={13} strokeWidth={2.5}/>}
+              <>
+                <GlassCard padding={12} style={{ overflow:'hidden', minWidth:540 }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'minmax(110px,1.1fr) 60px 70px 80px 110px 90px', gap:12, padding:'8px 14px 10px', fontSize:11, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.textMuted, borderBottom:`1px solid ${COLORS.border}` }}>
+                    <div>الزوج</div><div>اتجاه</div><div>دخول</div><div>ثقة</div><div>حالة</div><div style={{ textAlign:'right' }}>نتيجة</div>
+                  </div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:6, marginTop:6, maxHeight:520, overflowY:'auto', paddingRight:4 }}>
+                    {visibleHistory.map((b, i) => {
+                      const dc = directionColor(b.direction)
+                      const won = b.outcomePips !== undefined && b.outcomePips > 0
+                      const lost = b.outcomePips !== undefined && b.outcomePips < 0
+                      return (
+                        <motion.div key={b.id} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:Math.min(i*0.025,0.4) }}
+                          style={{ display:'grid', gridTemplateColumns:'minmax(110px,1.1fr) 60px 70px 80px 110px 90px', alignItems:'center', gap:12, padding:'12px 14px', borderRadius:10, background:'rgba(255,255,255,0.022)', border:`1px solid ${COLORS.border}`, transition:'background 200ms' }}
+                          onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.04)';e.currentTarget.style.borderColor=COLORS.borderStrong}}
+                          onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.022)';e.currentTarget.style.borderColor=COLORS.border}}>
+                          <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
+                            <div style={{ width:28, height:28, borderRadius:7, background:directionSoft(b.direction), border:`1px solid ${hexToRgba(dc,0.3)}`, color:dc, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                              {b.direction==='BUY'?<TrendingUp size={13} strokeWidth={2.5}/>:<TrendingDown size={13} strokeWidth={2.5}/>}
+                            </div>
+                            <div style={{ minWidth:0 }}>
+                              <div style={{ fontSize:13, fontWeight:600, color:COLORS.textPrimary, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{b.pair}</div>
+                              <div style={{ fontSize:11, color:COLORS.textMuted, fontFamily:'monospace' }}>{b.timeframe}</div>
+                            </div>
                           </div>
-                          <div style={{ minWidth:0 }}>
-                            <div style={{ fontSize:13, fontWeight:600, color:COLORS.textPrimary, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{b.pair}</div>
-                            <div style={{ fontSize:11, color:COLORS.textMuted, fontFamily:'monospace' }}>{b.timeframe}</div>
+                          <div style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', color:dc }}>{dirLabelAr[b.direction]}</div>
+                          <div style={{ fontSize:12, color:COLORS.textSecondary, fontFamily:'monospace' }}>{formatPrice(b.entryPrice)}</div>
+                          <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+                            <div style={{ width:40, height:4, borderRadius:999, background:'rgba(255,255,255,0.06)', overflow:'hidden' }}>
+                              <div style={{ height:'100%', width:`${b.confidence}%`, background:COLORS.council, borderRadius:999 }} />
+                            </div>
+                            <span style={{ fontSize:11, color:COLORS.textSecondary, fontFamily:'monospace', fontWeight:600 }}>{b.confidence}</span>
                           </div>
-                        </div>
-                        <div style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', color:dc }}>{dirLabelAr[b.direction]}</div>
-                        <div style={{ fontSize:12, color:COLORS.textSecondary, fontFamily:'monospace' }}>{formatPrice(b.entryPrice)}</div>
-                        <div style={{ display:'flex', alignItems:'center', gap:7 }}>
-                          <div style={{ width:40, height:4, borderRadius:999, background:'rgba(255,255,255,0.06)', overflow:'hidden' }}>
-                            <div style={{ height:'100%', width:`${b.confidence}%`, background:COLORS.council, borderRadius:999 }} />
+                          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                            {b.reviewStatus==='EXECUTED'?<CheckCircle2 size={14} color={statusColor(b.reviewStatus)} strokeWidth={2.5}/>:b.reviewStatus==='CANCELLED'?<XCircle size={14} color={statusColor(b.reviewStatus)} strokeWidth={2.5}/>:<RefreshCw size={14} color={statusColor(b.reviewStatus)} strokeWidth={2.5}/>}
+                            <StatusPill status={b.reviewStatus} label={stLabelAr[b.reviewStatus]} />
                           </div>
-                          <span style={{ fontSize:11, color:COLORS.textSecondary, fontFamily:'monospace', fontWeight:600 }}>{b.confidence}</span>
-                        </div>
-                        <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                          {b.reviewStatus==='EXECUTED'?<CheckCircle2 size={14} color={statusColor(b.reviewStatus)} strokeWidth={2.5}/>:b.reviewStatus==='CANCELLED'?<XCircle size={14} color={statusColor(b.reviewStatus)} strokeWidth={2.5}/>:<RefreshCw size={14} color={statusColor(b.reviewStatus)} strokeWidth={2.5}/>}
-                          <StatusPill status={b.reviewStatus} label={stLabelAr[b.reviewStatus]} />
-                        </div>
-                        <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2 }}>
-                          {b.outcomePips !== undefined ? (
-                            <span style={{ fontSize:12, fontWeight:600, color:won?COLORS.buy:lost?COLORS.sell:COLORS.textMuted, fontFamily:'monospace' }}>{b.outcomePips>0?'+':''}{b.outcomePips.toFixed(b.outcomePips<1?4:2)}</span>
-                          ) : <span style={{ fontSize:11, color:COLORS.textDim, fontStyle:'italic' }}>—</span>}
-                          <span style={{ fontSize:11, color:COLORS.textDim, fontFamily:'monospace' }}>{b.closedAt?relativeTime(b.closedAt, loc):'—'}</span>
-                        </div>
-                      </motion.div>
-                    )
-                  })}
-                </div>
-              </GlassCard>
+                          <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2 }}>
+                            {b.outcomePips !== undefined ? (
+                              <span style={{ fontSize:12, fontWeight:600, color:won?COLORS.buy:lost?COLORS.sell:COLORS.textMuted, fontFamily:'monospace' }}>{b.outcomePips>0?'+':''}{b.outcomePips.toFixed(b.outcomePips<1?4:2)}</span>
+                            ) : <span style={{ fontSize:11, color:COLORS.textDim, fontStyle:'italic' }}>—</span>}
+                            <span style={{ fontSize:11, color:COLORS.textDim, fontFamily:'monospace' }}>{b.closedAt?relativeTime(b.closedAt, loc):'—'}</span>
+                          </div>
+                        </motion.div>
+                      )
+                    })}
+                  </div>
+                </GlassCard>
+                <LoadMoreButton
+                  count={visibleHistory.length}
+                  total={fHistory.length}
+                  onClick={() => setHistoryLimit(l => l + PAGE_SIZE_HISTORY)}
+                  moreLabel="تحميل المزيد من السجل"
+                  accent={COLORS.info}
+                />
+              </>
             )}
           </section>
 
@@ -572,16 +614,33 @@ function BriefCard({ brief, loc, index, expanded, onToggle }: {
           </div>
         </div>
 
-        {/* WHY THIS SIGNAL */}
-        <div style={{ padding:'16px 18px' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:9 }}>
-            <div style={{ width:22, height:22, borderRadius:6, background:COLORS.gradientCouncil, display:'flex', alignItems:'center', justifyContent:'center', color:'#0B0E14', flexShrink:0 }}>
-              <Sparkles size={11} strokeWidth={2.5} />
+        {/* WHY THIS SIGNAL — premium AI reasoning panel */}
+        <div style={{ padding:'16px 18px 18px', background:`linear-gradient(180deg, ${hexToRgba(COLORS.council,0.04)} 0%, transparent 100%)`, borderBottom:`1px solid ${COLORS.border}` }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:11, gap:8 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
+              <div style={{ width:24, height:24, borderRadius:7, background:COLORS.gradientCouncil, display:'flex', alignItems:'center', justifyContent:'center', color:'#0B0E14', flexShrink:0, boxShadow:`0 4px 12px -4px ${hexToRgba(COLORS.council,0.5)}` }}>
+                <Sparkles size={12} strokeWidth={2.5} />
+              </div>
+              <div style={{ minWidth:0 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:7, flexWrap:'wrap' }}>
+                  <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.council }}>لماذا هذه الإشارة؟</span>
+                  <span style={{ fontSize:10, color:COLORS.textMuted, fontStyle:'italic', fontFamily:'monospace' }}>· تفكير الذكاء الاصطناعي</span>
+                </div>
+              </div>
             </div>
-            <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.council }}>لماذا هذه الإشارة؟</span>
-            <span style={{ fontSize:11, color:COLORS.textMuted, fontStyle:'italic' }}>· تفكير الذكاء الاصطناعي</span>
+            <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'3px 8px', borderRadius:999, background:hexToRgba(COLORS.council,0.1), border:`1px solid ${hexToRgba(COLORS.council,0.25)}`, color:COLORS.council, fontSize:10, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', flexShrink:0 }}>
+              <span aria-hidden style={{ width:5, height:5, borderRadius:'50%', background:COLORS.council, boxShadow:`0 0 6px ${COLORS.council}` }} />
+              AI
+            </div>
           </div>
-          <p style={{ fontSize:13.5, lineHeight:1.6, color:COLORS.textSecondary, margin:0 }}>{brief.analysisSummary ?? 'لا يوجد تحليل متاح'}</p>
+          <FormattedText
+            text={brief.analysisSummary}
+            maxLength={260}
+            dir={loc === 'ar' ? 'rtl' : 'ltr'}
+            fontSize={13.5}
+            accent={dc}
+            placeholder="لا يوجد تحليل متاح — انتظر تحديث المجلس"
+          />
         </div>
 
         {/* Price grid */}
@@ -612,8 +671,8 @@ function BriefCard({ brief, loc, index, expanded, onToggle }: {
               <Timer size={12} /> <span style={{ textTransform:'uppercase', fontWeight:500 }}>انتهاء</span> <span style={{ color:isExpired?COLORS.sell:remainingMs<3600000?COLORS.hold:COLORS.textSecondary, fontWeight:600 }}>{isExpired?'منتهي':formatCountdown(remainingMs, loc)}</span>
             </div>
           </div>
-          <motion.button onClick={onToggle} whileTap={{ scale:0.97 }} style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'6px 11px', borderRadius:8, background:'rgba(255,255,255,0.04)', border:`1px solid ${COLORS.border}`, color:COLORS.textSecondary, fontSize:11, fontWeight:600, cursor:'pointer' }}>
-            {expanded?'إخفاء':'تفاصيل'} <motion.span animate={{ rotate:expanded?180:0 }} transition={{ duration:0.25 }}><ChevronDown size={13} /></motion.span>
+          <motion.button onClick={onToggle} whileTap={{ scale:0.97 }} whileHover={{ y:-1 }} style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'7px 13px', borderRadius:9, background:expanded?hexToRgba(COLORS.council,0.1):'rgba(255,255,255,0.04)', border:`1px solid ${expanded?hexToRgba(COLORS.council,0.35):COLORS.border}`, color:expanded?COLORS.council:COLORS.textSecondary, fontSize:11, fontWeight:600, cursor:'pointer', letterSpacing:'0.04em' }}>
+            {expanded?'إخفاء التفاصيل':'عرض التفاصيل'} <motion.span animate={{ rotate:expanded?180:0 }} transition={{ duration:0.25 }}><ChevronDown size={13} strokeWidth={2.5} /></motion.span>
           </motion.button>
         </div>
 

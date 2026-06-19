@@ -9,6 +9,7 @@ import { T } from '@/lib/unified-tokens'
 import { safeStr, safeNum } from '@/lib/utils'
 import { useTranslations, useLocale } from 'next-intl'
 import { FormattedText } from '@/components/council/FormattedText'
+import { CouncilVoteCard } from '@/components/council/CouncilVoteCard'
 
 interface Analysis {
   role: string
@@ -602,63 +603,18 @@ export function AICouncilPanel() {
             <div className="space-y-1.5">
               <div className="text-[8px] font-bold px-1 uppercase tracking-widest" style={{ color: T.text2 }}>{tai('voteDistribution')}</div>
               {data.analyses.map((a, i) => {
-                // FIX React Error #31: Sanitize AI vote data — AI may return objects instead of strings
                 const safeVote = safeStr(a.vote) as 'BUY' | 'SELL' | 'HOLD'
                 const safeConfidence = safeNum(a.confidence, 50)
-                const voteColor = safeVote === 'BUY' ? T.green : safeVote === 'SELL' ? T.red : T.amber
-                const isAIModel = isRealAI && !a.model.includes('Scanner') && !a.model.includes('Risk/') && !a.model.includes('MTF/') && !a.model.includes('Execution/') && !a.model.includes('Fallback')
-                const modelColor = getModelColor(a.model)
-                const modelShortName = getModelShortName(a.model)
                 return (
-                  <div
+                  <CouncilVoteCard
                     key={a.model + '-' + i}
-                    className="card transition-colors group"
-                    style={{
-                      padding: '10px 11px',
-                      border: `1px solid ${isAIModel ? 'rgba(179,136,255,0.15)' : 'rgba(255,255,255,0.05)'}`,
-                      background: isAIModel ? 'rgba(179,136,255,0.03)' : undefined,
-                    }}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-4 h-4 rounded-md flex items-center justify-center" style={{ background: `${voteColor}15` }}>
-                          {safeVote === 'BUY'
-                            ? <TrendingUp size={9} color={voteColor} />
-                            : safeVote === 'SELL'
-                            ? <TrendingDown size={9} color={voteColor} />
-                            : <Minus size={9} color={voteColor} />}
-                        </div>
-                        <span className="text-[10px] font-bold text-white/90">{translateRoleName(safeStr(a.role), tai)}</span>
-                        {isAIModel && (
-                          <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: `${modelColor}20`, color: modelColor, fontFamily: 'monospace', fontWeight: 700, border: `1px solid ${modelColor}30` }}>{modelShortName}</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[8px] font-bold px-1.5 py-px rounded" style={{ background: `${voteColor}15`, color: voteColor }}>
-                          {safeStr(a.vote)}
-                        </span>
-                        <span className="text-[8px] font-mono" style={{ color: T.text2 }}>{safeNum(a.confidence, 0)}%</span>
-                      </div>
-                    </div>
-                    <div className="w-full h-0.5 bg-white/5 rounded-full overflow-hidden mb-1.5">
-                      <div
-                        className="h-full transition-all duration-1000"
-                        style={{ width: `${safeConfidence}%`, background: voteColor, boxShadow: `0 0 6px ${voteColor}40` }}
-                      />
-                    </div>
-                    <FormattedText
-                      text={safeStr(a.reason)}
-                      maxLength={150}
-                      dir={locale === 'ar' ? 'rtl' : 'ltr'}
-                      fontSize={8}
-                      accent={voteColor}
-                      placeholder="—"
-                    />
-                    <div className="flex items-center gap-1 mt-1">
-                      <Cpu size={6} color={T.text2} style={{ opacity: 0.5 }} />
-                      <span style={{ fontSize: 6, color: T.text2, opacity: 0.6, fontFamily: 'monospace' }}>{safeStr(a.model)}</span>
-                    </div>
-                  </div>
+                    role={translateRoleName(safeStr(a.role), tai)}
+                    model={safeStr(a.model)}
+                    vote={safeVote}
+                    confidence={safeConfidence}
+                    reason={safeStr(a.reason)}
+                    compact={true}
+                  />
                 )
               })}
             </div>

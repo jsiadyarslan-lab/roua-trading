@@ -812,7 +812,9 @@ ${totalModels} council members have analyzed this market — 8 AI agents${hasPre
 4. If a prediction market vote is present, explicitly contrast it with the AI consensus (e.g., "Prediction markets disagree, pricing 62% probability of upside — overridden because...").
 5. Closes with ONE actionable condition that would invalidate this signal (e.g., "Invalidation: 4H close above $0.55").
 
-Output in English. Output only the synthesis, no preamble.
+⚠️ CRITICAL LANGUAGE RULE: Your output MUST be in English ONLY. Even if the agent analyses below are written in Arabic or any other language, you MUST translate the relevant points to English and write your entire synthesis in English. Do NOT use any Arabic words in your output.
+
+Output only the synthesis, no preamble.
 
 COUNCIL ANALYSES:
 ${agentSummaries}`
@@ -826,7 +828,9 @@ ${totalModels} أعضاء حللوا هذا السوق — 8 وكلاء ذكاء
 4. إن وُجد صوت سوق تنبؤي، اذكر صراحةً تعارضه أو توافقه مع إجماع الـ AI (مثلاً: "أسواق التنبؤ تعارض، تسعّر 62% احتمال صعود — تم تجاوزه لأن...").
 5. الختام بشرط واحد قابل للتنفيذ يُبطل هذه الإشارة (مثلاً: "إبطال الإشارة: إغلاق 4 ساعات فوق 0.55$").
 
-اكتب بالعربية. اكتب التركيب فقط، بدون مقدمة.
+⚠️ قاعدة لغوية حرجة: مخرجاتك يجب أن تكون بالعربية فقط. حتى لو كانت تحليلات الوكلاء أدناه مكتوبة بالإنجليزية أو أي لغة أخرى، يجب عليك ترجمة النقاط ذات الصلة إلى العربية وكتابة التركيب بالكامل بالعربية. لا تستخدم أي كلمات إنجليزية في مخرجاتك.
+
+اكتب التركيب فقط، بدون مقدمة.
 
 تحليلات المجلس:
 ${agentSummaries}`;

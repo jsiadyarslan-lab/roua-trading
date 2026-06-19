@@ -330,12 +330,12 @@ export default function CouncilPage() {
                             dir={loc === 'ar' ? 'rtl' : 'ltr'}
                             fontSize={12.5}
                             accent={dc}
-                            placeholder="لا يوجد شرح متاح"
+                            placeholder={t('noReason')}
                           />
                         </div>
                         <div style={{ padding:'10px 14px 14px', borderTop:`1px solid ${COLORS.border}` }}>
                           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:7 }}>
-                            <span style={{ fontSize:11, fontWeight:500, letterSpacing:'0.06em', textTransform:'uppercase', color:COLORS.textMuted }}>الثقة</span>
+                            <span style={{ fontSize:11, fontWeight:500, letterSpacing:'0.06em', textTransform:'uppercase', color:COLORS.textMuted }}>{t('colConfidence')}</span>
                             <span style={{ fontSize:13, fontWeight:600, color:COLORS.textPrimary, fontFamily:'monospace' }}>{a.confidence}%</span>
                           </div>
                           <ConfidenceBar value={a.confidence} color={COLORS.council} height={4} />
@@ -510,7 +510,7 @@ export default function CouncilPage() {
                     ))}
                   </div>
                 </>
-              ) : <div style={{ fontSize:13, color:COLORS.textMuted, textAlign:'center', padding:20 }}>لا توجد بيانات</div>}
+              ) : <div style={{ fontSize:13, color:COLORS.textMuted, textAlign:'center', padding:20 }}>{t('noAnalysis')}</div>}
             </GlassCard>
             {/* Last session */}
             {lastSession && (
@@ -607,7 +607,7 @@ function BriefCard({ brief, loc, index, expanded, onToggle, t }: {
                 <span style={{ fontSize:11, fontWeight:600, padding:'2px 7px', borderRadius:5, background:'rgba(255,255,255,0.05)', border:`1px solid ${COLORS.border}`, color:COLORS.textSecondary, fontFamily:'monospace' }}>{brief.timeframe}</span>
               </div>
               <div style={{ display:'flex', alignItems:'center', gap:8, fontSize:11, color:COLORS.textMuted }}>
-                <Clock size={11} /> صدر {relativeTime(brief.issuedAt, loc)}
+                <Clock size={11} /> {t('issuedAgo')} {relativeTime(brief.issuedAt, loc)}
               </div>
             </div>
           </div>
@@ -626,8 +626,8 @@ function BriefCard({ brief, loc, index, expanded, onToggle, t }: {
               </div>
               <div style={{ minWidth:0 }}>
                 <div style={{ display:'flex', alignItems:'center', gap:7, flexWrap:'wrap' }}>
-                  <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.council }}>لماذا هذه الإشارة؟</span>
-                  <span style={{ fontSize:10, color:COLORS.textMuted, fontStyle:'italic', fontFamily:'monospace' }}>· تفكير الذكاء الاصطناعي</span>
+                  <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.council }}>{t('whyThisSignal')}</span>
+                  <span style={{ fontSize:10, color:COLORS.textMuted, fontStyle:'italic', fontFamily:'monospace' }}>· {t('aiThoughtProcess')}</span>
                 </div>
               </div>
             </div>
@@ -642,23 +642,23 @@ function BriefCard({ brief, loc, index, expanded, onToggle, t }: {
             dir={loc === 'ar' ? 'rtl' : 'ltr'}
             fontSize={13.5}
             accent={dc}
-            placeholder="لا يوجد تحليل متاح — انتظر تحديث المجلس"
+            placeholder={t('noAnalysis')}
           />
         </div>
 
         {/* Price grid */}
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:1, background:COLORS.border, borderTop:`1px solid ${COLORS.border}`, borderBottom:`1px solid ${COLORS.border}` }}>
           <div style={{ padding:'11px 14px', background:'rgba(0,0,0,0.18)' }}>
-            <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted, marginBottom:4 }}>الدخول</div>
+            <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted, marginBottom:4 }}>{t('entry')}</div>
             <div style={{ fontSize:15, fontWeight:600, color:COLORS.textPrimary, fontFamily:'monospace' }}>{formatPrice(brief.entryPrice)}</div>
           </div>
           <div style={{ padding:'11px 14px', background:'rgba(0,0,0,0.18)', borderInlineStart:`1px solid ${COLORS.border}` }}>
-            <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted, marginBottom:4 }}>وقف الخسارة</div>
+            <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted, marginBottom:4 }}>{t('stopLoss')}</div>
             <div style={{ fontSize:15, fontWeight:600, color:COLORS.sell, fontFamily:'monospace' }}>{formatPrice(brief.stopLoss)}</div>
             <div style={{ fontSize:11, color:COLORS.sell, fontFamily:'monospace', marginTop:3 }}>{slPctStr}</div>
           </div>
           <div style={{ padding:'11px 14px', background:'rgba(0,0,0,0.18)', borderInlineStart:`1px solid ${COLORS.border}` }}>
-            <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted, marginBottom:4 }}>جني الأرباح</div>
+            <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted, marginBottom:4 }}>{t('takeProfit')}</div>
             <div style={{ fontSize:15, fontWeight:600, color:COLORS.buy, fontFamily:'monospace' }}>{formatPrice(brief.takeProfit)}</div>
             <div style={{ fontSize:11, color:COLORS.buy, fontFamily:'monospace', marginTop:3 }}>{tpPctStr}</div>
           </div>
@@ -668,7 +668,7 @@ function BriefCard({ brief, loc, index, expanded, onToggle, t }: {
         <div style={{ padding:'12px 18px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
           <div style={{ display:'flex', alignItems:'center', gap:14, flexWrap:'wrap' }}>
             <div style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:11, color:COLORS.textMuted, fontFamily:'monospace' }}>
-              <Gauge size={12} /> <span style={{ textTransform:'uppercase', fontWeight:500 }}>عائد/مخاطرة</span> <span style={{ color:COLORS.info, fontWeight:600 }}>{rr.toFixed(2)}</span>
+              <Gauge size={12} /> <span style={{ textTransform:'uppercase', fontWeight:500 }}>{t('riskReward')}</span> <span style={{ color:COLORS.info, fontWeight:600 }}>{rr.toFixed(2)}</span>
             </div>
             <div style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:11, color:COLORS.textMuted, fontFamily:'monospace' }}>
               <Timer size={12} /> <span style={{ textTransform:'uppercase', fontWeight:500 }}>{t('expires')}</span> <span style={{ color:isExpired?COLORS.sell:remainingMs<3600000?COLORS.hold:COLORS.textSecondary, fontWeight:600 }}>{isExpired?t('expired'):formatCountdown(remainingMs, loc)}</span>
@@ -685,19 +685,19 @@ function BriefCard({ brief, loc, index, expanded, onToggle, t }: {
             <motion.div initial={{ height:0, opacity:0 }} animate={{ height:'auto', opacity:1 }} exit={{ height:0, opacity:0 }} transition={{ duration:0.3 }} style={{ overflow:'hidden' }}>
               <div style={{ padding:'16px 18px 18px', borderTop:`1px solid ${COLORS.border}`, background:'rgba(0,0,0,0.18)', display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:12 }}>
                 <div style={{ display:'flex', flexDirection:'column', gap:4, padding:10, borderRadius:9, background:'rgba(255,255,255,0.025)', border:`1px solid ${COLORS.border}` }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:6 }}><Activity size={13} color={COLORS.info} /><span style={{ fontSize:11, fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>آخر مراجعة</span></div>
+                  <div style={{ display:'flex', alignItems:'center', gap:6 }}><Activity size={13} color={COLORS.info} /><span style={{ fontSize:11, fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{t('lastReview')}</span></div>
                   <span style={{ fontSize:13, fontWeight:600, color:COLORS.textPrimary, fontFamily:'monospace' }}>{relativeTime(brief.lastReviewedAt, loc)}</span>
                 </div>
                 <div style={{ display:'flex', flexDirection:'column', gap:4, padding:10, borderRadius:9, background:'rgba(255,255,255,0.025)', border:`1px solid ${COLORS.border}` }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:6 }}><Target size={13} color={COLORS.sell} /><span style={{ fontSize:11, fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>مسافة SL</span></div>
+                  <div style={{ display:'flex', alignItems:'center', gap:6 }}><Target size={13} color={COLORS.sell} /><span style={{ fontSize:11, fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{t('slDistance')}</span></div>
                   <span style={{ fontSize:13, fontWeight:600, color:COLORS.textPrimary, fontFamily:'monospace' }}>{slPctStr}</span>
                 </div>
                 <div style={{ display:'flex', flexDirection:'column', gap:4, padding:10, borderRadius:9, background:'rgba(255,255,255,0.025)', border:`1px solid ${COLORS.border}` }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:6 }}><Target size={13} color={COLORS.buy} /><span style={{ fontSize:11, fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>مسافة TP</span></div>
+                  <div style={{ display:'flex', alignItems:'center', gap:6 }}><Target size={13} color={COLORS.buy} /><span style={{ fontSize:11, fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{t('tpDistance')}</span></div>
                   <span style={{ fontSize:13, fontWeight:600, color:COLORS.textPrimary, fontFamily:'monospace' }}>{tpPctStr}</span>
                 </div>
                 <div style={{ display:'flex', flexDirection:'column', gap:4, padding:10, borderRadius:9, background:'rgba(255,255,255,0.025)', border:`1px solid ${COLORS.border}` }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:6 }}><Shield size={13} color={COLORS.hold} /><span style={{ fontSize:11, fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>انزلاق مسموح</span></div>
+                  <div style={{ display:'flex', alignItems:'center', gap:6 }}><Shield size={13} color={COLORS.hold} /><span style={{ fontSize:11, fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{t('maxSlippage')}</span></div>
                   <span style={{ fontSize:13, fontWeight:600, color:COLORS.textPrimary, fontFamily:'monospace' }}>{(brief.strictRules.maxSlippage*100).toFixed(2)}%</span>
                 </div>
               </div>

@@ -1744,7 +1744,8 @@
       "aiAnalysis": "AI 분석",
       "sanctuary": "세이프티존",
       "advancedScanner": "고급 스캐너",
-      "apiDocs": "API 문서"
+      "apiDocs": "API 문서",
+      "council": "전략 평의회"
     },
     "execution": {
       "orderId": "주문 ID: {id}",

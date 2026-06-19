@@ -1744,7 +1744,8 @@
       "aiAnalysis": "تجزیه و تحلیل هوش مصنوعی",
       "sanctuary": "پناهگاه",
       "advancedScanner": "اسکنر پیشرفته",
-      "apiDocs": "مستندات API"
+      "apiDocs": "مستندات API",
+      "council": "شورای استراتژیک"
     },
     "execution": {
       "orderId": "شناسه سفارش: {id}",

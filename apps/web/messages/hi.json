@@ -1744,7 +1744,8 @@
       "aiAnalysis": "AI विश्लेषण",
       "sanctuary": "Snctury",
       "advancedScanner": "उन्नत स्कैनर",
-      "apiDocs": "API दस्तावेज़"
+      "apiDocs": "API दस्तावेज़",
+      "council": "सामरिक परिषद"
     },
     "execution": {
       "orderId": "ऑर्डर ID: {id}",

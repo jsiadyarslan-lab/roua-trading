@@ -1744,7 +1744,8 @@
       "aiAnalysis": "Análise com IA",
       "sanctuary": "Santuário",
       "advancedScanner": "Scanner Avançado",
-      "apiDocs": "Documentação API"
+      "apiDocs": "Documentação API",
+      "council": "Conselho Estratégico"
     },
     "execution": {
       "orderId": "Ordem ID: {id}",

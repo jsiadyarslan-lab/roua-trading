@@ -1744,7 +1744,8 @@
       "aiAnalysis": "מעבדה עצבית",
       "sanctuary": "ניתוח AI",
       "advancedScanner": "סורק מתקדם",
-      "apiDocs": "API לא זמין"
+      "apiDocs": "API לא זמין",
+      "council": "מועצה אסטרטגית"
     },
     "execution": {
       "orderId": "מזהה הזמנה: {id}",

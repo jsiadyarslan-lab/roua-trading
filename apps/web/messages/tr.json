@@ -1744,7 +1744,8 @@
       "aiAnalysis": "Yapay Zeka Analizi",
       "sanctuary": "Sığınak",
       "advancedScanner": "Gelişmiş Tarayıcı",
-      "apiDocs": "API Belgeleri"
+      "apiDocs": "API Belgeleri",
+      "council": "Stratejik Konsey"
     },
     "execution": {
       "orderId": "Emir ID: {id}",

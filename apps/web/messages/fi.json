@@ -1744,7 +1744,8 @@
       "aiAnalysis": "AI-analyysi",
       "sanctuary": "Pyhäkkö",
       "advancedScanner": "Kehittynyt skanneri",
-      "apiDocs": "Kaupan moottori"
+      "apiDocs": "Kaupan moottori",
+      "council": "Strateginen Neuvosto"
     },
     "execution": {
       "orderId": "Tilaustunnus: {id}",

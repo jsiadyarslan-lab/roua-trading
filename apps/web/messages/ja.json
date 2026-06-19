@@ -1744,7 +1744,8 @@
       "aiAnalysis": "AI分析",
       "sanctuary": "サンクチュアリ",
       "advancedScanner": "高度スキャナー",
-      "apiDocs": "APIドキュメント"
+      "apiDocs": "APIドキュメント",
+      "council": "戦略評議会"
     },
     "execution": {
       "orderId": "注文 ID: {id}",

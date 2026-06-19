@@ -1744,7 +1744,8 @@
       "aiAnalysis": "AI 分析",
       "sanctuary": "避风港",
       "advancedScanner": "高级扫描器",
-      "apiDocs": "API文档"
+      "apiDocs": "API文档",
+      "council": "战略委员会"
     },
     "execution": {
       "orderId": "排序 ID: {id}",

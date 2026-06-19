@@ -1744,7 +1744,8 @@
       "aiAnalysis": "ИИ-анализ",
       "sanctuary": "Святилище",
       "advancedScanner": "Расширенный сканер",
-      "apiDocs": "Документация API"
+      "apiDocs": "Документация API",
+      "council": "Стратегический Совет"
     },
     "execution": {
       "orderId": "ID ордера: {id}",

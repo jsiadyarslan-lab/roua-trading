@@ -1744,7 +1744,8 @@
       "aiAnalysis": "AI تجزیہ",
       "sanctuary": "پناہ گاہ",
       "advancedScanner": "ایڈوانس سکینر",
-      "apiDocs": "API دستاویزات"
+      "apiDocs": "API دستاویزات",
+      "council": "اسٹریٹجک کونسل"
     },
     "execution": {
       "orderId": "آرڈر ID: {id}",

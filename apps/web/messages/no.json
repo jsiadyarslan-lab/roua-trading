@@ -1744,7 +1744,8 @@
       "aiAnalysis": "AI-analyse",
       "sanctuary": "Helligdom",
       "advancedScanner": "Avansert skanner",
-      "apiDocs": "API-dokumenter"
+      "apiDocs": "API-dokumenter",
+      "council": "Strategisk Råd"
     },
     "execution": {
       "orderId": "Bestillings-ID: {id}",

@@ -68,7 +68,7 @@ import {
   TrendingUp, TrendingDown, Menu, X as XIcon, GitMerge, Activity,
   FlaskConical, Shield, Hammer, LogOut, UserCircle, Info,
   CreditCard, HelpCircle, Trophy, Code, Fingerprint, BellRing, Link2, Eye, Target, Cpu, PenLine, Clock, Calendar,
-  BarChart3, Globe2
+  BarChart3, Globe2, Landmark
 } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
@@ -620,7 +620,8 @@ const NAV_LINKS: NavLink[] = [
     ]
   },
   { href: '/dashboard/ai',                     label: 'aiAnalysis',        icon: Brain },
-  { href: '/dashboard/neural',                  label: 'neuralLab',        icon: FlaskConical },
+  { href: '/dashboard/council',                label: 'council',           icon: Landmark },
+  { href: '/dashboard/neural',                 label: 'neuralLab',         icon: FlaskConical },
   { href: '/dashboard/scanner',                label: 'advancedScanner',   icon: ScanSearch },
   { href: '/dashboard/strategies',             label: 'strategicAnalysis', icon: BarChart2,
     children: [

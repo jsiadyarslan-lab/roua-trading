@@ -44,17 +44,17 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const titles: Record<string, string> = {
-    ar: "رؤى | منصة التداول بمجلس الذكاء الاصطناعي",
+    ar: "رؤى | AI Strategic Council Trading Platform — منصة التداول بمجلس الذكاء الاصطناعي",
     en: "Roua | AI Strategic Council Trading Platform",
-    fr: "Roua | Plateforme de trading au Conseil IA stratégique",
-    tr: "Roua | Stratejik AI Konseyi Ticaret Platformu",
-    es: "Roua | Plataforma de trading con Consejo IA estratégico",
-    zh: "Roua | AI战略委员会交易平台",
-    ru: "Roua | Платформа торгов со Стратегическим ИИ-Советом",
-    hi: "Roua | एआई सामरिक परिषद ट्रेडिंग प्लेटफ़ॉर्म",
-    pt: "Roua | Plataforma de trading com Conselho IA estratégico",
-    de: "Roua | Handelsplattform mit strategischem AI-Rat",
-    ja: "Roua | AI戦略評議会トレードプラットフォーム",
+    fr: "Roua | AI Strategic Council Trading Platform — Plateforme de trading au Conseil IA",
+    tr: "Roua | AI Strategic Council Trading Platform — Stratejik AI Konseyi",
+    es: "Roua | AI Strategic Council Trading Platform — Consejo IA",
+    zh: "Roua | AI Strategic Council Trading Platform — AI战略委员会",
+    ru: "Roua | AI Strategic Council Trading Platform — Стратегический ИИ-Совет",
+    hi: "Roua | AI Strategic Council Trading Platform — एआई सामरिक परिषद",
+    pt: "Roua | AI Strategic Council Trading Platform — Conselho IA",
+    de: "Roua | AI Strategic Council Trading Platform — Strategischer AI-Rat",
+    ja: "Roua | AI Strategic Council Trading Platform — AI戦略評議会",
   };
   const descriptions: Record<string, string> = {
     ar: "رؤى للتداول — أول منصة تداول في العالم بمجلس ذكاء اصطناعي استراتيجي. ثمانية وكلاء AI يتناقشون ويصوتون ويصلون إلى إجماع قبل أي صفقة. AI Strategic Council Trading Platform",
@@ -88,9 +88,9 @@ export async function generateMetadata({
     appleWebApp: {
       capable: true,
       statusBarStyle: "black-translucent",
-      title: locale === 'ar' ? "رؤى — مجلس الذكاء" : "Roua — Council",
+      title: "Roua — AI Council",
     },
-    applicationName: locale === 'ar' ? "رؤى للتداول" : "Roua Trading",
+    applicationName: "Roua — AI Strategic Council",
     icons: {
       icon: [
         { url: '/icon-192.png', type: 'image/png', sizes: '192x192' },

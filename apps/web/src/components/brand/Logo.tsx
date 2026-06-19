@@ -38,9 +38,13 @@ export interface LogoProps {
 }
 
 const SIZE_MAP = {
-  sm: { sigil: 26, brand: 14, tagline: 7, gap: 8 },
-  md: { sigil: 40, brand: 18, tagline: 8.5, gap: 12 },
-  lg: { sigil: 60, brand: 26, tagline: 11, gap: 16 },
+  // Sizes chosen to MATCH the legacy logo dimensions exactly:
+  //   - desktop header logo orb was 108px (ORB_D constant) → 'lg' uses sigil=92, total ~108px
+  //   - mobile header logo was 48px (MOBILE_HEADER_H) → 'sm' uses sigil=40, total ~48px
+  //   - landing/footer mid-size → 'md' uses sigil=56, total ~64px
+  sm: { sigil: 40, brand: 14, tagline: 7, gap: 8 },
+  md: { sigil: 56, brand: 22, tagline: 10, gap: 12 },
+  lg: { sigil: 92, brand: 16, tagline: 8, gap: 10 },
 } as const;
 
 export function Logo({

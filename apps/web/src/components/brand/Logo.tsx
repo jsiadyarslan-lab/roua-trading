@@ -1,55 +1,54 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import type { CSSProperties } from "react";
+import { motion } from "framer-motion";
 import { CouncilSigil } from "@/components/council/CouncilSigil";
 
 /**
  * Shared Roua Trading logo — uses the AI Council Sigil as the platform mark.
  *
- * Replaces the previous CosmicOrb/TrendingUp icons with the unified
- * "seven glowing points" sigil: 6 council members around the ring + 1 central
- * consensus node. This is the same sigil that powers /dashboard/council, so
- * the brand identity is now synonymous with the council architecture itself.
+ * Three sizes:
+ *   - "sm"  — mobile header (sigil 36)
+ *   - "md"  — landing navbar / footer (sigil 44)
+ *   - "lg"  — desktop dashboard header (sigil 64)
  *
  * Two layouts:
- *   - horizontal (default): sigil LEFT, wordmark + tagline RIGHT — for navbars
- *   - stacked: sigil TOP, wordmark + tagline BELOW — for the 108px orb space
- *     in the dashboard header (matches the legacy logo orb footprint exactly)
+ *   - "horizontal" (default): sigil LEFT, wordmark + tagline RIGHT
+ *   - "stacked": sigil TOP, wordmark + tagline BELOW (centered)
  *
- * Three sizes:
- *   - "sm"  (sigil 40)  — mobile header
- *   - "md"  (sigil 56)  — landing navbar, footer
- *   - "lg"  (sigil 92)  — desktop dashboard header (108px orb space)
+ * Tagline is locale-aware:
+ *   - ar: "المجلس الذكي"
+ *   - en: "AI COUNCIL"
+ *   - others: "AI COUNCIL"
+ *
+ * Container has a living pulse animation — box-shadow breathes with the
+ * council's gradient so the logo feels alive rather than static.
  */
 export interface LogoProps {
   size?: "sm" | "md" | "lg";
-  /** Horizontal (sigil left) or stacked (sigil top). Default: horizontal. */
   layout?: "horizontal" | "stacked";
-  /** Show the wordmark (default: true for md/lg). */
   showWordmark?: boolean;
-  /** Show the "AI STRATEGIC COUNCIL" tagline. */
   showTagline?: boolean;
-  /** Override brand text color (defaults to theme primary). */
   textColor?: string;
-  /** Override tagline color (defaults to council purple). */
   taglineColor?: string;
   style?: CSSProperties;
-  /** Wrap the logo in a hover scale animation (default: true). */
   interactive?: boolean;
-  /** Disable sigil animation (for static contexts). */
   staticSigil?: boolean;
+  /** Show the glassy container background + breathing glow. Default: true. */
+  glowContainer?: boolean;
 }
 
 const SIZE_MAP = {
-  // Sizes chosen to MATCH the legacy logo dimensions exactly:
-  //   - desktop header logo orb was 108px (ORB_D constant) → 'lg' sigil=92, total ~108px
-  //   - mobile header logo was 48px (MOBILE_HEADER_H) → 'sm' sigil=40, total ~48px
-  //   - landing/footer mid-size → 'md' sigil=56, total ~64px
-  sm: { sigil: 40, brand: 13, tagline: 6.5, gap: 8 },
-  md: { sigil: 56, brand: 22, tagline: 10, gap: 12 },
-  lg: { sigil: 92, brand: 14, tagline: 7, gap: 4 },
+  sm: { sigil: 36, brand: 16, tagline: 8, gap: 8, padding: 8, radius: 10 },
+  md: { sigil: 44, brand: 20, tagline: 9.5, gap: 10, padding: 10, radius: 12 },
+  lg: { sigil: 64, brand: 26, tagline: 11.5, gap: 14, padding: 12, radius: 14 },
 } as const;
+
+const TAGLINES: Record<string, string> = {
+  ar: "المجلس الذكي",
+  en: "AI COUNCIL",
+};
 
 export function Logo({
   size = "md",
@@ -61,16 +60,18 @@ export function Logo({
   style,
   interactive = true,
   staticSigil = false,
+  glowContainer = true,
 }: LogoProps) {
   const t = useTranslations();
+  const locale = useLocale();
   const dims = SIZE_MAP[size];
-  const showWord = showWordmark ?? size !== "sm";
+  const showWord = showWordmark ?? true;
   const isStacked = layout === "stacked";
 
   const brandName = t("common.brand");
-  const tagline = "AI COUNCIL";
+  const tagline = TAGLINES[locale] || TAGLINES.en;
 
-  const containerStyle: CSSProperties = isStacked
+  const outerStyle: CSSProperties = isStacked
     ? {
         display: "inline-flex",
         flexDirection: "column",
@@ -90,30 +91,62 @@ export function Logo({
       };
 
   return (
-    <div
-      style={containerStyle}
-      onMouseEnter={interactive ? (e) => { e.currentTarget.style.transform = "scale(1.04)"; } : undefined}
+    <motion.div
+      style={outerStyle}
+      onMouseEnter={interactive ? (e) => { e.currentTarget.style.transform = "scale(1.03)"; } : undefined}
       onMouseLeave={interactive ? (e) => { e.currentTarget.style.transform = "scale(1)"; } : undefined}
     >
-      {/* Sigil mark */}
-      <div
+      {/* Sigil mark — with breathing outer glow */}
+      <motion.div
         style={{
           position: "relative",
           width: dims.sigil,
           height: dims.sigil,
-          borderRadius: Math.round(dims.sigil * 0.22),
+          borderRadius: dims.radius,
           background: "radial-gradient(circle at 50% 40%, #0D1520, #020308)",
-          border: "1px solid rgba(168, 85, 247, 0.28)",
-          boxShadow: "0 0 18px rgba(168, 85, 247, 0.35), 0 0 0 1px rgba(168, 85, 247, 0.08)",
+          border: "1px solid rgba(168, 85, 247, 0.35)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           flexShrink: 0,
           overflow: "hidden",
+          padding: dims.padding,
+          boxSizing: "border-box",
         }}
+        animate={glowContainer && !staticSigil ? {
+          boxShadow: [
+            "0 0 18px rgba(168, 85, 247, 0.35), 0 0 0 1px rgba(168, 85, 247, 0.10), inset 0 0 12px rgba(168, 85, 247, 0.15)",
+            "0 0 32px rgba(168, 85, 247, 0.65), 0 0 0 1px rgba(168, 85, 247, 0.30), inset 0 0 18px rgba(168, 85, 247, 0.30)",
+            "0 0 18px rgba(168, 85, 247, 0.35), 0 0 0 1px rgba(168, 85, 247, 0.10), inset 0 0 12px rgba(168, 85, 247, 0.15)",
+          ],
+        } : undefined}
+        transition={glowContainer && !staticSigil ? {
+          duration: 3,
+          repeat: Infinity,
+          ease: "easeInOut",
+        } : undefined}
       >
-        <CouncilSigil size={Math.round(dims.sigil * 0.85)} animated={!staticSigil} />
-      </div>
+        {/* Outer halo — rotating gradient ring */}
+        {glowContainer && !staticSigil && (
+          <motion.div
+            aria-hidden
+            style={{
+              position: "absolute",
+              inset: -2,
+              borderRadius: dims.radius + 2,
+              background: "conic-gradient(from 0deg, #A855F7, #6366F1, #06B6D4, #A855F7)",
+              opacity: 0.18,
+              filter: "blur(8px)",
+              pointerEvents: "none",
+            }}
+            animate={{ rotate: 360 }}
+            transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
+          />
+        )}
+        <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <CouncilSigil size={dims.sigil - dims.padding * 2} animated={!staticSigil} />
+        </div>
+      </motion.div>
 
       {/* Wordmark + tagline */}
       {showWord && (
@@ -121,7 +154,7 @@ export function Logo({
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: 1,
+            gap: 2,
             minWidth: 0,
             alignItems: isStacked ? "center" : "flex-start",
           }}
@@ -132,9 +165,10 @@ export function Logo({
               fontWeight: 900,
               fontSize: dims.brand,
               color: textColor ?? "#F1F5F9",
-              letterSpacing: "-0.01em",
+              letterSpacing: "-0.015em",
               lineHeight: 1.05,
               whiteSpace: "nowrap",
+              textShadow: "0 0 12px rgba(168, 85, 247, 0.25)",
             }}
           >
             {brandName}
@@ -145,12 +179,13 @@ export function Logo({
                 fontFamily: "'JetBrains Mono', monospace",
                 fontSize: dims.tagline,
                 color: taglineColor ?? "#A855F7",
-                letterSpacing: "0.14em",
-                fontWeight: 600,
+                letterSpacing: locale === "ar" ? "0.06em" : "0.18em",
+                fontWeight: 700,
                 opacity: 0.95,
                 lineHeight: 1,
                 whiteSpace: "nowrap",
-                textTransform: "uppercase",
+                textTransform: locale === "ar" ? "none" : "uppercase",
+                textShadow: "0 0 8px rgba(168, 85, 247, 0.4)",
               }}
             >
               {tagline}
@@ -158,6 +193,6 @@ export function Logo({
           )}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

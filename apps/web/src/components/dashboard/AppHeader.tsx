@@ -109,7 +109,7 @@ const H_NAV   = 46
 const H_TOTAL = H_NEWS + H_CURR + H_NAV
 const MOBILE_HEADER_H = 48
 const ORB_D   = 108
-const ORB_GAP = 120
+const ORB_GAP = 240
 
 type MarketState = 'bullish' | 'bearish' | 'volatile' | 'neutral'
 
@@ -1660,7 +1660,7 @@ export function AppHeader() {
           flexShrink: 0,
         }}>
           <SafeLink href="/dashboard" style={{ textDecoration: 'none', display: 'inline-flex' }}>
-            <Logo size="lg" layout="stacked" showWordmark={true} showTagline={true} interactive={false} />
+            <Logo size="lg" layout="horizontal" showWordmark={true} showTagline={true} interactive={false} />
           </SafeLink>
         </div>
         <div style={{

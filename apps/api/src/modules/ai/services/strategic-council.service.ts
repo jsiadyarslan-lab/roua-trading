@@ -743,9 +743,45 @@ export class StrategicCouncilService {
 
     if (analyses.length > 0) {
       try {
+        // CRITICAL FIX: Pass each agent's full `reason` text into the strategy prompt.
+        // The previous prompt only passed `role (model): vote (confidence%)` — stripping
+        // the actual reasoning (price levels, indicators, news events). This caused the
+        // AI to produce generic boilerplate (" downtrend continues", "negative sentiment")
+        // instead of a specific synthesis that names the levels, indicators, and events
+        // the agents actually cited.
+        //
+        // Format per agent: "<role> [<model>] voted <VOTE> @ <conf>% — <reason>"
+        const agentSummaries = analyses
+          .map(a => `${a.role} [${a.model}] voted ${a.vote} @ ${a.confidence}% — ${a.reason}`)
+          .join('\n\n');
+
         const strategyPrompt = language === 'en'
-          ? `Based on the following council analyses, summarize the final trading strategy for ${symbol} in English concisely:\n${analyses.map(a => `${a.role} (${a.model}): ${a.vote} (${a.confidence}%)`).join('\n')}`
-          : `بناءً على تحليلات المجلس التالية، لخص الاستراتيجية النهائية للتداول على ${symbol} بالعربية بإيجاز:\n${analyses.map(a => `${a.role} (${a.model}): ${a.vote} (${a.confidence}%)`).join('\n')}`;
+          ? `You are the Council Master synthesizing the final trading strategy for ${symbol}.
+
+Eight AI council agents have analyzed this market. Their individual votes, confidence levels, and — most importantly — their specific reasoning are below. Your job is to write a CONCISE (4-6 sentences, max 200 words) synthesis that:
+
+1. Names the SPECIFIC reasons agents gave (price levels, indicator values, news events, divergence types) — DO NOT use generic phrases like "technical indicators point down" or "negative sentiment persists".
+2. Quantifies the consensus: "7 of 8 agents voted SELL with avg confidence 76%".
+3. Identifies the dissenting view (if any) and explains why it was overruled.
+4. Closes with ONE actionable condition that would invalidate this signal (e.g., "Invalidation: 4H close above $0.55").
+
+Output in English. Output only the synthesis, no preamble.
+
+AGENT ANALYSES:
+${agentSummaries}`
+          : `أنت رئيس المجلس، توّلِف الاستراتيجية النهائية للتداول على ${symbol}.
+
+ثمانية وكلاء ذكاء اصطناعي حللوا هذا السوق. أصواتهم، نسب ثقتهم، و—الأهم—أسبابهم المحددة مدرجة أدناه. مهمتك: اكتب تركيباً موجزاً (4-6 جمل، بحد أقصى 200 كلمة) يقوم بـ:
+
+1. ذكر الأسباب المحددة التي أعطاها الوكلاء (مستويات السعر، قيم المؤشرات، الأحداث الإخبارية، أنواع التباين) — لا تستخدم عبارات عامة مثل "تشير المؤشرات الفنية للهبوط" أو "المشاعر السلبية مستمرة".
+2. تحديد الإجماع كمياً: "7 من 8 وكلاء صوتوا للبيع بمتوسط ثقة 76%".
+3. تحديد الرأي المخالف (إن وُجد) وشرح لماذا تم تجاوزه.
+4. الختام بشرط واحد قابل للتنفيذ يُبطل هذه الإشارة (مثلاً: "إبطال الإشارة: إغلاق 4 ساعات فوق 0.55$").
+
+اكتب بالعربية. اكتب التركيب فقط، بدون مقدمة.
+
+تحليلات الوكلاء:
+${agentSummaries}`;
 
         // Try multiple models for master strategy generation
         const strategyModels = ['glm', 'ollama', 'bedrock', 'groq'];

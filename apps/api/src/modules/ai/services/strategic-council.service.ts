@@ -179,8 +179,13 @@ export class StrategicCouncilService {
           : '\n⚠️⚠️⚠️ لم نتمكن من جلب بيانات السوق الحية — ممنوع تماماً اختراع أي سعر أو رقم من عندك. إذا احتجت لذكر السعر اكتب "السعر غير متاح". أي سعر تختلقه سيجعل تحليلك غير موثوق.\n';
 
       // ── Inject news context ──
+      // V291: Localize the news prefix wrapper. Previously hardcoded Arabic,
+      // which caused models (especially weaker ones like Bedrock Nova Micro)
+      // to respond in Arabic even when language='en'.
       const newsPrefix = newsContext
-        ? `\n📰📰📰 بيانات الأخبار المحللة (مصدر موثوق — خذها بعين الاعتبار!):\n${newsContext}\n⚠️ هذه أخبار حقيقية محللة — يجب أن تؤثر على قرارك!\n\n`
+        ? (baseLanguageForPrompts === 'en'
+          ? `\n📰📰📰 Analyzed news data (trusted source — take it into account!):\n${newsContext}\n⚠️ This is real analyzed news — it must influence your decision!\n\n`
+          : `\n📰📰📰 بيانات الأخبار المحللة (مصدر موثوق — خذها بعين الاعتبار!):\n${newsContext}\n⚠️ هذه أخبار حقيقية محللة — يجب أن تؤثر على قرارك!\n\n`)
         : '';
 
       // ── V185: كشف وضع السوق — سياق BULL/BEAR/RANGE للذكاء الاصطناعي ──
@@ -191,7 +196,10 @@ export class StrategicCouncilService {
           if (regimeResult) {
             const regimeContext = this.regimeService.buildRegimeContext(regimeResult, symbol);
             if (regimeContext) {
-              regimePrefix = `\n${regimeContext}\n⚠️ هذا هو وضع السوق الحالي — يجب أن تؤثر على قرارك!\n\n`;
+              // V291: Localize regime prefix
+              regimePrefix = baseLanguageForPrompts === 'en'
+                ? `\n${regimeContext}\n⚠️ This is the current market regime — it must influence your decision!\n\n`
+                : `\n${regimeContext}\n⚠️ هذا هو وضع السوق الحالي — يجب أن تؤثر على قرارك!\n\n`;
               this.logger.debug(`🏛️ V185 Regime context injected for ${symbol}: ${regimeResult.regime} (${regimeResult.confidence}%)`);
             }
           }
@@ -206,7 +214,10 @@ export class StrategicCouncilService {
         if (this.memoryService) {
           const memoryContext = await this.memoryService.getMemoryContext('system', symbol);
           if (memoryContext) {
-            memoryPrefix = `\n🧠🧠🧠 دروس من صفقات سابقة (تاريخ حقيقي — تعلم منها!):\n${memoryContext}\n⚠️ هذه دروس حقيقية من صفقات سابقة — لا تكرر نفس الأخطاء!\n\n`;
+            // V291: Localize memory prefix
+            memoryPrefix = baseLanguageForPrompts === 'en'
+              ? `\n🧠🧠🧠 Lessons from past trades (real history — learn from it!):\n${memoryContext}\n⚠️ These are real lessons from past trades — do not repeat the same mistakes!\n\n`
+              : `\n🧠🧠🧠 دروس من صفقات سابقة (تاريخ حقيقي — تعلم منها!):\n${memoryContext}\n⚠️ هذه دروس حقيقية من صفقات سابقة — لا تكرر نفس الأخطاء!\n\n`;
             this.logger.debug(`🏛️ V185 Memory context injected for ${symbol}`);
           }
         }

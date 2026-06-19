@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, type CSSProperties, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Sparkles } from "lucide-react";
 import { COLORS } from "@/lib/council/types";
@@ -362,6 +363,7 @@ export function FormattedText({
   eyebrowLabel = "تفكير الذكاء الاصطناعي",
 }: FormattedTextProps) {
   const [expanded, setExpanded] = useState(false);
+  const t = useTranslations("councilPage");
 
   const blocks = useMemo(() => {
     if (!text || !text.trim()) return [] as Block[];
@@ -498,7 +500,7 @@ export function FormattedText({
           aria-expanded={expanded}
         >
           <ChevronDown size={13} strokeWidth={2.5} />
-          {expanded ? "عرض أقل" : "عرض المزيد"}
+          {expanded ? t("showLess") : t("showMore")}
         </motion.button>
       )}
     </div>
@@ -523,9 +525,10 @@ export function LoadMoreButton({
   total,
   onClick,
   label = "تحميل المزيد",
-  moreLabel = "إظهار المزيد",
+  moreLabel,
   accent = COLORS.council,
 }: LoadMoreButtonProps) {
+  const t = useTranslations("councilPage");
   const remaining = total - count;
   if (remaining <= 0) {
     return (
@@ -539,7 +542,7 @@ export function LoadMoreButton({
           textTransform: "uppercase",
         }}
       >
-        لا يوجد المزيد · {total} عنصر
+        {t("noMore")} · {total} {t("items")}
       </div>
     );
   }
@@ -566,7 +569,7 @@ export function LoadMoreButton({
         }}
       >
         <ChevronDown size={14} strokeWidth={2.5} style={{ transform: "rotate(0deg)" }} />
-        {moreLabel}
+        {moreLabel || t("showMore")}
         <span
           style={{
             fontSize: 11,

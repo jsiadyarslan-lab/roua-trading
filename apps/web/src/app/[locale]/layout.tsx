@@ -44,30 +44,30 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const titles: Record<string, string> = {
-    ar: "رؤى | منصة ربط الحسابات الذكية",
-    en: "Roua | Smart Account Linking Platform",
-    fr: "Roua | Plateforme intelligente de liaison de comptes",
-    tr: "Roua | Akıllı Hesap Bağlama Platformu",
-    es: "Roua | Plataforma inteligente de vinculación de cuentas",
-    zh: "Roua | 智能账户关联平台",
-    ru: "Roua | Платформа интеллектуального связывания счетов",
-    hi: "Roua | स्मार्ट खाता लिंकिंग प्लेटफ़ॉर्म",
-    pt: "Roua | Plataforma inteligente de vinculação de contas",
-    de: "Roua | Intelligente Kontoverknüpfungsplattform",
-    ja: "Roua | スマートアカウント連携プラットフォーム",
+    ar: "رؤى | منصة التداول بمجلس الذكاء الاصطناعي",
+    en: "Roua | AI Strategic Council Trading Platform",
+    fr: "Roua | Plateforme de trading au Conseil IA stratégique",
+    tr: "Roua | Stratejik AI Konseyi Ticaret Platformu",
+    es: "Roua | Plataforma de trading con Consejo IA estratégico",
+    zh: "Roua | AI战略委员会交易平台",
+    ru: "Roua | Платформа торгов со Стратегическим ИИ-Советом",
+    hi: "Roua | एआई सामरिक परिषद ट्रेडिंग प्लेटफ़ॉर्म",
+    pt: "Roua | Plataforma de trading com Conselho IA estratégico",
+    de: "Roua | Handelsplattform mit strategischem AI-Rat",
+    ja: "Roua | AI戦略評議会トレードプラットフォーム",
   };
   const descriptions: Record<string, string> = {
-    ar: "منصة رؤى لربط ومتابعة الحسابات الذكية — تحليلات AI، إشارات تداول، ربط بورصات، ومحفظة استثمارية ذكية. Roua Trading Platform",
-    en: "Roua platform for linking and monitoring smart accounts — AI analytics, trading signals, exchange linking, and smart investment portfolio",
-    fr: "Plateforme Roua pour la liaison et le suivi intelligents de comptes — analyses IA, signaux de trading, liaison bourses, et portefeuille intelligent",
-    tr: "Roua akıllı hesap bağlama ve izleme platformu — AI analitikleri, işlem sinyalleri, borsa bağlantısı ve akıllı yatırım portföyü",
-    es: "Plataforma Roua para vinculación y seguimiento inteligente de cuentas — análisis IA, señales de trading, vinculación de exchanges y cartera de inversión inteligente",
-    zh: "Roua智能账户关联与监控平台 — AI分析、交易信号、交易所关联及智能投资组合",
-    ru: "Платформа Roua для интеллектуального связывания и мониторинга счетов — ИИ-аналитика, торговые сигналы, подключение бирж и умный инвестиционный портфель",
-    hi: "Roua स्मार्ट खाता लिंकिंग और मॉनिटरिंग प्लेटफ़ॉर्म — AI एनालिटिक्स, ट्रेडिंग सिग्नल, एक्सचेंज लिंकिंग और स्मार्ट निवेश पोर्टफोलियो",
-    pt: "Plataforma Roua para vinculação e monitoramento inteligente de contas — análises de IA, sinais de trading, vinculação de exchanges e carteira de investimento inteligente",
-    de: "Roua-Plattform für intelligente Kontoverknüpfung und Überwachung — KI-Analysen, Handelssignale, Börsenverknüpfung und intelligentes Anlageportfolio",
-    ja: "Rouaスマートアカウント連携・監視プラットフォーム — AI分析、トレードシグナル、取引所連携、スマート投資ポートフォリオ",
+    ar: "رؤى للتداول — أول منصة تداول في العالم بمجلس ذكاء اصطناعي استراتيجي. ثمانية وكلاء AI يتناقشون ويصوتون ويصلون إلى إجماع قبل أي صفقة. AI Strategic Council Trading Platform",
+    en: "Roua Trading — the world's first AI Strategic Council Trading Platform. Eight AI agents debate, vote, and reach consensus before any trade is taken.",
+    fr: "Roua Trading — la première plateforme de trading au monde dotée d'un Conseil IA stratégique. Huit agents IA débattent, votent et atteignent un consensus avant toute transaction.",
+    tr: "Roua Trading — dünyanın ilk Stratejik AI Konseyi Ticaret Platformu. Sekiz AI ajanı, herhangi bir işlem yapılmadan önce tartışır, oy verir ve fikir birliğine varır.",
+    es: "Roua Trading — la primera plataforma de trading del mundo con un Consejo IA estratégico. Ocho agentes IA debaten, votan y alcanzan consenso antes de cualquier operación.",
+    zh: "Roua Trading —— 全球首个AI战略委员会交易平台。八位AI代理在任何交易前辩论、投票并达成共识。",
+    ru: "Roua Trading — первая в мире торговая платформа со Стратегическим ИИ-Советом. Восемь ИИ-агентов обсуждают, голосуют и достигают консенсуса перед каждой сделкой.",
+    hi: "Roua Trading — दुनिया का पहला एआई सामरिक परिषद ट्रेडिंग प्लेटफ़ॉर्म। आठ एआई एजेंट किसी भी ट्रेड से पहले बहस करते हैं, मतदान करते हैं और आम सहमति पर पहुँचते हैं।",
+    pt: "Roua Trading — a primeira plataforma de trading do mundo com um Conselho IA estratégico. Oito agentes IA debatem, votam e alcançam consenso antes de qualquer operação.",
+    de: "Roua Trading — die weltweit erste Handelsplattform mit strategischem AI-Rat. Acht KI-Agenten debattieren, stimmen ab und erreichen Konsens, bevor ein Trade getätigt wird.",
+    ja: "Roua Trading —— 世界初のAI戦略評議会トレードプラットフォーム。8人のAIエージェントが取引前に議論し、投票し、コンセンサスに達します。",
   };
   const ogLocales: Record<string, string> = {
     ar: "ar_SA", en: "en_US", fr: "fr_FR", tr: "tr_TR", es: "es_ES",
@@ -75,7 +75,7 @@ export async function generateMetadata({
   };
   const title = titles[locale] || titles.en;
   const description = descriptions[locale] || descriptions.en;
-  const siteName = locale === 'ar' ? "رؤى — Roua Trading" : "Roua Trading";
+  const siteName = locale === 'ar' ? "رؤى للتداول — AI Strategic Council" : "Roua Trading — AI Strategic Council";
   const ogLocale = ogLocales[locale] || "en_US";
 
   return {
@@ -88,9 +88,9 @@ export async function generateMetadata({
     appleWebApp: {
       capable: true,
       statusBarStyle: "black-translucent",
-      title: locale === 'ar' ? "رؤى" : "Roua",
+      title: locale === 'ar' ? "رؤى — مجلس الذكاء" : "Roua — Council",
     },
-    applicationName: locale === 'ar' ? "رؤى" : "Roua",
+    applicationName: locale === 'ar' ? "رؤى للتداول" : "Roua Trading",
     icons: {
       icon: [
         { url: '/icon-192.png', type: 'image/png', sizes: '192x192' },
@@ -98,7 +98,8 @@ export async function generateMetadata({
         { url: '/favicon.svg', type: 'image/svg+xml' },
       ],
       apple: [
-        { url: '/apple-touch-icon.png', sizes: '192x192' },
+        { url: '/apple-touch-icon.png', sizes: '180x180' },
+        { url: '/icon-192.png', sizes: '192x192' },
         { url: '/icon-512.png', sizes: '512x512' },
       ],
     },

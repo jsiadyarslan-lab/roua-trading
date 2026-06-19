@@ -78,6 +78,7 @@ import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { useAuthStore } from '@/lib/auth-store'
 import { NotificationCenter } from '@/components/dashboard/NotificationCenter'
 import { LocaleSwitcher } from '@/components/shared/LocaleSwitcher'
+import { Logo } from '@/components/brand/Logo'
 
 /* ─── Design tokens ─── */
 const T = {
@@ -1650,7 +1651,18 @@ export function AppHeader() {
         height: H_TOTAL,
         overflow: 'visible',
       }}>
-        <LogoCircle state={marketState} />
+        <div className="logo-orb" style={{
+          position: 'absolute',
+          top: '50%',
+          insetInlineStart: 10,
+          transform: 'translateY(-50%)',
+          zIndex: 20,
+          flexShrink: 0,
+        }}>
+          <SafeLink href="/dashboard" style={{ textDecoration: 'none', display: 'inline-flex' }}>
+            <Logo size="md" showWordmark={true} showTagline={true} interactive={false} />
+          </SafeLink>
+        </div>
         <div style={{
           height: '100%', marginInlineStart: ORB_GAP,
           display: 'flex', flexDirection: 'column',
@@ -1680,11 +1692,7 @@ export function AppHeader() {
           </button>
 
           <SafeLink href="/dashboard" style={{ textDecoration: "none" }} >
-             <LogoCircle state={marketState} size="mobile" />
-             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-               <span style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 900, fontSize: 15, color: T.text, whiteSpace: 'nowrap', lineHeight: 1.1 }}>{t('common.brand')}</span>
-               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 7, color: '#00C8FF', letterSpacing: '0.12em', opacity: 0.85, lineHeight: 1 }}>{t('common.brandSub')}</span>
-             </div>
+             <Logo size="sm" showWordmark={true} showTagline={true} interactive={false} />
           </SafeLink>
           {/* Ticker مخفي — موجود في m2-ticker أسفل الهيدر */}
 

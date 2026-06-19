@@ -1,29 +1,51 @@
-<?xml version="1.0" encoding="utf-8"?>
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-	 viewBox="0 0 30 30" style="enable-background:new 0 0 30 30;" xml:space="preserve">
-<defs>
-  <style type="text/css">
-    .st194{fill:#2D2D2D;stroke:#FFFFFF;stroke-width:0.6317;stroke-miterlimit:10;}
-    .st23{fill:#FFFFFF;}
-
-    .z-breathe {
-      animation: breathe 2.5s ease-in-out infinite;
-    }
-
-    @keyframes breathe {
-      0%, 100% { opacity: 0.7; }
-      50% { opacity: 1; }
-    }
-  </style>
-</defs>
-
-<g>
-  <path class="st194" d="M24.51,28.51H5.49c-2.21,0-4-1.79-4-4V5.49c0-2.21,1.79-4,4-4h19.03c2.21,0,4,1.79,4,4v19.03
-    C28.51,26.72,26.72,28.51,24.51,28.51z"/>
-  <g class="z-breathe">
-    <path class="st23" d="M15.47,7.1l-1.3,1.85c-0.2,0.29-0.54,0.47-0.9,0.47h-7.1V7.09C6.16,7.1,15.47,7.1,15.47,7.1z"/>
-    <polygon class="st23" points="24.3,7.1 13.14,22.91 5.7,22.91 16.86,7.1"/>
-    <path class="st23" d="M14.53,22.91l1.31-1.86c0.2-0.29,0.54-0.47,0.9-0.47h7.09v2.33H14.53z"/>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#A855F7" />
+      <stop offset="50%" stop-color="#6366F1" />
+      <stop offset="100%" stop-color="#06B6D4" />
+    </linearGradient>
+    <radialGradient id="gl" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#A855F7" stop-opacity="0.9" />
+      <stop offset="60%" stop-color="#6366F1" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#06B6D4" stop-opacity="0" />
+    </radialGradient>
+    <style>
+      .pulse { animation: rp 2.4s ease-in-out infinite; transform-origin: 20px 20px; }
+      .pulse-center { animation: rc 2s ease-in-out infinite; transform-origin: 20px 20px; }
+      .spin { animation: sp 30s linear infinite; transform-origin: 20px 20px; }
+      @keyframes rp { 0%,100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 1; transform: scale(1.15); } }
+      @keyframes rc { 0%,100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+      @keyframes sp { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      .n1 { animation-delay: 0s; }
+      .n2 { animation-delay: 0.3s; }
+      .n3 { animation-delay: 0.6s; }
+      .n4 { animation-delay: 0.9s; }
+      .n5 { animation-delay: 1.2s; }
+      .n6 { animation-delay: 1.5s; }
+      @media (prefers-reduced-motion: reduce) {
+        .pulse, .pulse-center, .spin { animation: none !important; }
+      }
+    </style>
+  </defs>
+  <rect width="40" height="40" rx="9" fill="#0B0E14" />
+  <g class="spin">
+    <circle cx="20" cy="20" r="14" stroke="url(#g)" stroke-width="0.9" stroke-dasharray="2 3" opacity="0.55" fill="none" />
   </g>
-</g>
+  <line x1="20" y1="20" x2="20" y2="6" stroke="url(#g)" stroke-width="0.75" opacity="0.6" />
+  <line x1="20" y1="20" x2="32.124" y2="13" stroke="url(#g)" stroke-width="0.75" opacity="0.6" />
+  <line x1="20" y1="20" x2="32.124" y2="27" stroke="url(#g)" stroke-width="0.75" opacity="0.6" />
+  <line x1="20" y1="20" x2="20" y2="34" stroke="url(#g)" stroke-width="0.75" opacity="0.6" />
+  <line x1="20" y1="20" x2="7.876" y2="27" stroke="url(#g)" stroke-width="0.75" opacity="0.6" />
+  <line x1="20" y1="20" x2="7.876" y2="13" stroke="url(#g)" stroke-width="0.75" opacity="0.6" />
+  <circle class="pulse n1" cx="20" cy="6" r="2.3" fill="url(#g)" />
+  <circle class="pulse n2" cx="32.124" cy="13" r="2.3" fill="url(#g)" />
+  <circle class="pulse n3" cx="32.124" cy="27" r="2.3" fill="url(#g)" />
+  <circle class="pulse n4" cx="20" cy="34" r="2.3" fill="url(#g)" />
+  <circle class="pulse n5" cx="7.876" cy="27" r="2.3" fill="url(#g)" />
+  <circle class="pulse n6" cx="7.876" cy="13" r="2.3" fill="url(#g)" />
+  <circle cx="20" cy="20" r="9" fill="url(#gl)" opacity="0.75" />
+  <circle class="pulse-center" cx="20" cy="20" r="4" fill="url(#g)" />
+  <circle cx="20" cy="20" r="1.4" fill="#0B0E14" />
 </svg>

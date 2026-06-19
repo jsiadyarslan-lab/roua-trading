@@ -8,6 +8,7 @@ import { useTabAlertStore } from '@/hooks/useTabAlertStore'
 import { T } from '@/lib/unified-tokens'
 import { safeStr, safeNum } from '@/lib/utils'
 import { useTranslations, useLocale } from 'next-intl'
+import { FormattedText } from '@/components/council/FormattedText'
 
 interface Analysis {
   role: string
@@ -572,10 +573,16 @@ export function AICouncilPanel() {
                 <Zap size={9} color={isRealAI ? T.purple : T.accent} />
                 <span className="text-[9px] font-bold" style={{ color: isRealAI ? T.purple : T.accent }}>{tai('unifiedStrategy')}</span>
               </div>
-              <p className="text-[10px] leading-5" style={{ color: T.text + 'cc' }}>
-                {/* FIX React Error #31: AI may return objects instead of strings */}
-                {safeStr(data.masterStrategy)}
-              </p>
+              <div style={{ color: T.text + 'cc' }}>
+                <FormattedText
+                  text={safeStr(data.masterStrategy)}
+                  maxLength={400}
+                  dir={locale === 'ar' ? 'rtl' : 'ltr'}
+                  fontSize={10}
+                  accent={isRealAI ? T.purple : T.accent}
+                  placeholder="—"
+                />
+              </div>
             </div>
 
             {data.conflictExplanation && (
@@ -639,10 +646,14 @@ export function AICouncilPanel() {
                         style={{ width: `${safeConfidence}%`, background: voteColor, boxShadow: `0 0 6px ${voteColor}40` }}
                       />
                     </div>
-                    <p className="text-[8px] leading-relaxed" style={{ color: T.text2 }}>
-                      {/* FIX React Error #31: AI may return objects instead of strings */}
-                      {safeStr(a.reason)}
-                    </p>
+                    <FormattedText
+                      text={safeStr(a.reason)}
+                      maxLength={150}
+                      dir={locale === 'ar' ? 'rtl' : 'ltr'}
+                      fontSize={8}
+                      accent={voteColor}
+                      placeholder="—"
+                    />
                     <div className="flex items-center gap-1 mt-1">
                       <Cpu size={6} color={T.text2} style={{ opacity: 0.5 }} />
                       <span style={{ fontSize: 6, color: T.text2, opacity: 0.6, fontFamily: 'monospace' }}>{safeStr(a.model)}</span>

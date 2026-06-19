@@ -28,7 +28,7 @@
 // ══════════════════════════════════════════════
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Injectable, Logger, OnModuleDestroy, Optional } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, Optional, Inject } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import { ExchangeService } from '../../exchange/exchange.service';
@@ -119,6 +119,8 @@ export class SmartExecutorService implements OnModuleDestroy {
     @Optional() private readonly correlationCheck?: CrossPairCorrelationService,
     @Optional() private readonly journal?: TradeJournalService,
     @Optional() private readonly scannerService?: ScannerService, // V224: MTF Confirmation
+    // V290: Regime filter — block BUY in BEAR market, SELL in BULL market
+    @Optional() @Inject('MARKET_REGIME_SERVICE') private readonly regimeService?: any,
   ) {
     const extras = [
       this.dynamicSizing && 'DynamicSizing',
@@ -3053,6 +3055,59 @@ export class SmartExecutorService implements OnModuleDestroy {
       executedAt: new Date(),
     };
 
+    // ═══════════════════════════════════════════════════════════════
+    // V290: Regime filter — block BUY in BEAR market, SELL in BULL market.
+    //
+    // PROBLEM (June 19, 2026 data):
+    //   - 3 BUY trades in a bear market all lost: -$7.96 (100% loss rate)
+    //   - 13 SELL trades, mixed: -$5.17 (better despite more trades)
+    //   - The AI Council recommended BUY 3 times against the downtrend
+    //
+    // FIX: Before executing, check MarketRegimeService. If regime is BEAR
+    // and the brief is BUY, skip it (mark as cancelled). Symmetric filter
+    // for SELL in BULL market. Only filter when regime confidence >= 60%.
+    // ═══════════════════════════════════════════════════════════════
+    if (this.regimeService && typeof this.regimeService.detectRegime === 'function') {
+      try {
+        const regimeResult = await this.regimeService.detectRegime(brief.pair);
+        if (regimeResult) {
+          const regime = regimeResult.regime; // BULL | BEAR | RANGE | VOLATILE
+          const regimeConfidence = regimeResult.confidence || 0;
+
+          // Only apply filter when regime confidence is high enough to trust
+          if (regimeConfidence >= 60) {
+            const isBuyAgainstBear = brief.direction === 'BUY' && regime === 'BEAR';
+            const isSellAgainstBull = brief.direction === 'SELL' && regime === 'BULL';
+
+            if (isBuyAgainstBear || isSellAgainstBull) {
+              const blockReason = `V290 Regime filter: ${brief.direction} blocked in ${regime} market (confidence ${regimeConfidence}%)`;
+              this.logger.warn(`🚫 ${blockReason} — pair ${brief.pair}, brief ${brief.id}`);
+
+              // Mark brief as cancelled so it's not retried on next tick
+              try {
+                await this.prisma.tradingBrief.update({
+                  where: { id: brief.id },
+                  data: {
+                    reviewStatus: 'CANCELLED',
+                    isActive: false,
+                  },
+                });
+              } catch (dbErr: any) {
+                this.logger.debug(`V290: Failed to mark brief ${brief.id} as CANCELLED: ${dbErr?.message}`);
+              }
+
+              result.error = blockReason;
+              result.skipped = true;
+              return result;
+            }
+          }
+        }
+      } catch (regimeErr: any) {
+        // Fail open — don't block trades on regime detection errors
+        this.logger.debug(`V290 Regime filter error for ${brief.pair}: ${regimeErr?.message}`);
+      }
+    }
+
     try {
       // ═══════════════════════════════════════════════════════════════
       // V126: Use the user's active credential. No routing, no choice.
@@ -3394,11 +3449,24 @@ export class SmartExecutorService implements OnModuleDestroy {
       //   rr.sl = 1 + (brief.stopLoss - brief.entryPrice) / brief.entryPrice
       // which PRESERVED the brief's old SL ratio (e.g., 1% from pre-V265).
       // This meant SELL trades kept getting SL = 1% even after V265 deployment.
-      const priceShift = Math.abs(currentPrice - brief.entryPrice) / brief.entryPrice;
-      let execStopLoss = brief.stopLoss;
-      let execTakeProfit = brief.takeProfit;
-      if (priceShift > 0.001) { // Price moved more than 0.1% from brief
-        // V269: Use TIMEFRAME_RR directly — guarantees V265 minimums are applied
+      //
+      // V290 FIX: The V269 fix was conditional on `priceShift > 0.001`. If the
+      // price hadn't moved 0.1% from the brief entry, the original brief SL
+      // was used as-is. This meant BUY trades with brief SL = 1% kept their
+      // 1% SL even on M5 (which should be 2% per TIMEFRAME_RR).
+      //
+      // Data evidence (June 19, 2026):
+      //   - 3 BUY trades, all hit SL = -$7.96 (100% loss rate)
+      //   - 13 SELL trades, mixed = -$5.17 (better despite more trades)
+      //   - BUY SL was 1% (too tight) while SELL SL was 2% (V269 applied)
+      //
+      // FIX: Always recalculate SL/TP from TIMEFRAME_RR, regardless of price
+      // shift. The brief's SL/TP is just a suggestion; the executor enforces
+      // the timeframe-appropriate minimum.
+      let execStopLoss: number;
+      let execTakeProfit: number;
+      {
+        // V290: Always use TIMEFRAME_RR directly — guarantees V265 minimums
         const { sl: tfSL, tp: tfTP } = TIMEFRAME_RR[brief.timeframe as BriefTimeframe]
           || { sl: 0.020, tp: 0.050 }; // fallback: 2% SL, 5% TP
         execStopLoss = brief.direction === 'BUY'
@@ -3407,9 +3475,12 @@ export class SmartExecutorService implements OnModuleDestroy {
         execTakeProfit = brief.direction === 'BUY'
           ? currentPrice * (1 + tfTP)
           : currentPrice * (1 - tfTP);
+        const priceShift = Math.abs(currentPrice - brief.entryPrice) / brief.entryPrice;
         this.logger.debug(
-          `⚔️ V269 Adjusted SL/TP for ${brief.pair} ${brief.timeframe}: entry ${brief.entryPrice}→${currentPrice}, ` +
-          `SL ${brief.stopLoss}→${execStopLoss.toFixed(4)} (${(tfSL * 100).toFixed(1)}%), TP ${brief.takeProfit}→${execTakeProfit.toFixed(4)} (${(tfTP * 100).toFixed(1)}%)`
+          `⚔️ V290 SL/TP for ${brief.pair} ${brief.direction} ${brief.timeframe}: ` +
+          `entry ${brief.entryPrice}→${currentPrice} (shift ${(priceShift*100).toFixed(2)}%), ` +
+          `SL ${brief.stopLoss}→${execStopLoss.toFixed(4)} (${(tfSL * 100).toFixed(1)}%), ` +
+          `TP ${brief.takeProfit}→${execTakeProfit.toFixed(4)} (${(tfTP * 100).toFixed(1)}%)`
         );
       }
 

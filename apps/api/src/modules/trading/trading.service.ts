@@ -854,6 +854,52 @@ export class TradingService {
       }
     }
 
+    // ═══════════════════════════════════════════════════════════════════
+    // V290: Block SYSTEM-originated MANUAL closes of Smart Executor positions
+    // before 6 hours.
+    //
+    // PROBLEM (June 19, 2026 data): 11 of 16 trades closed at exactly "4h 0m"
+    // with closeReason="Manual". The V237 guard above only blocks TIME_EXPIRED,
+    // not MANUAL. Some system component (old code on Railway, or a stale
+    // cron job) is sending closeReason="MANUAL" at 4h, bypassing the guard.
+    //
+    // Evidence:
+    //   - 11 trades closed at exactly "4h 0m" — too precise for user action
+    //   - All have closeReason="Manual"
+    //   - P&L from those 11 closes: +$1.91 (breakeven — winners not reaching TP)
+    //   - 5 SL hits: -$15.04 (all actual losses came from SL, not the 4h close)
+    //
+    // FIX: Block any non-USER MANUAL close of smart_executor positions
+    // before 6 hours. Real user closes (source='USER') always pass through.
+    // This forces the 4h-timer system (whatever it is) to either:
+    //   1. Wait until 6h (giving TP more time to hit), or
+    //   2. Use SL/TP closeReason (which is always allowed)
+    // ═══════════════════════════════════════════════════════════════════
+    const isManualCloseNonUser = isManualClose && !isUserInitiated;
+    if (isSmartExecutorPosition && isManualCloseNonUser) {
+      const holdingMs = position.openedAt
+        ? Date.now() - new Date(position.openedAt).getTime()
+        : 0;
+      const holdingHours = holdingMs / (60 * 60 * 1000);
+      const V290_SMART_EXECUTOR_MIN_HOURS = 6;
+
+      if (holdingHours < V290_SMART_EXECUTOR_MIN_HOURS) {
+        this.logger.error(
+          `🚨 V290 BLOCKED: Attempted MANUAL close of Smart Executor position ${position.id} (${position.symbol}) ` +
+          `at ${holdingHours.toFixed(1)}h — minimum is ${V290_SMART_EXECUTOR_MIN_HOURS}h. ` +
+          `source="${request.source || 'SYSTEM'}" — only USER-initiated closes are allowed before ${V290_SMART_EXECUTOR_MIN_HOURS}h. ` +
+          `This was likely triggered by old 4h-timer code still running.`
+        );
+        return {
+          order: null,
+          pnl: 0,
+          position,
+          blockedByV290: true,
+          blockedReason: `V290: Smart Executor MANUAL close at ${holdingHours.toFixed(1)}h blocked — minimum is ${V290_SMART_EXECUTOR_MIN_HOURS}h (let TP/SL work)`,
+        };
+      }
+    }
+
     // FIX: Optimistic locking — if another request already closed this position
     // between our read and the upcoming update, the version won't match and we'll
     // retry. This prevents double-close, duplicate EXIT trades, and PnL miscalculation.

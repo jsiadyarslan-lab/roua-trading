@@ -25,6 +25,10 @@ export interface ExecutionResult {
   userId?: string;
   error?: string;
   executedAt: Date;
+  // V290: Set when a brief was skipped (not executed) due to a safety filter
+  // (e.g. regime filter blocked BUY in BEAR market). The brief is marked
+  // CANCELLED in the DB and won't be retried.
+  skipped?: boolean;
 }
 
 export interface ExecutorConfig {

@@ -46,7 +46,13 @@ export interface CouncilResult {
   symbol?: string;
   consensusScore: number;
   recommendation: Recommendation;
-  confidence: number;
+  /**
+   * Overall council confidence. NOTE: The /api/ai/consensus endpoint does NOT
+   * return this field — it only returns `consensusScore`. Display logic should
+   * use `consensusScore` directly. This field is kept optional for any future
+   * endpoint that may produce a separate confidence metric.
+   */
+  confidence?: number;
   analyses: CouncilAnalysis[];
   masterStrategy: string;
   source?: string;

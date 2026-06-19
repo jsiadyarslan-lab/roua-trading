@@ -266,9 +266,9 @@ export default function CouncilPage() {
                 <div>
                   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
                     <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted }}>الثقة</span>
-                    <span style={{ fontSize:22, fontWeight:600, color:COLORS.textPrimary, fontFamily:'monospace' }}>{councilResult?`${councilResult.confidence}%`:'—'}</span>
+                    <span style={{ fontSize:22, fontWeight:600, color:COLORS.textPrimary, fontFamily:'monospace' }}>{councilResult?`${councilResult.consensusScore}%`:'—'}</span>
                   </div>
-                  <ConfidenceBar value={councilResult?.confidence ?? 0} color={councilResult?directionColor(councilResult.recommendation):COLORS.council} height={6} />
+                  <ConfidenceBar value={councilResult?.consensusScore ?? 0} color={councilResult?directionColor(councilResult.recommendation):COLORS.council} height={6} />
                 </div>
                 <motion.button whileTap={{ scale:0.98 }} onClick={fetchCouncil} disabled={councilLoading}
                   style={{ width:'100%', padding:'12px 18px', borderRadius:11, border:'none', cursor:councilLoading?'wait':'pointer', background:COLORS.gradientCouncil, color:'#0B0E14', fontWeight:600, fontSize:13, display:'inline-flex', alignItems:'center', justifyContent:'center', gap:8, boxShadow:`0 10px 30px -10px ${hexToRgba(COLORS.council,0.7)}` }}>

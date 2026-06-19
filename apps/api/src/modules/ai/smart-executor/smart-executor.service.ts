@@ -208,17 +208,21 @@ export class SmartExecutorService implements OnModuleDestroy {
       // ── STEP 3: Delete only EXPIRED TradingBriefs (not all) ──
       // Previous code deleted ALL briefs, but valid briefs should be kept
       // so the executor can continue working after a restart.
+      //
+      // V298: Don't delete isActive:false briefs — they're the history record.
+      // Previously, briefs were deleted as soon as they became inactive
+      // (executed/cancelled/expired), which wiped the council history table
+      // on every Railway restart. Now we only delete briefs that expired
+      // MORE THAN 7 DAYS AGO — keeping recent history visible to users.
       try {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
         const deletedBriefs = await this.prisma.tradingBrief.deleteMany({
           where: {
-            OR: [
-              { expiresAt: { lt: new Date() } },  // Expired briefs
-              { isActive: false },                  // Deactivated briefs
-            ],
+            expiresAt: { lt: sevenDaysAgo },  // Only briefs expired >7 days ago
           },
         });
         if (deletedBriefs.count > 0) {
-          this.logger.log(`⚔️ STARTUP: Purged ${deletedBriefs.count} expired TradingBrief(s) (preserving active ones)`);
+          this.logger.log(`⚔️ STARTUP: Purged ${deletedBriefs.count} TradingBrief(s) expired >7 days ago (keeping recent history)`);
         }
       } catch (briefErr: any) {
         this.logger.warn(`⚔️ Failed to purge expired TradingBrief records: ${briefErr.message}`);

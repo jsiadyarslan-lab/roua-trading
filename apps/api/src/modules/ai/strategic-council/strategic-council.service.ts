@@ -997,7 +997,7 @@ export class StrategicCouncilService {
   }
 
   /**
-   * Get brief history (including expired/cancelled/executed)
+   * Get brief history (including expired/cancelled/executed/active)
    * FIX: Added try-catch to prevent 503 errors when DB schema is out of sync.
    * Previously, if the TradingBrief table didn't have expected columns,
    * Prisma would throw and the controller would return 503.
@@ -1006,6 +1006,13 @@ export class StrategicCouncilService {
    * (outcomePips, outcomePct, closedAt, durationMs, result). This connects
    * the council's briefs to the actual trade results, so the council page's
    * history table shows real P&L instead of "—".
+   *
+   * V298: Return ALL briefs (active + inactive), not just inactive ones.
+   * Previously, the history endpoint appeared empty because all briefs in
+   * the DB were still isActive=true (they hadn't expired yet). Now we return
+   * every brief, ordered by createdAt desc, so the history table shows the
+   * full timeline. The reviewStatus badge (ACTIVE/MODIFIED/CANCELLED/EXECUTED)
+   * distinguishes them visually.
    */
   async getBriefHistory(userId?: string, limit: number = 100): Promise<TradingBriefDTO[]> {
     try {
@@ -2141,6 +2148,25 @@ export class StrategicCouncilService {
           },
         });
         this.logger.log(`🏛️ Deactivated ${expiredAndExecuted.length} EXPIRED+EXECUTED brief(s) (keeping non-expired active briefs for Smart Executor)`);
+      }
+
+      // V298: Also deactivate expired ACTIVE/MODIFIED briefs so they move
+      // from the "Active Briefs" section to the "History" section. Without
+      // this, expired briefs stayed isActive=true forever (the executor
+      // wouldn't re-execute them due to Redis dedup, but they cluttered
+      // the active list and never appeared in history).
+      const expiredActive = await this.prisma.tradingBrief.updateMany({
+        where: {
+          isActive: true,
+          expiresAt: { lt: now },
+          reviewStatus: { in: ['ACTIVE', 'MODIFIED'] },
+        },
+        data: {
+          isActive: false,
+        },
+      });
+      if (expiredActive.count > 0) {
+        this.logger.log(`🏛️ V298: Deactivated ${expiredActive.count} expired ACTIVE/MODIFIED brief(s) → moved to history`);
       }
     } catch (error: any) {
       this.logger.error(`Failed to mark executed briefs: ${error.message}`);

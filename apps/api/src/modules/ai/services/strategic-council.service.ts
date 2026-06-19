@@ -133,9 +133,15 @@ export class StrategicCouncilService {
       fi: 'Finnish (Suomi)', cs: 'Czech (Čeština)', hu: 'Hungarian (Magyar)',
       ro: 'Romanian (Română)', bn: 'Bengali (বাংলা)',
     };
-    const languageDirective = isExtendedLocale
-      ? `\n\n🌐 LANGUAGE DIRECTIVE: Respond ONLY in ${LANGUAGE_NAMES[language] || 'English'}. All analysis, reasoning, and explanations MUST be written in ${LANGUAGE_NAMES[language] || 'English'}. The role name in your response header may remain in English, but ALL prose must be in ${LANGUAGE_NAMES[language] || 'English'}. Do NOT mix languages.`
-      : '';
+    // V294: Language directive must be explicit for ALL locales, not just extended ones.
+    // Previously, when language='en', the directive was empty — so weaker models
+    // (Bedrock Nova Micro, some GLM versions) would respond in Arabic if any
+    // Arabic text leaked into the context (news, memory, regime labels).
+    // Now every locale gets an explicit "respond ONLY in X" directive.
+    const languageName = isExtendedLocale
+      ? (LANGUAGE_NAMES[language] || 'English')
+      : (language === 'ar' ? 'Arabic (العربية)' : 'English');
+    const languageDirective = `\n\n🌐 LANGUAGE DIRECTIVE: Respond ONLY in ${languageName}. All analysis, reasoning, and explanations MUST be written in ${languageName}. The role name in your response header may remain in English, but ALL prose must be in ${languageName}. Do NOT mix languages. If any text in the context is in another language, translate your analysis to ${languageName}.`;
 
     // ── Cache check (Redis only — in-memory disabled for consensus to prevent stale HOLD results) ──
     // V267: Cache key includes the language so a French user doesn't get an Arabic cached result.

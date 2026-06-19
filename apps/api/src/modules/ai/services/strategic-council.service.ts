@@ -643,18 +643,12 @@ export class StrategicCouncilService {
         // toggle, so 1500 chars gives the full reasoning without bloating
         // the JSON response.
         //
-        // V300: enforce output language — if the model returned Arabic when
-        // English was requested (or vice versa), replace with a clean
-        // fallback summary that preserves key data (prices, indicators,
-        // decision) in the correct language.
-        reason: (() => {
-          const enforced = enforceLanguage(content, language, name, symbol);
-          if (enforced.wasReplaced) {
-            this.logger.warn(`🌐 V300: Replaced ${name} output (wrong language) with ${language} fallback summary`);
-          }
-          const finalText = enforced.content;
-          return finalText.slice(0, 1500) + (finalText.length > 1500 ? '…' : '');
-        })(),
+        // V305: DISABLED enforceLanguage — it was replacing rich AI analysis
+        // with a mechanical data-extraction summary, destroying 90% of the
+        // reasoning. The real fix is V304: NVIDIA Llama 3.1 8B (which follows
+        // language directives properly) is now first in the fallback list.
+        // Trust the model's output as-is.
+        reason: content.slice(0, 1500) + (content.length > 1500 ? '…' : ''),
       });
     }
 
@@ -879,12 +873,8 @@ ${agentSummaries}`;
         }
 
         if (masterStrategy && masterStrategy.confidence > 0 && masterStrategy.content.length > 10) {
-          // V300: enforce language on masterStrategy too
-          const enforced = enforceLanguage(masterStrategy.content, language, 'Council Master', symbol);
-          if (enforced.wasReplaced) {
-            this.logger.warn(`🌐 V300: Replaced masterStrategy output (wrong language) with ${language} fallback`);
-          }
-          masterStrategyContent = enforced.content;
+          // V305: DISABLED enforceLanguage on masterStrategy too — trust the model.
+          masterStrategyContent = masterStrategy.content;
         }
       } catch {
         // Use the summary already set above

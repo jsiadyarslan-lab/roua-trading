@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   RefreshCw, TrendingUp, TrendingDown, Minus, Loader2, ChevronDown, ChevronUp,
@@ -19,11 +19,11 @@ import { CouncilSigil } from '@/components/council/CouncilSigil'
 import { FormattedText, LoadMoreButton } from '@/components/council/FormattedText'
 
 // ═══════════════════════════════════════
-// HELPERS
+// HELPERS — keys into the locale dictionary instead of hardcoded strings
 // ═══════════════════════════════════════
 
-const dirLabelAr: Record<string, string> = { BUY: 'شراء', SELL: 'بيع', HOLD: 'انتظار' }
-const stLabelAr: Record<string, string> = { ACTIVE: 'نشط', MODIFIED: 'مُعدّل', CANCELLED: 'ملغى', EXECUTED: 'منفّذ' }
+const dirLabelKey: Record<string, string> = { BUY: 'buy', SELL: 'sell', HOLD: 'hold' }
+const stLabelKey: Record<string, string> = { ACTIVE: 'stActive', MODIFIED: 'stModified', CANCELLED: 'stCancelled', EXECUTED: 'stExecuted' }
 const tfColor: Record<string, string> = { M1: COLORS.sell, M5: COLORS.hold, M15: COLORS.info, M30: '#3B82F6', H1: COLORS.council, H4: COLORS.council, D1: COLORS.buy, W1: COLORS.buy }
 
 // ═══════════════════════════════════════
@@ -32,6 +32,8 @@ const tfColor: Record<string, string> = { M1: COLORS.sell, M5: COLORS.hold, M15:
 
 export default function CouncilPage() {
   const locale = useLocale()
+  const t = useTranslations('councilPage')
+  const tc = useTranslations('common')
   const loc = (locale === 'ar' ? 'ar' : 'en') as 'ar' | 'en'
 
   const [activeBriefs, setActiveBriefs] = useState<TradingBrief[]>([])
@@ -125,7 +127,7 @@ export default function CouncilPage() {
   }), [historyBriefs])
 
   if (loading) return (
-    <SubPageLayout title="المجلس الاستراتيجي" icon="🏛️">
+    <SubPageLayout title={t('navLabel')} icon="🏛️">
       <div style={{ minHeight:'100vh', background:COLORS.bg, display:'flex', justifyContent:'center', alignItems:'center' }}>
         <CouncilSigil size={64} />
       </div>
@@ -133,7 +135,7 @@ export default function CouncilPage() {
   )
 
   return (
-    <SubPageLayout title="المجلس الاستراتيجي" icon="🏛️">
+    <SubPageLayout title={t('navLabel')} icon="🏛️">
       {/* Ambient background */}
       <div aria-hidden style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:0, overflow:'hidden' }}>
         <div style={{ position:'absolute', top:-200, insetInlineEnd:-150, width:600, height:600, background:`radial-gradient(circle, ${hexToRgba(COLORS.council,0.18)} 0%, transparent 60%)`, filter:'blur(40px)' }} />
@@ -151,22 +153,22 @@ export default function CouncilPage() {
             </div>
             <div>
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                <h1 style={{ fontSize:16, fontWeight:600, letterSpacing:'-0.015em', color:COLORS.textPrimary, margin:0, lineHeight:1 }}>المجلس الاستراتيجي</h1>
+                <h1 style={{ fontSize:16, fontWeight:600, letterSpacing:'-0.015em', color:COLORS.textPrimary, margin:0, lineHeight:1 }}>{t('navLabel')}</h1>
                 <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.council, padding:'2px 6px', borderRadius:4, background:hexToRgba(COLORS.council,0.12), border:`1px solid ${hexToRgba(COLORS.council,0.3)}` }}>v1</span>
               </div>
               <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:3 }}>
-                {activeBriefs.length} بريف نشط{lastSession ? ` · آخر جلسة ${relativeTime(lastSession.timestamp, loc)}` : ''}{sessionRunning ? ' · جاري التحليل...' : ''}
+                {activeBriefs.length} {t('activeBriefs')}{lastSession ? ` · ${t('lastSession')} ${relativeTime(lastSession.timestamp, loc)}` : ''}{sessionRunning ? ` · ${t('conveningCouncil')}` : ''}
               </div>
             </div>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
             <div style={{ display:'inline-flex', alignItems:'center', gap:7, padding:'8px 12px', borderRadius:10, background:sessionRunning?hexToRgba(COLORS.buy,0.08):'rgba(255,255,255,0.04)', border:`1px solid ${sessionRunning?hexToRgba(COLORS.buy,0.3):COLORS.border}`, fontSize:11, fontWeight:600, color:sessionRunning?COLORS.buy:COLORS.textMuted }}>
-              <LiveDot color={sessionRunning?COLORS.buy:COLORS.textDim} size={7} label={sessionRunning?'قيد التشغيل':'خامل'} />
+              <LiveDot color={sessionRunning?COLORS.buy:COLORS.textDim} size={7} label={sessionRunning?t('running'):t('idle')} />
             </div>
             <motion.button whileTap={{ scale:0.97 }} onClick={trigger} disabled={triggerLoading||sessionRunning}
               style={{ display:'inline-flex', alignItems:'center', gap:7, padding:'9px 14px', borderRadius:10, border:'none', cursor:triggerLoading||sessionRunning?'not-allowed':'pointer', background:triggerLoading||sessionRunning?'rgba(168,85,247,0.3)':COLORS.gradientCouncil, color:'#0B0E14', fontSize:12, fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase', boxShadow:`0 8px 24px -8px ${hexToRgba(COLORS.council,0.6)}` }}>
               {triggerLoading||sessionRunning ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} strokeWidth={2.75} />}
-              {sessionRunning ? 'جاري...' : 'تشغيل جلسة'}
+              {sessionRunning ? t('inProgress') : t('triggerSession')}
             </motion.button>
           </div>
         </div>
@@ -175,7 +177,7 @@ export default function CouncilPage() {
           <GlassCard style={{ padding:'12px 16px', borderColor:hexToRgba(COLORS.hold,0.3) }}>
             <div style={{ display:'flex', alignItems:'center', gap:10 }}>
               <AlertTriangle size={16} style={{ color:COLORS.hold }} />
-              <span style={{ fontSize:13, color:COLORS.hold }}>الخادم غير متاح</span>
+              <span style={{ fontSize:13, color:COLORS.hold }}>{t('serverUnavailable')}</span>
             </div>
           </GlassCard>
         )}
@@ -187,15 +189,15 @@ export default function CouncilPage() {
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 24px', borderBottom:`1px solid ${COLORS.border}`, flexWrap:'wrap', gap:12 }}>
               <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                 <div style={{ fontFamily:'monospace', fontSize:11, fontWeight:600, letterSpacing:'0.18em', color:COLORS.council, padding:'4px 9px', borderRadius:6, background:hexToRgba(COLORS.council,0.1), border:`1px solid ${hexToRgba(COLORS.council,0.25)}` }}>01 / VERDICT</div>
-                <div style={{ fontSize:11, fontWeight:500, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted }}>قرار المجلس · {selectedSymbol}</div>
+                <div style={{ fontSize:11, fontWeight:500, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted }}>{t('verdictEyebrow')} · {selectedSymbol}</div>
               </div>
               <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                 {councilResult?.isFallback && (
                   <div style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'4px 10px', borderRadius:999, background:hexToRgba(COLORS.hold,0.1), border:`1px solid ${hexToRgba(COLORS.hold,0.35)}`, color:COLORS.hold, fontSize:11, fontWeight:600 }}>
-                    <AlertTriangle size={12} /> وضع احتياطي
+                    <AlertTriangle size={12} /> {t('fallbackMode')}
                   </div>
                 )}
-                {councilResult && !councilResult.isFallback && <LiveDot color={COLORS.buy} label="مجلس مباشر" />}
+                {councilResult && !councilResult.isFallback && <LiveDot color={COLORS.buy} label={t('liveCouncil')} />}
               </div>
             </div>
 
@@ -222,31 +224,31 @@ export default function CouncilPage() {
                   </CircularProgress>
                 ) : (
                   <CircularProgress value={0} size={148} strokeWidth={10} color={COLORS.textDim}>
-                    <div style={{ fontSize:13, color:COLORS.textMuted, textAlign:'center', maxWidth:110 }}>{councilLoading ? 'عقد المجلس...' : 'اضغط تحليل'}</div>
+                    <div style={{ fontSize:13, color:COLORS.textMuted, textAlign:'center', maxWidth:110 }}>{councilLoading ? t('conveningCouncil') : t('analyze')}</div>
                   </CircularProgress>
                 )}
-                <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.textMuted, textAlign:'center' }}>الإجماع</div>
+                <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.textMuted, textAlign:'center' }}>{t('consensus')}</div>
               </div>
 
               {/* Recommendation */}
               <div style={{ display:'flex', flexDirection:'column', justifyContent:'center', padding:'32px 28px', borderInlineEnd:`1px solid ${COLORS.border}`, position:'relative', overflow:'hidden' }}>
                 <div aria-hidden style={{ position:'absolute', inset:0, background:`radial-gradient(ellipse 60% 80% at 30% 50%, ${hexToRgba(councilResult?directionColor(councilResult.recommendation):COLORS.council,0.18)} 0%, transparent 70%)`, pointerEvents:'none' }} />
                 <div style={{ position:'relative', zIndex:1 }}>
-                  <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.16em', textTransform:'uppercase', color:COLORS.textMuted, marginBottom:14 }}>التوصية</div>
+                  <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.16em', textTransform:'uppercase', color:COLORS.textMuted, marginBottom:14 }}>{t('recommendation')}</div>
                   {councilResult ? (
                     <motion.div key={councilResult.recommendation} initial={{ opacity:0, scale:0.94, y:6 }} animate={{ opacity:1, scale:1, y:0 }} transition={{ duration:0.5 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:12 }}>
                         <div style={{ width:52, height:52, borderRadius:13, background:councilResult.recommendation==='BUY'?COLORS.gradientBuy:councilResult.recommendation==='SELL'?COLORS.gradientSell:'linear-gradient(135deg,#F59E0B,#A855F7)', display:'flex', alignItems:'center', justifyContent:'center', color:'#0B0E14', boxShadow:`0 8px 24px -8px ${hexToRgba(directionColor(councilResult.recommendation),0.7)}` }}>
                           {councilResult.recommendation==='BUY'?<ArrowUpRight size={26} strokeWidth={2.75}/>:councilResult.recommendation==='SELL'?<ArrowDownRight size={26} strokeWidth={2.75}/>:<Minus size={26} strokeWidth={2.75}/>}
                         </div>
-                        <div style={{ fontSize:44, fontWeight:700, letterSpacing:'-0.03em', color:directionColor(councilResult.recommendation), lineHeight:1 }}>{dirLabelAr[councilResult.recommendation]}</div>
+                        <div style={{ fontSize:44, fontWeight:700, letterSpacing:'-0.03em', color:directionColor(councilResult.recommendation), lineHeight:1 }}>{t(dirLabelKey[councilResult.recommendation])}</div>
                       </div>
                       {/* Vote tally */}
                       <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                         {[
-                          { c:COLORS.buy, n:councilResult.analyses.filter(a=>a.vote==='BUY').length, l:'صاعد' },
-                          { c:COLORS.sell, n:councilResult.analyses.filter(a=>a.vote==='SELL').length, l:'هابط' },
-                          { c:COLORS.hold, n:councilResult.analyses.filter(a=>a.vote==='HOLD').length, l:'محايد' },
+                          { c:COLORS.buy, n:councilResult.analyses.filter(a=>a.vote==='BUY').length, l:t('bullish') },
+                          { c:COLORS.sell, n:councilResult.analyses.filter(a=>a.vote==='SELL').length, l:t('bearish') },
+                          { c:COLORS.hold, n:councilResult.analyses.filter(a=>a.vote==='HOLD').length, l:t('neutral') },
                         ].filter(v=>v.n>0).map((v,i) => (
                           <div key={i} style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'4px 10px', borderRadius:8, background:hexToRgba(v.c,0.1), border:`1px solid ${hexToRgba(v.c,0.3)}`, color:v.c, fontSize:11, fontWeight:600 }}>
                             <span style={{ width:6, height:6, borderRadius:'50%', background:v.c, boxShadow:`0 0 6px ${v.c}` }} />
@@ -256,7 +258,7 @@ export default function CouncilPage() {
                       </div>
                     </motion.div>
                   ) : (
-                    <div style={{ fontSize:18, color:COLORS.textMuted, fontStyle:'italic' }}>{councilLoading ? 'عقد المجلس...' : 'لا توجد جلسة بعد'}</div>
+                    <div style={{ fontSize:18, color:COLORS.textMuted, fontStyle:'italic' }}>{councilLoading ? t('conveningCouncil') : t('noSessionYet')}</div>
                   )}
                 </div>
               </div>
@@ -265,7 +267,7 @@ export default function CouncilPage() {
               <div style={{ padding:'32px 24px', display:'flex', flexDirection:'column', justifyContent:'center', gap:18 }}>
                 <div>
                   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-                    <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted }}>الثقة</span>
+                    <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted }}>{t('colConfidence')}</span>
                     <span style={{ fontSize:22, fontWeight:600, color:COLORS.textPrimary, fontFamily:'monospace' }}>{councilResult?`${councilResult.consensusScore}%`:'—'}</span>
                   </div>
                   <ConfidenceBar value={councilResult?.consensusScore ?? 0} color={councilResult?directionColor(councilResult.recommendation):COLORS.council} height={6} />
@@ -273,7 +275,7 @@ export default function CouncilPage() {
                 <motion.button whileTap={{ scale:0.98 }} onClick={fetchCouncil} disabled={councilLoading}
                   style={{ width:'100%', padding:'12px 18px', borderRadius:11, border:'none', cursor:councilLoading?'wait':'pointer', background:COLORS.gradientCouncil, color:'#0B0E14', fontWeight:600, fontSize:13, display:'inline-flex', alignItems:'center', justifyContent:'center', gap:8, boxShadow:`0 10px 30px -10px ${hexToRgba(COLORS.council,0.7)}` }}>
                   <RefreshCw size={14} strokeWidth={2.5} className={councilLoading?'animate-spin':''} />
-                  {councilLoading ? 'عقد المجلس...' : 'تحليل'}
+                  {councilLoading ? t('conveningCouncil') : t('analyze')}
                 </motion.button>
               </div>
             </div>
@@ -283,7 +285,7 @@ export default function CouncilPage() {
               <div style={{ padding:'22px 24px', borderTop:`1px solid ${COLORS.border}`, background:'rgba(0,0,0,0.18)' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
                   <div style={{ width:26, height:26, borderRadius:7, background:COLORS.gradientCouncil, display:'flex', alignItems:'center', justifyContent:'center', color:'#0B0E14' }}><Sparkles size={13} strokeWidth={2.5} /></div>
-                  <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.16em', textTransform:'uppercase', color:COLORS.council }}>الاستراتيجية الموحّدة</div>
+                  <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.16em', textTransform:'uppercase', color:COLORS.council }}>{t('unifiedStrategy')}</div>
                   <div style={{ flex:1, height:1, background:`linear-gradient(90deg, ${hexToRgba(COLORS.council,0.4)}, transparent)` }} />
                 </div>
                 <FormattedText
@@ -301,9 +303,9 @@ export default function CouncilPage() {
           {councilResult?.analyses && councilResult.analyses.length > 0 && (
             <div style={{ marginTop:20 }}>
               <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
-                <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.16em', textTransform:'uppercase', color:COLORS.council }}>أصوات المجلس</div>
+                <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.16em', textTransform:'uppercase', color:COLORS.council }}>{t('councilVotes')}</div>
                 <div style={{ flex:1, height:1, background:`linear-gradient(90deg, ${hexToRgba(COLORS.council,0.3)}, transparent)` }} />
-                <div style={{ fontSize:11, color:COLORS.textMuted, fontFamily:'monospace' }}>{councilResult.analyses.length} أعضاء</div>
+                <div style={{ fontSize:11, color:COLORS.textMuted, fontFamily:'monospace' }}>{councilResult.analyses.length} {t('members')}</div>
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:14 }}>
                 {councilResult.analyses.map((a, i) => {
@@ -318,7 +320,7 @@ export default function CouncilPage() {
                           </div>
                           <div style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'4px 8px', borderRadius:7, background:hexToRgba(dc,0.12), border:`1px solid ${hexToRgba(dc,0.35)}`, color:dc, fontSize:11, fontWeight:700, textTransform:'uppercase', flexShrink:0 }}>
                             {a.vote==='BUY'?<ArrowUpRight size={14} strokeWidth={2.5}/>:a.vote==='SELL'?<ArrowDownRight size={14} strokeWidth={2.5}/>:<Minus size={14} strokeWidth={2.5}/>}
-                            {dirLabelAr[a.vote]}
+                            {t(dirLabelKey[a.vote])}
                           </div>
                         </div>
                         <div style={{ padding:'12px 14px' }}>
@@ -349,11 +351,11 @@ export default function CouncilPage() {
 
         {/* ═══ SECTION 2: ACTIVE BRIEFS ═══ */}
         <section>
-          <SectionHeader index="02" eyebrow="توجيهات تداول مباشرة" title="البريفات النشطة" right={<LiveDot color={isAutoRefreshing?COLORS.buy:COLORS.textDim} label="تحديث تلقائي · 30ث" />} />
+          <SectionHeader index="02" eyebrow={t('section2Eyebrow')} title={t('activeBriefs')} right={<LiveDot color={isAutoRefreshing?COLORS.buy:COLORS.textDim} label={`${t('autoRefresh')} · 30s`} />} />
           <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
             {(['ALL','BUY','SELL'] as const).map(d => (
               <motion.button key={d} whileTap={{ scale:0.96 }} onClick={()=>setFilterDir(d)} style={{ padding:'8px 14px', borderRadius:9, border:`1px solid ${filterDir===d?hexToRgba(d==='ALL'?COLORS.council:directionColor(d),0.4):COLORS.border}`, background:filterDir===d?hexToRgba(d==='ALL'?COLORS.council:directionColor(d),0.12):'rgba(255,255,255,0.025)', color:filterDir===d?(d==='ALL'?COLORS.council:directionColor(d)):COLORS.textMuted, fontSize:12, fontWeight:600, textTransform:'uppercase', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:8 }}>
-                {d==='ALL'?'الكل':d==='BUY'?'▲ شراء':'▼ بيع'}
+                {d==='ALL'?t('all'):d==='BUY'?`▲ ${t('buy')}`:`▼ ${t('sell')}`}
                 <span style={{ fontSize:11, padding:'1px 6px', borderRadius:5, background:filterDir===d?hexToRgba(d==='ALL'?COLORS.council:directionColor(d),0.18):'rgba(255,255,255,0.06)', fontFamily:'monospace', fontWeight:700 }}>{d==='ALL'?activeBriefs.length:activeBriefs.filter(b=>b.direction===d).length}</span>
               </motion.button>
             ))}
@@ -361,21 +363,21 @@ export default function CouncilPage() {
           {fActive.length===0 ? (
             <GlassCard padding={40} style={{ textAlign:'center' }}>
               <div style={{ width:56, height:56, borderRadius:14, margin:'0 auto 16px', background:hexToRgba(COLORS.council,0.08), border:`1px solid ${hexToRgba(COLORS.council,0.2)}`, display:'flex', alignItems:'center', justifyContent:'center' }}><Sparkles size={24} color={COLORS.council} /></div>
-              <div style={{ fontSize:16, fontWeight:600, color:COLORS.textPrimary, marginBottom:6 }}>لا توجد بريفات نشطة</div>
-              <div style={{ fontSize:13, color:COLORS.textMuted }}>المجلس يراقب الأسواق. ستظهر التوجيهات الجديدة هنا.</div>
+              <div style={{ fontSize:16, fontWeight:600, color:COLORS.textPrimary, marginBottom:6 }}>{t('noActiveBriefs')}</div>
+              <div style={{ fontSize:13, color:COLORS.textMuted }}>{t('councilWatchingMarkets')}</div>
             </GlassCard>
           ) : (
             <>
               <motion.div layout style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(340px, 1fr))', gap:16 }}>
                 <AnimatePresence mode="popLayout">
-                  {visibleActive.map((brief, i) => <BriefCard key={brief.id} brief={brief} loc={loc} index={i} expanded={expandedBrief===brief.id} onToggle={()=>setExpandedBrief(expandedBrief===brief.id?null:brief.id)} />)}
+                  {visibleActive.map((brief, i) => <BriefCard key={brief.id} brief={brief} loc={loc} index={i} expanded={expandedBrief===brief.id} onToggle={()=>setExpandedBrief(expandedBrief===brief.id?null:brief.id)} t={t} />)}
                 </AnimatePresence>
               </motion.div>
               <LoadMoreButton
                 count={visibleActive.length}
                 total={fActive.length}
                 onClick={() => setActiveLimit(l => l + PAGE_SIZE_ACTIVE)}
-                moreLabel="تحميل المزيد من الإشارات"
+                moreLabel={t('loadMoreSignals')}
                 accent={COLORS.council}
               />
             </>
@@ -386,25 +388,25 @@ export default function CouncilPage() {
         <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.3fr) minmax(0,1fr)', gap:32, alignItems:'start' }} className="council-bottom-grid">
           {/* History */}
           <section>
-            <SectionHeader index="03" eyebrow="البريفات السابقة ونتائجها" title="سجل الجلسات" />
+            <SectionHeader index="03" eyebrow={t('section3Eyebrow')} title={t('sessionLog')} />
             <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
               {(['ALL','EXECUTED','MODIFIED','CANCELLED'] as const).map(s => (
                 <button key={s} onClick={()=>setFilterStatus(s)} style={{ padding:'6px 12px', borderRadius:8, border:`1px solid ${filterStatus===s?hexToRgba(s==='ALL'?COLORS.council:statusColor(s),0.4):COLORS.border}`, background:filterStatus===s?hexToRgba(s==='ALL'?COLORS.council:statusColor(s),0.12):'rgba(255,255,255,0.025)', color:filterStatus===s?(s==='ALL'?COLORS.council:statusColor(s)):COLORS.textMuted, fontSize:11, fontWeight:600, textTransform:'uppercase', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:7 }}>
-                  {s==='ALL'?'الكل':stLabelAr[s]}
+                  {s==='ALL'?t('all'):t(stLabelKey[s])}
                   <span style={{ fontSize:11, padding:'1px 5px', borderRadius:4, background:filterStatus===s?hexToRgba(s==='ALL'?COLORS.council:statusColor(s),0.18):'rgba(255,255,255,0.06)', fontFamily:'monospace', fontWeight:700 }}>{s==='ALL'?historyBriefs.length:historyBriefs.filter(b=>b.reviewStatus===s).length}</span>
                 </button>
               ))}
             </div>
             {fHistory.length===0 ? (
               <GlassCard padding={36} style={{ textAlign:'center' }}>
-                <div style={{ fontSize:14, fontWeight:600, color:COLORS.textPrimary, marginBottom:4 }}>لا يوجد سجل بعد</div>
-                <div style={{ fontSize:12, color:COLORS.textMuted }}>ستظهر قرارات المجلس السابقة هنا</div>
+                <div style={{ fontSize:14, fontWeight:600, color:COLORS.textPrimary, marginBottom:4 }}>{t('noHistory')}</div>
+                <div style={{ fontSize:12, color:COLORS.textMuted }}>{t('historyWillAppear')}</div>
               </GlassCard>
             ) : (
               <>
                 <GlassCard padding={12} style={{ overflow:'hidden', minWidth:540 }}>
                   <div style={{ display:'grid', gridTemplateColumns:'minmax(110px,1.1fr) 60px 70px 80px 110px 90px', gap:12, padding:'8px 14px 10px', fontSize:11, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.textMuted, borderBottom:`1px solid ${COLORS.border}` }}>
-                    <div>الزوج</div><div>اتجاه</div><div>دخول</div><div>ثقة</div><div>حالة</div><div style={{ textAlign:'right' }}>نتيجة</div>
+                    <div>{t('colPair')}</div><div>{t('colDirection')}</div><div>{t('colEntry')}</div><div>{t('colConfidence')}</div><div>{t('colStatus')}</div><div style={{ textAlign:'right' }}>{t('colOutcome')}</div>
                   </div>
                   <div style={{ display:'flex', flexDirection:'column', gap:6, marginTop:6, maxHeight:520, overflowY:'auto', paddingRight:4 }}>
                     {visibleHistory.map((b, i) => {
@@ -425,7 +427,7 @@ export default function CouncilPage() {
                               <div style={{ fontSize:11, color:COLORS.textMuted, fontFamily:'monospace' }}>{b.timeframe}</div>
                             </div>
                           </div>
-                          <div style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', color:dc }}>{dirLabelAr[b.direction]}</div>
+                          <div style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', color:dc }}>{t(dirLabelKey[b.direction])}</div>
                           <div style={{ fontSize:12, color:COLORS.textSecondary, fontFamily:'monospace' }}>{formatPrice(b.entryPrice)}</div>
                           <div style={{ display:'flex', alignItems:'center', gap:7 }}>
                             <div style={{ width:40, height:4, borderRadius:999, background:'rgba(255,255,255,0.06)', overflow:'hidden' }}>
@@ -435,7 +437,7 @@ export default function CouncilPage() {
                           </div>
                           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                             {b.reviewStatus==='EXECUTED'?<CheckCircle2 size={14} color={statusColor(b.reviewStatus)} strokeWidth={2.5}/>:b.reviewStatus==='CANCELLED'?<XCircle size={14} color={statusColor(b.reviewStatus)} strokeWidth={2.5}/>:<RefreshCw size={14} color={statusColor(b.reviewStatus)} strokeWidth={2.5}/>}
-                            <StatusPill status={b.reviewStatus} label={stLabelAr[b.reviewStatus]} />
+                            <StatusPill status={b.reviewStatus} label={t(stLabelKey[b.reviewStatus])} />
                           </div>
                           <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2 }}>
                             {b.outcomePips !== undefined ? (
@@ -452,7 +454,7 @@ export default function CouncilPage() {
                   count={visibleHistory.length}
                   total={fHistory.length}
                   onClick={() => setHistoryLimit(l => l + PAGE_SIZE_HISTORY)}
-                  moreLabel="تحميل المزيد من السجل"
+                  moreLabel={t('loadMoreHistory')}
                   accent={COLORS.info}
                 />
               </>
@@ -461,20 +463,20 @@ export default function CouncilPage() {
 
           {/* Performance */}
           <section>
-            <SectionHeader index="04" eyebrow="مقاييس الذكاء المجمّع" title="أداء المجلس" />
+            <SectionHeader index="04" eyebrow={t('section4Eyebrow')} title={t('councilPerformance')} />
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:14, marginBottom:16 }}>
-              <StatTile label="إجمالي البريفات" value={perf.total} sub={`${perf.total>0?Math.round(perf.executed/perf.total*100):0}% معدل التنفيذ`} accent={COLORS.council} icon={<Briefcase size={15} />} />
-              <StatTile label="منفّذة" value={perf.executed} accent={COLORS.buy} icon={<CheckCircle2 size={15} />} />
-              <StatTile label="ملغاة" value={perf.cancelled} accent={COLORS.sell} icon={<XCircle size={15} />} />
-              <StatTile label="معدّلة" value={perf.modified} accent={COLORS.hold} icon={<RefreshCw size={15} />} />
+              <StatTile label={t('totalBriefs')} value={perf.total} sub={`${perf.total>0?Math.round(perf.executed/perf.total*100):0}% ${t('executionRate')}`} accent={COLORS.council} icon={<Briefcase size={15} />} />
+              <StatTile label={t('executed')} value={perf.executed} accent={COLORS.buy} icon={<CheckCircle2 size={15} />} />
+              <StatTile label={t('cancelled')} value={perf.cancelled} accent={COLORS.sell} icon={<XCircle size={15} />} />
+              <StatTile label={t('modified')} value={perf.modified} accent={COLORS.hold} icon={<RefreshCw size={15} />} />
             </div>
             {/* Distribution */}
             <GlassCard padding={20} style={{ marginBottom:16 }}>
               <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
                 <div style={{ width:28, height:28, borderRadius:8, background:hexToRgba(COLORS.council,0.12), border:`1px solid ${hexToRgba(COLORS.council,0.3)}`, color:COLORS.council, display:'flex', alignItems:'center', justifyContent:'center' }}><Layers size={15} /></div>
                 <div>
-                  <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted }}>نسبة الشراء / البيع</div>
-                  <div style={{ fontSize:15, fontWeight:600, color:COLORS.textPrimary, marginTop:2 }}>توزيع الاتجاه</div>
+                  <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted }}>{t('buyVsSellRatio')}</div>
+                  <div style={{ fontSize:15, fontWeight:600, color:COLORS.textPrimary, marginTop:2 }}>{t('directionDistribution')}</div>
                 </div>
               </div>
               {historyBriefs.length > 0 ? (
@@ -491,9 +493,9 @@ export default function CouncilPage() {
                   </div>
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
                     {[
-                      { l:'شراء', n:perf.buy, c:COLORS.buy },
-                      { l:'بيع', n:perf.sell, c:COLORS.sell },
-                      { l:'انتظار', n:historyBriefs.length-perf.buy-perf.sell, c:COLORS.hold },
+                      { l:t('buy'), n:perf.buy, c:COLORS.buy },
+                      { l:t('sell'), n:perf.sell, c:COLORS.sell },
+                      { l:t('hold'), n:historyBriefs.length-perf.buy-perf.sell, c:COLORS.hold },
                     ].map((v,i) => (
                       <div key={i} style={{ padding:'10px 12px', borderRadius:9, background:hexToRgba(v.c,0.07), border:`1px solid ${hexToRgba(v.c,0.2)}` }}>
                         <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:4 }}>
@@ -517,24 +519,24 @@ export default function CouncilPage() {
                   <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                     <div style={{ width:28, height:28, borderRadius:8, background:hexToRgba(COLORS.info,0.12), border:`1px solid ${hexToRgba(COLORS.info,0.3)}`, color:COLORS.info, display:'flex', alignItems:'center', justifyContent:'center' }}><Activity size={15} /></div>
                     <div>
-                      <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted }}>آخر جلسة</div>
+                      <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted }}>{t('lastSession')}</div>
                       <div style={{ fontSize:13, color:COLORS.textSecondary, marginTop:2, display:'flex', alignItems:'center', gap:5 }}>
                         <Calendar size={11} /> {relativeTime(lastSession.timestamp, loc)}
                       </div>
                     </div>
                   </div>
                   <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 9px', borderRadius:999, background:hexToRgba(COLORS.buy,0.1), border:`1px solid ${hexToRgba(COLORS.buy,0.3)}`, color:COLORS.buy, fontSize:11, fontWeight:600 }}>
-                    <Sparkles size={11} /> مباشر
+                    <Sparkles size={11} /> {t('liveCouncil')}
                   </div>
                 </div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                   {[
-                    { i:<Layers size={13}/>, l:'أزواج محلّلة', v:lastSession.pairsAnalyzed, c:COLORS.council },
-                    { i:<Briefcase size={13}/>, l:'بريفات صادرة', v:lastSession.briefsIssued, c:COLORS.info },
-                    { i:<RefreshCw size={13}/>, l:'معدّلة', v:lastSession.briefsModified, c:COLORS.hold },
-                    { i:<XCircle size={13}/>, l:'ملغاة', v:lastSession.briefsCancelled, c:COLORS.sell },
-                    { i:<CheckCircle2 size={13}/>, l:'منفّذة', v:lastSession.briefsExecuted||0, c:COLORS.buy },
-                    { i:<Clock size={13}/>, l:'المدة', v:formatDuration(lastSession.durationMs, loc), c:COLORS.textSecondary },
+                    { i:<Layers size={13}/>, l:t('pairsAnalyzed'), v:lastSession.pairsAnalyzed, c:COLORS.council },
+                    { i:<Briefcase size={13}/>, l:t('briefsIssued'), v:lastSession.briefsIssued, c:COLORS.info },
+                    { i:<RefreshCw size={13}/>, l:t('modified'), v:lastSession.briefsModified, c:COLORS.hold },
+                    { i:<XCircle size={13}/>, l:t('cancelled'), v:lastSession.briefsCancelled, c:COLORS.sell },
+                    { i:<CheckCircle2 size={13}/>, l:t('executed'), v:lastSession.briefsExecuted||0, c:COLORS.buy },
+                    { i:<Clock size={13}/>, l:t('duration'), v:formatDuration(lastSession.durationMs, loc), c:COLORS.textSecondary },
                   ].map((s,i) => (
                     <div key={i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'11px 13px', borderRadius:10, background:'rgba(255,255,255,0.025)', border:`1px solid ${COLORS.border}` }}>
                       <div style={{ display:'flex', alignItems:'center', gap:9 }}>
@@ -552,7 +554,7 @@ export default function CouncilPage() {
 
         {/* Footer */}
         <footer style={{ marginTop:24, paddingTop:24, borderTop:`1px solid ${COLORS.border}`, display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
-          <div style={{ fontSize:11, color:COLORS.textDim }}>أول منصة تداول بمجلس ذكاء اصطناعي في العالم · المجلس الاستراتيجي</div>
+          <div style={{ fontSize:11, color:COLORS.textDim }}>{t('footerTagline')} · {t('footerSubline')}</div>
           <div style={{ fontSize:11, color:COLORS.textDim, fontFamily:'monospace' }}>
             <span style={{ color:COLORS.council }}>●</span> Council v1.0 · {SYMBOLS.length} symbols · 8 AI agents
           </div>
@@ -575,8 +577,9 @@ export default function CouncilPage() {
 // BRIEF CARD
 // ═══════════════════════════════════════
 
-function BriefCard({ brief, loc, index, expanded, onToggle }: {
+function BriefCard({ brief, loc, index, expanded, onToggle, t }: {
   brief: TradingBrief; loc: 'ar'|'en'; index: number; expanded: boolean; onToggle: () => void
+  t: (key: string) => string
 }) {
   const dc = directionColor(brief.direction)
   const dirSoft = directionSoft(brief.direction)
@@ -610,7 +613,7 @@ function BriefCard({ brief, loc, index, expanded, onToggle }: {
           </div>
           <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'7px 12px', borderRadius:9, background:dirSoft, border:`1px solid ${hexToRgba(dc,0.4)}`, color:dc, fontSize:12, fontWeight:700, textTransform:'uppercase', flexShrink:0, boxShadow:`0 4px 12px -4px ${hexToRgba(dc,0.4)}` }}>
             {brief.direction==='BUY'?<TrendingUp size={13} strokeWidth={2.5}/>:<TrendingDown size={13} strokeWidth={2.5}/>}
-            {dirLabelAr[brief.direction]}
+            {t(dirLabelKey[brief.direction])}
           </div>
         </div>
 
@@ -668,11 +671,11 @@ function BriefCard({ brief, loc, index, expanded, onToggle }: {
               <Gauge size={12} /> <span style={{ textTransform:'uppercase', fontWeight:500 }}>عائد/مخاطرة</span> <span style={{ color:COLORS.info, fontWeight:600 }}>{rr.toFixed(2)}</span>
             </div>
             <div style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:11, color:COLORS.textMuted, fontFamily:'monospace' }}>
-              <Timer size={12} /> <span style={{ textTransform:'uppercase', fontWeight:500 }}>انتهاء</span> <span style={{ color:isExpired?COLORS.sell:remainingMs<3600000?COLORS.hold:COLORS.textSecondary, fontWeight:600 }}>{isExpired?'منتهي':formatCountdown(remainingMs, loc)}</span>
+              <Timer size={12} /> <span style={{ textTransform:'uppercase', fontWeight:500 }}>{t('expires')}</span> <span style={{ color:isExpired?COLORS.sell:remainingMs<3600000?COLORS.hold:COLORS.textSecondary, fontWeight:600 }}>{isExpired?t('expired'):formatCountdown(remainingMs, loc)}</span>
             </div>
           </div>
           <motion.button onClick={onToggle} whileTap={{ scale:0.97 }} whileHover={{ y:-1 }} style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'7px 13px', borderRadius:9, background:expanded?hexToRgba(COLORS.council,0.1):'rgba(255,255,255,0.04)', border:`1px solid ${expanded?hexToRgba(COLORS.council,0.35):COLORS.border}`, color:expanded?COLORS.council:COLORS.textSecondary, fontSize:11, fontWeight:600, cursor:'pointer', letterSpacing:'0.04em' }}>
-            {expanded?'إخفاء التفاصيل':'عرض التفاصيل'} <motion.span animate={{ rotate:expanded?180:0 }} transition={{ duration:0.25 }}><ChevronDown size={13} strokeWidth={2.5} /></motion.span>
+            {expanded?t('hideDetails'):t('showDetails')} <motion.span animate={{ rotate:expanded?180:0 }} transition={{ duration:0.25 }}><ChevronDown size={13} strokeWidth={2.5} /></motion.span>
           </motion.button>
         </div>
 

@@ -344,6 +344,7 @@ export class StrategicCouncilService {
         consensusData.recommendation,
         consensusData.consensusScore,
         totalModels,
+        !!predictionMarketVote,
       );
 
       // ── Final adjustments for edge cases ──
@@ -729,6 +730,7 @@ export class StrategicCouncilService {
     recommendation: 'BUY' | 'SELL' | 'HOLD',
     consensusScore: number,
     totalModels: number,
+    hasPredictionMarketVote: boolean,
   ): Promise<string> {
     // Build default summary
     const recLabel = language === 'en'
@@ -758,29 +760,31 @@ export class StrategicCouncilService {
         const strategyPrompt = language === 'en'
           ? `You are the Council Master synthesizing the final trading strategy for ${symbol}.
 
-Eight AI council agents have analyzed this market. Their individual votes, confidence levels, and — most importantly — their specific reasoning are below. Your job is to write a CONCISE (4-6 sentences, max 200 words) synthesis that:
+${totalModels} council members have analyzed this market — 8 AI agents${hasPredictionMarketVote ? ' + 1 prediction market vote (Polymarket, real-money forecasting data)' : ''}. Their individual votes, confidence levels, and — most importantly — their specific reasoning are below. Your job is to write a CONCISE (4-6 sentences, max 200 words) synthesis that:
 
 1. Names the SPECIFIC reasons agents gave (price levels, indicator values, news events, divergence types) — DO NOT use generic phrases like "technical indicators point down" or "negative sentiment persists".
-2. Quantifies the consensus: "7 of 8 agents voted SELL with avg confidence 76%".
+2. Quantifies the consensus: "${analyses.filter(a => a.vote === recommendation).length} of ${analyses.length} members voted ${recommendation} with avg confidence ${Math.round(analyses.filter(a => a.vote === recommendation).reduce((s, a) => s + a.confidence, 0) / Math.max(1, analyses.filter(a => a.vote === recommendation).length))}%".
 3. Identifies the dissenting view (if any) and explains why it was overruled.
-4. Closes with ONE actionable condition that would invalidate this signal (e.g., "Invalidation: 4H close above $0.55").
+4. If a prediction market vote is present, explicitly contrast it with the AI consensus (e.g., "Prediction markets disagree, pricing 62% probability of upside — overridden because...").
+5. Closes with ONE actionable condition that would invalidate this signal (e.g., "Invalidation: 4H close above $0.55").
 
 Output in English. Output only the synthesis, no preamble.
 
-AGENT ANALYSES:
+COUNCIL ANALYSES:
 ${agentSummaries}`
           : `أنت رئيس المجلس، توّلِف الاستراتيجية النهائية للتداول على ${symbol}.
 
-ثمانية وكلاء ذكاء اصطناعي حللوا هذا السوق. أصواتهم، نسب ثقتهم، و—الأهم—أسبابهم المحددة مدرجة أدناه. مهمتك: اكتب تركيباً موجزاً (4-6 جمل، بحد أقصى 200 كلمة) يقوم بـ:
+${totalModels} أعضاء حللوا هذا السوق — 8 وكلاء ذكاء اصطناعي${hasPredictionMarketVote ? ' + 1 صوت سوق تنبؤي (Polymarket، بيانات توقعات بأموال حقيقية)' : ''}. أصواتهم، نسب ثقتهم، و—الأهم—أسبابهم المحددة مدرجة أدناه. مهمتك: اكتب تركيباً موجزاً (4-6 جمل، بحد أقصى 200 كلمة) يقوم بـ:
 
 1. ذكر الأسباب المحددة التي أعطاها الوكلاء (مستويات السعر، قيم المؤشرات، الأحداث الإخبارية، أنواع التباين) — لا تستخدم عبارات عامة مثل "تشير المؤشرات الفنية للهبوط" أو "المشاعر السلبية مستمرة".
-2. تحديد الإجماع كمياً: "7 من 8 وكلاء صوتوا للبيع بمتوسط ثقة 76%".
+2. تحديد الإجماع كمياً: "${analyses.filter(a => a.vote === recommendation).length} من ${analyses.length} أعضاء صوتوا ${recommendation === 'BUY' ? 'للشراء' : recommendation === 'SELL' ? 'للبيع' : 'للانتظار'} بمتوسط ثقة ${Math.round(analyses.filter(a => a.vote === recommendation).reduce((s, a) => s + a.confidence, 0) / Math.max(1, analyses.filter(a => a.vote === recommendation).length))}%".
 3. تحديد الرأي المخالف (إن وُجد) وشرح لماذا تم تجاوزه.
-4. الختام بشرط واحد قابل للتنفيذ يُبطل هذه الإشارة (مثلاً: "إبطال الإشارة: إغلاق 4 ساعات فوق 0.55$").
+4. إن وُجد صوت سوق تنبؤي، اذكر صراحةً تعارضه أو توافقه مع إجماع الـ AI (مثلاً: "أسواق التنبؤ تعارض، تسعّر 62% احتمال صعود — تم تجاوزه لأن...").
+5. الختام بشرط واحد قابل للتنفيذ يُبطل هذه الإشارة (مثلاً: "إبطال الإشارة: إغلاق 4 ساعات فوق 0.55$").
 
 اكتب بالعربية. اكتب التركيب فقط، بدون مقدمة.
 
-تحليلات الوكلاء:
+تحليلات المجلس:
 ${agentSummaries}`;
 
         // Try multiple models for master strategy generation

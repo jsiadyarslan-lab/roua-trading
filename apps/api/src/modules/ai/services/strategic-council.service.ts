@@ -11,6 +11,7 @@ import { MarketRegimeService } from '../council-intelligence/market-regime.servi
 import { SystemMemoryService } from '../council-intelligence/system-memory.service';
 import { CouncilVoteAccuracyService } from '../council-intelligence/council-vote-accuracy.service';
 import { SmartModelRouter } from './smart-model-router.service';
+import { enforceLanguage } from './language-enforcer';
 
 /**
  * Consensus Analysis result — returned by the AI Council
@@ -640,7 +641,19 @@ export class StrategicCouncilService {
         // FormattedText component handles long content with a "show more"
         // toggle, so 1500 chars gives the full reasoning without bloating
         // the JSON response.
-        reason: content.slice(0, 1500) + (content.length > 1500 ? '…' : ''),
+        //
+        // V300: enforce output language — if the model returned Arabic when
+        // English was requested (or vice versa), replace with a clean
+        // fallback summary that preserves key data (prices, indicators,
+        // decision) in the correct language.
+        reason: (() => {
+          const enforced = enforceLanguage(content, language, name, symbol);
+          if (enforced.wasReplaced) {
+            this.logger.warn(`🌐 V300: Replaced ${name} output (wrong language) with ${language} fallback summary`);
+          }
+          const finalText = enforced.content;
+          return finalText.slice(0, 1500) + (finalText.length > 1500 ? '…' : '');
+        })(),
       });
     }
 
@@ -865,7 +878,12 @@ ${agentSummaries}`;
         }
 
         if (masterStrategy && masterStrategy.confidence > 0 && masterStrategy.content.length > 10) {
-          masterStrategyContent = masterStrategy.content;
+          // V300: enforce language on masterStrategy too
+          const enforced = enforceLanguage(masterStrategy.content, language, 'Council Master', symbol);
+          if (enforced.wasReplaced) {
+            this.logger.warn(`🌐 V300: Replaced masterStrategy output (wrong language) with ${language} fallback`);
+          }
+          masterStrategyContent = enforced.content;
         }
       } catch {
         // Use the summary already set above

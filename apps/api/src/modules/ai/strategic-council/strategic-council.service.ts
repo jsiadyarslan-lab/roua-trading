@@ -334,7 +334,8 @@ export class StrategicCouncilService {
             for (const tf of AGENT_TIMEFRAMES as any[]) {
               // Slow timeframes (H4, D1, W1): only top 3 pairs to reduce AI costs
               if (AGENT_SLOW_TIMEFRAMES.includes(tf as any) && agentPairs.indexOf(pair) >= 3) continue;
-              await this._analyzePairTimeframe(pair, tf, marketData.price, { pairs: 0, briefs: 0, errors: 0, sessionId: 'agent-session', durationMs: 0 } as any);
+              // V306: Agent session also generates briefs in English (global default)
+              await this._analyzePairTimeframe(pair, tf, marketData.price, { pairs: 0, briefs: 0, errors: 0, sessionId: 'agent-session', durationMs: 0 } as any, 'en');
               pairResult.briefs++;
             }
             pairResult.pairs = 1;
@@ -534,7 +535,13 @@ export class StrategicCouncilService {
           }
 
           try {
-            await this._analyzePair(pair, result);
+            // V306: Generate briefs in English (lingua franca for trading).
+            // Briefs are global — they're shown to users in all 32 locales.
+            // Generating in Arabic (the old default) locked all non-Arabic
+            // users into reading Arabic analysis they couldn't understand.
+            // English is the universal trading language; browsers can
+            // auto-translate for users who need it.
+            await this._analyzePair(pair, result, 'en');
             return { analyzed: true };
           } catch (error: any) {
             if (error.message?.includes('Too many database connections') || error.message?.includes('connection pool')) {

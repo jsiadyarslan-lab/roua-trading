@@ -596,7 +596,14 @@ export class StrategicCouncilService {
         model: response.model,
         vote,
         confidence: Math.round(conf * 100),
-        reason: content.slice(0, 300) + '...',
+        // V286: raised from 300 → 1500 chars. The previous 300-char limit was
+        // cutting off 70%+ of each agent's analysis, leaving users with
+        // truncated reasons like "The market is in a sideways (RANGE) state
+        // with a confidence…" and no way to read the rest. The frontend
+        // FormattedText component handles long content with a "show more"
+        // toggle, so 1500 chars gives the full reasoning without bloating
+        // the JSON response.
+        reason: content.slice(0, 1500) + (content.length > 1500 ? '…' : ''),
       });
     }
 

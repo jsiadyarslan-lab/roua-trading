@@ -2043,13 +2043,18 @@ export class TradingService {
       const where: any = { userId };
 
       // V205: Filter by credentialId for account-based filtering
-      // V206 FIX: Include trades where credentialId is NULL (legacy data before migration)
-      // During migration period, some Trade records may not have credentialId set yet.
+      // V334 CLEANUP: Removed `OR: [{ credentialId: null }]` legacy pollution.
+      // Previously, when a credentialId was provided, the query ALSO returned
+      // old Trade records with credentialId=NULL (from before V205 migration).
+      // This meant users saw trades from OTHER accounts (or pre-migration data)
+      // mixed with their current account's trades — confusing and wrong.
+      //
+      // Now we strictly filter by credentialId when provided. NULL-credentialId
+      // trades are only returned when NO credentialId is specified (i.e., "all accounts" view).
+      // Use the V334 backfill script (scripts/backfill-trade-credentialId.js) to
+      // retroactively assign NULL-credentialId trades to their proper credential.
       if (credentialId) {
-        where.OR = [
-          { credentialId },
-          { credentialId: null }, // Legacy trades without credentialId
-        ];
+        where.credentialId = credentialId;
       }
 
       // V140: Add date range filtering
@@ -2083,7 +2088,8 @@ export class TradingService {
           let paramIdx = 2;
 
           if (credentialId) {
-            sql += ` AND ("credentialId" = $${paramIdx} OR "credentialId" IS NULL)`;
+            // V334: Strict filter — no `OR "credentialId" IS NULL` legacy pollution
+            sql += ` AND "credentialId" = $${paramIdx}`;
             params.push(credentialId);
             paramIdx++;
           }

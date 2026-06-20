@@ -14,10 +14,17 @@ import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { fetchPositionsUnified, fetchSummaryUnified, closePositionUnified } from '@/lib/api-fetch'
 import { fmtPriceLocale } from '@/lib/price-format'
 import {
-  getJournalEntries, computeJournalStats, generateReportHTML,
-  exportJournalJSON, getJournalEntryCount, clearJournal,
+  getJournalEntries, computeJournalStats,
+  getJournalEntryCount,
   type JournalEntry, type JournalStats,
 } from '@/lib/charts/TradeJournal'
+// V334: Removed unused imports `generateReportHTML`, `exportJournalJSON`, `clearJournal`.
+// These were leftover from the OLD localStorage-based PDF/JSON export (pre-V332).
+// V332+ uses `handleExportPDF`/`handleExportJSON` which read from `combinedHistory`
+// (real DB trades via Position table), NOT from localStorage journal entries.
+// The journal tab still uses `getJournalEntries`/`computeJournalStats` because that
+// tab displays AI-proposed trade IDEAS (not executed trades) — those remain in localStorage
+// as intended.
 
 /* ── Theme (MUST be imported BEFORE any usage in dynamic() loading/fallback arrows) ── */
 import { T } from '@/lib/unified-tokens'

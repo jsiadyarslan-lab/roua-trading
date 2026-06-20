@@ -1309,7 +1309,9 @@
       "modelPriority": "Model priority",
       "modelPriorityDesc": "Comma-separated model fallback order",
       "minConfidence": "Min confidence",
-      "minConfidenceDesc": "Skip below this threshold"
+      "minConfidenceDesc": "Skip below this threshold",
+      "contractSize": "Contract size",
+      "contractSizeDesc": "Contract size per trade"
     },
     "profile": {
       "deleteAccount": "Hapus Akun Secara Permanen",

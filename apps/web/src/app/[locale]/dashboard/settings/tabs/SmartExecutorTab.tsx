@@ -35,6 +35,7 @@ export function SmartExecutorTab({ settings, update }: SmartExecutorTabProps) {
   const takeProfit = settings.userTakeProfit ?? "4";
   const maxDailyLoss = settings.userMaxDailyLoss ?? "5";
   const allowedTimeframes = settings.executorTimeframes ?? "M1,M5,M15";
+  const contractSize = settings.contractSize ?? "0.01";
 
   return (
     <>
@@ -166,6 +167,18 @@ export function SmartExecutorTab({ settings, update }: SmartExecutorTabProps) {
               textAlign: "center", outline: "none",
             }}
             dir="ltr"
+          />
+        </SettingRow>
+        {/* V318: Contract size */}
+        <SettingRow
+          icon={<Target size={13} color={COLORS.info} />}
+          label={t("contractSize") ?? "Contract size"}
+          description={t("contractSizeDesc") ?? "Contract size per trade"}
+        >
+          <NumberInput
+            value={contractSize}
+            onChange={v => update("contractSize", v)}
+            min={0.01} max={100} step={0.01}
           />
         </SettingRow>
       </SectionCard>

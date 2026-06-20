@@ -90,6 +90,26 @@ export const ALLOWED_USER_SETTINGS_KEYS = new Set([
   'passkeysEnabled',
   // V311: Data features (were missing)
   'cacheDuration',
+  // V318: Smart Executor settings
+  'smartExecutorEnabled',
+  'executorTimeframes',
+  // V318: Autonomous Agent settings
+  'agentEnabled',
+  'agentInterval',
+  'agentPairs',
+  'agentMaxHoldingHours',
+  'agentRiskPerTrade',
+  'agentMinConfidence',
+  // V318: AI Council settings
+  'councilInterval',
+  'councilMinConsensus',
+  'councilMinBriefConfidence',
+  'councilLanguage',
+  'councilRegimeFilter',
+  'councilPredictionMarketWeight',
+  'councilModelPriority',
+  // V318: Contract size
+  'contractSize',
 ])
 
 // ── Value range constraints ──

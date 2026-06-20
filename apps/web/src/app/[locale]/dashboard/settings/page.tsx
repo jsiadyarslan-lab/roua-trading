@@ -2103,16 +2103,37 @@ export default function SettingsPage() {
         {/* ═══ V312: Autonomous Agent Tab ═══ */}
         {activeTab === 'autonomous-agent' && (
           <AutonomousAgentTab
-            settings={{}}
-            update={() => {}}
+            settings={{
+              agentEnabled: aiAutoTrade,
+              agentInterval: '60',
+              agentPairs: 'BTC/USDT,ETH/USDT,SOL/USDT',
+              agentMaxHoldingHours: '48',
+              agentRiskPerTrade: userRiskPerTrade,
+              agentMinConfidence: aiConfidence,
+            }}
+            update={(key, value) => {
+              if (key === 'agentEnabled') setAiAutoTrade(value);
+              else if (key === 'agentRiskPerTrade') setUserRiskPerTrade(value);
+              else if (key === 'agentMinConfidence') setAiConfidence(value);
+            }}
           />
         )}
 
         {/* ═══ V312: AI Council Tab ═══ */}
         {activeTab === 'ai-council' && (
           <AICouncilTab
-            settings={{}}
-            update={() => {}}
+            settings={{
+              councilInterval: '15',
+              councilMinConsensus: '60',
+              councilMinBriefConfidence: aiConfidence,
+              councilLanguage: currentLocale,
+              councilRegimeFilter: true,
+              councilPredictionMarketWeight: '1.0',
+              councilModelPriority: 'nvidia,glm,bedrock',
+            }}
+            update={(key, value) => {
+              if (key === 'councilMinBriefConfidence') setAiConfidence(String(value));
+            }}
           />
         )}
 

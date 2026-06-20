@@ -2502,7 +2502,7 @@
       "tabDataDesc": "التصدير، الاستيراد، والخصوصية",
       "smartExecutor": "المنفذ الذكي",
       "smartExecutorDesc": "متداول تلقائي M1/M5/M15",
-      "autonomousAgent": "الوك المستقل",
+      "autonomousAgent": "الوكيل المستقل",
       "autonomousAgentDesc": "متداول طويل الأمد M30/H1/H4",
       "aiCouncil": "مجلس الذكاء الاصطناعي",
       "aiCouncilDesc": "إعداد مجلس الوكلاء الثمانية",
@@ -2552,7 +2552,9 @@
       "modelPriority": "أولوية النماذج",
       "modelPriorityDesc": "ترتيب النماذج البديلة مفصول بفواصل",
       "minConfidence": "حد الثقة الأدنى",
-      "minConfidenceDesc": "تخطي البريفات تحت هذا الحد"
+      "minConfidenceDesc": "تخطي البريفات تحت هذا الحد",
+      "contractSize": "حجم العقد",
+      "contractSizeDesc": "حجم العقد لكل صفقة"
     },
     "predictionMarket": {
       "title": "الأسواق التنبؤية",

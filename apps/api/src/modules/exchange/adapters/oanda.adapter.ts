@@ -162,10 +162,18 @@ export class OandaAdapter implements IExchangeAdapter {
   private async _fetchQuoteFromOanda(symbol: string): Promise<UnifiedQuoteDto> {
     const oandaSymbol = this.toOandaSymbol(symbol);
 
-    // OANDA v20: GET /v3/instruments/{instrument}/candles?count=1&price=M&granularity=S5
-    // This gives us the latest candle with OHLC data
+    // V327: Fetch last 3 candles to ensure we get:
+    // 1. A complete candle (not in-progress) for OHLC
+    // 2. The previous complete candle's close for change calculation
+    // 
+    // Previous bug: mixed data from 2 candles — open from previous,
+    // high/low/close from latest. This caused impossible values like
+    // High < Open when the latest candle just started.
+    //
+    // Fix: use ONLY the latest COMPLETE candle for all OHLC fields.
+    // Use the close of the candle before it as "previous close" for change.
     const data = await this.apiRequest(
-      `/v3/instruments/${oandaSymbol}/candles?count=2&price=M&granularity=M1`
+      `/v3/instruments/${oandaSymbol}/candles?count=3&price=M&granularity=M1`
     );
 
     const candles = data?.candles || [];
@@ -173,16 +181,41 @@ export class OandaAdapter implements IExchangeAdapter {
       throw new Error(`No candle data for ${oandaSymbol}`);
     }
 
-    const latest = candles[candles.length - 1];
-    const previous = candles.length > 1 ? candles[candles.length - 2] : latest;
+    // Find the latest COMPLETE candle (complete: true)
+    // The most recent candle may still be forming — its high/low are incomplete
+    let latestComplete: any = null;
+    let previousComplete: any = null;
 
-    const price = parseFloat(latest.mid.c);
-    const open = parseFloat(previous.mid.o);
-    const high = parseFloat(latest.mid.h);
-    const low = parseFloat(latest.mid.l);
-    const close = parseFloat(latest.mid.c);
-    const change = close - open;
-    const changePercent = open > 0 ? (change / open) * 100 : 0;
+    for (let i = candles.length - 1; i >= 0; i--) {
+      if (candles[i].complete !== false) {
+        if (!latestComplete) {
+          latestComplete = candles[i];
+        } else if (!previousComplete) {
+          previousComplete = candles[i];
+          break;
+        }
+      }
+    }
+
+    // Fallback: if no complete candle, use the latest one
+    if (!latestComplete) {
+      latestComplete = candles[candles.length - 1];
+    }
+    if (!previousComplete) {
+      previousComplete = latestComplete;
+    }
+
+    // All OHLC from the SAME complete candle — no mixing
+    const price = parseFloat(latestComplete.mid.c);
+    const open = parseFloat(latestComplete.mid.o);
+    const high = parseFloat(latestComplete.mid.h);
+    const low = parseFloat(latestComplete.mid.l);
+    const close = parseFloat(latestComplete.mid.c);
+
+    // Change = current close - previous candle's close
+    const prevClose = parseFloat(previousComplete.mid.c);
+    const change = close - prevClose;
+    const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
 
     // Also fetch instrument info for display name
     let displayName = symbol;

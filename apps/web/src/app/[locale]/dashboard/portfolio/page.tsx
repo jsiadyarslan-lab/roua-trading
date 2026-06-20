@@ -265,8 +265,217 @@ export default function PortfolioPage() {
   }, [tab])
 
   // PDF export handler
+  // V332: PDF export now uses REAL DB trades (combinedHistory) instead of localStorage journal
   const handleExportPDF = useCallback(() => {
-    const html = generateReportHTML()
+    const trades = combinedHistory
+    const wins = trades.filter(t => (t.pnl || 0) > 0)
+    const losses = trades.filter(t => (t.pnl || 0) < 0)
+    const totalPnl = trades.reduce((s, t) => s + (t.pnl || 0), 0)
+    const winRate = trades.length > 0 ? (wins.length / trades.length * 100) : 0
+    const grossProfit = wins.reduce((s, t) => s + (t.pnl || 0), 0)
+    const grossLoss = Math.abs(losses.reduce((s, t) => s + (t.pnl || 0), 0))
+    const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? 999 : 0)
+    const avgWin = wins.length > 0 ? grossProfit / wins.length : 0
+    const avgLoss = losses.length > 0 ? grossLoss / losses.length : 0
+
+    // Max drawdown
+    let peak = 0, maxDD = 0, cumPnl = 0
+    trades.forEach(t => {
+      cumPnl += (t.pnl || 0)
+      if (cumPnl > peak) peak = cumPnl
+      const dd = peak - cumPnl
+      if (dd > maxDD) maxDD = dd
+    })
+
+    // Consecutive streaks
+    let curStreak = 0, maxWinStreak = 0, maxLossStreak = 0
+    trades.forEach(t => {
+      if ((t.pnl || 0) > 0) {
+        curStreak = curStreak > 0 ? curStreak + 1 : 1
+        maxWinStreak = Math.max(maxWinStreak, curStreak)
+      } else if ((t.pnl || 0) < 0) {
+        curStreak = curStreak < 0 ? curStreak - 1 : -1
+        maxLossStreak = Math.max(maxLossStreak, Math.abs(curStreak))
+      } else {
+        curStreak = 0
+      }
+    })
+
+    // By direction
+    const buyTrades = trades.filter(t => t.side === 'BUY')
+    const sellTrades = trades.filter(t => t.side === 'SELL')
+    const buyPnl = buyTrades.reduce((s, t) => s + (t.pnl || 0), 0)
+    const sellPnl = sellTrades.reduce((s, t) => s + (t.pnl || 0), 0)
+
+    // By source
+    const bySource: Record<string, { count: number; wins: number; pnl: number }> = {}
+    trades.forEach(t => {
+      const src = t.type || 'MANUAL'
+      if (!bySource[src]) bySource[src] = { count: 0, wins: 0, pnl: 0 }
+      bySource[src].count++
+      if ((t.pnl || 0) > 0) bySource[src].wins++
+      bySource[src].pnl += (t.pnl || 0)
+    })
+
+    const now = new Date().toLocaleDateString('en-GB')
+    const html = `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>تقرير أداء — رؤى للتداول</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Cairo', 'Arial', sans-serif; background: #0B0E14; color: #F1F5F9; padding: 40px; }
+  .header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #A855F7; }
+  .header h1 { font-size: 24px; color: #A855F7; margin-bottom: 8px; }
+  .header .date { font-size: 12px; color: #94A3B8; }
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 30px; }
+  .stat-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; text-align: center; }
+  .stat-label { font-size: 10px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+  .stat-value { font-size: 22px; font-weight: 700; font-family: monospace; }
+  .stat-value.green { color: #10B981; }
+  .stat-value.red { color: #EF4444; }
+  .stat-value.purple { color: #A855F7; }
+  .stat-value.cyan { color: #06B6D4; }
+  .section { margin-bottom: 25px; }
+  .section h2 { font-size: 14px; color: #A855F7; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid rgba(168,85,247,0.2); }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th { text-align: right; padding: 8px 10px; background: rgba(168,85,247,0.08); color: #A855F7; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid rgba(168,85,247,0.15); }
+  td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); color: #CBD5E1; }
+  td.pnl-pos { color: #10B981; font-weight: 600; }
+  td.pnl-neg { color: #EF4444; font-weight: 600; }
+  .direction-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .dir-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; }
+  .dir-card h3 { font-size: 12px; margin-bottom: 8px; }
+  .footer { margin-top: 30px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.06); text-align: center; font-size: 10px; color: #64748B; }
+  @media print { body { padding: 20px; } .stats-grid { grid-template-columns: repeat(4, 1fr); } }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>تقرير أداء منصة التداول</h1>
+    <div class="date">رؤى للتداول — ${now} | ${trades.length} صفقة</div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">معدل النجاح</div>
+      <div class="stat-value ${winRate >= 50 ? 'green' : 'red'}">${winRate.toFixed(1)}%</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">إجمالي P&L</div>
+      <div class="stat-value ${totalPnl >= 0 ? 'green' : 'red'}">${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">معامل الربح</div>
+      <div class="stat-value ${profitFactor >= 1 ? 'green' : 'red'}">${profitFactor.toFixed(2)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">أقصى تراجع</div>
+      <div class="stat-value red">$${maxDD.toFixed(2)}</div>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">صفقات رابحة</div>
+      <div class="stat-value green">${wins.length}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">صفقات خاسرة</div>
+      <div class="stat-value red">${losses.length}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">متوسط الربح</div>
+      <div class="stat-value green">$${avgWin.toFixed(2)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">متوسط الخسارة</div>
+      <div class="stat-value red">$${avgLoss.toFixed(2)}</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>الأداء حسب الاتجاه</h2>
+    <div class="direction-grid">
+      <div class="dir-card">
+        <h3 style="color:#10B981;">شراء (BUY)</h3>
+        <p style="font-size:11px;color:#CBD5E1;">${buyTrades.length} صفقة | P&L: <span style="color:${buyPnl >= 0 ? '#10B981' : '#EF4444'};font-weight:600;">$${buyPnl.toFixed(2)}</span></p>
+      </div>
+      <div class="dir-card">
+        <h3 style="color:#EF4444;">بيع (SELL)</h3>
+        <p style="font-size:11px;color:#CBD5E1;">${sellTrades.length} صفقة | P&L: <span style="color:${sellPnl >= 0 ? '#10B981' : '#EF4444'};font-weight:600;">$${sellPnl.toFixed(2)}</span></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>الأداء حسب المصدر</h2>
+    <table>
+      <thead><tr><th>المصدر</th><th>العدد</th><th>رابحة</th><th>معدل النجاح</th><th>P&L</th></tr></thead>
+      <tbody>
+        ${Object.entries(bySource).map(([src, data]) => `
+          <tr>
+            <td>${src}</td>
+            <td>${data.count}</td>
+            <td>${data.wins}</td>
+            <td>${data.count > 0 ? (data.wins / data.count * 100).toFixed(1) : 0}%</td>
+            <td class="${data.pnl >= 0 ? 'pnl-pos' : 'pnl-neg'}">${data.pnl >= 0 ? '+' : ''}$${data.pnl.toFixed(2)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>أحدث ${Math.min(trades.length, 30)} صفقة</h2>
+    <table>
+      <thead><tr><th>الزوج</th><th>اتجاه</th><th>دخول</th><th>خروج</th><th>سبب</th><th>P&L</th><th>تاريخ</th></tr></thead>
+      <tbody>
+        ${trades.slice(0, 30).map(t => `
+          <tr>
+            <td style="font-weight:600;">${t.symbol || ''}</td>
+            <td style="color:${t.side === 'BUY' ? '#10B981' : '#EF4444'};">${t.side === 'BUY' ? 'شراء' : 'بيع'}</td>
+            <td>${t.entryPrice ? Number(t.entryPrice).toFixed(4) : '—'}</td>
+            <td>${t.exitPrice ? Number(t.exitPrice).toFixed(4) : '—'}</td>
+            <td>${t.exitReason || '—'}</td>
+            <td class="${(t.pnl || 0) >= 0 ? 'pnl-pos' : 'pnl-neg'}">${(t.pnl || 0) >= 0 ? '+' : ''}$${(t.pnl || 0).toFixed(2)}</td>
+            <td style="font-size:10px;color:#64748B;">${t.executedAt ? new Date(t.executedAt).toLocaleDateString('en-GB') : '—'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>إحصائيات متقدمة</h2>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">أطول سلسلة ربح</div>
+        <div class="stat-value green">${maxWinStreak}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">أطول سلسلة خسارة</div>
+        <div class="stat-value red">${maxLossStreak}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">عائد متوقع/صفقة</div>
+        <div class="stat-value cyan">${trades.length > 0 ? '$' + (totalPnl / trades.length).toFixed(3) : '$0'}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">نسبة R/R</div>
+        <div class="stat-value purple">${avgLoss > 0 ? (avgWin / avgLoss).toFixed(2) : '—'}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>رؤى للتداول — أول منصة تداول بمجلس ذكاء اصطناعي استراتيجي | V332</p>
+    <p>تم إنشاء التقرير من بيانات الصفقات الفعلية في قاعدة البيانات</p>
+  </div>
+</body>
+</html>`
+
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const win = window.open(url, '_blank')
@@ -275,21 +484,38 @@ export default function PortfolioPage() {
         win.print()
       }
     }
-    // Cleanup after delay
     setTimeout(() => URL.revokeObjectURL(url), 60000)
-  }, [])
+  }, [combinedHistory])
 
-  // JSON export handler
+  // V332: JSON export now uses REAL DB trades instead of localStorage
   const handleExportJSON = useCallback(() => {
-    const json = exportJournalJSON()
+    const data = {
+      platform: 'Roua Trading',
+      version: 'V332',
+      exportDate: new Date().toISOString(),
+      totalTrades: combinedHistory.length,
+      totalPnl: combinedHistory.reduce((s, t) => s + (t.pnl || 0), 0),
+      trades: combinedHistory.map(t => ({
+        pair: t.symbol,
+        direction: t.side,
+        type: t.type,
+        entryPrice: t.entryPrice,
+        exitPrice: t.exitPrice,
+        pnl: t.pnl,
+        exitReason: t.exitReason,
+        openedAt: t.openedAt,
+        closedAt: t.executedAt,
+      })),
+    }
+    const json = JSON.stringify(data, null, 2)
     const blob = new Blob([json], { type: 'application/json;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `roua_journal_${new Date().toISOString().split('T')[0]}.json`
+    link.download = `roua_trades_${new Date().toISOString().split('T')[0]}.json`
     link.click()
     URL.revokeObjectURL(url)
-  }, [])
+  }, [combinedHistory])
 
   // FIX: Inject scoped CSS via useEffect instead of <style> tag
   // <style> tags in client components cause "Node cannot be found" in Next.js 16

@@ -2114,7 +2114,9 @@
       "riskDisclaimerLine3": "Roua rører aldrig dine penge - vi overvåger kun dine tilknyttede konti via krypterede API-nøgler.",
       "warning": "Advarsel",
       "quantityLabel": "Mængde",
-      "closePositionSymbolFailed": "Kunne ikke lukke position XPH0X"
+      "closePositionSymbolFailed": "Kunne ikke lukke position XPH0X",
+      "exportPDF": "Eksporter PDF-rapport",
+      "exportJSON": "Eksporter JSON-data"
     },
     "marketHours": {
       "cryptoAlwaysOpen": "Kryptomarkedet er åbent 24/7",

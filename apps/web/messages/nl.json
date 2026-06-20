@@ -214,7 +214,9 @@
       "avgProfit": "Gemiddelde winst",
       "csvQuantity": "Aantal",
       "unrealizedPnl": "Ongerealiseerde winst- en verliesrekening",
-      "closeLabel": "Sluiten"
+      "closeLabel": "Sluiten",
+      "exportPDF": "PDF-rapport exporteren",
+      "exportJSON": "JSON-gegevens exporteren"
     },
     "scanner": {
       "signalExplanationBuy": "Koopsignaal van scanner",

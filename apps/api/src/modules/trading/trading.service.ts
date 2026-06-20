@@ -3574,25 +3574,39 @@ export class TradingService {
       }
     } catch { /* Setting table may not exist */ }
 
-    let fallbackCred = null;
+    let fallbackCred: { id: string; exchange: string; isValid: boolean; createdAt: Date } | null = null;
     if (activeCredId) {
-      fallbackCred = userCreds.find(c => c.id === activeCredId);
+      fallbackCred = userCreds.find(c => c.id === activeCredId) || null;
     }
     if (!fallbackCred) {
-      fallbackCred = userCreds.find(c => c.isValid) || userCreds[0];
+      fallbackCred = userCreds.find(c => c.isValid) || userCreds[0] || null;
     }
+    if (!fallbackCred) {
+      // Should never happen since userCreds.length > 0 was checked above, but TS safety
+      results.message = 'No fallback credential available.';
+      results.skipped = nullTrades.length;
+      return results;
+    }
+    const fallbackCredFinal = fallbackCred; // non-null alias for TS
     results.fallbackCredential = {
-      id: fallbackCred.id,
-      exchange: fallbackCred.exchange,
-      source: activeCredId === fallbackCred.id ? 'user_active_setting' :
-              fallbackCred.isValid ? 'first_valid' : 'oldest',
+      id: fallbackCredFinal.id,
+      exchange: fallbackCredFinal.exchange,
+      source: activeCredId === fallbackCredFinal.id ? 'user_active_setting' :
+              fallbackCredFinal.isValid ? 'first_valid' : 'oldest',
     };
 
     // 4. For each NULL trade, determine the credentialId
-    const updates = [];
+    const updates: Array<{
+      tradeId: string;
+      symbol: string;
+      executedAt: Date;
+      source: string | null;
+      assignedCredentialId: string;
+      assignmentSource: string;
+    }> = [];
     for (const trade of nullTrades) {
       let credId: string | null = null;
-      let source = '';
+      let assignmentSource = '';
 
       if (trade.positionId) {
         const position = await this.prisma.position.findUnique({
@@ -3601,13 +3615,13 @@ export class TradingService {
         });
         if (position?.credentialId) {
           credId = position.credentialId;
-          source = 'parent_position';
+          assignmentSource = 'parent_position';
         }
       }
 
       if (!credId) {
-        credId = fallbackCred.id;
-        source = 'fallback';
+        credId = fallbackCredFinal.id;
+        assignmentSource = 'fallback';
       }
 
       updates.push({
@@ -3616,7 +3630,7 @@ export class TradingService {
         executedAt: trade.executedAt,
         source: trade.source,
         assignedCredentialId: credId,
-        assignmentSource: source,
+        assignmentSource,
       });
     }
 

@@ -214,7 +214,9 @@
       "avgProfit": "Átl. nyereség",
       "csvQuantity": "Mennyiség",
       "unrealizedPnl": "Nem realizált eredmény",
-      "closeLabel": "Bezárás"
+      "closeLabel": "Bezárás",
+      "exportPDF": "PDF jelentés exportálása",
+      "exportJSON": "JSON adatok exportálása"
     },
     "scanner": {
       "signalExplanationBuy": "Vásároljon jelet a szkennertől",

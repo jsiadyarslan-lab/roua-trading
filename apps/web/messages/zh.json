@@ -214,7 +214,9 @@
       "avgProfit": "平均盈利",
       "csvQuantity": "数量",
       "unrealizedPnl": "未实现盈亏",
-      "closeLabel": "收盘"
+      "closeLabel": "收盘",
+      "exportPDF": "导出PDF报告",
+      "exportJSON": "导出JSON数据"
     },
     "scanner": {
       "signalExplanationBuy": "来自扫描器的买入信号",

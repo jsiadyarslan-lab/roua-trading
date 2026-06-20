@@ -2114,7 +2114,9 @@
       "riskDisclaimerLine3": "Roua berührt niemals Ihre Guthaben — wir überwachen nur Ihre verknüpften Konten über verschlüsselte API-Schlüssel.",
       "warning": "Warnung",
       "quantityLabel": "Menge",
-      "closePositionSymbolFailed": "Position {symbol} konnte nicht geschlossen werden"
+      "closePositionSymbolFailed": "Position {symbol} konnte nicht geschlossen werden",
+      "exportPDF": "PDF-Bericht exportieren",
+      "exportJSON": "JSON-Daten exportieren"
     },
     "marketHours": {
       "cryptoAlwaysOpen": "Kryptomarkt ist 24/7 geöffnet",

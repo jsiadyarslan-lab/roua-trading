@@ -214,7 +214,9 @@
       "avgProfit": "औसत लाभ",
       "csvQuantity": "मात्रा",
       "unrealizedPnl": "Unrelized P&L",
-      "closeLabel": "बंद करें"
+      "closeLabel": "बंद करें",
+      "exportPDF": "पीडीएफ रिपोर्ट निर्यात करें",
+      "exportJSON": "JSON डेटा निर्यात करें"
     },
     "scanner": {
       "signalExplanationBuy": "स्कैनर से खरीद सिग्नल",

@@ -214,7 +214,9 @@
       "avgProfit": "רווח ממוצע",
       "csvQuantity": "כַּמוּת",
       "unrealizedPnl": "P&L לא ממומשים",
-      "closeLabel": "לִסְגוֹר"
+      "closeLabel": "לִסְגוֹר",
+      "exportPDF": "ייצוא דוח PDF",
+      "exportJSON": "ייצוא נתוני JSON"
     },
     "scanner": {
       "signalExplanationBuy": "אות קנייה מהסורק",

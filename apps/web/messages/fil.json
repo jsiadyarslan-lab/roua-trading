@@ -214,7 +214,9 @@
       "avgProfit": "Avg na Kita",
       "csvQuantity": "Dami",
       "unrealizedPnl": "Hindi natutupad na P&L",
-      "closeLabel": "Isara"
+      "closeLabel": "Isara",
+      "exportPDF": "I-export ang PDF Report",
+      "exportJSON": "I-export ang JSON Data"
     },
     "scanner": {
       "signalExplanationBuy": "Bumili ng signal mula sa scanner",

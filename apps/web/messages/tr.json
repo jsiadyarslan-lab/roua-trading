@@ -214,7 +214,9 @@
       "avgProfit": "Ort. Kâr",
       "csvQuantity": "Miktar",
       "unrealizedPnl": "Gerçekleşmemiş K&Z",
-      "closeLabel": "Kapat"
+      "closeLabel": "Kapat",
+      "exportPDF": "PDF raporu dışa aktar",
+      "exportJSON": "JSON verilerini dışa aktar"
     },
     "scanner": {
       "signalExplanationBuy": "Tarayıcıdan alış sinyali",

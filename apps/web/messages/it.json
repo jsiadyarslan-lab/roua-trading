@@ -214,7 +214,9 @@
       "avgProfit": "Profitto medio",
       "csvQuantity": "Quantità",
       "unrealizedPnl": "Profitti e perdite non realizzati",
-      "closeLabel": "Chiudi"
+      "closeLabel": "Chiudi",
+      "exportPDF": "Esporta report PDF",
+      "exportJSON": "Esporta dati JSON"
     },
     "scanner": {
       "signalExplanationBuy": "Segnale di acquisto dallo scanner",

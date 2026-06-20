@@ -2114,7 +2114,9 @@
       "riskDisclaimerLine3": "Roua never touches your funds — we only monitor your linked accounts via encrypted API keys.",
       "warning": "Warning",
       "quantityLabel": "Quantity",
-      "closePositionSymbolFailed": "Failed to close position {symbol}"
+      "closePositionSymbolFailed": "Failed to close position {symbol}",
+      "exportPDF": "Export PDF Report",
+      "exportJSON": "Export JSON Data"
     },
     "marketHours": {
       "cryptoAlwaysOpen": "Crypto market is open 24/7",

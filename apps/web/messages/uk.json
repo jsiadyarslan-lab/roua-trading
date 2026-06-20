@@ -214,7 +214,9 @@
       "avgProfit": "Середній прибуток",
       "csvQuantity": "Кількість",
       "unrealizedPnl": "Нереалізовані прибутки та збитки",
-      "closeLabel": "Закрити"
+      "closeLabel": "Закрити",
+      "exportPDF": "Експорт PDF-звіту",
+      "exportJSON": "Експорт даних JSON"
     },
     "scanner": {
       "signalExplanationBuy": "Купити сигнал від сканера",

@@ -214,7 +214,9 @@
       "avgProfit": "میانگین سود",
       "csvQuantity": "مقدار",
       "unrealizedPnl": "P&L محقق نشده",
-      "closeLabel": "بستن"
+      "closeLabel": "بستن",
+      "exportPDF": "صادرات گزارش PDF",
+      "exportJSON": "صادرات داده‌های JSON"
     },
     "scanner": {
       "signalExplanationBuy": "خرید سیگنال از اسکنر",

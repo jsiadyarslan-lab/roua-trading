@@ -214,7 +214,9 @@
       "avgProfit": "Genomsnittlig vinst",
       "csvQuantity": "Kvantitet",
       "unrealizedPnl": "Orealiserad P&L",
-      "closeLabel": "Nära"
+      "closeLabel": "Nära",
+      "exportPDF": "Exportera PDF-rapport",
+      "exportJSON": "Exportera JSON-data"
     },
     "scanner": {
       "signalExplanationBuy": "Köpsignal från skanner",

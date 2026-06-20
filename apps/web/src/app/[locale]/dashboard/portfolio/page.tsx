@@ -853,6 +853,21 @@ export default function PortfolioPage() {
     return true
   })
 
+  // V335: Compute human-readable period label for PDF/JSON export filenames and headers
+  const periodLabel = useMemo(() => {
+    switch (periodFilter) {
+      case 'DAY': return t('periodDaily')
+      case 'WEEK': return t('periodWeekly')
+      case 'MONTH': return t('periodMonthly')
+      case 'YEAR': return t('periodYearly')
+      case 'CUSTOM':
+        const from = customFrom || '—'
+        const to = customTo || '—'
+        return `${from} → ${to}`
+      default: return t('periodAll')
+    }
+  }, [periodFilter, customFrom, customTo, t])
+
   // ── Export handlers (V333: moved here from above to avoid TDZ) ──
   // These useCallbacks depend on `combinedHistory` which is defined just above.
   // Previously they were declared BEFORE combinedHistory, causing React to
@@ -860,9 +875,16 @@ export default function PortfolioPage() {
   // still in TDZ — throwing "Cannot access 'tT' before initialization".
   // Now they're declared after combinedHistory, so the dep array is safe.
 
+  // V335: PDF/JSON export now accept an optional trades array.
+  // - If called with no args (e.g. from journal tab): uses `combinedHistory` (all trades)
+  // - If called with `filteredHistory` (e.g. from positions tab with period filter):
+  //   uses only the trades within the selected date range.
+  // This lets users export PDF reports for ANY time period (DAY/WEEK/MONTH/YEAR/CUSTOM).
+  type HistoryTrade = typeof combinedHistory[number]
+
   // PDF export handler — V332: uses REAL DB trades (combinedHistory)
-  const handleExportPDF = useCallback(() => {
-    const trades = combinedHistory
+  const handleExportPDF = useCallback((tradesArg?: HistoryTrade[], periodLabel?: string) => {
+    const trades = tradesArg ?? combinedHistory
     const wins = trades.filter(t => (t.pnl || 0) > 0)
     const losses = trades.filter(t => (t.pnl || 0) < 0)
     const totalPnl = trades.reduce((s, t) => s + (t.pnl || 0), 0)
@@ -1065,8 +1087,8 @@ export default function PortfolioPage() {
   </div>
 
   <div class="footer">
-    <p>رؤى للتداول — أول منصة تداول بمجلس ذكاء اصطناعي استراتيجي | V332</p>
-    <p>تم إنشاء التقرير من بيانات الصفقات الفعلية في قاعدة البيانات</p>
+    <p>رؤى للتداول — أول منصة تداول بمجلس ذكاء اصطناعي استراتيجي | V335</p>
+    <p>تم إنشاء التقرير من بيانات الصفقات الفعلية في قاعدة البيانات${periodLabel ? ` | الفترة: ${periodLabel}` : ''}</p>
   </div>
 </body>
 </html>`
@@ -1083,14 +1105,17 @@ export default function PortfolioPage() {
   }, [combinedHistory])
 
   // V332: JSON export — uses REAL DB trades (combinedHistory)
-  const handleExportJSON = useCallback(() => {
+  // V335: Accept optional trades array for period-filtered export
+  const handleExportJSON = useCallback((tradesArg?: HistoryTrade[], periodLabel?: string) => {
+    const trades = tradesArg ?? combinedHistory
     const data = {
       platform: 'Roua Trading',
-      version: 'V332',
+      version: 'V335',
       exportDate: new Date().toISOString(),
-      totalTrades: combinedHistory.length,
-      totalPnl: combinedHistory.reduce((s, t) => s + (t.pnl || 0), 0),
-      trades: combinedHistory.map(t => ({
+      period: periodLabel || 'ALL',
+      totalTrades: trades.length,
+      totalPnl: trades.reduce((s, t) => s + (t.pnl || 0), 0),
+      trades: trades.map(t => ({
         pair: t.symbol,
         direction: t.side,
         type: t.type,
@@ -1107,7 +1132,7 @@ export default function PortfolioPage() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `roua_trades_${new Date().toISOString().split('T')[0]}.json`
+    link.download = `roua_trades_${periodLabel ? periodLabel.toLowerCase().replace(/\s+/g, '_') : 'all'}_${new Date().toISOString().split('T')[0]}.json`
     link.click()
     URL.revokeObjectURL(url)
   }, [combinedHistory])
@@ -1132,7 +1157,7 @@ export default function PortfolioPage() {
         <div style={{ flex: 1 }} />
         {/* V168: Export buttons */}
         {(positions.length > 0 || filteredHistory.length > 0) && (
-          <div style={{ display: 'flex', gap: 4 }}>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {positions.length > 0 && (
               <button
                 onClick={exportOpenPositions}
@@ -1164,6 +1189,39 @@ export default function PortfolioPage() {
                 <FileText size={10} />
                 {t('closed')}
               </button>
+            )}
+            {/* V335: PDF export — respects current period filter (DAY/WEEK/MONTH/YEAR/CUSTOM) */}
+            {filteredHistory.length > 0 && (
+              <>
+                <button
+                  onClick={() => handleExportPDF(filteredHistory, periodLabel)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    padding: '5px 10px', borderRadius: 7,
+                    border: `0.5px solid ${T.amber}66`, background: `${T.amber}1a`,
+                    color: T.amber, fontFamily: "'Cairo', sans-serif",
+                    fontSize: 9, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                  }}
+                  title={`${t('exportPDF')} — ${periodLabel}`}
+                >
+                  <FileText size={10} />
+                  PDF · {periodLabel}
+                </button>
+                <button
+                  onClick={() => handleExportJSON(filteredHistory, periodLabel)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    padding: '5px 10px', borderRadius: 7,
+                    border: `0.5px solid ${T.purple}55`, background: `${T.purple}14`,
+                    color: T.purple, fontFamily: "'Cairo', sans-serif",
+                    fontSize: 9, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                  }}
+                  title={`${t('exportJSON')} — ${periodLabel}`}
+                >
+                  <Download size={10} />
+                  JSON
+                </button>
+              </>
             )}
           </div>
         )}

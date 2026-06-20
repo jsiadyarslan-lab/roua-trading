@@ -2114,7 +2114,9 @@
       "riskDisclaimerLine3": "رؤى لا تلمس أموالك أبداً — نتابع حساباتك المربوطة فقط من خلال مفاتيح API المشفرة.",
       "warning": "تحذير",
       "quantityLabel": "الكمية",
-      "closePositionSymbolFailed": "فشل في إغلاق المركز {symbol}"
+      "closePositionSymbolFailed": "فشل في إغلاق المركز {symbol}",
+      "exportPDF": "تصدير تقرير PDF",
+      "exportJSON": "تصدير بيانات JSON"
     },
     "marketHours": {
       "cryptoAlwaysOpen": "سوق العملات الرقمية يعمل على مدار الساعة",

@@ -214,7 +214,9 @@
       "avgProfit": "Keskimääräinen voitto",
       "csvQuantity": "Määrä",
       "unrealizedPnl": "Realisoitumaton tulos",
-      "closeLabel": "Sulje"
+      "closeLabel": "Sulje",
+      "exportPDF": "Vie PDF-raportti",
+      "exportJSON": "Vie JSON-tiedot"
     },
     "scanner": {
       "signalExplanationBuy": "Osta signaali skannerista",

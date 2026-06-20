@@ -214,7 +214,9 @@
       "avgProfit": "平均利益",
       "csvQuantity": "数量",
       "unrealizedPnl": "未実現P&L",
-      "closeLabel": "閉じる"
+      "closeLabel": "閉じる",
+      "exportPDF": "PDFレポートをエクスポート",
+      "exportJSON": "JSONデータをエクスポート"
     },
     "scanner": {
       "signalExplanationBuy": "スキャナーからの買いシグナル",

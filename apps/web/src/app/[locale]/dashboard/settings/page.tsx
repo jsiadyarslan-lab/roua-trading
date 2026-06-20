@@ -10,7 +10,7 @@ import {
   TrendingUp, Cpu, MessageSquare, Activity, Sliders,
   CheckCircle2, ExternalLink, LogOut, UserCircle, Monitor,
   Wifi, Trash2, Download, Upload, RefreshCw, CreditCard,
-  Crown, Star, Sparkles, Send, Filter, Zap, Bot
+  Crown, Star, Sparkles, Send, Filter
 } from 'lucide-react'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useAuthStore } from '@/lib/auth-store'

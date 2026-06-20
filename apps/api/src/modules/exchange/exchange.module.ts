@@ -6,6 +6,7 @@ import { ExchangeGateway } from './gateway/exchange.gateway';
 import { TwelveDataAdapter } from './adapters/twelve-data.adapter';
 import { BinanceAdapter } from './adapters/binance.adapter';
 import { FreeFallbackAdapter } from './adapters/free-fallback.adapter';
+import { OandaAdapter } from './adapters/oanda.adapter';
 import { IExchangeAdapter } from './exchange.types';
 
 @Module({
@@ -18,16 +19,23 @@ import { IExchangeAdapter } from './exchange.types';
     TwelveDataAdapter,
     BinanceAdapter,
     FreeFallbackAdapter,
+    OandaAdapter,
     {
       provide: 'EXCHANGE_ADAPTERS',
-      useFactory: (twelveData: TwelveDataAdapter, binance: BinanceAdapter, freeFallback: FreeFallbackAdapter) => {
+      useFactory: (
+        twelveData: TwelveDataAdapter,
+        binance: BinanceAdapter,
+        freeFallback: FreeFallbackAdapter,
+        oanda: OandaAdapter,
+      ) => {
         const adapters: Record<string, IExchangeAdapter> = {};
         adapters[twelveData.name] = twelveData;
         adapters[binance.name] = binance;
         adapters[freeFallback.name] = freeFallback;
+        adapters[oanda.name] = oanda;
         return adapters;
       },
-      inject: [TwelveDataAdapter, BinanceAdapter, FreeFallbackAdapter],
+      inject: [TwelveDataAdapter, BinanceAdapter, FreeFallbackAdapter, OandaAdapter],
     },
   ],
   exports: [ExchangeService, ExchangeGateway],

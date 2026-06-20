@@ -49,6 +49,8 @@ const SUPPORTED_EXCHANGES = [
   { id: 'bybit', name: 'Bybit', icon: '🟠' },
   { id: 'okx', name: 'OKX', icon: '⚪', requiresPassphrase: true },
   { id: 'gateio', name: 'Gate.io', icon: '🔵' },
+  { id: 'oanda', name: 'OANDA (Forex)', icon: '📈', isOanda: true },
+  { id: 'oanda_practice', name: 'OANDA Practice (Free)', icon: '🆓', isOanda: true },
   { id: 'mt5', name: 'MetaTrader 5', icon: '📊', isMT5: true },
   { id: 'mt5_demo', name: 'MT5 Demo', icon: '📋', isMT5: true },
 ]
@@ -122,6 +124,7 @@ export default function ExchangeSettingsPage() {
   const isBinance = exchange.toLowerCase().startsWith('binance') && !exchange.includes('test')
   const isMT5 = exchange === 'mt5' || exchange === 'mt5_demo'
   const isMT5Demo = exchange === 'mt5_demo'
+  const isOanda = exchange === 'oanda' || exchange === 'oanda_practice'
 
   // Fetch server IP for Binance IP whitelist
   const fetchServerIp = useCallback(async () => {

@@ -619,11 +619,31 @@ export async function GET(
     }
 
     // Validate source parameter early — reject unknown sources before any fetching
-    if (source && source !== 'TwelveData' && source !== 'CoinGecko' && source !== 'auto') {
+    // V326: Added 'OANDA' and 'Binance' as valid sources + proxy to NestJS
+    const VALID_SOURCES = ['TwelveData', 'CoinGecko', 'auto', 'OANDA', 'Binance', 'FreeFallback'];
+    if (source && !VALID_SOURCES.includes(source)) {
       return NextResponse.json(
         { success: false, error: `مصدر غير معروف: ${source}` },
         { status: 400 }
       )
+    }
+
+    // V326: If source is OANDA, Binance, or FreeFallback — proxy to NestJS backend
+    // which has the actual exchange adapters registered
+    if (source && ['OANDA', 'Binance', 'FreeFallback'].includes(source)) {
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const proxyRes = await fetch(`${backendUrl}/api/exchange/quote/${encodeURIComponent(symbol)}?source=${source}`, {
+          signal: AbortSignal.timeout(15000),
+        });
+        if (proxyRes.ok) {
+          const data = await proxyRes.json();
+          return NextResponse.json(data);
+        }
+      } catch (err: any) {
+        // Fall through to local fetching if backend proxy fails
+        console.error('[quote] Backend proxy failed:', err?.message);
+      }
     }
 
     // Determine if this is a crypto pair or forex pair

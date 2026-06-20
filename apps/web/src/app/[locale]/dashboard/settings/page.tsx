@@ -27,13 +27,36 @@ import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations } from 'next-intl'
 import { useLocale } from 'next-intl'
 
-const T = { ...SharedT, pink: '#f472b6', text4: '#475569' }
+// ═══════════════════════════════════════════════════════════
+// PREMIUM DESIGN TOKENS
+// Roua Trading — AI Strategic Council Trading Platform
+// Color palette: #0B0E14 bg / #A855F7 council purple /
+//                #10B981 green / #EF4444 red / #06B6D4 cyan
+// ═══════════════════════════════════════════════════════════
+const T = {
+  ...SharedT,
+  pink: '#f472b6',
+  text4: '#475569',
+  // Council purple — the signature accent of Roua's AI Strategic Council
+  council: '#A855F7',
+  councilDim: '#9333EA',
+  councilGlow: 'rgba(168, 85, 247, 0.35)',
+  // Premium glass surfaces
+  glassCard: 'rgba(26, 29, 41, 0.55)',
+  glassCardHover: 'rgba(31, 35, 53, 0.7)',
+  glassSidebar: 'rgba(15, 17, 23, 0.65)',
+  glassTopBar: 'rgba(11, 14, 20, 0.78)',
+  // Premium shadows
+  shadowGlass: '0 8px 32px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.04)',
+  shadowElevated: '0 12px 48px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+  shadowActiveTab: '0 4px 16px rgba(168, 85, 247, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+}
 
-/* ─── Toggle Switch ─── */
+/* ─── Toggle Switch (Premium) ─── */
 function Toggle({ checked, onChange, color, size = 'md', ariaLabel }: {
   checked: boolean; onChange: () => void; color: string; size?: 'sm' | 'md'; ariaLabel?: string
 }) {
-  const s = size === 'sm' ? { w: 34, h: 18, dot: 13, r: 9 } : { w: 40, h: 22, dot: 16, r: 11 }
+  const s = size === 'sm' ? { w: 36, h: 20, dot: 14, r: 10 } : { w: 44, h: 24, dot: 18, r: 12 }
   return (
     <button
       onClick={onChange}
@@ -42,128 +65,163 @@ function Toggle({ checked, onChange, color, size = 'md', ariaLabel }: {
       aria-label={ariaLabel}
       style={{
         width: s.w, height: s.h, borderRadius: s.r, border: 'none', cursor: 'pointer',
-        background: checked ? `${color}25` : T.surface,
-        position: 'relative', transition: 'all 0.3s',
-        boxShadow: checked ? `0 0 8px ${color}25` : 'none',
+        background: checked
+          ? `linear-gradient(135deg, ${color}, ${color}cc)`
+          : 'rgba(255,255,255,0.06)',
+        position: 'relative', transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+        boxShadow: checked
+          ? `0 0 12px ${color}40, inset 0 1px 1px rgba(255,255,255,0.15)`
+          : 'inset 0 1px 2px rgba(0,0,0,0.3)',
         flexShrink: 0,
       }}
     >
       <div style={{
-        width: s.dot, height: s.dot, borderRadius: s.dot / 2, background: checked ? color : T.text3,
+        width: s.dot, height: s.dot, borderRadius: '50%',
+        background: checked ? '#fff' : T.text3,
         position: 'absolute', top: (s.h - s.dot) / 2,
-        insetInlineEnd: checked ? (s.h - s.dot) / 2 : 'auto', insetInlineStart: checked ? 'auto' : (s.h - s.dot) / 2,
-        transition: 'all 0.3s',
-        boxShadow: checked ? `0 0 6px ${color}50` : 'none',
+        insetInlineEnd: checked ? (s.h - s.dot) / 2 : 'auto',
+        insetInlineStart: checked ? 'auto' : (s.h - s.dot) / 2,
+        transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+        boxShadow: checked
+          ? `0 2px 8px ${color}60, 0 0 0 0.5px rgba(0,0,0,0.1)`
+          : '0 1px 3px rgba(0,0,0,0.4)',
       }} />
     </button>
   )
 }
 
-/* ─── Select Box ─── */
+/* ─── Select Box (Premium) ─── */
 function SelectBox({ value, onChange, options, small }: {
   value: string; onChange: (v: string) => void; options: { value: string; label: string }[]; small?: boolean
 }) {
   return (
-    <select
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      style={{
-        background: T.surface, border: `1px solid ${T.border}`,
-        borderRadius: 8, padding: small ? '4px 8px' : '6px 12px',
-        color: T.text, fontSize: small ? 11 : 12,
-        fontFamily: "'Cairo', sans-serif", fontWeight: 600,
-        outline: 'none', cursor: 'pointer',
-        appearance: 'none',
-        minWidth: small ? 80 : 120,
-      }}
-    >
-      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
+    <div style={{ position: 'relative', display: 'inline-block' }}>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        style={{
+          background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
+          borderRadius: 10, padding: small ? '5px 28px 5px 10px' : '7px 30px 7px 12px',
+          color: T.text, fontSize: small ? 11 : 12,
+          fontFamily: "'Cairo', sans-serif", fontWeight: 600,
+          outline: 'none', cursor: 'pointer',
+          appearance: 'none',
+          minWidth: small ? 88 : 128,
+          transition: 'all 0.2s',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+        }}
+        onFocus={e => { e.currentTarget.style.borderColor = T.council + '60'; e.currentTarget.style.boxShadow = `0 0 0 3px ${T.council}15` }}
+        onBlur={e => { e.currentTarget.style.borderColor = T.border2; e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.03)' }}
+      >
+        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      <ChevronLeft size={12} color={T.text3} style={{
+        position: 'absolute', top: '50%', transform: 'translateY(-50%) scaleX(-1)',
+        insetInlineEnd: 8, pointerEvents: 'none',
+      }} />
+    </div>
   )
 }
 
-/* ─── Section Card ─── */
+/* ─── Section Card (Premium Glassmorphism) ─── */
 function SectionCard({ icon, iconColor, iconBg, title, subtitle, children, badge }: {
   icon: React.ReactNode; iconColor: string; iconBg: string; title: string; subtitle: string;
   children: React.ReactNode; badge?: string
 }) {
   return (
     <div style={{
-      background: T.card, border: `1px solid ${T.border}`,
-      borderRadius: 16, overflow: 'hidden',
-      transition: 'border-color 0.3s',
+      background: T.glassCard,
+      backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+      border: `1px solid ${T.border2}`,
+      borderRadius: 18, overflow: 'hidden',
+      boxShadow: T.shadowGlass,
+      transition: 'border-color 0.3s, transform 0.3s, box-shadow 0.3s',
     }}>
       {/* Section Header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 14,
-        padding: '18px 20px', borderBottom: `1px solid ${T.border}`,
+        padding: '20px 22px', borderBottom: `1px solid ${T.border}`,
+        background: 'linear-gradient(180deg, rgba(255,255,255,0.025), transparent)',
       }}>
         <div style={{
-          width: 40, height: 40, borderRadius: 11,
+          width: 44, height: 44, borderRadius: 13,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: iconBg, flexShrink: 0,
+          background: `linear-gradient(135deg, ${iconBg}, ${iconBg}88)`,
+          border: `1px solid ${iconColor}25`,
+          boxShadow: `0 4px 14px ${iconColor}18, inset 0 1px 0 rgba(255,255,255,0.08)`,
+          flexShrink: 0,
         }}>
           {icon}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: T.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: 14.5, fontWeight: 800, color: T.text, display: 'flex', alignItems: 'center', gap: 8, letterSpacing: '-0.01em' }}>
             {title}
             {badge && (
               <span style={{
-                fontSize: 9, padding: '2px 7px', borderRadius: 10,
-                background: 'rgba(255,255,255,0.04)', color: T.text3,
-                fontFamily: "'JetBrains Mono', monospace", fontWeight: 600,
+                fontSize: 9.5, padding: '2px 8px', borderRadius: 10,
+                background: `${iconColor}15`, color: iconColor,
+                fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
+                border: `1px solid ${iconColor}25`,
               }}>{badge}</span>
             )}
           </div>
-          <div style={{ fontSize: 11, color: T.text3, marginTop: 2 }}>{subtitle}</div>
+          <div style={{ fontSize: 11.5, color: T.text3, marginTop: 3, lineHeight: 1.5 }}>{subtitle}</div>
         </div>
       </div>
       {/* Section Body */}
-      <div style={{ padding: '4px 20px 18px' }}>
+      <div style={{ padding: '6px 22px 20px' }}>
         {children}
       </div>
     </div>
   )
 }
 
-/* ─── Setting Row ─── */
+/* ─── Setting Row (Premium) ─── */
 function SettingRow({ icon, label, description, children, indent }: {
   icon?: React.ReactNode; label: string; description?: string; children: React.ReactNode; indent?: boolean
 }) {
   return (
     <div style={{
       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      padding: '10px 0', minHeight: 40,
+      padding: '12px 0', minHeight: 44,
       borderBottom: `1px solid ${T.border}`,
       paddingInlineEnd: indent ? 20 : 0,
+      transition: 'background 0.2s',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-        {icon && <span style={{ flexShrink: 0, display: 'flex' }}>{icon}</span>}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+        {icon && (
+          <span style={{
+            flexShrink: 0, display: 'flex',
+            width: 26, height: 26, borderRadius: 8,
+            alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(255,255,255,0.03)',
+          }}>{icon}</span>
+        )}
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 13, color: T.text, fontWeight: 600, whiteSpace: 'nowrap' }}>{label}</div>
-          {description && <div style={{ fontSize: 10, color: T.text4, marginTop: 1 }}>{description}</div>}
+          <div style={{ fontSize: 13, color: T.text, fontWeight: 600, whiteSpace: 'nowrap', letterSpacing: '-0.005em' }}>{label}</div>
+          {description && <div style={{ fontSize: 10.5, color: T.text4, marginTop: 2, lineHeight: 1.4 }}>{description}</div>}
         </div>
       </div>
-      <div style={{ flexShrink: 0, marginInlineStart: 8 }}>{children}</div>
+      <div style={{ flexShrink: 0, marginInlineStart: 12 }}>{children}</div>
     </div>
   )
 }
 
-/* ─── Permission Tag ─── */
+/* ─── Permission Tag (Premium) ─── */
 function PermissionTag({ label, active, color }: { label: string; active: boolean; color: string }) {
   return (
     <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 4,
-      padding: '3px 8px', borderRadius: 6,
-      background: active ? `${color}12` : T.surface,
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      padding: '5px 10px', borderRadius: 8,
+      background: active ? `${color}12` : 'rgba(255,255,255,0.025)',
       color: active ? color : T.text4,
-      fontSize: 10, fontWeight: 600,
+      fontSize: 10.5, fontWeight: 600,
       fontFamily: "'Cairo', sans-serif",
-      border: `1px solid ${active ? `${color}20` : T.border}`,
-      transition: 'all 0.2s',
+      border: `1px solid ${active ? `${color}30` : T.border}`,
+      transition: 'all 0.25s',
+      boxShadow: active ? `0 0 10px ${color}10` : 'none',
     }}>
-      {active && <CheckCircle2 size={9} />}
+      {active && <CheckCircle2 size={10} />}
       {label}
     </span>
   )
@@ -176,7 +234,6 @@ function PermissionTag({ label, active, color }: { label: string; active: boolea
 ══════════════════════════════════════════════════════ */
 function ActiveAccountSelector() {
   const t = useTranslations('dashboard.settings')
-  const tc = useTranslations('common')
   const [credentials, setCredentials] = useState<any[]>([])
   const [activeCredentialId, setActiveCredentialId] = useState<string>('')
   const [loading, setLoading] = useState(true)
@@ -227,7 +284,8 @@ function ActiveAccountSelector() {
 
   if (loading) {
     return (
-      <div style={{ padding: '12px 0', textAlign: 'center', color: T.text3, fontSize: 11 }}>
+      <div style={{ padding: '16px 0', textAlign: 'center', color: T.text3, fontSize: 11.5 }}>
+        <Loader2 size={16} color={T.council} style={{ margin: '0 auto 8px', display: 'block', animation: 'spin 1s linear infinite' }} />
         {t('loadingAccounts')}
       </div>
     )
@@ -235,17 +293,19 @@ function ActiveAccountSelector() {
 
   if (credentials.length === 0) {
     return (
-      <div style={{ padding: '12px 0', textAlign: 'center' }}>
-        <div style={{ fontSize: 12, color: T.text3, marginBottom: 8 }}>
+      <div style={{ padding: '16px 0', textAlign: 'center' }}>
+        <div style={{ fontSize: 12.5, color: T.text3, marginBottom: 12 }}>
           {t('noLinkedAccounts')}
         </div>
         <button
           onClick={() => window.location.href = '/dashboard/settings/exchange'}
           style={{
-            padding: '6px 14px', borderRadius: 8,
-            background: 'rgba(0,212,255,0.08)', border: `1px solid rgba(0,212,255,0.2)`,
-            color: T.cyan, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+            padding: '8px 18px', borderRadius: 10,
+            background: `linear-gradient(135deg, ${T.council}18, ${T.cyan}12)`,
+            border: `1px solid ${T.council}30`,
+            color: T.council, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
             fontFamily: "'Cairo', sans-serif",
+            boxShadow: `0 4px 14px ${T.council}15`,
           }}
         >
           {t('linkExchange')}
@@ -259,18 +319,19 @@ function ActiveAccountSelector() {
       {/* Info banner */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
-        padding: '10px 14px', borderRadius: 10,
-        background: 'rgba(0,212,255,0.04)', border: `1px solid rgba(0,212,255,0.10)`,
-        marginBottom: 12,
+        padding: '12px 16px', borderRadius: 12,
+        background: `linear-gradient(135deg, ${T.council}08, ${T.cyan}06)`,
+        border: `1px solid ${T.council}18`,
+        marginBottom: 14,
       }}>
-        <Shield size={16} color={T.cyan} />
+        <Shield size={16} color={T.council} />
         <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.6 }}>
           {t('accountSelectorBanner')}
         </div>
       </div>
 
       {/* Account cards */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {credentials.map((cred: any) => {
           const isActive = activeCredentialId === cred.id
           const isTestnet = cred.testnet || cred.exchange?.includes('test') || cred.exchange?.includes('Testnet')
@@ -294,32 +355,37 @@ function ActiveAccountSelector() {
               key={cred.id}
               onClick={() => saveActiveAccount(cred.id)}
               style={{
-                width: '100%', padding: '10px 14px', borderRadius: 10,
-                border: isActive ? `1px solid ${typeColor}40` : `1px solid ${T.border}`,
-                background: isActive ? `${typeColor}08` : T.surface,
+                width: '100%', padding: '12px 16px', borderRadius: 12,
+                border: isActive ? `1px solid ${typeColor}50` : `1px solid ${T.border2}`,
+                background: isActive
+                  ? `linear-gradient(135deg, ${typeColor}10, ${typeColor}05)`
+                  : 'rgba(255,255,255,0.025)',
                 cursor: saving ? 'wait' : 'pointer',
-                transition: 'all 0.2s',
-                display: 'flex', alignItems: 'center', gap: 10,
-                boxShadow: isActive ? `0 0 12px ${typeColor}10` : 'none',
+                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                display: 'flex', alignItems: 'center', gap: 12,
+                boxShadow: isActive
+                  ? `0 4px 16px ${typeColor}15, inset 0 1px 0 rgba(255,255,255,0.05)`
+                  : 'inset 0 1px 0 rgba(255,255,255,0.02)',
                 fontFamily: "'Cairo', sans-serif",
               }}
             >
               {/* Account type indicator */}
-              <span style={{ fontSize: 16 }}>{typeIcon}</span>
+              <span style={{ fontSize: 18 }}>{typeIcon}</span>
 
               {/* Account info */}
               <div style={{ flex: 1, textAlign: 'right' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: isActive ? typeColor : T.text, display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: isActive ? typeColor : T.text, display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
                   {cred.label || cred.exchange}
                   <span style={{
-                    fontSize: 9, padding: '1px 6px', borderRadius: 4,
-                    background: `${typeColor}15`, color: typeColor,
+                    fontSize: 9, padding: '2px 7px', borderRadius: 5,
+                    background: `${typeColor}18`, color: typeColor,
                     fontWeight: 700, fontFamily: "'JetBrains Mono', monospace",
+                    border: `1px solid ${typeColor}25`,
                   }}>
                     {typeLabel}
                   </span>
                 </div>
-                <div style={{ fontSize: 10, color: T.text4, marginTop: 2 }}>
+                <div style={{ fontSize: 10, color: T.text4, marginTop: 3 }}>
                   {cred.exchange} {cred.lastValidatedAt ? `• ${t('lastVerified')}: ${new Date(cred.lastValidatedAt).toLocaleDateString()}` : ''}
                 </div>
               </div>
@@ -329,7 +395,7 @@ function ActiveAccountSelector() {
                 <div style={{
                   width: 10, height: 10, borderRadius: '50%',
                   background: typeColor,
-                  boxShadow: `0 0 8px ${typeColor}60`,
+                  boxShadow: `0 0 10px ${typeColor}80`,
                   animation: 'agentCtrlPulse 2s ease-in-out infinite',
                 }} />
               )}
@@ -342,85 +408,105 @@ function ActiveAccountSelector() {
 }
 
 /* ══════════════════════════════════════════════════════
-   V313: SaveStatusBadge
-   Visible indicator in the top-right corner showing the
-   auto-save status (Saving... / Saved / Error). Previously
-   the saveStatus state existed but had no UI representation.
+   PREMIUM: SaveStatusBadge
+   Animated indicator showing auto-save status.
+   Uses framer-motion for smooth state transitions.
+   idle → subtle "all saved" pill
+   saving → cyan with spinning loader
+   saved → green with checkmark (pop animation)
+   error → red with alert icon
 ══════════════════════════════════════════════════════ */
 function SaveStatusBadge({ status, t }: {
   status: 'idle' | 'saving' | 'saved' | 'error'
   t: (key: string) => string
 }) {
-  if (status === 'idle') {
-    // Idle: show subtle "all saved" pill so users know their data is persisted
-    return (
-      <div style={{
-        display: 'inline-flex', alignItems: 'center', gap: 6,
-        padding: '6px 10px', borderRadius: 8,
-        background: 'rgba(255,255,255,0.02)',
-        border: `1px solid ${T.border}`,
-        color: T.text4, fontSize: 10.5, fontWeight: 700,
-        fontFamily: "'Cairo', sans-serif", flexShrink: 0,
-      }}>
-        <Check size={12} color={T.green} />
-        <span>{t('allChangesSaved')}</span>
-      </div>
-    )
-  }
-  if (status === 'saving') {
-    return (
-      <div style={{
-        display: 'inline-flex', alignItems: 'center', gap: 6,
-        padding: '6px 10px', borderRadius: 8,
-        background: `${T.cyan}10`,
-        border: `1px solid ${T.cyan}30`,
-        color: T.cyan, fontSize: 10.5, fontWeight: 700,
-        fontFamily: "'Cairo', sans-serif", flexShrink: 0,
-      }}>
-        <Loader2 size={12} className="animate-spin" />
-        <span>{t('saving')}</span>
-      </div>
-    )
-  }
-  if (status === 'saved') {
-    return (
-      <div style={{
-        display: 'inline-flex', alignItems: 'center', gap: 6,
-        padding: '6px 10px', borderRadius: 8,
-        background: `${T.green}10`,
-        border: `1px solid ${T.green}30`,
-        color: T.green, fontSize: 10.5, fontWeight: 700,
-        fontFamily: "'Cairo', sans-serif", flexShrink: 0,
-        animation: 'settingsBadgePop 0.3s ease',
-      }}>
-        <Check size={12} />
-        <span>{t('saved')}</span>
-      </div>
-    )
-  }
-  // error
+  const config = {
+    idle: {
+      bg: 'rgba(255,255,255,0.03)',
+      border: T.border2,
+      color: T.text3,
+      icon: <Check size={13} color={T.green} />,
+      label: t('allChangesSaved'),
+      glow: 'none',
+    },
+    saving: {
+      bg: `${T.cyan}12`,
+      border: `${T.cyan}40`,
+      color: T.cyan,
+      icon: <Loader2 size={13} style={{ animation: 'spin 0.8s linear infinite' }} />,
+      label: t('saving'),
+      glow: `0 0 16px ${T.cyan}25`,
+    },
+    saved: {
+      bg: `${T.green}12`,
+      border: `${T.green}45`,
+      color: T.green,
+      icon: <Check size={13} />,
+      label: t('saved'),
+      glow: `0 0 18px ${T.green}30`,
+    },
+    error: {
+      bg: `${T.red}12`,
+      border: `${T.red}45`,
+      color: T.red,
+      icon: <AlertCircle size={13} />,
+      label: t('saveError'),
+      glow: `0 0 18px ${T.red}30`,
+    },
+  }[status]
+
   return (
-    <div style={{
-      display: 'inline-flex', alignItems: 'center', gap: 6,
-      padding: '6px 10px', borderRadius: 8,
-      background: `${T.red}10`,
-      border: `1px solid ${T.red}30`,
-      color: T.red, fontSize: 10.5, fontWeight: 700,
-      fontFamily: "'Cairo', sans-serif", flexShrink: 0,
-    }}>
-      <AlertCircle size={12} />
-      <span>{t('saveError')}</span>
-    </div>
+    <motion.div
+      key={status}
+      initial={{ opacity: 0, scale: 0.92, y: -2 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.92, y: -2 }}
+      transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 7,
+        padding: '7px 13px', borderRadius: 10,
+        background: config.bg,
+        border: `1px solid ${config.border}`,
+        color: config.color, fontSize: 11, fontWeight: 700,
+        fontFamily: "'Cairo', sans-serif", flexShrink: 0,
+        boxShadow: config.glow,
+        backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+        letterSpacing: '-0.005em',
+      }}
+    >
+      {config.icon}
+      <span>{config.label}</span>
+    </motion.div>
   )
 }
 
 /* ══════════════════════════════════════════════════════
-   Main Settings Page — V313 Redesigned Shell
+   Main Settings Page — PREMIUM Redesigned Shell
    Left sidebar with grouped tabs + search + save badge
+   Glassmorphism · Council purple accent · Smooth animations
 ══════════════════════════════════════════════════════ */
 export default function SettingsPage() {
   useScopedStyle(`
-        /* V313: Settings shell responsive behavior */
+        /* ─── Premium Settings Shell Responsive Behavior ─── */
+        /* Custom keyframes */
+        @keyframes settingsBadgePop {
+          0% { transform: scale(0.9); opacity: 0.6; }
+          50% { transform: scale(1.04); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes settingsSidebarGlow {
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 0.9; }
+        }
+        @keyframes settingsFadeUp {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+
         /* Desktop (>=1024px): vertical sidebar visible, mobile tabs hidden */
         @media (min-width: 1024px) {
           .settings-sidebar { display: flex !important; }
@@ -434,29 +520,71 @@ export default function SettingsPage() {
         }
         /* Mobile (<768px): stack top bar, full-width search */
         @media (max-width: 767px) {
-          .settings-top-bar { flex-wrap: wrap !important; gap: 8px !important; padding: 12px !important; }
+          .settings-top-bar { flex-wrap: wrap !important; gap: 10px !important; padding: 14px !important; }
           .settings-brand-meta { display: none !important; }
           .settings-search { flex: 1 1 100% !important; order: 3 !important; max-width: none !important; }
           .settings-save-badge { order: 2 !important; }
-          .settings-content { padding: 12px !important; }
-          .settings-tab-header { padding: 12px 14px !important; }
-          .settings-tab-header h2 { font-size: 15px !important; }
-          .settings-profile-row { flex-direction: column !important; text-align: center !important; }
+          .settings-content { padding: 16px !important; }
+          .settings-tab-header { padding: 16px !important; gap: 12px !important; }
+          .settings-tab-header h2 { font-size: 16px !important; }
+          .settings-profile-row { flex-direction: column !important; text-align: center !important; gap: 14px !important; }
           .perm-grid { grid-template-columns: repeat(2, 1fr) !important; }
         }
-        /* Badge pop animation */
-        @keyframes settingsBadgePop {
-          0% { transform: scale(0.9); opacity: 0.6; }
-          50% { transform: scale(1.04); }
-          100% { transform: scale(1); opacity: 1; }
-        }
-        /* Custom scrollbar for sidebar + mobile tabs */
-        .settings-sidebar::-webkit-scrollbar { width: 4px; }
+
+        /* Premium scrollbar for sidebar + mobile tabs */
+        .settings-sidebar::-webkit-scrollbar { width: 5px; }
         .settings-sidebar::-webkit-scrollbar-track { background: transparent; }
-        .settings-sidebar::-webkit-scrollbar-thumb { background: ${T.border2}; border-radius: 2px; }
+        .settings-sidebar::-webkit-scrollbar-thumb {
+          background: ${T.council}30;
+          border-radius: 3px;
+        }
+        .settings-sidebar::-webkit-scrollbar-thumb:hover {
+          background: ${T.council}50;
+        }
         .settings-mobile-tabs::-webkit-scrollbar { height: 4px; }
         .settings-mobile-tabs::-webkit-scrollbar-track { background: transparent; }
-        .settings-mobile-tabs::-webkit-scrollbar-thumb { background: ${T.border2}; border-radius: 2px; }
+        .settings-mobile-tabs::-webkit-scrollbar-thumb { background: ${T.council}30; border-radius: 2px; }
+        .settings-content::-webkit-scrollbar { width: 6px; }
+        .settings-content::-webkit-scrollbar-track { background: transparent; }
+        .settings-content::-webkit-scrollbar-thumb { background: ${T.border2}; border-radius: 3px; }
+        .settings-content::-webkit-scrollbar-thumb:hover { background: ${T.council}40; }
+
+        /* Premium sidebar group label */
+        .settings-group-label {
+          font-size: 9.5px;
+          font-weight: 800;
+          color: ${T.text4};
+          padding: 14px 14px 6px;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          font-family: 'JetBrains Mono', monospace;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .settings-group-label::after {
+          content: '';
+          flex: 1;
+          height: 1px;
+          background: linear-gradient(90deg, ${T.border2}, transparent);
+        }
+
+        /* Sidebar tab hover/active states */
+        .settings-tab-btn {
+          position: relative;
+          overflow: hidden;
+        }
+        .settings-tab-btn::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(135deg, transparent, rgba(255,255,255,0.02));
+          opacity: 0;
+          transition: opacity 0.25s;
+        }
+        .settings-tab-btn:hover::before {
+          opacity: 1;
+        }
       `)
 
   const t = useTranslations('dashboard.settings')
@@ -893,49 +1021,53 @@ export default function SettingsPage() {
   }
 
   // ═══════════════════════════════════════════════════════
-  // V313: Grouped tab navigation for the redesigned sidebar.
-  // The previous flat horizontal bar held 11 tabs — too many to fit,
-  // no logical grouping, and overflowed on smaller screens.
-  // Now organized into 4 categories: Account / Trading / AI / Preferences.
+  // PREMIUM: Grouped tab navigation for the redesigned sidebar.
+  // 4 categories: Account / Trading / AI / Preferences.
+  // Council purple accent for AI group, premium active state.
   // ═══════════════════════════════════════════════════════
   const TAB_GROUPS: Array<{
     id: string
     label: string
+    accent: string
     tabs: Array<{ id: string; label: string; icon: React.ReactNode; color: string; description: string }>
   }> = [
     {
       id: 'account-group',
       label: t('groupAccount'),
+      accent: T.cyan,
       tabs: [
-        { id: 'account', label: t('tabAccount'), icon: <User size={15} />, color: T.cyan, description: t('tabAccountDesc') },
-        { id: 'subscription', label: t('tabSubscription'), icon: <Crown size={15} />, color: T.gold, description: t('tabSubscriptionDesc') },
-        { id: 'security', label: t('tabSecurity'), icon: <Shield size={15} />, color: T.red, description: t('tabSecurityDesc') },
+        { id: 'account', label: t('tabAccount'), icon: <User size={16} />, color: T.cyan, description: t('tabAccountDesc') },
+        { id: 'subscription', label: t('tabSubscription'), icon: <Crown size={16} />, color: T.gold, description: t('tabSubscriptionDesc') },
+        { id: 'security', label: t('tabSecurity'), icon: <Shield size={16} />, color: T.red, description: t('tabSecurityDesc') },
       ],
     },
     {
       id: 'trading-group',
       label: t('groupTrading'),
+      accent: T.green,
       tabs: [
-        { id: 'trading', label: t('tabTrading'), icon: <BarChart3 size={15} />, color: T.green, description: t('tabTradingDesc') },
-        { id: 'smart-executor', label: t('smartExecutor'), icon: <Zap size={15} />, color: T.amber, description: t('smartExecutorDesc') },
-        { id: 'autonomous-agent', label: t('autonomousAgent'), icon: <Bot size={15} />, color: T.purple, description: t('autonomousAgentDesc') },
+        { id: 'trading', label: t('tabTrading'), icon: <BarChart3 size={16} />, color: T.green, description: t('tabTradingDesc') },
+        { id: 'smart-executor', label: t('smartExecutor'), icon: <Zap size={16} />, color: T.amber, description: t('smartExecutorDesc') },
+        { id: 'autonomous-agent', label: t('autonomousAgent'), icon: <Bot size={16} />, color: T.council, description: t('autonomousAgentDesc') },
       ],
     },
     {
       id: 'ai-group',
       label: t('groupAI'),
+      accent: T.council,
       tabs: [
-        { id: 'ai-council', label: t('aiCouncil'), icon: <Brain size={15} />, color: T.purple, description: t('aiCouncilDesc') },
-        { id: 'ai', label: t('tabAI'), icon: <Cpu size={15} />, color: T.cyan, description: t('tabAIDesc') },
+        { id: 'ai-council', label: t('aiCouncil'), icon: <Brain size={16} />, color: T.council, description: t('aiCouncilDesc') },
+        { id: 'ai', label: t('tabAI'), icon: <Cpu size={16} />, color: T.cyan, description: t('tabAIDesc') },
       ],
     },
     {
       id: 'preferences-group',
       label: t('groupPreferences'),
+      accent: T.pink,
       tabs: [
-        { id: 'notifications', label: t('tabNotifications'), icon: <Bell size={15} />, color: T.cyan, description: t('tabNotificationsDesc') },
-        { id: 'appearance', label: t('tabAppearance'), icon: <Palette size={15} />, color: T.pink, description: t('tabAppearanceDesc') },
-        { id: 'data', label: t('tabData'), icon: <Database size={15} />, color: T.blue, description: t('tabDataDesc') },
+        { id: 'notifications', label: t('tabNotifications'), icon: <Bell size={16} />, color: T.cyan, description: t('tabNotificationsDesc') },
+        { id: 'appearance', label: t('tabAppearance'), icon: <Palette size={16} />, color: T.pink, description: t('tabAppearanceDesc') },
+        { id: 'data', label: t('tabData'), icon: <Database size={16} />, color: T.blue, description: t('tabDataDesc') },
       ],
     },
   ]
@@ -993,74 +1125,117 @@ export default function SettingsPage() {
   ]
 
   return (
-    <div className="custom-scrollbar" style={{ fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto', background: T.bg, display: 'flex', flexDirection: 'column' }}>
+    <div className="custom-scrollbar" style={{
+      fontFamily: "'Cairo', sans-serif",
+      height: '100%', overflowY: 'auto',
+      background: `radial-gradient(ellipse at top right, ${T.council}0a, transparent 50%), ${T.bg}`,
+      display: 'flex', flexDirection: 'column',
+    }}>
       {/* ═══════════════════════════════════════════════════════════
-          V313: Top Bar — Brand + Search + Save Status Badge
+          PREMIUM Top Bar — Brand + Search + Save Status Badge
+          Glassmorphism with backdrop blur, council purple accent
           ═══════════════════════════════════════════════════════════ */}
       <header className="settings-top-bar" style={{
-        display: 'flex', alignItems: 'center', gap: 16,
-        padding: '14px 20px',
-        background: `linear-gradient(180deg, ${T.bg2}, ${T.bg})`,
-        borderBottom: `1px solid ${T.border}`,
-        position: 'sticky', top: 0, zIndex: 20,
-        backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
+        display: 'flex', alignItems: 'center', gap: 18,
+        padding: '16px 24px',
+        background: T.glassTopBar,
+        borderBottom: `1px solid ${T.border2}`,
+        position: 'sticky', top: 0, zIndex: 30,
+        backdropFilter: 'blur(24px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
         flexShrink: 0,
+        boxShadow: '0 4px 24px rgba(0,0,0,0.2)',
       }}>
-        {/* Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+        {/* Brand — Council Purple Gradient */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
           <div style={{
-            width: 38, height: 38, borderRadius: 11,
-            background: 'linear-gradient(135deg, #00d4ff, #0A84FF)',
+            width: 42, height: 42, borderRadius: 13,
+            background: 'linear-gradient(135deg, #A855F7, #06B6D4)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 14px rgba(0,212,255,0.18)',
+            boxShadow: `0 4px 18px ${T.councilGlow}, inset 0 1px 0 rgba(255,255,255,0.2)`,
+            position: 'relative',
           }}>
-            <Settings size={18} color="#fff" />
+            <Settings size={20} color="#fff" />
+            {/* Subtle inner glow */}
+            <div style={{
+              position: 'absolute', inset: 0, borderRadius: 13,
+              background: 'linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.1))',
+              pointerEvents: 'none',
+            }} />
           </div>
           <div className="settings-brand-meta">
-            <h1 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: T.text, letterSpacing: '-0.01em' }}>{t('title')}</h1>
-            <p style={{ margin: 0, fontSize: 11, color: T.text3 }}>{t('subtitle')}</p>
+            <h1 style={{
+              margin: 0, fontSize: 18, fontWeight: 900, color: T.text,
+              letterSpacing: '-0.02em',
+              background: 'linear-gradient(135deg, #F0F2F5, #A855F7)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}>{t('title')}</h1>
+            <p style={{ margin: 0, fontSize: 11, color: T.text3, fontWeight: 500 }}>{t('subtitle')}</p>
           </div>
         </div>
 
-        {/* Search Bar */}
+        {/* Search Bar — Premium Glassmorphism */}
         <div className="settings-search" style={{
-          flex: 1, maxWidth: 380, minWidth: 0,
-          display: 'flex', alignItems: 'center', gap: 8,
-          padding: '8px 12px', borderRadius: 10,
-          background: 'rgba(255,255,255,0.03)',
-          border: `1px solid ${T.border}`,
-          transition: 'border-color 0.2s, background 0.2s',
+          flex: 1, maxWidth: 420, minWidth: 0,
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '9px 14px', borderRadius: 12,
+          background: 'rgba(255,255,255,0.04)',
+          border: `1px solid ${T.border2}`,
+          transition: 'border-color 0.25s, box-shadow 0.25s, background 0.25s',
         }}>
-          <Search size={14} color={T.text3} style={{ flexShrink: 0 }} />
+          <Search size={15} color={T.text3} style={{ flexShrink: 0 }} />
           <input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
+            onFocus={e => {
+              e.currentTarget.parentElement.style.borderColor = `${T.council}50`
+              e.currentTarget.parentElement.style.boxShadow = `0 0 0 3px ${T.council}15`
+              e.currentTarget.parentElement.style.background = 'rgba(255,255,255,0.06)'
+            }}
+            onBlur={e => {
+              e.currentTarget.parentElement.style.borderColor = T.border2
+              e.currentTarget.parentElement.style.boxShadow = 'none'
+              e.currentTarget.parentElement.style.background = 'rgba(255,255,255,0.04)'
+            }}
             placeholder={t('searchSettings')}
             aria-label={t('searchSettingsAria')}
             style={{
               flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'transparent',
-              color: T.text, fontSize: 12, fontFamily: "'Cairo', sans-serif", fontWeight: 500,
+              color: T.text, fontSize: 12.5, fontFamily: "'Cairo', sans-serif", fontWeight: 500,
             }}
           />
-          {searchQuery && (
+          {searchQuery ? (
             <button
               onClick={() => setSearchQuery('')}
               aria-label={t('clearSearch')}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                width: 18, height: 18, borderRadius: '50%', border: 'none', cursor: 'pointer',
-                background: T.surface, color: T.text3, flexShrink: 0,
+                width: 20, height: 20, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                background: `${T.council}20`, color: T.council, flexShrink: 0,
+                transition: 'all 0.2s',
               }}
+              onMouseEnter={e => { e.currentTarget.style.background = `${T.council}35` }}
+              onMouseLeave={e => { e.currentTarget.style.background = `${T.council}20` }}
             >
               <X size={11} />
             </button>
+          ) : (
+            <kbd style={{
+              fontSize: 9.5, padding: '2px 6px', borderRadius: 5,
+              background: 'rgba(255,255,255,0.05)', color: T.text4,
+              fontFamily: "'JetBrains Mono', monospace", fontWeight: 600,
+              border: `1px solid ${T.border}`,
+            }}>⌘K</kbd>
           )}
         </div>
 
-        {/* Save Status Badge */}
+        {/* Save Status Badge — Animated */}
         <div className="settings-save-badge">
-          <SaveStatusBadge status={saveStatus} t={t} />
+          <AnimatePresence mode="wait">
+            <SaveStatusBadge key={saveStatus} status={saveStatus} t={t} />
+          </AnimatePresence>
         </div>
       </header>
 
@@ -1069,25 +1244,31 @@ export default function SettingsPage() {
           ═══════════════════════════════════════════════════════════ */}
       <div className="settings-body" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
 
-        {/* ─── Desktop Sidebar (>=1024px) — vertical, grouped ─── */}
+        {/* ─── Desktop Sidebar (>=1024px) — Premium vertical, grouped ─── */}
         <aside className="settings-sidebar custom-scrollbar" style={{
-          width: 232, flexShrink: 0,
+          width: 264, flexShrink: 0,
           display: 'none', // controlled by CSS media query
-          flexDirection: 'column', gap: 4,
-          padding: '16px 10px',
-          borderInlineEnd: `1px solid ${T.border}`,
-          background: T.bg2,
+          flexDirection: 'column', gap: 2,
+          padding: '18px 12px 24px',
+          borderInlineEnd: `1px solid ${T.border2}`,
+          background: T.glassSidebar,
+          backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
           overflowY: 'auto',
+          position: 'relative',
         }}>
+          {/* Decorative top gradient */}
+          <div style={{
+            position: 'absolute', top: 0, insetInlineEnd: 0, width: 120, height: 120,
+            background: `radial-gradient(circle, ${T.council}10, transparent 70%)`,
+            pointerEvents: 'none', filter: 'blur(20px)',
+          }} />
+
           {hasSearchResults ? (
             filteredTabGroups.map(group => (
-              <div key={group.id} style={{ marginBottom: 8 }}>
+              <div key={group.id} style={{ marginBottom: 4, position: 'relative' }}>
                 {/* Group label */}
-                <div style={{
-                  fontSize: 9, fontWeight: 800, color: T.text4,
-                  padding: '10px 10px 4px', letterSpacing: '0.08em', textTransform: 'uppercase',
-                  fontFamily: "'JetBrains Mono', monospace",
-                }}>
+                <div className="settings-group-label">
+                  <span style={{ color: group.accent, fontSize: 11 }}>●</span>
                   {group.label}
                 </div>
                 {/* Tabs in this group */}
@@ -1097,46 +1278,103 @@ export default function SettingsPage() {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
+                      className="settings-tab-btn"
                       style={{
-                        display: 'flex', alignItems: 'center', gap: 10,
-                        width: '100%', padding: '9px 10px',
-                        borderRadius: 8, border: 'none', cursor: 'pointer',
-                        background: isActive ? `${tab.color}14` : 'transparent',
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        width: '100%', padding: '11px 12px',
+                        borderRadius: 11, border: 'none', cursor: 'pointer',
+                        background: isActive
+                          ? `linear-gradient(135deg, ${tab.color}18, ${tab.color}08)`
+                          : 'transparent',
                         color: isActive ? tab.color : T.text3,
-                        fontSize: 12.5, fontWeight: isActive ? 800 : 600,
+                        fontSize: 13, fontWeight: isActive ? 800 : 600,
                         fontFamily: "'Cairo', sans-serif",
-                        transition: 'all 0.15s',
-                        borderInlineStart: isActive ? `3px solid ${tab.color}` : '3px solid transparent',
+                        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                        borderInlineStart: isActive
+                          ? `3px solid ${tab.color}`
+                          : '3px solid transparent',
                         textAlign: 'start',
+                        boxShadow: isActive ? T.shadowActiveTab : 'none',
+                        position: 'relative',
                       }}
                     >
-                      <span style={{ flexShrink: 0, display: 'flex', color: isActive ? tab.color : T.text3 }}>{tab.icon}</span>
-                      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tab.label}</span>
-                      {isActive && <ChevronRight size={12} color={tab.color} style={{ flexShrink: 0 }} />}
+                      <span style={{
+                        flexShrink: 0, display: 'flex',
+                        color: isActive ? tab.color : T.text3,
+                        transition: 'transform 0.25s',
+                        transform: isActive ? 'scale(1.08)' : 'scale(1)',
+                      }}>{tab.icon}</span>
+                      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.005em' }}>{tab.label}</span>
+                      {isActive && (
+                        <motion.span
+                          layoutId="activeTabIndicator"
+                          style={{
+                            width: 6, height: 6, borderRadius: '50%',
+                            background: tab.color,
+                            boxShadow: `0 0 10px ${tab.color}80`,
+                            flexShrink: 0,
+                          }}
+                        />
+                      )}
                     </button>
                   )
                 })}
               </div>
             ))
           ) : (
-            <div style={{ padding: '24px 12px', textAlign: 'center' }}>
-              <Search size={22} color={T.text4} style={{ margin: '0 auto 8px' }} />
-              <div style={{ fontSize: 12, color: T.text3, fontWeight: 700 }}>{t('noSearchResults')}</div>
-              <div style={{ fontSize: 10, color: T.text4, marginTop: 4 }}>{t('noSearchResultsDesc')}</div>
+            <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+              <div style={{
+                width: 48, height: 48, borderRadius: 14,
+                background: `${T.council}10`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 12px',
+              }}>
+                <Search size={22} color={T.council} />
+              </div>
+              <div style={{ fontSize: 12.5, color: T.text3, fontWeight: 700 }}>{t('noSearchResults')}</div>
+              <div style={{ fontSize: 10.5, color: T.text4, marginTop: 6, lineHeight: 1.5 }}>{t('noSearchResultsDesc')}</div>
             </div>
           )}
+
+          {/* Sidebar footer — Council branding */}
+          <div style={{
+            marginTop: 'auto', padding: '14px 12px 0',
+            borderTop: `1px solid ${T.border}`,
+          }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '8px 10px', borderRadius: 10,
+              background: `linear-gradient(135deg, ${T.council}10, transparent)`,
+              border: `1px solid ${T.council}20`,
+            }}>
+              <div style={{
+                width: 22, height: 22, borderRadius: 7,
+                background: 'linear-gradient(135deg, #A855F7, #06B6D4)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                <Sparkles size={11} color="#fff" />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: T.text2, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.02em' }}>ROUA COUNCIL</div>
+                <div style={{ fontSize: 8.5, color: T.text4 }}>AI Strategic Council</div>
+              </div>
+            </div>
+          </div>
         </aside>
 
-        {/* ─── Mobile Tabs (<1024px) — horizontal scroll ─── */}
+        {/* ─── Mobile Tabs (<1024px) — Premium horizontal scroll ─── */}
         <div className="settings-mobile-tabs custom-scrollbar" style={{
           display: 'none', // controlled by CSS media query
-          gap: 4, padding: '8px 12px',
-          overflowX: 'auto', borderBottom: `1px solid ${T.border}`,
-          background: T.bg2, flexShrink: 0,
+          gap: 6, padding: '10px 14px',
+          overflowX: 'auto', borderBottom: `1px solid ${T.border2}`,
+          background: T.glassSidebar,
+          backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+          flexShrink: 0,
         }}>
           {hasSearchResults ? (
             filteredTabGroups.map(group => (
-              <div key={group.id} style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <div key={group.id} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 {group.tabs.map(tab => {
                   const isActive = activeTab === tab.id
                   return (
@@ -1144,14 +1382,18 @@ export default function SettingsPage() {
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
                       style={{
-                        display: 'flex', alignItems: 'center', gap: 6,
-                        padding: '7px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                        background: isActive ? `${tab.color}14` : T.surface,
+                        display: 'flex', alignItems: 'center', gap: 7,
+                        padding: '8px 14px', borderRadius: 10, border: 'none', cursor: 'pointer',
+                        background: isActive
+                          ? `linear-gradient(135deg, ${tab.color}18, ${tab.color}08)`
+                          : 'rgba(255,255,255,0.03)',
                         color: isActive ? tab.color : T.text3,
-                        fontSize: 11.5, fontWeight: isActive ? 800 : 600,
+                        fontSize: 12, fontWeight: isActive ? 800 : 600,
                         fontFamily: "'Cairo', sans-serif",
                         whiteSpace: 'nowrap', flexShrink: 0,
-                        transition: 'all 0.15s',
+                        transition: 'all 0.25s',
+                        boxShadow: isActive ? `0 2px 12px ${tab.color}15` : 'none',
+                        borderInlineStart: isActive ? `2px solid ${tab.color}` : '2px solid transparent',
                       }}
                     >
                       <span style={{ display: 'flex', color: isActive ? tab.color : T.text3 }}>{tab.icon}</span>
@@ -1162,36 +1404,72 @@ export default function SettingsPage() {
               </div>
             ))
           ) : (
-            <div style={{ padding: '6px 8px', fontSize: 11, color: T.text3 }}>{t('noSearchResults')}</div>
+            <div style={{ padding: '8px 10px', fontSize: 11.5, color: T.text3 }}>{t('noSearchResults')}</div>
           )}
         </div>
 
         {/* ─── Main Content ─── */}
         <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-          {/* Active Tab Header */}
+          {/* Active Tab Header — Premium with large gradient icon */}
           <div className="settings-tab-header" style={{
-            display: 'flex', alignItems: 'center', gap: 14,
-            padding: '18px 22px 14px',
-            borderBottom: `1px solid ${T.border}`,
-            background: 'linear-gradient(180deg, rgba(0,0,0,0.18), transparent)',
+            display: 'flex', alignItems: 'center', gap: 18,
+            padding: '24px 28px 20px',
+            borderBottom: `1px solid ${T.border2}`,
+            background: `linear-gradient(180deg, ${activeTabMeta.color}08, transparent)`,
             flexShrink: 0,
+            position: 'relative',
+            overflow: 'hidden',
           }}>
+            {/* Decorative glow */}
             <div style={{
-              width: 44, height: 44, borderRadius: 12,
-              background: `${activeTabMeta.color}14`,
-              border: `1px solid ${activeTabMeta.color}30`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-            }}>
-              <span style={{ display: 'flex', color: activeTabMeta.color }}>{activeTabMeta.icon}</span>
-            </div>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: T.text, letterSpacing: '-0.01em' }}>
+              position: 'absolute', top: -40, insetInlineEnd: -40,
+              width: 160, height: 160, borderRadius: '50%',
+              background: `radial-gradient(circle, ${activeTabMeta.color}12, transparent 70%)`,
+              pointerEvents: 'none', filter: 'blur(30px)',
+            }} />
+
+            <motion.div
+              key={`icon-${activeTab}`}
+              initial={{ scale: 0.8, opacity: 0, rotate: -10 }}
+              animate={{ scale: 1, opacity: 1, rotate: 0 }}
+              transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+              style={{
+                width: 56, height: 56, borderRadius: 16,
+                background: `linear-gradient(135deg, ${activeTabMeta.color}, ${activeTabMeta.color}aa)`,
+                border: `1px solid ${activeTabMeta.color}40`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+                boxShadow: `0 8px 24px ${activeTabMeta.color}30, inset 0 1px 0 rgba(255,255,255,0.2)`,
+                position: 'relative',
+              }}
+            >
+              <span style={{ display: 'flex', color: '#fff', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))' }}>
+                {activeTabMeta.icon}
+              </span>
+            </motion.div>
+
+            <div style={{ minWidth: 0, flex: 1, position: 'relative' }}>
+              <motion.h2
+                key={`title-${activeTab}`}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: 0.05 }}
+                style={{
+                  margin: 0, fontSize: 22, fontWeight: 900, color: T.text,
+                  letterSpacing: '-0.02em',
+                }}
+              >
                 {activeTabMeta.label}
-              </h2>
-              <p style={{ margin: '2px 0 0', fontSize: 11.5, color: T.text3, lineHeight: 1.5 }}>
+              </motion.h2>
+              <motion.p
+                key={`desc-${activeTab}`}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+                style={{ margin: '4px 0 0', fontSize: 12.5, color: T.text3, lineHeight: 1.5, fontWeight: 500 }}
+              >
                 {activeTabMeta.description}
-              </p>
+              </motion.p>
             </div>
           </div>
 
@@ -1199,67 +1477,83 @@ export default function SettingsPage() {
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.18, ease: 'easeOut' }}
+              transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
               style={{ flex: 1, minHeight: 0 }}
             >
               {/* Content container — preserves all existing tab content unchanged */}
-              <div className="settings-content" style={{ padding: '18px 22px 32px', display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 860 }}>
+              <div className="settings-content" style={{ padding: '22px 28px 40px', display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 880 }}>
 
         {/* ═══ Account Tab ═══ */}
         {activeTab === 'account' && (
           <>
             {/* Profile Card */}
             <div className="settings-profile-row" style={{
-              background: T.card, border: `1px solid ${T.border}`,
-              borderRadius: 16, padding: 24, display: 'flex', alignItems: 'center', gap: 20,
+              background: T.glassCard,
+              backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+              border: `1px solid ${T.border2}`,
+              borderRadius: 18, padding: 26, display: 'flex', alignItems: 'center', gap: 22,
+              boxShadow: T.shadowGlass,
+              position: 'relative', overflow: 'hidden',
             }}>
+              {/* Decorative gradient */}
               <div style={{
-                width: 64, height: 64, borderRadius: 16,
+                position: 'absolute', top: -30, insetInlineEnd: -30,
+                width: 140, height: 140, borderRadius: '50%',
+                background: `radial-gradient(circle, ${roleInfo.color}12, transparent 70%)`,
+                pointerEvents: 'none', filter: 'blur(20px)',
+              }} />
+              <div style={{
+                width: 68, height: 68, borderRadius: 18,
                 background: `linear-gradient(135deg, ${roleInfo.color}, ${roleInfo.color}88)`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 26, fontWeight: 900, color: '#fff',
+                fontSize: 28, fontWeight: 900, color: '#fff',
                 fontFamily: "'JetBrains Mono', monospace",
-                boxShadow: `0 0 20px ${roleInfo.color}30`,
+                boxShadow: `0 8px 24px ${roleInfo.color}30, inset 0 1px 0 rgba(255,255,255,0.2)`,
                 flexShrink: 0,
+                position: 'relative',
               }}>
                 {user?.displayName?.[0] || user?.email?.[0]?.toUpperCase() || 'R'}
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 18, fontWeight: 900, color: T.text, marginBottom: 4 }}>
+              <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+                <div style={{ fontSize: 19, fontWeight: 900, color: T.text, marginBottom: 5, letterSpacing: '-0.02em' }}>
                   {user?.displayName || t('defaultUserName')}
                 </div>
-                <div style={{ fontSize: 12, color: T.text2, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                <div style={{ fontSize: 12, color: T.text2, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                   <Mail size={12} />
                   <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{user?.email || 'user@roua.io'}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <span style={{
-                    padding: '3px 10px', borderRadius: 10,
+                    padding: '4px 11px', borderRadius: 11,
                     background: `${roleInfo.color}15`, color: roleInfo.color,
-                    fontSize: 10, fontWeight: 700,
+                    fontSize: 10.5, fontWeight: 700,
                     fontFamily: "'JetBrains Mono', monospace",
-                    border: `1px solid ${roleInfo.color}25`,
-                    display: 'flex', alignItems: 'center', gap: 4,
+                    border: `1px solid ${roleInfo.color}30`,
+                    display: 'flex', alignItems: 'center', gap: 5,
                   }}>
-                    {['PREMIUM', 'INSTITUTIONAL', 'PLUS'].includes(userTier) ? <Sparkles size={10} /> : userTier === 'PRO' ? <Star size={10} /> : <Crown size={10} />}
+                    {['PREMIUM', 'INSTITUTIONAL', 'PLUS'].includes(userTier) ? <Sparkles size={11} /> : userTier === 'PRO' ? <Star size={11} /> : <Crown size={11} />}
                     {tc(roleInfo.labelKey)}
                   </span>
-                  <span style={{ fontSize: 10, color: T.text4 }}>{tc(roleInfo.descriptionKey)}</span>
+                  <span style={{ fontSize: 10.5, color: T.text4 }}>{tc(roleInfo.descriptionKey)}</span>
                 </div>
               </div>
               <button
                 onClick={() => router.push('/dashboard/portfolio')}
                 style={{
-                  padding: '8px 16px', borderRadius: 10, border: `1px solid ${T.border2}`,
-                  background: 'rgba(0,212,255,0.06)', color: T.cyan,
-                  fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  padding: '9px 18px', borderRadius: 11, border: `1px solid ${T.council}30`,
+                  background: `linear-gradient(135deg, ${T.council}12, ${T.cyan}08)`,
+                  color: T.council,
+                  fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
                   fontFamily: "'Cairo', sans-serif",
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  transition: 'all 0.2s', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', gap: 7,
+                  transition: 'all 0.25s', flexShrink: 0,
+                  boxShadow: `0 4px 14px ${T.council}15`,
                 }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = `0 6px 20px ${T.council}25` }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = `0 4px 14px ${T.council}15` }}
               >
                 <UserCircle size={14} />
                 {tc('accountInfo')}
@@ -1277,9 +1571,9 @@ export default function SettingsPage() {
               <div style={{ padding: '8px 0' }}>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '10px 14px', borderRadius: 10,
-                  background: 'rgba(0,212,255,0.04)', border: `1px solid rgba(0,212,255,0.10)`,
-                  marginBottom: 12,
+                  padding: '12px 16px', borderRadius: 12,
+                  background: 'rgba(0,212,255,0.04)', border: `1px solid rgba(0,212,255,0.12)`,
+                  marginBottom: 14,
                 }}>
                   <Shield size={16} color={T.cyan} />
                   <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.6 }}>
@@ -1290,7 +1584,7 @@ export default function SettingsPage() {
                 <button
                   onClick={() => router.push('/dashboard/settings/exchange')}
                   style={{
-                    width: '100%', padding: '12px 16px', borderRadius: 10,
+                    width: '100%', padding: '13px 18px', borderRadius: 12,
                     border: `1px dashed ${T.border2}`, background: 'transparent',
                     color: T.cyan, fontSize: 13, fontWeight: 700, cursor: 'pointer',
                     fontFamily: "'Cairo', sans-serif",
@@ -1308,14 +1602,14 @@ export default function SettingsPage() {
                 <button
                   onClick={() => router.push('/dashboard/settings/ea-bridge')}
                   style={{
-                    width: '100%', padding: '12px 16px', borderRadius: 10,
+                    width: '100%', padding: '13px 18px', borderRadius: 12,
                     border: `1px dashed ${T.border2}`, background: 'transparent',
-                    color: T.purple, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                    color: T.council, fontSize: 13, fontWeight: 700, cursor: 'pointer',
                     fontFamily: "'Cairo', sans-serif",
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                     transition: 'all 0.2s', marginTop: 8,
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(179,136,255,0.04)'; e.currentTarget.style.borderColor = T.purple }}
+                  onMouseEnter={e => { e.currentTarget.style.background = `${T.council}08`; e.currentTarget.style.borderColor = T.council }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = T.border2 }}
                 >
                   <Cpu size={16} />
@@ -1347,7 +1641,7 @@ export default function SettingsPage() {
                 label={t("subscriptionLevel")}
               >
                 <span style={{
-                  padding: '2px 8px', borderRadius: 6,
+                  padding: '3px 9px', borderRadius: 7,
                   background: `${roleInfo.color}15`, color: roleInfo.color,
                   fontSize: 10, fontWeight: 700,
                   fontFamily: "'JetBrains Mono', monospace",
@@ -1370,16 +1664,18 @@ export default function SettingsPage() {
 
             {/* Danger Zone */}
             <div style={{
-              border: `1px solid rgba(255,71,87,0.15)`, borderRadius: 16,
-              background: 'rgba(255,71,87,0.02)', overflow: 'hidden',
+              border: `1px solid rgba(255,71,87,0.18)`, borderRadius: 18,
+              background: 'rgba(255,71,87,0.03)', overflow: 'hidden',
+              backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+              boxShadow: '0 8px 32px rgba(255,71,87,0.08)',
             }}>
-              <div style={{ padding: '16px 20px', borderBottom: `1px solid rgba(255,71,87,0.10)` }}>
+              <div style={{ padding: '18px 22px', borderBottom: `1px solid rgba(255,71,87,0.12)`, background: 'linear-gradient(180deg, rgba(255,71,87,0.04), transparent)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <AlertTriangle size={16} color={T.red} />
-                  <span style={{ fontSize: 13, fontWeight: 700, color: T.red }}>{t('dangerZone')}</span>
+                  <span style={{ fontSize: 13.5, fontWeight: 800, color: T.red, letterSpacing: '-0.01em' }}>{t('dangerZone')}</span>
                 </div>
               </div>
-              <div style={{ padding: '8px 20px 16px' }}>
+              <div style={{ padding: '8px 22px 18px' }}>
                 <SettingRow
                   icon={<LogOut size={13} color={T.red} />}
                   label={t("logout")}
@@ -1388,8 +1684,8 @@ export default function SettingsPage() {
                   <button
                     onClick={authLogout}
                     style={{
-                      padding: '6px 14px', borderRadius: 8,
-                      background: 'rgba(255,71,87,0.10)', border: `1px solid rgba(255,71,87,0.20)`,
+                      padding: '7px 16px', borderRadius: 9,
+                      background: 'rgba(255,71,87,0.10)', border: `1px solid rgba(255,71,87,0.22)`,
                       color: T.red, fontSize: 11, fontWeight: 700, cursor: 'pointer',
                       fontFamily: "'Cairo', sans-serif", transition: 'all 0.2s',
                     }}
@@ -1405,8 +1701,8 @@ export default function SettingsPage() {
                   <button
                     onClick={() => setShowDeleteDialog(true)}
                     style={{
-                      padding: '6px 14px', borderRadius: 8,
-                      background: 'rgba(255,71,87,0.10)', border: '1px solid rgba(255,71,87,0.25)',
+                      padding: '7px 16px', borderRadius: 9,
+                      background: 'rgba(255,71,87,0.10)', border: '1px solid rgba(255,71,87,0.28)',
                       color: T.red, fontSize: 11, fontWeight: 700, cursor: 'pointer',
                       fontFamily: "'Cairo', sans-serif", transition: 'all 0.2s',
                     }}
@@ -1418,14 +1714,14 @@ export default function SettingsPage() {
               {/* Delete Account Confirmation Dialog */}
               {showDeleteDialog && (
                 <div style={{
-                  padding: '16px 20px', borderTop: `1px solid rgba(255,71,87,0.15)`,
-                  background: 'rgba(255,71,87,0.03)',
+                  padding: '18px 22px', borderTop: `1px solid rgba(255,71,87,0.18)`,
+                  background: 'rgba(255,71,87,0.04)',
                 }}>
-                  <div style={{ fontSize: 12, color: T.text2, marginBottom: 10, lineHeight: 1.6 }}>
+                  <div style={{ fontSize: 12, color: T.text2, marginBottom: 12, lineHeight: 1.6 }}>
                     {t('deleteAccountWarning')}
                   </div>
-                  <div style={{ marginBottom: 10 }}>
-                    <div style={{ fontSize: 11, color: T.text3, marginBottom: 4 }}>
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: T.text3, marginBottom: 5 }}>
                       {t('typeToConfirm')} &quot;DELETE&quot;
                     </div>
                     <input
@@ -1434,8 +1730,8 @@ export default function SettingsPage() {
                       onChange={e => setDeleteConfirmText(e.target.value)}
                       placeholder="DELETE"
                       style={{
-                        width: '100%', padding: '6px 10px', borderRadius: 8,
-                        background: T.surface, border: `1px solid rgba(255,71,87,0.20)`,
+                        width: '100%', padding: '8px 12px', borderRadius: 9,
+                        background: T.surface, border: `1px solid rgba(255,71,87,0.22)`,
                         color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
                         outline: 'none', direction: 'ltr',
                       }}
@@ -1445,7 +1741,7 @@ export default function SettingsPage() {
                     <button
                       onClick={() => { setShowDeleteDialog(false); setDeleteConfirmText('') }}
                       style={{
-                        padding: '6px 14px', borderRadius: 8,
+                        padding: '7px 16px', borderRadius: 9,
                         background: T.surface, border: `1px solid ${T.border}`,
                         color: T.text3, fontSize: 11, fontWeight: 600, cursor: 'pointer',
                         fontFamily: "'Cairo', sans-serif",
@@ -1463,9 +1759,9 @@ export default function SettingsPage() {
                         setShowDeleteDialog(false); setDeleteConfirmText('')
                       }}
                       style={{
-                        padding: '6px 14px', borderRadius: 8,
-                        background: deleteConfirmText === 'DELETE' ? 'rgba(255,71,87,0.15)' : T.surface,
-                        border: '1px solid rgba(255,71,87,0.25)',
+                        padding: '7px 16px', borderRadius: 9,
+                        background: deleteConfirmText === 'DELETE' ? 'rgba(255,71,87,0.18)' : T.surface,
+                        border: '1px solid rgba(255,71,87,0.28)',
                         color: T.red, fontSize: 11, fontWeight: 700,
                         cursor: deleteConfirmText === 'DELETE' ? 'pointer' : 'not-allowed',
                         fontFamily: "'Cairo', sans-serif",
@@ -1486,65 +1782,69 @@ export default function SettingsPage() {
           <>
             {/* Current Plan */}
             <div style={{
-              background: T.card, border: `1px solid ${roleInfo.color}25`,
-              borderRadius: 16, overflow: 'hidden',
+              background: T.glassCard,
+              backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+              border: `1px solid ${roleInfo.color}30`,
+              borderRadius: 18, overflow: 'hidden',
+              boxShadow: T.shadowGlass,
             }}>
               <div style={{
-                padding: '20px 20px 0', position: 'relative', overflow: 'hidden',
+                padding: '22px 22px 0', position: 'relative', overflow: 'hidden',
               }}>
                 {/* Background glow */}
                 <div style={{
-                  position: 'absolute', top: -40, right: -40,
-                  width: 120, height: 120, borderRadius: '50%',
-                  background: `${roleInfo.color}10`, filter: 'blur(40px)',
+                  position: 'absolute', top: -50, right: -50,
+                  width: 160, height: 160, borderRadius: '50%',
+                  background: `${roleInfo.color}15`, filter: 'blur(50px)',
                   pointerEvents: 'none',
                 }} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16, position: 'relative' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 18, position: 'relative' }}>
                   <div style={{
-                    width: 56, height: 56, borderRadius: 14,
+                    width: 60, height: 60, borderRadius: 16,
                     background: `linear-gradient(135deg, ${roleInfo.color}, ${roleInfo.color}88)`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: `0 0 24px ${roleInfo.color}30`,
+                    boxShadow: `0 8px 28px ${roleInfo.color}35, inset 0 1px 0 rgba(255,255,255,0.2)`,
                     flexShrink: 0,
                   }}>
-                    {['PREMIUM', 'INSTITUTIONAL', 'PLUS'].includes(userTier) ? <Sparkles size={24} color="#fff" /> : 
-                     userTier === 'PRO' ? <Star size={24} color="#fff" /> : 
-                     <Crown size={24} color="#fff" />}
+                    {['PREMIUM', 'INSTITUTIONAL', 'PLUS'].includes(userTier) ? <Sparkles size={26} color="#fff" /> :
+                     userTier === 'PRO' ? <Star size={26} color="#fff" /> :
+                     <Crown size={26} color="#fff" />}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 22, fontWeight: 900, color: T.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ fontSize: 23, fontWeight: 900, color: T.text, display: 'flex', alignItems: 'center', gap: 8, letterSpacing: '-0.02em' }}>
                       {t('planLabel', { plan: tc(roleInfo.labelKey) })}
                       {userTier === 'FREE' && (
                         <span style={{
-                          fontSize: 10, padding: '2px 8px', borderRadius: 10,
-                          background: `${T.cyan}12`, color: T.cyan,
+                          fontSize: 10, padding: '3px 10px', borderRadius: 11,
+                          background: `${T.cyan}15`, color: T.cyan,
                           fontFamily: "'Cairo', sans-serif", fontWeight: 700,
+                          border: `1px solid ${T.cyan}25`,
                         }}>{t('upgrade')}</span>
                       )}
                     </div>
-                    <div style={{ fontSize: 12, color: T.text3, marginTop: 2 }}>{tc(roleInfo.descriptionKey)}</div>
+                    <div style={{ fontSize: 12, color: T.text3, marginTop: 3 }}>{tc(roleInfo.descriptionKey)}</div>
                   </div>
                 </div>
 
                 {/* Plan comparison */}
-                <div style={{ display: 'flex', gap: 8, marginTop: 16, paddingBottom: 16 }}>
+                <div style={{ display: 'flex', gap: 8, marginTop: 18, paddingBottom: 18 }}>
                   {Object.entries(ROLE_INFO).filter(([key]) => key !== 'ADMIN').map(([key, info]) => {
                     const isActive = key === userTier
                     return (
                       <div key={key} style={{
-                        flex: 1, padding: '12px 8px', borderRadius: 10, textAlign: 'center',
-                        background: isActive ? `${info.color}10` : T.surface,
-                        border: isActive ? `1px solid ${info.color}30` : `1px solid ${T.border}`,
+                        flex: 1, padding: '13px 8px', borderRadius: 12, textAlign: 'center',
+                        background: isActive ? `${info.color}12` : 'rgba(255,255,255,0.025)',
+                        border: isActive ? `1px solid ${info.color}40` : `1px solid ${T.border}`,
                         transition: 'all 0.3s',
-                        boxShadow: isActive ? `0 0 16px ${info.color}10` : 'none',
+                        boxShadow: isActive ? `0 4px 18px ${info.color}12` : 'none',
                       }}>
                         <div style={{ fontSize: 12, fontWeight: 800, color: isActive ? info.color : T.text3, fontFamily: "'Cairo', sans-serif" }}>
                           {tc(info.labelKey)}
                         </div>
-                        <div style={{ fontSize: 9, color: T.text4, marginTop: 2 }}>{tc(info.descriptionKey)}</div>
+                        <div style={{ fontSize: 9, color: T.text4, marginTop: 3 }}>{tc(info.descriptionKey)}</div>
                         {isActive && (
                           <div style={{
-                            marginTop: 6, fontSize: 8, fontWeight: 700,
+                            marginTop: 8, fontSize: 8.5, fontWeight: 700,
                             color: info.color, fontFamily: "'JetBrains Mono', monospace",
                           }}>{t('current')}</div>
                         )}
@@ -1566,9 +1866,9 @@ export default function SettingsPage() {
             >
               <div style={{ padding: '8px 0' }}>
                 {permissionCategories.map((cat, ci) => (
-                  <div key={ci} style={{ marginBottom: ci < permissionCategories.length - 1 ? 12 : 0 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: T.text4, marginBottom: 6, letterSpacing: '0.05em' }}>{cat.name}</div>
-                    <div className="perm-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                  <div key={ci} style={{ marginBottom: ci < permissionCategories.length - 1 ? 14 : 0 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: T.text4, marginBottom: 8, letterSpacing: '0.06em' }}>{cat.name}</div>
+                    <div className="perm-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 7 }}>
                       {cat.perms.map((p, pi) => (
                         <PermissionTag key={pi} label={p.label} active={hasPermission(userTier, p.perm)} color={roleInfo.color} />
                       ))}
@@ -1581,24 +1881,34 @@ export default function SettingsPage() {
             {/* Upgrade Prompt for FREE users */}
             {userTier === 'FREE' && (
               <div style={{
-                background: `linear-gradient(135deg, ${T.cyan}08, ${T.purple}08)`,
-                border: `1px solid ${T.cyan}20`, borderRadius: 16,
-                padding: 20, textAlign: 'center',
+                background: `linear-gradient(135deg, ${T.council}10, ${T.cyan}08)`,
+                border: `1px solid ${T.council}25`, borderRadius: 18,
+                padding: 24, textAlign: 'center',
+                backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+                boxShadow: `0 8px 32px ${T.council}12`,
+                position: 'relative', overflow: 'hidden',
               }}>
-                <div style={{ fontSize: 16, fontWeight: 900, color: T.text, marginBottom: 8 }}>
+                <div style={{
+                  position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)',
+                  width: 200, height: 100, borderRadius: '50%',
+                  background: `radial-gradient(circle, ${T.council}20, transparent 70%)`,
+                  pointerEvents: 'none', filter: 'blur(30px)',
+                }} />
+                <div style={{ fontSize: 17, fontWeight: 900, color: T.text, marginBottom: 10, position: 'relative', letterSpacing: '-0.02em' }}>
                   {t('unlockFullPotential')}
                 </div>
-                <div style={{ fontSize: 12, color: T.text3, lineHeight: 1.8, marginBottom: 16 }}>
+                <div style={{ fontSize: 12, color: T.text3, lineHeight: 1.8, marginBottom: 18, position: 'relative' }}>
                   {t('upgradeProDesc')}
                 </div>
                 <button
                   onClick={() => router.push('/dashboard/billing')}
                   style={{
-                  padding: '10px 28px', borderRadius: 10,
-                  background: `linear-gradient(135deg, ${T.cyan}, #0A84FF)`,
-                  border: 'none', color: '#000', fontSize: 13, fontWeight: 800,
+                  padding: '11px 32px', borderRadius: 12,
+                  background: `linear-gradient(135deg, ${T.council}, ${T.cyan})`,
+                  border: 'none', color: '#fff', fontSize: 13, fontWeight: 800,
                   cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
-                  boxShadow: `0 0 20px ${T.cyan}30`,
+                  boxShadow: `0 8px 24px ${T.council}35`,
+                  position: 'relative',
                 }}>
                   {tc('upgrade')}
                 </button>
@@ -1631,28 +1941,30 @@ export default function SettingsPage() {
             >
               <div style={{ display: 'flex', gap: 8, padding: '8px 0' }}>
                 {([
-                  { id: 'trader' as TradingMode, label: t('traderMode'), desc: t('quickExecution'), color: T.cyan, icon: <BarChart3 size={14} /> },
-                  { id: 'investor' as TradingMode, label: t('investorMode'), desc: t('longInvestment'), color: T.green, icon: <TrendingUp size={14} /> },
-                  { id: 'ai' as TradingMode, label: 'AI', desc: t('aiIntelligence'), color: T.purple, icon: <Brain size={14} /> },
+                  { id: 'trader' as TradingMode, label: t('traderMode'), desc: t('quickExecution'), color: T.cyan, icon: <BarChart3 size={16} /> },
+                  { id: 'investor' as TradingMode, label: t('investorMode'), desc: t('longInvestment'), color: T.green, icon: <TrendingUp size={16} /> },
+                  { id: 'ai' as TradingMode, label: 'AI', desc: t('aiIntelligence'), color: T.council, icon: <Brain size={16} /> },
                 ]).map(m => (
                   <button
                     key={m.id}
                     onClick={() => setMode(m.id)}
                     style={{
-                      flex: 1, padding: '14px 12px', borderRadius: 12, cursor: 'pointer',
-                      background: mode === m.id ? `${m.color}12` : T.surface,
-                      border: mode === m.id ? `1px solid ${m.color}30` : `1px solid ${T.border}`,
-                      transition: 'all 0.3s', textAlign: 'center',
-                      boxShadow: mode === m.id ? `0 0 16px ${m.color}15` : 'none',
+                      flex: 1, padding: '16px 12px', borderRadius: 13, cursor: 'pointer',
+                      background: mode === m.id
+                        ? `linear-gradient(135deg, ${m.color}15, ${m.color}08)`
+                        : 'rgba(255,255,255,0.025)',
+                      border: mode === m.id ? `1px solid ${m.color}40` : `1px solid ${T.border}`,
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', textAlign: 'center',
+                      boxShadow: mode === m.id ? `0 4px 18px ${m.color}18` : 'none',
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6, color: mode === m.id ? m.color : T.text3 }}>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8, color: mode === m.id ? m.color : T.text3 }}>
                       {m.icon}
                     </div>
                     <div style={{ fontSize: 13, fontWeight: 800, color: mode === m.id ? m.color : T.text2, fontFamily: "'Cairo', sans-serif" }}>
                       {m.label}
                     </div>
-                    <div style={{ fontSize: 9, color: T.text4, marginTop: 2 }}>{m.desc}</div>
+                    <div style={{ fontSize: 9.5, color: T.text4, marginTop: 3 }}>{m.desc}</div>
                   </button>
                 ))}
               </div>
@@ -1676,9 +1988,9 @@ export default function SettingsPage() {
                     type="range" min={1} max={100} step={1}
                     value={orderSize}
                     onChange={e => setOrderSize(e.target.value)}
-                    style={{ width: 80, accentColor: T.cyan, height: 3 }}
+                    style={{ width: 90, accentColor: T.council, height: 3 }}
                   />
-                  <span style={{ fontSize: 11, fontWeight: 700, color: T.cyan, fontFamily: "'JetBrains Mono', monospace", minWidth: 30, textAlign: 'center' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: T.council, fontFamily: "'JetBrains Mono', monospace", minWidth: 32, textAlign: 'center' }}>
                     {orderSize}%
                   </span>
                 </div>
@@ -1734,8 +2046,8 @@ export default function SettingsPage() {
                     value={userStopLoss}
                     onChange={e => setUserStopLoss(e.target.value)}
                     style={{
-                      width: 60, padding: '4px 8px', borderRadius: 8,
-                      background: T.surface, border: `1px solid ${T.border}`,
+                      width: 60, padding: '5px 8px', borderRadius: 9,
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
                       color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
                       textAlign: 'center', outline: 'none',
                     }}
@@ -1755,8 +2067,8 @@ export default function SettingsPage() {
                     value={userTakeProfit}
                     onChange={e => setUserTakeProfit(e.target.value)}
                     style={{
-                      width: 60, padding: '4px 8px', borderRadius: 8,
-                      background: T.surface, border: `1px solid ${T.border}`,
+                      width: 60, padding: '5px 8px', borderRadius: 9,
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
                       color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
                       textAlign: 'center', outline: 'none',
                     }}
@@ -1776,8 +2088,8 @@ export default function SettingsPage() {
                     value={userRiskPerTrade}
                     onChange={e => setUserRiskPerTrade(e.target.value)}
                     style={{
-                      width: 60, padding: '4px 8px', borderRadius: 8,
-                      background: T.surface, border: `1px solid ${T.border}`,
+                      width: 60, padding: '5px 8px', borderRadius: 9,
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
                       color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
                       textAlign: 'center', outline: 'none',
                     }}
@@ -1797,8 +2109,8 @@ export default function SettingsPage() {
                     value={userMaxDailyLoss}
                     onChange={e => setUserMaxDailyLoss(e.target.value)}
                     style={{
-                      width: 60, padding: '4px 8px', borderRadius: 8,
-                      background: T.surface, border: `1px solid ${T.border}`,
+                      width: 60, padding: '5px 8px', borderRadius: 9,
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
                       color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
                       textAlign: 'center', outline: 'none',
                     }}
@@ -1818,8 +2130,8 @@ export default function SettingsPage() {
                     value={userMaxOpenPositions}
                     onChange={e => setUserMaxOpenPositions(e.target.value)}
                     style={{
-                      width: 60, padding: '4px 8px', borderRadius: 8,
-                      background: T.surface, border: `1px solid ${T.border}`,
+                      width: 60, padding: '5px 8px', borderRadius: 9,
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
                       color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
                       textAlign: 'center', outline: 'none',
                     }}
@@ -1845,9 +2157,9 @@ export default function SettingsPage() {
 
             {/* Chart Settings */}
             <SectionCard
-              icon={<LineChart size={18} color={T.purple} />}
-              iconColor={T.purple}
-              iconBg={`${T.purple}14`}
+              icon={<LineChart size={18} color={T.council} />}
+              iconColor={T.council}
+              iconBg={`${T.council}14`}
               title={t('chartSettings')}
               subtitle={t('chartTypeTimeframe')}
             >
@@ -1910,7 +2222,7 @@ export default function SettingsPage() {
               </SettingRow>
               {pairFilterMode === 'whitelist' && (
                 <div style={{ padding: '8px 0' }}>
-                  <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 6 }}>
+                  <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 8 }}>
                     {t('pairWhitelistLabel')}
                   </div>
                   <textarea
@@ -1919,8 +2231,8 @@ export default function SettingsPage() {
                     placeholder={'BTC/USDT\nETH/USDT\nSOL/USDT'}
                     rows={4}
                     style={{
-                      width: '100%', padding: '8px 12px', borderRadius: 8,
-                      background: T.surface, border: `1px solid ${T.border}`,
+                      width: '100%', padding: '10px 14px', borderRadius: 10,
+                      background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border2}`,
                       color: T.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
                       outline: 'none', direction: 'ltr', resize: 'vertical',
                       lineHeight: 1.6,
@@ -1930,7 +2242,7 @@ export default function SettingsPage() {
               )}
               {pairFilterMode === 'blacklist' && (
                 <div style={{ padding: '8px 0' }}>
-                  <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 6 }}>
+                  <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 8 }}>
                     {t('pairBlacklistLabel')}
                   </div>
                   <textarea
@@ -1939,8 +2251,8 @@ export default function SettingsPage() {
                     placeholder={'DOGE/USDT\nXRP/USDT'}
                     rows={4}
                     style={{
-                      width: '100%', padding: '8px 12px', borderRadius: 8,
-                      background: T.surface, border: `1px solid ${T.border}`,
+                      width: '100%', padding: '10px 14px', borderRadius: 10,
+                      background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border2}`,
                       color: T.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
                       outline: 'none', direction: 'ltr', resize: 'vertical',
                       lineHeight: 1.6,
@@ -1951,12 +2263,12 @@ export default function SettingsPage() {
               {/* Info note */}
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 10,
-                padding: '10px 14px', borderRadius: 10,
-                background: 'rgba(0,255,163,0.04)', border: `1px solid rgba(0,255,163,0.10)`,
-                marginTop: 8,
+                padding: '12px 16px', borderRadius: 12,
+                background: 'rgba(0,255,163,0.04)', border: `1px solid rgba(0,255,163,0.12)`,
+                marginTop: 10,
               }}>
                 <CheckCircle2 size={16} color={T.green} />
-                <div style={{ fontSize: 10, color: T.text2, lineHeight: 1.6 }}>
+                <div style={{ fontSize: 10.5, color: T.text2, lineHeight: 1.6 }}>
                   {t('pairFilterInfo')}
                 </div>
               </div>
@@ -1989,8 +2301,8 @@ export default function SettingsPage() {
                       value={tradingScheduleStart}
                       onChange={e => setTradingScheduleStart(e.target.value)}
                       style={{
-                        padding: '4px 8px', borderRadius: 8,
-                        background: T.surface, border: `1px solid ${T.border}`,
+                        padding: '5px 10px', borderRadius: 9,
+                        background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
                         color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
                         outline: 'none', direction: 'ltr',
                       }}
@@ -2006,18 +2318,18 @@ export default function SettingsPage() {
                       value={tradingScheduleEnd}
                       onChange={e => setTradingScheduleEnd(e.target.value)}
                       style={{
-                        padding: '4px 8px', borderRadius: 8,
-                        background: T.surface, border: `1px solid ${T.border}`,
+                        padding: '5px 10px', borderRadius: 9,
+                        background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
                         color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
                         outline: 'none', direction: 'ltr',
                       }}
                     />
                   </SettingRow>
                   <div style={{ padding: '8px 0' }}>
-                    <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 8 }}>
+                    <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 10 }}>
                       {t('tradingDays')}
                     </div>
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                       {([
                         { day: 1, label: t('dayMon') },
                         { day: 2, label: t('dayTue') },
@@ -2039,11 +2351,11 @@ export default function SettingsPage() {
                               setTradingScheduleDays(newDays.length > 0 ? newDays.join(',') : '1,2,3,4,5')
                             }}
                             style={{
-                              padding: '6px 10px', borderRadius: 8,
-                              border: isSelected ? `1px solid ${T.amber}40` : `1px solid ${T.border}`,
-                              background: isSelected ? `${T.amber}12` : T.surface,
+                              padding: '7px 12px', borderRadius: 9,
+                              border: isSelected ? `1px solid ${T.amber}45` : `1px solid ${T.border2}`,
+                              background: isSelected ? `${T.amber}14` : 'rgba(255,255,255,0.025)',
                               color: isSelected ? T.amber : T.text3,
-                              fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                              fontSize: 10.5, fontWeight: 700, cursor: 'pointer',
                               fontFamily: "'Cairo', sans-serif",
                               transition: 'all 0.2s',
                             }}
@@ -2057,12 +2369,12 @@ export default function SettingsPage() {
                   {/* Info note */}
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '10px 14px', borderRadius: 10,
-                    background: 'rgba(255,184,0,0.04)', border: `1px solid rgba(255,184,0,0.10)`,
-                    marginTop: 8,
+                    padding: '12px 16px', borderRadius: 12,
+                    background: 'rgba(255,184,0,0.04)', border: `1px solid rgba(255,184,0,0.12)`,
+                    marginTop: 10,
                   }}>
                     <AlertTriangle size={16} color={T.amber} />
-                    <div style={{ fontSize: 10, color: T.text2, lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 10.5, color: T.text2, lineHeight: 1.6 }}>
                       {t('tradingScheduleInfo')}
                     </div>
                   </div>
@@ -2162,11 +2474,11 @@ export default function SettingsPage() {
               </SettingRow>
 
 
-              <div style={{ height: 1, background: T.border, margin: '8px 0' }} />
-              <div style={{ fontSize: 10, fontWeight: 700, color: T.text4, padding: '4px 0 0', letterSpacing: '0.05em' }}>{t('notificationSources')}</div>
+              <div style={{ height: 1, background: T.border, margin: '10px 0' }} />
+              <div style={{ fontSize: 10, fontWeight: 700, color: T.text4, padding: '4px 0 0', letterSpacing: '0.06em' }}>{t('notificationSources')}</div>
 
-              <SettingRow icon={<Bot size={13} color={T.purple} />} label={t('botAlerts')}>
-                <Toggle checked={settings.botAlerts} onChange={() => updateSettings({ botAlerts: !settings.botAlerts })} color={T.purple} size="sm" />
+              <SettingRow icon={<Bot size={13} color={T.council} />} label={t('botAlerts')}>
+                <Toggle checked={settings.botAlerts} onChange={() => updateSettings({ botAlerts: !settings.botAlerts })} color={T.council} size="sm" />
               </SettingRow>
               <SettingRow icon={<Brain size={13} color={T.cyan} />} label={t('aiAlerts')}>
                 <Toggle checked={settings.aiAlerts} onChange={() => updateSettings({ aiAlerts: !settings.aiAlerts })} color={T.cyan} size="sm" />
@@ -2180,8 +2492,8 @@ export default function SettingsPage() {
 
 
               {/* Confidence Slider */}
-              <div style={{ marginTop: 8, padding: '8px 0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div style={{ marginTop: 10, padding: '8px 0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                   <span style={{ fontSize: 12, color: T.text2, fontWeight: 600 }}>
                     <Target size={13} style={{ display: 'inline', verticalAlign: -2, marginLeft: 4 }} />
                     {t('minConfidenceLevel')}
@@ -2189,7 +2501,8 @@ export default function SettingsPage() {
                   <span style={{
                     fontSize: 12, fontWeight: 800, color: T.cyan,
                     fontFamily: "'JetBrains Mono', monospace",
-                    background: `${T.cyan}12`, padding: '2px 8px', borderRadius: 6,
+                    background: `${T.cyan}15`, padding: '3px 10px', borderRadius: 7,
+                    border: `1px solid ${T.cyan}25`,
                   }}>
                     {settings.minConfidence}%
                   </span>
@@ -2198,9 +2511,9 @@ export default function SettingsPage() {
                   type="range" min={0} max={100} step={5}
                   value={settings.minConfidence}
                   onChange={e => updateSettings({ minConfidence: Number(e.target.value) })}
-                  style={{ width: '100%', accentColor: T.cyan, height: 4 }}
+                  style={{ width: '100%', accentColor: T.council, height: 4 }}
                 />
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
                   <span style={{ fontSize: 9, color: T.text4 }}>{t('allSignals')}</span>
                   <span style={{ fontSize: 9, color: T.text4 }}>{t('highConfidenceOnly')}</span>
                 </div>
@@ -2233,14 +2546,14 @@ export default function SettingsPage() {
 
             {/* Feature 3: External Notification Channels */}
             <SectionCard
-              icon={<Send size={18} color={T.purple} />}
-              iconColor={T.purple}
-              iconBg={`${T.purple}14`}
+              icon={<Send size={18} color={T.council} />}
+              iconColor={T.council}
+              iconBg={`${T.council}14`}
               title={t('extNotifChannelsTitle')}
               subtitle={t('extNotifChannelsSubtitle')}
             >
               <SettingRow
-                icon={<Smartphone size={13} color={T.purple} />}
+                icon={<Smartphone size={13} color={T.council} />}
                 label="Telegram Bot Token"
                 description={t('telegramBotTokenDesc')}
               >
@@ -2250,8 +2563,8 @@ export default function SettingsPage() {
                   onChange={e => setTelegramBotToken(e.target.value)}
                   placeholder="123456:ABC-DEF..."
                   style={{
-                    width: 180, padding: '4px 8px', borderRadius: 8,
-                    background: T.surface, border: `1px solid ${T.border}`,
+                    width: 180, padding: '5px 10px', borderRadius: 9,
+                    background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
                     color: T.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
                     outline: 'none', direction: 'ltr',
                   }}
@@ -2268,15 +2581,15 @@ export default function SettingsPage() {
                   onChange={e => setTelegramChatId(e.target.value)}
                   placeholder="-1001234567890"
                   style={{
-                    width: 180, padding: '4px 8px', borderRadius: 8,
-                    background: T.surface, border: `1px solid ${T.border}`,
+                    width: 180, padding: '5px 10px', borderRadius: 9,
+                    background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
                     color: T.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
                     outline: 'none', direction: 'ltr',
                   }}
                 />
               </SettingRow>
               <SettingRow
-                icon={<Wifi size={13} color={T.purple} />}
+                icon={<Wifi size={13} color={T.council} />}
                 label="Discord Webhook URL"
                 description={t('discordWebhookDesc')}
               >
@@ -2286,8 +2599,8 @@ export default function SettingsPage() {
                   onChange={e => setDiscordWebhookUrl(e.target.value)}
                   placeholder="https://discord.com/api/webhooks/..."
                   style={{
-                    width: 180, padding: '4px 8px', borderRadius: 8,
-                    background: T.surface, border: `1px solid ${T.border}`,
+                    width: 180, padding: '5px 10px', borderRadius: 9,
+                    background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
                     color: T.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
                     outline: 'none', direction: 'ltr',
                   }}
@@ -2308,14 +2621,14 @@ export default function SettingsPage() {
         {activeTab === 'ai' && (
           <>
             <SectionCard
-              icon={<Brain size={18} color={T.purple} />}
-              iconColor={T.purple}
-              iconBg={`${T.purple}14`}
+              icon={<Brain size={18} color={T.council} />}
+              iconColor={T.council}
+              iconBg={`${T.council}14`}
               title={t('aiSettings')}
               subtitle={t('aiSettingsSubtitle')}
             >
               <SettingRow
-                icon={<Cpu size={13} color={T.purple} />}
+                icon={<Cpu size={13} color={T.council} />}
                 label={t('aiModel')}
                 description={t('aiModelDesc')}
               >
@@ -2340,9 +2653,9 @@ export default function SettingsPage() {
                     type="range" min={50} max={99} step={5}
                     value={aiConfidence}
                     onChange={e => setAiConfidence(e.target.value)}
-                    style={{ width: 80, accentColor: T.purple, height: 3 }}
+                    style={{ width: 90, accentColor: T.council, height: 3 }}
                   />
-                  <span style={{ fontSize: 11, fontWeight: 700, color: T.purple, fontFamily: "'JetBrains Mono', monospace", minWidth: 30, textAlign: 'center' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: T.council, fontFamily: "'JetBrains Mono', monospace", minWidth: 32, textAlign: 'center' }}>
                     {aiConfidence}%
                   </span>
                 </div>
@@ -2391,7 +2704,7 @@ export default function SettingsPage() {
                     />
                   </SettingRow>
                   <div style={{ padding: '8px 0' }}>
-                    <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 8 }}>
                       {t('monitoringPairsLabel')}
                     </div>
                     <textarea
@@ -2400,8 +2713,8 @@ export default function SettingsPage() {
                       placeholder={'BTC/USDT\nETH/USDT\nSOL/USDT'}
                       rows={3}
                       style={{
-                        width: '100%', padding: '8px 12px', borderRadius: 8,
-                        background: T.surface, border: `1px solid ${T.border}`,
+                        width: '100%', padding: '10px 14px', borderRadius: 10,
+                        background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border2}`,
                         color: T.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
                         outline: 'none', direction: 'ltr', resize: 'vertical',
                         lineHeight: 1.6,
@@ -2410,12 +2723,12 @@ export default function SettingsPage() {
                   </div>
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '10px 14px', borderRadius: 10,
-                    background: 'rgba(0,212,255,0.04)', border: `1px solid rgba(0,212,255,0.10)`,
-                    marginTop: 8,
+                    padding: '12px 16px', borderRadius: 12,
+                    background: 'rgba(0,212,255,0.04)', border: `1px solid rgba(0,212,255,0.12)`,
+                    marginTop: 10,
                   }}>
                     <Radar size={16} color={T.cyan} />
-                    <div style={{ fontSize: 10, color: T.text2, lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 10.5, color: T.text2, lineHeight: 1.6 }}>
                       {t('monitoringInfo')}
                     </div>
                   </div>
@@ -2450,9 +2763,9 @@ export default function SettingsPage() {
                         type="range" min={50} max={99} step={5}
                         value={signalMinConfidence}
                         onChange={e => setSignalMinConfidence(e.target.value)}
-                        style={{ width: 80, accentColor: T.green, height: 3 }}
+                        style={{ width: 90, accentColor: T.green, height: 3 }}
                       />
-                      <span style={{ fontSize: 11, fontWeight: 700, color: T.green, fontFamily: "'JetBrains Mono', monospace", minWidth: 30, textAlign: 'center' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: T.green, fontFamily: "'JetBrains Mono', monospace", minWidth: 32, textAlign: 'center' }}>
                         {signalMinConfidence}%
                       </span>
                     </div>
@@ -2475,12 +2788,12 @@ export default function SettingsPage() {
                   </SettingRow>
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '10px 14px', borderRadius: 10,
-                    background: 'rgba(0,255,163,0.04)', border: `1px solid rgba(0,255,163,0.10)`,
-                    marginTop: 8,
+                    padding: '12px 16px', borderRadius: 12,
+                    background: 'rgba(0,255,163,0.04)', border: `1px solid rgba(0,255,163,0.12)`,
+                    marginTop: 10,
                   }}>
                     <Activity size={16} color={T.green} />
-                    <div style={{ fontSize: 10, color: T.text2, lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 10.5, color: T.text2, lineHeight: 1.6 }}>
                       {t('signalsInfo')}
                     </div>
                   </div>
@@ -2515,9 +2828,9 @@ export default function SettingsPage() {
                         type="range" min={1} max={10} step={0.5}
                         value={volatilityThreshold}
                         onChange={e => setVolatilityThreshold(e.target.value)}
-                        style={{ width: 80, accentColor: T.amber, height: 3 }}
+                        style={{ width: 90, accentColor: T.amber, height: 3 }}
                       />
-                      <span style={{ fontSize: 11, fontWeight: 700, color: T.amber, fontFamily: "'JetBrains Mono', monospace", minWidth: 30, textAlign: 'center' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: T.amber, fontFamily: "'JetBrains Mono', monospace", minWidth: 32, textAlign: 'center' }}>
                         {volatilityThreshold}%
                       </span>
                     </div>
@@ -2540,12 +2853,12 @@ export default function SettingsPage() {
                   </SettingRow>
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '10px 14px', borderRadius: 10,
-                    background: 'rgba(255,184,0,0.04)', border: `1px solid rgba(255,184,0,0.10)`,
-                    marginTop: 8,
+                    padding: '12px 16px', borderRadius: 12,
+                    background: 'rgba(255,184,0,0.04)', border: `1px solid rgba(255,184,0,0.12)`,
+                    marginTop: 10,
                   }}>
                     <AlertTriangle size={16} color={T.amber} />
-                    <div style={{ fontSize: 10, color: T.text2, lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 10.5, color: T.text2, lineHeight: 1.6 }}>
                       {t('riskAlertsInfo')}
                     </div>
                   </div>
@@ -2555,18 +2868,18 @@ export default function SettingsPage() {
 
             {/* ─── Sentiment Analysis ─── */}
             <SectionCard
-              icon={<BarChart3 size={18} color={T.purple} />}
-              iconColor={T.purple}
-              iconBg={`${T.purple}14`}
+              icon={<BarChart3 size={18} color={T.council} />}
+              iconColor={T.council}
+              iconBg={`${T.council}14`}
               title={t('sentimentAnalysis')}
               subtitle={t('sentimentAnalysisDesc')}
             >
               <SettingRow
-                icon={<BarChart3 size={13} color={T.purple} />}
+                icon={<BarChart3 size={13} color={T.council} />}
                 label={t('enableSentiment')}
                 description={t('enableSentimentDesc')}
               >
-                <Toggle checked={sentimentEnabled} onChange={() => setSentimentEnabled(!sentimentEnabled)} color={T.purple} />
+                <Toggle checked={sentimentEnabled} onChange={() => setSentimentEnabled(!sentimentEnabled)} color={T.council} />
               </SettingRow>
               {sentimentEnabled && (
                 <>
@@ -2604,12 +2917,12 @@ export default function SettingsPage() {
                   </SettingRow>
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '10px 14px', borderRadius: 10,
-                    background: 'rgba(139,92,246,0.04)', border: `1px solid rgba(139,92,246,0.10)`,
-                    marginTop: 8,
+                    padding: '12px 16px', borderRadius: 12,
+                    background: `${T.council}08`, border: `1px solid ${T.council}18`,
+                    marginTop: 10,
                   }}>
-                    <BarChart3 size={16} color={T.purple} />
-                    <div style={{ fontSize: 10, color: T.text2, lineHeight: 1.6 }}>
+                    <BarChart3 size={16} color={T.council} />
+                    <div style={{ fontSize: 10.5, color: T.text2, lineHeight: 1.6 }}>
                       {t('sentimentInfo')}
                     </div>
                   </div>
@@ -2628,9 +2941,9 @@ export default function SettingsPage() {
               {/* Warning banner */}
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 10,
-                padding: '10px 14px', borderRadius: 10,
-                background: 'rgba(255,184,0,0.06)', border: `1px solid rgba(255,184,0,0.15)`,
-                marginBottom: 12,
+                padding: '12px 16px', borderRadius: 12,
+                background: 'rgba(255,184,0,0.06)', border: `1px solid rgba(255,184,0,0.18)`,
+                marginBottom: 14,
               }}>
                 <AlertTriangle size={16} color={T.amber} />
                 <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.6 }}>
@@ -2664,8 +2977,8 @@ export default function SettingsPage() {
                     value={scalpingTakeProfitPips}
                     onChange={e => setScalpingTakeProfitPips(e.target.value)}
                     style={{
-                      width: 60, padding: '4px 8px', borderRadius: 8,
-                      background: T.surface, border: `1px solid ${T.border}`,
+                      width: 60, padding: '5px 8px', borderRadius: 9,
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
                       color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
                       textAlign: 'center', outline: 'none',
                     }}
@@ -2684,8 +2997,8 @@ export default function SettingsPage() {
                     value={scalpingStopLossPips}
                     onChange={e => setScalpingStopLossPips(e.target.value)}
                     style={{
-                      width: 60, padding: '4px 8px', borderRadius: 8,
-                      background: T.surface, border: `1px solid ${T.border}`,
+                      width: 60, padding: '5px 8px', borderRadius: 9,
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
                       color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
                       textAlign: 'center', outline: 'none',
                     }}
@@ -2704,8 +3017,8 @@ export default function SettingsPage() {
                     value={scalpingMaxSpread}
                     onChange={e => setScalpingMaxSpread(e.target.value)}
                     style={{
-                      width: 60, padding: '4px 8px', borderRadius: 8,
-                      background: T.surface, border: `1px solid ${T.border}`,
+                      width: 60, padding: '5px 8px', borderRadius: 9,
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
                       color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
                       textAlign: 'center', outline: 'none',
                     }}
@@ -2714,7 +3027,7 @@ export default function SettingsPage() {
                 </div>
               </SettingRow>
               <SettingRow
-                icon={<Sliders size={13} color={T.purple} />}
+                icon={<Sliders size={13} color={T.council} />}
                 label={t('gridLevelsLabel')}
                 description={t('gridLevelsDesc')}
               >
@@ -2724,8 +3037,8 @@ export default function SettingsPage() {
                     value={gridLevels}
                     onChange={e => setGridLevels(e.target.value)}
                     style={{
-                      width: 60, padding: '4px 8px', borderRadius: 8,
-                      background: T.surface, border: `1px solid ${T.border}`,
+                      width: 60, padding: '5px 8px', borderRadius: 9,
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
                       color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
                       textAlign: 'center', outline: 'none',
                     }}
@@ -2741,9 +3054,9 @@ export default function SettingsPage() {
         {activeTab === 'appearance' && (
           <>
             <SectionCard
-              icon={<Palette size={18} color={T.blue} />}
-              iconColor={T.blue}
-              iconBg={`${T.blue}14`}
+              icon={<Palette size={18} color={T.pink} />}
+              iconColor={T.pink}
+              iconBg={`${T.pink}14`}
               title={t('appearanceLanguage')}
               subtitle={t('appearanceLanguageSubtitle')}
             >
@@ -2807,10 +3120,10 @@ export default function SettingsPage() {
                 description={t('textDirectionRtl')}
               >
                 <span style={{
-                  fontSize: 10, padding: '3px 8px', borderRadius: 6,
-                  background: T.surface, color: T.text3,
+                  fontSize: 10, padding: '3px 9px', borderRadius: 7,
+                  background: 'rgba(255,255,255,0.04)', color: T.text3,
                   fontFamily: "'JetBrains Mono', monospace", fontWeight: 600,
-                  border: `1px solid ${T.border}`,
+                  border: `1px solid ${T.border2}`,
                 }}>RTL</span>
               </SettingRow>
               <SettingRow
@@ -2850,13 +3163,13 @@ export default function SettingsPage() {
                 icon={<BarChart3 size={13} color={T.text3} />}
                 label={t('bullishCandleColor')}
               >
-                <div style={{ width: 24, height: 16, borderRadius: 4, background: T.green, border: `1px solid ${T.border}` }} />
+                <div style={{ width: 28, height: 18, borderRadius: 5, background: T.green, border: `1px solid ${T.border2}`, boxShadow: `0 0 8px ${T.green}40` }} />
               </SettingRow>
               <SettingRow
                 icon={<BarChart3 size={13} color={T.text3} />}
                 label={t('bearishCandleColor')}
               >
-                <div style={{ width: 24, height: 16, borderRadius: 4, background: T.red, border: `1px solid ${T.border}` }} />
+                <div style={{ width: 28, height: 18, borderRadius: 5, background: T.red, border: `1px solid ${T.border2}`, boxShadow: `0 0 8px ${T.red}40` }} />
               </SettingRow>
               <SettingRow
                 icon={<Eye size={13} color={T.text3} />}
@@ -2887,8 +3200,8 @@ export default function SettingsPage() {
                 <button
                   onClick={() => router.push('/dashboard/security/2fa')}
                   style={{
-                  padding: '5px 12px', borderRadius: 8,
-                  background: `${T.green}12`, border: `1px solid ${T.green}25`,
+                  padding: '6px 14px', borderRadius: 9,
+                  background: `${T.green}12`, border: `1px solid ${T.green}28`,
                   color: T.green, fontSize: 11, fontWeight: 700, cursor: 'pointer',
                   fontFamily: "'Cairo', sans-serif",
                 }}>{tc('activate')}</button>
@@ -2898,7 +3211,7 @@ export default function SettingsPage() {
                 label={t('passkeys')}
                 description={t('passkeysDesc')}
               >
-                <Toggle checked={passkeysEnabled} onChange={() => setPasskeysEnabled(!passkeysEnabled)} color={T.purple} size="sm" />
+                <Toggle checked={passkeysEnabled} onChange={() => setPasskeysEnabled(!passkeysEnabled)} color={T.council} size="sm" />
               </SettingRow>
             </SectionCard>
 
@@ -2943,8 +3256,8 @@ export default function SettingsPage() {
                   onClick={handleKillOtherSessions}
                   disabled={killLoading}
                   style={{
-                    padding: '5px 12px', borderRadius: 8,
-                    background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.20)',
+                    padding: '6px 14px', borderRadius: 9,
+                    background: 'rgba(255,71,87,0.10)', border: '1px solid rgba(255,71,87,0.24)',
                     color: T.red, fontSize: 11, fontWeight: 700, cursor: killLoading ? 'wait' : 'pointer',
                     fontFamily: "'Cairo', sans-serif",
                     opacity: killLoading ? 0.6 : 1,
@@ -2963,22 +3276,24 @@ export default function SettingsPage() {
             >
               <div style={{ padding: '8px 0' }}>
                 {sessionsLoading && (
-                  <div style={{ padding: '12px 0', textAlign: 'center', color: T.text3, fontSize: 11 }}>
+                  <div style={{ padding: '14px 0', textAlign: 'center', color: T.text3, fontSize: 11.5 }}>
+                    <Loader2 size={16} color={T.council} style={{ margin: '0 auto 8px', display: 'block', animation: 'spin 1s linear infinite' }} />
                     {t('loadingAccounts')}
                   </div>
                 )}
                 {!sessionsLoading && sessions.length === 0 && (
-                  <div style={{ padding: '12px 0', textAlign: 'center', color: T.text3, fontSize: 11 }}>
+                  <div style={{ padding: '14px 0', textAlign: 'center', color: T.text3, fontSize: 11.5 }}>
                     {t('noActiveSessions')}
                   </div>
                 )}
                 {sessions.map(session => (
                   <div key={session.id} style={{
                     display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '10px 14px', borderRadius: 10,
-                    background: session.current ? 'rgba(0,212,255,0.04)' : 'transparent',
-                    border: `1px solid ${session.current ? 'rgba(0,212,255,0.10)' : T.border}`,
-                    marginBottom: 8,
+                    padding: '12px 16px', borderRadius: 12,
+                    background: session.current ? `${T.cyan}06` : 'rgba(255,255,255,0.025)',
+                    border: `1px solid ${session.current ? `${T.cyan}18` : T.border}`,
+                    marginBottom: 10,
+                    transition: 'all 0.2s',
                   }}>
                     <Monitor size={16} color={session.current ? T.cyan : T.text3} />
                     <div style={{ flex: 1 }}>
@@ -2986,13 +3301,14 @@ export default function SettingsPage() {
                         {session.device}
                         {session.current && (
                           <span style={{
-                            fontSize: 8, padding: '1px 6px', borderRadius: 6,
-                            background: `${T.cyan}12`, color: T.cyan,
+                            fontSize: 8.5, padding: '2px 7px', borderRadius: 6,
+                            background: `${T.cyan}15`, color: T.cyan,
                             fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
+                            border: `1px solid ${T.cyan}25`,
                           }}>{t('current')}</span>
                         )}
                       </div>
-                      <div style={{ fontSize: 10, color: T.text4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <div style={{ fontSize: 10, color: T.text4, display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
                         <span>{t('lastActivity')}: {session.lastActive}</span>
                         {session.maskedIp && <span>IP: {session.maskedIp}</span>}
                       </div>
@@ -3013,9 +3329,9 @@ export default function SettingsPage() {
                           } catch {}
                         }}
                         style={{
-                          padding: '3px 8px', borderRadius: 6,
-                          background: 'rgba(255,71,87,0.06)', border: '1px solid rgba(255,71,87,0.15)',
-                          color: T.red, fontSize: 9, fontWeight: 700, cursor: 'pointer',
+                          padding: '4px 10px', borderRadius: 7,
+                          background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.18)',
+                          color: T.red, fontSize: 9.5, fontWeight: 700, cursor: 'pointer',
                           fontFamily: "'Cairo', sans-serif",
                         }}
                       >{t('terminate')}</button>
@@ -3041,7 +3357,7 @@ export default function SettingsPage() {
               </SettingRow>
               {antiPhishingEnabled && (
                 <div style={{ padding: '8px 0' }}>
-                  <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 6 }}>
+                  <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 8 }}>
                     {t('antiPhishingSecretWord')}
                   </div>
                   <input
@@ -3051,13 +3367,13 @@ export default function SettingsPage() {
                     placeholder={t('antiPhishingPlaceholder')}
                     maxLength={20}
                     style={{
-                      width: '100%', padding: '6px 10px', borderRadius: 8,
-                      background: T.surface, border: `1px solid ${T.border}`,
+                      width: '100%', padding: '8px 12px', borderRadius: 10,
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
                       color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
                       outline: 'none', direction: 'ltr',
                     }}
                   />
-                  <div style={{ fontSize: 10, color: T.text3, marginTop: 4, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 10, color: T.text3, marginTop: 6, lineHeight: 1.5 }}>
                     {t('antiPhishingHint')}
                   </div>
                 </div>
@@ -3085,15 +3401,15 @@ export default function SettingsPage() {
                   onClick={handleDataExport}
                   disabled={dataExportLoading}
                   style={{
-                    padding: '5px 12px', borderRadius: 8,
-                    background: `${T.cyan}12`, border: `1px solid ${T.cyan}25`,
+                    padding: '6px 14px', borderRadius: 9,
+                    background: `${T.cyan}12`, border: `1px solid ${T.cyan}28`,
                     color: T.cyan, fontSize: 11, fontWeight: 700, cursor: dataExportLoading ? 'wait' : 'pointer',
                     fontFamily: "'Cairo', sans-serif",
-                    display: 'flex', alignItems: 'center', gap: 4,
+                    display: 'flex', alignItems: 'center', gap: 5,
                     opacity: dataExportLoading ? 0.6 : 1,
                   }}
                 >
-                  {dataExportLoading ? <RefreshCw size={11} className="animate-spin" /> : <Download size={11} />}
+                  {dataExportLoading ? <RefreshCw size={11} style={{ animation: 'spin 1s linear infinite' }} /> : <Download size={11} />}
                   {dataExportLoading ? t('preparing') : t('download')}
                 </button>
               </SettingRow>
@@ -3149,16 +3465,16 @@ export default function SettingsPage() {
                   }}
                   disabled={importLoading}
                   style={{
-                    padding: '5px 12px', borderRadius: 8,
-                    background: `${T.purple}12`, border: `1px solid ${T.purple}25`,
-                    color: T.purple, fontSize: 11, fontWeight: 700,
+                    padding: '6px 14px', borderRadius: 9,
+                    background: `${T.council}12`, border: `1px solid ${T.council}28`,
+                    color: T.council, fontSize: 11, fontWeight: 700,
                     cursor: importLoading ? 'wait' : 'pointer',
                     fontFamily: "'Cairo', sans-serif",
-                    display: 'flex', alignItems: 'center', gap: 4,
+                    display: 'flex', alignItems: 'center', gap: 5,
                     opacity: importLoading ? 0.6 : 1,
                   }}
                 >
-                  {importLoading ? <RefreshCw size={11} className="animate-spin" /> : <Upload size={11} />}
+                  {importLoading ? <RefreshCw size={11} style={{ animation: 'spin 1s linear infinite' }} /> : <Upload size={11} />}
                   {importLoading ? t('preparing') : t('importLabel')}
                 </button>
               </SettingRow>
@@ -3190,14 +3506,14 @@ export default function SettingsPage() {
                 label={t('stealthMode')}
                 description={t('hideBalances')}
               >
-                <Toggle checked={stealthMode} onChange={() => setStealthMode(!stealthMode)} color={T.purple} size="sm" />
+                <Toggle checked={stealthMode} onChange={() => setStealthMode(!stealthMode)} color={T.council} size="sm" />
               </SettingRow>
             </SectionCard>
 
             <SectionCard
-              icon={<CreditCard size={18} color={T.purple} />}
-              iconColor={T.purple}
-              iconBg={`${T.purple}14`}
+              icon={<CreditCard size={18} color={T.council} />}
+              iconColor={T.council}
+              iconBg={`${T.council}14`}
               title={t('cacheStorage')}
               subtitle={t('cacheStorageSubtitle')}
             >
@@ -3212,8 +3528,8 @@ export default function SettingsPage() {
                     localStorage.removeItem('roua_auth_cache_time')
                   }}
                   style={{
-                    padding: '5px 12px', borderRadius: 8,
-                    background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.20)',
+                    padding: '6px 14px', borderRadius: 9,
+                    background: 'rgba(255,71,87,0.10)', border: '1px solid rgba(255,71,87,0.24)',
                     color: T.red, fontSize: 11, fontWeight: 700, cursor: 'pointer',
                     fontFamily: "'Cairo', sans-serif",
                   }}

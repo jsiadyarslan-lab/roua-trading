@@ -204,6 +204,14 @@ export class ExchangeService {
       }
     }
 
+    // V323: Route forex/metals/indices to OANDA if available
+    // Forex: EUR/USD, GBP/USD, USD/JPY — contains "/" but not "USDT"
+    // Metals: XAU/USD, XAG/USD
+    // Indices: US30/USD, NAS100/USD, SPX500/USD
+    if (this._isForexOrMetalSymbol(symbol) && this.adapters['OANDA']) {
+      return this.adapters['OANDA'];
+    }
+
     // FIX: Skip TwelveData when disabled or no API key — go straight to FreeFallback
     const twelveKey = this.configService.get('TWELVE_DATA_API_KEY', '');
     const noKey = !twelveKey || !twelveKey.trim();
@@ -229,6 +237,28 @@ export class ExchangeService {
     }
 
     throw new Error('No exchange adapters available');
+  }
+
+  /**
+   * V323: Check if symbol is a forex pair, metal, or index
+   * These should be routed to OANDA if available.
+   *
+   * Forex: EUR/USD, GBP/USD, USD/JPY, AUD/USD, etc.
+   * Metals: XAU/USD, XAG/USD
+   * Indices: US30/USD, NAS100/USD, SPX500/USD
+   * Commodities: WTI/USD, BRENT/USD
+   *
+   * NOT crypto: BTC/USDT, ETH/USDT (those use "USDT" not "USD")
+   */
+  private _isForexOrMetalSymbol(symbol: string): boolean {
+    const upper = symbol.toUpperCase();
+    // Crypto uses /USDT, /BTC, /ETH — not forex
+    if (upper.includes('USDT') || upper.includes('/BTC') || upper.includes('/ETH')) {
+      return false;
+    }
+    // Forex/metals/indices use /USD, /JPY, /GBP, /EUR, /CHF, /CAD, /AUD, /NZD
+    const forexQuoteCurrencies = ['/USD', '/JPY', '/GBP', '/EUR', '/CHF', '/CAD', '/AUD', '/NZD'];
+    return forexQuoteCurrencies.some(qc => upper.includes(qc));
   }
 
   /**

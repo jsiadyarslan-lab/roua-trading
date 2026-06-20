@@ -21,6 +21,7 @@ import { ExchangeService } from '../../exchange/exchange.service';
 import { NewsService } from '../../news/news.service';
 import { NewsIntegrationService } from '../../news/news-integration.service';
 import { RagService } from '../services/rag.service';
+import { BriefTranslationService } from '../services/brief-translation.service';
 import {
   ALL_COUNCIL_PAIRS,
   BINANCE_SUPPORTED_PAIRS,
@@ -101,6 +102,8 @@ export class StrategicCouncilService {
     // dependency on CouncilIntelligenceModule (which would create a circular import).
     // The token is provided by CouncilIntelligenceModule (Global).
     @Optional() @Inject('ADAPTIVE_SCHEDULE_SERVICE') private readonly adaptiveSchedule?: any,
+    // V308: Brief Translation Service — translates analysisSummary to user's locale
+    @Optional() private readonly briefTranslation?: BriefTranslationService,
   ) {
     this.logger.log('🏛️ Strategic Council initialized — THE ONLY consensus engine (with news integration)' + (this.adaptiveSchedule ? ' + V267 AdaptiveSchedule' : ''));
     // REMOVED: _ensureTradingBriefTable() — all DDL removed from application code.

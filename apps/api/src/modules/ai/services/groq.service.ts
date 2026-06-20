@@ -6,7 +6,7 @@ import { calculateConfidence } from './confidence.util';
 export interface AIAnalysisRequest {
   symbol?: string;
   prompt: string;
-  type: 'market_analysis' | 'sentiment' | 'prediction' | 'general' | 'signal_generation' | 'risk_analysis';
+  type: 'market_analysis' | 'sentiment' | 'prediction' | 'general' | 'signal_generation' | 'risk_analysis' | 'translation';
   language?: string; // 'ar' | 'en'
 }
 

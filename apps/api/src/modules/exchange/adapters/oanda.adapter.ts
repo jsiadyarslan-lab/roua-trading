@@ -238,11 +238,11 @@ export class OandaAdapter implements IExchangeAdapter {
       high,
       low,
       close,
-      volume: parseFloat(latest.volume || '0'),
+      volume: parseFloat(latestComplete.volume || '0'),
       marketCap: null,
       fiftyTwoWeekHigh: null,
       fiftyTwoWeekLow: null,
-      timestamp: new Date(latest.time),
+      timestamp: new Date(latestComplete.time),
       source: 'oanda-v20',
     };
   }

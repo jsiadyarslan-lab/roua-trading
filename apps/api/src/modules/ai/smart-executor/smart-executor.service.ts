@@ -2626,25 +2626,32 @@ export class SmartExecutorService implements OnModuleDestroy {
           `(brief: ${brief.id}, order: ${result.orderId}, user: ${userId})`,
         );
 
-        // ── ROOT FIX: Do NOT mark brief as EXECUTED (isActive=false) ──
-        // Previously, after executing a brief, we called markBriefExecuted() which
-        // sets isActive=false, removing it from the active briefs pool. This caused
-        // the "only 1 trade" bug — after the first brief was executed and deactivated,
-        // there were no more active briefs to process, even though dozens existed.
+        // ── V310: Mark brief as EXECUTED but keep it ACTIVE ──
+        // Previously, markBriefExecuted() set isActive=false, which removed
+        // the brief from the active pool and caused the "only 1 trade" bug.
+        // The fix was to NOT call markBriefExecuted() at all.
         //
-        // Now: Keep the brief ACTIVE. The deduplication is handled by:
-        //   1. Redis processedKey (smart-executor:processed:{briefId}:{userId}) — timeframe-based TTL
-        //      prevents the SAME brief from being executed twice for the SAME user
-        //   2. Position.findFirst in OrderDispatcher — prevents duplicate positions
-        //      for the same user+symbol from ANY source
-        //   3. Brief natural expiry (expiresAt) — briefs automatically become inactive
-        //      after their timeframe expires
+        // But that created a NEW bug: briefs never showed EXECUTED status,
+        // so the council history table showed 0 executed briefs even though
+        // trades were happening.
         //
-        // This allows the brief to remain visible in the Council dashboard and
-        // available for other users who haven't executed it yet.
-        // The brief will be cleaned up naturally when it expires or when the next
-        // Council session reviews it.
-        this.logger.debug(`⚔️ Brief ${brief.id} remains ACTIVE after execution — dedup handled by processedKey + Position.findFirst`);
+        // V310 fix: update reviewStatus to EXECUTED but keep isActive=true.
+        // This way:
+        // - The brief stays in Active Briefs (other users can still execute it)
+        // - The brief shows EXECUTED in History (for the council performance table)
+        // - Dedup is still handled by Redis processedKey + Position.findFirst
+        try {
+          await this.prisma.tradingBrief.update({
+            where: { id: brief.id },
+            data: {
+              reviewStatus: 'EXECUTED',
+              lastReviewedAt: new Date(),
+            },
+          });
+          this.logger.debug(`⚔️ V310: Brief ${brief.id} marked EXECUTED (isActive kept true for other users)`);
+        } catch (briefUpdateErr: any) {
+          this.logger.warn(`⚔️ V310: Failed to mark brief ${brief.id} as EXECUTED: ${briefUpdateErr?.message}`);
+        }
 
         // Update user state (persist to both Redis and DB)
         userState.dailyTrades++;

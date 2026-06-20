@@ -167,17 +167,28 @@ export const TIMEFRAME_EXPIRY_MS: Record<BriefTimeframe, number> = {
  *  This should reduce SL hit rate from 36% to below 20%.
  */
 export const TIMEFRAME_RR: Record<BriefTimeframe, { sl: number; tp: number; maxSlippage: number }> = {
-  // V265: Raised minimum SL to 2% for ALL timeframes.
-  // 13 of 34 briefs had SL < 2% → SL hit by normal crypto noise.
-  // DOGE with SL 1.2% = hit within minutes by routine volatility.
-  M1: { sl: 0.020, tp: 0.050, maxSlippage: 0.003 },   // V265: SL 1.0%→2.0%, TP 2.5%→5.0% (1:2.5)
-  M5: { sl: 0.020, tp: 0.050, maxSlippage: 0.004 },   // V265: SL 1.5%→2.0%, TP 3.75%→5.0% (1:2.5)
-  M15: { sl: 0.020, tp: 0.060, maxSlippage: 0.005 },  // V265: SL 2.0% (unchanged), TP 6.0% (1:3)
-  M30: { sl: 0.025, tp: 0.075, maxSlippage: 0.006 },  // V265: SL 2.4%→2.5%, TP 7.2%→7.5% (1:3)
-  H1: { sl: 0.030, tp: 0.090, maxSlippage: 0.006 },   // V265: SL 2.5%→3.0%, TP 7.5%→9.0% (1:3)
-  H4: { sl: 0.030, tp: 0.090, maxSlippage: 0.007 },   // V265: SL 3.0% (unchanged), TP 9.0% (1:3)
-  D1: { sl: 0.050, tp: 0.125, maxSlippage: 0.010 },   // unchanged
-  W1: { sl: 0.070, tp: 0.175, maxSlippage: 0.012 },   // unchanged
+  // V338: Reduced TP targets based on V336 data analysis of 50 trades.
+  //
+  // FINDINGS:
+  //   - Average ACTUAL TP distance was 3.69% (config was 5% for M1/M5)
+  //   - Only 8/50 trades (16%) hit TAKE_PROFIT
+  //   - 19 trades had TP gap < 1% but only 8 closed as TP
+  //   - 74% of trades were directionally correct but TP too far to reach
+  //   - Real R:R was 2.0, not 2.5 as configured
+  //
+  // FIX: Reduce TP to match realistic market movement within holding window.
+  // Combined with V338 Trailing TP (locks 80% profit at 90% of TP),
+  // these reduced targets will be hit more often AND lock in profit when close.
+  //
+  // V265 kept SL at 2% minimum (good — prevents noise stops).
+  M1: { sl: 0.020, tp: 0.035, maxSlippage: 0.003 },   // V338: TP 5.0%→3.5% (1:1.75) — realistic for 1min
+  M5: { sl: 0.020, tp: 0.040, maxSlippage: 0.004 },   // V338: TP 5.0%→4.0% (1:2.0)
+  M15: { sl: 0.020, tp: 0.050, maxSlippage: 0.005 },  // V338: TP 6.0%→5.0% (1:2.5)
+  M30: { sl: 0.025, tp: 0.060, maxSlippage: 0.006 },  // V338: TP 7.5%→6.0% (1:2.4)
+  H1: { sl: 0.030, tp: 0.070, maxSlippage: 0.006 },   // V338: TP 9.0%→7.0% (1:2.33)
+  H4: { sl: 0.030, tp: 0.080, maxSlippage: 0.007 },   // V338: TP 9.0%→8.0% (1:2.67)
+  D1: { sl: 0.050, tp: 0.125, maxSlippage: 0.010 },   // unchanged (swing trades)
+  W1: { sl: 0.070, tp: 0.175, maxSlippage: 0.012 },   // unchanged (swing trades)
 };
 
 /** V177 FIX #13: Minimum risk/reward ratio enforced by RiskGatekeeper.

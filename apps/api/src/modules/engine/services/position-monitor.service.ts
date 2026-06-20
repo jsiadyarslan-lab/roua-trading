@@ -56,6 +56,25 @@ export class PositionMonitorService {
   /** Trailing stop distance (% from highest price) — V177 FIX #16: tightened from 1.5% to 1.2% */
   private readonly TRAILING_DISTANCE_PCT = 0.012; // 1.2%
 
+  /** V338: Trailing Take Profit — lock in profit when price reaches 90% of TP distance.
+   * When the market moves 90% of the way to TP, move SL to lock in ~80% of the profit.
+   * This converts "almost-won" trades (TP gap < 1%) into realized wins instead of
+   * letting TIME_EXPIRED or reversal close them at breakeven/loss.
+   *
+   * Data-driven justification (V336 analysis of 50 trades):
+   *   - 19 trades had TP gap < 1% but only 8 closed as TAKE_PROFIT
+   *   - 5 TIME_EXPIRED closes had gap < 1% (lost ~$426 in potential profit)
+   *   - 74% of trades were directionally correct but not monetized
+   *
+   * Mechanism:
+   *   1. Calculate progress: how far price has moved toward TP (0% = entry, 100% = TP hit)
+   *   2. When progress >= 90%, move SL to lock in 80% of the unrealized profit
+   *   3. If price reverses, the tightened SL closes the trade with profit locked
+   *   4. If price continues to TP, normal TP close fires
+   */
+  private readonly TRAILING_TP_TRIGGER_PCT = 0.90; // Trigger at 90% of TP distance
+  private readonly TRAILING_TP_LOCK_PCT = 0.80;    // Lock in 80% of profit at trigger
+
   /** Maximum position age before warning (days) */
   private readonly MAX_POSITION_AGE_DAYS = 7;
 
@@ -64,6 +83,21 @@ export class PositionMonitorService {
    * was paper-trading — the position monitor only warned but never auto-closed.
    * Now: paper positions older than 48h without SL/TP are auto-closed. */
   private readonly STALE_PAPER_POSITION_MAX_HOURS = 48;
+
+  /** V338: Completely DISABLE TIME_EXPIRED for smart_executor positions.
+   * V336 data analysis confirmed: 16 trades closed at exactly 240min (4h),
+   * 5 of which had TP gap < 1% — meaning the market was about to hit TP
+   * but the timer killed the trade first. TIME_EXPIRED is the #1 profit killer.
+   *
+   * For Agent positions, TIME_EXPIRED already requires 48h (V214).
+   * For smart_executor, we now rely on:
+   *   1. SL/TP natural exits
+   *   2. Trailing Take Profit (V338) — locks in profit at 90% of TP
+   *   3. STALE_POSITION (48h for paper without SL/TP)
+   *
+   * This is a HARD disable — no Redis flag, no feature toggle, just removed.
+   */
+  private readonly DISABLE_TIME_EXPIRED_SMART_EXECUTOR = true;
 
   /** V176/V221 FIX: Cooldown period after auto-close (TIME_EXPIRED, STOP_LOSS).
    * Issue #11: DOGE/SOL trades repeating every 8-10 seconds because after
@@ -490,20 +524,22 @@ export class PositionMonitorService {
       }
       // No SL/TP hit — update price/PnL and highest/lowest, then fall through to MAX_HOLDING check
       // V228: Update highestPrice/lowestPrice using effectiveHigh/effectiveLow (not just currentPrice)
+      // V338 BUG FIX: Previously, highestPrice was only updated for BUY positions,
+      // and lowestPrice was only updated for SELL positions. This was WRONG:
+      //   - For SELL positions, highestPrice stayed = entryPrice forever (never updated)
+      //   - For BUY positions, lowestPrice stayed = entryPrice forever (never updated)
+      // This caused the diagnostic tpWasReached/slWasReached to be FALSE even when
+      // the market actually touched TP/SL. Now we update BOTH for ALL positions.
       priceUpdates.push(
         this.prisma.position.update({
           where: { id: position.id },
           data: {
             currentPrice,
             unrealizedPnl,
-            highestPrice:
-              position.side === 'BUY'
-                ? Math.max(position.highestPrice || currentPrice, effectiveHigh)
-                : position.highestPrice || currentPrice,
-            lowestPrice:
-              position.side === 'SELL'
-                ? Math.min(position.lowestPrice || currentPrice, effectiveLow)
-                : position.lowestPrice || currentPrice,
+            highestPrice: Math.max(position.highestPrice || currentPrice, effectiveHigh),
+            lowestPrice: position.lowestPrice
+              ? Math.min(position.lowestPrice, effectiveLow)
+              : effectiveLow,
           },
         }),
       );
@@ -565,7 +601,14 @@ export class PositionMonitorService {
     // 12 of 27 trades (44%) were closed at 4h 0m — none hit TP.
     // SL/TP are the ONLY valid exit reasons. Time-based closes are artificial.
     // This applies to BOTH manual AND automated positions.
-    if (false && (position.source === 'smart_executor' || position.source === 'agent' || position.source === 'auto_paper') && position.openedAt) {
+    //
+    // V338: Added explicit DISABLE_TIME_EXPIRED_SMART_EXECUTOR flag.
+    // The old `if (false && ...)` was unclear and made it hard to verify
+    // the disable was actually deployed. Now it's a named constant.
+    // NOTE: Even when this flag is true (TIME_EXPIRED disabled), the code
+    // below is skipped entirely for smart_executor positions.
+    // For Agent positions, TIME_EXPIRED only fires after 48h (V214).
+    if (!this.DISABLE_TIME_EXPIRED_SMART_EXECUTOR && (position.source === 'smart_executor' || position.source === 'agent' || position.source === 'auto_paper') && position.openedAt) {
       const holdingMs = Date.now() - new Date(position.openedAt).getTime();
 
       const isAgent = position.source === 'agent';
@@ -868,6 +911,69 @@ export class PositionMonitorService {
           `🛡️ V177 Break-even: ${position.symbol} SL moved to entry (${breakEvenSL.toFixed(4)}) — profit protected`,
         );
         result.trailingUpdated = true;
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // V338: Trailing Take Profit — lock in profit at 90% of TP distance
+    //
+    // DATA-DRIVEN JUSTIFICATION (V336 analysis of 50 trades):
+    //   - 19 trades had TP gap < 1% but only 8 closed as TAKE_PROFIT
+    //   - 5 TIME_EXPIRED closes had gap < 1% — lost ~$426 in potential profit
+    //   - 74% of trades were directionally correct but not monetized
+    //
+    // MECHANISM:
+    //   1. Calculate progress: (currentPrice - entry) / (TP - entry) for BUY
+    //      For SELL: (entry - currentPrice) / (entry - TP)
+    //   2. When progress >= 90%, move SL to lock in 80% of unrealized profit
+    //   3. This converts "almost-won" trades into realized wins
+    // ═══════════════════════════════════════════════════════════════════
+    if (takeProfitNum !== null && entryPrice > 0) {
+      const tpDistance = position.side === 'BUY'
+        ? (takeProfitNum - entryPrice)
+        : (entryPrice - takeProfitNum);
+
+      if (tpDistance > 0) {
+        const profitDistance = position.side === 'BUY'
+          ? (currentPrice - entryPrice)
+          : (entryPrice - currentPrice);
+
+        const tpProgress = profitDistance / tpDistance; // 0 = at entry, 1 = at TP
+
+        if (tpProgress >= this.TRAILING_TP_TRIGGER_PCT && tpProgress < 1.0) {
+          // Price is within 90-100% of TP — lock in profit
+          // Use the BEST price seen (effectiveHigh/effectiveLow) for progress calculation
+          // to avoid missing the peak due to 10s tick interval
+          const bestProfitDistance = position.side === 'BUY'
+            ? (effectiveHigh - entryPrice)
+            : (entryPrice - effectiveLow);
+          const bestTpProgress = bestProfitDistance / tpDistance;
+
+          if (bestTpProgress >= this.TRAILING_TP_TRIGGER_PCT) {
+            // Calculate the lock-in SL: 80% of the distance from entry to TP
+            const lockDistance = tpDistance * this.TRAILING_TP_LOCK_PCT;
+            const trailingTpSL = position.side === 'BUY'
+              ? entryPrice + lockDistance
+              : entryPrice - lockDistance;
+
+            // Only move SL if the new SL is BETTER than current
+            // For BUY: higher SL is better. For SELL: lower SL is better.
+            const shouldUpdateTP = position.side === 'BUY'
+              ? (stopLossNum === null || trailingTpSL > stopLossNum)
+              : (stopLossNum === null || trailingTpSL < stopLossNum);
+
+            if (shouldUpdateTP) {
+              await this.prisma.position.update({
+                where: { id: position.id },
+                data: { stopLoss: trailingTpSL },
+              });
+              this.logger.log(
+                `🎯 V338 Trailing TP: ${position.symbol} progress=${(bestTpProgress * 100).toFixed(1)}% of TP — SL moved to ${trailingTpSL.toFixed(6)} (locks ${(this.TRAILING_TP_LOCK_PCT * 100).toFixed(0)}% of profit)`,
+              );
+              result.trailingUpdated = true;
+            }
+          }
+        }
       }
     }
 

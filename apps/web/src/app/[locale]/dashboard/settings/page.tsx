@@ -10,8 +10,11 @@ import {
   TrendingUp, Cpu, MessageSquare, Activity, Sliders,
   CheckCircle2, ExternalLink, LogOut, UserCircle, Monitor,
   Wifi, Trash2, Download, Upload, RefreshCw, CreditCard,
-  Crown, Star, Sparkles, Send, Filter
+  Crown, Star, Sparkles, Send, Filter, Zap, Bot
 } from 'lucide-react'
+import { SmartExecutorTab } from './tabs/SmartExecutorTab'
+import { AutonomousAgentTab } from './tabs/AutonomousAgentTab'
+import { AICouncilTab } from './tabs/AICouncilTab'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useAuthStore } from '@/lib/auth-store'
 import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
@@ -782,6 +785,10 @@ export default function SettingsPage() {
     { id: 'account', label: t('tabAccount'), icon: <User size={14} /> },
     { id: 'subscription', label: t('tabSubscription'), icon: <Crown size={14} /> },
     { id: 'trading', label: t('tabTrading'), icon: <BarChart3 size={14} /> },
+    // V312: New dedicated tabs for trading automation
+    { id: 'smart-executor', label: 'Smart Executor', icon: <Zap size={14} /> },
+    { id: 'autonomous-agent', label: 'Autonomous Agent', icon: <Bot size={14} /> },
+    { id: 'ai-council', label: 'AI Council', icon: <Brain size={14} /> },
     { id: 'notifications', label: t('tabNotifications'), icon: <Bell size={14} /> },
     { id: 'ai', label: t('tabAI'), icon: <Brain size={14} /> },
     { id: 'appearance', label: t('tabAppearance'), icon: <Palette size={14} /> },
@@ -1729,6 +1736,51 @@ export default function SettingsPage() {
             </SectionCard>
           </>
         )}
+
+        {/* ═══ V312: Smart Executor Tab ═══ */}
+        {activeTab === 'smart-executor' && (
+          <SmartExecutorTab
+            settings={(() => {
+              // Build settings object from current state
+              const s: Record<string, any> = {};
+              s.smartExecutorEnabled = aiAutoTrade;
+              s.userRiskPerTrade = userRiskPerTrade;
+              s.userMaxOpenPositions = userMaxOpenPositions;
+              s.minConfidence = minConfidence;
+              s.userStopLoss = userStopLoss;
+              s.userTakeProfit = userTakeProfit;
+              s.userMaxDailyLoss = userMaxDailyLoss;
+              return s;
+            })()}
+            update={(key, value) => {
+              // Map settings keys to local state
+              if (key === 'smartExecutorEnabled') setAiAutoTrade(value);
+              else if (key === 'userRiskPerTrade') setUserRiskPerTrade(value);
+              else if (key === 'userMaxOpenPositions') setUserMaxOpenPositions(value);
+              else if (key === 'minConfidence') setAiConfidence(value);
+              else if (key === 'userStopLoss') setUserStopLoss(value);
+              else if (key === 'userTakeProfit') setUserTakeProfit(value);
+              else if (key === 'userMaxDailyLoss') setUserMaxDailyLoss(value);
+            }}
+          />
+        )}
+
+        {/* ═══ V312: Autonomous Agent Tab ═══ */}
+        {activeTab === 'autonomous-agent' && (
+          <AutonomousAgentTab
+            settings={{}}
+            update={() => {}}
+          />
+        )}
+
+        {/* ═══ V312: AI Council Tab ═══ */}
+        {activeTab === 'ai-council' && (
+          <AICouncilTab
+            settings={{}}
+            update={() => {}}
+          />
+        )}
+
         {activeTab === 'notifications' && (
           <>
             <SectionCard

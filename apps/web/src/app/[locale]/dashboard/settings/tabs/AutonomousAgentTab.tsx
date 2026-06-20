@@ -32,6 +32,7 @@ export function AutonomousAgentTab({ settings, update }: AutonomousAgentTabProps
   const maxHoldingHours = settings.agentMaxHoldingHours ?? "48";
   const riskPerTrade = settings.agentRiskPerTrade ?? "1";
   const minConfidence = settings.agentMinConfidence ?? "70";
+  const contractSize = settings.agentContractSize ?? "0.01";
 
   return (
     <>
@@ -141,6 +142,18 @@ export function AutonomousAgentTab({ settings, update }: AutonomousAgentTabProps
             onChange={v => update("agentMinConfidence", v)}
             min={10} max={90} step={1}
             suffix="%"
+          />
+        </SettingRow>
+        {/* V319: Contract size for agent */}
+        <SettingRow
+          icon={<Target size={13} color={COLORS.info} />}
+          label={t("contractSize") ?? "Contract size"}
+          description={t("contractSizeDesc") ?? "Contract size per trade"}
+        >
+          <NumberInput
+            value={contractSize}
+            onChange={v => update("agentContractSize", v)}
+            min={0.01} max={100} step={0.01}
           />
         </SettingRow>
       </SectionCard>

@@ -100,6 +100,7 @@ export const ALLOWED_USER_SETTINGS_KEYS = new Set([
   'agentMaxHoldingHours',
   'agentRiskPerTrade',
   'agentMinConfidence',
+  'agentContractSize',
   // V318: AI Council settings
   'councilInterval',
   'councilMinConsensus',

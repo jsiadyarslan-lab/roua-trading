@@ -3698,7 +3698,7 @@ export class TradingService {
         closeReason: true,
         openedAt: true,
         closedAt: true,
-        isPaperTrading: true,
+        timeframe: true,
       },
       orderBy: { closedAt: 'desc' },
       take: limit,
@@ -3711,6 +3711,8 @@ export class TradingService {
       const sl = p.stopLoss ? Number(p.stopLoss) : null;
       const high = p.highestPrice ? Number(p.highestPrice) : null;
       const low = p.lowestPrice ? Number(p.lowestPrice) : null;
+      // V336: Determine paper trading from source/exchange (no isPaperTrading column in Position)
+      const isPaper = p.source === 'auto_paper' || p.exchange === 'paper-trading';
 
       // Determine the closest the market actually got to TP
       // For BUY: TP is above entry → highestPrice is the closest
@@ -3758,7 +3760,8 @@ export class TradingService {
         side: p.side,
         source: p.source,
         exchange: p.exchange,
-        isPaper: p.isPaperTrading,
+        isPaper,
+        timeframe: p.timeframe,
         closeReason_raw: p.closeReason, // ← RAW from DB, no mapping
         entryPrice: entry,
         exitPrice: exit,

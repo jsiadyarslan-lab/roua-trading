@@ -405,7 +405,7 @@ export default function PortfolioPage() {
       // V205: Pass credentialId to API for server-side filtering
       const activeCredId = usePositionsStore.getState().activeCredentialId
       const credParam = activeCredId ? `&credentialId=${encodeURIComponent(activeCredId)}` : ''
-      const res = await fetch(`/api/trading/trades?limit=100${credParam}`)
+      const res = await fetch(`/api/trading/trades?limit=0${credParam}`) // V331: fetch ALL trades, not just 100
       if (res.ok) {
         const data = await res.json()
         setTrades(Array.isArray(data) ? data : (data.data || data.trades || []))
@@ -556,8 +556,8 @@ export default function PortfolioPage() {
     const { from, to } = getDateRange()
     if (!from && !to) return closedPositions
     return closedPositions.filter(p => {
-      // FIX V169: If closedAt is missing, use openedAt as fallback (better than excluding the position)
-      const dateStr = p.closedAt || p.openedAt
+      // V331: If closedAt is missing, skip this position from date filtering rather than using openedAt
+      const dateStr = p.closedAt || ''
       if (!dateStr) return true // No date at all — include it (don't exclude)
       const closedAt = new Date(dateStr).getTime()
       if (isNaN(closedAt)) return true // Invalid date — include it
@@ -680,7 +680,12 @@ export default function PortfolioPage() {
       [t('csvTakeProfit')]: p.takeProfit || '',
       'P&L': p.unrealizedPnl || 0,
       [t('csvDateOpened')]: p.openedAt || '',
-      [t('csvSource')]: p.source || '',
+      // V331: Translate source to Arabic label instead of raw English enum
+      [t('csvSource')]: p.source === 'smart_executor' ? 'منفذ ذكي' :
+                        p.source === 'agent' ? 'وكيل مستقل' :
+                        p.source === 'auto_paper' ? 'ورقي' :
+                        p.source === 'mt5_sync' || p.source === 'reconciliation' ? 'مزامنة MT5' :
+                        p.source || 'يدوي',
     }))
     exportToCSV(data, 'open_positions')
   }, [positions, exportToCSV])
@@ -704,13 +709,20 @@ export default function PortfolioPage() {
   // ── Performance chart data (daily P&L from trades + closed paper trades) ──
   const performanceData = (() => {
     const dailyMap: Record<string, { date: string; pnl: number; trades: number }> = {}
-    trades.forEach(t => {
-      const day = new Date(t.executedAt).toISOString().split('T')[0]
+    // V331: Use closedPositions (from DB) for daily P&L — NOT the raw trades array
+    // This prevents double-counting: closedPositions already includes deduped paper trades
+    dateFilteredClosedPositions.forEach(p => {
+      const dateStr = p.closedAt || p.openedAt
+      if (!dateStr) return
+      const day = new Date(dateStr).toISOString().split('T')[0]
       if (!dailyMap[day]) dailyMap[day] = { date: day, pnl: 0, trades: 0 }
-      dailyMap[day].pnl += (t.pnl || 0)
+      dailyMap[day].pnl += (Number(p.realizedPnl) || 0)
       dailyMap[day].trades++
     })
+    // V331: Only add paper trades that are NOT already in closedPositions (deduped)
+    const dbPositionIds = new Set(closedPositions.map(p => p.id))
     closedPaperTrades.forEach(p => {
+      if (dbPositionIds.has(p.id)) return // Skip — already counted above
       const day = new Date(p.closeTime).toISOString().split('T')[0]
       if (!dailyMap[day]) dailyMap[day] = { date: day, pnl: 0, trades: 0 }
       dailyMap[day].pnl += (p.realizedPnl || 0)
@@ -741,8 +753,11 @@ export default function PortfolioPage() {
 
   // ── Risk metrics ──
   const allPnlValues = [...trades.map(t => t.pnl || 0), ...closedPaperTrades.map(p => p.realizedPnl || 0)]
-  const avgWin = winningCount > 0 ? totalRealizedPnl > 0 ? totalRealizedPnl / winningCount : 0 : 0
-  const avgLoss = losingCount > 0 ? totalRealizedPnl < 0 ? Math.abs(totalRealizedPnl) / losingCount : 0 : 0
+  // V331: Fixed avgWin/avgLoss — was dividing total PnL (includes losses) by winning count
+  const winningPnlSum = dateFilteredClosedPositions.filter(p => (p.realizedPnl || 0) > 0).reduce((s, p) => s + (Number(p.realizedPnl) || 0), 0)
+  const losingPnlSum = dateFilteredClosedPositions.filter(p => (p.realizedPnl || 0) < 0).reduce((s, p) => s + Math.abs(Number(p.realizedPnl) || 0), 0)
+  const avgWin = winningCount > 0 ? winningPnlSum / winningCount : 0
+  const avgLoss = losingCount > 0 ? losingPnlSum / losingCount : 0
   const profitFactor = avgLoss > 0 ? Math.min(avgWin / avgLoss, 999) : avgWin > 0 ? 999 : 0
   const maxDrawdown = (() => {
     let peak = 0, maxDD = 0, cumPnl = 0
@@ -778,26 +793,35 @@ export default function PortfolioPage() {
         ? Number((p as any).exitPrice)
         : exitTrade?.price
           ? Number(exitTrade.price)
-          : p.currentPrice
-            ? Number(p.currentPrice)
-            : undefined
-      // V140F: Determine exit reason — was it SL hit, TP hit, or manual close?
+          : undefined  // V331: DO NOT fall back to currentPrice — it's the last live quote, not the fill price
+      // V331: Read closeReason directly from DB instead of guessing from price proximity
       const exitReason = (() => {
-        if (p.stopLoss && derivedExitPrice) {
-          const slPrice = Number(p.stopLoss)
-          const exit = Number(derivedExitPrice)
-          const isLong = p.side === 'BUY'
-              // For long: exit <= SL means stop loss was hit
-          if (isLong && exit <= slPrice * 1.001) return 'SL'
-          if (!isLong && exit >= slPrice * 0.999) return 'SL'
-        }
-        if (p.takeProfit && derivedExitPrice) {
-          const tpPrice = Number(p.takeProfit)
-          const exit = Number(derivedExitPrice)
-          const isLong = p.side === 'BUY'
-              // For long: exit >= TP means take profit was hit
-          if (isLong && exit >= tpPrice * 0.999) return 'TP'
-          if (!isLong && exit <= tpPrice * 1.001) return 'TP'
+        const reason = (p as any).closeReason || ''
+        const reasonUpper = reason.toUpperCase()
+        if (reasonUpper.includes('STOP_LOSS') || reasonUpper === 'SL') return 'SL'
+        if (reasonUpper.includes('TAKE_PROFIT') || reasonUpper === 'TP') return 'TP'
+        if (reasonUpper.includes('LIQUIDATED')) return 'LIQ'
+        if (reasonUpper.includes('AUTO_STALE') || reasonUpper.includes('STALE')) return 'STALE'
+        if (reasonUpper.includes('EXCHANGE_SYNC')) return 'SYNC'
+        if (reasonUpper.includes('AUTO_CLOSE') || reasonUpper.includes('TIME_EXPIRED')) return 'AUTO'
+        if (reasonUpper.includes('STRATEGY_EXIT')) return 'STRATEGY'
+        if (!reason) {
+          // Fallback: only guess if DB has no closeReason at all
+          if (p.stopLoss && derivedExitPrice) {
+            const slPrice = Number(p.stopLoss)
+            const exit = Number(derivedExitPrice)
+            const isLong = p.side === 'BUY'
+            if (isLong && exit <= slPrice * 1.001) return 'SL'
+            if (!isLong && exit >= slPrice * 0.999) return 'SL'
+          }
+          if (p.takeProfit && derivedExitPrice) {
+            const tpPrice = Number(p.takeProfit)
+            const exit = Number(derivedExitPrice)
+            const isLong = p.side === 'BUY'
+            if (isLong && exit >= tpPrice * 0.999) return 'TP'
+            if (!isLong && exit <= tpPrice * 1.001) return 'TP'
+          }
+          return 'MANUAL'
         }
         return 'MANUAL'
       })()
@@ -814,7 +838,7 @@ export default function PortfolioPage() {
         stopLoss: p.stopLoss ? Number(p.stopLoss) : undefined,
         takeProfit: p.takeProfit ? Number(p.takeProfit) : undefined,
         exitReason,
-        fee: null, feeCurrency: null, executedAt: p.closedAt || p.openedAt,
+        fee: null, feeCurrency: null, executedAt: p.closedAt || null, // V331: null instead of openedAt fallback
         openedAt: p.openedAt
       }
     }),
@@ -1042,7 +1066,7 @@ export default function PortfolioPage() {
 
       {/* ── Tabs ── */}
       <div className="portfolio-tabs-row" style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
-        <TabButton label={t('tabTrades')} icon={Activity} active={tab === 'positions'} onClick={() => setTab('positions')} count={positions.length + closedPositions.length + closedPaperTrades.length} />
+        <TabButton label={t('tabTrades')} icon={Activity} active={tab === 'positions'} onClick={() => setTab('positions')} count={positions.length + combinedHistory.length} /> // V331: Use combinedHistory to avoid double-counting
         <TabButton label={t('tabPerformance')} icon={TrendingUp} active={tab === 'performance'} onClick={() => setTab('performance')} />
         <TabButton label={t('tabRisk')} icon={Shield} active={tab === 'risk'} onClick={() => setTab('risk')} />
         <TabButton label='سجل التداول' icon={FileText} active={tab === 'journal'} onClick={() => setTab('journal')} count={getJournalEntryCount()} />

@@ -892,12 +892,20 @@ export default function SettingsPage() {
           setTimeout(() => setSaveStatus('idle'), 2000)
         } else {
           const errData = await res.json().catch(() => ({}))
-          console.error('[Settings] Save failed:', res.status, errData?.error || errData?.details)
+          // V320: Log full error details to console for debugging
+          console.error('[Settings] Save failed:', res.status, errData)
+          if (errData?.details) {
+            console.error('[Settings] Validation errors:', errData.details)
+          }
           setSaveStatus('error')
+          // V320: Reset error state after 5s so it doesn't stay forever
+          setTimeout(() => setSaveStatus('idle'), 5000)
         }
       } catch (err) {
         console.error('[Settings] Save network error:', err)
         setSaveStatus('error')
+        // V320: Reset error state after 5s
+        setTimeout(() => setSaveStatus('idle'), 5000)
       }
     }, 2000) // Debounce: save 2s after last change
   }, [settingsLoaded, orderSize, riskLevel, chartType, timeframe, confirmTrades, showPositions, autoStopLoss, trailingStop, aiConfidence, aiAutoTrade, aiModel, analyticsEnabled, crashReports, userStopLoss, userTakeProfit, userRiskPerTrade, userMaxDailyLoss, userMaxOpenPositions, scalpingTimeframe, scalpingTakeProfitPips, scalpingStopLossPips, scalpingMaxSpread, gridLevels, telegramBotToken, telegramChatId, discordWebhookUrl, externalNotificationsEnabled, doNotDisturb, emergencyOnly, pairFilterMode, pairWhitelist, pairBlacklist, tradingScheduleEnabled, tradingScheduleStart, tradingScheduleEnd, tradingScheduleDays, continuousMonitoringEnabled, monitoringInterval, monitoringPairs, entryExitSignalsEnabled, signalMinConfidence, signalAlertMethod, riskAlertsEnabled, volatilityThreshold, riskAlertTypes, sentimentEnabled, sentimentSources, sentimentSensitivity, sessionDuration, autoSessionRenewal, antiPhishingEnabled, antiPhishingCode, passkeysEnabled, cacheDuration])

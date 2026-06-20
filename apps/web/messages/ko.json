@@ -2671,7 +2671,10 @@
       "hotMover": "핫 무버",
       "forex": "외환",
       "crypto": "암호화폐",
-      "loading": "로드 중..."
+      "loading": "로드 중...",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "social": {
       "featureFollowTitle": "트레이더 팔로우",

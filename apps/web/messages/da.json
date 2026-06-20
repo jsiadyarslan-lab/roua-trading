@@ -1867,7 +1867,10 @@
       "crypto": "Krypto",
       "forex": "Forex",
       "stocks": "Aktier",
-      "hotMover": "Hed bevægelse"
+      "hotMover": "Hed bevægelse",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "news": {
       "loading": "Indlæser nyheder...",

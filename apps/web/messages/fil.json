@@ -2671,7 +2671,10 @@
       "hotMover": "Mabilis na Gumagalaw",
       "forex": "Forex",
       "crypto": "Crypto",
-      "loading": "Naglo-load..."
+      "loading": "Naglo-load...",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "social": {
       "featureFollowTitle": "Subaybayan ang Mga Mangangalakal",

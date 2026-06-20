@@ -2671,7 +2671,10 @@
       "hotMover": "Stor bevegelse",
       "forex": "Forex",
       "crypto": "Krypto",
-      "loading": "Laster..."
+      "loading": "Laster...",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "social": {
       "featureFollowTitle": "Følg handelsmenn",

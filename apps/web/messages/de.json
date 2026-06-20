@@ -1867,7 +1867,10 @@
       "crypto": "Krypto",
       "forex": "Forex",
       "stocks": "Aktien",
-      "hotMover": "Heißer Mover"
+      "hotMover": "Heißer Mover",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "news": {
       "loading": "Laden news...",

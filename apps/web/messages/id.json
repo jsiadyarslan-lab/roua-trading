@@ -2671,7 +2671,10 @@
       "hotMover": "Penggerak panas",
       "forex": "Valas",
       "crypto": "kripto",
-      "loading": "Memuat..."
+      "loading": "Memuat...",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "social": {
       "featureFollowTitle": "Ikuti pedagang Arab terbaik dan pelajari strategi mereka. Dapatkan pemberitahuan instan saat mereka melakukan perdagangan.",

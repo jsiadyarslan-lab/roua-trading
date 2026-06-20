@@ -2671,7 +2671,10 @@
       "hotMover": "Hete verhuizer",
       "forex": "Forex",
       "crypto": "Crypto",
-      "loading": "Laden..."
+      "loading": "Laden...",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "social": {
       "featureFollowTitle": "Volg handelaren",

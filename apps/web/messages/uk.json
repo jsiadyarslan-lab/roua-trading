@@ -2671,7 +2671,10 @@
       "hotMover": "Гарячий рух",
       "forex": "Форекс",
       "crypto": "Крипто",
-      "loading": "Завантаження..."
+      "loading": "Завантаження...",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "social": {
       "featureFollowTitle": "Слідкуйте за трейдерами",

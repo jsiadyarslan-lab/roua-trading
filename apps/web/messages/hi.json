@@ -2671,7 +2671,10 @@
       "hotMover": "तेज़ गति वाला",
       "forex": "Forex",
       "crypto": "क्रिप्टो",
-      "loading": "लोड हो रहा है..."
+      "loading": "लोड हो रहा है...",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "social": {
       "featureFollowTitle": "ट्रेडर्स फ़ॉलो करें",

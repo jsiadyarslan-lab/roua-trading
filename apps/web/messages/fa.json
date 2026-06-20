@@ -2671,7 +2671,10 @@
       "hotMover": "محرک داغ",
       "forex": "فارکس",
       "crypto": "رمزنگاری",
-      "loading": "در حال بارگیری..."
+      "loading": "در حال بارگیری...",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "social": {
       "featureFollowTitle": "معامله گران را دنبال کنید",

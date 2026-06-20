@@ -2671,7 +2671,10 @@
       "hotMover": "מעביר חם",
       "forex": "פורקס",
       "crypto": "קריפטו",
-      "loading": "טוען..."
+      "loading": "טוען...",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "social": {
       "featureFollowTitle": "עקוב אחר סוחרים",

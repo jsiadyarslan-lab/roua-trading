@@ -132,15 +132,13 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp, onSelectSymb
 
   return (
     <div style={{
-      
       width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
       background: 'var(--bg)', overflow: 'hidden', fontFamily: "'Cairo', sans-serif"
     }}>
-
-      {/* Tabs */}
+      {/* V329: Compact tabs — scrollable, per-tab accent colors */}
       <div style={{
-        display: 'flex', padding: '6px 16px', gap: 12, background: 'var(--surface)',
-        borderBottom: `1px solid var(--card-border)`
+        display: 'flex', padding: '4px 8px', gap: 4, background: 'var(--surface)',
+        borderBottom: `1px solid var(--card-border)`, overflowX: 'auto',
       }}>
         {(['Crypto', 'Forex', 'Metals', 'Indices', 'Energy', 'Stocks'] as const).map(tab => {
           const isActive = activeTab === tab
@@ -149,185 +147,92 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp, onSelectSymb
             Indices: tw('indices') ?? 'Indices', Energy: tw('energy') ?? 'Energy',
             Stocks: tw('stocks'),
           }
+          const tabColors: Record<string, string> = {
+            Crypto: '#F59E0B', Forex: '#06B6D4', Metals: '#CD7F32',
+            Indices: '#8B5CF6', Energy: '#10B981', Stocks: '#EC4899',
+          }
+          const accent = tabColors[tab] || 'var(--accent)'
           return (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
+            <button key={tab} onClick={() => setActiveTab(tab)}
               style={{
-                background: 'transparent',
-                border: 'none',
-                borderBottom: `2.5px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
-                padding: '6px 0',
-                color: isActive ? 'var(--foreground)' : 'var(--muted)',
-                fontSize: 11, fontWeight: isActive ? 800 : 500, cursor: 'pointer',
+                background: isActive ? `${accent}15` : 'transparent',
+                border: 'none', borderRadius: 6, padding: '4px 8px',
+                color: isActive ? accent : 'var(--muted)',
+                fontSize: 10, fontWeight: isActive ? 800 : 500, cursor: 'pointer',
                 fontFamily: "'Cairo', sans-serif", transition: '0.2s',
-                display: 'flex', alignItems: 'center'
-              }}
-            >
+                whiteSpace: 'nowrap', flexShrink: 0,
+              }}>
               {tabLabel[tab]}
             </button>
           )
         })}
       </div>
 
+      {/* V329: Compact hot mover */}
       <div style={{
-        margin: '10px 16px 0',
-        borderRadius: 10,
-        border: '1px solid rgba(255,255,255,0.06)',
-        background: 'rgba(255,255,255,0.02)',
-        padding: '8px 10px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: 10,
+        margin: '6px 8px 0', borderRadius: 8,
+        border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)',
+        padding: '4px 8px', display: 'flex', justifyContent: 'space-between',
+        alignItems: 'center', gap: 8,
       }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 9, color: 'var(--muted)', marginBottom: 4 }}>{tw('hotMover')}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Flame size={12} color="var(--warning)" />
-            <span style={{ fontSize: 11, color: 'var(--foreground)', fontWeight: 800, fontFamily: 'var(--mono)' }}>{hotMover?.sym ?? '—'}</span>
-            <span style={{ fontSize: 10, color: (hotMover?.quote?.changePercent ?? 0) >= 0 ? 'var(--success)' : 'var(--danger)', fontFamily: 'var(--mono)' }}>
-              {hotMover?.quote ? `${hotMover.quote.changePercent >= 0 ? '+' : ''}${hotMover.quote.changePercent.toFixed(2)}%` : '—'}
-            </span>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Flame size={10} color="var(--warning)" />
+          <span style={{ fontSize: 10, fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--foreground)' }}>{hotMover?.sym ?? '—'}</span>
+          <span style={{ fontSize: 9, fontFamily: 'var(--mono)', color: (hotMover?.quote?.changePercent ?? 0) >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+            {hotMover?.quote ? `${hotMover.quote.changePercent >= 0 ? '+' : ''}${hotMover.quote.changePercent.toFixed(2)}%` : '—'}
+          </span>
         </div>
-        {hotMover?.quote && (
-          <div style={{ fontSize: 9, color: getStatusTone(getDataStatus(hotMover.quote)), fontFamily: 'var(--mono)' }}>
-            {getStatusLabel(getDataStatus(hotMover.quote), tc)}
-          </div>
-        )}
       </div>
 
-      {/* List Body */}
-      <div className="custom-scrollbar no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* V329: Compact list — cards half the size (44px vs 96px) */}
+      <div className="custom-scrollbar no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {symbols.map((sym) => {
             const q = quotes.get(sym)
             const changePct = q?.changePercent ?? 0
             const price = q?.price ?? null
             const isUp = changePct >= 0
             const color = isUp ? 'var(--success)' : 'var(--danger)'
-            const dataStatus = getDataStatus(q)
-            const statusTone = getStatusTone(dataStatus)
-
             return (
-              <div
-                key={sym}
+              <div key={sym}
                 onClick={() => onSelectSymbol ? onSelectSymbol(sym) : setSelectedSymbol(sym)}
                 className="card"
                 style={{
-                  display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-                  height: 96, padding: '14px 16px',
+                  display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+                  height: 44, padding: '6px 10px',
                   background: sym === activeSymbol ? 'rgba(0, 212, 255, 0.05)' : 'var(--surface)',
                   borderColor: sym === activeSymbol ? 'var(--accent)' : 'var(--card-border)',
-                  transition: 'border-color 0.22s ease, box-shadow 0.22s ease, background-color 0.22s ease',
-                  cursor: 'pointer', position: 'relative', overflow: 'hidden'
+                  transition: 'border-color 0.2s ease', cursor: 'pointer',
+                  position: 'relative', overflow: 'hidden',
                 }}
-                onMouseEnter={e => {
-                  const el = e.currentTarget as HTMLDivElement
-                  el.style.borderColor = 'var(--accent)'
-                  el.style.boxShadow = '0 0 0 1px rgba(0,212,255,0.10) inset, 0 10px 24px rgba(0,0,0,0.16)'
-                }}
-                onMouseLeave={e => {
-                  const el = e.currentTarget as HTMLDivElement
-                  el.style.borderColor = 'var(--card-border)'
-                  el.style.boxShadow = ''
-                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = sym === activeSymbol ? 'var(--accent)' : 'var(--card-border)' }}
               >
-                {/* Pair & Badge */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <span style={{ fontSize: 13, fontWeight: 900, color: 'var(--foreground)', fontFamily: 'var(--mono)' }}>{sym}</span>
-                    <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 600 }}>{formatFreshness(q?.timestamp ?? null, tc)} · {getStatusLabel(dataStatus, tc)}</span>
-                  </div>
+                {/* Left color bar */}
+                <div style={{ position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 2, background: q ? color : 'transparent', borderRadius: '0 4px 4px 0' }} />
+                {/* Pair name */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--foreground)', whiteSpace: 'nowrap' }}>{sym}</span>
+                </div>
+                {/* Price + change */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                  {price !== null ? (
+                    <span style={{ fontSize: 11, fontWeight: 600, fontFamily: 'var(--mono)', color: 'var(--foreground)' }}>
+                      {price >= 1000 ? price.toLocaleString('en-US', { maximumFractionDigits: 1 }) : price >= 1 ? price.toFixed(3) : price.toFixed(5)}
+                    </span>
+                  ) : (
+                    <div className="skeleton" style={{ width: 50, height: 14 }} />
+                  )}
                   {q ? (
                     <div style={{
-                      display: 'flex', alignItems: 'center', gap: 3, padding: '3px 8px',
-                      borderRadius: 20, background: isUp ? 'rgba(0,255,163,0.1)' : 'rgba(255,71,87,0.1)',
-                      border: `1px solid ${color}30`,
-                      color: color, fontSize: 10, fontWeight: 800, fontFamily: 'var(--mono)'
+                      display: 'flex', alignItems: 'center', gap: 2, padding: '1px 5px',
+                      borderRadius: 12, background: isUp ? 'rgba(0,255,163,0.1)' : 'rgba(255,71,87,0.1)',
+                      color, fontSize: 9, fontWeight: 800, fontFamily: 'var(--mono)', whiteSpace: 'nowrap',
                     }}>
-                      {isUp ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
                       {isUp ? '+' : ''}{changePct.toFixed(2)}%
                     </div>
-                  ) : (
-                    <div className="skeleton" style={{ width: 45, height: 20, borderRadius: 20 }} />
-                  )}
+                  ) : null}
                 </div>
-
-                {/* Price & Sparkline */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 'auto' }}>
-                  {price === null ? (
-                    <div className="skeleton" style={{ width: 80, height: 22 }} />
-                  ) : (
-                    <PriceDisplay price={price} isUp={isUp} />
-                  )}
-                  
-                  {/* Real Data Sparkline */}
-                  <div style={{ width: 80, height: 30, opacity: 0.85, alignSelf: 'flex-end', marginBottom: -4 }}>
-                    {q ? (() => {
-                      const rawPoints = sparklineData[sym]
-                      const hasReal = rawPoints && rawPoints.length >= 4
-
-                      // Normalize to SVG viewBox
-                      const points = hasReal ? rawPoints : (isUp
-                        ? [25, 20, 22, 10, 15, 5]
-                        : [5, 15, 10, 22, 20, 25])
-
-                      const mn = Math.min(...points)
-                      const mx = Math.max(...points)
-                      const range = mx - mn || 1
-                      const normalized = points.map(p => 28 - ((p - mn) / range) * 26)
-                      const step = 100 / (normalized.length - 1)
-                      const linePts = normalized.map((y, i) => `${i * step},${y}`).join(' L ')
-                      const fillPts = `M 0,${normalized[0]} L ${linePts} L ${100},${normalized[normalized.length-1]} L 100,30 L 0,30 Z`
-                      const linePath = `M 0,${normalized[0]} L ${linePts}`
-
-                      return (
-                        <svg viewBox="0 0 100 30" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
-                          <defs>
-                            <linearGradient id={`grad-${sym}`} x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor={color} stopOpacity="0.35" />
-                              <stop offset="100%" stopColor={color} stopOpacity="0.0" />
-                            </linearGradient>
-                          </defs>
-                          <path d={fillPts} fill={`url(#grad-${sym})`} />
-                          <path
-                            d={linePath}
-                            fill="none" stroke={color} strokeWidth="2.5"
-                            strokeLinecap="round" strokeLinejoin="round"
-                          />
-                          {/* Last price dot */}
-                          <circle
-                            cx={100} cy={normalized[normalized.length - 1]}
-                            r={3} fill={color}
-                            style={{ filter: `drop-shadow(0 0 3px ${color})` }}
-                          />
-                        </svg>
-                      )
-                    })() : (
-                      <div className="skeleton" style={{ width: '100%', height: '100%', opacity: 0.5 }} />
-                    )}
-                  </div>
-                </div>
-
-                {/* Left Indicator bar */}
-                <div style={{
-                  position: 'absolute', left: 0, top: '20%', bottom: '20%', width: 2.5,
-                  background: q ? color : 'transparent', borderRadius: '0 4px 4px 0'
-                }} />
-                {q && (
-                  <div style={{
-                    position: 'absolute',
-                    insetInlineEnd: 10,
-                    insetBlockEnd: 8,
-                    fontSize: 8,
-                    color: statusTone,
-                    fontFamily: 'var(--mono)',
-                  }}>
-                    {q.source}
-                  </div>
-                )}
               </div>
             )
           })}

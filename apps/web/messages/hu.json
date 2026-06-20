@@ -2671,7 +2671,10 @@
       "hotMover": "Forró mozgató",
       "forex": "Forex",
       "crypto": "Kripto",
-      "loading": "Betöltés..."
+      "loading": "Betöltés...",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "social": {
       "featureFollowTitle": "Kövesse a kereskedőket",

@@ -2671,7 +2671,10 @@
       "hotMover": "Động lực nóng",
       "forex": "Ngoại hối",
       "crypto": "tiền điện tử",
-      "loading": "Đang tải..."
+      "loading": "Đang tải...",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "social": {
       "featureFollowTitle": "Theo dõi nhà giao dịch",

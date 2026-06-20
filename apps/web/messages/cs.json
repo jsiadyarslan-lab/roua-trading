@@ -2778,7 +2778,10 @@
       "forex": "Forex",
       "crypto": "Krypto",
       "stocks": "Akcie",
-      "hotMover": "Horký stěhovák"
+      "hotMover": "Horký stěhovák",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "scannerSidebar": {
       "heatmap": "Teplotní mapa",

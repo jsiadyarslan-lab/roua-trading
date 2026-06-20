@@ -2671,7 +2671,10 @@
       "hotMover": "Список наблюдения",
       "forex": "Форекс",
       "crypto": "Список наблюдения",
-      "loading": "Загрузка..."
+      "loading": "Загрузка...",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "social": {
       "featureFollowTitle": "Подписка на трейдеров",

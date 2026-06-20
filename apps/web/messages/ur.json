@@ -2671,7 +2671,10 @@
       "hotMover": "ہاٹ موور",
       "forex": "فاریکس",
       "crypto": "کریپٹو",
-      "loading": "لوڈ ہو رہا ہے..."
+      "loading": "لوڈ ہو رہا ہے...",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "social": {
       "featureFollowTitle": "ٹریڈرز کو فالو کریں",

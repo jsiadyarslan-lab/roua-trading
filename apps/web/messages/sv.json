@@ -2671,7 +2671,10 @@
       "hotMover": "Het rörelse",
       "forex": "Valuta",
       "crypto": "Krypto",
-      "loading": "Belastning..."
+      "loading": "Belastning...",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "social": {
       "featureFollowTitle": "Följ handlare",

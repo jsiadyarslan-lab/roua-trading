@@ -2671,7 +2671,10 @@
       "hotMover": "Sıcak hareket",
       "forex": "Forex",
       "crypto": "Kripto",
-      "loading": "Yükleniyor..."
+      "loading": "Yükleniyor...",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "social": {
       "featureFollowTitle": "Trader'ları Takip Et",

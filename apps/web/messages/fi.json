@@ -2671,7 +2671,10 @@
       "hotMover": "Kuuma liikkuja",
       "forex": "Forex",
       "crypto": "Krypto",
-      "loading": "Ladataan..."
+      "loading": "Ladataan...",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "social": {
       "featureFollowTitle": "Seuraa kauppiaita",

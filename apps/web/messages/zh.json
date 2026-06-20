@@ -2671,7 +2671,10 @@
       "hotMover": "热门变动",
       "forex": "外汇",
       "crypto": "加密货币",
-      "loading": "加载中..."
+      "loading": "加载中...",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "social": {
       "featureFollowTitle": "关注 交易rs",

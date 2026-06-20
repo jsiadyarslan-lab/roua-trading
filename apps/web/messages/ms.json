@@ -2671,7 +2671,10 @@
       "hotMover": "Penggerak hangat",
       "forex": "Forex",
       "crypto": "Kripto",
-      "loading": "Memuatkan..."
+      "loading": "Memuatkan...",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "social": {
       "featureFollowTitle": "Ikuti Pedagang",

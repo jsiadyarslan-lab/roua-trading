@@ -2778,7 +2778,10 @@
       "forex": "ফরেক্স",
       "crypto": "ক্রিপ্টো",
       "stocks": "শেয়ার",
-      "hotMover": "হট মুভার"
+      "hotMover": "হট মুভার",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "scannerSidebar": {
       "heatmap": "হিটম্যাপ",

@@ -2671,7 +2671,10 @@
       "hotMover": "Hot move",
       "forex": "Forex",
       "crypto": "Cripto",
-      "loading": "Se încarcă..."
+      "loading": "Se încarcă...",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "social": {
       "featureFollowTitle": "Urmărește comercianții",

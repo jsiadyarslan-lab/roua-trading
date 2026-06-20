@@ -2671,7 +2671,10 @@
       "hotMover": "Mouvement chaud",
       "forex": "Forex",
       "crypto": "Cryptomonnaie",
-      "loading": "Chargement..."
+      "loading": "Chargement...",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "social": {
       "featureFollowTitle": "Suivre des traders",

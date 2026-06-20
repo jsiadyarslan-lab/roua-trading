@@ -2671,7 +2671,10 @@
       "hotMover": "ผู้เสนอญัตติร้อนแรง",
       "forex": "ฟอเร็กซ์",
       "crypto": "การเข้ารหัสลับ",
-      "loading": "กำลังโหลด..."
+      "loading": "กำลังโหลด...",
+      "metals": "Metals",
+      "indices": "Indices",
+      "energy": "Energy"
     },
     "social": {
       "featureFollowTitle": "ติดตามเทรดเดอร์",

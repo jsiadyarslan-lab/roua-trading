@@ -10,8 +10,11 @@ import {
   TrendingUp, Cpu, MessageSquare, Activity, Sliders,
   CheckCircle2, ExternalLink, LogOut, UserCircle, Monitor,
   Wifi, Trash2, Download, Upload, RefreshCw, CreditCard,
-  Crown, Star, Sparkles, Send, Filter
+  Crown, Star, Sparkles, Send, Filter,
+  // V313: Icons for redesigned settings shell (sidebar + search + save badge)
+  Search, X, Check, AlertCircle, Loader2, ChevronRight
 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useAuthStore } from '@/lib/auth-store'
 import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
@@ -339,16 +342,122 @@ function ActiveAccountSelector() {
 }
 
 /* ══════════════════════════════════════════════════════
-   Main Settings Page
+   V313: SaveStatusBadge
+   Visible indicator in the top-right corner showing the
+   auto-save status (Saving... / Saved / Error). Previously
+   the saveStatus state existed but had no UI representation.
+══════════════════════════════════════════════════════ */
+function SaveStatusBadge({ status, t }: {
+  status: 'idle' | 'saving' | 'saved' | 'error'
+  t: (key: string) => string
+}) {
+  if (status === 'idle') {
+    // Idle: show subtle "all saved" pill so users know their data is persisted
+    return (
+      <div style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        padding: '6px 10px', borderRadius: 8,
+        background: 'rgba(255,255,255,0.02)',
+        border: `1px solid ${T.border}`,
+        color: T.text4, fontSize: 10.5, fontWeight: 700,
+        fontFamily: "'Cairo', sans-serif", flexShrink: 0,
+      }}>
+        <Check size={12} color={T.green} />
+        <span>{t('allChangesSaved')}</span>
+      </div>
+    )
+  }
+  if (status === 'saving') {
+    return (
+      <div style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        padding: '6px 10px', borderRadius: 8,
+        background: `${T.cyan}10`,
+        border: `1px solid ${T.cyan}30`,
+        color: T.cyan, fontSize: 10.5, fontWeight: 700,
+        fontFamily: "'Cairo', sans-serif", flexShrink: 0,
+      }}>
+        <Loader2 size={12} className="animate-spin" />
+        <span>{t('saving')}</span>
+      </div>
+    )
+  }
+  if (status === 'saved') {
+    return (
+      <div style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        padding: '6px 10px', borderRadius: 8,
+        background: `${T.green}10`,
+        border: `1px solid ${T.green}30`,
+        color: T.green, fontSize: 10.5, fontWeight: 700,
+        fontFamily: "'Cairo', sans-serif", flexShrink: 0,
+        animation: 'settingsBadgePop 0.3s ease',
+      }}>
+        <Check size={12} />
+        <span>{t('saved')}</span>
+      </div>
+    )
+  }
+  // error
+  return (
+    <div style={{
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+      padding: '6px 10px', borderRadius: 8,
+      background: `${T.red}10`,
+      border: `1px solid ${T.red}30`,
+      color: T.red, fontSize: 10.5, fontWeight: 700,
+      fontFamily: "'Cairo', sans-serif", flexShrink: 0,
+    }}>
+      <AlertCircle size={12} />
+      <span>{t('saveError')}</span>
+    </div>
+  )
+}
+
+/* ══════════════════════════════════════════════════════
+   Main Settings Page — V313 Redesigned Shell
+   Left sidebar with grouped tabs + search + save badge
 ══════════════════════════════════════════════════════ */
 export default function SettingsPage() {
-  useScopedStyle(`@media (max-width: 767px) {
-          .settings-tabs { flex-wrap: wrap !important; gap: 4px !important; }
-          .settings-tabs button { padding: 6px 10px !important; font-size: 10px !important; }
+  useScopedStyle(`
+        /* V313: Settings shell responsive behavior */
+        /* Desktop (>=1024px): vertical sidebar visible, mobile tabs hidden */
+        @media (min-width: 1024px) {
+          .settings-sidebar { display: flex !important; }
+          .settings-mobile-tabs { display: none !important; }
+        }
+        /* Tablet & Mobile (<1024px): sidebar hidden, horizontal mobile tabs visible */
+        @media (max-width: 1023px) {
+          .settings-sidebar { display: none !important; }
+          .settings-mobile-tabs { display: flex !important; }
+          .settings-body { flex-direction: column !important; }
+        }
+        /* Mobile (<768px): stack top bar, full-width search */
+        @media (max-width: 767px) {
+          .settings-top-bar { flex-wrap: wrap !important; gap: 8px !important; padding: 12px !important; }
+          .settings-brand-meta { display: none !important; }
+          .settings-search { flex: 1 1 100% !important; order: 3 !important; max-width: none !important; }
+          .settings-save-badge { order: 2 !important; }
           .settings-content { padding: 12px !important; }
+          .settings-tab-header { padding: 12px 14px !important; }
+          .settings-tab-header h2 { font-size: 15px !important; }
           .settings-profile-row { flex-direction: column !important; text-align: center !important; }
           .perm-grid { grid-template-columns: repeat(2, 1fr) !important; }
-        }`)
+        }
+        /* Badge pop animation */
+        @keyframes settingsBadgePop {
+          0% { transform: scale(0.9); opacity: 0.6; }
+          50% { transform: scale(1.04); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        /* Custom scrollbar for sidebar + mobile tabs */
+        .settings-sidebar::-webkit-scrollbar { width: 4px; }
+        .settings-sidebar::-webkit-scrollbar-track { background: transparent; }
+        .settings-sidebar::-webkit-scrollbar-thumb { background: ${T.border2}; border-radius: 2px; }
+        .settings-mobile-tabs::-webkit-scrollbar { height: 4px; }
+        .settings-mobile-tabs::-webkit-scrollbar-track { background: transparent; }
+        .settings-mobile-tabs::-webkit-scrollbar-thumb { background: ${T.border2}; border-radius: 2px; }
+      `)
 
   const t = useTranslations('dashboard.settings')
   const tc = useTranslations('common')
@@ -360,6 +469,8 @@ export default function SettingsPage() {
   const setMode = useDashboardStore(state => state.setMode)
   const [isDark, setIsDark] = useState(true)
   const [activeTab, setActiveTab] = useState('account')
+  // V313: Search query for filtering tabs in the sidebar
+  const [searchQuery, setSearchQuery] = useState('')
   const currentLocale = useLocale()
 
   // Trading preferences
@@ -781,20 +892,77 @@ export default function SettingsPage() {
     }
   }
 
-  const tabs = [
-    { id: 'account', label: t('tabAccount'), icon: <User size={14} /> },
-    { id: 'subscription', label: t('tabSubscription'), icon: <Crown size={14} /> },
-    { id: 'trading', label: t('tabTrading'), icon: <BarChart3 size={14} /> },
-    // V312: New dedicated tabs for trading automation
-    { id: 'smart-executor', label: 'Smart Executor', icon: <Zap size={14} /> },
-    { id: 'autonomous-agent', label: 'Autonomous Agent', icon: <Bot size={14} /> },
-    { id: 'ai-council', label: 'AI Council', icon: <Brain size={14} /> },
-    { id: 'notifications', label: t('tabNotifications'), icon: <Bell size={14} /> },
-    { id: 'ai', label: t('tabAI'), icon: <Brain size={14} /> },
-    { id: 'appearance', label: t('tabAppearance'), icon: <Palette size={14} /> },
-    { id: 'security', label: t('tabSecurity'), icon: <Shield size={14} /> },
-    { id: 'data', label: t('tabData'), icon: <Database size={14} /> },
+  // ═══════════════════════════════════════════════════════
+  // V313: Grouped tab navigation for the redesigned sidebar.
+  // The previous flat horizontal bar held 11 tabs — too many to fit,
+  // no logical grouping, and overflowed on smaller screens.
+  // Now organized into 4 categories: Account / Trading / AI / Preferences.
+  // ═══════════════════════════════════════════════════════
+  const TAB_GROUPS: Array<{
+    id: string
+    label: string
+    tabs: Array<{ id: string; label: string; icon: React.ReactNode; color: string; description: string }>
+  }> = [
+    {
+      id: 'account-group',
+      label: t('groupAccount'),
+      tabs: [
+        { id: 'account', label: t('tabAccount'), icon: <User size={15} />, color: T.cyan, description: t('tabAccountDesc') },
+        { id: 'subscription', label: t('tabSubscription'), icon: <Crown size={15} />, color: T.gold, description: t('tabSubscriptionDesc') },
+        { id: 'security', label: t('tabSecurity'), icon: <Shield size={15} />, color: T.red, description: t('tabSecurityDesc') },
+      ],
+    },
+    {
+      id: 'trading-group',
+      label: t('groupTrading'),
+      tabs: [
+        { id: 'trading', label: t('tabTrading'), icon: <BarChart3 size={15} />, color: T.green, description: t('tabTradingDesc') },
+        { id: 'smart-executor', label: t('smartExecutor'), icon: <Zap size={15} />, color: T.amber, description: t('smartExecutorDesc') },
+        { id: 'autonomous-agent', label: t('autonomousAgent'), icon: <Bot size={15} />, color: T.purple, description: t('autonomousAgentDesc') },
+      ],
+    },
+    {
+      id: 'ai-group',
+      label: t('groupAI'),
+      tabs: [
+        { id: 'ai-council', label: t('aiCouncil'), icon: <Brain size={15} />, color: T.purple, description: t('aiCouncilDesc') },
+        { id: 'ai', label: t('tabAI'), icon: <Cpu size={15} />, color: T.cyan, description: t('tabAIDesc') },
+      ],
+    },
+    {
+      id: 'preferences-group',
+      label: t('groupPreferences'),
+      tabs: [
+        { id: 'notifications', label: t('tabNotifications'), icon: <Bell size={15} />, color: T.cyan, description: t('tabNotificationsDesc') },
+        { id: 'appearance', label: t('tabAppearance'), icon: <Palette size={15} />, color: T.pink, description: t('tabAppearanceDesc') },
+        { id: 'data', label: t('tabData'), icon: <Database size={15} />, color: T.blue, description: t('tabDataDesc') },
+      ],
+    },
   ]
+
+  // V313: Filter tab groups by search query (matches label or description)
+  const filteredTabGroups = (() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return TAB_GROUPS
+    return TAB_GROUPS.map(g => ({
+      ...g,
+      tabs: g.tabs.filter(tab =>
+        tab.label.toLowerCase().includes(q) || tab.description.toLowerCase().includes(q)
+      ),
+    })).filter(g => g.tabs.length > 0)
+  })()
+
+  // V313: Look up the active tab's metadata (icon, color, description) for the content header
+  const activeTabMeta = (() => {
+    for (const g of TAB_GROUPS) {
+      const found = g.tabs.find(tab => tab.id === activeTab)
+      if (found) return found
+    }
+    return TAB_GROUPS[0].tabs[0]
+  })()
+
+  // V313: Whether the current search yields any matching tabs
+  const hasSearchResults = filteredTabGroups.length > 0
 
   // Permission categories for display
   const permissionCategories = [
@@ -825,53 +993,220 @@ export default function SettingsPage() {
   ]
 
   return (
-    <div className="custom-scrollbar" style={{ fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto', background: T.bg }}>
-      {/* Scoped styles via useScopedStyle */}{/* Header */}
-      <div style={{
-        padding: '24px 24px 0', borderBottom: `1px solid ${T.border}`,
+    <div className="custom-scrollbar" style={{ fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto', background: T.bg, display: 'flex', flexDirection: 'column' }}>
+      {/* ═══════════════════════════════════════════════════════════
+          V313: Top Bar — Brand + Search + Save Status Badge
+          ═══════════════════════════════════════════════════════════ */}
+      <header className="settings-top-bar" style={{
+        display: 'flex', alignItems: 'center', gap: 16,
+        padding: '14px 20px',
         background: `linear-gradient(180deg, ${T.bg2}, ${T.bg})`,
+        borderBottom: `1px solid ${T.border}`,
+        position: 'sticky', top: 0, zIndex: 20,
+        backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
+        flexShrink: 0,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+        {/* Brand */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
           <div style={{
-            width: 36, height: 36, borderRadius: 10,
+            width: 38, height: 38, borderRadius: 11,
             background: 'linear-gradient(135deg, #00d4ff, #0A84FF)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 14px rgba(0,212,255,0.18)',
           }}>
             <Settings size={18} color="#fff" />
           </div>
-          <div>
-            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: T.text }}>{t('title')}</h1>
+          <div className="settings-brand-meta">
+            <h1 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: T.text, letterSpacing: '-0.01em' }}>{t('title')}</h1>
             <p style={{ margin: 0, fontSize: 11, color: T.text3 }}>{t('subtitle')}</p>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="settings-tabs" style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 0 }}>
-          {tabs.map(tab => (
+        {/* Search Bar */}
+        <div className="settings-search" style={{
+          flex: 1, maxWidth: 380, minWidth: 0,
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '8px 12px', borderRadius: 10,
+          background: 'rgba(255,255,255,0.03)',
+          border: `1px solid ${T.border}`,
+          transition: 'border-color 0.2s, background 0.2s',
+        }}>
+          <Search size={14} color={T.text3} style={{ flexShrink: 0 }} />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder={t('searchSettings')}
+            aria-label={t('searchSettingsAria')}
+            style={{
+              flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'transparent',
+              color: T.text, fontSize: 12, fontFamily: "'Cairo', sans-serif", fontWeight: 500,
+            }}
+          />
+          {searchQuery && (
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => setSearchQuery('')}
+              aria-label={t('clearSearch')}
               style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '10px 16px', border: 'none', cursor: 'pointer',
-                background: activeTab === tab.id ? 'rgba(0,212,255,0.08)' : 'transparent',
-                color: activeTab === tab.id ? T.cyan : T.text3,
-                fontSize: 12, fontWeight: activeTab === tab.id ? 800 : 500,
-                fontFamily: "'Cairo', sans-serif",
-                borderBottom: activeTab === tab.id ? `2px solid ${T.cyan}` : '2px solid transparent',
-                transition: 'all 0.2s', whiteSpace: 'nowrap',
-                borderRadius: '8px 8px 0 0',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 18, height: 18, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                background: T.surface, color: T.text3, flexShrink: 0,
               }}
             >
-              {tab.icon}
-              {tab.label}
+              <X size={11} />
             </button>
-          ))}
+          )}
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="settings-content" style={{ padding: '20px 24px 40px', display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 800 }}>
+        {/* Save Status Badge */}
+        <div className="settings-save-badge">
+          <SaveStatusBadge status={saveStatus} t={t} />
+        </div>
+      </header>
+
+      {/* ═══════════════════════════════════════════════════════════
+          Body: Desktop Sidebar + Mobile Tabs + Main Content
+          ═══════════════════════════════════════════════════════════ */}
+      <div className="settings-body" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+
+        {/* ─── Desktop Sidebar (>=1024px) — vertical, grouped ─── */}
+        <aside className="settings-sidebar custom-scrollbar" style={{
+          width: 232, flexShrink: 0,
+          display: 'none', // controlled by CSS media query
+          flexDirection: 'column', gap: 4,
+          padding: '16px 10px',
+          borderInlineEnd: `1px solid ${T.border}`,
+          background: T.bg2,
+          overflowY: 'auto',
+        }}>
+          {hasSearchResults ? (
+            filteredTabGroups.map(group => (
+              <div key={group.id} style={{ marginBottom: 8 }}>
+                {/* Group label */}
+                <div style={{
+                  fontSize: 9, fontWeight: 800, color: T.text4,
+                  padding: '10px 10px 4px', letterSpacing: '0.08em', textTransform: 'uppercase',
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}>
+                  {group.label}
+                </div>
+                {/* Tabs in this group */}
+                {group.tabs.map(tab => {
+                  const isActive = activeTab === tab.id
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        width: '100%', padding: '9px 10px',
+                        borderRadius: 8, border: 'none', cursor: 'pointer',
+                        background: isActive ? `${tab.color}14` : 'transparent',
+                        color: isActive ? tab.color : T.text3,
+                        fontSize: 12.5, fontWeight: isActive ? 800 : 600,
+                        fontFamily: "'Cairo', sans-serif",
+                        transition: 'all 0.15s',
+                        borderInlineStart: isActive ? `3px solid ${tab.color}` : '3px solid transparent',
+                        textAlign: 'start',
+                      }}
+                    >
+                      <span style={{ flexShrink: 0, display: 'flex', color: isActive ? tab.color : T.text3 }}>{tab.icon}</span>
+                      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tab.label}</span>
+                      {isActive && <ChevronRight size={12} color={tab.color} style={{ flexShrink: 0 }} />}
+                    </button>
+                  )
+                })}
+              </div>
+            ))
+          ) : (
+            <div style={{ padding: '24px 12px', textAlign: 'center' }}>
+              <Search size={22} color={T.text4} style={{ margin: '0 auto 8px' }} />
+              <div style={{ fontSize: 12, color: T.text3, fontWeight: 700 }}>{t('noSearchResults')}</div>
+              <div style={{ fontSize: 10, color: T.text4, marginTop: 4 }}>{t('noSearchResultsDesc')}</div>
+            </div>
+          )}
+        </aside>
+
+        {/* ─── Mobile Tabs (<1024px) — horizontal scroll ─── */}
+        <div className="settings-mobile-tabs custom-scrollbar" style={{
+          display: 'none', // controlled by CSS media query
+          gap: 4, padding: '8px 12px',
+          overflowX: 'auto', borderBottom: `1px solid ${T.border}`,
+          background: T.bg2, flexShrink: 0,
+        }}>
+          {hasSearchResults ? (
+            filteredTabGroups.map(group => (
+              <div key={group.id} style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                {group.tabs.map(tab => {
+                  const isActive = activeTab === tab.id
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        padding: '7px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                        background: isActive ? `${tab.color}14` : T.surface,
+                        color: isActive ? tab.color : T.text3,
+                        fontSize: 11.5, fontWeight: isActive ? 800 : 600,
+                        fontFamily: "'Cairo', sans-serif",
+                        whiteSpace: 'nowrap', flexShrink: 0,
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <span style={{ display: 'flex', color: isActive ? tab.color : T.text3 }}>{tab.icon}</span>
+                      <span>{tab.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            ))
+          ) : (
+            <div style={{ padding: '6px 8px', fontSize: 11, color: T.text3 }}>{t('noSearchResults')}</div>
+          )}
+        </div>
+
+        {/* ─── Main Content ─── */}
+        <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+          {/* Active Tab Header */}
+          <div className="settings-tab-header" style={{
+            display: 'flex', alignItems: 'center', gap: 14,
+            padding: '18px 22px 14px',
+            borderBottom: `1px solid ${T.border}`,
+            background: 'linear-gradient(180deg, rgba(0,0,0,0.18), transparent)',
+            flexShrink: 0,
+          }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: 12,
+              background: `${activeTabMeta.color}14`,
+              border: `1px solid ${activeTabMeta.color}30`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <span style={{ display: 'flex', color: activeTabMeta.color }}>{activeTabMeta.icon}</span>
+            </div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: T.text, letterSpacing: '-0.01em' }}>
+                {activeTabMeta.label}
+              </h2>
+              <p style={{ margin: '2px 0 0', fontSize: 11.5, color: T.text3, lineHeight: 1.5 }}>
+                {activeTabMeta.description}
+              </p>
+            </div>
+          </div>
+
+          {/* Tab Content with smooth transition (AnimatePresence) */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+              style={{ flex: 1, minHeight: 0 }}
+            >
+              {/* Content container — preserves all existing tab content unchanged */}
+              <div className="settings-content" style={{ padding: '18px 22px 32px', display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 860 }}>
 
         {/* ═══ Account Tab ═══ */}
         {activeTab === 'account' && (
@@ -2885,6 +3220,10 @@ export default function SettingsPage() {
           </>
         )}
 
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        </main>
       </div>
     </div>
   )

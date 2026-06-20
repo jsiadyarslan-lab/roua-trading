@@ -12,13 +12,13 @@ import {
   Wifi, Trash2, Download, Upload, RefreshCw, CreditCard,
   Crown, Star, Sparkles, Send, Filter, Zap, Bot
 } from 'lucide-react'
-import { SmartExecutorTab } from './tabs/SmartExecutorTab'
-import { AutonomousAgentTab } from './tabs/AutonomousAgentTab'
-import { AICouncilTab } from './tabs/AICouncilTab'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useAuthStore } from '@/lib/auth-store'
 import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { hasPermission, getPermissions, ROLE_INFO, type Role, type Permission } from '@/lib/permissions'
+import { SmartExecutorTab } from './tabs/SmartExecutorTab'
+import { AutonomousAgentTab } from './tabs/AutonomousAgentTab'
+import { AICouncilTab } from './tabs/AICouncilTab'
 import { T as SharedT } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations } from 'next-intl'

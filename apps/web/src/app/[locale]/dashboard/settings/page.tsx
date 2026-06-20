@@ -1746,7 +1746,7 @@ export default function SettingsPage() {
               s.smartExecutorEnabled = aiAutoTrade;
               s.userRiskPerTrade = userRiskPerTrade;
               s.userMaxOpenPositions = userMaxOpenPositions;
-              s.minConfidence = minConfidence;
+              s.minConfidence = aiConfidence;
               s.userStopLoss = userStopLoss;
               s.userTakeProfit = userTakeProfit;
               s.userMaxDailyLoss = userMaxDailyLoss;

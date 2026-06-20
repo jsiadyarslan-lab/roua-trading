@@ -1036,6 +1036,34 @@ export class TradingController {
     }
   }
 
+  /**
+   * V336: Diagnostic — TP gap analysis for closed trades
+   * GET /api/trading/diagnose/tp-gaps?limit=50&days=7
+   *
+   * Returns per-trade data showing:
+   *   - Raw closeReason from DB (not the portfolio's AUTO/MANUAL/SL mapping)
+   *   - takeProfit, stopLoss, entryPrice, exitPrice
+   *   - highestPrice/lowestPrice (closest the market got to TP)
+   *   - tpGapPercent: how far the best price was from TP
+   *   - tpWasReached: did the market actually touch TP?
+   *
+   * READ-ONLY — no data modification.
+   */
+  @Get('diagnose/tp-gaps')
+  async diagnoseTpGaps(@Req() req: any, @Query('limit') limit?: string, @Query('days') days?: string) {
+    try {
+      const userId = req.user.id;
+      const parsedLimit = limit ? parseInt(limit, 10) : 50;
+      const parsedDays = days ? parseInt(days, 10) : 7;
+      this.logger.log(`🔬 V336: TP gap analysis for user ${userId} (limit=${parsedLimit}, days=${parsedDays})`);
+      const result = await this.tradingService.diagnoseTradeTpGaps(userId, parsedLimit, parsedDays);
+      return { success: true, diagnostic: result };
+    } catch (error: any) {
+      this.logger.error(`V336 TP gap analysis failed: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+
   // ── Risk Management ──
 
   /**

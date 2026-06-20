@@ -3652,4 +3652,179 @@ export class TradingService {
     results.updates = updates;
     return results;
   }
+
+  /**
+   * V336: Diagnostic — Pull precise per-trade data for TP gap analysis.
+   *
+   * Returns closed positions with:
+   *   - trade_id, symbol, side, source
+   *   - closeReason (raw from DB — NOT the portfolio's "AUTO/MANUAL/SL" mapping)
+   *   - entryPrice, exitPrice, takeProfit, stopLoss
+   *   - highestPrice, lowestPrice (the closest the market actually got to TP)
+   *   - openedAt, closedAt, holdingMinutes
+   *   - tpGapPercent: how far the best price was from TP (0% = TP was touched)
+   *   - tpWasReachable: boolean — did highestPrice/lowestPrice actually reach TP?
+   *
+   * This is READ-ONLY — no data modification. Used to confirm/refute the
+   * hypothesis that AUTO_STALE closes were happening while TP was within reach.
+   *
+   * @param userId  The user whose trades to analyze
+   * @param limit   Max trades to return (default 50)
+   * @param days    Only include trades from last N days (default 7)
+   */
+  async diagnoseTradeTpGaps(userId: string, limit: number = 50, days: number = 7): Promise<any> {
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const positions = await this.prisma.position.findMany({
+      where: {
+        userId,
+        status: { in: ['CLOSED', 'LIQUIDATED'] },
+        closedAt: { gte: since },
+      },
+      select: {
+        id: true,
+        symbol: true,
+        side: true,
+        source: true,
+        exchange: true,
+        entryPrice: true,
+        exitPrice: true,
+        currentPrice: true,
+        stopLoss: true,
+        takeProfit: true,
+        highestPrice: true,
+        lowestPrice: true,
+        realizedPnl: true,
+        closeReason: true,
+        openedAt: true,
+        closedAt: true,
+        isPaperTrading: true,
+      },
+      orderBy: { closedAt: 'desc' },
+      take: limit,
+    });
+
+    const trades = positions.map((p: any) => {
+      const entry = Number(p.entryPrice);
+      const exit = p.exitPrice ? Number(p.exitPrice) : (p.currentPrice ? Number(p.currentPrice) : null);
+      const tp = p.takeProfit ? Number(p.takeProfit) : null;
+      const sl = p.stopLoss ? Number(p.stopLoss) : null;
+      const high = p.highestPrice ? Number(p.highestPrice) : null;
+      const low = p.lowestPrice ? Number(p.lowestPrice) : null;
+
+      // Determine the closest the market actually got to TP
+      // For BUY: TP is above entry → highestPrice is the closest
+      // For SELL: TP is below entry → lowestPrice is the closest
+      let closestToTp: number | null = null;
+      let tpGapPercent: number | null = null;
+      let tpWasReached = false;
+
+      if (tp !== null && entry > 0) {
+        if (p.side === 'BUY') {
+          // TP is above entry. highestPrice is the best the market reached.
+          // If highestPrice is null, fall back to exitPrice (last known)
+          closestToTp = high ?? exit ?? entry;
+          // For BUY: tpWasReached when highestPrice >= TP
+          tpWasReached = high !== null && high >= tp;
+          // Gap: how far below TP was the highest price? (positive = didn't reach, negative = exceeded)
+          tpGapPercent = ((tp - closestToTp) / entry) * 100;
+        } else {
+          // SELL: TP is below entry. lowestPrice is the best the market reached.
+          closestToTp = low ?? exit ?? entry;
+          tpWasReached = low !== null && low <= tp;
+          // Gap: how far above TP was the lowest price? (positive = didn't reach)
+          tpGapPercent = ((closestToTp - tp) / entry) * 100;
+        }
+      }
+
+      // Similarly for SL
+      let slWasReached = false;
+      if (sl !== null && entry > 0) {
+        if (p.side === 'BUY') {
+          slWasReached = low !== null && low <= sl;
+        } else {
+          slWasReached = high !== null && high >= sl;
+        }
+      }
+
+      const holdingMs = p.openedAt && p.closedAt
+        ? new Date(p.closedAt).getTime() - new Date(p.openedAt).getTime()
+        : 0;
+      const holdingMinutes = Math.round(holdingMs / 60000);
+
+      return {
+        trade_id: p.id,
+        symbol: p.symbol,
+        side: p.side,
+        source: p.source,
+        exchange: p.exchange,
+        isPaper: p.isPaperTrading,
+        closeReason_raw: p.closeReason, // ← RAW from DB, no mapping
+        entryPrice: entry,
+        exitPrice: exit,
+        takeProfit: tp,
+        stopLoss: sl,
+        highestPrice: high,
+        lowestPrice: low,
+        closestPriceToTp: closestToTp,
+        tpGapPercent: tpGapPercent !== null ? Number(tpGapPercent.toFixed(3)) : null,
+        tpWasReached,
+        slWasReached,
+        realizedPnl: p.realizedPnl ? Number(p.realizedPnl) : null,
+        openedAt: p.openedAt,
+        closedAt: p.closedAt,
+        holdingMinutes,
+      };
+    });
+
+    // Summary stats
+    const summary = {
+      totalTrades: trades.length,
+      byCloseReason: {} as Record<string, number>,
+      bySource: {} as Record<string, number>,
+      tpReachedCount: 0,
+      slReachedCount: 0,
+      tpNotReachedButAutoClosed: 0,
+      tpGapUnder1Percent: 0,
+      tpGapUnder3Percent: 0,
+      tpGapOver5Percent: 0,
+      avgHoldingMinutes: 0,
+    };
+
+    for (const t of trades) {
+      const reason = t.closeReason_raw || 'NULL/EMPTY';
+      summary.byCloseReason[reason] = (summary.byCloseReason[reason] || 0) + 1;
+      const src = t.source || 'NULL';
+      summary.bySource[src] = (summary.bySource[src] || 0) + 1;
+
+      if (t.tpWasReached) summary.tpReachedCount++;
+      if (t.slWasReached) summary.slReachedCount++;
+
+      // Trades closed by AUTO_STALE/AUTO_CLOSE/TIME_EXPIRED but TP was NOT reached
+      const isAutoClose = /AUTO_STALE|AUTO_CLOSE|TIME_EXPIRED|STALE/i.test(reason);
+      if (isAutoClose && !t.tpWasReached) {
+        summary.tpNotReachedButAutoClosed++;
+      }
+
+      if (t.tpGapPercent !== null) {
+        if (t.tpGapPercent < 1) summary.tpGapUnder1Percent++;
+        else if (t.tpGapPercent < 3) summary.tpGapUnder3Percent++;
+        else if (t.tpGapPercent > 5) summary.tpGapOver5Percent++;
+      }
+    }
+
+    if (trades.length > 0) {
+      summary.avgHoldingMinutes = Math.round(
+        trades.reduce((s, t) => s + t.holdingMinutes, 0) / trades.length
+      );
+    }
+
+    return {
+      userId,
+      generatedAt: new Date().toISOString(),
+      filterDays: days,
+      summary,
+      trades,
+    };
+  }
 }

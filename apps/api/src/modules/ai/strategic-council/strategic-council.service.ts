@@ -334,8 +334,8 @@ export class StrategicCouncilService {
             for (const tf of AGENT_TIMEFRAMES as any[]) {
               // Slow timeframes (H4, D1, W1): only top 3 pairs to reduce AI costs
               if (AGENT_SLOW_TIMEFRAMES.includes(tf as any) && agentPairs.indexOf(pair) >= 3) continue;
-              // V306: Agent session also generates briefs in English (global default)
-              await this._analyzePairTimeframe(pair, tf, marketData.price, { pairs: 0, briefs: 0, errors: 0, sessionId: 'agent-session', durationMs: 0 } as any, 'en');
+              // V308: Agent session generates in Arabic (default), translation on demand
+              await this._analyzePairTimeframe(pair, tf, marketData.price, { pairs: 0, briefs: 0, errors: 0, sessionId: 'agent-session', durationMs: 0 } as any);
               pairResult.briefs++;
             }
             pairResult.pairs = 1;
@@ -535,13 +535,10 @@ export class StrategicCouncilService {
           }
 
           try {
-            // V306: Generate briefs in English (lingua franca for trading).
-            // Briefs are global — they're shown to users in all 32 locales.
-            // Generating in Arabic (the old default) locked all non-Arabic
-            // users into reading Arabic analysis they couldn't understand.
-            // English is the universal trading language; browsers can
-            // auto-translate for users who need it.
-            await this._analyzePair(pair, result, 'en');
+            // V308: Briefs generated in Arabic (primary user language).
+            // BriefTranslationService translates analysisSummary to each
+            // user's locale on demand, with Redis caching.
+            await this._analyzePair(pair, result);
             return { analyzed: true };
           } catch (error: any) {
             if (error.message?.includes('Too many database connections') || error.message?.includes('connection pool')) {
@@ -750,7 +747,7 @@ export class StrategicCouncilService {
   /**
    * Get all active briefs (for Smart Executor consumption)
    */
-  async getActiveBriefs(userId?: string): Promise<TradingBriefDTO[]> {
+  async getActiveBriefs(userId?: string, language?: string): Promise<TradingBriefDTO[]> {
     try {
       // FIX: Include MODIFIED briefs — they are still active and should be
       // executed by the Smart Executor. Previously only 'ACTIVE' was returned,
@@ -763,7 +760,27 @@ export class StrategicCouncilService {
         orderBy: { issuedAt: 'desc' },
       });
 
-      return briefs.map((b) => this._toDTO(b));
+      const dtos = briefs.map((b) => this._toDTO(b));
+
+      // V308: Translate analysisSummary to user's locale if needed
+      if (language && language !== 'ar' && this.briefTranslation) {
+        const translations = await this.briefTranslation.translateBatch(
+          dtos
+            .filter((d) => d.analysisSummary)
+            .map((d) => ({
+              id: d.id,
+              text: d.analysisSummary!,
+              label: `${d.pair} ${d.timeframe} analysisSummary`,
+            })),
+          language,
+        );
+        for (const dto of dtos) {
+          const translated = translations.get(dto.id);
+          if (translated) dto.analysisSummary = translated;
+        }
+      }
+
+      return dtos;
     } catch (error: any) {
       this.logger.error(`🏛️ getActiveBriefs failed: ${error.message}`);
       // Return empty array instead of crashing — the Strategic Council
@@ -1021,7 +1038,7 @@ export class StrategicCouncilService {
    * full timeline. The reviewStatus badge (ACTIVE/MODIFIED/CANCELLED/EXECUTED)
    * distinguishes them visually.
    */
-  async getBriefHistory(userId?: string, limit: number = 100): Promise<TradingBriefDTO[]> {
+  async getBriefHistory(userId?: string, limit: number = 100, language?: string): Promise<TradingBriefDTO[]> {
     try {
       const where: any = {};
       if (userId) where.userId = userId;
@@ -1068,7 +1085,7 @@ export class StrategicCouncilService {
         this.logger.warn(`🏛️ V299: TradeJournal query failed (returning briefs without outcome): ${journalErr?.message}`);
       }
 
-      return briefs.map((b) => {
+      const dtos = briefs.map((b) => {
         const dto = this._toDTO(b);
         const journal = journalByBriefId.get(b.id);
         if (journal) {
@@ -1080,6 +1097,26 @@ export class StrategicCouncilService {
         }
         return dto;
       });
+
+      // V308: Translate analysisSummary to user's locale if needed
+      if (language && language !== 'ar' && this.briefTranslation) {
+        const translations = await this.briefTranslation.translateBatch(
+          dtos
+            .filter((d) => d.analysisSummary)
+            .map((d) => ({
+              id: d.id,
+              text: d.analysisSummary!,
+              label: `${d.pair} ${d.timeframe} analysisSummary`,
+            })),
+          language,
+        );
+        for (const dto of dtos) {
+          const translated = translations.get(dto.id);
+          if (translated) dto.analysisSummary = translated;
+        }
+      }
+
+      return dtos;
     } catch (error: any) {
       this.logger.error(`🏛️ getBriefHistory failed: ${error.message}`);
       return [];

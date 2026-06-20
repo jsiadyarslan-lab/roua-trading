@@ -11,6 +11,7 @@ import { MarketRegimeService } from '../council-intelligence/market-regime.servi
 import { SystemMemoryService } from '../council-intelligence/system-memory.service';
 import { CouncilVoteAccuracyService } from '../council-intelligence/council-vote-accuracy.service';
 import { SmartModelRouter } from './smart-model-router.service';
+import { BriefTranslationService } from './brief-translation.service';
 import { enforceLanguage } from './language-enforcer';
 
 /**
@@ -69,6 +70,8 @@ export class StrategicCouncilService {
     @Optional() private readonly voteAccuracy?: CouncilVoteAccuracyService,
     // V289: Smart Model Router — distributes requests across free-tier providers
     @Optional() private readonly smartRouter?: SmartModelRouter,
+    // V308: Brief Translation Service — translates analysisSummary to user's locale
+    @Optional() private readonly briefTranslation?: BriefTranslationService,
   ) {
     const extras = [
       this.regimeService && 'Regime',

@@ -103,23 +103,24 @@ export class StrategicCouncilController {
    */
   @Public()
   @Get('briefs/active')
-  async getActiveBriefs(@Query('symbol') symbol?: string) {
+  async getActiveBriefs(@Query('symbol') symbol?: string, @Query('language') language?: string) {
     if (symbol) {
       const briefs = await this.councilService.getBriefsForPair(symbol);
       return { success: true, data: briefs };
     }
-    const briefs = await this.councilService.getActiveBriefs();
+    const briefs = await this.councilService.getActiveBriefs(undefined, language);
     return { success: true, data: briefs };
   }
 
   /**
    * GET /api/strategic-council/briefs/history — Get brief history
    * FIX: Marked @Public() so the dashboard can show history without auth.
+   * V308: Added ?language= query param for on-demand translation.
    */
   @Public()
   @Get('briefs/history')
-  async getBriefHistory() {
-    const briefs = await this.councilService.getBriefHistory();
+  async getBriefHistory(@Query('language') language?: string) {
+    const briefs = await this.councilService.getBriefHistory(undefined, 100, language);
     return { success: true, data: briefs };
   }
 

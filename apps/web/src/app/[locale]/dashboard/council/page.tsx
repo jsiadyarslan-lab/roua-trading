@@ -62,15 +62,20 @@ export default function CouncilPage() {
   const fetchActive = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true); else setIsAutoRefreshing(true)
     try {
-      const r = await fetch('/api/strategic-council/briefs/active')
+      // V308: Pass locale so backend translates analysisSummary
+      const r = await fetch(`/api/strategic-council/briefs/active?language=${encodeURIComponent(locale)}`)
       if (!r.ok) { setOffline(true); return }
       setOffline(false); setActiveBriefs((await r.json()).data || []); setBriefsUpdated(new Date())
     } catch { setOffline(true) }
     finally { setLoading(false); setIsAutoRefreshing(false) }
-  }, [])
+  }, [locale])
   const fetchHistory = useCallback(async () => {
-    try { const r = await fetch('/api/strategic-council/briefs/history'); if (r.ok) setHistoryBriefs((await r.json()).data || []) } catch {}
-  }, [])
+    try {
+      // V308: Pass locale so backend translates analysisSummary
+      const r = await fetch(`/api/strategic-council/briefs/history?language=${encodeURIComponent(locale)}`)
+      if (r.ok) setHistoryBriefs((await r.json()).data || [])
+    } catch {}
+  }, [locale])
   const fetchSession = useCallback(async () => {
     try { const r = await fetch('/api/strategic-council/session/last'); if (r.ok) setLastSession((await r.json()).data || null) } catch {}
   }, [])

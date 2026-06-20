@@ -17,6 +17,7 @@ import { RagService } from './services/rag.service';
 import { AiUsageLoggerService } from './services/ai-usage-logger.service';
 import { AiCacheService } from './services/ai-cache.service';
 import { SmartModelRouter } from './services/smart-model-router.service';
+import { BriefTranslationService } from './services/brief-translation.service';
 import { MarketDataService } from './services/market-data.service';
 import { StrategicCouncilService } from './services/strategic-council.service';
 import { PrismaModule } from '../../common/prisma/prisma.module';
@@ -60,6 +61,9 @@ import { CouncilIntelligenceModule } from './council-intelligence/council-intell
     // dedupes in-flight requests.
     SmartModelRouter,
 
+    // V308: Brief Translation Service — translates analysisSummary to user's locale
+    BriefTranslationService,
+
     // Market Data Service — 9-source price fetching with cross-validation
     MarketDataService,
 
@@ -88,6 +92,7 @@ import { CouncilIntelligenceModule } from './council-intelligence/council-intell
     AiUsageLoggerService,
     AiCacheService,
     SmartModelRouter,
+    BriefTranslationService,
     MarketDataService,
   ],
 })

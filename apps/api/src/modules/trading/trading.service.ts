@@ -3511,4 +3511,131 @@ export class TradingService {
 
     return results;
   }
+
+  /**
+   * V334: Backfill NULL credentialId on Trade records for a user.
+   *
+   * Retroactively assigns a credentialId to NULL trades by:
+   *   1. Copying from the parent Position (via positionId) — most accurate
+   *   2. Falling back to the user's active credential (from Setting table)
+   *   3. Falling back to the user's oldest valid ExchangeCredential
+   *
+   * @param userId  The user whose trades should be backfilled
+   * @param apply   If false (default), dry-run — returns what WOULD be updated.
+   *                If true, actually writes the updates to the DB.
+   * @returns       Report with counts and per-trade details
+   */
+  async backfillTradeCredentials(userId: string, apply: boolean = false): Promise<any> {
+    const results: any = {
+      userId,
+      timestamp: new Date().toISOString(),
+      mode: apply ? 'APPLY' : 'DRY_RUN',
+      totalNullTrades: 0,
+      updated: 0,
+      skipped: 0,
+      updates: [],
+    };
+
+    // 1. Find all NULL-credentialId trades for this user
+    const nullTrades = await this.prisma.trade.findMany({
+      where: { userId, credentialId: null },
+      select: { id: true, positionId: true, symbol: true, executedAt: true, source: true },
+      orderBy: { executedAt: 'asc' },
+    });
+    results.totalNullTrades = nullTrades.length;
+
+    if (nullTrades.length === 0) {
+      results.message = 'No NULL-credentialId trades found for this user.';
+      return results;
+    }
+
+    // 2. Get user's ExchangeCredentials (oldest first)
+    const userCreds = await this.prisma.exchangeCredential.findMany({
+      where: { userId },
+      select: { id: true, exchange: true, createdAt: true, isValid: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (userCreds.length === 0) {
+      results.message = 'User has no ExchangeCredentials — cannot backfill.';
+      results.skipped = nullTrades.length;
+      return results;
+    }
+
+    // 3. Determine fallback credential: active setting → first valid → first
+    let activeCredId: string | null = null;
+    try {
+      const activeSetting = await this.prisma.setting.findUnique({
+        where: { key: `user:${userId}:activeCredentialId` },
+        select: { value: true },
+      });
+      if (activeSetting?.value) {
+        activeCredId = activeSetting.value.replace(/^"|"$/g, '');
+      }
+    } catch { /* Setting table may not exist */ }
+
+    let fallbackCred = null;
+    if (activeCredId) {
+      fallbackCred = userCreds.find(c => c.id === activeCredId);
+    }
+    if (!fallbackCred) {
+      fallbackCred = userCreds.find(c => c.isValid) || userCreds[0];
+    }
+    results.fallbackCredential = {
+      id: fallbackCred.id,
+      exchange: fallbackCred.exchange,
+      source: activeCredId === fallbackCred.id ? 'user_active_setting' :
+              fallbackCred.isValid ? 'first_valid' : 'oldest',
+    };
+
+    // 4. For each NULL trade, determine the credentialId
+    const updates = [];
+    for (const trade of nullTrades) {
+      let credId: string | null = null;
+      let source = '';
+
+      if (trade.positionId) {
+        const position = await this.prisma.position.findUnique({
+          where: { id: trade.positionId },
+          select: { credentialId: true },
+        });
+        if (position?.credentialId) {
+          credId = position.credentialId;
+          source = 'parent_position';
+        }
+      }
+
+      if (!credId) {
+        credId = fallbackCred.id;
+        source = 'fallback';
+      }
+
+      updates.push({
+        tradeId: trade.id,
+        symbol: trade.symbol,
+        executedAt: trade.executedAt,
+        source: trade.source,
+        assignedCredentialId: credId,
+        assignmentSource: source,
+      });
+    }
+
+    // 5. Apply or report
+    if (apply) {
+      for (const u of updates) {
+        await this.prisma.trade.update({
+          where: { id: u.tradeId },
+          data: { credentialId: u.assignedCredentialId },
+        });
+        results.updated++;
+      }
+      results.message = `Successfully updated ${results.updated} trades.`;
+    } else {
+      results.updated = updates.length;
+      results.message = `DRY-RUN: Would update ${updates.length} trades. Call with apply=true to write.`;
+    }
+
+    results.updates = updates;
+    return results;
+  }
 }

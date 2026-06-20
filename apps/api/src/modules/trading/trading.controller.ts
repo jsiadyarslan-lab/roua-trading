@@ -1009,6 +1009,33 @@ export class TradingController {
     }
   }
 
+  /**
+   * V334: Backfill NULL credentialId on Trade records
+   * POST /api/trading/backfill-credentials?apply=true
+   *
+   * Retroactively assigns credentialId to NULL trades for the authenticated user.
+   * - DRY-RUN by default (returns what WOULD be updated)
+   * - Pass apply=true to actually write to the DB
+   *
+   * Strategy:
+   *   1. Copy from parent Position (via positionId) — most accurate
+   *   2. Fallback to user's active credential (from Setting table)
+   *   3. Fallback to user's oldest valid ExchangeCredential
+   */
+  @Post('backfill-credentials')
+  async backfillCredentials(@Req() req: any, @Query('apply') apply?: string) {
+    try {
+      const userId = req.user.id;
+      const shouldApply = apply === 'true' || apply === '1';
+      this.logger.log(`🔧 V334: Backfilling NULL credentialId for user ${userId} (mode: ${shouldApply ? 'APPLY' : 'DRY_RUN'})`);
+      const result = await this.tradingService.backfillTradeCredentials(userId, shouldApply);
+      return { success: true, result };
+    } catch (error: any) {
+      this.logger.error(`V334 backfill-credentials failed: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+
   // ── Risk Management ──
 
   /**

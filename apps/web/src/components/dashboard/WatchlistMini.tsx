@@ -42,14 +42,27 @@ function PriceDisplay({ price, isUp }: { price: number | null, isUp: boolean }) 
 }
 
 const SYMBOLS_BY_TAB = {
-  Crypto: ['BTC/USD', 'ETH/USD', 'SOL/USD', 'XRP/USD', 'BNB/USD', 'ADA/USD'],
-  Forex:  ['EUR/USD', 'GBP/USD', 'USD/JPY', 'XAU/USD', 'AUD/USD', 'USD/CHF'],
-  Stocks: ['AAPL',    'MSFT',    'NVDA',    'TSLA',    'AMZN',    'META'],
+  Crypto: ['BTC/USD', 'ETH/USD', 'SOL/USD', 'XRP/USD', 'BNB/USD', 'ADA/USD', 'DOGE/USD'],
+  Forex:  [
+    // Majors
+    'EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CHF', 'USD/CAD', 'NZD/USD',
+    // Crosses
+    'EUR/GBP', 'EUR/JPY', 'GBP/JPY', 'EUR/AUD', 'EUR/CAD', 'EUR/CHF',
+    'GBP/AUD', 'GBP/CAD', 'GBP/CHF', 'AUD/JPY', 'AUD/CAD', 'AUD/CHF',
+    'CAD/JPY', 'CHF/JPY', 'NZD/JPY',
+  ],
+  Metals: ['XAU/USD', 'XAG/USD'],
+  Indices: ['US30/USD', 'NAS100/USD', 'SPX500/USD', 'GER30/USD', 'UK100/USD'],
+  Energy: ['WTI/USD', 'BRENT/USD'],
+  Stocks: ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'META'],
 }
 
 const ALL_SYMBOLS = [
   ...SYMBOLS_BY_TAB.Crypto,
   ...SYMBOLS_BY_TAB.Forex,
+  ...SYMBOLS_BY_TAB.Metals,
+  ...SYMBOLS_BY_TAB.Indices,
+  ...SYMBOLS_BY_TAB.Energy,
   ...SYMBOLS_BY_TAB.Stocks,
 ]
 
@@ -65,7 +78,7 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp, onSelectSymb
           animation: dash-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
       `)
-  const [activeTab, setActiveTab] = useState<'Crypto' | 'Forex' | 'Stocks'>('Crypto')
+  const [activeTab, setActiveTab] = useState<'Crypto' | 'Forex' | 'Metals' | 'Indices' | 'Energy' | 'Stocks'>('Crypto')
   // Only subscribe to quotes for watchlist symbols — prevents re-renders from unrelated symbol updates
   const globalQuotes = useMarketStore(
     useShallow((state) => {
@@ -129,9 +142,13 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp, onSelectSymb
         display: 'flex', padding: '6px 16px', gap: 12, background: 'var(--surface)',
         borderBottom: `1px solid var(--card-border)`
       }}>
-        {(['Crypto', 'Forex', 'Stocks'] as const).map(tab => {
+        {(['Crypto', 'Forex', 'Metals', 'Indices', 'Energy', 'Stocks'] as const).map(tab => {
           const isActive = activeTab === tab
-          const tabLabel: Record<string, string> = { Crypto: tw('crypto'), Forex: tw('forex'), Stocks: tw('stocks') }
+          const tabLabel: Record<string, string> = {
+            Crypto: tw('crypto'), Forex: tw('forex'), Metals: tw('metals') ?? 'Metals',
+            Indices: tw('indices') ?? 'Indices', Energy: tw('energy') ?? 'Energy',
+            Stocks: tw('stocks'),
+          }
           return (
             <button
               key={tab}

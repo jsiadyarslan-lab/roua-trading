@@ -3673,14 +3673,23 @@ export class TradingService {
    * @param days    Only include trades from last N days (default 7)
    */
   async diagnoseTradeTpGaps(userId: string, limit: number = 50, days: number = 7): Promise<any> {
-    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    // V336: Build where clause — days=0 means "all time" (no date filter)
+    const where: any = {
+      userId,
+      status: { in: ['CLOSED', 'LIQUIDATED'] },
+    };
+    if (days > 0) {
+      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      // V336: Use OR to include positions where closedAt is NULL (legacy data)
+      // but openedAt is within range. Some old positions may have closedAt=NULL.
+      where.OR = [
+        { closedAt: { gte: since } },
+        { closedAt: null, openedAt: { gte: since } },
+      ];
+    }
 
     const positions = await this.prisma.position.findMany({
-      where: {
-        userId,
-        status: { in: ['CLOSED', 'LIQUIDATED'] },
-        closedAt: { gte: since },
-      },
+      where,
       select: {
         id: true,
         symbol: true,

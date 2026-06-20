@@ -18,10 +18,17 @@ export const GLOBAL_SYMBOLS = [
   'ADA/USD', 'DOGE/USD',
   // Crypto USDT pairs (Binance native)
   'BTC/USDT', 'ETH/USDT',
-  // Forex
-  'EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CHF',
-  // Commodities
-  'XAU/USD',
+  // Forex — V323: expanded with all OANDA-supported major + cross pairs
+  'EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CHF', 'USD/CAD', 'NZD/USD',
+  'EUR/GBP', 'EUR/JPY', 'GBP/JPY', 'EUR/AUD', 'EUR/CAD', 'EUR/CHF', 'GBP/AUD',
+  'GBP/CAD', 'GBP/CHF', 'AUD/JPY', 'AUD/CAD', 'AUD/CHF', 'CAD/JPY', 'CHF/JPY',
+  'NZD/JPY', 'NZD/USD',
+  // Commodities & Metals (OANDA)
+  'XAU/USD', 'XAG/USD',
+  // Indices (OANDA)
+  'US30/USD', 'NAS100/USD', 'SPX500/USD', 'GER30/USD', 'UK100/USD',
+  // Energy (OANDA)
+  'WTI/USD', 'BRENT/USD',
   // Stocks (polled via Twelve Data)
   'AAPL', 'MSFT', 'TSLA', 'NVDA', 'AMZN', 'META',
 ]

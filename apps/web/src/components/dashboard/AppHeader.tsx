@@ -419,6 +419,10 @@ function NewsTicker() {
 const SYMBOLS = [
   'BTC/USD','ETH/USD','EUR/USD','GBP/USD',
   'USD/JPY','XAU/USD','BNB/USD','SOL/USD','XRP/USD',
+  // V323: OANDA forex pairs
+  'AUD/USD','USD/CHF','USD/CAD','NZD/USD',
+  'EUR/GBP','EUR/JPY','GBP/JPY','XAG/USD',
+  'US30/USD','NAS100/USD','WTI/USD',
 ]
 
 function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
@@ -1519,7 +1523,7 @@ function MobileNavItem({ link, pathname, onClose }: { link: NavLink, pathname: s
 }
 
 /* ─── Symbols used by AppHeader's market state orb ─── */
-const ORBS = ['BTC/USD','ETH/USD','EUR/USD','GBP/USD','USD/JPY','XAU/USD']
+const ORBS = ['BTC/USD','ETH/USD','EUR/USD','GBP/USD','USD/JPY','XAU/USD','AUD/USD','USD/CHF','XAG/USD']
 
 /* ══ Root export ══ */
 export function AppHeader() {

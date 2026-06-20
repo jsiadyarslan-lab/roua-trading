@@ -69,6 +69,27 @@ export const ALLOWED_USER_SETTINGS_KEYS = new Set([
   'tradingScheduleStart',
   'tradingScheduleEnd',
   'tradingScheduleDays',
+  // V311: AI Monitoring Features (were missing — caused batch rejection)
+  'continuousMonitoringEnabled',
+  'monitoringInterval',
+  'monitoringPairs',
+  'entryExitSignalsEnabled',
+  'signalMinConfidence',
+  'signalAlertMethod',
+  'riskAlertsEnabled',
+  'volatilityThreshold',
+  'riskAlertTypes',
+  'sentimentEnabled',
+  'sentimentSources',
+  'sentimentSensitivity',
+  // V311: Security features (were missing)
+  'sessionDuration',
+  'autoSessionRenewal',
+  'antiPhishingEnabled',
+  'antiPhishingCode',
+  'passkeysEnabled',
+  // V311: Data features (were missing)
+  'cacheDuration',
 ])
 
 // ── Value range constraints ──
@@ -79,8 +100,10 @@ export const SETTINGS_RANGES = {
   userStopLoss: { min: 0.1, max: 50, type: 'number' as const },
   userTakeProfit: { min: 0.1, max: 100, type: 'number' as const },
   aiConfidence: { min: 50, max: 99, type: 'integer' as const },
+  // V311: Removed fontSize from ranges — frontend uses 'small'/'default'/'large' strings,
+  // not integers. Was always failing validation: Number('default') = NaN → rejection.
+  // fontSize is now stored as a string without range checking.
   orderSize: { min: 1, max: 100, type: 'number' as const },
-  fontSize: { min: 12, max: 24, type: 'integer' as const },
   // Feature 2: Advanced Strategy Settings
   scalpingTakeProfitPips: { min: 5, max: 50, type: 'integer' as const },
   scalpingStopLossPips: { min: 3, max: 30, type: 'integer' as const },
@@ -215,13 +238,17 @@ export function validateUserSetting(
 
   // Enum fields
   if (key === 'riskLevel') {
-    const valid = ['conservative', 'moderate', 'aggressive']
+    // V311: Added 'medium' as alias for 'moderate' (frontend uses 'medium')
+    const valid = ['conservative', 'moderate', 'medium', 'aggressive']
     if (!valid.includes(value)) {
       return { valid: false, error: `مستوى المخاطر يجب أن يكون: ${valid.join('، ')}` }
     }
+    // Normalize 'medium' → 'moderate' for backend consistency
+    return { valid: true, sanitized: value === 'medium' ? 'moderate' : value }
   }
   if (key === 'chartType') {
-    const valid = ['candlestick', 'line', 'area']
+    // V311: Added 'bar' (frontend dropdown has it)
+    const valid = ['candlestick', 'line', 'area', 'bar']
     if (!valid.includes(value)) {
       return { valid: false, error: `نوع الرسم يجب أن يكون: ${valid.join('، ')}` }
     }

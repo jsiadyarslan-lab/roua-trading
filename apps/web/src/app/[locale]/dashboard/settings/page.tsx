@@ -594,45 +594,69 @@ export default function SettingsPage() {
         }
         setSettingsLoaded(true)
       })
-      .catch(() => setSettingsLoaded(true))
+      .catch(() => {
+        // V311: DON'T set settingsLoaded=true on failure.
+        // Previously, this set settingsLoaded=true, which then triggered
+        // the auto-save effect, which sent ALL default values to the API,
+        // overwriting the user's saved settings with defaults.
+        // Now: leave settingsLoaded=false so auto-save is blocked.
+        // User will see default values but they won't be persisted.
+        setSettingsLoaded(false)
+      })
   }, [])
 
   // ─── Settings persistence: Save to API on change (debounced) ───
+  // V311: Added save status indicator + error feedback
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveSettings = useCallback(() => {
     if (!settingsLoaded) return
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-    saveTimeoutRef.current = setTimeout(() => {
-      fetch('/api/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          settings: {
-            orderSize, riskLevel, chartType, timeframe,
-            confirmTrades, showPositions, autoStopLoss, trailingStop,
-            aiConfidence, aiAutoTrade, aiModel,
-            analyticsEnabled, crashReports,
-            userStopLoss, userTakeProfit, userRiskPerTrade, userMaxDailyLoss, userMaxOpenPositions,
-            // Feature 2: Advanced Strategy Settings
-            scalpingTimeframe, scalpingTakeProfitPips, scalpingStopLossPips, scalpingMaxSpread, gridLevels,
-            // Feature 3: Telegram/Discord
-            telegramBotToken, telegramChatId, discordWebhookUrl, externalNotificationsEnabled, doNotDisturb, emergencyOnly,
-            // Feature 4: Pair Filter
-            pairFilterMode, pairWhitelist, pairBlacklist,
-            // Feature 5: Trading Schedule
-            tradingScheduleEnabled, tradingScheduleStart, tradingScheduleEnd, tradingScheduleDays,
-            // AI Monitoring Features
-            continuousMonitoringEnabled, monitoringInterval, monitoringPairs,
-            entryExitSignalsEnabled, signalMinConfidence, signalAlertMethod,
-            riskAlertsEnabled, volatilityThreshold, riskAlertTypes,
-            sentimentEnabled, sentimentSources, sentimentSensitivity,
-            // Security features
-            sessionDuration, autoSessionRenewal, antiPhishingEnabled, antiPhishingCode, passkeysEnabled,
-            // Data features
-            cacheDuration,
-          },
-        }),
-      }).catch(() => {})
+    saveTimeoutRef.current = setTimeout(async () => {
+      setSaveStatus('saving')
+      try {
+        const res = await fetch('/api/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            settings: {
+              orderSize, riskLevel, chartType, timeframe,
+              confirmTrades, showPositions, autoStopLoss, trailingStop,
+              aiConfidence, aiAutoTrade, aiModel,
+              analyticsEnabled, crashReports,
+              userStopLoss, userTakeProfit, userRiskPerTrade, userMaxDailyLoss, userMaxOpenPositions,
+              // Feature 2: Advanced Strategy Settings
+              scalpingTimeframe, scalpingTakeProfitPips, scalpingStopLossPips, scalpingMaxSpread, gridLevels,
+              // Feature 3: Telegram/Discord
+              telegramBotToken, telegramChatId, discordWebhookUrl, externalNotificationsEnabled, doNotDisturb, emergencyOnly,
+              // Feature 4: Pair Filter
+              pairFilterMode, pairWhitelist, pairBlacklist,
+              // Feature 5: Trading Schedule
+              tradingScheduleEnabled, tradingScheduleStart, tradingScheduleEnd, tradingScheduleDays,
+              // AI Monitoring Features
+              continuousMonitoringEnabled, monitoringInterval, monitoringPairs,
+              entryExitSignalsEnabled, signalMinConfidence, signalAlertMethod,
+              riskAlertsEnabled, volatilityThreshold, riskAlertTypes,
+              sentimentEnabled, sentimentSources, sentimentSensitivity,
+              // Security features
+              sessionDuration, autoSessionRenewal, antiPhishingEnabled, antiPhishingCode, passkeysEnabled,
+              // Data features
+              cacheDuration,
+            },
+          }),
+        })
+        if (res.ok) {
+          setSaveStatus('saved')
+          setTimeout(() => setSaveStatus('idle'), 2000)
+        } else {
+          const errData = await res.json().catch(() => ({}))
+          console.error('[Settings] Save failed:', res.status, errData?.error || errData?.details)
+          setSaveStatus('error')
+        }
+      } catch (err) {
+        console.error('[Settings] Save network error:', err)
+        setSaveStatus('error')
+      }
     }, 2000) // Debounce: save 2s after last change
   }, [settingsLoaded, orderSize, riskLevel, chartType, timeframe, confirmTrades, showPositions, autoStopLoss, trailingStop, aiConfidence, aiAutoTrade, aiModel, analyticsEnabled, crashReports, userStopLoss, userTakeProfit, userRiskPerTrade, userMaxDailyLoss, userMaxOpenPositions, scalpingTimeframe, scalpingTakeProfitPips, scalpingStopLossPips, scalpingMaxSpread, gridLevels, telegramBotToken, telegramChatId, discordWebhookUrl, externalNotificationsEnabled, doNotDisturb, emergencyOnly, pairFilterMode, pairWhitelist, pairBlacklist, tradingScheduleEnabled, tradingScheduleStart, tradingScheduleEnd, tradingScheduleDays, continuousMonitoringEnabled, monitoringInterval, monitoringPairs, entryExitSignalsEnabled, signalMinConfidence, signalAlertMethod, riskAlertsEnabled, volatilityThreshold, riskAlertTypes, sentimentEnabled, sentimentSources, sentimentSensitivity, sessionDuration, autoSessionRenewal, antiPhishingEnabled, antiPhishingCode, passkeysEnabled, cacheDuration])
 
@@ -640,6 +664,22 @@ export default function SettingsPage() {
   useEffect(() => {
     saveSettings()
   }, [saveSettings])
+
+  // V311: Save on beforeunload — prevent data loss if user closes tab during debounce
+  useEffect(() => {
+    const handler = () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+        // Fire-and-forget synchronous save attempt
+        // (may not complete, but better than losing the setting entirely)
+        navigator.sendBeacon('/api/settings', JSON.stringify({
+          settings: { orderSize, riskLevel, chartType, timeframe }
+        }))
+      }
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [orderSize, riskLevel, chartType, timeframe])
 
   const userTier = (user?.tier || 'FREE') as Role
   const roleInfo = ROLE_INFO[userTier] || ROLE_INFO.FREE
@@ -689,8 +729,17 @@ export default function SettingsPage() {
         user: { id: user?.id, email: user?.email, displayName: user?.displayName, tier: user?.tier },
         exportDate: new Date().toISOString(),
         platform: 'ROUA Trading',
-        version: 'V189',
-        settings: settingsData?.settings || {},
+        version: 'V311',
+        // V311: Filter out secrets from export — telegramBotToken, telegramChatId,
+        // discordWebhookUrl are sensitive. If user shares export file with support,
+        // these would leak. Replace with masked versions.
+        settings: (() => {
+          const s = { ...(settingsData?.settings || {}) }
+          if (s.telegramBotToken) s.telegramBotToken = s.telegramBotToken.slice(0, 5) + '***'
+          if (s.telegramChatId) s.telegramChatId = '***'
+          if (s.discordWebhookUrl) s.discordWebhookUrl = '***'
+          return s
+        })(),
         positions: positionsData?.positions || [],
         account: accountData || {},
       }
@@ -715,7 +764,7 @@ export default function SettingsPage() {
       const res = await fetch('/api/auth/sessions', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ revokeAll: true }),
+        body: JSON.stringify({ revokeOthers: true }), // V311: revokeOthers, not revokeAll
       })
       const data = await res.json()
       if (data.success) {
@@ -732,7 +781,7 @@ export default function SettingsPage() {
   const tabs = [
     { id: 'account', label: t('tabAccount'), icon: <User size={14} /> },
     { id: 'subscription', label: t('tabSubscription'), icon: <Crown size={14} /> },
-    { id: 'trading', label: t('tabLinking'), icon: <BarChart3 size={14} /> },
+    { id: 'trading', label: t('tabTrading'), icon: <BarChart3 size={14} /> },
     { id: 'notifications', label: t('tabNotifications'), icon: <Bell size={14} /> },
     { id: 'ai', label: t('tabAI'), icon: <Brain size={14} /> },
     { id: 'appearance', label: t('tabAppearance'), icon: <Palette size={14} /> },
@@ -913,6 +962,24 @@ export default function SettingsPage() {
                   {t('manageApiKeys')}
                   <ChevronLeft size={14} style={{ transform: 'scaleX(-1)' }} />
                 </button>
+                {/* V311: Link to EA Bridge page (was orphaned — no link existed) */}
+                <button
+                  onClick={() => router.push('/dashboard/settings/ea-bridge')}
+                  style={{
+                    width: '100%', padding: '12px 16px', borderRadius: 10,
+                    border: `1px dashed ${T.border2}`, background: 'transparent',
+                    color: T.purple, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                    fontFamily: "'Cairo', sans-serif",
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    transition: 'all 0.2s', marginTop: 8,
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(179,136,255,0.04)'; e.currentTarget.style.borderColor = T.purple }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = T.border2 }}
+                >
+                  <Cpu size={16} />
+                  MT5 EA Bridge
+                  <ChevronLeft size={14} style={{ transform: 'scaleX(-1)' }} />
+                </button>
               </div>
             </SectionCard>
 
@@ -955,13 +1022,8 @@ export default function SettingsPage() {
                   {t('activeAutoRenew')}
                 </span>
               </SettingRow>
-              <SettingRow
-                icon={<RefreshCw size={13} color={T.text3} />}
-                label={t('autoSessionRenewal')}
-                description={t('autoRenewSessionDesc')}
-              >
-                <Toggle checked={autoSessionRenewal} onChange={() => setAutoSessionRenewal(!autoSessionRenewal)} color={T.green} size="sm" />
-              </SettingRow>
+              {/* V311: Removed duplicate autoSessionRenewal from Account tab.
+                  It's already in the Security tab with a better description. */}
             </SectionCard>
 
             {/* Danger Zone */}
@@ -1187,7 +1249,9 @@ export default function SettingsPage() {
                 <div style={{ fontSize: 12, color: T.text3, lineHeight: 1.8, marginBottom: 16 }}>
                   {t('upgradeProDesc')}
                 </div>
-                <button style={{
+                <button
+                  onClick={() => router.push('/dashboard/billing')}
+                  style={{
                   padding: '10px 28px', borderRadius: 10,
                   background: `linear-gradient(135deg, ${T.cyan}, #0A84FF)`,
                   border: 'none', color: '#000', fontSize: 13, fontWeight: 800,
@@ -1408,7 +1472,7 @@ export default function SettingsPage() {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input
-                    type="number" min={1} max={20} step={1}
+                    type="number" min={1} max={50} step={1}
                     value={userMaxOpenPositions}
                     onChange={e => setUserMaxOpenPositions(e.target.value)}
                     style={{
@@ -1455,7 +1519,7 @@ export default function SettingsPage() {
                   options={[
                     { value: 'candlestick', label: t('candlestick') },
                     { value: 'line', label: t('line') },
-                    { value: 'area', label: t('aggressive') },
+                    { value: 'area', label: t('area') },
                     { value: 'bar', label: t('bars') },
                   ]}
                   small
@@ -2293,7 +2357,7 @@ export default function SettingsPage() {
                     router.replace('/', { locale })
                   }}
                   options={[
-                    { value: 'ar', label: t('arabic') },
+                    { value: 'ar', label: 'العربية' },
                     { value: 'en', label: 'English' },
                     { value: 'fr', label: 'Français' },
                     { value: 'tr', label: 'Türkçe' },
@@ -2302,6 +2366,29 @@ export default function SettingsPage() {
                     { value: 'ru', label: 'Русский' },
                     { value: 'de', label: 'Deutsch' },
                     { value: 'ja', label: '日本語' },
+                    { value: 'ko', label: '한국어' },
+                    { value: 'hi', label: 'हिन्दी' },
+                    { value: 'pt', label: 'Português' },
+                    { value: 'it', label: 'Italiano' },
+                    { value: 'id', label: 'Bahasa Indonesia' },
+                    { value: 'vi', label: 'Tiếng Việt' },
+                    { value: 'th', label: 'ภาษาไทย' },
+                    { value: 'nl', label: 'Nederlands' },
+                    { value: 'pl', label: 'Polski' },
+                    { value: 'ms', label: 'Bahasa Melayu' },
+                    { value: 'sv', label: 'Svenska' },
+                    { value: 'uk', label: 'Українська' },
+                    { value: 'he', label: 'עברית' },
+                    { value: 'fa', label: 'فارسی' },
+                    { value: 'ur', label: 'اردو' },
+                    { value: 'fil', label: 'Filipino' },
+                    { value: 'da', label: 'Dansk' },
+                    { value: 'no', label: 'Norsk' },
+                    { value: 'fi', label: 'Suomi' },
+                    { value: 'cs', label: 'Čeština' },
+                    { value: 'hu', label: 'Magyar' },
+                    { value: 'ro', label: 'Română' },
+                    { value: 'bn', label: 'বাংলা' },
                   ]}
                   small
                 />
@@ -2389,7 +2476,9 @@ export default function SettingsPage() {
                 label={t('totpAuth')}
                 description={t('totpAuthDesc')}
               >
-                <button style={{
+                <button
+                  onClick={() => router.push('/dashboard/security/2fa')}
+                  style={{
                   padding: '5px 12px', borderRadius: 8,
                   background: `${T.green}12`, border: `1px solid ${T.green}25`,
                   color: T.green, fontSize: 11, fontWeight: 700, cursor: 'pointer',
@@ -2616,13 +2705,30 @@ export default function SettingsPage() {
                       setImportLoading(true)
                       try {
                         const text = await file.text()
+                        // V311: Validate file size (max 10KB)
+                        if (text.length > 10240) {
+                          alert(t('importSettingsInvalid'))
+                          return
+                        }
                         const data = JSON.parse(text)
                         if (data?.settings && typeof data.settings === 'object') {
-                          fetch('/api/settings', {
+                          // V311: Filter out masked secrets (*** values) before importing
+                          const cleanSettings = { ...data.settings }
+                          for (const [k, v] of Object.entries(cleanSettings)) {
+                            if (typeof v === 'string' && v.endsWith('***')) {
+                              delete cleanSettings[k]
+                            }
+                          }
+                          const importRes = await fetch('/api/settings', {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ settings: data.settings }),
-                          }).then(() => window.location.reload())
+                            body: JSON.stringify({ settings: cleanSettings }),
+                          })
+                          if (importRes.ok) {
+                            window.location.reload()
+                          } else {
+                            alert(t('importSettingsInvalid'))
+                          }
                         } else {
                           alert(t('importSettingsInvalid'))
                         }

@@ -2481,7 +2481,8 @@
       "antiPhishingPlaceholder": "Enter your secret word...",
       "antiPhishingHint": "This word will appear in every platform notification to verify it's genuinely from Roua. Choose something only you would know.",
       "importLabel": "Import",
-      "importSettingsInvalid": "Invalid settings file. Please select a valid Roua settings export file."
+      "importSettingsInvalid": "Invalid settings file. Please select a valid Roua settings export file.",
+      "area": "Area"
     },
     "predictionMarket": {
       "title": "Prediction Markets",

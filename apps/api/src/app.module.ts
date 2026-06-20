@@ -7,6 +7,8 @@ import { PrismaModule } from './common/prisma/prisma.module';
 import { RedisModule } from './common/redis/redis.module';
 // V271: Feature Flags
 import { FeatureFlagModule } from './common/feature-flags/feature-flag.module';
+// V339: Trade Lifecycle Logger — Single Source of Truth for trade events
+import { TradeLifecycleModule } from './common/trade-lifecycle/trade-lifecycle.module';
 import { AuthModule } from './auth/auth.module';
 import { ExchangeModule } from './modules/exchange/exchange.module';
 import { AiModule } from './modules/ai/ai.module';
@@ -105,6 +107,7 @@ import { PrismaService } from './common/prisma/prisma.service';
     // ── Infrastructure ──
     PrismaModule,
     RedisModule,
+    TradeLifecycleModule, // V339: Global trade lifecycle logging
 
     // ── Application Modules ──
     AuditModule,

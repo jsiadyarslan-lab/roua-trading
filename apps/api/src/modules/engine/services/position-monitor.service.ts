@@ -17,6 +17,8 @@ import { SelfHealingService } from '../../ai/council-intelligence/self-healing.s
 import { StrategicCouncilService } from '../../ai/strategic-council/strategic-council.service';
 // V271: Feature flags
 import { FeatureFlagService } from '../../../common/feature-flags/feature-flag.service';
+// V339: Trade Lifecycle Logger — for audit trail of every close decision
+import { TradeLifecycleLogger } from '../../../common/trade-lifecycle/trade-lifecycle.logger';
 
 /** V270: RegimeType matching MarketRegimeService output */
 type RegimeType = 'BULL' | 'BEAR' | 'RANGE' | 'VOLATILE' | 'TRANSITIONAL';
@@ -134,12 +136,15 @@ export class PositionMonitorService {
     @Optional() @Inject('MARKET_REGIME_SERVICE') private readonly regimeService?: any,
     // V271: Feature flags for safe rollback
     @Optional() private readonly featureFlags?: FeatureFlagService,
+    // V339: Trade Lifecycle Logger — for audit trail of every close decision
+    @Optional() private readonly lifecycle?: TradeLifecycleLogger,
   ) {
     this.logger.log('🛡️ Position Monitor initialized — protective surveillance active'
       + (this.journal ? ' + TradeJournal' : '')
       + (this.selfHealing ? ' + SelfHealing' : '')
       + (this.strategicCouncil ? ' + V223 BriefInvalidation' : '')
-      + (this.regimeService && this.featureFlags?.isEnabled('V270') ? ' + V270 RegimeAware' : ''));
+      + (this.regimeService && this.featureFlags?.isEnabled('V270') ? ' + V270 RegimeAware' : '')
+      + (this.lifecycle ? ' + V339 LifecycleLog' : ''));
   }
 
   /**
@@ -971,6 +976,27 @@ export class PositionMonitorService {
                 `🎯 V338 Trailing TP: ${position.symbol} progress=${(bestTpProgress * 100).toFixed(1)}% of TP — SL moved to ${trailingTpSL.toFixed(6)} (locks ${(this.TRAILING_TP_LOCK_PCT * 100).toFixed(0)}% of profit)`,
               );
               result.trailingUpdated = true;
+
+              // V339: Log SL_UPDATE for audit trail
+              if (this.lifecycle) {
+                await this.lifecycle.log({
+                  positionId: position.id,
+                  userId: position.userId,
+                  eventType: 'SL_UPDATE',
+                  module: 'position-monitor',
+                  reason: `V338 Trailing TP — progress ${(bestTpProgress * 100).toFixed(1)}%, locked ${(this.TRAILING_TP_LOCK_PCT * 100).toFixed(0)}% profit`,
+                  price: currentPrice,
+                  highestPrice: effectiveHigh,
+                  lowestPrice: effectiveLow,
+                  metadata: {
+                    oldSL: stopLossNum,
+                    newSL: trailingTpSL,
+                    tpProgress: bestTpProgress,
+                    takeProfit: takeProfitNum,
+                    entryPrice,
+                  },
+                });
+              }
             }
           }
         }
@@ -1273,6 +1299,41 @@ export class PositionMonitorService {
     currentPrice: number,
     reason: 'STOP_LOSS' | 'TAKE_PROFIT' | 'TIME_EXPIRED' | 'STALE_POSITION' | 'REGIME_REVERSAL',
   ): Promise<void> {
+    // V339: Log CLOSE_REQUEST before attempting close — this is the audit trail
+    if (this.lifecycle) {
+      const closingSource = reason === 'STOP_LOSS' ? 'SL_ENGINE'
+        : reason === 'TAKE_PROFIT' ? 'TP_ENGINE'
+        : reason === 'TIME_EXPIRED' ? 'TIMEOUT_SERVICE'
+        : reason === 'STALE_POSITION' ? 'POSITION_MONITOR'
+        : reason === 'REGIME_REVERSAL' ? 'RISK_ENGINE'
+        : 'UNKNOWN';
+      const entryPrice = position.entryPrice?.toNumber?.() ?? Number(position.entryPrice);
+      const high = position.highestPrice?.toNumber?.() ?? Number(position.highestPrice);
+      const low = position.lowestPrice?.toNumber?.() ?? Number(position.lowestPrice);
+      const holdingMs = position.openedAt ? Date.now() - new Date(position.openedAt).getTime() : 0;
+      await this.lifecycle.log({
+        positionId: position.id,
+        userId: position.userId,
+        eventType: 'CLOSE_REQUEST',
+        closingSource: closingSource as any,
+        module: 'position-monitor',
+        reason: `${reason} at ${Math.round(holdingMs / 60000)}min`,
+        price: currentPrice,
+        highestPrice: high,
+        lowestPrice: low,
+        metadata: {
+          reason,
+          entryPrice,
+          stopLoss: position.stopLoss?.toNumber?.() ?? null,
+          takeProfit: position.takeProfit?.toNumber?.() ?? null,
+          holdingMinutes: Math.round(holdingMs / 60000),
+          side: position.side,
+          symbol: position.symbol,
+          source: position.source,
+        },
+      });
+    }
+
     try {
       // FIX: Use closePositionWithRetry + convert Decimal to number
       // V141: Pass closeReason so it's stored on the Position record
@@ -1280,8 +1341,8 @@ export class PositionMonitorService {
         position.userId,
         {
           positionId: position.id,
-          quantity: typeof position.quantity?.toNumber === 'function' 
-            ? position.quantity.toNumber() 
+          quantity: typeof position.quantity?.toNumber === 'function'
+            ? position.quantity.toNumber()
             : Number(position.quantity),
           closeReason: reason, // V141: STOP_LOSS or TAKE_PROFIT
           closePrice: currentPrice, // V264: Pass the exact SL/TP price so closePosition uses it
@@ -1290,6 +1351,24 @@ export class PositionMonitorService {
         undefined,
         3, // max retries for OPTIMISTIC_LOCK_FAILURE
       );
+
+      // V339: Log CLOSE_EXECUTED — confirms the close actually happened
+      if (this.lifecycle) {
+        await this.lifecycle.log({
+          positionId: position.id,
+          userId: position.userId,
+          eventType: 'CLOSE_EXECUTED',
+          closingSource: reason === 'STOP_LOSS' ? 'SL_ENGINE'
+            : reason === 'TAKE_PROFIT' ? 'TP_ENGINE'
+            : reason === 'TIME_EXPIRED' ? 'TIMEOUT_SERVICE'
+            : reason === 'STALE_POSITION' ? 'POSITION_MONITOR'
+            : 'UNKNOWN',
+          module: 'position-monitor',
+          reason: `${reason} — close executed successfully`,
+          price: currentPrice,
+          metadata: { reason, symbol: position.symbol },
+        });
+      }
 
       await this.audit.log({
         userId: position.userId,

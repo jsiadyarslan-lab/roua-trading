@@ -469,6 +469,61 @@ model Trade {
   @@index([userId, credentialId])
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// V339: Trade Lifecycle Log — Single Source of Truth for every trade event
+//
+// Every position state change MUST be logged here. This eliminates
+// "blind debugging" — we can trace exactly WHO closed a trade, WHEN,
+// and WHY, with the exact price at the moment of decision.
+//
+// Events (eventType):
+//   - OPEN              : Position opened
+//   - MONITOR_TICK      : PositionMonitor checked (price/PnL update)
+//   - SL_UPDATE         : Stop-loss moved (trailing, break-even, V338 Trailing TP)
+//   - TP_UPDATE         : Take-profit moved
+//   - SL_HIT            : Stop-loss triggered
+//   - TP_HIT            : Take-profit triggered
+//   - CLOSE_REQUEST     : A module requested close (with reason)
+//   - CLOSE_EXECUTED    : Close actually written to DB
+//   - CLOSE_BLOCKED     : Close was blocked by defense (V214/V237/V290)
+//   - TIME_EXPIRED      : Time-based close triggered
+//   - STALE_CLOSE       : Stale position auto-close
+//   - EXCHANGE_SYNC     : Closed to match exchange state
+//   - FORCE_CLOSE       : Force-close fallback (V114)
+//
+// closingSource (only for CLOSE_REQUEST/CLOSE_EXECUTED events):
+//   - POSITION_MONITOR  : PositionMonitor service
+//   - RISK_ENGINE       : RiskManager/RiskGatekeeper
+//   - TIMEOUT_SERVICE   : A cron/interval timer
+//   - USER              : User-initiated (dashboard button)
+//   - TP_ENGINE         : TP hit detection
+//   - SL_ENGINE         : SL hit detection
+//   - SMART_EXECUTOR    : SmartExecutor auto-close (AUTO_STALE)
+//   - EXCHANGE_SYNC     : ExchangeSync reconciliation
+//   - UNKNOWN           : Forbidden after V339 — must be investigated
+// ═══════════════════════════════════════════════════════════════════════
+model TradeLifecycleLog {
+  id             String   @id @default(cuid())
+  positionId     String
+  userId         String
+  eventType      String   // OPEN, MONITOR_TICK, SL_UPDATE, TP_UPDATE, SL_HIT, TP_HIT, CLOSE_REQUEST, CLOSE_EXECUTED, CLOSE_BLOCKED, TIME_EXPIRED, STALE_CLOSE, EXCHANGE_SYNC, FORCE_CLOSE
+  closingSource  String?  // POSITION_MONITOR, RISK_ENGINE, TIMEOUT_SERVICE, USER, TP_ENGINE, SL_ENGINE, SMART_EXECUTOR, EXCHANGE_SYNC, UNKNOWN
+  module         String   // Which code module wrote this log (e.g. 'position-monitor', 'trading.service', 'smart-executor')
+  reason         String?  // Human-readable reason (e.g. 'TIME_EXPIRED at 240min', 'V338 Trailing TP at 92% progress')
+  price          Decimal? @db.Decimal(18, 8)  // Price at the moment of this event
+  highestPrice   Decimal? @db.Decimal(18, 8)  // Tracked highest at event time (for audit)
+  lowestPrice    Decimal? @db.Decimal(18, 8)  // Tracked lowest at event time (for audit)
+  metadata       Json?    // Extra context (SL/TP values, PnL, progress%, etc.)
+  createdAt      DateTime @default(now())
+
+  @@index([positionId])
+  @@index([userId])
+  @@index([eventType])
+  @@index([closingSource])
+  @@index([positionId, createdAt])
+  @@index([createdAt])
+}
+
 // ── Position Reconciliation Queue ──
 // FIX: When a position update transaction fails after an order has been executed
 // on the exchange, the user has an open exchange position but no database record.

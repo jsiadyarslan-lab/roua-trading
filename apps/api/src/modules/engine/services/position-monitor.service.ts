@@ -1565,7 +1565,7 @@ export class PositionMonitorService {
           closePrice: currentPrice,
           entryPrice: entryPrice, // V343: Use converted number, not Decimal
           side: position.side,
-          quantity: quantity, // V343: Use converted number
+          quantity: position.quantity?.toNumber?.() ?? Number(position.quantity), // V344: Convert Decimal to number
         }),
       });
 

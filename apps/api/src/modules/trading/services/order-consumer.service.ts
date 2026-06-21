@@ -349,13 +349,18 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
           return null;
         }
 
-        // Check for existing position to add to — WITHIN the transaction
+        // V349: Check for existing position to add to — WITHIN the transaction.
+        // CRITICAL FIX: Filter by credentialId — only average positions on the SAME
+        // credential. Without this filter, an order for credentialId=B (MT5) could
+        // be averaged into a position on credentialId=A (paper-trading), causing
+        // the user to not see their new position on the active credential.
         const existingPosition = await tx.position.findFirst({
           where: {
             userId: message.userId,
             symbol: message.symbol,
             status: 'OPEN',
             side: message.side as any,
+            credentialId: message.exchangeCredentialId, // V349: ONLY average same-credential positions
           },
         });
 
@@ -363,12 +368,18 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
         let isNewPosition = false;
 
         if (existingPosition) {
-          // Add to existing position (average price)
+          // Add to existing position on the SAME credential (average price)
           const totalQuantity = Number(existingPosition.quantity) + filledQuantity;
           const avgPrice =
             (Number(existingPosition.entryPrice) * Number(existingPosition.quantity) +
               fillPrice * filledQuantity) /
             totalQuantity;
+
+          this.logger.log(
+            `🐰 V349: Adding to existing position ${existingPosition.id.slice(0, 12)}... ` +
+            `on same credential (${message.exchangeCredentialId.slice(0, 8)}...) — ` +
+            `qty: ${Number(existingPosition.quantity)} + ${filledQuantity} = ${totalQuantity}`
+          );
 
           await tx.position.update({
             where: { id: existingPosition.id },
@@ -387,12 +398,14 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
           // the V2 BullMQ queue path which bypasses OrderDispatcher checks.
           // ═══════════════════════════════════════════════════════════════════
           const COOLDOWN_MINUTES = 15;
+          // V349: Filter cooldown by credentialId — same fix as trading.service.ts
           const recentlyClosed = await tx.position.findFirst({
             where: {
               userId: message.userId,
               symbol: message.symbol,
               status: { in: ['CLOSED', 'LIQUIDATED'] },
               closedAt: { gte: new Date(Date.now() - COOLDOWN_MINUTES * 60 * 1000) },
+              credentialId: message.exchangeCredentialId, // V349: per-credential cooldown
             },
             orderBy: { closedAt: 'desc' },
           });
@@ -405,14 +418,22 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
             return null; // Drop the order — don't create position
           }
 
-          // Also check for ANY existing open position (regardless of direction)
+          // V349: Also check for ANY existing open position (regardless of direction)
+          // on the SAME credential. Previously this checked ALL credentials, which
+          // meant an open paper-trading position would block a new MT5 position
+          // on the same symbol. Now scoped to the same credential.
           const anyExistingOpen = await tx.position.findFirst({
-            where: { userId: message.userId, symbol: message.symbol, status: 'OPEN' },
+            where: {
+              userId: message.userId,
+              symbol: message.symbol,
+              status: 'OPEN',
+              credentialId: message.exchangeCredentialId, // V349: same credential only
+            },
           });
           if (anyExistingOpen) {
             this.logger.warn(
               `🛡️ V222 QUEUE-DUPLICATE: BLOCKED ${message.side} on ${message.symbol} — ` +
-              `existing ${anyExistingOpen.side} position already open`
+              `existing ${anyExistingOpen.side} position already open on same credential`
             );
             return null; // Drop the order
           }

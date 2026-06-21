@@ -141,12 +141,17 @@ export class OrderDispatcherService {
       // this DB check will prevent flip-flop trades.
       // ═══════════════════════════════════════════════════════════
       const COOLDOWN_MINUTES = 15;
+      // V349: Filter cooldown by credentialId — a close on credential A (paper)
+      // should NOT block a new open on credential B (MT5) for the same symbol.
+      // Previously this was a global block per user+symbol, which prevented
+      // multi-account users from trading the same symbol on different accounts.
       const recentlyClosed = await this.prisma.position.findFirst({
         where: {
           userId: request.userId,
           symbol: request.symbol,
           status: { in: ['CLOSED', 'LIQUIDATED'] },
           closedAt: { gte: new Date(Date.now() - COOLDOWN_MINUTES * 60 * 1000) },
+          credentialId: request.credentialId, // V349: per-credential cooldown
         },
         orderBy: { closedAt: 'desc' },
       });

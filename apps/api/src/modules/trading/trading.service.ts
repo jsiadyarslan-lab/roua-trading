@@ -2916,28 +2916,47 @@ export class TradingService {
 
       const side = request.side as 'BUY' | 'SELL';
 
-      // FIX: Race condition prevention — try to update existing position FIRST.
-      // If another concurrent transaction just created a position, we'll find it
-      // and add to it instead of creating a duplicate.
-      // We use findFirst with orderBy to get the most recent position.
+      // V349 CRITICAL FIX: existingPosition check was NOT filtering by credentialId.
+      // This caused a multi-account bug: if the user had an OPEN position on
+      // BTC/USDT with credentialId=A (paper-trading), and they opened a NEW
+      // BUY on BTC/USDT with credentialId=B (MT5), the new order was ADDED
+      // to the paper-trading position (credentialId=A) instead of creating
+      // a new MT5 position. The user would then look at credentialId=B's
+      // portfolio and see NO new position — "paper trade doesn't appear".
+      //
+      // FIX: Only average into an existing position if it's on the SAME
+      // credential. If the existing position is on a DIFFERENT credential,
+      // create a new position on the active credential (MT5 ticket model).
+      //
+      // This also matches V250's intent: "Each order creates a SEPARATE
+      // position (like MT5 tickets)" — but preserves averaging for same-
+      // account orders (backward compatibility).
       const existingPosition = await db.position.findFirst({
         where: {
           userId,
           symbol: request.symbol,
           status: 'OPEN',
           side,
+          credentialId: request.credentialId, // V349: ONLY average same-credential positions
         },
         orderBy: { openedAt: 'desc' },
       });
 
       if (existingPosition) {
-        // Add to existing position (average up/down)
+        // Add to existing position on the SAME credential (average up/down)
         const existingQty = existingPosition.quantity.toNumber();
         const existingPrice = existingPosition.entryPrice.toNumber();
         const totalQuantity = existingQty + filledQty;
         const avgPrice =
           (existingPrice * existingQty + fillPrice * filledQty) /
           totalQuantity;
+
+        this.logger.log(
+          `📊 V349: Adding to existing position ${existingPosition.id.slice(0, 12)}... ` +
+          `on same credential (${request.credentialId.slice(0, 8)}...) — ` +
+          `qty: ${existingQty} + ${filledQty} = ${totalQuantity}, ` +
+          `avgPrice: ${existingPrice.toFixed(4)} → ${avgPrice.toFixed(4)}`
+        );
 
         await db.position.update({
           where: { id: existingPosition.id },
@@ -2962,12 +2981,17 @@ export class TradingService {
         // ═══════════════════════════════════════════════════════════════════
         if (request.source !== "user_manual") {
           const COOLDOWN_MINUTES = 15;
+          // V349: Filter cooldown by credentialId — a close on credential A (paper)
+          // should NOT block a new open on credential B (MT5) for the same symbol.
+          // Previously this was a global block per user+symbol, which prevented
+          // multi-account users from trading the same symbol on different accounts.
           const recentlyClosed = await db.position.findFirst({
             where: {
               userId,
               symbol: request.symbol,
               status: { in: ['CLOSED', 'LIQUIDATED'] },
               closedAt: { gte: new Date(Date.now() - COOLDOWN_MINUTES * 60 * 1000) },
+              credentialId: request.credentialId, // V349: per-credential cooldown
             },
             orderBy: { closedAt: 'desc' },
           });
@@ -3059,6 +3083,8 @@ export class TradingService {
           // FIX: If create fails due to race condition (another transaction
           // created a position between our findFirst and create), fall back
           // to finding and updating the newly created position instead.
+          // V349: Also filter by credentialId here — same fix as the main
+          // existingPosition check above.
           if (createError.code === 'P2002' || createError.message?.includes('Unique constraint')) {
             this.logger.warn(`Race condition detected in _updatePosition — retrying as update for ${request.symbol}`);
             const racePosition = await db.position.findFirst({
@@ -3067,6 +3093,7 @@ export class TradingService {
                 symbol: request.symbol,
                 status: 'OPEN',
                 side,
+                credentialId: request.credentialId, // V349: same credentialId filter
               },
               orderBy: { openedAt: 'desc' },
             });

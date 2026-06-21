@@ -46,6 +46,7 @@ import {
   OrderTypeEnum,
 } from './events/order.events';
 import { PlaceOrderDto as V2PlaceOrderDto } from './controllers/dtos/place-order.dto';
+import { PrismaService } from '../../common/prisma/prisma.service';
 
 /**
  * Trading Controller — Unified REST API for Trading Engine
@@ -74,6 +75,7 @@ export class TradingController {
   constructor(
     private readonly tradingService: TradingService,
     private readonly unifiedRisk: UnifiedRiskService,  // V219: Unified risk — replaces RiskManager + RiskGatekeeper
+    private readonly prisma: PrismaService,  // V349: For diagnostic endpoints
     // #18: V2 services — optional so controller still works if V2 infra is down
     @Optional() private readonly idempotencyService?: IdempotencyService,
     @Optional() private readonly stateManager?: OrderStateManagerService,
@@ -1145,5 +1147,193 @@ export class TradingController {
       stopLossPrice,
       riskPercent,
     );
+  }
+
+  /**
+   * V349 DIAGNOSTIC: Test paper trade creation end-to-end.
+   * GET /api/trading/diagnose/paper-trade-test?symbol=BTC/USDT&side=BUY&qty=0.001&sl=95000
+   *
+   * This endpoint SIMULATES a paper trade (no actual order placed) and reports:
+   *   - Whether the active credential is paper-trading
+   *   - Whether there's an existing OPEN position on the same symbol+side+credential
+   *   - Whether the cooldown would block the trade
+   *   - What the position WOULD look like (entryPrice, SL, TP, source)
+   *
+   * READ-ONLY — does NOT create any records. Use this to diagnose why paper
+   * trades don't appear in the portfolio.
+   */
+  @Get('diagnose/paper-trade-test')
+  async diagnosePaperTradeTest(
+    @Req() req: any,
+    @Query('symbol') symbol?: string,
+    @Query('side') side?: string,
+    @Query('qty') qty?: string,
+    @Query('sl') sl?: string,
+  ) {
+    try {
+      const userId = req.user.id;
+      const testSymbol = symbol || 'BTC/USDT';
+      const testSide = (side || 'BUY').toUpperCase() as 'BUY' | 'SELL';
+      const testQty = qty ? parseFloat(qty) : 0.001;
+      const testSl = sl ? parseFloat(sl) : 0;
+
+      this.logger.log(`🔬 V349: Paper trade test for user ${userId} — ${testSide} ${testQty} ${testSymbol} SL=${testSl}`);
+
+      const result: any = {
+        userId,
+        timestamp: new Date().toISOString(),
+        testParams: { symbol: testSymbol, side: testSide, qty: testQty, sl: testSl },
+        checks: {} as any,
+      };
+
+      // Check 1: Get user's active credential
+      try {
+        const setting = await this.prisma.setting.findFirst({
+          where: { key: `user:${userId}:activeCredentialId` },
+        });
+        const activeCredId = setting?.value || null;
+
+        if (!activeCredId) {
+          result.checks.activeCredential = { status: 'NO_ACTIVE_CREDENTIAL', message: 'لا يوجد حساب نشط — اضبط حساب التداول في الإعدادات' };
+          return { success: true, diagnostic: result };
+        }
+
+        const cred = await this.prisma.exchangeCredential.findUnique({
+          where: { id: activeCredId },
+          select: { id: true, exchange: true, isValid: true, testnet: true },
+        });
+
+        result.checks.activeCredential = {
+          credentialId: activeCredId.slice(0, 12) + '...',
+          exchange: cred?.exchange || 'NOT_FOUND',
+          isValid: cred?.isValid,
+          isPaper: cred?.exchange === 'paper-trading',
+          isTestnet: cred?.testnet,
+        };
+
+        if (!cred) {
+          result.checks.activeCredential.status = 'CREDENTIAL_NOT_FOUND';
+          return { success: true, diagnostic: result };
+        }
+
+        if (!cred.isValid) {
+          result.checks.activeCredential.status = 'CREDENTIAL_INVALID';
+          return { success: true, diagnostic: result };
+        }
+
+        // Check 2: Existing OPEN positions on the same symbol+side (ALL credentials)
+        const allExistingOpen = await this.prisma.position.findMany({
+          where: { userId, symbol: testSymbol, status: 'OPEN', side: testSide as any },
+          select: { id: true, credentialId: true, exchange: true, side: true, quantity: true, entryPrice: true, source: true, openedAt: true },
+          orderBy: { openedAt: 'desc' },
+        });
+
+        result.checks.allOpenPositionsOnSymbol = allExistingOpen.map(p => ({
+          id: p.id.slice(0, 12) + '...',
+          credentialId: p.credentialId.slice(0, 12) + '...',
+          isOnActiveCredential: p.credentialId === activeCredId,
+          exchange: p.exchange,
+          side: p.side,
+          quantity: p.quantity.toNumber(),
+          entryPrice: p.entryPrice.toNumber(),
+          source: p.source,
+          openedAt: p.openedAt,
+        }));
+
+        result.checks.openPositionsCount = allExistingOpen.length;
+        result.checks.openPositionsOnActiveCredential = allExistingOpen.filter(p => p.credentialId === activeCredId).length;
+        result.checks.openPositionsOnOtherCredentials = allExistingOpen.filter(p => p.credentialId !== activeCredId).length;
+
+        // V349: Explain what WOULD happen with the new fix
+        if (allExistingOpen.some(p => p.credentialId === activeCredId)) {
+          result.checks.prediction = {
+            action: 'WOULD_AVERAGE_INTO_EXISTING_POSITION',
+            message: 'سيتم إضافة الكمية إلى المركز المفتوح على نفس الحساب (averaging)',
+            note: 'لن يتم إنشاء مركز جديد — سيتم تحديث المركز الحالي بكمية وسعر متوسط',
+          };
+        } else if (allExistingOpen.length > 0) {
+          result.checks.prediction = {
+            action: 'WOULD_CREATE_NEW_POSITION',
+            message: 'سيتم إنشاء مركز جديد على الحساب النشط (لا يوجد مركز مفتوح على نفس الحساب)',
+            note: `يوجد ${allExistingOpen.length} مركز مفتوح على حسابات أخرى — لن يتم دمجهم بفضل إصلاح V349`,
+          };
+        } else {
+          result.checks.prediction = {
+            action: 'WOULD_CREATE_NEW_POSITION',
+            message: 'سيتم إنشاء مركز جديد — لا توجد مراكز مفتوحة على هذا الرمز',
+          };
+        }
+
+        // Check 3: Cooldown check (per-credential after V349)
+        const COOLDOWN_MINUTES = 15;
+        const recentlyClosed = await this.prisma.position.findFirst({
+          where: {
+            userId,
+            symbol: testSymbol,
+            status: { in: ['CLOSED', 'LIQUIDATED'] },
+            closedAt: { gte: new Date(Date.now() - COOLDOWN_MINUTES * 60 * 1000) },
+            credentialId: activeCredId,
+          },
+          orderBy: { closedAt: 'desc' },
+          select: { id: true, closedAt: true, closeReason: true, credentialId: true },
+        });
+
+        if (recentlyClosed) {
+          const closedAgo = Math.round((Date.now() - new Date(recentlyClosed.closedAt!).getTime()) / 60000);
+          result.checks.cooldown = {
+            status: 'BLOCKED_BY_COOLDOWN',
+            closedMinutesAgo: closedAgo,
+            cooldownMinutes: COOLDOWN_MINUTES,
+            waitMinutes: COOLDOWN_MINUTES - closedAgo,
+            closeReason: recentlyClosed.closeReason,
+            positionId: recentlyClosed.id.slice(0, 12) + '...',
+            note: 'ينطبق فقط على المصادر الآلية (smart_executor/agent) — الصفقات اليدوية تتجاوز هذا الفحص',
+          };
+        } else {
+          result.checks.cooldown = { status: 'OK', message: 'لا يوجد cooldown على الحساب النشط' };
+        }
+
+        // Check 4: Paper balance check
+        const settings = await this.prisma.agentSettings.findUnique({
+          where: { userId },
+          select: { paperBalance: true, paperCryptoLeverage: true, paperForexLeverage: true, paperGoldLeverage: true },
+        });
+        const paperBalance = settings?.paperBalance ? Number(settings.paperBalance) : 0;
+        result.checks.paperBalance = {
+          balance: paperBalance,
+          hasBalance: paperBalance > 0,
+          fallback: paperBalance <= 0 ? 'سيتم استخدام 10000 كافتراضي' : 'none',
+        };
+
+        // Check 5: Recent positions (last 5) for context
+        const recentPositions = await this.prisma.position.findMany({
+          where: { userId },
+          orderBy: { openedAt: 'desc' },
+          take: 5,
+          select: { id: true, symbol: true, side: true, status: true, exchange: true, credentialId: true, source: true, openedAt: true, closedAt: true, closeReason: true },
+        });
+        result.checks.recentPositions = recentPositions.map(p => ({
+          id: p.id.slice(0, 12) + '...',
+          symbol: p.symbol,
+          side: p.side,
+          status: p.status,
+          exchange: p.exchange,
+          credentialId: p.credentialId.slice(0, 12) + '...',
+          isOnActiveCredential: p.credentialId === activeCredId,
+          source: p.source,
+          openedAt: p.openedAt,
+          closedAt: p.closedAt,
+          closeReason: p.closeReason,
+        }));
+
+      } catch (err: any) {
+        result.checks.error = err.message;
+      }
+
+      return { success: true, diagnostic: result };
+    } catch (error: any) {
+      this.logger.error(`V349 paper trade test failed: ${error.message}`, error.stack);
+      throw error;
+    }
   }
 }

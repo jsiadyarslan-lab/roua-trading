@@ -646,6 +646,53 @@ export async function GET(
       }
     }
 
+    // V352: Route forex/metals/indices to NestJS backend (which uses OANDA adapter)
+    // BEFORE trying local Yahoo/TwelveData/Frankfurter sources.
+    //
+    // PROBLEM: Previously, when source='auto' (default), forex pairs like EUR/USD
+    // went to Yahoo Finance (free but stale 2-day-old data) instead of OANDA
+    // (live real-time data). The NestJS backend has the OANDA adapter registered
+    // and ExchangeService._selectAdapter() routes forex/metals to OANDA automatically.
+    //
+    // FIX: For forex/metals/indices/commodities symbols, try NestJS backend FIRST.
+    // Only fall back to local Yahoo/Frankfurter if NestJS is unreachable or fails.
+    // This ensures the chart, ticker, and watchlist all show OANDA live prices.
+    const _isForexOrMetalOrIndex = (sym: string): boolean => {
+      const upper = sym.toUpperCase();
+      // Crypto uses /USDT, /BTC, /ETH — NOT forex
+      if (upper.includes('USDT') || upper.includes('/BTC') || upper.includes('/ETH')) {
+        return false;
+      }
+      // Forex/metals/indices/energy quote currencies
+      const forexQuotes = ['/USD', '/JPY', '/GBP', '/EUR', '/CHF', '/CAD', '/AUD', '/NZD'];
+      const isForexPair = forexQuotes.some(qc => upper.includes(qc));
+      // Known indices/energy bases (even without slash)
+      const indicesBases = ['US30', 'NAS100', 'SPX500', 'GER30', 'UK100', 'WTI', 'BRENT'];
+      const isIndexOrEnergy = indicesBases.some(b => upper.startsWith(b));
+      return isForexPair || isIndexOrEnergy;
+    };
+
+    // V352: For auto source + forex/metals/indices → try NestJS (OANDA) first
+    if ((!source || source === 'auto') && _isForexOrMetalOrIndex(symbol)) {
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const proxyRes = await fetch(`${backendUrl}/api/exchange/quote/${encodeURIComponent(symbol)}`, {
+          signal: AbortSignal.timeout(15000),
+        });
+        if (proxyRes.ok) {
+          const data = await proxyRes.json();
+          if (data?.success && data?.data?.price > 0) {
+            // Cache the OANDA result and return it
+            setCached(cacheKey, data.data);
+            return NextResponse.json({ success: true, data: data.data, cached: false });
+          }
+        }
+      } catch (err: any) {
+        // Fall through to local fetching if backend proxy fails
+        console.warn(`[quote] V352: NestJS backend failed for ${symbol}, falling back to local sources: ${err?.message}`);
+      }
+    }
+
     // Determine if this is a crypto pair or forex pair
     // Crypto pairs: BTC/USDT, ETH/USDT, SOL/USDT (quote is USDT/BUSD)
     // Forex pairs: EUR/USD, GBP/USD, USD/JPY (quote is fiat currency)

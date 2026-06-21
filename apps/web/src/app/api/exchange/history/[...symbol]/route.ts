@@ -416,6 +416,61 @@ export async function GET(
       })
     }
 
+    // ── Non-crypto History: NestJS (OANDA) → TwelveData → Yahoo Finance → Frankfurter ──
+
+    // V352: Try NestJS backend FIRST for forex/metals/indices/commodities.
+    // The NestJS backend has the OANDA adapter registered which provides
+    // real-time historical candles. This is the same fix as the quote route —
+    // without it, EUR/USD history goes to Yahoo Finance (stale) instead of OANDA (live).
+    const _isForexOrMetalOrIndex = (sym: string): boolean => {
+      const upper = sym.toUpperCase();
+      if (upper.includes('USDT') || upper.includes('/BTC') || upper.includes('/ETH')) {
+        return false;
+      }
+      const forexQuotes = ['/USD', '/JPY', '/GBP', '/EUR', '/CHF', '/CAD', '/AUD', '/NZD'];
+      const isForexPair = forexQuotes.some(qc => upper.includes(qc));
+      const indicesBases = ['US30', 'NAS100', 'SPX500', 'GER30', 'UK100', 'WTI', 'BRENT'];
+      const isIndexOrEnergy = indicesBases.some(b => upper.startsWith(b));
+      return isForexPair || isIndexOrEnergy;
+    };
+
+    if (_isForexOrMetalOrIndex(symbol)) {
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        // Map chart interval to NestJS interval format
+        const nIntervalMap: Record<string, string> = {
+          '1m': '1min', '5m': '5min', '15m': '15min', '30m': '30min',
+          '1min': '1min', '5min': '5min', '15min': '15min', '30min': '30min',
+          '1h': '1h', '2h': '2h', '4h': '4h',
+          '1d': '1day', '1day': '1day',
+          '1w': '1week', '1week': '1week', '1M': '1month', '1month': '1month',
+        };
+        const nInterval = nIntervalMap[interval] || interval;
+        const proxyRes = await fetch(
+          `${backendUrl}/api/exchange/history/${encodeURIComponent(symbol)}?interval=${nInterval}`,
+          { signal: AbortSignal.timeout(15000) }
+        );
+        if (proxyRes.ok) {
+          const data = await proxyRes.json();
+          if (data?.success && Array.isArray(data?.data) && data.data.length > 0) {
+            // Normalize to the format the chart expects
+            const candles = data.data.map((c: any) => ({
+              symbol,
+              timestamp: c.timestamp,
+              datetime: typeof c.timestamp === 'string' ? c.timestamp : new Date(c.timestamp).toISOString(),
+              open: toNum(c.open), high: toNum(c.high), low: toNum(c.low), close: toNum(c.close),
+              volume: toNum(c.volume),
+              source: c.source || 'OANDA',
+            }));
+            setCachedHistory(cacheKey, candles, 300_000);
+            return NextResponse.json({ success: true, data: candles });
+          }
+        }
+      } catch (err: any) {
+        console.warn(`[exchange/history] V352: NestJS backend failed for ${symbol}, falling back to local sources: ${err?.message}`);
+      }
+    }
+
     // ── Non-crypto History: TwelveData → Yahoo Finance → Frankfurter ──
     const apiKey = process.env.TWELVE_DATA_API_KEY
 

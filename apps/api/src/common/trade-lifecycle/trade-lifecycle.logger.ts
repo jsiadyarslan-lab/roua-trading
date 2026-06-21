@@ -73,7 +73,11 @@ export interface LifecycleLogInput {
 export class TradeLifecycleLogger {
   private readonly logger = new Logger(TradeLifecycleLogger.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {
+    // V347: Debug log to verify this service is actually instantiated by NestJS DI
+    console.log('🔧 V347: TradeLifecycleLogger CONSTRUCTOR CALLED — DI resolution successful');
+    this.logger.log('🔧 V347: TradeLifecycleLogger initialized');
+  }
 
   /**
    * Log a trade lifecycle event. NEVER throws — failures are logged and swallowed.

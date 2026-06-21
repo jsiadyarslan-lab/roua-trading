@@ -101,7 +101,9 @@ export class PositionStateMachine {
     private readonly prisma: PrismaService,
       @Optional() @Inject(TradeLifecycleLogger) private readonly lifecycle?: TradeLifecycleLogger,
   ) {
-    this.logger.log('🔧 V341 Position State Machine initialized — single decision point active');
+    console.log('🔧 V347: PositionStateMachine CONSTRUCTOR CALLED — lifecycle injected:', !!this.lifecycle);
+    this.logger.log('🔧 V341 Position State Machine initialized — single decision point active'
+      + (this.lifecycle ? ' + LifecycleLogger' : ' + ❌NO LifecycleLogger'));
   }
 
   isValidTransition(from: PositionState, to: PositionState): boolean {

@@ -121,7 +121,9 @@ export class TradeLifecycleLogger {
           price: input.price ?? null,
           highestPrice: input.highestPrice ?? null,
           lowestPrice: input.lowestPrice ?? null,
-          metadata: input.metadata || null,
+          // V339: Prisma Json field requires JsonValue or undefined (not plain null).
+          // Use undefined when metadata is absent so Prisma leaves the column NULL.
+          metadata: input.metadata ?? undefined,
         },
       });
     } catch (err: any) {

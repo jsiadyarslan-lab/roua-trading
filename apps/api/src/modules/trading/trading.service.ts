@@ -3891,7 +3891,8 @@ export class TradingService {
       const low = p.lowestPrice ? Number(p.lowestPrice) : null;
       const reason = p.closeReason || '';
 
-      const issues = [];
+      // V339: Explicit string[] type — without it, TS infers never[] and rejects .push()
+      const issues: string[] = [];
 
       // Check 1: highestPrice >= lowestPrice (always true)
       if (high !== null && low !== null && high < low) {
@@ -3968,7 +3969,7 @@ export class TradingService {
       userId,
       generatedAt: new Date().toISOString(),
       checked,
-      violations: violations.length,
+      violationCount: violations.length,
       violationRate: checked > 0 ? (violations.length / checked * 100).toFixed(1) + '%' : '0%',
       violations: violations.slice(0, 50), // limit output
     };

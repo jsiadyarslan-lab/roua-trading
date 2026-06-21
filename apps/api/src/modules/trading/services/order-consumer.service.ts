@@ -493,7 +493,7 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
                 stopLoss: message.stopLoss,
                 takeProfit: message.takeProfit,
                 source: message.source,
-                exchange: credential.exchange,
+                exchangeCredentialId: message.exchangeCredentialId, // V339: credential object out of scope
                 orderId: message.orderId,
               },
             });

@@ -1,0 +1,395 @@
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import * as https from 'https';
+import { EventEmitter } from 'events';
+
+/**
+ * V355: OANDA Streaming Service — Real-time price stream via OANDA v20 Streaming API.
+ *
+ * This is the ROOT SOLUTION for live forex/metals/indices prices.
+ * Instead of polling REST API every 30-60 seconds, this service maintains
+ * a long-lived HTTP connection to OANDA's streaming endpoint and receives
+ * price updates in real-time (<1 second latency, same as Binance WS for crypto).
+ *
+ * OANDA Streaming API:
+ *   GET https://stream-fxpractice.oanda.com/v3/accounts/{accountID}/pricing/stream
+ *   ?instruments=EUR_USD,GBP_USD,XAU_USD,...
+ *   Authorization: Bearer {token}
+ *
+ * Response: chunked HTTP transfer, each chunk is newline-delimited JSON:
+ *   {"type":"PRICE","instrument":"EUR_USD","time":"...","bids":[...],"asks":[...],...}
+ *   {"type":"HEARTBEAT","time":"..."}
+ *
+ * Architecture:
+ *   OANDA Stream → OandaStreamingService → EventEmitter → ExchangeGateway → Socket.IO → Frontend
+ *
+ * Usage:
+ *   streamingService.on('price', (data) => { ... });
+ *   streamingService.subscribe('EUR/USD');
+ *   streamingService.unsubscribe('EUR/USD');
+ */
+@Injectable()
+export class OandaStreamingService implements OnModuleDestroy {
+  private readonly logger = new Logger(OandaStreamingService.name);
+  private readonly emitter = new EventEmitter();
+
+  // OANDA streaming endpoints
+  private readonly PRACTICE_STREAM_URL = 'stream-fxpractice.oanda.com';
+  private readonly LIVE_STREAM_URL = 'stream-fxtrade.oanda.com';
+
+  // Active stream connection
+  private streamReq: any | null = null;
+
+  // Currently subscribed instruments (OANDA format: EUR_USD)
+  private subscribedInstruments = new Set<string>();
+
+  // Buffer for incomplete JSON chunks
+  private lineBuffer = '';
+
+  // Reconnect state
+  private reconnectTimer: NodeJS.Timeout | null = null;
+  private readonly RECONNECT_DELAY_MS = 5000;
+  private isConnecting = false;
+  private shouldReconnect = true;
+
+  constructor(private readonly configService: ConfigService) {
+    const hasToken = !!this.configService.get<string>('OANDA_API_TOKEN');
+    const hasAccountId = !!this.configService.get<string>('OANDA_ACCOUNT_ID');
+    
+    if (hasToken && hasAccountId) {
+      this.logger.log('🌊 V355: OANDA Streaming Service initialized — ready for live price stream');
+    } else {
+      this.logger.warn(`🌊 V355: OANDA Streaming Service initialized but NOT active — missing ${!hasToken ? 'OANDA_API_TOKEN' : ''} ${!hasAccountId ? 'OANDA_ACCOUNT_ID' : ''}`);
+    }
+  }
+
+  /**
+   * Get the streaming hostname (practice or live)
+   */
+  private get streamHost(): string {
+    const accountType = this.configService.get<string>('OANDA_ACCOUNT_TYPE', 'practice');
+    return accountType === 'live' ? this.LIVE_STREAM_URL : this.PRACTICE_STREAM_URL;
+  }
+
+  /**
+   * Get API token
+   */
+  private get apiToken(): string {
+    return this.configService.get<string>('OANDA_API_TOKEN') || '';
+  }
+
+  /**
+   * Get account ID
+   */
+  private get accountId(): string {
+    return this.configService.get<string>('OANDA_ACCOUNT_ID') || '';
+  }
+
+  /**
+   * Check if streaming is available (token + account ID configured)
+   */
+  isAvailable(): boolean {
+    return !!this.apiToken && !!this.accountId;
+  }
+
+  /**
+   * Convert user-friendly symbol to OANDA format
+   * EUR/USD → EUR_USD, XAU/USD → XAU_USD, US30/USD → US30_USD
+   */
+  private toOandaSymbol(symbol: string): string {
+    return symbol.replace('/', '_').toUpperCase();
+  }
+
+  /**
+   * Convert OANDA symbol back to user-friendly format
+   * EUR_USD → EUR/USD
+   */
+  private fromOandaSymbol(oandaSymbol: string): string {
+    return oandaSymbol.replace('_', '/');
+  }
+
+  /**
+   * Subscribe to price updates for a symbol.
+   * If this is the first subscription, starts the stream connection.
+   * If already connected, the instrument is added to the next reconnect.
+   */
+  subscribe(symbol: string): void {
+    if (!this.isAvailable()) {
+      this.logger.warn(`🌊 Cannot subscribe to ${symbol} — OANDA streaming not configured`);
+      return;
+    }
+
+    const oandaSymbol = this.toOandaSymbol(symbol);
+    if (this.subscribedInstruments.has(oandaSymbol)) {
+      this.logger.debug(`🌊 Already subscribed to ${oandaSymbol}`);
+      return;
+    }
+
+    this.subscribedInstruments.add(oandaSymbol);
+    this.logger.log(`🌊 Subscribed to ${oandaSymbol} (total: ${this.subscribedInstruments.size} instruments)`);
+
+    // If stream is not connected, start it. If already connected, reconnect
+    // to include the new instrument (OANDA doesn't support adding instruments
+    // to an existing stream — must reconnect).
+    if (this.streamReq) {
+      this._reconnect();
+    } else {
+      this._connect();
+    }
+  }
+
+  /**
+   * Unsubscribe from price updates for a symbol.
+   * If no subscriptions remain, closes the stream connection.
+   */
+  unsubscribe(symbol: string): void {
+    const oandaSymbol = this.toOandaSymbol(symbol);
+    if (!this.subscribedInstruments.has(oandaSymbol)) {
+      return;
+    }
+
+    this.subscribedInstruments.delete(oandaSymbol);
+    this.logger.log(`🌊 Unsubscribed from ${oandaSymbol} (remaining: ${this.subscribedInstruments.size} instruments)`);
+
+    if (this.subscribedInstruments.size === 0) {
+      // No more subscriptions — close the stream
+      this._disconnect();
+    } else {
+      // Still have subscriptions — reconnect with updated instrument list
+      this._reconnect();
+    }
+  }
+
+  /**
+   * Register a callback for price updates.
+   * Callback receives: { symbol, price, bid, ask, time, oandaSymbol }
+   */
+  onPrice(callback: (data: OandaPriceUpdate) => void): void {
+    this.emitter.on('price', callback);
+  }
+
+  /**
+   * Remove a price callback
+   */
+  offPrice(callback: (data: OandaPriceUpdate) => void): void {
+    this.emitter.off('price', callback);
+  }
+
+  /**
+   * Connect to OANDA streaming API
+   */
+  private _connect(): void {
+    if (this.isConnecting || !this.isAvailable() || this.subscribedInstruments.size === 0) {
+      return;
+    }
+
+    this.isConnecting = true;
+    const instruments = Array.from(this.subscribedInstruments).join(',');
+    const path = `/v3/accounts/${this.accountId}/pricing/stream?instruments=${encodeURIComponent(instruments)}`;
+
+    this.logger.log(`🌊 Connecting to OANDA stream: ${instruments}`);
+
+    const options: https.RequestOptions = {
+      hostname: this.streamHost,
+      path,
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.apiToken}`,
+        'Accept-Datetime-Format': 'RFC3339',
+      },
+      timeout: 0, // No timeout — this is a long-lived connection
+    };
+
+    this.streamReq = https.request(options, (res) => {
+      this.isConnecting = false;
+
+      if (res.statusCode !== 200) {
+        let body = '';
+        res.on('data', (chunk) => body += chunk);
+        res.on('end', () => {
+          this.logger.error(`🌊 OANDA stream failed: HTTP ${res.statusCode} — ${body.substring(0, 300)}`);
+          this.streamReq = null;
+          this._scheduleReconnect();
+        });
+        return;
+      }
+
+      this.logger.log(`🌊 OANDA stream connected — receiving live prices for ${this.subscribedInstruments.size} instruments`);
+
+      // Reset line buffer for new connection
+      this.lineBuffer = '';
+
+      res.on('data', (chunk: Buffer) => {
+        this._processStreamData(chunk.toString());
+      });
+
+      res.on('end', () => {
+        this.logger.warn('🌊 OANDA stream ended — will reconnect');
+        this.streamReq = null;
+        this._scheduleReconnect();
+      });
+
+      res.on('error', (err: Error) => {
+        this.logger.error(`🌊 OANDA stream error: ${err.message}`);
+        this.streamReq = null;
+        this._scheduleReconnect();
+      });
+    });
+
+    this.streamReq.on('error', (err: Error) => {
+      this.isConnecting = false;
+      this.logger.error(`🌊 OANDA stream connection error: ${err.message}`);
+      this.streamReq = null;
+      this._scheduleReconnect();
+    });
+
+    this.streamReq.end();
+  }
+
+  /**
+   * Process raw stream data — parses newline-delimited JSON
+   */
+  private _processStreamData(data: string): void {
+    this.lineBuffer += data;
+
+    // Split by newlines — each line is a complete JSON object
+    const lines = this.lineBuffer.split('\n');
+
+    // Last element may be incomplete — keep it in buffer
+    this.lineBuffer = lines.pop() || '';
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      try {
+        const event = JSON.parse(trimmed);
+        this._handleStreamEvent(event);
+      } catch (err: any) {
+        // Ignore parse errors — OANDA may send partial or heartbeat data
+        this.logger.debug(`🌊 Stream parse error (non-critical): ${err.message} — line: ${trimmed.substring(0, 100)}`);
+      }
+    }
+  }
+
+  /**
+   * Handle a parsed stream event (PRICE or HEARTBEAT)
+   */
+  private _handleStreamEvent(event: any): void {
+    if (event.type === 'HEARTBEAT') {
+      // Heartbeat — connection is alive, no action needed
+      return;
+    }
+
+    if (event.type === 'PRICE') {
+      const oandaSymbol = event.instrument;
+      const symbol = this.fromOandaSymbol(oandaSymbol);
+
+      // OANDA returns bids and asks arrays. Use the first bid/ask.
+      const bid = event.bids?.[0] ? parseFloat(event.bids[0].price) : null;
+      const ask = event.asks?.[0] ? parseFloat(event.asks[0].price) : null;
+
+      // Mid price = (bid + ask) / 2
+      const price = bid !== null && ask !== null ? (bid + ask) / 2 : bid ?? ask ?? 0;
+
+      if (price <= 0) {
+        return;
+      }
+
+      const update: OandaPriceUpdate = {
+        symbol,
+        oandaSymbol,
+        price,
+        bid: bid ?? price,
+        ask: ask ?? price,
+        time: event.time,
+        timestamp: Date.now(),
+      };
+
+      // Emit to all registered callbacks
+      this.emitter.emit('price', update);
+    }
+  }
+
+  /**
+   * Reconnect the stream (used when instruments change)
+   */
+  private _reconnect(): void {
+    this._disconnect();
+    // Small delay to avoid rapid reconnect loops
+    setTimeout(() => this._connect(), 500);
+  }
+
+  /**
+   * Schedule a reconnect after failure
+   */
+  private _scheduleReconnect(): void {
+    if (!this.shouldReconnect || this.subscribedInstruments.size === 0) {
+      return;
+    }
+
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+    }
+
+    this.logger.log(`🌊 Scheduling reconnect in ${this.RECONNECT_DELAY_MS / 1000}s...`);
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this._connect();
+    }, this.RECONNECT_DELAY_MS);
+  }
+
+  /**
+   * Disconnect the stream
+   */
+  private _disconnect(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
+    if (this.streamReq) {
+      this.logger.debug('🌊 Disconnecting OANDA stream');
+      try {
+        this.streamReq.destroy();
+      } catch { /* ignore */ }
+      this.streamReq = null;
+    }
+
+    this.lineBuffer = '';
+    this.isConnecting = false;
+  }
+
+  /**
+   * Get current subscription status for diagnostics
+   */
+  getStatus(): any {
+    return {
+      available: this.isAvailable(),
+      connected: !!this.streamReq,
+      isConnecting: this.isConnecting,
+      subscribedInstruments: Array.from(this.subscribedInstruments),
+      instrumentCount: this.subscribedInstruments.size,
+    };
+  }
+
+  onModuleDestroy(): void {
+    this.logger.log('🌊 OANDA Streaming Service shutting down');
+    this.shouldReconnect = false;
+    this._disconnect();
+    this.emitter.removeAllListeners();
+  }
+}
+
+/**
+ * Price update from OANDA stream
+ */
+export interface OandaPriceUpdate {
+  symbol: string;      // User-friendly: EUR/USD
+  oandaSymbol: string; // OANDA format: EUR_USD
+  price: number;       // Mid price
+  bid: number;
+  ask: number;
+  time: string;        // OANDA timestamp (RFC3339)
+  timestamp: number;   // Unix ms
+}

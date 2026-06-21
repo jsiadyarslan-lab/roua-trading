@@ -7,6 +7,7 @@ import { TwelveDataAdapter } from './adapters/twelve-data.adapter';
 import { BinanceAdapter } from './adapters/binance.adapter';
 import { FreeFallbackAdapter } from './adapters/free-fallback.adapter';
 import { OandaAdapter } from './adapters/oanda.adapter';
+import { OandaStreamingService } from './adapters/oanda-streaming.service';
 import { IExchangeAdapter } from './exchange.types';
 
 @Module({
@@ -20,6 +21,7 @@ import { IExchangeAdapter } from './exchange.types';
     BinanceAdapter,
     FreeFallbackAdapter,
     OandaAdapter,
+    OandaStreamingService, // V355: Real-time OANDA price stream
     {
       provide: 'EXCHANGE_ADAPTERS',
       useFactory: (
@@ -38,6 +40,6 @@ import { IExchangeAdapter } from './exchange.types';
       inject: [TwelveDataAdapter, BinanceAdapter, FreeFallbackAdapter, OandaAdapter],
     },
   ],
-  exports: [ExchangeService, ExchangeGateway],
+  exports: [ExchangeService, ExchangeGateway, OandaStreamingService],
 })
 export class ExchangeModule {}

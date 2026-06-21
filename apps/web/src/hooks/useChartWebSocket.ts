@@ -427,51 +427,29 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   };
   tfSecondsRef.current = tfSecondsMap[timeframe] || 60;
 
-  // ── Primary: Skip Socket.IO, use Binance WS or REST polling ──
-  // NestJS has no WebSocket gateway deployed, so socket.io attempts
-  // always return 404 errors. Skip directly to Binance WS fallback.
-  // To enable Socket.IO, deploy NestJS WebSocket gateway and set
-  // NEXT_PUBLIC_WS_ENABLED=true in Railway environment variables.
-  const connect = useCallback(() => {
-    cleanup();
-    isClosingRef.current = false;
-    // FIX: Increment generation counter to invalidate any stale onclose
-    // handlers from previous connections.
-    connectionGenRef.current++;
-    if (!enabled) return;
-
-    // Skip socket.io — go directly to Binance WS or REST polling
-    if (process.env.NEXT_PUBLIC_WS_ENABLED !== 'true') {
-      setConnectionState('connecting');
-      connectBinanceFallback();
-      return;
-    }
-
-    setConnectionState('connecting');
-
+  // V355: Connect via Socket.IO to NestJS ExchangeGateway for OANDA live prices
+  // This is used for forex/metals/indices/energy pairs — gives <1s live updates
+  // via OANDA Streaming API (same latency as Binance WS for crypto).
+  const connectSocketIO = useCallback(() => {
     const token = getSessionToken();
     const wsUrl = window.location.origin;
 
-    import('socket.io-client').then(({ io }) => {
+    import('socket.io-client').then(({ default: io }: any) => {
       if (isClosingRef.current) return;
 
       try {
         const socketOptions: any = {
-          transports: ['polling', 'websocket'],  // polling first — Next.js rewrites can't proxy WS upgrade requests
+          transports: ['polling', 'websocket'],
           autoConnect: true,
           reconnection: true,
-          reconnectionAttempts: 5,
+          reconnectionAttempts: 10,
           reconnectionDelay: 2000,
         };
-        // SECURITY: Token must ONLY be in auth (not in query/URL).
-        // query params appear in server logs, browser history, and referrer headers.
         if (token) {
           socketOptions.auth = { token };
-          // socketOptions.query intentionally omitted — tokens must not appear in URLs
         }
 
         const socket = io(`${wsUrl}/exchange`, socketOptions);
-
         socketIoRef.current = socket;
 
         socket.on('connect', () => {
@@ -481,8 +459,6 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           }
           setConnectionState('connected');
           reconnectAttemptsRef.current = 0;
-
-          // Subscribe to current symbol
           socket.emit('subscribe', { symbol });
         });
 
@@ -490,7 +466,6 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           if (isClosingRef.current) return;
           if (!data || !data.data) return;
 
-          // Only process data for our symbol
           const dataSymbol = data.symbol || data.data.symbol || '';
           if (dataSymbol && symbol) {
             const normalized = dataSymbol.replace('/', '');
@@ -502,14 +477,8 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           if (quote) {
             const price = quote.price || quote.close || quote.lastPrice;
             if (price && price > 0) {
-              // V225 FIX: Use bufferUpdate() instead of direct calls.
-              // The old code called onPriceUpdate/onCandleUpdate directly,
-              // bypassing the rAF buffer and causing multiple React state
-              // updates per animation frame.
               bufferUpdate(null, price, false);
 
-              // Create synthetic candle from ticker data
-              // FIX: Sanitize OHLC — near-flat candles from ticker render as dots.
               const now = Math.floor(Date.now() / 1000);
               const rawOpen = quote.open || price;
               const rawHigh = quote.high || price;
@@ -517,9 +486,6 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
               const rawClose = price;
               const s = sanitizeOhlc(rawOpen, rawHigh, rawLow, rawClose);
               const candle: CandleData = {
-                // H10 FIX: Use tfSecondsRef instead of hardcoded 60.
-                // Previously, Socket.IO ticker candles always snapped to 1-minute
-                // boundaries, creating wrong candles on 1H/1D charts.
                 time: now - (now % tfSecondsRef.current),
                 open: s.open,
                 high: s.high,
@@ -532,32 +498,48 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           }
         });
 
-        socket.on('ticker:error', (data: any) => {
-          // Exchange gateway couldn't fetch data for this symbol
-          // Fall back to Binance direct or REST polling
+        socket.on('connect_error', () => {
+          if (isClosingRef.current) return;
+          console.warn(`[ChartWS] Socket.IO error for ${symbol} — falling back to REST polling`);
+          if (!socketIoRef.current?.connected) {
+            startPolling();
+          }
         });
 
-        socket.on('disconnect', (reason: string) => {
+        socket.on('disconnect', () => {
           if (isClosingRef.current) return;
-          setConnectionState('disconnected');
+          // Socket.IO will auto-reconnect
         });
 
-        socket.on('connect_error', (error: any) => {
-          if (isClosingRef.current) return;
-          // Socket.IO failed — fall back to Binance WS
-          try { socket.disconnect(); } catch {}
-          socketIoRef.current = null;
-          connectBinanceFallback();
-        });
       } catch {
-        // Socket.IO creation failed — fall back to Binance WS
-        connectBinanceFallback();
+        startPolling();
       }
     }).catch(() => {
-      // Dynamic import failed — fall back to Binance WS
-      connectBinanceFallback();
+      startPolling();
     });
-  }, [symbol, timeframe, enabled, cleanup, connectBinanceFallback]); // V225 FIX: Removed onCandleUpdate/onPriceUpdate from deps — already using refs
+  }, [symbol, startPolling]);
+
+  // ── V355: Connection Strategy ──
+  // For OANDA pairs (forex/metals/indices/energy): use Socket.IO → OANDA Streaming API
+  //   This gives <1 second live price updates (same as Binance WS for crypto).
+  // For crypto pairs: use Binance WebSocket directly (existing behavior).
+  const connect = useCallback(() => {
+    cleanup();
+    isClosingRef.current = false;
+    connectionGenRef.current++;
+    if (!enabled) return;
+
+    // V355: OANDA pairs → Socket.IO (live stream via OANDA Streaming API)
+    if (!isCryptoPair(symbol)) {
+      setConnectionState('connecting');
+      connectSocketIO();
+      return;
+    }
+
+    // Crypto pairs → Binance WS
+    setConnectionState('connecting');
+    connectBinanceFallback();
+  }, [symbol, enabled, cleanup, connectBinanceFallback, connectSocketIO]);
 
   // ── Reconnect ──────────────────────────────────────────
   const reconnect = useCallback(() => {

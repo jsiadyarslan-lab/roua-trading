@@ -47,6 +47,7 @@ import {
 } from './events/order.events';
 import { PlaceOrderDto as V2PlaceOrderDto } from './controllers/dtos/place-order.dto';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { RedisService } from '../../common/redis/redis.service';
 
 /**
  * Trading Controller — Unified REST API for Trading Engine
@@ -76,6 +77,7 @@ export class TradingController {
     private readonly tradingService: TradingService,
     private readonly unifiedRisk: UnifiedRiskService,  // V219: Unified risk — replaces RiskManager + RiskGatekeeper
     private readonly prisma: PrismaService,  // V349: For diagnostic endpoints
+    private readonly redis: RedisService,    // V351c: For monitor heartbeat check
     // #18: V2 services — optional so controller still works if V2 infra is down
     @Optional() private readonly idempotencyService?: IdempotencyService,
     @Optional() private readonly stateManager?: OrderStateManagerService,
@@ -1549,8 +1551,28 @@ export class TradingController {
     //   - What was the last cycle timestamp?
     //   - How many positions did it process?
     try {
-      // Get monitor:last_cycle from Redis via a raw query (we don't have direct Redis access here)
-      // Instead, check if ANY MONITOR_TICK events exist globally (across all users)
+      // V351c: Check Redis for monitor heartbeat
+      // 'monitor:heartbeat' is written at the START of every @Interval invocation (V351c)
+      // 'monitor:last_cycle' is written at the END of every successful cycle
+      // Comparing both tells us exactly where the monitor fails:
+      //   - No heartbeat → @Interval not firing at all
+      //   - Heartbeat fresh, no last_cycle → cycle starts but throws before completing
+      //   - Both fresh → monitor working
+      let monitorHeartbeat: any = null;
+      let monitorStartHeartbeat: any = null;
+      try {
+        const heartbeatRaw = await this.redis.get('monitor:last_cycle');
+        monitorHeartbeat = heartbeatRaw ? JSON.parse(heartbeatRaw) : null;
+        const startHeartbeatRaw = await this.redis.get('monitor:heartbeat');
+        monitorStartHeartbeat = startHeartbeatRaw ? JSON.parse(startHeartbeatRaw) : null;
+      } catch (e: any) {
+        monitorHeartbeat = { error: e.message?.substring(0, 200) };
+      }
+
+      // V351c: Check Redis availability
+      const redisAvailable = this.redis.getIsAvailable?.() ?? false;
+
+      // Get ALL MONITOR_TICK events globally (across all users)
       const globalMonitorTicks = await this.prisma.tradeLifecycleLog.count({
         where: { eventType: 'MONITOR_TICK' },
       });
@@ -1564,18 +1586,67 @@ export class TradingController {
         where: { eventType: 'SL_UPDATE' },
       });
 
+      // V351c: Count ALL open positions globally (not just this user's)
+      const allOpenPositions = await this.prisma.position.count({
+        where: { status: 'OPEN' },
+      });
+
       result.checks.monitorHealth = {
+        redisAvailable,
+        monitorHeartbeat,  // 'monitor:last_cycle' — written at END of successful cycle
+        monitorStartHeartbeat,  // 'monitor:heartbeat' — written at START of every @Interval call (V351c)
+        startHeartbeatAgeSeconds: monitorStartHeartbeat?.timestamp
+          ? Math.round((Date.now() - new Date(monitorStartHeartbeat.timestamp).getTime()) / 1000)
+          : null,
+        heartbeatAgeSeconds: monitorHeartbeat?.timestamp
+          ? Math.round((Date.now() - new Date(monitorHeartbeat.timestamp).getTime()) / 1000)
+          : null,
+        globalOpenPositions: allOpenPositions,
         globalMonitorTicks,
         globalOpenEvents,
         globalCloseEvents,
         globalSlUpdates,
-        status: globalMonitorTicks > 0
-          ? '✅ Monitor IS logging ticks (at least some positions)'
-          : '❌ ZERO MONITOR_TICK events globally — PositionMonitor is either not running, or getLifecycle() returns null inside it',
+        status: (() => {
+          if (!redisAvailable) return '❌ Redis is DOWN — monitor cannot write heartbeat or acquire locks. Monitor may be skipping all cycles.';
+          const startAge = monitorStartHeartbeat?.timestamp
+            ? Math.round((Date.now() - new Date(monitorStartHeartbeat.timestamp).getTime()) / 1000)
+            : null;
+          // V351c: If start heartbeat is fresh, @Interval IS firing
+          if (startAge !== null && startAge <= 5) {
+            // @Interval is firing — check if cycle completes
+            if (monitorHeartbeat) {
+              const endAge = Math.round((Date.now() - new Date(monitorHeartbeat.timestamp).getTime()) / 1000);
+              if (endAge <= 5) {
+                if (globalMonitorTicks === 0 && allOpenPositions > 0) {
+                  return `⚠️ Monitor @Interval fires (start ${startAge}s ago) AND completes (end ${endAge}s ago, ${monitorHeartbeat.positionsMonitored} positions) but 0 MONITOR_TICK — all positions fail before reaching log line (quote fetch failure?)`;
+                }
+                return `✅ Monitor is running (start ${startAge}s ago, end ${endAge}s ago, ${monitorHeartbeat.positionsMonitored} positions processed)`;
+              }
+              return `⚠️ @Interval fires (start ${startAge}s) but last completed cycle was ${endAge}s ago — cycles are slow or stuck`;
+            }
+            return `❌ @Interval IS firing (start ${startAge}s ago) but NO cycle ever completes — cycle throws before reaching the end. Check Railway logs for "Position monitor cycle failed". Likely: prisma.enableRlsBypass() throws, or self-healing disabled monitor, or DB query fails.`;
+          }
+          // No fresh start heartbeat
+          if (!monitorStartHeartbeat) {
+            if (globalMonitorTicks > 0) return '⚠️ No start heartbeat but MONITOR_TICK events exist — monitor ran before V351c deploy';
+            return '❌ NO start heartbeat AND 0 MONITOR_TICK — @Interval is NOT firing at all. ScheduleModule may not be registered, or PositionMonitor constructor threw before @Interval could register.';
+          }
+          return `❌ Start heartbeat is STALE (${startAge}s old) — @Interval stopped firing ${startAge}s ago. Monitor may have crashed.`;
+        })(),
         diagnosis: (() => {
           if (globalMonitorTicks > 0) return 'Monitor logging works for some positions';
-          if (globalOpenEvents > 0) {
-            return '⚠️ OPEN events are logged (TradingService lifecycle works) but MONITOR_TICK is 0 — PositionMonitor either: (a) is not running its @Interval cycle, (b) getLifecycle() returns null inside PositionMonitor, (c) all positions fail before reaching the MONITOR_TICK log line (e.g., quote fetch fails)';
+          if (!redisAvailable) return 'Redis is down — monitor cannot function. Check REDIS_URL env var.';
+          const startAge = monitorStartHeartbeat?.timestamp
+            ? Math.round((Date.now() - new Date(monitorStartHeartbeat.timestamp).getTime()) / 1000)
+            : null;
+          if (startAge === null || startAge > 5) {
+            return '❌ @Interval is NOT firing. Likely causes: (a) ScheduleModule.forRoot() not registered, (b) PositionMonitor constructor threw, (c) NestJS DI did not instantiate PositionMonitorService. Check Railway startup logs for "🛡️ Position Monitor initialized".';
+          }
+          if (!monitorHeartbeat) {
+            return '❌ @Interval IS firing but cycle never completes. Likely: (a) prisma.enableRlsBypass() throws, (b) self-healing disabled position-monitor, (c) DB query for open positions fails. Check Railway logs for "🛡️ Position monitor cycle failed".';
+          }
+          if (globalMonitorTicks === 0 && allOpenPositions > 0) {
+            return '⚠️ Monitor runs and completes but 0 MONITOR_TICK — all positions fail before reaching the MONITOR_TICK log line. Likely: exchangeService.getQuote() fails for all symbols. Check ExchangeService logs.';
           }
           return 'No events at all — lifecycle logging is completely broken';
         })(),

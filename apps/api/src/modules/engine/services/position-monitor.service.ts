@@ -208,6 +208,19 @@ export class PositionMonitorService {
    */
   @Interval(1000)
   async runPositionMonitor(): Promise<void> {
+    // V351c: Heartbeat — write to Redis at the START of every cycle invocation,
+    // BEFORE any code that could throw. This lets us distinguish:
+    //   - @Interval NOT firing at all (no heartbeat)
+    //   - @Interval firing but cycle throws before completing (heartbeat exists, stale)
+    //   - @Interval firing and completing (heartbeat fresh, monitor:last_cycle also set)
+    try {
+      const now = Date.now();
+      await this.redis.set('monitor:heartbeat', JSON.stringify({
+        timestamp: new Date(now).toISOString(),
+        epochMs: now,
+      }), 30000); // 30s TTL — if @Interval stops, this key expires
+    } catch { /* non-critical */ }
+
     // FIX: Skip cycle when DB is unavailable to prevent connection pool exhaustion
     if (!this.prisma.isAvailable?.()) {
       return;

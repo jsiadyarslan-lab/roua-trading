@@ -167,6 +167,16 @@ export interface GeneratedContent {
   summaryAr: string;
   summaryEn: string;
   excerpt: string; // Short excerpt for cards/lists (bilingual)
+  // V9: Multilingual fields — French, Turkish, Spanish
+  titleFr?: string;
+  contentFr?: string;
+  summaryFr?: string;
+  titleTr?: string;
+  contentTr?: string;
+  summaryTr?: string;
+  titleEs?: string;
+  contentEs?: string;
+  summaryEs?: string;
   category: ContentCategory;
   categoryAr: string;
   tags: string[];

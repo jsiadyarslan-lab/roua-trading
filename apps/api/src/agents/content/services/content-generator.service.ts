@@ -115,6 +115,24 @@ export class ContentGeneratorService {
         aiConfig,
       );
 
+      // V9: Generate French, Turkish, Spanish content in PARALLEL.
+      // Uses Promise.allSettled so if one language fails, the others still succeed.
+      // The 8-model orchestrator handles fallback automatically.
+      // Each language gets its own _generateWithAI call with locale-specific prompt.
+      const [frenchResult, turkishResult, spanishResult] = await Promise.allSettled([
+        this._generateWithAI(systemPrompt, userPrompt, 'fr', aiConfig),
+        this._generateWithAI(systemPrompt, userPrompt, 'tr', aiConfig),
+        this._generateWithAI(systemPrompt, userPrompt, 'es', aiConfig),
+      ]);
+
+      const frenchContent = frenchResult.status === 'fulfilled' ? frenchResult.value : null;
+      const turkishContent = turkishResult.status === 'fulfilled' ? turkishResult.value : null;
+      const spanishContent = spanishResult.status === 'fulfilled' ? spanishResult.value : null;
+
+      if (frenchResult.status === 'rejected') this.logger.warn(`French generation failed: ${frenchResult.reason?.message?.slice(0, 80)}`);
+      if (turkishResult.status === 'rejected') this.logger.warn(`Turkish generation failed: ${turkishResult.reason?.message?.slice(0, 80)}`);
+      if (spanishResult.status === 'rejected') this.logger.warn(`Spanish generation failed: ${spanishResult.reason?.message?.slice(0, 80)}`);
+
       // Generate SEO metadata
       const seo = this._generateSeoMetadata(request, arabicContent, englishContent);
 
@@ -132,7 +150,7 @@ export class ContentGeneratorService {
       // Build risk warnings for financial content
       const riskWarnings = this._generateRiskWarnings(request);
 
-      // Build the result
+      // Build the result — includes all 5 languages
       const content: GeneratedContent = {
         titleAr: arabicContent.title,
         titleEn: englishContent.title,
@@ -141,6 +159,16 @@ export class ContentGeneratorService {
         summaryAr: arabicContent.summary,
         summaryEn: englishContent.summary,
         excerpt: this._generateExcerpt(arabicContent.summary, englishContent.summary),
+        // V9: Multilingual fields
+        titleFr: frenchContent?.title,
+        contentFr: frenchContent?.content,
+        summaryFr: frenchContent?.summary,
+        titleTr: turkishContent?.title,
+        contentTr: turkishContent?.content,
+        summaryTr: turkishContent?.summary,
+        titleEs: spanishContent?.title,
+        contentEs: spanishContent?.content,
+        summaryEs: spanishContent?.summary,
         category: request.category,
         categoryAr: this._getCategoryArabic(request.category),
         tags: this._extractTags(request, arabicContent, englishContent),
@@ -206,16 +234,21 @@ export class ContentGeneratorService {
   private async _generateWithAI(
     systemPrompt: string,
     userPrompt: string,
-    language: 'ar' | 'en',
+    language: 'ar' | 'en' | 'fr' | 'tr' | 'es',
     config: AiGenerationConfig,
   ): Promise<{ title: string; content: string; summary: string }> {
     // FIX V2: Improved prompt that enforces strict JSON output.
     // Old prompt was ambiguous — AI sometimes returned plain text or
     // markdown-wrapped JSON, causing the parser to fail and store
     // garbage like '{' as the title.
-    const langInstruction = language === 'ar'
-      ? 'اكتب المحتوى باللغة العربية بشكل احترافي ومفصل.'
-      : 'Write the content in English in a professional and detailed manner.';
+    const LANG_INSTRUCTIONS: Record<string, string> = {
+      ar: 'اكتب المحتوى باللغة العربية بشكل احترافي ومفصل.',
+      en: 'Write the content in English in a professional and detailed manner.',
+      fr: 'Rédigez le contenu en français de manière professionnelle et détaillée.',
+      tr: 'İçeriği profesyonel ve detaylı bir şekilde Türkçe olarak yazın.',
+      es: 'Escribe el contenido en español de manera profesional y detallada.',
+    };
+    const langInstruction = LANG_INSTRUCTIONS[language] || LANG_INSTRUCTIONS.en;
 
     const fullPrompt = `${systemPrompt}
 
@@ -290,7 +323,7 @@ Respond with the JSON object now:
   //   7. Strip JSON artifacts from content (leftover { } characters)
   private _parseAiResponse(
     rawContent: string,
-    language: 'ar' | 'en',
+    language: 'ar' | 'en' | 'fr' | 'tr' | 'es',
   ): { title: string; content: string; summary: string } {
     // Helper: unescape JSON string escapes
     const unescape = (s: string): string => s

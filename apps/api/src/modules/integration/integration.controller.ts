@@ -299,87 +299,48 @@ export class IntegrationController {
         symbol,
       });
 
-      // FIX V8: Locale-aware field selection.
-      // If locale='en', prefer English fields (titleEn, contentEn, summaryEn).
-      // If locale='ar' or not specified, prefer Arabic fields (default behavior).
-      // This fixes the issue where French/English/Spanish/Turkish pages
-      // showed Arabic content because titleAr was always preferred.
-      const preferEnglish = locale === 'en' || locale === 'fr' || locale === 'tr' || locale === 'es';
+      // FIX V9: Locale-aware field selection — now supports ALL 5 languages.
+      // Each language prefers its own field, falling back to English, then Arabic.
+      // ar → titleAr / contentAr / summaryAr
+      // en → titleEn / contentEn / summaryEn
+      // fr → titleFr / contentFr / summaryFr → fallback to En → fallback to Ar
+      // tr → titleTr / contentTr / summaryTr → fallback to En → fallback to Ar
+      // es → titleEs / contentEs / summaryEs → fallback to En → fallback to Ar
+      const LOCALE_FIELD_MAP: Record<string, { title: string; content: string; summary: string }> = {
+        ar: { title: 'titleAr', content: 'contentAr', summary: 'summaryAr' },
+        en: { title: 'titleEn', content: 'contentEn', summary: 'summaryEn' },
+        fr: { title: 'titleFr', content: 'contentFr', summary: 'summaryFr' },
+        tr: { title: 'titleTr', content: 'contentTr', summary: 'summaryTr' },
+        es: { title: 'titleEs', content: 'contentEs', summary: 'summaryEs' },
+      };
+      const fields = LOCALE_FIELD_MAP[locale || 'ar'] || LOCALE_FIELD_MAP.ar;
 
       // FIX V9: Clean JSON artifacts from legacy articles.
-      // Articles generated BEFORE the V7 parser fix may still have JSON
-      // syntax in their title/content fields (e.g., title='{ "title": "...", "content": "..." }').
-      // This inline parser cleans them at read-time so the news site gets
-      // clean text regardless of when the article was generated.
       const cleanField = (value: any): string => {
         if (!value || typeof value !== 'string') return '';
         let s = value.trim();
-
-        // If the field contains a JSON object with title/content, extract the relevant field
         if (s.startsWith('{') || s.includes('"title"') || s.includes('"content"')) {
-          // Try to extract the matching field from the JSON
           const tryExtract = (field: string): string | null => {
             const re = new RegExp(`"${field}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`, 's');
             const m = s.match(re);
-            if (m) {
-              return m[1]
-                .replace(/\\n/g, '\n')
-                .replace(/\\t/g, '\t')
-                .replace(/\\"/g, '"')
-                .replace(/\\\\/g, '\\')
-                .trim();
-            }
-            return null;
+            return m ? m[1].replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\"/g, '"').replace(/\\\\/g, '\\').trim() : null;
           };
-
-          // If this looks like a title field, extract title
-          // If this looks like a content field, extract content
-          // Heuristic: if the value starts with { "title":, it's a title-wrapped JSON
-          // If it starts with { "content": or contains "content":, it's content-wrapped
-          const titleExtracted = tryExtract('title');
-          const contentExtracted = tryExtract('content');
-          const summaryExtracted = tryExtract('summary');
-
-          // If we found content, use it (most informative)
-          if (contentExtracted && contentExtracted.length > 20) {
-            return contentExtracted;
-          }
-          // If we found title only (no content), the field itself is the title
-          if (titleExtracted && titleExtracted.length > 5) {
-            // If the original field was meant to be content but only has title,
-            // return the title (better than showing raw JSON)
-            return titleExtracted;
-          }
-          if (summaryExtracted && summaryExtracted.length > 20) {
-            return summaryExtracted;
-          }
-
-          // Last resort: strip JSON artifacts
-          s = s.replace(/^\s*\{+\s*/, '')
-               .replace(/\s*\}+\s*$/, '')
-               .replace(/^\s*"(?:title|content|summary)"\s*:\s*"?\s*/i, '')
-               .replace(/"?\s*,?\s*$/, '')
-               .trim();
+          const content = tryExtract('content');
+          const title = tryExtract('title');
+          if (content && content.length > 20) return content;
+          if (title && title.length > 5) return title;
+          s = s.replace(/^\s*\{+\s*/, '').replace(/\s*\}+\s*$/, '').replace(/^\s*"(?:title|content|summary)"\s*:\s*"?\s*/i, '').replace(/"?\s*,?\s*$/, '').trim();
         }
-
-        // Strip markdown code fences if present
         s = s.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
-
         return s;
       };
 
       // Transform for the news site — only include relevant fields
       const articles = (feed?.articles || feed?.data?.articles || feed?.data || []).map((article: any) => {
-        // FIX V9: Apply cleanField to remove JSON artifacts from legacy articles
-        const rawTitle = preferEnglish
-          ? (article.titleEn || article.titleAr || article.title)
-          : (article.titleAr || article.titleEn || article.title);
-        const rawContent = preferEnglish
-          ? (article.contentEn || article.contentAr || article.content)
-          : (article.contentAr || article.contentEn || article.content);
-        const rawSummary = preferEnglish
-          ? (article.summaryEn || article.summaryAr || article.summary)
-          : (article.summaryAr || article.summaryEn || article.summary);
+        // FIX V9: Try locale-specific field first, then English, then Arabic.
+        const rawTitle = article[fields.title] || article.titleEn || article.titleAr || article.title || '';
+        const rawContent = article[fields.content] || article.contentEn || article.contentAr || article.content || '';
+        const rawSummary = article[fields.summary] || article.summaryEn || article.summaryAr || article.summary || '';
 
         return {
           id: article.id,

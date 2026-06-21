@@ -720,14 +720,17 @@ export class PositionMonitorService {
           // For Agent positions, skip the entire MAX_HOLDING block and continue
           // to the price/PnL update at the end
           // V228 FIX: Update highestPrice/lowestPrice using effectiveHigh/effectiveLow (not just currentPrice)
+          // V343 FIX: Use trackedHigh/trackedLow (number) instead of position.highestPrice (Decimal)
           priceUpdates.push(
             this.prisma.position.update({
               where: { id: position.id },
               data: {
                 currentPrice,
                 unrealizedPnl,
-                highestPrice: Math.max(position.highestPrice || currentPrice, effectiveHigh),
-                lowestPrice: Math.min(position.lowestPrice || currentPrice, effectiveLow),
+                highestPrice: Math.max(trackedHigh ?? currentPrice, effectiveHigh),
+                lowestPrice: trackedLow !== null
+                  ? Math.min(trackedLow, effectiveLow)
+                  : effectiveLow,
               },
             }),
           );
@@ -1203,8 +1206,11 @@ export class PositionMonitorService {
         data: {
           currentPrice,
           unrealizedPnl,
-          highestPrice: Math.max(position.highestPrice || currentPrice, effectiveHigh),
-          lowestPrice: Math.min(position.lowestPrice || currentPrice, effectiveLow),
+          // V343 FIX: Use trackedHigh/trackedLow (number) not position.highestPrice (Decimal)
+          highestPrice: Math.max(trackedHigh ?? currentPrice, effectiveHigh),
+          lowestPrice: trackedLow !== null
+            ? Math.min(trackedLow, effectiveLow)
+            : effectiveLow,
         },
       }),
     );
@@ -1557,9 +1563,9 @@ export class PositionMonitorService {
           positionId: position.id,
           symbol: position.symbol,
           closePrice: currentPrice,
-          entryPrice: position.entryPrice,
+          entryPrice: entryPrice, // V343: Use converted number, not Decimal
           side: position.side,
-          quantity: position.quantity,
+          quantity: quantity, // V343: Use converted number
         }),
       });
 
@@ -1659,14 +1665,19 @@ export class PositionMonitorService {
   }
 
   private _calculateTrailingStop(position: any, currentPrice: number): number | null {
+    // V343 FIX: Convert Prisma Decimal to number before Math.max/min
+    // Previously used position.highestPrice (Decimal) directly → could return NaN
+    const trackedHigh = position.highestPrice?.toNumber?.() ?? (position.highestPrice ? Number(position.highestPrice) : null);
+    const trackedLow = position.lowestPrice?.toNumber?.() ?? (position.lowestPrice ? Number(position.lowestPrice) : null);
+
     if (position.side === 'BUY') {
       // For long positions, trail below the highest price
-      const highestPrice = position.highestPrice || currentPrice;
+      const highestPrice = trackedHigh ?? currentPrice;
       const newHigh = Math.max(highestPrice, currentPrice);
       return newHigh * (1 - this.TRAILING_DISTANCE_PCT);
     } else if (position.side === 'SELL') {
       // For short positions, trail above the lowest price
-      const lowestPrice = position.lowestPrice || currentPrice;
+      const lowestPrice = trackedLow ?? currentPrice;
       const newLow = Math.min(lowestPrice, currentPrice);
       return newLow * (1 + this.TRAILING_DISTANCE_PCT);
     }

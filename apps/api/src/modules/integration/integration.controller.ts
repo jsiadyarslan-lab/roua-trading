@@ -306,40 +306,122 @@ export class IntegrationController {
       // showed Arabic content because titleAr was always preferred.
       const preferEnglish = locale === 'en' || locale === 'fr' || locale === 'tr' || locale === 'es';
 
-      // Transform for the news site — only include relevant fields
-      const articles = (feed?.articles || feed?.data?.articles || feed?.data || []).map((article: any) => ({
-        id: article.id,
-        title: preferEnglish
-          ? (article.titleEn || article.titleAr || article.title)
-          : (article.titleAr || article.titleEn || article.title),
-        content: preferEnglish
-          ? (article.contentEn || article.contentAr || article.content)
-          : (article.contentAr || article.contentEn || article.content),
-        category: article.category,
-        type: article.type || article.contentType,
-        symbols: (() => {
-          const raw = article.symbols || article.relatedSymbols || [];
-          if (Array.isArray(raw)) return raw;
-          if (typeof raw === 'string') {
-            if (raw.startsWith('[')) { try { const p = JSON.parse(raw); return Array.isArray(p) ? p : raw.split(',').filter(Boolean); } catch { return raw.split(',').filter(Boolean); } }
-            return raw.split(',').filter(Boolean);
+      // FIX V9: Clean JSON artifacts from legacy articles.
+      // Articles generated BEFORE the V7 parser fix may still have JSON
+      // syntax in their title/content fields (e.g., title='{ "title": "...", "content": "..." }').
+      // This inline parser cleans them at read-time so the news site gets
+      // clean text regardless of when the article was generated.
+      const cleanField = (value: any): string => {
+        if (!value || typeof value !== 'string') return '';
+        let s = value.trim();
+
+        // If the field contains a JSON object with title/content, extract the relevant field
+        if (s.startsWith('{') || s.includes('"title"') || s.includes('"content"')) {
+          // Try to extract the matching field from the JSON
+          const tryExtract = (field: string): string | null => {
+            const re = new RegExp(`"${field}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`, 's');
+            const m = s.match(re);
+            if (m) {
+              return m[1]
+                .replace(/\\n/g, '\n')
+                .replace(/\\t/g, '\t')
+                .replace(/\\"/g, '"')
+                .replace(/\\\\/g, '\\')
+                .trim();
+            }
+            return null;
+          };
+
+          // If this looks like a title field, extract title
+          // If this looks like a content field, extract content
+          // Heuristic: if the value starts with { "title":, it's a title-wrapped JSON
+          // If it starts with { "content": or contains "content":, it's content-wrapped
+          const titleExtracted = tryExtract('title');
+          const contentExtracted = tryExtract('content');
+          const summaryExtracted = tryExtract('summary');
+
+          // If we found content, use it (most informative)
+          if (contentExtracted && contentExtracted.length > 20) {
+            return contentExtracted;
           }
-          return [];
-        })(),
-        sentiment: article.sentiment || article.sentimentScore,
-        impactLevel: article.impactLevel,
-        qualityScore: article.qualityScore,
-        tags: article.tags ? (typeof article.tags === 'string' ? JSON.parse(article.tags) : article.tags) : [],
-        publishedAt: article.publishedAt || article.createdAt,
-        summary: preferEnglish
+          // If we found title only (no content), the field itself is the title
+          if (titleExtracted && titleExtracted.length > 5) {
+            // If the original field was meant to be content but only has title,
+            // return the title (better than showing raw JSON)
+            return titleExtracted;
+          }
+          if (summaryExtracted && summaryExtracted.length > 20) {
+            return summaryExtracted;
+          }
+
+          // Last resort: strip JSON artifacts
+          s = s.replace(/^\s*\{+\s*/, '')
+               .replace(/\s*\}+\s*$/, '')
+               .replace(/^\s*"(?:title|content|summary)"\s*:\s*"?\s*/i, '')
+               .replace(/"?\s*,?\s*$/, '')
+               .trim();
+        }
+
+        // Strip markdown code fences if present
+        s = s.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+
+        return s;
+      };
+
+      // Transform for the news site — only include relevant fields
+      const articles = (feed?.articles || feed?.data?.articles || feed?.data || []).map((article: any) => {
+        // FIX V9: Apply cleanField to remove JSON artifacts from legacy articles
+        const rawTitle = preferEnglish
+          ? (article.titleEn || article.titleAr || article.title)
+          : (article.titleAr || article.titleEn || article.title);
+        const rawContent = preferEnglish
+          ? (article.contentEn || article.contentAr || article.content)
+          : (article.contentAr || article.contentEn || article.content);
+        const rawSummary = preferEnglish
           ? (article.summaryEn || article.summaryAr || article.summary)
-          : (article.summaryAr || article.summaryEn || article.summary),
-      }));
+          : (article.summaryAr || article.summaryEn || article.summary);
+
+        return {
+          id: article.id,
+          title: cleanField(rawTitle),
+          content: cleanField(rawContent),
+          category: article.category,
+          type: article.type || article.contentType,
+          symbols: (() => {
+            const raw = article.symbols || article.relatedSymbols || [];
+            if (Array.isArray(raw)) return raw;
+            if (typeof raw === 'string') {
+              if (raw.startsWith('[')) { try { const p = JSON.parse(raw); return Array.isArray(p) ? p : raw.split(',').filter(Boolean); } catch { return raw.split(',').filter(Boolean); } }
+              return raw.split(',').filter(Boolean);
+            }
+            return [];
+          })(),
+          sentiment: article.sentiment || article.sentimentScore,
+          impactLevel: article.impactLevel,
+          qualityScore: article.qualityScore,
+          tags: article.tags ? (typeof article.tags === 'string' ? JSON.parse(article.tags) : article.tags) : [],
+          publishedAt: article.publishedAt || article.createdAt,
+          summary: cleanField(rawSummary),
+        };
+      });
+
+      // FIX V10: Deduplicate articles by title — if the same title appears
+      // multiple times (e.g., the agent generated the same topic twice),
+      // keep only the most recent one. This fixes the issue where the French
+      // homepage showed "Update - Forex Market: EUR/USD Analysis" twice.
+      const seenTitles = new Set<string>();
+      const dedupedArticles = articles.filter((a: any) => {
+        const titleKey = String(a.title || '').trim().toLowerCase();
+        if (!titleKey || titleKey.length < 5) return false; // skip empty/garbage titles
+        if (seenTitles.has(titleKey)) return false;
+        seenTitles.add(titleKey);
+        return true;
+      });
 
       return {
         success: true,
-        articles,
-        count: articles.length,
+        articles: dedupedArticles,
+        count: dedupedArticles.length,
         timestamp: new Date().toISOString(),
       };
     } catch (error: any) {

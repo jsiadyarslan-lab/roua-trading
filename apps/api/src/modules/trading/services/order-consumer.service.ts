@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy, Optional } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy, Optional, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { CredentialsService } from '../../portfolio/credentials/credentials.service';
@@ -56,7 +56,7 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
     private readonly auditService: AuditService,
     @Optional() private readonly notificationService?: NotificationService,
     // V339: Trade Lifecycle Logger — for OPEN event logging
-    @Optional() private readonly lifecycle?: TradeLifecycleLogger,
+      @Optional() @Inject(TradeLifecycleLogger) private readonly lifecycle?: TradeLifecycleLogger,
   ) {}
 
   async onModuleInit() {

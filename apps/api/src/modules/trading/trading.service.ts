@@ -70,7 +70,7 @@ export class TradingService {
     @Optional() @Inject(forwardRef(() => StrategicCouncilService))
     private readonly strategicCouncil?: StrategicCouncilService,
     // V339: Trade Lifecycle Logger — for OPEN event logging
-    @Optional() private readonly lifecycle?: TradeLifecycleLogger,
+      @Optional() @Inject(TradeLifecycleLogger) private readonly lifecycle?: TradeLifecycleLogger,
   ) {
     this.logger.log(
       '⚡ Trading Engine initialized — ready for execution',

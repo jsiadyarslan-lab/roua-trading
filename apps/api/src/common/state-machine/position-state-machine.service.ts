@@ -1,4 +1,4 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger, Optional, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TradeLifecycleLogger } from '../trade-lifecycle/trade-lifecycle.logger';
 
@@ -99,7 +99,7 @@ export class PositionStateMachine {
 
   constructor(
     private readonly prisma: PrismaService,
-    @Optional() private readonly lifecycle?: TradeLifecycleLogger,
+      @Optional() @Inject(TradeLifecycleLogger) private readonly lifecycle?: TradeLifecycleLogger,
   ) {
     this.logger.log('🔧 V341 Position State Machine initialized — single decision point active');
   }

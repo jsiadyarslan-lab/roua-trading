@@ -157,9 +157,9 @@ export class PositionMonitorService {
     // V271: Feature flags for safe rollback
     @Optional() private readonly featureFlags?: FeatureFlagService,
     // V339: Trade Lifecycle Logger — for audit trail of every close decision
-    @Optional() private readonly lifecycle?: TradeLifecycleLogger,
+      @Optional() @Inject(TradeLifecycleLogger) private readonly lifecycle?: TradeLifecycleLogger,
     // V341: Position State Machine — single decision point for close decisions
-    @Optional() private readonly stateMachine?: PositionStateMachine,
+      @Optional() @Inject(PositionStateMachine) private readonly stateMachine?: PositionStateMachine,
   ) {
     // V347: Verify critical dependencies are injected
     if (!this.lifecycle) {

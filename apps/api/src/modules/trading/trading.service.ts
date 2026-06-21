@@ -3003,7 +3003,10 @@ export class TradingService {
           const finalStopLoss = request.stopLoss ?? defaultLevels.stopLoss;
           const finalTakeProfit = request.takeProfit ?? defaultLevels.takeProfit;
 
-          await db.position.create({
+          // V342 FIX: Capture the created position ID directly from create()
+          // instead of searching with findFirst afterward (which was unreliable
+          // and could match a different position if multiple exist).
+          const createdPosition = await db.position.create({
             data: {
               userId,
               credentialId: request.credentialId,
@@ -3021,40 +3024,33 @@ export class TradingService {
               takeProfit: finalTakeProfit,
               source:  request.source || (exchangeName === 'paper-trading' ? 'auto_paper' : 'user_manual'),
               timeframe: request.timeframe || null, // V204: Persist timeframe for position-monitor MAX_HOLDING
-
             },
+            select: { id: true }, // V342: Return the ID directly
           });
 
           // V339: Log OPEN event — position was created via TradingService
           if (this.lifecycle) {
             try {
-              const newPosition = await this.prisma.position.findFirst({
-                where: { userId, symbol: request.symbol, status: 'OPEN', side },
-                orderBy: { openedAt: 'desc' },
-                select: { id: true },
+              await this.lifecycle.log({
+                positionId: createdPosition.id, // V342: Use the actual ID, not a search
+                userId,
+                eventType: 'OPEN',
+                module: 'trading.service',
+                reason: `Position opened: ${side} ${request.symbol} @ ${fillPrice}`,
+                price: fillPrice,
+                highestPrice: fillPrice,
+                lowestPrice: fillPrice,
+                metadata: {
+                  symbol: request.symbol,
+                  side,
+                  quantity: filledQty,
+                  entryPrice: fillPrice,
+                  stopLoss: finalStopLoss,
+                  takeProfit: finalTakeProfit,
+                  source: request.source,
+                  exchange: exchangeName,
+                },
               });
-              if (newPosition) {
-                await this.lifecycle.log({
-                  positionId: newPosition.id,
-                  userId,
-                  eventType: 'OPEN',
-                  module: 'trading.service',
-                  reason: `Position opened: ${side} ${request.symbol} @ ${fillPrice}`,
-                  price: fillPrice,
-                  highestPrice: fillPrice,
-                  lowestPrice: fillPrice,
-                  metadata: {
-                    symbol: request.symbol,
-                    side,
-                    quantity: filledQty,
-                    entryPrice: fillPrice,
-                    stopLoss: finalStopLoss,
-                    takeProfit: finalTakeProfit,
-                    source: request.source,
-                    exchange: exchangeName,
-                  },
-                });
-              }
             } catch (logErr: any) {
               this.logger.warn(`V339: Failed to log OPEN event: ${logErr.message}`);
             }

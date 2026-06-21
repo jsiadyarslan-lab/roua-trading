@@ -53,22 +53,24 @@ export class PositionMonitorService {
 
   /** Interval in milliseconds — V139: reduced from 30s to 10s for faster SL/TP response */
   /**
-   * V340: Monitoring interval — reduced from 10s to 1s for tick-level price tracking.
+   * V340: Monitoring interval — 1 second for SL/TP detection (critical).
+   * MONITOR_TICK logging is sampled to every 5s to reduce DB load.
    *
-   * WHY: The V336 data analysis revealed that 84% of closed positions had
-   * inaccurate highestPrice/lowestPrice tracking. The 10s interval was too
-   * coarse — prices could move 0.5-2% between ticks and the monitor would
-   * miss the actual peak/trough. With 1s intervals:
-   *   - Price tracking is 10x more accurate
-   *   - SL/TP hits are detected within 1s (vs 10s before)
-   *   - V338 Trailing TP triggers more precisely at 90% of TP
-   *   - V339 MONITOR_TICK logs capture real price movement
+   * WHY 1s interval but 5s logging:
+   *   - SL/TP MUST be checked every 1s — missing a tick means slippage
+   *   - But logging every 1s creates 3600 logs/hour/position = too much DB load
+   *   - 5s sampling = 720 logs/hour/position — manageable
+   *   - Price/PnL updates still happen every 1s (via priceUpdates batch)
+   *   - Only the lifecycle LOG is sampled
    *
-   * PERFORMANCE: Each tick only queries open positions (usually 1-5).
-   * With 1s intervals, that's 60 queries/min vs 6/min before — well within
-   * Prisma's connection pool capacity (default: 10 connections).
+   * PERFORMANCE:
+   *   - 5 positions × 1 update/sec = 5 updates/sec (batched in 1 transaction)
+   *   - 5 positions × 1 log/5s = 1 log/sec (acceptable)
+   *   - Total: ~6 DB ops/sec (well within Prisma pool capacity)
    */
-  private readonly MONITOR_INTERVAL_MS = 1000; // V340: 1 second (was 10s)
+  private readonly MONITOR_INTERVAL_MS = 1000; // V340: 1 second for SL/TP
+  private readonly MONITOR_TICK_LOG_INTERVAL_MS = 5000; // V342: Log every 5s
+  private lastTickLogTime: Map<string, number> = new Map(); // positionId → last log timestamp
 
   /** Trailing stop activation threshold (% profit) */
   private readonly TRAILING_ACTIVATION_PCT = 0.02; // 2%
@@ -501,59 +503,57 @@ export class PositionMonitorService {
 
     const pnlPercent = (unrealizedPnl / (entryPrice * quantity)) * 100;
 
-    // V339+V340: Log MONITOR_TICK for every tick (1s interval)
-    // This creates a complete price movement history for each position.
-    // Useful for:
-    //   - Replay debugging (see exactly what price was at each second)
-    //   - Verifying highestPrice/lowestPrice tracking is accurate
-    //   - Detecting when SL/TP was actually touched
-    //   - Analyzing V338 Trailing TP trigger timing
-    //
-    // NOTE: This runs every 1s per open position. With 1-5 open positions,
-    // that's 1-5 log entries per second — manageable for the DB.
+    // V339+V340: Log MONITOR_TICK — sampled to every 5s to reduce DB load.
+    // SL/TP checks still run every 1s, but we only LOG every 5s.
+    // V342: Moved AFTER SL/TP check — don't log tick if position is being closed.
     if (this.lifecycle) {
-      // Calculate TP progress for V338 Trailing TP visibility
-      let tpProgress: number | null = null;
-      if (takeProfitNum !== null && entryPrice > 0) {
-        const tpDistance = position.side === 'BUY'
-          ? (takeProfitNum - entryPrice)
-          : (entryPrice - takeProfitNum);
-        if (tpDistance > 0) {
-          const profitDistance = position.side === 'BUY'
-            ? (currentPrice - entryPrice)
-            : (entryPrice - currentPrice);
-          tpProgress = profitDistance / tpDistance;
-        }
-      }
+      const now = Date.now();
+      const lastLog = this.lastTickLogTime.get(position.id) || 0;
+      if (now - lastLog >= this.MONITOR_TICK_LOG_INTERVAL_MS) {
+        this.lastTickLogTime.set(position.id, now);
 
-      await this.lifecycle.log({
-        positionId: position.id,
-        userId: position.userId,
-        eventType: 'MONITOR_TICK',
-        module: 'position-monitor',
-        reason: `Tick: price=${currentPrice.toFixed(6)} PnL=${pnlPercent.toFixed(2)}% tpProgress=${tpProgress !== null ? (tpProgress * 100).toFixed(1) + '%' : 'N/A'}`,
-        price: currentPrice,
-        highestPrice: effectiveHigh,
-        lowestPrice: effectiveLow,
-        metadata: {
-          currentPrice,
-          effectiveHigh,
-          effectiveLow,
-          unrealizedPnl,
-          pnlPercent,
-          tpProgress,
-          stopLoss: stopLossNum,
-          takeProfit: takeProfitNum,
-          entryPrice,
-          side: position.side,
-          source: position.source,
-          // V340: Include quote high/low for tick-level accuracy audit
-          quoteHigh: quoteHigh,
-          quoteLow: quoteLow,
-          trackedHigh,
-          trackedLow,
-        },
-      });
+        // Calculate TP progress for V338 Trailing TP visibility
+        let tpProgress: number | null = null;
+        if (takeProfitNum !== null && entryPrice > 0) {
+          const tpDistance = position.side === 'BUY'
+            ? (takeProfitNum - entryPrice)
+            : (entryPrice - takeProfitNum);
+          if (tpDistance > 0) {
+            const profitDistance = position.side === 'BUY'
+              ? (currentPrice - entryPrice)
+              : (entryPrice - currentPrice);
+            tpProgress = profitDistance / tpDistance;
+          }
+        }
+
+        await this.lifecycle.log({
+          positionId: position.id,
+          userId: position.userId,
+          eventType: 'MONITOR_TICK',
+          module: 'position-monitor',
+          reason: `Tick: price=${currentPrice.toFixed(6)} PnL=${pnlPercent.toFixed(2)}% tpProgress=${tpProgress !== null ? (tpProgress * 100).toFixed(1) + '%' : 'N/A'}`,
+          price: currentPrice,
+          highestPrice: effectiveHigh,
+          lowestPrice: effectiveLow,
+          metadata: {
+            currentPrice,
+            effectiveHigh,
+            effectiveLow,
+            unrealizedPnl,
+            pnlPercent,
+            tpProgress,
+            stopLoss: stopLossNum,
+            takeProfit: takeProfitNum,
+            entryPrice,
+            side: position.side,
+            source: position.source,
+            quoteHigh,
+            quoteLow,
+            trackedHigh,
+            trackedLow,
+          },
+        });
+      }
     }
 
     // ── V187 FIX: Agent SL/TP + MAX_HOLDING check ──
@@ -613,15 +613,19 @@ export class PositionMonitorService {
       //   - For BUY positions, lowestPrice stayed = entryPrice forever (never updated)
       // This caused the diagnostic tpWasReached/slWasReached to be FALSE even when
       // the market actually touched TP/SL. Now we update BOTH for ALL positions.
+      //
+      // V342 FIX: Use trackedHigh/trackedLow (already converted to number) instead of
+      // position.highestPrice/lowestPrice (Prisma Decimal objects). Math.max/min with
+      // Decimal objects can return NaN or incorrect values.
       priceUpdates.push(
         this.prisma.position.update({
           where: { id: position.id },
           data: {
             currentPrice,
             unrealizedPnl,
-            highestPrice: Math.max(position.highestPrice || currentPrice, effectiveHigh),
-            lowestPrice: position.lowestPrice
-              ? Math.min(position.lowestPrice, effectiveLow)
+            highestPrice: Math.max(trackedHigh ?? currentPrice, effectiveHigh),
+            lowestPrice: trackedLow !== null
+              ? Math.min(trackedLow, effectiveLow)
               : effectiveLow,
           },
         }),
@@ -994,6 +998,26 @@ export class PositionMonitorService {
           `🛡️ V177 Break-even: ${position.symbol} SL moved to entry (${breakEvenSL.toFixed(4)}) — profit protected`,
         );
         result.trailingUpdated = true;
+
+        // V342: Log SL_UPDATE for break-even — was missing from lifecycle audit
+        if (this.lifecycle) {
+          await this.lifecycle.log({
+            positionId: position.id,
+            userId: position.userId,
+            eventType: 'SL_UPDATE',
+            module: 'position-monitor',
+            reason: `V177 Break-even: SL → ${breakEvenSL.toFixed(6)} (PnL ${pnlPercent.toFixed(2)}% ≥ 1%)`,
+            price: currentPrice,
+            highestPrice: effectiveHigh,
+            lowestPrice: effectiveLow,
+            metadata: {
+              oldSL: stopLossNum,
+              newSL: breakEvenSL,
+              trigger: 'BREAK_EVEN',
+              pnlPercent,
+            },
+          });
+        }
       }
     }
 
@@ -1106,6 +1130,26 @@ export class PositionMonitorService {
           this.logger.log(
             `📈 Trailing stop updated: ${position.symbol} SL → ${trailingStop}`,
           );
+
+          // V342: Log SL_UPDATE for trailing stop — was missing from lifecycle audit
+          if (this.lifecycle) {
+            await this.lifecycle.log({
+              positionId: position.id,
+              userId: position.userId,
+              eventType: 'SL_UPDATE',
+              module: 'position-monitor',
+              reason: `Trailing stop: SL → ${trailingStop} (PnL ${pnlPercent.toFixed(2)}%)`,
+              price: currentPrice,
+              highestPrice: effectiveHigh,
+              lowestPrice: effectiveLow,
+              metadata: {
+                oldSL: stopLossNum,
+                newSL: trailingStop,
+                trigger: 'TRAILING_STOP',
+                pnlPercent,
+              },
+            });
+          }
 
           result.trailingUpdated = true;
         }

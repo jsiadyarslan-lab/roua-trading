@@ -121,8 +121,29 @@ export class PositionStateMachine {
     }
   }
 
+  /**
+   * V342 DEPRECATED: Direct state transitions are dangerous.
+   *
+   * This method updates DB status directly, which can break closePositionWithRetry()
+   * (it checks status === 'OPEN' and skips if not).
+   *
+   * Use requestClose() / confirmClose() / revertClose() instead — they validate
+   * and log WITHOUT changing DB status (closePositionWithRetry handles that).
+   *
+   * This method is kept only for DISPUTED → CLOSED resolution (manual reconciliation).
+   */
   async transition(request: StateTransitionRequest): Promise<boolean> {
     const { positionId, userId, toState, reason, initiator, price, highestPrice, lowestPrice, metadata } = request;
+
+    // V342: Only allow DISPUTED → CLOSED (manual reconciliation)
+    // All other transitions should go through requestClose/confirmClose/revertClose
+    if (toState !== 'CLOSED') {
+      this.logger.warn(
+        `⚠️ V342: transition() to ${toState} is deprecated — use requestClose/confirmClose/revertClose instead. ` +
+        `Only DISPUTED → CLOSED is allowed via transition(). Position: ${positionId.slice(0, 12)}...`
+      );
+      return false;
+    }
 
     try {
       const currentState = await this.getState(positionId);

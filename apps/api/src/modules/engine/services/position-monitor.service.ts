@@ -345,6 +345,20 @@ export class PositionMonitorService {
         }),
         300000, // 5 min TTL
       );
+
+      // V345: Clean up lastTickLogTime for positions that are no longer open.
+      // Positions closed by OTHER paths (Agent, SmartExecutor, ExchangeSync, User)
+      // don't go through _closePosition, so their entries persist forever.
+      // Clean up entries for position IDs that are NOT in the current open list.
+      if (this.lastTickLogTime.size > positions.length + 10) {
+        // Only clean up if Map is significantly larger than current positions
+        const openIds = new Set(positions.map((p: any) => p.id));
+        for (const id of this.lastTickLogTime.keys()) {
+          if (!openIds.has(id)) {
+            this.lastTickLogTime.delete(id);
+          }
+        }
+      }
     } catch (error: any) {
       this.logger.error(`🛡️ Position monitor cycle failed: ${error.message}`);
       // V185: الشفاء الذاتي — تسجيل الفشل

@@ -287,8 +287,11 @@ export class ExchangeSyncService implements OnModuleInit, OnModuleDestroy {
           data: {
             currentPrice: markPrice,
             unrealizedPnl,
-            highestPrice: Math.max(Number(position.highestPrice) || markPrice, markPrice),
-            lowestPrice: Math.min(Number(position.lowestPrice) || markPrice, markPrice),
+            // V345 FIX: Use ?? instead of || — || treats 0 as falsy.
+            // If highestPrice is somehow 0, || would fall back to markPrice,
+            // losing the tracked value. ?? only falls back on null/undefined.
+            highestPrice: Math.max(Number(position.highestPrice) ?? markPrice, markPrice),
+            lowestPrice: Math.min(Number(position.lowestPrice) ?? markPrice, markPrice),
           },
         }).catch(() => {}); // Non-critical
       }

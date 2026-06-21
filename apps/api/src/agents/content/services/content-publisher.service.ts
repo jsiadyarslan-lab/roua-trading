@@ -94,16 +94,20 @@ export class ContentPublisherService {
           summaryAr: content.summaryAr,
           summaryEn: content.summaryEn,
           excerpt: content.excerpt,
-          // V9: Multilingual fields — French, Turkish, Spanish
-          titleFr: content.titleFr || null,
-          contentFr: content.contentFr || null,
-          summaryFr: content.summaryFr || null,
-          titleTr: content.titleTr || null,
-          contentTr: content.contentTr || null,
-          summaryTr: content.summaryTr || null,
-          titleEs: content.titleEs || null,
-          contentEs: content.contentEs || null,
-          summaryEs: content.summaryEs || null,
+          // V9: Multilingual fields — REMOVED until migration is applied.
+          // The Prisma schema has these fields (schema.prisma) but the DB
+          // columns don't exist yet. Including them in INSERT causes:
+          // "The column titleFr does not exist" error.
+          // Once migration is applied, uncomment these lines:
+          // titleFr: content.titleFr || null,
+          // contentFr: content.contentFr || null,
+          // summaryFr: content.summaryFr || null,
+          // titleTr: content.titleTr || null,
+          // contentTr: content.contentTr || null,
+          // summaryTr: content.summaryTr || null,
+          // titleEs: content.titleEs || null,
+          // contentEs: content.contentEs || null,
+          // summaryEs: content.summaryEs || null,
           category: content.category,
           categoryAr: content.categoryAr,
           tags: JSON.stringify(content.tags),

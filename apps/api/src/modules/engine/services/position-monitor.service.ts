@@ -192,7 +192,7 @@ export class PositionMonitorService {
    * V348: Get effective state machine — tries DI first, falls back to static instance.
    */
   private getStateMachine(): PositionStateMachine | null {
-    if (this.getStateMachine()) return this.stateMachine;
+    if (this.stateMachine) return this.stateMachine ?? null;
     return PositionStateMachine.getInstance();
   }
 

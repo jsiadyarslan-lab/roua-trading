@@ -112,7 +112,7 @@ export class PositionStateMachine {
 
   // V348: Get lifecycle via static fallback
   private getLifecycle(): TradeLifecycleLogger | null {
-    if (this.getLifecycle()) return this.lifecycle;
+    if (this.lifecycle) return this.lifecycle ?? null;
     return TradeLifecycleLogger.getInstance();
   }
 

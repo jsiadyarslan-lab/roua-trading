@@ -96,14 +96,24 @@ export interface StateEvaluationResult {
 @Injectable()
 export class PositionStateMachine {
   private readonly logger = new Logger(PositionStateMachine.name);
+  
+  // V348: Static reference — bypasses DI entirely
+  private static instance: PositionStateMachine | null = null;
+  static getInstance(): PositionStateMachine | null { return PositionStateMachine.instance; }
 
   constructor(
     private readonly prisma: PrismaService,
       @Optional() @Inject(TradeLifecycleLogger) private readonly lifecycle?: TradeLifecycleLogger,
   ) {
-    console.log('🔧 V347: PositionStateMachine CONSTRUCTOR CALLED — lifecycle injected:', !!this.lifecycle);
-    this.logger.log('🔧 V341 Position State Machine initialized — single decision point active'
-      + (this.lifecycle ? ' + LifecycleLogger' : ' + ❌NO LifecycleLogger'));
+    PositionStateMachine.instance = this;
+    console.log('🔧 V348: PositionStateMachine CONSTRUCTOR CALLED — lifecycle:', !!this.lifecycle);
+    this.logger.log('🔧 V341 Position State Machine initialized');
+  }
+
+  // V348: Get lifecycle via static fallback
+  private getLifecycle(): TradeLifecycleLogger | null {
+    if (this.getLifecycle()) return this.lifecycle;
+    return TradeLifecycleLogger.getInstance();
   }
 
   isValidTransition(from: PositionState, to: PositionState): boolean {
@@ -159,8 +169,8 @@ export class PositionStateMachine {
           `🚨 V341 INVALID TRANSITION: ${positionId.slice(0,12)}... ${currentState}→${toState} ` +
           `(reason: ${reason}, initiator: ${initiator}) — BLOCKED`
         );
-        if (this.lifecycle) {
-          await this.lifecycle.log({
+        if (this.getLifecycle()) {
+          await this.getLifecycle()?.log({
             positionId, userId,
             eventType: 'CLOSE_BLOCKED',
             closingSource: initiator as any,
@@ -173,11 +183,11 @@ export class PositionStateMachine {
         return false;
       }
 
-      if (this.lifecycle) {
+      if (this.getLifecycle()) {
         const eventType = toState === 'CLOSED' || toState === 'LIQUIDATED' || toState === 'DISPUTED'
           ? 'CLOSE_EXECUTED' : toState === 'PENDING_CLOSE' ? 'CLOSE_REQUEST' : 'SL_UPDATE';
 
-        await this.lifecycle.log({
+        await this.getLifecycle()?.log({
           positionId, userId,
           eventType: eventType as any,
           closingSource: initiator as any,
@@ -271,8 +281,8 @@ export class PositionStateMachine {
         );
 
         // Log the blocked attempt
-        if (this.lifecycle) {
-          await this.lifecycle.log({
+        if (this.getLifecycle()) {
+          await this.getLifecycle()?.log({
             positionId, userId,
             eventType: 'CLOSE_BLOCKED',
             closingSource: initiator as any,
@@ -286,8 +296,8 @@ export class PositionStateMachine {
       }
 
       // 3. Log CLOSE_REQUEST (but do NOT update DB status)
-      if (this.lifecycle) {
-        await this.lifecycle.log({
+      if (this.getLifecycle()) {
+        await this.getLifecycle()?.log({
           positionId, userId,
           eventType: 'CLOSE_REQUEST',
           closingSource: initiator as any,
@@ -318,8 +328,8 @@ export class PositionStateMachine {
    */
   async confirmClose(positionId: string, userId: string, closePrice: number, reason: TransitionReason, initiator: CloseInitiator): Promise<boolean> {
     try {
-      if (this.lifecycle) {
-        await this.lifecycle.log({
+      if (this.getLifecycle()) {
+        await this.getLifecycle()?.log({
           positionId, userId,
           eventType: 'CLOSE_EXECUTED',
           closingSource: initiator as any,
@@ -346,8 +356,8 @@ export class PositionStateMachine {
    */
   async revertClose(positionId: string, userId: string, reason: string): Promise<boolean> {
     try {
-      if (this.lifecycle) {
-        await this.lifecycle.log({
+      if (this.getLifecycle()) {
+        await this.getLifecycle()?.log({
           positionId, userId,
           eventType: 'CLOSE_BLOCKED',
           closingSource: 'POSITION_MONITOR' as any,

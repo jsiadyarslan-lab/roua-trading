@@ -189,6 +189,14 @@ export class PositionMonitorService {
   }
 
   /**
+   * V348: Get effective state machine — tries DI first, falls back to static instance.
+   */
+  private getStateMachine(): PositionStateMachine | null {
+    if (this.getStateMachine()) return this.stateMachine;
+    return PositionStateMachine.getInstance();
+  }
+
+  /**
    * Main monitoring cycle — runs every 1 second (V340: was 10s)
    *
    * Checks all open positions for SL/TP hits and updates prices.
@@ -1599,8 +1607,8 @@ export class PositionMonitorService {
     const holdingMs = position.openedAt ? Date.now() - new Date(position.openedAt).getTime() : 0;
 
     // V341: Request close via State Machine — validates transition + logs
-    if (this.stateMachine) {
-      const allowed = await this.stateMachine.requestClose({
+    if (this.getStateMachine()) {
+      const allowed = await this.getStateMachine()?.requestClose({
         positionId: position.id,
         userId: position.userId,
         toState: 'PENDING_CLOSE',
@@ -1719,8 +1727,8 @@ export class PositionMonitorService {
       }
 
       // V341: Confirm close via State Machine — PENDING_CLOSE → CLOSED
-      if (this.stateMachine) {
-        await this.stateMachine.confirmClose(
+      if (this.getStateMachine()) {
+        await this.getStateMachine()?.confirmClose(
           position.id,
           position.userId,
           currentPrice,
@@ -1808,8 +1816,8 @@ export class PositionMonitorService {
       );
 
       // V341: Revert state machine — PENDING_CLOSE → OPEN (close failed, position stays active)
-      if (this.stateMachine) {
-        await this.stateMachine.revertClose(position.id, position.userId, error.message);
+      if (this.getStateMachine()) {
+        await this.getStateMachine()?.revertClose(position.id, position.userId, error.message);
       }
 
       // FIX V114: If closePositionWithRetry failed, try force-close as fallback.

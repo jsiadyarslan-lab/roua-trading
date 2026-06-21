@@ -1064,6 +1064,53 @@ export class TradingController {
     }
   }
 
+  /**
+   * V339 Phase 5: Price Integrity Check
+   * GET /api/trading/diagnose/price-integrity?limit=100&days=30
+   *
+   * Verifies highestPrice/lowestPrice consistency for closed positions.
+   * Returns violations where data is inconsistent.
+   */
+  @Get('diagnose/price-integrity')
+  async diagnosePriceIntegrity(@Req() req: any, @Query('limit') limit?: string, @Query('days') days?: string) {
+    try {
+      const userId = req.user.id;
+      const parsedLimit = limit ? parseInt(limit, 10) : 100;
+      const parsedDays = days ? parseInt(days, 10) : 30;
+      this.logger.log(`🔬 V339: Price integrity check for user ${userId} (limit=${parsedLimit}, days=${parsedDays})`);
+      const result = await this.tradingService.diagnosePriceIntegrity(userId, parsedLimit, parsedDays);
+      return { success: true, diagnostic: result };
+    } catch (error: any) {
+      this.logger.error(`V339 price integrity check failed: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+
+  /**
+   * V339 Phase 6: Replay Debug — get full lifecycle log for a position
+   * GET /api/trading/diagnose/lifecycle/:positionId
+   *
+   * Returns the complete event timeline for a position (OPEN → MONITOR_TICK → SL_UPDATE → CLOSE).
+   * Use this to replay a trade decision-by-decision.
+   */
+  @Get('diagnose/lifecycle/:positionId')
+  async getPositionLifecycle(@Req() req: any, @Param('positionId') positionId: string) {
+    try {
+      const userId = req.user.id;
+      this.logger.log(`🔬 V339: Lifecycle replay for position ${positionId}`);
+      // Use the lifecycle logger to get the timeline
+      // We need to inject it — but to keep this simple, query directly
+      const logs = await (this as any).tradingService.prisma.tradeLifecycleLog.findMany({
+        where: { positionId, userId },
+        orderBy: { createdAt: 'asc' },
+      });
+      return { success: true, positionId, userId, events: logs };
+    } catch (error: any) {
+      this.logger.error(`V339 lifecycle query failed: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+
   // ── Risk Management ──
 
   /**

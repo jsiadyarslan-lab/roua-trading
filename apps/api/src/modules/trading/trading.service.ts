@@ -3839,4 +3839,138 @@ export class TradingService {
       trades,
     };
   }
+
+  /**
+   * V339 Phase 5: Price Integrity Check — verify highestPrice/lowestPrice consistency.
+   *
+   * For each closed position, asserts:
+   *   - BUY: highestPrice >= entryPrice (price went up at some point)
+   *   - SELL: lowestPrice <= entryPrice (price went down at some point)
+   *   - highestPrice >= lowestPrice (always true)
+   *   - If closeReason=STOP_LOSS: market actually breached SL (low <= SL for BUY, high >= SL for SELL)
+   *   - If closeReason=TAKE_PROFIT: market actually reached TP (high >= TP for BUY, low <= TP for SELL)
+   *
+   * Returns violations — positions where the data is inconsistent.
+   * If violations exist, historical data is NOT valid for backtesting.
+   */
+  async diagnosePriceIntegrity(userId: string, limit: number = 100, days: number = 30): Promise<any> {
+    const where: any = {
+      userId,
+      status: { in: ['CLOSED', 'LIQUIDATED'] },
+    };
+    if (days > 0) {
+      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      where.OR = [
+        { closedAt: { gte: since } },
+        { closedAt: null, openedAt: { gte: since } },
+      ];
+    }
+
+    const positions = await this.prisma.position.findMany({
+      where,
+      select: {
+        id: true, symbol: true, side: true, source: true,
+        entryPrice: true, exitPrice: true, stopLoss: true, takeProfit: true,
+        highestPrice: true, lowestPrice: true, closeReason: true,
+        openedAt: true, closedAt: true,
+      },
+      orderBy: { closedAt: 'desc' },
+      take: limit,
+    });
+
+    const violations = [];
+    let checked = 0;
+
+    for (const p of positions) {
+      checked++;
+      const entry = Number(p.entryPrice);
+      const exit = p.exitPrice ? Number(p.exitPrice) : null;
+      const sl = p.stopLoss ? Number(p.stopLoss) : null;
+      const tp = p.takeProfit ? Number(p.takeProfit) : null;
+      const high = p.highestPrice ? Number(p.highestPrice) : null;
+      const low = p.lowestPrice ? Number(p.lowestPrice) : null;
+      const reason = p.closeReason || '';
+
+      const issues = [];
+
+      // Check 1: highestPrice >= lowestPrice (always true)
+      if (high !== null && low !== null && high < low) {
+        issues.push(`highestPrice (${high}) < lowestPrice (${low}) — IMPOSSIBLE`);
+      }
+
+      // Check 2: highestPrice >= entryPrice (BUY) or lowestPrice <= entryPrice (SELL)
+      if (p.side === 'BUY' && high !== null && high < entry) {
+        issues.push(`BUY but highestPrice (${high}) < entry (${entry}) — price never went up`);
+      }
+      if (p.side === 'SELL' && low !== null && low > entry) {
+        issues.push(`SELL but lowestPrice (${low}) > entry (${entry}) — price never went down`);
+      }
+
+      // Check 3: highestPrice == entryPrice (tracking bug — never updated)
+      if (high !== null && high === entry) {
+        issues.push(`highestPrice == entryPrice — tracking never updated (V338 bug)`);
+      }
+      if (low !== null && low === entry) {
+        issues.push(`lowestPrice == entryPrice — tracking never updated (V338 bug)`);
+      }
+
+      // Check 4: STOP_LOSS consistency
+      if (reason === 'STOP_LOSS') {
+        if (p.side === 'BUY' && sl !== null && low !== null && low > sl) {
+          issues.push(`STOP_LOSS close but lowestPrice (${low}) > SL (${sl}) — SL was NOT breached!`);
+        }
+        if (p.side === 'SELL' && sl !== null && high !== null && high < sl) {
+          issues.push(`STOP_LOSS close but highestPrice (${high}) < SL (${sl}) — SL was NOT breached!`);
+        }
+      }
+
+      // Check 5: TAKE_PROFIT consistency
+      if (reason === 'TAKE_PROFIT') {
+        if (p.side === 'BUY' && tp !== null && high !== null && high < tp) {
+          issues.push(`TAKE_PROFIT close but highestPrice (${high}) < TP (${tp}) — TP was NOT reached!`);
+        }
+        if (p.side === 'SELL' && tp !== null && low !== null && low > tp) {
+          issues.push(`TAKE_PROFIT close but lowestPrice (${low}) > TP (${tp}) — TP was NOT reached!`);
+        }
+      }
+
+      // Check 6: exitPrice beyond SL/TP (slippage)
+      if (exit !== null && sl !== null && reason === 'STOP_LOSS') {
+        if (p.side === 'BUY' && exit < sl) {
+          issues.push(`exitPrice (${exit}) < SL (${sl}) — negative slippage ${((sl - exit) / sl * 100).toFixed(3)}%`);
+        }
+        if (p.side === 'SELL' && exit > sl) {
+          issues.push(`exitPrice (${exit}) > SL (${sl}) — negative slippage ${((exit - sl) / sl * 100).toFixed(3)}%`);
+        }
+      }
+
+      if (issues.length > 0) {
+        violations.push({
+          positionId: p.id,
+          symbol: p.symbol,
+          side: p.side,
+          source: p.source,
+          closeReason: reason,
+          entryPrice: entry,
+          exitPrice: exit,
+          stopLoss: sl,
+          takeProfit: tp,
+          highestPrice: high,
+          lowestPrice: low,
+          openedAt: p.openedAt,
+          closedAt: p.closedAt,
+          issues,
+        });
+      }
+    }
+
+    return {
+      userId,
+      generatedAt: new Date().toISOString(),
+      checked,
+      violations: violations.length,
+      violationRate: checked > 0 ? (violations.length / checked * 100).toFixed(1) + '%' : '0%',
+      violations: violations.slice(0, 50), // limit output
+    };
+  }
 }

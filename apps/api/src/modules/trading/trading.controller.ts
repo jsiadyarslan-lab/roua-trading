@@ -1336,4 +1336,235 @@ export class TradingController {
       throw error;
     }
   }
+
+  /**
+   * V351 MASTER DIAGNOSTIC: Check everything at once.
+   * GET /api/trading/diagnose/master?positionId=cmq...
+   *
+   * This endpoint checks:
+   *   1. Deploy version (confirms V349/V350 is live)
+   *   2. TradeLifecycleLogger.getInstance() status (DI resolution check)
+   *   3. TradeLifecycleLog table existence (migration applied?)
+   *   4. Total lifecycle events for this user (any logging happening?)
+   *   5. Specific position details (does the position exist?)
+   *   6. Lifecycle events for the specific position
+   *
+   * Use this to get a complete picture in ONE request.
+   */
+  @Get('diagnose/master')
+  async diagnoseMaster(
+    @Req() req: any,
+    @Query('positionId') positionId?: string,
+  ) {
+    const userId = req.user.id;
+    const result: any = {
+      userId,
+      timestamp: new Date().toISOString(),
+      checks: {} as any,
+    };
+
+    // Check 1: Deploy version — confirms which code is running
+    result.checks.deployVersion = {
+      deployCommit: process.env.DEPLOY_COMMIT || 'unknown',
+      buildCache: process.env.BUILD_CACHE || 'unknown',
+      nodeEnv: process.env.NODE_ENV || 'unknown',
+      uptimeSeconds: Math.round(process.uptime()),
+    };
+
+    // Check 2: TradeLifecycleLogger static instance status
+    try {
+      // V348: Static instance pattern — if constructor ran, getInstance() returns the instance
+      const { TradeLifecycleLogger } = await import('../../common/trade-lifecycle/trade-lifecycle.logger');
+      const instance = TradeLifecycleLogger.getInstance();
+      result.checks.lifecycleLogger = {
+        staticInstanceExists: !!instance,
+        status: instance ? '✅ ACTIVE — constructor ran, DI resolved' : '❌ NULL — constructor never ran (DI failure)',
+        impact: instance
+          ? 'Lifecycle logging SHOULD work — events will be written to DB'
+          : 'Lifecycle logging WILL NOT work — all if(getLifecycle()) checks are skipped',
+      };
+    } catch (err: any) {
+      result.checks.lifecycleLogger = { status: `IMPORT_ERROR: ${err.message}` };
+    }
+
+    // Check 3: PositionStateMachine static instance status
+    try {
+      const { PositionStateMachine } = await import('../../common/state-machine/position-state-machine.service');
+      const instance = PositionStateMachine.getInstance();
+      result.checks.stateMachine = {
+        staticInstanceExists: !!instance,
+        status: instance ? '✅ ACTIVE' : '❌ NULL — DI failure',
+      };
+    } catch (err: any) {
+      result.checks.stateMachine = { status: `IMPORT_ERROR: ${err.message}` };
+    }
+
+    // Check 4: TradeLifecycleLog table existence + total events for user
+    try {
+      // Try a simple count query — if table doesn't exist, this throws
+      const totalEvents = await this.prisma.tradeLifecycleLog.count({
+        where: { userId },
+      });
+      result.checks.tradeLifecycleLogTable = {
+        exists: true,
+        totalEventsForUser: totalEvents,
+        status: totalEvents > 0 ? '✅ Events ARE being logged' : '⚠️ Table exists but 0 events — logging code not running or failing',
+      };
+
+      // Get recent events (any position) for context
+      if (totalEvents > 0) {
+        const recentEvents = await this.prisma.tradeLifecycleLog.findMany({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+          select: { positionId: true, eventType: true, module: true, createdAt: true, reason: true },
+        });
+        result.checks.recentLifecycleEvents = recentEvents.map(e => ({
+          positionId: e.positionId.slice(0, 12) + '...',
+          eventType: e.eventType,
+          module: e.module,
+          createdAt: e.createdAt,
+          reason: e.reason?.substring(0, 80),
+        }));
+      }
+    } catch (err: any) {
+      const errMsg = err.message || '';
+      const isTableMissing = errMsg.includes('does not exist') || errMsg.includes('relation') || err.code === 'P2021';
+      result.checks.tradeLifecycleLogTable = {
+        exists: false,
+        status: isTableMissing
+          ? '❌ TABLE MISSING — migration 20260621000000_add_trade_lifecycle_log was NOT applied to production DB'
+          : `❌ QUERY ERROR: ${errMsg.substring(0, 200)}`,
+        fix: isTableMissing
+          ? 'Run: prisma migrate deploy --schema=./prisma/schema.prisma (on Railway shell or restart to trigger start.sh migration)'
+          : 'Check Prisma client generation',
+      };
+    }
+
+    // Check 5: Position details (if positionId provided)
+    if (positionId) {
+      // Sanitize positionId — strip any trailing JS code (defensive against copy-paste errors)
+      const cleanPositionId = positionId.split("'")[0].split(')')[0].trim();
+
+      try {
+        const position = await this.prisma.position.findFirst({
+          where: { id: cleanPositionId, userId },
+          select: {
+            id: true,
+            symbol: true,
+            side: true,
+            status: true,
+            exchange: true,
+            source: true,
+            quantity: true,
+            entryPrice: true,
+            stopLoss: true,
+            takeProfit: true,
+            openedAt: true,
+            closedAt: true,
+            closeReason: true,
+            credentialId: true,
+          },
+        });
+
+        result.checks.position = position
+          ? {
+              exists: true,
+              id: position.id,
+              symbol: position.symbol,
+              side: position.side,
+              status: position.status,
+              exchange: position.exchange,
+              source: position.source,
+              quantity: position.quantity.toNumber(),
+              entryPrice: position.entryPrice.toNumber(),
+              stopLoss: position.stopLoss?.toNumber() ?? null,
+              takeProfit: position.takeProfit?.toNumber() ?? null,
+              openedAt: position.openedAt,
+              closedAt: position.closedAt,
+              closeReason: position.closeReason,
+              credentialId: position.credentialId.slice(0, 12) + '...',
+              isPaper: position.exchange === 'paper-trading',
+            }
+          : {
+              exists: false,
+              searchedId: cleanPositionId,
+              note: 'Position not found — check the positionId (make sure no JS code is appended)',
+            };
+
+        // Check 6: Lifecycle events for this specific position
+        if (position) {
+          try {
+            const events = await this.prisma.tradeLifecycleLog.findMany({
+              where: { positionId: cleanPositionId, userId },
+              orderBy: { createdAt: 'asc' },
+            });
+            result.checks.positionLifecycle = {
+              eventsCount: events.length,
+              events: events.map(e => ({
+                eventType: e.eventType,
+                module: e.module,
+                closingSource: e.closingSource,
+                reason: e.reason,
+                price: e.price?.toNumber() ?? null,
+                createdAt: e.createdAt,
+              })),
+              status: events.length > 0 ? '✅ Events found' : '⚠️ No events — OPEN event was not logged (DI failure or table missing)',
+            };
+          } catch (err: any) {
+            result.checks.positionLifecycle = { error: err.message?.substring(0, 200) };
+          }
+        }
+      } catch (err: any) {
+        result.checks.position = { error: err.message?.substring(0, 200) };
+      }
+    }
+
+    // Check 7: Recent positions (last 3) for context
+    try {
+      const recentPositions = await this.prisma.position.findMany({
+        where: { userId },
+        orderBy: { openedAt: 'desc' },
+        take: 3,
+        select: { id: true, symbol: true, side: true, status: true, source: true, exchange: true, openedAt: true, credentialId: true },
+      });
+      result.checks.recentPositions = recentPositions.map(p => ({
+        id: p.id,
+        symbol: p.symbol,
+        side: p.side,
+        status: p.status,
+        source: p.source,
+        exchange: p.exchange,
+        openedAt: p.openedAt,
+        credentialId: p.credentialId.slice(0, 12) + '...',
+        isPaper: p.exchange === 'paper-trading',
+      }));
+    } catch (err: any) {
+      result.checks.recentPositions = { error: err.message?.substring(0, 200) };
+    }
+
+    // Summary
+    result.summary = {
+      deployLive: result.checks.deployVersion?.deployCommit !== 'unknown',
+      lifecycleLoggerActive: result.checks.lifecycleLogger?.staticInstanceExists === true,
+      stateMachineActive: result.checks.stateMachine?.staticInstanceExists === true,
+      lifecycleTableExists: result.checks.tradeLifecycleLogTable?.exists === true,
+      anyEventsLogged: (result.checks.tradeLifecycleLogTable?.totalEventsForUser ?? 0) > 0,
+      positionFound: result.checks.position?.exists === true,
+      positionHasLifecycle: (result.checks.positionLifecycle?.eventsCount ?? 0) > 0,
+    };
+
+    result.diagnosis = (() => {
+      const s = result.summary;
+      if (!s.deployLive) return '⚠️ Deploy commit unknown — Railway build may have failed';
+      if (!s.lifecycleTableExists) return '❌ TradeLifecycleLog table missing — migration not applied. Run prisma migrate deploy.';
+      if (!s.lifecycleLoggerActive) return '❌ TradeLifecycleLogger static instance is NULL — constructor never ran. DI failure persists despite V347/V348.';
+      if (!s.anyEventsLogged) return '⚠️ Logger is active and table exists, but 0 events logged. OPEN event logging code path may have a bug.';
+      if (positionId && s.positionFound && !s.positionHasLifecycle) return '⚠️ Position exists but has 0 lifecycle events. This specific position may have been created before V339 was deployed.';
+      if (positionId && !s.positionFound) return '❌ Position not found — check the positionId (was it created on this user account?)';
+      return '✅ Everything looks healthy — lifecycle logging is working';
+    })();
+
+    return { success: true, diagnostic: result };
+  }
 }

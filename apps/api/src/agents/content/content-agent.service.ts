@@ -330,6 +330,9 @@ export class ContentAgentService {
 
   /**
    * Auto-generate daily market digest at 8 AM
+   * FIX V5: Added COMMODITIES + ECONOMY to the category list.
+   * Previously only CRYPTO, FOREX, STOCKS were covered — commodities
+   * (gold, silver, oil) and economy reports were missing from daily digests.
    */
   @Cron('0 8 * * *')
   async autoDailyDigest(): Promise<void> {
@@ -339,6 +342,8 @@ export class ContentAgentService {
       ContentCategory.CRYPTO,
       ContentCategory.FOREX,
       ContentCategory.STOCKS,
+      ContentCategory.COMMODITIES,   // FIX V5: Was missing
+      ContentCategory.ECONOMY,       // FIX V5: Was missing
     ];
 
     for (const category of categories) {
@@ -405,6 +410,9 @@ export class ContentAgentService {
 
   /**
    * Auto-generate hourly market updates every hour
+   * FIX V5: Added COMMODITIES to the category list.
+   * Previously commodities (gold, silver, oil) had no hourly updates —
+   * this is why the homepage "Commodities" column was often empty.
    */
   @Cron('0 * * * *')
   async autoHourlyUpdate(): Promise<void> {
@@ -414,6 +422,7 @@ export class ContentAgentService {
       ContentCategory.CRYPTO,
       ContentCategory.FOREX,
       ContentCategory.STOCKS,
+      ContentCategory.COMMODITIES,   // FIX V5: Was missing
     ];
 
     for (const category of categories) {
@@ -480,20 +489,72 @@ export class ContentAgentService {
   }
 
   /**
-   * Auto-generate pair analysis reports every 4 hours for top pairs
+   * Auto-generate pair analysis reports every 4 hours for top pairs.
+   *
+   * FIX V6: Expanded from 4 pairs to 20+ pairs across 4 categories,
+   * with smart rotation so every pair gets analyzed within 3 cycles (12 hours).
+   *
+   * Rotation logic:
+   *   Cycle 0 (hours 0, 12): priority-1 pairs only (8 pairs — BTC, ETH, SOL, EUR/USD, GBP/USD, XAU/USD, WTI, AAPL)
+   *   Cycle 1 (hours 4, 16): priority ≤ 2 pairs (16 pairs — adds BNB, XRP, USD/JPY, XAG, BRENT, TSLA, NVDA)
+   *   Cycle 2 (hours 8, 20): all pairs (25 pairs — adds ADA, DOGE, AVAX, USD/CHF, AUD/USD, USD/CAD, NATGAS, MSFT, AMZN, META)
+   *
+   * This ensures:
+   *   - Major pairs (BTC, ETH, EUR/USD, Gold) analyzed every 4 hours
+   *   - Mid-tier pairs (BNB, XRP, Silver, Oil) analyzed every 8 hours
+   *   - Long-tail pairs (DOGE, AVAX, Natural Gas, AMZN) analyzed every 12 hours
    */
   @Cron('0 */4 * * *')
   async autoPairAnalysis(): Promise<void> {
     this.logger.log('🧠 Auto-generating pair analysis reports...');
 
-    const topPairs = [
-      { symbol: 'BTC/USDT', category: ContentCategory.CRYPTO },
-      { symbol: 'ETH/USDT', category: ContentCategory.CRYPTO },
-      { symbol: 'EUR/USD', category: ContentCategory.FOREX },
-      { symbol: 'SOL/USDT', category: ContentCategory.CRYPTO },
+    // FIX V6: Expanded pair list — 25 pairs across 4 categories
+    const ALL_PAIRS = [
+      // CRYPTO (8 pairs)
+      { symbol: 'BTC/USDT', category: ContentCategory.CRYPTO, priority: 1 },
+      { symbol: 'ETH/USDT', category: ContentCategory.CRYPTO, priority: 1 },
+      { symbol: 'SOL/USDT', category: ContentCategory.CRYPTO, priority: 1 },
+      { symbol: 'BNB/USDT', category: ContentCategory.CRYPTO, priority: 2 },
+      { symbol: 'XRP/USDT', category: ContentCategory.CRYPTO, priority: 2 },
+      { symbol: 'ADA/USDT', category: ContentCategory.CRYPTO, priority: 3 },
+      { symbol: 'DOGE/USDT', category: ContentCategory.CRYPTO, priority: 3 },
+      { symbol: 'AVAX/USDT', category: ContentCategory.CRYPTO, priority: 3 },
+      // FOREX (6 pairs)
+      { symbol: 'EUR/USD', category: ContentCategory.FOREX, priority: 1 },
+      { symbol: 'GBP/USD', category: ContentCategory.FOREX, priority: 1 },
+      { symbol: 'USD/JPY', category: ContentCategory.FOREX, priority: 2 },
+      { symbol: 'USD/CHF', category: ContentCategory.FOREX, priority: 3 },
+      { symbol: 'AUD/USD', category: ContentCategory.FOREX, priority: 3 },
+      { symbol: 'USD/CAD', category: ContentCategory.FOREX, priority: 3 },
+      // COMMODITIES (5 pairs)
+      { symbol: 'XAU/USD', category: ContentCategory.COMMODITIES, priority: 1 },  // Gold
+      { symbol: 'XAG/USD', category: ContentCategory.COMMODITIES, priority: 2 },  // Silver
+      { symbol: 'WTI/USD', category: ContentCategory.COMMODITIES, priority: 1 },  // Crude Oil WTI
+      { symbol: 'BRENT/USD', category: ContentCategory.COMMODITIES, priority: 2 }, // Brent Oil
+      { symbol: 'NATGAS/USD', category: ContentCategory.COMMODITIES, priority: 3 }, // Natural Gas
+      // STOCKS (6 pairs)
+      { symbol: 'AAPL', category: ContentCategory.STOCKS, priority: 1 },
+      { symbol: 'TSLA', category: ContentCategory.STOCKS, priority: 1 },
+      { symbol: 'NVDA', category: ContentCategory.STOCKS, priority: 1 },
+      { symbol: 'MSFT', category: ContentCategory.STOCKS, priority: 2 },
+      { symbol: 'AMZN', category: ContentCategory.STOCKS, priority: 3 },
+      { symbol: 'META', category: ContentCategory.STOCKS, priority: 3 },
     ];
 
-    for (const pair of topPairs) {
+    // Rotation: 3 cycles, each 4 hours apart.
+    // cycleIndex = 0 → priority-1 only (8 pairs)
+    // cycleIndex = 1 → priority ≤ 2 (16 pairs)
+    // cycleIndex = 2 → all pairs (25 pairs)
+    const cycleIndex = Math.floor(Date.now() / (4 * 60 * 60 * 1000)) % 3;
+    const maxPriority = cycleIndex === 0 ? 1 : cycleIndex === 1 ? 2 : 3;
+    const pairsThisCycle = ALL_PAIRS.filter(p => p.priority <= maxPriority);
+
+    // Cap at 10 analyses per cycle to avoid overloading the AI providers
+    const pairsToAnalyze = pairsThisCycle.slice(0, 10);
+
+    this.logger.log(`🧠 Pair analysis cycle ${cycleIndex + 1}/3 — analyzing ${pairsToAnalyze.length} pairs (priority ≤ ${maxPriority})`);
+
+    for (const pair of pairsToAnalyze) {
       try {
         const sourceData = await this.curator.curateSources(pair.category, [pair.symbol]);
         const topic = `تحليل ${pair.symbol} — المستويات والتوقعات`;

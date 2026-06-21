@@ -50,6 +50,8 @@ export class ContentPublisherService {
 
   /**
    * Save generated content to the database
+   * FIX V6: Added deduplication check — skips if an article with the same
+   * title (Arabic or English) was published in the last 24 hours.
    */
   async saveContent(
     userId: string,
@@ -59,6 +61,27 @@ export class ContentPublisherService {
     this.logger.log(`📤 Saving content: "${content.titleAr}" [${status}]`);
 
     try {
+      // FIX V6: Deduplication — check if an article with the same title was
+      // published in the last 24 hours. This prevents the same pair analysis
+      // from being published multiple times if the cron job runs twice or
+      // if the AI generates very similar content.
+      if (status === ContentStatus.PUBLISHED) {
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const existing = await this.prisma.contentArticle.findFirst({
+          where: {
+            OR: [
+              { titleAr: content.titleAr, publishedAt: { gte: twentyFourHoursAgo } },
+              { titleEn: content.titleEn, publishedAt: { gte: twentyFourHoursAgo } },
+            ],
+          },
+          select: { id: true, titleAr: true, publishedAt: true },
+        });
+        if (existing) {
+          this.logger.warn(`📤 Duplicate content detected — skipping publish: "${content.titleAr}" (existing: ${existing.id} published at ${existing.publishedAt?.toISOString()})`);
+          return existing;
+        }
+      }
+
       const article = await this.prisma.contentArticle.create({
         data: {
           userId,

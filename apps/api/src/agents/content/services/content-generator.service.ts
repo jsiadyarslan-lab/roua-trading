@@ -5,7 +5,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../../../common/redis/redis.service';
-import { GlmService } from '../../../modules/ai/services/glm.service';
+// FIX V1: Use AiOrchestratorService instead of GlmService directly.
+// This gives us 8-model fallback chain (Gemini → Groq → Cerebras → Ollama →
+// GLM → Mistral → NVIDIA → Bedrock) instead of single-point-of-failure GLM.
+// If one provider is rate-limited or times out, the next one is tried automatically.
+import { AIOrchestratorService } from '../../../modules/ai/services/ai-orchestrator.service';
 import {
   ContentGenerationRequest,
   GeneratedContent,
@@ -73,9 +77,10 @@ export class ContentGeneratorService {
   constructor(
     private readonly configService: ConfigService,
     private readonly redis: RedisService,
-    private readonly glmService: GlmService,
+    // FIX V1: Inject orchestrator (8-model fallback) instead of GLM-only
+    private readonly orchestrator: AIOrchestratorService,
   ) {
-    this.logger.log('✍️ Content Generator initialized — AI writing engine ready (GlmService connected)');
+    this.logger.log('✍️ Content Generator initialized — AI writing engine ready (8-model orchestrator: Gemini→Groq→Cerebras→Ollama→GLM→Mistral→NVIDIA→Bedrock)');
   }
 
   /**
@@ -204,96 +209,217 @@ export class ContentGeneratorService {
     language: 'ar' | 'en',
     config: AiGenerationConfig,
   ): Promise<{ title: string; content: string; summary: string }> {
-    // Build the language-specific prompt
-    const langPrompt = language === 'ar'
+    // FIX V2: Improved prompt that enforces strict JSON output.
+    // Old prompt was ambiguous — AI sometimes returned plain text or
+    // markdown-wrapped JSON, causing the parser to fail and store
+    // garbage like '{' as the title.
+    const langInstruction = language === 'ar'
       ? 'اكتب المحتوى باللغة العربية بشكل احترافي ومفصل.'
       : 'Write the content in English in a professional and detailed manner.';
 
-    // Combine system context + user prompt + format instruction into a single prompt
-    const fullPrompt = `[السياق/الدور]: ${systemPrompt}\n\n${userPrompt}\n\n${langPrompt}\n\nRespond in the following JSON format only:\n{\n  "title": "...",\n  "content": "...",\n  "summary": "..."\n}`;
+    const fullPrompt = `${systemPrompt}
+
+${userPrompt}
+
+${langInstruction}
+
+CRITICAL OUTPUT FORMAT REQUIREMENTS:
+1. Respond ONLY with a valid JSON object — no markdown code fences, no text before or after the JSON.
+2. The JSON must have exactly 3 string keys: "title", "content", "summary".
+3. "title": 15-70 characters, plain text, no markdown, no quotes, no JSON syntax.
+4. "content": ${config.wordCountRange.min}-${config.wordCountRange.max} words, use markdown for formatting (### for section headings, **bold** for emphasis, - for bullet lists).
+5. "summary": 100-200 characters, plain text excerpt of the content.
+6. Do NOT start "title" or "content" with "{" or any JSON syntax character.
+7. All numeric values (prices, percentages) must use Western Arabic numerals (0-9), not Eastern Arabic (٠١٢٣).
+8. Do NOT wrap the JSON in markdown code fences (no \`\`\`json ... \`\`\`).
+
+Respond with the JSON object now:
+{"title": "...", "content": "...", "summary": "..."}`;
 
     try {
-      // Call GlmService (Zhipu AI GLM-4) for real AI content generation
-      const aiResponse = await this.glmService.analyze({
+      // FIX V1: Use orchestrator (8-model fallback) instead of GLM-only.
+      // The orchestrator tries Gemini → Groq → Cerebras → Ollama → GLM →
+      // Mistral → NVIDIA → Bedrock automatically, with circuit breaker +
+      // latency-aware cooldown. If GLM times out, the next model is used.
+      const aiResponse = await this.orchestrator.analyze({
         prompt: fullPrompt,
+        // Use 'general' type — routes to Gemini primary with 7-model fallback.
+        // 'market_analysis' would inject live market data prefix which we don't
+        // want here (the prompt already contains topic + symbols).
         type: 'general',
         language: language === 'ar' ? 'ar' : 'en',
       });
 
-      // FIX: Reject error messages that GLM returns as content
       const rawContent = aiResponse.content;
+
+      // Reject error messages that AI returns as content
       if (!rawContent || rawContent.startsWith('⚠️') || rawContent.includes('API error') || rawContent.includes('timeout')) {
         throw new Error(`AI generation returned an error instead of content: ${rawContent?.substring(0, 100) || 'empty response'}`);
       }
 
-      // Try to parse the AI response as JSON
-      try {
-        // Strip markdown code fences if present
-        let cleanResponse = rawContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-        
-        // Attempt to extract JSON from the response
-        // Use a more careful approach: try direct parse first, then regex match
-        let parsed: any = null;
-        
-        // Strategy 1: Try parsing the entire cleaned response as JSON
-        try {
-          parsed = JSON.parse(cleanResponse);
-        } catch {
-          // Strategy 2: Find the outermost JSON object using balanced brace counting
-          const firstBrace = cleanResponse.indexOf('{');
-          if (firstBrace !== -1) {
-            let depth = 0;
-            let lastValidEnd = -1;
-            for (let i = firstBrace; i < cleanResponse.length; i++) {
-              if (cleanResponse[i] === '{') depth++;
-              else if (cleanResponse[i] === '}') {
-                depth--;
-                if (depth === 0) {
-                  lastValidEnd = i;
-                  break;
-                }
-              }
-            }
-            if (lastValidEnd !== -1) {
-              const jsonCandidate = cleanResponse.substring(firstBrace, lastValidEnd + 1);
-              try {
-                parsed = JSON.parse(jsonCandidate);
-              } catch {
-                // Strategy 3: Greedy regex as last resort
-                const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                  parsed = JSON.parse(jsonMatch[0]);
-                }
-              }
-            }
-          }
-        }
-        
-        if (parsed && parsed.title && parsed.content) {
-          return {
-            title: String(parsed.title).trim(),
-            content: String(parsed.content).trim(),
-            summary: parsed.summary
-              ? String(parsed.summary).trim()
-              : String(parsed.content).substring(0, 200).trim() + '...',
-          };
-        }
-      } catch {
-        // JSON parsing failed — fall through to plain text extraction
-        this.logger.warn('AI response was not valid JSON — extracting title/content from plain text');
+      // FIX V3: Use the new bulletproof JSON parser (7 strategies, ported from
+      // the news site's V3.5 parser that successfully handles all GLM/Gemini
+      // malformations).
+      const parsed = this._parseAiResponse(rawContent, language);
+      if (parsed.title && parsed.content) {
+        return parsed;
       }
 
-      // Plain text fallback: first line as title, rest as content
+      // Final fallback — should rarely happen with the new parser
+      this.logger.warn(`AI response parsing returned incomplete data — using raw text fallback`);
       const lines = rawContent.split('\n').filter(l => l.trim().length > 0);
       const title = lines[0]?.replace(/^#+\s*/, '').trim() || (language === 'ar' ? 'تقرير' : 'Report');
       const content = lines.slice(1).join('\n').trim() || rawContent;
       const summary = content.substring(0, 200).trim() + (content.length > 200 ? '...' : '');
-
       return { title, content, summary };
     } catch (error: any) {
       this.logger.error(`AI content generation failed: ${error.message}`);
       throw error;
     }
+  }
+
+  // ── FIX V3: Bulletproof JSON parser (7 strategies) ──
+  // Ported from the news site's TechnicalAnalysisCard V3.5 parser.
+  // Handles ALL AI response malformations:
+  //   1. Valid JSON object: {"title": "...", "content": "..."}
+  //   2. JSON wrapped in markdown code fences: ```json {...} ```
+  //   3. Balanced brace extraction (JSON embedded in text)
+  //   4. Regex field extraction (fragmented JSON — "title": "..." without braces)
+  //   5. JSON with trailing/leading text
+  //   6. Plain text fallback (first line = title, rest = content)
+  //   7. Strip JSON artifacts from content (leftover { } characters)
+  private _parseAiResponse(
+    rawContent: string,
+    language: 'ar' | 'en',
+  ): { title: string; content: string; summary: string } {
+    // Helper: unescape JSON string escapes
+    const unescape = (s: string): string => s
+      .replace(/\\n/g, '\n')
+      .replace(/\\t/g, '\t')
+      .replace(/\\"/g, '"')
+      .replace(/\\'/g, "'")
+      .replace(/\\\\/g, '\\');
+
+    // Helper: regex extract a field from JSON-like text
+    const extractField = (text: string, field: string): string | null => {
+      const re = new RegExp(`"${field}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`, 's');
+      const m = text.match(re);
+      return m ? unescape(m[1]) : null;
+    };
+
+    // Helper: strip leftover JSON artifacts ({, }, "field":, trailing commas)
+    const cleanJsonArtifacts = (s: string): string => {
+      let out = s;
+      out = out.replace(/^\s*\{+\s*/, '');     // leading {
+      out = out.replace(/\s*\}+\s*$/, '');     // trailing }
+      out = out.replace(/^\s*"(?:title|content|summary)"\s*:\s*"?\s*/i, ''); // leading "field":
+      out = out.replace(/"?\s*,?\s*$/, '');    // trailing quote/comma
+      return out.trim();
+    };
+
+    // Strip markdown code fences if present
+    let cleaned = rawContent.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+
+    // ── Strategy 1: Direct JSON.parse ──
+    try {
+      const parsed = JSON.parse(cleaned);
+      if (parsed && typeof parsed === 'object' && parsed.title && parsed.content) {
+        return {
+          title: String(parsed.title).trim(),
+          content: String(parsed.content).trim(),
+          summary: parsed.summary
+            ? String(parsed.summary).trim()
+            : String(parsed.content).substring(0, 200).trim() + '...',
+        };
+      }
+    } catch {
+      // Not valid JSON — continue to next strategy
+    }
+
+    // ── Strategy 2: Balanced brace extraction ──
+    // Find the outermost { ... } block using depth counting.
+    const firstBrace = cleaned.indexOf('{');
+    if (firstBrace !== -1) {
+      let depth = 0;
+      let lastValidEnd = -1;
+      let inString = false;
+      let escapeNext = false;
+      for (let i = firstBrace; i < cleaned.length; i++) {
+        const ch = cleaned[i];
+        if (escapeNext) { escapeNext = false; continue; }
+        if (ch === '\\') { escapeNext = true; continue; }
+        if (ch === '"') { inString = !inString; continue; }
+        if (inString) continue;
+        if (ch === '{') depth++;
+        else if (ch === '}') {
+          depth--;
+          if (depth === 0) { lastValidEnd = i; break; }
+        }
+      }
+      if (lastValidEnd !== -1) {
+        const jsonCandidate = cleaned.substring(firstBrace, lastValidEnd + 1);
+        try {
+          const parsed = JSON.parse(jsonCandidate);
+          if (parsed && parsed.title && parsed.content) {
+            return {
+              title: String(parsed.title).trim(),
+              content: String(parsed.content).trim(),
+              summary: parsed.summary
+                ? String(parsed.summary).trim()
+                : String(parsed.content).substring(0, 200).trim() + '...',
+            };
+          }
+        } catch {
+          // Continue to next strategy
+        }
+      }
+    }
+
+    // ── Strategy 3: Regex field extraction ──
+    // Works for fragmented JSON: "title": "...", "content": "..." (no braces)
+    const titleMatch = extractField(cleaned, 'title');
+    const contentMatch = extractField(cleaned, 'content');
+    const summaryMatch = extractField(cleaned, 'summary');
+    if (titleMatch && contentMatch) {
+      return {
+        title: titleMatch,
+        content: contentMatch,
+        summary: summaryMatch || contentMatch.substring(0, 200).trim() + '...',
+      };
+    }
+
+    // ── Strategy 4: Title-only extraction + rest as content ──
+    // If we found a title but no content field, treat the rest as content
+    if (titleMatch) {
+      // Remove the "title":"..." part from cleaned, use rest as content
+      let restContent = cleaned.replace(/"title"\s*:\s*"(?:[^"\\]|\\.)*"\s*,?\s*/s, '');
+      restContent = cleanJsonArtifacts(restContent);
+      if (restContent.length > 20) {
+        return {
+          title: titleMatch,
+          content: restContent,
+          summary: restContent.substring(0, 200).trim() + '...',
+        };
+      }
+    }
+
+    // ── Strategy 5: Strip JSON artifacts + plain text ──
+    // Last resort — clean any leftover JSON syntax and use as plain text
+    const stripped = cleanJsonArtifacts(cleaned);
+    const lines = stripped.split('\n').filter(l => l.trim().length > 0);
+    if (lines.length > 0) {
+      const title = lines[0].replace(/^#+\s*/, '').trim() || (language === 'ar' ? 'تقرير' : 'Report');
+      const content = lines.slice(1).join('\n').trim() || stripped;
+      const summary = content.substring(0, 200).trim() + (content.length > 200 ? '...' : '');
+      return { title, content, summary };
+    }
+
+    // ── Strategy 6: Absolute fallback ──
+    return {
+      title: language === 'ar' ? 'تقرير' : 'Report',
+      content: cleaned,
+      summary: cleaned.substring(0, 200).trim() + '...',
+    };
   }
 
   // ── Private: Prompt Building ──
@@ -413,7 +539,38 @@ export class ContentGeneratorService {
     // Bilingual completeness
     if (arabic.content.length > 100 && english.content.length > 100) score += 10;
 
-    return Math.min(100, score);
+    // ── FIX V4: Enhanced quality checks ──
+
+    // Penalty: JSON artifacts in content (sign of parsing failure)
+    if (arabic.title.startsWith('{') || arabic.title === '{') score -= 30;
+    if (english.title.startsWith('{') || english.title === '{') score -= 30;
+    if (arabic.title.includes('"title"') || arabic.title.includes('"content"')) score -= 25;
+    if (english.title.includes('"title"') || english.title.includes('"content"')) score -= 25;
+    if (arabic.content.startsWith('{') || arabic.content.includes('"title":')) score -= 20;
+    if (english.content.startsWith('{') || english.content.includes('"title":')) score -= 20;
+
+    // Penalty: suspiciously short content (likely truncated)
+    if (arabic.content.length < 100) score -= 20;
+    if (english.content.length < 100) score -= 20;
+
+    // Bonus: technical analysis markers (support/resistance levels)
+    const hasSupportResistance = /دعم|مقاومة|support|resistance/i.test(arabic.content + ' ' + english.content);
+    if (hasSupportResistance) score += 10;
+
+    // Bonus: price levels mentioned (numeric values with currency)
+    const hasPriceLevels = /\$?\d+(\.\d+)?\s*(USDT|USD|€|¥|%)/i.test(arabic.content + ' ' + english.content);
+    if (hasPriceLevels) score += 10;
+
+    // Bonus: risk disclaimer present
+    const hasDisclaimer = arabic.content.includes('تعليمية فقط') || arabic.content.includes('نصيحة استثمارية') ||
+                          english.content.includes('educational purposes') || english.content.includes('financial advice');
+    if (hasDisclaimer) score += 5;
+
+    // Bonus: markdown formatting (### headings)
+    const hasMarkdownHeadings = /^#{1,6}\s+/m.test(arabic.content) || /^#{1,6}\s+/m.test(english.content);
+    if (hasMarkdownHeadings) score += 5;
+
+    return Math.max(0, Math.min(100, score));
   }
 
   private _calculateConfidence(qualityScore: number, request: ContentGenerationRequest): number {

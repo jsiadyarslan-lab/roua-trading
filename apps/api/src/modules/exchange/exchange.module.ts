@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ExchangeController } from './exchange.controller';
+import { OandaStreamController } from './oanda-stream.controller';
 import { ExchangeService } from './exchange.service';
 import { ExchangeGateway } from './gateway/exchange.gateway';
 import { TwelveDataAdapter } from './adapters/twelve-data.adapter';
@@ -12,7 +13,7 @@ import { IExchangeAdapter } from './exchange.types';
 
 @Module({
   imports: [ConfigModule],
-  controllers: [ExchangeController],
+  controllers: [ExchangeController, OandaStreamController],
   providers: [
     ExchangeService,
     ExchangeGateway,

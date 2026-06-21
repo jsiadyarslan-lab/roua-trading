@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { binanceWS, useMarketStore } from '@/hooks/useMarketStore'
+import { oandaWS } from '@/hooks/useOandaStream'
 import { useDashboardStore } from '@/lib/dashboard-store'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { PriceAlertEngine } from '@/components/dashboard/PriceAlertEngine'
@@ -50,20 +51,36 @@ const NON_CRYPTO_SYMBOLS = GLOBAL_SYMBOLS.filter(s => {
   return !CRYPTO_BASES_SET.has(base)
 })
 
+// V360: OANDA pairs get their own live stream (same as Binance WS for crypto)
+const OANDA_SYMBOLS = NON_CRYPTO_SYMBOLS.filter(s => {
+  const upper = s.toUpperCase();
+  if (upper.includes('USDT') || upper.includes('/BTC') || upper.includes('/ETH')) return false;
+  const forexQuotes = ['/USD', '/JPY', '/GBP', '/EUR', '/CHF', '/CAD', '/AUD', '/NZD'];
+  const indicesBases = ['US30', 'NAS100', 'SPX500', 'GER30', 'UK100', 'WTI', 'BRENT'];
+  return forexQuotes.some(qc => upper.includes(qc)) || indicesBases.some(b => upper.startsWith(b));
+})
+
 async function fetchAndStore(symbol: string) {
   try {
     // FIX: For crypto symbols with active Binance WS, skip REST fetch entirely.
-    // Binance WS provides sub-second price updates. REST polling every 15s
-    // overwrites the live WS price with a stale cached price (3-8s old),
-    // causing P&L to briefly "jump back" on every REST poll cycle.
-    // Only use REST as fallback when WS data is missing or stale.
+    // V360: For OANDA symbols with active OANDA stream, skip REST fetch entirely.
     const isCrypto = CRYPTO_BASES_SET.has(symbol.split('/')[0])
     if (isCrypto) {
       const existingQuote = useMarketStore.getState().quotes[symbol]
       const isWslive = existingQuote?.source === 'Binance WS' &&
         existingQuote?.price > 0 &&
-        (Date.now() - new Date(existingQuote.timestamp).getTime() < 30_000) // WS data < 30s old
-      if (isWslive) return // Skip REST — WS is providing live prices
+        (Date.now() - new Date(existingQuote.timestamp).getTime() < 30_000)
+      if (isWslive) return
+    }
+
+    // V360: Skip REST for OANDA pairs if stream is live
+    const isOanda = OANDA_SYMBOLS.includes(symbol)
+    if (isOanda) {
+      const existingQuote = useMarketStore.getState().quotes[symbol]
+      const isStreamLive = existingQuote?.source === 'OANDA Stream' &&
+        existingQuote?.price > 0 &&
+        (Date.now() - new Date(existingQuote.timestamp).getTime() < 10_000)
+      if (isStreamLive) return
     }
 
     const res = await fetch(`/api/exchange/quote/${encodeURIComponent(symbol)}`)
@@ -165,29 +182,32 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    // 1. Subscribe all crypto symbols via the singleton WS manager (one connection for all)
+    // 1. Subscribe all crypto symbols via Binance WS (one connection for all)
     WS_CRYPTO_SYMBOLS.forEach(sym => binanceWS.subscribe(sym))
+
+    // V360: Subscribe all OANDA pairs via OANDA stream (one connection for all)
+    OANDA_SYMBOLS.forEach(sym => oandaWS.subscribe(sym))
 
     // 2. Fetch initial data for ALL symbols via API
     Promise.allSettled(GLOBAL_SYMBOLS.map(fetchAndStore))
 
-    // 3. Poll non-crypto (Forex + Stocks) every 600 seconds (10 min) to reduce API pressure
-    //    FIX: Increased from 120s to 600s — free sources don't need rapid polling
-    //    Staggered: fetch 2 at a time with 5s delay between batches
+    // 3. Poll non-OANDA non-crypto symbols (stocks only) — forex is via stream now
     const pollNonCrypto = () => {
-      fetchNonCryptoBatch(NON_CRYPTO_SYMBOLS)
+      const stocksOnly = NON_CRYPTO_SYMBOLS.filter(s => !OANDA_SYMBOLS.includes(s))
+      fetchNonCryptoBatch(stocksOnly)
     }
     pollNonCrypto()
     return () => {
       WS_CRYPTO_SYMBOLS.forEach(sym => binanceWS.unsubscribe(sym))
+      OANDA_SYMBOLS.forEach(sym => oandaWS.unsubscribe(sym))
     }
   }, [])
 
-  // V354: Poll non-crypto (Forex + Metals + Indices + Energy) every 60 seconds.
-  // OANDA (via NestJS backend) supports 120 req/sec — we can afford frequent updates.
-  // Previously was 10 min (600s) because free sources (Yahoo) had tight rate limits.
-  // Pauses when tab hidden.
-  useVisibleInterval(() => fetchNonCryptoBatch(NON_CRYPTO_SYMBOLS), 60_000)
+  // V360: Poll stocks only (forex is via OANDA stream now)
+  useVisibleInterval(() => {
+    const stocksOnly = NON_CRYPTO_SYMBOLS.filter(s => !OANDA_SYMBOLS.includes(s))
+    if (stocksOnly.length > 0) fetchNonCryptoBatch(stocksOnly)
+  }, 60_000)
 
   // FIX V139: Poll crypto via REST every 15 seconds as fallback for Binance WS.
   // WS provides sub-second updates, but this REST poll ensures:

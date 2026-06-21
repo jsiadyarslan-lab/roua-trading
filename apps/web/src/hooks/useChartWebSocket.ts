@@ -427,132 +427,103 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   };
   tfSecondsRef.current = tfSecondsMap[timeframe] || 60;
 
-  // V355: Connect via Socket.IO to NestJS ExchangeGateway for OANDA live prices
-  // This is used for forex/metals/indices/energy pairs — gives <1s live updates
-  // via OANDA Streaming API (same latency as Binance WS for crypto).
-  const connectSocketIO = useCallback(() => {
-    const token = getSessionToken();
+  // V360: Connect to OANDA SSE stream — direct browser streaming, no Socket.IO.
+  // Same architecture as Binance WS: browser opens a long-lived HTTP connection
+  // and receives price updates in real-time via Server-Sent Events.
+  const connectOandaSSE = useCallback(() => {
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || window.location.origin;
+    const sseUrl = `${backendUrl}/api/exchange/oanda-stream?symbols=${encodeURIComponent(symbol)}`;
 
-    import('socket.io-client').then(({ default: io }: any) => {
-      if (isClosingRef.current) return;
+    let abortCtrl: AbortController | null = null;
+    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+    let lineBuffer = '';
 
-      try {
-        // V356 FIX: Socket.IO client must connect to window.location.origin (Next.js)
-        // and the Next.js proxy.ts rewrites /socket.io/* to NestJS backend.
-        // The namespace '/exchange' is specified in the io() options, NOT in the URL.
-        // Previously: io(`${wsUrl}/exchange`) — this went to Next.js as a regular
-        // page request (404), not Socket.IO.
-        // Now: io(window.location.origin, { path: '/socket.io', namespace: '/exchange' })
-        //   → Next.js proxy sees /socket.io → rewrites to NestJS → Socket.IO gateway
-        const socketOptions: any = {
-          transports: ['polling', 'websocket'],
-          autoConnect: true,
-          reconnection: true,
-          reconnectionAttempts: 10,
-          reconnectionDelay: 2000,
-          path: '/socket.io',
-        };
-        if (token) {
-          socketOptions.auth = { token };
-        }
+    const cleanupSSE = () => {
+      if (abortCtrl) { try { abortCtrl.abort(); } catch {} abortCtrl = null; }
+      if (reader) { try { reader.cancel(); } catch {} reader = null; }
+    };
 
-        // Connect to Next.js origin with /exchange namespace
-        const socket = io('/exchange', {
-          ...socketOptions,
-          // Force the URL to be the current origin (Next.js), NOT NestJS directly
-          // Next.js proxy.ts handles /socket.io/* → NestJS rewrite
-          forceNew: true,
-        });
-        socketIoRef.current = socket;
+    // Store cleanup in socketIoRef (reused for SSE cleanup)
+    (socketIoRef as any).current = { disconnect: cleanupSSE };
 
-        socket.on('connect', () => {
-          if (isClosingRef.current) {
-            socket.disconnect();
-            return;
-          }
-          setConnectionState('connected');
-          reconnectAttemptsRef.current = 0;
-          socket.emit('subscribe', { symbol });
-        });
+    fetch(sseUrl, {
+      method: 'GET',
+      headers: { 'Accept': 'text/event-stream' },
+    }).then(async (res) => {
+      if (!res.ok || !res.body) {
+        console.warn(`🌊 [ChartSSE] OANDA stream HTTP ${res.status} — polling fallback`);
+        startPolling();
+        return;
+      }
 
-        socket.on('ticker', (data: any) => {
-          if (isClosingRef.current) return;
-          if (!data || !data.data) return;
+      setConnectionState('connected');
+      reconnectAttemptsRef.current = 0;
+      console.log(`🌊 [ChartSSE] OANDA stream connected for ${symbol}`);
 
-          const dataSymbol = data.symbol || data.data.symbol || '';
-          if (dataSymbol && symbol) {
-            const normalized = dataSymbol.replace('/', '');
-            const currentNorm = symbol.replace('/', '');
-            if (normalized !== currentNorm && !dataSymbol.includes(symbol.split('/')[0])) return;
-          }
+      reader = res.body.getReader();
+      const decoder = new TextDecoder();
 
-          const quote = data.data;
-          if (quote) {
-            const price = quote.price || quote.close || quote.lastPrice;
-            if (price && price > 0) {
-              bufferUpdate(null, price, false);
+      while (!isClosingRef.current) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
+        lineBuffer += decoder.decode(value, { stream: true });
+        const lines = lineBuffer.split('\n');
+        lineBuffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const jsonStr = line.substring(6).trim();
+          if (!jsonStr) continue;
+          try {
+            const data = JSON.parse(jsonStr);
+            if (data.type === 'heartbeat' || data.type === 'connected') continue;
+            if (data.price && data.price > 0) {
+              bufferUpdate(null, data.price, false);
               const now = Math.floor(Date.now() / 1000);
-              const rawOpen = quote.open || price;
-              const rawHigh = quote.high || price;
-              const rawLow = quote.low || price;
-              const rawClose = price;
-              const s = sanitizeOhlc(rawOpen, rawHigh, rawLow, rawClose);
               const candle: CandleData = {
                 time: now - (now % tfSecondsRef.current),
-                open: s.open,
-                high: s.high,
-                low: s.low,
-                close: s.close,
-                volume: quote.volume || 0,
+                open: data.open || data.price,
+                high: data.high || data.price,
+                low: data.low || data.price,
+                close: data.price,
+                volume: data.volume || 0,
               };
               bufferUpdate(candle, null, false);
             }
-          }
-        });
+          } catch { /* non-critical */ }
+        }
+      }
 
-        socket.on('connect_error', (err: any) => {
-          if (isClosingRef.current) return;
-          console.warn(`[ChartWS] Socket.IO error for ${symbol}: ${err.message} — falling back to REST polling`);
-          if (!socketIoRef.current?.connected) {
-            startPolling();
-          }
-        });
-
-        socket.on('disconnect', () => {
-          if (isClosingRef.current) return;
-          // Socket.IO will auto-reconnect
-        });
-
-      } catch {
+      if (!isClosingRef.current) {
+        console.warn(`🌊 [ChartSSE] Stream ended — polling fallback`);
         startPolling();
       }
-    }).catch(() => {
-      startPolling();
+    }).catch((err: any) => {
+      if (err.name === 'AbortError') return;
+      console.warn(`🌊 [ChartSSE] Error: ${err.message} — polling fallback`);
+      if (!isClosingRef.current) startPolling();
     });
-  }, [symbol, startPolling]);
+  }, [symbol, startPolling, bufferUpdate]);
 
-  // ── V355: Connection Strategy ──
-  // For OANDA pairs (forex/metals/indices/energy): use Socket.IO → OANDA Streaming API
-  //   This gives <1 second live price updates (same as Binance WS for crypto).
-  // For crypto pairs: use Binance WebSocket directly (existing behavior).
+  // ── V360: Connection Strategy — OANDA pairs use SSE stream (same as Binance WS for crypto) ──
   const connect = useCallback(() => {
     cleanup();
     isClosingRef.current = false;
     connectionGenRef.current++;
     if (!enabled) return;
 
-    // V355: OANDA pairs → Socket.IO (live stream via OANDA Streaming API)
+    // V360: OANDA pairs → SSE stream (live, <1s — same architecture as Binance WS)
     if (!isCryptoPair(symbol)) {
       setConnectionState('connecting');
-      connectSocketIO();
+      connectOandaSSE();
       return;
     }
 
     // Crypto pairs → Binance WS
     setConnectionState('connecting');
     connectBinanceFallback();
-  }, [symbol, enabled, cleanup, connectBinanceFallback, connectSocketIO]);
+  }, [symbol, enabled, cleanup, connectBinanceFallback, connectOandaSSE]);
 
   // ── Reconnect ──────────────────────────────────────────
   const reconnect = useCallback(() => {

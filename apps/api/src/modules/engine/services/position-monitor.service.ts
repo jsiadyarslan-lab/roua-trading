@@ -140,7 +140,7 @@ export class PositionMonitorService {
   // This is the ONLY reliable way to verify which code is actually executing,
   // because DEPLOY_COMMIT comes from RAILWAY_GIT_COMMIT_SHA (auto-updated
   // by Railway to the latest push) and does NOT reflect the actual build.
-  public static readonly CODE_VERSION = 'V351e';
+  public static readonly CODE_VERSION = 'V351f';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -185,8 +185,8 @@ export class PositionMonitorService {
       + (this.lifecycle ? ' + V339 LifecycleLog' : ' + ❌NO LifecycleLog')
       + (this.stateMachine ? ' + V341 StateMachine' : ' + ❌NO StateMachine'));
     // V351e: Loud startup log with code version — must appear in Railway logs
-    this.logger.log(`🔧 V351e: PositionMonitorService CODE_VERSION=${PositionMonitorService.CODE_VERSION} — if this log is missing, Railway is running STALE cached code`);
-    console.log(`🔧 V351e: PositionMonitorService CODE_VERSION=${PositionMonitorService.CODE_VERSION} — if this log is missing, Railway is running STALE cached code`);
+    this.logger.log(`🔧 V351f: PositionMonitorService CODE_VERSION=${PositionMonitorService.CODE_VERSION} — if this log is missing, Railway is running STALE cached code`);
+    console.log(`🔧 V351f: PositionMonitorService CODE_VERSION=${PositionMonitorService.CODE_VERSION} — if this log is missing, Railway is running STALE cached code`);
   }
 
   /**
@@ -488,6 +488,45 @@ export class PositionMonitorService {
       this.logger.error(`🛡️ Position monitor cycle failed: ${error.message}`);
       // V185: الشفاء الذاتي — تسجيل الفشل
       this.selfHealing?.reportFailure('position-monitor', error.message);
+
+      // V351f: Write the error to Redis so the diagnostic endpoint can see it.
+      // Without this, the catch block swallows the error and we have no way
+      // to know WHY cycles are failing from outside the server.
+      try {
+        await this.redis.set(
+          'monitor:last_error',
+          JSON.stringify({
+            timestamp: new Date().toISOString(),
+            errorMessage: error.message?.substring(0, 500),
+            errorStack: error.stack?.substring(0, 1000),
+            errorCode: error.code,
+            errorName: error.name,
+          }),
+          600000, // 10 min TTL
+        );
+        // Also update monitor:last_cycle with the error info so the diagnostic
+        // can see it in the same place it checks for heartbeat
+        await this.redis.set(
+          'monitor:last_cycle',
+          JSON.stringify({
+            timestamp: new Date().toISOString(),
+            cycleFailed: true,
+            errorMessage: error.message?.substring(0, 500),
+            errorName: error.name,
+            // Include placeholder quote stats so the diagnostic knows this was a failed cycle
+            quoteSuccessCount: -1,  // -1 = cycle failed before counting
+            quoteFailCount: -1,
+            quoteFailuresBySymbol: { error: error.message?.substring(0, 200) },
+            positionsMonitored: 0,
+          }),
+          300000, // 5 min TTL
+        );
+      } catch (writeErr: any) {
+        // Redis write failed too — log to console as last resort
+        console.error(`🛡️ V351f: Failed to write monitor error to Redis: ${writeErr.message}`);
+        console.error(`🛡️ V351f: Original error was: ${error.message}`);
+        console.error(`🛡️ V351f: Original stack: ${error.stack}`);
+      }
     } finally {
       this.isMonitoring = false;
       // RLS: Disable bypass after background service completes

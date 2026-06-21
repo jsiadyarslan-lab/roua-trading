@@ -1563,17 +1563,22 @@ export class TradingController {
       // V351c: Check Redis for monitor heartbeat
       // 'monitor:heartbeat' is written at the START of every @Interval invocation (V351c)
       // 'monitor:last_cycle' is written at the END of every successful cycle
+      // 'monitor:last_error' is written when a cycle throws (V351f)
       // Comparing both tells us exactly where the monitor fails:
       //   - No heartbeat → @Interval not firing at all
       //   - Heartbeat fresh, no last_cycle → cycle starts but throws before completing
       //   - Both fresh → monitor working
       let monitorHeartbeat: any = null;
       let monitorStartHeartbeat: any = null;
+      let monitorLastError: any = null;
       try {
         const heartbeatRaw = await this.redis.get('monitor:last_cycle');
         monitorHeartbeat = heartbeatRaw ? JSON.parse(heartbeatRaw) : null;
         const startHeartbeatRaw = await this.redis.get('monitor:heartbeat');
         monitorStartHeartbeat = startHeartbeatRaw ? JSON.parse(startHeartbeatRaw) : null;
+        // V351f: Read the last error (if cycle threw)
+        const lastErrorRaw = await this.redis.get('monitor:last_error');
+        monitorLastError = lastErrorRaw ? JSON.parse(lastErrorRaw) : null;
       } catch (e: any) {
         monitorHeartbeat = { error: e.message?.substring(0, 200) };
       }
@@ -1602,10 +1607,11 @@ export class TradingController {
 
       result.checks.monitorHealth = {
         redisAvailable,
-        monitorHeartbeat,  // 'monitor:last_cycle' — written at END of successful cycle
+        monitorHeartbeat,  // 'monitor:last_cycle' — written at END of successful cycle OR on error (V351f)
         monitorStartHeartbeat,  // 'monitor:heartbeat' — written at START of every @Interval call (V351c)
+        monitorLastError,  // V351f: 'monitor:last_error' — written when cycle throws
         // V351e: codeVersion from heartbeat — the definitive check for stale code
-        monitorCodeVersion: monitorStartHeartbeat?.codeVersion || 'MISSING (stale code — V351e not deployed)',
+        monitorCodeVersion: monitorStartHeartbeat?.codeVersion || 'MISSING (stale code — V351f not deployed)',
         startHeartbeatAgeSeconds: monitorStartHeartbeat?.timestamp
           ? Math.round((Date.now() - new Date(monitorStartHeartbeat.timestamp).getTime()) / 1000)
           : null,
@@ -1658,6 +1664,11 @@ export class TradingController {
           return `❌ Start heartbeat is STALE (${startAge}s old) — @Interval stopped firing ${startAge}s ago. Monitor may have crashed.`;
         })(),
         diagnosis: (() => {
+          // V351f: Check for cycle errors FIRST — this is the most common cause
+          if (monitorLastError) {
+            const errAge = Math.round((Date.now() - new Date(monitorLastError.timestamp).getTime()) / 1000);
+            return `❌ CYCLE THROWS: ${monitorLastError.errorName}: ${monitorLastError.errorMessage}. Last error ${errAge}s ago. Stack: ${(monitorLastError.errorStack || '').substring(0, 300)}`;
+          }
           if (globalMonitorTicks > 0) return 'Monitor logging works for some positions';
           if (!redisAvailable) return 'Redis is down — monitor cannot function. Check REDIS_URL env var.';
           const startAge = monitorStartHeartbeat?.timestamp
@@ -1668,6 +1679,10 @@ export class TradingController {
           }
           if (!monitorHeartbeat) {
             return '❌ @Interval IS firing but cycle never completes. Likely: (a) prisma.enableRlsBypass() throws, (b) self-healing disabled position-monitor, (c) DB query for open positions fails. Check Railway logs for "🛡️ Position monitor cycle failed".';
+          }
+          // V351f: Check if last_cycle indicates a failed cycle (cycleFailed: true)
+          if (monitorHeartbeat.cycleFailed) {
+            return `❌ CYCLE FAILED: ${monitorHeartbeat.errorName}: ${monitorHeartbeat.errorMessage}`;
           }
           // V351d: Check quote fetch stats
           const qSuccess = monitorHeartbeat.quoteSuccessCount ?? 0;
@@ -1718,11 +1733,11 @@ export class TradingController {
       const s = result.summary;
       // V351e: FIRST check — is the code actually V351e?
       const monitorCodeVersion = result.checks.monitorHealth?.monitorCodeVersion;
-      if (monitorCodeVersion && monitorCodeVersion !== 'V351e') {
-        return `❌ STALE CODE: monitor heartbeat shows codeVersion='${monitorCodeVersion}' but expected 'V351e'. Railway is running OLD cached code despite DEPLOY_COMMIT showing the latest commit. Force a rebuild: railway up --detach (or add a meaningless change to bust Docker cache).`;
+      if (monitorCodeVersion && monitorCodeVersion !== 'V351f') {
+        return `❌ STALE CODE: monitor heartbeat shows codeVersion='${monitorCodeVersion}' but expected 'V351f'. Railway is running OLD cached code despite DEPLOY_COMMIT showing the latest commit. Force a rebuild: railway up --detach (or add a meaningless change to bust Docker cache).`;
       }
-      if (monitorCodeVersion === 'MISSING (stale code — V351e not deployed)') {
-        return `❌ STALE CODE: monitor heartbeat has NO codeVersion field — V351e code is NOT running. Railway is using a cached Docker image from before V351e. The DEPLOY_COMMIT env var is misleading (it comes from git SHA, not actual build). Force rebuild.`;
+      if (monitorCodeVersion === 'MISSING (stale code — V351f not deployed)') {
+        return `❌ STALE CODE: monitor heartbeat has NO codeVersion field — V351f code is NOT running. Railway is using a cached Docker image from before V351f. The DEPLOY_COMMIT env var is misleading (it comes from git SHA, not actual build). Force rebuild.`;
       }
       if (!s.deployLive) return '⚠️ Deploy commit unknown — Railway build may have failed';
       if (!s.lifecycleTableExists) return '❌ TradeLifecycleLog table missing — migration not applied. Run prisma migrate deploy.';

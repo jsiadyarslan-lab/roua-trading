@@ -285,7 +285,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     if (pollingRef.current) clearInterval(pollingRef.current);
     setConnectionState('fallback');
 
-    const interval = isCryptoPair(symbol) ? POLLING_INTERVAL : 30000;
+    const interval = isCryptoPair(symbol) ? POLLING_INTERVAL : 2000; // V358: 2s for OANDA pairs (stream-fed cache)
     fetchLatestCandle();
     pollingRef.current = setInterval(fetchLatestCandle, interval);
   }, [symbol, timeframe, fetchLatestCandle]);

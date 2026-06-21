@@ -1,5 +1,6 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { RedisService } from '../../../common/redis/redis.service';
 import * as https from 'https';
 import { EventEmitter } from 'events';
 
@@ -29,7 +30,7 @@ import { EventEmitter } from 'events';
  *   streamingService.unsubscribe('EUR/USD');
  */
 @Injectable()
-export class OandaStreamingService implements OnModuleDestroy {
+export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(OandaStreamingService.name);
   private readonly emitter = new EventEmitter();
 
@@ -52,14 +53,93 @@ export class OandaStreamingService implements OnModuleDestroy {
   private isConnecting = false;
   private shouldReconnect = true;
 
-  constructor(private readonly configService: ConfigService) {
+  // V358: Auto-subscribe to common OANDA pairs on startup.
+  // These are the pairs that appear in the chart, ticker, and watchlist.
+  // By subscribing on startup (not waiting for Socket.IO clients), the stream
+  // starts immediately and feeds the Redis cache → frontend polls get live data.
+  private readonly AUTO_SUBSCRIBE_PAIRS = [
+    'EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CHF', 'USD/CAD', 'NZD/USD',
+    'EUR/GBP', 'EUR/JPY', 'GBP/JPY',
+    'XAU/USD', 'XAG/USD',
+    'US30/USD', 'NAS100/USD', 'SPX500/USD',
+    'WTI/USD', 'BRENT/USD',
+  ];
+
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly redisService: RedisService,
+  ) {
     const hasToken = !!this.configService.get<string>('OANDA_API_TOKEN');
     const hasAccountId = !!this.configService.get<string>('OANDA_ACCOUNT_ID');
-    
+
     if (hasToken && hasAccountId) {
-      this.logger.log('🌊 V355: OANDA Streaming Service initialized — ready for live price stream');
+      this.logger.log('🌊 V358: OANDA Streaming Service initialized — ready for live price stream');
     } else {
-      this.logger.warn(`🌊 V355: OANDA Streaming Service initialized but NOT active — missing ${!hasToken ? 'OANDA_API_TOKEN' : ''} ${!hasAccountId ? 'OANDA_ACCOUNT_ID' : ''}`);
+      this.logger.warn(`🌊 V358: OANDA Streaming Service initialized but NOT active — missing ${!hasToken ? 'OANDA_API_TOKEN' : ''} ${!hasAccountId ? 'OANDA_ACCOUNT_ID' : ''}`);
+    }
+  }
+
+  /**
+   * V358: On module init, auto-subscribe to common OANDA pairs.
+   * This starts the stream immediately without waiting for Socket.IO clients.
+   * Prices are written to Redis cache → frontend polls get live data.
+   */
+  async onModuleInit() {
+    if (!this.isAvailable()) {
+      return;
+    }
+
+    this.logger.log(`🌊 V358: Auto-subscribing to ${this.AUTO_SUBSCRIBE_PAIRS.length} OANDA pairs on startup...`);
+
+    // Subscribe to all auto-subscribe pairs
+    for (const pair of this.AUTO_SUBSCRIBE_PAIRS) {
+      this.subscribe(pair);
+    }
+
+    // Register price handler to update Redis cache
+    this.onPrice((update: OandaPriceUpdate) => {
+      this._updateRedisCache(update);
+    });
+  }
+
+  /**
+   * V358: Update Redis cache with streamed price.
+   * This writes to the SAME cache key that OandaAdapter.fetchQuote() reads:
+   *   `oanda:quote:${symbol}`
+   *
+   * When the frontend polls /api/exchange/quote/EUR/USD, the OANDA adapter
+   * checks this cache first. If the streaming service has written a fresh
+   * price (within 2s TTL), the adapter returns it WITHOUT making a REST API
+   * call to OANDA. This gives near-real-time prices via simple REST polling.
+   */
+  private async _updateRedisCache(update: OandaPriceUpdate): Promise<void> {
+    try {
+      const cacheKey = `oanda:quote:${update.symbol}`;
+      const quoteData = {
+        symbol: update.symbol,
+        name: update.symbol,
+        exchange: 'OANDA',
+        currency: update.symbol.split('/')[1] || 'USD',
+        price: update.price,
+        change: 0,
+        changePercent: 0,
+        open: update.price,
+        high: update.price,
+        low: update.price,
+        close: update.price,
+        volume: 0,
+        marketCap: null,
+        fiftyTwoWeekHigh: null,
+        fiftyTwoWeekLow: null,
+        timestamp: new Date(update.time).toISOString(),
+        source: 'oanda-stream',
+      };
+
+      // Write to Redis with 5s TTL — if stream stops, cache expires and
+      // adapter falls back to REST API
+      await this.redisService.set(cacheKey, JSON.stringify(quoteData), 5000);
+    } catch {
+      // Non-critical — if Redis write fails, adapter will use REST API
     }
   }
 

@@ -65,6 +65,21 @@ const SYMBOL_REGISTRY: Record<string, Partial<SymbolMetadata>> = {
   'XAU/USD': { assetClass: AssetClass.COMMODITY, contractSize: 100, pipSize: 0.01, priceDecimals: 2, defaultLeverage: 20 },
   'XAG/USD': { assetClass: AssetClass.COMMODITY, contractSize: 5000, pipSize: 0.001, priceDecimals: 3, defaultLeverage: 20 },
 
+  // ── V353: Indices (OANDA) ──
+  // Contract size = 1 (1 contract = 1 index point value in USD)
+  // Leverage = 20 (conservative for indices)
+  'US30/USD':   { assetClass: AssetClass.INDEX, contractSize: 1, pipSize: 1,    priceDecimals: 1, defaultLeverage: 20 },
+  'NAS100/USD': { assetClass: AssetClass.INDEX, contractSize: 1, pipSize: 0.25, priceDecimals: 2, defaultLeverage: 20 },
+  'SPX500/USD': { assetClass: AssetClass.INDEX, contractSize: 1, pipSize: 0.25, priceDecimals: 2, defaultLeverage: 20 },
+  'GER30/USD':  { assetClass: AssetClass.INDEX, contractSize: 1, pipSize: 0.1,  priceDecimals: 1, defaultLeverage: 20 },
+  'UK100/USD':  { assetClass: AssetClass.INDEX, contractSize: 1, pipSize: 0.1,  priceDecimals: 1, defaultLeverage: 20 },
+
+  // ── V353: Energy (OANDA) ──
+  // Contract size = 1000 (1 contract = 1000 barrels)
+  // Leverage = 10 (conservative for energy)
+  'WTI/USD':   { assetClass: AssetClass.COMMODITY, contractSize: 1000, pipSize: 0.01, priceDecimals: 2, defaultLeverage: 10 },
+  'BRENT/USD': { assetClass: AssetClass.COMMODITY, contractSize: 1000, pipSize: 0.01, priceDecimals: 2, defaultLeverage: 10 },
+
   // ── Crypto ──
   'BTC/USDT': { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.00001, minLot: 0.00001, maxLot: 1000, pipSize: 1, priceDecimals: 2, defaultLeverage: 1 },
   'BTC/USD':  { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.00001, minLot: 0.00001, maxLot: 1000, pipSize: 1, priceDecimals: 2, defaultLeverage: 1 },

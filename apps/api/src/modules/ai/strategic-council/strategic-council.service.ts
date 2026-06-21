@@ -25,6 +25,7 @@ import { BriefTranslationService } from '../services/brief-translation.service';
 import {
   ALL_COUNCIL_PAIRS,
   BINANCE_SUPPORTED_PAIRS,
+  OANDA_SUPPORTED_PAIRS,
   EXECUTOR_TIMEFRAMES,
   AGENT_TIMEFRAMES,
   AGENT_SLOW_TIMEFRAMES,
@@ -149,7 +150,7 @@ export class StrategicCouncilService {
       dailyCostCapUsd: this.DAILY_COST_CAP_USD,  // 50
       executorIntervalMin: 15,
       agentIntervalMin: 30,
-      maxPairsPerSession: BINANCE_SUPPORTED_PAIRS.length, // 7
+      maxPairsPerSession: BINANCE_SUPPORTED_PAIRS.length + OANDA_SUPPORTED_PAIRS.length, // V353: 7 crypto + 16 OANDA = 23
     };
 
     try {
@@ -306,22 +307,16 @@ export class StrategicCouncilService {
       this.logger.log('🏛️ Agent Council: generating M30/H1/H4/D1/W1 briefs...');
 
       // ═══════════════════════════════════════════════════════════════════
-      // V132 FIX: Only generate briefs for BINANCE-supported pairs.
-      //
-      // PROBLEM: ALL_COUNCIL_PAIRS includes forex (EUR/USD, GBP/USD),
-      // stocks (AAPL, MSFT), and commodities (XAU/USD). These pairs CANNOT
-      // be executed on Binance (crypto-only exchange). Briefs for non-crypto
-      // pairs were being generated, wasting AI API calls, and then failing
-      // at execution with "binance does not have market symbol AAPL".
-      //
-      // FIX: Only use BINANCE_SUPPORTED_PAIRS for brief generation.
-      // All current users trade on Binance (binance_test). Future multi-
-      // exchange support can filter per-user based on their exchange.
-      // ═══════════════════════════════════════════════════════════════════
+      // V353: Agent council also analyzes ALL tradeable pairs (crypto + forex + metals + indices).
+      // Same logic as executor council — see V353 comment block above.
       // V190: Read maxPairsPerSession from DB admin settings
       const councilCfg = await this._getCouncilConfig();
-      const agentPairs = BINANCE_SUPPORTED_PAIRS.slice(0, councilCfg.maxPairsPerSession);
-      this.logger.log(`🏛️ Agent Council: analyzing ${agentPairs.length} crypto pairs (maxPairs=${councilCfg.maxPairsPerSession}): ${agentPairs.join(', ')}`);
+      const allTradeablePairsAgent = [
+        ...BINANCE_SUPPORTED_PAIRS,   // 7 crypto pairs
+        ...OANDA_SUPPORTED_PAIRS,     // 7 forex + 4 commodities + 5 indices = 16 pairs
+      ];
+      const agentPairs = allTradeablePairsAgent.slice(0, councilCfg.maxPairsPerSession);
+      this.logger.log(`🏛️ V353 Agent Council: analyzing ${agentPairs.length} pairs (maxPairs=${councilCfg.maxPairsPerSession}): ${agentPairs.join(', ')}`);
 
       // V132: Parallel processing — process all pairs concurrently instead of sequentially.
       // Previously, pairs were processed one-by-one, taking 20-30 minutes for 15 pairs.
@@ -509,20 +504,29 @@ export class StrategicCouncilService {
       }
 
       // ═══════════════════════════════════════════════════════════════════
-      // V132 FIX: Only generate briefs for BINANCE-supported pairs.
+      // V353: Generate briefs for ALL tradeable pairs (crypto + forex + metals + indices + energy).
       //
-      // PROBLEM: ALL_COUNCIL_PAIRS includes 15 pairs (7 crypto + 3 forex +
-      // 4 stocks + 1 commodity). Non-crypto briefs waste AI API calls and
-      // always fail at execution on Binance. This was the #1 cause of
-      // "binance does not have market symbol AAPL/GBP/USD" errors.
+      // Previously (V132): Only BINANCE_SUPPORTED_PAIRS (7 crypto) were analyzed.
+      // This was because non-crypto pairs couldn't execute on Binance.
       //
-      // FIX: Only use BINANCE_SUPPORTED_PAIRS (7 crypto pairs) for
-      // executor brief generation. Non-crypto pairs can be analyzed for
-      // market context in the future when multi-exchange support is added.
+      // V353: OANDA is now integrated and all users use paper-trading (which
+      // supports ALL pairs). The council now generates briefs for:
+      //   - 7 crypto pairs (Binance data)
+      //   - 7 forex majors (OANDA data)
+      //   - 4 commodities (XAU, XAG, WTI, BRENT — OANDA data)
+      //   - 5 indices (US30, NAS100, SPX500, GER30, UK100 — OANDA data)
+      // Total: 23 pairs — each gets analyzed across 3 timeframes (M1, M5, M15).
+      //
+      // The Smart Executor and Agent will filter briefs by what the user's
+      // active exchange supports (isSymbolSupportedByExchange).
       // ═══════════════════════════════════════════════════════════════════
       // V190: Read maxPairsPerSession from DB admin settings
-      const executorPairs = BINANCE_SUPPORTED_PAIRS.slice(0, councilCfg.maxPairsPerSession);
-      this.logger.log(`🏛️ Executor Council: analyzing ${executorPairs.length} crypto pairs (maxPairs=${councilCfg.maxPairsPerSession}): ${executorPairs.join(', ')}`);
+      const allTradeablePairs = [
+        ...BINANCE_SUPPORTED_PAIRS,   // 7 crypto pairs
+        ...OANDA_SUPPORTED_PAIRS,     // 7 forex + 4 commodities + 5 indices = 16 pairs
+      ];
+      const executorPairs = allTradeablePairs.slice(0, councilCfg.maxPairsPerSession);
+      this.logger.log(`🏛️ V353 Executor Council: analyzing ${executorPairs.length} pairs (maxPairs=${councilCfg.maxPairsPerSession}): ${executorPairs.join(', ')}`);
 
       // V132: Parallel processing — process all pairs concurrently instead of sequentially.
       // Previously: 15 pairs × 3 timeframes × 5-10s AI call = 225-450s (4-8 minutes)

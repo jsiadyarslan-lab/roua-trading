@@ -72,8 +72,19 @@ export const COUNCIL_PAIRS = {
   CRYPTO: ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT', 'ADA/USDT', 'XRP/USDT', 'DOGE/USDT'],
   FOREX: ['EUR/USD', 'GBP/USD', 'USD/JPY', 'USD/CHF', 'AUD/USD', 'NZD/USD', 'USD/CAD'],
   STOCKS: ['AAPL', 'MSFT', 'GOOGL', 'TSLA'],
-  COMMODITIES: ['XAU/USD', 'XAG/USD'],
+  COMMODITIES: ['XAU/USD', 'XAG/USD', 'WTI/USD', 'BRENT/USD'],
+  // V353: Indices added for OANDA integration
+  INDICES: ['US30/USD', 'NAS100/USD', 'SPX500/USD', 'GER30/USD', 'UK100/USD'],
 } as const;
+
+/** V353: All OANDA-supported pairs (forex + metals + indices + energy).
+ *  Used for paper-trading users who can trade ALL pairs (simulation).
+ *  These pairs get real-time OANDA data via ExchangeService._selectAdapter(). */
+export const OANDA_SUPPORTED_PAIRS: string[] = [
+  ...COUNCIL_PAIRS.FOREX,
+  ...COUNCIL_PAIRS.COMMODITIES,
+  ...COUNCIL_PAIRS.INDICES,
+];
 
 /** Pairs supported by Binance (the exchange used by all current users).
  *  Only these pairs will generate EXECUTABLE briefs.
@@ -93,10 +104,12 @@ export const NON_BINANCE_PAIRS: string[] = [
 
 /** V226: Pairs supported by MT5/MetaTrader broker.
  *  Forex majors + commodities (gold/silver) + crypto.
- *  Paper-trading supports ALL pairs (simulation). */
+ *  Paper-trading supports ALL pairs (simulation).
+ *  V353: Added indices + energy (WTI, BRENT). */
 export const MT5_SUPPORTED_PAIRS: string[] = [
   ...COUNCIL_PAIRS.FOREX,
   ...COUNCIL_PAIRS.COMMODITIES,
+  ...COUNCIL_PAIRS.INDICES,
   ...COUNCIL_PAIRS.CRYPTO,
 ];
 
@@ -106,6 +119,7 @@ export const ALL_COUNCIL_PAIRS: string[] = [
   ...COUNCIL_PAIRS.FOREX,
   ...COUNCIL_PAIRS.STOCKS,
   ...COUNCIL_PAIRS.COMMODITIES,
+  ...COUNCIL_PAIRS.INDICES,
 ];
 
 /** Check if a symbol is supported by the given exchange.

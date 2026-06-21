@@ -282,8 +282,14 @@ export class IntegrationController {
     @Query('category') category?: string,
     @Query('type') type?: string,
     @Query('symbol') symbol?: string,
+    @Query('locale') locale?: string,
   ) {
     try {
+      // FIX V8: Pass locale to contentAgent.getContentFeed so it can filter
+      // articles by language. Previously, the locale parameter was accepted
+      // by the proxy in the news site but ignored here — all articles
+      // were returned regardless of locale, and the transform below always
+      // preferred titleAr over titleEn.
       const feed = await this.contentAgent.getContentFeed({
         status: 'PUBLISHED' as any,
         limit: Math.min(parseInt(limit, 10) || 5, 20),
@@ -293,11 +299,22 @@ export class IntegrationController {
         symbol,
       });
 
+      // FIX V8: Locale-aware field selection.
+      // If locale='en', prefer English fields (titleEn, contentEn, summaryEn).
+      // If locale='ar' or not specified, prefer Arabic fields (default behavior).
+      // This fixes the issue where French/English/Spanish/Turkish pages
+      // showed Arabic content because titleAr was always preferred.
+      const preferEnglish = locale === 'en' || locale === 'fr' || locale === 'tr' || locale === 'es';
+
       // Transform for the news site — only include relevant fields
       const articles = (feed?.articles || feed?.data?.articles || feed?.data || []).map((article: any) => ({
         id: article.id,
-        title: article.titleAr || article.titleEn || article.title,
-        content: article.contentAr || article.contentEn || article.content,
+        title: preferEnglish
+          ? (article.titleEn || article.titleAr || article.title)
+          : (article.titleAr || article.titleEn || article.title),
+        content: preferEnglish
+          ? (article.contentEn || article.contentAr || article.content)
+          : (article.contentAr || article.contentEn || article.content),
         category: article.category,
         type: article.type || article.contentType,
         symbols: (() => {
@@ -314,7 +331,9 @@ export class IntegrationController {
         qualityScore: article.qualityScore,
         tags: article.tags ? (typeof article.tags === 'string' ? JSON.parse(article.tags) : article.tags) : [],
         publishedAt: article.publishedAt || article.createdAt,
-        summary: article.summaryAr || article.summaryEn || article.summary,
+        summary: preferEnglish
+          ? (article.summaryEn || article.summaryAr || article.summary)
+          : (article.summaryAr || article.summaryEn || article.summary),
       }));
 
       return {

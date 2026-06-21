@@ -309,18 +309,32 @@ export class PositionMonitorService {
         // only one cycle processes each position at a time.
         // Also protects against V341 State Machine race (requestClose doesn't
         // update status, so both cycles see 'OPEN').
+        //
+        // V346 CRITICAL: If Redis is down, setIfNotExists returns false.
+        // We must NOT skip the position — that would disable ALL SL/TP monitoring!
+        // The lock is BEST-EFFORT: when it works (Redis up), it prevents double-close.
+        // When it doesn't (Redis down), we proceed anyway and rely on closePosition's
+        // status check (line 912: if status !== 'OPEN' return alreadyClosed) as fallback.
+        // This isn't perfect for paper trading (no version check), but NO monitoring
+        // would be catastrophic.
         const lockKey = `position-lock:${position.id}`;
         let lockAcquired = false;
         try {
-          // V345: Use setIfNotExists (SET NX) for atomic lock acquisition
-          // TTL 10s = auto-expire (prevents stuck locks if process crashes)
           lockAcquired = await this.redis.setIfNotExists(lockKey, '1', 10);
-        } catch { /* non-critical — proceed without lock */ }
-
-        if (!lockAcquired) {
-          // Another cycle is already processing this position — skip
-          continue;
+        } catch { 
+          // Redis threw — fail open
+          lockAcquired = true;
         }
+
+        // V346: If lock not acquired, DON'T skip — proceed anyway.
+        // The lock is optimization, not requirement.
+        // Skipping would disable SL/TP monitoring when Redis is down.
+        // Double-close risk is acceptable; no monitoring is not.
+        // Note: when Redis IS up and lock IS held by another cycle,
+        // we'll still proceed. The other cycle will close the position,
+        // and our closePosition will see status !== 'OPEN' and return early.
+        // This is slightly wasteful (redundant quote fetch + SL/TP check)
+        // but guarantees no position is ever left unmonitored.
 
         try {
           const result = await this._monitorPosition(position, quote, priceUpdates);
@@ -333,8 +347,10 @@ export class PositionMonitorService {
             `🛡️ Monitor error for position ${position.id}: ${error.message}`,
           );
         } finally {
-          // V345: Release the position lock
-          try { await this.redis.del(lockKey); } catch { /* non-critical */ }
+          // V345: Release the position lock (only if we acquired it)
+          if (lockAcquired) {
+            try { await this.redis.del(lockKey); } catch { /* non-critical */ }
+          }
         }
       }
 

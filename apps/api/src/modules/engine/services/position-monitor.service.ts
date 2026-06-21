@@ -183,7 +183,7 @@ export class PositionMonitorService {
    */
   private getLifecycle(): TradeLifecycleLogger | null {
     // Try DI-injected instance first
-    if (this.getLifecycle()) return this.lifecycle;
+    if (this.lifecycle) return this.lifecycle;
     // Fall back to static instance (set in TradeLifecycleLogger constructor)
     return TradeLifecycleLogger.getInstance();
   }

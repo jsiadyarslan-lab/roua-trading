@@ -3878,7 +3878,23 @@ export class TradingService {
       take: limit,
     });
 
-    const violations = [];
+    // V339: Explicit type — without it, TS infers never[] and rejects .push()
+    const violations: Array<{
+      positionId: string;
+      symbol: string;
+      side: string;
+      source: string | null;
+      closeReason: string;
+      entryPrice: number;
+      exitPrice: number | null;
+      stopLoss: number | null;
+      takeProfit: number | null;
+      highestPrice: number | null;
+      lowestPrice: number | null;
+      openedAt: Date;
+      closedAt: Date | null;
+      issues: string[];
+    }> = [];
     let checked = 0;
 
     for (const p of positions) {

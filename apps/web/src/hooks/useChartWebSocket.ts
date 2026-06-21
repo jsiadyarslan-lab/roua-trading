@@ -432,24 +432,37 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   // via OANDA Streaming API (same latency as Binance WS for crypto).
   const connectSocketIO = useCallback(() => {
     const token = getSessionToken();
-    const wsUrl = window.location.origin;
 
     import('socket.io-client').then(({ default: io }: any) => {
       if (isClosingRef.current) return;
 
       try {
+        // V356 FIX: Socket.IO client must connect to window.location.origin (Next.js)
+        // and the Next.js proxy.ts rewrites /socket.io/* to NestJS backend.
+        // The namespace '/exchange' is specified in the io() options, NOT in the URL.
+        // Previously: io(`${wsUrl}/exchange`) — this went to Next.js as a regular
+        // page request (404), not Socket.IO.
+        // Now: io(window.location.origin, { path: '/socket.io', namespace: '/exchange' })
+        //   → Next.js proxy sees /socket.io → rewrites to NestJS → Socket.IO gateway
         const socketOptions: any = {
           transports: ['polling', 'websocket'],
           autoConnect: true,
           reconnection: true,
           reconnectionAttempts: 10,
           reconnectionDelay: 2000,
+          path: '/socket.io',
         };
         if (token) {
           socketOptions.auth = { token };
         }
 
-        const socket = io(`${wsUrl}/exchange`, socketOptions);
+        // Connect to Next.js origin with /exchange namespace
+        const socket = io('/exchange', {
+          ...socketOptions,
+          // Force the URL to be the current origin (Next.js), NOT NestJS directly
+          // Next.js proxy.ts handles /socket.io/* → NestJS rewrite
+          forceNew: true,
+        });
         socketIoRef.current = socket;
 
         socket.on('connect', () => {
@@ -498,9 +511,9 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           }
         });
 
-        socket.on('connect_error', () => {
+        socket.on('connect_error', (err: any) => {
           if (isClosingRef.current) return;
-          console.warn(`[ChartWS] Socket.IO error for ${symbol} — falling back to REST polling`);
+          console.warn(`[ChartWS] Socket.IO error for ${symbol}: ${err.message} — falling back to REST polling`);
           if (!socketIoRef.current?.connected) {
             startPolling();
           }

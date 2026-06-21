@@ -333,10 +333,13 @@ enum OrderEventType {
 }
 
 enum PositionStatus {
-  OPEN
-  CLOSED
-  LIQUIDATED
-  DISPUTED  // V219: Position closed on exchange but protected by Agent 48h rule — needs reconciliation
+  OPEN           // = ACTIVE — position is live, being monitored
+  CLOSED         // terminal — position closed normally
+  LIQUIDATED     // terminal — position liquidated by exchange
+  DISPUTED       // V219: Position closed on exchange but protected by Agent 48h rule — needs reconciliation
+  // V341 State Machine states:
+  PENDING_CLOSE  // A close has been REQUESTED but not yet executed — State Machine will process
+  CLOSING        // Close is in progress (exchange order submitted, waiting for fill)
 }
 
 enum TradeType {

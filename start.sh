@@ -231,6 +231,32 @@ if [ "$DB_REACHABLE" -eq 1 ]; then
     ensureTLL();
   " 2>&1
 
+  # ── V341: Add State Machine states to PositionStatus enum ──
+  # Adds PENDING_CLOSE and CLOSING states for the Position State Machine.
+  # Uses ALTER TYPE ADD VALUE IF NOT EXISTS (PostgreSQL 12+) — idempotent.
+  echo "📦 V341: Ensuring PositionStatus enum has state machine states..."
+  DATABASE_URL_IN="$ORIG_DB_URL" timeout 15 node -e "
+    const { Client } = require('pg');
+    async function ensureEnum() {
+      const client = new Client({
+        connectionString: process.env.DATABASE_URL_IN,
+        connectionTimeoutMillis: 5000,
+        statement_timeout: 10000,
+      });
+      try {
+        await client.connect();
+        await client.query(\"ALTER TYPE \\\"PositionStatus\\\" ADD VALUE IF NOT EXISTS 'PENDING_CLOSE'\");
+        await client.query(\"ALTER TYPE \\\"PositionStatus\\\" ADD VALUE IF NOT EXISTS 'CLOSING'\");
+        console.log('V341: ✅ PositionStatus enum states verified');
+        await client.end();
+      } catch(e) {
+        console.error('V341_ERROR: ' + e.message.substring(0, 200));
+        try { await client.end(); } catch {}
+      }
+    }
+    ensureEnum();
+  " 2>&1
+
   # ── FIX v112: Verify critical tables exist after migration ──
   # Prisma may mark migrations as "applied" in _prisma_migrations table
   # even if the actual SQL failed (e.g., during a previous deploy when

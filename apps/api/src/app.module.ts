@@ -9,6 +9,8 @@ import { RedisModule } from './common/redis/redis.module';
 import { FeatureFlagModule } from './common/feature-flags/feature-flag.module';
 // V339: Trade Lifecycle Logger — Single Source of Truth for trade events
 import { TradeLifecycleModule } from './common/trade-lifecycle/trade-lifecycle.module';
+// V341: Position State Machine — single decision point for position lifecycle
+import { StateMachineModule } from './common/state-machine/state-machine.module';
 import { AuthModule } from './auth/auth.module';
 import { ExchangeModule } from './modules/exchange/exchange.module';
 import { AiModule } from './modules/ai/ai.module';
@@ -108,6 +110,7 @@ import { PrismaService } from './common/prisma/prisma.service';
     PrismaModule,
     RedisModule,
     TradeLifecycleModule, // V339: Global trade lifecycle logging
+    StateMachineModule,   // V341: Position State Machine
 
     // ── Application Modules ──
     AuditModule,

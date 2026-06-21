@@ -19,6 +19,8 @@ import { StrategicCouncilService } from '../../ai/strategic-council/strategic-co
 import { FeatureFlagService } from '../../../common/feature-flags/feature-flag.service';
 // V339: Trade Lifecycle Logger — for audit trail of every close decision
 import { TradeLifecycleLogger } from '../../../common/trade-lifecycle/trade-lifecycle.logger';
+// V341: Position State Machine — single decision point for position lifecycle
+import { PositionStateMachine } from '../../../common/state-machine/position-state-machine.service';
 
 /** V270: RegimeType matching MarketRegimeService output */
 type RegimeType = 'BULL' | 'BEAR' | 'RANGE' | 'VOLATILE' | 'TRANSITIONAL';
@@ -154,6 +156,8 @@ export class PositionMonitorService {
     @Optional() private readonly featureFlags?: FeatureFlagService,
     // V339: Trade Lifecycle Logger — for audit trail of every close decision
     @Optional() private readonly lifecycle?: TradeLifecycleLogger,
+    // V341: Position State Machine — single decision point for close decisions
+    @Optional() private readonly stateMachine?: PositionStateMachine,
   ) {
     this.logger.log('🛡️ Position Monitor initialized — protective surveillance active'
       + (this.journal ? ' + TradeJournal' : '')
@@ -1373,25 +1377,35 @@ export class PositionMonitorService {
     currentPrice: number,
     reason: 'STOP_LOSS' | 'TAKE_PROFIT' | 'TIME_EXPIRED' | 'STALE_POSITION' | 'REGIME_REVERSAL',
   ): Promise<void> {
-    // V339: Log CLOSE_REQUEST before attempting close — this is the audit trail
-    if (this.lifecycle) {
-      const closingSource = reason === 'STOP_LOSS' ? 'SL_ENGINE'
-        : reason === 'TAKE_PROFIT' ? 'TP_ENGINE'
-        : reason === 'TIME_EXPIRED' ? 'TIMEOUT_SERVICE'
-        : reason === 'STALE_POSITION' ? 'POSITION_MONITOR'
-        : reason === 'REGIME_REVERSAL' ? 'RISK_ENGINE'
-        : 'UNKNOWN';
-      const entryPrice = position.entryPrice?.toNumber?.() ?? Number(position.entryPrice);
-      const high = position.highestPrice?.toNumber?.() ?? Number(position.highestPrice);
-      const low = position.lowestPrice?.toNumber?.() ?? Number(position.lowestPrice);
-      const holdingMs = position.openedAt ? Date.now() - new Date(position.openedAt).getTime() : 0;
-      await this.lifecycle.log({
+    // V341: State Machine — request close transition BEFORE executing
+    // This is the SINGLE DECISION POINT. If state machine blocks it, we skip.
+    const closingSource = reason === 'STOP_LOSS' ? 'SL_ENGINE'
+      : reason === 'TAKE_PROFIT' ? 'TP_ENGINE'
+      : reason === 'TIME_EXPIRED' ? 'TIMEOUT_SERVICE'
+      : reason === 'STALE_POSITION' ? 'POSITION_MONITOR'
+      : reason === 'REGIME_REVERSAL' ? 'RISK_ENGINE'
+      : 'UNKNOWN';
+
+    const transitionReason = reason === 'STOP_LOSS' ? 'SL_HIT'
+      : reason === 'TAKE_PROFIT' ? 'TP_HIT'
+      : reason === 'TIME_EXPIRED' ? 'TIME_EXPIRED'
+      : reason === 'STALE_POSITION' ? 'STALE_POSITION'
+      : reason === 'REGIME_REVERSAL' ? 'REGIME_REVERSAL'
+      : 'FORCE_CLOSE';
+
+    const entryPrice = position.entryPrice?.toNumber?.() ?? Number(position.entryPrice);
+    const high = position.highestPrice?.toNumber?.() ?? Number(position.highestPrice);
+    const low = position.lowestPrice?.toNumber?.() ?? Number(position.lowestPrice);
+    const holdingMs = position.openedAt ? Date.now() - new Date(position.openedAt).getTime() : 0;
+
+    // V341: Request close via State Machine — validates transition + logs
+    if (this.stateMachine) {
+      const allowed = await this.stateMachine.requestClose({
         positionId: position.id,
         userId: position.userId,
-        eventType: 'CLOSE_REQUEST',
-        closingSource: closingSource as any,
-        module: 'position-monitor',
-        reason: `${reason} at ${Math.round(holdingMs / 60000)}min`,
+        toState: 'PENDING_CLOSE',
+        reason: transitionReason as any,
+        initiator: closingSource as any,
         price: currentPrice,
         highestPrice: high,
         lowestPrice: low,
@@ -1406,6 +1420,41 @@ export class PositionMonitorService {
           source: position.source,
         },
       });
+
+      if (!allowed) {
+        // State machine blocked the close — position is not in OPEN state
+        // (maybe already being closed by another path, or already CLOSED)
+        this.logger.warn(
+          `🚫 V341: State Machine BLOCKED close of ${position.id.slice(0, 12)}... ` +
+          `(${reason}) — position is not in OPEN state`
+        );
+        return; // Don't proceed with close
+      }
+    } else {
+      // V339 fallback: log directly if state machine is not available
+      if (this.lifecycle) {
+        await this.lifecycle.log({
+          positionId: position.id,
+          userId: position.userId,
+          eventType: 'CLOSE_REQUEST',
+          closingSource: closingSource as any,
+          module: 'position-monitor',
+          reason: `${reason} at ${Math.round(holdingMs / 60000)}min`,
+          price: currentPrice,
+          highestPrice: high,
+          lowestPrice: low,
+          metadata: {
+            reason,
+            entryPrice,
+            stopLoss: position.stopLoss?.toNumber?.() ?? null,
+            takeProfit: position.takeProfit?.toNumber?.() ?? null,
+            holdingMinutes: Math.round(holdingMs / 60000),
+            side: position.side,
+            symbol: position.symbol,
+            source: position.source,
+          },
+        });
+      }
     }
 
     try {
@@ -1442,6 +1491,17 @@ export class PositionMonitorService {
           price: currentPrice,
           metadata: { reason, symbol: position.symbol },
         });
+      }
+
+      // V341: Confirm close via State Machine — PENDING_CLOSE → CLOSED
+      if (this.stateMachine) {
+        await this.stateMachine.confirmClose(
+          position.id,
+          position.userId,
+          currentPrice,
+          transitionReason as any,
+          closingSource as any,
+        );
       }
 
       await this.audit.log({
@@ -1521,6 +1581,11 @@ export class PositionMonitorService {
       this.logger.error(
         `🛡️ Failed to close position ${position.id}: ${error.message}`,
       );
+
+      // V341: Revert state machine — PENDING_CLOSE → OPEN (close failed, position stays active)
+      if (this.stateMachine) {
+        await this.stateMachine.revertClose(position.id, position.userId, error.message);
+      }
 
       // FIX V114: If closePositionWithRetry failed, try force-close as fallback.
       // This is critical for SL/TP-triggered closes — if the close fails, the

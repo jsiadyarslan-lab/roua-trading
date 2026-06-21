@@ -1041,22 +1041,21 @@ export class PositionMonitorService {
         : (entryPrice - takeProfitNum);
 
       if (tpDistance > 0) {
-        const profitDistance = position.side === 'BUY'
-          ? (currentPrice - entryPrice)
-          : (entryPrice - currentPrice);
+        // V343 FIX: Check bestTpProgress FIRST (not tpProgress).
+        // OLD BUG: The outer check used tpProgress (currentPrice), but if price
+        // spiked to 92% then retraced to 85%, tpProgress < 0.90 → outer check
+        // failed → bestTpProgress was never checked → Trailing TP never triggered.
+        // This defeated the entire purpose of V338 — capturing peak prices.
+        // FIX: Use bestTpProgress for the outer check too. This ensures we
+        // trigger trailing TP even if currentPrice has retraced, as long as
+        // the BEST price seen reached 90% of TP.
+        const bestProfitDistance = position.side === 'BUY'
+          ? (effectiveHigh - entryPrice)
+          : (entryPrice - effectiveLow);
+        const bestTpProgress = bestProfitDistance / tpDistance;
 
-        const tpProgress = profitDistance / tpDistance; // 0 = at entry, 1 = at TP
-
-        if (tpProgress >= this.TRAILING_TP_TRIGGER_PCT && tpProgress < 1.0) {
-          // Price is within 90-100% of TP — lock in profit
-          // Use the BEST price seen (effectiveHigh/effectiveLow) for progress calculation
-          // to avoid missing the peak due to 10s tick interval
-          const bestProfitDistance = position.side === 'BUY'
-            ? (effectiveHigh - entryPrice)
-            : (entryPrice - effectiveLow);
-          const bestTpProgress = bestProfitDistance / tpDistance;
-
-          if (bestTpProgress >= this.TRAILING_TP_TRIGGER_PCT) {
+        if (bestTpProgress >= this.TRAILING_TP_TRIGGER_PCT && bestTpProgress < 1.0) {
+          // Price peaked within 90-100% of TP — lock in profit
             // Calculate the lock-in SL: 80% of the distance from entry to TP
             const lockDistance = tpDistance * this.TRAILING_TP_LOCK_PCT;
             const trailingTpSL = position.side === 'BUY'
@@ -1100,7 +1099,6 @@ export class PositionMonitorService {
                 });
               }
             }
-          }
         }
       }
     }

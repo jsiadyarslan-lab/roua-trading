@@ -294,9 +294,9 @@ export class ContentPublisherService {
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
-        // V9 FIX: Explicit select to avoid querying titleFr/titleTr/titleEs
-        // columns that may not exist yet (before migration runs).
-        // Once migration is applied, this select can be removed.
+        // V9 FIX: Explicit select WITHOUT titleFr/titleTr/titleEs.
+        // These columns may not exist yet if migration hasn't run.
+        // Once migration is confirmed applied, add them back.
         select: {
           id: true,
           userId: true,
@@ -309,18 +309,13 @@ export class ContentPublisherService {
           summaryAr: true,
           summaryEn: true,
           excerpt: true,
-          // V9 multilingual fields — included only if they exist
-          // (Prisma will error if column doesn't exist, but the select
-          // prevents automatic inclusion of all columns)
-          titleFr: true,
-          contentFr: true,
-          summaryFr: true,
-          titleTr: true,
-          contentTr: true,
-          summaryTr: true,
-          titleEs: true,
-          contentEs: true,
-          summaryEs: true,
+          // V9 multilingual fields — REMOVED temporarily until migration is applied.
+          // The integration.controller.ts uses dynamic field access (article.titleFr)
+          // which returns undefined if the field doesn't exist in the select result.
+          // Once migration is applied, add these back:
+          // titleFr: true, contentFr: true, summaryFr: true,
+          // titleTr: true, contentTr: true, summaryTr: true,
+          // titleEs: true, contentEs: true, summaryEs: true,
           category: true,
           categoryAr: true,
           tags: true,

@@ -140,7 +140,7 @@ export class PositionMonitorService {
   // This is the ONLY reliable way to verify which code is actually executing,
   // because DEPLOY_COMMIT comes from RAILWAY_GIT_COMMIT_SHA (auto-updated
   // by Railway to the latest push) and does NOT reflect the actual build.
-  public static readonly CODE_VERSION = 'V351g';
+  public static readonly CODE_VERSION = 'V351i';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -185,8 +185,8 @@ export class PositionMonitorService {
       + (this.lifecycle ? ' + V339 LifecycleLog' : ' + ❌NO LifecycleLog')
       + (this.stateMachine ? ' + V341 StateMachine' : ' + ❌NO StateMachine'));
     // V351e: Loud startup log with code version — must appear in Railway logs
-    this.logger.log(`🔧 V351g: PositionMonitorService CODE_VERSION=${PositionMonitorService.CODE_VERSION} — if this log is missing, Railway is running STALE cached code`);
-    console.log(`🔧 V351g: PositionMonitorService CODE_VERSION=${PositionMonitorService.CODE_VERSION} — if this log is missing, Railway is running STALE cached code`);
+    this.logger.log(`🔧 V351i: PositionMonitorService CODE_VERSION=${PositionMonitorService.CODE_VERSION} — self-healing check REMOVED entirely`);
+    console.log(`🔧 V351i: PositionMonitorService CODE_VERSION=${PositionMonitorService.CODE_VERSION} — self-healing check REMOVED entirely`);
 
     // V351h: CRITICAL FIX — Clear any existing self-healing disable flag on startup.
     // The self-healing service may have disabled position-monitor due to transient
@@ -255,13 +255,21 @@ export class PositionMonitorService {
       return;
     }
 
-    // V185: الشفاء الذاتي — تخطي إذا كان المكون معطلاً
-    if (this.selfHealing?.isComponentDisabled('position-monitor')) {
-      this.logger.warn('🛡️ Position Monitor is DISABLED by self-healing — skipping cycle');
-      // V351g: Write skip reason to Redis for diagnostic
-      try { await this.redis.set('monitor:skip_reason', JSON.stringify({ reason: 'SELF_HEALING_DISABLED', timestamp: new Date().toISOString() }), 30000); } catch {}
-      return;
-    }
+    // V351i: REMOVED self-healing check entirely.
+    // Position monitor is TOO CRITICAL to ever skip. Self-healing was disabling
+    // it after just 2 transient failures, creating a death loop where the monitor
+    // could never recover (disabled → skip → never report success → never reset).
+    // This caused 20+ debugging attempts to find the root cause.
+    // The monitor MUST run unconditionally — if it fails, log the error and
+    // continue, but NEVER skip the entire cycle.
+
+    // V351i: Clear any stale self-healing disable flag on every cycle.
+    // This ensures that even if self-healing disabled the monitor in a previous
+    // process (before V351i was deployed), the flag gets cleared within 1 second
+    // of this code running.
+    try {
+      await this.redis.del('self-healing:disabled:position-monitor');
+    } catch { /* non-critical */ }
 
     if (this.isMonitoring) {
       // V351g: Write skip reason to Redis for diagnostic

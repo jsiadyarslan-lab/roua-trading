@@ -6,6 +6,8 @@ import { OrderStateManagerService } from './order-state-manager.service';
 import { AuditService } from '../../../audit/audit.service';
 import { OrderQueueMessage } from '../events/order.events';
 import { NotificationService } from '../../notification/notification.service';
+// V339: Trade Lifecycle Logger — for OPEN event logging
+import { TradeLifecycleLogger } from '../../../common/trade-lifecycle/trade-lifecycle.logger';
 import * as ccxt from 'ccxt';
 
 /**
@@ -53,6 +55,8 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
     private readonly stateManager: OrderStateManagerService,
     private readonly auditService: AuditService,
     @Optional() private readonly notificationService?: NotificationService,
+    // V339: Trade Lifecycle Logger — for OPEN event logging
+    @Optional() private readonly lifecycle?: TradeLifecycleLogger,
   ) {}
 
   async onModuleInit() {
@@ -455,6 +459,50 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
         // both create new positions.
         isolationLevel: 'Serializable' as any,
       });
+
+      // V339: Log OPEN event — position was successfully created
+      if (this.lifecycle) {
+        try {
+          // Find the newly created position to get its ID
+          const newPosition = await this.prisma.position.findFirst({
+            where: {
+              userId: message.userId,
+              symbol: message.symbol,
+              status: 'OPEN',
+              side: message.side as any,
+            },
+            orderBy: { openedAt: 'desc' },
+            select: { id: true, entryPrice: true, stopLoss: true, takeProfit: true },
+          });
+
+          if (newPosition) {
+            await this.lifecycle.log({
+              positionId: newPosition.id,
+              userId: message.userId,
+              eventType: 'OPEN',
+              module: 'order-consumer',
+              reason: `Position opened: ${message.side} ${message.symbol} @ ${fillPrice}`,
+              price: fillPrice,
+              highestPrice: fillPrice,
+              lowestPrice: fillPrice,
+              metadata: {
+                symbol: message.symbol,
+                side: message.side,
+                quantity: filledQuantity,
+                entryPrice: fillPrice,
+                stopLoss: message.stopLoss,
+                takeProfit: message.takeProfit,
+                source: message.source,
+                exchange: credential.exchange,
+                orderId: message.orderId,
+              },
+            });
+          }
+        } catch (logErr: any) {
+          // Never block trading — just log the error
+          this.logger.warn(`V339: Failed to log OPEN event: ${logErr.message}`);
+        }
+      }
     } catch (error: any) {
       // Log the error but don't crash — the order was already executed on the exchange
       // FIX: Write to PositionReconciliation table for automatic retry.

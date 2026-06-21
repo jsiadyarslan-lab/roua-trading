@@ -27,6 +27,8 @@ import { OrderSide as PrismaOrderSide, OrderType as PrismaOrderType, OrderStatus
 import { ExecutionGatewayService } from '../execution/gateways/execution-gateway.service';
 // V223: StrategicCouncilService — forwardRef import for cross-module DI
 import { StrategicCouncilService } from '../ai/strategic-council/strategic-council.service';
+// V339: Trade Lifecycle Logger — for OPEN event logging
+import { TradeLifecycleLogger } from '../../common/trade-lifecycle/trade-lifecycle.logger';
 /**
  * Trading Engine Service — Roua Trading (رؤى)
  *
@@ -67,6 +69,8 @@ export class TradingService {
     // the invalidateBriefsForSymbol call will throw loudly inside the try/catch.
     @Optional() @Inject(forwardRef(() => StrategicCouncilService))
     private readonly strategicCouncil?: StrategicCouncilService,
+    // V339: Trade Lifecycle Logger — for OPEN event logging
+    @Optional() private readonly lifecycle?: TradeLifecycleLogger,
   ) {
     this.logger.log(
       '⚡ Trading Engine initialized — ready for execution',
@@ -3020,6 +3024,41 @@ export class TradingService {
 
             },
           });
+
+          // V339: Log OPEN event — position was created via TradingService
+          if (this.lifecycle) {
+            try {
+              const newPosition = await this.prisma.position.findFirst({
+                where: { userId, symbol: request.symbol, status: 'OPEN', side },
+                orderBy: { openedAt: 'desc' },
+                select: { id: true },
+              });
+              if (newPosition) {
+                await this.lifecycle.log({
+                  positionId: newPosition.id,
+                  userId,
+                  eventType: 'OPEN',
+                  module: 'trading.service',
+                  reason: `Position opened: ${side} ${request.symbol} @ ${fillPrice}`,
+                  price: fillPrice,
+                  highestPrice: fillPrice,
+                  lowestPrice: fillPrice,
+                  metadata: {
+                    symbol: request.symbol,
+                    side,
+                    quantity: filledQty,
+                    entryPrice: fillPrice,
+                    stopLoss: finalStopLoss,
+                    takeProfit: finalTakeProfit,
+                    source: request.source,
+                    exchange: exchangeName,
+                  },
+                });
+              }
+            } catch (logErr: any) {
+              this.logger.warn(`V339: Failed to log OPEN event: ${logErr.message}`);
+            }
+          }
         } catch (createError: any) {
           // FIX: If create fails due to race condition (another transaction
           // created a position between our findFirst and create), fall back

@@ -104,14 +104,19 @@ async function fetchCryptoBatch(symbols: string[]) {
 }
 
 /**
- * Fetch non-crypto symbols in staggered batches to respect API rate limits.
- * FIX: Increased polling interval from 120s to 600s (10 min) and batch delay from 3s to 5s.
- * With free sources only (TwelveData disabled): 12 symbols × 144/day = 1,728 fetches/day — sustainable.
- * Server-side cache of 600s means actual API hits are even lower.
+ * Fetch non-crypto symbols in staggered batches.
+ * V354: OANDA is now the primary source (via NestJS backend proxy).
+ * OANDA supports 120 req/sec with 2s server-side cache, so we can poll
+ * more frequently than the old 10-min interval (which was for free sources).
+ *
+ * Current: 23 forex/metals/indices/energy pairs × poll every 60s = 1,380 req/hour
+ * OANDA limit: 120 req/sec × 3600 = 432,000 req/hour — plenty of headroom.
+ *
+ * Batch size 3 with 1s delay = ~8s per full cycle (23 pairs).
  */
 async function fetchNonCryptoBatch(symbols: string[]) {
-  const BATCH_SIZE = 2
-  const BATCH_DELAY = 5000 // 5s between batches (increased from 3s)
+  const BATCH_SIZE = 3
+  const BATCH_DELAY = 1000 // 1s between batches (OANDA can handle it)
 
   for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
     const batch = symbols.slice(i, i + BATCH_SIZE)
@@ -178,8 +183,11 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Poll non-crypto every 10 min — pauses when tab hidden
-  useVisibleInterval(() => fetchNonCryptoBatch(NON_CRYPTO_SYMBOLS), 600_000)
+  // V354: Poll non-crypto (Forex + Metals + Indices + Energy) every 60 seconds.
+  // OANDA (via NestJS backend) supports 120 req/sec — we can afford frequent updates.
+  // Previously was 10 min (600s) because free sources (Yahoo) had tight rate limits.
+  // Pauses when tab hidden.
+  useVisibleInterval(() => fetchNonCryptoBatch(NON_CRYPTO_SYMBOLS), 60_000)
 
   // FIX V139: Poll crypto via REST every 15 seconds as fallback for Binance WS.
   // WS provides sub-second updates, but this REST poll ensures:

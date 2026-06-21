@@ -682,8 +682,8 @@ export async function GET(
         if (proxyRes.ok) {
           const data = await proxyRes.json();
           if (data?.success && data?.data?.price > 0) {
-            // Cache the OANDA result and return it
-            setCached(cacheKey, data.data);
+            // Cache the OANDA result for 2 seconds (matches OANDA backend cache)
+            setCache(cacheKey, data.data, 2000);
             return NextResponse.json({ success: true, data: data.data, cached: false });
           }
         }

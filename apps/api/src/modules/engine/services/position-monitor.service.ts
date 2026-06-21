@@ -1079,9 +1079,22 @@ export class PositionMonitorService {
 
             // Only move SL if the new SL is BETTER than current
             // For BUY: higher SL is better. For SELL: lower SL is better.
+            // V344 FIX: Re-read current SL from DB — V177 Break-Even may have
+            // already updated it in this same tick. Using stale stopLossNum
+            // could cause V338 to set a LOWER SL than V177 just set.
+            let currentSLForTP = stopLossNum;
+            try {
+              const freshPos = await this.prisma.position.findUnique({
+                where: { id: position.id },
+                select: { stopLoss: true },
+              });
+              const freshSL = freshPos?.stopLoss?.toNumber?.() ?? null;
+              if (freshSL !== null) currentSLForTP = freshSL;
+            } catch { /* non-critical */ }
+
             const shouldUpdateTP = position.side === 'BUY'
-              ? (stopLossNum === null || trailingTpSL > stopLossNum)
-              : (stopLossNum === null || trailingTpSL < stopLossNum);
+              ? (currentSLForTP === null || trailingTpSL > currentSLForTP)
+              : (currentSLForTP === null || trailingTpSL < currentSLForTP);
 
             if (shouldUpdateTP) {
               await this.prisma.position.update({
@@ -1125,10 +1138,22 @@ export class PositionMonitorService {
       if (trailingStop) {
         // For BUY: trailing stop moves UP (higher SL is better)
         // For SELL: trailing stop moves DOWN (lower SL is better, closer to entry from above)
-        const currentSL = stopLossNum || 0;
-        // FIX: For SELL with no existing SL (currentSL=0), always set trailing stop.
-        // Without this, `trailingStop < 0` would be false and the trailing stop
-        // would never activate for SELL positions that don't have an initial SL.
+        // V344 FIX: Re-read current SL from DB to avoid stale stopLossNum.
+        // V177 Break-Even and V338 Trailing TP may have already updated SL
+        // in this same tick. Using the stale stopLossNum (read at line 489)
+        // could cause Trailing Stop to OVERWRITE a higher SL with a lower one.
+        // Example: V177 sets SL=100.01, but Trailing Stop sees old SL=98,
+        // calculates trailingStop=99.79, and overwrites 100.01 with 99.79.
+        let currentSL = stopLossNum || 0;
+        try {
+          const freshPosition = await this.prisma.position.findUnique({
+            where: { id: position.id },
+            select: { stopLoss: true },
+          });
+          const freshSL = freshPosition?.stopLoss?.toNumber?.() ?? null;
+          if (freshSL !== null) currentSL = freshSL;
+        } catch { /* non-critical — use stale value as fallback */ }
+
         const shouldUpdate = position.side === 'BUY'
           ? trailingStop > currentSL
           : (currentSL === 0 || trailingStop < currentSL);

@@ -1391,7 +1391,17 @@ export class PositionMonitorService {
         ? entryPrice * 1.0001  // slightly above entry
         : entryPrice * 0.9999; // slightly below entry
 
-      const currentSL = Number(position.stopLoss) || 0;
+      // V344 FIX: Re-read SL from DB — V177/V338/Trailing Stop may have updated it
+      let currentSL = Number(position.stopLoss) || 0;
+      try {
+        const freshPos = await this.prisma.position.findUnique({
+          where: { id: position.id },
+          select: { stopLoss: true },
+        });
+        const freshSL = freshPos?.stopLoss?.toNumber?.() ?? null;
+        if (freshSL !== null) currentSL = freshSL;
+      } catch { /* non-critical */ }
+
       const shouldMove = posSide === 'BUY'
         ? currentSL < breakEvenSL
         : (currentSL === 0 || currentSL > breakEvenSL);
@@ -1441,7 +1451,19 @@ export class PositionMonitorService {
       ? currentPrice * (1 - TIGHT_TRAILING_DISTANCE)
       : currentPrice * (1 + TIGHT_TRAILING_DISTANCE);
 
-    const currentSL = Number(position.stopLoss) || 0;
+    // V344 FIX: Re-read current SL from DB — V177, V338, and Trailing Stop may have
+    // already updated SL in this same tick. Using stale position.stopLoss could
+    // cause this function to OVERWRITE a higher SL with a lower one.
+    let currentSL = Number(position.stopLoss) || 0;
+    try {
+      const freshPos = await this.prisma.position.findUnique({
+        where: { id: position.id },
+        select: { stopLoss: true },
+      });
+      const freshSL = freshPos?.stopLoss?.toNumber?.() ?? null;
+      if (freshSL !== null) currentSL = freshSL;
+    } catch { /* non-critical — use stale value as fallback */ }
+
     const shouldUpdate = position.side === 'BUY'
       ? tightTrailingStop > currentSL
       : (currentSL === 0 || tightTrailingStop < currentSL);

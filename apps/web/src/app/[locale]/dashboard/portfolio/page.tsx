@@ -71,6 +71,29 @@ const formatPrice = (value: number, symbol?: string) => {
   return fmtPriceLocale(value, symbol)
 }
 
+// V340: Format position ID for display — show first 12 chars of cuid for brevity
+const formatTradeId = (id: string) => {
+  if (!id) return '—'
+  return id.length > 12 ? id.substring(0, 12) + '…' : id
+}
+
+// V340: Format entry/openedAt date for display — short format YYYY-MM-DD HH:MM
+const formatEntryDate = (dateStr?: string) => {
+  if (!dateStr) return '—'
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return '—'
+    const yyyy = d.getFullYear()
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const dd = String(d.getDate()).padStart(2, '0')
+    const hh = String(d.getHours()).padStart(2, '0')
+    const mi = String(d.getMinutes()).padStart(2, '0')
+    return `${yyyy}-${mm}-${dd} ${hh}:${mi}`
+  } catch {
+    return '—'
+  }
+}
+
 /* ── Types ── */
 interface Position {
   id: string
@@ -1537,6 +1560,19 @@ export default function PortfolioPage() {
                         </button>
                       </div>
                     </div>
+                    {/* V340: Trade ID + entry date on mobile */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div
+                        title={pos.id}
+                        onClick={() => { try { navigator.clipboard?.writeText(pos.id) } catch {} }}
+                        style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8.5, color: T.cyan, cursor: 'pointer', opacity: 0.7 }}
+                      >
+                        ID: {formatTradeId(pos.id)}
+                      </div>
+                      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8.5, color: T.text3 }}>
+                        {formatEntryDate(pos.openedAt)}
+                      </div>
+                    </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, fontSize: 10 }}>
                       <div><span style={{ color: T.text3 }}>{t('quantityLabel')}: </span><span style={{ color: T.text2 }}>{pos.quantity}</span></div>
                       <div><span style={{ color: T.text3 }}>{t('entryLabel')}: </span><span style={{ color: T.text2 }}>{formatPrice(pos.entryPrice, pos.symbol)}</span></div>
@@ -1551,14 +1587,14 @@ export default function PortfolioPage() {
               <>
                 {/* Table head */}
                 <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                <div role="table" aria-label={t('openTrades')} style={{ minWidth: 800 }}>
+                <div role="table" aria-label={t('openTrades')} style={{ minWidth: 1000 }}>
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: '100px 70px 70px 90px 90px 80px 80px 80px 80px',
+                  gridTemplateColumns: '110px 100px 80px 65px 65px 85px 85px 75px 75px 75px 75px',
                   padding: '5px 14px', gap: 0,
                   borderBottom: `0.5px solid ${T.border}`,
                 }}>
-                  {[t('headerPair'),t('headerDirection'),t('headerSize'),t('headerEntryPrice'),t('headerCurrentPrice'),'SL','TP','P&L',t('headerAction')].map((h) => (
+                  {['ID',t('headerPair'),t('headerDirection'),t('headerSize'),t('headerEntryPrice'),t('headerCurrentPrice'),'SL','TP','P&L','دخول',t('headerAction')].map((h) => (
                     <div key={h} style={{
                       fontFamily: "'Cairo', sans-serif", fontSize: 9.5,
                       color: T.text3, textAlign: 'center',
@@ -1571,7 +1607,7 @@ export default function PortfolioPage() {
                     key={pos.id}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '100px 70px 70px 90px 90px 80px 80px 80px 80px',
+                      gridTemplateColumns: '110px 100px 80px 65px 65px 85px 85px 75px 75px 75px 75px',
                       padding: '7px 14px', gap: 0,
                       borderBottom: i < positions.length - 1 ? `0.5px solid ${T.border}` : 'none',
                       alignItems: 'center',
@@ -1582,6 +1618,14 @@ export default function PortfolioPage() {
                     onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = i % 2 === 0 ? 'rgba(255,255,255,0.005)' : 'transparent'}
                   >
+                    {/* V340: Trade ID — first 12 chars of cuid, monospace, clickable to copy */}
+                    <div
+                      title={pos.id}
+                      onClick={() => { try { navigator.clipboard?.writeText(pos.id) } catch {} }}
+                      style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.cyan, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.8 }}
+                    >
+                      {formatTradeId(pos.id)}
+                    </div>
                     <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.symbol}</div>
                     <div style={{ display: 'flex', justifyContent: 'center' }}>
                       <span style={{
@@ -1604,6 +1648,10 @@ export default function PortfolioPage() {
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     }}>
                       {(pos.unrealizedPnl || 0) > 0 ? '+' : (pos.unrealizedPnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pos.unrealizedPnl || 0))}
+                    </div>
+                    {/* V340: Entry date — openedAt formatted as YYYY-MM-DD HH:MM */}
+                    <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={pos.openedAt}>
+                      {formatEntryDate(pos.openedAt)}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'center' }}>
                       <button
@@ -1796,6 +1844,14 @@ export default function PortfolioPage() {
                             <div><span style={{ color: T.text3 }}>{t('durationLabel')}: </span><span style={{ color: T.text2 }}>{formatDuration(pt.openedAt, pt.executedAt)}</span></div>
                             <div><span style={{ color: T.text3 }}>{t('timeLabel')}: </span><span style={{ color: T.text2 }}>{pt.executedAt ? new Date(pt.executedAt).toLocaleDateString('ar', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</span></div>
                           </div>
+                          {/* V340: Trade ID on mobile — clickable to copy */}
+                          <div
+                            title={pt.id}
+                            onClick={() => { try { navigator.clipboard?.writeText(pt.id) } catch {} }}
+                            style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: T.cyan, cursor: 'pointer', opacity: 0.6 }}
+                          >
+                            ID: {formatTradeId(pt.id)}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1803,11 +1859,11 @@ export default function PortfolioPage() {
                   <>
                   <div role="table" aria-label={t('closedTrades')} style={{
                     display: 'grid',
-                    gridTemplateColumns: '100px 50px 55px 70px 70px 65px 65px 70px 55px 55px 70px 90px',
+                    gridTemplateColumns: '110px 90px 50px 55px 70px 70px 65px 65px 70px 55px 55px 70px 90px',
                     padding: '5px 14px', gap: 0,
                     borderBottom: `0.5px solid ${T.border}`,
                   }}>
-                    {[t('headerPair'),t('headerDirection'),t('headerSize'),t('entryLabel'),t('headerClose'),t('headerStopLoss'),t('headerTakeProfit'),t('headerRealizedPnl'),t('headerReason'),t('headerDuration'),t('headerStatus'),t('headerCloseTime')].map((h) => (
+                    {['ID',t('headerPair'),t('headerDirection'),t('headerSize'),t('entryLabel'),t('headerClose'),t('headerStopLoss'),t('headerTakeProfit'),t('headerRealizedPnl'),t('headerReason'),t('headerDuration'),t('headerStatus'),t('headerCloseTime')].map((h) => (
                       <div key={h} style={{
                         fontFamily: "'Cairo', sans-serif", fontSize: 9.5,
                         color: T.text3, textAlign: 'center',
@@ -1820,7 +1876,7 @@ export default function PortfolioPage() {
                       key={pt.id}
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: '100px 50px 55px 70px 70px 65px 65px 70px 55px 55px 70px 90px',
+                        gridTemplateColumns: '110px 90px 50px 55px 70px 70px 65px 65px 70px 55px 55px 70px 90px',
                         padding: '6px 14px', gap: 0,
                         borderBottom: i < filteredHistory.length - 1 ? `0.5px solid ${T.border}` : 'none',
                         alignItems: 'center',
@@ -1831,6 +1887,14 @@ export default function PortfolioPage() {
                       onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                       onMouseLeave={(e) => e.currentTarget.style.background = i % 2 === 0 ? 'rgba(255,255,255,0.005)' : 'transparent'}
                     >
+                      {/* V340: Trade ID — clickable to copy full ID */}
+                      <div
+                        title={pt.id}
+                        onClick={() => { try { navigator.clipboard?.writeText(pt.id) } catch {} }}
+                        style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8.5, color: T.cyan, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.8, textAlign: 'center' }}
+                      >
+                        {formatTradeId(pt.id)}
+                      </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                         <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 600, color: T.text }}>{pt.symbol}</span>
                         {/* V140B: Source badge — shows منفذ/وكيل/ورقي/يدوي */}

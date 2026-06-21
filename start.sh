@@ -175,6 +175,62 @@ if [ "$DB_REACHABLE" -eq 1 ]; then
     timeout 60 run_prisma db push --schema=./prisma/schema.prisma --accept-data-loss 2>&1 && echo "✅ DB push applied" || echo "⚠️ DB push also failed — will try direct SQL fallback"
   }
 
+  # ── V339: Ensure TradeLifecycleLog table exists (UNCONDITIONAL) ──
+  # A failed migration in _prisma_migrations blocks ALL new migrations.
+  # This direct SQL creation runs REGARDLESS of migration status, ensuring
+  # the TradeLifecycleLog table always exists for audit logging.
+  echo "📦 V339: Ensuring TradeLifecycleLog table exists..."
+  DATABASE_URL_IN="$ORIG_DB_URL" timeout 20 node -e "
+    const { Client } = require('pg');
+    async function ensureTLL() {
+      const client = new Client({
+        connectionString: process.env.DATABASE_URL_IN,
+        connectionTimeoutMillis: 5000,
+        statement_timeout: 15000,
+      });
+      try {
+        await client.connect();
+        const check = await client.query(
+          \"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'TradeLifecycleLog')\"
+        );
+        if (!check.rows[0].exists) {
+          console.log('V339: Creating TradeLifecycleLog table...');
+          await client.query(\`
+            CREATE TABLE IF NOT EXISTS \"TradeLifecycleLog\" (
+                \"id\" TEXT NOT NULL,
+                \"positionId\" TEXT NOT NULL,
+                \"userId\" TEXT NOT NULL,
+                \"eventType\" TEXT NOT NULL,
+                \"closingSource\" TEXT,
+                \"module\" TEXT NOT NULL,
+                \"reason\" TEXT,
+                \"price\" DECIMAL(18,8),
+                \"highestPrice\" DECIMAL(18,8),
+                \"lowestPrice\" DECIMAL(18,8),
+                \"metadata\" JSONB,
+                \"createdAt\" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT \"TradeLifecycleLog_pkey\" PRIMARY KEY (\"id\")
+            );
+            CREATE INDEX IF NOT EXISTS \"TradeLifecycleLog_positionId_idx\" ON \"TradeLifecycleLog\"(\"positionId\");
+            CREATE INDEX IF NOT EXISTS \"TradeLifecycleLog_userId_idx\" ON \"TradeLifecycleLog\"(\"userId\");
+            CREATE INDEX IF NOT EXISTS \"TradeLifecycleLog_eventType_idx\" ON \"TradeLifecycleLog\"(\"eventType\");
+            CREATE INDEX IF NOT EXISTS \"TradeLifecycleLog_closingSource_idx\" ON \"TradeLifecycleLog\"(\"closingSource\");
+            CREATE INDEX IF NOT EXISTS \"TradeLifecycleLog_positionId_createdAt_idx\" ON \"TradeLifecycleLog\"(\"positionId\", \"createdAt\");
+            CREATE INDEX IF NOT EXISTS \"TradeLifecycleLog_createdAt_idx\" ON \"TradeLifecycleLog\"(\"createdAt\");
+          \`);
+          console.log('V339: ✅ TradeLifecycleLog table created');
+        } else {
+          console.log('V339: ✅ TradeLifecycleLog table already exists');
+        }
+        await client.end();
+      } catch(e) {
+        console.error('V339_ERROR: ' + e.message.substring(0, 300));
+        try { await client.end(); } catch {}
+      }
+    }
+    ensureTLL();
+  " 2>&1
+
   # ── FIX v112: Verify critical tables exist after migration ──
   # Prisma may mark migrations as "applied" in _prisma_migrations table
   # even if the actual SQL failed (e.g., during a previous deploy when
@@ -198,6 +254,7 @@ if [ "$DB_REACHABLE" -eq 1 ]; then
           'AiUsageLog',
           'AgentSettings',
           'AdminSession',
+          'TradeLifecycleLog', // V339: Critical for trade audit logging
         ];
         const missing = [];
         for (const table of criticalTables) {
@@ -248,6 +305,44 @@ if [ "$DB_REACHABLE" -eq 1 ]; then
             } else {
               console.log('SKIP: Migration SQL file not found');
             }
+
+            // V339: Ensure TradeLifecycleLog table exists (critical for trade audit)
+            // This runs REGARDLESS of whether the migration file was found,
+            // because a failed migration in _prisma_migrations table blocks
+            // ALL new migrations from applying.
+            const tllCheck = await client.query(
+              \`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'TradeLifecycleLog')\`
+            );
+            if (!tllCheck.rows[0].exists) {
+              console.log('V339: Creating TradeLifecycleLog table (migration was blocked)...');
+              await client.query(\`
+                CREATE TABLE IF NOT EXISTS "TradeLifecycleLog" (
+                    "id" TEXT NOT NULL,
+                    "positionId" TEXT NOT NULL,
+                    "userId" TEXT NOT NULL,
+                    "eventType" TEXT NOT NULL,
+                    "closingSource" TEXT,
+                    "module" TEXT NOT NULL,
+                    "reason" TEXT,
+                    "price" DECIMAL(18,8),
+                    "highestPrice" DECIMAL(18,8),
+                    "lowestPrice" DECIMAL(18,8),
+                    "metadata" JSONB,
+                    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT "TradeLifecycleLog_pkey" PRIMARY KEY ("id")
+                );
+                CREATE INDEX IF NOT EXISTS "TradeLifecycleLog_positionId_idx" ON "TradeLifecycleLog"("positionId");
+                CREATE INDEX IF NOT EXISTS "TradeLifecycleLog_userId_idx" ON "TradeLifecycleLog"("userId");
+                CREATE INDEX IF NOT EXISTS "TradeLifecycleLog_eventType_idx" ON "TradeLifecycleLog"("eventType");
+                CREATE INDEX IF NOT EXISTS "TradeLifecycleLog_closingSource_idx" ON "TradeLifecycleLog"("closingSource");
+                CREATE INDEX IF NOT EXISTS "TradeLifecycleLog_positionId_createdAt_idx" ON "TradeLifecycleLog"("positionId", "createdAt");
+                CREATE INDEX IF NOT EXISTS "TradeLifecycleLog_createdAt_idx" ON "TradeLifecycleLog"("createdAt");
+              \`);
+              console.log('V339: TradeLifecycleLog table created successfully');
+            } else {
+              console.log('V339: TradeLifecycleLog table already exists');
+            }
+
             await client.end();
           } catch(e) {
             console.error('SQL_ERROR:' + e.message.substring(0, 300));

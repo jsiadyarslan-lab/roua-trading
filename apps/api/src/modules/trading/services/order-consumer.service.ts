@@ -333,20 +333,20 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
     // read the same data concurrently, one will fail and retry, preventing
     // the duplicate position creation.
     try {
-      await this.prisma.$transaction(async (tx) => {
+      // V342: Transaction returns the position ID for lifecycle logging
+      const txResult = await this.prisma.$transaction(async (tx) => {
         const credential = await tx.exchangeCredential.findUnique({
           where: { id: message.exchangeCredentialId },
         });
 
-        if (!credential) return;
+        if (!credential) return null;
 
         // FIX: Verify credential ownership within the transaction
-        // This prevents a malicious user from using another user's credential
         if (credential.userId !== message.userId) {
           this.logger.error(
             `🐰 SECURITY: User ${message.userId} attempted to use credential ${message.exchangeCredentialId} owned by ${credential.userId}`,
           );
-          return;
+          return null;
         }
 
         // Check for existing position to add to — WITHIN the transaction
@@ -358,6 +358,9 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
             side: message.side as any,
           },
         });
+
+        let positionId: string;
+        let isNewPosition = false;
 
         if (existingPosition) {
           // Add to existing position (average price)
@@ -376,6 +379,7 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
               takeProfit: message.takeProfit,
             },
           });
+          positionId = existingPosition.id;
         } else {
           // ═══════════════════════════════════════════════════════════════════
           // V222 BULLETPROOF: DB-level cooldown — block ALL new positions on
@@ -398,7 +402,7 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
               `🛡️ V222 QUEUE-COOLDOWN: BLOCKED ${message.side} on ${message.symbol} — ` +
               `position closed ${closedAgo} min ago (cooldown: ${COOLDOWN_MINUTES} min)`
             );
-            return; // Drop the order — don't create position
+            return null; // Drop the order — don't create position
           }
 
           // Also check for ANY existing open position (regardless of direction)
@@ -410,16 +414,19 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
               `🛡️ V222 QUEUE-DUPLICATE: BLOCKED ${message.side} on ${message.symbol} — ` +
               `existing ${anyExistingOpen.side} position already open`
             );
-            return; // Drop the order
+            return null; // Drop the order
           }
 
           // Open new position
-          await tx.position.create({
+          // V342: Capture the created position ID directly from create()
+          const createdPosition = await tx.position.create({
             data: {
               userId: message.userId,
               credentialId: message.exchangeCredentialId,
               exchange: credential.exchange,
               symbol: message.symbol,
+              // V342 FIX: Set exchangeSymbol for reconciliation (was missing)
+              exchangeSymbol: message.symbol,
               side: message.side as any,
               status: 'OPEN',
               quantity: filledQuantity,
@@ -429,13 +436,12 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
               lowestPrice: fillPrice,
               stopLoss: message.stopLoss,
               takeProfit: message.takeProfit,
-              // FIX: Use message.source (propagated from OrderDispatcher) instead of
-              // always defaulting to 'auto_paper'/'user_manual'. Previously, source was
-              // not included in the BullMQ payload, so executor trades were mislabeled
-              // as 'auto_paper' and agent trades as 'auto_paper' too.
               source: message.source || (credential.exchange === 'paper-trading' ? 'auto_paper' : 'user_manual'),
             },
+            select: { id: true },
           });
+          positionId = createdPosition.id;
+          isNewPosition = true;
         }
 
         // Record trade within the same transaction
@@ -453,6 +459,8 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
             source: message.source || (credential.exchange === 'paper-trading' ? 'auto_paper' : 'user_manual'),
           },
         });
+
+        return { positionId, isNewPosition };
       }, {
         // FIX: Use SERIALIZABLE isolation level to prevent race conditions
         // where two concurrent transactions both read the same state and
@@ -460,44 +468,31 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
         isolationLevel: 'Serializable' as any,
       });
 
-      // V339: Log OPEN event — position was successfully created
-      if (this.lifecycle) {
+      // V339: Log OPEN event — only for NEW positions (not when adding to existing)
+      // V342: Uses the positionId returned from the transaction — no findFirst needed
+      if (this.lifecycle && txResult && txResult.isNewPosition) {
         try {
-          // Find the newly created position to get its ID
-          const newPosition = await this.prisma.position.findFirst({
-            where: {
-              userId: message.userId,
+          await this.lifecycle.log({
+            positionId: txResult.positionId,
+            userId: message.userId,
+            eventType: 'OPEN',
+            module: 'order-consumer',
+            reason: `Position opened: ${message.side} ${message.symbol} @ ${fillPrice}`,
+            price: fillPrice,
+            highestPrice: fillPrice,
+            lowestPrice: fillPrice,
+            metadata: {
               symbol: message.symbol,
-              status: 'OPEN',
-              side: message.side as any,
+              side: message.side,
+              quantity: filledQuantity,
+              entryPrice: fillPrice,
+              stopLoss: message.stopLoss,
+              takeProfit: message.takeProfit,
+              source: message.source,
+              exchangeCredentialId: message.exchangeCredentialId,
+              orderId: message.orderId,
             },
-            orderBy: { openedAt: 'desc' },
-            select: { id: true, entryPrice: true, stopLoss: true, takeProfit: true },
           });
-
-          if (newPosition) {
-            await this.lifecycle.log({
-              positionId: newPosition.id,
-              userId: message.userId,
-              eventType: 'OPEN',
-              module: 'order-consumer',
-              reason: `Position opened: ${message.side} ${message.symbol} @ ${fillPrice}`,
-              price: fillPrice,
-              highestPrice: fillPrice,
-              lowestPrice: fillPrice,
-              metadata: {
-                symbol: message.symbol,
-                side: message.side,
-                quantity: filledQuantity,
-                entryPrice: fillPrice,
-                stopLoss: message.stopLoss,
-                takeProfit: message.takeProfit,
-                source: message.source,
-                exchangeCredentialId: message.exchangeCredentialId, // V339: credential object out of scope
-                orderId: message.orderId,
-              },
-            });
-          }
         } catch (logErr: any) {
           // Never block trading — just log the error
           this.logger.warn(`V339: Failed to log OPEN event: ${logErr.message}`);

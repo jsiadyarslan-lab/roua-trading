@@ -1421,6 +1421,9 @@ export class PositionMonitorService {
     currentPrice: number,
     reason: 'STOP_LOSS' | 'TAKE_PROFIT' | 'TIME_EXPIRED' | 'STALE_POSITION' | 'REGIME_REVERSAL',
   ): Promise<void> {
+    // V342: Clean up lastTickLogTime to prevent memory leak
+    this.lastTickLogTime.delete(position.id);
+
     // V341: State Machine — request close transition BEFORE executing
     // This is the SINGLE DECISION POINT. If state machine blocks it, we skip.
     const closingSource = reason === 'STOP_LOSS' ? 'SL_ENGINE'

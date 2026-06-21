@@ -42,7 +42,11 @@ export class OandaAdapter implements IExchangeAdapter {
   private readonly LIVE_URL = 'https://api-fxtrade.oanda.com';
 
   // Cache TTLs
-  private readonly QUOTE_CACHE_TTL = 2_000;       // 2 seconds (forex moves slower than crypto)
+  // V359: Reduced from 2s to 500ms — OANDA streaming writes to this cache key.
+  // If stream is active, cache is always fresh. 500ms TTL means if stream stops,
+  // we fall back to REST API quickly. But while stream is active, we serve
+  // the streamed price (updated <1s ago).
+  private readonly QUOTE_CACHE_TTL = 500;       // 500ms (stream-fed, very fresh)
   private readonly HISTORY_CACHE_TTL = 60_000;   // 1 minute
 
   // Rate limit: 30 requests/sec (conservative)

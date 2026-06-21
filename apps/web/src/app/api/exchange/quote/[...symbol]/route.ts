@@ -602,20 +602,34 @@ export async function GET(
     const symbol = normalizeRouteSymbol(symbolParts.symbol)
     const source = request.nextUrl.searchParams.get('source')
 
-    // Check cache first
-    const cacheKey = `quote:${symbol}:${source || 'auto'}`
-    const cached = getCached(cacheKey)
-    if (cached) {
-      return NextResponse.json({ success: true, data: cached, cached: true })
+    // V359: SKIP Next.js cache entirely for OANDA pairs.
+    // The chart polls every 2s — if we cache for 2s in Next.js, the chart
+    // sees the SAME price twice. We need every poll to go to NestJS → OANDA stream cache.
+    // Only use cache for non-OANDA pairs (crypto via Binance WS already live).
+    const isOandaPair = (() => {
+      const upper = symbol.toUpperCase();
+      if (upper.includes('USDT') || upper.includes('/BTC') || upper.includes('/ETH')) return false;
+      const forexQuotes = ['/USD', '/JPY', '/GBP', '/EUR', '/CHF', '/CAD', '/AUD', '/NZD'];
+      const indicesBases = ['US30', 'NAS100', 'SPX500', 'GER30', 'UK100', 'WTI', 'BRENT'];
+      return forexQuotes.some(qc => upper.includes(qc)) || indicesBases.some(b => upper.startsWith(b));
+    })();
+
+    if (!isOandaPair) {
+      // Non-OANDA pairs: use cache normally
+      const cached = getCached(cacheKey)
+      if (cached) {
+        return NextResponse.json({ success: true, data: cached, cached: true })
+      }
     }
 
-    // Cache stampede protection: if another request is already fetching this key,
-    // wait for its result instead of making duplicate API calls
-    const existingFetch = fetchMutex.get(cacheKey)
-    if (existingFetch) {
-      const result = await existingFetch
-      if (result) return NextResponse.json({ success: true, data: result, cached: false })
-      // If the existing fetch failed, continue to try ourselves
+    // V359: For OANDA pairs, skip cache stampede protection too.
+    // Each poll should go directly to NestJS (which has stream-fed Redis cache).
+    if (!isOandaPair) {
+      const existingFetch = fetchMutex.get(cacheKey)
+      if (existingFetch) {
+        const result = await existingFetch
+        if (result) return NextResponse.json({ success: true, data: result, cached: false })
+      }
     }
 
     // Validate source parameter early — reject unknown sources before any fetching

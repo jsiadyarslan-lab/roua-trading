@@ -76,11 +76,20 @@ export class ExchangeService {
    */
   async getQuote(symbol: string, source?: string): Promise<UnifiedQuoteDto> {
     const cacheKey = `${symbol}:${source || 'auto'}`;
-    
-    // Check cache first
-    const cached = this.quoteCache.get(cacheKey);
-    if (cached && (Date.now() - cached.timestamp) < this.QUOTE_CACHE_TTL_MS) {
-      return cached.data;
+
+    // V359: For OANDA pairs, SKIP in-memory cache entirely.
+    // The OandaStreamingService writes prices to Redis ('oanda:quote:EUR/USD').
+    // OandaAdapter.fetchQuote() reads from that Redis cache via cacheOrGet().
+    // If we cache in-memory here (2s TTL), we'd serve stale prices that
+    // don't reflect the latest stream updates.
+    // For OANDA pairs: always call adapter.fetchQuote() → it checks Redis → returns streamed price.
+    const isOandaSymbol = this._isForexOrMetalSymbol(symbol);
+    if (!isOandaSymbol) {
+      // Non-OANDA pairs (crypto): use in-memory cache (2s TTL)
+      const cached = this.quoteCache.get(cacheKey);
+      if (cached && (Date.now() - cached.timestamp) < this.QUOTE_CACHE_TTL_MS) {
+        return cached.data;
+      }
     }
 
     // Collect adapters to try: primary first, then fallbacks

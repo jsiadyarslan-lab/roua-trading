@@ -72,11 +72,22 @@ export interface LifecycleLogInput {
 @Injectable()
 export class TradeLifecycleLogger {
   private readonly logger = new Logger(TradeLifecycleLogger.name);
+  
+  // V348: Static reference — bypasses DI entirely.
+  // Set in constructor, accessible from anywhere via TradeLifecycleLogger.instance
+  private static instance: TradeLifecycleLogger | null = null;
+  
+  /** Get the singleton instance (or null if not yet initialized) */
+  static getInstance(): TradeLifecycleLogger | null {
+    return TradeLifecycleLogger.instance;
+  }
 
   constructor(private readonly prisma: PrismaService) {
     // V347: Debug log to verify this service is actually instantiated by NestJS DI
     console.log('🔧 V347: TradeLifecycleLogger CONSTRUCTOR CALLED — DI resolution successful');
     this.logger.log('🔧 V347: TradeLifecycleLogger initialized');
+    // V348: Set static reference so ALL services can access it WITHOUT DI injection
+    TradeLifecycleLogger.instance = this;
   }
 
   /**

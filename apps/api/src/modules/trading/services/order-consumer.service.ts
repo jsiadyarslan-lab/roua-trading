@@ -472,7 +472,7 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
       // V342: Uses the positionId returned from the transaction — no findFirst needed
       if (this.lifecycle && txResult && txResult.isNewPosition) {
         try {
-          await this.lifecycle.log({
+          await TradeLifecycleLogger.getInstance()?.log({
             positionId: txResult.positionId,
             userId: message.userId,
             eventType: 'OPEN',

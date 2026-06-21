@@ -178,6 +178,17 @@ export class PositionMonitorService {
   }
 
   /**
+   * V348: Get effective lifecycle logger — tries DI first, falls back to static instance.
+   * This bypasses any DI injection failures.
+   */
+  private getLifecycle(): TradeLifecycleLogger | null {
+    // Try DI-injected instance first
+    if (this.getLifecycle()) return this.lifecycle;
+    // Fall back to static instance (set in TradeLifecycleLogger constructor)
+    return TradeLifecycleLogger.getInstance();
+  }
+
+  /**
    * Main monitoring cycle — runs every 1 second (V340: was 10s)
    *
    * Checks all open positions for SL/TP hits and updates prices.
@@ -585,7 +596,7 @@ export class PositionMonitorService {
     // V339+V340: Log MONITOR_TICK — sampled to every 5s to reduce DB load.
     // SL/TP checks still run every 1s, but we only LOG every 5s.
     // V342: Moved AFTER SL/TP check — don't log tick if position is being closed.
-    if (this.lifecycle) {
+    if (this.getLifecycle()) {
       const now = Date.now();
       const lastLog = this.lastTickLogTime.get(position.id) || 0;
       if (now - lastLog >= this.MONITOR_TICK_LOG_INTERVAL_MS) {
@@ -605,7 +616,7 @@ export class PositionMonitorService {
           }
         }
 
-        await this.lifecycle.log({
+        await this.getLifecycle()?.log({
           positionId: position.id,
           userId: position.userId,
           eventType: 'MONITOR_TICK',
@@ -1094,8 +1105,8 @@ export class PositionMonitorService {
         result.trailingUpdated = true;
 
         // V342: Log SL_UPDATE for break-even — was missing from lifecycle audit
-        if (this.lifecycle) {
-          await this.lifecycle.log({
+        if (this.getLifecycle()) {
+          await this.getLifecycle()?.log({
             positionId: position.id,
             userId: position.userId,
             eventType: 'SL_UPDATE',
@@ -1186,8 +1197,8 @@ export class PositionMonitorService {
               result.trailingUpdated = true;
 
               // V339: Log SL_UPDATE for audit trail
-              if (this.lifecycle) {
-                await this.lifecycle.log({
+              if (this.getLifecycle()) {
+                await this.getLifecycle()?.log({
                   positionId: position.id,
                   userId: position.userId,
                   eventType: 'SL_UPDATE',
@@ -1249,8 +1260,8 @@ export class PositionMonitorService {
           );
 
           // V342: Log SL_UPDATE for trailing stop — was missing from lifecycle audit
-          if (this.lifecycle) {
-            await this.lifecycle.log({
+          if (this.getLifecycle()) {
+            await this.getLifecycle()?.log({
               positionId: position.id,
               userId: position.userId,
               eventType: 'SL_UPDATE',
@@ -1621,8 +1632,8 @@ export class PositionMonitorService {
       }
     } else {
       // V339 fallback: log directly if state machine is not available
-      if (this.lifecycle) {
-        await this.lifecycle.log({
+      if (this.getLifecycle()) {
+        await this.getLifecycle()?.log({
           positionId: position.id,
           userId: position.userId,
           eventType: 'CLOSE_REQUEST',
@@ -1674,8 +1685,8 @@ export class PositionMonitorService {
           `🚫 V346: Close of ${position.id.slice(0, 12)}... was ${closeResult?.blockedByV237 ? 'BLOCKED by V214/V237' : closeResult?.blockedByV290 ? 'BLOCKED by V290' : 'ALREADY CLOSED'} — skipping CLOSE_EXECUTED log and force-close fallback`
         );
         // Log the blocked attempt
-        if (this.lifecycle) {
-          await this.lifecycle.log({
+        if (this.getLifecycle()) {
+          await this.getLifecycle()?.log({
             positionId: position.id,
             userId: position.userId,
             eventType: 'CLOSE_BLOCKED',
@@ -1690,8 +1701,8 @@ export class PositionMonitorService {
       }
 
       // V339: Log CLOSE_EXECUTED — confirms the close actually happened
-      if (this.lifecycle) {
-        await this.lifecycle.log({
+      if (this.getLifecycle()) {
+        await this.getLifecycle()?.log({
           positionId: position.id,
           userId: position.userId,
           eventType: 'CLOSE_EXECUTED',

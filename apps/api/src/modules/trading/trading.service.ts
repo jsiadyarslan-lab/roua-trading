@@ -3029,9 +3029,9 @@ export class TradingService {
           });
 
           // V339: Log OPEN event — position was created via TradingService
-          if (this.lifecycle) {
+          if (TradeLifecycleLogger.getInstance()) {
             try {
-              await this.lifecycle.log({
+              await TradeLifecycleLogger.getInstance()?.log({
                 positionId: createdPosition.id, // V342: Use the actual ID, not a search
                 userId,
                 eventType: 'OPEN',

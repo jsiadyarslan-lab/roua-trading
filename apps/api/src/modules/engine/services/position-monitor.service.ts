@@ -50,7 +50,23 @@ export class PositionMonitorService {
   private readonly logger = new Logger(PositionMonitorService.name);
 
   /** Interval in milliseconds — V139: reduced from 30s to 10s for faster SL/TP response */
-  private readonly MONITOR_INTERVAL_MS = 10000; // 10 seconds
+  /**
+   * V340: Monitoring interval — reduced from 10s to 1s for tick-level price tracking.
+   *
+   * WHY: The V336 data analysis revealed that 84% of closed positions had
+   * inaccurate highestPrice/lowestPrice tracking. The 10s interval was too
+   * coarse — prices could move 0.5-2% between ticks and the monitor would
+   * miss the actual peak/trough. With 1s intervals:
+   *   - Price tracking is 10x more accurate
+   *   - SL/TP hits are detected within 1s (vs 10s before)
+   *   - V338 Trailing TP triggers more precisely at 90% of TP
+   *   - V339 MONITOR_TICK logs capture real price movement
+   *
+   * PERFORMANCE: Each tick only queries open positions (usually 1-5).
+   * With 1s intervals, that's 60 queries/min vs 6/min before — well within
+   * Prisma's connection pool capacity (default: 10 connections).
+   */
+  private readonly MONITOR_INTERVAL_MS = 1000; // V340: 1 second (was 10s)
 
   /** Trailing stop activation threshold (% profit) */
   private readonly TRAILING_ACTIVATION_PCT = 0.02; // 2%
@@ -148,13 +164,16 @@ export class PositionMonitorService {
   }
 
   /**
-   * Main monitoring cycle — runs every 10 seconds
+   * Main monitoring cycle — runs every 1 second (V340: was 10s)
    *
    * Checks all open positions for SL/TP hits and updates prices.
+   * V340: Reduced to 1s for tick-level price accuracy.
    * V223 FIX: Restored to 10s to match MONITOR_INTERVAL_MS and reduce
    * SL/TP detection latency from 30s → 10s (was causing 0.3–1% slippage per SL hit).
+   * V340: Further reduced to 1s — 84% violation rate in price-integrity check
+   * proved 10s was too coarse for accurate highestPrice/lowestPrice tracking.
    */
-  @Interval(10000)
+  @Interval(1000)
   async runPositionMonitor(): Promise<void> {
     // FIX: Skip cycle when DB is unavailable to prevent connection pool exhaustion
     if (!this.prisma.isAvailable?.()) {
@@ -477,6 +496,61 @@ export class PositionMonitorService {
         : (entryPrice - currentPrice) * quantity;
 
     const pnlPercent = (unrealizedPnl / (entryPrice * quantity)) * 100;
+
+    // V339+V340: Log MONITOR_TICK for every tick (1s interval)
+    // This creates a complete price movement history for each position.
+    // Useful for:
+    //   - Replay debugging (see exactly what price was at each second)
+    //   - Verifying highestPrice/lowestPrice tracking is accurate
+    //   - Detecting when SL/TP was actually touched
+    //   - Analyzing V338 Trailing TP trigger timing
+    //
+    // NOTE: This runs every 1s per open position. With 1-5 open positions,
+    // that's 1-5 log entries per second — manageable for the DB.
+    if (this.lifecycle) {
+      // Calculate TP progress for V338 Trailing TP visibility
+      let tpProgress: number | null = null;
+      if (takeProfitNum !== null && entryPrice > 0) {
+        const tpDistance = position.side === 'BUY'
+          ? (takeProfitNum - entryPrice)
+          : (entryPrice - takeProfitNum);
+        if (tpDistance > 0) {
+          const profitDistance = position.side === 'BUY'
+            ? (currentPrice - entryPrice)
+            : (entryPrice - currentPrice);
+          tpProgress = profitDistance / tpDistance;
+        }
+      }
+
+      await this.lifecycle.log({
+        positionId: position.id,
+        userId: position.userId,
+        eventType: 'MONITOR_TICK',
+        module: 'position-monitor',
+        reason: `Tick: price=${currentPrice.toFixed(6)} PnL=${pnlPercent.toFixed(2)}% tpProgress=${tpProgress !== null ? (tpProgress * 100).toFixed(1) + '%' : 'N/A'}`,
+        price: currentPrice,
+        highestPrice: effectiveHigh,
+        lowestPrice: effectiveLow,
+        metadata: {
+          currentPrice,
+          effectiveHigh,
+          effectiveLow,
+          unrealizedPnl,
+          pnlPercent,
+          tpProgress,
+          stopLoss: stopLossNum,
+          takeProfit: takeProfitNum,
+          entryPrice,
+          side: position.side,
+          source: position.source,
+          // V340: Include quote high/low for tick-level accuracy audit
+          quoteHigh: quoteHigh,
+          quoteLow: quoteLow,
+          trackedHigh,
+          trackedLow,
+        },
+      });
+    }
 
     // ── V187 FIX: Agent SL/TP + MAX_HOLDING check ──
     // Previously, Agent positions did early return after SL/TP check,

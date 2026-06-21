@@ -1641,7 +1641,7 @@ export class PositionMonitorService {
     try {
       // FIX: Use closePositionWithRetry + convert Decimal to number
       // V141: Pass closeReason so it's stored on the Position record
-      await this.tradingService.closePositionWithRetry(
+      const closeResult = await this.tradingService.closePositionWithRetry(
         position.userId,
         {
           positionId: position.id,
@@ -1655,6 +1655,31 @@ export class PositionMonitorService {
         undefined,
         3, // max retries for OPTIMISTIC_LOCK_FAILURE
       );
+
+      // V346 CRITICAL FIX: Check if the close was BLOCKED by V214/V237/V290.
+      // closePositionWithRetry returns {blockedByV237: true} or {blockedByV290: true}
+      // when the close is blocked — it does NOT throw an error.
+      // Without this check, the code would log CLOSE_EXECUTED (wrong!) and
+      // then the V114 force-close fallback would bypass V214 and close anyway!
+      if (closeResult?.blockedByV237 || closeResult?.blockedByV290 || closeResult?.alreadyClosed) {
+        this.logger.warn(
+          `🚫 V346: Close of ${position.id.slice(0, 12)}... was ${closeResult?.blockedByV237 ? 'BLOCKED by V214/V237' : closeResult?.blockedByV290 ? 'BLOCKED by V290' : 'ALREADY CLOSED'} — skipping CLOSE_EXECUTED log and force-close fallback`
+        );
+        // Log the blocked attempt
+        if (this.lifecycle) {
+          await this.lifecycle.log({
+            positionId: position.id,
+            userId: position.userId,
+            eventType: 'CLOSE_BLOCKED',
+            closingSource: 'POSITION_MONITOR' as any,
+            module: 'position-monitor',
+            reason: `Close blocked: ${closeResult?.blockedByV237 ? 'V214/V237 (Agent < 48h)' : closeResult?.blockedByV290 ? 'V290 (SmartExecutor < 6h)' : 'already closed'}`,
+            price: currentPrice,
+            metadata: { closeResult },
+          });
+        }
+        return; // Don't proceed to CLOSE_EXECUTED or force-close
+      }
 
       // V339: Log CLOSE_EXECUTED — confirms the close actually happened
       if (this.lifecycle) {

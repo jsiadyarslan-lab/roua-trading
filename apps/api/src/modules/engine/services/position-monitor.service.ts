@@ -321,10 +321,20 @@ export class PositionMonitorService {
       let alertsSent = 0;
 
       // Step 2: Fetch all quotes in parallel first
+      // V351d: Capture the actual error from getQuote (not just null) so we can
+      // log WHY quotes are failing. Previously .catch(() => null) swallowed the
+      // error silently, making it impossible to diagnose why MONITOR_TICK was 0.
       const quotePromises = positions.map((pos) =>
-        this.exchangeService.getQuote(pos.symbol).catch(() => null),
+        this.exchangeService.getQuote(pos.symbol)
+          .then((quote) => ({ quote, error: null as string | null }))
+          .catch((err: any) => ({ quote: null, error: err?.message?.substring(0, 200) || 'unknown error' })),
       );
-      const quotes = await Promise.allSettled(quotePromises);
+      const quoteResults = await Promise.allSettled(quotePromises);
+
+      // V351d: Track quote fetch failures for diagnostic
+      let quoteSuccessCount = 0;
+      let quoteFailCount = 0;
+      const quoteFailuresBySymbol: Record<string, string> = {};
 
       // Step 3: Process each position with its pre-fetched quote
       // Collect non-critical price updates for batch processing
@@ -337,11 +347,20 @@ export class PositionMonitorService {
       // to only consider NEW peaks that occurred since the last tick.
       for (let i = 0; i < positions.length; i++) {
         const position = positions[i];
-        const quoteResult = quotes[i];
-        const quote =
-          quoteResult.status === 'fulfilled' && quoteResult.value
-            ? quoteResult.value
-            : null;
+        const quoteResult = quoteResults[i];
+        // V351d: Unwrap the { quote, error } shape from our improved catch
+        let quote: any = null;
+        let quoteError: string | null = null;
+        if (quoteResult.status === 'fulfilled' && quoteResult.value) {
+          quote = quoteResult.value.quote;
+          quoteError = quoteResult.value.error;
+        }
+        if (quote) {
+          quoteSuccessCount++;
+        } else {
+          quoteFailCount++;
+          quoteFailuresBySymbol[position.symbol] = quoteError || 'unknown';
+        }
 
         // V345: Redis-based position lock to prevent double-close.
         // Paper trading skips version check in closePosition, so two concurrent
@@ -377,7 +396,8 @@ export class PositionMonitorService {
         // but guarantees no position is ever left unmonitored.
 
         try {
-          const result = await this._monitorPosition(position, quote, priceUpdates);
+          // V351d: Pass quoteError so _monitorPosition can log it in MONITOR_TICK
+          const result = await this._monitorPosition(position, quote, priceUpdates, quoteError);
           if (result.slTriggered) slTriggered++;
           if (result.tpTriggered) tpTriggered++;
           if (result.trailingUpdated) trailingUpdated++;
@@ -392,6 +412,15 @@ export class PositionMonitorService {
             try { await this.redis.del(lockKey); } catch { /* non-critical */ }
           }
         }
+      }
+
+      // V351d: If quote failures happened, log a summary warning
+      if (quoteFailCount > 0) {
+        const sampleFailures = Object.entries(quoteFailuresBySymbol).slice(0, 3);
+        this.logger.warn(
+          `🛡️ V351d Quote fetch: ${quoteSuccessCount} success, ${quoteFailCount} fail. ` +
+          `Sample failures: ${sampleFailures.map(([s, e]) => `${s}: ${e}`).join(' | ')}`
+        );
       }
 
       // Step 4: Batch update positions that only need price/PnL updates (no SL/TP hit)
@@ -420,6 +449,10 @@ export class PositionMonitorService {
           tpTriggered,
           trailingUpdated,
           alertsSent,
+          // V351d: Quote fetch stats — critical for diagnosing why MONITOR_TICK is 0
+          quoteSuccessCount,
+          quoteFailCount,
+          quoteFailuresBySymbol,
         }),
         300000, // 5 min TTL
       );
@@ -516,7 +549,7 @@ export class PositionMonitorService {
 
   // ── Private: Position Monitoring ──
 
-  private async _monitorPosition(position: any, quote: any, priceUpdates: any[]): Promise<{
+  private async _monitorPosition(position: any, quote: any, priceUpdates: any[], quoteError: string | null = null): Promise<{
     slTriggered: boolean;
     tpTriggered: boolean;
     trailingUpdated: boolean;
@@ -561,9 +594,39 @@ export class PositionMonitorService {
     // trackedHigh equals entryPrice (the initial value set at position creation).
     const currentPrice = quote?.price ?? null;
 
-    // Use pre-fetched price or skip
+    // V351d: If quote fetch failed, log a MONITOR_TICK with the error so we can
+    // see in the lifecycle log WHY the position is not being monitored properly.
+    // Previously, this just returned early silently — making it impossible to
+    // diagnose why MONITOR_TICK events were 0.
     if (currentPrice === null) {
-      return result; // Skip if can't get price
+      // V351d: Log the failure as a MONITOR_TICK with error metadata
+      if (this.getLifecycle()) {
+        const now = Date.now();
+        const lastLog = this.lastTickLogTime.get(position.id) || 0;
+        if (now - lastLog >= this.MONITOR_TICK_LOG_INTERVAL_MS) {
+          this.lastTickLogTime.set(position.id, now);
+          try {
+            await this.getLifecycle()?.log({
+              positionId: position.id,
+              userId: position.userId,
+              eventType: 'MONITOR_TICK',
+              module: 'position-monitor',
+              reason: `Quote fetch FAILED — position not monitored this tick. Error: ${quoteError || 'quote was null'}`,
+              // price is optional (number | undefined) — omit when null
+              metadata: {
+                quoteError: quoteError || 'quote was null',
+                symbol: position.symbol,
+                source: position.source,
+                exchange: position.exchange,
+                failedAt: new Date().toISOString(),
+              },
+            });
+          } catch (logErr: any) {
+            this.logger.warn(`V351d: Failed to log quote-failure MONITOR_TICK: ${logErr.message}`);
+          }
+        }
+      }
+      return result; // Skip — can't check SL/TP without price
     }
 
     // Extract quote.high/low — fall back to currentPrice if not available

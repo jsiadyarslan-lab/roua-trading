@@ -1601,6 +1601,10 @@ export class TradingController {
         heartbeatAgeSeconds: monitorHeartbeat?.timestamp
           ? Math.round((Date.now() - new Date(monitorHeartbeat.timestamp).getTime()) / 1000)
           : null,
+        // V351d: Quote fetch stats from last cycle — reveals why MONITOR_TICK is 0
+        quoteSuccessCount: monitorHeartbeat?.quoteSuccessCount ?? null,
+        quoteFailCount: monitorHeartbeat?.quoteFailCount ?? null,
+        quoteFailuresBySymbol: monitorHeartbeat?.quoteFailuresBySymbol ?? null,
         globalOpenPositions: allOpenPositions,
         globalMonitorTicks,
         globalOpenEvents,
@@ -1617,10 +1621,19 @@ export class TradingController {
             if (monitorHeartbeat) {
               const endAge = Math.round((Date.now() - new Date(monitorHeartbeat.timestamp).getTime()) / 1000);
               if (endAge <= 5) {
-                if (globalMonitorTicks === 0 && allOpenPositions > 0) {
-                  return `⚠️ Monitor @Interval fires (start ${startAge}s ago) AND completes (end ${endAge}s ago, ${monitorHeartbeat.positionsMonitored} positions) but 0 MONITOR_TICK — all positions fail before reaching log line (quote fetch failure?)`;
+                // V351d: Check quote fetch stats
+                const qSuccess = monitorHeartbeat.quoteSuccessCount ?? 0;
+                const qFail = monitorHeartbeat.quoteFailCount ?? 0;
+                if (qFail > 0 && qSuccess === 0) {
+                  return `❌ Monitor runs but ALL ${qFail} quote fetches FAILED — exchangeService.getQuote() is broken. Sample: ${JSON.stringify(monitorHeartbeat.quoteFailuresBySymbol || {}).substring(0, 300)}`;
                 }
-                return `✅ Monitor is running (start ${startAge}s ago, end ${endAge}s ago, ${monitorHeartbeat.positionsMonitored} positions processed)`;
+                if (qFail > 0 && qSuccess > 0) {
+                  return `⚠️ Monitor runs: ${qSuccess} quotes OK, ${qFail} FAILED. Some positions monitored, some not.`;
+                }
+                if (globalMonitorTicks === 0 && allOpenPositions > 0) {
+                  return `⚠️ Monitor @Interval fires AND completes but 0 MONITOR_TICK — all positions fail before reaching log line`;
+                }
+                return `✅ Monitor is running (start ${startAge}s ago, end ${endAge}s ago, ${monitorHeartbeat.positionsMonitored} positions, ${qSuccess} quotes OK)`;
               }
               return `⚠️ @Interval fires (start ${startAge}s) but last completed cycle was ${endAge}s ago — cycles are slow or stuck`;
             }
@@ -1644,6 +1657,14 @@ export class TradingController {
           }
           if (!monitorHeartbeat) {
             return '❌ @Interval IS firing but cycle never completes. Likely: (a) prisma.enableRlsBypass() throws, (b) self-healing disabled position-monitor, (c) DB query for open positions fails. Check Railway logs for "🛡️ Position monitor cycle failed".';
+          }
+          // V351d: Check quote fetch stats
+          const qSuccess = monitorHeartbeat.quoteSuccessCount ?? 0;
+          const qFail = monitorHeartbeat.quoteFailCount ?? 0;
+          if (qFail > 0 && qSuccess === 0) {
+            const failures = monitorHeartbeat.quoteFailuresBySymbol || {};
+            const sample = Object.entries(failures).slice(0, 3).map(([s, e]) => `${s}: ${e}`).join(' | ');
+            return `❌ ROOT CAUSE FOUND: exchangeService.getQuote() fails for ALL symbols. ${qFail} failures, 0 successes. Sample: ${sample}. Fix the exchange adapter configuration (Binance/OANDA/TwelveData API keys, network access, etc.).`;
           }
           if (globalMonitorTicks === 0 && allOpenPositions > 0) {
             return '⚠️ Monitor runs and completes but 0 MONITOR_TICK — all positions fail before reaching the MONITOR_TICK log line. Likely: exchangeService.getQuote() fails for all symbols. Check ExchangeService logs.';

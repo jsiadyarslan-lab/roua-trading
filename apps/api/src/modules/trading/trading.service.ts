@@ -2916,56 +2916,28 @@ export class TradingService {
 
       const side = request.side as 'BUY' | 'SELL';
 
-      // V349 CRITICAL FIX: existingPosition check was NOT filtering by credentialId.
-      // This caused a multi-account bug: if the user had an OPEN position on
-      // BTC/USDT with credentialId=A (paper-trading), and they opened a NEW
-      // BUY on BTC/USDT with credentialId=B (MT5), the new order was ADDED
-      // to the paper-trading position (credentialId=A) instead of creating
-      // a new MT5 position. The user would then look at credentialId=B's
-      // portfolio and see NO new position — "paper trade doesn't appear".
+      // V350 CRITICAL FIX: REMOVE averaging entirely.
       //
-      // FIX: Only average into an existing position if it's on the SAME
-      // credential. If the existing position is on a DIFFERENT credential,
-      // create a new position on the active credential (MT5 ticket model).
+      // PROBLEM: When user had an OPEN BUY position on BTC/USDT (credentialId=A)
+      // and opened another BUY on BTC/USDT (same credentialId=A), the new order
+      // was AVERAGED into the existing position — quantity was added, entryPrice
+      // was averaged, but NO new position was created. The user would see only
+      // ONE position with updated quantity — they could NOT see the second trade
+      // as a separate entry with its own ID, SL, TP, and P&L.
       //
-      // This also matches V250's intent: "Each order creates a SEPARATE
-      // position (like MT5 tickets)" — but preserves averaging for same-
-      // account orders (backward compatibility).
-      const existingPosition = await db.position.findFirst({
-        where: {
-          userId,
-          symbol: request.symbol,
-          status: 'OPEN',
-          side,
-          credentialId: request.credentialId, // V349: ONLY average same-credential positions
-        },
-        orderBy: { openedAt: 'desc' },
-      });
+      // The user wants MT5 ticket model: each order = separate position with
+      // its own ID. This matches V250's stated intent: "Each order creates a
+      // SEPARATE position (like MT5 tickets)".
+      //
+      // FIX: Remove the existingPosition lookup and averaging entirely. Always
+      // create a new position. The cooldown check still runs (per-credential).
+      //
+      // V349 kept the averaging "for backward compatibility" — but the user
+      // explicitly wants each trade to be separate. Removing it now.
+      //
+      // (No findFirst lookup needed — always create new position below)
 
-      if (existingPosition) {
-        // Add to existing position on the SAME credential (average up/down)
-        const existingQty = existingPosition.quantity.toNumber();
-        const existingPrice = existingPosition.entryPrice.toNumber();
-        const totalQuantity = existingQty + filledQty;
-        const avgPrice =
-          (existingPrice * existingQty + fillPrice * filledQty) /
-          totalQuantity;
-
-        this.logger.log(
-          `📊 V349: Adding to existing position ${existingPosition.id.slice(0, 12)}... ` +
-          `on same credential (${request.credentialId.slice(0, 8)}...) — ` +
-          `qty: ${existingQty} + ${filledQty} = ${totalQuantity}, ` +
-          `avgPrice: ${existingPrice.toFixed(4)} → ${avgPrice.toFixed(4)}`
-        );
-
-        await db.position.update({
-          where: { id: existingPosition.id },
-          data: {
-            quantity: totalQuantity,
-            entryPrice: avgPrice,
-          },
-        });
-      } else {
+      {
         // ═══════════════════════════════════════════════════════════════════
         // V222 BULLETPROOF: DB-level cooldown — block ALL positions on a
         // symbol that was closed within the last 15 minutes, REGARDLESS of
@@ -3014,108 +2986,78 @@ export class TradingService {
         // V238 removed this from controllers — but forgot this check
         // inside TradingService._updatePosition.
         // Each order creates a SEPARATE position (like MT5 tickets).
+        //
+        // V350: Also removed the P2002 catch that was averaging on race
+        // condition. Position table has no @@unique constraint, so P2002
+        // should never fire. If it does, let it throw — don't silently
+        // average into an existing position.
 
         // Open new position
         const { stopLoss, takeProfit } =
           this.unifiedRisk.getDefaultLevels(fillPrice, side);
 
-        try {
-          // CRITICAL FIX: Use SL/TP from the request (brief) if provided.
-          // Previously, takeProfit was always overwritten with the default level,
-          // ignoring the brief's calculated TP. Only fall back to defaults if not set.
-          const defaultLevels = this.unifiedRisk.getDefaultLevels(fillPrice, side);
-          const finalStopLoss = request.stopLoss ?? defaultLevels.stopLoss;
-          const finalTakeProfit = request.takeProfit ?? defaultLevels.takeProfit;
+        // CRITICAL FIX: Use SL/TP from the request (brief) if provided.
+        // Previously, takeProfit was always overwritten with the default level,
+        // ignoring the brief's calculated TP. Only fall back to defaults if not set.
+        const defaultLevels = this.unifiedRisk.getDefaultLevels(fillPrice, side);
+        const finalStopLoss = request.stopLoss ?? defaultLevels.stopLoss;
+        const finalTakeProfit = request.takeProfit ?? defaultLevels.takeProfit;
 
-          // V342 FIX: Capture the created position ID directly from create()
-          // instead of searching with findFirst afterward (which was unreliable
-          // and could match a different position if multiple exist).
-          const createdPosition = await db.position.create({
-            data: {
+        // V342 FIX: Capture the created position ID directly from create()
+        // V350: Always create a NEW position — never average into existing.
+        const createdPosition = await db.position.create({
+          data: {
+            userId,
+            credentialId: request.credentialId,
+            exchange: exchangeName,
+            symbol: request.symbol,
+            exchangeSymbol: this._toAlpacaSymbol(request.symbol, exchangeName),
+            side,
+            status: 'OPEN',
+            quantity: filledQty,
+            entryPrice: fillPrice,
+            currentPrice: fillPrice,
+            highestPrice: fillPrice,
+            lowestPrice: fillPrice,
+            stopLoss: finalStopLoss,
+            takeProfit: finalTakeProfit,
+            source:  request.source || (exchangeName === 'paper-trading' ? 'auto_paper' : 'user_manual'),
+            timeframe: request.timeframe || null, // V204: Persist timeframe for position-monitor MAX_HOLDING
+          },
+          select: { id: true }, // V342: Return the ID directly
+        });
+
+        this.logger.log(
+          `📊 V350: Created NEW position ${createdPosition.id.slice(0, 12)}... ` +
+          `for ${side} ${filledQty} ${request.symbol} @ ${fillPrice} ` +
+          `(credential ${request.credentialId.slice(0, 8)}..., source: ${request.source || 'user_manual'})`
+        );
+
+        // V339: Log OPEN event — position was created via TradingService
+        if (TradeLifecycleLogger.getInstance()) {
+          try {
+            await TradeLifecycleLogger.getInstance()?.log({
+              positionId: createdPosition.id, // V342: Use the actual ID, not a search
               userId,
-              credentialId: request.credentialId,
-              exchange: exchangeName,
-              symbol: request.symbol,
-              exchangeSymbol: this._toAlpacaSymbol(request.symbol, exchangeName),
-              side,
-              status: 'OPEN',
-              quantity: filledQty,
-              entryPrice: fillPrice,
-              currentPrice: fillPrice,
+              eventType: 'OPEN',
+              module: 'trading.service',
+              reason: `Position opened: ${side} ${request.symbol} @ ${fillPrice}`,
+              price: fillPrice,
               highestPrice: fillPrice,
               lowestPrice: fillPrice,
-              stopLoss: finalStopLoss,
-              takeProfit: finalTakeProfit,
-              source:  request.source || (exchangeName === 'paper-trading' ? 'auto_paper' : 'user_manual'),
-              timeframe: request.timeframe || null, // V204: Persist timeframe for position-monitor MAX_HOLDING
-            },
-            select: { id: true }, // V342: Return the ID directly
-          });
-
-          // V339: Log OPEN event — position was created via TradingService
-          if (TradeLifecycleLogger.getInstance()) {
-            try {
-              await TradeLifecycleLogger.getInstance()?.log({
-                positionId: createdPosition.id, // V342: Use the actual ID, not a search
-                userId,
-                eventType: 'OPEN',
-                module: 'trading.service',
-                reason: `Position opened: ${side} ${request.symbol} @ ${fillPrice}`,
-                price: fillPrice,
-                highestPrice: fillPrice,
-                lowestPrice: fillPrice,
-                metadata: {
-                  symbol: request.symbol,
-                  side,
-                  quantity: filledQty,
-                  entryPrice: fillPrice,
-                  stopLoss: finalStopLoss,
-                  takeProfit: finalTakeProfit,
-                  source: request.source,
-                  exchange: exchangeName,
-                },
-              });
-            } catch (logErr: any) {
-              this.logger.warn(`V339: Failed to log OPEN event: ${logErr.message}`);
-            }
-          }
-        } catch (createError: any) {
-          // FIX: If create fails due to race condition (another transaction
-          // created a position between our findFirst and create), fall back
-          // to finding and updating the newly created position instead.
-          // V349: Also filter by credentialId here — same fix as the main
-          // existingPosition check above.
-          if (createError.code === 'P2002' || createError.message?.includes('Unique constraint')) {
-            this.logger.warn(`Race condition detected in _updatePosition — retrying as update for ${request.symbol}`);
-            const racePosition = await db.position.findFirst({
-              where: {
-                userId,
+              metadata: {
                 symbol: request.symbol,
-                status: 'OPEN',
                 side,
-                credentialId: request.credentialId, // V349: same credentialId filter
+                quantity: filledQty,
+                entryPrice: fillPrice,
+                stopLoss: finalStopLoss,
+                takeProfit: finalTakeProfit,
+                source: request.source,
+                exchange: exchangeName,
               },
-              orderBy: { openedAt: 'desc' },
             });
-            if (racePosition) {
-              const existingQty = racePosition.quantity.toNumber();
-              const existingPrice = racePosition.entryPrice.toNumber();
-              const totalQuantity = existingQty + filledQty;
-              const avgPrice =
-                (existingPrice * existingQty + fillPrice * filledQty) /
-                totalQuantity;
-              await db.position.update({
-                where: { id: racePosition.id },
-                data: {
-                  quantity: totalQuantity,
-                  entryPrice: avgPrice,
-                },
-              });
-            } else {
-              throw createError;
-            }
-          } else {
-            throw createError;
+          } catch (logErr: any) {
+            this.logger.warn(`V339: Failed to log OPEN event: ${logErr.message}`);
           }
         }
       }

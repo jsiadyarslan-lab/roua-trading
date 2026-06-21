@@ -349,49 +349,25 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
           return null;
         }
 
-        // V349: Check for existing position to add to — WITHIN the transaction.
-        // CRITICAL FIX: Filter by credentialId — only average positions on the SAME
-        // credential. Without this filter, an order for credentialId=B (MT5) could
-        // be averaged into a position on credentialId=A (paper-trading), causing
-        // the user to not see their new position on the active credential.
-        const existingPosition = await tx.position.findFirst({
-          where: {
-            userId: message.userId,
-            symbol: message.symbol,
-            status: 'OPEN',
-            side: message.side as any,
-            credentialId: message.exchangeCredentialId, // V349: ONLY average same-credential positions
-          },
-        });
+        // V350 CRITICAL FIX: REMOVE averaging AND duplicate-position block entirely.
+        //
+        // PROBLEM (same as trading.service.ts): When user had an OPEN position on
+        // the same symbol+side+credential, the new order was AVERAGED into it
+        // instead of creating a new position. Also, the V222 QUEUE-DUPLICATE
+        // check was BLOCKING new positions entirely if any open position existed
+        // on the same symbol+credential — even for legitimate trades.
+        //
+        // FIX: Always create a NEW position (MT5 ticket model). Each order = its
+        // own position with its own ID, SL, TP, and P&L. Only the cooldown check
+        // remains (per-credential, for automated sources only).
+        //
+        // V349 added credentialId filter but kept the averaging — V350 removes
+        // the averaging entirely.
 
         let positionId: string;
         let isNewPosition = false;
 
-        if (existingPosition) {
-          // Add to existing position on the SAME credential (average price)
-          const totalQuantity = Number(existingPosition.quantity) + filledQuantity;
-          const avgPrice =
-            (Number(existingPosition.entryPrice) * Number(existingPosition.quantity) +
-              fillPrice * filledQuantity) /
-            totalQuantity;
-
-          this.logger.log(
-            `🐰 V349: Adding to existing position ${existingPosition.id.slice(0, 12)}... ` +
-            `on same credential (${message.exchangeCredentialId.slice(0, 8)}...) — ` +
-            `qty: ${Number(existingPosition.quantity)} + ${filledQuantity} = ${totalQuantity}`
-          );
-
-          await tx.position.update({
-            where: { id: existingPosition.id },
-            data: {
-              quantity: totalQuantity,
-              entryPrice: avgPrice,
-              stopLoss: message.stopLoss,
-              takeProfit: message.takeProfit,
-            },
-          });
-          positionId = existingPosition.id;
-        } else {
+        {
           // ═══════════════════════════════════════════════════════════════════
           // V222 BULLETPROOF: DB-level cooldown — block ALL new positions on
           // a symbol that was closed within the last 15 minutes. This catches
@@ -418,27 +394,14 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
             return null; // Drop the order — don't create position
           }
 
-          // V349: Also check for ANY existing open position (regardless of direction)
-          // on the SAME credential. Previously this checked ALL credentials, which
-          // meant an open paper-trading position would block a new MT5 position
-          // on the same symbol. Now scoped to the same credential.
-          const anyExistingOpen = await tx.position.findFirst({
-            where: {
-              userId: message.userId,
-              symbol: message.symbol,
-              status: 'OPEN',
-              credentialId: message.exchangeCredentialId, // V349: same credential only
-            },
-          });
-          if (anyExistingOpen) {
-            this.logger.warn(
-              `🛡️ V222 QUEUE-DUPLICATE: BLOCKED ${message.side} on ${message.symbol} — ` +
-              `existing ${anyExistingOpen.side} position already open on same credential`
-            );
-            return null; // Drop the order
-          }
+          // V350: REMOVED V222 QUEUE-DUPLICATE check entirely.
+          // Previously this blocked new positions if ANY open position existed
+          // on the same symbol+credential. This prevented legitimate trading:
+          //   - User has 1 BUY on BTC/USDT → can't open another BUY (averaging)
+          //   - User has 1 BUY on BTC/USDT → can't open SELL (hedging)
+          // Now: always create a new position. Each order = separate ticket.
 
-          // Open new position
+          // V350: Always create a NEW position (never average)
           // V342: Capture the created position ID directly from create()
           const createdPosition = await tx.position.create({
             data: {
@@ -463,6 +426,12 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
           });
           positionId = createdPosition.id;
           isNewPosition = true;
+
+          this.logger.log(
+            `🐰 V350: Created NEW position ${positionId.slice(0, 12)}... ` +
+            `for ${message.side} ${filledQuantity} ${message.symbol} @ ${fillPrice} ` +
+            `(credential ${message.exchangeCredentialId.slice(0, 8)}..., source: ${message.source || 'user_manual'})`
+          );
         }
 
         // Record trade within the same transaction

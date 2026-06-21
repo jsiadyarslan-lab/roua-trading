@@ -1543,6 +1543,61 @@ export class TradingController {
       result.checks.recentPositions = { error: err.message?.substring(0, 200) };
     }
 
+    // V351: Check 8 — PositionMonitor health (the critical missing piece)
+    // If MONITOR_TICK events are missing, this will tell us WHY:
+    //   - Is Redis 'monitor:last_cycle' set? (confirms monitor is running)
+    //   - What was the last cycle timestamp?
+    //   - How many positions did it process?
+    try {
+      // Get monitor:last_cycle from Redis via a raw query (we don't have direct Redis access here)
+      // Instead, check if ANY MONITOR_TICK events exist globally (across all users)
+      const globalMonitorTicks = await this.prisma.tradeLifecycleLog.count({
+        where: { eventType: 'MONITOR_TICK' },
+      });
+      const globalOpenEvents = await this.prisma.tradeLifecycleLog.count({
+        where: { eventType: 'OPEN' },
+      });
+      const globalCloseEvents = await this.prisma.tradeLifecycleLog.count({
+        where: { eventType: { in: ['CLOSE_REQUEST', 'CLOSE_EXECUTED', 'CLOSE_BLOCKED'] } },
+      });
+      const globalSlUpdates = await this.prisma.tradeLifecycleLog.count({
+        where: { eventType: 'SL_UPDATE' },
+      });
+
+      result.checks.monitorHealth = {
+        globalMonitorTicks,
+        globalOpenEvents,
+        globalCloseEvents,
+        globalSlUpdates,
+        status: globalMonitorTicks > 0
+          ? '✅ Monitor IS logging ticks (at least some positions)'
+          : '❌ ZERO MONITOR_TICK events globally — PositionMonitor is either not running, or getLifecycle() returns null inside it',
+        diagnosis: (() => {
+          if (globalMonitorTicks > 0) return 'Monitor logging works for some positions';
+          if (globalOpenEvents > 0) {
+            return '⚠️ OPEN events are logged (TradingService lifecycle works) but MONITOR_TICK is 0 — PositionMonitor either: (a) is not running its @Interval cycle, (b) getLifecycle() returns null inside PositionMonitor, (c) all positions fail before reaching the MONITOR_TICK log line (e.g., quote fetch fails)';
+          }
+          return 'No events at all — lifecycle logging is completely broken';
+        })(),
+      };
+
+      // V351: Check for the specific position's MONITOR_TICK events
+      if (positionId) {
+        const cleanPositionId = positionId.split("'")[0].split(')')[0].trim();
+        const positionTicks = await this.prisma.tradeLifecycleLog.count({
+          where: { positionId: cleanPositionId, eventType: 'MONITOR_TICK' },
+        });
+        result.checks.positionMonitorTicks = {
+          count: positionTicks,
+          status: positionTicks > 0
+            ? '✅ This position IS being monitored'
+            : '❌ ZERO MONITOR_TICK for this position — it is NOT being monitored by PositionMonitor',
+        };
+      }
+    } catch (err: any) {
+      result.checks.monitorHealth = { error: err.message?.substring(0, 200) };
+    }
+
     // Summary
     result.summary = {
       deployLive: result.checks.deployVersion?.deployCommit !== 'unknown',
@@ -1552,6 +1607,8 @@ export class TradingController {
       anyEventsLogged: (result.checks.tradeLifecycleLogTable?.totalEventsForUser ?? 0) > 0,
       positionFound: result.checks.position?.exists === true,
       positionHasLifecycle: (result.checks.positionLifecycle?.eventsCount ?? 0) > 0,
+      monitorLoggingTicks: (result.checks.monitorHealth?.globalMonitorTicks ?? 0) > 0,
+      positionIsMonitored: (result.checks.positionMonitorTicks?.count ?? 0) > 0,
     };
 
     result.diagnosis = (() => {
@@ -1560,6 +1617,8 @@ export class TradingController {
       if (!s.lifecycleTableExists) return '❌ TradeLifecycleLog table missing — migration not applied. Run prisma migrate deploy.';
       if (!s.lifecycleLoggerActive) return '❌ TradeLifecycleLogger static instance is NULL — constructor never ran. DI failure persists despite V347/V348.';
       if (!s.anyEventsLogged) return '⚠️ Logger is active and table exists, but 0 events logged. OPEN event logging code path may have a bug.';
+      if (!s.monitorLoggingTicks) return '❌ ZERO MONITOR_TICK events globally — PositionMonitor @Interval is not running, OR getLifecycle() returns null inside it, OR all positions fail before reaching MONITOR_TICK log line. This is the critical issue to fix next.';
+      if (positionId && s.positionFound && !s.positionIsMonitored) return '⚠️ Position exists, monitor logs ticks globally, but THIS position has 0 MONITOR_TICK — possibly quote fetch fails for this symbol, or position was excluded';
       if (positionId && s.positionFound && !s.positionHasLifecycle) return '⚠️ Position exists but has 0 lifecycle events. This specific position may have been created before V339 was deployed.';
       if (positionId && !s.positionFound) return '❌ Position not found — check the positionId (was it created on this user account?)';
       return '✅ Everything looks healthy — lifecycle logging is working';

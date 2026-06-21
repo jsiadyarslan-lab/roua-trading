@@ -1571,6 +1571,8 @@ export class TradingController {
       let monitorHeartbeat: any = null;
       let monitorStartHeartbeat: any = null;
       let monitorLastError: any = null;
+      let monitorSkipReason: any = null;
+      let monitorCycleProgress: any = null;
       try {
         const heartbeatRaw = await this.redis.get('monitor:last_cycle');
         monitorHeartbeat = heartbeatRaw ? JSON.parse(heartbeatRaw) : null;
@@ -1579,6 +1581,11 @@ export class TradingController {
         // V351f: Read the last error (if cycle threw)
         const lastErrorRaw = await this.redis.get('monitor:last_error');
         monitorLastError = lastErrorRaw ? JSON.parse(lastErrorRaw) : null;
+        // V351g: Read skip reason and cycle progress
+        const skipReasonRaw = await this.redis.get('monitor:skip_reason');
+        monitorSkipReason = skipReasonRaw ? JSON.parse(skipReasonRaw) : null;
+        const cycleProgressRaw = await this.redis.get('monitor:cycle_progress');
+        monitorCycleProgress = cycleProgressRaw ? JSON.parse(cycleProgressRaw) : null;
       } catch (e: any) {
         monitorHeartbeat = { error: e.message?.substring(0, 200) };
       }
@@ -1610,8 +1617,10 @@ export class TradingController {
         monitorHeartbeat,  // 'monitor:last_cycle' — written at END of successful cycle OR on error (V351f)
         monitorStartHeartbeat,  // 'monitor:heartbeat' — written at START of every @Interval call (V351c)
         monitorLastError,  // V351f: 'monitor:last_error' — written when cycle throws
+        monitorSkipReason,  // V351g: 'monitor:skip_reason' — written when cycle is skipped (DB down, selfHealing, isMonitoring)
+        monitorCycleProgress,  // V351g: 'monitor:cycle_progress' — last step reached in the cycle
         // V351e: codeVersion from heartbeat — the definitive check for stale code
-        monitorCodeVersion: monitorStartHeartbeat?.codeVersion || 'MISSING (stale code — V351f not deployed)',
+        monitorCodeVersion: monitorStartHeartbeat?.codeVersion || 'MISSING (stale code — V351g not deployed)',
         startHeartbeatAgeSeconds: monitorStartHeartbeat?.timestamp
           ? Math.round((Date.now() - new Date(monitorStartHeartbeat.timestamp).getTime()) / 1000)
           : null,
@@ -1664,7 +1673,23 @@ export class TradingController {
           return `❌ Start heartbeat is STALE (${startAge}s old) — @Interval stopped firing ${startAge}s ago. Monitor may have crashed.`;
         })(),
         diagnosis: (() => {
-          // V351f: Check for cycle errors FIRST — this is the most common cause
+          // V351g: Check skip reason FIRST — this reveals why cycles are being skipped
+          if (monitorSkipReason) {
+            const skipAge = Math.round((Date.now() - new Date(monitorSkipReason.timestamp).getTime()) / 1000);
+            return `❌ CYCLE SKIPPED: reason='${monitorSkipReason.reason}' (${skipAge}s ago). This means @Interval fires but the cycle body never runs. Reasons: DB_UNAVAILABLE, SELF_HEALING_DISABLED, or PREVIOUS_CYCLE_STILL_RUNNING.`;
+          }
+          // V351g: Check cycle progress — this reveals where the cycle is stuck
+          if (monitorCycleProgress) {
+            const progressAge = Math.round((Date.now() - new Date(monitorCycleProgress.timestamp).getTime()) / 1000);
+            if (monitorCycleProgress.step === 'CYCLE_COMPLETE') {
+              // Cycle completed — check quote stats
+            } else if (monitorCycleProgress.step === 'CYCLE_THREW') {
+              return `❌ CYCLE THREW at step: ${monitorCycleProgress.error || 'unknown'} (${progressAge}s ago)`;
+            } else {
+              return `⚠️ CYCLE IN PROGRESS: last step='${monitorCycleProgress.step}' (${progressAge}s ago). The cycle is stuck or slow at this step.`;
+            }
+          }
+          // V351f: Check for cycle errors
           if (monitorLastError) {
             const errAge = Math.round((Date.now() - new Date(monitorLastError.timestamp).getTime()) / 1000);
             return `❌ CYCLE THROWS: ${monitorLastError.errorName}: ${monitorLastError.errorMessage}. Last error ${errAge}s ago. Stack: ${(monitorLastError.errorStack || '').substring(0, 300)}`;
@@ -1733,11 +1758,11 @@ export class TradingController {
       const s = result.summary;
       // V351e: FIRST check — is the code actually V351e?
       const monitorCodeVersion = result.checks.monitorHealth?.monitorCodeVersion;
-      if (monitorCodeVersion && monitorCodeVersion !== 'V351f') {
-        return `❌ STALE CODE: monitor heartbeat shows codeVersion='${monitorCodeVersion}' but expected 'V351f'. Railway is running OLD cached code despite DEPLOY_COMMIT showing the latest commit. Force a rebuild: railway up --detach (or add a meaningless change to bust Docker cache).`;
+      if (monitorCodeVersion && monitorCodeVersion !== 'V351g') {
+        return `❌ STALE CODE: monitor heartbeat shows codeVersion='${monitorCodeVersion}' but expected 'V351g'. Railway is running OLD cached code despite DEPLOY_COMMIT showing the latest commit. Force a rebuild: railway up --detach (or add a meaningless change to bust Docker cache).`;
       }
-      if (monitorCodeVersion === 'MISSING (stale code — V351f not deployed)') {
-        return `❌ STALE CODE: monitor heartbeat has NO codeVersion field — V351f code is NOT running. Railway is using a cached Docker image from before V351f. The DEPLOY_COMMIT env var is misleading (it comes from git SHA, not actual build). Force rebuild.`;
+      if (monitorCodeVersion === 'MISSING (stale code — V351g not deployed)') {
+        return `❌ STALE CODE: monitor heartbeat has NO codeVersion field — V351g code is NOT running. Railway is using a cached Docker image from before V351g. The DEPLOY_COMMIT env var is misleading (it comes from git SHA, not actual build). Force rebuild.`;
       }
       if (!s.deployLive) return '⚠️ Deploy commit unknown — Railway build may have failed';
       if (!s.lifecycleTableExists) return '❌ TradeLifecycleLog table missing — migration not applied. Run prisma migrate deploy.';

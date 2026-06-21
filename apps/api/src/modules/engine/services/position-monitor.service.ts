@@ -140,7 +140,7 @@ export class PositionMonitorService {
   // This is the ONLY reliable way to verify which code is actually executing,
   // because DEPLOY_COMMIT comes from RAILWAY_GIT_COMMIT_SHA (auto-updated
   // by Railway to the latest push) and does NOT reflect the actual build.
-  public static readonly CODE_VERSION = 'V351f';
+  public static readonly CODE_VERSION = 'V351g';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -185,8 +185,8 @@ export class PositionMonitorService {
       + (this.lifecycle ? ' + V339 LifecycleLog' : ' + ❌NO LifecycleLog')
       + (this.stateMachine ? ' + V341 StateMachine' : ' + ❌NO StateMachine'));
     // V351e: Loud startup log with code version — must appear in Railway logs
-    this.logger.log(`🔧 V351f: PositionMonitorService CODE_VERSION=${PositionMonitorService.CODE_VERSION} — if this log is missing, Railway is running STALE cached code`);
-    console.log(`🔧 V351f: PositionMonitorService CODE_VERSION=${PositionMonitorService.CODE_VERSION} — if this log is missing, Railway is running STALE cached code`);
+    this.logger.log(`🔧 V351g: PositionMonitorService CODE_VERSION=${PositionMonitorService.CODE_VERSION} — if this log is missing, Railway is running STALE cached code`);
+    console.log(`🔧 V351g: PositionMonitorService CODE_VERSION=${PositionMonitorService.CODE_VERSION} — if this log is missing, Railway is running STALE cached code`);
   }
 
   /**
@@ -237,28 +237,51 @@ export class PositionMonitorService {
 
     // FIX: Skip cycle when DB is unavailable to prevent connection pool exhaustion
     if (!this.prisma.isAvailable?.()) {
+      // V351g: Write skip reason to Redis for diagnostic
+      try { await this.redis.set('monitor:skip_reason', JSON.stringify({ reason: 'DB_UNAVAILABLE', timestamp: new Date().toISOString() }), 30000); } catch {}
       return;
     }
 
     // V185: الشفاء الذاتي — تخطي إذا كان المكون معطلاً
     if (this.selfHealing?.isComponentDisabled('position-monitor')) {
       this.logger.warn('🛡️ Position Monitor is DISABLED by self-healing — skipping cycle');
+      // V351g: Write skip reason to Redis for diagnostic
+      try { await this.redis.set('monitor:skip_reason', JSON.stringify({ reason: 'SELF_HEALING_DISABLED', timestamp: new Date().toISOString() }), 30000); } catch {}
       return;
     }
 
     if (this.isMonitoring) {
+      // V351g: Write skip reason to Redis for diagnostic
+      try { await this.redis.set('monitor:skip_reason', JSON.stringify({ reason: 'PREVIOUS_CYCLE_STILL_RUNNING', timestamp: new Date().toISOString() }), 30000); } catch {}
       return; // Skip if previous cycle still running
     }
 
     this.isMonitoring = true;
+    // V351g: Clear skip reason — we're entering the cycle
+    try { await this.redis.del('monitor:skip_reason'); } catch {}
 
     try {
+      // V351g: Write cycle progress to Redis at each step
+      const writeProgress = async (step: string, extra?: any) => {
+        try {
+          await this.redis.set('monitor:cycle_progress', JSON.stringify({
+            step,
+            timestamp: new Date().toISOString(),
+            ...extra,
+          }), 60000); // 60s TTL
+        } catch {}
+      };
+
+      await writeProgress('ENTERING_TRY_BLOCK');
+
       // ═══════════════════════════════════════════════════════════
       // RLS BYPASS: Background service queries across ALL users.
       // We must enable RLS bypass to access positions from all users.
       // After the monitor cycle, we disable bypass to restore isolation.
       // ═══════════════════════════════════════════════════════════
+      await writeProgress('BEFORE_RLS_BYPASS');
       await this.prisma.enableRlsBypass();
+      await writeProgress('AFTER_RLS_BYPASS');
 
       // Step 1: Get all open positions
       // ROOT FIX: Include ALL positions regardless of source or exchange.
@@ -318,12 +341,16 @@ export class PositionMonitorService {
         // Table may not exist yet (e.g., Prisma db:push hasn't run or Position model is new)
         if (dbError.message?.includes('does not exist')) {
           this.logger.warn('🛡️ Position table not found — skipping monitor cycle. Run `prisma db push` to create it.');
+          await writeProgress('POSITION_TABLE_NOT_FOUND');
           return;
         }
         throw dbError;
       }
 
+      await writeProgress('POSITIONS_FETCHED', { count: positions.length });
+
       if (positions.length === 0) {
+        await writeProgress('ZERO_POSITIONS_RETURN');
         return;
       }
 
@@ -349,6 +376,9 @@ export class PositionMonitorService {
       let quoteSuccessCount = 0;
       let quoteFailCount = 0;
       const quoteFailuresBySymbol: Record<string, string> = {};
+
+      // V351g: Write progress after quotes fetched
+      await writeProgress('QUOTES_FETCHED');
 
       // Step 3: Process each position with its pre-fetched quote
       // Collect non-critical price updates for batch processing
@@ -453,6 +483,9 @@ export class PositionMonitorService {
         );
       }
 
+      // V351g: Write progress before the final heartbeat write
+      await writeProgress('BEFORE_HEARTBEAT_WRITE', { quoteSuccessCount, quoteFailCount });
+
       // Store monitor stats
       await this.redis.set(
         'monitor:last_cycle',
@@ -471,6 +504,9 @@ export class PositionMonitorService {
         300000, // 5 min TTL
       );
 
+      // V351g: Mark cycle as complete
+      await writeProgress('CYCLE_COMPLETE', { quoteSuccessCount, quoteFailCount, positionsMonitored: positions.length });
+
       // V345: Clean up lastTickLogTime for positions that are no longer open.
       // Positions closed by OTHER paths (Agent, SmartExecutor, ExchangeSync, User)
       // don't go through _closePosition, so their entries persist forever.
@@ -488,6 +524,15 @@ export class PositionMonitorService {
       this.logger.error(`🛡️ Position monitor cycle failed: ${error.message}`);
       // V185: الشفاء الذاتي — تسجيل الفشل
       this.selfHealing?.reportFailure('position-monitor', error.message);
+
+      // V351g: Write progress to show where the cycle failed
+      try {
+        await this.redis.set('monitor:cycle_progress', JSON.stringify({
+          step: 'CYCLE_THREW',
+          timestamp: new Date().toISOString(),
+          error: error.message?.substring(0, 300),
+        }), 60000);
+      } catch {}
 
       // V351f: Write the error to Redis so the diagnostic endpoint can see it.
       // Without this, the catch block swallows the error and we have no way

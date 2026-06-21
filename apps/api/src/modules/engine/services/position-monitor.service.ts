@@ -161,12 +161,20 @@ export class PositionMonitorService {
     // V341: Position State Machine — single decision point for close decisions
     @Optional() private readonly stateMachine?: PositionStateMachine,
   ) {
+    // V347: Verify critical dependencies are injected
+    if (!this.lifecycle) {
+      this.logger.error('🚨🚨🚨 V347 CRITICAL: TradeLifecycleLogger is NOT injected! All lifecycle logging will be SKIPPED. Check TradeLifecycleModule registration in AppModule.');
+    }
+    if (!this.stateMachine) {
+      this.logger.error('🚨🚨🚨 V347 CRITICAL: PositionStateMachine is NOT injected! V341 state machine checks will be SKIPPED. Check StateMachineModule registration in AppModule.');
+    }
     this.logger.log('🛡️ Position Monitor initialized — protective surveillance active'
       + (this.journal ? ' + TradeJournal' : '')
       + (this.selfHealing ? ' + SelfHealing' : '')
       + (this.strategicCouncil ? ' + V223 BriefInvalidation' : '')
       + (this.regimeService && this.featureFlags?.isEnabled('V270') ? ' + V270 RegimeAware' : '')
-      + (this.lifecycle ? ' + V339 LifecycleLog' : ''));
+      + (this.lifecycle ? ' + V339 LifecycleLog' : ' + ❌NO LifecycleLog')
+      + (this.stateMachine ? ' + V341 StateMachine' : ' + ❌NO StateMachine'));
   }
 
   /**

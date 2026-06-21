@@ -673,10 +673,22 @@ export class PositionMonitorService {
           `⏳ V176 COOLDOWN: ${position.symbol} blocked for user ${position.userId} (reason: ${cooldownReason})`,
         );
         // Just update price — don't trigger any SL/TP/trailing while in cooldown
+        // V344 FIX: Include highestPrice/lowestPrice even during cooldown.
+        // Previously, these were NOT updated during cooldown, meaning if price
+        // made a new extreme during the 15-min cooldown period, that information
+        // was LOST forever. When cooldown ended, the tracked high/low was stale.
+        // This could cause V338 Trailing TP to miss the actual peak price.
         priceUpdates.push(
           this.prisma.position.update({
             where: { id: position.id },
-            data: { currentPrice, unrealizedPnl },
+            data: {
+              currentPrice,
+              unrealizedPnl,
+              highestPrice: Math.max(trackedHigh ?? currentPrice, effectiveHigh),
+              lowestPrice: trackedLow !== null
+                ? Math.min(trackedLow, effectiveLow)
+                : effectiveLow,
+            },
           }),
         );
         return result;

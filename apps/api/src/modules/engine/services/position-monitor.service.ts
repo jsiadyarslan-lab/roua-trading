@@ -187,6 +187,19 @@ export class PositionMonitorService {
     // V351e: Loud startup log with code version — must appear in Railway logs
     this.logger.log(`🔧 V351g: PositionMonitorService CODE_VERSION=${PositionMonitorService.CODE_VERSION} — if this log is missing, Railway is running STALE cached code`);
     console.log(`🔧 V351g: PositionMonitorService CODE_VERSION=${PositionMonitorService.CODE_VERSION} — if this log is missing, Railway is running STALE cached code`);
+
+    // V351h: CRITICAL FIX — Clear any existing self-healing disable flag on startup.
+    // The self-healing service may have disabled position-monitor due to transient
+    // failures (criticalThreshold was 2, now Infinity). Without this clear, the
+    // monitor stays disabled FOREVER (death loop: disabled → skip → never report
+    // success → failure count never resets → re-disabled on next failure).
+    // Every deploy/restart should give the monitor a fresh start.
+    // NOTE: Constructor can't be async, so we fire-and-forget the clear.
+    if (this.selfHealing) {
+      this.selfHealing.enableComponent('position-monitor')
+        .then(() => this.logger.log('🔧 V351h: Cleared self-healing disable flag for position-monitor — monitor will run normally'))
+        .catch((err: any) => this.logger.warn(`V351h: Failed to clear self-healing flag: ${err.message}`));
+    }
   }
 
   /**

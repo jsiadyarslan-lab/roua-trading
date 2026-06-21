@@ -50,8 +50,13 @@ export class SelfHealingService {
     },
     'position-monitor': {
       name: 'مراقب المراكز',
-      criticalThreshold: 2,
-      degradeThreshold: 1,
+      // V351h: Was 2 — WAY too aggressive. 2 transient failures would disable
+      // the ENTIRE position monitor, meaning NO SL/TP monitoring = unlimited
+      // losses. This is the ROOT CAUSE of the 20-attempt debugging saga.
+      // Position monitor is TOO CRITICAL to ever disable. Set threshold to
+      // Infinity so it NEVER gets disabled by self-healing.
+      criticalThreshold: Infinity,  // NEVER disable position-monitor
+      degradeThreshold: 5,          // Just warn after 5 failures
     },
     'market-data': {
       name: 'خدمة بيانات السوق',

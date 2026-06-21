@@ -1777,4 +1777,42 @@ export class TradingController {
 
     return { success: true, diagnostic: result };
   }
+
+  /**
+   * V351h: Re-enable position-monitor after self-healing disabled it.
+   * POST /api/trading/diagnose/enable-monitor
+   *
+   * The self-healing service may disable position-monitor after 2 consecutive
+   * failures (criticalThreshold was 2, now Infinity in V351h). This endpoint
+   * manually clears the disable flag AND resets the failure count.
+   */
+  @Post('diagnose/enable-monitor')
+  async enableMonitor(@Req() req: any) {
+    try {
+      const userId = req.user.id;
+      this.logger.log(`🔧 V351h: Manual re-enable of position-monitor requested by user ${userId}`);
+
+      // Clear the disable flag
+      await this.redis.del('self-healing:disabled:position-monitor');
+      // Reset the failure count
+      await this.redis.del('self-healing:health:position-monitor');
+      // Clear the skip reason so the diagnostic shows clean state
+      await this.redis.del('monitor:skip_reason');
+
+      this.logger.log('🔧 V351h: position-monitor re-enabled — failure count reset — skip reason cleared');
+
+      return {
+        success: true,
+        message: 'Position monitor re-enabled. The next @Interval cycle (within 1 second) will run normally.',
+        cleared: [
+          'self-healing:disabled:position-monitor',
+          'self-healing:health:position-monitor',
+          'monitor:skip_reason',
+        ],
+      };
+    } catch (error: any) {
+      this.logger.error(`V351h enable-monitor failed: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
 }

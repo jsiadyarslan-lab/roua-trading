@@ -144,16 +144,39 @@ export class OandaAdapter implements IExchangeAdapter {
   /**
    * Fetch real-time quote for a forex/metal/index symbol
    * Symbol format: EUR/USD, XAU/USD, US30/USD, etc.
+   *
+   * V359: Read directly from Redis cache (where OandaStreamingService writes).
+   * Do NOT use cacheOrGet — it overwrites the stream's TTL with a shorter one,
+   * causing the stream cache to expire prematurely.
+   *
+   * Flow:
+   *   1. Check Redis 'oanda:quote:EUR/USD' — if exists, return it (stream-fed, live)
+   *   2. If not in Redis (stream not active), call REST API and cache for 2s
    */
   async fetchQuote(symbol: string): Promise<UnifiedQuoteDto> {
     const cacheKey = `oanda:quote:${symbol}`;
 
     try {
-      return await this.redisService.cacheOrGet<UnifiedQuoteDto>(
-        cacheKey,
-        () => this._fetchQuoteFromOanda(symbol),
-        this.QUOTE_CACHE_TTL,
-      );
+      // V359: Step 1 — Check if OANDA stream has written a price to Redis
+      const streamed = await this.redisService.get(cacheKey);
+      if (streamed) {
+        try {
+          const parsed = JSON.parse(streamed) as UnifiedQuoteDto;
+          if (parsed && parsed.price && parsed.price > 0) {
+            return parsed; // ✅ Live streamed price from OANDA Streaming API
+          }
+        } catch {
+          // Parse error — fall through to REST API
+        }
+      }
+
+      // V359: Step 2 — Stream not active or cache miss → call REST API
+      // Use longer TTL (2s) for REST fallback so we don't hammer OANDA API
+      const quote = await this._fetchQuoteFromOanda(symbol);
+      // Write to Redis with 2s TTL — this is the REST fallback cache.
+      // When stream is active, it overwrites this with fresh prices continuously.
+      await this.redisService.set(cacheKey, JSON.stringify(quote), 2000);
+      return quote;
     } catch (error: any) {
       this.logger.error(`Failed to fetch OANDA quote for ${symbol}: ${error.message}`);
       throw new HttpException(

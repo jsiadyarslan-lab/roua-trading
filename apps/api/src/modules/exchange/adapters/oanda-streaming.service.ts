@@ -272,19 +272,28 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
     this.emitter.off('price', callback);
   }
 
+  // V362: Track last connection error for diagnostics
+  private lastConnectError: string | null = null;
+  private lastConnectAttempt: Date | null = null;
+  private connectAttempts: number = 0;
+
   /**
    * Connect to OANDA streaming API
    */
   private _connect(): void {
     if (this.isConnecting || !this.isAvailable() || this.subscribedInstruments.size === 0) {
+      this.logger.warn(`🌊 _connect() skipped: isConnecting=${this.isConnecting}, available=${this.isAvailable()}, instruments=${this.subscribedInstruments.size}`);
       return;
     }
 
     this.isConnecting = true;
+    this.connectAttempts++;
+    this.lastConnectAttempt = new Date();
     const instruments = Array.from(this.subscribedInstruments).join(',');
     const path = `/v3/accounts/${this.accountId}/pricing/stream?instruments=${encodeURIComponent(instruments)}`;
 
-    this.logger.log(`🌊 Connecting to OANDA stream: ${instruments}`);
+    this.logger.log(`🌊 V362: Connecting to OANDA stream (attempt #${this.connectAttempts}): ${this.streamHost}${path.substring(0, 80)}...`);
+    this.logger.log(`🌊 V362: Account ID: ${this.accountId}, Token length: ${this.apiToken.length}`);
 
     const options: https.RequestOptions = {
       hostname: this.streamHost,
@@ -294,7 +303,7 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
         'Authorization': `Bearer ${this.apiToken}`,
         'Accept-Datetime-Format': 'RFC3339',
       },
-      timeout: 0, // No timeout — this is a long-lived connection
+      timeout: 10000, // V362: 10s connection timeout — was 0 (infinite)
     };
 
     this.streamReq = https.request(options, (res) => {
@@ -304,14 +313,16 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
         let body = '';
         res.on('data', (chunk) => body += chunk);
         res.on('end', () => {
-          this.logger.error(`🌊 OANDA stream failed: HTTP ${res.statusCode} — ${body.substring(0, 300)}`);
+          this.lastConnectError = `HTTP ${res.statusCode}: ${body.substring(0, 300)}`;
+          this.logger.error(`🌊 OANDA stream failed: ${this.lastConnectError}`);
           this.streamReq = null;
           this._scheduleReconnect();
         });
         return;
       }
 
-      this.logger.log(`🌊 OANDA stream connected — receiving live prices for ${this.subscribedInstruments.size} instruments`);
+      this.lastConnectError = null;
+      this.logger.log(`🌊 OANDA stream CONNECTED — receiving live prices for ${this.subscribedInstruments.size} instruments`);
 
       // Reset line buffer for new connection
       this.lineBuffer = '';
@@ -321,21 +332,35 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
       });
 
       res.on('end', () => {
+        this.lastConnectError = 'Stream ended by server';
         this.logger.warn('🌊 OANDA stream ended — will reconnect');
         this.streamReq = null;
         this._scheduleReconnect();
       });
 
       res.on('error', (err: Error) => {
+        this.lastConnectError = `Stream error: ${err.message}`;
         this.logger.error(`🌊 OANDA stream error: ${err.message}`);
         this.streamReq = null;
         this._scheduleReconnect();
       });
     });
 
+    // V362: Connection timeout handler
+    this.streamReq.on('timeout', () => {
+      this.lastConnectError = 'Connection timeout (10s)';
+      this.logger.error(`🌊 OANDA stream connection timeout — destroying request`);
+      try { this.streamReq?.destroy(); } catch {}
+      this.isConnecting = false;
+      this.streamReq = null;
+      this._scheduleReconnect();
+    });
+
     this.streamReq.on('error', (err: Error) => {
       this.isConnecting = false;
+      this.lastConnectError = `Connection error: ${err.message}`;
       this.logger.error(`🌊 OANDA stream connection error: ${err.message}`);
+      this.logger.error(`🌊 OANDA stream error stack: ${err.stack}`);
       this.streamReq = null;
       this._scheduleReconnect();
     });
@@ -467,6 +492,12 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
       isConnecting: this.isConnecting,
       subscribedInstruments: Array.from(this.subscribedInstruments),
       instrumentCount: this.subscribedInstruments.size,
+      // V362: Diagnostic fields
+      lastConnectError: this.lastConnectError,
+      lastConnectAttempt: this.lastConnectAttempt?.toISOString() || null,
+      connectAttempts: this.connectAttempts,
+      streamHost: this.streamHost,
+      accountIdPrefix: this.accountId ? this.accountId.substring(0, 12) + '...' : null,
     };
   }
 

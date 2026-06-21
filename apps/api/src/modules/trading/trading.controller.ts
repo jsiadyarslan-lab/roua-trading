@@ -1373,6 +1373,15 @@ export class TradingController {
       uptimeSeconds: Math.round(process.uptime()),
     };
 
+    // V351e: Check compiled CODE_VERSION — the ONLY reliable way to verify
+    // which code is ACTUALLY running (DEPLOY_COMMIT comes from git SHA, not build)
+    try {
+      const { PositionStateMachine } = await import('../../common/state-machine/position-state-machine.service');
+      // Try to get CODE_VERSION from PositionMonitorService — but we can't import
+      // it here (circular dep). Instead, check the monitor:heartbeat Redis key
+      // which now includes codeVersion (V351e).
+    } catch { /* non-critical */ }
+
     // Check 2: TradeLifecycleLogger static instance status
     try {
       // V348: Static instance pattern — if constructor ran, getInstance() returns the instance
@@ -1595,6 +1604,8 @@ export class TradingController {
         redisAvailable,
         monitorHeartbeat,  // 'monitor:last_cycle' — written at END of successful cycle
         monitorStartHeartbeat,  // 'monitor:heartbeat' — written at START of every @Interval call (V351c)
+        // V351e: codeVersion from heartbeat — the definitive check for stale code
+        monitorCodeVersion: monitorStartHeartbeat?.codeVersion || 'MISSING (stale code — V351e not deployed)',
         startHeartbeatAgeSeconds: monitorStartHeartbeat?.timestamp
           ? Math.round((Date.now() - new Date(monitorStartHeartbeat.timestamp).getTime()) / 1000)
           : null,
@@ -1705,6 +1716,14 @@ export class TradingController {
 
     result.diagnosis = (() => {
       const s = result.summary;
+      // V351e: FIRST check — is the code actually V351e?
+      const monitorCodeVersion = result.checks.monitorHealth?.monitorCodeVersion;
+      if (monitorCodeVersion && monitorCodeVersion !== 'V351e') {
+        return `❌ STALE CODE: monitor heartbeat shows codeVersion='${monitorCodeVersion}' but expected 'V351e'. Railway is running OLD cached code despite DEPLOY_COMMIT showing the latest commit. Force a rebuild: railway up --detach (or add a meaningless change to bust Docker cache).`;
+      }
+      if (monitorCodeVersion === 'MISSING (stale code — V351e not deployed)') {
+        return `❌ STALE CODE: monitor heartbeat has NO codeVersion field — V351e code is NOT running. Railway is using a cached Docker image from before V351e. The DEPLOY_COMMIT env var is misleading (it comes from git SHA, not actual build). Force rebuild.`;
+      }
       if (!s.deployLive) return '⚠️ Deploy commit unknown — Railway build may have failed';
       if (!s.lifecycleTableExists) return '❌ TradeLifecycleLog table missing — migration not applied. Run prisma migrate deploy.';
       if (!s.lifecycleLoggerActive) return '❌ TradeLifecycleLogger static instance is NULL — constructor never ran. DI failure persists despite V347/V348.';

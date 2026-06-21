@@ -16,7 +16,7 @@
 
 # Embed the git commit SHA into the Docker image
 # V245: Fix timer dancing — direct DOM positioning (no React state) + stick below price label
-ARG BUILD_CACHE=V351d
+ARG BUILD_CACHE=V351e_FORCE_REBUILD
 ARG GIT_COMMIT=unknown
 # V216: Declare RAILWAY_GIT_COMMIT_SHA so Docker doesn't warn about undefined variable
 ARG RAILWAY_GIT_COMMIT_SHA=
@@ -127,6 +127,8 @@ ENV HOSTNAME="0.0.0.0"
 # V216 FIX: Use RAILWAY_GIT_COMMIT_SHA if available (auto-set by Railway),
 # otherwise fall back to the build ARG
 ENV DEPLOY_COMMIT=${RAILWAY_GIT_COMMIT_SHA:-${GIT_COMMIT}}
+# V351e: Pass BUILD_CACHE as runtime ENV so diagnostic can verify the build
+ENV BUILD_CACHE=${BUILD_CACHE}
 
 # FIX: Selective copy — only runtime files, NOT devDependencies or source.
 # The previous "COPY --from=builder /app ." copied EVERYTHING including

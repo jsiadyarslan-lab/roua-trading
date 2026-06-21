@@ -133,6 +133,15 @@ export class PositionMonitorService {
   /** Is monitor currently running */
   private isMonitoring = false;
 
+  // V351e: Compiled code version — NOT an env var, NOT a Docker ARG.
+  // This string is baked into the compiled JS by tsc. If the diagnostic
+  // shows this version, the V351e code IS running. If it shows something
+  // else or is missing, Railway is running stale cached code.
+  // This is the ONLY reliable way to verify which code is actually executing,
+  // because DEPLOY_COMMIT comes from RAILWAY_GIT_COMMIT_SHA (auto-updated
+  // by Railway to the latest push) and does NOT reflect the actual build.
+  public static readonly CODE_VERSION = 'V351e';
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
@@ -175,6 +184,9 @@ export class PositionMonitorService {
       + (this.regimeService && this.featureFlags?.isEnabled('V270') ? ' + V270 RegimeAware' : '')
       + (this.lifecycle ? ' + V339 LifecycleLog' : ' + ❌NO LifecycleLog')
       + (this.stateMachine ? ' + V341 StateMachine' : ' + ❌NO StateMachine'));
+    // V351e: Loud startup log with code version — must appear in Railway logs
+    this.logger.log(`🔧 V351e: PositionMonitorService CODE_VERSION=${PositionMonitorService.CODE_VERSION} — if this log is missing, Railway is running STALE cached code`);
+    console.log(`🔧 V351e: PositionMonitorService CODE_VERSION=${PositionMonitorService.CODE_VERSION} — if this log is missing, Railway is running STALE cached code`);
   }
 
   /**
@@ -218,6 +230,8 @@ export class PositionMonitorService {
       await this.redis.set('monitor:heartbeat', JSON.stringify({
         timestamp: new Date(now).toISOString(),
         epochMs: now,
+        // V351e: Include CODE_VERSION so we can verify which compiled code is running
+        codeVersion: PositionMonitorService.CODE_VERSION,
       }), 30000); // 30s TTL — if @Interval stops, this key expires
     } catch { /* non-critical */ }
 

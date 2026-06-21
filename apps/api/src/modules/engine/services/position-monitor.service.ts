@@ -303,6 +303,25 @@ export class PositionMonitorService {
             ? quoteResult.value
             : null;
 
+        // V345: Redis-based position lock to prevent double-close.
+        // Paper trading skips version check in closePosition, so two concurrent
+        // monitor cycles could both close the same position. This lock ensures
+        // only one cycle processes each position at a time.
+        // Also protects against V341 State Machine race (requestClose doesn't
+        // update status, so both cycles see 'OPEN').
+        const lockKey = `position-lock:${position.id}`;
+        let lockAcquired = false;
+        try {
+          // V345: Use setIfNotExists (SET NX) for atomic lock acquisition
+          // TTL 10s = auto-expire (prevents stuck locks if process crashes)
+          lockAcquired = await this.redis.setIfNotExists(lockKey, '1', 10);
+        } catch { /* non-critical — proceed without lock */ }
+
+        if (!lockAcquired) {
+          // Another cycle is already processing this position — skip
+          continue;
+        }
+
         try {
           const result = await this._monitorPosition(position, quote, priceUpdates);
           if (result.slTriggered) slTriggered++;
@@ -313,6 +332,9 @@ export class PositionMonitorService {
           this.logger.error(
             `🛡️ Monitor error for position ${position.id}: ${error.message}`,
           );
+        } finally {
+          // V345: Release the position lock
+          try { await this.redis.del(lockKey); } catch { /* non-critical */ }
         }
       }
 
@@ -470,6 +492,17 @@ export class PositionMonitorService {
     //     → effectiveHigh = quote.high (captures the missed TP touch)
     //   - If quote.high <= position.highestPrice → no new peak → effectiveHigh = currentPrice
     // Same logic (inverted) for effectiveLow.
+    //
+    // V345 CRITICAL FIX: 24h ticker high/low includes prices from BEFORE the
+    // position was opened. On the FIRST tick (trackedHigh = entryPrice), if
+    // quoteHigh > entryPrice (which is almost always true for 24h data),
+    // effectiveHigh would be set to quoteHigh — a price that was reached
+    // BEFORE the position existed. This causes FALSE TP hits.
+    //
+    // FIX: On the first tick (trackedHigh === entryPrice), DON'T use quoteHigh.
+    // Only use quoteHigh if it EXCEEDS the tracked high from a PREVIOUS tick
+    // (not the initial entryPrice). We detect "first tick" by checking if
+    // trackedHigh equals entryPrice (the initial value set at position creation).
     const currentPrice = quote?.price ?? null;
 
     // Use pre-fetched price or skip
@@ -485,18 +518,26 @@ export class PositionMonitorService {
     const trackedHigh = position.highestPrice?.toNumber?.() ?? (position.highestPrice ? Number(position.highestPrice) : null);
     const trackedLow = position.lowestPrice?.toNumber?.() ?? (position.lowestPrice ? Number(position.lowestPrice) : null);
 
+    // V345: Detect if this is the first tick (trackedHigh equals entryPrice)
+    // On first tick, quoteHigh/quoteLow are from BEFORE the position existed.
+    // Don't use them for SL/TP checks — only use currentPrice.
+    const entryPriceForCheck = position.entryPrice?.toNumber?.() ?? Number(position.entryPrice);
+    const isFirstTick = trackedHigh !== null && trackedHigh === entryPriceForCheck;
+
     // effectiveHigh: the highest price the market actually reached since the position opened.
     // If quoteHigh exceeds the previously-tracked high, this is a NEW peak (occurred between ticks).
     // Use it for TP check. Otherwise, fall back to currentPrice (no new information).
-    const effectiveHigh = (trackedHigh === null || quoteHigh > trackedHigh)
+    // V345: On first tick, DON'T use quoteHigh (it's from before position opened).
+    const effectiveHigh = (!isFirstTick && trackedHigh !== null && quoteHigh > trackedHigh)
       ? Math.max(currentPrice, quoteHigh)
-      : Math.max(currentPrice, trackedHigh);
+      : Math.max(currentPrice, trackedHigh ?? currentPrice);
 
     // effectiveLow: the lowest price the market actually reached since the position opened.
     // Same logic as effectiveHigh but inverted.
-    const effectiveLow = (trackedLow === null || quoteLow < trackedLow)
+    // V345: On first tick, DON'T use quoteLow (it's from before position opened).
+    const effectiveLow = (!isFirstTick && trackedLow !== null && quoteLow < trackedLow)
       ? Math.min(currentPrice, quoteLow)
-      : Math.min(currentPrice, trackedLow);
+      : Math.min(currentPrice, trackedLow ?? currentPrice);
 
     // V143: For Agent positions, ONLY update price/PnL — no SL/TP checks,
     // no trailing stop modifications. The Agent manages its own SL/TP exits.

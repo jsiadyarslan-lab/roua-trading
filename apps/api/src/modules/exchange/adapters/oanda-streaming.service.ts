@@ -80,26 +80,43 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * V358: On module init, auto-subscribe to common OANDA pairs.
-   * This starts the stream immediately without waiting for Socket.IO clients.
-   * Prices are written to Redis cache → frontend polls get live data.
+   * V361: On module init, add ALL instruments to the set FIRST, then connect ONCE.
+   *
+   * V358 BUG: Called subscribe() 17 times in a loop. Each subscribe() triggered
+   * _connect() or _reconnect(), creating a connect/disconnect storm:
+   *   subscribe('EUR/USD') → _connect() → streamReq set
+   *   subscribe('GBP/USD') → _reconnect() → _disconnect() → setTimeout 500ms
+   *   subscribe('USD/JPY') → _connect() again → streamReq set
+   *   subscribe('AUD/USD') → _reconnect() → _disconnect() → setTimeout 500ms
+   *   ... 17 times
+   * Result: connected: false — never stabilized.
+   *
+   * FIX: Add all instruments to the Set first (synchronous, no connections),
+   * then call _connect() ONCE with all instruments.
    */
   async onModuleInit() {
     if (!this.isAvailable()) {
+      this.logger.warn('🌊 V361: OANDA streaming not available — OANDA_API_TOKEN or OANDA_ACCOUNT_ID not configured');
       return;
     }
 
-    this.logger.log(`🌊 V358: Auto-subscribing to ${this.AUTO_SUBSCRIBE_PAIRS.length} OANDA pairs on startup...`);
+    this.logger.log(`🌊 V361: Adding ${this.AUTO_SUBSCRIBE_PAIRS.length} OANDA instruments...`);
 
-    // Subscribe to all auto-subscribe pairs
+    // Step 1: Add ALL instruments to the set (synchronous — no connections)
     for (const pair of this.AUTO_SUBSCRIBE_PAIRS) {
-      this.subscribe(pair);
+      const oandaSymbol = this.toOandaSymbol(pair);
+      this.subscribedInstruments.add(oandaSymbol);
     }
 
-    // Register price handler to update Redis cache
+    this.logger.log(`🌊 V361: Instruments ready: ${Array.from(this.subscribedInstruments).join(', ')}`);
+
+    // Step 2: Register price handler to update Redis cache
     this.onPrice((update: OandaPriceUpdate) => {
       this._updateRedisCache(update);
     });
+
+    // Step 3: Connect ONCE with all instruments
+    this._connect();
   }
 
   /**

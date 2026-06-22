@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { EventEmitter } from 'events';
 import WebSocket from 'ws';
+import { RedisService } from '../../../common/redis/redis.service';
 
 /**
  * V390: Binance Streaming Service — Real-time crypto price stream via Binance WebSocket.
@@ -65,6 +66,8 @@ export class BinanceStreamingService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(BinanceStreamingService.name);
   private readonly emitter = new EventEmitter();
 
+  constructor(private readonly redisService: RedisService) {}
+
   private readonly BINANCE_WS_URL = 'wss://stream.binance.com:9443/stream';
 
   // Subscribed symbols in user-friendly format: BTC/USDT, ETH/USDT, etc.
@@ -99,6 +102,17 @@ export class BinanceStreamingService implements OnModuleInit, OnModuleDestroy {
     }
 
     this.logger.log(`💱 Auto-subscribed to ${this.subscribedSymbols.size} crypto pairs: ${Array.from(this.subscribedSymbols).join(', ')}`);
+
+    // V406: Register price handler to write stream prices to Redis cache.
+    // This eliminates Binance REST API calls for crypto quotes.
+    // BinanceAdapter.fetchQuote() reads from Redis (5s TTL) instead of calling
+    // Binance REST, which was hitting rate limits (100 req/min) every time
+    // position monitor, chart polling, and ticker all requested quotes.
+    this.onPrice((update: BinancePriceUpdate) => {
+      try {
+        this._updateRedisCache(update);
+      } catch (e) { /* non-critical */ }
+    });
 
     // Connect
     this._connect();
@@ -406,5 +420,41 @@ export class BinanceStreamingService implements OnModuleInit, OnModuleDestroy {
     };
 
     this.emitter.emit('price', update);
+  }
+
+  /**
+   * V406: Write streamed price to Redis cache.
+   * This is read by BinanceAdapter.fetchQuote() via cacheOrGet, eliminating
+   * REST API calls for crypto quotes. Same pattern as OandaStreamingService.
+   *
+   * Cache key: binance:quote:{symbol}
+   * TTL: 5 seconds (stream overwrites constantly, 5s is just a safety net)
+   */
+  private async _updateRedisCache(update: BinancePriceUpdate): Promise<void> {
+    try {
+      const cacheKey = `binance:quote:${update.symbol}`;
+      const quoteData = {
+        symbol: update.symbol,
+        name: update.symbol.replace('/', ' → '),
+        exchange: 'Binance',
+        currency: update.symbol.split('/')[1] || 'USDT',
+        price: update.price,
+        change: update.change,
+        changePercent: update.changePercent,
+        open: update.open,
+        high: update.high,
+        low: update.low,
+        close: update.close,
+        volume: update.volume,
+        marketCap: null,
+        fiftyTwoWeekHigh: null,
+        fiftyTwoWeekLow: null,
+        timestamp: new Date(update.timestamp).toISOString(),
+        source: 'Binance',
+      };
+      await this.redisService.set(cacheKey, JSON.stringify(quoteData), 5000);
+    } catch {
+      // Non-critical — if Redis write fails, adapter will fall back to REST
+    }
   }
 }

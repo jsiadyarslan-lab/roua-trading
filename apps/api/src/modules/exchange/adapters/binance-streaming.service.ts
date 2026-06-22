@@ -84,6 +84,9 @@ export class BinanceStreamingService implements OnModuleInit, OnModuleDestroy {
   // V412: Track which symbols we've logged first Redis write for
   private _loggedSymbols = new Set<string>();
 
+  // V413: Count WS messages to diagnose stream freeze
+  private _messageCount = 0;
+
   private ws: WebSocket | null = null;
   private isConnecting = false;
   private reconnectTimer: NodeJS.Timeout | null = null;
@@ -346,6 +349,13 @@ export class BinanceStreamingService implements OnModuleInit, OnModuleDestroy {
 
     this.ws!.on('message', (data: WebSocket.RawData) => {
       if (currentGen !== this.connectionGeneration) return;
+      // V413: Log message reception rate to diagnose stream freeze
+      this._messageCount++;
+      if (this._messageCount === 1) {
+        this.logger.log(`💱 V413: First WS message received (gen=${currentGen})`);
+      } else if (this._messageCount % 100 === 0) {
+        this.logger.log(`💱 V413: Received ${this._messageCount} WS messages total`);
+      }
       try {
         const msg = JSON.parse(data.toString());
         if (msg.stream && msg.data) {

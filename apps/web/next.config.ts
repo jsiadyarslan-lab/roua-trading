@@ -78,12 +78,37 @@ const nextConfig: NextConfig = {
 
   async rewrites() {
     return [
-      // ── Socket.IO: handled by proxy.ts rewrite to /api/socket-io-proxy ──
-      // V393: Removed rewrites from next.config.ts — they conflicted with proxy.ts.
-      // proxy.ts now rewrites /socket.io* → /api/socket-io-proxy* directly,
-      // which is more reliable in Next.js 16.
-      // The Route Handler at /app/api/socket-io-proxy/[...path]/route.ts
-      // does the actual HTTP proxy to NestJS.
+      // ── V398: Socket.IO — direct rewrite to NestJS backend ──
+      // ROOT CAUSE of all previous failures (V388-V397):
+      //   - middleware.ts matcher excluded /socket.io (due to dot pattern)
+      //   - proxy.ts is not recognized as middleware in Next.js 16
+      //   - Route Handler at /api/socket-io-proxy was never invoked
+      //   - Result: /socket.io requests hit NestJS directly, returned 404
+      //     because NestJS's setGlobalPrefix('api') doesn't apply to Socket.IO
+      //
+      // FINAL FIX: Use next.config.ts rewrites to forward /socket.io* directly
+      // to NestJS (port 3001). This is the most reliable approach because:
+      //   1. next.config.ts rewrites run BEFORE middleware/proxy
+      //   2. No dependency on middleware matcher patterns
+      //   3. No need for Route Handler proxy layer
+      //   4. Socket.IO on NestJS WORKS (confirmed via /api/health check)
+      //
+      // Three patterns needed:
+      //   1. /socket.io (no trailing slash) — matches /socket.io?EIO=4
+      //   2. /socket.io/ (trailing slash) — matches /socket.io/?EIO=4
+      //   3. /socket.io/:path* — matches sub-paths like /socket.io/1/
+      {
+        source: '/socket.io',
+        destination: `${apiTarget}/socket.io`,
+      },
+      {
+        source: '/socket.io/',
+        destination: `${apiTarget}/socket.io/`,
+      },
+      {
+        source: '/socket.io/:path*',
+        destination: `${apiTarget}/socket.io/:path*`,
+      },
       // ── Health check ──
       // REMOVED: Previously this rewrote /api/health → NestJS API.
       // This caused Railway healthcheck to FAIL during startup because

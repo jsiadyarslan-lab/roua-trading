@@ -203,14 +203,21 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   // Without this, polling always snaps to 1-minute boundaries even on 1H/1D charts.
   const tfSecondsRef = useRef(60);
 
+  // V378: Candle builder for OANDA pairs — builds OHLC from individual price ticks.
+  // The REST API returns O=H=L=C (all same price), so we MUST build candles ourselves.
+  // On first price of a timeframe period -> O=H=L=C=price
+  // On subsequent prices -> H=max(H,price), L=min(L,price), C=price
+  // This gives real candle bodies + wicks instead of dots.
+  const oandaCandleRef = useRef<{ time: number; open: number; high: number; low: number; close: number; volume: number } | null>(null);
+
   // ── Fetch latest candle via REST ───────────────────────
-  // V370: Skip if SSE is active — polling would overwrite SSE-built candles
+  // V378: For OANDA pairs, this is the ONLY data source. No SSE, no EventSource.
+  // Polls /api/exchange/quote/EUR/USD every 2s -> gets stream-fed price from Redis.
+  // Builds proper OHLC candles using oandaCandleRef (candle builder).
   const fetchLatestCandle = useCallback(async () => {
     if (!symbol) return;
 
     try {
-      // FIX: Route through backend ExchangeGateway REST API first
-      // This ensures data consistency with the rest of the platform
       const apiBase = window.location.origin;
       const res = await fetch(`${apiBase}/api/exchange/quote/${encodeURIComponent(symbol)}`, {
         method: 'GET',
@@ -222,34 +229,40 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
         const data = result?.data;
         if (data && (data.price || data.close) > 0) {
           const price = data.price || data.close;
-          // BUG #5 FIX: Use refs instead of closure values for callbacks.
-          // The closure captures onCandleUpdate/onPriceUpdate from the render
-          // when the polling interval was first set up. If callbacks change
-          // (e.g., symbol switch, chart type change), the stale closures would
-          // call the wrong handlers.
           onPriceUpdateRef.current(price);
+
+          // V378: Build candle from price using candle builder.
+          // DO NOT use REST API's OHLC values — they are all = price (O=H=L=C).
+          // Our candle builder tracks real OHLC across multiple polls.
           const now = Math.floor(Date.now() / 1000);
-          // FIX: Sanitize OHLC — near-flat candles from ticker/forex sources
-          // render as dots. sanitizeOhlc ensures minimum visible range.
-          const rawOpen = data.open || price;
-          const rawHigh = data.high || price;
-          const rawLow = data.low || price;
-          const rawClose = price;
-          const s = sanitizeOhlc(rawOpen, rawHigh, rawLow, rawClose);
-          // FIX: Use correct timeframe boundary instead of hardcoded 60s.
-          // Previously, polling always snapped to 1-minute boundaries, creating
-          // wrong candles on 1H/1D charts.
           const tfSec = tfSecondsRef.current;
+          const candleTime = now - (now % tfSec);
+
+          if (!oandaCandleRef.current || oandaCandleRef.current.time !== candleTime) {
+            oandaCandleRef.current = {
+              time: candleTime,
+              open: price,
+              high: price,
+              low: price,
+              close: price,
+              volume: 0,
+            };
+          } else {
+            oandaCandleRef.current.high = Math.max(oandaCandleRef.current.high, price);
+            oandaCandleRef.current.low = Math.min(oandaCandleRef.current.low, price);
+            oandaCandleRef.current.close = price;
+          }
+
           const candle: CandleData = {
-            time: now - (now % tfSec),
-            open: s.open,
-            high: s.high,
-            low: s.low,
-            close: s.close,
-            volume: data.volume || 0,
+            time: oandaCandleRef.current.time,
+            open: oandaCandleRef.current.open,
+            high: oandaCandleRef.current.high,
+            low: oandaCandleRef.current.low,
+            close: oandaCandleRef.current.close,
+            volume: oandaCandleRef.current.volume,
           };
           onCandleUpdateRef.current(candle);
-          return; // Success via backend — done
+          return;
         }
       }
 
@@ -280,7 +293,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     } catch {
       // Silent fail — will retry
     }
-  }, [symbol, timeframe]); // BUG #5 FIX: Removed onCandleUpdate/onPriceUpdate deps — now using refs
+  }, [symbol, timeframe]);
 
   // ── Start REST Polling Fallback ────────────────────────
   const startPolling = useCallback(() => {
@@ -429,112 +442,31 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   };
   tfSecondsRef.current = tfSecondsMap[timeframe] || 60;
 
-  // V375: For OANDA pairs, subscribe to useMarketStore (fed by oandaWS EventSource).
-  // NO separate SSE connection — oandaWS in MarketProvider already receives prices
-  // and updates useMarketStore. The chart just reads from it and builds candles.
+  // V378: Connection Strategy — Single Source of Truth per symbol.
+  // OANDA pairs: REST polling (2s) + candle builder. NO SSE, NO EventSource.
+  // Crypto pairs: Binance WS (unchanged, already works).
   //
-  // This is the SAME pattern as how the ticker/watchlist works — they read from
-  // useMarketStore which is fed by binanceWS (crypto) and oandaWS (forex).
-  // The chart does the same, but also builds OHLC candles from the price stream.
-  const oandaCandleRef = useRef<{ time: number; open: number; high: number; low: number; close: number; volume: number } | null>(null);
-  const oandaUnsubscribeRef = useRef<(() => void) | null>(null);
-
-  const connectOandaViaMarketStore = useCallback(() => {
-    // Reset candle state
-    oandaCandleRef.current = null;
-    setConnectionState('connected');
-
-    // Clean up any previous subscription
-    if (oandaUnsubscribeRef.current) {
-      oandaUnsubscribeRef.current();
-      oandaUnsubscribeRef.current = null;
-    }
-
-    let lastPrice = 0;
-    let chartPriceLogCount = 0;
-
-    // Subscribe to useMarketStore — fires on EVERY quote change for ANY symbol
-    const unsubscribe = useMarketStore.subscribe((state) => {
-      if (isClosingRef.current) return;
-
-      const quote = state.quotes[symbol];
-      if (!quote || !quote.price || quote.price <= 0) return;
-      if (quote.price === lastPrice) return; // Skip duplicate prices
-      lastPrice = quote.price;
-
-      // V375: Log first 3 prices to confirm chart subscription works
-      if (chartPriceLogCount < 3) {
-        console.log(`📊 [ChartStore] Price #${chartPriceLogCount + 1}: ${symbol} = ${quote.price} (source: ${quote.source})`);
-        chartPriceLogCount++;
-      }
-
-      const price = quote.price;
-
-      // V369: Build candle from price stream
-      const now = Math.floor(Date.now() / 1000);
-      const tfSec = tfSecondsRef.current;
-      const candleTime = now - (now % tfSec);
-
-      if (!oandaCandleRef.current || oandaCandleRef.current.time !== candleTime) {
-        oandaCandleRef.current = {
-          time: candleTime,
-          open: price,
-          high: price,
-          low: price,
-          close: price,
-          volume: 0,
-        };
-      } else {
-        oandaCandleRef.current.high = Math.max(oandaCandleRef.current.high, price);
-        oandaCandleRef.current.low = Math.min(oandaCandleRef.current.low, price);
-        oandaCandleRef.current.close = price;
-      }
-
-      const candle: CandleData = {
-        time: oandaCandleRef.current.time,
-        open: oandaCandleRef.current.open,
-        high: oandaCandleRef.current.high,
-        low: oandaCandleRef.current.low,
-        close: oandaCandleRef.current.close,
-        volume: oandaCandleRef.current.volume,
-      };
-      // V371: Send ONLY the candle — no separate price update
-      bufferUpdate(candle, null, false);
-    });
-
-    oandaUnsubscribeRef.current = unsubscribe;
-
-    // Store cleanup in socketIoRef (reused for disconnection)
-    (socketIoRef as any).current = {
-      disconnect: () => {
-        unsubscribe();
-        oandaUnsubscribeRef.current = null;
-      }
-    };
-
-    isClosingRef.current = false;
-  }, [symbol, bufferUpdate]);
-
-  // ── V375: Connection Strategy ──
-  // OANDA pairs: read from useMarketStore (fed by oandaWS EventSource in MarketProvider)
-  // Crypto pairs: Binance WS (unchanged)
+  // The REST API reads from Redis cache which is fed by OANDA Streaming Service.
+  // So we get near-real-time stream prices via simple REST polling.
+  // The candle builder converts individual prices into proper OHLC candles.
   const connect = useCallback(() => {
     cleanup();
     isClosingRef.current = false;
     connectionGenRef.current++;
+    oandaCandleRef.current = null; // Reset candle builder on new connection
     if (!enabled) return;
 
-    // V375: OANDA pairs → subscribe to useMarketStore (no separate connection)
+    // V378: OANDA pairs → REST polling + candle builder (no SSE)
     if (!isCryptoPair(symbol)) {
       setConnectionState('connecting');
-      connectOandaViaMarketStore();
+      startPolling();
       return;
     }
 
     // Crypto pairs → Binance WS
     setConnectionState('connecting');
     connectBinanceFallback();
-  }, [symbol, enabled, cleanup, connectBinanceFallback, connectOandaViaMarketStore]);
+  }, [symbol, enabled, cleanup, connectBinanceFallback, startPolling]);
 
   // ── Reconnect ──────────────────────────────────────────
   const reconnect = useCallback(() => {

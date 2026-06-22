@@ -16,7 +16,7 @@
 
 # Embed the git commit SHA into the Docker image
 # V245: Fix timer dancing — direct DOM positioning (no React state) + stick below price label
-ARG BUILD_CACHE=V377_REMOVE_WTI_BRENT_FRONTEND
+ARG BUILD_CACHE=V378_SINGLE_AUTHORITY_POLLING
 ARG GIT_COMMIT=unknown
 # V216: Declare RAILWAY_GIT_COMMIT_SHA so Docker doesn't warn about undefined variable
 ARG RAILWAY_GIT_COMMIT_SHA=

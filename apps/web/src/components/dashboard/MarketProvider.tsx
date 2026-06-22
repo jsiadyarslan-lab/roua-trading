@@ -3,10 +3,11 @@
 import { useEffect } from 'react'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { binanceWS, useMarketStore } from '@/hooks/useMarketStore'
-import { oandaWS } from '@/hooks/useOandaStream'
 import { useDashboardStore } from '@/lib/dashboard-store'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { PriceAlertEngine } from '@/components/dashboard/PriceAlertEngine'
+
+// V378: Removed oandaWS import — no EventSource. REST polling only for ticker.
 
 /**
  * MASTER SYMBOL LIST — Single source of truth for all WS subscriptions.
@@ -60,12 +61,6 @@ const OANDA_SYMBOLS = NON_CRYPTO_SYMBOLS.filter(s => {
 
 async function fetchAndStore(symbol: string) {
   try {
-    // V375: Skip OANDA pairs entirely — they get prices from oandaWS EventSource.
-    // Calling REST for them causes 503 errors (OANDA REST doesn't support all pairs)
-    // and data conflicts (REST overwrites stream prices with stale data).
-    const isOanda = OANDA_SYMBOLS.includes(symbol)
-    if (isOanda) return // Skip — EventSource handles OANDA pairs
-
     const isCrypto = CRYPTO_BASES_SET.has(symbol.split('/')[0])
     if (isCrypto) {
       const existingQuote = useMarketStore.getState().quotes[symbol]
@@ -75,6 +70,7 @@ async function fetchAndStore(symbol: string) {
       if (isWslive) return
     }
 
+    // V378: Fetch ALL pairs via REST — forex prices come from OANDA stream-fed Redis cache
     const res = await fetch(`/api/exchange/quote/${encodeURIComponent(symbol)}`)
     if (!res.ok) return // Silently skip failed requests
     const data = await res.json()
@@ -177,31 +173,24 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     // 1. Subscribe all crypto symbols via Binance WS (one connection for all)
     WS_CRYPTO_SYMBOLS.forEach(sym => binanceWS.subscribe(sym))
 
-    // V360: Subscribe all OANDA pairs via OANDA stream (one connection for all)
-    OANDA_SYMBOLS.forEach(sym => oandaWS.subscribe(sym))
+    // V378: No oandaWS — removed EventSource entirely. REST polling handles OANDA pairs.
 
     // 2. Fetch initial data for ALL symbols via API
     Promise.allSettled(GLOBAL_SYMBOLS.map(fetchAndStore))
 
-    // 3. V374: Poll stocks ONLY (not forex) — forex is via OANDA EventSource
+    // 3. V378: Poll ALL non-crypto pairs (forex + stocks) every 60s for ticker
     const pollNonCrypto = () => {
-      const stocksOnly = NON_CRYPTO_SYMBOLS.filter(s => !OANDA_SYMBOLS.includes(s))
-      if (stocksOnly.length > 0) fetchNonCryptoBatch(stocksOnly)
+      fetchNonCryptoBatch(NON_CRYPTO_SYMBOLS)
     }
     pollNonCrypto()
     return () => {
       WS_CRYPTO_SYMBOLS.forEach(sym => binanceWS.unsubscribe(sym))
-      OANDA_SYMBOLS.forEach(sym => oandaWS.unsubscribe(sym))
     }
   }, [])
 
-  // V374: NO REST polling for OANDA pairs — EventSource is the ONLY source.
-  // Previous polling caused 503 errors (GER30, UK100, WTI) and data conflicts.
-  // Only poll stocks (non-OANDA non-crypto) as fallback.
-  useVisibleInterval(() => {
-    const stocksOnly = NON_CRYPTO_SYMBOLS.filter(s => !OANDA_SYMBOLS.includes(s))
-    if (stocksOnly.length > 0) fetchNonCryptoBatch(stocksOnly)
-  }, 60_000)
+  // V378: Poll ALL non-crypto pairs (forex + stocks) every 60s for ticker.
+  // The chart has its own 2s polling (in useChartWebSocket) with candle builder.
+  useVisibleInterval(() => fetchNonCryptoBatch(NON_CRYPTO_SYMBOLS), 60_000)
 
   // FIX V139: Poll crypto via REST every 15 seconds as fallback for Binance WS.
   // WS provides sub-second updates, but this REST poll ensures:

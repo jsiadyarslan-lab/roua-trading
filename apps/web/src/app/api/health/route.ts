@@ -68,7 +68,7 @@ export async function GET() {
     (async () => {
       const socketStart = Date.now();
       try {
-        const socketResponse = await fetch(`${apiTarget}/socket.io/?EIO=4&transport=polling`, {
+        const socketResponse = await fetch(`${apiTarget}/api/socket/?EIO=4&transport=polling`, {
           signal: AbortSignal.timeout(3000),
         });
         const socketBody = await socketResponse.text();

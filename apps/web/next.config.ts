@@ -78,36 +78,26 @@ const nextConfig: NextConfig = {
 
   async rewrites() {
     return [
-      // ── V398: Socket.IO — direct rewrite to NestJS backend ──
-      // ROOT CAUSE of all previous failures (V388-V397):
-      //   - middleware.ts matcher excluded /socket.io (due to dot pattern)
-      //   - proxy.ts is not recognized as middleware in Next.js 16
-      //   - Route Handler at /api/socket-io-proxy was never invoked
-      //   - Result: /socket.io requests hit NestJS directly, returned 404
-      //     because NestJS's setGlobalPrefix('api') doesn't apply to Socket.IO
+      // ── V399: Socket.IO with custom path '/api/socket' (no dots) ──
+      // Socket.IO's default path '/socket.io/' contains a dot, which Next.js
+      // treats as a static file and returns 404. We changed Socket.IO's path
+      // to '/api/socket' on the backend (redis-adapter.ts). Now we need to
+      // rewrite /api/socket* to NestJS so requests reach Socket.IO there.
       //
-      // FINAL FIX: Use next.config.ts rewrites to forward /socket.io* directly
-      // to NestJS (port 3001). This is the most reliable approach because:
-      //   1. next.config.ts rewrites run BEFORE middleware/proxy
-      //   2. No dependency on middleware matcher patterns
-      //   3. No need for Route Handler proxy layer
-      //   4. Socket.IO on NestJS WORKS (confirmed via /api/health check)
-      //
-      // Three patterns needed:
-      //   1. /socket.io (no trailing slash) — matches /socket.io?EIO=4
-      //   2. /socket.io/ (trailing slash) — matches /socket.io/?EIO=4
-      //   3. /socket.io/:path* — matches sub-paths like /socket.io/1/
+      // /api/socket is NOT a Next.js Route Handler (no file exists for it).
+      // Without this rewrite, Next.js returns 404 for /api/socket.
+      // With this rewrite, /api/socket* → NestJS:3001/api/socket*
       {
-        source: '/socket.io',
-        destination: `${apiTarget}/socket.io`,
+        source: '/api/socket',
+        destination: `${apiTarget}/api/socket`,
       },
       {
-        source: '/socket.io/',
-        destination: `${apiTarget}/socket.io/`,
+        source: '/api/socket/',
+        destination: `${apiTarget}/api/socket/`,
       },
       {
-        source: '/socket.io/:path*',
-        destination: `${apiTarget}/socket.io/:path*`,
+        source: '/api/socket/:path*',
+        destination: `${apiTarget}/api/socket/:path*`,
       },
       // ── Health check ──
       // REMOVED: Previously this rewrote /api/health → NestJS API.

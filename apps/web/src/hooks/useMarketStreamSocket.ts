@@ -67,18 +67,19 @@ function _getOrCreateSocket(onTick: (symbol: string, data: any) => void): any {
 
   const { io } = require('socket.io-client');
 
-  // Use same-origin — next.config.ts rewrites /socket.io/* → NestJS (port 3001)
+  // Use same-origin — Next.js proxies /api/* to NestJS (port 3001)
   const url = typeof window !== 'undefined' ? window.location.origin : '';
 
   const socket = io(`${url}/exchange`, {
+    // V399: Custom path '/api/socket' (no dots) — Next.js was returning 404
+    // for the default '/socket.io/' path because it contains a dot.
+    path: '/api/socket',
     transports: ['polling', 'websocket'], // polling first (works through Railway edge)
     autoConnect: true,
     reconnection: true,
-    // V391: Limit reconnection attempts — Socket.IO proxy is returning 404 on Railway.
-    // After 5 failed attempts, stop trying. BinanceWSManager + REST polling are the fallback.
-    reconnectionAttempts: 5,
-    reconnectionDelay: 2000,
-    reconnectionDelayMax: 10000,
+    reconnectionAttempts: Infinity, // V399: Now that path is fixed, allow infinite retries
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
     timeout: 10000,
   });
 

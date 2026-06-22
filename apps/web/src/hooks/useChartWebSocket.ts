@@ -441,150 +441,99 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   // When SSE is live, polling must NOT run (it overwrites SSE candles with O=H=L=C).
   const sseActiveRef = useRef(false);
 
-  // V360: Connect to OANDA SSE stream via Next.js proxy route.
-  // The Next.js proxy streams SSE from NestJS to the browser.
-  // Same architecture as Binance WS: long-lived connection, real-time updates.
+  // V373: Connect to OANDA SSE stream using EventSource API.
+  // EventSource is the browser-native SSE client — designed exactly for this.
+  // Unlike fetch+ReadableStream, EventSource:
+  //   - Automatically handles reconnection
+  //   - Works through any HTTP proxy (Next.js, nginx, etc.)
+  //   - Doesn't get killed by proxy buffering/timeout
+  //   - Is the same API used by every professional trading platform
   const connectOandaSSE = useCallback(() => {
-    // V366: Use window.location.origin (Next.js) — the proxy route forwards to NestJS.
-    const sseUrl = `${window.location.origin}/api/exchange/oanda-stream?symbols=${encodeURIComponent(symbol)}`;
+    const sseUrl = `/api/exchange/oanda-stream?symbols=${encodeURIComponent(symbol)}`;
 
-    let abortCtrl: AbortController | null = null;
-    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
-    let lineBuffer = '';
+    // V373: Use EventSource — browser native SSE
+    const eventSource = new EventSource(sseUrl);
 
-    const cleanupSSE = () => {
-      if (abortCtrl) { try { abortCtrl.abort(); } catch {} abortCtrl = null; }
-      if (reader) { try { reader.cancel(); } catch {} reader = null; }
+    // Store for cleanup
+    (socketIoRef as any).current = {
+      disconnect: () => {
+        eventSource.close();
+      }
     };
-
-    // Store cleanup in socketIoRef (reused for SSE cleanup)
-    (socketIoRef as any).current = { disconnect: cleanupSSE };
 
     // V369: Reset candle state on new connection
     oandaCandleRef.current = null;
-    // V370: Mark SSE as active — stops polling from running
+    // V370: Mark SSE as active
     sseActiveRef.current = true;
-    // V370: Stop any existing polling
+    // V370: Stop polling
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
       pollingRef.current = null;
     }
 
-    fetch(sseUrl, {
-      method: 'GET',
-      headers: { 'Accept': 'text/event-stream' },
-    }).then(async (res) => {
-      console.log(`🌊 [ChartSSE] fetch response: HTTP ${res.status}, hasBody=${!!res.body}, contentType=${res.headers.get('content-type')}`);
-
-      if (!res.ok || !res.body) {
-        console.warn(`🌊 [ChartSSE] OANDA stream HTTP ${res.status} — polling fallback`);
-        startPolling();
-        return;
-      }
-
+    eventSource.onopen = () => {
       setConnectionState('connected');
       reconnectAttemptsRef.current = 0;
-      console.log(`🌊 [ChartSSE] OANDA stream connected for ${symbol}`);
+      console.log(`🌊 [ChartSSE] EventSource connected for ${symbol}`);
+    };
 
-      reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let chunkCount = 0;
-      let priceCount = 0;
+    eventSource.onmessage = (event) => {
+      if (isClosingRef.current) return;
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'heartbeat' || data.type === 'connected') return;
+        if (data.price && data.price > 0) {
+          const price = data.price;
 
-      while (!isClosingRef.current) {
-        const { done, value } = await reader.read();
-        if (done) {
-          console.log(`🌊 [ChartSSE] Stream done — chunks received: ${chunkCount}, prices: ${priceCount}`);
-          break;
+          // V371: Build candle from price stream
+          const now = Math.floor(Date.now() / 1000);
+          const tfSec = tfSecondsRef.current;
+          const candleTime = now - (now % tfSec);
+
+          if (!oandaCandleRef.current || oandaCandleRef.current.time !== candleTime) {
+            oandaCandleRef.current = {
+              time: candleTime,
+              open: price,
+              high: price,
+              low: price,
+              close: price,
+              volume: data.volume || 0,
+            };
+          } else {
+            oandaCandleRef.current.high = Math.max(oandaCandleRef.current.high, price);
+            oandaCandleRef.current.low = Math.min(oandaCandleRef.current.low, price);
+            oandaCandleRef.current.close = price;
+            oandaCandleRef.current.volume += (data.volume || 0);
+          }
+
+          const candle: CandleData = {
+            time: oandaCandleRef.current.time,
+            open: oandaCandleRef.current.open,
+            high: oandaCandleRef.current.high,
+            low: oandaCandleRef.current.low,
+            close: oandaCandleRef.current.close,
+            volume: oandaCandleRef.current.volume,
+          };
+          // V371: Send ONLY the candle — no separate price update
+          bufferUpdate(candle, null, false);
         }
+      } catch { /* non-critical */ }
+    };
 
-        chunkCount++;
-        const rawText = decoder.decode(value, { stream: true });
-        if (chunkCount <= 3) {
-          console.log(`🌊 [ChartSSE] Chunk #${chunkCount} raw: "${rawText.substring(0, 200)}"`);
-        }
-
-        lineBuffer += rawText;
-        const lines = lineBuffer.split('\n');
-        lineBuffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const jsonStr = line.substring(6).trim();
-          if (!jsonStr) continue;
-          try {
-            const data = JSON.parse(jsonStr);
-            if (data.type === 'heartbeat' || data.type === 'connected') {
-              console.log(`🌊 [ChartSSE] ${data.type} event received`);
-              continue;
-            }
-            if (data.price && data.price > 0) {
-              priceCount++;
-              if (priceCount <= 5) {
-                console.log(`🌊 [ChartSSE] Price #${priceCount}: ${data.symbol} = ${data.price}`);
-              }
-              const price = data.price;
-
-              // V371: Build candle from price stream (same as Binance kline, but manual)
-              // DO NOT call bufferUpdate(null, price) — it triggers onPriceUpdate →
-              // chart.updateLastCandle(price) which OVERWRITES the candle's OHLC with
-              // O=H=L=C=price, destroying the real OHLC we just built.
-              //
-              // Binance sends kline (OHLC) and ticker (price) as SEPARATE messages.
-              // OANDA SSE sends only price, so we build OHLC ourselves and send ONLY
-              // the candle update — no separate price update needed.
-              // The chart's onCandleUpdate handler updates the close price internally.
-
-              const now = Math.floor(Date.now() / 1000);
-              const tfSec = tfSecondsRef.current;
-              const candleTime = now - (now % tfSec);
-
-              if (!oandaCandleRef.current || oandaCandleRef.current.time !== candleTime) {
-                // New candle period — start fresh
-                oandaCandleRef.current = {
-                  time: candleTime,
-                  open: price,
-                  high: price,
-                  low: price,
-                  close: price,
-                  volume: data.volume || 0,
-                };
-              } else {
-                // Same candle period — update OHLC
-                oandaCandleRef.current.high = Math.max(oandaCandleRef.current.high, price);
-                oandaCandleRef.current.low = Math.min(oandaCandleRef.current.low, price);
-                oandaCandleRef.current.close = price;
-                oandaCandleRef.current.volume += (data.volume || 0);
-              }
-
-              const candle: CandleData = {
-                time: oandaCandleRef.current.time,
-                open: oandaCandleRef.current.open,
-                high: oandaCandleRef.current.high,
-                low: oandaCandleRef.current.low,
-                close: oandaCandleRef.current.close,
-                volume: oandaCandleRef.current.volume,
-              };
-              // V371: Send ONLY the candle — no separate price update.
-              // The candle's close IS the latest price. RouaChart's onCandleUpdate
-              // handler will update the chart series with the full OHLC candle.
-              bufferUpdate(candle, null, false);
-            }
-          } catch { /* non-critical */ }
-        }
+    eventSource.onerror = () => {
+      if (isClosingRef.current) return;
+      console.warn(`🌊 [ChartSSE] EventSource error — will auto-reconnect`);
+      // EventSource auto-reconnects. Only fall back to polling if it fails repeatedly.
+      // For now, let EventSource handle reconnection.
+      // Only start polling if EventSource is CLOSED (not just errored)
+      if (eventSource.readyState === EventSource.CLOSED) {
+        console.warn(`🌊 [ChartSSE] EventSource CLOSED — polling fallback`);
+        sseActiveRef.current = false;
+        if (!isClosingRef.current) startPolling();
       }
+    };
 
-      if (!isClosingRef.current) {
-        console.warn(`🌊 [ChartSSE] Stream ended — polling fallback`);
-        sseActiveRef.current = false; // V370: Allow polling to resume
-        startPolling();
-      }
-    }).catch((err: any) => {
-      if (err.name === 'AbortError') return;
-      console.warn(`🌊 [ChartSSE] Error: ${err.message} — polling fallback`);
-      sseActiveRef.current = false; // V370: Allow polling to resume
-      if (!isClosingRef.current) startPolling();
-    });
+    isClosingRef.current = false;
   }, [symbol, startPolling, bufferUpdate]);
 
   // ── V360: Connection Strategy — OANDA pairs use SSE stream (same as Binance WS for crypto) ──

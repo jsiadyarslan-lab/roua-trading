@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { IoAdapter } from '@nestjs/platform-socket.io';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -36,9 +37,20 @@ async function bootstrap() {
     // Default: human-readable NestJS logs (backward compatible).
     const { StructuredLogger } = await import('./common/logger/structured-logger');
     const logger = new StructuredLogger();
-    const app = await NestFactory.create(AppModule, {
-      logger: process.env.LOG_FORMAT === 'json' ? logger : ['error', 'warn', 'log', 'debug'],
-    });
+    // V394: Create Express server explicitly so we can pass it to NestFactory.
+    // This is REQUIRED for Socket.IO to attach properly — when NestJS creates
+    // its own HTTP server internally, the IoAdapter's lazy attachment fails
+    // in some configurations, causing /socket.io requests to return 404.
+    // By passing our own server, Socket.IO attaches reliably during app.listen().
+    const express = require('express');
+    const expressApp = express();
+    const app = await NestFactory.create<NestExpressApplication>(
+      AppModule,
+      expressApp,
+      {
+        logger: process.env.LOG_FORMAT === 'json' ? logger : ['error', 'warn', 'log', 'debug'],
+      },
+    );
     app.enableShutdownHooks();
 
     // Security headers via Helmet (CSP, HSTS, X-Frame-Options, etc.)

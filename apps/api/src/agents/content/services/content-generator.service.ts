@@ -115,23 +115,21 @@ export class ContentGeneratorService {
         aiConfig,
       );
 
-      // V9: Generate French, Turkish, Spanish content in PARALLEL.
-      // Uses Promise.allSettled so if one language fails, the others still succeed.
-      // The 8-model orchestrator handles fallback automatically.
-      // Each language gets its own _generateWithAI call with locale-specific prompt.
-      const [frenchResult, turkishResult, spanishResult] = await Promise.allSettled([
-        this._generateWithAI(systemPrompt, userPrompt, 'fr', aiConfig),
-        this._generateWithAI(systemPrompt, userPrompt, 'tr', aiConfig),
-        this._generateWithAI(systemPrompt, userPrompt, 'es', aiConfig),
-      ]);
-
-      const frenchContent = frenchResult.status === 'fulfilled' ? frenchResult.value : null;
-      const turkishContent = turkishResult.status === 'fulfilled' ? turkishResult.value : null;
-      const spanishContent = spanishResult.status === 'fulfilled' ? spanishResult.value : null;
-
-      if (frenchResult.status === 'rejected') this.logger.warn(`French generation failed: ${frenchResult.reason?.message?.slice(0, 80)}`);
-      if (turkishResult.status === 'rejected') this.logger.warn(`Turkish generation failed: ${turkishResult.reason?.message?.slice(0, 80)}`);
-      if (spanishResult.status === 'rejected') this.logger.warn(`Spanish generation failed: ${spanishResult.reason?.message?.slice(0, 80)}`);
+      // V9.4: DISABLED fr/tr/es generation until DB migration is applied.
+      // The publisher can't save these fields (columns don't exist yet).
+      // Generating them wastes 3x AI time and may cause cron timeouts.
+      // Once migration is applied, uncomment the block below.
+      // const [frenchResult, turkishResult, spanishResult] = await Promise.allSettled([
+      //   this._generateWithAI(systemPrompt, userPrompt, 'fr', aiConfig),
+      //   this._generateWithAI(systemPrompt, userPrompt, 'tr', aiConfig),
+      //   this._generateWithAI(systemPrompt, userPrompt, 'es', aiConfig),
+      // ]);
+      // const frenchContent = frenchResult.status === 'fulfilled' ? frenchResult.value : null;
+      // const turkishContent = turkishResult.status === 'fulfilled' ? turkishResult.value : null;
+      // const spanishContent = spanishResult.status === 'fulfilled' ? spanishResult.value : null;
+      // if (frenchResult.status === 'rejected') this.logger.warn(`French generation failed: ${frenchResult.reason?.message?.slice(0, 80)}`);
+      // if (turkishResult.status === 'rejected') this.logger.warn(`Turkish generation failed: ${turkishResult.reason?.message?.slice(0, 80)}`);
+      // if (spanishResult.status === 'rejected') this.logger.warn(`Spanish generation failed: ${spanishResult.reason?.message?.slice(0, 80)}`);
 
       // Generate SEO metadata
       const seo = this._generateSeoMetadata(request, arabicContent, englishContent);

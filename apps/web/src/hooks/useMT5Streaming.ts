@@ -38,7 +38,7 @@ export function useMT5Streaming() {
       const socket = io('/mt5', {
         auth: { token },
         path: '/socket', // V399: Custom path (no dots) — Next.js was 404ing /socket.io/
-        transports: ['websocket', 'polling'],
+        transports: ['polling'], // V403: polling only
         reconnection: true,
         reconnectionAttempts: 20,
         reconnectionDelay: 3000,

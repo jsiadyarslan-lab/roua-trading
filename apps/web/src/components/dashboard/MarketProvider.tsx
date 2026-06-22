@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
-import { binanceWS, useMarketStore } from '@/hooks/useMarketStore'
+import { useMarketStore } from '@/hooks/useMarketStore'
 import { useDashboardStore } from '@/lib/dashboard-store'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { PriceAlertEngine } from '@/components/dashboard/PriceAlertEngine'
@@ -102,9 +102,10 @@ async function fetchBatchIfStale(symbols: string[]) {
  * for when Socket.IO disconnects.
  */
 export function MarketProvider({ children }: { children: React.ReactNode }) {
-  // V390: UNIFIED Socket.IO stream — intended as PRIMARY price source for ALL assets.
-  // V391: BUT Socket.IO proxy has 404 issue on Railway (V388/V389 didn't resolve it).
-  // Until Socket.IO works, BinanceWSManager (below) is the PRIMARY source for crypto.
+  // V403: Socket.IO is now the PRIMARY and ONLY price source for ALL assets.
+  // BinanceWSManager (direct browser → Binance WS) has been REMOVED.
+  // Crypto prices now flow through the same Socket.IO pipeline as forex:
+  //   BinanceStreamingService (NestJS) → Socket.IO → useMarketStreamSocket → useMarketStore
   useMarketStreamSocket()
 
   useEffect(() => {
@@ -137,24 +138,12 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // V391: RESTORE BinanceWSManager as crypto price source.
-  // Socket.IO proxy (V388/V389) is still returning 404 on Railway.
-  // Until that's fixed, BinanceWSManager is the ONLY working crypto source.
-  // This is the direct browser → Binance WS connection that worked before V390.
-  useEffect(() => {
-    WS_CRYPTO_SYMBOLS.forEach(sym => binanceWS.subscribe(sym))
-    return () => {
-      WS_CRYPTO_SYMBOLS.forEach(sym => binanceWS.unsubscribe(sym))
-    }
-  }, [])
-
-  // V390: Initial fetch — populate store while connections are establishing.
+  // V403: Initial fetch — populate store while Socket.IO connects.
   useEffect(() => {
     Promise.allSettled(GLOBAL_SYMBOLS.map(fetchAndStoreIfStale))
   }, [])
 
-  // V391: REST polling fallback — more aggressive now (15s) since Socket.IO is broken.
-  // Fetches stale quotes (>30s old) as fallback for ALL symbol types.
+  // V403: REST polling fallback — only fetches stale quotes (>30s old).
   useVisibleInterval(() => fetchBatchIfStale(GLOBAL_SYMBOLS), 15_000)
 
 

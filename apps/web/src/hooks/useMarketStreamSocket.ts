@@ -71,13 +71,16 @@ function _getOrCreateSocket(onTick: (symbol: string, data: any) => void): any {
   const url = typeof window !== 'undefined' ? window.location.origin : '';
 
   const socket = io(`${url}/exchange`, {
-    // V399: Custom path '/api/socket' (no dots) — Next.js was returning 404
-    // for the default '/socket.io/' path because it contains a dot.
-    path: '/socket',
-    transports: ['polling', 'websocket'], // polling first (works through Railway edge)
+    path: '/socket', // V399: Custom path (no dots)
+    // V403: Polling only — WebSocket upgrade fails through Next.js rewrite proxy.
+    // next.config.ts rewrites use fetch() internally which cannot proxy WS upgrade
+    // requests. Polling works perfectly (confirmed: 200 with handshake). Forcing
+    // polling-only eliminates the "WebSocket connection failed" console error.
+    // Latency: ~100-200ms (acceptable for price updates).
+    transports: ['polling'],
     autoConnect: true,
     reconnection: true,
-    reconnectionAttempts: Infinity, // V399: Now that path is fixed, allow infinite retries
+    reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
     timeout: 10000,

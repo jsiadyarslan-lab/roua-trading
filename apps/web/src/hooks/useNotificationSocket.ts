@@ -55,7 +55,7 @@ export function useNotificationSocket() {
       const socket = io(`${wsUrl}/notifications`, {
         auth: { token },
         path: '/socket', // V399: Custom path (no dots) — Next.js was 404ing /socket.io/
-        transports: ['polling', 'websocket'],
+        transports: ['polling'], // V403: polling only
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 2000,

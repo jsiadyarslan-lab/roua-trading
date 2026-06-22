@@ -95,6 +95,14 @@ export class SmartExecutorService implements OnModuleDestroy {
   /** DB key for persisting Smart Executor user state (survives Redis restart) */
   private readonly DB_USER_STATE_KEY = 'SMART_EXECUTOR_USER_STATE';
 
+  // V409: Per-tick new-opens counter (class property to span _processUserBriefs
+  // and _checkBriefForUser — local variable wouldn't be visible across methods).
+  // Reset at the start of each _processUserBriefs call.
+  private newOpensThisTick: number = 0;
+  private readonly MAX_NEW_OPENS_PER_TICK: number = parseInt(
+    process.env.EXECUTOR_MAX_NEW_OPENS_PER_TICK || '2', 10
+  );
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
@@ -2219,16 +2227,14 @@ export class SmartExecutorService implements OnModuleDestroy {
     // opening all eligible briefs in one tick when maxOpenPositions
     // allowed it, creating correlated exposure.
     // FIX: Cap new opens per tick to 2 (configurable via env).
-    const MAX_NEW_OPENS_PER_TICK = parseInt(
-      process.env.EXECUTOR_MAX_NEW_OPENS_PER_TICK || '2', 10
-    );
-    let newOpensThisTick = 0;
+    // Counter is a class property so it's visible from _checkBriefForUser.
+    this.newOpensThisTick = 0; // Reset at start of each tick
 
     for (const brief of briefs) {
       // V409: Stop processing once per-tick cap is reached
-      if (newOpensThisTick >= MAX_NEW_OPENS_PER_TICK) {
+      if (this.newOpensThisTick >= this.MAX_NEW_OPENS_PER_TICK) {
         this.logger.debug(
-          `⚔️ V409: Per-tick cap reached (${MAX_NEW_OPENS_PER_TICK} new opens) — skipping remaining briefs this tick`,
+          `⚔️ V409: Per-tick cap reached (${this.MAX_NEW_OPENS_PER_TICK} new opens) — skipping remaining briefs this tick`,
         );
         break;
       }
@@ -2624,8 +2630,8 @@ export class SmartExecutorService implements OnModuleDestroy {
       const result = await this._executeBriefForUser(userId, brief, currentPrice, userState, portfolioValue);
 
       if (result.success) {
-        // V409: Increment per-tick counter (used at top of brief loop)
-        newOpensThisTick++;
+        // V409: Increment per-tick counter (class property — visible across methods)
+        this.newOpensThisTick++;
         // FIX: Mark as processed in Redis with TTL based on the brief's timeframe.
         // Previously used 24h TTL which blocked new positions for the same pair
         // long after the brief expired. Now the TTL matches the timeframe's natural

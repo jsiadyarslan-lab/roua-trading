@@ -111,9 +111,16 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
     this.logger.log(`🌊 V361: Adding ${this.AUTO_SUBSCRIBE_PAIRS.length} OANDA instruments...`);
 
     // Step 1: Add ALL instruments to the set (synchronous — no connections)
+    // V368: Skip blacklisted instruments (WTI_USD, BRENT_USD)
+    let added = 0;
     for (const pair of this.AUTO_SUBSCRIBE_PAIRS) {
       const oandaSymbol = this.toOandaSymbol(pair);
+      if (this.blacklistedInstruments.has(oandaSymbol)) {
+        this.logger.debug(`🌊 V368: Skipping blacklisted instrument ${oandaSymbol}`);
+        continue;
+      }
       this.subscribedInstruments.add(oandaSymbol);
+      added++;
     }
 
     this.logger.log(`🌊 V361: Instruments ready: ${Array.from(this.subscribedInstruments).join(', ')}`);
@@ -301,10 +308,17 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Connect to OANDA streaming API
+   * V368: Guard against empty instruments + exponential backoff + never empty the set.
    */
   private _connect(): void {
-    if (this.isConnecting || !this.isAvailable() || this.subscribedInstruments.size === 0) {
-      this.logger.warn(`🌊 _connect() skipped: isConnecting=${this.isConnecting}, available=${this.isAvailable()}, instruments=${this.subscribedInstruments.size}`);
+    // V368: NEVER connect with empty instruments — causes "aborted" errors
+    if (this.subscribedInstruments.size === 0) {
+      this.logger.warn('🌊 V368: No instruments to subscribe — skipping connect (prevents empty stream abort)');
+      return;
+    }
+
+    if (this.isConnecting || !this.isAvailable()) {
+      this.logger.warn(`🌊 _connect() skipped: isConnecting=${this.isConnecting}, available=${this.isAvailable()}`);
       return;
     }
 
@@ -483,18 +497,32 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Reconnect the stream (used when instruments change)
+   * V368: Guard against empty instruments before reconnecting.
    */
   private _reconnect(): void {
     this._disconnect();
-    // Small delay to avoid rapid reconnect loops
-    setTimeout(() => this._connect(), 500);
+
+    // V368: Don't reconnect if no instruments left
+    if (this.subscribedInstruments.size === 0) {
+      this.logger.warn('🌊 V368: _reconnect() called with 0 instruments — skipping (prevents empty stream)');
+      return;
+    }
+
+    // V368: Use exponential backoff for reconnect too (not fixed 500ms)
+    const backoffDelays = [500, 1000, 2000, 5000];
+    const delayIndex = Math.min(this.connectAttempts, backoffDelays.length - 1);
+    const delay = backoffDelays[delayIndex];
+    setTimeout(() => this._connect(), delay);
   }
 
   /**
    * Schedule a reconnect after failure
+   * V368: Exponential backoff + guard against empty instruments.
    */
   private _scheduleReconnect(): void {
+    // V368: Stop if no instruments left (prevents empty stream reconnect loop)
     if (!this.shouldReconnect || this.subscribedInstruments.size === 0) {
+      this.logger.warn('🌊 V368: No valid instruments remaining — stopping reconnect loop');
       return;
     }
 
@@ -502,11 +530,16 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
       clearTimeout(this.reconnectTimer);
     }
 
-    this.logger.log(`🌊 Scheduling reconnect in ${this.RECONNECT_DELAY_MS / 1000}s...`);
+    // V368: Exponential backoff: 1s → 2s → 5s → 10s → 30s → 30s → ...
+    const backoffDelays = [1000, 2000, 5000, 10000, 30000];
+    const delayIndex = Math.min(this.connectAttempts - 1, backoffDelays.length - 1);
+    const delay = backoffDelays[delayIndex];
+
+    this.logger.log(`🌊 V368: Scheduling reconnect in ${delay / 1000}s (attempt ${this.connectAttempts})...`);
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this._connect();
-    }, this.RECONNECT_DELAY_MS);
+    }, delay);
   }
 
   /**

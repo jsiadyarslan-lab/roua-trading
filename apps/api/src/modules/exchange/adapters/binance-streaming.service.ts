@@ -173,8 +173,22 @@ export class BinanceStreamingService implements OnModuleInit, OnModuleDestroy {
     this.subscribedSymbols.add(normalized);
     this.logger.log(`💱 Subscribed to ${normalized} (total: ${this.subscribedSymbols.size})`);
 
-    // Reconnect with updated stream list (debounced)
-    this._scheduleReconnect();
+    // V405: Don't reconnect if WebSocket is already connected.
+    // Binance combined stream supports adding new symbols only by reconnecting
+    // with the updated stream list. However, reconnecting on every subscribe()
+    // call causes connection storms when the gateway subscribes to many symbols
+    // in rapid succession (which happens when useMarketStreamSocket subscribes
+    // to all 24 symbols on page load).
+    //
+    // The AUTO_SUBSCRIBE_PAIRS list already includes the 12 most common pairs.
+    // Additional subscribe() calls for those pairs are no-ops (already in set).
+    // For pairs NOT in AUTO_SUBSCRIBE_PAIRS, they won't be in the active stream
+    // until the next natural reconnection.
+    //
+    // Only connect if WebSocket is not already open.
+    if (!this.ws || this.ws.readyState !== 1) { // 1 = WebSocket.OPEN
+      this._scheduleReconnect();
+    }
   }
 
   /**

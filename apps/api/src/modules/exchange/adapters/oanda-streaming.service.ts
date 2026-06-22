@@ -354,9 +354,21 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
     this.subscribedInstruments.add(oandaSymbol);
     this.logger.log(`🌊 Subscribed to ${oandaSymbol} (total: ${this.subscribedInstruments.size} instruments)`);
 
-    if (this.streamReq) {
-      this._reconnect();
-    } else {
+    // V405: Don't reconnect if stream is already connected and receiving prices.
+    // The OANDA stream is a single long-lived HTTP connection for ALL instruments.
+    // Adding a new instrument to subscribedInstruments set doesn't automatically
+    // include it in the active stream — but reconnecting causes 'socket hang up'
+    // storms because OANDA rejects multiple simultaneous connections from the
+    // same account.
+    //
+    // The AUTO_SUBSCRIBE_PAIRS list already includes all 21 instruments we need.
+    // New subscribe() calls for those instruments are no-ops (already in the set).
+    // For instruments NOT in AUTO_SUBSCRIBE_PAIRS, they won't be in the active
+    // stream — but reconnecting won't help because the stream was opened with
+    // the initial instrument list.
+    //
+    // Only reconnect if the stream is NOT connected (streamReq is null).
+    if (!this.streamReq && !this.isConnecting) {
       this._connect();
     }
   }

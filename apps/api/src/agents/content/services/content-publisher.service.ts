@@ -94,20 +94,16 @@ export class ContentPublisherService {
           summaryAr: content.summaryAr,
           summaryEn: content.summaryEn,
           excerpt: content.excerpt,
-          // V9: Multilingual fields — REMOVED until migration is applied.
-          // The Prisma schema has these fields (schema.prisma) but the DB
-          // columns don't exist yet. Including them in INSERT causes:
-          // "The column titleFr does not exist" error.
-          // Once migration is applied, uncomment these lines:
-          // titleFr: content.titleFr || null,
-          // contentFr: content.contentFr || null,
-          // summaryFr: content.summaryFr || null,
-          // titleTr: content.titleTr || null,
-          // contentTr: content.contentTr || null,
-          // summaryTr: content.summaryTr || null,
-          // titleEs: content.titleEs || null,
-          // contentEs: content.contentEs || null,
-          // summaryEs: content.summaryEs || null,
+          // V9: Multilingual fields — French, Turkish, Spanish
+          titleFr: content.titleFr || null,
+          contentFr: content.contentFr || null,
+          summaryFr: content.summaryFr || null,
+          titleTr: content.titleTr || null,
+          contentTr: content.contentTr || null,
+          summaryTr: content.summaryTr || null,
+          titleEs: content.titleEs || null,
+          contentEs: content.contentEs || null,
+          summaryEs: content.summaryEs || null,
           category: content.category,
           categoryAr: content.categoryAr,
           tags: JSON.stringify(content.tags),
@@ -298,9 +294,7 @@ export class ContentPublisherService {
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
-        // V9 FIX: Explicit select WITHOUT titleFr/titleTr/titleEs.
-        // These columns may not exist yet if migration hasn't run.
-        // Once migration is confirmed applied, add them back.
+        // V9: Explicit select WITH titleFr/titleTr/titleEs.
         select: {
           id: true,
           userId: true,
@@ -313,13 +307,15 @@ export class ContentPublisherService {
           summaryAr: true,
           summaryEn: true,
           excerpt: true,
-          // V9 multilingual fields — REMOVED temporarily until migration is applied.
-          // The integration.controller.ts uses dynamic field access (article.titleFr)
-          // which returns undefined if the field doesn't exist in the select result.
-          // Once migration is applied, add these back:
-          // titleFr: true, contentFr: true, summaryFr: true,
-          // titleTr: true, contentTr: true, summaryTr: true,
-          // titleEs: true, contentEs: true, summaryEs: true,
+          titleFr: true,
+          contentFr: true,
+          summaryFr: true,
+          titleTr: true,
+          contentTr: true,
+          summaryTr: true,
+          titleEs: true,
+          contentEs: true,
+          summaryEs: true,
           category: true,
           categoryAr: true,
           tags: true,

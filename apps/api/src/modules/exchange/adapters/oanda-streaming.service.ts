@@ -486,10 +486,28 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
       }
 
       this.lastConnectError = null;
+      // V404: Reset connectAttempts on successful connection.
+      // Without this, connectAttempts keeps growing (was at #36 in production),
+      // causing the exponential backoff to always use 30s delay even after
+      // a successful reconnection. Now each disconnection starts fresh at 1s.
+      this.connectAttempts = 0;
       this.logger.log(`🌊 OANDA stream CONNECTED — receiving live prices for ${this.subscribedInstruments.size} instruments`);
 
       // Reset line buffer for new connection
       this.lineBuffer = '';
+
+      // V404: Guard flag — prevents duplicate _scheduleReconnect() calls.
+      // When "socket hang up" occurs, BOTH res.on('error') AND streamReq.on('error')
+      // fire for the same event. Without this guard, _scheduleReconnect() runs
+      // twice, clearing the first timer and scheduling a second — creating
+      // a storm of duplicate reconnect attempts.
+      let reconnectScheduled = false;
+      const scheduleReconnectOnce = () => {
+        if (reconnectScheduled) return;
+        reconnectScheduled = true;
+        this.streamReq = null;
+        this._scheduleReconnect();
+      };
 
       res.on('data', (chunk: Buffer) => {
         this._processStreamData(chunk.toString());
@@ -498,15 +516,13 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
       res.on('end', () => {
         this.lastConnectError = 'Stream ended by server';
         this.logger.warn('🌊 OANDA stream ended — will reconnect');
-        this.streamReq = null;
-        this._scheduleReconnect();
+        scheduleReconnectOnce();
       });
 
       res.on('error', (err: Error) => {
         this.lastConnectError = `Stream error: ${err.message}`;
         this.logger.error(`🌊 OANDA stream error: ${err.message}`);
-        this.streamReq = null;
-        this._scheduleReconnect();
+        scheduleReconnectOnce();
       });
     });
 
@@ -520,11 +536,16 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
       this._scheduleReconnect();
     });
 
+    // V404: Guard against duplicate error handling.
+    // When "socket hang up" occurs, this fires in addition to res.on('error').
+    // Both call _scheduleReconnect(), creating duplicate reconnect storms.
+    let reqErrorHandled = false;
     this.streamReq.on('error', (err: Error) => {
+      if (reqErrorHandled) return;
+      reqErrorHandled = true;
       this.isConnecting = false;
       this.lastConnectError = `Connection error: ${err.message}`;
       this.logger.error(`🌊 OANDA stream connection error: ${err.message}`);
-      this.logger.error(`🌊 OANDA stream error stack: ${err.stack}`);
       this.streamReq = null;
       this._scheduleReconnect();
     });

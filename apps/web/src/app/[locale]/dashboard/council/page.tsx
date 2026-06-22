@@ -17,6 +17,8 @@ import { formatPrice, riskRewardRatio, distancePercent, relativeTime, msRemainin
 import { GlassCard, CircularProgress, ConfidenceBar, LiveDot, SectionHeader, StatTile, SkeletonBlock, StatusPill, DirectionBadge } from '@/components/council/primitives'
 import { CouncilSigil } from '@/components/council/CouncilSigil'
 import { FormattedText, LoadMoreButton } from '@/components/council/FormattedText'
+import { DecisionMatrix } from '@/components/council/DecisionMatrix'
+import { PerformanceDetails } from '@/components/council/PerformanceDetails'
 
 // ═══════════════════════════════════════
 // HELPERS — keys into the locale dictionary instead of hardcoded strings
@@ -354,9 +356,17 @@ export default function CouncilPage() {
           )}
         </section>
 
-        {/* ═══ SECTION 2: ACTIVE BRIEFS ═══ */}
+        {/* ═══ SECTION 2: DECISION MATRIX ═══ */}
         <section>
-          <SectionHeader index="02" eyebrow={t('section2Eyebrow')} title={t('activeBriefs')} right={<LiveDot color={isAutoRefreshing?COLORS.buy:COLORS.textDim} label={`${t('autoRefresh')} · 30s`} />} />
+          <SectionHeader index="02" eyebrow={t('decisionMatrixDesc') ?? 'Pair × Timeframe heatmap'} title={t('decisionMatrix') ?? 'Decision Matrix'} />
+          <GlassCard padding={20}>
+            <DecisionMatrix briefs={activeBriefs} />
+          </GlassCard>
+        </section>
+
+        {/* ═══ SECTION 3: ACTIVE BRIEFS ═══ */}
+        <section>
+          <SectionHeader index="03" eyebrow={t('section2Eyebrow')} title={t('activeBriefs')} right={<LiveDot color={isAutoRefreshing?COLORS.buy:COLORS.textDim} label={`${t('autoRefresh')} · 30s`} />} />
           <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
             {(['ALL','BUY','SELL'] as const).map(d => (
               <motion.button key={d} whileTap={{ scale:0.96 }} onClick={()=>setFilterDir(d)} style={{ padding:'8px 14px', borderRadius:9, border:`1px solid ${filterDir===d?hexToRgba(d==='ALL'?COLORS.council:directionColor(d),0.4):COLORS.border}`, background:filterDir===d?hexToRgba(d==='ALL'?COLORS.council:directionColor(d),0.12):'rgba(255,255,255,0.025)', color:filterDir===d?(d==='ALL'?COLORS.council:directionColor(d)):COLORS.textMuted, fontSize:12, fontWeight:600, textTransform:'uppercase', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:8 }}>
@@ -475,51 +485,30 @@ export default function CouncilPage() {
               <StatTile label={t('cancelled')} value={perf.cancelled} accent={COLORS.sell} icon={<XCircle size={15} />} />
               <StatTile label={t('modified')} value={perf.modified} accent={COLORS.hold} icon={<RefreshCw size={15} />} />
             </div>
-            {/* Distribution */}
-            <GlassCard padding={20} style={{ marginBottom:16 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
-                <div style={{ width:28, height:28, borderRadius:8, background:hexToRgba(COLORS.council,0.12), border:`1px solid ${hexToRgba(COLORS.council,0.3)}`, color:COLORS.council, display:'flex', alignItems:'center', justifyContent:'center' }}><Layers size={15} /></div>
-                <div>
-                  <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted }}>{t('buyVsSellRatio')}</div>
-                  <div style={{ fontSize:15, fontWeight:600, color:COLORS.textPrimary, marginTop:2 }}>{t('directionDistribution')}</div>
+            {/* V412: Enhanced Performance Details */}
+            <PerformanceDetails briefs={historyBriefs} />
+            {/* Session Diagnostics */}
+            {lastSession?.diagnostics && lastSession.diagnostics.length > 0 && (
+              <GlassCard padding={20} style={{ marginTop: 16 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+                  <div style={{ width:28, height:28, borderRadius:8, background:hexToRgba(COLORS.hold,0.12), border:`1px solid ${hexToRgba(COLORS.hold,0.3)}`, color:COLORS.hold, display:'flex', alignItems:'center', justifyContent:'center' }}><AlertTriangle size={15} /></div>
+                  <div>
+                    <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted }}>{t('sessionDiagnostics') ?? 'Session Diagnostics'}</div>
+                    <div style={{ fontSize:13, fontWeight:600, color:COLORS.textPrimary, marginTop:2 }}>{t('whySkipped') ?? 'Skip Reasons'}</div>
+                  </div>
                 </div>
-              </div>
-              {historyBriefs.length > 0 ? (
-                <>
-                  <div style={{ height:14, borderRadius:999, background:'rgba(255,255,255,0.04)', border:`1px solid ${COLORS.border}`, overflow:'hidden', display:'flex', marginBottom:14 }}>
-                    {[
-                      { c:COLORS.buy, n:perf.buy },
-                      { c:COLORS.sell, n:perf.sell },
-                      { c:COLORS.hold, n:historyBriefs.length - perf.buy - perf.sell },
-                    ].filter(v=>v.n>0).map((v,i) => (
-                      <motion.div key={i} initial={{ width:0 }} animate={{ width:`${(v.n/historyBriefs.length)*100}%` }} transition={{ duration:0.9, delay:i*0.05 }}
-                        style={{ background:`linear-gradient(90deg, ${v.c}, ${hexToRgba(v.c,0.6)})`, height:'100%' }} />
-                    ))}
-                  </div>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
-                    {[
-                      { l:t('buy'), n:perf.buy, c:COLORS.buy },
-                      { l:t('sell'), n:perf.sell, c:COLORS.sell },
-                      { l:t('hold'), n:historyBriefs.length-perf.buy-perf.sell, c:COLORS.hold },
-                    ].map((v,i) => (
-                      <div key={i} style={{ padding:'10px 12px', borderRadius:9, background:hexToRgba(v.c,0.07), border:`1px solid ${hexToRgba(v.c,0.2)}` }}>
-                        <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:4 }}>
-                          <span style={{ width:8, height:8, borderRadius:2, background:v.c, boxShadow:`0 0 6px ${hexToRgba(v.c,0.6)}` }} />
-                          <span style={{ fontSize:11, fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{v.l}</span>
-                        </div>
-                        <div style={{ display:'flex', alignItems:'baseline', gap:6 }}>
-                          <span style={{ fontSize:20, fontWeight:600, color:COLORS.textPrimary, fontFamily:'monospace' }}>{v.n}</span>
-                          <span style={{ fontSize:11, color:v.c, fontFamily:'monospace', fontWeight:600 }}>{historyBriefs.length>0?Math.round(v.n/historyBriefs.length*100):0}%</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : <div style={{ fontSize:13, color:COLORS.textMuted, textAlign:'center', padding:20 }}>{t('noAnalysis')}</div>}
-            </GlassCard>
+                <div style={{ display:'flex', flexDirection:'column', gap:6, maxHeight:200, overflowY:'auto' }}>
+                  {lastSession.diagnostics.slice(0, 20).map((d, i) => (
+                    <div key={i} style={{ fontSize:11, color:COLORS.textMuted, fontFamily:'monospace', padding:'6px 10px', borderRadius:7, background:'rgba(255,255,255,0.02)', border:`1px solid ${COLORS.border}` }}>
+                      {d}
+                    </div>
+                  ))}
+                </div>
+              </GlassCard>
+            )}
             {/* Last session */}
             {lastSession && (
-              <GlassCard padding={20}>
+              <GlassCard padding={20} style={{ marginTop: 16 }}>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                     <div style={{ width:28, height:28, borderRadius:8, background:hexToRgba(COLORS.info,0.12), border:`1px solid ${hexToRgba(COLORS.info,0.3)}`, color:COLORS.info, display:'flex', alignItems:'center', justifyContent:'center' }}><Activity size={15} /></div>

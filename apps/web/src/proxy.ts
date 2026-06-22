@@ -183,12 +183,15 @@ export function proxy(request: NextRequest) {
     return addSecurityHeaders(NextResponse.next(), request)
   }
 
-  // ── Socket.IO: handled by next.config.ts rewrites (V398) ──
-  // V398: Removed /socket.io handling from proxy.ts.
-  // next.config.ts now rewrites /socket.io* directly to NestJS backend.
-  // This is more reliable than proxy.ts rewrite because next.config.ts
-  // rewrites run BEFORE middleware/proxy in Next.js 16.
-  // Do NOT intercept /socket.io here — let it fall through to the rewrite.
+  // ── V400: Socket.IO bypass — /socket* must NOT be locale-redirected ──
+  // In Next.js 16, proxy.ts replaces middleware.ts. If we don't intercept
+  // /socket here, it falls through to i18n locale detection which redirects
+  // /socket → /ar/socket (307), breaking Socket.IO.
+  // By returning NextResponse.next() here, the request passes through to
+  // next.config.ts rewrites which forward /socket* to NestJS:3001/socket*.
+  if (pathname === '/socket' || pathname.startsWith('/socket/')) {
+    return addSecurityHeaders(NextResponse.next(), request)
+  }
 
   // ── API routes: pass through with security headers ──
   if (pathname.startsWith('/api/')) {

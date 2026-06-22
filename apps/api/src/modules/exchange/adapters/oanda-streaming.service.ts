@@ -215,8 +215,7 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Subscribe to price updates for a symbol.
-   * If this is the first subscription, starts the stream connection.
-   * If already connected, the instrument is added to the next reconnect.
+   * V367: Reject blacklisted instruments (prevents reconnect loops).
    */
   subscribe(symbol: string): void {
     if (!this.isAvailable()) {
@@ -225,6 +224,13 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
     }
 
     const oandaSymbol = this.toOandaSymbol(symbol);
+
+    // V367: Reject blacklisted instruments
+    if (this.blacklistedInstruments.has(oandaSymbol)) {
+      this.logger.debug(`🌊 ${oandaSymbol} is blacklisted (previously rejected by OANDA) — skipping`);
+      return;
+    }
+
     if (this.subscribedInstruments.has(oandaSymbol)) {
       this.logger.debug(`🌊 Already subscribed to ${oandaSymbol}`);
       return;
@@ -233,9 +239,6 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
     this.subscribedInstruments.add(oandaSymbol);
     this.logger.log(`🌊 Subscribed to ${oandaSymbol} (total: ${this.subscribedInstruments.size} instruments)`);
 
-    // If stream is not connected, start it. If already connected, reconnect
-    // to include the new instrument (OANDA doesn't support adding instruments
-    // to an existing stream — must reconnect).
     if (this.streamReq) {
       this._reconnect();
     } else {
@@ -285,6 +288,11 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
   private lastConnectAttempt: Date | null = null;
   private connectAttempts: number = 0;
 
+  // V367: Blacklist of instruments that OANDA Practice rejected.
+  // Auto-populated when OANDA returns HTTP 400 "Invalid Instrument X".
+  // Prevents reconnect loops where one bad instrument kills the entire stream.
+  private blacklistedInstruments = new Set<string>();
+
   // V365: Track actual price reception — proves the stream is delivering data
   private pricesReceived: number = 0;
   private lastPriceSymbol: string | null = null;
@@ -329,6 +337,26 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
         res.on('end', () => {
           this.lastConnectError = `HTTP ${res.statusCode}: ${body.substring(0, 300)}`;
           this.logger.error(`🌊 OANDA stream failed: ${this.lastConnectError}`);
+
+          // V367: Auto-blacklist invalid instruments
+          // OANDA returns: {"errorMessage":"Invalid Instrument WTI_USD"}
+          const invalidMatch = body.match(/Invalid Instrument (\w+)/);
+          if (invalidMatch && invalidMatch[1]) {
+            const badInstrument = invalidMatch[1];
+            this.subscribedInstruments.delete(badInstrument);
+            this.blacklistedInstruments.add(badInstrument);
+            this.logger.warn(`🌊 V367: Blacklisted invalid instrument "${badInstrument}" — removed from subscriptions. Remaining: ${this.subscribedInstruments.size}`);
+
+            // If we still have valid instruments, reconnect immediately
+            if (this.subscribedInstruments.size > 0) {
+              this.streamReq = null;
+              this.isConnecting = false;
+              // Immediate reconnect (no delay) — we just removed the bad instrument
+              setTimeout(() => this._connect(), 100);
+              return;
+            }
+          }
+
           this.streamReq = null;
           this._scheduleReconnect();
         });
@@ -524,6 +552,8 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
       lastPriceValue: this.lastPriceValue,
       lastPriceTime: this.lastPriceTime?.toISOString() || null,
       priceFlowing: this.pricesReceived > 0,
+      // V367: Blacklist info
+      blacklistedInstruments: Array.from(this.blacklistedInstruments),
     };
   }
 

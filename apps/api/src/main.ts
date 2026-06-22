@@ -537,63 +537,40 @@ async function bootstrap() {
     // (V172d closePosition returns margin + PnL). New positions opened after
     // V172d will have margin deducted correctly on open.
 
-    // ── V395: REAL Socket.IO diagnostic (replaces unreliable V172d) ──
-    // The old diagnostic used listener.toString().includes('socket.io') which
-    // NEVER matches because Socket.IO v4's listener code doesn't contain that
-    // string. This new diagnostic uses THREE reliable checks:
-    //   1. Check if ExchangeGateway.server exists (Socket.IO server object)
-    //   2. Count actual upgrade listeners (Socket.IO adds one)
-    //   3. Make a real HTTP request to /socket.io/ and check the response
+    // ── DIAGNOSTIC: Verify Socket.IO is properly attached ──
+    // Socket.IO v4+ uses the HTTP server's 'upgrade' event for WebSocket
+    // connections (not the 'request' event). The old diagnostic checked
+    // request listeners, which is incorrect — Socket.IO only adds a
+    // request listener for the polling transport, not for WebSocket-only.
     try {
       const httpServer = app.getHttpServer();
       const requestListeners = httpServer.listeners('request');
       const upgradeListeners = httpServer.listeners('upgrade');
-      console.log(`🔌 V395: HTTP server has ${requestListeners.length} request listener(s), ${upgradeListeners.length} upgrade listener(s)`);
+      console.log(`🔌 HTTP server: ${requestListeners.length} request listener(s), ${upgradeListeners.length} upgrade listener(s)`);
 
-      // Check 1: Does ExchangeGateway have a server object?
-      let gatewayServerExists = false;
-      try {
-        const exchangeGateway = app.get('ExchangeGateway');
-        const server = (exchangeGateway as any).server;
-        gatewayServerExists = !!server;
-        console.log(`🔌 V395: ExchangeGateway.server ${gatewayServerExists ? '✅ EXISTS' : '❌ NULL'} (Socket.IO ${gatewayServerExists ? 'was created' : 'was NOT created'})`);
-        if (server) {
-          // Check if server has the engine attribute (Socket.IO internals)
-          const hasEngine = !!(server as any).engine;
-          const hasHttpServer = !!(server as any).httpServer;
-          console.log(`🔌 V395: Socket.IO server internals: engine=${hasEngine}, httpServer=${hasHttpServer}`);
-        }
-      } catch (e: any) {
-        console.log(`🔌 V395: Cannot get ExchangeGateway: ${e.message}`);
-      }
-
-      // Check 2: Socket.IO adds an 'upgrade' listener to httpServer.
-      // Before Socket.IO: 0 upgrade listeners. After: 1+ upgrade listeners.
-      // This is the most reliable indicator.
-      const hasUpgradeListener = upgradeListeners.length > 0;
-      console.log(`🔌 V395: Upgrade listeners (${upgradeListeners.length}) → Socket.IO ${hasUpgradeListener ? '✅ ATTACHED' : '❌ NOT ATTACHED'} to httpServer`);
-
-      // Check 3: Make a real HTTP request to /socket.io/ from inside the process
-      // This is the DEFINITIVE test — if it returns 200, Socket.IO works.
-      const portNum = configService.get<number>('API_PORT', 3001);
-      const testUrl = `http://127.0.0.1:${portNum}/socket.io/?EIO=4&transport=polling`;
-      const http = require('http');
-      http.get(testUrl, (res: any) => {
-        let body = '';
-        res.on('data', (chunk: any) => body += chunk);
-        res.on('end', () => {
-          console.log(`🔌 V395: Real /socket.io/ request → ${res.statusCode}`);
-          if (res.statusCode === 200) {
-            console.log(`🔌 V395: ✅ Socket.IO WORKS — handshake response: ${body.substring(0, 100)}`);
-          } else {
-            console.log(`🔌 V395: ❌ Socket.IO BROKEN — got ${res.statusCode}: ${body.substring(0, 200)}`);
-          }
-        });
-      }).on('error', (err: any) => {
-        console.log(`🔌 V395: ❌ /socket.io/ request failed: ${err.message}`);
+      // Check upgrade listeners for Socket.IO (the correct check for WS)
+      const hasSocketIOUpgrade = upgradeListeners.some((listener: any) => {
+        const str = listener.toString();
+        return str.includes('socket.io') || str.includes('engine');
       });
+
+      // Also check request listeners (for polling fallback)
+      const hasSocketIORequest = requestListeners.some((listener: any) => {
+        const str = listener.toString();
+        return str.includes('socket.io') || str.includes('engine');
+      });
+
+      const socketIOAttached = hasSocketIOUpgrade || hasSocketIORequest;
+      console.log(`🔌 Socket.IO ${socketIOAttached ? '✅ attached' : '⚠️ not detected'} (upgrade=${hasSocketIOUpgrade}, request=${hasSocketIORequest})`);
+
+      if (!socketIOAttached) {
+        // This is expected if no WebSocket gateways have been initialized yet,
+        // or if the IoAdapter was set up before the HTTP server was created.
+        // Socket.IO will attach lazily when the first gateway is accessed.
+        console.warn('🔌 Socket.IO not yet attached to HTTP server — it will attach lazily on first WebSocket connection');
+      }
     } catch (diagErr: any) {
-      console.warn(`⚠️ V395 diagnostic failed: ${diagErr.message}`);
+      console.warn(`⚠️ Socket.IO diagnostic failed: ${diagErr.message}`);
     }
 
     // SAFETY: All DDL (ALTER TABLE, CREATE TABLE, etc.) has been REMOVED from

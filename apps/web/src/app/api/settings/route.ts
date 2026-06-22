@@ -88,10 +88,13 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'قاعدة البيانات غير متاحة' }, { status: 503 })
     }
 
-    // V188: Limit request body size to 10KB
+    // V188: Limit request body size to 30KB
+    // V392: Raised from 10KB → 30KB. With 61+ settings keys, some containing
+    // longer values (pair lists, telegram tokens), the old 10KB limit was
+    // occasionally too tight.
     const contentLength = req.headers.get('content-length')
-    if (contentLength && parseInt(contentLength, 10) > 10240) {
-      return NextResponse.json({ error: 'حجم البيانات كبير جداً (الحد: 10 كيلوبايت)' }, { status: 413 })
+    if (contentLength && parseInt(contentLength, 10) > 30720) {
+      return NextResponse.json({ error: 'حجم البيانات كبير جداً (الحد: 30 كيلوبايت)' }, { status: 413 })
     }
 
     const body = await req.json()
@@ -102,9 +105,12 @@ export async function PUT(req: NextRequest) {
     }
 
     // V188: Limit number of keys per request
+    // V392: Raised from 30 → 100. The settings page now saves 61 keys (Smart Executor
+    // + Agent settings were added). The old limit of 30 was too low and caused the
+    // entire batch to fail with 400 "عدد الإعدادات كبير جداً".
     const entries = Object.entries(settings)
-    if (entries.length > 30) {
-      return NextResponse.json({ error: 'عدد الإعدادات كبير جداً (الحد: 30 مفتاح)' }, { status: 400 })
+    if (entries.length > 100) {
+      return NextResponse.json({ error: 'عدد الإعدادات كبير جداً (الحد: 100 مفتاح)' }, { status: 400 })
     }
 
     // Get user ID from session cookie

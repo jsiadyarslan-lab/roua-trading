@@ -81,6 +81,9 @@ export class BinanceStreamingService implements OnModuleInit, OnModuleDestroy {
   // Subscribed symbols in user-friendly format: BTC/USDT, ETH/USDT, etc.
   private subscribedSymbols = new Set<string>();
 
+  // V412: Track which symbols we've logged first Redis write for
+  private _loggedSymbols = new Set<string>();
+
   private ws: WebSocket | null = null;
   private isConnecting = false;
   private reconnectTimer: NodeJS.Timeout | null = null;
@@ -485,8 +488,13 @@ export class BinanceStreamingService implements OnModuleInit, OnModuleDestroy {
         source: 'Binance',
       };
       await this.redisService.set(cacheKey, JSON.stringify(quoteData), 5000);
-    } catch {
-      // Non-critical — if Redis write fails, adapter will fall back to REST
+      // V412: Log first write per symbol to verify Redis writes work
+      if (!this._loggedSymbols.has(update.symbol)) {
+        this._loggedSymbols.add(update.symbol);
+        this.logger.log(`💱 V412: Wrote first price to Redis for ${update.symbol}: ${update.price} (key: ${cacheKey})`);
+      }
+    } catch (e: any) {
+      this.logger.error(`💱 V412: Redis write FAILED for ${update.symbol}: ${e.message}`);
     }
   }
 }

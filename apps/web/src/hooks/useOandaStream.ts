@@ -156,21 +156,32 @@ class OandaWSManager {
     const symbolsParam = encodeURIComponent(symbols.join(','));
     const sseUrl = `/api/exchange/oanda-stream?symbols=${symbolsParam}`;
 
-    console.log(`🌊 [OandaWS] Connecting via EventSource for ${symbols.length} pairs`);
+    console.log(`🌊 [OandaWS] Connecting via EventSource for ${symbols.length} pairs: ${symbols.join(', ')}`);
+    console.log(`🌊 [OandaWS] SSE URL: ${sseUrl.substring(0, 120)}...`);
 
     this.eventSource = new EventSource(sseUrl);
 
     this.eventSource.onopen = () => {
       this.reconnectAttempts = 0;
-      console.log(`🌊 [OandaWS] EventSource connected — receiving live OANDA prices`);
+      console.log(`🌊 [OandaWS] ✅ EventSource OPEN — connected to OANDA stream`);
     };
 
     this.eventSource.onmessage = (event) => {
       if (this.isDestroyed) return;
       try {
         const data = JSON.parse(event.data);
-        if (data.type === 'heartbeat' || data.type === 'connected') return;
-        this.handlePriceUpdate(data);
+        if (data.type === 'heartbeat' || data.type === 'connected') {
+          console.log(`🌊 [OandaWS] ${data.type} event received`);
+          return;
+        }
+        if (data.price && data.price > 0) {
+          // Log first 3 prices to confirm data flow
+          if (this.priceLogCount < 3) {
+            console.log(`🌊 [OandaWS] Price #${this.priceLogCount + 1}: ${data.symbol} = ${data.price}`);
+            this.priceLogCount++;
+          }
+          this.handlePriceUpdate(data);
+        }
       } catch {
         // Non-critical
       }
@@ -178,11 +189,13 @@ class OandaWSManager {
 
     this.eventSource.onerror = () => {
       if (this.isDestroyed) return;
-      console.warn(`🌊 [OandaWS] EventSource error — reconnecting`);
+      console.warn(`🌊 [OandaWS] ❌ EventSource error — readyState=${this.eventSource?.readyState}`);
       this.reconnectAttempts++;
       this.scheduleReconnectWithBackoff();
     };
   }
+
+  private priceLogCount = 0;
 
   private handlePriceUpdate(data: any) {
     if (!data || !data.symbol || !data.price) return;

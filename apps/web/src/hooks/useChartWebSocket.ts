@@ -451,6 +451,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     }
 
     let lastPrice = 0;
+    let chartPriceLogCount = 0;
 
     // Subscribe to useMarketStore — fires on EVERY quote change for ANY symbol
     const unsubscribe = useMarketStore.subscribe((state) => {
@@ -460,6 +461,12 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
       if (!quote || !quote.price || quote.price <= 0) return;
       if (quote.price === lastPrice) return; // Skip duplicate prices
       lastPrice = quote.price;
+
+      // V375: Log first 3 prices to confirm chart subscription works
+      if (chartPriceLogCount < 3) {
+        console.log(`📊 [ChartStore] Price #${chartPriceLogCount + 1}: ${symbol} = ${quote.price} (source: ${quote.source})`);
+        chartPriceLogCount++;
+      }
 
       const price = quote.price;
 

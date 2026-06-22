@@ -74,9 +74,11 @@ function _getOrCreateSocket(onTick: (symbol: string, data: any) => void): any {
     transports: ['polling', 'websocket'], // polling first (works through Railway edge)
     autoConnect: true,
     reconnection: true,
-    reconnectionAttempts: Infinity,
-    reconnectionDelay: 1000,
-    reconnectionDelayMax: 5000,
+    // V391: Limit reconnection attempts — Socket.IO proxy is returning 404 on Railway.
+    // After 5 failed attempts, stop trying. BinanceWSManager + REST polling are the fallback.
+    reconnectionAttempts: 5,
+    reconnectionDelay: 2000,
+    reconnectionDelayMax: 10000,
     timeout: 10000,
   });
 

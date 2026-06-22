@@ -77,11 +77,14 @@ export class ExchangeService {
   async getQuote(symbol: string, source?: string): Promise<UnifiedQuoteDto> {
     const cacheKey = `${symbol}:${source || 'auto'}`;
 
-    // V361: Reverted to pre-V359 — use in-memory cache for ALL pairs.
-    // V359's cache bypass for OANDA pairs caused excessive REST API calls.
-    const cached = this.quoteCache.get(cacheKey);
-    if (cached && (Date.now() - cached.timestamp) < this.QUOTE_CACHE_TTL_MS) {
-      return cached.data;
+    // V382: For OANDA pairs, skip in-memory cache — OANDA stream writes to Redis every <1s.
+    // Caching here adds 2s delay. Stream prices should flow through without caching.
+    const isOandaSymbol = this._isForexOrMetalSymbol(symbol);
+    if (!isOandaSymbol) {
+      const cached = this.quoteCache.get(cacheKey);
+      if (cached && (Date.now() - cached.timestamp) < this.QUOTE_CACHE_TTL_MS) {
+        return cached.data;
+      }
     }
 
     // Collect adapters to try: primary first, then fallbacks

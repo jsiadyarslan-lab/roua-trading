@@ -602,20 +602,31 @@ export async function GET(
     const symbol = normalizeRouteSymbol(symbolParts.symbol)
     const source = request.nextUrl.searchParams.get('source')
 
-    // V361: Reverted to pre-V359 behavior — use cache for ALL pairs.
-    // V359's cache bypass caused every request to hit OANDA REST API without
-    // caching, leading to rate limiting and complete failure.
-    const cacheKey = `quote:${symbol}:${source || 'auto'}`
-    const cached = getCached(cacheKey)
-    if (cached) {
-      return NextResponse.json({ success: true, data: cached, cached: true })
-    }
+    // V382: For OANDA pairs, skip Next.js cache — stream feeds Redis with fresh prices every <1s.
+    // Caching here adds 2s delay on top of NestJS cache + Redis cache = 6s total stale.
+    const isOandaPair = (() => {
+      const upper = symbol.toUpperCase();
+      if (upper.includes('USDT') || upper.includes('/BTC') || upper.includes('/ETH')) return false;
+      const forexQuotes = ['/USD', '/JPY', '/GBP', '/EUR', '/CHF', '/CAD', '/AUD', '/NZD'];
+      const validIndices = ['US30', 'NAS100', 'SPX500'];
+      return forexQuotes.some(qc => upper.includes(qc)) || validIndices.some(b => upper.startsWith(b));
+    })();
 
-    // Cache stampede protection
-    const existingFetch = fetchMutex.get(cacheKey)
-    if (existingFetch) {
-      const result = await existingFetch
-      if (result) return NextResponse.json({ success: true, data: result, cached: false })
+    const cacheKey = `quote:${symbol}:${source || 'auto'}`
+
+    // Only use cache for non-OANDA pairs (crypto via Binance WS doesn't need frequent REST)
+    if (!isOandaPair) {
+      const cached = getCached(cacheKey)
+      if (cached) {
+        return NextResponse.json({ success: true, data: cached, cached: true })
+      }
+
+      // Cache stampede protection
+      const existingFetch = fetchMutex.get(cacheKey)
+      if (existingFetch) {
+        const result = await existingFetch
+        if (result) return NextResponse.json({ success: true, data: result, cached: false })
+      }
     }
 
     // Validate source parameter early — reject unknown sources before any fetching

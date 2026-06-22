@@ -61,6 +61,8 @@ let _socket: any = null;
 let _refCount = 0;
 let _subscribedSymbols = new Set<string>();
 let _reconnectTimer: any = null;
+let _tickerCount = 0; // V407: Count received ticker events for diagnostics
+let _lastTickerLog = 0;
 
 function _getOrCreateSocket(onTick: (symbol: string, data: any) => void): any {
   if (_socket) return _socket;
@@ -87,24 +89,34 @@ function _getOrCreateSocket(onTick: (symbol: string, data: any) => void): any {
   });
 
   socket.on('connect', () => {
+    console.log('[useMarketStreamSocket] ✅ Connected to /exchange namespace');
     // Re-subscribe to all symbols after reconnect (server may have lost state)
     for (const sym of _subscribedSymbols) {
       socket.emit('subscribe', { symbol: sym });
     }
+    console.log(`[useMarketStreamSocket] Subscribed to ${_subscribedSymbols.size} symbols`);
   });
 
   socket.on('ticker', (payload: { symbol: string; data: any }) => {
     if (!payload || !payload.symbol) return;
+    _tickerCount++;
+    // V407: Log first ticker and then every 100th (to avoid console spam)
+    const now = Date.now();
+    if (_tickerCount === 1) {
+      console.log(`[useMarketStreamSocket] 📊 First ticker received: ${payload.symbol} = ${payload.data?.price}`);
+    } else if (_tickerCount % 100 === 0 && now - _lastTickerLog > 10000) {
+      console.log(`[useMarketStreamSocket] 📊 Received ${_tickerCount} tickers total. Latest: ${payload.symbol} = ${payload.data?.price}`);
+      _lastTickerLog = now;
+    }
     onTick(payload.symbol, payload.data);
   });
 
-  socket.on('connect_error', () => {
-    // Silent — polling fallback in MarketProvider is active.
+  socket.on('connect_error', (err: any) => {
+    console.warn('[useMarketStreamSocket] ❌ Connect error:', err?.message || err);
   });
 
-  socket.on('disconnect', () => {
-    // Silent — polling fallback is active.
-    // Socket.IO will auto-reconnect.
+  socket.on('disconnect', (reason: string) => {
+    console.warn('[useMarketStreamSocket] ⚠️ Disconnected:', reason);
   });
 
   _socket = socket;

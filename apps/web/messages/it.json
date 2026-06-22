@@ -1313,7 +1313,17 @@
       "minConfidence": "Min confidence",
       "minConfidenceDesc": "Skip below this threshold",
       "contractSize": "Contract size",
-      "contractSizeDesc": "Contract size per trade"
+      "contractSizeDesc": "Contract size per trade",
+      "lifecycleControls": "Lifecycle Controls",
+      "lifecycleControlsDesc": "Trade execution limits (V410)",
+      "executorMaxNewOpensPerTick": "Max new opens per tick",
+      "executorMaxNewOpensPerTickDesc": "Max new positions per 10s executor tick. Range 1-20, default 2.",
+      "v407AutoStaleEnabled": "Enable AUTO_STALE eviction",
+      "v407AutoStaleEnabledDesc": "Auto-close paper positions older than 1h when at max capacity. OFF by default (V407) — leave OFF to let TP/SL work.",
+      "agentMaxNewOpensPerCycle": "Max new opens per cycle",
+      "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
+      "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
     },
     "profile": {
       "deleteAccount": "Elimina account permanentemente",

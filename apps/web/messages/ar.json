@@ -2559,7 +2559,17 @@
       "minConfidence": "حد الثقة الأدنى",
       "minConfidenceDesc": "تخطي البريفات تحت هذا الحد",
       "contractSize": "حجم العقد",
-      "contractSizeDesc": "حجم العقد لكل صفقة"
+      "contractSizeDesc": "حجم العقد لكل صفقة",
+      "lifecycleControls": "تحكمات دورة الحياة",
+      "lifecycleControlsDesc": "حدود تنفيذ الصفقات (V410)",
+      "executorMaxNewOpensPerTick": "حد الصفقات الجديدة لكل دورة",
+      "executorMaxNewOpensPerTickDesc": "الحد الأقصى للصفقات الجديدة لكل دورة منفذ (10 ثوانٍ). النطاق 1-20، الافتراضي 2.",
+      "v407AutoStaleEnabled": "تفعيل الإغلاق التلقائي للمصفقات القديمة",
+      "v407AutoStaleEnabledDesc": "إغلاق المراكز الورقية الأقدم من ساعة عند امتلاء السعة. معطل افتراضيًا (V407) — اتركه معطلًا للسماح لـ TP/SL بالعمل.",
+      "agentMaxNewOpensPerCycle": "حد الصفقات الجديدة لكل دورة وكيل",
+      "agentMaxNewOpensPerCycleDesc": "الحد الأقصى للصفقات الجديدة لكل دورة cron (دقيقة). النطاق 1-20، الافتراضي 3. يمنع فتح 11 صفقة في ثانية واحدة.",
+      "monitorTickLogIntervalMs": "فاصل تسجيل MONITOR_TICK (مللي ثانية)",
+      "monitorTickLogIntervalMsDesc": "تسجيل نقاط المراقبة كل N مللي ثانية. الافتراضي 60000 (60 ثانية). النطاق 5000-600000. أقل = كتابات DB أكثر لكن سجل تدقيق أدق."
     },
     "predictionMarket": {
       "title": "الأسواق التنبؤية",

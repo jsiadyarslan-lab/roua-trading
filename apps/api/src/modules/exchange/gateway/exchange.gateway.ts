@@ -48,6 +48,9 @@ export class ExchangeGateway
   // Track symbol → Set of socketIds (for efficient broadcasting)
   private readonly symbolSubscribers = new Map<string, Set<string>>();
 
+  // V414: Track which symbols we've logged first broadcast for
+  private readonly _broadcastLogged = new Set<string>();
+
   // Refresh interval for NON-OANDA symbols (crypto etc.)
   private refreshInterval: NodeJS.Timeout | null = null;
 
@@ -331,6 +334,12 @@ export class ExchangeGateway
   private _broadcastToSymbol(symbol: string, event: string, data: any) {
     const subscribers = this.symbolSubscribers.get(symbol);
     if (!subscribers || subscribers.size === 0) return;
+
+    // V414: Log first broadcast per symbol to verify gateway is sending
+    if (!this._broadcastLogged.has(symbol)) {
+      this._broadcastLogged.add(symbol);
+      this.logger.log(`🔌 V414: First broadcast for ${symbol} to ${subscribers.size} subscriber(s)`);
+    }
 
     for (const socketId of subscribers) {
       const client = this.server.sockets.sockets.get(socketId);

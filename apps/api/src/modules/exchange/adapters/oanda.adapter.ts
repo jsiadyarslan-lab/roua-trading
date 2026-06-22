@@ -227,18 +227,13 @@ export class OandaAdapter implements IExchangeAdapter {
     const change = close - prevClose;
     const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
 
-    // Also fetch instrument info for display name
-    let displayName = symbol;
-    try {
-      const instData = await this.apiRequest(`/v3/instruments/${oandaSymbol}`);
-      displayName = instData?.instrument?.displayName || symbol;
-    } catch {
-      // Non-critical — use symbol as display name
-    }
+    // V383: Removed instrument info fetch — it was causing HTTP 405 errors.
+    // OANDA's /v3/instruments/{symbol} endpoint is flaky on Practice accounts.
+    // The display name is not critical — use the symbol itself.
 
     return {
       symbol,
-      name: displayName,
+      name: symbol,
       exchange: 'OANDA',
       currency: symbol.split('/')[1] || 'USD',
       price,

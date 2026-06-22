@@ -623,6 +623,14 @@ export default function SettingsPage() {
   const [aiAutoTrade, setAiAutoTrade] = useState(false)
   const [aiModel, setAiModel] = useState('balanced')
 
+  // V392: Smart Executor + Autonomous Agent settings (previously not saved)
+  const [executorTimeframes, setExecutorTimeframes] = useState('M1,M5,M15')
+  const [contractSize, setContractSize] = useState('0.01')
+  const [agentInterval, setAgentInterval] = useState('60')
+  const [agentPairs, setAgentPairs] = useState('BTC/USDT,ETH/USDT,SOL/USDT')
+  const [agentMaxHoldingHours, setAgentMaxHoldingHours] = useState('48')
+  const [agentContractSize, setAgentContractSize] = useState('0.01')
+
   // AI Monitoring Features
   const [continuousMonitoringEnabled, setContinuousMonitoringEnabled] = useState(false)
   const [monitoringInterval, setMonitoringInterval] = useState('5m')
@@ -788,6 +796,13 @@ export default function SettingsPage() {
           if (s.aiConfidence) setAiConfidence(s.aiConfidence)
           if (s.aiAutoTrade !== undefined) setAiAutoTrade(s.aiAutoTrade)
           if (s.aiModel) setAiModel(s.aiModel)
+          // V392: Load Smart Executor + Agent settings
+          if (s.executorTimeframes) setExecutorTimeframes(s.executorTimeframes)
+          if (s.contractSize) setContractSize(s.contractSize)
+          if (s.agentInterval) setAgentInterval(s.agentInterval)
+          if (s.agentPairs) setAgentPairs(s.agentPairs)
+          if (s.agentMaxHoldingHours) setAgentMaxHoldingHours(s.agentMaxHoldingHours)
+          if (s.agentContractSize) setAgentContractSize(s.agentContractSize)
           if (s.analyticsEnabled !== undefined) setAnalyticsEnabled(s.analyticsEnabled)
           if (s.crashReports !== undefined) setCrashReports(s.crashReports)
           // Feature 2: Advanced Strategy Settings
@@ -865,6 +880,9 @@ export default function SettingsPage() {
               orderSize, riskLevel, chartType, timeframe,
               confirmTrades, showPositions, autoStopLoss, trailingStop,
               aiConfidence, aiAutoTrade, aiModel,
+              // V392: Smart Executor + Autonomous Agent settings
+              executorTimeframes, contractSize,
+              agentInterval, agentPairs, agentMaxHoldingHours, agentContractSize,
               analyticsEnabled, crashReports,
               userStopLoss, userTakeProfit, userRiskPerTrade, userMaxDailyLoss, userMaxOpenPositions,
               // Feature 2: Advanced Strategy Settings
@@ -908,7 +926,7 @@ export default function SettingsPage() {
         setTimeout(() => setSaveStatus('idle'), 5000)
       }
     }, 2000) // Debounce: save 2s after last change
-  }, [settingsLoaded, orderSize, riskLevel, chartType, timeframe, confirmTrades, showPositions, autoStopLoss, trailingStop, aiConfidence, aiAutoTrade, aiModel, analyticsEnabled, crashReports, userStopLoss, userTakeProfit, userRiskPerTrade, userMaxDailyLoss, userMaxOpenPositions, scalpingTimeframe, scalpingTakeProfitPips, scalpingStopLossPips, scalpingMaxSpread, gridLevels, telegramBotToken, telegramChatId, discordWebhookUrl, externalNotificationsEnabled, doNotDisturb, emergencyOnly, pairFilterMode, pairWhitelist, pairBlacklist, tradingScheduleEnabled, tradingScheduleStart, tradingScheduleEnd, tradingScheduleDays, continuousMonitoringEnabled, monitoringInterval, monitoringPairs, entryExitSignalsEnabled, signalMinConfidence, signalAlertMethod, riskAlertsEnabled, volatilityThreshold, riskAlertTypes, sentimentEnabled, sentimentSources, sentimentSensitivity, sessionDuration, autoSessionRenewal, antiPhishingEnabled, antiPhishingCode, passkeysEnabled, cacheDuration])
+  }, [settingsLoaded, orderSize, riskLevel, chartType, timeframe, confirmTrades, showPositions, autoStopLoss, trailingStop, aiConfidence, aiAutoTrade, aiModel, executorTimeframes, contractSize, agentInterval, agentPairs, agentMaxHoldingHours, agentContractSize, analyticsEnabled, crashReports, userStopLoss, userTakeProfit, userRiskPerTrade, userMaxDailyLoss, userMaxOpenPositions, scalpingTimeframe, scalpingTakeProfitPips, scalpingStopLossPips, scalpingMaxSpread, gridLevels, telegramBotToken, telegramChatId, discordWebhookUrl, externalNotificationsEnabled, doNotDisturb, emergencyOnly, pairFilterMode, pairWhitelist, pairBlacklist, tradingScheduleEnabled, tradingScheduleStart, tradingScheduleEnd, tradingScheduleDays, continuousMonitoringEnabled, monitoringInterval, monitoringPairs, entryExitSignalsEnabled, signalMinConfidence, signalAlertMethod, riskAlertsEnabled, volatilityThreshold, riskAlertTypes, sentimentEnabled, sentimentSources, sentimentSensitivity, sessionDuration, autoSessionRenewal, antiPhishingEnabled, antiPhishingCode, passkeysEnabled, cacheDuration])
 
   // Auto-save on any settings change
   useEffect(() => {
@@ -2405,6 +2423,8 @@ export default function SettingsPage() {
               s.userStopLoss = userStopLoss;
               s.userTakeProfit = userTakeProfit;
               s.userMaxDailyLoss = userMaxDailyLoss;
+              s.executorTimeframes = executorTimeframes;
+              s.contractSize = contractSize;
               return s;
             })()}
             update={(key, value) => {
@@ -2416,6 +2436,8 @@ export default function SettingsPage() {
               else if (key === 'userStopLoss') setUserStopLoss(value);
               else if (key === 'userTakeProfit') setUserTakeProfit(value);
               else if (key === 'userMaxDailyLoss') setUserMaxDailyLoss(value);
+              else if (key === 'executorTimeframes') setExecutorTimeframes(value);
+              else if (key === 'contractSize') setContractSize(value);
             }}
           />
         )}
@@ -2425,16 +2447,21 @@ export default function SettingsPage() {
           <AutonomousAgentTab
             settings={{
               agentEnabled: aiAutoTrade,
-              agentInterval: '60',
-              agentPairs: 'BTC/USDT,ETH/USDT,SOL/USDT',
-              agentMaxHoldingHours: '48',
+              agentInterval: agentInterval,
+              agentPairs: agentPairs,
+              agentMaxHoldingHours: agentMaxHoldingHours,
               agentRiskPerTrade: userRiskPerTrade,
               agentMinConfidence: aiConfidence,
+              agentContractSize: agentContractSize,
             }}
             update={(key, value) => {
               if (key === 'agentEnabled') setAiAutoTrade(value);
               else if (key === 'agentRiskPerTrade') setUserRiskPerTrade(value);
               else if (key === 'agentMinConfidence') setAiConfidence(value);
+              else if (key === 'agentInterval') setAgentInterval(value);
+              else if (key === 'agentPairs') setAgentPairs(value);
+              else if (key === 'agentMaxHoldingHours') setAgentMaxHoldingHours(value);
+              else if (key === 'agentContractSize') setAgentContractSize(value);
             }}
           />
         )}

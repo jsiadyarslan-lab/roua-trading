@@ -188,9 +188,12 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // V378: Poll ALL non-crypto pairs (forex + stocks) every 60s for ticker.
-  // The chart has its own 2s polling (in useChartWebSocket) with candle builder.
-  useVisibleInterval(() => fetchNonCryptoBatch(NON_CRYPTO_SYMBOLS), 60_000)
+  // V386: Poll ALL non-crypto pairs (forex + stocks) every 15s for ticker.
+  // Was 60s — too slow when the user is not viewing a pair on the chart.
+  // (When a pair IS being charted, useChartWebSocket polls every 2s and
+  //  writes to useMarketStore via onPriceUpdate — see RouaChart.tsx.)
+  // 15s keeps the other ticker pairs reasonably fresh without flooding the API.
+  useVisibleInterval(() => fetchNonCryptoBatch(NON_CRYPTO_SYMBOLS), 15_000)
 
   // FIX V139: Poll crypto via REST every 15 seconds as fallback for Binance WS.
   // WS provides sub-second updates, but this REST poll ensures:

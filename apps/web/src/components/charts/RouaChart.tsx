@@ -16,6 +16,7 @@ import { useChartWebSocket } from '@/hooks/useChartWebSocket';
 import { useSymbolStore } from '@/hooks/useSymbolStore';
 import { usePositionsStore } from '@/hooks/usePositionsStore';
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore';
+import { useMarketStore, type QuoteData } from '@/hooks/useMarketStore';
 import type { CandleData, CrosshairData, ChartType, DrawingTool, ActiveIndicator, AIPattern, NewsMarker } from '@/lib/charts/types';
 import { TIMEFRAMES, INDICATOR_CONFIGS } from '@/lib/charts/types';
 import { sanitizeOhlc } from '@/lib/charts/chart-utils';
@@ -1026,6 +1027,58 @@ export default function RouaChart({
       try {
         const { updatePositionPrice } = usePositionsStore.getState();
         updatePositionPrice(selectedSymbol_, price);
+      } catch { /* store may not be ready */ }
+
+      // V386: Unify price paths — write the fast chart price (every 2s for OANDA,
+      // sub-second for crypto) into useMarketStore so that the TickerBar,
+      // Watchlist, and the chart price label (which all read from useMarketStore)
+      // update at the same speed as the chart canvas.
+      //
+      // Before this fix: MarketProvider polled /api/exchange/quote every 60s for
+      // OANDA pairs → ticker/label showed stale prices even though the chart
+      // canvas was updating every 2s.
+      //
+      // We merge with the existing quote to preserve name/exchange/change/etc.
+      // Only price/close/high/low/timestamp get refreshed by the live feed.
+      try {
+        const store = useMarketStore.getState();
+        const existing = store.quotes[selectedSymbol_];
+        if (existing) {
+          const updated: QuoteData = {
+            ...existing,
+            price,
+            close: price,
+            high: Math.max(existing.high || price, price),
+            low: existing.low > 0 ? Math.min(existing.low, price) : price,
+            timestamp: new Date().toISOString(),
+            source: existing.source?.includes('Stream')
+              ? existing.source
+              : `${existing.source || 'OANDA'} + Stream`,
+          };
+          store.setQuote(selectedSymbol_, updated);
+        } else {
+          // No existing quote yet — create a minimal one so the ticker shows the
+          // live price immediately instead of waiting for MarketProvider's 60s poll.
+          store.setQuote(selectedSymbol_, {
+            symbol: selectedSymbol_,
+            name: selectedSymbol_.replace('/', ' / '),
+            exchange: 'OANDA',
+            currency: selectedSymbol_.split('/')[1] || 'USD',
+            price,
+            change: 0,
+            changePercent: 0,
+            open: price,
+            high: price,
+            low: price,
+            close: price,
+            volume: 0,
+            marketCap: null,
+            fiftyTwoWeekHigh: null,
+            fiftyTwoWeekLow: null,
+            timestamp: new Date().toISOString(),
+            source: 'OANDA Stream (chart)',
+          });
+        }
       } catch { /* store may not be ready */ }
       // Overlay positions update via onVisibleRangeChange + 3s interval
       // لا نستدعي scheduleOverlayUpdate هنا — كل تحديث سعر كان يُطلق React re-render

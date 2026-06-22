@@ -285,6 +285,12 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
   private lastConnectAttempt: Date | null = null;
   private connectAttempts: number = 0;
 
+  // V365: Track actual price reception — proves the stream is delivering data
+  private pricesReceived: number = 0;
+  private lastPriceSymbol: string | null = null;
+  private lastPriceValue: number | null = null;
+  private lastPriceTime: Date | null = null;
+
   /**
    * Connect to OANDA streaming API
    */
@@ -436,6 +442,12 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
         timestamp: Date.now(),
       };
 
+      // V365: Track price reception
+      this.pricesReceived++;
+      this.lastPriceSymbol = symbol;
+      this.lastPriceValue = price;
+      this.lastPriceTime = new Date();
+
       // Emit to all registered callbacks
       this.emitter.emit('price', update);
     }
@@ -506,6 +518,12 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
       connectAttempts: this.connectAttempts,
       streamHost: this.streamHost,
       accountIdPrefix: this.accountId ? this.accountId.substring(0, 12) + '...' : null,
+      // V365: Price reception tracking — proves data is flowing
+      pricesReceived: this.pricesReceived,
+      lastPriceSymbol: this.lastPriceSymbol,
+      lastPriceValue: this.lastPriceValue,
+      lastPriceTime: this.lastPriceTime?.toISOString() || null,
+      priceFlowing: this.pricesReceived > 0,
     };
   }
 

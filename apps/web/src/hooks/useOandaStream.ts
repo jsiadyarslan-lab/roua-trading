@@ -29,12 +29,13 @@ function getUpdatePositionPrice() {
 }
 
 // OANDA pairs that this manager handles
+// V377: Removed WTI/USD and BRENT/USD — OANDA Practice rejects them (HTTP 400)
+// which kills the ENTIRE stream for ALL pairs.
 const OANDA_PAIRS = [
   'EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CHF', 'USD/CAD', 'NZD/USD',
   'EUR/GBP', 'EUR/JPY', 'GBP/JPY',
   'XAU/USD', 'XAG/USD',
   'US30/USD', 'NAS100/USD', 'SPX500/USD',
-  'WTI/USD', 'BRENT/USD',
 ];
 
 function isOandaPair(symbol: string): boolean {

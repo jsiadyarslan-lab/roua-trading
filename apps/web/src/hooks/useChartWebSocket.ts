@@ -427,13 +427,17 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   };
   tfSecondsRef.current = tfSecondsMap[timeframe] || 60;
 
-  // V366: Connect to OANDA SSE stream via Next.js proxy route.
+  // V369: Track current candle state for OANDA SSE — builds OHLC from price stream.
+  // OANDA stream sends individual prices (not klines like Binance).
+  // We must build candles ourselves: on first price of period → O=H=L=C,
+  // on subsequent prices → H=max(H,price), L=min(L,price), C=price.
+  const oandaCandleRef = useRef<{ time: number; open: number; high: number; low: number; close: number; volume: number } | null>(null);
+
+  // V360: Connect to OANDA SSE stream via Next.js proxy route.
   // The Next.js proxy streams SSE from NestJS to the browser.
   // Same architecture as Binance WS: long-lived connection, real-time updates.
   const connectOandaSSE = useCallback(() => {
     // V366: Use window.location.origin (Next.js) — the proxy route forwards to NestJS.
-    // Previous V360 tried NEXT_PUBLIC_API_URL directly, but that env var is not
-    // set on Railway (Next.js and NestJS run in the same container behind one domain).
     const sseUrl = `${window.location.origin}/api/exchange/oanda-stream?symbols=${encodeURIComponent(symbol)}`;
 
     let abortCtrl: AbortController | null = null;
@@ -447,6 +451,9 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
 
     // Store cleanup in socketIoRef (reused for SSE cleanup)
     (socketIoRef as any).current = { disconnect: cleanupSSE };
+
+    // V369: Reset candle state on new connection
+    oandaCandleRef.current = null;
 
     fetch(sseUrl, {
       method: 'GET',
@@ -481,15 +488,39 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
             const data = JSON.parse(jsonStr);
             if (data.type === 'heartbeat' || data.type === 'connected') continue;
             if (data.price && data.price > 0) {
-              bufferUpdate(null, data.price, false);
+              const price = data.price;
+              bufferUpdate(null, price, false);
+
+              // V369: Build candle from price stream (same as Binance kline, but manual)
               const now = Math.floor(Date.now() / 1000);
+              const tfSec = tfSecondsRef.current;
+              const candleTime = now - (now % tfSec);
+
+              if (!oandaCandleRef.current || oandaCandleRef.current.time !== candleTime) {
+                // New candle period — start fresh
+                oandaCandleRef.current = {
+                  time: candleTime,
+                  open: price,
+                  high: price,
+                  low: price,
+                  close: price,
+                  volume: data.volume || 0,
+                };
+              } else {
+                // Same candle period — update OHLC
+                oandaCandleRef.current.high = Math.max(oandaCandleRef.current.high, price);
+                oandaCandleRef.current.low = Math.min(oandaCandleRef.current.low, price);
+                oandaCandleRef.current.close = price;
+                oandaCandleRef.current.volume += (data.volume || 0);
+              }
+
               const candle: CandleData = {
-                time: now - (now % tfSecondsRef.current),
-                open: data.open || data.price,
-                high: data.high || data.price,
-                low: data.low || data.price,
-                close: data.price,
-                volume: data.volume || 0,
+                time: oandaCandleRef.current.time,
+                open: oandaCandleRef.current.open,
+                high: oandaCandleRef.current.high,
+                low: oandaCandleRef.current.low,
+                close: oandaCandleRef.current.close,
+                volume: oandaCandleRef.current.volume,
               };
               bufferUpdate(candle, null, false);
             }

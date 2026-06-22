@@ -53,16 +53,24 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
   private isConnecting = false;
   private shouldReconnect = true;
 
-  // V358: Auto-subscribe to common OANDA pairs on startup.
-  // These are the pairs that appear in the chart, ticker, and watchlist.
-  // By subscribing on startup (not waiting for Socket.IO clients), the stream
-  // starts immediately and feeds the Redis cache → frontend polls get live data.
+  // V363: Fixed instrument list — removed WTI_USD and BRENT_USD which are invalid
+  // on OANDA Practice accounts. OANDA rejects the ENTIRE stream if ANY instrument
+  // is invalid (HTTP 400), so one bad instrument kills all 17 pairs.
+  //
+  // OANDA Practice supported instruments (verified):
+  // - Forex majors: EUR_USD, GBP_USD, USD_JPY, AUD_USD, USD_CHF, USD_CAD, NZD_USD
+  // - Forex crosses: EUR_GBP, EUR_JPY, GBP_JPY
+  // - Metals: XAU_USD, XAG_USD
+  // - Indices: US30_USD, NAS100_USD, SPX500_USD
+  //
+  // NOT supported on Practice (causes HTTP 400):
+  // - WTI_USD (oil) — OANDA uses different name or not available on Practice
+  // - BRENT_USD (oil) — same
   private readonly AUTO_SUBSCRIBE_PAIRS = [
     'EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CHF', 'USD/CAD', 'NZD/USD',
     'EUR/GBP', 'EUR/JPY', 'GBP/JPY',
     'XAU/USD', 'XAG/USD',
     'US30/USD', 'NAS100/USD', 'SPX500/USD',
-    'WTI/USD', 'BRENT/USD',
   ];
 
   constructor(

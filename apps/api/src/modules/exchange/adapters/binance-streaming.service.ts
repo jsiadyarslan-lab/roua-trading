@@ -66,7 +66,15 @@ export class BinanceStreamingService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(BinanceStreamingService.name);
   private readonly emitter = new EventEmitter();
 
-  constructor(private readonly redisService: RedisService) {}
+  constructor(private readonly redisService: RedisService) {
+    // V411: Constructor logging — verify DI works and service instantiates
+    this.logger.log('💱 BinanceStreamingService constructor called — DI successful');
+    try {
+      this.logger.log(`💱 RedisService available: ${!!this.redisService}`);
+    } catch (e: any) {
+      this.logger.error(`💱 RedisService check failed: ${e.message}`);
+    }
+  }
 
   private readonly BINANCE_WS_URL = 'wss://stream.binance.com:9443/stream';
 
@@ -109,9 +117,12 @@ export class BinanceStreamingService implements OnModuleInit, OnModuleDestroy {
     // Binance REST, which was hitting rate limits (100 req/min) every time
     // position monitor, chart polling, and ticker all requested quotes.
     this.onPrice((update: BinancePriceUpdate) => {
-      try {
-        this._updateRedisCache(update);
-      } catch (e) { /* non-critical */ }
+      // V411: Await the Redis write — previously this was fire-and-forget
+      // which meant errors were swallowed and writes might not complete
+      // before the next tick. Now we catch errors explicitly.
+      this._updateRedisCache(update).catch((e) => {
+        // Non-critical — don't let Redis errors crash the stream
+      });
     });
 
     // Connect

@@ -146,6 +146,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   // ── Cleanup ────────────────────────────────────────────
   const cleanup = useCallback(() => {
     isClosingRef.current = true;
+    sseActiveRef.current = false; // V370: Reset SSE flag on cleanup
 
     // Cancel rAF buffer
     if (rafIdRef.current !== 0) {
@@ -203,8 +204,11 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   const tfSecondsRef = useRef(60);
 
   // ── Fetch latest candle via REST ───────────────────────
+  // V370: Skip if SSE is active — polling would overwrite SSE-built candles
   const fetchLatestCandle = useCallback(async () => {
     if (!symbol) return;
+    // V370: If SSE stream is active, don't poll — it overwrites real OHLC with O=H=L=C
+    if (sseActiveRef.current) return;
 
     try {
       // FIX: Route through backend ExchangeGateway REST API first
@@ -433,6 +437,10 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   // on subsequent prices → H=max(H,price), L=min(L,price), C=price.
   const oandaCandleRef = useRef<{ time: number; open: number; high: number; low: number; close: number; volume: number } | null>(null);
 
+  // V370: Track whether SSE stream is active — prevents polling from interfering.
+  // When SSE is live, polling must NOT run (it overwrites SSE candles with O=H=L=C).
+  const sseActiveRef = useRef(false);
+
   // V360: Connect to OANDA SSE stream via Next.js proxy route.
   // The Next.js proxy streams SSE from NestJS to the browser.
   // Same architecture as Binance WS: long-lived connection, real-time updates.
@@ -454,6 +462,13 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
 
     // V369: Reset candle state on new connection
     oandaCandleRef.current = null;
+    // V370: Mark SSE as active — stops polling from running
+    sseActiveRef.current = true;
+    // V370: Stop any existing polling
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
 
     fetch(sseUrl, {
       method: 'GET',
@@ -530,11 +545,13 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
 
       if (!isClosingRef.current) {
         console.warn(`🌊 [ChartSSE] Stream ended — polling fallback`);
+        sseActiveRef.current = false; // V370: Allow polling to resume
         startPolling();
       }
     }).catch((err: any) => {
       if (err.name === 'AbortError') return;
       console.warn(`🌊 [ChartSSE] Error: ${err.message} — polling fallback`);
+      sseActiveRef.current = false; // V370: Allow polling to resume
       if (!isClosingRef.current) startPolling();
     });
   }, [symbol, startPolling, bufferUpdate]);

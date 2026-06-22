@@ -229,7 +229,17 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
         const data = result?.data;
         if (data && (data.price || data.close) > 0) {
           const price = data.price || data.close;
-          onPriceUpdateRef.current(price);
+
+          // V379: DO NOT call onPriceUpdate for OANDA pairs!
+          // onPriceUpdate → chart.updateLastCandle(price) which OVERWRITES the
+          // candle's OHLC with close=price, high=max(old.high,price), low=min(old.low,price).
+          // This destroys the real OHLC built by the candle builder below.
+          // The candle builder already sets close=price in the candle.
+          // onCandleUpdate handler in RouaChart merges it correctly.
+          //
+          // For crypto pairs, onPriceUpdate is fine because Binance WS sends
+          // kline (OHLC) and ticker (price) as SEPARATE messages at different times.
+          // For OANDA, we send candle only — no separate price update.
 
           // V378: Build candle from price using candle builder.
           // DO NOT use REST API's OHLC values — they are all = price (O=H=L=C).

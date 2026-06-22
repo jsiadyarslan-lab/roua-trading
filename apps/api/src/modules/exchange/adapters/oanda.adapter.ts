@@ -125,6 +125,7 @@ export class OandaAdapter implements IExchangeAdapter {
 
     const url = `${this.baseUrl}${path}`;
     const response = await fetch(url, {
+      method: 'GET',
       headers: {
         'Authorization': `Bearer ${this.apiToken}`,
         'Content-Type': 'application/json',

@@ -183,21 +183,16 @@ export function proxy(request: NextRequest) {
     return addSecurityHeaders(NextResponse.next(), request)
   }
 
-  // ── Socket.IO: rewrite to NestJS backend ──
+  // ── Socket.IO: handled by Route Handler at /app/socket.io/route.ts ──
+  // V388: Previously this used NextResponse.rewrite() to proxy to NestJS,
+  // but that caused 404 errors on Railway because Next.js rewrites use
+  // fetch() internally which doesn't properly forward Socket.IO cookies
+  // and long-polling responses.
+  // Now the Route Handler at src/app/socket.io/route.ts handles ALL
+  // /socket.io requests with proper header/cookie forwarding.
+  // Do NOT intercept /socket.io here — let it fall through to the Route Handler.
   if (pathname.startsWith('/socket.io')) {
-    const apiInternalUrl = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001'
-    const targetUrl = new URL(request.url)
-    try {
-      const apiParsed = new URL(apiInternalUrl)
-      targetUrl.protocol = apiParsed.protocol || 'http:'
-      targetUrl.hostname = apiParsed.hostname
-      targetUrl.port = apiParsed.port || '3001'
-    } catch {
-      targetUrl.protocol = 'http:'
-      targetUrl.hostname = '127.0.0.1'
-      targetUrl.port = '3001'
-    }
-    return addSecurityHeaders(NextResponse.rewrite(targetUrl), request)
+    return addSecurityHeaders(NextResponse.next(), request)
   }
 
   // ── API routes: pass through with security headers ──

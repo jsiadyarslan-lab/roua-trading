@@ -405,7 +405,7 @@ export class BinanceStreamingService implements OnModuleInit, OnModuleDestroy {
     const price = parseFloat(ticker.c);
     if (!price || price <= 0) return;
 
-    const update: BinancePriceUpdate = {
+    const baseUpdate: BinancePriceUpdate = {
       symbol: userSymbol,
       binanceSymbol,
       price,
@@ -419,7 +419,28 @@ export class BinanceStreamingService implements OnModuleInit, OnModuleDestroy {
       timestamp: ticker.E || Date.now(),
     };
 
-    this.emitter.emit('price', update);
+    this.emitter.emit('price', baseUpdate);
+
+    // V410: Also emit with /USD suffix for /USDT pairs.
+    // BinanceStreamingService auto-subscribes to BTC/USDT, ETH/USDT, etc.
+    // But the frontend (useMarketStreamSocket ALL_SYMBOLS) subscribes to
+    // BTC/USD, ETH/USD, etc. Without this dual-emit, the gateway never
+    // broadcasts ticker events for /USD symbols because the stream only
+    // produces /USDT. This was causing crypto prices to freeze in the
+    // ticker bar — the client subscribed to 'BTC/USD' but the stream
+    // only emitted 'BTC/USDT', so symbolSubscribers.get('BTC/USD') was
+    // always empty and _broadcastToSymbol() returned without sending.
+    //
+    // By emitting both /USDT and /USD for the same price, clients
+    // subscribed to either format receive the update.
+    if (userSymbol.endsWith('/USDT')) {
+      const usdSymbol = userSymbol.slice(0, -5) + '/USD'; // BTC/USDT → BTC/USD
+      const usdUpdate: BinancePriceUpdate = {
+        ...baseUpdate,
+        symbol: usdSymbol,
+      };
+      this.emitter.emit('price', usdUpdate);
+    }
   }
 
   /**

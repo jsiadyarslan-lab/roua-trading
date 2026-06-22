@@ -77,12 +77,9 @@ export function GlobalLogicEngine() {
       const price = q?.price
       if (typeof price !== 'number' || Number.isNaN(price)) return
 
-      // V225: Skip symbols with fresh Binance WS data (<2s old).
-      // Binance WS calls updatePositionPrice() directly on every tick,
-      // so calling it again here is redundant and wastes CPU.
-      // Only process non-WS or stale-WS symbols (forex, stocks, disconnected WS).
-      if (q.source === 'Binance WS' && (now - new Date(q.timestamp).getTime() < 2000)) return
-
+      // V410: Removed the 'Binance WS' source skip — BinanceWSManager was deleted in V409.
+      // All crypto prices now flow through Socket.IO with source 'binance-stream' or 'oanda-stream'.
+      // This backup loop processes ALL quotes regardless of source.
       // FIX V139: Normalize USD→USDT for matching purposes.
       const normalizedSymbol = symbol.toUpperCase().replace('/', '').replace(/USD$/, 'USDT')
 

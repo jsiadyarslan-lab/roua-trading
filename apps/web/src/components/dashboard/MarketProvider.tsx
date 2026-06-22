@@ -6,6 +6,7 @@ import { binanceWS, useMarketStore } from '@/hooks/useMarketStore'
 import { useDashboardStore } from '@/lib/dashboard-store'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { PriceAlertEngine } from '@/components/dashboard/PriceAlertEngine'
+import { useOandaStreamSocket } from '@/hooks/useOandaStreamSocket'
 
 // V378: Removed oandaWS import — no EventSource. REST polling only for ticker.
 
@@ -138,6 +139,11 @@ async function fetchNonCryptoBatch(symbols: string[]) {
  * Ensures only ONE WebSocket connection exists for the entire dashboard.
  */
 export function MarketProvider({ children }: { children: React.ReactNode }) {
+  // V387: Real-time OANDA prices via Socket.IO — sub-second updates.
+  // This is the PRIMARY price source for forex/metals/indices.
+  // Polling (below) is the fallback.
+  useOandaStreamSocket()
+
   useEffect(() => {
     // Keep the legacy dashboard pair store and the newer symbol store in sync.
     // This prevents the chart, header, watchlists, and left/right panels from drifting apart.

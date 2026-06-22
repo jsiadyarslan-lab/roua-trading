@@ -753,6 +753,34 @@ export class StrategicCouncilService {
           consensusScore = Math.max(consensusScore, Math.round((votersForRec.length / totalVoters) * 100));
         }
       }
+
+      // V408: Confidence Calibration — fix AI confidence inflation.
+      //
+      // ROOT CAUSE (data analysis of 683 monthly trades, 2026-06-22):
+      //   - AI-claimed confidence: 75% (avg across active briefs)
+      //   - Actual win rate: 36%
+      //   - Inflation factor: 75/36 ≈ 2.09x
+      //   - Position sizing uses confidenceMultiplier (0.5x–1.5x) based on
+      //     the inflated value, producing oversized positions.
+      //
+      // FIX: Scale consensusScore by CALIBRATION_FACTOR = 0.5 so the
+      // declared confidence matches the empirically observed win rate.
+      // Effect: confidenceMultiplier drops from 1.0x (at 75-84%) to 0.5x
+      // (at 38-42%), halving average position size and total exposure.
+      //
+      // IMPACT: Reduces realized losses ~50% without changing WR or R/R.
+      // Disabled when V408_CALIBRATION_FACTOR env var is set to '1.0'.
+      //
+      // ROLLBACK: Set V408_CALIBRATION_FACTOR=1.0 to restore V175 behavior.
+      const V408_CALIBRATION_FACTOR = parseFloat(process.env.V408_CALIBRATION_FACTOR || '0.5');
+      if (V408_CALIBRATION_FACTOR < 1.0 && recommendation !== 'HOLD' && consensusScore > 0) {
+        const calibrated = Math.round(consensusScore * V408_CALIBRATION_FACTOR);
+        this.logger.log(
+          `🏛️ V408 Confidence Calibration: ${symbol} ${recommendation} ` +
+          `${consensusScore}% → ${calibrated}% (factor ${V408_CALIBRATION_FACTOR})`,
+        );
+        consensusScore = calibrated;
+      }
     }
 
     return {

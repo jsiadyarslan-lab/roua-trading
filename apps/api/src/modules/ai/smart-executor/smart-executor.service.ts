@@ -2113,16 +2113,16 @@ export class SmartExecutorService implements OnModuleDestroy {
     //   - 71% of monthly loss ($854/$1,204) was trading costs from overtrading
     //   - AUTO_STALE closed paper positions after 1h, killing winners before TP
     //
-    // FIX: Disable the entire AUTO_STALE eviction block. When max positions are
-    // reached, new briefs are skipped (the loop below naturally skips them via
-    // openPositionsCount check at line ~2087). Existing positions are left to
-    // hit TP/SL — the only valid exits per V260 design.
+    // FIX: Disable the entire AUTO_STALE eviction block via env var guard.
+    // When max positions are reached, new briefs are skipped (the loop below
+    // naturally skips them via openPositionsCount check at line ~2087).
+    // Existing positions are left to hit TP/SL — the only valid exits per V260 design.
     //
     // IMPACT: SmartExecutor only. Agent has no AUTO_STALE logic (verified by grep).
     // Expected: TP hit rate rises from ~10% to ~25%, R/R from 0.95 to ~1.8.
     //
-    // ROLLBACK: Change `if (false &&` back to `if (` to restore V124 behavior.
-    if (false && openPositionsCount >= executorMaxPositions && isSimulated) {
+    // ROLLBACK: Set V407_AUTO_STALE_ENABLED=true env var to restore V124 behavior.
+    if (process.env.V407_AUTO_STALE_ENABLED === 'true' && openPositionsCount >= executorMaxPositions && isSimulated) {
       try {
         // FIX: Reduced from 4 hours to 1 hour — paper trading positions should
         // rotate faster to demonstrate the platform's capabilities. A 4-hour

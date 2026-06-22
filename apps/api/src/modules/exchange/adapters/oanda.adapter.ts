@@ -128,7 +128,6 @@ export class OandaAdapter implements IExchangeAdapter {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${this.apiToken}`,
-        'Content-Type': 'application/json',
         'Accept-Datetime-Format': 'RFC3339',
       },
     });
@@ -295,12 +294,18 @@ export class OandaAdapter implements IExchangeAdapter {
     const oandaSymbol = this.toOandaSymbol(symbol);
     const granularity = this._mapIntervalToGranularity(interval);
 
-    // OANDA v20: GET /v3/instruments/{instrument}/candles
-    const from = start.toISOString();
-    const to = end.toISOString();
-
+    // V381: OANDA v20 API limits:
+    // - Maximum 5000 candles per request when using count parameter
+    // - When using from/to, the range must not exceed ~5000 candles
+    // - For M1 granularity, 5000 candles = ~3.5 days
+    // - For H1 granularity, 5000 candles = ~208 days
+    //
+    // FIX: Use count=500 (reasonable default) instead of from/to.
+    // The chart only needs recent history for display + indicators.
+    // 500 candles is enough for most indicators (MACD needs ~35, RSI needs ~14).
+    const MAX_CANDLES = 500;
     const data = await this.apiRequest(
-      `/v3/instruments/${oandaSymbol}/candles?price=M&granularity=${granularity}&from=${from}&to=${to}`
+      `/v3/instruments/${oandaSymbol}/candles?count=${MAX_CANDLES}&price=M&granularity=${granularity}`
     );
 
     const candles = data?.candles || [];

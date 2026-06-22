@@ -2214,7 +2214,24 @@ export class SmartExecutorService implements OnModuleDestroy {
     }
 
     // Process each brief
+    // V409: Per-tick trade cap — prevent batch opening of N positions
+    // in a single executor tick (every 10s). ROOT CAUSE: Executor was
+    // opening all eligible briefs in one tick when maxOpenPositions
+    // allowed it, creating correlated exposure.
+    // FIX: Cap new opens per tick to 2 (configurable via env).
+    const MAX_NEW_OPENS_PER_TICK = parseInt(
+      process.env.EXECUTOR_MAX_NEW_OPENS_PER_TICK || '2', 10
+    );
+    let newOpensThisTick = 0;
+
     for (const brief of briefs) {
+      // V409: Stop processing once per-tick cap is reached
+      if (newOpensThisTick >= MAX_NEW_OPENS_PER_TICK) {
+        this.logger.debug(
+          `⚔️ V409: Per-tick cap reached (${MAX_NEW_OPENS_PER_TICK} new opens) — skipping remaining briefs this tick`,
+        );
+        break;
+      }
       // V177 FIX #15: Correlation check — max 3 correlated crypto positions
       const CRYPTO_CORRELATION_LIMIT = 3;
       try {
@@ -3568,6 +3585,9 @@ export class SmartExecutorService implements OnModuleDestroy {
 
         result.success = true;
         result.orderId = dispatchResult.orderId || 'unknown';
+
+        // V409: Increment per-tick counter (used at top of brief loop)
+        newOpensThisTick++;
 
         // Audit log for the execution
         await this.audit.log({

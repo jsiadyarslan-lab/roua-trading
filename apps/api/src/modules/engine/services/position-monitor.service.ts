@@ -69,7 +69,16 @@ export class PositionMonitorService {
    *   - Total: ~6 DB ops/sec (well within Prisma pool capacity)
    */
   private readonly MONITOR_INTERVAL_MS = 1000; // V340: 1 second for SL/TP
-  private readonly MONITOR_TICK_LOG_INTERVAL_MS = 5000; // V342: Log every 5s
+  // V409: Increased from 5s to 60s to stop DB flooding.
+  // ROOT CAUSE: At 5s × 11 positions × 9 users, the platform generated
+  // ~4.3M MONITOR_TICK events per month, bloating the database and
+  // drowning out critical events (OPEN/CLOSE/SL_HIT/TP_HIT).
+  // Empirical evidence: 111,138 events for ONE user in diagnostic query.
+  // SL/TP checks still run every 1s — only the LOGGING is throttled to 60s.
+  // Override via MONITOR_TICK_LOG_INTERVAL_MS env var if needed.
+  private readonly MONITOR_TICK_LOG_INTERVAL_MS = parseInt(
+    process.env.MONITOR_TICK_LOG_INTERVAL_MS || '60000', 10
+  ); // V409: Default 60s (was 5s)
   private lastTickLogTime: Map<string, number> = new Map(); // positionId → last log timestamp
 
   /** Trailing stop activation threshold (% profit) */

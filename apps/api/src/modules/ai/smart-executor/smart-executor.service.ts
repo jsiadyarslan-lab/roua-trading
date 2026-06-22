@@ -38,6 +38,8 @@ import { StrategicCouncilService } from '../strategic-council/strategic-council.
 import { TradingBriefDTO, StrictRules, EXECUTOR_TIMEFRAMES, isExecutorTimeframe, isSymbolSupportedByExchange, TIMEFRAME_RR, BriefTimeframe } from '../strategic-council/strategic-council.types';
 import { ExecutorStatus, ExecutionResult, ExecutorConfig, UserExecutorState } from './smart-executor.types';
 import { PlaceOrderRequest, OrderSide, OrderType } from '../../trading/trading.types';
+// V410: per-user lifecycle settings (DB overrides on top of env vars)
+import { loadUserLifecycleSettings } from '../../../common/utils/user-lifecycle-settings.util';
 // REMOVED: RiskGatekeeperService — deprecated, replaced by UnifiedRiskService (V219)
 import { UnifiedRiskService } from '../../trading/services/unified-risk.service';
 import { AIOrchestratorService } from '../services/ai-orchestrator.service';
@@ -99,9 +101,15 @@ export class SmartExecutorService implements OnModuleDestroy {
   // and _checkBriefForUser — local variable wouldn't be visible across methods).
   // Reset at the start of each _processUserBriefs call.
   private newOpensThisTick: number = 0;
+  // V410: Default cap (env var fallback). Per-user override loaded in
+  // _processUserBriefs via loadUserLifecycleSettings().
   private readonly MAX_NEW_OPENS_PER_TICK: number = parseInt(
     process.env.EXECUTOR_MAX_NEW_OPENS_PER_TICK || '2', 10
   );
+  // V410: Per-user effective cap (updated each tick from DB)
+  private currentMaxNewOpensPerTick: number = this.MAX_NEW_OPENS_PER_TICK;
+  // V410: Per-user AUTO_STALE toggle (updated each tick from DB)
+  private currentAutoStaleEnabled: boolean = process.env.V407_AUTO_STALE_ENABLED === 'true';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -2129,8 +2137,9 @@ export class SmartExecutorService implements OnModuleDestroy {
     // IMPACT: SmartExecutor only. Agent has no AUTO_STALE logic (verified by grep).
     // Expected: TP hit rate rises from ~10% to ~25%, R/R from 0.95 to ~1.8.
     //
-    // ROLLBACK: Set V407_AUTO_STALE_ENABLED=true env var to restore V124 behavior.
-    if (process.env.V407_AUTO_STALE_ENABLED === 'true' && openPositionsCount >= executorMaxPositions && isSimulated) {
+    // ROLLBACK: Set V407_AUTO_STALE_ENABLED=true env var OR enable
+    // v407AutoStaleEnabled per-user setting to restore V124 behavior.
+    if (this.currentAutoStaleEnabled && openPositionsCount >= executorMaxPositions && isSimulated) {
       try {
         // FIX: Reduced from 4 hours to 1 hour — paper trading positions should
         // rotate faster to demonstrate the platform's capabilities. A 4-hour
@@ -2228,13 +2237,23 @@ export class SmartExecutorService implements OnModuleDestroy {
     // allowed it, creating correlated exposure.
     // FIX: Cap new opens per tick to 2 (configurable via env).
     // Counter is a class property so it's visible from _checkBriefForUser.
+    // V410: Per-user override loaded from Setting table (DB).
+    try {
+      const userSettings = await loadUserLifecycleSettings(this.prisma, userId);
+      this.currentMaxNewOpensPerTick = userSettings.executorMaxNewOpensPerTick;
+      this.currentAutoStaleEnabled = userSettings.v407AutoStaleEnabled;
+    } catch (err: any) {
+      // Non-fatal — fall back to env-var defaults
+      this.currentMaxNewOpensPerTick = this.MAX_NEW_OPENS_PER_TICK;
+      this.currentAutoStaleEnabled = process.env.V407_AUTO_STALE_ENABLED === 'true';
+    }
     this.newOpensThisTick = 0; // Reset at start of each tick
 
     for (const brief of briefs) {
-      // V409: Stop processing once per-tick cap is reached
-      if (this.newOpensThisTick >= this.MAX_NEW_OPENS_PER_TICK) {
+      // V409/V410: Stop processing once per-tick cap is reached (user-tunable)
+      if (this.newOpensThisTick >= this.currentMaxNewOpensPerTick) {
         this.logger.debug(
-          `⚔️ V409: Per-tick cap reached (${this.MAX_NEW_OPENS_PER_TICK} new opens) — skipping remaining briefs this tick`,
+          `⚔️ V409: Per-tick cap reached (${this.currentMaxNewOpensPerTick} new opens) — skipping remaining briefs this tick`,
         );
         break;
       }

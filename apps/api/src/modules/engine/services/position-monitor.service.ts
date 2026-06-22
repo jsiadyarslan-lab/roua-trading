@@ -10,6 +10,8 @@ import { ExchangeService } from '../../exchange/exchange.service';
 import { TradingService } from '../../trading/trading.service';
 import { AuditService } from '../../../audit/audit.service';
 import { PerformanceEventsService } from '../../analytics/services/performance-events.service';
+// V410: per-user lifecycle settings (DB overrides on top of env vars)
+import { loadUserLifecycleSettings } from '../../../common/utils/user-lifecycle-settings.util';
 // V185: مجلس الذكاء — مجلة التداول + الشفاء الذاتي
 import { TradeJournalService } from '../../ai/council-intelligence/trade-journal.service';
 import { SelfHealingService } from '../../ai/council-intelligence/self-healing.service';
@@ -75,10 +77,13 @@ export class PositionMonitorService {
   // drowning out critical events (OPEN/CLOSE/SL_HIT/TP_HIT).
   // Empirical evidence: 111,138 events for ONE user in diagnostic query.
   // SL/TP checks still run every 1s — only the LOGGING is throttled to 60s.
-  // Override via MONITOR_TICK_LOG_INTERVAL_MS env var if needed.
-  private readonly MONITOR_TICK_LOG_INTERVAL_MS = parseInt(
+  // V410: Default from env. Per-user override applied in _monitorPosition
+  // via loadUserLifecycleSettings().
+  private readonly DEFAULT_MONITOR_TICK_LOG_INTERVAL_MS = parseInt(
     process.env.MONITOR_TICK_LOG_INTERVAL_MS || '60000', 10
-  ); // V409: Default 60s (was 5s)
+  ); // V409/V410: Default 60s (was 5s). Per-user override loaded at monitor time.
+  // V410: Per-position effective interval (cached for the current tick)
+  private monitorTickIntervalByUser: Map<string, number> = new Map();
   private lastTickLogTime: Map<string, number> = new Map(); // positionId → last log timestamp
 
   /** Trailing stop activation threshold (% profit) */
@@ -383,6 +388,22 @@ export class PositionMonitorService {
         await writeProgress('ZERO_POSITIONS_RETURN');
         return;
       }
+
+      // V410: Refresh per-user MONITOR_TICK interval overrides. We collect the
+      // distinct userIds in this cycle and load each user's lifecycle settings
+      // in parallel. Results are cached in monitorTickIntervalByUser for the
+      // rest of this cycle (1s). Non-fatal on error — falls back to env default.
+      try {
+        const distinctUserIds = [...new Set(positions.map((p: any) => p.userId))];
+        await Promise.all(distinctUserIds.map(async (uid) => {
+          try {
+            const userSettings = await loadUserLifecycleSettings(this.prisma, uid);
+            this.monitorTickIntervalByUser.set(uid, userSettings.monitorTickLogIntervalMs);
+          } catch {
+            // Keep existing value (or default)
+          }
+        }));
+      } catch { /* non-critical */ }
 
       this.logger.debug(`🛡️ Monitoring ${positions.length} open positions`);
 
@@ -731,7 +752,9 @@ export class PositionMonitorService {
       if (this.getLifecycle()) {
         const now = Date.now();
         const lastLog = this.lastTickLogTime.get(position.id) || 0;
-        if (now - lastLog >= this.MONITOR_TICK_LOG_INTERVAL_MS) {
+        // V410: per-user interval (DB override on top of env default)
+        const interval = this.monitorTickIntervalByUser.get(position.userId) ?? this.DEFAULT_MONITOR_TICK_LOG_INTERVAL_MS;
+        if (now - lastLog >= interval) {
           this.lastTickLogTime.set(position.id, now);
           try {
             await this.getLifecycle()?.log({
@@ -808,10 +831,14 @@ export class PositionMonitorService {
     // V339+V340: Log MONITOR_TICK — sampled to every 5s to reduce DB load.
     // SL/TP checks still run every 1s, but we only LOG every 5s.
     // V342: Moved AFTER SL/TP check — don't log tick if position is being closed.
+    // V410: Per-user interval (DB override on top of env default). Loaded
+    // once per cycle in _monitorPositions and cached in monitorTickIntervalByUser.
     if (this.getLifecycle()) {
       const now = Date.now();
       const lastLog = this.lastTickLogTime.get(position.id) || 0;
-      if (now - lastLog >= this.MONITOR_TICK_LOG_INTERVAL_MS) {
+      // V410: per-user interval (DB override on top of env default)
+      const interval = this.monitorTickIntervalByUser.get(position.userId) ?? this.DEFAULT_MONITOR_TICK_LOG_INTERVAL_MS;
+      if (now - lastLog >= interval) {
         this.lastTickLogTime.set(position.id, now);
 
         // Calculate TP progress for V338 Trailing TP visibility

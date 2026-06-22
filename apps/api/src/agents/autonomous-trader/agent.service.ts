@@ -12,6 +12,8 @@ import { ExchangeService } from '../../modules/exchange/exchange.service';
 import { TradingService } from '../../modules/trading/trading.service';
 import { TradeCoordinationService } from '../../modules/trading/services/trade-coordination.service';
 import { isMarketOpen } from '../../common/utils/market-hours.util';
+// V410: per-user lifecycle settings (DB overrides on top of env vars)
+import { loadUserLifecycleSettings } from '../../common/utils/user-lifecycle-settings.util';
 
 import { MarketAnalyzerService } from './services/market-analyzer.service';
 import { SignalEvaluatorService } from './services/signal-evaluator.service';
@@ -1610,9 +1612,16 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       // opening 11 positions in the same second when 11 fresh briefs were
       // available. This caused overtrading and correlated exposure.
       // FIX: Cap new opens per cycle to 3 (configurable via env).
-      const MAX_NEW_OPENS_PER_CYCLE = parseInt(
+      // V410: Per-user override loaded from Setting table (DB).
+      let MAX_NEW_OPENS_PER_CYCLE = parseInt(
         process.env.AGENT_MAX_NEW_OPENS_PER_CYCLE || '3', 10
       );
+      try {
+        const userLifecycle = await loadUserLifecycleSettings(this.prisma, userId);
+        MAX_NEW_OPENS_PER_CYCLE = userLifecycle.agentMaxNewOpensPerCycle;
+      } catch (err: any) {
+        // Non-fatal — fall back to env-var default
+      }
       let newOpensThisCycle = 0;
 
       for (const brief of agentBriefs) {

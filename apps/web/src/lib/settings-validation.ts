@@ -111,6 +111,13 @@ export const ALLOWED_USER_SETTINGS_KEYS = new Set([
   'councilModelPriority',
   // V318: Contract size
   'contractSize',
+  // V410: Per-user lifecycle controls (previously env-only — now user-configurable)
+  // NOTE: v408CalibrationFactor is NOT per-user (it's a global AI Council setting,
+  // kept as env var only). The 4 values below ARE per-user.
+  'monitorTickLogIntervalMs',        // MONITOR_TICK logging interval (ms)
+  'agentMaxNewOpensPerCycle',        // max new opens per agent cron cycle
+  'executorMaxNewOpensPerTick',      // max new opens per executor tick
+  'v407AutoStaleEnabled',            // AUTO_STALE eviction toggle
 ])
 
 // ── Value range constraints ──
@@ -130,6 +137,11 @@ export const SETTINGS_RANGES = {
   scalpingStopLossPips: { min: 3, max: 30, type: 'integer' as const },
   scalpingMaxSpread: { min: 1, max: 10, type: 'number' as const },
   gridLevels: { min: 3, max: 15, type: 'integer' as const },
+  // V410: Lifecycle controls (per-user, previously env-only)
+  monitorTickLogIntervalMs: { min: 5000, max: 600000, type: 'integer' as const }, // 5s–10min
+  agentMaxNewOpensPerCycle: { min: 1, max: 20, type: 'integer' as const },
+  executorMaxNewOpensPerTick: { min: 1, max: 20, type: 'integer' as const },
+  // v407AutoStaleEnabled is a boolean — no range needed
 } as const
 
 // ── Allowed admin config keys (whitelist for /api/admin/settings POST) ──

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Bot, Clock, Globe, Target, Shield, Layers } from "lucide-react";
+import { Bot, Clock, Globe, Target, Shield, Layers, Cpu, Zap } from "lucide-react";
 import { COLORS } from "@/lib/council/types";
 import { hexToRgba } from "@/lib/council/format";
 import { SectionCard, SettingRow, Toggle, SelectBox, NumberInput } from "../_components/SettingsPrimitives";
@@ -154,6 +154,27 @@ export function AutonomousAgentTab({ settings, update }: AutonomousAgentTabProps
             value={contractSize}
             onChange={v => update("agentContractSize", v)}
             min={0.01} max={100} step={0.01}
+          />
+        </SettingRow>
+      </SectionCard>
+
+      {/* V410: Lifecycle Controls (per-user) */}
+      <SectionCard
+        icon={<Cpu size={18} color={COLORS.info} />}
+        iconColor={COLORS.info}
+        iconBg={hexToRgba(COLORS.info, 0.12)}
+        title={t("lifecycleControls") ?? "Lifecycle Controls"}
+        subtitle={t("lifecycleControlsDesc") ?? "Trade execution limits (V410)"}
+      >
+        <SettingRow
+          icon={<Zap size={13} color={COLORS.council} />}
+          label={t("agentMaxNewOpensPerCycle") ?? "Max new opens per cycle"}
+          description={t("agentMaxNewOpensPerCycleDesc") ?? "Cap new positions per 1-min cron cycle (1-20, default 3). Prevents batch opening 11 positions in one second."}
+        >
+          <NumberInput
+            value={String(settings.agentMaxNewOpensPerCycle ?? "3")}
+            onChange={v => update("agentMaxNewOpensPerCycle", parseInt(v, 10) || 3)}
+            min={1} max={20} step={1}
           />
         </SettingRow>
       </SectionCard>

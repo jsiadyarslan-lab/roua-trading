@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Brain, Zap, Target, Globe, Layers, Activity } from "lucide-react";
+import { Brain, Zap, Target, Globe, Layers, Activity, Cpu, Clock } from "lucide-react";
 import { COLORS } from "@/lib/council/types";
 import { hexToRgba } from "@/lib/council/format";
 import { SectionCard, SettingRow, Toggle, SelectBox, NumberInput } from "../_components/SettingsPrimitives";
@@ -167,9 +167,27 @@ export function AICouncilTab({ settings, update }: AICouncilTabProps) {
           />
         </SettingRow>
       </SectionCard>
+
+      {/* V410: Lifecycle Controls (per-user) */}
+      <SectionCard
+        icon={<Cpu size={18} color={COLORS.info} />}
+        iconColor={COLORS.info}
+        iconBg={hexToRgba(COLORS.info, 0.12)}
+        title={t("lifecycleControls") ?? "Lifecycle Controls"}
+        subtitle={t("lifecycleControlsDesc") ?? "Monitoring tuning (V410)"}
+      >
+        <SettingRow
+          icon={<Clock size={13} color={COLORS.textMuted} />}
+          label={t("monitorTickLogIntervalMs") ?? "MONITOR_TICK interval (ms)"}
+          description={t("monitorTickLogIntervalMsDesc") ?? "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."}
+        >
+          <NumberInput
+            value={String(settings.monitorTickLogIntervalMs ?? "60000")}
+            onChange={v => update("monitorTickLogIntervalMs", parseInt(v, 10) || 60000)}
+            min={5000} max={600000} step={5000}
+          />
+        </SettingRow>
+      </SectionCard>
     </>
   );
 }
-
-// Need to import Clock since we use it
-import { Clock } from "lucide-react";

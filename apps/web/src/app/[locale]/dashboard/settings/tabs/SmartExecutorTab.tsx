@@ -182,6 +182,38 @@ export function SmartExecutorTab({ settings, update }: SmartExecutorTabProps) {
           />
         </SettingRow>
       </SectionCard>
+
+      {/* V410: Lifecycle Controls (per-user) */}
+      <SectionCard
+        icon={<Cpu size={18} color={COLORS.info} />}
+        iconColor={COLORS.info}
+        iconBg={hexToRgba(COLORS.info, 0.12)}
+        title={t("lifecycleControls") ?? "Lifecycle Controls"}
+        subtitle={t("lifecycleControlsDesc") ?? "Trade execution limits (V410)"}
+      >
+        <SettingRow
+          icon={<Zap size={13} color={COLORS.council} />}
+          label={t("executorMaxNewOpensPerTick") ?? "Max new opens per tick"}
+          description={t("executorMaxNewOpensPerTickDesc") ?? "Cap new positions per 10s executor tick (1-20, default 2)"}
+        >
+          <NumberInput
+            value={String(settings.executorMaxNewOpensPerTick ?? "2")}
+            onChange={v => update("executorMaxNewOpensPerTick", parseInt(v, 10) || 2)}
+            min={1} max={20} step={1}
+          />
+        </SettingRow>
+        <SettingRow
+          icon={<Activity size={13} color={COLORS.textMuted} />}
+          label={t("v407AutoStaleEnabled") ?? "Enable AUTO_STALE eviction"}
+          description={t("v407AutoStaleEnabledDesc") ?? "Auto-close paper positions older than 1h when at max capacity. OFF by default (V407) — leave OFF to let TP/SL work."}
+        >
+          <Toggle
+            checked={settings.v407AutoStaleEnabled === true || settings.v407AutoStaleEnabled === "true"}
+            onChange={() => update("v407AutoStaleEnabled", !(settings.v407AutoStaleEnabled === true || settings.v407AutoStaleEnabled === "true"))}
+            color={COLORS.sell}
+          />
+        </SettingRow>
+      </SectionCard>
     </>
   );
 }

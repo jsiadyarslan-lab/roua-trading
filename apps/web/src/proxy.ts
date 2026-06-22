@@ -183,16 +183,23 @@ export function proxy(request: NextRequest) {
     return addSecurityHeaders(NextResponse.next(), request)
   }
 
-  // ── Socket.IO: handled by Route Handler at /app/socket.io/route.ts ──
-  // V388: Previously this used NextResponse.rewrite() to proxy to NestJS,
-  // but that caused 404 errors on Railway because Next.js rewrites use
-  // fetch() internally which doesn't properly forward Socket.IO cookies
-  // and long-polling responses.
-  // Now the Route Handler at src/app/socket.io/route.ts handles ALL
-  // /socket.io requests with proper header/cookie forwarding.
-  // Do NOT intercept /socket.io here — let it fall through to the Route Handler.
-  if (pathname.startsWith('/socket.io')) {
-    return addSecurityHeaders(NextResponse.next(), request)
+  // ── Socket.IO: rewrite to local Route Handler ──
+  // V393: Previous approaches failed:
+  //   V388: NextResponse.rewrite(externalUrl) — fetch() buffers, breaks Socket.IO
+  //   V389: next.config.ts rewrites — may not apply correctly with proxy.ts in Next.js 16
+  //
+  // NEW APPROACH: Rewrite /socket.io* to /api/socket-io-proxy (LOCAL Route Handler),
+  // then the Route Handler does manual fetch() proxy to NestJS with proper
+  // cookie/header forwarding. This is the most reliable pattern because:
+  //   1. proxy.ts handles the rewrite (guaranteed to run before Route Handlers)
+  //   2. Route Handler does the actual HTTP proxy (full control over headers)
+  //   3. No dependency on next.config.ts rewrites (which may conflict with proxy.ts)
+  if (pathname === '/socket.io' || pathname.startsWith('/socket.io/')) {
+    const url = request.nextUrl.clone();
+    // Preserve the path after /socket.io (e.g., /socket.io/1/ → /api/socket-io-proxy/1/)
+    const subPath = pathname === '/socket.io' ? '' : pathname.substring('/socket.io'.length);
+    url.pathname = '/api/socket-io-proxy' + subPath;
+    return addSecurityHeaders(NextResponse.rewrite(url), request)
   }
 
   // ── API routes: pass through with security headers ──

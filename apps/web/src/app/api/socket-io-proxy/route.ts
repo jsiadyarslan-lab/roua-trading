@@ -29,6 +29,9 @@ async function proxyRequest(req: NextRequest): Promise<NextResponse> {
   // /socket.io (no sub-path) → backend/socket.io?{search}
   const targetUrl = `${backendUrl}/socket.io${url.search}`;
 
+  // V393: Log incoming request for diagnostics
+  console.log(`[socket-io-proxy] ${req.method} → ${targetUrl}`);
+
   const headers: Record<string, string> = {};
   FORWARD_REQUEST_HEADERS.forEach((h) => {
     const val = req.headers.get(h);
@@ -47,6 +50,9 @@ async function proxyRequest(req: NextRequest): Promise<NextResponse> {
     // @ts-expect-error — Node.js fetch supports this for streaming
     duplex: 'half',
   });
+
+  // V393: Log upstream status for diagnostics
+  console.log(`[socket-io-proxy] ← ${upstreamRes.status} ${upstreamRes.statusText}`);
 
   const responseHeaders: Record<string, string> = {
     'Cache-Control': 'no-store, no-cache, must-revalidate',

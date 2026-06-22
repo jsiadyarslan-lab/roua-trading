@@ -474,6 +474,8 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
       method: 'GET',
       headers: { 'Accept': 'text/event-stream' },
     }).then(async (res) => {
+      console.log(`🌊 [ChartSSE] fetch response: HTTP ${res.status}, hasBody=${!!res.body}, contentType=${res.headers.get('content-type')}`);
+
       if (!res.ok || !res.body) {
         console.warn(`🌊 [ChartSSE] OANDA stream HTTP ${res.status} — polling fallback`);
         startPolling();
@@ -486,12 +488,23 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
 
       reader = res.body.getReader();
       const decoder = new TextDecoder();
+      let chunkCount = 0;
+      let priceCount = 0;
 
       while (!isClosingRef.current) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          console.log(`🌊 [ChartSSE] Stream done — chunks received: ${chunkCount}, prices: ${priceCount}`);
+          break;
+        }
 
-        lineBuffer += decoder.decode(value, { stream: true });
+        chunkCount++;
+        const rawText = decoder.decode(value, { stream: true });
+        if (chunkCount <= 3) {
+          console.log(`🌊 [ChartSSE] Chunk #${chunkCount} raw: "${rawText.substring(0, 200)}"`);
+        }
+
+        lineBuffer += rawText;
         const lines = lineBuffer.split('\n');
         lineBuffer = lines.pop() || '';
 
@@ -501,8 +514,15 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           if (!jsonStr) continue;
           try {
             const data = JSON.parse(jsonStr);
-            if (data.type === 'heartbeat' || data.type === 'connected') continue;
+            if (data.type === 'heartbeat' || data.type === 'connected') {
+              console.log(`🌊 [ChartSSE] ${data.type} event received`);
+              continue;
+            }
             if (data.price && data.price > 0) {
+              priceCount++;
+              if (priceCount <= 5) {
+                console.log(`🌊 [ChartSSE] Price #${priceCount}: ${data.symbol} = ${data.price}`);
+              }
               const price = data.price;
 
               // V371: Build candle from price stream (same as Binance kline, but manual)

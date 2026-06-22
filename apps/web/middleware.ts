@@ -51,5 +51,16 @@ export const config = {
   // /socket.io requests were never processed by middleware and hit
   // Next.js router directly, which returned 404 (paths with dots
   // are treated as static files).
-  matcher: ['/((?!api|_next|static|pwa|.*\\..*).*)'],
+  // V397: Two matcher groups — Next.js uses OR logic (if ANY matches, middleware runs).
+  //
+  // Group 1: General routes (excludes paths with dots — for static files like .png, .css)
+  // Group 2: Explicit /socket.io matchers (override the dot exclusion)
+  //
+  // Without Group 2, /socket.io was excluded by `.*\\..*` in Group 1,
+  // so middleware never ran for it → 404.
+  matcher: [
+    '/((?!api|_next|static|pwa|.*\\..*).*)',
+    '/socket.io',
+    '/socket.io/:path*',
+  ],
 };

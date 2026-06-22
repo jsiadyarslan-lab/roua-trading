@@ -53,16 +53,14 @@ function fromOandaSymbol(oandaSymbol: string): string {
 }
 
 class OandaWSManager {
-  private abortController: AbortController | null = null;
+  private eventSource: EventSource | null = null;
   private subscribers = new Set<string>();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
   private baseDelay = 2000;
   private maxDelay = 60000;
-  private isConnecting = false;
   private isDestroyed = false;
-  private lineBuffer = '';
 
   // These are fetched from the backend (same env vars)
   private apiToken: string = '';
@@ -126,12 +124,10 @@ class OandaWSManager {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    if (this.abortController) {
-      try { this.abortController.abort(); } catch {}
-      this.abortController = null;
+    if (this.eventSource) {
+      try { this.eventSource.close(); } catch {}
+      this.eventSource = null;
     }
-    this.isConnecting = false;
-    this.lineBuffer = '';
   }
 
   private getReconnectDelay(): number {
@@ -147,100 +143,45 @@ class OandaWSManager {
   }
 
   /**
-   * Connect to NestJS SSE proxy endpoint which forwards OANDA stream.
-   * The NestJS endpoint handles authentication (OANDA token stays on backend).
-   *
-   * GET /api/exchange/oanda-stream?symbols=EUR/USD,GBP/USD,...
-   * Response: text/event-stream (SSE)
-   * Each event: data: {"symbol":"EUR/USD","price":1.14712,...}
+   * V374: Connect using EventSource API — browser native SSE.
+   * Same as the chart hook, but for the ticker/watchlist (useMarketStore).
    */
-  private async connect() {
-    if (this.isDestroyed || this.isConnecting || this.subscribers.size === 0) return;
+  private connect() {
+    if (this.isDestroyed || this.subscribers.size === 0) return;
     if (this.reconnectAttempts >= this.maxReconnectAttempts) return;
 
-    this.isConnecting = true;
     this.cleanup();
 
     const symbols = Array.from(this.subscribers);
     const symbolsParam = encodeURIComponent(symbols.join(','));
+    const sseUrl = `/api/exchange/oanda-stream?symbols=${symbolsParam}`;
 
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || window.location.origin;
-    const sseUrl = `${backendUrl}/api/exchange/oanda-stream?symbols=${symbolsParam}`;
+    console.log(`🌊 [OandaWS] Connecting via EventSource for ${symbols.length} pairs`);
 
-    console.log(`🌊 [OandaWS] Connecting to OANDA stream for ${symbols.length} pairs: ${symbols.join(', ')}`);
+    this.eventSource = new EventSource(sseUrl);
 
-    this.abortController = new AbortController();
-
-    try {
-      const res = await fetch(sseUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'text/event-stream',
-        },
-        signal: this.abortController.signal,
-      });
-
-      if (!res.ok) {
-        console.warn(`🌊 [OandaWS] Stream connection failed: HTTP ${res.status}`);
-        this.isConnecting = false;
-        this.scheduleReconnectWithBackoff();
-        return;
-      }
-
-      if (!res.body) {
-        console.warn('🌊 [OandaWS] No response body — streaming not supported');
-        this.isConnecting = false;
-        this.scheduleReconnectWithBackoff();
-        return;
-      }
-
+    this.eventSource.onopen = () => {
       this.reconnectAttempts = 0;
-      this.isConnecting = false;
-      console.log(`🌊 [OandaWS] Stream connected — receiving live OANDA prices`);
+      console.log(`🌊 [OandaWS] EventSource connected — receiving live OANDA prices`);
+    };
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      this.lineBuffer = '';
-
-      // Read stream chunks
-      while (true) {
-        if (this.isDestroyed) break;
-
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        this.lineBuffer += decoder.decode(value, { stream: true });
-
-        // Process complete lines (SSE format: "data: {...}\n\n")
-        const lines = this.lineBuffer.split('\n');
-        this.lineBuffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const jsonStr = line.substring(6).trim();
-            if (jsonStr) {
-              try {
-                const data = JSON.parse(jsonStr);
-                this.handlePriceUpdate(data);
-              } catch {
-                // Non-critical — may be a heartbeat or partial JSON
-              }
-            }
-          }
-        }
+    this.eventSource.onmessage = (event) => {
+      if (this.isDestroyed) return;
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'heartbeat' || data.type === 'connected') return;
+        this.handlePriceUpdate(data);
+      } catch {
+        // Non-critical
       }
+    };
 
-      // Stream ended — reconnect
-      if (!this.isDestroyed) {
-        console.warn('🌊 [OandaWS] Stream ended — reconnecting');
-        this.scheduleReconnectWithBackoff();
-      }
-    } catch (err: any) {
-      if (err.name === 'AbortError') return; // Intentional close
-      console.warn(`🌊 [OandaWS] Stream error: ${err.message}`);
-      this.isConnecting = false;
+    this.eventSource.onerror = () => {
+      if (this.isDestroyed) return;
+      console.warn(`🌊 [OandaWS] EventSource error — reconnecting`);
+      this.reconnectAttempts++;
       this.scheduleReconnectWithBackoff();
-    }
+    };
   }
 
   private handlePriceUpdate(data: any) {
@@ -279,7 +220,6 @@ class OandaWSManager {
 
   private scheduleReconnectWithBackoff() {
     if (this.isDestroyed) return;
-    this.reconnectAttempts++;
     const delay = this.getReconnectDelay();
     this.reconnectTimer = setTimeout(() => this.connect(), delay);
   }

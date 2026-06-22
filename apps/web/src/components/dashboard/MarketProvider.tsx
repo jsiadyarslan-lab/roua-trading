@@ -191,9 +191,10 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     // 2. Fetch initial data for ALL symbols via API
     Promise.allSettled(GLOBAL_SYMBOLS.map(fetchAndStore))
 
-    // 3. Poll ALL non-crypto (forex + stocks) as fallback — stream is primary
+    // 3. V374: Poll stocks ONLY (not forex) — forex is via OANDA EventSource
     const pollNonCrypto = () => {
-      fetchNonCryptoBatch(NON_CRYPTO_SYMBOLS)
+      const stocksOnly = NON_CRYPTO_SYMBOLS.filter(s => !OANDA_SYMBOLS.includes(s))
+      if (stocksOnly.length > 0) fetchNonCryptoBatch(stocksOnly)
     }
     pollNonCrypto()
     return () => {
@@ -202,9 +203,13 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // V361: Poll ALL non-crypto pairs (forex + stocks) every 60s as FALLBACK.
-  // OANDA stream is primary, but if it fails, REST polling keeps prices alive.
-  useVisibleInterval(() => fetchNonCryptoBatch(NON_CRYPTO_SYMBOLS), 60_000)
+  // V374: NO REST polling for OANDA pairs — EventSource is the ONLY source.
+  // Previous polling caused 503 errors (GER30, UK100, WTI) and data conflicts.
+  // Only poll stocks (non-OANDA non-crypto) as fallback.
+  useVisibleInterval(() => {
+    const stocksOnly = NON_CRYPTO_SYMBOLS.filter(s => !OANDA_SYMBOLS.includes(s))
+    if (stocksOnly.length > 0) fetchNonCryptoBatch(stocksOnly)
+  }, 60_000)
 
   // FIX V139: Poll crypto via REST every 15 seconds as fallback for Binance WS.
   // WS provides sub-second updates, but this REST poll ensures:

@@ -19,19 +19,16 @@ export const GLOBAL_SYMBOLS = [
   'ADA/USD', 'DOGE/USD',
   // Crypto USDT pairs (Binance native)
   'BTC/USDT', 'ETH/USDT',
-  // Forex — V323: expanded with all OANDA-supported major + cross pairs
+  // Forex — OANDA supported (verified working on Practice account)
   'EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CHF', 'USD/CAD', 'NZD/USD',
-  'EUR/GBP', 'EUR/JPY', 'GBP/JPY', 'EUR/AUD', 'EUR/CAD', 'EUR/CHF', 'GBP/AUD',
-  'GBP/CAD', 'GBP/CHF', 'AUD/JPY', 'AUD/CAD', 'AUD/CHF', 'CAD/JPY', 'CHF/JPY',
-  'NZD/JPY', 'NZD/USD',
-  // Commodities & Metals (OANDA)
+  'EUR/GBP', 'EUR/JPY', 'GBP/JPY',
+  // Metals (OANDA)
   'XAU/USD', 'XAG/USD',
-  // Indices (OANDA)
-  'US30/USD', 'NAS100/USD', 'SPX500/USD', 'GER30/USD', 'UK100/USD',
-  // Energy (OANDA)
-  'WTI/USD', 'BRENT/USD',
-  // Stocks (polled via Twelve Data)
+  // Indices (OANDA) — only US30, NAS100, SPX500 are valid on Practice
+  'US30/USD', 'NAS100/USD', 'SPX500/USD',
+  // Stocks (polled via REST)
   'AAPL', 'MSFT', 'TSLA', 'NVDA', 'AMZN', 'META',
+  // V375: Removed GER30/USD, UK100/USD, WTI/USD, BRENT/USD — cause 503 on OANDA Practice
 ]
 
 const CRYPTO_BASES_SET = (() => {
@@ -51,19 +48,24 @@ const NON_CRYPTO_SYMBOLS = GLOBAL_SYMBOLS.filter(s => {
   return !CRYPTO_BASES_SET.has(base)
 })
 
-// V360: OANDA pairs get their own live stream (same as Binance WS for crypto)
+// V375: OANDA pairs get their own live stream (same as Binance WS for crypto)
 const OANDA_SYMBOLS = NON_CRYPTO_SYMBOLS.filter(s => {
   const upper = s.toUpperCase();
   if (upper.includes('USDT') || upper.includes('/BTC') || upper.includes('/ETH')) return false;
   const forexQuotes = ['/USD', '/JPY', '/GBP', '/EUR', '/CHF', '/CAD', '/AUD', '/NZD'];
-  const indicesBases = ['US30', 'NAS100', 'SPX500', 'GER30', 'UK100', 'WTI', 'BRENT'];
-  return forexQuotes.some(qc => upper.includes(qc)) || indicesBases.some(b => upper.startsWith(b));
+  // V375: Only include indices that are valid on OANDA Practice
+  const validIndices = ['US30', 'NAS100', 'SPX500'];
+  return forexQuotes.some(qc => upper.includes(qc)) || validIndices.some(b => upper.startsWith(b));
 })
 
 async function fetchAndStore(symbol: string) {
   try {
-    // FIX: For crypto symbols with active Binance WS, skip REST fetch entirely.
-    // V360: For OANDA symbols with active OANDA stream, skip REST fetch entirely.
+    // V375: Skip OANDA pairs entirely — they get prices from oandaWS EventSource.
+    // Calling REST for them causes 503 errors (OANDA REST doesn't support all pairs)
+    // and data conflicts (REST overwrites stream prices with stale data).
+    const isOanda = OANDA_SYMBOLS.includes(symbol)
+    if (isOanda) return // Skip — EventSource handles OANDA pairs
+
     const isCrypto = CRYPTO_BASES_SET.has(symbol.split('/')[0])
     if (isCrypto) {
       const existingQuote = useMarketStore.getState().quotes[symbol]
@@ -71,16 +73,6 @@ async function fetchAndStore(symbol: string) {
         existingQuote?.price > 0 &&
         (Date.now() - new Date(existingQuote.timestamp).getTime() < 30_000)
       if (isWslive) return
-    }
-
-    // V360: Skip REST for OANDA pairs if stream is live
-    const isOanda = OANDA_SYMBOLS.includes(symbol)
-    if (isOanda) {
-      const existingQuote = useMarketStore.getState().quotes[symbol]
-      const isStreamLive = existingQuote?.source === 'OANDA Stream' &&
-        existingQuote?.price > 0 &&
-        (Date.now() - new Date(existingQuote.timestamp).getTime() < 10_000)
-      if (isStreamLive) return
     }
 
     const res = await fetch(`/api/exchange/quote/${encodeURIComponent(symbol)}`)

@@ -21,6 +21,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import type { CandleData } from '../lib/charts/types';
 import { WS_CONFIG, BINANCE_URLS, BINANCE_INTERVALS, CRYPTO_BASES } from '../lib/charts/config';
+import { useMarketStore } from './useMarketStore';
 import { sanitizeOhlc } from '../lib/charts/chart-utils';
 
 // PERF: rAF batch buffer for WebSocket messages.
@@ -146,7 +147,6 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   // ── Cleanup ────────────────────────────────────────────
   const cleanup = useCallback(() => {
     isClosingRef.current = true;
-    sseActiveRef.current = false; // V370: Reset SSE flag on cleanup
 
     // Cancel rAF buffer
     if (rafIdRef.current !== 0) {
@@ -207,8 +207,6 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   // V370: Skip if SSE is active — polling would overwrite SSE-built candles
   const fetchLatestCandle = useCallback(async () => {
     if (!symbol) return;
-    // V370: If SSE stream is active, don't poll — it overwrites real OHLC with O=H=L=C
-    if (sseActiveRef.current) return;
 
     try {
       // FIX: Route through backend ExchangeGateway REST API first
@@ -431,129 +429,105 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   };
   tfSecondsRef.current = tfSecondsMap[timeframe] || 60;
 
-  // V369: Track current candle state for OANDA SSE — builds OHLC from price stream.
-  // OANDA stream sends individual prices (not klines like Binance).
-  // We must build candles ourselves: on first price of period → O=H=L=C,
-  // on subsequent prices → H=max(H,price), L=min(L,price), C=price.
+  // V375: For OANDA pairs, subscribe to useMarketStore (fed by oandaWS EventSource).
+  // NO separate SSE connection — oandaWS in MarketProvider already receives prices
+  // and updates useMarketStore. The chart just reads from it and builds candles.
+  //
+  // This is the SAME pattern as how the ticker/watchlist works — they read from
+  // useMarketStore which is fed by binanceWS (crypto) and oandaWS (forex).
+  // The chart does the same, but also builds OHLC candles from the price stream.
   const oandaCandleRef = useRef<{ time: number; open: number; high: number; low: number; close: number; volume: number } | null>(null);
+  const oandaUnsubscribeRef = useRef<(() => void) | null>(null);
 
-  // V370: Track whether SSE stream is active — prevents polling from interfering.
-  // When SSE is live, polling must NOT run (it overwrites SSE candles with O=H=L=C).
-  const sseActiveRef = useRef(false);
-
-  // V373: Connect to OANDA SSE stream using EventSource API.
-  // EventSource is the browser-native SSE client — designed exactly for this.
-  // Unlike fetch+ReadableStream, EventSource:
-  //   - Automatically handles reconnection
-  //   - Works through any HTTP proxy (Next.js, nginx, etc.)
-  //   - Doesn't get killed by proxy buffering/timeout
-  //   - Is the same API used by every professional trading platform
-  const connectOandaSSE = useCallback(() => {
-    const sseUrl = `/api/exchange/oanda-stream?symbols=${encodeURIComponent(symbol)}`;
-
-    // V373: Use EventSource — browser native SSE
-    const eventSource = new EventSource(sseUrl);
-
-    // Store for cleanup
-    (socketIoRef as any).current = {
-      disconnect: () => {
-        eventSource.close();
-      }
-    };
-
-    // V369: Reset candle state on new connection
+  const connectOandaViaMarketStore = useCallback(() => {
+    // Reset candle state
     oandaCandleRef.current = null;
-    // V370: Mark SSE as active
-    sseActiveRef.current = true;
-    // V370: Stop polling
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-      pollingRef.current = null;
+    setConnectionState('connected');
+
+    // Clean up any previous subscription
+    if (oandaUnsubscribeRef.current) {
+      oandaUnsubscribeRef.current();
+      oandaUnsubscribeRef.current = null;
     }
 
-    eventSource.onopen = () => {
-      setConnectionState('connected');
-      reconnectAttemptsRef.current = 0;
-      console.log(`🌊 [ChartSSE] EventSource connected for ${symbol}`);
-    };
+    let lastPrice = 0;
 
-    eventSource.onmessage = (event) => {
+    // Subscribe to useMarketStore — fires on EVERY quote change for ANY symbol
+    const unsubscribe = useMarketStore.subscribe((state) => {
       if (isClosingRef.current) return;
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'heartbeat' || data.type === 'connected') return;
-        if (data.price && data.price > 0) {
-          const price = data.price;
 
-          // V371: Build candle from price stream
-          const now = Math.floor(Date.now() / 1000);
-          const tfSec = tfSecondsRef.current;
-          const candleTime = now - (now % tfSec);
+      const quote = state.quotes[symbol];
+      if (!quote || !quote.price || quote.price <= 0) return;
+      if (quote.price === lastPrice) return; // Skip duplicate prices
+      lastPrice = quote.price;
 
-          if (!oandaCandleRef.current || oandaCandleRef.current.time !== candleTime) {
-            oandaCandleRef.current = {
-              time: candleTime,
-              open: price,
-              high: price,
-              low: price,
-              close: price,
-              volume: data.volume || 0,
-            };
-          } else {
-            oandaCandleRef.current.high = Math.max(oandaCandleRef.current.high, price);
-            oandaCandleRef.current.low = Math.min(oandaCandleRef.current.low, price);
-            oandaCandleRef.current.close = price;
-            oandaCandleRef.current.volume += (data.volume || 0);
-          }
+      const price = quote.price;
 
-          const candle: CandleData = {
-            time: oandaCandleRef.current.time,
-            open: oandaCandleRef.current.open,
-            high: oandaCandleRef.current.high,
-            low: oandaCandleRef.current.low,
-            close: oandaCandleRef.current.close,
-            volume: oandaCandleRef.current.volume,
-          };
-          // V371: Send ONLY the candle — no separate price update
-          bufferUpdate(candle, null, false);
-        }
-      } catch { /* non-critical */ }
-    };
+      // V369: Build candle from price stream
+      const now = Math.floor(Date.now() / 1000);
+      const tfSec = tfSecondsRef.current;
+      const candleTime = now - (now % tfSec);
 
-    eventSource.onerror = () => {
-      if (isClosingRef.current) return;
-      console.warn(`🌊 [ChartSSE] EventSource error — will auto-reconnect`);
-      // EventSource auto-reconnects. Only fall back to polling if it fails repeatedly.
-      // For now, let EventSource handle reconnection.
-      // Only start polling if EventSource is CLOSED (not just errored)
-      if (eventSource.readyState === EventSource.CLOSED) {
-        console.warn(`🌊 [ChartSSE] EventSource CLOSED — polling fallback`);
-        sseActiveRef.current = false;
-        if (!isClosingRef.current) startPolling();
+      if (!oandaCandleRef.current || oandaCandleRef.current.time !== candleTime) {
+        oandaCandleRef.current = {
+          time: candleTime,
+          open: price,
+          high: price,
+          low: price,
+          close: price,
+          volume: 0,
+        };
+      } else {
+        oandaCandleRef.current.high = Math.max(oandaCandleRef.current.high, price);
+        oandaCandleRef.current.low = Math.min(oandaCandleRef.current.low, price);
+        oandaCandleRef.current.close = price;
+      }
+
+      const candle: CandleData = {
+        time: oandaCandleRef.current.time,
+        open: oandaCandleRef.current.open,
+        high: oandaCandleRef.current.high,
+        low: oandaCandleRef.current.low,
+        close: oandaCandleRef.current.close,
+        volume: oandaCandleRef.current.volume,
+      };
+      // V371: Send ONLY the candle — no separate price update
+      bufferUpdate(candle, null, false);
+    });
+
+    oandaUnsubscribeRef.current = unsubscribe;
+
+    // Store cleanup in socketIoRef (reused for disconnection)
+    (socketIoRef as any).current = {
+      disconnect: () => {
+        unsubscribe();
+        oandaUnsubscribeRef.current = null;
       }
     };
 
     isClosingRef.current = false;
-  }, [symbol, startPolling, bufferUpdate]);
+  }, [symbol, bufferUpdate]);
 
-  // ── V360: Connection Strategy — OANDA pairs use SSE stream (same as Binance WS for crypto) ──
+  // ── V375: Connection Strategy ──
+  // OANDA pairs: read from useMarketStore (fed by oandaWS EventSource in MarketProvider)
+  // Crypto pairs: Binance WS (unchanged)
   const connect = useCallback(() => {
     cleanup();
     isClosingRef.current = false;
     connectionGenRef.current++;
     if (!enabled) return;
 
-    // V360: OANDA pairs → SSE stream (live, <1s — same architecture as Binance WS)
+    // V375: OANDA pairs → subscribe to useMarketStore (no separate connection)
     if (!isCryptoPair(symbol)) {
       setConnectionState('connecting');
-      connectOandaSSE();
+      connectOandaViaMarketStore();
       return;
     }
 
     // Crypto pairs → Binance WS
     setConnectionState('connecting');
     connectBinanceFallback();
-  }, [symbol, enabled, cleanup, connectBinanceFallback, connectOandaSSE]);
+  }, [symbol, enabled, cleanup, connectBinanceFallback, connectOandaViaMarketStore]);
 
   // ── Reconnect ──────────────────────────────────────────
   const reconnect = useCallback(() => {

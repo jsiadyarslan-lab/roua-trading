@@ -2,18 +2,21 @@
 
 import { useEffect } from 'react'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
-import { binanceWS, useMarketStore } from '@/hooks/useMarketStore'
+import { useMarketStore } from '@/hooks/useMarketStore'
 import { useDashboardStore } from '@/lib/dashboard-store'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { PriceAlertEngine } from '@/components/dashboard/PriceAlertEngine'
-import { useOandaStreamSocket } from '@/hooks/useOandaStreamSocket'
-
-// V378: Removed oandaWS import — no EventSource. REST polling only for ticker.
+import { useMarketStreamSocket } from '@/hooks/useMarketStreamSocket'
 
 /**
- * MASTER SYMBOL LIST — Single source of truth for all WS subscriptions.
- * All dashboard components read from useMarketStore instead of opening their own connections.
- * Add any new symbol here to make it available platform-wide.
+ * MASTER SYMBOL LIST — Single source of truth for all price subscriptions.
+ * All dashboard components read from useMarketStore.
+ *
+ * V390: All prices now flow through ONE Socket.IO connection to NestJS.
+ * The backend routes each symbol to the appropriate streaming source:
+ *   - Crypto → BinanceStreamingService (Binance WS)
+ *   - Forex/Metals/Indices → OandaStreamingService (OANDA v20 Stream)
+ *   - Stocks → polling cycle (TwelveData REST, 5s)
  */
 export const GLOBAL_SYMBOLS = [
   // Crypto
@@ -28,13 +31,12 @@ export const GLOBAL_SYMBOLS = [
   'XAU/USD', 'XAG/USD',
   // Indices (OANDA) — only US30, NAS100, SPX500 are valid on Practice
   'US30/USD', 'NAS100/USD', 'SPX500/USD',
-  // Stocks (polled via REST)
+  // Stocks (polled via REST on backend)
   'AAPL', 'MSFT', 'TSLA', 'NVDA', 'AMZN', 'META',
   // V375: Removed GER30/USD, UK100/USD, WTI/USD, BRENT/USD — cause 503 on OANDA Practice
 ]
 
 const CRYPTO_BASES_SET = (() => {
-  // Import at module level — avoid circular deps
   const { CRYPTO_BASES } = require('@/lib/charts/config')
   return CRYPTO_BASES
 })()
@@ -50,35 +52,24 @@ const NON_CRYPTO_SYMBOLS = GLOBAL_SYMBOLS.filter(s => {
   return !CRYPTO_BASES_SET.has(base)
 })
 
-// V375: OANDA pairs get their own live stream (same as Binance WS for crypto)
-const OANDA_SYMBOLS = NON_CRYPTO_SYMBOLS.filter(s => {
-  const upper = s.toUpperCase();
-  if (upper.includes('USDT') || upper.includes('/BTC') || upper.includes('/ETH')) return false;
-  const forexQuotes = ['/USD', '/JPY', '/GBP', '/EUR', '/CHF', '/CAD', '/AUD', '/NZD'];
-  // V375: Only include indices that are valid on OANDA Practice
-  const validIndices = ['US30', 'NAS100', 'SPX500'];
-  return forexQuotes.some(qc => upper.includes(qc)) || validIndices.some(b => upper.startsWith(b));
-})
-
-async function fetchAndStore(symbol: string) {
+/**
+ * V390: REST fallback for when Socket.IO is disconnected.
+ * Only fetches if the existing quote is stale (>30s old).
+ * This is NOT the primary price source — Socket.IO is.
+ */
+async function fetchAndStoreIfStale(symbol: string) {
   try {
-    const isCrypto = CRYPTO_BASES_SET.has(symbol.split('/')[0])
-    if (isCrypto) {
-      const existingQuote = useMarketStore.getState().quotes[symbol]
-      const isWslive = existingQuote?.source === 'Binance WS' &&
-        existingQuote?.price > 0 &&
-        (Date.now() - new Date(existingQuote.timestamp).getTime() < 30_000)
-      if (isWslive) return
+    const existing = useMarketStore.getState().quotes[symbol]
+    // If we have a fresh quote from Socket.IO, skip REST fetch
+    if (existing && existing.timestamp) {
+      const ageMs = Date.now() - new Date(existing.timestamp).getTime()
+      if (ageMs < 30_000) return // Fresh enough — Socket.IO is working
     }
 
-    // V378: Fetch ALL pairs via REST — forex prices come from OANDA stream-fed Redis cache
     const res = await fetch(`/api/exchange/quote/${encodeURIComponent(symbol)}`)
-    if (!res.ok) return // Silently skip failed requests
+    if (!res.ok) return
     const data = await res.json()
     if (data.success && data.data && data.data.price > 0) {
-      // SECURITY: Mark stale data so consumers can distinguish live vs cached prices.
-      // Without this check, stale quotes flow into the market store as if they were fresh,
-      // causing misleading price displays and potentially incorrect trading decisions.
       const isStale = data.stale === true
       useMarketStore.getState().setQuote(symbol, {
         ...data.data,
@@ -89,20 +80,13 @@ async function fetchAndStore(symbol: string) {
   } catch { /* silent */ }
 }
 
-/**
- * FIX V139: Fetch crypto symbols via REST as a fallback/supplement to Binance WS.
- * The WS provides sub-second updates, but can disconnect or have the symbol
- * mismatch bug (now fixed). This REST poll ensures that even if WS fails,
- * crypto prices update every 15 seconds — much better than the previous
- * 10-minute gap when WS failed.
- */
-async function fetchCryptoBatch(symbols: string[]) {
-  const BATCH_SIZE = 3
-  const BATCH_DELAY = 2000 // 2s between batches
+async function fetchBatchIfStale(symbols: string[]) {
+  const BATCH_SIZE = 5
+  const BATCH_DELAY = 500
 
   for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
     const batch = symbols.slice(i, i + BATCH_SIZE)
-    await Promise.allSettled(batch.map(fetchAndStore))
+    await Promise.allSettled(batch.map(fetchAndStoreIfStale))
     if (i + BATCH_SIZE < symbols.length) {
       await new Promise(r => setTimeout(r, BATCH_DELAY))
     }
@@ -110,43 +94,20 @@ async function fetchCryptoBatch(symbols: string[]) {
 }
 
 /**
- * Fetch non-crypto symbols in staggered batches.
- * V354: OANDA is now the primary source (via NestJS backend proxy).
- * OANDA supports 120 req/sec with 2s server-side cache, so we can poll
- * more frequently than the old 10-min interval (which was for free sources).
+ * MarketProvider — Mounts once in layout.
  *
- * Current: 23 forex/metals/indices/energy pairs × poll every 60s = 1,380 req/hour
- * OANDA limit: 120 req/sec × 3600 = 432,000 req/hour — plenty of headroom.
- *
- * Batch size 3 with 1s delay = ~8s per full cycle (23 pairs).
- */
-async function fetchNonCryptoBatch(symbols: string[]) {
-  const BATCH_SIZE = 3
-  const BATCH_DELAY = 1000 // 1s between batches (OANDA can handle it)
-
-  for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
-    const batch = symbols.slice(i, i + BATCH_SIZE)
-    await Promise.allSettled(batch.map(fetchAndStore))
-    // Delay between batches (skip after last batch)
-    if (i + BATCH_SIZE < symbols.length) {
-      await new Promise(r => setTimeout(r, BATCH_DELAY))
-    }
-  }
-}
-
-/**
- * MarketProvider — Mounts once in layout, subscribes all symbols to Binance WS.
- * Ensures only ONE WebSocket connection exists for the entire dashboard.
+ * V390: Uses useMarketStreamSocket as the PRIMARY price source.
+ * All crypto, forex, metals, indices, and stocks flow through ONE
+ * Socket.IO connection to NestJS. REST polling is now just a fallback
+ * for when Socket.IO disconnects.
  */
 export function MarketProvider({ children }: { children: React.ReactNode }) {
-  // V387: Real-time OANDA prices via Socket.IO — sub-second updates.
-  // This is the PRIMARY price source for forex/metals/indices.
-  // Polling (below) is the fallback.
-  useOandaStreamSocket()
+  // V390: UNIFIED Socket.IO stream — replaces both useOandaStreamSocket AND BinanceWSManager.
+  // This is the PRIMARY price source for ALL asset types.
+  useMarketStreamSocket()
 
   useEffect(() => {
     // Keep the legacy dashboard pair store and the newer symbol store in sync.
-    // This prevents the chart, header, watchlists, and left/right panels from drifting apart.
     const unsubscribeDashboard = useDashboardStore.subscribe((state, prevState) => {
       if (state.selectedPair === prevState.selectedPair) return
       const currentSymbol = useSymbolStore.getState().selectedSymbol
@@ -175,38 +136,16 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  // V390: Initial fetch — populate store while Socket.IO is connecting.
+  // After Socket.IO connects, this is no longer needed (prices stream live).
   useEffect(() => {
-    // 1. Subscribe all crypto symbols via Binance WS (one connection for all)
-    WS_CRYPTO_SYMBOLS.forEach(sym => binanceWS.subscribe(sym))
-
-    // V378: No oandaWS — removed EventSource entirely. REST polling handles OANDA pairs.
-
-    // 2. Fetch initial data for ALL symbols via API
-    Promise.allSettled(GLOBAL_SYMBOLS.map(fetchAndStore))
-
-    // 3. V378: Poll ALL non-crypto pairs (forex + stocks) every 60s for ticker
-    const pollNonCrypto = () => {
-      fetchNonCryptoBatch(NON_CRYPTO_SYMBOLS)
-    }
-    pollNonCrypto()
-    return () => {
-      WS_CRYPTO_SYMBOLS.forEach(sym => binanceWS.unsubscribe(sym))
-    }
+    Promise.allSettled(GLOBAL_SYMBOLS.map(fetchAndStoreIfStale))
   }, [])
 
-  // V386: Poll ALL non-crypto pairs (forex + stocks) every 15s for ticker.
-  // Was 60s — too slow when the user is not viewing a pair on the chart.
-  // (When a pair IS being charted, useChartWebSocket polls every 2s and
-  //  writes to useMarketStore via onPriceUpdate — see RouaChart.tsx.)
-  // 15s keeps the other ticker pairs reasonably fresh without flooding the API.
-  useVisibleInterval(() => fetchNonCryptoBatch(NON_CRYPTO_SYMBOLS), 15_000)
-
-  // FIX V139: Poll crypto via REST every 15 seconds as fallback for Binance WS.
-  // WS provides sub-second updates, but this REST poll ensures:
-  // 1. Prices update even if WS disconnects or fails to reconnect
-  // 2. All symbol formats get price updates (BTC/USD and BTC/USDT)
-  // 3. P&L stays fresh for all open positions
-  useVisibleInterval(() => fetchCryptoBatch(WS_CRYPTO_SYMBOLS), 15_000)
+  // V390: REST polling fallback — only fetches stale quotes (>30s old).
+  // If Socket.IO is working, this is a no-op (all quotes are fresh).
+  // Runs every 30s to catch any symbols that stopped streaming.
+  useVisibleInterval(() => fetchBatchIfStale(GLOBAL_SYMBOLS), 30_000)
 
   return (
     <>

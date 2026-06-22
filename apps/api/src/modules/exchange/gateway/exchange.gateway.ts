@@ -14,6 +14,7 @@ import { ExchangeService } from '../exchange.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { OandaStreamingService, OandaPriceUpdate } from '../adapters/oanda-streaming.service';
+import { BinanceStreamingService, BinancePriceUpdate } from '../adapters/binance-streaming.service';
 
 /**
  * Exchange WebSocket Gateway
@@ -55,6 +56,7 @@ export class ExchangeGateway
     private readonly redisService: RedisService,
     private readonly prisma: PrismaService,
     private readonly oandaStreaming: OandaStreamingService,
+    private readonly binanceStreaming: BinanceStreamingService,
   ) {}
 
   afterInit(server: Server) {
@@ -73,6 +75,30 @@ export class ExchangeGateway
           timestamp: new Date(update.time).toISOString(),
           source: 'oanda-stream',
           exchange: 'OANDA',
+        },
+      });
+    });
+
+    // V390: Register as Binance price listener — when Binance WS emits a ticker,
+    // broadcast it to all clients subscribed to that symbol.
+    // This UNIFIES crypto prices through the same Socket.IO pipeline as OANDA.
+    // The frontend no longer needs to connect to Binance WS directly.
+    this.binanceStreaming.onPrice((update: BinancePriceUpdate) => {
+      this._broadcastToSymbol(update.symbol, 'ticker', {
+        symbol: update.symbol,
+        data: {
+          symbol: update.symbol,
+          price: update.price,
+          open: update.open,
+          high: update.high,
+          low: update.low,
+          close: update.close,
+          volume: update.volume,
+          change: update.change,
+          changePercent: update.changePercent,
+          timestamp: new Date(update.timestamp).toISOString(),
+          source: 'binance-stream',
+          exchange: 'Binance',
         },
       });
     });
@@ -128,6 +154,11 @@ export class ExchangeGateway
               this.oandaStreaming.unsubscribe(symbol);
               this.logger.debug(`🌊 Unsubscribed OANDA stream for ${symbol} (no more subscribers)`);
             }
+            // V390: If this was a crypto symbol, unsubscribe from Binance stream
+            if (this._isBinanceSymbol(symbol)) {
+              this.binanceStreaming.unsubscribe(symbol);
+              this.logger.debug(`💱 Unsubscribed Binance stream for ${symbol} (no more subscribers)`);
+            }
           }
         }
       }
@@ -171,7 +202,17 @@ export class ExchangeGateway
       this.logger.log(`🌊 Subscribed OANDA stream for ${symbol} (live prices active)`);
     }
 
-    // For non-OANDA symbols, use the refresh cycle (polling)
+    // V390: If this is a crypto symbol and it's the first subscriber,
+    // subscribe to Binance streaming for live prices.
+    // NOTE: BinanceStreamingService auto-subscribes common pairs on startup,
+    // so this is usually a no-op. But for less common pairs, it ensures
+    // they're streamed on demand.
+    if (isFirstSubscriber && this._isBinanceSymbol(symbol)) {
+      this.binanceStreaming.subscribe(symbol);
+      this.logger.log(`💱 Subscribed Binance stream for ${symbol} (live prices active)`);
+    }
+
+    // For non-streaming symbols (stocks), use the refresh cycle (polling)
     this._updateRefreshCycle();
   }
 
@@ -198,6 +239,11 @@ export class ExchangeGateway
           this.oandaStreaming.unsubscribe(symbol);
           this.logger.debug(`🌊 Unsubscribed OANDA stream for ${symbol}`);
         }
+        // V390: Unsubscribe from Binance stream when no more subscribers
+        if (this._isBinanceSymbol(symbol)) {
+          this.binanceStreaming.unsubscribe(symbol);
+          this.logger.debug(`💱 Unsubscribed Binance stream for ${symbol}`);
+        }
       }
     }
 
@@ -218,28 +264,44 @@ export class ExchangeGateway
     return forexQuotes.some(qc => upper.includes(qc)) || indicesBases.some(b => upper.startsWith(b));
   }
 
-  // ── Refresh Cycle (for non-OANDA symbols only) ──
+  /**
+   * V390: Check if a symbol should use Binance streaming.
+   * Crypto pairs: BTC/USDT, ETH/USDT, SOL/USDT, BTC/USD, etc.
+   */
+  private _isBinanceSymbol(symbol: string): boolean {
+    const upper = symbol.toUpperCase();
+    if (upper.includes('USDT') || upper.includes('/BTC') || upper.includes('/ETH')) {
+      return true;
+    }
+    const cryptoBases = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT',
+      'MATIC', 'AVAX', 'LINK', 'UNI', 'ATOM', 'LTC', 'SHIB', 'APE', 'ARB', 'OP',
+      'FIL', 'NEAR', 'FTM', 'ALGO', 'VET', 'SAND', 'MANA', 'AXS', 'CRV', 'SUI',
+      'APT', 'SEI', 'TIA', 'JUP'];
+    return cryptoBases.some(b => upper.startsWith(b + '/'));
+  }
+
+  // ── Refresh Cycle (for non-streaming symbols only — stocks, etc.) ──
 
   private _updateRefreshCycle() {
-    // Only poll for non-OANDA symbols (OANDA uses streaming)
-    const nonOandaSymbols = Array.from(this.symbolSubscribers.keys())
-      .filter(s => !this._isOandaSymbol(s));
+    // Only poll for symbols that DON'T have streaming (neither OANDA nor Binance)
+    const pollingSymbols = Array.from(this.symbolSubscribers.keys())
+      .filter(s => !this._isOandaSymbol(s) && !this._isBinanceSymbol(s));
 
-    const hasNonOandaSubscriptions = nonOandaSymbols.length > 0;
+    const hasPollingSubscriptions = pollingSymbols.length > 0;
 
-    if (hasNonOandaSubscriptions && !this.refreshInterval) {
-      this.refreshInterval = setInterval(() => this._refreshNonOandaSubscriptions(), 5000);
-      this.logger.log(`📡 Started refresh cycle for ${nonOandaSymbols.length} non-OANDA symbols`);
-    } else if (!hasNonOandaSubscriptions && this.refreshInterval) {
+    if (hasPollingSubscriptions && !this.refreshInterval) {
+      this.refreshInterval = setInterval(() => this._refreshPollingSubscriptions(), 5000);
+      this.logger.log(`📡 Started refresh cycle for ${pollingSymbols.length} polling symbols (stocks, etc.)`);
+    } else if (!hasPollingSubscriptions && this.refreshInterval) {
       clearInterval(this.refreshInterval);
       this.refreshInterval = null;
-      this.logger.log('📡 Stopped refresh cycle (no non-OANDA subscriptions)');
+      this.logger.log('📡 Stopped refresh cycle (no polling subscriptions)');
     }
   }
 
-  private async _refreshNonOandaSubscriptions() {
+  private async _refreshPollingSubscriptions() {
     const symbols = Array.from(this.symbolSubscribers.keys())
-      .filter(s => !this._isOandaSymbol(s));
+      .filter(s => !this._isOandaSymbol(s) && !this._isBinanceSymbol(s));
 
     const results = await Promise.allSettled(
       symbols.map(async (symbol) => {

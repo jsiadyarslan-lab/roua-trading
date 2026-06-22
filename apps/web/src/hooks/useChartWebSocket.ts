@@ -427,12 +427,14 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   };
   tfSecondsRef.current = tfSecondsMap[timeframe] || 60;
 
-  // V360: Connect to OANDA SSE stream — direct browser streaming, no Socket.IO.
-  // Same architecture as Binance WS: browser opens a long-lived HTTP connection
-  // and receives price updates in real-time via Server-Sent Events.
+  // V366: Connect to OANDA SSE stream via Next.js proxy route.
+  // The Next.js proxy streams SSE from NestJS to the browser.
+  // Same architecture as Binance WS: long-lived connection, real-time updates.
   const connectOandaSSE = useCallback(() => {
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || window.location.origin;
-    const sseUrl = `${backendUrl}/api/exchange/oanda-stream?symbols=${encodeURIComponent(symbol)}`;
+    // V366: Use window.location.origin (Next.js) — the proxy route forwards to NestJS.
+    // Previous V360 tried NEXT_PUBLIC_API_URL directly, but that env var is not
+    // set on Railway (Next.js and NestJS run in the same container behind one domain).
+    const sseUrl = `${window.location.origin}/api/exchange/oanda-stream?symbols=${encodeURIComponent(symbol)}`;
 
     let abortCtrl: AbortController | null = null;
     let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;

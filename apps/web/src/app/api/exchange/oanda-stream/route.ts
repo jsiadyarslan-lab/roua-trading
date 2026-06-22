@@ -3,26 +3,28 @@ import { NextRequest } from 'next/server'
 /**
  * GET /api/exchange/oanda-stream?symbols=EUR/USD,GBP/USD,...
  *
- * V364: Next.js proxy for OANDA SSE stream.
+ * V366: Next.js proxy for OANDA SSE stream.
  * Forwards to NestJS /api/exchange/oanda-stream which holds the OANDA
  * streaming connection and forwards prices as Server-Sent Events.
  *
- * This MUST be a streaming proxy — it forwards the response body
- * chunk-by-chunk, not buffering it. This gives the browser real-time
- * price updates via SSE (same latency as Binance WS for crypto).
+ * V366 FIX: Removed AbortSignal.timeout(0) — it aborts the request IMMEDIATELY
+ * (0ms = instant abort), killing the SSE connection before it starts.
+ * Now uses no signal (long-lived connection, cleaned up on client disconnect).
  */
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
+export const maxDuration = 300 // 5 minutes — allow long-lived SSE
 
 export async function GET(request: NextRequest) {
   const symbols = request.nextUrl.searchParams.get('symbols') || ''
-  const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+  const backendUrl = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001'
   const targetUrl = `${backendUrl}/api/exchange/oanda-stream?symbols=${encodeURIComponent(symbols)}`
 
   try {
     const backendRes = await fetch(targetUrl, {
       headers: { 'Accept': 'text/event-stream' },
-      signal: AbortSignal.timeout(0), // No timeout — long-lived stream
+      // V366: No timeout signal — SSE is a long-lived connection.
+      // AbortSignal.timeout(0) was aborting immediately (0ms = instant).
     })
 
     if (!backendRes.ok || !backendRes.body) {

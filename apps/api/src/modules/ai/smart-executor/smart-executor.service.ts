@@ -2104,9 +2104,25 @@ export class SmartExecutorService implements OnModuleDestroy {
       // But log clearly so the admin knows the real bottleneck.
     }
 
-    // V124 FIX: Auto-close stale positions for SIMULATED accounts (paper + testnet).
-    // Simulated accounts use virtual funds, so closing stale positions is safe.
-    if (openPositionsCount >= executorMaxPositions && isSimulated) {
+    // V407 DISABLED: Auto-close stale positions for SIMULATED accounts.
+    //
+    // ROOT CAUSE (data analysis of 683 monthly trades, 2026-06-22):
+    //   - avgWin = $5.53 (24% of designed TP)
+    //   - avgLoss = $5.84 (58% of designed SL)
+    //   - R/R actual = 0.95 vs designed 2.31
+    //   - 71% of monthly loss ($854/$1,204) was trading costs from overtrading
+    //   - AUTO_STALE closed paper positions after 1h, killing winners before TP
+    //
+    // FIX: Disable the entire AUTO_STALE eviction block. When max positions are
+    // reached, new briefs are skipped (the loop below naturally skips them via
+    // openPositionsCount check at line ~2087). Existing positions are left to
+    // hit TP/SL — the only valid exits per V260 design.
+    //
+    // IMPACT: SmartExecutor only. Agent has no AUTO_STALE logic (verified by grep).
+    // Expected: TP hit rate rises from ~10% to ~25%, R/R from 0.95 to ~1.8.
+    //
+    // ROLLBACK: Change `if (false &&` back to `if (` to restore V124 behavior.
+    if (false && openPositionsCount >= executorMaxPositions && isSimulated) {
       try {
         // FIX: Reduced from 4 hours to 1 hour — paper trading positions should
         // rotate faster to demonstrate the platform's capabilities. A 4-hour

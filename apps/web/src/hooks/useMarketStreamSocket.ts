@@ -73,7 +73,7 @@ function _getOrCreateSocket(onTick: (symbol: string, data: any) => void): any {
   const socket = io(`${url}/exchange`, {
     // V399: Custom path '/api/socket' (no dots) — Next.js was returning 404
     // for the default '/socket.io/' path because it contains a dot.
-    path: '/api/socket',
+    path: '/socket',
     transports: ['polling', 'websocket'], // polling first (works through Railway edge)
     autoConnect: true,
     reconnection: true,

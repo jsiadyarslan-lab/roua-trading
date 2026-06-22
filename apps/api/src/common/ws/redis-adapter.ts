@@ -78,20 +78,21 @@ class RedisIoAdapter extends IoAdapter {
   }
 
   createIOServer(port: number, options?: any): any {
-    // V399: Override Socket.IO path to '/api/socket' (no dots).
+    // V399: Override Socket.IO path to '/socket' (no dots, no /api prefix).
     //
     // PROBLEM: Socket.IO's default path is '/socket.io/' which contains a dot.
     // Next.js treats paths with dots as static files and returns 404, ignoring
     // rewrites in next.config.ts. This made Socket.IO unreachable from browser.
     //
-    // FIX: Change Socket.IO's path to '/api/socket' (no dots). Next.js already
-    // proxies /api/* to NestJS via rewrites, so requests to /api/socket will
-    // reach NestJS where Socket.IO is listening on this custom path.
+    // FIX: Change Socket.IO's path to '/socket' (no dots).
+    // - No dots → Next.js rewrites work
+    // - No /api prefix → doesn't conflict with NestJS's setGlobalPrefix('api')
     //
-    // The frontend must connect with: io(url, { path: '/api/socket' })
+    // Next.js rewrites /socket* → NestJS:3001/socket*
+    // The frontend must connect with: io(url, { path: '/socket' })
     const mergedOptions = {
       ...options,
-      path: '/api/socket',
+      path: '/socket',
     };
     const server = super.createIOServer(port, mergedOptions);
     server.adapter(this.redisAdapter);

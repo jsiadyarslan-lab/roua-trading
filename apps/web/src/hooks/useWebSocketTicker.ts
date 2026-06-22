@@ -107,7 +107,7 @@ export function useWebSocketTicker({
       }
 
       socket = io(`${WS_URL}/exchange`, {
-        path: '/api/socket', // V399: Custom path (no dots) — Next.js was 404ing /socket.io/
+        path: '/socket', // V399: Custom path (no dots) — Next.js was 404ing /socket.io/
         transports: ['polling', 'websocket'],  // polling first — Next.js rewrites can't proxy WS upgrade requests
         autoConnect: true,
         reconnection: true,

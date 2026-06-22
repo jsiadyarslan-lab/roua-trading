@@ -78,26 +78,26 @@ const nextConfig: NextConfig = {
 
   async rewrites() {
     return [
-      // ── V399: Socket.IO with custom path '/api/socket' (no dots) ──
+      // ── V399: Socket.IO with custom path '/socket' (no dots) ──
       // Socket.IO's default path '/socket.io/' contains a dot, which Next.js
       // treats as a static file and returns 404. We changed Socket.IO's path
-      // to '/api/socket' on the backend (redis-adapter.ts). Now we need to
-      // rewrite /api/socket* to NestJS so requests reach Socket.IO there.
+      // to '/socket' on the backend (redis-adapter.ts). Now we need to
+      // rewrite /socket* to NestJS so requests reach Socket.IO there.
       //
-      // /api/socket is NOT a Next.js Route Handler (no file exists for it).
-      // Without this rewrite, Next.js returns 404 for /api/socket.
-      // With this rewrite, /api/socket* → NestJS:3001/api/socket*
+      // /socket is NOT a Next.js Route Handler (no file exists for it).
+      // Without this rewrite, Next.js returns 404 for /socket.
+      // With this rewrite, /socket* → NestJS:3001/socket*
       {
-        source: '/api/socket',
-        destination: `${apiTarget}/api/socket`,
+        source: '/socket',
+        destination: `${apiTarget}/socket`,
       },
       {
-        source: '/api/socket/',
-        destination: `${apiTarget}/api/socket/`,
+        source: '/socket/',
+        destination: `${apiTarget}/socket/`,
       },
       {
-        source: '/api/socket/:path*',
-        destination: `${apiTarget}/api/socket/:path*`,
+        source: '/socket/:path*',
+        destination: `${apiTarget}/socket/:path*`,
       },
       // ── Health check ──
       // REMOVED: Previously this rewrote /api/health → NestJS API.

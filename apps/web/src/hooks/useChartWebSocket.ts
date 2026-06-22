@@ -203,80 +203,105 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   // Without this, polling always snaps to 1-minute boundaries even on 1H/1D charts.
   const tfSecondsRef = useRef(60);
 
-  // V378: Candle builder for OANDA pairs — builds OHLC from individual price ticks.
-  // The REST API returns O=H=L=C (all same price), so we MUST build candles ourselves.
-  // On first price of a timeframe period -> O=H=L=C=price
-  // On subsequent prices -> H=max(H,price), L=min(L,price), C=price
-  // This gives real candle bodies + wicks instead of dots.
+  // V384: Fallback candle builder — only used if backend candle endpoint fails
   const oandaCandleRef = useRef<{ time: number; open: number; high: number; low: number; close: number; volume: number } | null>(null);
 
-  // ── Fetch latest candle via REST ───────────────────────
-  // V378: For OANDA pairs, this is the ONLY data source. No SSE, no EventSource.
-  // Polls /api/exchange/quote/EUR/USD every 2s -> gets stream-fed price from Redis.
-  // Builds proper OHLC candles using oandaCandleRef (candle builder).
+  // V384: Fetch latest candle from backend candle builder (not from quote price).
+  // The backend OandaStreamingService builds OHLC candles from the live stream.
+  // This is the SAME architecture as Binance kline — server builds candles,
+  // frontend just fetches them.
   const fetchLatestCandle = useCallback(async () => {
     if (!symbol) return;
 
-    try {
-      const apiBase = window.location.origin;
-      const res = await fetch(`${apiBase}/api/exchange/quote/${encodeURIComponent(symbol)}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
+    // V384: For OANDA pairs, fetch pre-built OHLC candle from backend
+    if (!isCryptoPair(symbol)) {
+      try {
+        const tfMap: Record<string, string> = {
+          '1m': 'M1', '5m': 'M5', '15m': 'M15', '30m': 'M30',
+          '1min': 'M1', '5min': 'M5', '15min': 'M15', '30min': 'M30',
+          '1h': 'H1',
+        };
+        const tfName = tfMap[timeframe] || 'M1';
+        const apiBase = window.location.origin;
+        const res = await fetch(`${apiBase}/api/exchange/candle/${encodeURIComponent(symbol)}?timeframe=${tfName}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
 
-      if (res.ok) {
-        const result = await res.json();
-        const data = result?.data;
-        if (data && (data.price || data.close) > 0) {
-          const price = data.price || data.close;
-
-          // V379: DO NOT call onPriceUpdate for OANDA pairs!
-          // onPriceUpdate → chart.updateLastCandle(price) which OVERWRITES the
-          // candle's OHLC with close=price, high=max(old.high,price), low=min(old.low,price).
-          // This destroys the real OHLC built by the candle builder below.
-          // The candle builder already sets close=price in the candle.
-          // onCandleUpdate handler in RouaChart merges it correctly.
-          //
-          // For crypto pairs, onPriceUpdate is fine because Binance WS sends
-          // kline (OHLC) and ticker (price) as SEPARATE messages at different times.
-          // For OANDA, we send candle only — no separate price update.
-
-          // V378: Build candle from price using candle builder.
-          // DO NOT use REST API's OHLC values — they are all = price (O=H=L=C).
-          // Our candle builder tracks real OHLC across multiple polls.
-          const now = Math.floor(Date.now() / 1000);
-          const tfSec = tfSecondsRef.current;
-          const candleTime = now - (now % tfSec);
-
-          if (!oandaCandleRef.current || oandaCandleRef.current.time !== candleTime) {
-            oandaCandleRef.current = {
-              time: candleTime,
-              open: price,
-              high: price,
-              low: price,
-              close: price,
-              volume: 0,
+        if (res.ok) {
+          const result = await res.json();
+          if (result?.success && result?.data) {
+            const candle: CandleData = {
+              time: result.data.time,
+              open: result.data.open,
+              high: result.data.high,
+              low: result.data.low,
+              close: result.data.close,
+              volume: result.data.volume || 0,
             };
-          } else {
-            oandaCandleRef.current.high = Math.max(oandaCandleRef.current.high, price);
-            oandaCandleRef.current.low = Math.min(oandaCandleRef.current.low, price);
-            oandaCandleRef.current.close = price;
+            onCandleUpdateRef.current(candle);
+            onPriceUpdateRef.current(candle.close);
+            return;
           }
-
-          const candle: CandleData = {
-            time: oandaCandleRef.current.time,
-            open: oandaCandleRef.current.open,
-            high: oandaCandleRef.current.high,
-            low: oandaCandleRef.current.low,
-            close: oandaCandleRef.current.close,
-            volume: oandaCandleRef.current.volume,
-          };
-          onCandleUpdateRef.current(candle);
-          return;
         }
+      } catch {
+        // Fall through to REST quote fallback
       }
 
-      // Fallback: Direct Binance API (crypto only)
+      // Fallback: fetch price from /api/exchange/quote and build candle locally
+      try {
+        const apiBase = window.location.origin;
+        const res = await fetch(`${apiBase}/api/exchange/quote/${encodeURIComponent(symbol)}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        if (res.ok) {
+          const result = await res.json();
+          const data = result?.data;
+          if (data && (data.price || data.close) > 0) {
+            const price = data.price || data.close;
+
+            // V378: Build candle from price using candle builder
+            const now = Math.floor(Date.now() / 1000);
+            const tfSec = tfSecondsRef.current;
+            const candleTime = now - (now % tfSec);
+
+            if (!oandaCandleRef.current || oandaCandleRef.current.time !== candleTime) {
+              oandaCandleRef.current = {
+                time: candleTime,
+                open: price,
+                high: price,
+                low: price,
+                close: price,
+                volume: 0,
+              };
+            } else {
+              oandaCandleRef.current.high = Math.max(oandaCandleRef.current.high, price);
+              oandaCandleRef.current.low = Math.min(oandaCandleRef.current.low, price);
+              oandaCandleRef.current.close = price;
+            }
+
+            const candle: CandleData = {
+              time: oandaCandleRef.current.time,
+              open: oandaCandleRef.current.open,
+              high: oandaCandleRef.current.high,
+              low: oandaCandleRef.current.low,
+              close: oandaCandleRef.current.close,
+              volume: oandaCandleRef.current.volume,
+            };
+            onCandleUpdateRef.current(candle);
+            return;
+          }
+        }
+      } catch {
+        // Silent fail — will retry
+      }
+      return;
+    }
+
+    // Crypto pairs: use Binance REST API fallback
+    try {
       if (isCryptoPair(symbol)) {
         const binanceSymbol = normalizeBinanceSymbol(symbol);
         const interval = BINANCE_INTERVALS[timeframe] || '1m';

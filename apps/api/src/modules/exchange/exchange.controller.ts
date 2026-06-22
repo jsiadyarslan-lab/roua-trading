@@ -87,6 +87,28 @@ export class ExchangeController {
   }
 
   /**
+   * V384: GET /api/exchange/candle/:symbol?timeframe=M1
+   * Returns the latest OHLC candle built by OandaStreamingService from live stream prices.
+   * The frontend polls this every 2s for live candle updates (same as Binance kline).
+   */
+  @Public()
+  @Get('candle/:symbol')
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  async getLatestCandle(
+    @Param('symbol') symbol: string,
+    @Query('timeframe') timeframe: string = 'M1',
+  ) {
+    let decodedSymbol: string;
+    try { decodedSymbol = decodeURIComponent(symbol); } catch { decodedSymbol = symbol; }
+
+    const candle = await this.oandaStreaming.getLatestCandle(decodedSymbol, timeframe);
+    if (candle) {
+      return { success: true, data: candle };
+    }
+    return { success: false, error: 'No candle data available' };
+  }
+
+  /**
    * V357: GET /api/exchange/streaming-status
    * Diagnostic endpoint — shows OANDA streaming connection status + env config.
    * Use this to verify OANDA streaming is actually working.

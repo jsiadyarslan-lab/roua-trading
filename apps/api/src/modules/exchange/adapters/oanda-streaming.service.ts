@@ -125,13 +125,120 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
 
     this.logger.log(`🌊 V361: Instruments ready: ${Array.from(this.subscribedInstruments).join(', ')}`);
 
-    // Step 2: Register price handler to update Redis cache
+    // Step 2: Register price handlers
+    // a) Update Redis quote cache (for ticker/positions)
     this.onPrice((update: OandaPriceUpdate) => {
       this._updateRedisCache(update);
     });
 
+    // b) V384: Build OHLC candles from stream prices (same as Binance kline)
+    // OANDA stream sends individual prices. We build candles on the backend
+    // for M1, M5, M15, M30, H1 timeframes — the frontend fetches them ready.
+    this.onPrice((update: OandaPriceUpdate) => {
+      this._buildCandles(update);
+    });
+
     // Step 3: Connect ONCE with all instruments
     this._connect();
+  }
+
+  // V384: Backend candle builder — builds OHLC from OANDA stream prices.
+  // Same concept as Binance kline: the server builds candles from individual ticks.
+  // The frontend fetches ready-made OHLC candles instead of building from single prices.
+  //
+  // Timeframes: M1 (60s), M5 (300s), M15 (900s), M30 (1800s), H1 (3600s)
+  private readonly CANDLE_TIMEFRAMES = [60, 300, 900, 1800, 3600];
+  private candleBuilders = new Map<string, Map<number, { time: number; open: number; high: number; low: number; close: number; volume: number }>>();
+
+  private _buildCandles(update: OandaPriceUpdate): void {
+    const symbol = update.symbol;
+    const price = update.price;
+    const now = Math.floor(update.timestamp / 1000);
+
+    // Get or create the symbol's candle builder map
+    let symbolBuilders = this.candleBuilders.get(symbol);
+    if (!symbolBuilders) {
+      symbolBuilders = new Map();
+      this.candleBuilders.set(symbol, symbolBuilders);
+    }
+
+    for (const tfSec of this.CANDLE_TIMEFRAMES) {
+      const candleTime = now - (now % tfSec);
+
+      let candle = symbolBuilders.get(tfSec);
+      if (!candle || candle.time !== candleTime) {
+        // New candle period — commit old one to Redis if exists
+        if (candle) {
+          this._saveCandleToRedis(symbol, tfSec, candle).catch(() => {});
+        }
+        // Start new candle
+        candle = {
+          time: candleTime,
+          open: price,
+          high: price,
+          low: price,
+          close: price,
+          volume: 0,
+        };
+        symbolBuilders.set(tfSec, candle);
+      } else {
+        // Update existing candle
+        candle.high = Math.max(candle.high, price);
+        candle.low = Math.min(candle.low, price);
+        candle.close = price;
+      }
+
+      // Always write the forming candle to Redis (frontend reads it for live updates)
+      this._saveCandleToRedis(symbol, tfSec, candle).catch(() => {});
+    }
+  }
+
+  /**
+   * V384: Save a candle to Redis for the frontend to fetch.
+   * Key format: oanda:candle:EUR/USD:M1
+   * Value: JSON { time, open, high, low, close, volume }
+   * TTL: 10 minutes (enough for the frontend to poll)
+   */
+  private async _saveCandleToRedis(
+    symbol: string,
+    tfSec: number,
+    candle: { time: number; open: number; high: number; low: number; close: number; volume: number },
+  ): Promise<void> {
+    try {
+      const tfName = this._secondsToTimeframeName(tfSec);
+      const key = `oanda:candle:${symbol}:${tfName}`;
+      await this.redisService.set(key, JSON.stringify(candle), 600_000); // 10 min TTL
+    } catch {
+      // Non-critical
+    }
+  }
+
+  private _secondsToTimeframeName(seconds: number): string {
+    const map: Record<number, string> = {
+      60: 'M1',
+      300: 'M5',
+      900: 'M15',
+      1800: 'M30',
+      3600: 'H1',
+    };
+    return map[seconds] || 'M1';
+  }
+
+  /**
+   * V384: Get the latest built candle for a symbol + timeframe.
+   * Called by the API endpoint when the frontend polls for live candle updates.
+   */
+  async getLatestCandle(symbol: string, timeframe: string): Promise<any | null> {
+    try {
+      const key = `oanda:candle:${symbol}:${timeframe}`;
+      const data = await this.redisService.get(key);
+      if (data) {
+        return JSON.parse(data);
+      }
+      return null;
+    } catch {
+      return null;
+    }
   }
 
   /**

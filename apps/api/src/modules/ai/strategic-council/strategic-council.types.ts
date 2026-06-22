@@ -122,6 +122,32 @@ export const ALL_COUNCIL_PAIRS: string[] = [
   ...COUNCIL_PAIRS.INDICES,
 ];
 
+/** V413: Interleaved council pairs — alternates between categories so that
+ *  when maxPairsPerSession limits the list, users get a balanced mix of
+ *  crypto + forex + commodities instead of crypto-only.
+ *
+ *  Before V413: [...CRYPTO, ...FOREX, ...COMMODITIES] → maxPairs=7 → crypto only.
+ *  After V413:  [BTC, EUR, XAU, ETH, GBP, WTI, SOL, USD/JPY, BRENT, ...]
+ *               → maxPairs=7 → 3 crypto + 3 forex + 1 commodity.
+ */
+function interleaveArrays<T>(...arrays: T[][]): T[] {
+  const result: T[] = [];
+  const maxLen = Math.max(...arrays.map(a => a.length));
+  for (let i = 0; i < maxLen; i++) {
+    for (const arr of arrays) {
+      if (i < arr.length) result.push(arr[i]);
+    }
+  }
+  return result;
+}
+
+export const INTERLEAVED_COUNCIL_PAIRS: string[] = interleaveArrays(
+  COUNCIL_PAIRS.CRYPTO,
+  COUNCIL_PAIRS.FOREX,
+  COUNCIL_PAIRS.COMMODITIES,
+  COUNCIL_PAIRS.INDICES,
+);
+
 /** Check if a symbol is supported by the given exchange.
  *  V226: Now supports MT5 with forex + commodities + crypto pairs.
  *  Returns true if the symbol can be executed on the exchange. */

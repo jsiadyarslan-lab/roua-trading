@@ -38,12 +38,14 @@ const DEFAULTS: UserLifecycleSettings = {
 /**
  * Read a single user-scoped setting from the Setting table.
  * Returns null if not found or on error (caller falls back to default).
+ * Return type is `any` because Setting values are JSON-encoded and may
+ * hold strings, numbers, booleans, or objects (JSON.parse output).
  */
 async function readUserSetting(
   prisma: PrismaService,
   userId: string,
   key: string,
-): Promise<string | null> {
+): Promise<any | null> {
   try {
     const row = await prisma.setting.findUnique({
       where: { key: `user:${userId}:${key}` },
@@ -83,29 +85,36 @@ export async function loadUserLifecycleSettings(
   // Apply overrides with range validation (mirror of frontend SETTINGS_RANGES)
   const result: UserLifecycleSettings = { ...DEFAULTS };
 
-  if (monitorTickRaw !== null) {
+  // V410: Use `!= null` (loose equality) to catch both null and undefined,
+  // since JSON.parse can return undefined for missing keys in some edge cases.
+  if (monitorTickRaw != null) {
     const v = parseInt(String(monitorTickRaw), 10);
     if (!Number.isNaN(v) && v >= 5000 && v <= 600000) {
       result.monitorTickLogIntervalMs = v;
     }
   }
 
-  if (agentMaxRaw !== null) {
+  if (agentMaxRaw != null) {
     const v = parseInt(String(agentMaxRaw), 10);
     if (!Number.isNaN(v) && v >= 1 && v <= 20) {
       result.agentMaxNewOpensPerCycle = v;
     }
   }
 
-  if (executorMaxRaw !== null) {
+  if (executorMaxRaw != null) {
     const v = parseInt(String(executorMaxRaw), 10);
     if (!Number.isNaN(v) && v >= 1 && v <= 20) {
       result.executorMaxNewOpensPerTick = v;
     }
   }
 
-  if (autoStaleRaw !== null) {
-    result.v407AutoStaleEnabled = autoStaleRaw === true || autoStaleRaw === 'true';
+  if (autoStaleRaw != null) {
+    // Handle both boolean (from JSON) and string ('true'/'false') representations
+    result.v407AutoStaleEnabled =
+      autoStaleRaw === true ||
+      autoStaleRaw === 'true' ||
+      autoStaleRaw === 1 ||
+      autoStaleRaw === '1';
   }
 
   return result;

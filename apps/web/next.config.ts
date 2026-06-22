@@ -169,6 +169,14 @@ const nextConfig: NextConfig = {
         source: '/api/integration/:path*',
         destination: `${apiTarget}/api/integration/:path*`,
       },
+      // ── OANDA SSE Stream (proxied directly to NestJS) ──
+      // V376: EventSource needs a DIRECT connection to NestJS — Next.js Route Handlers
+      // use fetch() which buffers the entire response, breaking SSE streaming.
+      // This rewrite passes the request directly to NestJS, same as Socket.IO.
+      {
+        source: '/api/exchange/oanda-stream',
+        destination: `${apiTarget}/api/exchange/oanda-stream`,
+      },
       // ── Integrity Check (proxied to NestJS — no auth required) ──
       // Public diagnostic endpoint for verifying trading system safety.
       // No auth needed — anyone can check system integrity.

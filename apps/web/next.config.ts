@@ -78,18 +78,16 @@ const nextConfig: NextConfig = {
 
   async rewrites() {
     return [
-      // ── V399: Socket.IO with custom path '/socket' (no dots) ──
-      // Socket.IO's default path '/socket.io/' contains a dot, which Next.js
-      // treats as a static file and returns 404. We changed Socket.IO's path
-      // to '/socket' on the backend (redis-adapter.ts). Now we need to
-      // rewrite /socket* to NestJS so requests reach Socket.IO there.
+      // ── V401: Socket.IO rewrite — always add trailing slash to destination ──
+      // Socket.IO's path matching requires a trailing slash in the request URL.
+      // Next.js removes trailing slashes (308 redirect), so /socket/ becomes /socket.
+      // The rewrite must add the trailing slash back in the destination.
       //
-      // /socket is NOT a Next.js Route Handler (no file exists for it).
-      // Without this rewrite, Next.js returns 404 for /socket.
-      // With this rewrite, /socket* → NestJS:3001/socket*
+      // Evidence: health check fetches /socket/ (with slash) → 200 OK
+      //           browser requests /socket (no slash) → 404 from NestJS
       {
         source: '/socket',
-        destination: `${apiTarget}/socket`,
+        destination: `${apiTarget}/socket/`,
       },
       {
         source: '/socket/',

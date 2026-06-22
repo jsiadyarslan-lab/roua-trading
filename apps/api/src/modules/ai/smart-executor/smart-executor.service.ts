@@ -2624,6 +2624,8 @@ export class SmartExecutorService implements OnModuleDestroy {
       const result = await this._executeBriefForUser(userId, brief, currentPrice, userState, portfolioValue);
 
       if (result.success) {
+        // V409: Increment per-tick counter (used at top of brief loop)
+        newOpensThisTick++;
         // FIX: Mark as processed in Redis with TTL based on the brief's timeframe.
         // Previously used 24h TTL which blocked new positions for the same pair
         // long after the brief expired. Now the TTL matches the timeframe's natural
@@ -3585,9 +3587,6 @@ export class SmartExecutorService implements OnModuleDestroy {
 
         result.success = true;
         result.orderId = dispatchResult.orderId || 'unknown';
-
-        // V409: Increment per-tick counter (used at top of brief loop)
-        newOpensThisTick++;
 
         // Audit log for the execution
         await this.audit.log({

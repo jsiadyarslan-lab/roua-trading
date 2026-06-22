@@ -75,17 +75,21 @@ function _getOrCreateSocket(onTick: (symbol: string, data: any) => void): any {
   const socket = io(`${url}/exchange`, {
     path: '/socket', // V399: Custom path (no dots)
     // V403: Polling only — WebSocket upgrade fails through Next.js rewrite proxy.
-    // next.config.ts rewrites use fetch() internally which cannot proxy WS upgrade
-    // requests. Polling works perfectly (confirmed: 200 with handshake). Forcing
-    // polling-only eliminates the "WebSocket connection failed" console error.
-    // Latency: ~100-200ms (acceptable for price updates).
     transports: ['polling'],
     autoConnect: true,
     reconnection: true,
-    reconnectionAttempts: Infinity,
+    // V408: Limit reconnection attempts to prevent 'Session ID unknown' 400 spam.
+    // When the connection drops, Socket.IO tries to resume the old session (sid).
+    // If the server has forgotten the sid (common with polling), it returns 400.
+    // With Infinity attempts, this creates endless 400 errors in console.
+    // 5 attempts is enough — if it fails, REST polling fallback takes over.
+    reconnectionAttempts: 5,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
     timeout: 10000,
+    // V408: forceNew ensures clean session on each reconnect attempt
+    // (prevents sending old sid that causes 'Session ID unknown' 400)
+    forceNew: true,
   });
 
   socket.on('connect', () => {

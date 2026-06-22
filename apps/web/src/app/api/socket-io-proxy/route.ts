@@ -1,19 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
- * V388: Socket.IO polling proxy — catch-all for sub-paths.
+ * V389: Socket.IO proxy — exact match for /api/socket-io-proxy (no sub-path).
  *
- * Socket.IO polling requests look like:
- *   GET  /socket.io/?EIO=4&transport=polling           ← handled by /app/socket.io/route.ts
- *   GET  /socket.io/?EIO=4&transport=polling&sid=xxx   ← handled by /app/socket.io/route.ts
- *   POST /socket.io/?EIO=4&transport=polling&sid=xxx   ← handled by /app/socket.io/route.ts
+ * Handles the case where the rewrite sends /socket.io → /api/socket-io-proxy
+ * (no trailing slash, no sub-path). The catch-all at [...path]/route.ts
+ * doesn't match this case, so we need a separate handler here.
  *
- * But some Socket.IO versions also request sub-paths:
- *   GET  /socket.io/1/?t=xxx                           ← handled here (catch-all)
- *   GET  /socket.io/2/?t=xxx                           ← handled here (catch-all)
- *
- * This catch-all forwards ALL /socket.io/* requests to NestJS with proper
- * header/cookie forwarding. See /app/socket.io/route.ts for full docs.
+ * See [...path]/route.ts for full documentation.
  */
 
 const rawApiTarget = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
@@ -30,11 +24,10 @@ const FORWARD_RESPONSE_HEADERS = [
   'content-type', 'set-cookie', 'cache-control', 'connection', 'transfer-encoding',
 ];
 
-async function proxyRequest(req: NextRequest, pathSegments: string[]): Promise<NextResponse> {
+async function proxyRequest(req: NextRequest): Promise<NextResponse> {
   const url = new URL(req.url);
-  // Reconstruct the path: /socket.io/{path segments}
-  const pathPart = pathSegments.length > 0 ? '/' + pathSegments.join('/') : '';
-  const targetUrl = `${backendUrl}/socket.io${pathPart}${url.search}`;
+  // /socket.io (no sub-path) → backend/socket.io?{search}
+  const targetUrl = `${backendUrl}/socket.io${url.search}`;
 
   const headers: Record<string, string> = {};
   FORWARD_REQUEST_HEADERS.forEach((h) => {
@@ -51,7 +44,7 @@ async function proxyRequest(req: NextRequest, pathSegments: string[]): Promise<N
     method: req.method,
     headers,
     body,
-    // @ts-expect-error — Node.js fetch supports this
+    // @ts-expect-error — Node.js fetch supports this for streaming
     duplex: 'half',
   });
 
@@ -63,14 +56,14 @@ async function proxyRequest(req: NextRequest, pathSegments: string[]): Promise<N
     if (val) responseHeaders[h] = val;
   });
 
-  const setCookies = upstreamRes.headers.getSetCookie?.() ?? [];
+  const setCookies = (upstreamRes.headers as any).getSetCookie?.() ?? [];
   if (setCookies.length > 0) {
     const responseBody = await upstreamRes.arrayBuffer();
     const response = new NextResponse(responseBody, {
       status: upstreamRes.status,
       headers: responseHeaders,
     });
-    setCookies.forEach((cookie) => {
+    setCookies.forEach((cookie: string) => {
       response.headers.append('set-cookie', cookie);
     });
     return response;
@@ -83,28 +76,20 @@ async function proxyRequest(req: NextRequest, pathSegments: string[]): Promise<N
   });
 }
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ path?: string[] }> },
-) {
+export async function GET(req: NextRequest) {
   try {
-    const { path = [] } = await params;
-    return await proxyRequest(req, path);
+    return await proxyRequest(req);
   } catch (err: any) {
-    console.error('[socket.io/[...path] proxy] GET error:', err?.message);
+    console.error('[socket-io-proxy exact] GET error:', err?.message);
     return new NextResponse('Proxy error', { status: 502 });
   }
 }
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ path?: string[] }> },
-) {
+export async function POST(req: NextRequest) {
   try {
-    const { path = [] } = await params;
-    return await proxyRequest(req, path);
+    return await proxyRequest(req);
   } catch (err: any) {
-    console.error('[socket.io/[...path] proxy] POST error:', err?.message);
+    console.error('[socket-io-proxy exact] POST error:', err?.message);
     return new NextResponse('Proxy error', { status: 502 });
   }
 }

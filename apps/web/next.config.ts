@@ -78,14 +78,30 @@ const nextConfig: NextConfig = {
 
   async rewrites() {
     return [
-      // ── Socket.IO: handled by Route Handler at src/app/socket.io/route.ts ──
-      // V388: Previously used next.config.ts rewrites to proxy /socket.io to NestJS.
-      // This caused 404 errors on Railway because Next.js rewrites use fetch()
-      // internally, which doesn't properly forward Socket.IO cookies and
-      // long-polling responses. The Route Handler at src/app/socket.io/route.ts
-      // now handles ALL /socket.io requests with proper header/cookie forwarding.
-      // Do NOT add rewrites for /socket.io here — they would conflict with the
-      // Route Handler.
+      // ── Socket.IO: proxy via Route Handler ──
+      // V389: Next.js Route Handlers don't match paths with dots (.) by default.
+      // `/socket.io` is treated as a static file, not a route. So we rewrite
+      // /socket.io* → /api/socket-io-proxy/* which IS a valid Route Handler path.
+      //
+      // The Route Handler at /app/api/socket-io-proxy/[...path]/route.ts
+      // forwards to NestJS with proper cookie/header forwarding.
+      //
+      // Three patterns needed (same as before):
+      //   1. /socket.io (no trailing slash) — matches /socket.io?EIO=4
+      //   2. /socket.io/ (trailing slash, no sub-path) — matches /socket.io/?EIO=4
+      //   3. /socket.io/:path* — matches all sub-paths like /socket.io/1/
+      {
+        source: '/socket.io',
+        destination: '/api/socket-io-proxy',
+      },
+      {
+        source: '/socket.io/',
+        destination: '/api/socket-io-proxy/',
+      },
+      {
+        source: '/socket.io/:path*',
+        destination: '/api/socket-io-proxy/:path*',
+      },
       // ── Health check ──
       // REMOVED: Previously this rewrote /api/health → NestJS API.
       // This caused Railway healthcheck to FAIL during startup because

@@ -504,9 +504,17 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
             if (data.type === 'heartbeat' || data.type === 'connected') continue;
             if (data.price && data.price > 0) {
               const price = data.price;
-              bufferUpdate(null, price, false);
 
-              // V369: Build candle from price stream (same as Binance kline, but manual)
+              // V371: Build candle from price stream (same as Binance kline, but manual)
+              // DO NOT call bufferUpdate(null, price) — it triggers onPriceUpdate →
+              // chart.updateLastCandle(price) which OVERWRITES the candle's OHLC with
+              // O=H=L=C=price, destroying the real OHLC we just built.
+              //
+              // Binance sends kline (OHLC) and ticker (price) as SEPARATE messages.
+              // OANDA SSE sends only price, so we build OHLC ourselves and send ONLY
+              // the candle update — no separate price update needed.
+              // The chart's onCandleUpdate handler updates the close price internally.
+
               const now = Math.floor(Date.now() / 1000);
               const tfSec = tfSecondsRef.current;
               const candleTime = now - (now % tfSec);
@@ -537,6 +545,9 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
                 close: oandaCandleRef.current.close,
                 volume: oandaCandleRef.current.volume,
               };
+              // V371: Send ONLY the candle — no separate price update.
+              // The candle's close IS the latest price. RouaChart's onCandleUpdate
+              // handler will update the chart series with the full OHLC candle.
               bufferUpdate(candle, null, false);
             }
           } catch { /* non-critical */ }

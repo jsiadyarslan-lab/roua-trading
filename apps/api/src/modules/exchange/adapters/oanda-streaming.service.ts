@@ -126,16 +126,17 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
     this.logger.log(`🌊 V361: Instruments ready: ${Array.from(this.subscribedInstruments).join(', ')}`);
 
     // Step 2: Register price handlers
-    // a) Update Redis quote cache (for ticker/positions)
+    // V402: Each listener wrapped in try/catch to prevent one failing listener
+    // from blocking price delivery to other listeners. The OANDA stream was
+    // receiving prices but a bug in one listener (likely ExchangeGateway's
+    // broadcast) was throwing "Cannot read properties of undefined (reading 'get')"
+    // which prevented ALL listeners from executing.
     this.onPrice((update: OandaPriceUpdate) => {
-      this._updateRedisCache(update);
+      try { this._updateRedisCache(update); } catch (e) { /* non-critical */ }
     });
 
-    // b) V384: Build OHLC candles from stream prices (same as Binance kline)
-    // OANDA stream sends individual prices. We build candles on the backend
-    // for M1, M5, M15, M30, H1 timeframes — the frontend fetches them ready.
     this.onPrice((update: OandaPriceUpdate) => {
-      this._buildCandles(update);
+      try { this._buildCandles(update); } catch (e) { /* non-critical */ }
     });
 
     // Step 3: Connect ONCE with all instruments

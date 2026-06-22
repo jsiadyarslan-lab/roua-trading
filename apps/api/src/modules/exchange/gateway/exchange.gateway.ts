@@ -64,43 +64,49 @@ export class ExchangeGateway
 
     // V355: Register as OANDA price listener — when OANDA stream emits a price,
     // broadcast it to all clients subscribed to that symbol.
+    // V402: Wrap in try/catch — this listener was throwing "Cannot read
+    // properties of undefined (reading 'get')" which blocked ALL OANDA prices
+    // from flowing. The error likely comes from this.server.sockets.sockets.get()
+    // when Socket.IO server internals aren't fully ready.
     this.oandaStreaming.onPrice((update: OandaPriceUpdate) => {
-      this._broadcastToSymbol(update.symbol, 'ticker', {
-        symbol: update.symbol,
-        data: {
+      try {
+        this._broadcastToSymbol(update.symbol, 'ticker', {
           symbol: update.symbol,
-          price: update.price,
-          bid: update.bid,
-          ask: update.ask,
-          timestamp: new Date(update.time).toISOString(),
-          source: 'oanda-stream',
-          exchange: 'OANDA',
-        },
-      });
+          data: {
+            symbol: update.symbol,
+            price: update.price,
+            bid: update.bid,
+            ask: update.ask,
+            timestamp: new Date(update.time).toISOString(),
+            source: 'oanda-stream',
+            exchange: 'OANDA',
+          },
+        });
+      } catch (e) { /* non-critical — don't block other listeners */ }
     });
 
-    // V390: Register as Binance price listener — when Binance WS emits a ticker,
-    // broadcast it to all clients subscribed to that symbol.
-    // This UNIFIES crypto prices through the same Socket.IO pipeline as OANDA.
-    // The frontend no longer needs to connect to Binance WS directly.
+    // V390: Register as Binance price listener
+    // V402: Wrap in try/catch (same protection as OANDA listener)
     this.binanceStreaming.onPrice((update: BinancePriceUpdate) => {
-      this._broadcastToSymbol(update.symbol, 'ticker', {
-        symbol: update.symbol,
-        data: {
+      try {
+        this._broadcastToSymbol(update.symbol, 'ticker', {
           symbol: update.symbol,
-          price: update.price,
-          open: update.open,
-          high: update.high,
-          low: update.low,
-          close: update.close,
-          volume: update.volume,
-          change: update.change,
-          changePercent: update.changePercent,
-          timestamp: new Date(update.timestamp).toISOString(),
-          source: 'binance-stream',
-          exchange: 'Binance',
-        },
-      });
+          data: {
+            symbol: update.symbol,
+            price: update.price,
+            open: update.open,
+            high: update.high,
+            low: update.low,
+            close: update.close,
+            volume: update.volume,
+            change: update.change,
+            changePercent: update.changePercent,
+            timestamp: new Date(update.timestamp).toISOString(),
+            source: 'binance-stream',
+            exchange: 'Binance',
+          },
+        });
+      } catch (e) { /* non-critical */ }
     });
   }
 

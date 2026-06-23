@@ -130,7 +130,7 @@ export const ALL_COUNCIL_PAIRS: string[] = [
  *  After V413:  [BTC, EUR, XAU, ETH, GBP, WTI, SOL, USD/JPY, BRENT, ...]
  *               → maxPairs=7 → 3 crypto + 3 forex + 1 commodity.
  */
-function interleaveArrays<T>(...arrays: ReadonlyArray<readonly T[]>[]): T[] {
+function interleaveArrays<T>(arrays: T[][]): T[] {
   const result: T[] = [];
   const maxLen = Math.max(...arrays.map(a => a.length));
   for (let i = 0; i < maxLen; i++) {
@@ -141,12 +141,12 @@ function interleaveArrays<T>(...arrays: ReadonlyArray<readonly T[]>[]): T[] {
   return result;
 }
 
-export const INTERLEAVED_COUNCIL_PAIRS: string[] = interleaveArrays(
-  COUNCIL_PAIRS.CRYPTO,
-  COUNCIL_PAIRS.FOREX,
-  COUNCIL_PAIRS.COMMODITIES,
-  COUNCIL_PAIRS.INDICES,
-);
+export const INTERLEAVED_COUNCIL_PAIRS: string[] = interleaveArrays([
+  [...COUNCIL_PAIRS.CRYPTO],
+  [...COUNCIL_PAIRS.FOREX],
+  [...COUNCIL_PAIRS.COMMODITIES],
+  [...COUNCIL_PAIRS.INDICES],
+]);
 
 /** Check if a symbol is supported by the given exchange.
  *  V226: Now supports MT5 with forex + commodities + crypto pairs.

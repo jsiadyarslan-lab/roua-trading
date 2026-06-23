@@ -93,12 +93,12 @@ function _getOrCreateSocket(onTick: (symbol: string, data: any) => void): any {
   });
 
   socket.on('connect', () => {
-    console.log('[useMarketStreamSocket] ✅ Connected to /exchange namespace');
+    console.warn('[useMarketStreamSocket] ✅ Connected to /exchange namespace');
     // Re-subscribe to all symbols after reconnect (server may have lost state)
     for (const sym of _subscribedSymbols) {
       socket.emit('subscribe', { symbol: sym });
     }
-    console.log(`[useMarketStreamSocket] Subscribed to ${_subscribedSymbols.size} symbols`);
+    console.warn(`[useMarketStreamSocket] Subscribed to ${_subscribedSymbols.size} symbols`);
   });
 
   socket.on('ticker', (payload: { symbol: string; data: any }) => {
@@ -107,9 +107,9 @@ function _getOrCreateSocket(onTick: (symbol: string, data: any) => void): any {
     // V407: Log first ticker and then every 100th (to avoid console spam)
     const now = Date.now();
     if (_tickerCount === 1) {
-      console.log(`[useMarketStreamSocket] 📊 First ticker received: ${payload.symbol} = ${payload.data?.price}`);
+      console.warn(`[useMarketStreamSocket] 📊 First ticker received: ${payload.symbol} = ${payload.data?.price}`);
     } else if (_tickerCount % 100 === 0 && now - _lastTickerLog > 10000) {
-      console.log(`[useMarketStreamSocket] 📊 Received ${_tickerCount} tickers total. Latest: ${payload.symbol} = ${payload.data?.price}`);
+      console.warn(`[useMarketStreamSocket] 📊 Received ${_tickerCount} tickers total. Latest: ${payload.symbol} = ${payload.data?.price}`);
       _lastTickerLog = now;
     }
     onTick(payload.symbol, payload.data);

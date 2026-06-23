@@ -84,6 +84,8 @@ export class PositionMonitorService {
   ); // V409/V410: Default 60s (was 5s). Per-user override loaded at monitor time.
   // V410: Per-position effective interval (cached for the current tick)
   private monitorTickIntervalByUser: Map<string, number> = new Map();
+  // V416: Cache timestamp for lifecycle settings (refresh every 5 min, not every 1s)
+  private lifecycleSettingsLastLoad: Map<string, number> = new Map();
   private lastTickLogTime: Map<string, number> = new Map(); // positionId → last log timestamp
 
   /** Trailing stop activation threshold (% profit) */
@@ -389,21 +391,36 @@ export class PositionMonitorService {
         return;
       }
 
-      // V410: Refresh per-user MONITOR_TICK interval overrides. We collect the
-      // distinct userIds in this cycle and load each user's lifecycle settings
-      // in parallel. Results are cached in monitorTickIntervalByUser for the
-      // rest of this cycle (1s). Non-fatal on error — falls back to env default.
-      try {
-        const distinctUserIds = [...new Set(positions.map((p: any) => p.userId))];
-        await Promise.all(distinctUserIds.map(async (uid) => {
-          try {
-            const userSettings = await loadUserLifecycleSettings(this.prisma, uid);
-            this.monitorTickIntervalByUser.set(uid, userSettings.monitorTickLogIntervalMs);
-          } catch {
-            // Keep existing value (or default)
-          }
-        }));
-      } catch { /* non-critical */ }
+      // V410→V416 FIX: Cache lifecycle settings for 5 minutes instead of
+      // querying DB every cycle (every 1 second). V410's per-cycle DB queries
+      // (9 users × 4 queries = 36 queries/second) exhausted Prisma's connection
+      // pool, causing balance calculations in credentials.service.ts to fail
+      // or timeout — corrupting the equity/balance display.
+      // FIX: Only refresh settings every 5 minutes (300000ms).
+      const LIFECYCLE_CACHE_TTL_MS = 300000; // 5 minutes
+      const now = Date.now();
+      let needsRefresh = false;
+      const distinctUserIds = [...new Set(positions.map((p: any) => p.userId))];
+      for (const uid of distinctUserIds) {
+        const lastLoad = this.lifecycleSettingsLastLoad.get(uid) || 0;
+        if (now - lastLoad > LIFECYCLE_CACHE_TTL_MS) {
+          needsRefresh = true;
+          break;
+        }
+      }
+      if (needsRefresh) {
+        try {
+          await Promise.all(distinctUserIds.map(async (uid) => {
+            try {
+              const userSettings = await loadUserLifecycleSettings(this.prisma, uid);
+              this.monitorTickIntervalByUser.set(uid, userSettings.monitorTickLogIntervalMs);
+              this.lifecycleSettingsLastLoad.set(uid, now);
+            } catch {
+              // Keep existing cached value (or default)
+            }
+          }));
+        } catch { /* non-critical */ }
+      }
 
       this.logger.debug(`🛡️ Monitoring ${positions.length} open positions`);
 

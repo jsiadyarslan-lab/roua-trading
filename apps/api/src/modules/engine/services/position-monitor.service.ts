@@ -889,11 +889,16 @@ export class PositionMonitorService {
     // Now: Agent positions check SL/TP first (like before), but then
     // fall through to the MAX_HOLDING_TIME check (48h for Agents).
     if (isAgentPosition) {
-      // SL check for agent — V228: use effectiveLow/effectiveHigh to capture peaks missed between ticks
+      // V438: SL check for agent — use currentPrice ONLY (not 24h quote extremes).
+      // V228 used effectiveLow/effectiveHigh which incorporate quote.high/quote.low
+      // (24h ticker). These 24h extremes include prices from BEFORE the position
+      // was opened, causing false SL hits and instant closures (1-5 seconds).
+      // FIX: Only use currentPrice for SL/TP decisions. effectiveHigh/effectiveLow
+      // are still used for highestPrice/lowestPrice tracking (audit only).
       if (stopLossNum !== null) {
-        const agentSlHit = position.side === 'BUY' ? effectiveLow <= stopLossNum : effectiveHigh >= stopLossNum;
+        const agentSlHit = position.side === 'BUY' ? currentPrice <= stopLossNum : currentPrice >= stopLossNum;
         if (agentSlHit) {
-          this.logger.warn(`🚨 AGENT SL HIT: ${position.symbol} @ ${stopLossNum} (effectiveLow=${effectiveLow}, effectiveHigh=${effectiveHigh}, currentPrice=${currentPrice}, SL: ${stopLossNum})`);
+          this.logger.warn(`🚨 AGENT SL HIT: ${position.symbol} @ ${stopLossNum} (currentPrice=${currentPrice}, SL: ${stopLossNum})`);
           // V228: Close at the SL price (paper trading) — same as non-agent path below.
           // This guarantees the trader gets the SL price they set, not a worse price from slippage.
           const isPaper = position.isPaperTrading === true || position.source === 'auto_paper' || position.exchange === 'paper-trading';
@@ -909,11 +914,11 @@ export class PositionMonitorService {
           return result;
         }
       }
-      // TP check for agent — V228: use effectiveHigh/effectiveLow to capture peaks missed between ticks
+      // V438: TP check for agent — use currentPrice ONLY (not 24h quote extremes).
       if (takeProfitNum !== null) {
-        const agentTpHit = position.side === 'BUY' ? effectiveHigh >= takeProfitNum : effectiveLow <= takeProfitNum;
+        const agentTpHit = position.side === 'BUY' ? currentPrice >= takeProfitNum : currentPrice <= takeProfitNum;
         if (agentTpHit) {
-          this.logger.warn(`🎯 AGENT TP HIT: ${position.symbol} @ ${takeProfitNum} (effectiveHigh=${effectiveHigh}, effectiveLow=${effectiveLow}, currentPrice=${currentPrice}, TP: ${takeProfitNum})`);
+          this.logger.warn(`🎯 AGENT TP HIT: ${position.symbol} @ ${takeProfitNum} (currentPrice=${currentPrice}, TP: ${takeProfitNum})`);
           // V228: Close at the TP price — same as non-agent path. The trader set TP, they get TP.
           const isPaper = position.isPaperTrading === true || position.source === 'auto_paper' || position.exchange === 'paper-trading';
           const agentTpClosePrice = isPaper ? takeProfitNum : currentPrice;
@@ -1205,18 +1210,20 @@ export class PositionMonitorService {
     // V187: Skip duplicate SL/TP checks for Agent positions — already checked above
     if (!isAgentPosition) {
     if (stopLossNum !== null) {
-      // V228 FIX: Use effectiveLow (for BUY) / effectiveHigh (for SELL) to capture peaks missed between ticks.
-      // The 10-second monitor interval can miss brief SL touches that happen and reverse before the next tick.
-      // effectiveLow/effectiveHigh incorporate quote.high/low (24h ticker from Binance) when they represent
-      // NEW extremes since the last tick (i.e., higher than position.highestPrice / lower than position.lowestPrice).
+      // V438: Use currentPrice ONLY for SL check (not 24h quote extremes).
+      // V228 used effectiveLow/effectiveHigh which incorporate quote.high/quote.low
+      // (24h ticker). These 24h extremes include prices from BEFORE the position
+      // was opened, causing false SL hits and instant closures (1-5 seconds).
+      // FIX: Only use currentPrice for SL/TP decisions. effectiveHigh/effectiveLow
+      // are still used for highestPrice/lowestPrice tracking (audit only).
       const slHit =
         position.side === 'BUY'
-          ? effectiveLow <= stopLossNum
-          : effectiveHigh >= stopLossNum;
+          ? currentPrice <= stopLossNum
+          : currentPrice >= stopLossNum;
 
       if (slHit) {
         this.logger.warn(
-          `🚨 STOP-LOSS TRIGGERED: ${position.symbol} @ ${stopLossNum} (effectiveLow=${effectiveLow}, effectiveHigh=${effectiveHigh}, currentPrice=${currentPrice}, SL: ${stopLossNum})`,
+          `🚨 STOP-LOSS TRIGGERED: ${position.symbol} @ ${stopLossNum} (currentPrice=${currentPrice}, SL: ${stopLossNum})`,
         );
 
         // V223 FIX: Close at the SL price (paper trading only), not at currentPrice.
@@ -1259,19 +1266,20 @@ export class PositionMonitorService {
     }
 
     // ── Take-Profit Check ──
-    // V228 FIX: Use effectiveHigh (for BUY) / effectiveLow (for SELL) to capture peaks missed between ticks.
-    // This is the CRITICAL fix for the systematic loss pattern: previously, TP only triggered when
-    // currentPrice >= takeProfit (BUY) at the exact 10s tick. If price touched TP for 1-3 seconds
-    // between ticks and then retraced, TP was missed. With effectiveHigh, we capture those peaks.
+    // V438: Use currentPrice ONLY for TP check (not 24h quote extremes).
+    // V228 used effectiveHigh/effectiveLow which incorporate quote.high/quote.low
+    // (24h ticker). These 24h extremes include prices from BEFORE the position
+    // was opened, causing false TP hits.
+    // FIX: Only use currentPrice for SL/TP decisions.
     if (takeProfitNum !== null) {
       const tpHit =
         position.side === 'BUY'
-          ? effectiveHigh >= takeProfitNum
-          : effectiveLow <= takeProfitNum;
+          ? currentPrice >= takeProfitNum
+          : currentPrice <= takeProfitNum;
 
       if (tpHit) {
         this.logger.warn(
-          `🎯 TAKE-PROFIT TRIGGERED: ${position.symbol} @ ${takeProfitNum} (effectiveHigh=${effectiveHigh}, effectiveLow=${effectiveLow}, currentPrice=${currentPrice}, TP: ${takeProfitNum})`,
+          `🎯 TAKE-PROFIT TRIGGERED: ${position.symbol} @ ${takeProfitNum} (currentPrice=${currentPrice}, TP: ${takeProfitNum})`,
         );
 
         // V228 FIX: Close at the TP price (paper trading), not at currentPrice.

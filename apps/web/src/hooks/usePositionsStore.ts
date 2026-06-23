@@ -1054,8 +1054,11 @@ export const usePositionsStore = create<PositionsState>()(
                 effectiveCash   = paperBalanceFallback
                 effectiveEquity = paperBalanceFallback + positionsUnrealizedPnl
               } else {
+                // V425: Don't compute cash as equity - PnL (timing mismatch causes balance to drift).
+                // Instead, use adjustedTotalBalanceUsd from backend (true balance).
+                // If that's not available, use the previous cash value (stable).
+                effectiveCash = adjustedTotalBalanceUsd > 0 ? adjustedTotalBalanceUsd : (prevAccount?.cash || adjustedTotalEquityUsd - positionsUnrealizedPnl)
                 effectiveEquity = adjustedTotalEquityUsd
-                effectiveCash = adjustedTotalEquityUsd - positionsUnrealizedPnl
               }
             } else {
               // Safety net: should never reach here with V171 backend fix

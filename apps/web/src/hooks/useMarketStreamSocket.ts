@@ -4,41 +4,41 @@ import { useEffect, useRef } from 'react';
 import { useMarketStore, type QuoteData } from './useMarketStore';
 
 /**
- * V390: useMarketStreamSocket — UNIFIED real-time price stream via Socket.IO.
+ * useMarketStreamSocket — Unified real-time price stream via Socket.IO.
  *
- * This is the SINGLE source of truth for ALL price updates:
- *   - Crypto (BTC/USDT, ETH/USDT, ...) ← BinanceStreamingService (NestJS)
- *   - Forex/Metals/Indices (EUR/USD, XAU/USD, ...) ← OandaStreamingService (NestJS)
- *   - Stocks (AAPL, TSLA, ...) ← polling cycle (NestJS, 5s)
+ * ARCHITECTURE:
+ *   Binance WS → BinanceStreamingService ─┐
+ *   OANDA Stream → OandaStreamingService ──┤→ ExchangeGateway → Socket.IO → THIS HOOK
+ *   REST polling → ExchangeService ────────┘     (/exchange)         ↓
+ *                                                           useMarketStore.setQuote()
+ *                                                                   ↓
+ *                                                           MobileTickerStrip / Watchlist / Chart
  *
- * Architecture:
- *   Data sources → NestJS ExchangeGateway → Socket.IO /exchange namespace
- *     → THIS HOOK receives 'ticker' events
- *     → useMarketStore.setQuote()
- *     → TickerBar / Watchlist / chart label re-render SUB-SECOND
+ * CRITICAL DESIGN DECISIONS (do NOT change without understanding why):
  *
- * This REPLACES:
- *   - useOandaStreamSocket (V387) — was OANDA-only
- *   - BinanceWSManager (in useMarketStore.ts) — was frontend-direct-to-Binance
+ * 1. transports: ['polling'] ONLY
+ *    WebSocket upgrade fails through Next.js rewrite proxy on Railway.
+ *    Polling works reliably (~200ms latency, acceptable for trading).
+ *    DO NOT add 'websocket' to transports — it will break all prices.
  *
- * The previous split architecture had 3 separate price paths:
- *   1. BinanceWSManager (frontend → Binance WS direct) for crypto
- *   2. useOandaStreamSocket (frontend → NestJS Socket.IO) for forex
- *   3. MarketProvider polling (frontend → NestJS REST) for stocks
+ * 2. Singleton socket (_getOrCreateSocket)
+ *    One Socket.IO connection for the entire app (MarketProvider mounts once).
+ *    The socket persists across React re-renders. onTick closure from first
+ *    mount is reused — this is intentional (useMarketStore.getState() always
+ *    returns the latest store).
  *
- * Now there's ONE path:
- *   frontend → NestJS Socket.IO → (Binance WS | OANDA Stream | REST polling)
+ * 3. No mountedRef check in onTick
+ *    useMarketStore is a global Zustand store. Writing to it when the
+ *    component is unmounted is harmless (no React rendering happens until
+ *    a mounted component reads it). The mountedRef check was removed because
+ *    the singleton retains old closures where mountedRef.current = false.
  *
- * Benefits:
- *   - Single connection (vs 2+ before)
- *   - Auth on all market data (Binance WS was unauthenticated before)
- *   - Can swap providers without touching frontend
- *   - If Binance blocks Railway IP, only NestJS needs to handle it
- *   - Stocks now get sub-5s updates (was 60s polling before)
+ * 4. reconnectionAttempts: 5
+ *    After 5 failed reconnection attempts, Socket.IO stops and REST polling
+ *    fallback (MarketProvider, every 15s) takes over. Page refresh resets.
  */
 
-// All symbols this hook subscribes to — matches MarketProvider's GLOBAL_SYMBOLS.
-// Kept in sync manually to avoid circular import.
+// All symbols this hook subscribes to.
 const ALL_SYMBOLS = [
   // Crypto (Binance stream)
   'BTC/USDT', 'ETH/USDT', 'BTC/USD', 'ETH/USD', 'SOL/USD', 'BNB/USD',
@@ -60,9 +60,6 @@ const ALL_SYMBOLS = [
 let _socket: any = null;
 let _refCount = 0;
 let _subscribedSymbols = new Set<string>();
-let _reconnectTimer: any = null;
-let _tickerCount = 0; // V407: Count received ticker events for diagnostics
-let _lastTickerLog = 0;
 
 function _getOrCreateSocket(onTick: (symbol: string, data: any) => void): any {
   if (_socket) return _socket;

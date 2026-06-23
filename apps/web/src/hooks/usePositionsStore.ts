@@ -1092,6 +1092,7 @@ export const usePositionsStore = create<PositionsState>()(
 
           const account = {
             equity: effectiveEquity,
+            balance: effectiveCash,  // V424: True balance (without floating PnL) — separate from equity
             cash: effectiveCash,
             buyingPower: Math.max(0, effectiveEquity - usedMargin),
             portfolioValue: effectiveEquity,
@@ -1392,6 +1393,7 @@ export const usePositionsStore = create<PositionsState>()(
     set({
       account: {
         equity: DEFAULT_NEW_USER_BALANCE + finalPnl,
+        balance: DEFAULT_NEW_USER_BALANCE,  // V424: True balance without PnL
         cash: DEFAULT_NEW_USER_BALANCE,
         buyingPower: DEFAULT_NEW_USER_BALANCE,
         portfolioValue: DEFAULT_NEW_USER_BALANCE + finalPnl,

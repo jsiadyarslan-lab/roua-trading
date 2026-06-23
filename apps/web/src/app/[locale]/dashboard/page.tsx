@@ -1294,7 +1294,7 @@ export default function DashboardPage() {
   }, [globalQuotes, selectedSymbol])
 
   const mobileSummaryCards = [
-    { label: tc('balance'), value: formatMoney(account?.equity), tone: T.text },
+    { label: tc('balance'), value: formatMoney(account?.balance ?? account?.equity), tone: T.text },
     { label: tc('buyingPower'), value: formatMoney(account?.buyingPower), tone: T.success },
     { label: tc('positions'), value: `${positions.length}`, tone: T.cyan },
   ]
@@ -1595,7 +1595,7 @@ export default function DashboardPage() {
             {/* معلومات الرصيد */}
             <div style={{ textAlign:'right' }}>
               <div style={{ fontSize:13, fontWeight:800, color:'#E8ECF4', fontFamily:"'JetBrains Mono',monospace" }}>
-                ${(Number(account?.equity) || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}
+                ${(Number(account?.balance ?? account?.equity) || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}
               </div>
               <div style={{ fontSize:12, fontWeight:700, color: (Number(account?.unrealizedPnl)||0)>=0?'#00FFA3':'#FF4757', fontFamily:"'JetBrains Mono',monospace" }}>
                 {(Number(account?.unrealizedPnl)||0)>=0?'+':''}{(Number(account?.unrealizedPnl)||0).toFixed(2)}$
@@ -1978,7 +1978,7 @@ export default function DashboardPage() {
                   <div style={{ marginTop:6 }}>
                     <div style={{ fontSize:9, color:'#8090A8', fontFamily:"'Cairo',sans-serif", marginBottom:2 }}>الرصيد الحالي</div>
                     <div style={{ fontSize:13, fontWeight:700, color:'#B0C0D0', fontFamily:"'JetBrains Mono',monospace" }}>
-                      ${(Number(account?.equity)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
+                      ${(Number(account?.balance ?? account?.equity)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
                     </div>
                   </div>
                 </div>

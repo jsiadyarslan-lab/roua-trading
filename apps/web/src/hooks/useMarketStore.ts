@@ -4,6 +4,8 @@ import { create } from 'zustand'
 // sole source of crypto prices. The direct browser → Binance WS connection was
 // removed in V403. This file is now a simple Zustand store with no side effects.
 
+let _setQuoteCount = 0;
+
 export interface QuoteData {
   symbol: string
   name: string
@@ -38,9 +40,17 @@ export const useMarketStore = create<MarketStore>((set) => ({
   // all subscribed components to re-render. Performance is acceptable:
   // ~10 updates/sec × 24 symbols = 240 re-renders/sec, but TickerBar and
   // Watchlist are simple components with fast reconciliation.
-  setQuote: (symbol, data) => set((state) => ({
+  setQuote: (symbol, data) => {
+    // V430: Log setQuote calls to verify they fire
+    if (!_setQuoteCount) _setQuoteCount = 0;
+    _setQuoteCount++;
+    if (_setQuoteCount <= 5 || _setQuoteCount % 100 === 0) {
+      console.warn(`[useMarketStore] V430: setQuote #${_setQuoteCount} for ${symbol} = ${data.price}`)
+    }
+    set((state) => ({
     quotes: { ...state.quotes, [symbol]: data }
-  })),
+  }))
+  },
   setQuotes: (data) => set((state) => ({
     quotes: { ...state.quotes, ...data }
   }))

@@ -664,7 +664,7 @@ export class TradingService {
       const usedMargin = positions.reduce(
         (sum, p) => sum + calculateMargin(
           typeof p.quantity === 'number' ? p.quantity : Number(p.quantity),
-          Number(p.currentPrice) || Number(p.entryPrice),
+          Number(p.entryPrice),  // V426: Use entryPrice (stable) not currentPrice (moves)
           p.symbol,
         ),
         0,

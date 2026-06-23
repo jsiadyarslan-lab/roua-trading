@@ -32,11 +32,17 @@ import { ExchangeGateway } from '../../exchange/gateway/exchange.gateway';
 export class MarketBroadcasterService {
   private readonly logger = new Logger(MarketBroadcasterService.name);
 
-  /** Symbols currently being tracked */
+  /** Symbols currently being tracked
+   * V430 FIX: Removed symbols that have live streaming via Binance WS or
+   * OANDA Stream. Those symbols already get sub-second updates through
+   * ExchangeGateway — polling them here wastes API credits and creates
+   * duplicate broadcasts that the frontend ignores (it only listens to
+   * 'ticker' events, not 'market:update').
+   *
+   * Only stocks (no streaming) remain — they need polling for updates.
+   */
   private trackedSymbols: Set<string> = new Set([
-    'BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT', 'XRP/USDT',
     'AAPL', 'TSLA', 'NVDA', 'MSFT', 'GOOGL',
-    'EUR/USD', 'GBP/USD', 'USD/JPY', 'XAU/USD',
   ]);
 
   /** Minimum price change % to broadcast — V139: reduced from 0.5% to 0.1% for more frequent updates */

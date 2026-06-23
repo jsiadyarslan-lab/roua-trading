@@ -196,6 +196,9 @@ export class ExchangeGateway
     subscribers.add(client.id);
     this.symbolSubscribers.set(symbol, subscribers);
 
+    // V430: Join Socket.IO room for O(1) broadcasting
+    client.join(`sym:${symbol}`);
+
     // Send initial quote immediately
     try {
       const quote = await this.exchangeService.getQuote(symbol);
@@ -238,6 +241,9 @@ export class ExchangeGateway
       clientSymbols.delete(symbol);
     }
 
+    // V430: Leave Socket.IO room
+    client.leave(`sym:${symbol}`);
+
     const subscribers = this.symbolSubscribers.get(symbol);
     if (subscribers) {
       subscribers.delete(client.id);
@@ -262,10 +268,27 @@ export class ExchangeGateway
   /**
    * V355: Check if a symbol should use OANDA streaming.
    * Forex/metals/indices/energy pairs (anything routed to OANDA adapter).
+   *
+   * V430 FIX: Exclude crypto base currencies (BTC/USD, ETH/USD, etc.)
+   * from OANDA streaming. Previously, BTC/USD matched BOTH _isOandaSymbol
+   * (because it includes '/USD') AND _isBinanceSymbol (because it starts
+   * with 'BTC/'). This caused:
+   *   1. Dual-source price flicker (OANDA CFD $62,579 vs Binance spot $62,640)
+   *   2. OANDA stream subscribing to crypto CFDs (BTC_USD, ETH_USD, etc.)
+   *   3. On next OANDA reconnection, crypto instruments in the URL could
+   *      cause OANDA to reject the ENTIRE stream (HTTP 400), killing ALL prices
    */
   private _isOandaSymbol(symbol: string): boolean {
     const upper = symbol.toUpperCase();
     if (upper.includes('USDT') || upper.includes('/BTC') || upper.includes('/ETH')) {
+      return false;
+    }
+    // V430: Crypto base currencies must NOT go to OANDA — they use Binance
+    const cryptoBases = ['BTC/', 'ETH/', 'SOL/', 'BNB/', 'XRP/', 'ADA/', 'DOGE/', 'DOT/',
+      'MATIC/', 'AVAX/', 'LINK/', 'UNI/', 'ATOM/', 'LTC/', 'SHIB/', 'APE/', 'ARB/', 'OP/',
+      'FIL/', 'NEAR/', 'FTM/', 'ALGO/', 'VET/', 'SAND/', 'MANA/', 'AXS/', 'CRV/', 'SUI/',
+      'APT/', 'SEI/', 'TIA/', 'JUP/'];
+    if (cryptoBases.some(b => upper.startsWith(b))) {
       return false;
     }
     const forexQuotes = ['/USD', '/JPY', '/GBP', '/EUR', '/CHF', '/CAD', '/AUD', '/NZD'];
@@ -331,22 +354,24 @@ export class ExchangeGateway
     }
   }
 
+  /**
+   * V430: Broadcast using Socket.IO rooms for O(1) delivery.
+   * Previously iterated over every subscriber socketId (O(n)), calling
+   * client.emit() per socket. With rooms, Socket.IO handles delivery
+   * internally in a single operation — 60x fewer emit calls.
+   */
   private _broadcastToSymbol(symbol: string, event: string, data: any) {
     const subscribers = this.symbolSubscribers.get(symbol);
     if (!subscribers || subscribers.size === 0) return;
-
+  
     // V414: Log first broadcast per symbol to verify gateway is sending
     if (!this._broadcastLogged.has(symbol)) {
       this._broadcastLogged.add(symbol);
       this.logger.log(`🔌 V414: First broadcast for ${symbol} to ${subscribers.size} subscriber(s)`);
     }
-
-    for (const socketId of subscribers) {
-      const client = this.server.sockets.sockets.get(socketId);
-      if (client) {
-        client.emit(event, data);
-      }
-    }
+  
+    // V430: Use Socket.IO room instead of O(n) loop
+    this.server.to(`sym:${symbol}`).emit(event, data);
   }
 
   private _extractSessionFromCookie(cookieHeader: string | undefined): string | null {

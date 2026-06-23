@@ -234,6 +234,13 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
+  // V430: In-flight deduplication for cacheOrGet — prevents thundering herd.
+  // When the cache expires and multiple callers request the same key simultaneously,
+  // only the FIRST caller runs the factory; all others await the same Promise.
+  // Without this, 5 concurrent position-monitor cycles could trigger 5 OANDA REST
+  // API calls for the same symbol at the same time.
+  private inflightCacheOrGet = new Map<string, Promise<any>>();
+
   async cacheOrGet<T>(key: string, factory: () => Promise<T>, ttlMs: number): Promise<T> {
     if (!this.isAvailable) {
       // No cache — just run the factory
@@ -248,9 +255,24 @@ export class RedisService implements OnModuleDestroy {
       }
     }
 
-    const value = await factory();
-    await this.set(key, JSON.stringify(value), ttlMs);
-    return value;
+    // V430: Deduplicate concurrent factory calls for the same key
+    const existing = this.inflightCacheOrGet.get(key);
+    if (existing) {
+      return existing as Promise<T>;
+    }
+
+    const promise = (async () => {
+      try {
+        const value = await factory();
+        await this.set(key, JSON.stringify(value), ttlMs);
+        return value;
+      } finally {
+        this.inflightCacheOrGet.delete(key);
+      }
+    })();
+
+    this.inflightCacheOrGet.set(key, promise);
+    return promise;
   }
 
   async scanKeys(pattern: string, count: number = 100): Promise<string[]> {

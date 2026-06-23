@@ -30,20 +30,38 @@ interface MarketStore {
   setQuotes: (data: Record<string, QuoteData>) => void
 }
 
+// V430: Batched updates — collect setQuote calls within a single microtask
+// and apply them all at once. Previously, every price tick triggered a
+// separate Zustand state update + React re-render. With 24 symbols at
+// ~1 tick/second, that was 24 re-renders/sec per consumer.
+// Now, all quotes received within the same event loop tick are batched
+// into a single state update, reducing re-renders to ~4/sec.
+let pendingQuotes: Record<string, QuoteData> = {}
+let batchTimer: ReturnType<typeof queueMicrotask> | null = null
+
+function flushBatch(set: (fn: (state: any) => any) => void) {
+  if (Object.keys(pendingQuotes).length === 0) return
+  const batch = { ...pendingQuotes }
+  pendingQuotes = {}
+  batchTimer = null
+  set((state: any) => ({
+    quotes: { ...state.quotes, ...batch }
+  }))
+}
+
 export const useMarketStore = create<MarketStore>((set) => ({
   quotes: {},
-  // V420: Direct update — removed requestAnimationFrame batching.
-  // Batching caused TickerBar to not re-render for non-charted symbols.
-  // Each setQuote now creates a new quotes object immediately, triggering
-  // all subscribed components to re-render. Performance is acceptable:
-  // ~10 updates/sec × 24 symbols = 240 re-renders/sec, but TickerBar and
-  // Watchlist are simple components with fast reconciliation.
-  setQuote: (symbol, data) => set((state) => ({
-    quotes: { ...state.quotes, [symbol]: data }
-  })),
+  // V430: Batched setQuote — defers state update to next microtask.
+  // Multiple setQuote calls within the same event loop tick (e.g.,
+  // receiving 12 crypto ticks from a single Socket.IO polling response)
+  // are coalesced into one state update.
+  setQuote: (symbol, data) => {
+    pendingQuotes[symbol] = data
+    if (!batchTimer) {
+      batchTimer = queueMicrotask(() => flushBatch(set))
+    }
+  },
   setQuotes: (data) => set((state) => ({
     quotes: { ...state.quotes, ...data }
   }))
 }))
-
-

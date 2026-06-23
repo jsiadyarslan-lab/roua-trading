@@ -242,31 +242,69 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  // V430: Per-symbol OHLC accumulators for _updateRedisCache.
+  // Previously, _updateRedisCache wrote flat OHLC (open=high=low=close=price),
+  // which completely neutralized the V228 "inter-tick TP detection" fix in
+  // PositionMonitorService. When the OandaAdapter served a stream-cached quote,
+  // effectiveHigh === effectiveLow === currentPrice, meaning TP/SL hits between
+  // monitor ticks were NEVER detected for forex/metals positions.
+  //
+  // Now: open is set at session start (first tick of each day), high/low are
+  // accumulated across all ticks, close = latest price. This mirrors what
+  // BinanceStreamingService already does with the 24hrTicker data.
+  private quoteOHLC = new Map<string, { open: number; high: number; low: number; change: number; changePercent: number; dayStart: number }>();
+
   /**
-   * V358: Update Redis cache with streamed price.
+   * V358→V430: Update Redis cache with streamed price — NOW WITH PROPER OHLC.
    * This writes to the SAME cache key that OandaAdapter.fetchQuote() reads:
    *   `oanda:quote:${symbol}`
    *
    * When the frontend polls /api/exchange/quote/EUR/USD, the OANDA adapter
    * checks this cache first. If the streaming service has written a fresh
-   * price (within 2s TTL), the adapter returns it WITHOUT making a REST API
+   * price (within 5s TTL), the adapter returns it WITHOUT making a REST API
    * call to OANDA. This gives near-real-time prices via simple REST polling.
+   *
+   * V430 FIX: Previously wrote open=high=low=close=price (flat OHLC), which
+   * broke PositionMonitor's V228 inter-tick TP/SL detection. Now tracks
+   * proper daily OHLC accumulators per symbol.
    */
   private async _updateRedisCache(update: OandaPriceUpdate): Promise<void> {
     try {
-      const cacheKey = `oanda:quote:${update.symbol}`;
+      const symbol = update.symbol;
+      const price = update.price;
+      const nowMs = update.timestamp || Date.now();
+      const dayStart = Math.floor(nowMs / 86_400_000); // Changes at midnight UTC
+
+      let ohlc = this.quoteOHLC.get(symbol);
+      if (!ohlc || ohlc.dayStart !== dayStart) {
+        // New trading day — reset accumulators.
+        // For the first tick of the day, open = price (we don't have the
+        // actual session open from the stream — that comes from REST API).
+        // When OandaAdapter falls through to REST (cache miss), it gets
+        // the proper open from M1 candles. The stream's open is best-effort.
+        ohlc = { open: price, high: price, low: price, change: 0, changePercent: 0, dayStart };
+        this.quoteOHLC.set(symbol, ohlc);
+      } else {
+        ohlc.high = Math.max(ohlc.high, price);
+        ohlc.low = Math.min(ohlc.low, price);
+        // Approximate daily change: price vs day's open
+        ohlc.change = price - ohlc.open;
+        ohlc.changePercent = ohlc.open > 0 ? (ohlc.change / ohlc.open) * 100 : 0;
+      }
+
+      const cacheKey = `oanda:quote:${symbol}`;
       const quoteData = {
-        symbol: update.symbol,
-        name: update.symbol,
+        symbol,
+        name: symbol,
         exchange: 'OANDA',
-        currency: update.symbol.split('/')[1] || 'USD',
-        price: update.price,
-        change: 0,
-        changePercent: 0,
-        open: update.price,
-        high: update.price,
-        low: update.price,
-        close: update.price,
+        currency: symbol.split('/')[1] || 'USD',
+        price,
+        change: ohlc.change,
+        changePercent: ohlc.changePercent,
+        open: ohlc.open,
+        high: ohlc.high,
+        low: ohlc.low,
+        close: price,
         volume: 0,
         marketCap: null,
         fiftyTwoWeekHigh: null,

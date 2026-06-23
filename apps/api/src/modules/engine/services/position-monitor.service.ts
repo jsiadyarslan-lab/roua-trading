@@ -748,6 +748,36 @@ export class PositionMonitorService {
       return result; // Skip — can't check SL/TP without price
     }
 
+    // V430: Stale quote detection — prevents SL/TP decisions based on outdated prices.
+    // Production evidence: XAU/USD quote was 49 minutes old because OANDA REST
+    // returned a candle from a previous time window. Making SL/TP decisions on
+    // stale prices is dangerous — the market may have moved significantly.
+    const STALE_QUOTE_THRESHOLD_MS = 60_000; // 1 minute
+    const quoteAge = quote?.timestamp ? (Date.now() - new Date(quote.timestamp).getTime()) : 0;
+    const isStaleQuote = quoteAge > STALE_QUOTE_THRESHOLD_MS;
+    if (isStaleQuote) {
+      this.logger.warn(
+        `🛡️ V430 STALE QUOTE: ${position.symbol} price is ${Math.round(quoteAge / 1000)}s old (threshold: ${STALE_QUOTE_THRESHOLD_MS / 1000}s) — skipping SL/TP check, updating PnL only`,
+      );
+      // Still update price/PnL for display, but DON'T make SL/TP decisions
+      const staleEntryPrice = position.entryPrice?.toNumber?.() ?? Number(position.entryPrice);
+      const staleQuantity = position.quantity?.toNumber?.() ?? Number(position.quantity);
+      const unrealizedPnl =
+        position.side === 'BUY'
+          ? (currentPrice - staleEntryPrice) * staleQuantity
+          : (staleEntryPrice - currentPrice) * staleQuantity;
+      priceUpdates.push(
+        this.prisma.position.update({
+          where: { id: position.id },
+          data: {
+            currentPrice,
+            unrealizedPnl,
+          },
+        }),
+      );
+      return result;
+    }
+
     // Extract quote.high/low — fall back to currentPrice if not available
     const quoteHigh = (quote && typeof quote.high === 'number' && quote.high > 0) ? quote.high : currentPrice;
     const quoteLow = (quote && typeof quote.low === 'number' && quote.low > 0) ? quote.low : currentPrice;

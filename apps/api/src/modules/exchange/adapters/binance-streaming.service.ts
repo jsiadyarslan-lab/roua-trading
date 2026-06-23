@@ -195,6 +195,10 @@ export class BinanceStreamingService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Subscribe to price updates for a symbol.
+   * V430: If WebSocket is already connected, dynamically subscribe via
+   * Binance's SUBSCRIBE method instead of requiring a full reconnection.
+   * Binance combined streams support adding/removing individual streams
+   * via JSON messages: {"method":"SUBSCRIBE","params":["linkusdt@ticker"],"id":1}
    */
   subscribe(symbol: string): void {
     const normalized = symbol.toUpperCase();
@@ -204,26 +208,29 @@ export class BinanceStreamingService implements OnModuleInit, OnModuleDestroy {
     this.subscribedSymbols.add(normalized);
     this.logger.log(`💱 Subscribed to ${normalized} (total: ${this.subscribedSymbols.size})`);
 
-    // V405: Don't reconnect if WebSocket is already connected.
-    // Binance combined stream supports adding new symbols only by reconnecting
-    // with the updated stream list. However, reconnecting on every subscribe()
-    // call causes connection storms when the gateway subscribes to many symbols
-    // in rapid succession (which happens when useMarketStreamSocket subscribes
-    // to all 24 symbols on page load).
-    //
-    // The AUTO_SUBSCRIBE_PAIRS list already includes the 12 most common pairs.
-    // Additional subscribe() calls for those pairs are no-ops (already in set).
-    // For pairs NOT in AUTO_SUBSCRIBE_PAIRS, they won't be in the active stream
-    // until the next natural reconnection.
-    //
-    // Only connect if WebSocket is not already open.
-    if (!this.ws || this.ws.readyState !== 1) { // 1 = WebSocket.OPEN
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      // V430: Dynamically subscribe on the existing connection
+      const binanceSymbol = this.toBinanceSymbol(normalized).toLowerCase();
+      try {
+        this.ws.send(JSON.stringify({
+          method: 'SUBSCRIBE',
+          params: [`${binanceSymbol}@ticker`],
+          id: Date.now(),
+        }));
+        this.logger.log(`💱 V430: Dynamically subscribed ${binanceSymbol}@ticker on existing connection`);
+      } catch (err: any) {
+        this.logger.warn(`💱 V430: Dynamic subscribe failed for ${normalized}: ${err.message} — will use next reconnection`);
+      }
+    } else {
+      // Not connected — schedule a connection
       this._scheduleReconnect();
     }
   }
 
   /**
    * Unsubscribe from price updates for a symbol.
+   * V430: If WebSocket is connected, dynamically unsubscribe via
+   * Binance's UNSUBSCRIBE method to avoid full reconnection.
    */
   unsubscribe(symbol: string): void {
     const normalized = symbol.toUpperCase();
@@ -235,6 +242,19 @@ export class BinanceStreamingService implements OnModuleInit, OnModuleDestroy {
 
     if (this.subscribedSymbols.size === 0) {
       this._cleanup();
+    } else if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      // V430: Dynamically unsubscribe on the existing connection
+      const binanceSymbol = this.toBinanceSymbol(normalized).toLowerCase();
+      try {
+        this.ws.send(JSON.stringify({
+          method: 'UNSUBSCRIBE',
+          params: [`${binanceSymbol}@ticker`],
+          id: Date.now(),
+        }));
+        this.logger.log(`💱 V430: Dynamically unsubscribed ${binanceSymbol}@ticker on existing connection`);
+      } catch (err: any) {
+        this.logger.warn(`💱 V430: Dynamic unsubscribe failed for ${normalized}: ${err.message} — will use next reconnection`);
+      }
     } else {
       this._scheduleReconnect();
     }

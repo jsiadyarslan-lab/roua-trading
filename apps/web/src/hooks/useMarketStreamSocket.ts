@@ -74,7 +74,7 @@ function _getOrCreateSocket(onTick: (symbol: string, data: any) => void): any {
 
   const socket = io(`${url}/exchange`, {
     path: '/socket', // V399: Custom path (no dots)
-    transports: ['polling'], // V403: Polling only — WebSocket fails through proxy
+    transports: ['polling'], // V435: Polling only — WebSocket fails through Next.js proxy
     autoConnect: true,
     reconnection: true,
     reconnectionAttempts: 5,

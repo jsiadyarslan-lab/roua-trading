@@ -163,44 +163,6 @@ export class OrderDispatcherService {
         return { success: false, message: `تم إغلاق مركز على ${request.symbol} قبل ${closedAgo} دقيقة — انتظر ${COOLDOWN_MINUTES - closedAgo} دقيقة قبل فتح مركز جديد` };
       }
 
-      // V415 CRITICAL FIX: Global position count limit — prevent runaway
-      // position accumulation that breaks balance/equity calculations.
-      //
-      // ROOT CAUSE: SmartExecutor only enforced maxOpenPositions for
-      // non-simulated users (!isSimulated). Paper-trading users had NO
-      // limit — the executor and agent could open unlimited positions,
-      // consuming all paperBalance as margin and corrupting equity display.
-      //
-      // EVIDENCE (2026-06-23): 41 positions open simultaneously for one
-      // user, usedMargin = $8,200+, paperBalance(DB) = $1,800, causing
-      // equity/balance display confusion.
-      //
-      // FIX: Hard cap at MAX_GLOBAL_OPEN_POSITIONS (default 15) per user,
-      // regardless of paper/real. This is the SINGLE enforcement point
-      // because OrderDispatcher is the gateway for ALL auto trades.
-      const MAX_GLOBAL_OPEN_POSITIONS = parseInt(
-        process.env.MAX_GLOBAL_OPEN_POSITIONS || '15', 10
-      );
-      try {
-        const globalOpenCount = await this.prisma.position.count({
-          where: { userId: request.userId, status: 'OPEN' },
-        });
-        if (globalOpenCount >= MAX_GLOBAL_OPEN_POSITIONS) {
-          await this.idempotency.releaseLock(sourceIdempotencyKey);
-          try { await this.idempotency.releaseLock(symbolSourceIdempotencyKey); } catch {}
-          this.logger.warn(
-            `🛡️ V415 GLOBAL_POSITION_LIMIT: User ${request.userId} has ${globalOpenCount}/${MAX_GLOBAL_OPEN_POSITIONS} open positions — BLOCKING new ${request.source} ${request.side} on ${request.symbol}`,
-          );
-          return {
-            success: false,
-            message: `الحد الأقصى للمراتب المفتوحة (${MAX_GLOBAL_OPEN_POSITIONS}) — لا يمكن فتح صفقات جديدة حتى تُغلق بعض المراكز`,
-          };
-        }
-      } catch (countErr: any) {
-        // Non-fatal — if DB count fails, allow the trade (fail-open)
-        this.logger.warn(`V415: Failed to count open positions: ${countErr.message} — allowing trade`);
-      }
-
       const command: OrderCommand = {
         userId: request.userId,
         exchangeCredentialId: request.credentialId,

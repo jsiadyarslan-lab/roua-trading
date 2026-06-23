@@ -69,16 +69,7 @@ export class PositionMonitorService {
    *   - Total: ~6 DB ops/sec (well within Prisma pool capacity)
    */
   private readonly MONITOR_INTERVAL_MS = 1000; // V340: 1 second for SL/TP
-  // V409: Increased from 5s to 60s to stop DB flooding.
-  // ROOT CAUSE: At 5s × 11 positions × 9 users, the platform generated
-  // ~4.3M MONITOR_TICK events per month, bloating the database and
-  // drowning out critical events (OPEN/CLOSE/SL_HIT/TP_HIT).
-  // Empirical evidence: 111,138 events for ONE user in diagnostic query.
-  // SL/TP checks still run every 1s — only the LOGGING is throttled to 60s.
-  // Override via MONITOR_TICK_LOG_INTERVAL_MS env var if needed.
-  private readonly MONITOR_TICK_LOG_INTERVAL_MS = parseInt(
-    process.env.MONITOR_TICK_LOG_INTERVAL_MS || '60000', 10
-  ); // V409: Default 60s (was 5s)
+  private readonly MONITOR_TICK_LOG_INTERVAL_MS = 5000; // V342: Log every 5s
   private lastTickLogTime: Map<string, number> = new Map(); // positionId → last log timestamp
 
   /** Trailing stop activation threshold (% profit) */
@@ -771,34 +762,20 @@ export class PositionMonitorService {
     const entryPriceForCheck = position.entryPrice?.toNumber?.() ?? Number(position.entryPrice);
     const isFirstTick = trackedHigh !== null && trackedHigh === entryPriceForCheck;
 
-    // V414 CRITICAL FIX: Disable quoteHigh/quoteLow for SL/TP checks.
-    //
-    // ROOT CAUSE: effectiveHigh/effectiveLow used quote.high/quote.low from
-    // the 24h Binance ticker. On the 2nd monitor tick (1s after open), these
-    // 24h extremes are compared against SL/TP — and since 24h extremes almost
-    // always exceed SL/TP distances (2-5%), positions close within 1-5 seconds.
-    //
-    // EVIDENCE (2026-06-23): 5 trades closed in 1-5 seconds with SL:
-    //   SOL/USDT: 1s, XRP/USDT: 2s, ADA/USDT: 1s, ETH/USDT: 5s, BNB/USDT: 53s
-    //   ALL hit SL because quoteLow (24h low) was below the SL price.
-    //
-    // FIX: Only use currentPrice for SL/TP checks. The 24h ticker extremes
-    // capture prices from BEFORE the position opened — they should never
-    // trigger SL/TP on a position that was just opened.
-    //
-    // ROLLBACK: Set V414_USE_24H_EXTREMES=true env var to restore old behavior.
-    const USE_24H_EXTREMES = process.env.V414_USE_24H_EXTREMES === 'true';
-    const effectiveHigh = USE_24H_EXTREMES
-      ? ((!isFirstTick && trackedHigh !== null && quoteHigh > trackedHigh)
-          ? Math.max(currentPrice, quoteHigh)
-          : Math.max(currentPrice, trackedHigh ?? currentPrice))
-      : currentPrice;
+    // effectiveHigh: the highest price the market actually reached since the position opened.
+    // If quoteHigh exceeds the previously-tracked high, this is a NEW peak (occurred between ticks).
+    // Use it for TP check. Otherwise, fall back to currentPrice (no new information).
+    // V345: On first tick, DON'T use quoteHigh (it's from before position opened).
+    const effectiveHigh = (!isFirstTick && trackedHigh !== null && quoteHigh > trackedHigh)
+      ? Math.max(currentPrice, quoteHigh)
+      : Math.max(currentPrice, trackedHigh ?? currentPrice);
 
-    const effectiveLow = USE_24H_EXTREMES
-      ? ((!isFirstTick && trackedLow !== null && quoteLow < trackedLow)
-          ? Math.min(currentPrice, quoteLow)
-          : Math.min(currentPrice, trackedLow ?? currentPrice))
-      : currentPrice;
+    // effectiveLow: the lowest price the market actually reached since the position opened.
+    // Same logic as effectiveHigh but inverted.
+    // V345: On first tick, DON'T use quoteLow (it's from before position opened).
+    const effectiveLow = (!isFirstTick && trackedLow !== null && quoteLow < trackedLow)
+      ? Math.min(currentPrice, quoteLow)
+      : Math.min(currentPrice, trackedLow ?? currentPrice);
 
     // V143: For Agent positions, ONLY update price/PnL — no SL/TP checks,
     // no trailing stop modifications. The Agent manages its own SL/TP exits.
@@ -819,8 +796,8 @@ export class PositionMonitorService {
 
     const pnlPercent = (unrealizedPnl / (entryPrice * quantity)) * 100;
 
-    // V339+V340: Log MONITOR_TICK — sampled to reduce DB load.
-    // SL/TP checks still run every 1s, but we only LOG every 60s (V409).
+    // V339+V340: Log MONITOR_TICK — sampled to every 5s to reduce DB load.
+    // SL/TP checks still run every 1s, but we only LOG every 5s.
     // V342: Moved AFTER SL/TP check — don't log tick if position is being closed.
     if (this.getLifecycle()) {
       const now = Date.now();

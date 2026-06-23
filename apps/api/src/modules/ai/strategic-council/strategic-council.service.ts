@@ -26,7 +26,6 @@ import {
   ALL_COUNCIL_PAIRS,
   BINANCE_SUPPORTED_PAIRS,
   OANDA_SUPPORTED_PAIRS,
-  INTERLEAVED_COUNCIL_PAIRS,
   EXECUTOR_TIMEFRAMES,
   AGENT_TIMEFRAMES,
   AGENT_SLOW_TIMEFRAMES,
@@ -312,7 +311,10 @@ export class StrategicCouncilService {
       // Same logic as executor council — see V353 comment block above.
       // V190: Read maxPairsPerSession from DB admin settings
       const councilCfg = await this._getCouncilConfig();
-      const allTradeablePairsAgent = INTERLEAVED_COUNCIL_PAIRS; // V413: balanced mix
+      const allTradeablePairsAgent = [
+        ...BINANCE_SUPPORTED_PAIRS,   // 7 crypto pairs
+        ...OANDA_SUPPORTED_PAIRS,     // 7 forex + 4 commodities + 5 indices = 16 pairs
+      ];
       const agentPairs = allTradeablePairsAgent.slice(0, councilCfg.maxPairsPerSession);
       this.logger.log(`🏛️ V353 Agent Council: analyzing ${agentPairs.length} pairs (maxPairs=${councilCfg.maxPairsPerSession}): ${agentPairs.join(', ')}`);
 
@@ -519,7 +521,10 @@ export class StrategicCouncilService {
       // active exchange supports (isSymbolSupportedByExchange).
       // ═══════════════════════════════════════════════════════════════════
       // V190: Read maxPairsPerSession from DB admin settings
-      const allTradeablePairs = INTERLEAVED_COUNCIL_PAIRS; // V413: balanced mix
+      const allTradeablePairs = [
+        ...BINANCE_SUPPORTED_PAIRS,   // 7 crypto pairs
+        ...OANDA_SUPPORTED_PAIRS,     // 7 forex + 4 commodities + 5 indices = 16 pairs
+      ];
       const executorPairs = allTradeablePairs.slice(0, councilCfg.maxPairsPerSession);
       this.logger.log(`🏛️ V353 Executor Council: analyzing ${executorPairs.length} pairs (maxPairs=${councilCfg.maxPairsPerSession}): ${executorPairs.join(', ')}`);
 

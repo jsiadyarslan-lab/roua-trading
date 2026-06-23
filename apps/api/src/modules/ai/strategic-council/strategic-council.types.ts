@@ -75,7 +75,7 @@ export const COUNCIL_PAIRS = {
   COMMODITIES: ['XAU/USD', 'XAG/USD', 'WTI/USD', 'BRENT/USD'],
   // V353: Indices added for OANDA integration
   INDICES: ['US30/USD', 'NAS100/USD', 'SPX500/USD', 'GER30/USD', 'UK100/USD'],
-};
+} as const;
 
 /** V353: All OANDA-supported pairs (forex + metals + indices + energy).
  *  Used for paper-trading users who can trade ALL pairs (simulation).
@@ -121,32 +121,6 @@ export const ALL_COUNCIL_PAIRS: string[] = [
   ...COUNCIL_PAIRS.COMMODITIES,
   ...COUNCIL_PAIRS.INDICES,
 ];
-
-/** V413: Interleaved council pairs — alternates between categories so that
- *  when maxPairsPerSession limits the list, users get a balanced mix of
- *  crypto + forex + commodities instead of crypto-only.
- *
- *  Before V413: [...CRYPTO, ...FOREX, ...COMMODITIES] → maxPairs=7 → crypto only.
- *  After V413:  [BTC, EUR, XAU, ETH, GBP, WTI, SOL, USD/JPY, BRENT, ...]
- *               → maxPairs=7 → 3 crypto + 3 forex + 1 commodity.
- */
-function interleaveArrays<T>(arrays: T[][]): T[] {
-  const result: T[] = [];
-  const maxLen = Math.max(...arrays.map(a => a.length));
-  for (let i = 0; i < maxLen; i++) {
-    for (const arr of arrays) {
-      if (i < arr.length) result.push(arr[i]);
-    }
-  }
-  return result;
-}
-
-export const INTERLEAVED_COUNCIL_PAIRS: string[] = interleaveArrays([
-  [...COUNCIL_PAIRS.CRYPTO],
-  [...COUNCIL_PAIRS.FOREX],
-  [...COUNCIL_PAIRS.COMMODITIES],
-  [...COUNCIL_PAIRS.INDICES],
-]);
 
 /** Check if a symbol is supported by the given exchange.
  *  V226: Now supports MT5 with forex + commodities + crypto pairs.
@@ -255,29 +229,16 @@ export function isAgentTimeframe(tf: BriefTimeframe): boolean {
  *  analysis fallback which produces confidence=45-48. The old threshold
  *  of 50 rejected ALL technical fallback briefs, causing 0 trades.
  *  A 40% confidence brief with proper SL/TP is safer than no brief.
- *
- *  V408: Raised from 50 to 65 — data analysis of 683 monthly trades showed
- *  WR=36% while avg declared confidence was 75%. Low-confidence briefs (50-64%)
- *  were responsible for disproportionate losses. Raising the threshold to 65%
- *  filters out weak signals, reducing monthly trades from ~683 to ~200 with
- *  expected WR improvement to ~45%.
- *  Rollback: change back to 50.
  */
-export const MIN_BRIEF_CONFIDENCE = 50; // V421: Reverted from 65 to 50 (original V175 value)
+export const MIN_BRIEF_CONFIDENCE = 50; // V175: رُفع من 40 إلى 50
 
 /** Minimum consensus score to issue a brief — lowered from 60 to 50 to 40
  *  With 8 AI models, votes are often split. 60% was too strict and
  *  caused most consensus results to be rejected, producing zero Briefs.
  *  40% = allows even weak directional consensus to produce briefs.
  *  Risk management (SL/TP) handles downside protection.
- *
- *  V408: Raised from 55 to 70 — paired with MIN_BRIEF_CONFIDENCE=65 to
- *  enforce stronger consensus before issuing any brief. This is the
- *  filtering threshold checked at strategic-council.service.ts:1693.
- *  Briefs with consensus 55-69% will now be rejected.
- *  Rollback: change back to 55.
  */
-export const MIN_CONSENSUS_SCORE = 55; // V421: Reverted from 70 to 55 (original value)
+export const MIN_CONSENSUS_SCORE = 55; // V175: رُفع من 40 إلى 55 — إشارات أقل لكن جودة أعلى
 
 export const AGENT_FAST_TIMEFRAMES: BriefTimeframe[] = ['M30', 'H1'];
 export const AGENT_SLOW_TIMEFRAMES: BriefTimeframe[] = ['H4', 'D1', 'W1'];

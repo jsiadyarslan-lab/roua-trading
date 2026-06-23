@@ -1605,24 +1605,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
 
     if (usingCouncilBriefs) {
       // ── COUNCIL-BASED EXECUTION: Execute agent briefs from the Council ──
-      // V409: Per-cycle trade cap — prevent batch opening of N positions
-      // in a single cron tick. ROOT CAUSE: Agent cron (*/1 * * * *) was
-      // opening 11 positions in the same second when 11 fresh briefs were
-      // available. This caused overtrading and correlated exposure.
-      // FIX: Cap new opens per cycle to 3 (configurable via env).
-      const MAX_NEW_OPENS_PER_CYCLE = parseInt(
-        process.env.AGENT_MAX_NEW_OPENS_PER_CYCLE || '3', 10
-      );
-      let newOpensThisCycle = 0;
-
       for (const brief of agentBriefs) {
-        // V409: Stop processing once per-cycle cap is reached
-        if (newOpensThisCycle >= MAX_NEW_OPENS_PER_CYCLE) {
-          this.logger.debug(
-            `🧠 V409: Per-cycle cap reached (${MAX_NEW_OPENS_PER_CYCLE} new opens) — skipping remaining ${agentBriefs.length - newOpensThisCycle} briefs this cycle`,
-          );
-          break;
-        }
         try {
           // V221 FIX: Check cooldown — skip symbols that recently hit SL.
           // The Position Monitor sets cooldown:{userId}:{symbol} after SL,
@@ -1840,26 +1823,6 @@ export class AutonomousTraderAgentService implements OnModuleInit {
             signalsExecuted++;
             state.dailyTradesCount++;
             state.dailyPnL -= (execution.fee || 0);
-
-            // V409: Increment per-cycle counter (used at top of loop)
-            newOpensThisCycle++;
-
-            // V412: Mark brief as EXECUTED so the council history table shows
-            // executed briefs. SmartExecutor does this (line ~2704) but Agent
-            // was missing it — causing 0 executed briefs in the UI even though
-            // trades were happening. Keep isActive=true for other users.
-            try {
-              await this.prisma.tradingBrief.update({
-                where: { id: brief.id },
-                data: {
-                  reviewStatus: 'EXECUTED',
-                  lastReviewedAt: new Date(),
-                },
-              });
-              this.logger.debug(`🧠 V412: Brief ${brief.id} marked EXECUTED by Agent`);
-            } catch (briefUpdateErr: any) {
-              this.logger.warn(`🧠 V412: Failed to mark brief ${brief.id} as EXECUTED: ${briefUpdateErr?.message}`);
-            }
 
             // V187 FIX: Save timeframe to Redis so Position Monitor uses correct MAX_HOLDING.
             // Without this, Position Monitor can't find the timeframe for Agent positions,

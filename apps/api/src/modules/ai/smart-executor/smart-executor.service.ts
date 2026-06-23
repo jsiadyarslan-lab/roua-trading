@@ -95,14 +95,6 @@ export class SmartExecutorService implements OnModuleDestroy {
   /** DB key for persisting Smart Executor user state (survives Redis restart) */
   private readonly DB_USER_STATE_KEY = 'SMART_EXECUTOR_USER_STATE';
 
-  // V409: Per-tick new-opens counter (class property to span _processUserBriefs
-  // and _checkBriefForUser — local variable wouldn't be visible across methods).
-  // Reset at the start of each _processUserBriefs call.
-  private newOpensThisTick: number = 0;
-  private readonly MAX_NEW_OPENS_PER_TICK: number = parseInt(
-    process.env.EXECUTOR_MAX_NEW_OPENS_PER_TICK || '2', 10
-  );
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
@@ -2112,31 +2104,9 @@ export class SmartExecutorService implements OnModuleDestroy {
       // But log clearly so the admin knows the real bottleneck.
     }
 
-    // V407 DISABLED: Auto-close stale positions for SIMULATED accounts.
-    //
-    // ROOT CAUSE (data analysis of 683 monthly trades, 2026-06-22):
-    //   - avgWin = $5.53 (24% of designed TP)
-    //   - avgLoss = $5.84 (58% of designed SL)
-    //   - R/R actual = 0.95 vs designed 2.31
-    //   - 71% of monthly loss ($854/$1,204) was trading costs from overtrading
-    //   - AUTO_STALE closed paper positions after 1h, killing winners before TP
-    //
-    // FIX: Disable the entire AUTO_STALE eviction block via env var guard.
-    // When max positions are reached, new briefs are skipped (the loop below
-    // naturally skips them via openPositionsCount check at line ~2087).
-    // Existing positions are left to hit TP/SL — the only valid exits per V260 design.
-    //
-    // IMPACT: SmartExecutor only. Agent has no AUTO_STALE logic (verified by grep).
-    // Expected: TP hit rate rises from ~10% to ~25%, R/R from 0.95 to ~1.8.
-    //
-    // ROLLBACK: Set V407_AUTO_STALE_ENABLED=true env var OR enable
-    // v407AutoStaleEnabled per-user setting to restore V124 behavior.
-    // V421: Re-enabled AUTO_STALE by default (was disabled by V407).
-    // V407 disabled it to 'stop killing winners' but the real bug was
-    // V414's 24h extremes (now fixed). AUTO_STALE is needed to prevent
-    // unlimited position accumulation that breaks balance/equity.
-    // Set V407_AUTO_STALE_ENABLED=false to disable if needed.
-    if (process.env.V407_AUTO_STALE_ENABLED !== 'false' && openPositionsCount >= executorMaxPositions && isSimulated) {
+    // V124 FIX: Auto-close stale positions for SIMULATED accounts (paper + testnet).
+    // Simulated accounts use virtual funds, so closing stale positions is safe.
+    if (openPositionsCount >= executorMaxPositions && isSimulated) {
       try {
         // FIX: Reduced from 4 hours to 1 hour — paper trading positions should
         // rotate faster to demonstrate the platform's capabilities. A 4-hour
@@ -2228,22 +2198,7 @@ export class SmartExecutorService implements OnModuleDestroy {
     }
 
     // Process each brief
-    // V409: Per-tick trade cap — prevent batch opening of N positions
-    // in a single executor tick (every 10s). ROOT CAUSE: Executor was
-    // opening all eligible briefs in one tick when maxOpenPositions
-    // allowed it, creating correlated exposure.
-    // FIX: Cap new opens per tick to 2 (configurable via env).
-    // Counter is a class property so it's visible from _checkBriefForUser.
-    this.newOpensThisTick = 0; // Reset at start of each tick
-
     for (const brief of briefs) {
-      // V409: Stop processing once per-tick cap is reached
-      if (this.newOpensThisTick >= this.MAX_NEW_OPENS_PER_TICK) {
-        this.logger.debug(
-          `⚔️ V409: Per-tick cap reached (${this.MAX_NEW_OPENS_PER_TICK} new opens) — skipping remaining briefs this tick`,
-        );
-        break;
-      }
       // V177 FIX #15: Correlation check — max 3 correlated crypto positions
       const CRYPTO_CORRELATION_LIMIT = 3;
       try {
@@ -2636,8 +2591,6 @@ export class SmartExecutorService implements OnModuleDestroy {
       const result = await this._executeBriefForUser(userId, brief, currentPrice, userState, portfolioValue);
 
       if (result.success) {
-        // V409: Increment per-tick counter (class property — visible across methods)
-        this.newOpensThisTick++;
         // FIX: Mark as processed in Redis with TTL based on the brief's timeframe.
         // Previously used 24h TTL which blocked new positions for the same pair
         // long after the brief expired. Now the TTL matches the timeframe's natural

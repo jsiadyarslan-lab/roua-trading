@@ -794,20 +794,34 @@ export class PositionMonitorService {
     const entryPriceForCheck = position.entryPrice?.toNumber?.() ?? Number(position.entryPrice);
     const isFirstTick = trackedHigh !== null && trackedHigh === entryPriceForCheck;
 
-    // effectiveHigh: the highest price the market actually reached since the position opened.
-    // If quoteHigh exceeds the previously-tracked high, this is a NEW peak (occurred between ticks).
-    // Use it for TP check. Otherwise, fall back to currentPrice (no new information).
-    // V345: On first tick, DON'T use quoteHigh (it's from before position opened).
-    const effectiveHigh = (!isFirstTick && trackedHigh !== null && quoteHigh > trackedHigh)
-      ? Math.max(currentPrice, quoteHigh)
-      : Math.max(currentPrice, trackedHigh ?? currentPrice);
+    // V414 CRITICAL FIX: Disable quoteHigh/quoteLow for SL/TP checks.
+    //
+    // ROOT CAUSE: effectiveHigh/effectiveLow used quote.high/quote.low from
+    // the 24h Binance ticker. On the 2nd monitor tick (1s after open), these
+    // 24h extremes are compared against SL/TP — and since 24h extremes almost
+    // always exceed SL/TP distances (2-5%), positions close within 1-5 seconds.
+    //
+    // EVIDENCE (2026-06-23): 5 trades closed in 1-5 seconds with SL:
+    //   SOL/USDT: 1s, XRP/USDT: 2s, ADA/USDT: 1s, ETH/USDT: 5s, BNB/USDT: 53s
+    //   ALL hit SL because quoteLow (24h low) was below the SL price.
+    //
+    // FIX: Only use currentPrice for SL/TP checks. The 24h ticker extremes
+    // capture prices from BEFORE the position opened — they should never
+    // trigger SL/TP on a position that was just opened.
+    //
+    // ROLLBACK: Set V414_USE_24H_EXTREMES=true env var to restore old behavior.
+    const USE_24H_EXTREMES = process.env.V414_USE_24H_EXTREMES === 'true';
+    const effectiveHigh = USE_24H_EXTREMES
+      ? ((!isFirstTick && trackedHigh !== null && quoteHigh > trackedHigh)
+          ? Math.max(currentPrice, quoteHigh)
+          : Math.max(currentPrice, trackedHigh ?? currentPrice))
+      : currentPrice;
 
-    // effectiveLow: the lowest price the market actually reached since the position opened.
-    // Same logic as effectiveHigh but inverted.
-    // V345: On first tick, DON'T use quoteLow (it's from before position opened).
-    const effectiveLow = (!isFirstTick && trackedLow !== null && quoteLow < trackedLow)
-      ? Math.min(currentPrice, quoteLow)
-      : Math.min(currentPrice, trackedLow ?? currentPrice);
+    const effectiveLow = USE_24H_EXTREMES
+      ? ((!isFirstTick && trackedLow !== null && quoteLow < trackedLow)
+          ? Math.min(currentPrice, quoteLow)
+          : Math.min(currentPrice, trackedLow ?? currentPrice))
+      : currentPrice;
 
     // V143: For Agent positions, ONLY update price/PnL — no SL/TP checks,
     // no trailing stop modifications. The Agent manages its own SL/TP exits.

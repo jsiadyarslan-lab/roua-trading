@@ -104,10 +104,12 @@ function _getOrCreateSocket(onTick: (symbol: string, data: any) => void): any {
   socket.on('ticker', (payload: { symbol: string; data: any }) => {
     if (!payload || !payload.symbol) return;
     _tickerCount++;
-    // V419: Log first 10 tickers individually to see WHICH symbols arrive
+    // V428: Log every 10th ticker for first 50, then every 100th
     const now = Date.now();
-    if (_tickerCount <= 10) {
-      console.warn(`[useMarketStreamSocket] 📊 Ticker #${_tickerCount}: ${payload.symbol} = ${payload.data?.price}`);
+    if (_tickerCount <= 50) {
+      if (_tickerCount % 10 === 0) {
+        console.warn(`[useMarketStreamSocket] 📊 Ticker #${_tickerCount}: ${payload.symbol} = ${payload.data?.price}`);
+      }
     } else if (_tickerCount % 100 === 0 && now - _lastTickerLog > 10000) {
       console.warn(`[useMarketStreamSocket] 📊 Received ${_tickerCount} tickers total. Latest: ${payload.symbol} = ${payload.data?.price}`);
       _lastTickerLog = now;

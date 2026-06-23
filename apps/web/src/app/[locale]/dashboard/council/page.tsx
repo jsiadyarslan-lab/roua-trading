@@ -17,6 +17,8 @@ import { formatPrice, riskRewardRatio, distancePercent, relativeTime, msRemainin
 import { GlassCard, CircularProgress, ConfidenceBar, LiveDot, SectionHeader, StatTile, SkeletonBlock, StatusPill, DirectionBadge } from '@/components/council/primitives'
 import { CouncilSigil } from '@/components/council/CouncilSigil'
 import { FormattedText, LoadMoreButton } from '@/components/council/FormattedText'
+import { DecisionMatrix } from '@/components/council/DecisionMatrix'
+import { PerformanceDetails } from '@/components/council/PerformanceDetails'
 
 // ═══════════════════════════════════════
 // HELPERS — keys into the locale dictionary instead of hardcoded strings
@@ -56,7 +58,15 @@ export default function CouncilPage() {
   const PAGE_SIZE_ACTIVE = 6
   const PAGE_SIZE_HISTORY = 10
 
-  const SYMBOLS = ['BTC/USDT','ETH/USDT','SOL/USDT','BNB/USDT','XRP/USDT','ADA/USDT','DOGE/USDT']
+  // V413: All supported pairs organized by category — replaces the old 7-pair hardcoded list
+  const SYMBOL_CATEGORIES = {
+    Crypto:     ['BTC/USDT','ETH/USDT','SOL/USDT','BNB/USDT','XRP/USDT','ADA/USDT','DOGE/USDT'],
+    Forex:      ['EUR/USD','GBP/USD','USD/JPY','USD/CHF','AUD/USD','NZD/USD','USD/CAD'],
+    Commodities:['XAU/USD','XAG/USD','WTI/USD','BRENT/USD'],
+    Indices:    ['US30/USD','NAS100/USD','SPX500/USD','GER30/USD','UK100/USD'],
+  }
+  const ALL_SYMBOLS = [...SYMBOL_CATEGORIES.Crypto, ...SYMBOL_CATEGORIES.Forex, ...SYMBOL_CATEGORIES.Commodities, ...SYMBOL_CATEGORIES.Indices]
+  const [symbolDropdownOpen, setSymbolDropdownOpen] = useState(false)
 
   // Fetchers
   const fetchActive = useCallback(async (opts?: { silent?: boolean }) => {
@@ -206,16 +216,47 @@ export default function CouncilPage() {
               </div>
             </div>
 
-            {/* Symbol selector */}
-            <div style={{ display:'flex', gap:8, padding:'14px 24px', borderBottom:`1px solid ${COLORS.border}`, flexWrap:'wrap' }}>
-              {SYMBOLS.map(sym => (
-                <button key={sym} onClick={()=>{ setSelectedSymbol(sym); setCouncilResult(null) }} style={{
-                  padding:'7px 14px', borderRadius:8, fontSize:12, fontWeight:600, fontFamily:'monospace',
-                  background: selectedSymbol===sym ? hexToRgba(COLORS.council,0.12) : 'rgba(255,255,255,0.025)',
-                  border:`1px solid ${selectedSymbol===sym ? hexToRgba(COLORS.council,0.4) : COLORS.border}`,
-                  color: selectedSymbol===sym ? COLORS.council : COLORS.textMuted, cursor:'pointer', transition:'all 200ms ease',
-                }}>{sym}</button>
-              ))}
+            {/* V413: Categorized symbol dropdown — replaces the old 7-button list */}
+            <div style={{ padding:'14px 24px', borderBottom:`1px solid ${COLORS.border}`, position:'relative' }}>
+              <button
+                onClick={()=>setSymbolDropdownOpen(!symbolDropdownOpen)}
+                style={{
+                  display:'inline-flex', alignItems:'center', gap:8, padding:'8px 16px', borderRadius:9,
+                  background: hexToRgba(COLORS.council,0.08), border:`1px solid ${hexToRgba(COLORS.council,0.3)}`,
+                  color: COLORS.council, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'monospace',
+                }}
+              >
+                <span style={{ fontSize:11, fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase', color:COLORS.textMuted }}>Symbol:</span>
+                {selectedSymbol}
+                <ChevronDown size={14} strokeWidth={2.5} style={{ transition:'transform 200ms', transform: symbolDropdownOpen?'rotate(180deg)':'none' }} />
+              </button>
+              {symbolDropdownOpen && (
+                <>
+                  <div style={{ position:'fixed', inset:0, zIndex:99 }} onClick={()=>setSymbolDropdownOpen(false)} />
+                  <div style={{
+                    position:'absolute', top:'100%', insetInlineStart:24, marginTop:4, zIndex:100,
+                    minWidth:280, maxHeight:400, overflowY:'auto',
+                    background: '#0F131C', border:`1px solid ${COLORS.borderStrong}`, borderRadius:12,
+                    boxShadow:'0 24px 64px -16px rgba(0,0,0,0.8)', padding:8,
+                  }}>
+                    {Object.entries(SYMBOL_CATEGORIES).map(([cat, syms]) => (
+                      <div key={cat} style={{ marginBottom:8 }}>
+                        <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.textMuted, padding:'6px 10px 4px' }}>{cat}</div>
+                        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:4 }}>
+                          {syms.map(sym => (
+                            <button key={sym} onClick={()=>{ setSelectedSymbol(sym); setCouncilResult(null); setSymbolDropdownOpen(false) }} style={{
+                              padding:'7px 12px', borderRadius:7, fontSize:12, fontWeight:600, fontFamily:'monospace', textAlign:'start',
+                              background: selectedSymbol===sym ? hexToRgba(COLORS.council,0.15) : 'transparent',
+                              border:`1px solid ${selectedSymbol===sym ? hexToRgba(COLORS.council,0.4) : 'transparent'}`,
+                              color: selectedSymbol===sym ? COLORS.council : COLORS.textSecondary, cursor:'pointer', transition:'all 150ms ease',
+                            }}>{sym}</button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Body — 3 columns */}
@@ -354,9 +395,17 @@ export default function CouncilPage() {
           )}
         </section>
 
-        {/* ═══ SECTION 2: ACTIVE BRIEFS ═══ */}
+        {/* ═══ SECTION 2: DECISION MATRIX ═══ */}
         <section>
-          <SectionHeader index="02" eyebrow={t('section2Eyebrow')} title={t('activeBriefs')} right={<LiveDot color={isAutoRefreshing?COLORS.buy:COLORS.textDim} label={`${t('autoRefresh')} · 30s`} />} />
+          <SectionHeader index="02" eyebrow={t('decisionMatrixDesc') ?? 'Pair × Timeframe heatmap'} title={t('decisionMatrix') ?? 'Decision Matrix'} />
+          <GlassCard padding={20}>
+            <DecisionMatrix briefs={activeBriefs} />
+          </GlassCard>
+        </section>
+
+        {/* ═══ SECTION 3: ACTIVE BRIEFS ═══ */}
+        <section>
+          <SectionHeader index="03" eyebrow={t('section2Eyebrow')} title={t('activeBriefs')} right={<LiveDot color={isAutoRefreshing?COLORS.buy:COLORS.textDim} label={`${t('autoRefresh')} · 30s`} />} />
           <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
             {(['ALL','BUY','SELL'] as const).map(d => (
               <motion.button key={d} whileTap={{ scale:0.96 }} onClick={()=>setFilterDir(d)} style={{ padding:'8px 14px', borderRadius:9, border:`1px solid ${filterDir===d?hexToRgba(d==='ALL'?COLORS.council:directionColor(d),0.4):COLORS.border}`, background:filterDir===d?hexToRgba(d==='ALL'?COLORS.council:directionColor(d),0.12):'rgba(255,255,255,0.025)', color:filterDir===d?(d==='ALL'?COLORS.council:directionColor(d)):COLORS.textMuted, fontSize:12, fontWeight:600, textTransform:'uppercase', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:8 }}>
@@ -475,51 +524,30 @@ export default function CouncilPage() {
               <StatTile label={t('cancelled')} value={perf.cancelled} accent={COLORS.sell} icon={<XCircle size={15} />} />
               <StatTile label={t('modified')} value={perf.modified} accent={COLORS.hold} icon={<RefreshCw size={15} />} />
             </div>
-            {/* Distribution */}
-            <GlassCard padding={20} style={{ marginBottom:16 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
-                <div style={{ width:28, height:28, borderRadius:8, background:hexToRgba(COLORS.council,0.12), border:`1px solid ${hexToRgba(COLORS.council,0.3)}`, color:COLORS.council, display:'flex', alignItems:'center', justifyContent:'center' }}><Layers size={15} /></div>
-                <div>
-                  <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted }}>{t('buyVsSellRatio')}</div>
-                  <div style={{ fontSize:15, fontWeight:600, color:COLORS.textPrimary, marginTop:2 }}>{t('directionDistribution')}</div>
+            {/* V412: Enhanced Performance Details */}
+            <PerformanceDetails briefs={historyBriefs} />
+            {/* Session Diagnostics */}
+            {lastSession?.diagnostics && lastSession.diagnostics.length > 0 && (
+              <GlassCard padding={20} style={{ marginTop: 16 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+                  <div style={{ width:28, height:28, borderRadius:8, background:hexToRgba(COLORS.hold,0.12), border:`1px solid ${hexToRgba(COLORS.hold,0.3)}`, color:COLORS.hold, display:'flex', alignItems:'center', justifyContent:'center' }}><AlertTriangle size={15} /></div>
+                  <div>
+                    <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted }}>{t('sessionDiagnostics') ?? 'Session Diagnostics'}</div>
+                    <div style={{ fontSize:13, fontWeight:600, color:COLORS.textPrimary, marginTop:2 }}>{t('whySkipped') ?? 'Skip Reasons'}</div>
+                  </div>
                 </div>
-              </div>
-              {historyBriefs.length > 0 ? (
-                <>
-                  <div style={{ height:14, borderRadius:999, background:'rgba(255,255,255,0.04)', border:`1px solid ${COLORS.border}`, overflow:'hidden', display:'flex', marginBottom:14 }}>
-                    {[
-                      { c:COLORS.buy, n:perf.buy },
-                      { c:COLORS.sell, n:perf.sell },
-                      { c:COLORS.hold, n:historyBriefs.length - perf.buy - perf.sell },
-                    ].filter(v=>v.n>0).map((v,i) => (
-                      <motion.div key={i} initial={{ width:0 }} animate={{ width:`${(v.n/historyBriefs.length)*100}%` }} transition={{ duration:0.9, delay:i*0.05 }}
-                        style={{ background:`linear-gradient(90deg, ${v.c}, ${hexToRgba(v.c,0.6)})`, height:'100%' }} />
-                    ))}
-                  </div>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
-                    {[
-                      { l:t('buy'), n:perf.buy, c:COLORS.buy },
-                      { l:t('sell'), n:perf.sell, c:COLORS.sell },
-                      { l:t('hold'), n:historyBriefs.length-perf.buy-perf.sell, c:COLORS.hold },
-                    ].map((v,i) => (
-                      <div key={i} style={{ padding:'10px 12px', borderRadius:9, background:hexToRgba(v.c,0.07), border:`1px solid ${hexToRgba(v.c,0.2)}` }}>
-                        <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:4 }}>
-                          <span style={{ width:8, height:8, borderRadius:2, background:v.c, boxShadow:`0 0 6px ${hexToRgba(v.c,0.6)}` }} />
-                          <span style={{ fontSize:11, fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{v.l}</span>
-                        </div>
-                        <div style={{ display:'flex', alignItems:'baseline', gap:6 }}>
-                          <span style={{ fontSize:20, fontWeight:600, color:COLORS.textPrimary, fontFamily:'monospace' }}>{v.n}</span>
-                          <span style={{ fontSize:11, color:v.c, fontFamily:'monospace', fontWeight:600 }}>{historyBriefs.length>0?Math.round(v.n/historyBriefs.length*100):0}%</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : <div style={{ fontSize:13, color:COLORS.textMuted, textAlign:'center', padding:20 }}>{t('noAnalysis')}</div>}
-            </GlassCard>
+                <div style={{ display:'flex', flexDirection:'column', gap:6, maxHeight:200, overflowY:'auto' }}>
+                  {lastSession.diagnostics.slice(0, 20).map((d, i) => (
+                    <div key={i} style={{ fontSize:11, color:COLORS.textMuted, fontFamily:'monospace', padding:'6px 10px', borderRadius:7, background:'rgba(255,255,255,0.02)', border:`1px solid ${COLORS.border}` }}>
+                      {d}
+                    </div>
+                  ))}
+                </div>
+              </GlassCard>
+            )}
             {/* Last session */}
             {lastSession && (
-              <GlassCard padding={20}>
+              <GlassCard padding={20} style={{ marginTop: 16 }}>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                     <div style={{ width:28, height:28, borderRadius:8, background:hexToRgba(COLORS.info,0.12), border:`1px solid ${hexToRgba(COLORS.info,0.3)}`, color:COLORS.info, display:'flex', alignItems:'center', justifyContent:'center' }}><Activity size={15} /></div>
@@ -561,7 +589,7 @@ export default function CouncilPage() {
         <footer style={{ marginTop:24, paddingTop:24, borderTop:`1px solid ${COLORS.border}`, display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
           <div style={{ fontSize:11, color:COLORS.textDim }}>{t('footerTagline')} · {t('footerSubline')}</div>
           <div style={{ fontSize:11, color:COLORS.textDim, fontFamily:'monospace' }}>
-            <span style={{ color:COLORS.council }}>●</span> Council v1.0 · {SYMBOLS.length} symbols · 8 AI agents
+            <span style={{ color:COLORS.council }}>●</span> Council v1.0 · {ALL_SYMBOLS.length} symbols · 8 AI agents
           </div>
         </footer>
       </div>
@@ -597,90 +625,96 @@ function BriefCard({ brief, loc, index, expanded, onToggle, t }: {
   useEffect(() => { const id = setInterval(() => setRemainingMs(msRemaining(brief.expiresAt)), 1000); return () => clearInterval(id) }, [brief.expiresAt])
   const isExpired = remainingMs <= 0
 
+  // V413: R/R visual bar — proportional representation of SL and TP distances
+  const totalDist = slDist + tpDist
+  const slBarWidth = totalDist > 0 ? (slDist / totalDist) * 100 : 50
+  const tpBarWidth = totalDist > 0 ? (tpDist / totalDist) * 100 : 50
+
   return (
     <motion.div layout initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-10 }} transition={{ duration:0.4, delay:index*0.05 }}>
       <GlassCard padding={0} glow={dc} interactive style={{ height:'100%' }}>
-        {/* Header */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 18px 14px', borderBottom:`1px solid ${COLORS.border}`, gap:12 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:14, minWidth:0 }}>
-            <CircularProgress value={brief.confidence} size={48} strokeWidth={4} color={dc} glow={false} animationDelay={index*0.05}>
-              <span style={{ fontSize:12, fontWeight:700, color:COLORS.textPrimary, fontFamily:'monospace' }}>{brief.confidence}</span>
+        {/* ═══ SECTION A: Decision Summary ═══ */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 18px', borderBottom:`1px solid ${COLORS.border}`, gap:12 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:12, minWidth:0 }}>
+            <CircularProgress value={brief.confidence} size={44} strokeWidth={4} color={dc} glow={false} animationDelay={index*0.05}>
+              <span style={{ fontSize:11, fontWeight:700, color:COLORS.textPrimary, fontFamily:'monospace' }}>{brief.confidence}</span>
             </CircularProgress>
             <div style={{ minWidth:0 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
-                <span style={{ fontSize:17, fontWeight:600, color:COLORS.textPrimary }}>{brief.pair}</span>
-                <span style={{ fontSize:11, fontWeight:600, padding:'2px 7px', borderRadius:5, background:'rgba(255,255,255,0.05)', border:`1px solid ${COLORS.border}`, color:COLORS.textSecondary, fontFamily:'monospace' }}>{brief.timeframe}</span>
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3 }}>
+                <span style={{ fontSize:16, fontWeight:700, color:COLORS.textPrimary }}>{brief.pair}</span>
+                <span style={{ fontSize:10, fontWeight:700, padding:'2px 6px', borderRadius:4, background:hexToRgba(COLORS.council,0.1), border:`1px solid ${hexToRgba(COLORS.council,0.25)}`, color:COLORS.council, fontFamily:'monospace' }}>{brief.timeframe}</span>
               </div>
-              <div style={{ display:'flex', alignItems:'center', gap:8, fontSize:11, color:COLORS.textMuted }}>
-                <Clock size={11} /> {t('issuedAgo')} {relativeTime(brief.issuedAt, loc)}
+              <div style={{ display:'flex', alignItems:'center', gap:10, fontSize:10, color:COLORS.textMuted }}>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><Clock size={10} /> {relativeTime(brief.issuedAt, loc)}</span>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><Gauge size={10} /> R/R {rr.toFixed(2)}</span>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:4, color:isExpired?COLORS.sell:remainingMs<3600000?COLORS.hold:COLORS.textDim }}><Timer size={10} /> {isExpired?t('expired'):formatCountdown(remainingMs, loc)}</span>
               </div>
             </div>
           </div>
-          <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'7px 12px', borderRadius:9, background:dirSoft, border:`1px solid ${hexToRgba(dc,0.4)}`, color:dc, fontSize:12, fontWeight:700, textTransform:'uppercase', flexShrink:0, boxShadow:`0 4px 12px -4px ${hexToRgba(dc,0.4)}` }}>
+          <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'6px 12px', borderRadius:8, background:dirSoft, border:`1px solid ${hexToRgba(dc,0.4)}`, color:dc, fontSize:12, fontWeight:700, textTransform:'uppercase', flexShrink:0, boxShadow:`0 4px 12px -4px ${hexToRgba(dc,0.4)}` }}>
             {brief.direction==='BUY'?<TrendingUp size={13} strokeWidth={2.5}/>:<TrendingDown size={13} strokeWidth={2.5}/>}
             {t(dirLabelKey[brief.direction])}
           </div>
         </div>
 
-        {/* WHY THIS SIGNAL — premium AI reasoning panel */}
-        <div style={{ padding:'16px 18px 18px', background:`linear-gradient(180deg, ${hexToRgba(COLORS.council,0.04)} 0%, transparent 100%)`, borderBottom:`1px solid ${COLORS.border}` }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:11, gap:8 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
-              <div style={{ width:24, height:24, borderRadius:7, background:COLORS.gradientCouncil, display:'flex', alignItems:'center', justifyContent:'center', color:'#0B0E14', flexShrink:0, boxShadow:`0 4px 12px -4px ${hexToRgba(COLORS.council,0.5)}` }}>
-                <Sparkles size={12} strokeWidth={2.5} />
-              </div>
-              <div style={{ minWidth:0 }}>
-                <div style={{ display:'flex', alignItems:'center', gap:7, flexWrap:'wrap' }}>
-                  <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.council }}>{t('whyThisSignal')}</span>
-                  <span style={{ fontSize:10, color:COLORS.textMuted, fontStyle:'italic', fontFamily:'monospace' }}>· {t('aiThoughtProcess')}</span>
-                </div>
-              </div>
+        {/* ═══ SECTION B: Price + R/R Visual Bar ═══ */}
+        <div style={{ padding:'14px 18px', borderBottom:`1px solid ${COLORS.border}` }}>
+          {/* Price row */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:12 }}>
+            <div style={{ textAlign:'center' }}>
+              <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:COLORS.textMuted, marginBottom:3 }}>{t('entry')}</div>
+              <div style={{ fontSize:14, fontWeight:700, color:COLORS.textPrimary, fontFamily:'monospace' }}>{formatPrice(brief.entryPrice)}</div>
             </div>
-            <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'3px 8px', borderRadius:999, background:hexToRgba(COLORS.council,0.1), border:`1px solid ${hexToRgba(COLORS.council,0.25)}`, color:COLORS.council, fontSize:10, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', flexShrink:0 }}>
-              <span aria-hidden style={{ width:5, height:5, borderRadius:'50%', background:COLORS.council, boxShadow:`0 0 6px ${COLORS.council}` }} />
-              AI
+            <div style={{ textAlign:'center' }}>
+              <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:COLORS.sell, marginBottom:3 }}>{t('stopLoss')}</div>
+              <div style={{ fontSize:14, fontWeight:700, color:COLORS.sell, fontFamily:'monospace' }}>{formatPrice(brief.stopLoss)}</div>
+              <div style={{ fontSize:10, color:COLORS.sell, fontFamily:'monospace' }}>{slPctStr}</div>
             </div>
+            <div style={{ textAlign:'center' }}>
+              <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:COLORS.buy, marginBottom:3 }}>{t('takeProfit')}</div>
+              <div style={{ fontSize:14, fontWeight:700, color:COLORS.buy, fontFamily:'monospace' }}>{formatPrice(brief.takeProfit)}</div>
+              <div style={{ fontSize:10, color:COLORS.buy, fontFamily:'monospace' }}>{tpPctStr}</div>
+            </div>
+          </div>
+          {/* V413: R/R proportional bar */}
+          <div style={{ position:'relative', height:24, borderRadius:6, overflow:'hidden', display:'flex', border:`1px solid ${COLORS.border}` }}>
+            <div style={{ width:`${slBarWidth}%`, background:`linear-gradient(90deg, ${hexToRgba(COLORS.sell,0.3)}, ${hexToRgba(COLORS.sell,0.15)})`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700, color:COLORS.sell }}>
+              {rr.toFixed(1)}R RISK
+            </div>
+            <div style={{ width:'2px', background:COLORS.textPrimary, zIndex:1 }} />
+            <div style={{ width:`${tpBarWidth}%`, background:`linear-gradient(90deg, ${hexToRgba(COLORS.buy,0.15)}, ${hexToRgba(COLORS.buy,0.3)})`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700, color:COLORS.buy }}>
+              {(rr * 1).toFixed(1)}R REWARD
+            </div>
+          </div>
+        </div>
+
+        {/* ═══ SECTION C: AI Reasoning ═══ */}
+        <div style={{ padding:'14px 18px 16px', background:`linear-gradient(180deg, ${hexToRgba(COLORS.council,0.04)} 0%, transparent 100%)`, borderBottom:`1px solid ${COLORS.border}`, flex:1 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+            <div style={{ width:22, height:22, borderRadius:6, background:COLORS.gradientCouncil, display:'flex', alignItems:'center', justifyContent:'center', color:'#0B0E14', flexShrink:0 }}>
+              <Sparkles size={11} strokeWidth={2.5} />
+            </div>
+            <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.council }}>{t('whyThisSignal')}</span>
+            <div style={{ flex:1, height:1, background:`linear-gradient(90deg, ${hexToRgba(COLORS.council,0.3)}, transparent)` }} />
           </div>
           <FormattedText
             text={brief.analysisSummary}
             maxLength={260}
             dir={loc === 'ar' ? 'rtl' : 'ltr'}
-            fontSize={13.5}
+            fontSize={12.5}
             accent={dc}
             placeholder={t('noAnalysis')}
           />
         </div>
 
-        {/* Price grid */}
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:1, background:COLORS.border, borderTop:`1px solid ${COLORS.border}`, borderBottom:`1px solid ${COLORS.border}` }}>
-          <div style={{ padding:'11px 14px', background:'rgba(0,0,0,0.18)' }}>
-            <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted, marginBottom:4 }}>{t('entry')}</div>
-            <div style={{ fontSize:15, fontWeight:600, color:COLORS.textPrimary, fontFamily:'monospace' }}>{formatPrice(brief.entryPrice)}</div>
+        {/* ═══ SECTION D: Details Toggle ═══ */}
+        <div style={{ padding:'10px 18px 12px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+          <div style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:11, color:COLORS.textMuted }}>
+            <Shield size={11} /> <span style={{ fontFamily:'monospace' }}>{(brief.strictRules.maxSlippage*100).toFixed(2)}%</span>
+            <span style={{ textTransform:'uppercase', fontWeight:500, letterSpacing:'0.04em' }}>{t('maxSlippage') ?? 'Slippage'}</span>
           </div>
-          <div style={{ padding:'11px 14px', background:'rgba(0,0,0,0.18)', borderInlineStart:`1px solid ${COLORS.border}` }}>
-            <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted, marginBottom:4 }}>{t('stopLoss')}</div>
-            <div style={{ fontSize:15, fontWeight:600, color:COLORS.sell, fontFamily:'monospace' }}>{formatPrice(brief.stopLoss)}</div>
-            <div style={{ fontSize:11, color:COLORS.sell, fontFamily:'monospace', marginTop:3 }}>{slPctStr}</div>
-          </div>
-          <div style={{ padding:'11px 14px', background:'rgba(0,0,0,0.18)', borderInlineStart:`1px solid ${COLORS.border}` }}>
-            <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.textMuted, marginBottom:4 }}>{t('takeProfit')}</div>
-            <div style={{ fontSize:15, fontWeight:600, color:COLORS.buy, fontFamily:'monospace' }}>{formatPrice(brief.takeProfit)}</div>
-            <div style={{ fontSize:11, color:COLORS.buy, fontFamily:'monospace', marginTop:3 }}>{tpPctStr}</div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div style={{ padding:'12px 18px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:14, flexWrap:'wrap' }}>
-            <div style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:11, color:COLORS.textMuted, fontFamily:'monospace' }}>
-              <Gauge size={12} /> <span style={{ textTransform:'uppercase', fontWeight:500 }}>{t('riskReward')}</span> <span style={{ color:COLORS.info, fontWeight:600 }}>{rr.toFixed(2)}</span>
-            </div>
-            <div style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:11, color:COLORS.textMuted, fontFamily:'monospace' }}>
-              <Timer size={12} /> <span style={{ textTransform:'uppercase', fontWeight:500 }}>{t('expires')}</span> <span style={{ color:isExpired?COLORS.sell:remainingMs<3600000?COLORS.hold:COLORS.textSecondary, fontWeight:600 }}>{isExpired?t('expired'):formatCountdown(remainingMs, loc)}</span>
-            </div>
-          </div>
-          <motion.button onClick={onToggle} whileTap={{ scale:0.97 }} whileHover={{ y:-1 }} style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'7px 13px', borderRadius:9, background:expanded?hexToRgba(COLORS.council,0.1):'rgba(255,255,255,0.04)', border:`1px solid ${expanded?hexToRgba(COLORS.council,0.35):COLORS.border}`, color:expanded?COLORS.council:COLORS.textSecondary, fontSize:11, fontWeight:600, cursor:'pointer', letterSpacing:'0.04em' }}>
-            {expanded?t('hideDetails'):t('showDetails')} <motion.span animate={{ rotate:expanded?180:0 }} transition={{ duration:0.25 }}><ChevronDown size={13} strokeWidth={2.5} /></motion.span>
+          <motion.button onClick={onToggle} whileTap={{ scale:0.97 }} whileHover={{ y:-1 }} style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'6px 12px', borderRadius:8, background:expanded?hexToRgba(COLORS.council,0.1):'rgba(255,255,255,0.04)', border:`1px solid ${expanded?hexToRgba(COLORS.council,0.35):COLORS.border}`, color:expanded?COLORS.council:COLORS.textSecondary, fontSize:11, fontWeight:600, cursor:'pointer', letterSpacing:'0.04em' }}>
+            {expanded?t('hideDetails'):t('showDetails')} <motion.span animate={{ rotate:expanded?180:0 }} transition={{ duration:0.25 }}><ChevronDown size={12} strokeWidth={2.5} /></motion.span>
           </motion.button>
         </div>
 

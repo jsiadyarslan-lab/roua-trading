@@ -263,7 +263,7 @@ export function isAgentTimeframe(tf: BriefTimeframe): boolean {
  *  expected WR improvement to ~45%.
  *  Rollback: change back to 50.
  */
-export const MIN_BRIEF_CONFIDENCE = 65; // V408: رُفع من 50 إلى 65 — إشارات أقوى فقط
+export const MIN_BRIEF_CONFIDENCE = 50; // V421: Reverted from 65 to 50 (original V175 value)
 
 /** Minimum consensus score to issue a brief — lowered from 60 to 50 to 40
  *  With 8 AI models, votes are often split. 60% was too strict and
@@ -277,7 +277,7 @@ export const MIN_BRIEF_CONFIDENCE = 65; // V408: رُفع من 50 إلى 65 — 
  *  Briefs with consensus 55-69% will now be rejected.
  *  Rollback: change back to 55.
  */
-export const MIN_CONSENSUS_SCORE = 70; // V408: رُفع من 55 إلى 70 — إجماع أقوى قبل الإصدار
+export const MIN_CONSENSUS_SCORE = 55; // V421: Reverted from 70 to 55 (original value)
 
 export const AGENT_FAST_TIMEFRAMES: BriefTimeframe[] = ['M30', 'H1'];
 export const AGENT_SLOW_TIMEFRAMES: BriefTimeframe[] = ['H4', 'D1', 'W1'];

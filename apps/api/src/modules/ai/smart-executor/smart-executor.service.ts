@@ -2131,7 +2131,12 @@ export class SmartExecutorService implements OnModuleDestroy {
     //
     // ROLLBACK: Set V407_AUTO_STALE_ENABLED=true env var OR enable
     // v407AutoStaleEnabled per-user setting to restore V124 behavior.
-    if (process.env.V407_AUTO_STALE_ENABLED === 'true' && openPositionsCount >= executorMaxPositions && isSimulated) {
+    // V421: Re-enabled AUTO_STALE by default (was disabled by V407).
+    // V407 disabled it to 'stop killing winners' but the real bug was
+    // V414's 24h extremes (now fixed). AUTO_STALE is needed to prevent
+    // unlimited position accumulation that breaks balance/equity.
+    // Set V407_AUTO_STALE_ENABLED=false to disable if needed.
+    if (process.env.V407_AUTO_STALE_ENABLED !== 'false' && openPositionsCount >= executorMaxPositions && isSimulated) {
       try {
         // FIX: Reduced from 4 hours to 1 hour — paper trading positions should
         // rotate faster to demonstrate the platform's capabilities. A 4-hour

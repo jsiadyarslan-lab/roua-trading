@@ -772,7 +772,7 @@ export class StrategicCouncilService {
       // Disabled when V408_CALIBRATION_FACTOR env var is set to '1.0'.
       //
       // ROLLBACK: Set V408_CALIBRATION_FACTOR=1.0 to restore V175 behavior.
-      const V408_CALIBRATION_FACTOR = parseFloat(process.env.V408_CALIBRATION_FACTOR || '0.5');
+      const V408_CALIBRATION_FACTOR = parseFloat(process.env.V408_CALIBRATION_FACTOR || '1.0');
       if (V408_CALIBRATION_FACTOR < 1.0 && recommendation !== 'HOLD' && consensusScore > 0) {
         const calibrated = Math.round(consensusScore * V408_CALIBRATION_FACTOR);
         this.logger.log(

@@ -93,36 +93,23 @@ function _getOrCreateSocket(onTick: (symbol: string, data: any) => void): any {
   });
 
   socket.on('connect', () => {
-    console.warn('[useMarketStreamSocket] ✅ Connected to /exchange namespace');
-    // Re-subscribe to all symbols after reconnect (server may have lost state)
+    // Re-subscribe to all symbols after reconnect
     for (const sym of _subscribedSymbols) {
       socket.emit('subscribe', { symbol: sym });
     }
-    console.warn(`[useMarketStreamSocket] Subscribed to ${_subscribedSymbols.size} symbols`);
   });
 
   socket.on('ticker', (payload: { symbol: string; data: any }) => {
     if (!payload || !payload.symbol) return;
-    _tickerCount++;
-    // V428: Log every 10th ticker for first 50, then every 100th
-    const now = Date.now();
-    if (_tickerCount <= 50) {
-      if (_tickerCount % 10 === 0) {
-        console.warn(`[useMarketStreamSocket] 📊 Ticker #${_tickerCount}: ${payload.symbol} = ${payload.data?.price}`);
-      }
-    } else if (_tickerCount % 100 === 0 && now - _lastTickerLog > 10000) {
-      console.warn(`[useMarketStreamSocket] 📊 Received ${_tickerCount} tickers total. Latest: ${payload.symbol} = ${payload.data?.price}`);
-      _lastTickerLog = now;
-    }
     onTick(payload.symbol, payload.data);
   });
 
-  socket.on('connect_error', (err: any) => {
-    console.warn('[useMarketStreamSocket] ❌ Connect error:', err?.message || err);
+  socket.on('connect_error', () => {
+    // Silent — REST polling fallback is active
   });
 
-  socket.on('disconnect', (reason: string) => {
-    console.warn('[useMarketStreamSocket] ⚠️ Disconnected:', reason);
+  socket.on('disconnect', () => {
+    // Silent — Socket.IO will auto-reconnect
   });
 
   _socket = socket;
@@ -152,7 +139,6 @@ export function useMarketStreamSocket() {
     _refCount++;
 
     const onTick = (symbol: string, data: any) => {
-      // V433: Wrap in try/catch — if onTick throws, tickers arrive but setQuote never fires
       try {
         if (!data) return;
 
@@ -205,11 +191,9 @@ export function useMarketStreamSocket() {
               source: data.source || 'stream',
             };
 
-        // V433: Log directly before setQuote to verify we reach this point
-        console.warn(`[onTick] calling setQuote for ${symbol} = ${price}`);
         store.setQuote(symbol, quoteData);
       } catch (e: any) {
-        console.warn(`[onTick] ERROR for ${symbol}: ${e?.message || e}`);
+        // Silent — don't let errors crash the stream
       }
     };
 

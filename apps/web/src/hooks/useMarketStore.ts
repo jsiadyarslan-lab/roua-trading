@@ -34,6 +34,7 @@ interface MarketStore {
 // animation frame into one store update, drastically reducing re-renders.
 let pendingQuotes: Record<string, QuoteData> = {}
 let flushTimer: ReturnType<typeof requestAnimationFrame> | null = null
+let _flushCount = 0;
 
 function flushPendingQuotes() {
   if (Object.keys(pendingQuotes).length === 0) return
@@ -43,6 +44,13 @@ function flushPendingQuotes() {
   useMarketStore.setState((state) => ({
     quotes: { ...state.quotes, ...batch }
   }))
+  // V418: Log first flush and then every 50th to verify batching works
+  _flushCount++;
+  if (_flushCount === 1) {
+    console.warn(`[useMarketStore] V418: First flush — ${Object.keys(batch).length} symbols: ${Object.keys(batch).join(', ')}`)
+  } else if (_flushCount % 50 === 0) {
+    console.warn(`[useMarketStore] V418: Flush #${_flushCount} — ${Object.keys(batch).length} symbols`)
+  }
 }
 
 export const useMarketStore = create<MarketStore>((set) => ({

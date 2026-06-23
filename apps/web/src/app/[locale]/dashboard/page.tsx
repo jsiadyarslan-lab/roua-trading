@@ -14,6 +14,7 @@ import { PrimarySidebarLayout } from '@/components/dashboard/layouts/PrimarySide
 import { SidebarDrawer } from '@/components/dashboard/layouts/SidebarDrawer'
 import { RightPanelLayout } from '@/components/dashboard/layouts/RightPanelLayout'
 import { WatchlistMini } from '@/components/dashboard/WatchlistMini'
+import { MobileTickerStrip } from '@/components/dashboard/MobileTickerStrip'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
@@ -1603,36 +1604,9 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* ── TICKER STRIP — يظهر فقط في الشارت ── */}
-          {m2ActiveTab === 'chart' && <div className="m2-ticker">
-            {['BTC/USD','ETH/USD','EUR/USD','GBP/USD','USD/JPY','XAU/USD','SOL/USD'].map(sym => {
-              const q = globalQuotes[sym]
-              const chgPct = q?.changePercent ?? 0
-              const isUp = chgPct >= 0
-              const active = sym === selectedSymbol
-              return (
-                <button key={sym} type="button"
-                  onClick={() => handleSelectSymbol(sym)}
-                  style={{
-                    display:'flex', alignItems:'center', gap:5,
-                    padding:'3px 9px', borderRadius:7, flexShrink:0, cursor:'pointer',
-                    border: active ? '1px solid rgba(0,212,255,0.35)' : '1px solid transparent',
-                    background: active ? 'rgba(0,212,255,0.07)' : 'transparent',
-                  }}>
-                  <div style={{ display:'flex', flexDirection:'column', gap:0, alignItems:'flex-start' }}>
-                    <span style={{ fontSize:8, color:'rgba(130,150,175,0.65)', fontFamily:"'JetBrains Mono',monospace", lineHeight:1 }}>
-                      {sym.split('/')[0]}
-                    </span>
-                    <span style={{ fontSize:11, fontWeight:700, color: isUp?'#00FFA3':'#FF4757', fontFamily:"'JetBrains Mono',monospace", lineHeight:1.3 }}>
-                      {chgPct >= 0 ? '+' : ''}{chgPct.toFixed(2)}%
-                    </span>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
+          {/* ── TICKER STRIP — V429: Extracted to MobileTickerStrip for real-time updates ── */}
+          {m2ActiveTab === 'chart' && <MobileTickerStrip onSelectSymbol={handleSelectSymbol} />}
 
-          }
           {/* ── CHART TOOLBAR ── */}
           {m2ActiveTab === 'chart' && (
           <div className="m2-chart-toolbar" style={{ gap:2, padding:'0 10px' }}>

@@ -152,7 +152,10 @@ export function useMarketStreamSocket() {
     _refCount++;
 
     const onTick = (symbol: string, data: any) => {
-      if (!mountedRef.current) return;
+      // V431: Removed mountedRef check — singleton socket retains old onTick
+      // closure from first mount. If component unmounts/remounts, mountedRef
+      // becomes false and onTick returns early WITHOUT calling setQuote.
+      // Since useMarketStore is global (Zustand), we can always write to it.
       if (!data) return;
 
       const price = typeof data.price === 'number'

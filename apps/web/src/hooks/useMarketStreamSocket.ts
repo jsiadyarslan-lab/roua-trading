@@ -152,69 +152,65 @@ export function useMarketStreamSocket() {
     _refCount++;
 
     const onTick = (symbol: string, data: any) => {
-      // V431: Removed mountedRef check — singleton socket retains old onTick
-      // closure from first mount. If component unmounts/remounts, mountedRef
-      // becomes false and onTick returns early WITHOUT calling setQuote.
-      // Since useMarketStore is global (Zustand), we can always write to it.
-      if (!data) return;
+      // V433: Wrap in try/catch — if onTick throws, tickers arrive but setQuote never fires
+      try {
+        if (!data) return;
 
-      const price = typeof data.price === 'number'
-        ? data.price
-        : typeof data.close === 'number'
-          ? data.close
-          : null;
+        const price = typeof data.price === 'number'
+          ? data.price
+          : typeof data.close === 'number'
+            ? data.close
+            : null;
 
-      if (price === null || price <= 0) return;
+        if (price === null || price <= 0) return;
 
-      const store = useMarketStore.getState();
-      const existing = store.quotes[symbol];
+        const store = useMarketStore.getState();
+        const existing = store.quotes[symbol];
 
-      // Build a complete QuoteData. If we have an existing quote, merge to
-      // preserve fields the stream doesn't send (name, exchange for OANDA).
-      // The Binance stream sends: price, open, high, low, close, volume, change,
-      // changePercent, timestamp, source, exchange.
-      // The OANDA stream sends: price, bid, ask, timestamp, source, exchange.
-      const quoteData: QuoteData = existing
-        ? {
-            ...existing,
-            price,
-            close: price,
-            // For Binance stream, use the stream's high/low/open (more accurate).
-            // For OANDA stream (which only sends price), accumulate locally.
-            open: typeof data.open === 'number' && data.open > 0 ? data.open : (existing.open || price),
-            high: typeof data.high === 'number' && data.high > 0
-              ? Math.max(data.high, existing.high || price)
-              : Math.max(existing.high || price, price),
-            low: typeof data.low === 'number' && data.low > 0
-              ? (existing.low > 0 ? Math.min(data.low, existing.low) : data.low)
-              : (existing.low > 0 ? Math.min(existing.low, price) : price),
-            volume: typeof data.volume === 'number' ? data.volume : (existing.volume || 0),
-            change: typeof data.change === 'number' ? data.change : (existing.change || 0),
-            changePercent: typeof data.changePercent === 'number' ? data.changePercent : (existing.changePercent || 0),
-            timestamp: data.timestamp || new Date().toISOString(),
-            source: data.source || existing.source || 'stream',
-          }
-        : {
-            symbol,
-            name: data.name || symbol.replace('/', ' / '),
-            exchange: data.exchange || (symbol.includes('/') ? 'STREAM' : 'Unknown'),
-            currency: symbol.split('/')[1] || 'USD',
-            price,
-            change: typeof data.change === 'number' ? data.change : 0,
-            changePercent: typeof data.changePercent === 'number' ? data.changePercent : 0,
-            open: typeof data.open === 'number' && data.open > 0 ? data.open : price,
-            high: typeof data.high === 'number' && data.high > 0 ? data.high : price,
-            low: typeof data.low === 'number' && data.low > 0 ? data.low : price,
-            close: price,
-            volume: typeof data.volume === 'number' ? data.volume : 0,
-            marketCap: null,
-            fiftyTwoWeekHigh: null,
-            fiftyTwoWeekLow: null,
-            timestamp: data.timestamp || new Date().toISOString(),
-            source: data.source || 'stream',
-          };
+        const quoteData: QuoteData = existing
+          ? {
+              ...existing,
+              price,
+              close: price,
+              open: typeof data.open === 'number' && data.open > 0 ? data.open : (existing.open || price),
+              high: typeof data.high === 'number' && data.high > 0
+                ? Math.max(data.high, existing.high || price)
+                : Math.max(existing.high || price, price),
+              low: typeof data.low === 'number' && data.low > 0
+                ? (existing.low > 0 ? Math.min(data.low, existing.low) : data.low)
+                : (existing.low > 0 ? Math.min(existing.low, price) : price),
+              volume: typeof data.volume === 'number' ? data.volume : (existing.volume || 0),
+              change: typeof data.change === 'number' ? data.change : (existing.change || 0),
+              changePercent: typeof data.changePercent === 'number' ? data.changePercent : (existing.changePercent || 0),
+              timestamp: data.timestamp || new Date().toISOString(),
+              source: data.source || existing.source || 'stream',
+            }
+          : {
+              symbol,
+              name: data.name || symbol.replace('/', ' / '),
+              exchange: data.exchange || (symbol.includes('/') ? 'STREAM' : 'Unknown'),
+              currency: symbol.split('/')[1] || 'USD',
+              price,
+              change: typeof data.change === 'number' ? data.change : 0,
+              changePercent: typeof data.changePercent === 'number' ? data.changePercent : 0,
+              open: typeof data.open === 'number' && data.open > 0 ? data.open : price,
+              high: typeof data.high === 'number' && data.high > 0 ? data.high : price,
+              low: typeof data.low === 'number' && data.low > 0 ? data.low : price,
+              close: price,
+              volume: typeof data.volume === 'number' ? data.volume : 0,
+              marketCap: null,
+              fiftyTwoWeekHigh: null,
+              fiftyTwoWeekLow: null,
+              timestamp: data.timestamp || new Date().toISOString(),
+              source: data.source || 'stream',
+            };
 
-      store.setQuote(symbol, quoteData);
+        // V433: Log directly before setQuote to verify we reach this point
+        console.warn(`[onTick] calling setQuote for ${symbol} = ${price}`);
+        store.setQuote(symbol, quoteData);
+      } catch (e: any) {
+        console.warn(`[onTick] ERROR for ${symbol}: ${e?.message || e}`);
+      }
     };
 
     const socket = _getOrCreateSocket(onTick);

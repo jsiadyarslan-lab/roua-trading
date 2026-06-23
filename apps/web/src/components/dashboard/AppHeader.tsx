@@ -1701,8 +1701,8 @@ export function AppHeader() {
         {/* Mobile news ticker (hidden on very small screens via CSS) */}
         <div className="mobile-news-ticker" style={{
           height: 24, overflow: 'hidden',
-          background: 'linear-gradient(90deg, #FFFFFF, #F8FAFC, #FFFFFF)',
-          borderBottom: '1px solid rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center',
+          background: 'rgba(11,14,20,0.6)',
+          borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center',
         }}>
           <MobileNewsTicker />
         </div>

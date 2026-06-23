@@ -825,8 +825,8 @@ export default function DashboardPage() {
             padding: 0 10px;
             gap: 2px;
             flex-shrink: 0;
-            background: rgba(255,255,255,0.012);
-            border-bottom: 1px solid rgba(255,255,255,0.04);
+            background: rgba(0,212,255,0.04);
+            border-bottom: 1px solid rgba(0,212,255,0.08);
           }
           .m2-ticker::-webkit-scrollbar { display: none; }
           .m2-chart-toolbar {

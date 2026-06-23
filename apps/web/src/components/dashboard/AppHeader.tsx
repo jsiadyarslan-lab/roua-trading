@@ -102,7 +102,7 @@ const T = {
   info:     '#00D4FF',
 }
 
-const H_NEWS  = 28
+const H_NEWS  = 22
 const H_CURR  = 34
 const H_NAV   = 46
 const H_TOTAL = H_NEWS + H_CURR + H_NAV
@@ -556,10 +556,9 @@ function MobileNewsTicker() {
         const displayCat = getNewsCategory(item, locale)
         return (
           <span key={i} style={{
-            fontFamily: isAr ? "'Cairo', 'Readex Pro', sans-serif" : "'Inter', 'Readex Pro', sans-serif", fontSize: 10,
-            color: '#FFFFFF', flexShrink: 0, fontWeight: 500,
+            fontFamily: isAr ? "'Cairo', 'Readex Pro', sans-serif" : "'Inter', 'Readex Pro', sans-serif", fontSize: 9,
+            color: 'rgba(180,190,205,0.7)', flexShrink: 0, fontWeight: 400,
             display: 'inline-flex', alignItems: 'center', gap: 4,
-            textShadow: '0 0 6px rgba(255,255,255,0.12)',
           }}>
             <span style={{
               fontSize: 7, padding: '1px 5px', borderRadius: 3,
@@ -1700,9 +1699,9 @@ export function AppHeader() {
         </div>
         {/* Mobile news ticker (hidden on very small screens via CSS) */}
         <div className="mobile-news-ticker" style={{
-          height: 24, overflow: 'hidden',
-          background: 'rgba(11,14,20,0.6)',
-          borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center',
+          height: 20, overflow: 'hidden',
+          background: 'rgba(8,10,14,0.8)',
+          borderBottom: '1px solid rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center',
         }}>
           <MobileNewsTicker />
         </div>

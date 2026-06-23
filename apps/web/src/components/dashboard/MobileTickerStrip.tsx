@@ -41,19 +41,19 @@ function SymbolButton({ symbol, isActive, onSelect }: SymbolButtonProps) {
     <button key={symbol} type="button"
       onClick={() => onSelect(symbol)}
       style={{
-        display:'flex', alignItems:'center', gap:5,
-        padding:'3px 9px', borderRadius:7, flexShrink:0, cursor:'pointer',
-        border: isActive ? '1px solid rgba(0,212,255,0.35)' : '1px solid transparent',
-        background: isActive ? 'rgba(0,212,255,0.07)' : 'transparent',
+        display:'flex', alignItems:'center', gap:6,
+        padding:'4px 10px', borderRadius:8, flexShrink:0, cursor:'pointer',
+        border: isActive ? '1px solid rgba(0,212,255,0.4)' : '1px solid rgba(255,255,255,0.06)',
+        background: isActive ? 'rgba(0,212,255,0.1)' : 'rgba(255,255,255,0.03)',
       }}>
-      <div style={{ display:'flex', flexDirection:'column', gap:0, alignItems:'flex-start' }}>
-        <span style={{ fontSize:8, color:'rgba(130,150,175,0.65)', fontFamily:"'JetBrains Mono',monospace", lineHeight:1 }}>
+      <div style={{ display:'flex', flexDirection:'column', gap:1, alignItems:'flex-start' }}>
+        <span style={{ fontSize:10, fontWeight:800, color:'#E8ECF4', fontFamily:"'JetBrains Mono',monospace", lineHeight:1, letterSpacing:'0.05em' }}>
           {symbol.split('/')[0]}
         </span>
-        <span style={{ fontSize:10, fontWeight:800, color: priceColor, fontFamily:"'JetBrains Mono',monospace", lineHeight:1.3, textShadow: isUp ? '0 0 8px rgba(0,255,136,0.4)' : '0 0 8px rgba(255,51,85,0.4)' }}>
+        <span style={{ fontSize:11, fontWeight:800, color: priceColor, fontFamily:"'JetBrains Mono',monospace", lineHeight:1.2, textShadow: isUp ? '0 0 6px rgba(0,255,136,0.5)' : '0 0 6px rgba(255,51,85,0.5)' }}>
           {price}
         </span>
-        <span style={{ fontSize:9, fontWeight:700, color: priceColor, fontFamily:"'JetBrains Mono',monospace", lineHeight:1, padding: '1px 4px', borderRadius: 4, background: pctBg }}>
+        <span style={{ fontSize:9, fontWeight:700, color: priceColor, fontFamily:"'JetBrains Mono',monospace", lineHeight:1, padding: '1px 5px', borderRadius: 4, background: pctBg }}>
           {isUp ? '▲' : '▼'} {chgPct >= 0 ? '+' : ''}{chgPct.toFixed(2)}%
         </span>
       </div>

@@ -1,8 +1,7 @@
 'use client'
 
 import { useRef } from 'react'
-import { useMarketStore, type QuoteData } from '@/hooks/useMarketStore'
-import { useShallow } from 'zustand/react/shallow'
+import { useMarketStore } from '@/hooks/useMarketStore'
 import { fmtPriceLocale } from '@/lib/price-format'
 
 const TICKER_SYMBOLS = ['EUR/USD', 'GBP/USD', 'BTC/USDT', 'XAU/USD', 'AAPL', 'TSLA', 'USD/JPY']
@@ -16,21 +15,17 @@ interface TickItem {
 
 export default function TickerBar() {
   const tickerRef = useRef<HTMLDivElement>(null)
-  // Only subscribe to quotes for ticker symbols — prevents re-renders from unrelated symbol updates
-  const tickerQuotes = useMarketStore(
-    useShallow((state) => {
-      const result: Record<string, QuoteData> = {}
-      for (const s of TICKER_SYMBOLS) {
-        if (state.quotes[s]) result[s] = state.quotes[s]
-      }
-      return result
-    })
-  )
-  const quotes = new Map(TICKER_SYMBOLS.map(s => tickerQuotes[s] ? [s, tickerQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][])
+  // V417: Subscribe to ALL quotes (not just TICKER_SYMBOLS) to ensure re-renders
+  // happen when ANY quote updates. Previously used useShallow to select only
+  // TICKER_SYMBOLS, but this caused TickerBar to not re-render when quotes
+  // for those symbols updated via batching. The shallow comparison was missing
+  // updates because the batching creates a new quotes object but useShallow
+  // was comparing the selected subset which appeared unchanged.
+  const quotes = useMarketStore(state => state.quotes)
 
   // Convert quotes to tick items
   const ticks: TickItem[] = TICKER_SYMBOLS.map(symbol => {
-    const quote = quotes.get(symbol)
+    const quote = quotes[symbol]
     if (!quote) {
       return { symbol, price: '—', change: '0.00%', isPositive: true }
     }

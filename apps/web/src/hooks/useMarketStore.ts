@@ -30,40 +30,20 @@ interface MarketStore {
   setQuotes: (data: Record<string, QuoteData>) => void
 }
 
-// ── Batched quote updates: coalesce multiple setQuote calls within a single
-// animation frame into one store update, drastically reducing re-renders.
-let pendingQuotes: Record<string, QuoteData> = {}
-let flushTimer: ReturnType<typeof requestAnimationFrame> | null = null
-let _flushCount = 0;
-
-function flushPendingQuotes() {
-  if (Object.keys(pendingQuotes).length === 0) return
-  const batch = pendingQuotes
-  pendingQuotes = {}
-  flushTimer = null
-  useMarketStore.setState((state) => ({
-    quotes: { ...state.quotes, ...batch }
-  }))
-  // V418: Log first flush and then every 50th to verify batching works
-  _flushCount++;
-  if (_flushCount === 1) {
-    console.warn(`[useMarketStore] V418: First flush — ${Object.keys(batch).length} symbols: ${Object.keys(batch).join(', ')}`)
-  } else if (_flushCount % 50 === 0) {
-    console.warn(`[useMarketStore] V418: Flush #${_flushCount} — ${Object.keys(batch).length} symbols`)
-  }
-}
-
 export const useMarketStore = create<MarketStore>((set) => ({
   quotes: {},
-  setQuote: (symbol, data) => {
-    // Batch: accumulate updates and flush once per animation frame
-    pendingQuotes[symbol] = data
-    if (!flushTimer) {
-      flushTimer = requestAnimationFrame(flushPendingQuotes)
-    }
-  },
+  // V420: Direct update — removed requestAnimationFrame batching.
+  // Batching caused TickerBar to not re-render for non-charted symbols.
+  // Each setQuote now creates a new quotes object immediately, triggering
+  // all subscribed components to re-render. Performance is acceptable:
+  // ~10 updates/sec × 24 symbols = 240 re-renders/sec, but TickerBar and
+  // Watchlist are simple components with fast reconciliation.
+  setQuote: (symbol, data) => set((state) => ({
+    quotes: { ...state.quotes, [symbol]: data }
+  })),
   setQuotes: (data) => set((state) => ({
     quotes: { ...state.quotes, ...data }
   }))
 }))
+
 

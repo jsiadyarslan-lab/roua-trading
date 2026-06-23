@@ -22,7 +22,7 @@ export class BinanceAdapter implements IExchangeAdapter {
   private readonly exchange: any;
 
   // Cache TTLs
-  private readonly QUOTE_CACHE_TTL = 1_000;       // 1 second (crypto moves fast — was 3s, reduced for faster P&L)
+  private readonly QUOTE_CACHE_TTL = 5_000;       // V422: 5 seconds (matches stream TTL)
   private readonly HISTORY_CACHE_TTL = 60_000;    // 1 minute
 
   // Rate limit: conservative 100 calls/min

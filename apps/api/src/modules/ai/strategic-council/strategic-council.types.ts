@@ -130,7 +130,7 @@ export const ALL_COUNCIL_PAIRS: string[] = [
  *  After V413:  [BTC, EUR, XAU, ETH, GBP, WTI, SOL, USD/JPY, BRENT, ...]
  *               → maxPairs=7 → 3 crypto + 3 forex + 1 commodity.
  */
-function interleaveArrays<T>(...arrays: T[][]): T[] {
+function interleaveArrays<T>(...arrays: ReadonlyArray<readonly T[]>[]): T[] {
   const result: T[] = [];
   const maxLen = Math.max(...arrays.map(a => a.length));
   for (let i = 0; i < maxLen; i++) {

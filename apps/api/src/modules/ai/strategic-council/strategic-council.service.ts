@@ -311,9 +311,10 @@ export class StrategicCouncilService {
       // Same logic as executor council — see V353 comment block above.
       // V190: Read maxPairsPerSession from DB admin settings
       const councilCfg = await this._getCouncilConfig();
+      // V439: Forex/Commodities first, then Crypto — per user request.
       const allTradeablePairsAgent = [
-        ...BINANCE_SUPPORTED_PAIRS,   // 7 crypto pairs
-        ...OANDA_SUPPORTED_PAIRS,     // 7 forex + 4 commodities + 5 indices = 16 pairs
+        ...OANDA_SUPPORTED_PAIRS,     // 7 forex + 4 commodities + 5 indices = 16 pairs FIRST
+        ...BINANCE_SUPPORTED_PAIRS,   // 7 crypto pairs SECOND
       ];
       const agentPairs = allTradeablePairsAgent.slice(0, councilCfg.maxPairsPerSession);
       this.logger.log(`🏛️ V353 Agent Council: analyzing ${agentPairs.length} pairs (maxPairs=${councilCfg.maxPairsPerSession}): ${agentPairs.join(', ')}`);
@@ -521,9 +522,12 @@ export class StrategicCouncilService {
       // active exchange supports (isSymbolSupportedByExchange).
       // ═══════════════════════════════════════════════════════════════════
       // V190: Read maxPairsPerSession from DB admin settings
+      // V439: Forex/Commodities first, then Crypto — per user request.
+      // Forex and commodities have clearer trends (central bank policy, economic data)
+      // and lower noise than crypto, giving the AI Council better signal quality.
       const allTradeablePairs = [
-        ...BINANCE_SUPPORTED_PAIRS,   // 7 crypto pairs
-        ...OANDA_SUPPORTED_PAIRS,     // 7 forex + 4 commodities + 5 indices = 16 pairs
+        ...OANDA_SUPPORTED_PAIRS,     // 7 forex + 4 commodities + 5 indices = 16 pairs FIRST
+        ...BINANCE_SUPPORTED_PAIRS,   // 7 crypto pairs SECOND
       ];
       const executorPairs = allTradeablePairs.slice(0, councilCfg.maxPairsPerSession);
       this.logger.log(`🏛️ V353 Executor Council: analyzing ${executorPairs.length} pairs (maxPairs=${councilCfg.maxPairsPerSession}): ${executorPairs.join(', ')}`);

@@ -32,6 +32,11 @@ function SymbolButton({ symbol, isActive, onSelect }: SymbolButtonProps) {
   const isUp = chgPct >= 0
   const price = quote?.price && quote.price > 0 ? fmtPriceLocale(quote.price, symbol) : '—'
 
+  // V437: Vivid colors for price direction
+  // Green: bright neon lime for up, Red: bright neon coral for down
+  const priceColor = isUp ? '#00FF88' : '#FF3355'
+  const pctBg = isUp ? 'rgba(0,255,136,0.12)' : 'rgba(255,51,85,0.12)'
+
   return (
     <button key={symbol} type="button"
       onClick={() => onSelect(symbol)}
@@ -45,11 +50,11 @@ function SymbolButton({ symbol, isActive, onSelect }: SymbolButtonProps) {
         <span style={{ fontSize:8, color:'rgba(130,150,175,0.65)', fontFamily:"'JetBrains Mono',monospace", lineHeight:1 }}>
           {symbol.split('/')[0]}
         </span>
-        <span style={{ fontSize:10, fontWeight:800, color:'rgba(230,235,245,0.9)', fontFamily:"'JetBrains Mono',monospace", lineHeight:1.3 }}>
+        <span style={{ fontSize:10, fontWeight:800, color: priceColor, fontFamily:"'JetBrains Mono',monospace", lineHeight:1.3, textShadow: isUp ? '0 0 8px rgba(0,255,136,0.4)' : '0 0 8px rgba(255,51,85,0.4)' }}>
           {price}
         </span>
-        <span style={{ fontSize:9, fontWeight:700, color: isUp?'#00FFA3':'#FF4757', fontFamily:"'JetBrains Mono',monospace", lineHeight:1 }}>
-          {chgPct >= 0 ? '+' : ''}{chgPct.toFixed(2)}%
+        <span style={{ fontSize:9, fontWeight:700, color: priceColor, fontFamily:"'JetBrains Mono',monospace", lineHeight:1, padding: '1px 4px', borderRadius: 4, background: pctBg }}>
+          {isUp ? '▲' : '▼'} {chgPct >= 0 ? '+' : ''}{chgPct.toFixed(2)}%
         </span>
       </div>
     </button>

@@ -176,12 +176,17 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     }
 
     // Disconnect Binance WS
+    // V436: Stop ping interval BEFORE closing — prevents 'Ping received after close'
+    if (pingIntervalRef.current) {
+      clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = null;
+    }
     if (wsRef.current) {
       wsRef.current.onopen = null;
       wsRef.current.onmessage = null;
       wsRef.current.onerror = null;
       wsRef.current.onclose = null;
-      wsRef.current.close();
+      try { wsRef.current.close(1000, 'cleanup'); } catch {}
       wsRef.current = null;
     }
     if (pollingRef.current) {
@@ -453,11 +458,13 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
       if (rotationTimerRef.current) clearTimeout(rotationTimerRef.current);
       rotationTimerRef.current = setTimeout(() => {
         if (!isClosingRef.current && wsRef.current) {
-          console.log('[useChartWebSocket] Proactive 24h rotation — reconnecting...');
-          // Close old connection first, then reconnect
-          try { wsRef.current?.close(); } catch {}
+          // V436: Stop ping before closing — prevents 'Ping received after close'
+          if (pingIntervalRef.current) {
+            clearInterval(pingIntervalRef.current);
+            pingIntervalRef.current = null;
+          }
+          try { wsRef.current?.close(1000, 'rotation'); } catch {}
           wsRef.current = null;
-          // Increment generation to invalidate old onclose handler
           connectionGenRef.current++;
           connectBinanceFallback();
         }

@@ -75,7 +75,7 @@ export const COUNCIL_PAIRS = {
   COMMODITIES: ['XAU/USD', 'XAG/USD', 'WTI/USD', 'BRENT/USD'],
   // V353: Indices added for OANDA integration
   INDICES: ['US30/USD', 'NAS100/USD', 'SPX500/USD', 'GER30/USD', 'UK100/USD'],
-} as const;
+};
 
 /** V353: All OANDA-supported pairs (forex + metals + indices + energy).
  *  Used for paper-trading users who can trade ALL pairs (simulation).

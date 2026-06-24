@@ -32,6 +32,12 @@ import { AssistantChatService, ChatMessage } from './assistant-chat.service';
 import { LanguageRouterService } from './language-router.service';
 import { FinancialGlossaryService } from './financial-glossary.service';
 import { TranslationCacheService } from './translation-cache.service';
+// Phase 5: Intelligence Layer
+import { AutoDiagnosisService } from './auto-diagnosis.service';
+import { PatternDetectionService } from './pattern-detection.service';
+import { DailyBriefService } from './daily-brief.service';
+import { RiskAlertService } from './risk-alert.service';
+import { IntelligenceCoordinatorService } from './intelligence-coordinator.service';
 import { ContextRequest } from '../types/context.types';
 
 @Controller('assistant')
@@ -46,8 +52,14 @@ export class AssistantController {
     private readonly languageRouter: LanguageRouterService,
     private readonly glossary: FinancialGlossaryService,
     private readonly translationCache: TranslationCacheService,
+    // Phase 5
+    private readonly autoDiagnosis: AutoDiagnosisService,
+    private readonly patternDetection: PatternDetectionService,
+    private readonly dailyBrief: DailyBriefService,
+    private readonly riskAlert: RiskAlertService,
+    private readonly intelligenceCoordinator: IntelligenceCoordinatorService,
   ) {
-    this.logger.log('🤖 AssistantController initialized — Phase 4 (Streaming + UI)');
+    this.logger.log('🤖 AssistantController initialized — Phase 5 (Intelligence Layer)');
   }
 
   // ─── Phase 1: Context Engine ────────────────────────────────
@@ -387,6 +399,114 @@ export class AssistantController {
     };
   }
 
+  // ─── Phase 5: Intelligence Layer ────────────────────────────
+
+  /**
+   * GET /api/assistant/intelligence/overview
+   * تقرير شامل يجمع كل ميزات Intelligence Layer (diagnosis + patterns + daily + alerts)
+   *
+   * Query: days? (diagnosis days, default 30), patternDays? (default 60), language? (default ar)
+   */
+  @Get('intelligence/overview')
+  @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10/min لأنه مكلف
+  async getIntelOverview(
+    @Req() req: any,
+    @Query('days') days?: string,
+    @Query('patternDays') patternDays?: string,
+    @Query('language') language?: string,
+  ) {
+    const userId: string = req.user.id;
+    const lang = language || 'ar';
+    const d = days ? Math.min(Math.max(parseInt(days, 10) || 30, 1), 365) : 30;
+    const pd = patternDays ? Math.min(Math.max(parseInt(patternDays, 10) || 60, 1), 365) : 60;
+
+    this.logger.log(`🧠 Intelligence overview — user=${userId}`);
+    const overview = await this.intelligenceCoordinator.getOverview(userId, lang, {
+      diagnosisDays: d,
+      patternDays: pd,
+    });
+    return { success: true, data: overview };
+  }
+
+  /**
+   * GET /api/assistant/intelligence/diagnosis
+   * تشخيص تلقائي للأداء + كشف أسباب الخسائر
+   * Query: days? (default 30)
+   */
+  @Get('intelligence/diagnosis')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async getDiagnosis(
+    @Req() req: any,
+    @Query('days') days?: string,
+  ) {
+    const userId: string = req.user.id;
+    const d = days ? Math.min(Math.max(parseInt(days, 10) || 30, 1), 365) : 30;
+    this.logger.log(`🔬 Diagnosis — user=${userId} days=${d}`);
+    const report = await this.autoDiagnosis.diagnose(userId, d);
+    return { success: true, data: report };
+  }
+
+  /**
+   * GET /api/assistant/intelligence/patterns
+   * كشف الأنماط في تداول المستخدم (time/symbol/direction/source/consensus/duration/regime)
+   * Query: days? (default 60)
+   */
+  @Get('intelligence/patterns')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async getPatterns(
+    @Req() req: any,
+    @Query('days') days?: string,
+  ) {
+    const userId: string = req.user.id;
+    const d = days ? Math.min(Math.max(parseInt(days, 10) || 60, 1), 365) : 60;
+    this.logger.log(`🔍 Patterns — user=${userId} days=${d}`);
+    const report = await this.patternDetection.detect(userId, d);
+    return { success: true, data: report };
+  }
+
+  /**
+   * GET /api/assistant/intelligence/daily-brief
+   * ملخص يومي ذكي — يلخّص أمس + حالة اليوم + توصيات
+   * Query: language? (default ar)
+   */
+  @Get('intelligence/daily-brief')
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  async getDailyBrief(
+    @Req() req: any,
+    @Query('language') language?: string,
+  ) {
+    const userId: string = req.user.id;
+    const lang = language || 'ar';
+    this.logger.log(`📅 Daily brief — user=${userId} lang=${lang}`);
+    const brief = await this.dailyBrief.generate(userId, lang);
+    return { success: true, data: brief };
+  }
+
+  /**
+   * GET /api/assistant/intelligence/risk-alerts
+   * تنبيهات استباقية للمخاطر — 10 أنواع (CRITICAL/HIGH/MEDIUM/LOW)
+   * يتحدّث كل 30 ثانية (cached)
+   */
+  @Get('intelligence/risk-alerts')
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  async getRiskAlerts(@Req() req: any) {
+    const userId: string = req.user.id;
+    const summary = await this.riskAlert.getAlerts(userId);
+    return { success: true, data: summary };
+  }
+
+  /**
+   * GET /api/assistant/intelligence/risk-alerts/critical
+   * فقط التنبيهات الحرجة + العالية (للـ push notifications)
+   */
+  @Get('intelligence/risk-alerts/critical')
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  async getCriticalAlerts(@Req() req: any) {
+    const userId: string = req.user.id;
+    const alerts = await this.riskAlert.getCriticalAlerts(userId);
+    return { success: true, count: alerts.length, data: alerts };
+  }
+
   /**
    * GET /api/assistant/health
    * فحص صحة الـ Assistant module
@@ -398,7 +518,7 @@ export class AssistantController {
       success: true,
       status: 'operational',
       module: 'assistant',
-      version: 'V463-phase3',
+      version: 'V465-phase5',
       timestamp: new Date().toISOString(),
       features: {
         contextEngine: true,        // Phase 1 ✅
@@ -407,8 +527,13 @@ export class AssistantController {
         languageRouter: true,       // Phase 3 ✅
         glossary: true,             // Phase 3 ✅
         translationCache: true,     // Phase 3 ✅
-        streaming: false,           // Phase 4
-        intelligence: false,        // Phase 5
+        streaming: true,            // Phase 4 ✅
+        floatingUI: true,           // Phase 4 ✅
+        intelligence: true,         // Phase 5 ✅
+        autoDiagnosis: true,        // Phase 5 ✅
+        patternDetection: true,     // Phase 5 ✅
+        dailyBrief: true,           // Phase 5 ✅
+        riskAlerts: true,           // Phase 5 ✅
       },
       functionsCount: ASSISTANT_FUNCTIONS.length,
       languages: this.languageRouter.getCoverageStats(),
@@ -419,6 +544,7 @@ export class AssistantController {
         'POST /api/assistant/context',
         'POST /api/assistant/invalidate',
         'POST /api/assistant/chat',
+        'POST /api/assistant/chat/stream',
         'GET  /api/assistant/functions',
         'POST /api/assistant/functions/execute',
         'GET  /api/assistant/languages',
@@ -426,6 +552,12 @@ export class AssistantController {
         'GET  /api/assistant/glossary/:language',
         'GET  /api/assistant/cache/stats',
         'POST /api/assistant/cache/invalidate',
+        'GET  /api/assistant/intelligence/overview',
+        'GET  /api/assistant/intelligence/diagnosis',
+        'GET  /api/assistant/intelligence/patterns',
+        'GET  /api/assistant/intelligence/daily-brief',
+        'GET  /api/assistant/intelligence/risk-alerts',
+        'GET  /api/assistant/intelligence/risk-alerts/critical',
       ],
     };
   }

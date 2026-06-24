@@ -11,6 +11,17 @@
 //   - 32 languages (6A + 12B + 14C) with tier-based model routing
 //   - Financial glossary (16 languages, ~70 terms each)
 //   - Translation cache with 4 TTL categories (REALTIME/DYNAMIC/SEMI_STATIC/STATIC)
+//
+// Phase 4: Streaming + UI (V464)
+//   - SSE streaming endpoint
+//   - Floating chat widget (32 languages UI)
+//
+// Phase 5: Intelligence Layer (V465)
+//   - Auto-Diagnosis (root-cause analysis of losses)
+//   - Pattern Detection (time/symbol/direction/source/consensus/duration/regime)
+//   - Daily Brief (morning summary with recommendations)
+//   - Risk Alerts (proactive monitoring with 10 alert types)
+//   - Intelligence Coordinator (single entry point for all intelligence)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Module, forwardRef } from '@nestjs/common';
@@ -21,6 +32,12 @@ import { AssistantChatService } from './services/assistant-chat.service';
 import { LanguageRouterService } from './services/language-router.service';
 import { FinancialGlossaryService } from './services/financial-glossary.service';
 import { TranslationCacheService } from './services/translation-cache.service';
+// Phase 5: Intelligence Layer
+import { AutoDiagnosisService } from './services/auto-diagnosis.service';
+import { PatternDetectionService } from './services/pattern-detection.service';
+import { DailyBriefService } from './services/daily-brief.service';
+import { RiskAlertService } from './services/risk-alert.service';
+import { IntelligenceCoordinatorService } from './services/intelligence-coordinator.service';
 
 // Builders
 import { UserTradingContextBuilder } from './builders/user-trading-context.builder';
@@ -72,6 +89,13 @@ import { StrategicCouncilModule } from '../ai/strategic-council/strategic-counci
     LanguageRouterService,
     FinancialGlossaryService,
     TranslationCacheService,
+
+    // Phase 5: Intelligence Layer
+    AutoDiagnosisService,
+    PatternDetectionService,
+    DailyBriefService,
+    RiskAlertService,
+    IntelligenceCoordinatorService,
   ],
   exports: [
     ContextAggregatorService,
@@ -80,6 +104,11 @@ import { StrategicCouncilModule } from '../ai/strategic-council/strategic-counci
     LanguageRouterService,
     FinancialGlossaryService,
     TranslationCacheService,
+    AutoDiagnosisService,
+    PatternDetectionService,
+    DailyBriefService,
+    RiskAlertService,
+    IntelligenceCoordinatorService,
     UserTradingContextBuilder,
     CouncilContextBuilder,
     LearningContextBuilder,

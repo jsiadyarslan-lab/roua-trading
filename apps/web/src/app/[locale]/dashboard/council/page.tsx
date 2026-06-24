@@ -47,6 +47,7 @@ export default function CouncilPage() {
   const [councilLoading, setCouncilLoading] = useState(false)
   const [selectedSymbol, setSelectedSymbol] = useState('BTC/USDT')
   const [expandedBrief, setExpandedBrief] = useState<string | null>(null)
+  const [expandedVote, setExpandedVote] = useState<number | null>(null)
   const [filterDir, setFilterDir] = useState<'ALL' | 'BUY' | 'SELL'>('ALL')
   const [filterStatus, setFilterStatus] = useState<'ALL' | ReviewStatus>('ALL')
   const [filterCategory, setFilterCategory] = useState<'ALL' | 'Crypto' | 'Forex' | 'Commodities' | 'Indices'>('ALL')
@@ -356,48 +357,61 @@ export default function CouncilPage() {
             )}
           </GlassCard>
 
-          {/* Vote cards grid */}
+          {/* Vote cards grid — professional compact design (V449) */}
           {councilResult?.analyses && councilResult.analyses.length > 0 && (
             <div style={{ marginTop:20 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
-                <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.16em', textTransform:'uppercase', color:COLORS.council }}>{t('councilVotes')}</div>
+              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
+                <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.council }}>{t('councilVotes')}</div>
                 <div style={{ flex:1, height:1, background:`linear-gradient(90deg, ${hexToRgba(COLORS.council,0.3)}, transparent)` }} />
                 <div style={{ fontSize:11, color:COLORS.textMuted, fontFamily:'monospace' }}>{councilResult.analyses.length} {t('members')}</div>
               </div>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:14 }}>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))', gap:10 }}>
                 {councilResult.analyses.map((a, i) => {
                   const dc = directionColor(a.vote)
                   return (
-                    <motion.div key={i} initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.4, delay:0.05*i }}>
-                      <GlassCard interactive padding={0} glow={dc} style={{ height:'100%' }}>
-                        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', padding:'14px 14px 10px', borderBottom:`1px solid ${COLORS.border}`, gap:10 }}>
-                          <div style={{ minWidth:0, flex:1 }}>
-                            <div style={{ fontSize:13, fontWeight:600, color:COLORS.textPrimary, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{a.role}</div>
-                            <div style={{ fontSize:11, color:COLORS.textMuted, fontFamily:'monospace', marginTop:2 }}>{a.model}</div>
-                          </div>
-                          <div style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'4px 8px', borderRadius:7, background:hexToRgba(dc,0.12), border:`1px solid ${hexToRgba(dc,0.35)}`, color:dc, fontSize:11, fontWeight:700, textTransform:'uppercase', flexShrink:0 }}>
-                            {a.vote==='BUY'?<ArrowUpRight size={14} strokeWidth={2.5}/>:a.vote==='SELL'?<ArrowDownRight size={14} strokeWidth={2.5}/>:<Minus size={14} strokeWidth={2.5}/>}
+                    <motion.div key={i} initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.35, delay:0.04*i }}>
+                      <div style={{ borderRadius:12, background:'linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.012) 100%)', border:`1px solid ${COLORS.border}`, overflow:'hidden', transition:'border-color 200ms, transform 200ms' }}
+                        onMouseEnter={e=>{e.currentTarget.style.borderColor=hexToRgba(dc,0.35);e.currentTarget.style.transform='translateY(-2px)'}}
+                        onMouseLeave={e=>{e.currentTarget.style.borderColor=COLORS.border;e.currentTarget.style.transform='translateY(0)'}}>
+                        {/* Header: Role + Vote badge */}
+                        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 12px', borderBottom:`1px solid ${COLORS.border}`, gap:8 }}>
+                          <span style={{ fontSize:12, fontWeight:600, color:COLORS.textPrimary, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', flex:1 }}>{a.role}</span>
+                          <div style={{ display:'inline-flex', alignItems:'center', gap:3, padding:'3px 7px', borderRadius:6, background:hexToRgba(dc,0.12), border:`1px solid ${hexToRgba(dc,0.3)}`, color:dc, fontSize:10, fontWeight:700, textTransform:'uppercase', flexShrink:0 }}>
+                            {a.vote==='BUY'?<ArrowUpRight size={11} strokeWidth={2.5}/>:a.vote==='SELL'?<ArrowDownRight size={11} strokeWidth={2.5}/>:<Minus size={11} strokeWidth={2.5}/>}
                             {t(dirLabelKey[a.vote])}
                           </div>
                         </div>
-                        <div style={{ padding:'12px 14px' }}>
-                          <FormattedText
-                            text={a.reason}
-                            maxLength={180}
-                            dir={loc === 'ar' ? 'rtl' : 'ltr'}
-                            fontSize={12.5}
-                            accent={dc}
-                            placeholder={t('noReason')}
-                          />
-                        </div>
-                        <div style={{ padding:'10px 14px 14px', borderTop:`1px solid ${COLORS.border}` }}>
-                          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:7 }}>
-                            <span style={{ fontSize:11, fontWeight:500, letterSpacing:'0.06em', textTransform:'uppercase', color:COLORS.textMuted }}>{t('colConfidence')}</span>
-                            <span style={{ fontSize:13, fontWeight:600, color:COLORS.textPrimary, fontFamily:'monospace' }}>{a.confidence}%</span>
+                        {/* Body: Model + Confidence */}
+                        <div style={{ padding:'8px 12px 10px', display:'flex', flexDirection:'column', gap:6 }}>
+                          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                            <span style={{ fontSize:10, color:COLORS.textMuted, fontFamily:'monospace' }}>{a.model}</span>
+                            <span style={{ fontSize:11, fontWeight:700, color:dc, fontFamily:'monospace' }}>{a.confidence}%</span>
                           </div>
-                          <ConfidenceBar value={a.confidence} color={COLORS.council} height={4} />
+                          <div style={{ height:4, borderRadius:999, background:'rgba(255,255,255,0.05)', overflow:'hidden' }}>
+                            <div style={{ height:'100%', width:`${a.confidence}%`, background:`linear-gradient(90deg, ${dc}, ${hexToRgba(dc,0.5)})`, borderRadius:999 }} />
+                          </div>
                         </div>
-                      </GlassCard>
+                        {/* Footer: Details button */}
+                        <div style={{ padding:'6px 12px 8px', borderTop:`1px solid ${COLORS.border}`, display:'flex', justifyContent:'center' }}>
+                          <button
+                            onClick={() => setExpandedVote(expandedVote === i ? null : i)}
+                            style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'3px 10px', borderRadius:6, background:expandedVote===i?hexToRgba(COLORS.council,0.1):'rgba(255,255,255,0.03)', border:`1px solid ${expandedVote===i?hexToRgba(COLORS.council,0.3):COLORS.border}`, color:expandedVote===i?COLORS.council:COLORS.textMuted, fontSize:9, fontWeight:600, cursor:'pointer', letterSpacing:'0.03em' }}
+                          >
+                            {expandedVote===i ? (t('hideDetails') ?? 'Hide') : (t('showDetails') ?? 'Details')}
+                            <motion.span animate={{ rotate:expandedVote===i?180:0 }} transition={{ duration:0.2 }}><ChevronDown size={9} strokeWidth={2.5} /></motion.span>
+                          </button>
+                        </div>
+                        {/* Expandable reason */}
+                        <AnimatePresence initial={false}>
+                          {expandedVote === i && (
+                            <motion.div initial={{ height:0, opacity:0 }} animate={{ height:'auto', opacity:1 }} exit={{ height:0, opacity:0 }} transition={{ duration:0.25 }} style={{ overflow:'hidden' }}>
+                              <div style={{ padding:'10px 12px 12px', background:'rgba(0,0,0,0.15)', borderTop:`1px solid ${COLORS.border}` }}>
+                                <FormattedText text={a.reason} maxLength={0} collapsible={false} dir={loc==='ar'?'rtl':'ltr'} fontSize={11} accent={dc} placeholder={t('noReason') ?? 'No reason provided'} />
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
                     </motion.div>
                   )
                 })}

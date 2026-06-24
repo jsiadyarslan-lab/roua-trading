@@ -713,55 +713,132 @@ function BriefCard({ brief, loc, index, expanded, onToggle, t }: {
           </motion.button>
         </div>
 
-        {/* V444: In-card expandable details (within card bounds, not full-screen popup) */}
+        {/* V445: Full-screen popup modal for brief details */}
         <AnimatePresence initial={false}>
           {expanded && (
             <motion.div
-              initial={{ height:0, opacity:0 }} animate={{ height:'auto', opacity:1 }} exit={{ height:0, opacity:0 }} transition={{ duration:0.25, ease:[0.22,1,0.36,1] }}
-              style={{ overflow:'hidden', borderTop:`1px solid ${COLORS.border}` }}
+              initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }} transition={{ duration:0.2 }}
+              style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.7)', backdropFilter:'blur(6px)', WebkitBackdropFilter:'blur(6px)', display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
+              onClick={onToggle}
             >
-              <div style={{ padding:'14px 18px 16px', background:'rgba(0,0,0,0.18)', display:'flex', flexDirection:'column', gap:12 }}>
-                {/* Price grid */}
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
-                  <div style={{ textAlign:'center', padding:'8px', borderRadius:7, background:'rgba(255,255,255,0.02)', border:`1px solid ${COLORS.border}` }}>
-                    <div style={{ fontSize:9, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', color:COLORS.textMuted, marginBottom:2 }}>{t('entry')}</div>
-                    <div style={{ fontSize:13, fontWeight:700, color:COLORS.textPrimary, fontFamily:'monospace' }}>{formatPrice(brief.entryPrice)}</div>
+              <motion.div
+                initial={{ scale:0.92, y:20, opacity:0 }} animate={{ scale:1, y:0, opacity:1 }} exit={{ scale:0.92, y:20, opacity:0 }} transition={{ duration:0.3, ease:[0.22,1,0.36,1] }}
+                style={{ maxWidth:560, width:'100%', maxHeight:'85vh', overflowY:'auto', background:'#0F131C', border:`1px solid ${COLORS.borderStrong}`, borderRadius:16, boxShadow:`0 32px 80px -16px rgba(0,0,0,0.9), 0 0 0 1px ${hexToRgba(dc,0.15)}` }}
+                onClick={e=>e.stopPropagation()}
+              >
+                {/* Header */}
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'18px 22px', borderBottom:`1px solid ${COLORS.border}`, position:'sticky', top:0, background:'#0F131C', zIndex:2 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                    <CircularProgress value={brief.confidence} size={44} strokeWidth={4} color={dc} glow={false}>
+                      <span style={{ fontSize:11, fontWeight:700, color:COLORS.textPrimary, fontFamily:'monospace' }}>{brief.confidence}</span>
+                    </CircularProgress>
+                    <div>
+                      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                        <span style={{ fontSize:18, fontWeight:700, color:COLORS.textPrimary }}>{brief.pair}</span>
+                        <span style={{ fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:4, background:hexToRgba(COLORS.council,0.12), border:`1px solid ${hexToRgba(COLORS.council,0.25)}`, color:COLORS.council, fontFamily:'monospace' }}>{brief.timeframe}</span>
+                      </div>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:4 }}>
+                        <div style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'3px 10px', borderRadius:7, background:dirSoft, border:`1px solid ${hexToRgba(dc,0.35)}`, color:dc, fontSize:11, fontWeight:700, textTransform:'uppercase' }}>
+                          {brief.direction==='BUY'?<TrendingUp size={11} strokeWidth={2.5}/>:<TrendingDown size={11} strokeWidth={2.5}/>}
+                          {t(dirLabelKey[brief.direction])}
+                        </div>
+                        <span style={{ fontSize:10, color:COLORS.textMuted, display:'inline-flex', alignItems:'center', gap:3 }}><Clock size={10} /> {relativeTime(brief.issuedAt, loc)}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ textAlign:'center', padding:'8px', borderRadius:7, background:hexToRgba(COLORS.sell,0.05), border:`1px solid ${hexToRgba(COLORS.sell,0.15)}` }}>
-                    <div style={{ fontSize:9, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', color:COLORS.sell, marginBottom:2 }}>{t('stopLoss')}</div>
-                    <div style={{ fontSize:13, fontWeight:700, color:COLORS.sell, fontFamily:'monospace' }}>{formatPrice(brief.stopLoss)}</div>
+                  <button onClick={onToggle} style={{ background:'rgba(255,255,255,0.04)', border:`1px solid ${COLORS.border}`, cursor:'pointer', color:COLORS.textMuted, padding:6, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', transition:'all 150ms' }}
+                    onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.08)';e.currentTarget.style.color=COLORS.textPrimary}}
+                    onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.04)';e.currentTarget.style.color=COLORS.textMuted}}>
+                    <XCircle size={18} />
+                  </button>
+                </div>
+                {/* Body */}
+                <div style={{ padding:'22px', display:'flex', flexDirection:'column', gap:16 }}>
+                  {/* Price grid */}
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
+                    <div style={{ textAlign:'center', padding:'12px', borderRadius:10, background:'rgba(255,255,255,0.025)', border:`1px solid ${COLORS.border}` }}>
+                      <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:COLORS.textMuted, marginBottom:4 }}>{t('entry')}</div>
+                      <div style={{ fontSize:16, fontWeight:700, color:COLORS.textPrimary, fontFamily:'monospace' }}>{formatPrice(brief.entryPrice)}</div>
+                    </div>
+                    <div style={{ textAlign:'center', padding:'12px', borderRadius:10, background:hexToRgba(COLORS.sell,0.06), border:`1px solid ${hexToRgba(COLORS.sell,0.2)}` }}>
+                      <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:COLORS.sell, marginBottom:4 }}>{t('stopLoss')}</div>
+                      <div style={{ fontSize:16, fontWeight:700, color:COLORS.sell, fontFamily:'monospace' }}>{formatPrice(brief.stopLoss)}</div>
+                      <div style={{ fontSize:10, color:COLORS.sell, fontFamily:'monospace', marginTop:2 }}>{slPctStr}</div>
+                    </div>
+                    <div style={{ textAlign:'center', padding:'12px', borderRadius:10, background:hexToRgba(COLORS.buy,0.06), border:`1px solid ${hexToRgba(COLORS.buy,0.2)}` }}>
+                      <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:COLORS.buy, marginBottom:4 }}>{t('takeProfit')}</div>
+                      <div style={{ fontSize:16, fontWeight:700, color:COLORS.buy, fontFamily:'monospace' }}>{formatPrice(brief.takeProfit)}</div>
+                      <div style={{ fontSize:10, color:COLORS.buy, fontFamily:'monospace', marginTop:2 }}>{tpPctStr}</div>
+                    </div>
                   </div>
-                  <div style={{ textAlign:'center', padding:'8px', borderRadius:7, background:hexToRgba(COLORS.buy,0.05), border:`1px solid ${hexToRgba(COLORS.buy,0.15)}` }}>
-                    <div style={{ fontSize:9, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', color:COLORS.buy, marginBottom:2 }}>{t('takeProfit')}</div>
-                    <div style={{ fontSize:13, fontWeight:700, color:COLORS.buy, fontFamily:'monospace' }}>{formatPrice(brief.takeProfit)}</div>
+                  {/* R/R bar */}
+                  <div style={{ position:'relative', height:28, borderRadius:7, overflow:'hidden', display:'flex', border:`1px solid ${COLORS.border}` }}>
+                    <div style={{ width:`${slBarWidth}%`, background:`linear-gradient(90deg, ${hexToRgba(COLORS.sell,0.3)}, ${hexToRgba(COLORS.sell,0.12)})`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:COLORS.sell }}>
+                      {rr.toFixed(1)}R RISK
+                    </div>
+                    <div style={{ width:'2px', background:COLORS.textPrimary, zIndex:1 }} />
+                    <div style={{ width:`${tpBarWidth}%`, background:`linear-gradient(90deg, ${hexToRgba(COLORS.buy,0.12)}, ${hexToRgba(COLORS.buy,0.3)})`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:COLORS.buy }}>
+                      {(rr * 1).toFixed(1)}R REWARD
+                    </div>
+                  </div>
+                  {/* Details grid */}
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:7, padding:'10px 12px', borderRadius:9, background:'rgba(255,255,255,0.02)', border:`1px solid ${COLORS.border}` }}>
+                      <Activity size={13} color={COLORS.info} />
+                      <div>
+                        <div style={{ fontSize:9, fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{t('lastReview')}</div>
+                        <span style={{ fontSize:12, fontWeight:600, color:COLORS.textPrimary, fontFamily:'monospace' }}>{relativeTime(brief.lastReviewedAt, loc)}</span>
+                      </div>
+                    </div>
+                    <div style={{ display:'flex', alignItems:'center', gap:7, padding:'10px 12px', borderRadius:9, background:'rgba(255,255,255,0.02)', border:`1px solid ${COLORS.border}` }}>
+                      <Gauge size={13} color={COLORS.info} />
+                      <div>
+                        <div style={{ fontSize:9, fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{t('riskReward')}</div>
+                        <span style={{ fontSize:12, fontWeight:600, color:COLORS.info, fontFamily:'monospace' }}>{rr.toFixed(2)}</span>
+                      </div>
+                    </div>
+                    <div style={{ display:'flex', alignItems:'center', gap:7, padding:'10px 12px', borderRadius:9, background:'rgba(255,255,255,0.02)', border:`1px solid ${COLORS.border}` }}>
+                      <Shield size={13} color={COLORS.hold} />
+                      <div>
+                        <div style={{ fontSize:9, fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{t('maxSlippage') ?? 'Slippage'}</div>
+                        <span style={{ fontSize:12, fontWeight:600, color:COLORS.textPrimary, fontFamily:'monospace' }}>{(brief.strictRules.maxSlippage*100).toFixed(2)}%</span>
+                      </div>
+                    </div>
+                    <div style={{ display:'flex', alignItems:'center', gap:7, padding:'10px 12px', borderRadius:9, background:'rgba(255,255,255,0.02)', border:`1px solid ${COLORS.border}` }}>
+                      <Timer size={13} color={isExpired?COLORS.sell:remainingMs<3600000?COLORS.hold:COLORS.textSecondary} />
+                      <div>
+                        <div style={{ fontSize:9, fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{t('expires')}</div>
+                        <span style={{ fontSize:12, fontWeight:600, color:isExpired?COLORS.sell:remainingMs<3600000?COLORS.hold:COLORS.textSecondary, fontFamily:'monospace' }}>{isExpired?t('expired'):formatCountdown(remainingMs, loc)}</span>
+                      </div>
+                    </div>
+                    <div style={{ display:'flex', alignItems:'center', gap:7, padding:'10px 12px', borderRadius:9, background:'rgba(255,255,255,0.02)', border:`1px solid ${COLORS.border}` }}>
+                      <Target size={13} color={COLORS.sell} />
+                      <div>
+                        <div style={{ fontSize:9, fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{t('slDistance')}</div>
+                        <span style={{ fontSize:12, fontWeight:600, color:COLORS.textPrimary, fontFamily:'monospace' }}>{slPctStr}</span>
+                      </div>
+                    </div>
+                    <div style={{ display:'flex', alignItems:'center', gap:7, padding:'10px 12px', borderRadius:9, background:'rgba(255,255,255,0.02)', border:`1px solid ${COLORS.border}` }}>
+                      <Target size={13} color={COLORS.buy} />
+                      <div>
+                        <div style={{ fontSize:9, fontWeight:600, textTransform:'uppercase', color:COLORS.textMuted }}>{t('tpDistance')}</div>
+                        <span style={{ fontSize:12, fontWeight:600, color:COLORS.textPrimary, fontFamily:'monospace' }}>{tpPctStr}</span>
+                      </div>
+                    </div>
+                  </div>
+                  {/* AI analysis */}
+                  <div style={{ padding:'14px', borderRadius:10, background:hexToRgba(COLORS.council,0.05), border:`1px solid ${hexToRgba(COLORS.council,0.15)}` }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:10 }}>
+                      <div style={{ width:24, height:24, borderRadius:7, background:COLORS.gradientCouncil, display:'flex', alignItems:'center', justifyContent:'center', color:'#0B0E14' }}>
+                        <Sparkles size={12} strokeWidth={2.5} />
+                      </div>
+                      <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:COLORS.council }}>{t('whyThisSignal')}</span>
+                      <div style={{ flex:1, height:1, background:`linear-gradient(90deg, ${hexToRgba(COLORS.council,0.3)}, transparent)` }} />
+                    </div>
+                    <FormattedText text={brief.analysisSummary ?? ''} maxLength={0} collapsible={false} dir={loc==='ar'?'rtl':'ltr'} fontSize={13} accent={dc} placeholder={t('noAnalysis')} />
                   </div>
                 </div>
-                {/* R/R bar */}
-                <div style={{ position:'relative', height:20, borderRadius:5, overflow:'hidden', display:'flex', border:`1px solid ${COLORS.border}` }}>
-                  <div style={{ width:`${slBarWidth}%`, background:`linear-gradient(90deg, ${hexToRgba(COLORS.sell,0.25)}, ${hexToRgba(COLORS.sell,0.1)})`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:8, fontWeight:700, color:COLORS.sell }}>
-                    {rr.toFixed(1)}R
-                  </div>
-                  <div style={{ width:'2px', background:COLORS.textPrimary, zIndex:1 }} />
-                  <div style={{ width:`${tpBarWidth}%`, background:`linear-gradient(90deg, ${hexToRgba(COLORS.buy,0.1)}, ${hexToRgba(COLORS.buy,0.25)})`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:8, fontWeight:700, color:COLORS.buy }}>
-                    {(rr * 1).toFixed(1)}R
-                  </div>
-                </div>
-                {/* Details row */}
-                <div style={{ display:'flex', gap:8, flexWrap:'wrap', fontSize:10, color:COLORS.textMuted }}>
-                  <span style={{ display:'inline-flex', alignItems:'center', gap:3 }}><Activity size={10} color={COLORS.info} /> {relativeTime(brief.lastReviewedAt, loc)}</span>
-                  <span style={{ display:'inline-flex', alignItems:'center', gap:3 }}><Target size={10} color={COLORS.sell} /> {slPctStr}</span>
-                  <span style={{ display:'inline-flex', alignItems:'center', gap:3 }}><Target size={10} color={COLORS.buy} /> {tpPctStr}</span>
-                  <span style={{ display:'inline-flex', alignItems:'center', gap:3 }}><Shield size={10} color={COLORS.hold} /> {(brief.strictRules.maxSlippage*100).toFixed(2)}%</span>
-                </div>
-                {/* AI analysis */}
-                <div style={{ padding:'10px', borderRadius:8, background:hexToRgba(COLORS.council,0.04), border:`1px solid ${hexToRgba(COLORS.council,0.12)}` }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:6 }}>
-                    <Sparkles size={10} color={COLORS.council} />
-                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:COLORS.council }}>{t('whyThisSignal')}</span>
-                  </div>
-                  <FormattedText text={brief.analysisSummary ?? ''} maxLength={0} collapsible={false} dir={loc==='ar'?'rtl':'ltr'} fontSize={11.5} accent={dc} placeholder={t('noAnalysis')} />
-                </div>
-              </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>

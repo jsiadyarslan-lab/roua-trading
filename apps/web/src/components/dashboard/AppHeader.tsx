@@ -512,8 +512,9 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
           }}>
             <span style={{
               fontFamily: "'JetBrains Mono', monospace",
-              fontSize: isMobile ? 8 : 7.5, color: T.text3,
+              fontSize: isMobile ? 9 : 10, color: '#E8ECF4',
               letterSpacing: '0.04em', lineHeight: 1.2,
+              fontWeight: 800,
             }}>{sym}</span>
             <span className="price" style={{
               fontSize: isMobile ? 10 : 11.5,

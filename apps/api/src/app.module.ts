@@ -34,6 +34,9 @@ import { NotificationModule } from './modules/notification/notification.module';
 import { IntegrationModule } from './modules/integration/integration.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { CouncilIntelligenceModule } from './modules/ai/council-intelligence/council-intelligence.module';
+// V458: Assistant Module — مساعد ذكي متعدد اللغات (32 لغة)
+// Phase 1: Context Engine — يجمع 6 طبقات سياق (صفقات + مجلس + تعلم + سوق + أخبار + صحة)
+import { AssistantModule } from './modules/assistant/assistant.module';
 import { UserIsolationInterceptor } from './common/interceptors/user-isolation.interceptor';
 import { PrismaService } from './common/prisma/prisma.service';
 
@@ -136,6 +139,7 @@ import { PrismaService } from './common/prisma/prisma.service';
     IntegrationModule,
     MaintenanceModule,
     CouncilIntelligenceModule, // V185: حلقة التعلم + كشف وضع السوق + الارتباط + الحجم الذكي + الذاكرة + الجدول الذكي + الشفاء الذاتي + Backtesting
+    AssistantModule,           // V458: مساعد ذكي — Phase 1: Context Engine
   ],
 })
 export class AppModule {}

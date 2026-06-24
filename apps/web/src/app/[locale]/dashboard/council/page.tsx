@@ -162,23 +162,7 @@ export default function CouncilPage() {
   )
 
   return (
-    <SubPageLayout
-      title={t('navLabel')}
-      icon="🏛️"
-      iconBg={COLORS.gradientCouncil}
-      actions={
-        <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-          <div style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'5px 10px', borderRadius:8, background:sessionRunning?hexToRgba(COLORS.buy,0.08):'rgba(255,255,255,0.04)', border:`1px solid ${sessionRunning?hexToRgba(COLORS.buy,0.3):COLORS.border}`, fontSize:10, fontWeight:600, color:sessionRunning?COLORS.buy:COLORS.textMuted }}>
-            <LiveDot color={sessionRunning?COLORS.buy:COLORS.textDim} size={6} label={sessionRunning?t('running'):t('idle')} />
-          </div>
-          <motion.button whileTap={{ scale:0.97 }} onClick={trigger} disabled={triggerLoading||sessionRunning}
-            style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'7px 12px', borderRadius:8, border:'none', cursor:triggerLoading||sessionRunning?'not-allowed':'pointer', background:triggerLoading||sessionRunning?'rgba(168,85,247,0.3)':COLORS.gradientCouncil, color:'#0B0E14', fontSize:11, fontWeight:700, letterSpacing:'0.04em', textTransform:'uppercase', boxShadow:`0 6px 20px -6px ${hexToRgba(COLORS.council,0.6)}` }}>
-            {triggerLoading||sessionRunning ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} strokeWidth={2.75} />}
-            {sessionRunning ? t('inProgress') : t('triggerSession')}
-          </motion.button>
-        </div>
-      }
-    >
+    <SubPageLayout title={t('navLabel')} icon="🏛️">
       {/* Ambient background */}
       <div aria-hidden style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:0, overflow:'hidden' }}>
         <div style={{ position:'absolute', top:-200, insetInlineEnd:-150, width:600, height:600, background:`radial-gradient(circle, ${hexToRgba(COLORS.council,0.18)} 0%, transparent 60%)`, filter:'blur(40px)' }} />
@@ -186,7 +170,35 @@ export default function CouncilPage() {
         <div style={{ position:'absolute', inset:0, backgroundImage:`linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)`, backgroundSize:'48px 48px', maskImage:'radial-gradient(ellipse 80% 60% at 50% 0%, black, transparent 70%)', WebkitMaskImage:'radial-gradient(ellipse 80% 60% at 50% 0%, black, transparent 70%)' }} />
       </div>
 
-      <div style={{ position:'relative', zIndex:1, maxWidth:1440, margin:'0 auto', padding:'24px 24px 64px', display:'flex', flexDirection:'column', gap:32 }}>
+      <div style={{ position:'relative', zIndex:1, maxWidth:1440, margin:'0 auto', padding:'32px 24px 64px', display:'flex', flexDirection:'column', gap:40 }}>
+        {/* ═══ TOP BAR ═══ */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:16, flexWrap:'wrap' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+            <div style={{ position:'relative', width:44, height:44, borderRadius:12, background:'rgba(255,255,255,0.03)', border:`1px solid ${COLORS.border}`, display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
+              <div aria-hidden style={{ position:'absolute', inset:0, background:`radial-gradient(circle at 50% 50%, ${hexToRgba(COLORS.council,0.2)}, transparent 70%)` }} />
+              <CouncilSigil size={36} />
+            </div>
+            <div>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <h1 style={{ fontSize:16, fontWeight:600, letterSpacing:'-0.015em', color:COLORS.textPrimary, margin:0, lineHeight:1 }}>{t('navLabel')}</h1>
+                <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:COLORS.council, padding:'2px 6px', borderRadius:4, background:hexToRgba(COLORS.council,0.12), border:`1px solid ${hexToRgba(COLORS.council,0.3)}` }}>v1</span>
+              </div>
+              <div style={{ fontSize:11, color:COLORS.textMuted, marginTop:3 }}>
+                {activeBriefs.length} {t('activeBriefs')}{lastSession ? ` · ${t('lastSession')} ${relativeTime(lastSession.timestamp, loc)}` : ''}{sessionRunning ? ` · ${t('conveningCouncil')}` : ''}
+              </div>
+            </div>
+          </div>
+          <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+            <div style={{ display:'inline-flex', alignItems:'center', gap:7, padding:'8px 12px', borderRadius:10, background:sessionRunning?hexToRgba(COLORS.buy,0.08):'rgba(255,255,255,0.04)', border:`1px solid ${sessionRunning?hexToRgba(COLORS.buy,0.3):COLORS.border}`, fontSize:11, fontWeight:600, color:sessionRunning?COLORS.buy:COLORS.textMuted }}>
+              <LiveDot color={sessionRunning?COLORS.buy:COLORS.textDim} size={7} label={sessionRunning?t('running'):t('idle')} />
+            </div>
+            <motion.button whileTap={{ scale:0.97 }} onClick={trigger} disabled={triggerLoading||sessionRunning}
+              style={{ display:'inline-flex', alignItems:'center', gap:7, padding:'9px 14px', borderRadius:10, border:'none', cursor:triggerLoading||sessionRunning?'not-allowed':'pointer', background:triggerLoading||sessionRunning?'rgba(168,85,247,0.3)':COLORS.gradientCouncil, color:'#0B0E14', fontSize:12, fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase', boxShadow:`0 8px 24px -8px ${hexToRgba(COLORS.council,0.6)}` }}>
+              {triggerLoading||sessionRunning ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} strokeWidth={2.75} />}
+              {sessionRunning ? t('inProgress') : t('triggerSession')}
+            </motion.button>
+          </div>
+        </div>
 
         {offline && (
           <GlassCard style={{ padding:'12px 16px', borderColor:hexToRgba(COLORS.hold,0.3) }}>

@@ -557,8 +557,8 @@ function MobileNewsTicker() {
         const displayCat = getNewsCategory(item, locale)
         return (
           <span key={i} style={{
-            fontFamily: isAr ? "'Cairo', 'Readex Pro', sans-serif" : "'Inter', 'Readex Pro', sans-serif", fontSize: 9,
-            color: 'rgba(180,190,205,0.7)', flexShrink: 0, fontWeight: 400,
+            fontFamily: isAr ? "'Cairo', 'Readex Pro', sans-serif" : "'Inter', 'Readex Pro', sans-serif", fontSize: 8,
+            color: 'rgba(150,160,175,0.45)', flexShrink: 0, fontWeight: 400,
             display: 'inline-flex', alignItems: 'center', gap: 4,
           }}>
             <span style={{

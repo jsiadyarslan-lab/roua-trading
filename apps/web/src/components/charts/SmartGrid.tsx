@@ -16,6 +16,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { usePositionsStore } from '@/hooks/usePositionsStore';
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore';
 import { useChartStateStore, type SmartGridPersistConfig, type SmartGridCellConfig } from '@/hooks/useChartStateStore';
+import { useMarketStore } from '@/hooks/useMarketStore';
 import type { CandleData, ActiveIndicator } from '@/lib/charts/types';
 import { INDICATOR_CONFIGS } from '@/lib/charts/types';
 import { calculateIndicator } from '@/lib/charts/IndicatorCalculator';
@@ -1555,19 +1556,70 @@ export function SmartGrid({
     return () => clearTimeout(initTimer);
   }, [cells, loadDataForCell]);
 
-  // ── Auto-refresh every 15s (stable — does NOT reset on cells change) ──
+  // ── Auto-refresh every 30s (stable — does NOT reset on cells change) ──
+  // V453: Increased from 15s to 30s. Live price updates now handled by the
+  // useEffect below (subscribes to useMarketStore). Full reload only needed
+  // for closed candle corrections + indicator recalculation.
   useEffect(() => {
     refreshIntervalRef.current = setInterval(() => {
-      // Read latest cells from ref instead of depending on cells state
       const currentCells = cellsRef.current;
       currentCells.forEach(cell => {
         if (cell.symbol && initializedCellsRef.current.has(cell.id)) {
           loadDataForCell(cell);
         }
       });
-    }, 15000);
+    }, 30000);
     return () => { if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current); };
-  }, [loadDataForCell]); // ← REMOVED cells from deps — uses cellsRef instead
+  }, [loadDataForCell]);
+
+  // V453: Live price updates — update last candle's close without full setData.
+  // Previously: SmartGrid had NO real-time price feed. Candles only updated
+  // every 15s via setData() (full replacement). This caused the last candle
+  // to "stretch and shrink" — each setData replaced it with a different close.
+  // Now: subscribe to useMarketStore. When a cell's symbol price changes,
+  // update only the last candle via series.update() — smooth, no flicker.
+  const liveQuotes = useMarketStore(state => state.quotes);
+  useEffect(() => {
+    const currentCells = cellsRef.current;
+    currentCells.forEach(cell => {
+      if (!cell.symbol || !initializedCellsRef.current.has(cell.id)) return;
+
+      const quote = liveQuotes[cell.symbol];
+      if (!quote || !quote.price || quote.price <= 0) return;
+
+      const series = seriesRefs.current.get(cell.id);
+      const volSeries = volumeSeriesRefs.current.get(cell.id);
+      const candleData = cellCandleDataRef.current.get(cell.id);
+      if (!series || !candleData || candleData.length === 0) return;
+
+      const lastCandle = candleData[candleData.length - 1];
+      const price = quote.price;
+
+      // Update last candle: high/low/close (keep open stable)
+      const updatedCandle = {
+        ...lastCandle,
+        high: Math.max(lastCandle.high, price),
+        low: Math.min(lastCandle.low, price),
+        close: price,
+      };
+
+      // Write back to ref
+      candleData[candleData.length - 1] = updatedCandle;
+
+      // Incremental update — no setData, no flicker
+      try {
+        series.update(updatedCandle);
+        if (volSeries) {
+          volSeries.update({
+            time: updatedCandle.time,
+            value: updatedCandle.volume,
+            color: updatedCandle.close >= updatedCandle.open
+              ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
+          });
+        }
+      } catch {}
+    });
+  }, [liveQuotes]);
 
   // ── Cleanup on unmount ──
   useEffect(() => {

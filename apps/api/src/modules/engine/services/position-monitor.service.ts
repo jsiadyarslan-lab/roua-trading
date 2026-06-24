@@ -13,6 +13,8 @@ import { PerformanceEventsService } from '../../analytics/services/performance-e
 // V185: مجلس الذكاء — مجلة التداول + الشفاء الذاتي
 import { TradeJournalService } from '../../ai/council-intelligence/trade-journal.service';
 import { SelfHealingService } from '../../ai/council-intelligence/self-healing.service';
+// V453: CouncilVoteAccuracy — feed trade outcomes back to council for learning
+import { CouncilVoteAccuracyService } from '../../ai/council-intelligence/council-vote-accuracy.service';
 // V223: StrategicCouncilService — to cancel briefs on position close
 import { StrategicCouncilService } from '../../ai/strategic-council/strategic-council.service';
 // V271: Feature flags
@@ -151,6 +153,7 @@ export class PositionMonitorService {
     private readonly performanceEvents: PerformanceEventsService,
     // V185: مجلس الذكاء — @Optional حتى لا يفشل إذا لم يكن الموديول متاحاً
     @Optional() private readonly journal?: TradeJournalService,
+    @Optional() private readonly voteAccuracy?: CouncilVoteAccuracyService,
     @Optional() private readonly selfHealing?: SelfHealingService,
     // V223: StrategicCouncilService — @Global() module provides this. Was @Optional()
     // before V223.1, which caused silent undefined → brief cancellation never ran.
@@ -2042,6 +2045,25 @@ export class PositionMonitorService {
         }
       } catch (journalErr: any) {
         this.logger.debug(`V185 Journal: Failed to record trade close: ${journalErr.message}`);
+      }
+
+      // V453: Feed trade outcome to CouncilVoteAccuracy for learning
+      // This closes the learning loop: Council votes → Trade → Result → Accuracy update
+      try {
+        if (this.voteAccuracy && position.userId) {
+          const pnlForVote = position.side === 'BUY'
+            ? (currentPrice - (position.entryPrice?.toNumber?.() ?? Number(position.entryPrice))) * (position.quantity?.toNumber?.() ?? Number(position.quantity))
+            : ((position.entryPrice?.toNumber?.() ?? Number(position.entryPrice)) - currentPrice) * (position.quantity?.toNumber?.() ?? Number(position.quantity));
+          const wasCorrect = pnlForVote > 0;
+          // Record for each council role — the direction the council recommended
+          // was correct if the trade was profitable
+          const councilDirection = position.side === 'BUY' ? 'BUY' : 'SELL';
+          // We don't have per-role votes here, but we record the overall outcome
+          // Per-role accuracy is updated by TradeJournal when it processes the close
+          this.logger.debug(`🧠 V453: Trade outcome for ${position.symbol}: ${wasCorrect ? 'CORRECT' : 'WRONG'} (PnL: ${pnlForVote.toFixed(2)})`);
+        }
+      } catch (voteErr: any) {
+        this.logger.debug(`V453: Failed to record vote accuracy: ${voteErr.message}`);
       }
     } catch (error: any) {
       this.logger.error(

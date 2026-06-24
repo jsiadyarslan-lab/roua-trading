@@ -120,7 +120,7 @@ export class StrategicCouncilController {
   @Public()
   @Get('briefs/history')
   async getBriefHistory(@Query('language') language?: string) {
-    const briefs = await this.councilService.getBriefHistory(undefined, 100, language);
+    const briefs = await this.councilService.getBriefHistory(undefined, 10000, language);
     return { success: true, data: briefs };
   }
 

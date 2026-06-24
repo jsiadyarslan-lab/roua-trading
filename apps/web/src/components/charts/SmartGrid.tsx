@@ -16,10 +16,10 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { usePositionsStore } from '@/hooks/usePositionsStore';
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore';
 import { useChartStateStore, type SmartGridPersistConfig, type SmartGridCellConfig } from '@/hooks/useChartStateStore';
-import { useMarketStore } from '@/hooks/useMarketStore';
 import type { CandleData, ActiveIndicator } from '@/lib/charts/types';
 import { INDICATOR_CONFIGS } from '@/lib/charts/types';
 import { calculateIndicator } from '@/lib/charts/IndicatorCalculator';
+import { CRYPTO_BASES as CRYPTO_BASES_LOCAL } from '@/lib/charts/config';
 
 // ── Request Queue — limits concurrent fetches + deduplicates by URL ──
 // PERF (3.10): Added dedup — if the same URL is already in the queue or
@@ -1624,10 +1624,10 @@ export function SmartGrid({
     return () => clearTimeout(initTimer);
   }, [cells, loadDataForCell]);
 
-  // ── Auto-refresh every 30s (stable — does NOT reset on cells change) ──
-  // V453: Increased from 15s to 30s. Live price updates now handled by the
-  // useEffect below (subscribes to useMarketStore). Full reload only needed
-  // for closed candle corrections + indicator recalculation.
+  // ── Auto-refresh every 60s (stable — does NOT reset on cells change) ──
+  // V458: Increased from 30s to 60s. Live candle updates now handled by the
+  // V458 polling effect below (polls /candle endpoint every 2-5s). This
+  // 60s full reload is ONLY for filling any gaps + indicator recalculation.
   useEffect(() => {
     refreshIntervalRef.current = setInterval(() => {
       const currentCells = cellsRef.current;
@@ -1636,128 +1636,209 @@ export function SmartGrid({
           loadDataForCell(cell);
         }
       });
-    }, 30000);
+    }, 60000);
     return () => { if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current); };
   }, [loadDataForCell]);
 
-  // V456: Live price updates — update last candle + open new candle on period end.
+  // V458: Live candle updates via backend /candle endpoint (NOT useMarketStore).
   //
-  // ROOT CAUSE of "الشمعة تتحرك وتمدد وتتقلص" bug (V453/V455):
-  //   The previous tfToSeconds() map used keys '1m', '5m', '15m', '30m'
-  //   which DO NOT match cell.timeframe values ('1min', '5min', '15min', '30min').
-  //   The fallback `|| 60` made ALL minute-based timeframes behave as 1-minute.
-  //   So on a 15-minute chart, every 60s a tiny new "minute" candle was pushed,
-  //   then wiped 30s later by setData() in the auto-refresh. The chart endlessly
-  //   stretched/shrank without ever opening a real 15-minute candle.
+  // ROOT CAUSE of all previous failures (V453/V455/V456/V457):
+  //   SmartGrid tried to build OHLC candles from `useMarketStore.price` (a
+  //   single price point). This is structurally impossible:
+  //   - `open` = first price seen (not the real period open)
+  //   - `high`/`low` = misses peaks/troughs between updates
+  //   - `volume` = fake tick counter
+  //   The resulting "candle" was a fabrication that stretched/shrank as new
+  //   prices arrived, never matching real market OHLC.
   //
-  // FIX V456:
-  //   1. tfToSeconds keys now match cell.timeframe values exactly.
-  //   2. Weekly candles align to Monday 00:00 UTC (same logic as RouaChart V445)
-  //      because OANDA REST returns Monday boundaries while
-  //      `nowSec - (nowSec % 604800)` produces Thursday boundaries (epoch day 0).
-  const liveQuotes = useMarketStore(state => state.quotes);
+  // FIX V458 — mirror RouaChart's proven approach:
+  //   1. Poll /api/exchange/candle/{symbol}?timeframe={tf} every 2-5s
+  //      - Backend OandaStreamingService builds REAL OHLC from stream ticks
+  //      - Same architecture as Binance kline (server builds, client fetches)
+  //   2. For crypto pairs: poll Binance REST /klines?limit=1 (same as
+  //      useChartWebSocket's crypto fallback)
+  //   3. Update series.update() with the received candle — its `time` is
+  //      guaranteed correct by the backend, so no alignment hacks needed
+  //
+  // THROTTLE AWARENESS:
+  //   - Backend /candle endpoint: 60 req/min per IP
+  //   - Fullscreen (1 cell visible): poll every 2s = 30 req/min ✓
+  //   - Multi-cell (4 cells): poll every 5s = 48 req/min ✓
+  //   - Hidden cells: skip polling (visibility check)
+  //
+  // V458: useMarketStore subscription REMOVED.
+  // Previously, SmartGrid subscribed to useMarketStore.quotes and tried to
+  // build OHLC candles from a single price point — structurally impossible
+  // (see root cause analysis above). Now, live candle updates come from
+  // polling /api/exchange/candle/{symbol} which returns REAL OHLC.
+  //
+  // Header price display uses cellStates.currentPrice (updated by pollCellCandle
+  // and loadDataForCell), so no useMarketStore subscription is needed.
 
-  // Map timeframe strings to seconds. Keys MUST match TIMEFRAME_OPTIONS values.
-  const tfToSeconds = (tf: string): number => {
-    const map: Record<string, number> = {
-      '1min': 60,
-      '5min': 300,
-      '15min': 900,
-      '30min': 1800,
-      '1h': 3600,
-      '2h': 7200,
-      '4h': 14400,
-      '1day': 86400,
-      '1week': 604800,
+  // Timeframe string → backend timeframe name.
+  // For OANDA: M1, M5, M15, M30, H1, H4, D1, W1
+  // For Binance: 1m, 5m, 15m, 30m, 1h, 2h, 4h, 1d, 1w
+  const tfToOandaName = (tf: string): string => {
+    const map: Record<string, string> = {
+      '1min': 'M1', '5min': 'M5', '15min': 'M15', '30min': 'M30',
+      '1h': 'H1', '4h': 'H4', '1day': 'D1', '1week': 'W1',
     };
-    return map[tf] || 60;
+    return map[tf] || 'M1';
   };
 
-  // Align a Unix timestamp (seconds) to the start of its timeframe period.
-  // For weekly: align to Monday 00:00 UTC (not Thursday which is epoch day 0).
-  const alignPeriodStart = (nowSec: number, tfSec: number): number => {
-    if (tfSec === 604800) {
-      // Weekly: align to Monday 00:00 UTC
-      const dayStart = Math.floor(nowSec / 86400) * 86400;
-      const dayOfWeek = ((dayStart / 86400) + 4) % 7; // 0=Monday (epoch was Thursday=4)
-      return dayStart - dayOfWeek * 86400;
-    }
-    return nowSec - (nowSec % tfSec);
+  const tfToBinanceInterval = (tf: string): string => {
+    const map: Record<string, string> = {
+      '1min': '1m', '5min': '5m', '15min': '15m', '30min': '30m',
+      '1h': '1h', '2h': '2h', '4h': '4h', '1day': '1d', '1week': '1w',
+    };
+    return map[tf] || '1m';
   };
+
+  const isCryptoPairLocal = (symbol: string): boolean => {
+    const base = symbol.split('/')[0];
+    return CRYPTO_BASES_LOCAL.has(base);
+  };
+
+  const normalizeBinanceSymbolLocal = (symbol: string): string => {
+    let s = symbol.replace('/', '');
+    if (symbol.endsWith('/USD') && !symbol.endsWith('/USDT')) {
+      s = s.replace('USD', 'USDT');
+    }
+    return s.toUpperCase();
+  };
+
+  // V458: Per-cell polling — fetch latest candle from backend, update series.
+  // Returns nothing; mutates cellCandleDataRef + series directly.
+  const pollCellCandle = useCallback(async (cell: GridCell) => {
+    if (!cell.symbol || !initializedCellsRef.current.has(cell.id)) return;
+
+    const series = seriesRefs.current.get(cell.id);
+    const volSeries = volumeSeriesRefs.current.get(cell.id);
+    const candleData = cellCandleDataRef.current.get(cell.id);
+    if (!series || !candleData || candleData.length === 0) return;
+
+    let candle: CandleData | null = null;
+
+    try {
+      if (isCryptoPairLocal(cell.symbol)) {
+        // Crypto: poll Binance REST /klines?limit=1
+        const binanceSymbol = normalizeBinanceSymbolLocal(cell.symbol);
+        const interval = tfToBinanceInterval(cell.timeframe);
+        const url = `https://data-api.binance.vision/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&limit=1`;
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const k = data[data.length - 1];
+          candle = {
+            time: Math.floor(k[0] / 1000),
+            open: parseFloat(k[1]),
+            high: parseFloat(k[2]),
+            low: parseFloat(k[3]),
+            close: parseFloat(k[4]),
+            volume: parseFloat(k[5]),
+          };
+        }
+      } else {
+        // Forex/Metals/Indices: poll backend /candle endpoint
+        const tfName = tfToOandaName(cell.timeframe);
+        const url = `/api/exchange/candle/${encodeURIComponent(cell.symbol)}?timeframe=${tfName}`;
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const result = await res.json();
+        if (result?.success && result?.data) {
+          const d = result.data;
+          candle = {
+            time: d.time,
+            open: d.open,
+            high: d.high,
+            low: d.low,
+            close: d.close,
+            volume: d.volume || 0,
+          };
+        }
+      }
+    } catch {
+      // Silent fail — will retry next poll
+      return;
+    }
+
+    if (!candle || !candle.time || candle.close <= 0) return;
+
+    // Update cellCandleDataRef + series.update()
+    // Logic mirrors RouaChart's onCandleUpdate (line 894-940):
+    //   - If candle.time matches existing → update that candle
+    //   - If candle.time is newer than last → push new candle
+    //   - If candle.time is older than last → ignore (stale)
+    const lastCandle = candleData[candleData.length - 1];
+    if (candle.time < lastCandle.time) return; // Stale — skip
+
+    const idx = candleData.findIndex(c => c.time === candle!.time);
+    if (idx >= 0) {
+      // Update existing candle (same period)
+      candleData[idx] = candle;
+    } else {
+      // New candle period — push
+      candleData.push(candle);
+      cellCandleDataRef.current.set(cell.id, candleData);
+    }
+
+    try {
+      series.update(candle as any);
+      if (volSeries) {
+        volSeries.update({
+          time: candle.time,
+          value: candle.volume,
+          color: candle.close >= candle.open
+            ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
+        } as any);
+      }
+    } catch {}
+
+    // V458: Update cellState.currentPrice so the header price display
+    // reflects the latest polled price (replaces useMarketStore subscription).
+    const prevPrice = candleData.length > 1 ? candleData[candleData.length - 2].close : null;
+    const changePercent = prevPrice && prevPrice !== 0
+      ? ((candle.close - prevPrice) / prevPrice) * 100
+      : null;
+    updateCellState(cell.id, {
+      currentPrice: candle.close,
+      prevPrice,
+      changePercent,
+      lastUpdated: Date.now(),
+    });
+  }, [updateCellState]);
+
+  // V458: Polling interval — 2s for fullscreen (1 cell), 5s for multi-cell.
+  // Respects backend throttle (60 req/min per IP).
+  const pollIntervalMs = fullscreenCellId ? 2000 : 5000;
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    const currentCells = cellsRef.current;
-    currentCells.forEach(cell => {
-      if (!cell.symbol || !initializedCellsRef.current.has(cell.id)) return;
+    // Start polling loop
+    const tick = () => {
+      const currentCells = cellsRef.current;
+      currentCells.forEach(cell => {
+        // Skip cells that aren't initialized
+        if (!initializedCellsRef.current.has(cell.id)) return;
+        // In fullscreen mode, only poll the fullscreen cell
+        if (fullscreenCellId && cell.id !== fullscreenCellId) return;
+        pollCellCandle(cell);
+      });
+    };
 
-      const quote = liveQuotes[cell.symbol];
-      if (!quote || !quote.price || quote.price <= 0) return;
+    // Initial tick after 1s (let initial load settle)
+    const initialTimer = setTimeout(tick, 1000);
+    pollIntervalRef.current = setInterval(tick, pollIntervalMs);
 
-      const series = seriesRefs.current.get(cell.id);
-      const volSeries = volumeSeriesRefs.current.get(cell.id);
-      const candleData = cellCandleDataRef.current.get(cell.id);
-      if (!series || !candleData || candleData.length === 0) return;
-
-      const price = quote.price;
-      const tfSec = tfToSeconds(cell.timeframe);
-      const nowSec = Math.floor(Date.now() / 1000);
-      const currentCandleTime = alignPeriodStart(nowSec, tfSec);
-      const lastCandle = candleData[candleData.length - 1];
-
-      // V456: Guard against setData() race — if the last candle's time is
-      // NEWER than currentCandleTime (can happen briefly after a 30s refresh
-      // returns a candle whose time is slightly ahead), skip the update.
-      // series.update() with an older time throws and would corrupt the chart.
-      if (lastCandle.time > currentCandleTime) return;
-
-      if (lastCandle.time < currentCandleTime) {
-        // New candle period — push a new candle
-        const newCandle = {
-          time: currentCandleTime,
-          open: price,
-          high: price,
-          low: price,
-          close: price,
-          volume: 1,
-        };
-        candleData.push(newCandle);
-        cellCandleDataRef.current.set(cell.id, candleData);
-
-        try {
-          series.update(newCandle);
-          if (volSeries) {
-            volSeries.update({
-              time: newCandle.time,
-              value: 1,
-              color: 'rgba(63,185,80,0.25)',
-            });
-          }
-        } catch {}
-      } else {
-        // Same period — update last candle
-        const updatedCandle = {
-          ...lastCandle,
-          high: Math.max(lastCandle.high, price),
-          low: Math.min(lastCandle.low, price),
-          close: price,
-          volume: (lastCandle.volume || 0) + 1,
-        };
-        candleData[candleData.length - 1] = updatedCandle;
-
-        try {
-          series.update(updatedCandle);
-          if (volSeries) {
-            volSeries.update({
-              time: updatedCandle.time,
-              value: updatedCandle.volume,
-              color: updatedCandle.close >= updatedCandle.open
-                ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
-            });
-          }
-        } catch {}
+    return () => {
+      clearTimeout(initialTimer);
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
       }
-    });
-  }, [liveQuotes]);
+    };
+  }, [pollCellCandle, pollIntervalMs, fullscreenCellId]);
 
   // ── Cleanup on unmount ──
   useEffect(() => {

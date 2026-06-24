@@ -852,7 +852,7 @@ export class TradingService {
         ? Date.now() - new Date(position.openedAt).getTime()
         : 0;
       const holdingHours = holdingMs / (60 * 60 * 1000);
-      const SMART_EXECUTOR_MIN_HOURS = 6; // Minimum 6h before TIME_EXPIRED can close
+      const SMART_EXECUTOR_MIN_HOURS = 24; // V420: Raised from 6h to 24h
 
       if (holdingHours < SMART_EXECUTOR_MIN_HOURS) {
         this.logger.error(
@@ -897,7 +897,9 @@ export class TradingService {
         ? Date.now() - new Date(position.openedAt).getTime()
         : 0;
       const holdingHours = holdingMs / (60 * 60 * 1000);
-      const V290_SMART_EXECUTOR_MIN_HOURS = 6;
+      // V420: Raised from 6h to 24h — prevents system-originated MANUAL closes
+      // before positions have time to reach TP naturally.
+      const V290_SMART_EXECUTOR_MIN_HOURS = 24;
 
       if (holdingHours < V290_SMART_EXECUTOR_MIN_HOURS) {
         this.logger.error(

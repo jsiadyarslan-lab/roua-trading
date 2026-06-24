@@ -16,6 +16,7 @@ interface SubPageLayoutProps {
   tabs?: { id: string; label: string }[]
   activeTab?: string
   onTabChange?: (tab: string) => void
+  hideHeader?: boolean
 }
 
 export default function SubPageLayout({
@@ -28,6 +29,7 @@ export default function SubPageLayout({
   tabs,
   activeTab,
   onTabChange,
+  hideHeader = false,
 }: SubPageLayoutProps) {
   useScopedStyle(`
         @media (max-width: 767px) {
@@ -60,7 +62,8 @@ export default function SubPageLayout({
 
   return (
     <div style={{ minHeight: '100%', background: 'var(--bg-app)', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden' }}>
-      {/* Top Navigation Bar */}
+      {/* Top Navigation Bar — hidden when hideHeader is true */}
+      {!hideHeader && (
       <div style={{
         minHeight: '52px',
         paddingTop: 'env(safe-area-inset-top)',
@@ -146,6 +149,7 @@ export default function SubPageLayout({
         {/* Actions */}
         {actions}
       </div>
+      )}
 
       {/* Mobile tab dropdown */}
       {tabs && mobileMenuOpen && (

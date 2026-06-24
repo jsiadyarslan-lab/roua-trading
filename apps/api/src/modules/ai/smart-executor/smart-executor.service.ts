@@ -3390,7 +3390,18 @@ export class SmartExecutorService implements OnModuleDestroy {
 
       // Apply V185 multiplier (clamped 0.3x–2.0x by the service itself)
       riskPercent = riskPercent * v185SizingMultiplier;
-      const riskAmount = Math.max(portfolioValue * riskPercent, 10); // minimum $10
+      // V420 FIX: Cap riskPercent to 0.5% of portfolioValue (hard ceiling).
+      // Previously: multiple multipliers (confidence × dynamicSizing × correlation × MTF)
+      // could push effective risk to 3-5% per trade → DOGE 1.3M units ($106K notional).
+      // Now: regardless of multipliers, riskPercent cannot exceed 0.5% of portfolio.
+      const HARD_RISK_CAP = 0.005; // 0.5% hard ceiling
+      if (riskPercent > HARD_RISK_CAP) {
+        this.logger.warn(
+          `⚔️ V420: riskPercent=${(riskPercent*100).toFixed(2)}% > ${HARD_RISK_CAP*100}% hard cap — clamped`
+        );
+        riskPercent = HARD_RISK_CAP;
+      }
+      const riskAmount = Math.max(portfolioValue * riskPercent, 5); // minimum $5
 
       this.logger.log(
         `⚔️ Position sizing: confidence=${brief.confidence}% → multiplier=${confidenceMultiplier}x → risk=${(riskPercent*100).toFixed(2)}%`
@@ -3430,7 +3441,13 @@ export class SmartExecutorService implements OnModuleDestroy {
       // multiple multipliers (confidence, dynamic, correlation, MTF), the effective
       // position could exceed 2% of portfolio after all multipliers. 1% hard cap
       // prevents catastrophic single-trade losses.
-      const maxOrderValue = portfolioValue * 0.01;
+      // V420 FIX: Hard cap = 0.5% of portfolio (was 1%).
+      // Also add absolute ceiling to prevent catastrophic positions
+      // regardless of portfolio value calculation errors.
+      const maxOrderValue = Math.min(
+        portfolioValue * 0.005,   // 0.5% of portfolio
+        500                        // absolute ceiling: $500 per position
+      );
 
       if (posResult.notional > maxOrderValue) {
         // Reduce quantity to fit within max order value

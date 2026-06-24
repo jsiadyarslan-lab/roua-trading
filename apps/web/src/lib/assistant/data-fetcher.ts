@@ -32,17 +32,83 @@ export interface FetchedData {
   crossReference: string | null;      // formatted text
   knowledgeResults: string | null;     // formatted text
   userProfile: UserProfileContext | null;
-  
+
+  // V469: roua-trading user data (from NestJS backend)
+  userPositions: UserPositionData[];   // صفقات المستخدم المفتوحة
+  userClosedTrades: UserClosedTradeData[];  // صفقات مغلقة
+  councilBriefs: CouncilBriefData[];   // briefs المجلس النشطة
+  userStats: UserStatsData | null;     // إحصائيات المستخدم
+
   // Metadata
   fetchTimeMs: number;
   dataPoints: number;                  // total data points fetched
   sources: string[];                   // data source names
-  
+
   // Formatted context for AI (pre-built to avoid redundant work)
   contextForAI: string;               // all data formatted as context text
-  
+
   // Raw data for response filter (numbers we can verify)
   knownNumbers: Set<string>;          // all numbers from DB data
+}
+
+// V469: roua-trading user position data
+export interface UserPositionData {
+  id: string;
+  symbol: string;
+  side: 'BUY' | 'SELL';
+  entryPrice: number;
+  currentPrice: number;
+  quantity: number;
+  unrealizedPnl: number;
+  unrealizedPnlPercent: number;
+  stopLoss: number | null;
+  takeProfit: number | null;
+  openedAt: string;
+  durationMinutes: number;
+  source: string | null;
+}
+
+// V469: roua-trading closed trade data
+export interface UserClosedTradeData {
+  id: string;
+  symbol: string;
+  side: 'BUY' | 'SELL';
+  entryPrice: number;
+  exitPrice: number;
+  realizedPnl: number;
+  result: 'WIN' | 'LOSS' | 'BREAKEVEN';
+  closeReason: string | null;
+  openedAt: string;
+  closedAt: string;
+  durationMinutes: number;
+}
+
+// V469: roua-trading council brief data
+export interface CouncilBriefData {
+  id: string;
+  symbol: string;
+  direction: 'BUY' | 'SELL';
+  confidence: number;
+  timeframe: string;
+  entryPrice: number;
+  stopLoss: number;
+  takeProfit: number;
+  analysisSummary: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+// V469: roua-trading user stats
+export interface UserStatsData {
+  totalTrades: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  totalPnl: number;
+  profitFactor: number;
+  displayedBalance: number;
+  usedMargin: number;
+  riskExposurePercent: number;
 }
 
 export interface PriceData {
@@ -1032,9 +1098,17 @@ export async function fetchBroadData(
     if (a.priceAtAnalysis) knownNumbers.add(a.priceAtAnalysis.toString());
   }
 
+  // V469: جلب بيانات roua-trading من NestJS (صفقات المستخدم + المجلس + إحصائيات)
+  // يجب أن يتم قبل بناء contextForAI لكي تتضمنه البيانات
+  const userData = await fetchRouaTradingUserData(message, locale, userId).catch(() => null);
+  const userPositions = userData?.positions ?? [];
+  const userClosedTrades = userData?.closedTrades ?? [];
+  const councilBriefs = userData?.councilBriefs ?? [];
+  const userStats = userData?.stats ?? null;
+
   // ── Build formatted context for AI ──
   const contextForAI = buildBroadContextForAI(
-    { prices, signals, analyses, news, reports, pulse, xref, knowledge, userProfile },
+    { prices, signals, analyses, news, reports, pulse, xref, knowledge, userProfile, userPositions, userClosedTrades, councilBriefs, userStats },
     locale,
     isGCCQuery,
     regionalMarket,
@@ -1053,12 +1127,246 @@ export async function fetchBroadData(
     crossReference: xref,
     knowledgeResults: knowledge,
     userProfile,
+    userPositions,
+    userClosedTrades,
+    councilBriefs,
+    userStats,
     fetchTimeMs,
     dataPoints,
     sources,
     contextForAI,
     knownNumbers,
   };
+}
+
+// ─── V469: roua-trading User Data Fetcher ──────────────────────
+// يجلب صفقات المستخدم + briefs المجلس + إحصائيات من NestJS backend
+
+const NESTJS_API = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001';
+
+interface RouaTradingUserData {
+  positions: UserPositionData[];
+  closedTrades: UserClosedTradeData[];
+  councilBriefs: CouncilBriefData[];
+  stats: UserStatsData | null;
+}
+
+async function fetchRouaTradingUserData(
+  message: string,
+  locale: any,
+  userId?: string
+): Promise<RouaTradingUserData | null> {
+  const msgLower = message.toLowerCase();
+
+  // كشف هل السؤال يحتاج بيانات المستخدم
+  const needsPositions = /صفقات|مراكز|محفظت|مفتوح|صفقاتي|positions|portfolio|my trades/.test(msgLower);
+  const needsCouncil = /مجلس|وكلاء|تصويت|إجماع|council|agents|vote|consensus/.test(msgLower);
+  const needsStats = /أداء|أدائي|إحصائي|فوز|ربح|خسارة|performance|stats|win rate/.test(msgLower);
+
+  // إذا لم يحتج أي بيانات، ارجع null
+  if (!needsPositions && !needsCouncil && !needsStats) {
+    return null;
+  }
+
+  // V469: في roua-trading الجلسة عبر cookie، لا userId مباشر
+  // الـ NestJS يعرف المستخدم من session cookie
+  const results = await Promise.allSettled([
+    needsPositions ? fetchRouaPositions() : Promise.resolve([]),
+    needsCouncil ? fetchRouaCouncilBriefs() : Promise.resolve([]),
+    needsStats ? fetchRouaUserStats() : Promise.resolve(null),
+  ]);
+
+  const positions = results[0].status === 'fulfilled' ? results[0].value : [];
+  const councilBriefs = results[1].status === 'fulfilled' ? results[1].value : [];
+  const stats = results[2].status === 'fulfilled' ? results[2].value : null;
+
+  // اجلب الصفقات المغلقة فقط إذا طلب الأداء
+  let closedTrades: UserClosedTradeData[] = [];
+  if (needsStats) {
+    closedTrades = await fetchRouaClosedTrades().catch(() => []);
+  }
+
+  return { positions, closedTrades, councilBriefs, stats };
+}
+
+async function fetchRouaPositions(): Promise<UserPositionData[]> {
+  try {
+    const res = await fetch(`${NESTJS_API}/api/trading/positions`, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const raw = data?.data || data?.positions || [];
+    if (!Array.isArray(raw)) return [];
+
+    return raw.map((p: any) => {
+      const entry = Number(p.entryPrice) || 0;
+      const current = Number(p.currentPrice) || entry;
+      const qty = Number(p.quantity) || 0;
+      const pnl = Number(p.unrealizedPnl) || 0;
+      const pnlPercent = entry > 0 && qty > 0
+        ? (pnl / (entry * Math.abs(qty))) * 100
+        : 0;
+      return {
+        id: p.id,
+        symbol: p.symbol,
+        side: p.side,
+        entryPrice: entry,
+        currentPrice: current,
+        quantity: qty,
+        unrealizedPnl: pnl,
+        unrealizedPnlPercent: pnlPercent,
+        stopLoss: p.stopLoss ? Number(p.stopLoss) : null,
+        takeProfit: p.takeProfit ? Number(p.takeProfit) : null,
+        openedAt: p.openedAt,
+        durationMinutes: p.openedAt
+          ? Math.round((Date.now() - new Date(p.openedAt).getTime()) / 60000)
+          : 0,
+        source: p.source ?? null,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+async function fetchRouaClosedTrades(): Promise<UserClosedTradeData[]> {
+  try {
+    // roua-trading لا يوجد endpoint مباشر للصفقات المغلقة
+    // لكن Position status=CLOSED متاحة عبر نفس endpoint مع filter
+    const res = await fetch(`${NESTJS_API}/api/trading/positions?status=CLOSED`, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const raw = data?.data || data?.positions || [];
+    if (!Array.isArray(raw)) return [];
+
+    return raw.slice(0, 10).map((p: any) => {
+      const entry = Number(p.entryPrice) || 0;
+      const exit = p.exitPrice ? Number(p.exitPrice) : entry;
+      const pnl = Number(p.realizedPnl) || 0;
+      const result: 'WIN' | 'LOSS' | 'BREAKEVEN' =
+        pnl > 0 ? 'WIN' : pnl < 0 ? 'LOSS' : 'BREAKEVEN';
+      return {
+        id: p.id,
+        symbol: p.symbol,
+        side: p.side,
+        entryPrice: entry,
+        exitPrice: exit,
+        realizedPnl: pnl,
+        result,
+        closeReason: p.closeReason ?? null,
+        openedAt: p.openedAt,
+        closedAt: p.closedAt,
+        durationMinutes: p.closedAt && p.openedAt
+          ? Math.round((new Date(p.closedAt).getTime() - new Date(p.openedAt).getTime()) / 60000)
+          : 0,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+async function fetchRouaCouncilBriefs(): Promise<CouncilBriefData[]> {
+  try {
+    const res = await fetch(`${NESTJS_API}/api/strategic-council/active`, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const raw = data?.data || data?.briefs || [];
+    if (!Array.isArray(raw)) return [];
+
+    return raw.slice(0, 10).map((b: any) => ({
+      id: b.id,
+      symbol: b.pair ?? b.symbol,
+      direction: b.direction,
+      confidence: Number(b.confidence) || 0,
+      timeframe: b.timeframe ?? 'unknown',
+      entryPrice: Number(b.entryPrice) || 0,
+      stopLoss: Number(b.stopLoss) || 0,
+      takeProfit: Number(b.takeProfit) || 0,
+      analysisSummary: b.analysisSummary ?? null,
+      isActive: b.isActive ?? true,
+      createdAt: b.createdAt ?? b.issuedAt,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+async function fetchRouaUserStats(): Promise<UserStatsData | null> {
+  try {
+    const [summaryRes, statsRes] = await Promise.allSettled([
+      fetch(`${NESTJS_API}/api/trading/positions/summary`, {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(5000),
+      }),
+      fetch(`${NESTJS_API}/api/assistant/intelligence/diagnosis?days=30`, {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(8000),
+      }),
+    ]);
+
+    let displayedBalance = 0;
+    let usedMargin = 0;
+    let riskExposurePercent = 0;
+
+    if (summaryRes.status === 'fulfilled' && summaryRes.value.ok) {
+      const sData = await summaryRes.value.json();
+      const s = sData?.data || sData?.summary;
+      if (s) {
+        displayedBalance = Number(s.paperBalance ?? s.displayedBalance) || 0;
+        usedMargin = Number(s.usedMargin) || 0;
+        riskExposurePercent = displayedBalance > 0
+          ? (usedMargin / displayedBalance) * 100
+          : 0;
+      }
+    }
+
+    // diagnosis endpoint يعطي stats كاملة
+    if (statsRes.status === 'fulfilled' && statsRes.value.ok) {
+      const dData = await statsRes.value.json();
+      const d = dData?.data?.summary;
+      if (d) {
+        return {
+          totalTrades: d.totalTradesAnalyzed ?? 0,
+          wins: d.wins ?? 0,
+          losses: d.losses ?? 0,
+          winRate: d.winRate ?? 0,
+          totalPnl: d.totalPnl ?? 0,
+          profitFactor: d.profitFactor ?? 0,
+          displayedBalance,
+          usedMargin,
+          riskExposurePercent,
+        };
+      }
+    }
+
+    // fallback: نرجع على الأقل balance + margin
+    if (displayedBalance > 0 || usedMargin > 0) {
+      return {
+        totalTrades: 0,
+        wins: 0,
+        losses: 0,
+        winRate: 0,
+        totalPnl: 0,
+        profitFactor: 0,
+        displayedBalance,
+        usedMargin,
+        riskExposurePercent,
+      };
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 // ─── V800: Simple Asset Detection (for cross-reference only) ──────
@@ -1482,6 +1790,10 @@ function buildBroadContextForAI(
     xref: string | null;
     knowledge: string | null;
     userProfile: UserProfileContext | null;
+    userPositions?: UserPositionData[];
+    userClosedTrades?: UserClosedTradeData[];
+    councilBriefs?: CouncilBriefData[];
+    userStats?: UserStatsData | null;
   },
   locale: Locale,
   isGCCQuery: boolean = false,
@@ -1729,6 +2041,71 @@ function buildBroadContextForAI(
 - Analysis, interpretation, connections: This is YOUR role as a financial brain — analyze, explain, connect
 - If no data on a specific stock: Show available indicators (like TASI or oil) + economic analysis + suggest specific stocks
 - IMPORTANT: Don't just say "I don't have data" — ALWAYS show what you have + your analysis + suggestions`);
+
+  // ═══ V469: roua-trading User Data (صفقات + مجلس + إحصائيات) ═══
+  if (data.userPositions && data.userPositions.length > 0) {
+    sections.push(isAr
+      ? `\n═══ 📊 صفقاتك المفتوحة (من NestJS — بيانات حقيقية) ═══`
+      : `\n═══ 📊 Your Open Positions (from NestJS — real data) ═══`);
+    for (const p of data.userPositions) {
+      const pnlStr = p.unrealizedPnl >= 0
+        ? `+${p.unrealizedPnl.toFixed(2)}$ (+${p.unrealizedPnlPercent.toFixed(2)}%)`
+        : `${p.unrealizedPnl.toFixed(2)}$ (${p.unrealizedPnlPercent.toFixed(2)}%)`;
+      const sl = p.stopLoss ? `SL: ${p.stopLoss}` : 'SL: غير محدد';
+      const tp = p.takeProfit ? `TP: ${p.takeProfit}` : 'TP: غير محدد';
+      const duration = p.durationMinutes > 60
+        ? `${(p.durationMinutes / 60).toFixed(1)} ساعة`
+        : `${p.durationMinutes} دقيقة`;
+      sections.push(
+        `• ${p.symbol} ${p.side} | دخول: ${p.entryPrice} | حالي: ${p.currentPrice} | PnL: ${pnlStr} | ${sl} | ${tp} | المدة: ${duration} | المصدر: ${p.source ?? 'يدوي'}`,
+      );
+    }
+    sections.push('');
+  }
+
+  if (data.userClosedTrades && data.userClosedTrades.length > 0) {
+    sections.push(isAr
+      ? `\n═══ 📋 آخر صفقاتك المغلقة ═══`
+      : `\n═══ 📋 Your Recent Closed Trades ═══`);
+    for (const t of data.userClosedTrades) {
+      const resultIcon = t.result === 'WIN' ? '🟢' : t.result === 'LOSS' ? '🔴' : '🟡';
+      sections.push(
+        `${resultIcon} ${t.symbol} ${t.side} | دخول: ${t.entryPrice} | خروج: ${t.exitPrice} | PnL: ${t.realizedPnl.toFixed(2)}$ | النتيجة: ${t.result} | السبب: ${t.closeReason ?? 'غير محدد'}`,
+      );
+    }
+    sections.push('');
+  }
+
+  if (data.councilBriefs && data.councilBriefs.length > 0) {
+    sections.push(isAr
+      ? `\n═══ 🏛️ تصويتات المجلس الاستراتيجي (من NestJS) ═══`
+      : `\n═══ 🏛️ Strategic Council Votes (from NestJS) ═══`);
+    for (const b of data.councilBriefs) {
+      const dirIcon = b.direction === 'BUY' ? '🟢' : '🔴';
+      sections.push(
+        `${dirIcon} ${b.symbol} ${b.direction} | ثقة: ${b.confidence}% | فريم: ${b.timeframe} | دخول: ${b.entryPrice} | SL: ${b.stopLoss} | TP: ${b.takeProfit}`,
+      );
+      if (b.analysisSummary) {
+        sections.push(`   الملخص: ${b.analysisSummary.slice(0, 200)}`);
+      }
+    }
+    sections.push('');
+  }
+
+  if (data.userStats) {
+    const s = data.userStats;
+    sections.push(isAr
+      ? `\n═══ 📈 إحصائياتك (آخر 30 يوم) ═══`
+      : `\n═══ 📈 Your Stats (last 30 days) ═══`);
+    sections.push(
+      `• إجمالي الصفقات: ${s.totalTrades} | فوز: ${s.wins} | خسارة: ${s.losses} | Win Rate: ${s.winRate.toFixed(1)}%`,
+    );
+    sections.push(`• صافي PnL: ${s.totalPnl.toFixed(2)}$ | Profit Factor: ${s.profitFactor.toFixed(2)}`);
+    sections.push(
+      `• الرصيد المعروض: ${s.displayedBalance.toFixed(2)}$ | الهامش المستخدم: ${s.usedMargin.toFixed(2)}$ | المخاطرة: ${s.riskExposurePercent.toFixed(1)}%`,
+    );
+    sections.push('');
+  }
 
   return sections.join('\n');
 }

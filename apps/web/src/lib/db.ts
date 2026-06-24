@@ -40,3 +40,15 @@ export async function ensureDbReady(): Promise<boolean> {
 export async function isDbReady(): Promise<boolean> {
   return ensureDbReady();
 }
+
+// V469: helpers إضافية يتطلبها مساعد رؤى المالي
+let dbInitError: string | null = null;
+
+export function getDbInitError(): string | null {
+  return dbInitError;
+}
+
+export function resetDbInitialized(): void {
+  dbReadyFlag = false;
+  dbInitError = null;
+}

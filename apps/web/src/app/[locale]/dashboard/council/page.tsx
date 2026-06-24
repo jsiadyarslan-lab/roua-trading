@@ -674,42 +674,51 @@ function BriefCard({ brief, loc, index, expanded, onToggle, t }: {
   return (
     <motion.div layout initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-10 }} transition={{ duration:0.4, delay:index*0.05 }}>
       <GlassCard padding={0} glow={dc} interactive style={{ height:'100%' }}>
-        {/* ═══ SECTION A: Decision Summary ═══ */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 18px', borderBottom:`1px solid ${COLORS.border}`, gap:12 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:12, minWidth:0 }}>
-            <CircularProgress value={brief.confidence} size={44} strokeWidth={4} color={dc} glow={false} animationDelay={index*0.05}>
-              <span style={{ fontSize:11, fontWeight:700, color:COLORS.textPrimary, fontFamily:'monospace' }}>{brief.confidence}</span>
+        {/* Compact card — 3 rows max */}
+        {/* Row 1: Ring + Pair + TF + Direction */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', gap:10 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
+            <CircularProgress value={brief.confidence} size={40} strokeWidth={4} color={dc} glow={false} animationDelay={index*0.05}>
+              <span style={{ fontSize:10, fontWeight:700, color:COLORS.textPrimary, fontFamily:'monospace' }}>{brief.confidence}</span>
             </CircularProgress>
             <div style={{ minWidth:0 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3 }}>
-                <span style={{ fontSize:16, fontWeight:700, color:COLORS.textPrimary }}>{brief.pair}</span>
-                <span style={{ fontSize:10, fontWeight:700, padding:'2px 6px', borderRadius:4, background:hexToRgba(COLORS.council,0.1), border:`1px solid ${hexToRgba(COLORS.council,0.25)}`, color:COLORS.council, fontFamily:'monospace' }}>{brief.timeframe}</span>
+              <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:2 }}>
+                <span style={{ fontSize:15, fontWeight:700, color:COLORS.textPrimary }}>{brief.pair}</span>
+                <span style={{ fontSize:9, fontWeight:700, padding:'2px 5px', borderRadius:4, background:hexToRgba(COLORS.council,0.1), border:`1px solid ${hexToRgba(COLORS.council,0.25)}`, color:COLORS.council, fontFamily:'monospace' }}>{brief.timeframe}</span>
               </div>
-              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4, fontSize:10, color:COLORS.textMuted, flexWrap:'wrap' }}>
-                <span style={{ display:'inline-flex', alignItems:'center', gap:3, color:COLORS.textSecondary, fontFamily:'monospace', fontWeight:600 }}>E: {formatPrice(brief.entryPrice)}</span>
-                <span style={{ color:COLORS.sell, fontFamily:'monospace', fontWeight:600 }}>SL: {formatPrice(brief.stopLoss)}</span>
-                <span style={{ color:COLORS.buy, fontFamily:'monospace', fontWeight:600 }}>TP: {formatPrice(brief.takeProfit)}</span>
-              </div>
-              <div style={{ display:'flex', alignItems:'center', gap:10, fontSize:10, color:COLORS.textMuted, flexWrap:'wrap' }}>
-                <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><Gauge size={10} /> R/R {rr.toFixed(2)}</span>
-                <span style={{ display:'inline-flex', alignItems:'center', gap:4, color:isExpired?COLORS.sell:remainingMs<3600000?COLORS.hold:COLORS.textDim }}><Timer size={10} /> {isExpired?t('expired'):formatCountdown(remainingMs, loc)}</span>
-              </div>
+              <span style={{ fontSize:9, color:COLORS.textDim, display:'inline-flex', alignItems:'center', gap:3, fontFamily:'monospace' }}>
+                <Clock size={9} /> {relativeTime(brief.issuedAt, loc)}
+              </span>
             </div>
           </div>
-          <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'6px 12px', borderRadius:8, background:dirSoft, border:`1px solid ${hexToRgba(dc,0.4)}`, color:dc, fontSize:12, fontWeight:700, textTransform:'uppercase', flexShrink:0, boxShadow:`0 4px 12px -4px ${hexToRgba(dc,0.4)}` }}>
-            {brief.direction==='BUY'?<TrendingUp size={13} strokeWidth={2.5}/>:<TrendingDown size={13} strokeWidth={2.5}/>}
+          <div style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:7, background:dirSoft, border:`1px solid ${hexToRgba(dc,0.35)}`, color:dc, fontSize:11, fontWeight:700, textTransform:'uppercase', flexShrink:0 }}>
+            {brief.direction==='BUY'?<TrendingUp size={12} strokeWidth={2.5}/>:<TrendingDown size={12} strokeWidth={2.5}/>}
             {t(dirLabelKey[brief.direction])}
           </div>
         </div>
-
-        {/* ═══ SECTION D: Details Toggle ═══ */}
-        <div style={{ padding:'10px 18px 12px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
-          <div style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:11, color:COLORS.textMuted }}>
-            <Shield size={11} /> <span style={{ fontFamily:'monospace' }}>{(brief.strictRules.maxSlippage*100).toFixed(2)}%</span>
-            <span style={{ textTransform:'uppercase', fontWeight:500, letterSpacing:'0.04em' }}>{t('maxSlippage') ?? 'Slippage'}</span>
+        {/* Row 2: Entry / SL / TP in clean grid */}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:1, background:COLORS.border, borderTop:`1px solid ${COLORS.border}`, borderBottom:`1px solid ${COLORS.border}` }}>
+          <div style={{ padding:'8px 12px', background:'rgba(0,0,0,0.15)', textAlign:'center' }}>
+            <div style={{ fontSize:8, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', color:COLORS.textMuted, marginBottom:2 }}>{t('entry')}</div>
+            <div style={{ fontSize:12, fontWeight:700, color:COLORS.textPrimary, fontFamily:'monospace' }}>{formatPrice(brief.entryPrice)}</div>
           </div>
-          <motion.button onClick={onToggle} whileTap={{ scale:0.97 }} whileHover={{ y:-1 }} style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'6px 12px', borderRadius:8, background:expanded?hexToRgba(COLORS.council,0.1):'rgba(255,255,255,0.04)', border:`1px solid ${expanded?hexToRgba(COLORS.council,0.35):COLORS.border}`, color:expanded?COLORS.council:COLORS.textSecondary, fontSize:11, fontWeight:600, cursor:'pointer', letterSpacing:'0.04em' }}>
-            {expanded?t('hideDetails'):t('showDetails')} <motion.span animate={{ rotate:expanded?180:0 }} transition={{ duration:0.25 }}><ChevronDown size={12} strokeWidth={2.5} /></motion.span>
+          <div style={{ padding:'8px 12px', background:'rgba(0,0,0,0.15)', textAlign:'center', borderInlineStart:`1px solid ${COLORS.border}` }}>
+            <div style={{ fontSize:8, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', color:COLORS.sell, marginBottom:2 }}>SL</div>
+            <div style={{ fontSize:12, fontWeight:700, color:COLORS.sell, fontFamily:'monospace' }}>{formatPrice(brief.stopLoss)}</div>
+          </div>
+          <div style={{ padding:'8px 12px', background:'rgba(0,0,0,0.15)', textAlign:'center', borderInlineStart:`1px solid ${COLORS.border}` }}>
+            <div style={{ fontSize:8, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', color:COLORS.buy, marginBottom:2 }}>TP</div>
+            <div style={{ fontSize:12, fontWeight:700, color:COLORS.buy, fontFamily:'monospace' }}>{formatPrice(brief.takeProfit)}</div>
+          </div>
+        </div>
+        {/* Row 3: R/R + Countdown + Details button */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 16px 10px', gap:8 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, fontSize:9, color:COLORS.textMuted, fontFamily:'monospace' }}>
+            <span style={{ display:'inline-flex', alignItems:'center', gap:3 }}><Gauge size={10} /> R/R {rr.toFixed(2)}</span>
+            <span style={{ display:'inline-flex', alignItems:'center', gap:3, color:isExpired?COLORS.sell:remainingMs<3600000?COLORS.hold:COLORS.textDim }}><Timer size={10} /> {isExpired?t('expired'):formatCountdown(remainingMs, loc)}</span>
+          </div>
+          <motion.button onClick={onToggle} whileTap={{ scale:0.97 }} whileHover={{ y:-1 }} style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 11px', borderRadius:7, background:hexToRgba(COLORS.council,0.08), border:`1px solid ${hexToRgba(COLORS.council,0.25)}`, color:COLORS.council, fontSize:10, fontWeight:600, cursor:'pointer', letterSpacing:'0.03em' }}>
+            {t('showDetails')} <ChevronDown size={11} strokeWidth={2.5} />
           </motion.button>
         </div>
 

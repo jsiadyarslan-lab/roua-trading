@@ -318,9 +318,10 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     if (pollingRef.current) clearInterval(pollingRef.current);
     setConnectionState('fallback');
 
-    const interval = isCryptoPair(symbol) ? POLLING_INTERVAL : 2000; // V358: 2s for OANDA pairs (stream-fed cache)
+    const interval = isCryptoPair(symbol) ? POLLING_INTERVAL : 2000;
     fetchLatestCandle();
     pollingRef.current = setInterval(fetchLatestCandle, interval);
+    // V452: Visibility handling is now global (in useEffect below)
   }, [symbol, timeframe, fetchLatestCandle]);
 
   // ── Connect via Binance WebSocket (crypto fallback) ────
@@ -499,6 +500,20 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     connect();
     return cleanup;
   }, [symbol, timeframe, enabled]); // Reconnect on symbol/timeframe change
+
+  // V452: Global visibility handler — when tab becomes visible, reconnect
+  // to fill any candle gaps from when tab was hidden. This is SEPARATE from
+  // the polling-specific handler in startPolling() — this one covers both
+  // crypto (Binance WS may have died) and OANDA (polling was throttled).
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && !isClosingRef.current) {
+        reconnect();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [reconnect]);
 
   return {
     connectionState,

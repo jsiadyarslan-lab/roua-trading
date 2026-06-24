@@ -164,11 +164,11 @@ export default function NewsTicker() {
     if (!displayText) return null
     return (
       <div key={`${item.text?.slice(0, 30)}-${index}`} className="inline-flex items-center gap-2 mx-6 whitespace-nowrap">
-        <span className="text-[9px] font-bold px-1.5 py-0 rounded" style={{ color: item.color, background: item.bgColor }}>
+        <span className="text-[6px] font-bold px-1.5 py-0 rounded" style={{ color: item.color, background: item.bgColor }}>
           {getLocalizedCategory(item, locale)}
         </span>
-        <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{displayText}</span>
-        <span className="text-[10px]">
+        <span className="text-[7px]" style={{ color: '#999999' }}>{displayText}</span>
+        <span className="text-[7px]">
           {item.impact === 'high' ? (
             <span style={{ color: 'var(--loss)' }}>●</span>
           ) : (
@@ -187,18 +187,18 @@ export default function NewsTicker() {
         style={{ background: 'var(--bg-ticker)', borderColor: 'var(--border-subtle)' }}
       >
         <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--accent)' }} />
-        <span className="text-[9px] font-bold" style={{ color: 'var(--accent)' }}>LIVE</span>
+        <span className="text-[6px] font-bold" style={{ color: 'var(--accent)' }}>LIVE</span>
       </div>
 
       {/* Scrolling news — or loading/empty state */}
       <div className="flex-1 overflow-hidden h-full flex items-center" style={{ background: 'var(--bg-ticker)' }}>
         {isLoading ? (
           <div className="flex items-center h-full px-4">
-            <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{tn('loading')}</span>
+            <span className="text-[7px]" style={{ color: '#999999' }}>{tn('loading')}</span>
           </div>
         ) : newsItems.length === 0 ? (
           <div className="flex items-center h-full px-4">
-            <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{tn('unavailable')}</span>
+            <span className="text-[7px]" style={{ color: '#999999' }}>{tn('unavailable')}</span>
           </div>
         ) : (
           <div ref={tickerRef} className="flex items-center h-full" style={{ animation: 'ql-news 60s linear infinite' }}>

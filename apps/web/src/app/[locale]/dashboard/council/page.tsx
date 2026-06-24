@@ -48,6 +48,9 @@ export default function CouncilPage() {
   const [expandedBrief, setExpandedBrief] = useState<string | null>(null)
   const [filterDir, setFilterDir] = useState<'ALL' | 'BUY' | 'SELL'>('ALL')
   const [filterStatus, setFilterStatus] = useState<'ALL' | ReviewStatus>('ALL')
+  const [filterCategory, setFilterCategory] = useState<'ALL' | 'Crypto' | 'Forex' | 'Commodities' | 'Indices'>('ALL')
+  const [filterTf, setFilterTf] = useState<'ALL' | 'M1' | 'M5' | 'M15' | 'M30' | 'H1' | 'H4' | 'D1' | 'W1'>('ALL')
+  const [filterMinConf, setFilterMinConf] = useState(0)
   const [loading, setLoading] = useState(true)
   const [triggerLoading, setTriggerLoading] = useState(false)
   const [offline, setOffline] = useState(false)
@@ -118,7 +121,14 @@ export default function CouncilPage() {
     return () => clearInterval(iv)
   }, [sessionRunning, fetchStatus, fetchActive, fetchSession])
 
-  const fActive = useMemo(() => filterDir==='ALL' ? activeBriefs : activeBriefs.filter(b=>b.direction===filterDir), [activeBriefs, filterDir])
+  const fActive = useMemo(() => {
+    let r = activeBriefs
+    if (filterDir !== 'ALL') r = r.filter(b => b.direction === filterDir)
+    if (filterCategory !== 'ALL') r = r.filter(b => SYMBOL_CATEGORIES[filterCategory].includes(b.pair))
+    if (filterTf !== 'ALL') r = r.filter(b => b.timeframe === filterTf)
+    if (filterMinConf > 0) r = r.filter(b => b.confidence >= filterMinConf)
+    return r
+  }, [activeBriefs, filterDir, filterCategory, filterTf, filterMinConf])
   const fHistory = useMemo(() => {
     let r = filterDir==='ALL' ? historyBriefs : historyBriefs.filter(b=>b.direction===filterDir)
     if (filterStatus !== 'ALL') r = r.filter(b => b.reviewStatus === filterStatus)
@@ -126,7 +136,7 @@ export default function CouncilPage() {
   }, [historyBriefs, filterDir, filterStatus])
 
   // Reset pagination when filters change
-  useEffect(() => { setActiveLimit(PAGE_SIZE_ACTIVE) }, [filterDir])
+  useEffect(() => { setActiveLimit(PAGE_SIZE_ACTIVE) }, [filterDir, filterCategory, filterTf, filterMinConf])
   useEffect(() => { setHistoryLimit(PAGE_SIZE_HISTORY) }, [filterDir, filterStatus])
 
   // Apply pagination
@@ -406,12 +416,31 @@ export default function CouncilPage() {
         {/* ═══ SECTION 3: ACTIVE BRIEFS ═══ */}
         <section>
           <SectionHeader index="03" eyebrow={t('section2Eyebrow')} title={t('activeBriefs')} right={<LiveDot color={isAutoRefreshing?COLORS.buy:COLORS.textDim} label={`${t('autoRefresh')} · 30s`} />} />
-          <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
+          <div style={{ display:'flex', gap:8, marginBottom:8, flexWrap:'wrap' }}>
             {(['ALL','BUY','SELL'] as const).map(d => (
               <motion.button key={d} whileTap={{ scale:0.96 }} onClick={()=>setFilterDir(d)} style={{ padding:'8px 14px', borderRadius:9, border:`1px solid ${filterDir===d?hexToRgba(d==='ALL'?COLORS.council:directionColor(d),0.4):COLORS.border}`, background:filterDir===d?hexToRgba(d==='ALL'?COLORS.council:directionColor(d),0.12):'rgba(255,255,255,0.025)', color:filterDir===d?(d==='ALL'?COLORS.council:directionColor(d)):COLORS.textMuted, fontSize:12, fontWeight:600, textTransform:'uppercase', cursor:'pointer', display:'inline-flex', alignItems:'center', gap:8 }}>
                 {d==='ALL'?t('all'):d==='BUY'?`▲ ${t('buy')}`:`▼ ${t('sell')}`}
                 <span style={{ fontSize:11, padding:'1px 6px', borderRadius:5, background:filterDir===d?hexToRgba(d==='ALL'?COLORS.council:directionColor(d),0.18):'rgba(255,255,255,0.06)', fontFamily:'monospace', fontWeight:700 }}>{d==='ALL'?activeBriefs.length:activeBriefs.filter(b=>b.direction===d).length}</span>
               </motion.button>
+            ))}
+          </div>
+          {/* V440: Category + Timeframe + Confidence filters */}
+          <div style={{ display:'flex', gap:6, marginBottom:8, flexWrap:'wrap', alignItems:'center' }}>
+            <span style={{ fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:COLORS.textDim, marginLeft:4 }}>{t('category') ?? 'Category'}:</span>
+            {(['ALL','Crypto','Forex','Commodities','Indices'] as const).map(c => (
+              <button key={c} onClick={()=>setFilterCategory(c)} style={{ padding:'5px 10px', borderRadius:7, border:`1px solid ${filterCategory===c?hexToRgba(COLORS.council,0.4):COLORS.border}`, background:filterCategory===c?hexToRgba(COLORS.council,0.12):'transparent', color:filterCategory===c?COLORS.council:COLORS.textMuted, fontSize:11, fontWeight:600, cursor:'pointer' }}>{c}</button>
+            ))}
+          </div>
+          <div style={{ display:'flex', gap:6, marginBottom:8, flexWrap:'wrap', alignItems:'center' }}>
+            <span style={{ fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:COLORS.textDim, marginLeft:4 }}>{t('timeframe') ?? 'Timeframe'}:</span>
+            {(['ALL','M1','M5','M15','M30','H1','H4','D1','W1'] as const).map(tf => (
+              <button key={tf} onClick={()=>setFilterTf(tf)} style={{ padding:'5px 10px', borderRadius:7, border:`1px solid ${filterTf===tf?hexToRgba(COLORS.info,0.4):COLORS.border}`, background:filterTf===tf?hexToRgba(COLORS.info,0.12):'transparent', color:filterTf===tf?COLORS.info:COLORS.textMuted, fontSize:11, fontWeight:600, fontFamily:'monospace', cursor:'pointer' }}>{tf}</button>
+            ))}
+          </div>
+          <div style={{ display:'flex', gap:6, marginBottom:16, flexWrap:'wrap', alignItems:'center' }}>
+            <span style={{ fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:COLORS.textDim, marginLeft:4 }}>{t('minConfidence') ?? 'Min Confidence'}:</span>
+            {[0,50,60,70,75,80,85].map(c => (
+              <button key={c} onClick={()=>setFilterMinConf(c)} style={{ padding:'5px 10px', borderRadius:7, border:`1px solid ${filterMinConf===c?hexToRgba(COLORS.buy,0.4):COLORS.border}`, background:filterMinConf===c?hexToRgba(COLORS.buy,0.12):'transparent', color:filterMinConf===c?COLORS.buy:COLORS.textMuted, fontSize:11, fontWeight:600, fontFamily:'monospace', cursor:'pointer' }}>{c===0?(t('all') ?? 'All'):`${c}%`}</button>
             ))}
           </div>
           {fActive.length===0 ? (

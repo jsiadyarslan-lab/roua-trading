@@ -371,20 +371,20 @@ function NewsTicker() {
               const displayCat = getNewsCategory(item, locale)
               return (
                 <span key={i} style={{
-                  fontFamily: isAr ? "'Cairo', 'Readex Pro', sans-serif" : "'Inter', 'Readex Pro', sans-serif", fontSize: 11.5,
+                  fontFamily: isAr ? "'Cairo', 'Readex Pro', sans-serif" : "'Inter', 'Readex Pro', sans-serif", fontSize: 7.5,
                   color: '#FFFFFF', flexShrink: 0, fontWeight: 500,
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   textShadow: '0 0 8px rgba(255,255,255,0.15)',
                 }}>
                   <span style={{
-                    fontSize: 8, padding: '2px 6px', borderRadius: 4,
+                    fontSize: 5, padding: '2px 6px', borderRadius: 4,
                     background: `${item.color}20`, color: item.color,
                     fontFamily: isAr ? "'Cairo', sans-serif" : "'JetBrains Mono', monospace", fontWeight: 700,
                     border: `1px solid ${item.color}40`,
                     textShadow: 'none',
                   }}>{displayCat || 'News'}</span>
-                  {item.impact === 'high' && <span style={{ color: '#FF4757', fontSize: 7, fontWeight: 900, textShadow: '0 0 4px rgba(255,71,87,0.5)' }}>●</span>}
-                  <span style={{ color: 'rgba(255,255,255,0.92)' }}>{displayText}</span>
+                  {item.impact === 'high' && <span style={{ color: '#FF4757', fontSize: 5, fontWeight: 900, textShadow: '0 0 4px rgba(255,71,87,0.5)' }}>●</span>}
+                  <span style={{ color: '#999999' }}>{displayText}</span>
                 </span>
               )
             })}
@@ -392,7 +392,7 @@ function NewsTicker() {
         ) : (
           <span style={{
             padding: '0 14px', fontFamily: "'Inter', sans-serif",
-            fontSize: 10, color: 'rgba(255,255,255,0.5)', fontWeight: 500,
+            fontSize: 7, color: '#999999', fontWeight: 500,
           }}>{t('dashboard.news.loading')}</span>
         )}
         {/* Fade edges */}
@@ -475,7 +475,7 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
 
   return (
     <div style={{
-      height: isMobile ? 'auto' : H_CURR, background: isMobile ? 'transparent' : T.bg2,
+      height: isMobile ? 'auto' : H_CURR, background: isMobile ? 'transparent' : '#030405',
       borderBottom: isMobile ? 'none' : `0.5px solid ${T.border}`,
       display: 'flex', alignItems: 'center',
       padding: isMobile ? 0 : '0 6px',

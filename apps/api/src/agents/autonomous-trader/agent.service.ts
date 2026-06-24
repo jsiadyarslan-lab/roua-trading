@@ -1824,6 +1824,18 @@ export class AutonomousTraderAgentService implements OnModuleInit {
             state.dailyTradesCount++;
             state.dailyPnL -= (execution.fee || 0);
 
+            // V440: Mark brief as EXECUTED so the council history table shows
+            // executed briefs with their outcome. SmartExecutor does this (V310)
+            // but Agent was missing it — causing 0 executed briefs in the UI.
+            try {
+              await this.prisma.tradingBrief.update({
+                where: { id: brief.id },
+                data: { reviewStatus: 'EXECUTED', lastReviewedAt: new Date() },
+              });
+            } catch (briefUpdateErr: any) {
+              this.logger.warn(`🧠 V440: Failed to mark brief ${brief.id} as EXECUTED: ${briefUpdateErr?.message}`);
+            }
+
             // V187 FIX: Save timeframe to Redis so Position Monitor uses correct MAX_HOLDING.
             // Without this, Position Monitor can't find the timeframe for Agent positions,
             // so _getMaxHoldingMs() gets null → falls back to 8h default instead of 48h.

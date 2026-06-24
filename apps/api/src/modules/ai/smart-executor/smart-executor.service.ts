@@ -3587,6 +3587,7 @@ export class SmartExecutorService implements OnModuleDestroy {
               consensusScore: brief.confidence ?? 70,
               source: 'smart_executor',
               isPaper: isSimulatedExecution,
+              briefId: brief.id, // V440: Link trade to brief for outcome tracking
             });
           }
         } catch (journalErr: any) {

@@ -4,14 +4,20 @@
 // Phase 1: Context Engine
 //   - 6 context builders (UserTrading, Council, Learning, Market, News, SystemHealth)
 //   - 1 aggregator service (مع Redis caching)
-//   - 1 controller (4 endpoints)
 //
-// Phase 2-5 (لاحقًا): Function Registry + Language Router + Streaming + Intelligence
+// Phase 2: Chat + Functions (V462)
+//   - 1 function registry service (12 functions)
+//   - 1 chat service (يستخدم AIOrchestrator)
+//   - 3 endpoints جديدة: /chat, /functions, /functions/execute
+//
+// Phase 3-5 (لاحقًا): Language Router + Streaming + Intelligence
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Module, forwardRef } from '@nestjs/common';
 import { AssistantController } from './services/assistant.controller';
 import { ContextAggregatorService } from './services/context-aggregator.service';
+import { FunctionRegistryService } from './services/function-registry.service';
+import { AssistantChatService } from './services/assistant-chat.service';
 
 // Builders
 import { UserTradingContextBuilder } from './builders/user-trading-context.builder';
@@ -46,17 +52,23 @@ import { StrategicCouncilModule } from '../ai/strategic-council/strategic-counci
   ],
   controllers: [AssistantController],
   providers: [
+    // Phase 1: Context Engine
     ContextAggregatorService,
-    // Builders
     UserTradingContextBuilder,
     CouncilContextBuilder,
     LearningContextBuilder,
     MarketContextBuilder,
     NewsContextBuilder,
     SystemHealthContextBuilder,
+
+    // Phase 2: Chat + Functions
+    FunctionRegistryService,
+    AssistantChatService,
   ],
   exports: [
     ContextAggregatorService,
+    FunctionRegistryService,
+    AssistantChatService,
     UserTradingContextBuilder,
     CouncilContextBuilder,
     LearningContextBuilder,

@@ -5131,5 +5131,16 @@
     "volatility": "Volatility",
     "recommendedStrategies": "Recommended Strategies",
     "noRegimeData": "Market data unavailable"
+  },
+  "assistant": {
+    "title": "Roua — Asistente de Trading",
+    "subtitle": "Tu asistente inteligente",
+    "welcome": "¡Hola! ¿Cómo puedo ayudarte hoy?",
+    "input_placeholder": "Escribe tu pregunta...",
+    "send": "Enviar",
+    "clear": "Limpiar",
+    "open": "Abrir asistente",
+    "close": "Cerrar asistente",
+    "suggestions_label": "Sugerencias rápidas:"
   }
 }

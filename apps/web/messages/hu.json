@@ -5131,5 +5131,16 @@
     "volatility": "Volatility",
     "recommendedStrategies": "Recommended Strategies",
     "noRegimeData": "Market data unavailable"
+  },
+  "assistant": {
+    "title": "Roua — Kereskedési asszisztens",
+    "subtitle": "Az intelligens asszisztense",
+    "welcome": "Szia! Hogyan segíthetek ma?",
+    "input_placeholder": "Írd be a kérdésed...",
+    "send": "Küldés",
+    "clear": "Törlés",
+    "open": "Asszisztens megnyitása",
+    "close": "Asszisztens bezárása",
+    "suggestions_label": "Gyors javaslatok:"
   }
 }

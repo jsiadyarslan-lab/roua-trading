@@ -5131,5 +5131,16 @@
     "volatility": "Volatility",
     "recommendedStrategies": "Recommended Strategies",
     "noRegimeData": "Market data unavailable"
+  },
+  "assistant": {
+    "title": "Roua — 트레이딩 어시스턴트",
+    "subtitle": "스마트 어시스턴트",
+    "welcome": "안녕하세요! 오늘 어떻게 도와드릴까요?",
+    "input_placeholder": "질문을 입력하세요...",
+    "send": "보내기",
+    "clear": "지우기",
+    "open": "어시스턴트 열기",
+    "close": "어시스턴트 닫기",
+    "suggestions_label": "빠른 제안:"
   }
 }

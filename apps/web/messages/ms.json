@@ -5131,5 +5131,16 @@
     "volatility": "Volatility",
     "recommendedStrategies": "Recommended Strategies",
     "noRegimeData": "Market data unavailable"
+  },
+  "assistant": {
+    "title": "Roua — Pembantu Perdagangan",
+    "subtitle": "Pembantu pintar anda",
+    "welcome": "Helo! Bagaimana saya boleh membantu anda hari ini?",
+    "input_placeholder": "Taip soalan anda...",
+    "send": "Hantar",
+    "clear": "Padam",
+    "open": "Buka pembantu",
+    "close": "Tutup pembantu",
+    "suggestions_label": "Cadangan pantas:"
   }
 }

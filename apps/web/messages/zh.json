@@ -5132,5 +5132,16 @@
     "volatility": "Volatility",
     "recommendedStrategies": "Recommended Strategies",
     "noRegimeData": "Market data unavailable"
+  },
+  "assistant": {
+    "title": "Roua — 交易助手",
+    "subtitle": "您的智能助手",
+    "welcome": "你好！今天我能帮你什么？",
+    "input_placeholder": "输入你的问题...",
+    "send": "发送",
+    "clear": "清除",
+    "open": "打开助手",
+    "close": "关闭助手",
+    "suggestions_label": "快速建议："
   }
 }

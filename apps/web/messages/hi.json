@@ -5131,5 +5131,16 @@
     "volatility": "Volatility",
     "recommendedStrategies": "Recommended Strategies",
     "noRegimeData": "Market data unavailable"
+  },
+  "assistant": {
+    "title": "Roua — ट्रेडिंग सहायक",
+    "subtitle": "आपका स्मार्ट सहायक",
+    "welcome": "नमस्ते! आज मैं आपकी कैसे मदद कर सकता हूँ?",
+    "input_placeholder": "अपना प्रश्न लिखें...",
+    "send": "भेजें",
+    "clear": "साफ़ करें",
+    "open": "सहायक खोलें",
+    "close": "सहायक बंद करें",
+    "suggestions_label": "त्वरित सुझाव:"
   }
 }

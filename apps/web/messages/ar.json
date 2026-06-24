@@ -5132,5 +5132,16 @@
     "volatility": "التقلب",
     "recommendedStrategies": "الاستراتيجيات الموصى بها",
     "noRegimeData": "بيانات السوق غير متاحة"
+  },
+  "assistant": {
+    "title": "رؤى — مساعد التداول",
+    "subtitle": "مساعدك الذكي",
+    "welcome": "مرحبًا! كيف يمكنني مساعدتك اليوم؟",
+    "input_placeholder": "اكتب سؤالك...",
+    "send": "إرسال",
+    "clear": "مسح",
+    "open": "فتح المساعد",
+    "close": "إغلاق المساعد",
+    "suggestions_label": "اقتراحات سريعة:"
   }
 }

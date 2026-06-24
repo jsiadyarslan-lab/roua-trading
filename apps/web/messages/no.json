@@ -5131,5 +5131,16 @@
     "volatility": "Volatility",
     "recommendedStrategies": "Recommended Strategies",
     "noRegimeData": "Market data unavailable"
+  },
+  "assistant": {
+    "title": "Roua — Handelsassistent",
+    "subtitle": "Din smarte assistent",
+    "welcome": "Hei! Hvordan kan jeg hjelpe deg i dag?",
+    "input_placeholder": "Skriv spørsmålet ditt...",
+    "send": "Send",
+    "clear": "Tøm",
+    "open": "Åpne assistent",
+    "close": "Lukk assistent",
+    "suggestions_label": "Hurtige forslag:"
   }
 }

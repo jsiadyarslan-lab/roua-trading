@@ -5131,5 +5131,16 @@
     "volatility": "Volatility",
     "recommendedStrategies": "Recommended Strategies",
     "noRegimeData": "Market data unavailable"
+  },
+  "assistant": {
+    "title": "Roua — İşlem Asistanı",
+    "subtitle": "Akıllı asistanınız",
+    "welcome": "Merhaba! Bugün size nasıl yardımcı olabilirim?",
+    "input_placeholder": "Sorunuzu yazın...",
+    "send": "Gönder",
+    "clear": "Temizle",
+    "open": "Asistanı aç",
+    "close": "Asistanı kapat",
+    "suggestions_label": "Hızlı öneriler:"
   }
 }

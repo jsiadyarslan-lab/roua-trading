@@ -5131,5 +5131,16 @@
     "volatility": "Volatility",
     "recommendedStrategies": "Recommended Strategies",
     "noRegimeData": "Market data unavailable"
+  },
+  "assistant": {
+    "title": "Roua — Trading Assistent",
+    "subtitle": "Jouw slimme assistent",
+    "welcome": "Hallo! Hoe kan ik je vandaag helpen?",
+    "input_placeholder": "Typ je vraag...",
+    "send": "Verstuur",
+    "clear": "Wissen",
+    "open": "Assistent openen",
+    "close": "Assistent sluiten",
+    "suggestions_label": "Snelle suggesties:"
   }
 }

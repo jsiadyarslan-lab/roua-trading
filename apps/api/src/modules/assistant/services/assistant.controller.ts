@@ -19,10 +19,12 @@ import {
   Body,
   Query,
   Req,
+  Res,
   UseGuards,
   Logger,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { Response } from 'express';
 import { AuthGuard } from '../../../common/guards/auth.guard';
 import { ContextAggregatorService } from './context-aggregator.service';
 import { FunctionRegistryService, ASSISTANT_FUNCTIONS } from './function-registry.service';
@@ -45,7 +47,7 @@ export class AssistantController {
     private readonly glossary: FinancialGlossaryService,
     private readonly translationCache: TranslationCacheService,
   ) {
-    this.logger.log('🤖 AssistantController initialized — Phase 3 (Language Router + Glossary + Cache)');
+    this.logger.log('🤖 AssistantController initialized — Phase 4 (Streaming + UI)');
   }
 
   // ─── Phase 1: Context Engine ────────────────────────────────
@@ -185,6 +187,145 @@ export class AssistantController {
       success: response.success,
       data: response,
     };
+  }
+
+  /**
+   * POST /api/assistant/chat/stream
+   * محادثة مع المساعد الذكي عبر Server-Sent Events (SSE)
+   *
+   * يرجع events متدفقة:
+   *   event: context    → { languageTier, rtl, warnings }
+   *   event: functions  → { functionsCalled: [...] }
+   *   event: chunk      → { chunk: "..." }  (رد متدفّق)
+   *   event: done       → { fullReply, model, processingTimeMs, cached }
+   *   event: error      → { message }
+   *
+   * يستخدم chat() داخليًا لكن يبثّ الرد على شكل chunks وهمية
+   * (لأن AIOrchestrator لا يدعم streaming بعد — نقطّع الرد النهائي)
+   */
+  @Post('chat/stream')
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  async chatStream(
+    @Req() req: any,
+    @Res() res: Response,
+    @Body() body: {
+      message: string;
+      language?: string;
+      symbol?: string;
+      conversationHistory?: ChatMessage[];
+      skipContextCache?: boolean;
+    },
+  ) {
+    const userId: string = req.user.id;
+
+    // SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // disables Nginx buffering
+    res.flushHeaders?.();
+
+    // helper لإرسال SSE event
+    const sendEvent = (event: string, data: any) => {
+      try {
+        res.write(`event: ${event}\n`);
+        res.write(`data: ${JSON.stringify(data)}\n\n`);
+      } catch (e) {
+        this.logger.warn(`SSE write failed: ${e.message}`);
+      }
+    };
+
+    // heartbeat كل 15s لمنع الـ timeouts
+    const heartbeatInterval = setInterval(() => {
+      try {
+        res.write(': heartbeat\n\n');
+      } catch {
+        // ignore
+      }
+    }, 15000);
+
+    try {
+      if (!body.message || typeof body.message !== 'string' || body.message.trim().length === 0) {
+        sendEvent('error', { message: 'message is required' });
+        return res.end();
+      }
+
+      if (body.message.length > 2000) {
+        sendEvent('error', { message: 'message too long (max 2000 chars)' });
+        return res.end();
+      }
+
+      this.logger.log(
+        `🌊 SSE Chat — user=${userId} lang=${body.language ?? 'ar'} msg="${body.message.slice(0, 60)}..."`,
+      );
+
+      // 1. استدعِ chat service (ينفّذ كل المنطق: context + functions + LLM + cache)
+      const response = await this.chatService.chat({
+        userId,
+        message: body.message.trim(),
+        language: body.language || 'ar',
+        symbol: body.symbol,
+        conversationHistory: body.conversationHistory,
+        skipContextCache: body.skipContextCache,
+      });
+
+      // 2. أرسل metadata أولًا
+      sendEvent('context', {
+        language: response.language,
+        languageTier: response.languageTier,
+        rtl: response.rtl,
+        warnings: response.warnings ?? [],
+        experienceLevel: response.experienceLevel,
+        cached: response.cached,
+      });
+
+      // 3. أرسل قائمة الـ functions التي استُدعيت
+      if (response.functionsCalled.length > 0) {
+        sendEvent('functions', {
+          functionsCalled: response.functionsCalled,
+        });
+      }
+
+      // 4. بثّ الرد على شكل chunks
+      // V464: AIOrchestrator لا يدعم streaming بعد، فنقطّع الرد النهائي
+      // إلى chunks صغيرة (3-5 كلمات) لإعطاء إحساس streaming
+      const reply = response.reply || '';
+      const words = reply.split(/(\s+)/); // يحافظ على whitespace
+      const CHUNK_SIZE = 4; // 4 كلمات لكل chunk
+
+      for (let i = 0; i < words.length; i += CHUNK_SIZE) {
+        const chunk = words.slice(i, i + CHUNK_SIZE).join('');
+        if (chunk) {
+          sendEvent('chunk', { chunk });
+          // تأخير صغير لإعطاء إحساس streaming (20ms لكل chunk)
+          await new Promise((r) => setTimeout(r, 20));
+        }
+      }
+
+      // 5. أرسل done event
+      sendEvent('done', {
+        fullReply: reply,
+        model: response.model,
+        processingTimeMs: response.processingTimeMs,
+        cached: response.cached,
+        cacheCategory: response.cacheCategory,
+        success: response.success,
+      });
+
+      this.logger.log(
+        `✅ SSE Chat done — user=${userId} model=${response.model} cached=${response.cached} ${response.processingTimeMs}ms`,
+      );
+    } catch (error) {
+      this.logger.error(`❌ SSE Chat failed: ${error.message}`, error.stack);
+      sendEvent('error', { message: error.message });
+    } finally {
+      clearInterval(heartbeatInterval);
+      try {
+        res.end();
+      } catch {
+        // ignore
+      }
+    }
   }
 
   /**

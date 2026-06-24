@@ -5131,5 +5131,16 @@
     "volatility": "Volatility",
     "recommendedStrategies": "Recommended Strategies",
     "noRegimeData": "Market data unavailable"
+  },
+  "assistant": {
+    "title": "Roua — Trading Assistant",
+    "subtitle": "Ang iyong matalinong assistant",
+    "welcome": "Hello! Paano kita matutulungan ngayon?",
+    "input_placeholder": "I-type ang iyong tanong...",
+    "send": "Ipadala",
+    "clear": "Burahin",
+    "open": "Buksan ang assistant",
+    "close": "Isara ang assistant",
+    "suggestions_label": "Mga mabilis na suhestiyon:"
   }
 }

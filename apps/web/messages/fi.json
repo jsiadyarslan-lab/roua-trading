@@ -5131,5 +5131,16 @@
     "volatility": "Volatility",
     "recommendedStrategies": "Recommended Strategies",
     "noRegimeData": "Market data unavailable"
+  },
+  "assistant": {
+    "title": "Roua — Kaupankäyntiavustaja",
+    "subtitle": "Älykäs avustajasi",
+    "welcome": "Hei! Kuinka voin auttaa sinua tänään?",
+    "input_placeholder": "Kirjoita kysymyksesi...",
+    "send": "Lähetä",
+    "clear": "Tyhjennä",
+    "open": "Avaa avustaja",
+    "close": "Sulje avustaja",
+    "suggestions_label": "Nopeat ehdotukset:"
   }
 }

@@ -7,6 +7,8 @@ import { getDirection } from '@/lib/i18n-utils';
 import { Toaster } from "@/components/ui/toaster";
 import { GlobalStyleRegistry } from "@/components/GlobalStyleRegistry";
 import PWARegistrar from "@/components/PWARegistrar";
+// V464: مساعد التداول الذكي العائم (32 لغة)
+import { AssistantWidget } from "@/components/dashboard/AssistantWidget";
 
 const cairo = { variable: "--font-cairo", className: "" };
 const notoNaskhArabic = { variable: "--font-noto-naskh", className: "" };
@@ -203,6 +205,8 @@ export default async function LocaleLayout({
           <PWARegistrar />
           {children}
           <Toaster />
+          {/* V464: مساعد التداول الذكي العائم — متاح في كل الصفحات */}
+          <AssistantWidget />
         </NextIntlClientProvider>
       </body>
     </html>

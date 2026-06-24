@@ -5131,5 +5131,16 @@
     "volatility": "Volatility",
     "recommendedStrategies": "Recommended Strategies",
     "noRegimeData": "Market data unavailable"
+  },
+  "assistant": {
+    "title": "Roua — ผู้ช่วยเทรด",
+    "subtitle": "ผู้ช่วยอัจฉริยะของคุณ",
+    "welcome": "สวัสดี! วันนี้ฉันช่วยอะไรคุณได้บ้าง?",
+    "input_placeholder": "พิมพ์คำถามของคุณ...",
+    "send": "ส่ง",
+    "clear": "ล้าง",
+    "open": "เปิดผู้ช่วย",
+    "close": "ปิดผู้ช่วย",
+    "suggestions_label": "คำแนะนำรวดเร็ว:"
   }
 }

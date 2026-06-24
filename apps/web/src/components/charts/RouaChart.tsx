@@ -1051,7 +1051,7 @@ export default function RouaChart({
             high: Math.max(existing.high || price, price),
             low: existing.low > 0 ? Math.min(existing.low, price) : price,
             timestamp: new Date().toISOString(),
-            source: existing.source || data.source || 'stream',
+            source: existing.source || 'chart-stream',
           };
           store.setQuote(selectedSymbol_, updated);
         } else {

@@ -217,6 +217,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   // frontend just fetches them.
   const fetchLatestCandle = useCallback(async () => {
     if (!symbol) return;
+    const pollGen = connectionGenRef.current;
 
     // V384: For OANDA pairs, fetch pre-built OHLC candle from backend
     if (!isCryptoPair(symbol)) {
@@ -233,6 +234,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           headers: { 'Content-Type': 'application/json' },
         });
 
+        if (pollGen !== connectionGenRef.current) return; // Stale — symbol changed
         if (res.ok) {
           const result = await res.json();
           if (result?.success && result?.data) {
@@ -261,6 +263,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           headers: { 'Content-Type': 'application/json' },
         });
 
+        if (pollGen !== connectionGenRef.current) return; // Stale — symbol changed
         if (res.ok) {
           const result = await res.json();
           const data = result?.data;

@@ -150,6 +150,7 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
   // Timeframes: M1 (60s), M5 (300s), M15 (900s), M30 (1800s), H1 (3600s)
   private readonly CANDLE_TIMEFRAMES = [60, 300, 900, 1800, 3600];
   private candleBuilders = new Map<string, Map<number, { time: number; open: number; high: number; low: number; close: number; volume: number }>>();
+  private _lastRedisWrite = new Map<string, number>(); // V444: throttle key → last write timestamp
 
   private _buildCandles(update: OandaPriceUpdate): void {
     const symbol = update.symbol;
@@ -189,8 +190,16 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
         candle.close = price;
       }
 
-      // Always write the forming candle to Redis (frontend reads it for live updates)
-      this._saveCandleToRedis(symbol, tfSec, candle).catch(() => {});
+      // V444: Throttle Redis writes — only write each (symbol, tf) once per 500ms
+      // Previously wrote on EVERY tick × 5 TFs = ~700 SET/sec. Frontend polls
+      // every 2s, so 99% of writes were wasted.
+      const throttleKey = `${symbol}:${tfSec}`;
+      const now = Date.now();
+      const lastWrite = this._lastRedisWrite.get(throttleKey) || 0;
+      if (now - lastWrite >= 500) {
+        this._lastRedisWrite.set(throttleKey, now);
+        this._saveCandleToRedis(symbol, tfSec, candle).catch(() => {});
+      }
     }
   }
 

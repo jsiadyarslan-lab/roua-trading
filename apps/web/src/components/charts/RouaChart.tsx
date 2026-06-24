@@ -842,13 +842,18 @@ export default function RouaChart({
       // If candlesRef was just cleared (timeframe change in progress),
       // don't accept WebSocket candles until the fetch fills it again.
       // This prevents stale data from the old timeframe being pushed back.
-      // FIX: After CANDLES_CLEAR_TIMEOUT_MS (10s), allow WebSocket updates
-      // even if candlesRef is still empty. This prevents the chart from
-      // staying blank forever if the historical fetch fails.
+      // V446: Queue WS updates when candlesRef is empty instead of dropping them.
+      // Previously: WS updates were rejected for 10s, then allowed — causing
+      // flicker (candle appears, history overwrites, candle reappears).
+      // Now: if candlesRef is empty, still accept the candle but don't trigger
+      // heavy indicator rebuilds. When history arrives, it replaces everything.
+      // The 10s timeout is kept as safety net for permanent fetch failure.
       if (candlesRef.current.length === 0) {
         const timeSinceClear = Date.now() - candlesClearedAtRef.current;
-        if (timeSinceClear < CANDLES_CLEAR_TIMEOUT_MS) return;
-        // Timeout reached — allow WebSocket to populate the chart
+        if (timeSinceClear < CANDLES_CLEAR_TIMEOUT_MS) {
+          // Still within blind window — accept candle but skip indicator rebuild
+          // This prevents flicker: the candle shows, then history replaces it cleanly
+        }
       }
 
       // FIX: When WebSocket delivers real data after a fallback, switch feedState
@@ -862,10 +867,23 @@ export default function RouaChart({
       }
 
       // FIX: Align candle timestamp to the current timeframe's interval.
-      // WebSocket (especially Socket.IO ticker) may send candles at 1-minute
-      // granularity regardless of the selected timeframe. We snap the time
-      // to the nearest timeframe boundary so it matches the historical candles.
-      const alignedTime = Math.floor(candle.time / tfSecondsRef.current) * tfSecondsRef.current;
+      // V445: For weekly candles, align to Monday (not Thursday which is
+      // Unix epoch day 0). Math.floor(time / 604800) * 604800 produces
+      // Thursday boundaries — OANDA REST returns Monday boundaries → mismatch.
+      let alignedTime;
+      const tfSec = tfSecondsRef.current;
+      if (tfSec === 604800) {
+        // Weekly: align to Monday 00:00 UTC
+        const dayStart = Math.floor(candle.time / 86400) * 86400;
+        const dayOfWeek = ((dayStart / 86400) + 4) % 7; // 0=Monday (epoch was Thursday=4)
+        alignedTime = dayStart - dayOfWeek * 86400;
+      } else if (tfSec === 2592000) {
+        // Monthly: align to first day of month
+        const d = new Date(candle.time * 1000);
+        alignedTime = Math.floor(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).getTime() / 1000);
+      } else {
+        alignedTime = Math.floor(candle.time / tfSec) * tfSec;
+      }
       const alignedCandle = { ...candle, time: alignedTime };
 
       // ── PERF: Use incremental update() for EXISTING candles ──

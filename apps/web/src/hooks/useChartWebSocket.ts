@@ -79,7 +79,9 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   const { symbol, timeframe, onCandleUpdate, onPriceUpdate, enabled = true } = options;
 
   const wsRef = useRef<WebSocket | null>(null);
-  const socketIoRef = useRef<any>(null);
+  // V449: Removed socketIoRef — was declared but never assigned. Socket.IO
+  // is handled by useMarketStreamSocket (price updates), not this hook.
+  // This hook handles candle data via Binance WS (crypto) or REST polling (OANDA).
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
@@ -167,13 +169,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
       pingIntervalRef.current = null;
     }
 
-    // Disconnect Socket.IO
-    if (socketIoRef.current) {
-      try {
-        socketIoRef.current.disconnect();
-      } catch {}
-      socketIoRef.current = null;
-    }
+    // V449: Removed socketIoRef cleanup — was no-op (never assigned)
 
     // Disconnect Binance WS
     // V436: Stop ping interval BEFORE closing — prevents 'Ping received after close'

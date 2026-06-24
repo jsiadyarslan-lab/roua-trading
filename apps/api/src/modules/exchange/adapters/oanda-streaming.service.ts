@@ -173,14 +173,14 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
         if (candle) {
           this._saveCandleToRedis(symbol, tfSec, candle).catch(() => {});
         }
-        // Start new candle
+        // Start new candle — V447: volume = 1 (tick count, not real volume)
         candle = {
           time: candleTime,
           open: price,
           high: price,
           low: price,
           close: price,
-          volume: 0,
+          volume: 1,
         };
         symbolBuilders.set(tfSec, candle);
       } else {
@@ -188,6 +188,7 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
         candle.high = Math.max(candle.high, price);
         candle.low = Math.min(candle.low, price);
         candle.close = price;
+        candle.volume = (candle.volume || 0) + 1; // V447: tick count as volume proxy
       }
 
       // V444: Throttle Redis writes — only write each (symbol, tf) once per 500ms

@@ -243,8 +243,10 @@ export async function GET(
     // FIX: Include startTime/endTime in cache key for pagination — each page
     // of historical data must be cached independently.
     const normalizedInterval = intervalMap[interval] || interval
-    const paginationSuffix = startTimeParam ? `:st${startTimeParam}` : (endTimeParam ? `:et${endTimeParam}` : '')
-    const cacheKey = `history:${symbol}:${normalizedInterval}${paginationSuffix}`
+    // V448: Include BOTH startTime and endTime in cache key (was only using startTime)
+    const paginationSuffix = startTimeParam ? `:st${startTimeParam}` : ''
+    const endSuffix = endTimeParam ? `:et${endTimeParam}` : ''
+    const cacheKey = `history:${symbol}:${normalizedInterval}${paginationSuffix}${endSuffix}`
     if (!skipCache) {
       const cached = getCachedHistory(cacheKey)
       if (cached) {

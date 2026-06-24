@@ -194,10 +194,10 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
       // Previously wrote on EVERY tick × 5 TFs = ~700 SET/sec. Frontend polls
       // every 2s, so 99% of writes were wasted.
       const throttleKey = `${symbol}:${tfSec}`;
-      const now = Date.now();
+      const nowMs = Date.now();
       const lastWrite = this._lastRedisWrite.get(throttleKey) || 0;
-      if (now - lastWrite >= 500) {
-        this._lastRedisWrite.set(throttleKey, now);
+      if (nowMs - lastWrite >= 500) {
+        this._lastRedisWrite.set(throttleKey, nowMs);
         this._saveCandleToRedis(symbol, tfSec, candle).catch(() => {});
       }
     }

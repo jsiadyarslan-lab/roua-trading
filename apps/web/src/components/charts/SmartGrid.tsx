@@ -1572,13 +1572,21 @@ export function SmartGrid({
     return () => { if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current); };
   }, [loadDataForCell]);
 
-  // V453: Live price updates — update last candle's close without full setData.
-  // Previously: SmartGrid had NO real-time price feed. Candles only updated
-  // every 15s via setData() (full replacement). This caused the last candle
-  // to "stretch and shrink" — each setData replaced it with a different close.
-  // Now: subscribe to useMarketStore. When a cell's symbol price changes,
-  // update only the last candle via series.update() — smooth, no flicker.
+  // V455: Live price updates — update last candle + open new candle on period end.
+  // V453 only updated close/high/low but NEVER opened a new candle when the
+  // timeframe period ended. This caused the candle to "stretch and shrink"
+  // forever without creating a new one.
   const liveQuotes = useMarketStore(state => state.quotes);
+
+  // Map timeframe strings to seconds
+  const tfToSeconds = (tf: string): number => {
+    const map: Record<string, number> = {
+      '1m': 60, '5m': 300, '15m': 900, '30m': 1800,
+      '1h': 3600, '4h': 14400, '1day': 86400, '1week': 604800,
+    };
+    return map[tf] || 60;
+  };
+
   useEffect(() => {
     const currentCells = cellsRef.current;
     currentCells.forEach(cell => {
@@ -1592,32 +1600,58 @@ export function SmartGrid({
       const candleData = cellCandleDataRef.current.get(cell.id);
       if (!series || !candleData || candleData.length === 0) return;
 
-      const lastCandle = candleData[candleData.length - 1];
       const price = quote.price;
+      const tfSec = tfToSeconds(cell.timeframe);
+      const nowSec = Math.floor(Date.now() / 1000);
+      const currentCandleTime = nowSec - (nowSec % tfSec);
+      const lastCandle = candleData[candleData.length - 1];
 
-      // Update last candle: high/low/close (keep open stable)
-      const updatedCandle = {
-        ...lastCandle,
-        high: Math.max(lastCandle.high, price),
-        low: Math.min(lastCandle.low, price),
-        close: price,
-      };
+      if (lastCandle.time < currentCandleTime) {
+        // V455: New candle period — push a new candle
+        const newCandle = {
+          time: currentCandleTime,
+          open: price,
+          high: price,
+          low: price,
+          close: price,
+          volume: 1,
+        };
+        candleData.push(newCandle);
+        cellCandleDataRef.current.set(cell.id, candleData);
 
-      // Write back to ref
-      candleData[candleData.length - 1] = updatedCandle;
+        try {
+          series.update(newCandle);
+          if (volSeries) {
+            volSeries.update({
+              time: newCandle.time,
+              value: 1,
+              color: 'rgba(63,185,80,0.25)',
+            });
+          }
+        } catch {}
+      } else {
+        // Same period — update last candle
+        const updatedCandle = {
+          ...lastCandle,
+          high: Math.max(lastCandle.high, price),
+          low: Math.min(lastCandle.low, price),
+          close: price,
+          volume: (lastCandle.volume || 0) + 1,
+        };
+        candleData[candleData.length - 1] = updatedCandle;
 
-      // Incremental update — no setData, no flicker
-      try {
-        series.update(updatedCandle);
-        if (volSeries) {
-          volSeries.update({
-            time: updatedCandle.time,
-            value: updatedCandle.volume,
-            color: updatedCandle.close >= updatedCandle.open
-              ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
-          });
-        }
-      } catch {}
+        try {
+          series.update(updatedCandle);
+          if (volSeries) {
+            volSeries.update({
+              time: updatedCandle.time,
+              value: updatedCandle.volume,
+              color: updatedCandle.close >= updatedCandle.open
+                ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
+            });
+          }
+        } catch {}
+      }
     });
   }, [liveQuotes]);
 

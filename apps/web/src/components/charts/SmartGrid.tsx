@@ -1016,18 +1016,76 @@ export function SmartGrid({
       // If chart already exists, just update data + trade overlays
       if (existingChart && existingSeries) {
         try {
-          existingSeries.setData(candleData);
-          const existingVolSeries = volumeSeriesRefs.current.get(cell.id);
-          if (existingVolSeries) {
-            existingVolSeries.setData(candleData.map((d: any) => ({
-              time: d.time, value: d.volume,
-              color: d.close >= d.open ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
-            })));
+          // V457: MERGE instead of setData() — preserve live-built candles.
+          //
+          // ROOT CAUSE of "شمعة تتحرك وتمدد وتتقلص ولا تفتح شمعة جديدة":
+          //   Every 30s, loadDataForCell() called setData(REST_response).
+          //   REST returns candles up to the last CLOSED period — the
+          //   currently-forming candle (built by liveQuotes useEffect) was
+          //   NOT in the REST response and got WIPED. The next live tick
+          //   then re-pushed the current candle, only to be wiped again
+          //   30s later. Endless destroy/recreate → stretching/shrinking
+          //   with no real new candle ever appearing.
+          //
+          // FIX (mirrors RouaChart line 1267-1272):
+          //   1. Build a map of existing candles by time
+          //   2. Skip the current (last) candle — live updates own it
+          //   3. Merge new/updated closed candles from REST
+          //   4. Use series.update() per candle instead of bulk setData()
+          //      so the chart animates smoothly without destroying series
+          const existingCandles = cellCandleDataRef.current.get(cell.id) || [];
+          const existingMap = new Map<number, any>(
+            existingCandles.map((c: any) => [c.time, c])
+          );
+          const currentCandleTime = existingCandles.length > 0
+            ? existingCandles[existingCandles.length - 1].time
+            : 0;
+
+          let changed = false;
+          for (const nc of candleData) {
+            // Skip the currently-forming candle — live path owns it
+            if (nc.time === currentCandleTime) continue;
+            const ex = existingMap.get(nc.time);
+            if (!ex) {
+              existingMap.set(nc.time, nc);
+              changed = true;
+            } else if (nc.close !== ex.close || nc.high !== ex.high || nc.low !== ex.low) {
+              existingMap.set(nc.time, nc);
+              changed = true;
+            }
           }
-          existingChart.timeScale().fitContent();
+
+          if (changed) {
+            const merged = Array.from(existingMap.values())
+              .sort((a: any, b: any) => a.time - b.time);
+            cellCandleDataRef.current.set(cell.id, merged as any);
+
+            // Update series incrementally — series.update() per candle.
+            // lightweight-charts requires times to be ascending; merged
+            // is already sorted. update() handles both existing (update)
+            // and new (append) candles without destroying the series.
+            for (const c of merged) {
+              try { existingSeries.update(c as any); } catch {}
+            }
+            const existingVolSeries = volumeSeriesRefs.current.get(cell.id);
+            if (existingVolSeries) {
+              for (const c of merged) {
+                try {
+                  existingVolSeries.update({
+                    time: c.time,
+                    value: c.volume,
+                    color: c.close >= c.open
+                      ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
+                  } as any);
+                } catch {}
+              }
+            }
+            // Don't fitContent — preserves user's scroll/zoom position
+          }
 
           // Update trade markers on data refresh
-          renderTradeOverlays(cell, existingChart, existingSeries, candleData);
+          renderTradeOverlays(cell, existingChart, existingSeries,
+            cellCandleDataRef.current.get(cell.id) || candleData);
         } catch (err) {
           console.warn('[SmartGrid] setData error, recreating chart:', err);
           try { existingChart.remove(); } catch {}

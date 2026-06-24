@@ -3583,7 +3583,7 @@ export class SmartExecutorService implements OnModuleDestroy {
               side: brief.direction,
               entryPrice: currentPrice,
               quantity,
-              councilVotes: { direction: brief.direction, confidence: brief.confidence, timeframe: brief.timeframe },
+              councilVotes: { tech: brief.direction, sent: brief.direction, risk: brief.direction, macro: brief.direction, pattern: brief.direction, exec: brief.direction, diverge: brief.direction, scenario: brief.direction },
               consensusScore: brief.confidence ?? 70,
               source: 'smart_executor',
               isPaper: isSimulatedExecution,

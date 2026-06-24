@@ -21,6 +21,8 @@ import { FunctionRegistryService, AssistantFunctionCall } from './function-regis
 import { LanguageRouterService } from './language-router.service';
 import { FinancialGlossaryService } from './financial-glossary.service';
 import { TranslationCacheService } from './translation-cache.service';
+import { IntentClassifierService } from './intent-classifier.service';
+import { ResponseCleanerService } from './response-cleaner.service';
 import { AssistantContext } from '../types/context.types';
 
 // ─── Chat Types ──────────────────────────────────────────────
@@ -112,10 +114,12 @@ export class AssistantChatService {
     private readonly languageRouter: LanguageRouterService,
     private readonly glossary: FinancialGlossaryService,
     private readonly translationCache: TranslationCacheService,
+    private readonly intentClassifier: IntentClassifierService,
+    private readonly responseCleaner: ResponseCleanerService,
     @Optional() @Inject(forwardRef(() => AIOrchestratorService))
     private readonly orchestrator?: AIOrchestratorService,
   ) {
-    this.logger.log('💬 AssistantChatService initialized — Phase 3 (Language Router + Glossary + Cache)');
+    this.logger.log('💬 AssistantChatService initialized — Phase 6 (Intent + Cleaner)');
   }
 
   /**
@@ -180,8 +184,29 @@ export class AssistantChatService {
         };
       }
 
-      // 5. اكتشف إن كان المستخدم يحتاج functions
-      const neededFunctions = this._detectNeededFunctions(request.message, context);
+      // V466: صنّف نية السؤال لاختيار القالب المناسب
+      const intent = this.intentClassifier.classify(request.message);
+      this.logger.debug(
+        `🎯 Intent: ${intent.intent} (confidence=${intent.confidence.toFixed(2)}, assets=${intent.assets.length}, functions=${intent.needsFunctions}, intelligence=${intent.needsIntelligence})`,
+      );
+
+      // 5. اكتشف الـ functions المطلوبة (يعتمد على intent)
+      let neededFunctions = intent.needsFunctions
+        ? this._detectNeededFunctions(request.message, context)
+        : [];
+
+      // إذا كان الـ intent يحتاج intelligence، أضف functions المناسبة
+      if (intent.needsIntelligence) {
+        if (intent.intent === 'diagnosis') {
+          neededFunctions.push({ name: 'getTradeJournalSummary', arguments: { days: 30 } });
+        } else if (intent.intent === 'pattern_query') {
+          neededFunctions.push({ name: 'getTradeJournalSummary', arguments: { days: 60 } });
+        } else if (intent.intent === 'recommendation') {
+          neededFunctions.push({ name: 'suggestAction', arguments: {} });
+        } else if (intent.intent === 'performance_query') {
+          neededFunctions.push({ name: 'getTradeJournalSummary', arguments: { days: 30 } });
+        }
+      }
 
       // 6. نفّذ functions المطلوبة (بالتوازي)
       let functionResults: any[] = [];
@@ -204,12 +229,15 @@ export class AssistantChatService {
         });
       }
 
-      // 7. ابنِ الـ prompt النهائي مع السياق + نتائج الـ functions + Glossary + Language instruction
+      // 7. ابنِ الـ prompt النهائي مع السياق + نتائج الـ functions + Glossary + Language instruction + Template hint
+      const isAr = language === 'ar' || !['en', 'fr', 'es', 'de'].includes(language);
+      const templateHint = this.intentClassifier.buildTemplateHint(intent.intent, isAr);
       const systemPrompt = this._buildSystemPrompt(
         language,
         context,
         functionResults,
         langProfile,
+        templateHint,
       );
       const userPrompt = this._buildUserPrompt(request, context);
 
@@ -245,6 +273,9 @@ export class AssistantChatService {
         reply = this._buildFallbackReply(request, context, functionResults, language);
         model = 'fallback-context-only';
       }
+
+      // V466: نظّف الرد من التكرار + leaked metadata + non-Arabic chars
+      reply = this.responseCleaner.clean(reply, language);
 
       // 10. خزّن في cache (إلا لو كان REALTIME)
       if (cacheCategory !== 'REALTIME') {
@@ -436,17 +467,24 @@ export class AssistantChatService {
 
   /**
    * يبني الـ system prompt مع السياق المختصر + نتائج الـ functions
-   * + تعليمات اللغة + القاموس المالي (Phase 3)
+   * + تعليمات اللغة + القاموس المالي (Phase 3) + Template hint (Phase 6)
    */
   private _buildSystemPrompt(
     language: string,
     context: AssistantContext,
     functionResults: any[],
     langProfile?: any,
+    templateHint?: string,
   ): string {
     const basePrompt = SYSTEM_PROMPTS[language] ?? DEFAULT_SYSTEM_PROMPT;
 
     const parts: string[] = [basePrompt, ''];
+
+    // V466: Template hint (يوجّه الـ LLM للقالب المناسب حسب نوع السؤال)
+    if (templateHint) {
+      parts.push(templateHint);
+      parts.push('');
+    }
 
     // V463: تعليمات اللغة من Language Router
     if (langProfile) {

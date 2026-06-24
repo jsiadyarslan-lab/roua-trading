@@ -38,6 +38,9 @@ import { PatternDetectionService } from './services/pattern-detection.service';
 import { DailyBriefService } from './services/daily-brief.service';
 import { RiskAlertService } from './services/risk-alert.service';
 import { IntelligenceCoordinatorService } from './services/intelligence-coordinator.service';
+// Phase 6: Intent Classifier + Response Cleaner
+import { IntentClassifierService } from './services/intent-classifier.service';
+import { ResponseCleanerService } from './services/response-cleaner.service';
 
 // Builders
 import { UserTradingContextBuilder } from './builders/user-trading-context.builder';
@@ -96,6 +99,10 @@ import { StrategicCouncilModule } from '../ai/strategic-council/strategic-counci
     DailyBriefService,
     RiskAlertService,
     IntelligenceCoordinatorService,
+
+    // Phase 6: Intent Classifier + Response Cleaner
+    IntentClassifierService,
+    ResponseCleanerService,
   ],
   exports: [
     ContextAggregatorService,
@@ -109,6 +116,8 @@ import { StrategicCouncilModule } from '../ai/strategic-council/strategic-counci
     DailyBriefService,
     RiskAlertService,
     IntelligenceCoordinatorService,
+    IntentClassifierService,
+    ResponseCleanerService,
     UserTradingContextBuilder,
     CouncilContextBuilder,
     LearningContextBuilder,

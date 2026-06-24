@@ -59,9 +59,9 @@ export default function CouncilPage() {
   const [briefsUpdated, setBriefsUpdated] = useState<Date | null>(null)
   const [isAutoRefreshing, setIsAutoRefreshing] = useState(false)
   const [activeLimit, setActiveLimit] = useState(6)        // pagination: active briefs
-  const [historyLimit, setHistoryLimit] = useState(10)     // pagination: history briefs
+  const [historyLimit, setHistoryLimit] = useState(20)     // pagination: history briefs
   const PAGE_SIZE_ACTIVE = 6
-  const PAGE_SIZE_HISTORY = 10
+  const PAGE_SIZE_HISTORY = 20
 
   // V413: All supported pairs organized by category — replaces the old 7-pair hardcoded list
   const SYMBOL_CATEGORIES = {

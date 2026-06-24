@@ -23,6 +23,11 @@ export interface CouncilVoteSnapshot {
   scenario?: string;
   'prediction-market'?: string;
   scanner?: string;
+  // V454: Allow extra fields from brief metadata
+  direction?: string;
+  confidence?: number;
+  timeframe?: string;
+  [key: string]: any;
 }
 
 export interface JournalEntry {

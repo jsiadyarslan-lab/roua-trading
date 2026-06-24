@@ -154,7 +154,7 @@ export default function CouncilPage() {
   }), [historyBriefs])
 
   if (loading) return (
-    <SubPageLayout title={t('navLabel')} icon="🏛️">
+    <SubPageLayout title={t('navLabel')} icon="🏛️" hideHeader>
       <div style={{ minHeight:'100vh', background:COLORS.bg, display:'flex', justifyContent:'center', alignItems:'center' }}>
         <CouncilSigil size={64} />
       </div>
@@ -162,7 +162,7 @@ export default function CouncilPage() {
   )
 
   return (
-    <SubPageLayout title={t('navLabel')} icon="🏛️">
+    <SubPageLayout title={t('navLabel')} icon="🏛️" hideHeader>
       {/* Ambient background */}
       <div aria-hidden style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:0, overflow:'hidden' }}>
         <div style={{ position:'absolute', top:-200, insetInlineEnd:-150, width:600, height:600, background:`radial-gradient(circle, ${hexToRgba(COLORS.council,0.18)} 0%, transparent 60%)`, filter:'blur(40px)' }} />

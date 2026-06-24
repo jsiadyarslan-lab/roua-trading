@@ -656,17 +656,29 @@ export class TradingService {
         (sum, p) => sum + (Number(p.realizedPnl) || 0),
         0,
       );
-      // V148 FIX: Calculate leverage-aware used margin instead of returning
-      // totalValue (full notional) as margin. Previously, the frontend used
-      // totalValue as "initialMargin" which is WRONG for leveraged positions.
-      // For forex (50:1 leverage), a $108K notional position only needs $2,160 margin.
-      // Using totalValue as margin caused the "مستخدم" to show $108K instead of $2.16K.
+      // V443: Use user-configured leverage (same as position open) for margin calc.
+      // Previously used calculateMargin() which uses meta.defaultLeverage —
+      // mismatch with the leverage used when deducting margin on position open.
+      // This caused displayedBalance to be larger than actual balance.
+      const settings = await this.prisma.agentSettings.findUnique({
+        where: { userId },
+        select: { paperCryptoLeverage: true, paperForexLeverage: true, paperGoldLeverage: true },
+      });
+      const cryptoLev = Number(settings?.paperCryptoLeverage) || 1;
+      const forexLev = Number(settings?.paperForexLeverage) || 50;
+      const goldLev = Number(settings?.paperGoldLeverage) || 20;
+
       const usedMargin = positions.reduce(
-        (sum, p) => sum + calculateMargin(
-          typeof p.quantity === 'number' ? p.quantity : Number(p.quantity),
-          Number(p.entryPrice),  // V426: Use entryPrice (stable) not currentPrice (moves)
-          p.symbol,
-        ),
+        (sum, p) => {
+          const meta = getSymbolMetadata(p.symbol);
+          let leverage = cryptoLev;
+          if (meta.assetClass === AssetClass.FOREX) leverage = forexLev;
+          else if (meta.assetClass === AssetClass.COMMODITY) leverage = goldLev;
+          const qty = typeof p.quantity === 'number' ? p.quantity : Number(p.quantity);
+          const notional = Math.abs(qty * Number(p.entryPrice));
+          const margin = leverage > 0 ? notional / leverage : notional;
+          return sum + margin;
+        },
         0,
       );
 

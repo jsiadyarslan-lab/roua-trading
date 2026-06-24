@@ -204,8 +204,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   // Without this, polling always snaps to 1-minute boundaries even on 1H/1D charts.
   const tfSecondsRef = useRef(60);
 
-  // V384: Fallback candle builder — only used if backend candle endpoint fails
-  const oandaCandleRef = useRef<{ time: number; open: number; high: number; low: number; close: number; volume: number } | null>(null);
+  // V451: Removed oandaCandleRef — backend /candle handles all timeframes now
 
   // V384: Fetch latest candle from backend candle builder (not from quote price).
   // The backend OandaStreamingService builds OHLC candles from the live stream.
@@ -222,6 +221,9 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           '1m': 'M1', '5m': 'M5', '15m': 'M15', '30m': 'M30',
           '1min': 'M1', '5min': 'M5', '15min': 'M15', '30min': 'M30',
           '1h': 'H1',
+          '4h': 'H4',       // V450
+          '1day': 'D1',     // V450
+          '1week': 'W1',    // V450
         };
         const tfName = tfMap[timeframe] || 'M1';
         const apiBase = window.location.origin;
@@ -266,35 +268,12 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           if (data && (data.price || data.close) > 0) {
             const price = data.price || data.close;
 
-            // V378: Build candle from price using candle builder
-            const now = Math.floor(Date.now() / 1000);
-            const tfSec = tfSecondsRef.current;
-            const candleTime = now - (now % tfSec);
-
-            if (!oandaCandleRef.current || oandaCandleRef.current.time !== candleTime) {
-              oandaCandleRef.current = {
-                time: candleTime,
-                open: price,
-                high: price,
-                low: price,
-                close: price,
-                volume: 0,
-              };
-            } else {
-              oandaCandleRef.current.high = Math.max(oandaCandleRef.current.high, price);
-              oandaCandleRef.current.low = Math.min(oandaCandleRef.current.low, price);
-              oandaCandleRef.current.close = price;
-            }
-
-            const candle: CandleData = {
-              time: oandaCandleRef.current.time,
-              open: oandaCandleRef.current.open,
-              high: oandaCandleRef.current.high,
-              low: oandaCandleRef.current.low,
-              close: oandaCandleRef.current.close,
-              volume: oandaCandleRef.current.volume,
-            };
-            onCandleUpdateRef.current(candle);
+            // V451: Removed oandaCandleRef client-side builder.
+            // Backend /candle endpoint now handles all timeframes (V450).
+            // This fallback just sends price — RouaChart's onPriceUpdate
+            // will update the last candle's close. If no candle exists yet,
+            // the historical fetch will fill it.
+            onPriceUpdateRef.current(price);
             return;
           }
         }
@@ -494,7 +473,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     cleanup();
     isClosingRef.current = false;
     connectionGenRef.current++;
-    oandaCandleRef.current = null; // Reset candle builder on new connection
+    // V451: oandaCandleRef removed — no reset needed
     if (!enabled) return;
 
     // V378: OANDA pairs → REST polling + candle builder (no SSE)

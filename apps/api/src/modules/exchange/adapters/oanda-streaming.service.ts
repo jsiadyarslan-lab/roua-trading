@@ -147,8 +147,13 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
   // Same concept as Binance kline: the server builds candles from individual ticks.
   // The frontend fetches ready-made OHLC candles instead of building from single prices.
   //
-  // Timeframes: M1 (60s), M5 (300s), M15 (900s), M30 (1800s), H1 (3600s)
-  private readonly CANDLE_TIMEFRAMES = [60, 300, 900, 1800, 3600];
+  // V450: Added H4, D1, W1 timeframes. Frontend was falling back to M1 polling
+  // for these, then bucketing client-side — wasteful and lost volume.
+  // Now backend builds all timeframes the chart supports.
+  // Note: W1 (604800) alignment is handled in frontend (V445 — Monday alignment)
+  // because Unix epoch is Thursday. The backend just uses Math.floor(now/tfSec)*tfSec
+  // which gives Thursday boundaries — the frontend's onCandleUpdate realigns to Monday.
+  private readonly CANDLE_TIMEFRAMES = [60, 300, 900, 1800, 3600, 14400, 86400, 604800];
   private candleBuilders = new Map<string, Map<number, { time: number; open: number; high: number; low: number; close: number; volume: number }>>();
   private _lastRedisWrite = new Map<string, number>(); // V444: throttle key → last write timestamp
 
@@ -231,6 +236,9 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
       900: 'M15',
       1800: 'M30',
       3600: 'H1',
+      14400: 'H4',   // V450
+      86400: 'D1',   // V450
+      604800: 'W1',  // V450
     };
     return map[seconds] || 'M1';
   }

@@ -52,7 +52,7 @@ export async function GET(
     const timeframe = request.nextUrl.searchParams.get('timeframe') || 'M1';
 
     // Validate timeframe — only allow values the backend knows about
-    const VALID_TF = ['M1', 'M5', 'M15', 'M30', 'H1'];
+    const VALID_TF = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1', 'W1']; // V450: added H4, D1, W1
     if (!VALID_TF.includes(timeframe)) {
       return NextResponse.json(
         { success: false, error: `Invalid timeframe: ${timeframe}. Valid: ${VALID_TF.join(', ')}` },

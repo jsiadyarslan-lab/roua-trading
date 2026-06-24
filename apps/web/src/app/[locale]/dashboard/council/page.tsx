@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { useLocale, useTranslations } from 'next-intl'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -722,12 +723,12 @@ function BriefCard({ brief, loc, index, expanded, onToggle, t }: {
           </motion.button>
         </div>
 
-        {/* V445: Full-screen popup modal for brief details */}
-        <AnimatePresence initial={false}>
-          {expanded && (
+        {/* V447: Popup rendered via portal — escapes GlassCard overflow:hidden */}
+        {expanded && typeof document !== 'undefined' && createPortal(
+          <AnimatePresence initial={false}>
             <motion.div
               initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }} transition={{ duration:0.2 }}
-              style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.7)', backdropFilter:'blur(6px)', WebkitBackdropFilter:'blur(6px)', display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
+              style={{ position:'fixed', inset:0, zIndex:99999, background:'rgba(0,0,0,0.7)', backdropFilter:'blur(6px)', WebkitBackdropFilter:'blur(6px)', display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
               onClick={onToggle}
             >
               <motion.div
@@ -849,8 +850,9 @@ function BriefCard({ brief, loc, index, expanded, onToggle, t }: {
                 </div>
               </motion.div>
             </motion.div>
-          )}
-        </AnimatePresence>
+          </AnimatePresence>,
+          document.body
+        )}
       </GlassCard>
     </motion.div>
   )

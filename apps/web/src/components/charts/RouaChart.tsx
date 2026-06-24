@@ -839,6 +839,14 @@ export default function RouaChart({
     symbol: selectedSymbol_,
     timeframe: timeframe_,
     onCandleUpdate: (candle) => {
+      // V459 DIAGNOSTIC: Confirm candle reaches RouaChart's onCandleUpdate.
+      // Throttled to 1 log per 5s.
+      const _now = Date.now();
+      const _lastLog = (onCandleUpdate as any)._lastLogTs || 0;
+      if (_now - _lastLog > 5000) {
+        (onCandleUpdate as any)._lastLogTs = _now;
+        console.warn(`[V459] RouaChart onCandleUpdate: symbol=${selectedSymbol_} tf=${timeframe_} time=${candle.time} close=${candle.close} candlesRef.length=${candlesRef.current.length}`);
+      }
       // If candlesRef was just cleared (timeframe change in progress),
       // don't accept WebSocket candles until the fetch fills it again.
       // This prevents stale data from the old timeframe being pushed back.

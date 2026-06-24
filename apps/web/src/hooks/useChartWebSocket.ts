@@ -214,6 +214,20 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     if (!symbol) return;
     const pollGen = connectionGenRef.current;
 
+    // V459 DIAGNOSTIC: Log every poll attempt — we need to know on mobile:
+    //   1. Is polling firing at all? (setInterval working?)
+    //   2. Is fetch reaching the server? (status code)
+    //   3. Is the response valid? (data shape)
+    //   4. Is onCandleUpdate being called? (callback invoked?)
+    // Throttled to 1 log per 5s to avoid console spam on 2s poll interval.
+    const _now = Date.now();
+    const _lastLog = (fetchLatestCandle as any)._lastLogTs || 0;
+    const _shouldLog = _now - _lastLog > 5000;
+    if (_shouldLog) {
+      (fetchLatestCandle as any)._lastLogTs = _now;
+      console.warn(`[V459] poll tick: symbol=${symbol} tf=${timeframe} isCrypto=${isCryptoPair(symbol)} gen=${pollGen} conn=${document.visibilityState}`);
+    }
+
     // V384: For OANDA pairs, fetch pre-built OHLC candle from backend
     if (!isCryptoPair(symbol)) {
       try {
@@ -227,12 +241,18 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
         };
         const tfName = tfMap[timeframe] || 'M1';
         const apiBase = window.location.origin;
-        const res = await fetch(`${apiBase}/api/exchange/candle/${encodeURIComponent(symbol)}?timeframe=${tfName}`, {
+        const url = `${apiBase}/api/exchange/candle/${encodeURIComponent(symbol)}?timeframe=${tfName}`;
+        const res = await fetch(url, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
 
-        if (pollGen !== connectionGenRef.current) return; // Stale — symbol changed
+        if (pollGen !== connectionGenRef.current) {
+          if (_shouldLog) console.warn(`[V459] stale after fetch (gen changed) — dropping`);
+          return; // Stale — symbol changed
+        }
+        if (_shouldLog) console.warn(`[V459] /candle ${symbol} ${tfName} → HTTP ${res.status}`);
+
         if (res.ok) {
           const result = await res.json();
           if (result?.success && result?.data) {
@@ -244,12 +264,16 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
               close: result.data.close,
               volume: result.data.volume || 0,
             };
+            if (_shouldLog) console.warn(`[V459] /candle OK: time=${candle.time} close=${candle.close} → onCandleUpdate`);
             onCandleUpdateRef.current(candle);
             onPriceUpdateRef.current(candle.close);
             return;
+          } else {
+            if (_shouldLog) console.warn(`[V459] /candle ${res.status} but no data: success=${result?.success} hasData=${!!result?.data}`);
           }
         }
-      } catch {
+      } catch (e: any) {
+        if (_shouldLog) console.warn(`[V459] /candle fetch ERROR: ${e?.message || e}`);
         // Fall through to REST quote fallback
       }
 
@@ -267,6 +291,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           const data = result?.data;
           if (data && (data.price || data.close) > 0) {
             const price = data.price || data.close;
+            if (_shouldLog) console.warn(`[V459] /quote fallback OK: price=${price} → onPriceUpdate only`);
 
             // V451: Removed oandaCandleRef client-side builder.
             // Backend /candle endpoint now handles all timeframes (V450).
@@ -276,8 +301,11 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
             onPriceUpdateRef.current(price);
             return;
           }
+        } else {
+          if (_shouldLog) console.warn(`[V459] /quote fallback HTTP ${res.status}`);
         }
-      } catch {
+      } catch (e: any) {
+        if (_shouldLog) console.warn(`[V459] /quote fallback ERROR: ${e?.message || e}`);
         // Silent fail — will retry
       }
       return;
@@ -291,6 +319,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
         const url = `${BINANCE_URLS.rest}/klines?symbol=${binanceSymbol.toUpperCase()}&interval=${interval}&limit=2`;
 
         const binanceRes = await fetch(url);
+        if (_shouldLog) console.warn(`[V459] binance /klines ${binanceSymbol} ${interval} → HTTP ${binanceRes.status}`);
         if (!binanceRes.ok) return;
 
         const data = await binanceRes.json();
@@ -304,11 +333,13 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
             close: parseFloat(k[4]),
             volume: parseFloat(k[5]),
           };
+          if (_shouldLog) console.warn(`[V459] binance OK: time=${candle.time} close=${candle.close} → onCandleUpdate`);
           onCandleUpdateRef.current(candle);
           onPriceUpdateRef.current(candle.close);
         }
       }
-    } catch {
+    } catch (e: any) {
+      if (_shouldLog) console.warn(`[V459] binance fetch ERROR: ${e?.message || e}`);
       // Silent fail — will retry
     }
   }, [symbol, timeframe]);
@@ -319,6 +350,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     setConnectionState('fallback');
 
     const interval = isCryptoPair(symbol) ? POLLING_INTERVAL : 2000;
+    console.warn(`[V459] startPolling: symbol=${symbol} tf=${timeframe} interval=${interval}ms isCrypto=${isCryptoPair(symbol)}`);
     fetchLatestCandle();
     pollingRef.current = setInterval(fetchLatestCandle, interval);
     // V452: Visibility handling is now global (in useEffect below)
@@ -475,7 +507,12 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     isClosingRef.current = false;
     connectionGenRef.current++;
     // V451: oandaCandleRef removed — no reset needed
-    if (!enabled) return;
+    if (!enabled) {
+      console.warn(`[V459] connect() skipped: enabled=false`);
+      return;
+    }
+
+    console.warn(`[V459] connect(): symbol=${symbol} tf=${timeframe} isCrypto=${isCryptoPair(symbol)} gen=${connectionGenRef.current}`);
 
     // V378: OANDA pairs → REST polling + candle builder (no SSE)
     if (!isCryptoPair(symbol)) {
@@ -497,6 +534,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
 
   // ── Lifecycle ──────────────────────────────────────────
   useEffect(() => {
+    console.warn(`[V459] lifecycle useEffect: symbol=${symbol} tf=${timeframe} enabled=${enabled} → connect()`);
     connect();
     return cleanup;
   }, [symbol, timeframe, enabled]); // Reconnect on symbol/timeframe change
@@ -507,6 +545,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   // crypto (Binance WS may have died) and OANDA (polling was throttled).
   useEffect(() => {
     const handleVisibility = () => {
+      console.warn(`[V459] visibilitychange → ${document.visibilityState}`);
       if (document.visibilityState === 'visible' && !isClosingRef.current) {
         reconnect();
       }

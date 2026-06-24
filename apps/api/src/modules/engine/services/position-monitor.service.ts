@@ -2040,7 +2040,7 @@ export class PositionMonitorService {
             currentPrice,
             pnl,
             pnlPct,
-            { tags: [reason] },
+            { tags: [reason], symbol: position.symbol, userId: position.userId },
           );
         }
       } catch (journalErr: any) {

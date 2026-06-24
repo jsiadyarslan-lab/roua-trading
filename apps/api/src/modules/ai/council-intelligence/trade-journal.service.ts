@@ -114,17 +114,37 @@ export class TradeJournalService {
     exitPrice: number,
     pnl: number,
     pnlPercent: number,
-    extra?: { lesson?: string; tags?: string[] },
+    extra?: { lesson?: string; tags?: string[]; symbol?: string; userId?: string },
   ): Promise<void> {
     try {
-      // Find the journal entry by positionId
-      const journal = await this.prisma.tradeJournal.findFirst({
-        where: { positionId },
+      // V454: Multi-strategy search for journal entry.
+      // recordTradeOpen stores positionId = orderId (not the actual position ID).
+      // So we search by multiple fields to find the right journal entry.
+
+      // Strategy 1: Search by positionId (direct match)
+      let journal = await this.prisma.tradeJournal.findFirst({
+        where: { positionId, closedAt: null },
         orderBy: { createdAt: 'desc' },
       });
 
+      // Strategy 2: Search by orderId (positionId in journal might be the orderId)
       if (!journal) {
-        this.logger.warn(`No journal entry found for position ${positionId}`);
+        journal = await this.prisma.tradeJournal.findFirst({
+          where: { orderId: positionId, closedAt: null },
+          orderBy: { createdAt: 'desc' },
+        });
+      }
+
+      // Strategy 3: Search by symbol + userId + open (most recent open trade)
+      if (!journal && extra?.symbol && extra?.userId) {
+        journal = await this.prisma.tradeJournal.findFirst({
+          where: { symbol: extra.symbol, userId: extra.userId, closedAt: null },
+          orderBy: { createdAt: 'desc' },
+        });
+      }
+
+      if (!journal) {
+        this.logger.warn(`No journal entry found for position ${positionId} (tried positionId, orderId, symbol+userId)`);
         return;
       }
 

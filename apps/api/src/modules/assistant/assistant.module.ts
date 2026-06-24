@@ -1,16 +1,16 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Roua Trading — Assistant Module
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Phase 1: Context Engine
-//   - 6 context builders (UserTrading, Council, Learning, Market, News, SystemHealth)
-//   - 1 aggregator service (مع Redis caching)
+// Phase 1: Context Engine (V461)
+//   - 6 context builders + aggregator with Redis caching
 //
 // Phase 2: Chat + Functions (V462)
-//   - 1 function registry service (12 functions)
-//   - 1 chat service (يستخدم AIOrchestrator)
-//   - 3 endpoints جديدة: /chat, /functions, /functions/execute
+//   - 12 function-calling + chat service + 3 new endpoints
 //
-// Phase 3-5 (لاحقًا): Language Router + Streaming + Intelligence
+// Phase 3: Language Router + Glossary + Cache (V463)
+//   - 32 languages (6A + 12B + 14C) with tier-based model routing
+//   - Financial glossary (16 languages, ~70 terms each)
+//   - Translation cache with 4 TTL categories (REALTIME/DYNAMIC/SEMI_STATIC/STATIC)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Module, forwardRef } from '@nestjs/common';
@@ -18,6 +18,9 @@ import { AssistantController } from './services/assistant.controller';
 import { ContextAggregatorService } from './services/context-aggregator.service';
 import { FunctionRegistryService } from './services/function-registry.service';
 import { AssistantChatService } from './services/assistant-chat.service';
+import { LanguageRouterService } from './services/language-router.service';
+import { FinancialGlossaryService } from './services/financial-glossary.service';
+import { TranslationCacheService } from './services/translation-cache.service';
 
 // Builders
 import { UserTradingContextBuilder } from './builders/user-trading-context.builder';
@@ -64,11 +67,19 @@ import { StrategicCouncilModule } from '../ai/strategic-council/strategic-counci
     // Phase 2: Chat + Functions
     FunctionRegistryService,
     AssistantChatService,
+
+    // Phase 3: Language + Glossary + Cache
+    LanguageRouterService,
+    FinancialGlossaryService,
+    TranslationCacheService,
   ],
   exports: [
     ContextAggregatorService,
     FunctionRegistryService,
     AssistantChatService,
+    LanguageRouterService,
+    FinancialGlossaryService,
+    TranslationCacheService,
     UserTradingContextBuilder,
     CouncilContextBuilder,
     LearningContextBuilder,

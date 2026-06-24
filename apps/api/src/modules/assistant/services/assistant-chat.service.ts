@@ -18,6 +18,9 @@ import { AIOrchestratorService } from '../../ai/services/ai-orchestrator.service
 import { AIAnalysisRequest, AIAnalysisResponse } from '../../ai/services/groq.service';
 import { ContextAggregatorService } from './context-aggregator.service';
 import { FunctionRegistryService, AssistantFunctionCall } from './function-registry.service';
+import { LanguageRouterService } from './language-router.service';
+import { FinancialGlossaryService } from './financial-glossary.service';
+import { TranslationCacheService } from './translation-cache.service';
 import { AssistantContext } from '../types/context.types';
 
 // ─── Chat Types ──────────────────────────────────────────────
@@ -45,10 +48,14 @@ export interface AssistantChatResponse {
   success: boolean;
   reply: string;
   language: string;
+  languageTier: 'A' | 'B' | 'C';
+  rtl: boolean;
   contextUsed: boolean;
   functionsCalled: string[];
   processingTimeMs: number;
   model: string;
+  cached: boolean;
+  cacheCategory?: string;
   conversationId?: string;
   warnings?: string[];
   experienceLevel?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
@@ -102,18 +109,23 @@ export class AssistantChatService {
   constructor(
     private readonly contextAggregator: ContextAggregatorService,
     private readonly functionRegistry: FunctionRegistryService,
+    private readonly languageRouter: LanguageRouterService,
+    private readonly glossary: FinancialGlossaryService,
+    private readonly translationCache: TranslationCacheService,
     @Optional() @Inject(forwardRef(() => AIOrchestratorService))
     private readonly orchestrator?: AIOrchestratorService,
   ) {
-    this.logger.log('💬 AssistantChatService initialized');
+    this.logger.log('💬 AssistantChatService initialized — Phase 3 (Language Router + Glossary + Cache)');
   }
 
   /**
    * معالجة رسالة المستخدم وإرجاع رد ذكي
+   * Phase 3: مع Language Router + Glossary + Translation Cache
    */
   async chat(request: AssistantChatRequest): Promise<AssistantChatResponse> {
     const startTime = Date.now();
     const language = request.language ?? 'ar';
+    const langProfile = this.languageRouter.getProfile(language);
     const functionsCalled: string[] = [];
     const warnings: string[] = [];
 
@@ -131,10 +143,47 @@ export class AssistantChatService {
         warnings.push(...context.summary.warnings);
       }
 
-      // 2. اكتشف إن كان المستخدم يحتاج functions
+      // 2. صنّف الرسالة لاختيار TTL مناسب للـ cache
+      const cacheCategory = this.translationCache.classifyMessage(request.message);
+
+      // 3. ابنِ cache key ذكي (يشمل ملخص السياق لتفادي رد قديم)
+      const cacheKey = this.translationCache.buildCacheKey(
+        request.userId,
+        request.message,
+        language,
+        context.summary.brief,
+        cacheCategory,
+      );
+
+      // 4. تحقق من cache أولًا (قبل تنفيذ functions)
+      const cached = await this.translationCache.get(cacheKey);
+      if (cached) {
+        const processingTimeMs = Date.now() - startTime;
+        this.logger.log(
+          `💾 Cache HIT — lang=${language}(${langProfile.tier}) category=${cacheCategory} ${processingTimeMs}ms`,
+        );
+
+        return {
+          success: true,
+          reply: cached.reply,
+          language,
+          languageTier: langProfile.tier,
+          rtl: langProfile.rtl,
+          contextUsed: true,
+          functionsCalled: [], // لا نعيد تنفيذ functions عند cache hit
+          processingTimeMs,
+          model: cached.model,
+          cached: true,
+          cacheCategory,
+          warnings,
+          experienceLevel: context.summary.experienceLevel,
+        };
+      }
+
+      // 5. اكتشف إن كان المستخدم يحتاج functions
       const neededFunctions = this._detectNeededFunctions(request.message, context);
 
-      // 3. نفّذ functions المطلوبة (بالتوازي)
+      // 6. نفّذ functions المطلوبة (بالتوازي)
       let functionResults: any[] = [];
       if (neededFunctions.length > 0) {
         this.logger.debug(
@@ -155,15 +204,20 @@ export class AssistantChatService {
         });
       }
 
-      // 4. ابنِ الـ prompt النهائي مع السياق + نتائج الـ functions
-      const systemPrompt = this._buildSystemPrompt(language, context, functionResults);
+      // 7. ابنِ الـ prompt النهائي مع السياق + نتائج الـ functions + Glossary + Language instruction
+      const systemPrompt = this._buildSystemPrompt(
+        language,
+        context,
+        functionResults,
+        langProfile,
+      );
       const userPrompt = this._buildUserPrompt(request, context);
 
-      // 5. استدعِ الـ LLM
+      // 8. استدعِ الـ LLM
       let llmResponse: AIAnalysisResponse | null = null;
       if (this.orchestrator) {
         const aiRequest: AIAnalysisRequest = {
-          prompt: userPrompt,
+          prompt: `${systemPrompt}\n\n${userPrompt}`,
           type: 'general',
           language,
           symbol: request.symbol,
@@ -179,7 +233,7 @@ export class AssistantChatService {
         }
       }
 
-      // 6. ابنِ الرد النهائي
+      // 9. ابنِ الرد النهائي
       let reply: string;
       let model = 'unknown';
 
@@ -192,19 +246,34 @@ export class AssistantChatService {
         model = 'fallback-context-only';
       }
 
+      // 10. خزّن في cache (إلا لو كان REALTIME)
+      if (cacheCategory !== 'REALTIME') {
+        await this.translationCache.set(
+          cacheKey,
+          reply,
+          model,
+          language,
+          cacheCategory,
+        );
+      }
+
       const processingTimeMs = Date.now() - startTime;
       this.logger.log(
-        `✅ Chat processed in ${processingTimeMs}ms — functions: [${functionsCalled.join(', ')}] — model: ${model}`,
+        `✅ Chat processed in ${processingTimeMs}ms — lang=${language}(${langProfile.tier}) — functions: [${functionsCalled.join(', ')}] — model: ${model} — cache: SET(${cacheCategory})`,
       );
 
       return {
         success: true,
         reply,
         language,
+        languageTier: langProfile.tier,
+        rtl: langProfile.rtl,
         contextUsed: true,
         functionsCalled,
         processingTimeMs,
         model,
+        cached: false,
+        cacheCategory,
         warnings,
         experienceLevel: context.summary.experienceLevel,
       };
@@ -216,10 +285,13 @@ export class AssistantChatService {
         success: false,
         reply: this._errorReply(language, error.message),
         language,
+        languageTier: langProfile.tier,
+        rtl: langProfile.rtl,
         contextUsed: false,
         functionsCalled,
         processingTimeMs,
         model: 'error',
+        cached: false,
         warnings,
       };
     }
@@ -364,24 +436,43 @@ export class AssistantChatService {
 
   /**
    * يبني الـ system prompt مع السياق المختصر + نتائج الـ functions
+   * + تعليمات اللغة + القاموس المالي (Phase 3)
    */
   private _buildSystemPrompt(
     language: string,
     context: AssistantContext,
     functionResults: any[],
+    langProfile?: any,
   ): string {
     const basePrompt = SYSTEM_PROMPTS[language] ?? DEFAULT_SYSTEM_PROMPT;
 
     const parts: string[] = [basePrompt, ''];
 
+    // V463: تعليمات اللغة من Language Router
+    if (langProfile) {
+      const langInstruction = this.languageRouter.buildLanguageInstruction(language);
+      parts.push('═══ Language ═══');
+      parts.push(langInstruction);
+      parts.push('');
+    }
+
+    // V463: القاموس المالي (للغات Tier A و B فقط)
+    if (langProfile && this.glossary.hasGlossary(language)) {
+      const glossaryPrompt = this.glossary.buildGlossaryPrompt(language);
+      if (glossaryPrompt) {
+        parts.push(glossaryPrompt);
+        parts.push('');
+      }
+    }
+
     // السياق المختصر
-    parts.push('═══ السياق الحالي ═══');
+    parts.push('═══ Current Context ═══');
     parts.push(context.summary.brief);
     parts.push('');
 
     // ملاحظات
     if (context.summary.notes.length > 0) {
-      parts.push('═══ ملاحظات ═══');
+      parts.push('═══ Notes ═══');
       for (const note of context.summary.notes) {
         parts.push(`• ${note}`);
       }
@@ -390,7 +481,7 @@ export class AssistantChatService {
 
     // تحذيرات
     if (context.summary.warnings.length > 0) {
-      parts.push('═══ تحذيرات ═══');
+      parts.push('═══ Warnings ═══');
       for (const w of context.summary.warnings) {
         parts.push(`⚠️ ${w}`);
       }
@@ -399,7 +490,7 @@ export class AssistantChatService {
 
     // نتائج الـ functions
     if (functionResults.length > 0) {
-      parts.push('═══ بيانات لحظية من النظام ═══');
+      parts.push('═══ Real-time Data from System ═══');
       for (const fr of functionResults) {
         if (fr.success) {
           parts.push(`── ${fr.name} ──`);
@@ -413,7 +504,7 @@ export class AssistantChatService {
     }
 
     // مستوى الخبرة
-    parts.push(`═══ مستوى المستخدم ═══ ${context.summary.experienceLevel}`);
+    parts.push(`═══ User Experience Level ═══ ${context.summary.experienceLevel}`);
 
     return parts.join('\n');
   }

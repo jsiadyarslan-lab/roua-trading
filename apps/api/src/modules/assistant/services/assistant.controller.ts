@@ -27,6 +27,9 @@ import { AuthGuard } from '../../../common/guards/auth.guard';
 import { ContextAggregatorService } from './context-aggregator.service';
 import { FunctionRegistryService, ASSISTANT_FUNCTIONS } from './function-registry.service';
 import { AssistantChatService, ChatMessage } from './assistant-chat.service';
+import { LanguageRouterService } from './language-router.service';
+import { FinancialGlossaryService } from './financial-glossary.service';
+import { TranslationCacheService } from './translation-cache.service';
 import { ContextRequest } from '../types/context.types';
 
 @Controller('assistant')
@@ -38,8 +41,11 @@ export class AssistantController {
     private readonly contextAggregator: ContextAggregatorService,
     private readonly functionRegistry: FunctionRegistryService,
     private readonly chatService: AssistantChatService,
+    private readonly languageRouter: LanguageRouterService,
+    private readonly glossary: FinancialGlossaryService,
+    private readonly translationCache: TranslationCacheService,
   ) {
-    this.logger.log('🤖 AssistantController initialized — Phase 2 (Chat + Functions)');
+    this.logger.log('🤖 AssistantController initialized — Phase 3 (Language Router + Glossary + Cache)');
   }
 
   // ─── Phase 1: Context Engine ────────────────────────────────
@@ -251,17 +257,21 @@ export class AssistantController {
       success: true,
       status: 'operational',
       module: 'assistant',
-      version: 'V462-phase2',
+      version: 'V463-phase3',
       timestamp: new Date().toISOString(),
       features: {
-        contextEngine: true,        // Phase 1
+        contextEngine: true,        // Phase 1 ✅
         functionRegistry: true,     // Phase 2 ✅
         chat: true,                 // Phase 2 ✅
-        languageRouter: false,      // Phase 3
+        languageRouter: true,       // Phase 3 ✅
+        glossary: true,             // Phase 3 ✅
+        translationCache: true,     // Phase 3 ✅
         streaming: false,           // Phase 4
         intelligence: false,        // Phase 5
       },
       functionsCount: ASSISTANT_FUNCTIONS.length,
+      languages: this.languageRouter.getCoverageStats(),
+      glossary: this.glossary.getStats(),
       endpoints: [
         'GET  /api/assistant/health',
         'GET  /api/assistant/context',
@@ -270,7 +280,102 @@ export class AssistantController {
         'POST /api/assistant/chat',
         'GET  /api/assistant/functions',
         'POST /api/assistant/functions/execute',
+        'GET  /api/assistant/languages',
+        'GET  /api/assistant/languages/:code',
+        'GET  /api/assistant/glossary/:language',
+        'GET  /api/assistant/cache/stats',
+        'POST /api/assistant/cache/invalidate',
       ],
+    };
+  }
+
+  // ─── Phase 3: Language + Glossary + Cache ────────────────────
+
+  /**
+   * GET /api/assistant/languages
+   * قائمة كل اللغات المدعومة (32 لغة) مع Tier و RTL
+   */
+  @Get('languages')
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  async getLanguages() {
+    return {
+      success: true,
+      coverage: this.languageRouter.getCoverageStats(),
+      languages: this.languageRouter.getAllLanguages(),
+    };
+  }
+
+  /**
+   * GET /api/assistant/languages/:code
+   * تفاصيل لغة محددة
+   */
+  @Get('languages/:code')
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  async getLanguage(@Query('code') code: string) {
+    if (!code) {
+      return { success: false, error: 'code query parameter is required' };
+    }
+    const profile = this.languageRouter.getProfile(code);
+    return {
+      success: true,
+      profile,
+      hasGlossary: this.glossary.hasGlossary(code),
+    };
+  }
+
+  /**
+   * GET /api/assistant/glossary/:language
+   * القاموس المالي للغة محددة
+   */
+  @Get('glossary/:language')
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  async getGlossary(@Query('language') language: string) {
+    if (!language) {
+      return { success: false, error: 'language query parameter is required' };
+    }
+    const glossary = this.glossary.getGlossary(language);
+    if (!glossary) {
+      return {
+        success: false,
+        error: `No glossary available for language: ${language}`,
+        availableLanguages: Object.keys(this.glossary.getStats().languages),
+      };
+    }
+    return {
+      success: true,
+      language,
+      termCount: Object.keys(glossary).length,
+      glossary,
+    };
+  }
+
+  /**
+   * GET /api/assistant/cache/stats
+   * إحصائيات الـ translation cache
+   */
+  @Get('cache/stats')
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  async getCacheStats() {
+    return {
+      success: true,
+      stats: this.translationCache.getStats(),
+      ttlStrategy: this.translationCache.getTtlStrategy(),
+    };
+  }
+
+  /**
+   * POST /api/assistant/cache/invalidate
+   * يلغي كل cache لمستخدم محدد
+   */
+  @Post('cache/invalidate')
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  async invalidateCache(@Req() req: any) {
+    const userId: string = req.user.id;
+    const count = await this.translationCache.invalidateUser(userId);
+    return {
+      success: true,
+      invalidatedCount: count,
+      message: `Invalidated ${count} cache entries for user ${userId}`,
     };
   }
 }

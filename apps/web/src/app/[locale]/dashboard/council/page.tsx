@@ -356,48 +356,40 @@ export default function CouncilPage() {
             )}
           </GlassCard>
 
-          {/* Vote cards grid */}
+          {/* Vote cards grid — compact design (V448) */}
           {councilResult?.analyses && councilResult.analyses.length > 0 && (
-            <div style={{ marginTop:20 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
-                <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.16em', textTransform:'uppercase', color:COLORS.council }}>{t('councilVotes')}</div>
-                <div style={{ flex:1, height:1, background:`linear-gradient(90deg, ${hexToRgba(COLORS.council,0.3)}, transparent)` }} />
-                <div style={{ fontSize:11, color:COLORS.textMuted, fontFamily:'monospace' }}>{councilResult.analyses.length} {t('members')}</div>
+            <div style={{ marginTop:16 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:COLORS.council }}>{t('councilVotes')}</div>
+                <div style={{ flex:1, height:1, background:`linear-gradient(90deg, ${hexToRgba(COLORS.council,0.25)}, transparent)` }} />
+                <div style={{ fontSize:10, color:COLORS.textMuted, fontFamily:'monospace' }}>{councilResult.analyses.length} {t('members')}</div>
               </div>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:14 }}>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))', gap:8 }}>
                 {councilResult.analyses.map((a, i) => {
                   const dc = directionColor(a.vote)
                   return (
-                    <motion.div key={i} initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.4, delay:0.05*i }}>
-                      <GlassCard interactive padding={0} glow={dc} style={{ height:'100%' }}>
-                        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', padding:'14px 14px 10px', borderBottom:`1px solid ${COLORS.border}`, gap:10 }}>
-                          <div style={{ minWidth:0, flex:1 }}>
-                            <div style={{ fontSize:13, fontWeight:600, color:COLORS.textPrimary, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{a.role}</div>
-                            <div style={{ fontSize:11, color:COLORS.textMuted, fontFamily:'monospace', marginTop:2 }}>{a.model}</div>
-                          </div>
-                          <div style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'4px 8px', borderRadius:7, background:hexToRgba(dc,0.12), border:`1px solid ${hexToRgba(dc,0.35)}`, color:dc, fontSize:11, fontWeight:700, textTransform:'uppercase', flexShrink:0 }}>
-                            {a.vote==='BUY'?<ArrowUpRight size={14} strokeWidth={2.5}/>:a.vote==='SELL'?<ArrowDownRight size={14} strokeWidth={2.5}/>:<Minus size={14} strokeWidth={2.5}/>}
+                    <motion.div key={i} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.3, delay:0.03*i }}>
+                      <div style={{ borderRadius:10, background:'rgba(255,255,255,0.025)', border:`1px solid ${COLORS.border}`, padding:'8px 10px', display:'flex', flexDirection:'column', gap:5, transition:'border-color 200ms', cursor:'default' }}
+                        onMouseEnter={e=>{e.currentTarget.style.borderColor=hexToRgba(dc,0.3)}}
+                        onMouseLeave={e=>{e.currentTarget.style.borderColor=COLORS.border}}>
+                        {/* Row 1: Role + Vote */}
+                        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:6 }}>
+                          <span style={{ fontSize:10, fontWeight:600, color:COLORS.textPrimary, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', flex:1 }}>{a.role}</span>
+                          <div style={{ display:'inline-flex', alignItems:'center', gap:2, padding:'2px 6px', borderRadius:5, background:hexToRgba(dc,0.12), border:`1px solid ${hexToRgba(dc,0.25)}`, color:dc, fontSize:9, fontWeight:700, textTransform:'uppercase', flexShrink:0 }}>
+                            {a.vote==='BUY'?<ArrowUpRight size={9} strokeWidth={2.5}/>:a.vote==='SELL'?<ArrowDownRight size={9} strokeWidth={2.5}/>:<Minus size={9} strokeWidth={2.5}/>}
                             {t(dirLabelKey[a.vote])}
                           </div>
                         </div>
-                        <div style={{ padding:'12px 14px' }}>
-                          <FormattedText
-                            text={a.reason}
-                            maxLength={180}
-                            dir={loc === 'ar' ? 'rtl' : 'ltr'}
-                            fontSize={12.5}
-                            accent={dc}
-                            placeholder={t('noReason')}
-                          />
+                        {/* Row 2: Model + Confidence */}
+                        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:6 }}>
+                          <span style={{ fontSize:8, color:COLORS.textDim, fontFamily:'monospace', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{a.model}</span>
+                          <span style={{ fontSize:10, fontWeight:700, color:dc, fontFamily:'monospace' }}>{a.confidence}%</span>
                         </div>
-                        <div style={{ padding:'10px 14px 14px', borderTop:`1px solid ${COLORS.border}` }}>
-                          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:7 }}>
-                            <span style={{ fontSize:11, fontWeight:500, letterSpacing:'0.06em', textTransform:'uppercase', color:COLORS.textMuted }}>{t('colConfidence')}</span>
-                            <span style={{ fontSize:13, fontWeight:600, color:COLORS.textPrimary, fontFamily:'monospace' }}>{a.confidence}%</span>
-                          </div>
-                          <ConfidenceBar value={a.confidence} color={COLORS.council} height={4} />
+                        {/* Mini confidence bar */}
+                        <div style={{ height:3, borderRadius:999, background:'rgba(255,255,255,0.04)', overflow:'hidden' }}>
+                          <div style={{ height:'100%', width:`${a.confidence}%`, background:dc, borderRadius:999, opacity:0.7 }} />
                         </div>
-                      </GlassCard>
+                      </div>
                     </motion.div>
                   )
                 })}

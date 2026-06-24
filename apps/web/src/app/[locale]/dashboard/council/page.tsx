@@ -724,6 +724,7 @@ function BriefCard({ brief, loc, index, expanded, onToggle, t }: {
           <FormattedText
             text={brief.analysisSummary}
             maxLength={260}
+            collapsible={false}
             dir={loc === 'ar' ? 'rtl' : 'ltr'}
             fontSize={12.5}
             accent={dc}
@@ -840,7 +841,7 @@ function BriefCard({ brief, loc, index, expanded, onToggle, t }: {
                       <Sparkles size={12} color={COLORS.council} />
                       <span style={{ fontSize:10, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:COLORS.council }}>{t('whyThisSignal')}</span>
                     </div>
-                    <FormattedText text={brief.analysisSummary ?? ''} maxLength={600} dir={loc==='ar'?'rtl':'ltr'} fontSize={12} accent={dc} placeholder={t('noAnalysis')} />
+                    <FormattedText text={brief.analysisSummary ?? ''} maxLength={0} collapsible={false} dir={loc==='ar'?'rtl':'ltr'} fontSize={12} accent={dc} placeholder={t('noAnalysis')} />
                   </div>
                 </div>
               </motion.div>

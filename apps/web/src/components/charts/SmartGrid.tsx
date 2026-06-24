@@ -1572,19 +1572,49 @@ export function SmartGrid({
     return () => { if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current); };
   }, [loadDataForCell]);
 
-  // V455: Live price updates — update last candle + open new candle on period end.
-  // V453 only updated close/high/low but NEVER opened a new candle when the
-  // timeframe period ended. This caused the candle to "stretch and shrink"
-  // forever without creating a new one.
+  // V456: Live price updates — update last candle + open new candle on period end.
+  //
+  // ROOT CAUSE of "الشمعة تتحرك وتمدد وتتقلص" bug (V453/V455):
+  //   The previous tfToSeconds() map used keys '1m', '5m', '15m', '30m'
+  //   which DO NOT match cell.timeframe values ('1min', '5min', '15min', '30min').
+  //   The fallback `|| 60` made ALL minute-based timeframes behave as 1-minute.
+  //   So on a 15-minute chart, every 60s a tiny new "minute" candle was pushed,
+  //   then wiped 30s later by setData() in the auto-refresh. The chart endlessly
+  //   stretched/shrank without ever opening a real 15-minute candle.
+  //
+  // FIX V456:
+  //   1. tfToSeconds keys now match cell.timeframe values exactly.
+  //   2. Weekly candles align to Monday 00:00 UTC (same logic as RouaChart V445)
+  //      because OANDA REST returns Monday boundaries while
+  //      `nowSec - (nowSec % 604800)` produces Thursday boundaries (epoch day 0).
   const liveQuotes = useMarketStore(state => state.quotes);
 
-  // Map timeframe strings to seconds
+  // Map timeframe strings to seconds. Keys MUST match TIMEFRAME_OPTIONS values.
   const tfToSeconds = (tf: string): number => {
     const map: Record<string, number> = {
-      '1m': 60, '5m': 300, '15m': 900, '30m': 1800,
-      '1h': 3600, '4h': 14400, '1day': 86400, '1week': 604800,
+      '1min': 60,
+      '5min': 300,
+      '15min': 900,
+      '30min': 1800,
+      '1h': 3600,
+      '2h': 7200,
+      '4h': 14400,
+      '1day': 86400,
+      '1week': 604800,
     };
     return map[tf] || 60;
+  };
+
+  // Align a Unix timestamp (seconds) to the start of its timeframe period.
+  // For weekly: align to Monday 00:00 UTC (not Thursday which is epoch day 0).
+  const alignPeriodStart = (nowSec: number, tfSec: number): number => {
+    if (tfSec === 604800) {
+      // Weekly: align to Monday 00:00 UTC
+      const dayStart = Math.floor(nowSec / 86400) * 86400;
+      const dayOfWeek = ((dayStart / 86400) + 4) % 7; // 0=Monday (epoch was Thursday=4)
+      return dayStart - dayOfWeek * 86400;
+    }
+    return nowSec - (nowSec % tfSec);
   };
 
   useEffect(() => {
@@ -1603,11 +1633,17 @@ export function SmartGrid({
       const price = quote.price;
       const tfSec = tfToSeconds(cell.timeframe);
       const nowSec = Math.floor(Date.now() / 1000);
-      const currentCandleTime = nowSec - (nowSec % tfSec);
+      const currentCandleTime = alignPeriodStart(nowSec, tfSec);
       const lastCandle = candleData[candleData.length - 1];
 
+      // V456: Guard against setData() race — if the last candle's time is
+      // NEWER than currentCandleTime (can happen briefly after a 30s refresh
+      // returns a candle whose time is slightly ahead), skip the update.
+      // series.update() with an older time throws and would corrupt the chart.
+      if (lastCandle.time > currentCandleTime) return;
+
       if (lastCandle.time < currentCandleTime) {
-        // V455: New candle period — push a new candle
+        // New candle period — push a new candle
         const newCandle = {
           time: currentCandleTime,
           open: price,

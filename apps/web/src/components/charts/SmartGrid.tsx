@@ -1027,12 +1027,13 @@ export function SmartGrid({
           //   30s later. Endless destroy/recreate → stretching/shrinking
           //   with no real new candle ever appearing.
           //
-          // FIX (mirrors RouaChart line 1267-1272):
+          // FIX (mirrors RouaChart line 1267-1286):
           //   1. Build a map of existing candles by time
           //   2. Skip the current (last) candle — live updates own it
           //   3. Merge new/updated closed candles from REST
-          //   4. Use series.update() per candle instead of bulk setData()
-          //      so the chart animates smoothly without destroying series
+          //   4. Use setData(merged) — atomically replace all data
+          //      while PRESERVING the live candle (which is in `merged`
+          //      because existingMap started from existingCandles)
           const existingCandles = cellCandleDataRef.current.get(cell.id) || [];
           const existingMap = new Map<number, any>(
             existingCandles.map((c: any) => [c.time, c])
@@ -1060,25 +1061,34 @@ export function SmartGrid({
               .sort((a: any, b: any) => a.time - b.time);
             cellCandleDataRef.current.set(cell.id, merged as any);
 
-            // Update series incrementally — series.update() per candle.
-            // lightweight-charts requires times to be ascending; merged
-            // is already sorted. update() handles both existing (update)
-            // and new (append) candles without destroying the series.
-            for (const c of merged) {
-              try { existingSeries.update(c as any); } catch {}
-            }
+            // V457: Use setData() for the merged array.
+            //
+            // CRITICAL: Calling series.update() on individual historical
+            // candles (older than the live candle) throws "Cannot update
+            // oldest data" because lightweight-charts requires updates in
+            // strictly ascending order with the LAST pushed time. Once the
+            // live path has pushed 12:02:00, calling update(12:00:00)
+            // would throw and break the series.
+            //
+            // setData() is the ONLY safe way to update historical candles
+            // when a newer (live) candle exists. It atomically replaces
+            // all data while preserving the live candle (which is in
+            // `merged` because existingMap started from existingCandles
+            // which already contained the live candle).
+            //
+            // This is the SAME approach RouaChart uses (line 1286):
+            //   setCandlesRef.current(merged, { skipIndicatorRebuild: true });
+            try { existingSeries.setData(merged as any); } catch {}
             const existingVolSeries = volumeSeriesRefs.current.get(cell.id);
             if (existingVolSeries) {
-              for (const c of merged) {
-                try {
-                  existingVolSeries.update({
-                    time: c.time,
-                    value: c.volume,
-                    color: c.close >= c.open
-                      ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
-                  } as any);
-                } catch {}
-              }
+              try {
+                existingVolSeries.setData(merged.map((c: any) => ({
+                  time: c.time,
+                  value: c.volume,
+                  color: c.close >= c.open
+                    ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
+                })) as any);
+              } catch {}
             }
             // Don't fitContent — preserves user's scroll/zoom position
           }

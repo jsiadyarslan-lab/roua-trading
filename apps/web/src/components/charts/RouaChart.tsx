@@ -557,8 +557,6 @@ export default function RouaChart({
   // candlesRef.current.length === 0 and all WebSocket updates were dropped.
   const candlesClearedAtRef = useRef(0);
   const CANDLES_CLEAR_TIMEOUT_MS = 10_000; // Allow WebSocket after 10s even if fetch failed
-  // V459 DIAGNOSTIC: Throttle timestamp for onCandleUpdate logging
-  const onCandleUpdateLogTsRef = useRef(0);
   // FIX: Pagination — track whether we're loading older data and whether
   // there's more data to load. When the user scrolls left past the initial
   // 1000 candles, we fetch older data using Binance's startTime parameter.
@@ -841,14 +839,6 @@ export default function RouaChart({
     symbol: selectedSymbol_,
     timeframe: timeframe_,
     onCandleUpdate: (candle) => {
-      // V459 DIAGNOSTIC: Confirm candle reaches RouaChart's onCandleUpdate.
-      // Throttled to 1 log per 5s. Uses a ref to avoid ReferenceError.
-      const _now = Date.now();
-      const _lastLog = onCandleUpdateLogTsRef.current;
-      if (_now - _lastLog > 5000) {
-        onCandleUpdateLogTsRef.current = _now;
-        console.warn(`[V459] RouaChart onCandleUpdate: symbol=${selectedSymbol_} tf=${timeframe_} time=${candle.time} close=${candle.close} candlesRef.length=${candlesRef.current.length}`);
-      }
       // If candlesRef was just cleared (timeframe change in progress),
       // don't accept WebSocket candles until the fetch fills it again.
       // This prevents stale data from the old timeframe being pushed back.

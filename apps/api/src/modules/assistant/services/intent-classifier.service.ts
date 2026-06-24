@@ -94,55 +94,26 @@ interface IntentRule {
 }
 
 const INTENT_RULES: IntentRule[] = [
-  // ── Chat (محادثة عامة) ──
-  {
-    intent: 'chat',
-    keywords: [
-      'مرحبا', 'السلام', 'أهلا', 'هلا', 'صباح', 'مساء',
-      'hello', 'hi', 'hey', 'good morning', 'good evening',
-      'شكرا', 'thank', 'thanks', 'ممتاز', 'جيد',
-      'كيف حالك', 'how are you', 'من أنت', 'who are you',
-    ],
-    regexes: [/^(مرحبا|hi|hello|hey|شكرا)\b/i],
-  },
+  // ═══ FIRST PRIORITY: Specific data queries (must beat generic 'education') ═══
+  // مهم: الأخبار والأسعار والصفقات والمجلس لها أولوية على education
+  // حتى لو بدأ السؤال بـ "ما هي أخبار السوق؟" يجب أن يُصنّف news_query وليس education
 
-  // ── Education (شرح مفهوم) ──
+  // ── News Query (الأخبار) — أولوية قصوى ──
   {
-    intent: 'education',
+    intent: 'news_query',
     keywords: [
-      'ما هو', 'ما هي', 'شرح', 'كيف يعمل', 'تعريف', 'مفهوم',
-      'what is', 'how does', 'explain', 'definition', 'concept',
-      'difference between', 'الفرق بين',
+      'أخبار', 'خبر', 'العناوين', 'آخر الأخبار', 'ماذا في الأخبار',
+      'أخبار السوق', 'أخبار اليوم', 'ما الأخبار', 'ما هي الأخبار',
+      'news', 'headlines', 'breaking', 'latest news', 'market news',
+      'what news', 'any news',
     ],
-    regexes: [/^(ما هو|ما هي|what is|how does|explain)\b/i],
-  },
-
-  // ── Comparison (مقارنة) ──
-  {
-    intent: 'comparison',
-    keywords: [
-      'قارن', 'مقارنة', 'الفرق بين', 'أفضل', 'vs', 'versus',
-      'compare', 'comparison', 'difference between',
+    regexes: [
+      /\bأخبار\b/i,
+      /\bخبر\b/i,
+      /\bnews\b/i,
+      /ما.*(هي|ال).*أخبار/i,
+      /ما.*(هي|ال).*السوق/i,
     ],
-  },
-
-  // ── Opinion (رأي) ──
-  {
-    intent: 'opinion',
-    keywords: [
-      'رأيك', 'ما رأيك', 'هل تعتقد', 'what do you think',
-      'do you think', 'your opinion', 'هل أشتري', 'هل أبيع',
-    ],
-  },
-
-  // ── Price Query ──
-  {
-    intent: 'price_query',
-    keywords: [
-      'سعر', 'كم سعر', 'السعر الحالي', 'الآن', 'السعر الآن',
-      'price', 'how much', 'current price', 'live price',
-    ],
-    regexes: [/سعر.*?(?:ذهب|نفط|btc|eth|يورو|دولار|bitcoin)/i],
     needsFunctions: true,
   },
 
@@ -151,8 +122,13 @@ const INTENT_RULES: IntentRule[] = [
     intent: 'position_query',
     keywords: [
       'صفقات', 'صفقاتي', 'مراكزي', 'مفتوحة', 'صفقات مفتوحة',
-      'مركزي', 'ماذا أملك', 'محفظتي',
+      'مركزي', 'ماذا أملك', 'محفظتي', 'ما هي صفقاتي', 'ما هي مراكزي',
       'my positions', 'my trades', 'open positions', 'portfolio',
+    ],
+    regexes: [
+      /\bصفقات\b/i,
+      /\bمراكز\b/i,
+      /\bمحفظت/i,
     ],
     needsFunctions: true,
   },
@@ -162,7 +138,13 @@ const INTENT_RULES: IntentRule[] = [
     intent: 'council_query',
     keywords: [
       'المجلس', 'الوكلاء', 'التصويت', 'الإجماع', 'ماذا يقول المجلس',
+      'رأي المجلس', 'تصويت المجلس',
       'council', 'agents', 'vote', 'consensus', 'what does council say',
+    ],
+    regexes: [
+      /\bالمجلس\b/i,
+      /\bالوكلاء\b/i,
+      /\bتصويت\b/i,
     ],
     needsFunctions: true,
   },
@@ -173,7 +155,13 @@ const INTENT_RULES: IntentRule[] = [
     keywords: [
       'أداء', 'أدائي', 'كيف أدائي', 'نسبة الفوز', 'win rate',
       'performance', 'stats', 'statistics', 'how am i doing',
-      'إحصائيات', 'ربح', 'خسارة', 'أرباحي', 'خسائري',
+      'إحصائيات', 'أرباحي', 'خسائري', 'ما هي إحصائياتي',
+    ],
+    regexes: [
+      /\bأداء\b/i,
+      /\bأدائي\b/i,
+      /\bإحصائيات\b/i,
+      /\bwin rate\b/i,
     ],
     needsFunctions: true,
     needsIntelligence: true,
@@ -184,17 +172,46 @@ const INTENT_RULES: IntentRule[] = [
     intent: 'risk_query',
     keywords: [
       'مخاطر', 'مخاطرة', 'تعرض', 'هامش', 'كم المخاطرة',
+      'ما هي مخاطرتي', 'مستوى المخاطرة',
       'risk', 'exposure', 'margin', 'how much at risk', 'safe',
+    ],
+    regexes: [
+      /\bمخاطر\b/i,
+      /\bمخاطرة\b/i,
+      /\bexposure\b/i,
     ],
     needsFunctions: true,
   },
 
-  // ── News Query (الأخبار) ──
+  // ── Price Query ──
   {
-    intent: 'news_query',
+    intent: 'price_query',
     keywords: [
-      'أخبار', 'خبر', 'العناوين', 'آخر الأخبار', 'ماذا في الأخبار',
-      'news', 'headlines', 'breaking', 'latest news',
+      'سعر', 'كم سعر', 'السعر الحالي', 'الآن', 'السعر الآن',
+      'ما سعر', 'كم يبلغ',
+      'price', 'how much', 'current price', 'live price',
+    ],
+    regexes: [
+      /\bسعر\b/i,
+      /كم.*سعر/i,
+      /سعر.*?(?:ذهب|نفط|btc|eth|يورو|دولار|bitcoin|gold|oil)/i,
+    ],
+    needsFunctions: true,
+  },
+
+  // ── Market Overview (ملخص السوق) ──
+  {
+    intent: 'market_overview',
+    keywords: [
+      'السوق', 'كيف السوق', 'حالة السوق', 'وضع السوق',
+      'ملخص السوق', 'ما حالة السوق', 'كيف حالة السوق',
+      'market', 'how is the market', 'market overview', 'market status',
+    ],
+    regexes: [
+      /كيف.*السوق/i,
+      /حالة.*السوق/i,
+      /وضع.*السوق/i,
+      /ملخص.*السوق/i,
     ],
     needsFunctions: true,
   },
@@ -204,6 +221,7 @@ const INTENT_RULES: IntentRule[] = [
     intent: 'recommendation',
     keywords: [
       'توصية', 'ماذا أفعل', 'نصيحة', 'اقترح', 'ماذا تنصح',
+      'ما التوصية', 'ماذا تقترح',
       'recommend', 'recommendation', 'suggest', 'advice', 'what should i do',
     ],
     needsFunctions: true,
@@ -235,20 +253,50 @@ const INTENT_RULES: IntentRule[] = [
   {
     intent: 'daily_brief',
     keywords: [
-      'موجز', 'ملخص اليوم', 'صباح', 'كيف اليوم', 'يومي',
+      'موجز', 'ملخص اليوم', 'كيف اليوم', 'يومي',
       'daily', 'brief', 'today summary', 'morning brief', 'how is today',
     ],
     needsIntelligence: true,
   },
 
-  // ── Market Overview (ملخص السوق) ──
+  // ═══ SECOND PRIORITY: Chat (محادثة عامة) ═══
   {
-    intent: 'market_overview',
+    intent: 'chat',
     keywords: [
-      'السوق', 'كيف السوق', 'حالة السوق', 'وضع السوق',
-      'market', 'how is the market', 'market overview', 'market status',
+      'مرحبا', 'السلام', 'أهلا', 'هلا', 'صباح', 'مساء',
+      'hello', 'hi', 'hey', 'good morning', 'good evening',
+      'شكرا', 'thank', 'thanks', 'ممتاز', 'جيد',
+      'كيف حالك', 'how are you', 'من أنت', 'who are you',
     ],
-    needsFunctions: true,
+    regexes: [/^(مرحبا|hi|hello|hey|شكرا)\b/i],
+  },
+
+  // ═══ THIRD PRIORITY: Education (شرح مفهوم) — فقط إذا لم يطابق أي من الأعلى ═══
+  {
+    intent: 'education',
+    keywords: [
+      'ما هو', 'ما هي', 'شرح', 'كيف يعمل', 'تعريف', 'مفهوم',
+      'what is', 'how does', 'explain', 'definition', 'concept',
+    ],
+    regexes: [/^(ما هو|ما هي|what is|how does|explain)\b/i],
+  },
+
+  // ── Comparison (مقارنة) ──
+  {
+    intent: 'comparison',
+    keywords: [
+      'قارن', 'مقارنة', 'الفرق بين', 'أفضل', 'vs', 'versus',
+      'compare', 'comparison', 'difference between',
+    ],
+  },
+
+  // ── Opinion (رأي) ──
+  {
+    intent: 'opinion',
+    keywords: [
+      'رأيك', 'ما رأيك', 'هل تعتقد', 'what do you think',
+      'do you think', 'your opinion', 'هل أشتري', 'هل أبيع',
+    ],
   },
 
   // ── Follow-up (سؤال متابعة قصير) ──
@@ -279,15 +327,28 @@ export class IntentClassifierService {
     // 1. كشف الأصول المالية المذكورة
     const assets = this._detectAssets(message, msgLower);
 
-    // 2. مطابقة القواعد
+    // V468: الخوارزمية الجديدة — تأخذ أعلى score، مع bonus للاستعلامات المحددة
+    // المشكلة السابقة: "ما هي أخبار السوق؟" كانت تطابق education (لـ "ما هي")
+    //   قبل أن تطابق news_query (لـ "أخبار"). الحل:
+    //   1. اجمع كل الـ scores
+    //   2. عند التعادل، favor الـ specific intents (news/positions/council/etc.)
+    //   3. education و chat لها penalty (generic)
+
+    // Generic intents لها penalty عند التعادل
+    const GENERIC_INTENTS = new Set(['education', 'chat', 'follow_up', 'general', 'opinion']);
+    const GENERIC_PENALTY = 1; // يُطرح من score عند التعادل
+
     let bestMatch: { intent: IntentType; score: number; needsFunctions: boolean; needsIntelligence: boolean } | null = null;
 
     for (const rule of INTENT_RULES) {
       let score = 0;
+      let regexMatches = 0;
+      let keywordMatches = 0;
 
       for (const keyword of rule.keywords) {
         if (msgLower.includes(keyword.toLowerCase())) {
           score += 2;
+          keywordMatches++;
         }
       }
 
@@ -295,6 +356,7 @@ export class IntentClassifierService {
         for (const regex of rule.regexes) {
           if (regex.test(msgLower)) {
             score += 3;
+            regexMatches++;
           }
         }
       }
@@ -307,13 +369,20 @@ export class IntentClassifierService {
         score += 1;
       }
 
-      if (score > 0 && (!bestMatch || score > bestMatch.score)) {
-        bestMatch = {
-          intent: rule.intent,
-          score,
-          needsFunctions: rule.needsFunctions ?? false,
-          needsIntelligence: rule.needsIntelligence ?? false,
-        };
+      // Generic intent penalty — عند التعادل، الـ specific يفوز
+      const effectiveScore = GENERIC_INTENTS.has(rule.intent)
+        ? score - GENERIC_PENALTY
+        : score;
+
+      if (effectiveScore > 0) {
+        if (!bestMatch || effectiveScore > bestMatch.score) {
+          bestMatch = {
+            intent: rule.intent,
+            score: effectiveScore,
+            needsFunctions: rule.needsFunctions ?? false,
+            needsIntelligence: rule.needsIntelligence ?? false,
+          };
+        }
       }
     }
 

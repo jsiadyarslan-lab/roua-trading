@@ -404,6 +404,34 @@ export class TradingService {
           .catch(() => {}); // Don't fail if signal not found
       }
 
+      // V422 FIX: خصم الهامش داخل نفس الـ transaction (كان خارجها → تضخّم الرصيد)
+      // السبب: إذا فشل الخصم بعد إنشاء الصفقة، الصفقة تبقى لكن الهامش لا يُخصم
+      // عند الإغلاق يُعاد الهامش + PnL ← تضخّم تراكمي في كل الحسابات
+      // الحل: خصم فاشل = تراجع الصفقة كاملاً (atomicity حقيقية)
+      if (credential.exchange === 'paper-trading' && execution.success) {
+        const agentSettings = await tx.agentSettings.findUnique({
+          where: { userId },
+          select: { paperCryptoLeverage: true, paperForexLeverage: true, paperGoldLeverage: true },
+        });
+        const meta = getSymbolMetadata(request.symbol);
+        const cryptoLev = Number(agentSettings?.paperCryptoLeverage) || 1;
+        const forexLev = Number(agentSettings?.paperForexLeverage) || 50;
+        const goldLev = Number(agentSettings?.paperGoldLeverage) || 20;
+        let leverage = 1;
+        if (meta.assetClass === AssetClass.FOREX) leverage = forexLev;
+        else if (meta.assetClass === AssetClass.COMMODITY) leverage = goldLev;
+        else leverage = cryptoLev;
+
+        const notional = request.quantity * currentPrice;
+        const marginToDeduct = leverage > 1 ? notional / leverage : notional;
+
+        await tx.$executeRaw`
+          UPDATE "AgentSettings"
+          SET "paperBalance" = "paperBalance" - ${marginToDeduct}
+          WHERE "userId" = ${userId}
+        `;
+      }
+
       return createdOrder;
     });
 
@@ -426,47 +454,7 @@ export class TradingService {
       userAgent,
     });
 
-    // V172d FIX: Deduct margin from paperBalance atomically when opening a paper-trading position.
-    // Uses $executeRaw to prevent race condition: findUnique→update is NOT atomic.
-    // With two concurrent orders, both would read the same balance and each deduct their margin
-    // independently, ignoring the other's deduction (double-spending).
-    // $executeRaw UPDATE with arithmetic is atomic at the DB level.
-    if (credential.exchange === 'paper-trading' && execution.success) {
-      try {
-        const settings = await this.prisma.agentSettings.findUnique({
-          where: { userId },
-          select: { paperCryptoLeverage: true, paperForexLeverage: true, paperGoldLeverage: true },
-        });
-        const meta = getSymbolMetadata(request.symbol);
-        const cryptoLev = Number(settings?.paperCryptoLeverage) || 1;
-        const forexLev = Number(settings?.paperForexLeverage) || 50;
-        const goldLev = Number(settings?.paperGoldLeverage) || 20;
-        let leverage = 1;
-        if (meta.assetClass === AssetClass.FOREX) leverage = forexLev;
-        else if (meta.assetClass === AssetClass.COMMODITY) leverage = goldLev;
-        else leverage = cryptoLev;
 
-        const notional = request.quantity * currentPrice;
-        const marginToDeduct = leverage > 1 ? notional / leverage : notional;
-
-        // V176 FIX: Actually DEDUCT margin from paperBalance when opening a position.
-        // Previously (V175), margin was only "locked" (logged) but never deducted,
-        // allowing unlimited positions regardless of available balance.
-        // Now: paperBalance = paperBalance - marginToDeduct (atomic SQL update).
-        // On close: paperBalance = paperBalance + marginToDeduct + pnl.
-        // This ensures users cannot open more positions than their balance allows.
-        await this.prisma.$executeRaw`
-          UPDATE "AgentSettings"
-          SET "paperBalance" = "paperBalance" - ${marginToDeduct}
-          WHERE "userId" = ${userId}
-        `;
-        this.logger.log(
-          `📝 V176 Paper margin DEDUCTED: -$${marginToDeduct.toFixed(2)} (${request.symbol}, leverage: ${leverage}x)`,
-        );
-      } catch (err: any) {
-        this.logger.warn(`V172d Failed to deduct paper margin on open: ${err.message}`);
-      }
-    }
 
     this.logger.log(
       `✅ Order executed: ${order.id} — ${request.side} ${execution.filledQuantity}/${request.quantity} ${request.symbol} @ ${execution.averagePrice}`,

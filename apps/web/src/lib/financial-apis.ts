@@ -165,8 +165,8 @@ async function getQuoteFromYahoo(symbol: string): Promise<QuoteData | null> {
 }
 
 /**
- * يجلب بيانات تاريخية (candles) من NestJS
- * يستخدم /api/exchange/candle/:symbol
+ * يجلب بيانات تاريخية (candles)
+ * أولاً يحاول NestJS، إذا فشل ي fallback لـ Yahoo Finance مباشرة
  */
 export async function getHistoricalData(
   symbol: string,
@@ -175,6 +175,13 @@ export async function getHistoricalData(
 ): Promise<Array<{ open: number; high: number; low: number; close: number; volume: number; timestamp: number }>> {
   const resolvedSymbol = resolveSymbol(symbol);
 
+  // V476: أولاً حاول Yahoo Finance مباشرة (أكثر موثوقية للـ candles)
+  const yahooCandles = await getHistoricalFromYahoo(symbol, interval, range);
+  if (yahooCandles.length >= 20) {
+    return yahooCandles;
+  }
+
+  // fallback لـ NestJS
   try {
     const url = `${NESTJS_API}/api/exchange/candle/${encodeURIComponent(resolvedSymbol)}?interval=${interval}&range=${range}`;
 
@@ -183,13 +190,13 @@ export async function getHistoricalData(
       signal: AbortSignal.timeout(10000),
     });
 
-    if (!res.ok) return [];
+    if (!res.ok) return yahooCandles; // ارجع ما لدينا من Yahoo
 
     const data = await res.json();
     const candles = data?.data ?? data?.candles ?? [];
-    if (!Array.isArray(candles)) return [];
+    if (!Array.isArray(candles)) return yahooCandles;
 
-    return candles.map((c: any) => ({
+    const mapped = candles.map((c: any) => ({
       open: Number(c.open ?? c.o ?? 0),
       high: Number(c.high ?? c.h ?? 0),
       low: Number(c.low ?? c.l ?? 0),
@@ -197,8 +204,84 @@ export async function getHistoricalData(
       volume: Number(c.volume ?? c.v ?? 0),
       timestamp: Number(c.timestamp ?? c.t ?? 0) * (c.timestamp < 1e12 ? 1000 : 1),
     }));
+
+    return mapped.length >= 20 ? mapped : yahooCandles;
   } catch (err: any) {
     console.warn(`[NestJS Candle] Failed ${resolvedSymbol}: ${err?.message?.slice(0, 80)}`);
+    return yahooCandles;
+  }
+}
+
+/**
+ * يجلب candles من Yahoo Finance مباشرة
+ * V476: Yahoo Finance أكثر موثوقية للـ candles من NestJS
+ */
+async function getHistoricalFromYahoo(
+  symbol: string,
+  interval: string,
+  range: string,
+): Promise<Array<{ open: number; high: number; low: number; close: number; volume: number; timestamp: number }>> {
+  // خريطة الرموز لـ Yahoo Finance
+  const yahooSymbolMap: Record<string, string> = {
+    'BTC': 'BTC-USD', 'BTCUSDT': 'BTC-USD',
+    'ETH': 'ETH-USD', 'ETHUSDT': 'ETH-USD',
+    'SOL': 'SOL-USD', 'DOGE': 'DOGE-USD', 'XRP': 'XRP-USD',
+    'XAU': 'GC=F', 'XAUUSD': 'GC=F', 'GOLD': 'GC=F',
+    'XAG': 'SI=F', 'XAGUSD': 'SI=F',
+    'WTI': 'CL=F', 'CL': 'CL=F', 'OIL': 'CL=F',
+    'BRENT': 'BZ=F', 'BZ': 'BZ=F',
+    'EURUSD': 'EURUSD=X', 'EUR': 'EURUSD=X',
+    'GBPUSD': 'GBPUSD=X', 'GBP': 'GBPUSD=X',
+    'USDJPY': 'JPY=X', 'JPY': 'JPY=X',
+    'USDCHF': 'CHF=X', 'CHF': 'CHF=X',
+    'AUDUSD': 'AUDUSD=X', 'AUD': 'AUDUSD=X',
+    'USDCAD': 'USDCAD=X', 'CAD': 'USDCAD=X',
+    'SPX': '^GSPC', 'NDX': '^NDX', 'DJI': '^DJI', 'DXY': 'DX-Y.NYB',
+    'VIX': '^VIX', 'FTSE': '^FTSE', 'DAX': '^GDAXI', 'CAC': '^FCHI',
+    'AAPL': 'AAPL', 'TSLA': 'TSLA', 'NVDA': 'NVDA', 'MSFT': 'MSFT',
+    'GOOGL': 'GOOGL', 'AMZN': 'AMZN', 'META': 'META',
+  };
+
+  const yahooSymbol = yahooSymbolMap[symbol.toUpperCase()] ?? symbol.toUpperCase();
+
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=${interval}&range=${range}`;
+
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json',
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    const result = data?.chart?.result?.[0];
+    if (!result) return [];
+
+    const timestamps: number[] = result.timestamp ?? [];
+    const quote = result.indicators?.quote?.[0];
+    if (!quote) return [];
+
+    const candles: Array<{ open: number; high: number; low: number; close: number; volume: number; timestamp: number }> = [];
+
+    for (let i = 0; i < timestamps.length; i++) {
+      if (quote.open?.[i] == null || quote.close?.[i] == null) continue;
+      candles.push({
+        open: Number(quote.open[i]),
+        high: Number(quote.high[i] ?? quote.open[i]),
+        low: Number(quote.low[i] ?? quote.close[i]),
+        close: Number(quote.close[i]),
+        volume: Number(quote.volume?.[i] ?? 0),
+        timestamp: timestamps[i] * 1000,
+      });
+    }
+
+    return candles;
+  } catch (err: any) {
+    console.warn(`[Yahoo Candle] Failed ${yahooSymbol}: ${err?.message?.slice(0, 80)}`);
     return [];
   }
 }

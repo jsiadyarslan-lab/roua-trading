@@ -749,18 +749,18 @@ function buildArabicAgentPrompt(
   }
 
   // ═══ REAL-TIME DATA (from Yahoo Finance) ═══
-  const hasRealtimePrices = safeRealtimeData.prices.length > 0 && safeRealtimeData.prices.some(p => p.price !== null);
+  const hasRealtimePrices = realtimeData.prices.length > 0 && realtimeData.prices.some(p => p.price !== null);
 
   if (hasRealtimePrices) {
     parts.push(`\n## 🔴🟢 الأسعار المباشرة (من Yahoo Finance — الآن):
 
 🚨 هذه الأسعار الحقيقية المحدّثة الآن. استخدمها حصرياً. لا تستخدم أي سعر آخر.
 
-${safeRealtimeData.marketContext}`);
+${realtimeData.marketContext}`);
 
     // Add individual prices in a clear format
     const priceLines: string[] = [];
-    for (const p of safeRealtimeData.prices) {
+    for (const p of realtimeData.prices) {
       if (p.price !== null) {
         const changeStr = p.changePercent !== null ? `${p.changePercent >= 0 ? '+' : ''}${p.changePercent.toFixed(2)}%` : '';
         const emoji = p.changePercent !== null ? (p.changePercent >= 0 ? '🟢' : '🔴') : '📊';
@@ -825,7 +825,7 @@ function buildEnglishAgentPrompt(
   deepSearch?: boolean,
 ): string {
   const parts: string[] = [];
-  const hasRealtimePrices = safeRealtimeData.prices.length > 0 && safeRealtimeData.prices.some(p => p.price !== null);
+  const hasRealtimePrices = realtimeData.prices.length > 0 && realtimeData.prices.some(p => p.price !== null);
 
   parts.push(`You are "Rouaa Smart Assistant" — an advanced financial assistant for the Rouaa platform.
 
@@ -1022,10 +1022,10 @@ When the user asks about a financial asset (gold, oil, stock, currency), your re
 
 🚨 These are REAL prices updated NOW. Use them EXCLUSIVELY. Do NOT use any other price source.
 
-${safeRealtimeData.marketContext}`);
+${realtimeData.marketContext}`);
 
     const priceLines: string[] = [];
-    for (const p of safeRealtimeData.prices) {
+    for (const p of realtimeData.prices) {
       if (p.price !== null) {
         const changeStr = p.changePercent !== null ? `${p.changePercent >= 0 ? '+' : ''}${p.changePercent.toFixed(2)}%` : '';
         const emoji = p.changePercent !== null ? (p.changePercent >= 0 ? '🟢' : '🔴') : '📊';
@@ -1146,9 +1146,9 @@ function buildDataOnlyFallback(data: FetchedData, realtimeData: RealtimeSearchRe
   const parts: string[] = [];
 
   // Start with real-time prices if available
-  if (safeRealtimeData.prices.length > 0 && safeRealtimeData.prices.some(p => p.price !== null)) {
+  if (realtimeData.prices.length > 0 && realtimeData.prices.some(p => p.price !== null)) {
     parts.push(isAr ? '### 🔴🟢 الأسعار المباشرة (الآن):' : '### 🔴🟢 Real-time Prices (NOW):');
-    for (const p of safeRealtimeData.prices) {
+    for (const p of realtimeData.prices) {
       if (p.price !== null) {
         const changeStr = p.changePercent !== null ? `${p.changePercent >= 0 ? '+' : ''}${p.changePercent.toFixed(2)}%` : '';
         const emoji = p.changePercent !== null ? (p.changePercent >= 0 ? '🟢' : '🔴') : '📊';
@@ -1308,7 +1308,7 @@ export async function POST(request: Request) {
 
     // V493: تحقق من أن realtimeData موجود قبل استخدامه
     const safeRealtimeData = realtimeData || { prices: [], marketContext: '', searchTimeMs: 0, queriesUsed: 0, sources: [] };
-    console.warn(`[V493] Phase 2: DB=${dbData.dataPoints}pts, positions=${dbData.userPositions?.length || 0}, realtime=${safeRealtimeData.prices?.length || 0}prices, ctxLen=${dbData.contextForAI?.length || 0}`);
+    console.warn(`[V493] Phase 2: DB=${dbData.dataPoints}pts, positions=${dbData.userPositions?.length || 0}, realtime=${realtimeData.prices?.length || 0}prices, ctxLen=${dbData.contextForAI?.length || 0}`);
 
     // ── PHASE 3: AI composes response with ALL data ──
     let finalResponse: string;
@@ -1488,7 +1488,7 @@ export async function POST(request: Request) {
       path: responsePath,
       dataPoints: dbData.dataPoints,
       fetchTimeMs: dbData.fetchTimeMs,
-      realtimePricesFound: safeRealtimeData.prices.filter(p => p.price !== null).length,
+      realtimePricesFound: realtimeData.prices.filter(p => p.price !== null).length,
       locale,
       timestamp: new Date().toISOString(),
       version: 'V1000',
@@ -1530,7 +1530,7 @@ export async function POST(request: Request) {
     });
 
     const totalTime = Date.now() - startTime;
-    console.log(`[V1000] Complete: ${responsePath} | ${totalTime}ms total | ${dbData.dataPoints} DB points | ${safeRealtimeData.prices.filter(p => p.price !== null).length} realtime prices | ${finalResponse.length} chars`);
+    console.log(`[V1000] Complete: ${responsePath} | ${totalTime}ms total | ${dbData.dataPoints} DB points | ${realtimeData.prices.filter(p => p.price !== null).length} realtime prices | ${finalResponse.length} chars`);
 
     return new Response(stream, {
       status: 200,

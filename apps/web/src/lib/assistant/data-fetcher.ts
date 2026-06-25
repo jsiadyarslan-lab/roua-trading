@@ -1245,31 +1245,52 @@ export async function fetchBroadData(
 
   // V485: userData تم جلبه في بداية الدالة (قبل الـ DB queries التي قد تفشل)
 
-  // V475: حساب المؤشرات الفنية (RSI, MACD, EMA, Support, Resistance) لكل أصل مكتشف
-  // يجلب candles من Yahoo Finance ثم يحسب المؤشرات
+  // V498: حساب المؤشرات الفنية (RSI, MACD, EMA, Support, Resistance) لكل أصل
+  // يحول رموز الصفقات (BTC/USDT, EUR/USD) إلى رموز Yahoo (BTC, EURUSD)
   const technicalIndicators: Record<string, TechnicalAnalysisResult | null> = {};
   const symbolsForAnalysis = new Set<string>();
+
+  // تحويل رموز الصفقات إلى رموز Yahoo Finance
+  function normalizeSymbolForAnalysis(rawSymbol: string): string {
+    // إزالة /USDT, /USD, USDT, USD
+    let s = rawSymbol.toUpperCase().replace('/', '');
+    // تحويل خاص
+    const specialMap: Record<string, string> = {
+      'BTCUSDT': 'BTC', 'ETHUSDT': 'ETH', 'SOLUSDT': 'SOL',
+      'DOGEUSDT': 'DOGE', 'XRPUSDT': 'XRP', 'ADAUSDT': 'ADA',
+      'BNBUSDT': 'BNB', 'XAUUSD': 'XAU', 'XAGUSD': 'XAG',
+      'WTIUSD': 'WTI', 'BRENTUSD': 'BRENT',
+      'EURUSD': 'EURUSD', 'GBPUSD': 'GBPUSD', 'USDJPY': 'USDJPY',
+      'USDCHF': 'USDCHF', 'AUDUSD': 'AUDUSD', 'USDCAD': 'USDCAD',
+      'NZDUSD': 'NZDUSD',
+      'SPX500USD': 'SPX', 'SPX500': 'SPX',
+    };
+    return specialMap[s] || s;
+  }
+
+  // أضف الأصول من صفقات المستخدم (لتحليل صفقاتي) — محولة
+  for (const pos of userPositions) {
+    const normalized = normalizeSymbolForAnalysis(pos.symbol);
+    symbolsForAnalysis.add(normalized);
+    console.warn(`[V498] Position symbol ${pos.symbol} → ${normalized}`);
+  }
 
   // أضف الأصول المكتشفة من الأسعار
   for (const p of prices) {
     symbolsForAnalysis.add(p.symbol);
   }
 
-  // أضف الأصول من صفقات المستخدم (لتحليل صفقاتي)
-  for (const pos of userPositions) {
-    symbolsForAnalysis.add(pos.symbol);
-  }
-
-  // اجلب المؤشرات الفنية لكل أصل (بالتوازي، حد أقصى 6)
-  const symbolsList = [...symbolsForAnalysis].slice(0, 6);
-  console.warn(`[V475] Computing technical indicators for: ${symbolsList.join(', ')}`);
+  // اجلب المؤشرات الفنية لكل أصل (بالتوازي، حد أقصى 10)
+  const symbolsList = [...symbolsForAnalysis].slice(0, 10);
+  console.warn(`[V498] Computing technical indicators for: ${symbolsList.join(', ')}`);
 
   const indicatorPromises = symbolsList.map(async (symbol) => {
     try {
       const result = await performTechnicalAnalysis(symbol);
+      console.warn(`[V498] ${symbol}: RSI=${result?.rsi ?? 'null'}, MACD=${result?.macd?.trend ?? 'null'}, support=${result?.support ?? 'null'}`);
       return { symbol, result };
     } catch (err: any) {
-      console.warn(`[V475] Technical analysis failed for ${symbol}: ${err?.message?.slice(0, 60)}`);
+      console.warn(`[V498] Technical analysis failed for ${symbol}: ${err?.message?.slice(0, 60)}`);
       return { symbol, result: null };
     }
   });

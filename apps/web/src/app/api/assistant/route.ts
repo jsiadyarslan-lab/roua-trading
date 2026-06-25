@@ -620,8 +620,44 @@ function buildArabicAgentPrompt(
 
 ## 📋 قوالب خاصة لأنواع أخرى:
 - **أخبار**: ملخص الخبر + التأثير المحتمل على الأصل + توصية (انتظار/مراقبة)
-- **أسهم قطاع**: اذكر الأسهم **الحقيقية المعروفة فقط** برموزها الصحيحة (مثل DE, CNHI, MOS, NTR للزراعة). لا تخترع أسماء أسهم أو رموز. إذا لم تكن متأكداً من سهم، لا تذكره.
+- **أسهم قطاع**: اذكر الأسهم **الحقيقية المعروفة فقط** برمزها الصحيحة. لا تخترع أسماء أسهم أو رموز.
 - **مقارنة**: جدول مقارنة واضح + نقاط القوة والضعف لكل خيار + توصية
+
+## 📊 قالب تحليل الصفقات (عندما يسأل المستخدم "حلل صفقاتي"):
+عندما يطلب المستخدم تحليل صفقاته المفتوحة، استخدم **هذا القالب التنفيذي** (وليس القالب الخماسي):
+
+### 📋 ملخص المحفظة:
+- عدد الصفقات + توزيعها (Short/Long + الأصول)
+- PnL الإجمالي التقريبي
+- التعرض الكلي + الارتباط الرئيسي
+- الوضع العام
+
+### 1️⃣ جدول سريع لكل الصفقات:
+| الأصل | النوع | سعر الدخول | السعر الحالي | PnL | مسافة إلى SL | مسافة إلى TP | أولوية |
+
+### 2️⃣ الاتجاه الحالي لكل صفقة:
+- لكل صفقة: هل السعر يتحرك نحو TP أم نحو SL؟ + السبب
+
+### 3️⃣ التحليل الفني:
+- لكل أصل: دعم/مقاومة + RSI/MACD/MA50 (من البيانات المتاحة)
+- إذا لم تكن المؤشرات متوفرة، اذكر المستويات التقريبية من حركة السعر
+
+### 4️⃣ السيناريوهات لكل صفقة:
+- 🟢 صعودي (ضد الصفقة): الشروط + الاحتمال
+- 🟡 محايد: النطاق + الاحتمال
+- 🔴 هابط (مع الصفقة): الشروط + الاحتمال
+
+### 5️⃣ خطة التنفيذ (Action Plan) — إلزامي:
+- **صفقات رابحة قريبة من TP**: أغلق X% الآن + انقل SL إلى Breakeven
+- **صفقات خاسرة/مهددة**: راقب / أغلق جزئي / عدّل SL
+- **صفقات محايدة**: انتظر
+- **توصية عامة للمحفظة**: hedging محتمل + تقليل التعرض
+
+### 6️⃣ تنبيهات فورية:
+- أي صفقة قريبة من SL → "تحرك سريع مطلوب"
+- أحداث قادمة قد تؤثر
+
+⚠️ تنبيه المخاطر
 
 ## 🚫 قاعدة صارمة ضد التكرار:
 - لا تكرر رداً سابقاً. كل رد يضيف قيمة جديدة.
@@ -1354,9 +1390,10 @@ export async function POST(request: Request) {
       // - Expand English provider list to 9 providers (was 4)
       // - Add ONE retry for premium tier before falling to weak
       // - Use simplified prompt for weak fallback (strip deep template, keep essentials)
-      const premiumProviders: AIProvider[] = ['bedrock', 'gemini', 'groq', 'cerebras', 'glm', 'sambanova', 'mistral', 'deepseek', 'cohere', 'cloudflare'];
-      const englishProviders: AIProvider[] = ['groq', 'cerebras', 'glm', 'bedrock', 'gemini', 'sambanova', 'mistral', 'deepseek', 'cohere', 'cloudflare'];
-      const deepProviders: AIProvider[] = ['bedrock', 'gemini', 'groq', 'cerebras', 'glm', 'sambanova', 'mistral', 'deepseek', 'cohere'];
+      // V498: أفضل النماذج أولاً — bedrock (Claude) + groq (Llama 3.3 70B) قبل cerebras
+      const premiumProviders: AIProvider[] = ['bedrock', 'groq', 'gemini', 'glm', 'cerebras', 'sambanova', 'mistral', 'deepseek', 'cohere', 'cloudflare'];
+      const englishProviders: AIProvider[] = ['bedrock', 'groq', 'gemini', 'glm', 'cerebras', 'sambanova', 'mistral', 'deepseek', 'cohere', 'cloudflare'];
+      const deepProviders: AIProvider[] = ['bedrock', 'groq', 'gemini', 'glm', 'cerebras', 'sambanova', 'mistral', 'deepseek', 'cohere'];
       // Weak providers — only used as last resort when all premium fail
       const weakFallbackProviders: AIProvider[] = ['nvidia', 'ollama'];
 

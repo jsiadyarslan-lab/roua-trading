@@ -1263,8 +1263,11 @@ async function fetchRouaTradingUserData(
 
     let effectiveUserId = userId;
 
-    if (!effectiveUserId && sessionCookie) {
-      console.warn('[V490] Extracting userId from session cookie...');
+    // V491: ALWAYS استخرج userId من session cookie (server-side truth)
+    // widget userId من localStorage قد يكون قديم أو لمستخدم ضيف سابق
+    // cookie session هو المصدر الحقيقي
+    if (sessionCookie) {
+      console.warn('[V491] Extracting userId from session cookie (server-side truth)...');
       const rawToken = sessionCookie.startsWith('roua_session=')
         ? sessionCookie.substring('roua_session='.length)
         : sessionCookie;
@@ -1275,10 +1278,14 @@ async function fetchRouaTradingUserData(
           select: { userId: true, isActive: true, expiresAt: true },
         });
         if (session?.isActive && session?.expiresAt > new Date()) {
+          // V491: OVERRIDE widget userId مع server-side userId
+          if (effectiveUserId && effectiveUserId !== session.userId) {
+            console.warn(`[V491] MISMATCH! widget userId=${effectiveUserId} but cookie userId=${session.userId} — using cookie (server-side truth)`);
+          }
           effectiveUserId = session.userId;
-          console.warn('[V490] Session lookup OK: userId=', effectiveUserId);
+          console.warn('[V491] Session lookup OK: userId=', effectiveUserId);
         } else {
-          console.warn('[V490] Session invalid or expired');
+          console.warn('[V491] Session invalid or expired');
         }
       }
     }

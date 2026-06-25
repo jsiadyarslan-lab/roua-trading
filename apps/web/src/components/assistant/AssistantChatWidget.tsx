@@ -9,8 +9,8 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
-// V469: roua-trading لا يستخدم next-auth — استبدال بـ stub
-const useSession = () => ({ data: null, status: 'unauthenticated' as const });
+// V478: استخدم نظام auth الخاص بـ roua-trading (لا next-auth)
+import { useAuthStore } from '@/lib/auth-store';
 import { detectStockSymbol } from '@/lib/assistant/tools';
 import { renderSparkline, renderMiniCandlestick, getTrendColor } from '@/lib/assistant/chart-helpers';
 import BrainIcon from './BrainIcon';
@@ -153,7 +153,13 @@ interface AssistantChatWidgetProps {
 }
 
 export default function AssistantChatWidget({ variant = 'floating', reportType }: AssistantChatWidgetProps) {
-  const { data: session, status: authStatus } = useSession();
+  // V478: استبدال useSession (next-auth) بـ useAuthStore (roua-trading)
+  const authUser = useAuthStore(state => state.user);
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const isGuest = useAuthStore(state => state.isGuest);
+  // محاكاة نفس شكل session لـ التوافق مع الكود الموجود
+  const session = authUser ? { user: { id: authUser.id, email: authUser.email, name: authUser.displayName } } : null;
+  const authStatus = isAuthenticated ? 'authenticated' : (isGuest ? 'loading' : 'unauthenticated');
   const [isOpen, setIsOpen] = useState(variant === 'embedded');
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');

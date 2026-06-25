@@ -1276,7 +1276,7 @@ export async function POST(request: Request) {
       prices: [], signals: [], analyses: [], news: [], reports: [],
       marketPulse: null, crossReference: null, knowledgeResults: null,
       userProfile: null, userPositions: [], userClosedTrades: [],
-      councilBriefs: [], userStats: null,
+      councilBriefs: [], userStats: null, technicalIndicators: {},
       fetchTimeMs: 0, dataPoints: 0, sources: [], contextForAI: '',
       knownNumbers: new Set<string>(),
     };

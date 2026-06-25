@@ -7,6 +7,7 @@
 import { db } from '@/lib/db';
 import type { Locale } from './tools';
 import type { IntentClassification, DetectedAsset, DataNeeds } from './intent-classifier';
+import { performTechnicalAnalysis, type TechnicalAnalysisResult } from '@/lib/technical-analysis';
 import {
   searchKnowledge,
   crossReference,
@@ -38,6 +39,9 @@ export interface FetchedData {
   userClosedTrades: UserClosedTradeData[];  // صفقات مغلقة
   councilBriefs: CouncilBriefData[];   // briefs المجلس النشطة
   userStats: UserStatsData | null;     // إحصائيات المستخدم
+
+  // V475: Technical indicators (RSI, MACD, EMA) لكل أصل مكتشف
+  technicalIndicators: Record<string, TechnicalAnalysisResult | null>;
 
   // Metadata
   fetchTimeMs: number;
@@ -1106,9 +1110,43 @@ export async function fetchBroadData(
   const councilBriefs = userData?.councilBriefs ?? [];
   const userStats = userData?.stats ?? null;
 
+  // V475: حساب المؤشرات الفنية (RSI, MACD, EMA, Support, Resistance) لكل أصل مكتشف
+  // يجلب candles من Yahoo Finance ثم يحسب المؤشرات
+  const technicalIndicators: Record<string, TechnicalAnalysisResult | null> = {};
+  const symbolsForAnalysis = new Set<string>();
+
+  // أضف الأصول المكتشفة من الأسعار
+  for (const p of prices) {
+    symbolsForAnalysis.add(p.symbol);
+  }
+
+  // أضف الأصول من صفقات المستخدم (لتحليل صفقاتي)
+  for (const pos of userPositions) {
+    symbolsForAnalysis.add(pos.symbol);
+  }
+
+  // اجلب المؤشرات الفنية لكل أصل (بالتوازي، حد أقصى 6)
+  const symbolsList = [...symbolsForAnalysis].slice(0, 6);
+  console.log(`[V475] Computing technical indicators for: ${symbolsList.join(', ')}`);
+
+  const indicatorPromises = symbolsList.map(async (symbol) => {
+    try {
+      const result = await performTechnicalAnalysis(symbol);
+      return { symbol, result };
+    } catch (err: any) {
+      console.warn(`[V475] Technical analysis failed for ${symbol}: ${err?.message?.slice(0, 60)}`);
+      return { symbol, result: null };
+    }
+  });
+
+  const indicatorResults = await Promise.all(indicatorPromises);
+  for (const { symbol, result } of indicatorResults) {
+    technicalIndicators[symbol] = result;
+  }
+
   // ── Build formatted context for AI ──
   const contextForAI = buildBroadContextForAI(
-    { prices, signals, analyses, news, reports, pulse, xref, knowledge, userProfile, userPositions, userClosedTrades, councilBriefs, userStats },
+    { prices, signals, analyses, news, reports, pulse, xref, knowledge, userProfile, userPositions, userClosedTrades, councilBriefs, userStats, technicalIndicators },
     locale,
     isGCCQuery,
     regionalMarket,
@@ -1131,6 +1169,7 @@ export async function fetchBroadData(
     userClosedTrades,
     councilBriefs,
     userStats,
+    technicalIndicators,
     fetchTimeMs,
     dataPoints,
     sources,
@@ -1794,6 +1833,7 @@ function buildBroadContextForAI(
     userClosedTrades?: UserClosedTradeData[];
     councilBriefs?: CouncilBriefData[];
     userStats?: UserStatsData | null;
+    technicalIndicators?: Record<string, TechnicalAnalysisResult | null>;
   },
   locale: Locale,
   isGCCQuery: boolean = false,
@@ -2041,6 +2081,59 @@ function buildBroadContextForAI(
 - Analysis, interpretation, connections: This is YOUR role as a financial brain — analyze, explain, connect
 - If no data on a specific stock: Show available indicators (like TASI or oil) + economic analysis + suggest specific stocks
 - IMPORTANT: Don't just say "I don't have data" — ALWAYS show what you have + your analysis + suggestions`);
+
+  // ═══ V475: المؤشرات الفنية (RSI, MACD, EMA, Support, Resistance) ═══
+  if (data.technicalIndicators && Object.keys(data.technicalIndicators).length > 0) {
+    sections.push(isAr
+      ? `\n═══ 📈 المؤشرات الفنية (محسوبة من بيانات Yahoo Finance — حقيقية) ═══`
+      : `\n═══ 📈 Technical Indicators (computed from Yahoo Finance — real data) ═══`);
+
+    for (const [symbol, indicators] of Object.entries(data.technicalIndicators)) {
+      if (!indicators) continue;
+      sections.push(`── ${symbol} ──`);
+
+      if (indicators.rsi !== null) {
+        const rsiInterp = indicators.rsi > 70
+          ? (isAr ? 'تشبع شرائي (>70)' : 'Overbought (>70)')
+          : indicators.rsi < 30
+          ? (isAr ? 'تشبع بيعي (<30)' : 'Oversold (<30)')
+          : (isAr ? 'محايد' : 'Neutral');
+        sections.push(`• RSI (14): ${indicators.rsi} — ${rsiInterp}`);
+      }
+
+      if (indicators.macd) {
+        sections.push(`• MACD: ${indicators.macd.macd} | Signal: ${indicators.macd.signal} | Histogram: ${indicators.macd.histogram} — ${indicators.macd.trend}`);
+      }
+
+      if (indicators.ema50 !== null) {
+        sections.push(`• EMA (50): ${indicators.ema50}`);
+      }
+      if (indicators.ema20 !== null) {
+        sections.push(`• EMA (20): ${indicators.ema20}`);
+      }
+      if (indicators.sma50 !== null) {
+        sections.push(`• SMA (50): ${indicators.sma50}`);
+      }
+
+      if (indicators.support !== null && indicators.resistance !== null) {
+        sections.push(`• Support: ${indicators.support} | Resistance: ${indicators.resistance}`);
+      }
+
+      if (indicators.priceVsMA50 !== 'unknown') {
+        const vsMA = indicators.priceVsMA50 === 'above'
+          ? (isAr ? 'فوق MA50 (صعودي)' : 'Above MA50 (bullish)')
+          : (isAr ? 'تحت MA50 (هبوطي)' : 'Below MA50 (bearish)');
+        sections.push(`• Price vs MA50: ${vsMA}`);
+      }
+
+      if (indicators.trend !== 'unknown' && indicators.trend !== undefined) {
+        const trendAr = indicators.trend === 'bullish' ? 'صعودي' : indicators.trend === 'bearish' ? 'هبوطي' : 'محايد';
+        sections.push(`• Trend: ${isAr ? trendAr : indicators.trend}`);
+      }
+
+      sections.push('');
+    }
+  }
 
   // ═══ V469: roua-trading User Data (صفقات + مجلس + إحصائيات) ═══
   if (data.userPositions && data.userPositions.length > 0) {

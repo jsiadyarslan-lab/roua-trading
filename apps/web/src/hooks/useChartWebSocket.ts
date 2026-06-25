@@ -97,6 +97,14 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   const rotationTimerRef = useRef<NodeJS.Timeout | null>(null);
   const CONNECTION_ROTATION_MS = 23 * 60 * 60 * 1000; // 23 hours (10min before 24h cutoff)
 
+  // V463: Web Worker for polling — avoids mobile browser timer throttling.
+  // Chrome/Safari throttle setInterval on the main thread to 1/min after 5 min
+  // of "hidden" state. Web Worker timers are NOT subject to this throttling,
+  // so polling continues at 2s even when the tab is considered idle.
+  // This is the documented fix for the "chart freezes after 4-5 minutes on mobile" bug.
+  const pollWorkerRef = useRef<Worker | null>(null);
+  const pollWorkerTickHandlerRef = useRef<(() => void) | null>(null);
+
   // WS/Reconnection config from config.ts
   const { reconnectMaxAttempts: MAX_RECONNECT_ATTEMPTS, reconnectBaseDelay: BASE_DELAY, reconnectMaxDelay: MAX_DELAY, pollingInterval: POLLING_INTERVAL, pingInterval: PING_INTERVAL } = WS_CONFIG;
 
@@ -109,6 +117,11 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   onCandleUpdateRef.current = onCandleUpdate;
   const onPriceUpdateRef = useRef(onPriceUpdate);
   onPriceUpdateRef.current = onPriceUpdate;
+
+  // V463: fetchLatestCandleRef — keeps the latest fetchLatestCandle without
+  // recreating the Web Worker. The worker's onmessage handler reads this ref
+  // instead of capturing fetchLatestCandle directly (which would go stale).
+  const fetchLatestCandleRef = useRef<() => void>(() => {});
 
   // ── rAF Flush: Apply buffered WS updates once per frame ──
   const flushBuffer = useCallback(() => {
@@ -188,6 +201,14 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
       pollingRef.current = null;
+    }
+    // V463: Terminate the poll Web Worker on cleanup
+    if (pollWorkerRef.current) {
+      try {
+        pollWorkerRef.current.postMessage({ type: 'stop' });
+        pollWorkerRef.current.terminate();
+      } catch {}
+      pollWorkerRef.current = null;
     }
     if (reconnectTimerRef.current) {
       clearTimeout(reconnectTimerRef.current);
@@ -313,14 +334,57 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     }
   }, [symbol, timeframe]);
 
+  // V463: Keep fetchLatestCandleRef in sync so the Worker's onmessage
+  // handler always calls the latest version (avoids stale closure).
+  fetchLatestCandleRef.current = fetchLatestCandle;
+
   // ── Start REST Polling Fallback ────────────────────────
+  // V463: Uses Web Worker for the polling interval to avoid mobile browser
+  // timer throttling. The Worker sends 'tick' messages on a non-throttled
+  // setInterval; the main thread does the fetch on each tick.
   const startPolling = useCallback(() => {
-    if (pollingRef.current) clearInterval(pollingRef.current);
+    // Clear any existing main-thread polling (legacy fallback)
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+    // Terminate any existing worker
+    if (pollWorkerRef.current) {
+      pollWorkerRef.current.postMessage({ type: 'stop' });
+      pollWorkerRef.current.terminate();
+      pollWorkerRef.current = null;
+    }
     setConnectionState('fallback');
 
     const interval = isCryptoPair(symbol) ? POLLING_INTERVAL : 2000;
-    fetchLatestCandle();
-    pollingRef.current = setInterval(fetchLatestCandle, interval);
+    // V463: Try Web Worker first (immune to throttling). If Worker fails to
+    // create (e.g., CSP, SSR), fall back to main-thread setInterval.
+    try {
+      const worker = new Worker('/chart-poll-worker.js');
+      pollWorkerRef.current = worker;
+      // V463: Worker reads fetchLatestCandleRef.current (always fresh) instead
+      // of capturing fetchLatestCandle directly (would go stale on re-render).
+      worker.onmessage = (e: MessageEvent) => {
+        const data = e.data;
+        if (data.type === 'tick') {
+          const handler = fetchLatestCandleRef.current;
+          if (handler) handler();
+        }
+      };
+      worker.onerror = (err) => {
+        console.warn('[V463] Poll worker error, falling back to setInterval:', err);
+        // Fallback to main-thread polling
+        if (pollingRef.current) clearInterval(pollingRef.current);
+        pollingRef.current = setInterval(fetchLatestCandle, interval);
+      };
+      worker.postMessage({ type: 'start', intervalMs: interval });
+      console.warn(`[V463] Poll worker started for ${symbol} ${timeframe} (interval=${interval}ms)`);
+    } catch (e) {
+      console.warn('[V463] Worker creation failed, using setInterval:', e);
+      // Fallback to main-thread polling
+      fetchLatestCandle();
+      pollingRef.current = setInterval(fetchLatestCandle, interval);
+    }
     // V452: Visibility handling is now global (in useEffect below)
   }, [symbol, timeframe, fetchLatestCandle]);
 

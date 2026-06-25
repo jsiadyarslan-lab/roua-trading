@@ -1029,7 +1029,7 @@ export async function fetchBroadData(
   const councilBriefs = userData?.councilBriefs ?? [];
   const userStats = userData?.stats ?? null;
 
-  console.log(`[V485] User data: ${userPositions.length} positions, ${councilBriefs.length} briefs, stats=${userStats ? 'yes' : 'no'}`);
+  console.warn(`[V485] User data: ${userPositions.length} positions, ${councilBriefs.length} briefs, stats=${userStats ? 'yes' : 'no'}`);
 
   // V486: wrap كل شيء آخر في try-catch — حتى لو فشل، نرجع ببيانات المستخدم
   let prices: any[] = [];
@@ -1153,7 +1153,7 @@ export async function fetchBroadData(
 
   // اجلب المؤشرات الفنية لكل أصل (بالتوازي، حد أقصى 6)
   const symbolsList = [...symbolsForAnalysis].slice(0, 6);
-  console.log(`[V475] Computing technical indicators for: ${symbolsList.join(', ')}`);
+  console.warn(`[V475] Computing technical indicators for: ${symbolsList.join(', ')}`);
 
   const indicatorPromises = symbolsList.map(async (symbol) => {
     try {
@@ -1277,7 +1277,7 @@ async function fetchRouaTradingUserData(
     } catch { /* ignore */ }
   }
 
-  console.log('[V483] fetchRouaTradingUserData: userId=', effectiveUserId || 'missing', 'cookie=', sessionCookie ? 'present' : 'missing');
+  console.warn('[V483] fetchRouaTradingUserData: userId=', effectiveUserId || 'missing', 'cookie=', sessionCookie ? 'present' : 'missing');
 
   // V483: مرر effectiveUserId لكل الدوال
   const results = await Promise.allSettled([
@@ -1331,7 +1331,7 @@ async function fetchRouaPositions(userId?: string): Promise<UserPositionData[]> 
       return [];
     }
 
-    console.log('[V483] fetchRouaPositions: querying for user', userId);
+    console.warn('[V483] fetchRouaPositions: querying for user', userId);
 
     const positions = await (db as any).position.findMany({
       where: { userId, status: 'OPEN' },
@@ -1344,7 +1344,7 @@ async function fetchRouaPositions(userId?: string): Promise<UserPositionData[]> 
       },
     });
 
-    console.log(`[V483] fetchRouaPositions: found ${positions.length} positions for user ${userId}`);
+    console.warn(`[V483] fetchRouaPositions: found ${positions.length} positions for user ${userId}`);
 
     return positions.map((p: any) => {
       const entry = Number(p.entryPrice) || 0;

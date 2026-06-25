@@ -1289,6 +1289,8 @@ export async function POST(request: Request) {
     const [dbData, realtimeData] = await Promise.all([
       // DB data (analyses, signals, news, etc.) — wrapped to prevent crashes
       // V477: مرر rouaSession لـ fetchBroadData لكي يستخدمه fetchRouaPositions
+      // V489: logging ما يُمرر لـ fetchBroadData
+      console.warn(`[V489] Calling fetchBroadData: userId=${userId || 'MISSING'}, rouaSession=${rouaSession ? rouaSession.slice(0, 10) + '...' : 'MISSING'}, cookieHeader=${sessionCookie ? 'present(' + sessionCookie.length + ' chars)' : 'MISSING'}`),
       fetchBroadData(sanitizedMessage, locale, userId, rouaSession).then((data) => {
         // V488: استخدم console.warn (console.log يُحذف في production)
         console.warn(`[V488] fetchBroadData OK: ${data.userPositions?.length || 0} positions, ${data.councilBriefs?.length || 0} briefs, stats=${data.userStats ? 'yes' : 'no'}, ctxLen=${data.contextForAI?.length || 0}`);

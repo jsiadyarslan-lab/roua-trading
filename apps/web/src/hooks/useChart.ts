@@ -1237,10 +1237,23 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         close: price,
         volume: 1,
       };
-      candles.push(newCandle);
+      // V462f: CRITICAL — must create a NEW array and assign to candlesRef.current.
+      // Previously: candles.push(newCandle) mutated the array in place. But if
+      // candlesRef.current was replaced elsewhere (e.g. periodic refresh sets
+      // candlesRef.current = merged), the array we're mutating is NOT the one
+      // candlesRef.current points to. Result: new candle goes to an orphaned
+      // array, candlesRef.current keeps the old last candle → chart shows
+      // stale 06:14 candle forever, while 06:16/06:17 are created in void.
+      //
+      // FIX: Always assign a NEW array to candlesRef.current so the reference
+      // is guaranteed fresh. This matches how setCandles and other paths
+      // update the ref.
+      const newCandles = [...candlesRef.current, newCandle];
       // Keep candles array bounded
-      if (candles.length > MAX_VISIBLE_CANDLES) {
-        candlesRef.current = candles.slice(candles.length - MAX_VISIBLE_CANDLES);
+      if (newCandles.length > MAX_VISIBLE_CANDLES) {
+        candlesRef.current = newCandles.slice(newCandles.length - MAX_VISIBLE_CANDLES);
+      } else {
+        candlesRef.current = newCandles;
       }
 
       console.warn(`[V462c] 🆕 NEW ${timeframe} CANDLE: time=${new Date(currentPeriodStart * 1000).toLocaleTimeString()} open=${price} (flat — body appears when price moves)`);
@@ -1566,14 +1579,22 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           close: s.close,
           volume: candle.volume,
         };
-        candles.push(newCandle);
+        // V462f: Assign NEW array to candlesRef.current (same fix as updateLastCandle).
+        // candles.push() mutates in place — if candlesRef.current was replaced
+        // elsewhere, the push goes to an orphaned array.
+        const newCandlesArr = [...candlesRef.current, newCandle];
+        if (newCandlesArr.length > MAX_VISIBLE_CANDLES) {
+          candlesRef.current = newCandlesArr.slice(newCandlesArr.length - MAX_VISIBLE_CANDLES);
+        } else {
+          candlesRef.current = newCandlesArr;
+        }
 
         const chartType = settings.type;
         try {
           if (chartType === 'line' || chartType === 'area') {
             candleSeriesRef.current.update({ time: time as Time, value: newCandle.close } as any);
           } else if (chartType === 'heikin-ashi') {
-            const prev = candles[candles.length - 2] ?? newCandle;
+            const prev = newCandlesArr.length > 1 ? newCandlesArr[newCandlesArr.length - 2] : newCandle;
             const haClose = (newCandle.open + newCandle.high + newCandle.low + newCandle.close) / 4;
             const haOpen = (prev.open + prev.close) / 2;
             const haHigh = Math.max(newCandle.high, haOpen, haClose);

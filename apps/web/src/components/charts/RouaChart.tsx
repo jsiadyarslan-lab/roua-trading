@@ -933,7 +933,10 @@ export default function RouaChart({
         // body will appear as soon as price moves. sanitizeOhlc leaves
         // open===close which makes the body invisible.
         const sanitizedCandle = { ...alignedCandle };
-        candlesRef.current.push(sanitizedCandle);
+        // V462f: Assign NEW array instead of push (same fix as useChart.ts).
+        // push() mutates in place — if candlesRef.current was replaced
+        // elsewhere, the push goes to an orphaned array.
+        candlesRef.current = [...candlesRef.current, sanitizedCandle];
         // PERF FIX: Use updateCandleRef (O(1) series.update) instead of full setData()
         // setData() destroys and recreates all indicator series → "rubbery" animation
         // updateCandleRef only updates the single new candle, indicators stay intact

@@ -1244,23 +1244,27 @@ async function fetchRouaTradingUserData(
   userId?: string,
   sessionCookie?: string,
 ): Promise<RouaTradingUserData | null> {
-  const msgLower = message.toLowerCase();
+  // V490: logging في أول سطر — قبل أي شيء قد يفشل
+  console.warn('[V490] fetchRouaTradingUserData START: userId=', userId || 'MISSING', 'cookie=', sessionCookie ? 'present' : 'MISSING', 'msg=', message.slice(0, 40));
 
-  // كشف هل السؤال يحتاج بيانات المستخدم
-  const needsPositions = /صفقات|مراكز|محفظت|مفتوح|صفقاتي|positions|portfolio|my trades|my positions/.test(msgLower);
-  const needsCouncil = /مجلس|وكلاء|تصويت|إجماع|council|agents|vote|consensus/.test(msgLower);
-  const needsStats = /أداء|أدائي|إحصائي|فوز|ربح|خسارة|performance|stats|win rate/.test(msgLower);
+  try {
+    const msgLower = message.toLowerCase();
 
-  // إذا لم يحتج أي بيانات، ارجع null
-  if (!needsPositions && !needsCouncil && !needsStats) {
-    return null;
-  }
+    const needsPositions = /صفقات|مراكز|محفظت|مفتوح|صفقاتي|positions|portfolio|my trades|my positions/.test(msgLower);
+    const needsCouncil = /مجلس|وكلاء|تصويت|إجماع|council|agents|vote|consensus/.test(msgLower);
+    const needsStats = /أداء|أدائي|إحصائي|فوز|ربح|خسارة|performance|stats|win rate/.test(msgLower);
 
-  // V483: استخدم userId مباشرة إذا متوفر، وإلا استخرج من session cookie
-  let effectiveUserId = userId;
+    console.warn('[V490] needs:', { needsPositions, needsCouncil, needsStats });
 
-  if (!effectiveUserId && sessionCookie) {
-    try {
+    if (!needsPositions && !needsCouncil && !needsStats) {
+      console.warn('[V490] No user data needed — returning null');
+      return null;
+    }
+
+    let effectiveUserId = userId;
+
+    if (!effectiveUserId && sessionCookie) {
+      console.warn('[V490] Extracting userId from session cookie...');
       const rawToken = sessionCookie.startsWith('roua_session=')
         ? sessionCookie.substring('roua_session='.length)
         : sessionCookie;
@@ -1272,30 +1276,66 @@ async function fetchRouaTradingUserData(
         });
         if (session?.isActive && session?.expiresAt > new Date()) {
           effectiveUserId = session.userId;
+          console.warn('[V490] Session lookup OK: userId=', effectiveUserId);
+        } else {
+          console.warn('[V490] Session invalid or expired');
         }
       }
-    } catch { /* ignore */ }
+    }
+
+    console.warn('[V490] effectiveUserId=', effectiveUserId || 'STILL MISSING');
+
+    if (!effectiveUserId) {
+      console.warn('[V490] No userId — returning empty');
+      return { positions: [], closedTrades: [], councilBriefs: [], stats: null };
+    }
+
+    // V490: استدعِ fetchRouaPositions مباشرة (لا Promise.allSettled)
+    let positions: UserPositionData[] = [];
+    if (needsPositions) {
+      console.warn('[V490] Calling fetchRouaPositions...');
+      try {
+        positions = await fetchRouaPositions(effectiveUserId);
+        console.warn(`[V490] fetchRouaPositions returned ${positions.length} positions`);
+      } catch (err: any) {
+        console.warn('[V490] fetchRouaPositions ERROR:', err?.message?.slice(0, 100));
+      }
+    }
+
+    let councilBriefs: CouncilBriefData[] = [];
+    if (needsCouncil) {
+      try {
+        councilBriefs = await fetchRouaCouncilBriefs(effectiveUserId);
+      } catch (err: any) {
+        console.warn('[V490] fetchRouaCouncilBriefs ERROR:', err?.message?.slice(0, 80));
+      }
+    }
+
+    let stats: UserStatsData | null = null;
+    if (needsStats) {
+      try {
+        stats = await fetchRouaUserStats(effectiveUserId);
+      } catch (err: any) {
+        console.warn('[V490] fetchRouaUserStats ERROR:', err?.message?.slice(0, 80));
+      }
+    }
+
+    let closedTrades: UserClosedTradeData[] = [];
+    if (needsStats) {
+      try {
+        closedTrades = await fetchRouaClosedTrades(effectiveUserId);
+      } catch (err: any) {
+        console.warn('[V490] fetchRouaClosedTrades ERROR:', err?.message?.slice(0, 80));
+      }
+    }
+
+    console.warn(`[V490] DONE: ${positions.length} positions, ${councilBriefs.length} briefs, stats=${stats ? 'yes' : 'no'}`);
+    return { positions, closedTrades, councilBriefs, stats };
+
+  } catch (err: any) {
+    console.error('[V490] fetchRouaTradingUserData CRASHED:', err?.message?.slice(0, 150));
+    return { positions: [], closedTrades: [], councilBriefs: [], stats: null };
   }
-
-  console.warn('[V483] fetchRouaTradingUserData: userId=', effectiveUserId || 'missing', 'cookie=', sessionCookie ? 'present' : 'missing');
-
-  // V483: مرر effectiveUserId لكل الدوال
-  const results = await Promise.allSettled([
-    needsPositions ? fetchRouaPositions(effectiveUserId) : Promise.resolve([]),
-    needsCouncil ? fetchRouaCouncilBriefs(effectiveUserId) : Promise.resolve([]),
-    needsStats ? fetchRouaUserStats(effectiveUserId) : Promise.resolve(null),
-  ]);
-
-  const positions = results[0].status === 'fulfilled' ? results[0].value : [];
-  const councilBriefs = results[1].status === 'fulfilled' ? results[1].value : [];
-  const stats = results[2].status === 'fulfilled' ? results[2].value : null;
-
-  let closedTrades: UserClosedTradeData[] = [];
-  if (needsStats) {
-    closedTrades = await fetchRouaClosedTrades(effectiveUserId).catch(() => []);
-  }
-
-  return { positions, closedTrades, councilBriefs, stats };
 }
 
 /**

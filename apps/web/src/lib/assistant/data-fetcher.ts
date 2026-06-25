@@ -1237,17 +1237,15 @@ async function fetchRouaTradingUserData(
 function buildAuthHeaders(sessionCookie?: string): Record<string, string> {
   const headers: Record<string, string> = { 'Accept': 'application/json' };
   if (sessionCookie) {
-    // إذا الـ cookie يأتي كـ "roua_session=xxx" مرره كما هو
-    // إذا يأتي كـ "xxx" فقط، أضف prefix
-    if (sessionCookie.startsWith('roua_session=') || sessionCookie.includes('=')) {
-      headers['Cookie'] = sessionCookie;
-    } else {
-      headers['Cookie'] = `roua_session=${sessionCookie}`;
-    }
-    // أضف أيضًا كـ Authorization header (بعض endpoints تختار هذا)
-    headers['x-roua-session'] = sessionCookie.startsWith('roua_session=')
+    // V481: استخراج token الخام
+    const rawToken = sessionCookie.startsWith('roua_session=')
       ? sessionCookie.substring('roua_session='.length)
       : sessionCookie;
+
+    // أرسل بكل الطرق الممكنة — NestJS AuthGuard يقبل إحداها
+    headers['Cookie'] = `roua_session=${rawToken}`;
+    headers['Authorization'] = `Bearer ${rawToken}`;
+    headers['x-roua-session'] = rawToken;
   }
   return headers;
 }

@@ -782,6 +782,47 @@ export class TradingService {
     // (which come from old code on Railway that sends closeReason='MANUAL' at 4h).
     const isUserInitiated = request.source === 'USER';
 
+    // V423 FIX: Block MANUAL closes of automated positions before 24h
+    // EVEN IF source='USER'. Root cause: self-healing-agent (Railway service)
+    // calls POST /api/trading/positions/close at exactly 4h — the Controller
+    // sets source='USER' automatically, bypassing V237/V290 guards.
+    // Result: positions close at 4h labeled "يدوي" despite no human action.
+    //
+    // This guard applies to ALL callers including source='USER' for
+    // agent/executor positions, since the human user confirmed they
+    // never manually close automated positions ("لا أغلق يدوياً أي صفقة آلية").
+    // Real human closes via the UI can still be done — they just need to wait
+    // 24h OR use force-close (SL/TP level).
+    const isAutomatedPosition = (position.source === 'agent' ||
+      position.source === 'smart_executor' ||
+      position.source === 'autonomous_trader');
+
+    const isManualOrEmptyReason = closeReasonStr === 'MANUAL' ||
+      closeReasonStr === 'USER_MANUAL' || closeReasonStr === '';
+
+    if (isAutomatedPosition && isManualOrEmptyReason && !isSLTPClose) {
+      const holdingMs = Date.now() - new Date(position.openedAt).getTime();
+      const holdingHours = holdingMs / (60 * 60 * 1000);
+      const V423_MIN_HOURS = 24; // حد أدنى 24 ساعة لإغلاق الصفقات الآلية يدوياً
+
+      if (holdingHours < V423_MIN_HOURS) {
+        this.logger.warn(
+          `🚨 V423 BLOCKED: MANUAL close of automated position ${position.id} ` +
+          `(${position.symbol}, source=${position.source}) at ${holdingHours.toFixed(1)}h. ` +
+          `Min is ${V423_MIN_HOURS}h. Caller source='${request.source}'. ` +
+          `This blocks self-healing-agent 4h auto-close. ` +
+          `User can force-close via SL/TP adjustment or wait ${(V423_MIN_HOURS - holdingHours).toFixed(1)}h more.`
+        );
+        return {
+          success: false,
+          error: `V423: لا يمكن إغلاق الصفقة الآلية قبل مرور ${V423_MIN_HOURS} ساعة (مضت ${holdingHours.toFixed(1)} ساعة فقط)`,
+          blockedByV423: true,
+          holdingHours: holdingHours.toFixed(1),
+          minHours: V423_MIN_HOURS,
+        } as any;
+      }
+    }
+
     // V237: Also block MAX_HOLDING_TIME closeReason — this is produced by OLD Agent code
     // (pre-V224) that still has the 4h hardcoded close. Even if the Agent somehow
     // produces this reason, we block it here. MAX_HOLDING_TIME should NEVER appear

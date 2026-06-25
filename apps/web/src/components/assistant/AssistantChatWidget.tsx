@@ -1660,6 +1660,8 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
   // would re-render on every parent render because renderContent is recreated
   // each time, defeating the memoization.
   const renderContent = useCallback((content: string) => {
+    try {
+    // V1006: Normalize partial markdown during streaming — close unclosed tags
     // V1006: Normalize partial markdown during streaming — close unclosed tags
     // so the renderer doesn't break on incomplete ** or ## or | (tables)
     let safeContent = content;
@@ -2277,6 +2279,10 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
     if (inTable) flushTable();
 
     return <>{elements}</>;
+    } catch (err) {
+      console.error('[renderContent] Error:', err);
+      return <div style={{ whiteSpace: 'pre-wrap', color: '#D1D5DB' }}>{content}</div>;
+    }
   }, [isRtl]);
   // ─── Market pulse color helper ─────────────────────────────────
   const getPulseColor = () => {

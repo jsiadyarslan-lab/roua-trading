@@ -1251,19 +1251,63 @@ function buildAuthHeaders(sessionCookie?: string): Record<string, string> {
 }
 
 async function fetchRouaPositions(sessionCookie?: string): Promise<UserPositionData[]> {
+  // V482: استخدم Prisma مباشرة بدلًا من NestJS HTTP fetch
+  // NestJS auth لا يعمل بشكل موثوق من server-to-server
+  // Prisma direct query أسرع + أكثر موثوقية
   try {
-    const res = await fetch(`${NESTJS_API}/api/trading/positions`, {
-      headers: buildAuthHeaders(sessionCookie),
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    const raw = data?.data || data?.positions || [];
-    if (!Array.isArray(raw)) return [];
+    if (!sessionCookie) {
+      console.warn('[V482] fetchRouaPositions: no sessionCookie');
+      return [];
+    }
 
-    return raw.map((p: any) => {
+    const rawToken = sessionCookie.startsWith('roua_session=')
+      ? sessionCookie.substring('roua_session='.length)
+      : sessionCookie;
+
+    const dbReady = await ensureDbReady();
+    if (!dbReady) {
+      console.warn('[V482] fetchRouaPositions: DB not ready');
+      return [];
+    }
+
+    // استخرج userId من session
+    const session = await (db as any).session.findUnique({
+      where: { token: rawToken },
+      select: { userId: true, isActive: true, expiresAt: true },
+    });
+
+    if (!session || !session.isActive || session.expiresAt < new Date()) {
+      console.warn('[V482] fetchRouaPositions: session invalid or expired');
+      return [];
+    }
+
+    const userId = session.userId;
+    console.log('[V482] fetchRouaPositions: querying positions for user', userId);
+
+    // استعلم الصفقات المفتوحة مباشرة من Prisma
+    const positions = await (db as any).position.findMany({
+      where: { userId, status: 'OPEN' },
+      orderBy: { openedAt: 'desc' },
+      select: {
+        id: true,
+        symbol: true,
+        side: true,
+        entryPrice: true,
+        currentPrice: true,
+        quantity: true,
+        unrealizedPnl: true,
+        stopLoss: true,
+        takeProfit: true,
+        openedAt: true,
+        source: true,
+      },
+    });
+
+    console.log(`[V482] fetchRouaPositions: found ${positions.length} positions`);
+
+    return positions.map((p: any) => {
       const entry = Number(p.entryPrice) || 0;
-      const current = Number(p.currentPrice) || entry;
+      const current = p.currentPrice ? Number(p.currentPrice) : entry;
       const qty = Number(p.quantity) || 0;
       const pnl = Number(p.unrealizedPnl) || 0;
       const pnlPercent = entry > 0 && qty > 0
@@ -1287,63 +1331,100 @@ async function fetchRouaPositions(sessionCookie?: string): Promise<UserPositionD
         source: p.source ?? null,
       };
     });
-  } catch {
+  } catch (err: any) {
+    console.error('[V482] fetchRouaPositions error:', err?.message?.slice(0, 100));
     return [];
   }
 }
 
 async function fetchRouaClosedTrades(sessionCookie?: string): Promise<UserClosedTradeData[]> {
+  // V482: Prisma direct query بدلًا من NestJS fetch
   try {
-    // roua-trading لا يوجد endpoint مباشر للصفقات المغلقة
-    // لكن Position status=CLOSED متاحة عبر نفس endpoint مع filter
-    const res = await fetch(`${NESTJS_API}/api/trading/positions?status=CLOSED`, {
-      headers: buildAuthHeaders(sessionCookie),
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    const raw = data?.data || data?.positions || [];
-    if (!Array.isArray(raw)) return [];
+    if (!sessionCookie) return [];
 
-    return raw.slice(0, 10).map((p: any) => {
+    const rawToken = sessionCookie.startsWith('roua_session=')
+      ? sessionCookie.substring('roua_session='.length)
+      : sessionCookie;
+
+    const dbReady = await ensureDbReady();
+    if (!dbReady) return [];
+
+    const session = await (db as any).session.findUnique({
+      where: { token: rawToken },
+      select: { userId: true, isActive: true, expiresAt: true },
+    });
+
+    if (!session || !session.isActive || session.expiresAt < new Date()) return [];
+
+    const positions = await (db as any).position.findMany({
+      where: { userId: session.userId, status: 'CLOSED' },
+      orderBy: { closedAt: 'desc' },
+      take: 10,
+      select: {
+        id: true, symbol: true, side: true,
+        entryPrice: true, exitPrice: true, realizedPnl: true,
+        closeReason: true, openedAt: true, closedAt: true,
+      },
+    });
+
+    return positions.map((p: any) => {
       const entry = Number(p.entryPrice) || 0;
       const exit = p.exitPrice ? Number(p.exitPrice) : entry;
       const pnl = Number(p.realizedPnl) || 0;
       const result: 'WIN' | 'LOSS' | 'BREAKEVEN' =
         pnl > 0 ? 'WIN' : pnl < 0 ? 'LOSS' : 'BREAKEVEN';
       return {
-        id: p.id,
-        symbol: p.symbol,
-        side: p.side,
-        entryPrice: entry,
-        exitPrice: exit,
-        realizedPnl: pnl,
-        result,
-        closeReason: p.closeReason ?? null,
-        openedAt: p.openedAt,
-        closedAt: p.closedAt,
+        id: p.id, symbol: p.symbol, side: p.side,
+        entryPrice: entry, exitPrice: exit, realizedPnl: pnl,
+        result, closeReason: p.closeReason ?? null,
+        openedAt: p.openedAt, closedAt: p.closedAt,
         durationMinutes: p.closedAt && p.openedAt
           ? Math.round((new Date(p.closedAt).getTime() - new Date(p.openedAt).getTime()) / 60000)
           : 0,
       };
     });
-  } catch {
+  } catch (err: any) {
+    console.error('[V482] fetchRouaClosedTrades error:', err?.message?.slice(0, 80));
     return [];
   }
 }
 
 async function fetchRouaCouncilBriefs(sessionCookie?: string): Promise<CouncilBriefData[]> {
+  // V482: Prisma direct query
   try {
-    const res = await fetch(`${NESTJS_API}/api/strategic-council/active`, {
-      headers: buildAuthHeaders(sessionCookie),
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    const raw = data?.data || data?.briefs || [];
-    if (!Array.isArray(raw)) return [];
+    if (!sessionCookie) return [];
 
-    return raw.slice(0, 10).map((b: any) => ({
+    const rawToken = sessionCookie.startsWith('roua_session=')
+      ? sessionCookie.substring('roua_session='.length)
+      : sessionCookie;
+
+    const dbReady = await ensureDbReady();
+    if (!dbReady) return [];
+
+    const session = await (db as any).session.findUnique({
+      where: { token: rawToken },
+      select: { userId: true, isActive: true, expiresAt: true },
+    });
+
+    if (!session || !session.isActive || session.expiresAt < new Date()) return [];
+
+    // استعلم briefs النشطة للمستخدم + النظام
+    const briefs = await (db as any).tradingBrief.findMany({
+      where: {
+        OR: [{ userId: session.userId }, { userId: null }],
+        isActive: true,
+        reviewStatus: 'ACTIVE',
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: {
+        id: true, pair: true, direction: true, confidence: true,
+        timeframe: true, entryPrice: true, stopLoss: true, takeProfit: true,
+        analysisSummary: true, isActive: true, createdAt: true, issuedAt: true,
+      },
+    });
+
+    return briefs.map((b: any) => ({
       id: b.id,
       symbol: b.pair ?? b.symbol,
       direction: b.direction,
@@ -1356,77 +1437,96 @@ async function fetchRouaCouncilBriefs(sessionCookie?: string): Promise<CouncilBr
       isActive: b.isActive ?? true,
       createdAt: b.createdAt ?? b.issuedAt,
     }));
-  } catch {
+  } catch (err: any) {
+    console.error('[V482] fetchRouaCouncilBriefs error:', err?.message?.slice(0, 80));
     return [];
   }
 }
 
 async function fetchRouaUserStats(sessionCookie?: string): Promise<UserStatsData | null> {
+  // V482: Prisma direct query
   try {
-    const authHeaders = buildAuthHeaders(sessionCookie);
-    const [summaryRes, statsRes] = await Promise.allSettled([
-      fetch(`${NESTJS_API}/api/trading/positions/summary`, {
-        headers: authHeaders,
-        signal: AbortSignal.timeout(5000),
-      }),
-      fetch(`${NESTJS_API}/api/assistant/intelligence/diagnosis?days=30`, {
-        headers: authHeaders,
-        signal: AbortSignal.timeout(8000),
-      }),
-    ]);
+    if (!sessionCookie) return null;
 
-    let displayedBalance = 0;
-    let usedMargin = 0;
-    let riskExposurePercent = 0;
+    const rawToken = sessionCookie.startsWith('roua_session=')
+      ? sessionCookie.substring('roua_session='.length)
+      : sessionCookie;
 
-    if (summaryRes.status === 'fulfilled' && summaryRes.value.ok) {
-      const sData = await summaryRes.value.json();
-      const s = sData?.data || sData?.summary;
-      if (s) {
-        displayedBalance = Number(s.paperBalance ?? s.displayedBalance) || 0;
-        usedMargin = Number(s.usedMargin) || 0;
-        riskExposurePercent = displayedBalance > 0
-          ? (usedMargin / displayedBalance) * 100
-          : 0;
-      }
-    }
+    const dbReady = await ensureDbReady();
+    if (!dbReady) return null;
 
-    // diagnosis endpoint يعطي stats كاملة
-    if (statsRes.status === 'fulfilled' && statsRes.value.ok) {
-      const dData = await statsRes.value.json();
-      const d = dData?.data?.summary;
-      if (d) {
-        return {
-          totalTrades: d.totalTradesAnalyzed ?? 0,
-          wins: d.wins ?? 0,
-          losses: d.losses ?? 0,
-          winRate: d.winRate ?? 0,
-          totalPnl: d.totalPnl ?? 0,
-          profitFactor: d.profitFactor ?? 0,
-          displayedBalance,
-          usedMargin,
-          riskExposurePercent,
-        };
-      }
-    }
+    const session = await (db as any).session.findUnique({
+      where: { token: rawToken },
+      select: { userId: true, isActive: true, expiresAt: true },
+    });
 
-    // fallback: نرجع على الأقل balance + margin
-    if (displayedBalance > 0 || usedMargin > 0) {
-      return {
-        totalTrades: 0,
-        wins: 0,
-        losses: 0,
-        winRate: 0,
-        totalPnl: 0,
-        profitFactor: 0,
-        displayedBalance,
-        usedMargin,
-        riskExposurePercent,
-      };
-    }
+    if (!session || !session.isActive || session.expiresAt < new Date()) return null;
 
-    return null;
-  } catch {
+    const userId = session.userId;
+
+    // إحصائيات آخر 30 يوم من Position
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const closedPositions = await (db as any).position.findMany({
+      where: {
+        userId,
+        status: 'CLOSED',
+        closedAt: { gte: thirtyDaysAgo },
+      },
+      select: { realizedPnl: true },
+    });
+
+    const openPositions = await (db as any).position.findMany({
+      where: { userId, status: 'OPEN' },
+      select: { quantity: true, entryPrice: true, symbol: true },
+    });
+
+    // احسب الإحصائيات
+    const wins = closedPositions.filter((p: any) => Number(p.realizedPnl) > 0).length;
+    const losses = closedPositions.filter((p: any) => Number(p.realizedPnl) < 0).length;
+    const totalTrades = closedPositions.length;
+    const totalPnl = closedPositions.reduce((s: number, p: any) => s + (Number(p.realizedPnl) || 0), 0);
+    const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
+
+    // balance from AgentSettings
+    const settings = await (db as any).agentSettings.findUnique({
+      where: { userId },
+      select: { paperBalance: true },
+    });
+    const displayedBalance = Number(settings?.paperBalance) || 0;
+
+    // margin = sum of (qty * entryPrice) for open positions
+    const usedMargin = openPositions.reduce((s: number, p: any) => {
+      const qty = Number(p.quantity) || 0;
+      const entry = Number(p.entryPrice) || 0;
+      return s + Math.abs(qty * entry);
+    }, 0);
+
+    const riskExposurePercent = displayedBalance > 0
+      ? (usedMargin / displayedBalance) * 100
+      : 0;
+
+    // profit factor
+    const grossProfit = closedPositions
+      .filter((p: any) => Number(p.realizedPnl) > 0)
+      .reduce((s: number, p: any) => s + Number(p.realizedPnl), 0);
+    const grossLoss = Math.abs(closedPositions
+      .filter((p: any) => Number(p.realizedPnl) < 0)
+      .reduce((s: number, p: any) => s + Number(p.realizedPnl), 0));
+    const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : wins > 0 ? 99 : 0;
+
+    return {
+      totalTrades,
+      wins,
+      losses,
+      winRate: Math.round(winRate * 10) / 10,
+      totalPnl: Math.round(totalPnl * 100) / 100,
+      profitFactor: profitFactor === 99 ? 99 : Math.round(profitFactor * 100) / 100,
+      displayedBalance,
+      usedMargin,
+      riskExposurePercent,
+    };
+  } catch (err: any) {
+    console.error('[V482] fetchRouaUserStats error:', err?.message?.slice(0, 80));
     return null;
   }
 }

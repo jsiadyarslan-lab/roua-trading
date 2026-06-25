@@ -1031,6 +1031,20 @@ export async function fetchBroadData(
 
   console.log(`[V485] User data: ${userPositions.length} positions, ${councilBriefs.length} briefs, stats=${userStats ? 'yes' : 'no'}`);
 
+  // V486: wrap كل شيء آخر في try-catch — حتى لو فشل، نرجع ببيانات المستخدم
+  let prices: any[] = [];
+  let signals: any[] = [];
+  let analyses: any[] = [];
+  let news: any[] = [];
+  let reports: any[] = [];
+  let pulse: any = null;
+  let xref: any = null;
+  let knowledge: any = null;
+  let userProfile: any = null;
+  let technicalIndicators: Record<string, TechnicalAnalysisResult | null> = {};
+  let contextForAI = '';
+
+  try {
   // V800: Detect if user mentions specific assets (for cross-reference only)
   // This is NOT for deciding what data to fetch — we fetch everything.
   // It's just for enriching cross-reference data for mentioned assets.
@@ -1157,12 +1171,34 @@ export async function fetchBroadData(
   }
 
   // ── Build formatted context for AI ──
-  const contextForAI = buildBroadContextForAI(
+  contextForAI = buildBroadContextForAI(
     { prices, signals, analyses, news, reports, pulse, xref, knowledge, userProfile, userPositions, userClosedTrades, councilBriefs, userStats, technicalIndicators },
     locale,
     isGCCQuery,
     regionalMarket,
   );
+
+  } catch (err: any) {
+    // V486: إذا فشل أي شيء، نستمر ببيانات المستخدم التي جلبناها في البداية
+    console.warn('[V486] fetchBroadData partial failure (user data preserved):', err?.message?.slice(0, 100));
+
+    // ابنِ contextForAI مبسط يحتوي فقط بيانات المستخدم
+    const isAr = locale === 'ar';
+    const parts: string[] = [];
+    if (userPositions.length > 0) {
+      parts.push(isAr ? `\n═══ 📊 صفقاتك المفتوحة (بيانات حقيقية) ═══` : `\n═══ 📊 Your Open Positions (real data) ═══`);
+      for (const p of userPositions) {
+        const pnlStr = p.unrealizedPnl >= 0 ? `+${p.unrealizedPnl.toFixed(2)}$` : `${p.unrealizedPnl.toFixed(2)}$`;
+        parts.push(`• ${p.symbol} ${p.side} | دخول: ${p.entryPrice} | حالي: ${p.currentPrice} | PnL: ${pnlStr} | SL: ${p.stopLoss ?? 'غير محدد'} | TP: ${p.takeProfit ?? 'غير محدد'}`);
+      }
+    }
+    if (userStats) {
+      parts.push(isAr ? `\n═══ 📈 إحصائياتك ═══` : `\n═══ 📈 Your Stats ═══`);
+      parts.push(`• صفقات: ${userStats.totalTrades} | فوز: ${userStats.wins} | خسارة: ${userStats.losses} | Win Rate: ${userStats.winRate}%`);
+      parts.push(`• رصيد: ${userStats.displayedBalance}$ | مخاطرة: ${userStats.riskExposurePercent}%`);
+    }
+    contextForAI = parts.join('\n');
+  }
 
   const fetchTimeMs = Date.now() - startTime;
   const dataPoints = prices.length + signals.length + analyses.length + news.length + reports.length;

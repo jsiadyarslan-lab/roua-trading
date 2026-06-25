@@ -139,8 +139,18 @@ export async function POST(request: NextRequest) {
           VALUES ($1, $2, $3, $4, 0, NOW(), NOW())
         `, newSessionId, userId, locale || 'ar', title || 'محادثة جديدة');
         return NextResponse.json({ sessionId: newSessionId });
-      } catch (err) {
-        return NextResponse.json({ error: 'Failed to create session' }, { status: 500 });
+      } catch (err: any) {
+        console.error('[History API] create_session error:', err?.message?.slice(0, 200));
+        // الجدول قد لا يكون موجودًا — حاول إنشاؤه ثم أعد المحاولة
+        try {
+          await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS chat_sessions (id TEXT PRIMARY KEY, "userId" TEXT NOT NULL, locale TEXT DEFAULT 'ar', title TEXT, "pageUrl" TEXT, "messageCount" INTEGER DEFAULT 0, "createdAt" TIMESTAMP DEFAULT NOW(), "updatedAt" TIMESTAMP DEFAULT NOW())`);
+          await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS chat_messages (id TEXT PRIMARY KEY, "sessionId" TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, sources TEXT, "toolsUsed" TEXT, "createdAt" TIMESTAMP DEFAULT NOW())`);
+          await db.$executeRawUnsafe(`INSERT INTO chat_sessions (id, "userId", locale, title, "messageCount", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, 0, NOW(), NOW())`, newSessionId, userId, locale || 'ar', title || 'محادثة جديدة');
+          return NextResponse.json({ sessionId: newSessionId });
+        } catch (retryErr: any) {
+          console.error('[History API] create_session retry failed:', retryErr?.message?.slice(0, 200));
+          return NextResponse.json({ error: 'Failed to create session', details: retryErr?.message?.slice(0, 100) }, { status: 500 });
+        }
       }
     }
 

@@ -45,6 +45,12 @@ const nextConfig: NextConfig = {
     '@prisma/client',
     'prisma',
     '@simplewebauthn/server',
+    'react-markdown',
+    'remark-gfm',
+    'remark-parse',
+    'remark-rehype',
+    'unified',
+    'micromark',
   ],
 
   experimental: {

@@ -8,11 +8,10 @@
 // Icon: 3D wireframe brain, pulsating blue glow.
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import dynamic from "next/dynamic";
 import { usePathname } from 'next/navigation';
-// V501: استخدم dynamic import لتجنب مشاكل ESM مع react-markdown v10
-const ReactMarkdown = dynamic(() => import('react-markdown'), { ssr: false });
-const remarkGfm = require('remark-gfm');
+// V503: react-markdown بدون remark-gfm (يسبب ESM errors)
+// الجداول تُعالج يدويًا قبل تمريرها لـ ReactMarkdown
+import ReactMarkdown from 'react-markdown';
 // V480: استخدم auth-store لكن مع تأجيل التهيئة (lazy)
 let useAuthStoreHook: any = null;
 try {
@@ -613,6 +612,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
+          action: currentSessionId ? 'save_message' : 'create_session',
           sessionId: currentSessionId || undefined,
           role,
           content,
@@ -1665,10 +1665,31 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
     const fenceCount = (safeContent.match(/```/g) || []).length;
     if (fenceCount % 2 !== 0) safeContent += '\n```';
 
+    // V503: تحويل جداول Markdown إلى HTML قبل ReactMarkdown
+    // لأن react-markdown بدون remark-gfm لا يدعم الجداول
+    safeContent = safeContent.replace(
+      /(^|\n)(\|[^\n]+\|\n\|[-| :]+\|[^\n]*(?:\n\|[^\n]+\|)*)/g,
+      (match, prefix, table) => {
+        const lines = table.trim().split('\n');
+        if (lines.length < 2) return match;
+        const headers = lines[0].split('|').map(s => s.trim()).filter(s => s !== '');
+        const rows = lines.slice(2).map(line => line.split('|').map(s => s.trim()).filter(s => s !== ''));
+        let html = prefix + '<table><thead><tr>';
+        headers.forEach(h => { html += `<th>${h}</th>`; });
+        html += '</tr></thead><tbody>';
+        rows.forEach(row => {
+          html += '<tr>';
+          row.forEach(cell => { html += `<td>${cell}</td>`; });
+          html += '</tr>';
+        });
+        html += '</tbody></table>';
+        return html;
+      }
+    );
+
     return (
       <div className="assistant-markdown" dir={isRtl ? 'rtl' : 'ltr'}>
         <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
           components={{
             table: ({ children }) => (
               <div style={{ overflowX: 'auto', margin: '8px 0' }}>

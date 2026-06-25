@@ -88,20 +88,72 @@ function cleanResponse(text: string, locale: Locale): string {
     .replace(/📝\s*(بيانات مفقومة من الأدوات|Data retrieved from tools|Données récupérées des outils|Araçlardan alınan veriler|Datos recuperados de las herramientas)[:\s]*\n?/g, '')
     .replace(/\bundefined\b/g, '')
     // V1005: Strip leaked internal metadata tags that weak models echo verbatim
-    // Language tags: (en), (fr), (tr), (es), (de), (it), (pt), (ru), (zh), (ja), (ko)
     .replace(/\s*\((en|fr|tr|es|de|it|pt|ru|zh|ja|ko|ar)\)\s*/g, ' ')
-    // Sentiment tags: [neutral], [positive], [negative], [bullish], [bearish]
     .replace(/\s*\[(neutral|positive|negative|bullish|bearish)\]\s*/g, ' ')
-    // Translation flags: [غير عربي — ترجمها]
     .replace(/\s*\[غير عربي[^\]]*\]\s*/g, ' ')
-    // Report type tags: [Strategic], [Technical], [Economy], [Earnings]
     .replace(/\s*\[(Strategic|Technical|Economy|Earnings|Daily|Weekly|Monthly)\]\s*/g, ' ')
-    // Arabic impact prefix: "تأثير: low/medium/high" (leaked from data context)
     .replace(/\s*تأثير:\s*(low|medium|high|منخفض|متوسط|عالي)\s*/g, ' ')
-    // English impact prefix: "impact: low/medium/high"
     .replace(/\s*impact:\s*(low|medium|high)\s*/gi, ' ')
+    // V472: إزالة <br> و <br/> و <br /> من الجداول (تظهر كنص بدلًا من سطر جديد)
+    .replace(/<br\s*\/?>/gi, ' • ')
+    // V472: إزالة HTML tags الأخرى
+    .replace(/<\/?(strong|b|em|i|u|p|div|span|li|ul|ol|h[1-6])[^>]*>/gi, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+
+  // V472: تحويل العناوين الإنجليزية للـ locale المناسب
+  // المشكلة: الـ LLM أحيانًا يكتب العناوين بالإنجليزية حتى لو الـ locale=ar
+  const HEADER_TRANSLATIONS: Record<string, Record<string, string>> = {
+    ar: {
+      'Current Price & Direction': 'السعر الحالي والاتجاه',
+      'Current Price and Direction': 'السعر الحالي والاتجاه',
+      'Technical Analysis': 'التحليل الفني',
+      'Key Fundamental Factors': 'العوامل الأساسية المؤثرة',
+      'Fundamental Factors': 'العوامل الأساسية المؤثرة',
+      'Scenarios': 'السيناريوهات',
+      'Recommendation': 'التوصية',
+      'Risk Disclaimer': 'تنبيه المخاطر',
+      'Tools Used': 'الأدوات المستخدمة',
+      'Sources': 'المصادر',
+    },
+    fr: {
+      'Current Price & Direction': 'Prix actuel et direction',
+      'Technical Analysis': 'Analyse technique',
+      'Key Fundamental Factors': 'Facteurs fondamentaux clés',
+      'Scenarios': 'Scénarios',
+      'Recommendation': 'Recommandation',
+      'Risk Disclaimer': 'Avertissement sur les risques',
+    },
+    tr: {
+      'Current Price & Direction': 'Mevcut Fiyat ve Yön',
+      'Technical Analysis': 'Teknik Analiz',
+      'Key Fundamental Factors': 'Temel Faktörler',
+      'Scenarios': 'Senaryolar',
+      'Recommendation': 'Tavsiye',
+      'Risk Disclaimer': 'Risk Uyarısı',
+    },
+    es: {
+      'Current Price & Direction': 'Precio actual y dirección',
+      'Technical Analysis': 'Análisis técnico',
+      'Key Fundamental Factors': 'Factores fundamentales clave',
+      'Scenarios': 'Escenarios',
+      'Recommendation': 'Recomendación',
+      'Risk Disclaimer': 'Aviso de riesgo',
+    },
+  };
+
+  const translations = HEADER_TRANSLATIONS[locale];
+  if (translations) {
+    for (const [en, target] of Object.entries(translations)) {
+      // استبدال العناوين (مع أو بدون # أو emoji)
+      const escaped = en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(#{1,6}\\s*\\d️⃣?\\s*)${escaped}\\s*:?`, 'gi');
+      cleaned = cleaned.replace(regex, `$1${target}:`);
+      // أيضًا بدون #
+      const regex2 = new RegExp(`(\\d️⃣\\s*)${escaped}\\s*:?`, 'gi');
+      cleaned = cleaned.replace(regex2, `$1${target}:`);
+    }
+  }
 
   // V1000: Enhanced Repetition Loop Detector
   cleaned = removeRepetitionLoops(cleaned);

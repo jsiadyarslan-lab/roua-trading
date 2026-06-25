@@ -106,6 +106,10 @@ export async function POST(request: Request) {
   const locale: Locale = parsed.data.locale || 'ar';
   const sanitizedMessage = sanitizePromptInput(message);
 
+  // V477: استخراج session cookie لتمريره لـ NestJS
+  const sessionCookie = request.headers.get('cookie') || '';
+  const rouaSession = sessionCookie.match(/roua_session=([^;]+)/)?.[1] || undefined;
+
   if (!sanitizedMessage || sanitizedMessage.trim().length === 0) {
     return new Response(JSON.stringify({ error: 'Message is empty after sanitization' }), {
       status: 400,
@@ -218,7 +222,7 @@ export async function POST(request: Request) {
           }
           if (detectedAsset) {
             try {
-              const assetData = await fetchAssetData(sanitizedMessage, locale) as any;
+              const assetData = await fetchAssetData(sanitizedMessage, locale, userId, rouaSession) as any;
               if (assetData?.price) {
                 const currentPrice = assetData.price.current;
                 const tradeSetup = assetData.technical?.tradeSetup;
@@ -318,7 +322,7 @@ export async function POST(request: Request) {
           // Single-asset path (original)
           if (!finalResponse) {
             try {
-              preFetchedDataBundle = await fetchAssetData(sanitizedMessage, locale);
+              preFetchedDataBundle = await fetchAssetData(sanitizedMessage, locale, userId, rouaSession);
             } catch { /* Continue without data */ }
           }
         }

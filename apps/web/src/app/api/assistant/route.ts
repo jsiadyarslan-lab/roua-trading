@@ -1230,6 +1230,11 @@ export async function POST(request: Request) {
     const locale: Locale = parsed.data.locale || 'ar';
     const sanitizedMessage = sanitizePromptInput(message);
 
+    // V477: استخراج session cookie من الـ request لتمريره لـ NestJS
+    // بدون هذا، fetchRouaPositions لا يمكنه الوصول لصفقات المستخدم
+    const sessionCookie = request.headers.get('cookie') || '';
+    const rouaSession = sessionCookie.match(/roua_session=([^;]+)/)?.[1] || undefined;
+
     if (!sanitizedMessage || sanitizedMessage.trim().length === 0) {
       return NextResponse.json({ error: 'Message is empty after sanitization' }, { status: 400 });
     }
@@ -1283,7 +1288,8 @@ export async function POST(request: Request) {
 
     const [dbData, realtimeData] = await Promise.all([
       // DB data (analyses, signals, news, etc.) — wrapped to prevent crashes
-      fetchBroadData(sanitizedMessage, locale, userId).catch((err) => {
+      // V477: مرر rouaSession لـ fetchBroadData لكي يستخدمه fetchRouaPositions
+      fetchBroadData(sanitizedMessage, locale, userId, rouaSession).catch((err) => {
         console.warn('[V471] fetchBroadData failed (expected — schema mismatch):', err?.message?.slice(0, 100));
         return emptyFetchedData;
       }),

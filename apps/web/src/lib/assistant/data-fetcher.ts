@@ -972,18 +972,20 @@ export async function fetchAssetData(
   message: string,
   locale: Locale,
   userId?: string,
+  sessionCookie?: string,
 ): Promise<FetchedData> {
   // V800+AI: Always use broad fetch — AI decides what's relevant
-  return fetchBroadData(message, locale, userId);
+  return fetchBroadData(message, locale, userId, sessionCookie);
 }
 
 export async function fetchMultipleAssetData(
   message: string,
   locale: Locale,
   userId?: string,
+  sessionCookie?: string,
 ): Promise<FetchedData> {
   // V800+AI: Always use broad fetch — AI decides what's relevant
-  return fetchBroadData(message, locale, userId);
+  return fetchBroadData(message, locale, userId, sessionCookie);
 }
 
 // ─── Helper ──────────────────────────────────────────────────────
@@ -1007,6 +1009,7 @@ export async function fetchBroadData(
   userMessage: string,
   locale: Locale,
   userId?: string,
+  sessionCookie?: string,
 ): Promise<FetchedData> {
   const startTime = Date.now();
   const isAr = locale === 'ar';
@@ -1104,7 +1107,7 @@ export async function fetchBroadData(
 
   // V469: جلب بيانات roua-trading من NestJS (صفقات المستخدم + المجلس + إحصائيات)
   // يجب أن يتم قبل بناء contextForAI لكي تتضمنه البيانات
-  const userData = await fetchRouaTradingUserData(message, locale, userId).catch(() => null);
+  const userData = await fetchRouaTradingUserData(message, locale, userId, sessionCookie).catch(() => null);
   const userPositions = userData?.positions ?? [];
   const userClosedTrades = userData?.closedTrades ?? [];
   const councilBriefs = userData?.councilBriefs ?? [];
@@ -1193,12 +1196,13 @@ interface RouaTradingUserData {
 async function fetchRouaTradingUserData(
   message: string,
   locale: any,
-  userId?: string
+  userId?: string,
+  sessionCookie?: string,
 ): Promise<RouaTradingUserData | null> {
   const msgLower = message.toLowerCase();
 
   // كشف هل السؤال يحتاج بيانات المستخدم
-  const needsPositions = /صفقات|مراكز|محفظت|مفتوح|صفقاتي|positions|portfolio|my trades/.test(msgLower);
+  const needsPositions = /صفقات|مراكز|محفظت|مفتوح|صفقاتي|positions|portfolio|my trades|my positions/.test(msgLower);
   const needsCouncil = /مجلس|وكلاء|تصويت|إجماع|council|agents|vote|consensus/.test(msgLower);
   const needsStats = /أداء|أدائي|إحصائي|فوز|ربح|خسارة|performance|stats|win rate/.test(msgLower);
 
@@ -1207,12 +1211,11 @@ async function fetchRouaTradingUserData(
     return null;
   }
 
-  // V469: في roua-trading الجلسة عبر cookie، لا userId مباشر
-  // الـ NestJS يعرف المستخدم من session cookie
+  // V477: مرر session cookie لـ NestJS لكي يتعرف على المستخدم
   const results = await Promise.allSettled([
-    needsPositions ? fetchRouaPositions() : Promise.resolve([]),
-    needsCouncil ? fetchRouaCouncilBriefs() : Promise.resolve([]),
-    needsStats ? fetchRouaUserStats() : Promise.resolve(null),
+    needsPositions ? fetchRouaPositions(sessionCookie) : Promise.resolve([]),
+    needsCouncil ? fetchRouaCouncilBriefs(sessionCookie) : Promise.resolve([]),
+    needsStats ? fetchRouaUserStats(sessionCookie) : Promise.resolve(null),
   ]);
 
   const positions = results[0].status === 'fulfilled' ? results[0].value : [];
@@ -1222,16 +1225,37 @@ async function fetchRouaTradingUserData(
   // اجلب الصفقات المغلقة فقط إذا طلب الأداء
   let closedTrades: UserClosedTradeData[] = [];
   if (needsStats) {
-    closedTrades = await fetchRouaClosedTrades().catch(() => []);
+    closedTrades = await fetchRouaClosedTrades(sessionCookie).catch(() => []);
   }
 
   return { positions, closedTrades, councilBriefs, stats };
 }
 
-async function fetchRouaPositions(): Promise<UserPositionData[]> {
+/**
+ * يبني headers مع session cookie
+ */
+function buildAuthHeaders(sessionCookie?: string): Record<string, string> {
+  const headers: Record<string, string> = { 'Accept': 'application/json' };
+  if (sessionCookie) {
+    // إذا الـ cookie يأتي كـ "roua_session=xxx" مرره كما هو
+    // إذا يأتي كـ "xxx" فقط، أضف prefix
+    if (sessionCookie.startsWith('roua_session=') || sessionCookie.includes('=')) {
+      headers['Cookie'] = sessionCookie;
+    } else {
+      headers['Cookie'] = `roua_session=${sessionCookie}`;
+    }
+    // أضف أيضًا كـ Authorization header (بعض endpoints تختار هذا)
+    headers['x-roua-session'] = sessionCookie.startsWith('roua_session=')
+      ? sessionCookie.substring('roua_session='.length)
+      : sessionCookie;
+  }
+  return headers;
+}
+
+async function fetchRouaPositions(sessionCookie?: string): Promise<UserPositionData[]> {
   try {
     const res = await fetch(`${NESTJS_API}/api/trading/positions`, {
-      headers: { 'Accept': 'application/json' },
+      headers: buildAuthHeaders(sessionCookie),
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return [];
@@ -1270,12 +1294,12 @@ async function fetchRouaPositions(): Promise<UserPositionData[]> {
   }
 }
 
-async function fetchRouaClosedTrades(): Promise<UserClosedTradeData[]> {
+async function fetchRouaClosedTrades(sessionCookie?: string): Promise<UserClosedTradeData[]> {
   try {
     // roua-trading لا يوجد endpoint مباشر للصفقات المغلقة
     // لكن Position status=CLOSED متاحة عبر نفس endpoint مع filter
     const res = await fetch(`${NESTJS_API}/api/trading/positions?status=CLOSED`, {
-      headers: { 'Accept': 'application/json' },
+      headers: buildAuthHeaders(sessionCookie),
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return [];
@@ -1310,10 +1334,10 @@ async function fetchRouaClosedTrades(): Promise<UserClosedTradeData[]> {
   }
 }
 
-async function fetchRouaCouncilBriefs(): Promise<CouncilBriefData[]> {
+async function fetchRouaCouncilBriefs(sessionCookie?: string): Promise<CouncilBriefData[]> {
   try {
     const res = await fetch(`${NESTJS_API}/api/strategic-council/active`, {
-      headers: { 'Accept': 'application/json' },
+      headers: buildAuthHeaders(sessionCookie),
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return [];
@@ -1339,15 +1363,16 @@ async function fetchRouaCouncilBriefs(): Promise<CouncilBriefData[]> {
   }
 }
 
-async function fetchRouaUserStats(): Promise<UserStatsData | null> {
+async function fetchRouaUserStats(sessionCookie?: string): Promise<UserStatsData | null> {
   try {
+    const authHeaders = buildAuthHeaders(sessionCookie);
     const [summaryRes, statsRes] = await Promise.allSettled([
       fetch(`${NESTJS_API}/api/trading/positions/summary`, {
-        headers: { 'Accept': 'application/json' },
+        headers: authHeaders,
         signal: AbortSignal.timeout(5000),
       }),
       fetch(`${NESTJS_API}/api/assistant/intelligence/diagnosis?days=30`, {
-        headers: { 'Accept': 'application/json' },
+        headers: authHeaders,
         signal: AbortSignal.timeout(8000),
       }),
     ]);

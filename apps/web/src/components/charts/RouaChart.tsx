@@ -1559,15 +1559,13 @@ export default function RouaChart({
     }
   }, [currentPrice]);
 
-  // ── V461 DIAGNOSTIC: Live candle snapshot every 5s ──
+  // ── V461/V462 DIAGNOSTIC: Live candle snapshot every 10s ──
   // SAFE: This is a read-only observer. It does NOT touch any data path,
   // does NOT call series.update(), does NOT mutate candlesRef.
   // It only reads the LAST candle from candlesRef.current and logs it.
-  // Compare this output between desktop-mobile-view and mobile-real:
-  //   - If `open` changes between snapshots → mutation/reference bug
-  //   - If `high`/`low` decreases → race condition between sources
-  //   - If `time` jumps backward → stale data from polling
-  //   - If values are stable but chart still stretches → rendering issue
+  // V462: Changed interval to 10s and added ageMinutes for easier diagnosis
+  // of the "frozen candle" bug. If ageMinutes > 1.5 on a 1m chart, the
+  // new-candle logic in updateLastCandle is not firing.
   useEffect(() => {
     const interval = setInterval(() => {
       const candles = candlesRef.current;
@@ -1575,28 +1573,22 @@ export default function RouaChart({
       const last = candles[candles.length - 1];
       const prev = candles.length > 1 ? candles[candles.length - 2] : null;
       const now = Math.floor(Date.now() / 1000);
-      console.warn(`[V461] LIVE CANDLE SNAPSHOT: symbol=${selectedSymbol_} tf=${timeframe_} mobile=${mobile}`, {
-        last: {
-          time: last.time,
-          timeAge: now - (last.time as number),
-          open: last.open,
-          high: last.high,
-          low: last.low,
-          close: last.close,
-          volume: last.volume,
-        },
-        prev: prev ? {
-          time: prev.time,
-          open: prev.open,
-          high: prev.high,
-          low: prev.low,
-          close: prev.close,
-        } : null,
+      const ageSeconds = now - (last.time as number);
+      const ageMinutes = (ageSeconds / 60).toFixed(1);
+      console.warn(`[V462] 📊 ${timeframe_} Status: symbol=${selectedSymbol_} mobile=${mobile}`, {
+        lastTime: last.time ? new Date(last.time * 1000).toLocaleTimeString() : null,
+        ageMinutes,
+        ageSeconds,
+        open: last.open,
+        high: last.high,
+        low: last.low,
+        close: last.close,
+        volume: last.volume,
+        prevClose: prev?.close,
         totalCandles: candles.length,
         currentPrice,
-        timestamp: Date.now(),
       });
-    }, 5000);
+    }, 10000);
     return () => clearInterval(interval);
   }, [selectedSymbol_, timeframe_, mobile, currentPrice]);
 

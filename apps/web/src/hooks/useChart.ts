@@ -1169,6 +1169,17 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
 
   // ── Update Last Candle (live tick) ─────────────────────
+  // V462: Fixed critical bug where 1m candle would freeze after a few minutes.
+  // The previous logic always updated the SAME time (lastCandle.time) even
+  // after the minute had ended — so no new candle was ever created from
+  // the price-tick path. Only the polling/WS path could open a new candle,
+  // and on mobile that path gets throttled → candle freezes.
+  //
+  // FIX (mirrors TradingView's recommended pattern):
+  //   1. Compute currentPeriodStart from timeframe
+  //   2. If lastCandle.time < currentPeriodStart → OPEN NEW CANDLE
+  //   3. Else → update existing candle's high/low/close
+  //   4. After update, scroll chart to real-time so new candle is visible
   const updateLastCandle = useCallback((price: number) => {
     if (isPaused || !candleSeriesRef.current || !candlesRef.current.length) return;
     // V461: Skip if _flushUpdateCandle is mid-update — prevents race condition
@@ -1182,14 +1193,103 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     const lastTime = sanitizeTime(last.time);
     if (lastTime === null) return; // Invalid time — skip this update entirely
 
+    // V462: Compute current period start based on timeframe.
+    // Timeframe values in TIMEFRAMES use '1min','5min','15min','30min','1h','4h','1day','1week'.
+    const TF_TO_SECONDS: Record<string, number> = {
+      '1s': 1, '5s': 5, '15s': 15, '30s': 30,
+      '1min': 60, '5min': 300, '15min': 900, '30min': 1800,
+      '1h': 3600, '2h': 7200, '4h': 14400,
+      '1day': 86400, '1week': 604800, '1month': 2592000, '3month': 7776000,
+    };
+    const tfSec = TF_TO_SECONDS[timeframe] || 60;
+    const nowSec = Math.floor(Date.now() / 1000);
+    const currentPeriodStart = nowSec - (nowSec % tfSec);
+
+    const chart = chartInstanceRef.current;
+
+    // V462: Branch — new candle period vs. same period
+    if ((lastTime as number) < currentPeriodStart) {
+      // 🆕 NEW CANDLE — the period has rolled over since lastCandle.time.
+      // This is the fix for the "frozen candle" bug on mobile: previously
+      // the price-tick path never created new candles, so when polling was
+      // throttled by the browser, no new candle would appear.
+      const s = sanitizeOhlc(price, price, price, price);
+      const newCandle: CandleData = {
+        time: currentPeriodStart,
+        open: s.open,
+        high: s.high,
+        low: s.low,
+        close: s.close,
+        volume: 1,
+      };
+      candles.push(newCandle);
+      // Keep candles array bounded
+      if (candles.length > MAX_VISIBLE_CANDLES) {
+        candlesRef.current = candles.slice(candles.length - MAX_VISIBLE_CANDLES);
+      }
+
+      console.warn(`[V462] 🆕 NEW ${timeframe} CANDLE created at:`, new Date(currentPeriodStart * 1000).toLocaleTimeString(), 'open=', price);
+
+      if (settings.type === 'line' || settings.type === 'area') {
+        try {
+          candleSeriesRef.current.update({
+            time: currentPeriodStart as Time,
+            value: newCandle.close,
+          } as any);
+        } catch { /* chart destroyed */ }
+      } else if (settings.type === 'heikin-ashi') {
+        const prev = candles.length > 1 ? candles[candles.length - 2] : newCandle;
+        const haClose = (newCandle.open + newCandle.high + newCandle.low + newCandle.close) / 4;
+        const haOpen = (prev.open + prev.close) / 2;
+        const haHigh = Math.max(newCandle.high, haOpen, haClose);
+        const haLow = Math.min(newCandle.low, haOpen, haClose);
+        try {
+          candleSeriesRef.current.update({
+            time: currentPeriodStart as Time, open: haOpen, high: haHigh, low: haLow, close: haClose,
+          } as any);
+        } catch { /* chart destroyed */ }
+      } else {
+        try {
+          candleSeriesRef.current.update({
+            time: currentPeriodStart as Time,
+            open: newCandle.open, high: newCandle.high, low: newCandle.low, close: newCandle.close,
+          } as any);
+        } catch { /* chart destroyed */ }
+      }
+
+      // Update volume for new candle
+      if (volumeSeriesRef.current) {
+        try {
+          volumeSeriesRef.current.update({
+            time: currentPeriodStart as Time,
+            value: 1,
+            color: newCandle.close >= newCandle.open ? SHARED_COLORS.volumeUp : SHARED_COLORS.volumeDown,
+          } as any);
+        } catch { /* chart destroyed */ }
+      }
+
+      // V462: Scroll to real-time so the new candle is visible
+      if (chart) {
+        try { chart.timeScale().scrollToRealTime(); } catch { /* non-critical */ }
+      }
+
+      // Refresh indicators on new candle
+      if (indicatorRefreshTimerRef.current) clearTimeout(indicatorRefreshTimerRef.current);
+      indicatorRefreshTimerRef.current = setTimeout(() => {
+        refreshIndicatorsData();
+        indicatorRefreshTimerRef.current = null;
+      }, 200);
+
+      if (drawingRendererRef.current) {
+        drawingRendererRef.current.requestRender();
+      }
+      return;
+    }
+
+    // 🔄 SAME PERIOD — update existing candle's high/low/close.
     // V461: Create a NEW object every time — never mutate `last` in place.
-    // On mobile, the rendering engine can capture mid-mutation states across
-    // paint frames, causing the candle body/wicks to stretch and shrink.
-    // A fresh object reference ensures the series.update() always receives
-    // a complete, consistent OHLC snapshot.
     const newHigh = Math.max(last.high, price);
     const newLow = Math.min(last.low, price);
-    // FIX: Sanitize OHLC — near-flat candles from Binance 1m/5m data render as dots.
     const s = sanitizeOhlc(last.open, newHigh, newLow, price);
     const sanitized: CandleData = {
       time: lastTime as number,
@@ -1199,21 +1299,18 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       close: s.close,
       volume: last.volume,
     };
-    // Store the new object — old `last` reference is untouched
     candlesRef.current[candlesRef.current.length - 1] = sanitized;
 
-    if (!candleSeriesRef.current) return; // Chart was destroyed — skip update
+    if (!candleSeriesRef.current) return;
 
     if (settings.type === 'line' || settings.type === 'area') {
-      // FIX C5: Line/Area series use {time, value} format, not OHLC
       try {
         candleSeriesRef.current.update({
           time: lastTime as Time,
           value: sanitized.close,
         } as any);
-      } catch { /* chart was destroyed between the null check and update */ }
+      } catch { /* chart destroyed */ }
     } else if (settings.type === 'heikin-ashi') {
-      // Only recalculate last candle for HA, not entire series
       const prevCandle = candles.length > 1 ? candles[candles.length - 2] : sanitized;
       const haClose = (sanitized.open + sanitized.high + sanitized.low + sanitized.close) / 4;
       const haOpen = prevCandle === sanitized ? (sanitized.open + haClose) / 2 : (prevCandle.open + prevCandle.close) / 2;
@@ -1222,24 +1319,22 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       try { candleSeriesRef.current.update({
         time: lastTime as Time, open: haOpen, high: haHigh, low: haLow, close: haClose,
       } as any);
-      } catch { /* chart was destroyed between the null check and update */ }
+      } catch { /* chart destroyed */ }
     } else {
       try {
         candleSeriesRef.current.update({
           time: lastTime as Time, open: sanitized.open, high: sanitized.high, low: sanitized.low, close: sanitized.close,
         } as any);
-      } catch { /* chart was destroyed between the null check and update */ }
+      } catch { /* chart destroyed */ }
     }
 
-    // Update volume — use `sanitized` (not `last`) for correct color after price change
+    // Update volume
     if (volumeSeriesRef.current) {
       volumeSeriesRef.current.update({
         time: lastTime as Time,
         value: last.volume,
         color: sanitized.close >= sanitized.open ? SHARED_COLORS.volumeUp : SHARED_COLORS.volumeDown,
       } as any);
-      // FIX: If volume was previously all-zero (histogram hidden) but this tick
-      // has non-zero volume, make the histogram visible again.
       if (last.volume > 0 && !hasVolumeRef.current) {
         hasVolumeRef.current = true;
         volumeSeriesRef.current.applyOptions({
@@ -1247,7 +1342,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         });
       }
     }
-  }, [isPaused, settings.type]);
+  }, [isPaused, settings.type, timeframe, refreshIndicatorsData]);
 
   // ── Refresh Indicators Data In-Place ─────────────────────
   // Recalculates all active indicators and updates their series

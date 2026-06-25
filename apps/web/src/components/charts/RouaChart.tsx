@@ -928,10 +928,11 @@ export default function RouaChart({
         // NEW candle: append and use setCandles with skipIndicatorRebuild
         // This uses setData() but preserves indicator series (they stay
         // visible with slightly stale last-point data until next recalc).
-        // FIX: Sanitize the new candle's OHLC using sanitizeOhlc to prevent
-        // near-flat candles (dots) from Binance 1m/5m data.
-        const s = sanitizeOhlc(alignedCandle.open, alignedCandle.high, alignedCandle.low, alignedCandle.close);
-        const sanitizedCandle = { ...alignedCandle, open: s.open, high: s.high, low: s.low, close: s.close };
+        // V462c: Do NOT apply sanitizeOhlc to a new candle — a brand-new
+        // candle is naturally flat (open=high=low=close=price) and the
+        // body will appear as soon as price moves. sanitizeOhlc leaves
+        // open===close which makes the body invisible.
+        const sanitizedCandle = { ...alignedCandle };
         candlesRef.current.push(sanitizedCandle);
         // PERF FIX: Use updateCandleRef (O(1) series.update) instead of full setData()
         // setData() destroys and recreates all indicator series → "rubbery" animation
@@ -1267,6 +1268,13 @@ export default function RouaChart({
         const currentCandleTime = candlesRef.current.length > 0
           ? candlesRef.current[candlesRef.current.length - 1].time
           : 0;
+        // V462d: Keep a reference to the live candle so we can restore it
+        // after the merge. Previously, if REST returned data that didn't
+        // include the live candle's time, the live candle would be lost
+        // (merged array wouldn't contain it) → chart shows no live candle.
+        const liveCandle = currentCandleTime > 0
+          ? candlesRef.current[candlesRef.current.length - 1]
+          : null;
         let changed = false;
         for (const nc of newCandles) {
           if (nc.time === currentCandleTime) continue; // تخطِّ الشمعة الحالية
@@ -1278,6 +1286,16 @@ export default function RouaChart({
             existingMap.set(nc.time, nc);
             changed = true;
           }
+        }
+
+        // V462d: Ensure the live candle is in the merged result.
+        // If REST didn't return the live candle's time (common — REST only
+        // returns closed candles), existingMap won't have it. We must
+        // restore it from the saved reference, otherwise the chart will
+        // lose the live candle every 2 minutes.
+        if (liveCandle && !existingMap.has(liveCandle.time)) {
+          existingMap.set(liveCandle.time, liveCandle);
+          changed = true;
         }
 
         if (changed) {

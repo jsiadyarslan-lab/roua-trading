@@ -183,6 +183,15 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // to flicker/stretch. The flag ensures only ONE path updates the series
   // at a time — the second path skips if the first is mid-update.
   const isUpdatingRef = useRef(false);
+  // V462: refreshIndicatorsDataRef — avoids TDZ (Temporal Dead Zone) error.
+  // updateLastCandle (line ~1183) needs to call refreshIndicatorsData, but
+  // refreshIndicatorsData is defined LATER (line ~1351). Adding it to
+  // useCallback's deps array throws "Cannot access 'X' before initialization"
+  // because the const is in TDZ when the deps array is evaluated.
+  // The ref breaks the cycle: updateLastCandle reads refreshIndicatorsDataRef.current
+  // (always initialized as null), and the ref is updated AFTER refreshIndicatorsData
+  // is defined. No TDZ, no circular dependency.
+  const refreshIndicatorsDataRef = useRef<() => void>(() => {});
   // PERF: Debounced indicator refresh timer.
   // After a WS candle update, we schedule a debounced (500ms) indicator
   // data refresh that recalculates all active indicators and updates
@@ -1273,10 +1282,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         try { chart.timeScale().scrollToRealTime(); } catch { /* non-critical */ }
       }
 
-      // Refresh indicators on new candle
+      // Refresh indicators on new candle (V462: use ref to avoid TDZ)
       if (indicatorRefreshTimerRef.current) clearTimeout(indicatorRefreshTimerRef.current);
       indicatorRefreshTimerRef.current = setTimeout(() => {
-        refreshIndicatorsData();
+        refreshIndicatorsDataRef.current();
         indicatorRefreshTimerRef.current = null;
       }, 200);
 
@@ -1342,7 +1351,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         });
       }
     }
-  }, [isPaused, settings.type, timeframe, refreshIndicatorsData]);
+  }, [isPaused, settings.type, timeframe]); // V462: removed refreshIndicatorsData — uses ref to avoid TDZ
 
   // ── Refresh Indicators Data In-Place ─────────────────────
   // Recalculates all active indicators and updates their series
@@ -1413,6 +1422,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       }
     }
   }, [hashIndicatorParams, getDataSignature]);
+
+  // V462: Keep ref in sync so updateLastCandle (defined above) can call
+  // refreshIndicatorsData without TDZ issues.
+  refreshIndicatorsDataRef.current = refreshIndicatorsData;
 
   // ── Fast Incremental Candle Update (rAF-batched) ──────
   // Used by WebSocket onCandleUpdate for updating EXISTING candles.

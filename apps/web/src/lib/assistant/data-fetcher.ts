@@ -963,6 +963,15 @@ export interface DataBundle {
 // V800+AI: These now use the simplified detectMentionedAssets
 // instead of the old keyword-based intent-classifier.
 
+// V493: stubs للدوال المفقودة من rouatradingnews — ترجع [] بدلاً من الخطأ
+async function fetchBroadPrices(): Promise<PriceData[]> { return []; }
+async function fetchBroadSignals(): Promise<SignalData[]> { return []; }
+async function fetchBroadAnalyses(_regional?: string): Promise<AnalysisData[]> { return []; }
+async function fetchBroadNews(_locale?: any): Promise<NewsData[]> { return []; }
+function settledValue<T>(result: PromiseSettledResult<T>, fallback: T): T {
+  return result.status === 'fulfilled' ? result.value : fallback;
+}
+
 // V492: تعريف detectMentionedAssets — كانت مفقودة
 function detectMentionedAssets(message: string): string[] {
   const assets: string[] = [];

@@ -4,7 +4,7 @@
 // This runs BEFORE any AI call, in parallel, typically < 1 second.
 // Like how a human researcher gathers all materials before writing.
 
-import { db } from '@/lib/db';
+import { db, ensureDbReady } from '@/lib/db';
 import type { Locale } from './tools';
 import type { IntentClassification, DetectedAsset, DataNeeds } from './intent-classifier';
 import { performTechnicalAnalysis, type TechnicalAnalysisResult } from '@/lib/technical-analysis';
@@ -962,6 +962,33 @@ export interface DataBundle {
 // compatibility shims here so the stream route doesn't break.
 // V800+AI: These now use the simplified detectMentionedAssets
 // instead of the old keyword-based intent-classifier.
+
+// V492: تعريف detectMentionedAssets — كانت مفقودة
+function detectMentionedAssets(message: string): string[] {
+  const assets: string[] = [];
+  const lower = message.toLowerCase();
+  const patterns: Array<{ pattern: RegExp; symbol: string }> = [
+    { pattern: /\b(btc|bitcoin|بيتكوين)\b/i, symbol: 'BTC' },
+    { pattern: /\b(eth|ethereum|إيثريوم)\b/i, symbol: 'ETH' },
+    { pattern: /\b(xau|gold|ذهب)\b/i, symbol: 'XAU' },
+    { pattern: /\b(xag|silver|فضة)\b/i, symbol: 'XAG' },
+    { pattern: /\b(oil|wti|نفط)\b/i, symbol: 'WTI' },
+    { pattern: /\b(eurusd|يورو)\b/i, symbol: 'EURUSD' },
+    { pattern: /\b(gbpusd|جنيه)\b/i, symbol: 'GBPUSD' },
+    { pattern: /\b(usdjpy|ين)\b/i, symbol: 'USDJPY' },
+    { pattern: /\b(spx|s&p)\b/i, symbol: 'SPX' },
+    { pattern: /\b(ndx|nasdaq|ناسداك)\b/i, symbol: 'NDX' },
+    { pattern: /\b(nvda|nvidia|إنفيديا)\b/i, symbol: 'NVDA' },
+    { pattern: /\b(aapl|apple|أبل)\b/i, symbol: 'AAPL' },
+    { pattern: /\b(tsla|tesla|تسلا)\b/i, symbol: 'TSLA' },
+  ];
+  for (const { pattern, symbol } of patterns) {
+    if (pattern.test(lower) && !assets.includes(symbol)) {
+      assets.push(symbol);
+    }
+  }
+  return assets;
+}
 
 export function detectAsset(message: string, locale: Locale): DetectedAsset | null {
   const assets = detectMentionedAssets(message);

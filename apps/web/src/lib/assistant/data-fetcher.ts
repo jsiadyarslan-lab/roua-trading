@@ -963,7 +963,83 @@ export interface DataBundle {
 // V800+AI: These now use the simplified detectMentionedAssets
 // instead of the old keyword-based intent-classifier.
 
-// V493: stubs للدوال المفقودة من rouatradingnews — ترجع [] بدلاً من الخطأ
+// V495: stubs للدوال المفقودة من rouatradingnews — ترجع [] بدلاً من الخطأ
+
+// V495: buildBroadContextForAI — تبني السياق للـ AI من كل البيانات
+function buildBroadContextForAI(
+  data: {
+    prices: any[]; signals: any[]; analyses: any[]; news: any[]; reports: any[];
+    pulse: any; xref: any; knowledge: any; userProfile: any;
+    userPositions?: any[]; userClosedTrades?: any[]; councilBriefs?: any[]; userStats?: any;
+    technicalIndicators?: Record<string, any>;
+  },
+  locale: any,
+  isGCCQuery?: boolean,
+  regionalMarket?: string | null,
+): string {
+  const isAr = locale === 'ar';
+  const sections: string[] = [];
+
+  // المؤشرات الفنية
+  if (data.technicalIndicators && Object.keys(data.technicalIndicators).length > 0) {
+    sections.push(isAr ? `\n═══ 📈 المؤشرات الفنية (محسوبة من Yahoo Finance) ═══` : `\n═══ 📈 Technical Indicators ═══`);
+    for (const [symbol, ind] of Object.entries(data.technicalIndicators)) {
+      if (!ind) continue;
+      sections.push(`── ${symbol} ──`);
+      if (ind.rsi !== null) sections.push(`• RSI (14): ${ind.rsi}`);
+      if (ind.macd) sections.push(`• MACD: ${ind.macd.macd} | Signal: ${ind.macd.signal} — ${ind.macd.trend}`);
+      if (ind.ema50 !== null) sections.push(`• EMA (50): ${ind.ema50}`);
+      if (ind.support !== null) sections.push(`• Support: ${ind.support} | Resistance: ${ind.resistance}`);
+      if (ind.priceVsMA50 && ind.priceVsMA50 !== 'unknown') sections.push(`• Price vs MA50: ${ind.priceVsMA50}`);
+      if (ind.trend && ind.trend !== 'unknown') sections.push(`• Trend: ${ind.trend}`);
+    }
+    sections.push('');
+  }
+
+  // صفقات المستخدم المفتوحة
+  if (data.userPositions && data.userPositions.length > 0) {
+    sections.push(isAr ? `\n═══ 📊 صفقاتك المفتوحة (بيانات حقيقية) ═══` : `\n═══ 📊 Your Open Positions ═══`);
+    for (const p of data.userPositions) {
+      const pnlStr = p.unrealizedPnl >= 0 ? `+${p.unrealizedPnl.toFixed(2)}$` : `${p.unrealizedPnl.toFixed(2)}$`;
+      const sl = p.stopLoss ? `SL: ${p.stopLoss}` : 'SL: غير محدد';
+      const tp = p.takeProfit ? `TP: ${p.takeProfit}` : 'TP: غير محدد';
+      sections.push(`• ${p.symbol} ${p.side} | دخول: ${p.entryPrice} | حالي: ${p.currentPrice} | PnL: ${pnlStr} | ${sl} | ${tp} | المصدر: ${p.source ?? 'يدوي'}`);
+    }
+    sections.push('');
+  }
+
+  // الصفقات المغلقة
+  if (data.userClosedTrades && data.userClosedTrades.length > 0) {
+    sections.push(isAr ? `\n═══ 📋 آخر صفقاتك المغلقة ═══` : `\n═══ 📋 Recent Closed Trades ═══`);
+    for (const t of data.userClosedTrades) {
+      const icon = t.result === 'WIN' ? '🟢' : t.result === 'LOSS' ? '🔴' : '🟡';
+      sections.push(`${icon} ${t.symbol} ${t.side} | PnL: ${t.realizedPnl.toFixed(2)}$ | ${t.result}`);
+    }
+    sections.push('');
+  }
+
+  // تصويتات المجلس
+  if (data.councilBriefs && data.councilBriefs.length > 0) {
+    sections.push(isAr ? `\n═══ 🏛️ تصويتات المجلس ═══` : `\n═══ 🏛️ Council Briefs ═══`);
+    for (const b of data.councilBriefs) {
+      const icon = b.direction === 'BUY' ? '🟢' : '🔴';
+      sections.push(`${icon} ${b.symbol} ${b.direction} | ثقة: ${b.confidence}%`);
+    }
+    sections.push('');
+  }
+
+  // الإحصائيات
+  if (data.userStats) {
+    const s = data.userStats;
+    sections.push(isAr ? `\n═══ 📈 إحصائياتك (آخر 30 يوم) ═══` : `\n═══ 📈 Your Stats ═══`);
+    sections.push(`• صفقات: ${s.totalTrades} | فوز: ${s.wins} | خسارة: ${s.losses} | Win Rate: ${s.winRate}%`);
+    sections.push(`• صافي PnL: ${s.totalPnl}$ | Profit Factor: ${s.profitFactor}`);
+    sections.push(`• رصيد: ${s.displayedBalance}$ | مخاطرة: ${s.riskExposurePercent}%`);
+    sections.push('');
+  }
+
+  return sections.join('\n');
+}
 async function fetchBroadPrices(): Promise<PriceData[]> { return []; }
 async function fetchBroadSignals(): Promise<SignalData[]> { return []; }
 async function fetchBroadAnalyses(_regional?: string): Promise<AnalysisData[]> { return []; }

@@ -1289,8 +1289,15 @@ export async function POST(request: Request) {
     const [dbData, realtimeData] = await Promise.all([
       // DB data (analyses, signals, news, etc.) — wrapped to prevent crashes
       // V477: مرر rouaSession لـ fetchBroadData لكي يستخدمه fetchRouaPositions
-      fetchBroadData(sanitizedMessage, locale, userId, rouaSession).catch((err) => {
-        console.warn('[V471] fetchBroadData failed (expected — schema mismatch):', err?.message?.slice(0, 100));
+      fetchBroadData(sanitizedMessage, locale, userId, rouaSession).then((data) => {
+        // V487: logging لمعرفة ما وصل
+        console.log(`[V487] fetchBroadData result: ${data.userPositions?.length || 0} positions, ${data.councilBriefs?.length || 0} briefs, stats=${data.userStats ? 'yes' : 'no'}, contextForAI length=${data.contextForAI?.length || 0}`);
+        if (data.userPositions && data.userPositions.length > 0) {
+          console.log(`[V487] First position: ${data.userPositions[0].symbol} ${data.userPositions[0].side} PnL=${data.userPositions[0].unrealizedPnl}`);
+        }
+        return data;
+      }).catch((err) => {
+        console.warn('[V487] fetchBroadData FAILED:', err?.message?.slice(0, 150));
         return emptyFetchedData;
       }),
       // Real-time web search for current prices

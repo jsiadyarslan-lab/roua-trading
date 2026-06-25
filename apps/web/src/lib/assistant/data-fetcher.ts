@@ -1025,10 +1025,7 @@ export async function fetchMultipleAssetData(
 }
 
 // ─── Helper ──────────────────────────────────────────────────────
-
-function settledValue<T>(result: PromiseSettledResult<T>, fallback: T): T {
-  return result.status === 'fulfilled' ? result.value : fallback;
-}
+// V494: settledValue معرفة بالفعل في الأعلى — لا تكرر
 
 // ═══════════════════════════════════════════════════════════════════
 // V800: AI-First Broad Data Fetch

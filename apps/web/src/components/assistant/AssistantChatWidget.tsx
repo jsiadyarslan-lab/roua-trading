@@ -9,8 +9,20 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
-// V478: استخدم نظام auth الخاص بـ roua-trading (لا next-auth)
-import { useAuthStore } from '@/lib/auth-store';
+// V480: استخدم auth-store لكن مع تأجيل التهيئة (lazy)
+let useAuthStoreHook: any = null;
+try {
+  // dynamic import لتجنب ReferenceError عند SSR
+  const authModule = require('@/lib/auth-store');
+  useAuthStoreHook = authModule.useAuthStore;
+} catch {
+  // fallback إذا فشل التحميل
+  useAuthStoreHook = () => ({
+    user: null,
+    isAuthenticated: false,
+    isGuest: true,
+  });
+}
 import { detectStockSymbol } from '@/lib/assistant/tools';
 import { renderSparkline, renderMiniCandlestick, getTrendColor } from '@/lib/assistant/chart-helpers';
 import BrainIcon from './BrainIcon';
@@ -153,10 +165,11 @@ interface AssistantChatWidgetProps {
 }
 
 export default function AssistantChatWidget({ variant = 'floating', reportType }: AssistantChatWidgetProps) {
-  // V478: استبدال useSession (next-auth) بـ useAuthStore (roua-trading)
-  const authUser = useAuthStore(state => state.user);
-  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
-  const isGuest = useAuthStore(state => state.isGuest);
+  // V480: استخدم auth-store مع تأجيل التهيئة
+  const authState = useAuthStoreHook ? useAuthStoreHook() : { user: null, isAuthenticated: false, isGuest: true };
+  const authUser = authState?.user ?? null;
+  const isAuthenticated = authState?.isAuthenticated ?? false;
+  const isGuest = authState?.isGuest ?? true;
   // محاكاة نفس شكل session لـ التوافق مع الكود الموجود
   const session = authUser ? { user: { id: authUser.id, email: authUser.email, name: authUser.displayName } } : null;
   const authStatus = isAuthenticated ? 'authenticated' : (isGuest ? 'loading' : 'unauthenticated');

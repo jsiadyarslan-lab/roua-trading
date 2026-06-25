@@ -10,27 +10,27 @@ import { db, ensureDbReady } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-// V478: استخراج userId من roua-trading session (cookie-based)
+// V480: استخراج userId مباشرة من Prisma (لا NestJS round-trip)
 async function getUserIdFromRequest(request: NextRequest): Promise<string | null> {
   try {
-    // استخراج roua_session cookie
     const sessionCookie = request.headers.get('cookie') || '';
     const rouaSession = sessionCookie.match(/roua_session=([^;]+)/)?.[1];
     if (!rouaSession) return null;
 
-    // استدعاء NestJS للحصول على userId
-    const NESTJS_API = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001';
-    const res = await fetch(`${NESTJS_API}/api/auth/me`, {
-      headers: {
-        'Cookie': `roua_session=${rouaSession}`,
-        'x-roua-session': rouaSession,
-      },
-      signal: AbortSignal.timeout(5000),
+    const dbReady = await ensureDbReady();
+    if (!dbReady) return null;
+
+    // استعلام مباشر من جدول Session
+    const session = await (db as any).session.findUnique({
+      where: { token: rouaSession },
+      select: { userId: true, isActive: true, expiresAt: true },
     });
 
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data?.user?.id || data?.id || null;
+    if (!session || !session.isActive || session.expiresAt < new Date()) {
+      return null;
+    }
+
+    return session.userId;
   } catch {
     return null;
   }

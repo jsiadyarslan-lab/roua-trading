@@ -457,7 +457,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
     if (!session?.user?.id) return;
     const loadHistory = async () => {
       try {
-        const res = await fetch('/api/assistant/history?sessionId=current');
+        const res = await fetch('/api/assistant/history?sessionId=current', { credentials: 'include' });
         if (!res.ok) {
           console.warn('[Chat History] Load current session failed:', res.status);
           return;
@@ -490,7 +490,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
     if (!session?.user?.id) return;
     setIsLoadingHistory(true);
     try {
-      const res = await fetch('/api/assistant/history');
+      const res = await fetch('/api/assistant/history', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         console.log('[Chat History] Sessions list loaded:', data.sessions?.length || 0, 'sessions', data.sessions?.map((s: any) => ({ id: s.id?.slice(0,8), title: s.title?.slice(0,30), count: s.messageCount })));
@@ -510,7 +510,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
   const loadSession = useCallback(async (sessionId: string) => {
     if (!session?.user?.id) return;
     try {
-      const res = await fetch(`/api/assistant/history?sessionId=${sessionId}`);
+      const res = await fetch(`/api/assistant/history?sessionId=${sessionId}`, { credentials: 'include' });
       if (!res.ok) return;
       const data = await res.json();
       if (data.session?.messages) {
@@ -545,7 +545,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
   const deleteSession = useCallback(async (sessionId: string) => {
     if (!session?.user?.id) return;
     try {
-      const res = await fetch(`/api/assistant/history?sessionId=${sessionId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/assistant/history?sessionId=${sessionId}`, { method: 'DELETE', credentials: 'include' });
       if (res.ok) {
         setSessionsList(prev => prev.filter(s => s.id !== sessionId));
         // If the deleted session was the current one, clear messages
@@ -578,6 +578,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
       const res = await fetch('/api/assistant/history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           sessionId: currentSessionId || undefined,
           role,
@@ -613,6 +614,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         const res = await fetch('/api/assistant', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({ message: 'market pulse status', locale, pulseOnly: true }),
         });
         if (res.ok) {
@@ -1088,6 +1090,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
           const response = await fetch('/api/assistant', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify({
               message: promptText.trim(),
               locale,
@@ -1095,6 +1098,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
               pageUrl: typeof window !== 'undefined' ? window.location.href : '',
               deepSearch: isDeep,
               conversationMemory,
+              userId: session?.user?.id,
             }),
             signal: controller.signal,
           });

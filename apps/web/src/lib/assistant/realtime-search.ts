@@ -94,6 +94,17 @@ const SYMBOL_PATTERNS: Array<{ pattern: RegExp; symbol: string }> = [
   { pattern: /\b(nikkei|نيكي|يابان)\b/i, symbol: 'NKY' },
   { pattern: /\b(tasi|تداول|tadawul|السعودية)\b/i, symbol: 'TASI' },
   { pattern: /\b(us10y|سندات|treasury)\b/i, symbol: 'US10Y' },
+  // V474: Individual stocks — كشف مباشر برمز السهم
+  { pattern: /\b(nvda|nvidia|إنفيديا|انفيديا)\b/i, symbol: 'NVDA' },
+  { pattern: /\b(aapl|apple|أبل|ابل)\b/i, symbol: 'AAPL' },
+  { pattern: /\b(tsla|tesla|تسلا)\b/i, symbol: 'TSLA' },
+  { pattern: /\b(msft|microsoft|مايكروسوفت)\b/i, symbol: 'MSFT' },
+  { pattern: /\b(googl|google|جوجل)\b/i, symbol: 'GOOGL' },
+  { pattern: /\b(amzn|amazon|أمازون|امازون)\b/i, symbol: 'AMZN' },
+  { pattern: /\b(meta|facebook|فيسبوك|ميتا)\b/i, symbol: 'META' },
+  { pattern: /\b(nflx|netflix|نتفليكس)\b/i, symbol: 'NFLX' },
+  { pattern: /\b(amd)\b/i, symbol: 'AMD' },
+  { pattern: /\b(intc|intel|إنتل|انتل)\b/i, symbol: 'INTC' },
 ];
 
 function detectAssetsInMessage(message: string): string[] {

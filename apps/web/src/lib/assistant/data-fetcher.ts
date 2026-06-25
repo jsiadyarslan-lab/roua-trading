@@ -1016,6 +1016,21 @@ export async function fetchBroadData(
   const sources: string[] = [];
   const knownNumbers = new Set<string>();
 
+  // V485: اجلب بيانات المستخدم أولاً (قبل أي DB query قد تفشل)
+  // المشكلة: fetchBroadPrices/Signals/Analyses/News تستدعي جداول غير موجودة
+  // في roua-trading → الخطأ يُرمى → .catch() يرجع emptyFetchedData → الصفقات تُفقد
+  // الحل: اجلب الصفقات أولاً، ثم حاول الباقي في try-catch منفصل
+  const userData = await fetchRouaTradingUserData(userMessage, locale, userId, sessionCookie).catch((err) => {
+    console.warn('[V485] fetchRouaTradingUserData failed:', err?.message?.slice(0, 80));
+    return null;
+  });
+  const userPositions = userData?.positions ?? [];
+  const userClosedTrades = userData?.closedTrades ?? [];
+  const councilBriefs = userData?.councilBriefs ?? [];
+  const userStats = userData?.stats ?? null;
+
+  console.log(`[V485] User data: ${userPositions.length} positions, ${councilBriefs.length} briefs, stats=${userStats ? 'yes' : 'no'}`);
+
   // V800: Detect if user mentions specific assets (for cross-reference only)
   // This is NOT for deciding what data to fetch — we fetch everything.
   // It's just for enriching cross-reference data for mentioned assets.
@@ -1105,13 +1120,7 @@ export async function fetchBroadData(
     if (a.priceAtAnalysis) knownNumbers.add(a.priceAtAnalysis.toString());
   }
 
-  // V469: جلب بيانات roua-trading من NestJS (صفقات المستخدم + المجلس + إحصائيات)
-  // يجب أن يتم قبل بناء contextForAI لكي تتضمنه البيانات
-  const userData = await fetchRouaTradingUserData(message, locale, userId, sessionCookie).catch(() => null);
-  const userPositions = userData?.positions ?? [];
-  const userClosedTrades = userData?.closedTrades ?? [];
-  const councilBriefs = userData?.councilBriefs ?? [];
-  const userStats = userData?.stats ?? null;
+  // V485: userData تم جلبه في بداية الدالة (قبل الـ DB queries التي قد تفشل)
 
   // V475: حساب المؤشرات الفنية (RSI, MACD, EMA, Support, Resistance) لكل أصل مكتشف
   // يجلب candles من Yahoo Finance ثم يحسب المؤشرات

@@ -1222,13 +1222,19 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       // This is the fix for the "frozen candle" bug on mobile: previously
       // the price-tick path never created new candles, so when polling was
       // throttled by the browser, no new candle would appear.
-      const s = sanitizeOhlc(price, price, price, price);
+      //
+      // V462c: Do NOT apply sanitizeOhlc to the new candle. sanitizeOhlc
+      // expands high/low but leaves open===close, so the body stays flat
+      // (renders as invisible dot). A brand-new candle is SUPPOSED to be
+      // flat (open=high=low=close=price) — that's the natural state at
+      // the start of a period. The body will appear as soon as the next
+      // price tick moves close away from open.
       const newCandle: CandleData = {
         time: currentPeriodStart,
-        open: s.open,
-        high: s.high,
-        low: s.low,
-        close: s.close,
+        open: price,
+        high: price,
+        low: price,
+        close: price,
         volume: 1,
       };
       candles.push(newCandle);
@@ -1237,7 +1243,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         candlesRef.current = candles.slice(candles.length - MAX_VISIBLE_CANDLES);
       }
 
-      console.warn(`[V462] 🆕 NEW ${timeframe} CANDLE created at:`, new Date(currentPeriodStart * 1000).toLocaleTimeString(), 'open=', price);
+      console.warn(`[V462c] 🆕 NEW ${timeframe} CANDLE: time=${new Date(currentPeriodStart * 1000).toLocaleTimeString()} open=${price} (flat — body appears when price moves)`);
 
       if (settings.type === 'line' || settings.type === 'area') {
         try {
@@ -1263,7 +1269,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
             time: currentPeriodStart as Time,
             open: newCandle.open, high: newCandle.high, low: newCandle.low, close: newCandle.close,
           } as any);
-        } catch { /* chart destroyed */ }
+        } catch (e) {
+          console.warn(`[V462c] series.update failed for new candle:`, e);
+        }
       }
 
       // Update volume for new candle
@@ -1467,7 +1475,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         // high وlow: دائماً نأخذ الأقصى — لا يتراجعان أبداً
         const mergedHigh = Math.max(lastCandle.high, candle.high);
         const mergedLow  = Math.min(lastCandle.low,  candle.low);
-        const s = sanitizeOhlc(candle.open, mergedHigh, mergedLow, closeToUse);
+        // V462c: ALWAYS keep lastCandle.open — NEVER use candle.open from polling.
+        // The polling path can send a different open (from backend's first tick
+        // of the period), which would make the candle body jump between values.
+        // The open is set once when the candle is created (in updateLastCandle's
+        // new-candle branch) and must NEVER change during the period.
+        const s = sanitizeOhlc(lastCandle.open, mergedHigh, mergedLow, closeToUse);
         // V461: Create a NEW object — never mutate lastCandle in place.
         const updated: CandleData = {
           time: time as number,

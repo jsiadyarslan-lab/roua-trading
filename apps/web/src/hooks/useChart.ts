@@ -1285,9 +1285,16 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         } catch { /* chart destroyed */ }
       }
 
-      // V462: Scroll to real-time so the new candle is visible
+      // V462e: Scroll to real-time with setTimeout(10ms) to prevent
+      // "chart pulls itself into corner" issue. Direct call races with
+      // the series.update() paint cycle. setTimeout lets the paint finish
+      // first, then scrolls smoothly.
       if (chart) {
-        try { chart.timeScale().scrollToRealTime(); } catch { /* non-critical */ }
+        try {
+          setTimeout(() => {
+            try { chart.timeScale().scrollToRealTime(); } catch { /* non-critical */ }
+          }, 10);
+        } catch { /* non-critical */ }
       }
 
       // Refresh indicators on new candle (V462: use ref to avoid TDZ)

@@ -1383,12 +1383,13 @@ export default function RouaChart({
             initializeState(incState, unique);
             incrementalInitializedRef.current = true;
           } catch { /* incremental calc not critical */ }
-          // FIX: Auto-fit chart to show new timeframe data range.
-          // Without this, the chart may keep the old scroll position and the
-          // user sees blank or unchanged data even though new data was loaded.
-          requestAnimationFrame(() => {
-            if (!cancelled) resetViewRef.current();
-          });
+          // V462e: DISABLED resetView on fetchCandles — was causing the chart
+          // to jump/zoom every time data was fetched. scrollToRealTime() in
+          // updateLastCandle already keeps the view on the latest candle.
+          // Only fit content on the VERY FIRST load (when user hasn't scrolled yet).
+          // requestAnimationFrame(() => {
+          //   if (!cancelled) resetViewRef.current();
+          // });
           // DISABLED: Auto-run pattern detection removed.
           // Patterns are ONLY drawn when the user explicitly enables overlay
           // toggles in the AI Smart Panel. Previously this auto-drew all
@@ -1577,36 +1578,35 @@ export default function RouaChart({
     }
   }, [currentPrice]);
 
-  // ── V461/V462 DIAGNOSTIC: Live candle snapshot every 10s ──
-  // SAFE: This is a read-only observer. It does NOT touch any data path,
-  // does NOT call series.update(), does NOT mutate candlesRef.
-  // It only reads the LAST candle from candlesRef.current and logs it.
-  // V462: Changed interval to 10s and added ageMinutes for easier diagnosis
-  // of the "frozen candle" bug. If ageMinutes > 1.5 on a 1m chart, the
-  // new-candle logic in updateLastCandle is not firing.
+  // ── V462e DIAGNOSTIC: Live Candle Debug every 3s (user-requested) ──
+  // SAFE: Read-only observer. Logs OHLC, body size, total candles.
+  // Watch this when the chart breaks (after 4-5 candles) to see if:
+  //   - Body Size goes to 0 → candle being wiped/reset
+  //   - Total candles decreases → setData() called somewhere
+  //   - Time jumps backward → stale data overwriting
   useEffect(() => {
     const interval = setInterval(() => {
       const candles = candlesRef.current;
       if (!candles || candles.length === 0) return;
       const last = candles[candles.length - 1];
       const prev = candles.length > 1 ? candles[candles.length - 2] : null;
+      const bodySize = Math.abs((last.close || 0) - (last.open || 0));
       const now = Math.floor(Date.now() / 1000);
       const ageSeconds = now - (last.time as number);
-      const ageMinutes = (ageSeconds / 60).toFixed(1);
-      console.warn(`[V462] 📊 ${timeframe_} Status: symbol=${selectedSymbol_} mobile=${mobile}`, {
-        lastTime: last.time ? new Date(last.time * 1000).toLocaleTimeString() : null,
-        ageMinutes,
+      console.warn(`[V462e] 🔍 ${timeframe_} Debug:`, {
+        time: last.time ? new Date(last.time * 1000).toLocaleTimeString() : 'N/A',
         ageSeconds,
-        open: last.open,
-        high: last.high,
-        low: last.low,
-        close: last.close,
-        volume: last.volume,
-        prevClose: prev?.close,
+        O: last.open,
+        H: last.high,
+        L: last.low,
+        C: last.close,
+        bodySize: bodySize.toFixed(6),
         totalCandles: candles.length,
+        prevClose: prev?.close,
         currentPrice,
+        mobile,
       });
-    }, 10000);
+    }, 3000);
     return () => clearInterval(interval);
   }, [selectedSymbol_, timeframe_, mobile, currentPrice]);
 
@@ -2118,10 +2118,11 @@ export default function RouaChart({
 
       // Re-fetch data to ensure fresh candles
       setCandlesRef.current([...candlesRef.current]);
-      // Fit content to show all candles
-      setTimeout(() => {
-        resetViewRef.current();
-      }, 300);
+      // V462e: DISABLED resetView on multi-chart transition — was causing
+      // the chart to zoom out unexpectedly. User scroll position is respected.
+      // setTimeout(() => {
+      //   resetViewRef.current();
+      // }, 300);
     }
   }, [isMultiChart, isGridCell]); // FIX: Removed chart.chartRef/chart.containerRef from deps — refs are stable
 

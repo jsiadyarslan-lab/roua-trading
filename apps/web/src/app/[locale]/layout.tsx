@@ -37,6 +37,10 @@ export const viewport: Viewport = {
   maximumScale: 1,
   viewportFit: 'cover',
   themeColor: '#0B0E14',
+  // V465: interactiveWidget='resizes-visual' lets the visual viewport
+  // resize when the keyboard appears, instead of resizing the layout viewport.
+  // This works with our visualViewport listener to keep the chart sized correctly.
+  interactiveWidget: 'resizes-visual',
 }
 
 export async function generateMetadata({

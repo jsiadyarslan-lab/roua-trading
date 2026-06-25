@@ -118,6 +118,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const shortcutsRef = useRef<KeyboardShortcuts | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const windowResizeHandlerRef = useRef<(() => void) | null>(null);
+  // V465: visualViewport handler ref (for cleanup on chart destroy)
+  const visualViewportHandlerRef = useRef<(() => void) | null>(null);
   // نتتبع آخر dimensions طبقناها على الشارت — أدق من chart.options()
   const lastAppliedSizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
   const mainSeriesRef = useRef<ISeriesApi<SeriesType> | null>(null);
@@ -746,6 +748,37 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     window.addEventListener('resize', handleWindowResize);
     windowResizeHandlerRef.current = handleWindowResize;
 
+    // ── V465: Visual Viewport Listener (critical for real mobile) ──
+    // On real mobile browsers, window.innerWidth/innerHeight change when
+    // the URL bar shows/hides. The visualViewport API fires 'resize' and
+    // 'scroll' events for these changes — window 'resize' does NOT fire
+    // for URL bar show/hide on iOS Safari.
+    // This is the key difference between desktop-mobile-view (stable
+    // innerHeight) and real mobile (constant innerHeight changes).
+    const handleVisualViewportChange = () => {
+      if (!chart || !containerRef.current) return;
+      if (winResizeTimer) clearTimeout(winResizeTimer);
+      winResizeTimer = setTimeout(() => {
+        if (chart && containerRef.current) {
+          const w = containerRef.current.clientWidth;
+          const h = containerRef.current.clientHeight;
+          if (w > 0 && h > 0) {
+            const last = lastAppliedSizeRef.current;
+            if (Math.abs(last.w - w) < 3 && Math.abs(last.h - h) < 3) return;
+            chart.applyOptions({ width: w, height: h });
+            lastAppliedSizeRef.current = { w, h };
+          }
+        }
+        winResizeTimer = null;
+      }, 100);
+    };
+    if (typeof window !== 'undefined' && window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleVisualViewportChange);
+      window.visualViewport.addEventListener('scroll', handleVisualViewportChange);
+    }
+    // Store for cleanup
+    visualViewportHandlerRef.current = handleVisualViewportChange;
+
     // ── Subscribe to visible range change (if callback already registered) ──
     if (visibleRangeCallbackRef.current) {
       chart.timeScale().subscribeVisibleLogicalRangeChange(visibleRangeCallbackRef.current);
@@ -855,6 +888,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       if (windowResizeHandlerRef.current) {
         window.removeEventListener('resize', windowResizeHandlerRef.current);
         windowResizeHandlerRef.current = null;
+      }
+      // V465: Clean up visualViewport listeners
+      if (visualViewportHandlerRef.current && typeof window !== 'undefined' && window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', visualViewportHandlerRef.current);
+        window.visualViewport.removeEventListener('scroll', visualViewportHandlerRef.current);
+        visualViewportHandlerRef.current = null;
       }
       // Clean up debounced indicator refresh timer
       if (indicatorRefreshTimerRef.current) {

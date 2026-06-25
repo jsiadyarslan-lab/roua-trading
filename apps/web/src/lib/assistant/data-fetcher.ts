@@ -1211,21 +1211,43 @@ async function fetchRouaTradingUserData(
     return null;
   }
 
-  // V477: مرر session cookie لـ NestJS لكي يتعرف على المستخدم
+  // V483: استخدم userId مباشرة إذا متوفر، وإلا استخرج من session cookie
+  let effectiveUserId = userId;
+
+  if (!effectiveUserId && sessionCookie) {
+    try {
+      const rawToken = sessionCookie.startsWith('roua_session=')
+        ? sessionCookie.substring('roua_session='.length)
+        : sessionCookie;
+      const dbReady = await ensureDbReady();
+      if (dbReady) {
+        const session = await (db as any).session.findUnique({
+          where: { token: rawToken },
+          select: { userId: true, isActive: true, expiresAt: true },
+        });
+        if (session?.isActive && session?.expiresAt > new Date()) {
+          effectiveUserId = session.userId;
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  console.log('[V483] fetchRouaTradingUserData: userId=', effectiveUserId || 'missing', 'cookie=', sessionCookie ? 'present' : 'missing');
+
+  // V483: مرر effectiveUserId لكل الدوال
   const results = await Promise.allSettled([
-    needsPositions ? fetchRouaPositions(sessionCookie) : Promise.resolve([]),
-    needsCouncil ? fetchRouaCouncilBriefs(sessionCookie) : Promise.resolve([]),
-    needsStats ? fetchRouaUserStats(sessionCookie) : Promise.resolve(null),
+    needsPositions ? fetchRouaPositions(effectiveUserId) : Promise.resolve([]),
+    needsCouncil ? fetchRouaCouncilBriefs(effectiveUserId) : Promise.resolve([]),
+    needsStats ? fetchRouaUserStats(effectiveUserId) : Promise.resolve(null),
   ]);
 
   const positions = results[0].status === 'fulfilled' ? results[0].value : [];
   const councilBriefs = results[1].status === 'fulfilled' ? results[1].value : [];
   const stats = results[2].status === 'fulfilled' ? results[2].value : null;
 
-  // اجلب الصفقات المغلقة فقط إذا طلب الأداء
   let closedTrades: UserClosedTradeData[] = [];
   if (needsStats) {
-    closedTrades = await fetchRouaClosedTrades(sessionCookie).catch(() => []);
+    closedTrades = await fetchRouaClosedTrades(effectiveUserId).catch(() => []);
   }
 
   return { positions, closedTrades, councilBriefs, stats };
@@ -1250,60 +1272,34 @@ function buildAuthHeaders(sessionCookie?: string): Record<string, string> {
   return headers;
 }
 
-async function fetchRouaPositions(sessionCookie?: string): Promise<UserPositionData[]> {
-  // V482: استخدم Prisma مباشرة بدلًا من NestJS HTTP fetch
-  // NestJS auth لا يعمل بشكل موثوق من server-to-server
-  // Prisma direct query أسرع + أكثر موثوقية
+async function fetchRouaPositions(userId?: string): Promise<UserPositionData[]> {
+  // V483: استخدم userId مباشرة — لا حاجة لـ session extraction
   try {
-    if (!sessionCookie) {
-      console.warn('[V482] fetchRouaPositions: no sessionCookie');
+    if (!userId) {
+      console.warn('[V483] fetchRouaPositions: no userId');
       return [];
     }
-
-    const rawToken = sessionCookie.startsWith('roua_session=')
-      ? sessionCookie.substring('roua_session='.length)
-      : sessionCookie;
 
     const dbReady = await ensureDbReady();
     if (!dbReady) {
-      console.warn('[V482] fetchRouaPositions: DB not ready');
+      console.warn('[V483] fetchRouaPositions: DB not ready');
       return [];
     }
 
-    // استخرج userId من session
-    const session = await (db as any).session.findUnique({
-      where: { token: rawToken },
-      select: { userId: true, isActive: true, expiresAt: true },
-    });
+    console.log('[V483] fetchRouaPositions: querying for user', userId);
 
-    if (!session || !session.isActive || session.expiresAt < new Date()) {
-      console.warn('[V482] fetchRouaPositions: session invalid or expired');
-      return [];
-    }
-
-    const userId = session.userId;
-    console.log('[V482] fetchRouaPositions: querying positions for user', userId);
-
-    // استعلم الصفقات المفتوحة مباشرة من Prisma
     const positions = await (db as any).position.findMany({
       where: { userId, status: 'OPEN' },
       orderBy: { openedAt: 'desc' },
       select: {
-        id: true,
-        symbol: true,
-        side: true,
-        entryPrice: true,
-        currentPrice: true,
-        quantity: true,
-        unrealizedPnl: true,
-        stopLoss: true,
-        takeProfit: true,
-        openedAt: true,
-        source: true,
+        id: true, symbol: true, side: true,
+        entryPrice: true, currentPrice: true, quantity: true,
+        unrealizedPnl: true, stopLoss: true, takeProfit: true,
+        openedAt: true, source: true,
       },
     });
 
-    console.log(`[V482] fetchRouaPositions: found ${positions.length} positions`);
+    console.log(`[V483] fetchRouaPositions: found ${positions.length} positions for user ${userId}`);
 
     return positions.map((p: any) => {
       const entry = Number(p.entryPrice) || 0;
@@ -1311,53 +1307,33 @@ async function fetchRouaPositions(sessionCookie?: string): Promise<UserPositionD
       const qty = Number(p.quantity) || 0;
       const pnl = Number(p.unrealizedPnl) || 0;
       const pnlPercent = entry > 0 && qty > 0
-        ? (pnl / (entry * Math.abs(qty))) * 100
-        : 0;
+        ? (pnl / (entry * Math.abs(qty))) * 100 : 0;
       return {
-        id: p.id,
-        symbol: p.symbol,
-        side: p.side,
-        entryPrice: entry,
-        currentPrice: current,
-        quantity: qty,
-        unrealizedPnl: pnl,
-        unrealizedPnlPercent: pnlPercent,
+        id: p.id, symbol: p.symbol, side: p.side,
+        entryPrice: entry, currentPrice: current, quantity: qty,
+        unrealizedPnl: pnl, unrealizedPnlPercent: pnlPercent,
         stopLoss: p.stopLoss ? Number(p.stopLoss) : null,
         takeProfit: p.takeProfit ? Number(p.takeProfit) : null,
         openedAt: p.openedAt,
         durationMinutes: p.openedAt
-          ? Math.round((Date.now() - new Date(p.openedAt).getTime()) / 60000)
-          : 0,
+          ? Math.round((Date.now() - new Date(p.openedAt).getTime()) / 60000) : 0,
         source: p.source ?? null,
       };
     });
   } catch (err: any) {
-    console.error('[V482] fetchRouaPositions error:', err?.message?.slice(0, 100));
+    console.error('[V483] fetchRouaPositions error:', err?.message?.slice(0, 100));
     return [];
   }
 }
 
-async function fetchRouaClosedTrades(sessionCookie?: string): Promise<UserClosedTradeData[]> {
+async function fetchRouaClosedTrades(userId?: string): Promise<UserClosedTradeData[]> {
   // V482: Prisma direct query بدلًا من NestJS fetch
   try {
-    if (!sessionCookie) return [];
+    if (!userId) return [];
 
-    const rawToken = sessionCookie.startsWith('roua_session=')
-      ? sessionCookie.substring('roua_session='.length)
-      : sessionCookie;
-
-    const dbReady = await ensureDbReady();
-    if (!dbReady) return [];
-
-    const session = await (db as any).session.findUnique({
-      where: { token: rawToken },
-      select: { userId: true, isActive: true, expiresAt: true },
-    });
-
-    if (!session || !session.isActive || session.expiresAt < new Date()) return [];
 
     const positions = await (db as any).position.findMany({
-      where: { userId: session.userId, status: 'CLOSED' },
+      where: { userId: userId, status: 'CLOSED' },
       orderBy: { closedAt: 'desc' },
       take: 10,
       select: {
@@ -1389,29 +1365,16 @@ async function fetchRouaClosedTrades(sessionCookie?: string): Promise<UserClosed
   }
 }
 
-async function fetchRouaCouncilBriefs(sessionCookie?: string): Promise<CouncilBriefData[]> {
+async function fetchRouaCouncilBriefs(userId?: string): Promise<CouncilBriefData[]> {
   // V482: Prisma direct query
   try {
-    if (!sessionCookie) return [];
+    if (!userId) return [];
 
-    const rawToken = sessionCookie.startsWith('roua_session=')
-      ? sessionCookie.substring('roua_session='.length)
-      : sessionCookie;
-
-    const dbReady = await ensureDbReady();
-    if (!dbReady) return [];
-
-    const session = await (db as any).session.findUnique({
-      where: { token: rawToken },
-      select: { userId: true, isActive: true, expiresAt: true },
-    });
-
-    if (!session || !session.isActive || session.expiresAt < new Date()) return [];
 
     // استعلم briefs النشطة للمستخدم + النظام
     const briefs = await (db as any).tradingBrief.findMany({
       where: {
-        OR: [{ userId: session.userId }, { userId: null }],
+        OR: [{ userId: userId }, { userId: null }],
         isActive: true,
         reviewStatus: 'ACTIVE',
       },
@@ -1443,69 +1406,43 @@ async function fetchRouaCouncilBriefs(sessionCookie?: string): Promise<CouncilBr
   }
 }
 
-async function fetchRouaUserStats(sessionCookie?: string): Promise<UserStatsData | null> {
-  // V482: Prisma direct query
-  try {
-    if (!sessionCookie) return null;
 
-    const rawToken = sessionCookie.startsWith('roua_session=')
-      ? sessionCookie.substring('roua_session='.length)
-      : sessionCookie;
+async function fetchRouaUserStats(userId?: string): Promise<UserStatsData | null> {
+  try {
+    if (!userId) return null;
 
     const dbReady = await ensureDbReady();
     if (!dbReady) return null;
 
-    const session = await (db as any).session.findUnique({
-      where: { token: rawToken },
-      select: { userId: true, isActive: true, expiresAt: true },
-    });
-
-    if (!session || !session.isActive || session.expiresAt < new Date()) return null;
-
-    const userId = session.userId;
-
-    // إحصائيات آخر 30 يوم من Position
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const closedPositions = await (db as any).position.findMany({
-      where: {
-        userId,
-        status: 'CLOSED',
-        closedAt: { gte: thirtyDaysAgo },
-      },
+      where: { userId, status: 'CLOSED', closedAt: { gte: thirtyDaysAgo } },
       select: { realizedPnl: true },
     });
 
     const openPositions = await (db as any).position.findMany({
       where: { userId, status: 'OPEN' },
-      select: { quantity: true, entryPrice: true, symbol: true },
+      select: { quantity: true, entryPrice: true },
     });
 
-    // احسب الإحصائيات
     const wins = closedPositions.filter((p: any) => Number(p.realizedPnl) > 0).length;
     const losses = closedPositions.filter((p: any) => Number(p.realizedPnl) < 0).length;
     const totalTrades = closedPositions.length;
     const totalPnl = closedPositions.reduce((s: number, p: any) => s + (Number(p.realizedPnl) || 0), 0);
     const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
 
-    // balance from AgentSettings
     const settings = await (db as any).agentSettings.findUnique({
       where: { userId },
       select: { paperBalance: true },
     });
     const displayedBalance = Number(settings?.paperBalance) || 0;
 
-    // margin = sum of (qty * entryPrice) for open positions
     const usedMargin = openPositions.reduce((s: number, p: any) => {
-      const qty = Number(p.quantity) || 0;
-      const entry = Number(p.entryPrice) || 0;
-      return s + Math.abs(qty * entry);
+      return s + Math.abs((Number(p.quantity) || 0) * (Number(p.entryPrice) || 0));
     }, 0);
 
-    const riskExposurePercent = displayedBalance > 0
-      ? (usedMargin / displayedBalance) * 100
-      : 0;
+    const riskExposurePercent = displayedBalance > 0 ? (usedMargin / displayedBalance) * 100 : 0;
 
-    // profit factor
     const grossProfit = closedPositions
       .filter((p: any) => Number(p.realizedPnl) > 0)
       .reduce((s: number, p: any) => s + Number(p.realizedPnl), 0);
@@ -1515,813 +1452,15 @@ async function fetchRouaUserStats(sessionCookie?: string): Promise<UserStatsData
     const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : wins > 0 ? 99 : 0;
 
     return {
-      totalTrades,
-      wins,
-      losses,
+      totalTrades, wins, losses,
       winRate: Math.round(winRate * 10) / 10,
       totalPnl: Math.round(totalPnl * 100) / 100,
       profitFactor: profitFactor === 99 ? 99 : Math.round(profitFactor * 100) / 100,
-      displayedBalance,
-      usedMargin,
+      displayedBalance, usedMargin,
       riskExposurePercent,
     };
   } catch (err: any) {
-    console.error('[V482] fetchRouaUserStats error:', err?.message?.slice(0, 80));
+    console.error('[V483] fetchRouaUserStats error:', err?.message?.slice(0, 80));
     return null;
   }
-}
-
-// ─── V800: Simple Asset Detection (for cross-reference only) ──────
-// We don't use this for data selection — just for enriching cross-reference.
-// V800+AI: Minimal detection — just find symbols we can cross-reference.
-// No rigid keyword matching. AI is the brain.
-
-function detectMentionedAssets(message: string): DetectedAsset[] {
-  const assets: DetectedAsset[] = [];
-  const lower = message.toLowerCase();
-
-  // Simple symbol detection — just for DB cross-reference, not for intent
-  const symbolPatterns: Array<{ pattern: RegExp; symbol: string; shortSymbol: string; nameAr: string; nameEn: string; category: DetectedAsset['category'] }> = [
-    // Crypto
-    { pattern: /\b(btc|bitcoin|بيتكوين)\b/i, symbol: 'BTCUSD', shortSymbol: 'BTC', nameAr: 'البتكوين', nameEn: 'Bitcoin', category: 'crypto' },
-    { pattern: /\b(eth|ethereum|إيثريوم)\b/i, symbol: 'ETHUSD', shortSymbol: 'ETH', nameAr: 'الإيثريوم', nameEn: 'Ethereum', category: 'crypto' },
-    { pattern: /\b(sol|solana)\b/i, symbol: 'SOLUSD', shortSymbol: 'SOL', nameAr: 'سولانا', nameEn: 'Solana', category: 'crypto' },
-    // Commodities
-    { pattern: /\b(gold|xau|ذهب)\b/i, symbol: 'XAUUSD', shortSymbol: 'XAU', nameAr: 'الذهب', nameEn: 'Gold', category: 'commodity' },
-    { pattern: /\b(silver|xag|فضة)\b/i, symbol: 'XAGUSD', shortSymbol: 'XAG', nameAr: 'الفضة', nameEn: 'Silver', category: 'commodity' },
-    { pattern: /\b(oil|wti|brent|نفط|برنت)\b/i, symbol: 'WTIUSD', shortSymbol: 'WTI', nameAr: 'النفط', nameEn: 'Crude Oil', category: 'commodity' },
-    // Forex
-    { pattern: /\b(eurusd|يورو دولار)\b/i, symbol: 'EURUSD', shortSymbol: 'EUR', nameAr: 'يورو/دولار', nameEn: 'EUR/USD', category: 'forex' },
-    { pattern: /\b(gbpusd|جنيه دولار)\b/i, symbol: 'GBPUSD', shortSymbol: 'GBP', nameAr: 'جنيه/دولار', nameEn: 'GBP/USD', category: 'forex' },
-    { pattern: /\b(usdjpy|دولار ين)\b/i, symbol: 'USDJPY', shortSymbol: 'JPY', nameAr: 'دولار/ين', nameEn: 'USD/JPY', category: 'forex' },
-    // Indices
-    { pattern: /\b(spx|s&p|ستاندرد)\b/i, symbol: 'SPX', shortSymbol: 'SPX', nameAr: 'إس آند بي 500', nameEn: 'S&P 500', category: 'index' },
-    { pattern: /\b(ndx|nasdaq|ناسداك)\b/i, symbol: 'NDX', shortSymbol: 'NDX', nameAr: 'ناسداك 100', nameEn: 'Nasdaq 100', category: 'index' },
-    // Saudi / Tadawul — V800: detect ANY mention of Saudi market
-    { pattern: /\b(tadawul|تداول|سعودي|السعودية|tasi|سهم سعودي|أسهم سعودية)\b/i, symbol: 'TASI', shortSymbol: 'TASI', nameAr: 'مؤشر تداول', nameEn: 'Tadawul All Share', category: 'stock' },
-    // Specific Saudi stocks — common tickers
-    { pattern: /\b(2222\.sr|أرامكو|aramco)\b/i, symbol: '2222.SR', shortSymbol: '2222', nameAr: 'أرامكو', nameEn: 'Saudi Aramco', category: 'stock' },
-    { pattern: /\b(1120\.sr|الراجحي|alrajhi)\b/i, symbol: '1120.SR', shortSymbol: '1120', nameAr: 'الراجحي', nameEn: 'Al Rajhi Bank', category: 'stock' },
-    { pattern: /\b(2330\.sr|سابك|sabic)\b/i, symbol: '2330.SR', shortSymbol: '2330', nameAr: 'سابك', nameEn: 'SABIC', category: 'stock' },
-    { pattern: /\b(1180\.sr|الإنماء|alinma)\b/i, symbol: '1180.SR', shortSymbol: '1180', nameAr: 'بنك الإنماء', nameEn: 'Alinma Bank', category: 'stock' },
-    { pattern: /\b(1210\.sr|الأهلي|alahli)\b/i, symbol: '1210.SR', shortSymbol: '1210', nameAr: 'البنك الأهلي', nameEn: 'NCB', category: 'stock' },
-    // V802: Qatar stocks — detect Qatar/QSE mentions
-    { pattern: /\b(qse|بورصة قطر|قطري|قطر|doha|دوحة)\b/i, symbol: 'QSE', shortSymbol: 'QSE', nameAr: 'مؤشر بورصة قطر', nameEn: 'Qatar Stock Exchange', category: 'stock' },
-    { pattern: /\b(qnb|بنك قطر الوطني)\b/i, symbol: 'QNB.QA', shortSymbol: 'QNB', nameAr: 'بنك قطر الوطني', nameEn: 'Qatar National Bank', category: 'stock' },
-    { pattern: /\b(ooredoo|أوريدو)\b/i, symbol: 'ORDS.QA', shortSymbol: 'ORDS', nameAr: 'أوريدو', nameEn: 'Ooredoo', category: 'stock' },
-    // V802: UAE stocks — detect UAE/DFM mentions
-    { pattern: /\b(dfm|أبوظبي|دبي|الإمارات|إماراتي|uae)\b/i, symbol: 'DFM', shortSymbol: 'DFM', nameAr: 'مؤشر سوق دبي المالي', nameEn: 'Dubai Financial Market', category: 'stock' },
-    { pattern: /\b(etisalat|اتصالات|e&)\b/i, symbol: 'ETISALAT.AD', shortSymbol: 'ETISALAT', nameAr: 'اتصالات', nameEn: 'Etisalat', category: 'stock' },
-    { pattern: /\b(emirates nbd|مصرف الإمارات)\b/i, symbol: 'EMIRATESNBD.UH', shortSymbol: 'ENBD', nameAr: 'مصرف الإمارات', nameEn: 'Emirates NBD', category: 'stock' },
-  ];
-
-  for (const { pattern, symbol, shortSymbol, nameAr, nameEn, category } of symbolPatterns) {
-    if (pattern.test(lower)) {
-      assets.push({ symbol, shortSymbol, nameAr, nameEn, category });
-    }
-  }
-
-  return assets;
-}
-
-// ─── V800: Broad Price Fetch ───────────────────────────────────
-// Fetch ALL major market prices — not just the ones we think the user wants.
-// AI will pick what's relevant.
-
-async function fetchBroadPrices(): Promise<PriceData[]> {
-  try {
-    const now = Date.now();
-    // Fetch all market indicators — prices, indices, crypto, commodities, forex
-    // V800+: Include ALL categories and regions (global + arabic/tadawul)
-    const indicators = await db.marketIndicator.findMany({
-      select: {
-        symbol: true, name: true, nameAr: true, value: true,
-        changePercent: true, category: true, region: true, lastUpdated: true,
-      },
-      orderBy: { category: 'asc' },
-      take: 60, // V800+: Increased to 60 — include Tadawul/Saudi indicators
-    });
-    return indicators.map(i => ({
-      symbol: i.symbol,
-      name: i.name,
-      nameAr: i.nameAr || i.name,
-      value: i.value,
-      changePercent: i.changePercent,
-      category: i.category,
-      lastUpdated: i.lastUpdated,
-      isStale: !i.lastUpdated || (now - i.lastUpdated.getTime()) > STALE_THRESHOLD_MS,
-    }));
-  } catch {
-    return [];
-  }
-}
-
-// ─── V800: Broad Signal Fetch ──────────────────────────────────
-// Fetch ALL active signals, recommendations, and council briefs — broad.
-
-async function fetchBroadSignals(): Promise<SignalData[]> {
-  try {
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-
-    const [tradingSignals, recommendations, councilBriefs] = await Promise.allSettled([
-      db.tradingSignal.findMany({
-        where: {
-          OR: [
-            { status: { in: ['ACTIVE', 'active', 'Active', 'PENDING', 'pending', 'VALID', 'valid', 'OPEN', 'open'] } },
-            { createdAt: { gte: weekAgo } },
-          ],
-        },
-        select: {
-          pair: true, action: true, confidence: true, reason: true,
-          entryPrice: true, stopLoss: true, takeProfit: true, riskReward: true,
-          source: true, category: true, timeframe: true, status: true,
-          createdAt: true,
-        },
-        orderBy: { confidence: 'desc' },
-        take: 25,
-      }),
-      db.personalizedRecommendation.findMany({
-        where: {
-          isDismissed: false,
-          OR: [
-            { validUntil: { gte: new Date() } },
-            { createdAt: { gte: weekAgo } },
-          ],
-        },
-        select: {
-          title: true, titleEn: true, recommendationType: true, summary: true,
-          action: true, confidenceScore: true, urgencyLevel: true, asset: true,
-          entryPrice: true, targetPrice: true, stopLoss: true, timeHorizon: true,
-          validUntil: true, createdAt: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 15,
-      }),
-      db.councilBrief.findMany({
-        where: {
-          reviewStatus: 'approved',
-          createdAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) },
-        },
-        select: {
-          pair: true, direction: true, entryPrice: true, stopLoss: true,
-          takeProfit: true, confidence: true, timeframe: true, consensusJson: true, createdAt: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-      }),
-    ]);
-
-    const results: SignalData[] = [];
-
-    for (const s of settledValue(tradingSignals, [])) {
-      results.push({
-        pair: s.pair, action: s.action, confidence: s.confidence,
-        reason: s.reason, entryPrice: s.entryPrice, stopLoss: s.stopLoss,
-        takeProfit: s.takeProfit, riskReward: s.riskReward, source: s.source,
-        category: s.category, timeframe: s.timeframe, status: s.status,
-        createdAt: s.createdAt, type: 'signal',
-      });
-    }
-
-    for (const r of settledValue(recommendations, [])) {
-      results.push({
-        pair: r.asset || r.title, action: r.action || 'HOLD',
-        confidence: r.confidenceScore || 50, reason: r.summary,
-        entryPrice: typeof r.entryPrice === 'number' ? r.entryPrice : (r.entryPrice ? parseFloat(String(r.entryPrice)) : null),
-        stopLoss: typeof r.stopLoss === 'number' ? r.stopLoss : (r.stopLoss ? parseFloat(String(r.stopLoss)) : null),
-        takeProfit: typeof r.targetPrice === 'number' ? r.targetPrice : (r.targetPrice ? parseFloat(String(r.targetPrice)) : null),
-        riskReward: null, source: 'AI Recommendation',
-        category: r.recommendationType, timeframe: r.timeHorizon,
-        status: 'RECOMMENDATION', createdAt: r.createdAt, type: 'recommendation',
-      });
-    }
-
-    for (const b of settledValue(councilBriefs, [])) {
-      results.push({
-        pair: b.pair, action: b.direction || 'NEUTRAL',
-        confidence: b.confidence, reason: null,
-        entryPrice: b.entryPrice, stopLoss: b.stopLoss,
-        takeProfit: b.takeProfit, riskReward: null, source: 'AI Council',
-        category: 'council', timeframe: b.timeframe,
-        status: 'COUNCIL', createdAt: b.createdAt, type: 'council',
-      });
-    }
-
-    return results;
-  } catch {
-    return [];
-  }
-}
-
-// ─── V800: Broad Analysis Fetch ────────────────────────────────
-// Fetch ALL recent analyses INCLUDING Tadawul/Saudi stocks.
-// This is the key difference — we include marketType='tadawul' analyses.
-
-async function fetchBroadAnalyses(regionalMarket: string | null = null): Promise<AnalysisData[]> {
-  try {
-    const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-
-    // V802: When user asks about a regional market (Saudi/Qatar/UAE),
-    // fetch regional analyses FIRST, then fill with global analyses.
-    // This ensures the AI sees Tadawul/QSE/DFM data prominently.
-    let regionalStockAnalyses: any[] = [];
-
-    if (regionalMarket) {
-      // V900: Broader regional filter — search by symbol, marketType, AND title content
-      // Don't limit to exact symbol patterns — also search titles for Arabic names
-      const regionalFilters: Record<string, any[]> = {
-        saudi: [
-          { marketType: { contains: 'tadawul', mode: 'insensitive' } },
-          { marketType: { contains: 'saudi', mode: 'insensitive' } },
-          { symbol: { endsWith: '.SR' } },
-          { symbol: { equals: 'TASI' } },
-          { title: { contains: 'سعودي', mode: 'insensitive' } },
-          { title: { contains: 'تداول', mode: 'insensitive' } },
-          { title: { contains: 'أرامكو', mode: 'insensitive' } },
-          { title: { contains: 'الراجحي', mode: 'insensitive' } },
-          { title: { contains: 'سابك', mode: 'insensitive' } },
-          { title: { contains: 'Tadawul', mode: 'insensitive' } },
-          { title: { contains: 'Aramco', mode: 'insensitive' } },
-        ],
-        qatar: [
-          { marketType: { contains: 'qatar', mode: 'insensitive' } },
-          { marketType: { contains: 'qse', mode: 'insensitive' } },
-          { symbol: { endsWith: '.QA' } },
-          { symbol: { endsWith: '.QR' } },
-          { title: { contains: 'قطري', mode: 'insensitive' } },
-          { title: { contains: 'قطر', mode: 'insensitive' } },
-          { title: { contains: 'Qatar', mode: 'insensitive' } },
-          { title: { contains: 'دوحة', mode: 'insensitive' } },
-        ],
-        uae: [
-          { marketType: { contains: 'uae', mode: 'insensitive' } },
-          { marketType: { contains: 'dfm', mode: 'insensitive' } },
-          { marketType: { contains: 'adsm', mode: 'insensitive' } },
-          { symbol: { endsWith: '.UH' } },
-          { symbol: { endsWith: '.AD' } },
-          { title: { contains: 'إماراتي', mode: 'insensitive' } },
-          { title: { contains: 'الإمارات', mode: 'insensitive' } },
-          { title: { contains: 'دبي', mode: 'insensitive' } },
-          { title: { contains: 'أبوظبي', mode: 'insensitive' } },
-          { title: { contains: 'Dubai', mode: 'insensitive' } },
-        ],
-      };
-
-      const filters = regionalFilters[regionalMarket] || [];
-      if (filters.length > 0) {
-        try {
-          regionalStockAnalyses = await db.stockAnalysis.findMany({
-            where: {
-              isPublished: true,
-              createdAt: { gte: twoWeeksAgo },
-              OR: filters,
-            },
-            select: {
-              title: true, slug: true, symbol: true, summary: true, analysisType: true,
-              overallSignal: true, overallScore: true, confidenceScore: true,
-              technicalScore: true, fundamentalScore: true, sentiment: true,
-              priceAtAnalysis: true, riskLevel: true, createdAt: true,
-              marketType: true,
-            },
-            orderBy: { createdAt: 'desc' },
-            take: 15, // Up to 15 regional analyses
-          });
-        } catch (regionalErr: any) {
-          console.warn(`[V802] Regional analysis fetch failed for ${regionalMarket}: ${regionalErr.message?.slice(0, 80)}`);
-        }
-      }
-    }
-
-    const regionalSymbolSet = new Set(regionalStockAnalyses.map((a: any) => a.symbol));
-    const regionalSlugSet = new Set(regionalStockAnalyses.map((a: any) => a.slug));
-
-    const [stockAnalyses, marketAnalyses] = await Promise.allSettled([
-      db.stockAnalysis.findMany({
-        where: { isPublished: true, createdAt: { gte: twoWeeksAgo } },
-        select: {
-          title: true, slug: true, symbol: true, summary: true, analysisType: true,
-          overallSignal: true, overallScore: true, confidenceScore: true,
-          technicalScore: true, fundamentalScore: true, sentiment: true,
-          priceAtAnalysis: true, riskLevel: true, createdAt: true,
-          marketType: true,  // V800: Include marketType to identify Tadawul stocks
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 20, // Broad: up to 20 analyses
-      }),
-      db.marketAnalysis.findMany({
-        where: { isPublished: true, createdAt: { gte: twoWeeksAgo } },
-        select: {
-          title: true, slug: true, assetClass: true, analysisType: true, sentiment: true,
-          confidenceScore: true, riskLevel: true, createdAt: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-      }),
-    ]);
-
-    const results: AnalysisData[] = [];
-
-    // V802: Put REGIONAL analyses FIRST so AI sees them prominently
-    for (const a of regionalStockAnalyses) {
-      results.push({
-        title: a.title, slug: a.slug, symbol: a.symbol,
-        analysisType: a.analysisType, overallSignal: a.overallSignal,
-        overallScore: a.overallScore, confidenceScore: a.confidenceScore,
-        technicalScore: a.technicalScore, fundamentalScore: a.fundamentalScore,
-        sentiment: a.sentiment, priceAtAnalysis: a.priceAtAnalysis,
-        riskLevel: a.riskLevel, summary: a.summary,
-        createdAt: a.createdAt, source: 'stock',
-      });
-    }
-
-    for (const a of settledValue(stockAnalyses, [])) {
-      // V802: Skip if already included from regional query (dedup by slug)
-      if (regionalSlugSet.has(a.slug)) continue;
-      results.push({
-        title: a.title, slug: a.slug, symbol: a.symbol,
-        analysisType: a.analysisType, overallSignal: a.overallSignal,
-        overallScore: a.overallScore, confidenceScore: a.confidenceScore,
-        technicalScore: a.technicalScore, fundamentalScore: a.fundamentalScore,
-        sentiment: a.sentiment, priceAtAnalysis: a.priceAtAnalysis,
-        riskLevel: a.riskLevel, summary: a.summary,
-        createdAt: a.createdAt, source: 'stock',
-      });
-    }
-
-    for (const a of settledValue(marketAnalyses, [])) {
-      results.push({
-        title: a.title, slug: a.slug, symbol: a.assetClass,
-        analysisType: a.analysisType, overallSignal: a.sentiment,
-        overallScore: a.confidenceScore, confidenceScore: a.confidenceScore,
-        technicalScore: null, fundamentalScore: null,
-        sentiment: a.sentiment, priceAtAnalysis: null,
-        riskLevel: a.riskLevel, summary: null,
-        createdAt: a.createdAt, source: 'market',
-      });
-    }
-
-    return results;
-  } catch {
-    return [];
-  }
-}
-
-// ─── V800: Broad News Fetch ────────────────────────────────────
-// Fetch ALL recent news, locale-prioritized but broad.
-
-async function fetchBroadNews(locale: Locale): Promise<NewsData[]> {
-  try {
-    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
-    const isAr = locale === 'ar';
-
-    // Batch 1: News in user's locale (PRIORITY)
-    const localeWhere: any = {
-      isReady: true,
-      createdAt: { gte: threeDaysAgo },
-      locale: { in: [locale, 'ar'] },
-    };
-
-    // Batch 2: All news (FALLBACK, limited)
-    const generalWhere: any = {
-      isReady: true,
-      createdAt: { gte: threeDaysAgo },
-    };
-
-    const [localeNews, generalNews] = await Promise.allSettled([
-      db.newsItem.findMany({
-        where: localeWhere,
-        select: {
-          title: true, titleAr: true, summary: true, summaryAr: true, slug: true,
-          sentiment: true, impactLevel: true, affectedAssets: true, category: true,
-          publishedAt: true, sourceName: true, locale: true,
-        },
-        orderBy: { publishedAt: 'desc' },
-        take: 20,
-      }),
-      db.newsItem.findMany({
-        where: generalWhere,
-        select: {
-          title: true, titleAr: true, summary: true, summaryAr: true, slug: true,
-          sentiment: true, impactLevel: true, affectedAssets: true, category: true,
-          publishedAt: true, sourceName: true, locale: true,
-        },
-        orderBy: { publishedAt: 'desc' },
-        take: 15,
-      }),
-    ]);
-
-    // Merge: locale-priority first, deduplicate by slug
-    const seenSlugs = new Set<string>();
-    const merged: NewsData[] = [];
-
-    for (const n of settledValue(localeNews, [])) {
-      if (n.slug && seenSlugs.has(n.slug)) continue;
-      if (n.slug) seenSlugs.add(n.slug);
-      merged.push(mapNewsItem(n));
-    }
-
-    for (const n of settledValue(generalNews, [])) {
-      if (merged.length >= 25) break;
-      if (n.slug && seenSlugs.has(n.slug)) continue;
-      if (n.slug) seenSlugs.add(n.slug);
-      const item = mapNewsItem(n);
-      if (isAr && !n.titleAr && !n.summaryAr && n.locale !== 'ar') {
-        item.needsTranslation = true;
-      }
-      merged.push(item);
-    }
-
-    return merged;
-  } catch {
-    return [];
-  }
-}
-
-// ─── V800: Build Broad Context for AI ──────────────────────────
-// Same as buildContextForAI but without intent/asset restrictions.
-// We give the AI everything and let it decide.
-
-function buildBroadContextForAI(
-  data: {
-    prices: PriceData[];
-    signals: SignalData[];
-    analyses: AnalysisData[];
-    news: NewsData[];
-    reports: ReportData[];
-    pulse: MarketPulse | null;
-    xref: string | null;
-    knowledge: string | null;
-    userProfile: UserProfileContext | null;
-    userPositions?: UserPositionData[];
-    userClosedTrades?: UserClosedTradeData[];
-    councilBriefs?: CouncilBriefData[];
-    userStats?: UserStatsData | null;
-    technicalIndicators?: Record<string, TechnicalAnalysisResult | null>;
-  },
-  locale: Locale,
-  isGCCQuery: boolean = false,
-  regionalMarket: string | null = null,
-): string {
-  const isAr = locale === 'ar';
-  const sections: string[] = [];
-
-  // Header
-  sections.push(isAr
-    ? `═══ بيانات حقيقية من قاعدة بيانات رؤى (جميع البيانات المتاحة) ═══`
-    : `═══ Real Data from Rouaa Database (all available data) ═══`);
-
-  // V900: Regional market data — PUT FIRST so AI sees it prominently
-  // When user asks about Saudi/Qatar/UAE, show regional data at the TOP
-  if (isGCCQuery && regionalMarket) {
-    const marketNames: Record<string, { ar: string; en: string; symbols: string[]; exchanges: string[]; drivers: { ar: string; en: string } }> = {
-      saudi: {
-        ar: 'السوق السعودي (تداول)',
-        en: 'Saudi Market (Tadawul)',
-        symbols: ['2222.SR', '1120.SR', '2330.SR', '1180.SR', '1210.SR', '7010.SR', '2282.SR', '5110.SR', '4005.SR', '1300.SR', 'TASI'],
-        exchanges: ['تداول', 'Tadawul'],
-        drivers: { ar: 'النفط محرك رئيسي | الريال مربوط بالدولار | رؤية 2030 | الإصلاحات الاقتصادية', en: 'Oil is key driver | SAR pegged to USD | Vision 2030 | Economic reforms' },
-      },
-      qatar: {
-        ar: 'السوق القطري (بورصة قطر)',
-        en: 'Qatar Market (QSE)',
-        symbols: ['QNB.QA', 'Industries Qatar.QA', 'Ooredoo.QA', 'QSE', 'QEWS.QA'],
-        exchanges: ['بورصة قطر', 'QSE'],
-        drivers: { ar: 'الغاز الطبيعي محرك رئيسي | الريال القطري مربوط بالدولار | استضافة فعاليات كبرى', en: 'Natural gas is key driver | QAR pegged to USD | Major events hosting' },
-      },
-      uae: {
-        ar: 'السوق الإماراتي (دبي/أبوظبي)',
-        en: 'UAE Market (DFM/ADSM)',
-        symbols: ['EMIRATESNBD.UH', 'DIB.UH', 'ETISALAT.AD', 'DFM', 'EMAAR.UH', 'FAB.UH'],
-        exchanges: ['سوق دبي المالي', 'DFM', 'أبوظبي للأوراق المالية', 'ADSM'],
-        drivers: { ar: 'التنويع الاقتصادي | دبي مركز مالي عالمي | الدرهم مربوط بالدولار | النفط في أبوظبي', en: 'Economic diversification | Dubai global financial hub | AED pegged to USD | Oil in Abu Dhabi' },
-      },
-    };
-    const market = marketNames[regionalMarket];
-    if (market) {
-      // V900: Put regional-specific data FIRST — prices for this market
-      const regionalPrices = data.prices.filter(p => {
-        const symbolMatch = market.symbols.some(s => p.symbol.toUpperCase().includes(s.toUpperCase().split('.')[0]));
-        const regionMatch = p.symbol === 'TASI' || p.symbol.endsWith('.SR') || p.symbol.endsWith('.QA') || p.symbol.endsWith('.UH') || p.symbol.endsWith('.AD');
-        const driverMatch = regionalMarket === 'saudi' && /wti|oil|نفط|brent/i.test(p.symbol + p.name);
-        return symbolMatch || regionMatch || driverMatch;
-      });
-      const regionalAnalyses = data.analyses.filter(a => {
-        const symbolMatch = market.symbols.some(s => (a.symbol || '').toUpperCase().includes(s.toUpperCase().split('.')[0]));
-        const titleMatch = /سعودي|تداول|tadawul|قطري|قطر|إماراتي|الإمارات/i.test(a.title);
-        return symbolMatch || titleMatch;
-      });
-      const regionalSignals = data.signals.filter(s => {
-        return market.symbols.some(sym => s.pair.toUpperCase().includes(sym.toUpperCase().split('.')[0]));
-      });
-
-      sections.push(isAr
-        ? `\n🇸🇦🇶🇦🇦🇪 ═══ بيانات ${market.ar} — اعرضها أولاً في ردك ═══`
-        : `\n🇸🇦🇶🇦🇦🇪 ═══ ${market.en} Data — Show this FIRST in your response ═══`);
-
-      sections.push(isAr
-        ? `المستخدم يسأل عن ${market.ar}.\nرموز البحث: ${market.symbols.join(', ')}\nمحركات السوق: ${market.drivers.ar}\n\n⚠️ ابحث عن هذه الرموز في البيانات أدناه. اعرض ما تجده أولاً. ثم أضف تحليلاً اقتصادياً ذكياً. لا تقل فقط "لا أملك بيانات".`
-        : `User is asking about ${market.en}.\nSearch symbols: ${market.symbols.join(', ')}\nMarket drivers: ${market.drivers.en}\n\n⚠️ Search for these symbols in the data below. Show what you find FIRST. Then add smart economic analysis. Don't just say "no data".`);
-
-      if (regionalPrices.length > 0) {
-        sections.push(isAr ? '\n📊 أسعار ذات صلة بالسوق:' : '\n📊 Market-relevant prices:');
-        for (const p of regionalPrices) {
-          const name = isAr && p.nameAr ? p.nameAr : p.name;
-          const change = p.changePercent >= 0 ? `+${p.changePercent.toFixed(2)}%` : `${p.changePercent.toFixed(2)}%`;
-          sections.push(`- ${name} (${p.symbol}): ${p.value.toLocaleString()} ${change}`);
-        }
-      }
-
-      if (regionalAnalyses.length > 0) {
-        sections.push(isAr ? '\n📈 تحليلات ذات صلة:' : '\n📈 Relevant analyses:');
-        for (const a of regionalAnalyses) {
-          const parts = [a.title];
-          if (a.symbol) parts.push(`(${a.symbol})`);
-          if (a.overallSignal) parts.push(`إشارة: ${a.overallSignal}`);
-          if (a.overallScore) parts.push(`تقييم: ${a.overallScore}/100`);
-          if (a.slug) parts.push(`/stock-analysis/${a.slug}`);
-          sections.push(`- ${parts.join(' | ')}`);
-        }
-      }
-
-      if (regionalSignals.length > 0) {
-        sections.push(isAr ? '\n🎯 إشارات ذات صلة:' : '\n🎯 Relevant signals:');
-        for (const s of regionalSignals) {
-          const parts = [`${s.pair}: ${s.action}`];
-          if (s.confidence) parts.push(`ثقة: ${s.confidence}%`);
-          if (s.entryPrice) parts.push(`دخول: ${s.entryPrice}`);
-          if (s.stopLoss) parts.push(`وقف: ${s.stopLoss}`);
-          if (s.takeProfit) parts.push(`هدف: ${s.takeProfit}`);
-          sections.push(`- ${parts.join(' | ')}`);
-        }
-      }
-
-      sections.push(isAr
-        ? `\n═══ نهاية بيانات ${market.ar} — الآن بيانات الأسواق الأخرى ═══`
-        : `\n═══ End of ${market.en} data — Now other markets data ═══`);
-    }
-  }
-
-  // Prices — ALL of them
-  if (data.prices.length > 0) {
-    // V900: Count stale prices for prominent warning
-    const staleCount = data.prices.filter(p => p.isStale).length;
-    const freshCount = data.prices.length - staleCount;
-    
-    if (staleCount > 0 && isAr) {
-      sections.push(`\n📊 أسعار السوق (⚠️ ${staleCount} من ${data.prices.length} سعر قديم — أخبر المستخدم أن هذه البيانات قد لا تكون محدثة):`);
-    } else if (staleCount > 0) {
-      sections.push(`\n📊 Market Prices (⚠️ ${staleCount} of ${data.prices.length} prices are stale — tell the user this data may not be current):`);
-    } else {
-      sections.push(isAr ? '\n📊 أسعار السوق:' : '\n📊 Market Prices:');
-    }
-    
-    for (const p of data.prices) {
-      const name = isAr && p.nameAr ? p.nameAr : p.name;
-      const change = p.changePercent >= 0 ? `+${p.changePercent.toFixed(2)}%` : `${p.changePercent.toFixed(2)}%`;
-      // V900: Enhanced staleness warning with actual time since update
-      let stale = '';
-      if (p.isStale && p.lastUpdated) {
-        const hoursAgo = Math.round((Date.now() - p.lastUpdated.getTime()) / (1000 * 60 * 60));
-        stale = isAr ? ` ⚠️قديم(${hoursAgo}س)` : ` ⚠️stale(${hoursAgo}h)`;
-      } else if (p.isStale) {
-        stale = ' ⚠️';
-      }
-      sections.push(`- ${name} (${p.symbol}): ${p.value.toLocaleString()} ${change}${stale}`);
-    }
-  }
-
-  // Signals — ALL of them
-  if (data.signals.length > 0) {
-    sections.push(isAr ? '\n🎯 إشارات وتوصيات التداول:' : '\n🎯 Trading Signals & Recommendations:');
-    for (const s of data.signals) {
-      const parts = [`${s.pair}: ${s.action}`];
-      if (s.confidence) parts.push(`ثقة: ${s.confidence}%`);
-      if (s.entryPrice) parts.push(`دخول: ${s.entryPrice}`);
-      if (s.stopLoss) parts.push(`وقف: ${s.stopLoss}`);
-      if (s.takeProfit) parts.push(`هدف: ${s.takeProfit}`);
-      if (s.category) parts.push(`[${s.category}]`);
-      if (s.status) parts.push(`[${s.status}]`);
-      if (s.reason) parts.push(`— ${s.reason.slice(0, 100)}`);
-      sections.push(`- ${parts.join(' | ')}`);
-    }
-  }
-
-  // Analyses — ALL including Tadawul
-  if (data.analyses.length > 0) {
-    sections.push(isAr ? '\n📈 التحليلات (بما في ذلك أسهم تداول):' : '\n📈 Analyses (including Tadawul stocks):');
-    for (const a of data.analyses) {
-      const parts = [a.title];
-      if (a.symbol) parts.push(`(${a.symbol})`);
-      if (a.overallSignal) parts.push(`إشارة: ${a.overallSignal}`);
-      if (a.overallScore) parts.push(`تقييم: ${a.overallScore}/100`);
-      if (a.confidenceScore) parts.push(`ثقة: ${a.confidenceScore}%`);
-      if (a.riskLevel) parts.push(`مخاطر: ${a.riskLevel}`);
-      if (a.sentiment) parts.push(`مشاعر: ${a.sentiment}`);
-      if (a.summary) parts.push(`— ${a.summary.slice(0, 100)}`);
-      if (a.slug) parts.push(`/stock-analysis/${a.slug}`);
-      sections.push(`- ${parts.join(' | ')}`);
-    }
-  }
-
-  // News — ALL, with translation flags
-  if (data.news.length > 0) {
-    const translateCount = data.news.filter(n => n.needsTranslation).length;
-    const arabicCount = data.news.filter(n => !n.needsTranslation).length;
-
-    if (translateCount > 0 && isAr) {
-      sections.push(`\n📰 الأخبار (بالعربية: ${arabicCount}، تحتاج ترجمة: ${translateCount}):`);
-      sections.push(`⚠️ تعليمات: الأخبار المعلمة بـ [غير عربي] ليست بالعربية — ترجمها واختمها بالعربية.`);
-    } else {
-      sections.push(isAr ? '\n📰 الأخبار:' : '\n📰 News:');
-    }
-
-    for (const n of data.news.slice(0, 20)) {
-      // V1005: Convert internal tags to natural language — no bracketed metadata that weak models echo verbatim
-      const title = isAr && n.titleAr ? n.titleAr : n.title;
-      const summary = isAr && n.summaryAr ? n.summaryAr : n.summary;
-      // Natural language suffix instead of bracketed tags
-      const sentimentAr: Record<string, string> = { positive: 'إيجابي', negative: 'سلبي', neutral: 'محايد', bullish: 'صعودي', bearish: 'هبوطي' };
-      const sentimentEn: Record<string, string> = { positive: 'positive', negative: 'negative', neutral: 'neutral', bullish: 'bullish', bearish: 'bearish' };
-      const impactAr: Record<string, string> = { low: 'منخفض', medium: 'متوسط', high: 'عالي' };
-      const impactEn: Record<string, string> = { low: 'low', medium: 'medium', high: 'high' };
-      const parts: string[] = [];
-      if (n.needsTranslation && isAr) parts.push('بحاجة لترجمة');
-      else if (n.locale && n.locale !== 'ar' && !isAr) parts.push(`language: ${n.locale}`);
-      if (n.sentiment) parts.push(isAr ? `المشاعر: ${sentimentAr[n.sentiment] || n.sentiment}` : `sentiment: ${sentimentEn[n.sentiment] || n.sentiment}`);
-      if (n.impactLevel) parts.push(isAr ? `التأثير: ${impactAr[n.impactLevel] || n.impactLevel}` : `impact: ${impactEn[n.impactLevel] || n.impactLevel}`);
-      const metaSuffix = parts.length > 0 ? ` — ${parts.join('، ')}` : '';
-      sections.push(`- ${title}${metaSuffix}${summary ? `: ${summary.slice(0, 150)}` : ''}`);
-    }
-  }
-
-  // Reports
-  if (data.reports.length > 0) {
-    sections.push(isAr ? '\n📋 التقارير:' : '\n📋 Reports:');
-    for (const r of data.reports) {
-      // V1005: Natural language for report metadata
-      const impactAr: Record<string, string> = { low: 'منخفض', medium: 'متوسط', high: 'عالي' };
-      const impactEn: Record<string, string> = { low: 'low', medium: 'medium', high: 'high' };
-      const typeAr: Record<string, string> = { Strategic: 'استراتيجي', Technical: 'فني', Economy: 'اقتصادي', Earnings: 'أرباح' };
-      const reportParts: string[] = [];
-      if (r.reportType) reportParts.push(isAr ? `النوع: ${typeAr[r.reportType] || r.reportType}` : `type: ${r.reportType}`);
-      if (r.marketImpact) reportParts.push(isAr ? `التأثير: ${impactAr[r.marketImpact] || r.marketImpact}` : `impact: ${impactEn[r.marketImpact] || r.marketImpact}`);
-      const reportMeta = reportParts.length > 0 ? ` — ${reportParts.join('، ')}` : '';
-      sections.push(`- ${r.title}${reportMeta}`);
-    }
-  }
-
-  // Market Pulse
-  if (data.pulse) {
-    const pulseText = formatMarketPulseAsContext(data.pulse, locale);
-    if (pulseText) sections.push(`\n${pulseText}`);
-  }
-
-  // Cross-reference
-  if (data.xref) {
-    sections.push(`\n${data.xref}`);
-  }
-
-  // Knowledge search results
-  if (data.knowledge) {
-    sections.push(data.knowledge);
-  }
-
-  // User profile
-  if (data.userProfile) {
-    const profileText = formatUserProfileAsContext(data.userProfile, locale);
-    if (profileText) sections.push(`\n${profileText}`);
-  }
-
-  // V900: Smart data usage guidelines — NOT a wall that makes AI say "no data"
-  sections.push(isAr
-    ? `\n📌 إرشادات استخدام البيانات:
-- الأسعار والأرقام المحددة: استخدمها فقط مما سبق — لا تخترع أرقاماً
-- التحليل والتفسير والربط: هذا دورك كعقل مالي — حلل واشرح واربط
-- إذا لم تجد بيانات عن سهم محدد: اعرض المؤشرات المتاحة (مثل TASI أو النفط) + تحليل اقتصادي + اقترح أسهماً محددة
-- IMPORTANT: لا تقل فقط "لا أملك بيانات" — دائماً قدّم ما لديك + تحليلك + اقتراحات`
-    : `\n📌 Data Usage Guidelines:
-- Specific prices & numbers: Use only from above — don't fabricate numbers
-- Analysis, interpretation, connections: This is YOUR role as a financial brain — analyze, explain, connect
-- If no data on a specific stock: Show available indicators (like TASI or oil) + economic analysis + suggest specific stocks
-- IMPORTANT: Don't just say "I don't have data" — ALWAYS show what you have + your analysis + suggestions`);
-
-  // ═══ V475: المؤشرات الفنية (RSI, MACD, EMA, Support, Resistance) ═══
-  if (data.technicalIndicators && Object.keys(data.technicalIndicators).length > 0) {
-    sections.push(isAr
-      ? `\n═══ 📈 المؤشرات الفنية (محسوبة من بيانات Yahoo Finance — حقيقية) ═══`
-      : `\n═══ 📈 Technical Indicators (computed from Yahoo Finance — real data) ═══`);
-
-    for (const [symbol, indicators] of Object.entries(data.technicalIndicators)) {
-      if (!indicators) continue;
-      sections.push(`── ${symbol} ──`);
-
-      if (indicators.rsi !== null) {
-        const rsiInterp = indicators.rsi > 70
-          ? (isAr ? 'تشبع شرائي (>70)' : 'Overbought (>70)')
-          : indicators.rsi < 30
-          ? (isAr ? 'تشبع بيعي (<30)' : 'Oversold (<30)')
-          : (isAr ? 'محايد' : 'Neutral');
-        sections.push(`• RSI (14): ${indicators.rsi} — ${rsiInterp}`);
-      }
-
-      if (indicators.macd) {
-        sections.push(`• MACD: ${indicators.macd.macd} | Signal: ${indicators.macd.signal} | Histogram: ${indicators.macd.histogram} — ${indicators.macd.trend}`);
-      }
-
-      if (indicators.ema50 !== null) {
-        sections.push(`• EMA (50): ${indicators.ema50}`);
-      }
-      if (indicators.ema20 !== null) {
-        sections.push(`• EMA (20): ${indicators.ema20}`);
-      }
-      if (indicators.sma50 !== null) {
-        sections.push(`• SMA (50): ${indicators.sma50}`);
-      }
-
-      if (indicators.support !== null && indicators.resistance !== null) {
-        sections.push(`• Support: ${indicators.support} | Resistance: ${indicators.resistance}`);
-      }
-
-      if (indicators.priceVsMA50 !== 'unknown') {
-        const vsMA = indicators.priceVsMA50 === 'above'
-          ? (isAr ? 'فوق MA50 (صعودي)' : 'Above MA50 (bullish)')
-          : (isAr ? 'تحت MA50 (هبوطي)' : 'Below MA50 (bearish)');
-        sections.push(`• Price vs MA50: ${vsMA}`);
-      }
-
-      if (indicators.trend !== 'unknown' && indicators.trend !== undefined) {
-        const trendAr = indicators.trend === 'bullish' ? 'صعودي' : indicators.trend === 'bearish' ? 'هبوطي' : 'محايد';
-        sections.push(`• Trend: ${isAr ? trendAr : indicators.trend}`);
-      }
-
-      sections.push('');
-    }
-  }
-
-  // ═══ V469: roua-trading User Data (صفقات + مجلس + إحصائيات) ═══
-  if (data.userPositions && data.userPositions.length > 0) {
-    sections.push(isAr
-      ? `\n═══ 📊 صفقاتك المفتوحة (من NestJS — بيانات حقيقية) ═══`
-      : `\n═══ 📊 Your Open Positions (from NestJS — real data) ═══`);
-    for (const p of data.userPositions) {
-      const pnlStr = p.unrealizedPnl >= 0
-        ? `+${p.unrealizedPnl.toFixed(2)}$ (+${p.unrealizedPnlPercent.toFixed(2)}%)`
-        : `${p.unrealizedPnl.toFixed(2)}$ (${p.unrealizedPnlPercent.toFixed(2)}%)`;
-      const sl = p.stopLoss ? `SL: ${p.stopLoss}` : 'SL: غير محدد';
-      const tp = p.takeProfit ? `TP: ${p.takeProfit}` : 'TP: غير محدد';
-      const duration = p.durationMinutes > 60
-        ? `${(p.durationMinutes / 60).toFixed(1)} ساعة`
-        : `${p.durationMinutes} دقيقة`;
-      sections.push(
-        `• ${p.symbol} ${p.side} | دخول: ${p.entryPrice} | حالي: ${p.currentPrice} | PnL: ${pnlStr} | ${sl} | ${tp} | المدة: ${duration} | المصدر: ${p.source ?? 'يدوي'}`,
-      );
-    }
-    sections.push('');
-  }
-
-  if (data.userClosedTrades && data.userClosedTrades.length > 0) {
-    sections.push(isAr
-      ? `\n═══ 📋 آخر صفقاتك المغلقة ═══`
-      : `\n═══ 📋 Your Recent Closed Trades ═══`);
-    for (const t of data.userClosedTrades) {
-      const resultIcon = t.result === 'WIN' ? '🟢' : t.result === 'LOSS' ? '🔴' : '🟡';
-      sections.push(
-        `${resultIcon} ${t.symbol} ${t.side} | دخول: ${t.entryPrice} | خروج: ${t.exitPrice} | PnL: ${t.realizedPnl.toFixed(2)}$ | النتيجة: ${t.result} | السبب: ${t.closeReason ?? 'غير محدد'}`,
-      );
-    }
-    sections.push('');
-  }
-
-  if (data.councilBriefs && data.councilBriefs.length > 0) {
-    sections.push(isAr
-      ? `\n═══ 🏛️ تصويتات المجلس الاستراتيجي (من NestJS) ═══`
-      : `\n═══ 🏛️ Strategic Council Votes (from NestJS) ═══`);
-    for (const b of data.councilBriefs) {
-      const dirIcon = b.direction === 'BUY' ? '🟢' : '🔴';
-      sections.push(
-        `${dirIcon} ${b.symbol} ${b.direction} | ثقة: ${b.confidence}% | فريم: ${b.timeframe} | دخول: ${b.entryPrice} | SL: ${b.stopLoss} | TP: ${b.takeProfit}`,
-      );
-      if (b.analysisSummary) {
-        sections.push(`   الملخص: ${b.analysisSummary.slice(0, 200)}`);
-      }
-    }
-    sections.push('');
-  }
-
-  if (data.userStats) {
-    const s = data.userStats;
-    sections.push(isAr
-      ? `\n═══ 📈 إحصائياتك (آخر 30 يوم) ═══`
-      : `\n═══ 📈 Your Stats (last 30 days) ═══`);
-    sections.push(
-      `• إجمالي الصفقات: ${s.totalTrades} | فوز: ${s.wins} | خسارة: ${s.losses} | Win Rate: ${s.winRate.toFixed(1)}%`,
-    );
-    sections.push(`• صافي PnL: ${s.totalPnl.toFixed(2)}$ | Profit Factor: ${s.profitFactor.toFixed(2)}`);
-    sections.push(
-      `• الرصيد المعروض: ${s.displayedBalance.toFixed(2)}$ | الهامش المستخدم: ${s.usedMargin.toFixed(2)}$ | المخاطرة: ${s.riskExposurePercent.toFixed(1)}%`,
-    );
-    sections.push('');
-  }
-
-  return sections.join('\n');
 }

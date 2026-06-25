@@ -170,9 +170,25 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
   const authUser = authState?.user ?? null;
   const isAuthenticated = authState?.isAuthenticated ?? false;
   const isGuest = authState?.isGuest ?? true;
+
+  // V483: fallback — اقرأ userId من localStorage إذا authStore فشل
+  const [fallbackUserId, setFallbackUserId] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('roua_auth_user');
+      if (raw) {
+        const cached = JSON.parse(raw);
+        if (cached?.id) setFallbackUserId(cached.id);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  const effectiveUserId = authUser?.id || fallbackUserId;
+  const effectiveAuthUser = authUser || (fallbackUserId ? { id: fallbackUserId, email: '', displayName: null } : null);
+
   // محاكاة نفس شكل session لـ التوافق مع الكود الموجود
-  const session = authUser ? { user: { id: authUser.id, email: authUser.email, name: authUser.displayName } } : null;
-  const authStatus = isAuthenticated ? 'authenticated' : (isGuest ? 'loading' : 'unauthenticated');
+  const session = effectiveAuthUser ? { user: { id: effectiveAuthUser.id, email: effectiveAuthUser.email || '', name: effectiveAuthUser.displayName } } : null;
+  const authStatus = isAuthenticated || effectiveUserId ? 'authenticated' : (isGuest ? 'loading' : 'unauthenticated');
   const [isOpen, setIsOpen] = useState(variant === 'embedded');
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');

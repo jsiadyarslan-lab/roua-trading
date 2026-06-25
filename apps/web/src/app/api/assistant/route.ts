@@ -1290,14 +1290,16 @@ export async function POST(request: Request) {
       // DB data (analyses, signals, news, etc.) — wrapped to prevent crashes
       // V477: مرر rouaSession لـ fetchBroadData لكي يستخدمه fetchRouaPositions
       fetchBroadData(sanitizedMessage, locale, userId, rouaSession).then((data) => {
-        // V487: logging لمعرفة ما وصل
-        console.log(`[V487] fetchBroadData result: ${data.userPositions?.length || 0} positions, ${data.councilBriefs?.length || 0} briefs, stats=${data.userStats ? 'yes' : 'no'}, contextForAI length=${data.contextForAI?.length || 0}`);
+        // V488: استخدم console.warn (console.log يُحذف في production)
+        console.warn(`[V488] fetchBroadData OK: ${data.userPositions?.length || 0} positions, ${data.councilBriefs?.length || 0} briefs, stats=${data.userStats ? 'yes' : 'no'}, ctxLen=${data.contextForAI?.length || 0}`);
         if (data.userPositions && data.userPositions.length > 0) {
-          console.log(`[V487] First position: ${data.userPositions[0].symbol} ${data.userPositions[0].side} PnL=${data.userPositions[0].unrealizedPnl}`);
+          console.warn(`[V488] Pos1: ${data.userPositions[0].symbol} ${data.userPositions[0].side} PnL=${data.userPositions[0].unrealizedPnl}`);
+        } else {
+          console.warn('[V488] NO POSITIONS — userPositions is empty');
         }
         return data;
       }).catch((err) => {
-        console.warn('[V487] fetchBroadData FAILED:', err?.message?.slice(0, 150));
+        console.warn('[V488] fetchBroadData FAILED:', err?.message?.slice(0, 150));
         return emptyFetchedData;
       }),
       // Real-time web search for current prices

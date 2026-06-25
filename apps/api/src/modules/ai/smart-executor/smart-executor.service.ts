@@ -3372,6 +3372,18 @@ export class SmartExecutorService implements OnModuleDestroy {
         return result;
       }
 
+      // V421 FIX: Sanity check on commodity prices.
+      // BRENT/USD and WTI/USD must be priced in $50-$200/barrel range.
+      // If price source returns wrong values (e.g. $0.000257 instead of $85),
+      // the position size explodes: $500 / $0.000257 = 1.9M units.
+      // Wrong prices also inflate paperBalance via PnL asymmetry.
+      const isCommodityPair = brief.pair === 'BRENT/USD' || brief.pair === 'WTI/USD';
+      if (isCommodityPair && (currentPrice < 20 || currentPrice > 300)) {
+        result.error = `Commodity price sanity failed: ${brief.pair}=$${currentPrice} (expected $20–$300/barrel)`;
+        this.logger.warn(`⚔️ V421: ${brief.pair} price $${currentPrice} is outside $20–$300 range — price source is wrong, skipping to prevent balance inflation`);
+        return result;
+      }
+
       // V204 FIX: Minimum SL distance check raised from 0.5% to 1.0%.
       // Without this, a stop loss only 0.1% away from entry produces
       // enormous quantities (e.g., DOGE: $150 risk / $0.0001 = 1.5M units).
@@ -3829,6 +3841,18 @@ export class SmartExecutorService implements OnModuleDestroy {
       if (freeCash <= 0) {
         this.logger.warn(`⚔️ V204: paperBalance is $${freeCash} for user ${userId} — no capital available`);
         return 0;
+      }
+      // V421 FIX: Cap paperBalance at $50,000 max.
+      // If balance is inflated (e.g. wrong commodity prices adding phantom PnL),
+      // cap it to prevent runaway position sizing.
+      // Real users wanting >$50K paper balance should use real trading.
+      const MAX_PAPER_BALANCE = 50_000;
+      if (freeCash > MAX_PAPER_BALANCE) {
+        this.logger.warn(
+          `⚔️ V421: paperBalance $${freeCash.toFixed(2)} exceeds $${MAX_PAPER_BALANCE} cap — ` +
+          `using $${MAX_PAPER_BALANCE} for position sizing (likely inflated by wrong commodity prices)`
+        );
+        return MAX_PAPER_BALANCE;
       }
       return freeCash;
     } catch (err: any) {

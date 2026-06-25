@@ -1286,19 +1286,13 @@ export async function POST(request: Request) {
       knownNumbers: new Set<string>(),
     };
 
+    // V489: logging ما يُمرر لـ fetchBroadData (خارج Promise.all!)
+    console.warn(`[V489] Calling fetchBroadData: userId=${userId || 'MISSING'}, rouaSession=${rouaSession ? rouaSession.slice(0, 10) + '...' : 'MISSING'}`);
+
     const [dbData, realtimeData] = await Promise.all([
       // DB data (analyses, signals, news, etc.) — wrapped to prevent crashes
-      // V477: مرر rouaSession لـ fetchBroadData لكي يستخدمه fetchRouaPositions
-      // V489: logging ما يُمرر لـ fetchBroadData
-      console.warn(`[V489] Calling fetchBroadData: userId=${userId || 'MISSING'}, rouaSession=${rouaSession ? rouaSession.slice(0, 10) + '...' : 'MISSING'}, cookieHeader=${sessionCookie ? 'present(' + sessionCookie.length + ' chars)' : 'MISSING'}`),
       fetchBroadData(sanitizedMessage, locale, userId, rouaSession).then((data) => {
-        // V488: استخدم console.warn (console.log يُحذف في production)
-        console.warn(`[V488] fetchBroadData OK: ${data.userPositions?.length || 0} positions, ${data.councilBriefs?.length || 0} briefs, stats=${data.userStats ? 'yes' : 'no'}, ctxLen=${data.contextForAI?.length || 0}`);
-        if (data.userPositions && data.userPositions.length > 0) {
-          console.warn(`[V488] Pos1: ${data.userPositions[0].symbol} ${data.userPositions[0].side} PnL=${data.userPositions[0].unrealizedPnl}`);
-        } else {
-          console.warn('[V488] NO POSITIONS — userPositions is empty');
-        }
+        console.warn(`[V488] fetchBroadData OK: ${data.userPositions?.length || 0} positions, ctxLen=${data.contextForAI?.length || 0}`);
         return data;
       }).catch((err) => {
         console.warn('[V488] fetchBroadData FAILED:', err?.message?.slice(0, 150));

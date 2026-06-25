@@ -1217,12 +1217,29 @@ export async function POST(request: Request) {
     console.log(`[V1000] Phase 1 complete: AI analyzed message — assets=[${searchPlan.assets.join(',')}], type=${searchPlan.responseType}, realtime=${searchPlan.needsRealtimePrices}`);
 
     // ── PHASE 2: Execute searches IN PARALLEL — based on AI's guidance ──
+    // V471: wrap fetchBroadData in try-catch — DB tables from rouatradingnews
+    // don't exist in roua-trading, so DB queries will fail. We return empty
+    // data instead of crashing the entire request.
+    const emptyFetchedData: FetchedData = {
+      prices: [], signals: [], analyses: [], news: [], reports: [],
+      marketPulse: null, crossReference: null, knowledgeResults: null,
+      userProfile: null, userPositions: [], userClosedTrades: [],
+      councilBriefs: [], userStats: null,
+      fetchTimeMs: 0, dataPoints: 0, sources: [], contextForAI: '',
+      knownNumbers: new Set<string>(),
+    };
+
     const [dbData, realtimeData] = await Promise.all([
-      // DB data (analyses, signals, news, etc.)
-      fetchBroadData(sanitizedMessage, locale, userId),
+      // DB data (analyses, signals, news, etc.) — wrapped to prevent crashes
+      fetchBroadData(sanitizedMessage, locale, userId).catch((err) => {
+        console.warn('[V471] fetchBroadData failed (expected — schema mismatch):', err?.message?.slice(0, 100));
+        return emptyFetchedData;
+      }),
       // Real-time web search for current prices
       searchPlan.needsRealtimePrices
-        ? searchRealTimePrices(sanitizedMessage, locale)
+        ? searchRealTimePrices(sanitizedMessage, locale).catch(() => ({
+            prices: [], marketContext: '', searchTimeMs: 0, queriesUsed: 0, sources: []
+          } as RealtimeSearchResult))
         : Promise.resolve({ prices: [], marketContext: '', searchTimeMs: 0, queriesUsed: 0, sources: [] } as RealtimeSearchResult),
     ]);
 

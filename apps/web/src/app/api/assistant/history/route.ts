@@ -102,33 +102,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Database unavailable' }, { status: 503 });
     }
 
-    // إنشاء جدول chat_sessions إذا لم يكن موجودًا
+    // V511: إنشاء الجداول + ALTER TABLE لإضافة أعمدة ناقصة
     try {
-      await db.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS chat_sessions (
-          id TEXT PRIMARY KEY,
-          "userId" TEXT NOT NULL,
-          locale TEXT NOT NULL DEFAULT 'ar',
-          title TEXT,
-          "pageUrl" TEXT,
-          "messageCount" INTEGER DEFAULT 0,
-          "createdAt" TIMESTAMP DEFAULT NOW(),
-          "updatedAt" TIMESTAMP DEFAULT NOW()
-        )
-      `);
-      await db.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS chat_messages (
-          id TEXT PRIMARY KEY,
-          "sessionId" TEXT NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
-          role TEXT NOT NULL,
-          content TEXT NOT NULL,
-          sources TEXT,
-          "toolsUsed" TEXT,
-          "createdAt" TIMESTAMP DEFAULT NOW()
-        )
-      `);
+      await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS chat_sessions (id TEXT PRIMARY KEY, "userId" TEXT NOT NULL, locale TEXT DEFAULT 'ar', title TEXT, "pageUrl" TEXT, "messageCount" INTEGER DEFAULT 0, "createdAt" TIMESTAMP DEFAULT NOW(), "updatedAt" TIMESTAMP DEFAULT NOW())`);
+      await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS chat_messages (id TEXT PRIMARY KEY, "sessionId" TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, sources TEXT, "toolsUsed" TEXT, "createdAt" TIMESTAMP DEFAULT NOW())`);
+      // ALTER TABLE ADD COLUMN IF NOT EXISTS — لإضافة أعمدة ناقصة في الجداول الموجودة
+      await db.$executeRawUnsafe(`ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS "userId" TEXT`).catch(() => {});
+      await db.$executeRawUnsafe(`ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS locale TEXT DEFAULT 'ar'`).catch(() => {});
+      await db.$executeRawUnsafe(`ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS title TEXT`).catch(() => {});
+      await db.$executeRawUnsafe(`ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS "pageUrl" TEXT`).catch(() => {});
+      await db.$executeRawUnsafe(`ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS "messageCount" INTEGER DEFAULT 0`).catch(() => {});
+      await db.$executeRawUnsafe(`ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP DEFAULT NOW()`).catch(() => {});
+      await db.$executeRawUnsafe(`ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP DEFAULT NOW()`).catch(() => {});
+      await db.$executeRawUnsafe(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS "sessionId" TEXT`).catch(() => {});
+      await db.$executeRawUnsafe(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS role TEXT`).catch(() => {});
+      await db.$executeRawUnsafe(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS content TEXT`).catch(() => {});
+      await db.$executeRawUnsafe(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS sources TEXT`).catch(() => {});
+      await db.$executeRawUnsafe(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS "toolsUsed" TEXT`).catch(() => {});
+      await db.$executeRawUnsafe(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP DEFAULT NOW()`).catch(() => {});
     } catch (createErr) {
-      // قد تكون الجداول موجودة بالفعل — تجاهل الخطأ
+      // تجاهل
     }
 
     if (action === 'create_session') {

@@ -599,17 +599,36 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
 
   // ─── Save message to server for logged-in users ────────────────
   const saveMessageToServer = useCallback(async (role: 'user' | 'assistant', content: string, sources?: string[], toolsUsed?: string[]) => {
-    // V510: حفظ في localStorage بدلاً من DB (DB تسبب أخطاء 500)
+    if (!session?.user?.id) return;
     try {
-      const key = `roua_chat_history_${session?.user?.id || 'guest'}`;
-      const history = JSON.parse(localStorage.getItem(key) || '[]');
-      history.push({ role, content, timestamp: Date.now(), sources, toolsUsed });
-      if (history.length > 100) history.shift();
-      localStorage.setItem(key, JSON.stringify(history));
+      const currentSessionId = chatSessionIdRef.current;
+      const res = await fetch('/api/assistant/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          action: currentSessionId ? 'save_message' : 'create_session',
+          sessionId: currentSessionId || undefined,
+          role,
+          content,
+          sources,
+          toolsUsed,
+          locale,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (!currentSessionId && data.sessionId) {
+          chatSessionIdRef.current = data.sessionId;
+          setChatSessionId(data.sessionId);
+        }
+      } else {
+        console.warn('[Chat History] Save failed:', res.status);
+      }
     } catch {
-      // ignore localStorage errors
+      // network error — ignore
     }
-  }, [session]);
+  }, [session, locale]);
 
   // ─── Market pulse simulation ────────────────────────────────────
   useEffect(() => {

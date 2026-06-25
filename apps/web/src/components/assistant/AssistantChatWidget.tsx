@@ -7,10 +7,12 @@
 // living personality, memory, inline charts, voice, VLM, deep search.
 // Icon: 3D wireframe brain, pulsating blue glow.
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { usePathname } from 'next/navigation';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+// V501: استخدم dynamic import لتجنب مشاكل ESM مع react-markdown v10
+const ReactMarkdown = dynamic(() => import('react-markdown'), { ssr: false });
+const remarkGfm = require('remark-gfm');
 // V480: استخدم auth-store لكن مع تأجيل التهيئة (lazy)
 let useAuthStoreHook: any = null;
 try {

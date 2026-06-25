@@ -1,3 +1,34 @@
+/* V507: CSS variables مضمّنة مباشرة — لا تعتمد على globals.css */
+:root,
+[data-theme="dark"] {
+  --bg: #050810;
+  --bg2: #080C16;
+  --bg3: #0C1220;
+  --bg4: #111828;
+  --bg5: #182030;
+  --cyan: #00E5FF;
+  --cyan2: rgba(0,229,255,.06);
+  --cyan3: rgba(0,229,255,.05);
+  --purple: #8B5CF6;
+  --purple2: rgba(139,92,246,.06);
+  --gold: #FFB800;
+  --gold2: rgba(255,184,0,.08);
+  --orange: #FF8040;
+  --bull: #22C55E;
+  --bull2: rgba(34,197,94,.08);
+  --bear: #EF5350;
+  --bear2: rgba(239,83,80,.08);
+  --border: rgba(255,255,255,.085);
+  --border2: rgba(0,229,255,.25);
+  --border3: rgba(255,255,255,.045);
+  --border4: rgba(255,255,255,.14);
+  --text: #E8EDF5;
+  --text2: #B0C4D8;
+  --text3: #8A9DB2;
+  --text4: #6A7A8E;
+  --text-head: #FFFFFF;
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    Rouaa Universal Copilot — Next-Gen AI Assistant Design System
    Surpasses ChatGPT, Claude, Gemini, Perplexity UI patterns

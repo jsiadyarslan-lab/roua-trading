@@ -599,43 +599,17 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
 
   // ─── Save message to server for logged-in users ────────────────
   const saveMessageToServer = useCallback(async (role: 'user' | 'assistant', content: string, sources?: string[], toolsUsed?: string[]) => {
-    if (!session?.user?.id) {
-      console.warn('[Chat History] Cannot save — user not logged in. session:', session ? 'exists' : 'null', 'userId:', session?.user?.id || 'missing');
-      return;
-    }
+    // V510: حفظ في localStorage بدلاً من DB (DB تسبب أخطاء 500)
     try {
-      const currentSessionId = chatSessionIdRef.current;
-      console.log('[Chat History] Saving message:', { role, sessionId: currentSessionId || 'new', contentLength: content.length });
-      const res = await fetch('/api/assistant/history', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          action: currentSessionId ? 'save_message' : 'create_session',
-          sessionId: currentSessionId || undefined,
-          role,
-          content,
-          sources,
-          toolsUsed,
-          locale,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        console.log('[Chat History] Save OK:', { sessionId: data.sessionId, messageId: data.messageId });
-        if (!currentSessionId && data.sessionId) {
-          // CRITICAL: Update ref IMMEDIATELY to avoid race condition.
-          chatSessionIdRef.current = data.sessionId;
-          setChatSessionId(data.sessionId);
-        }
-      } else {
-        const errData = await res.json().catch(() => null);
-        console.error('[Chat History] Save FAILED:', res.status, errData);
-      }
-    } catch (err) {
-      console.error('[Chat History] Save error:', err);
+      const key = `roua_chat_history_${session?.user?.id || 'guest'}`;
+      const history = JSON.parse(localStorage.getItem(key) || '[]');
+      history.push({ role, content, timestamp: Date.now(), sources, toolsUsed });
+      if (history.length > 100) history.shift();
+      localStorage.setItem(key, JSON.stringify(history));
+    } catch {
+      // ignore localStorage errors
     }
-  }, [session?.user?.id, locale]);
+  }, [session]);
 
   // ─── Market pulse simulation ────────────────────────────────────
   useEffect(() => {
@@ -1727,25 +1701,25 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
     let tableHeaders: string[] = [];
 
     const sectionStyles: Record<string, { bg: string; border: string; accent: string }> = {
-      '🧠': { bg: 'var(--purple2)', border: 'rgba(139,92,246,0.25)', accent: 'var(--purple)' },
-      '🔍': { bg: 'var(--cyan2)', border: 'var(--border2)', accent: 'var(--cyan)' },
-      '💥': { bg: 'var(--bear2)', border: 'rgba(239,68,68,0.2)', accent: 'var(--bear)' },
-      '📊': { bg: 'var(--purple2)', border: 'rgba(168,85,247,0.2)', accent: 'var(--purple)' },
-      '🎯': { bg: 'var(--bull2)', border: 'rgba(5,150,105,0.2)', accent: 'var(--bull)' },
-      '📚': { bg: 'var(--gold2)', border: 'rgba(251,191,36,0.2)', accent: 'var(--gold)' },
-      '🔒': { bg: 'var(--purple2)', border: 'rgba(99,102,241,0.2)', accent: 'var(--purple)' },
-      '❓': { bg: 'var(--cyan2)', border: 'var(--border2)', accent: 'var(--cyan)' },
-      '📈': { bg: 'var(--bull2)', border: 'rgba(34,197,94,0.2)', accent: 'var(--bull)' },
-      '📰': { bg: 'var(--gold2)', border: 'rgba(251,191,36,0.2)', accent: 'var(--gold)' },
-      '⚖️': { bg: 'var(--purple2)', border: 'rgba(168,85,247,0.2)', accent: 'var(--purple)' },
-      '⚖': { bg: 'var(--purple2)', border: 'rgba(168,85,247,0.2)', accent: 'var(--purple)' },
-      '💡': { bg: 'var(--gold2)', border: 'rgba(251,191,36,0.2)', accent: 'var(--gold)' },
-      '⚠️': { bg: 'var(--bear2)', border: 'rgba(239,68,68,0.15)', accent: 'var(--bear)' },
-      '⚠': { bg: 'var(--bear2)', border: 'rgba(239,68,68,0.15)', accent: 'var(--bear)' },
-      '💱': { bg: 'var(--bull2)', border: 'rgba(34,197,94,0.2)', accent: 'var(--bull)' },
-      '🟢': { bg: 'var(--bull2)', border: 'rgba(34,197,94,0.2)', accent: 'var(--bull)' },
-      '🔴': { bg: 'var(--bear2)', border: 'rgba(239,68,68,0.15)', accent: 'var(--bear)' },
-      '🟡': { bg: 'var(--gold2)', border: 'rgba(251,191,36,0.2)', accent: 'var(--gold)' },
+      '🧠': { bg: 'rgba(139,92,246,0.06)', border: 'rgba(139,92,246,0.25)', accent: '#8B5CF6' },
+      '🔍': { bg: 'rgba(0,229,255,0.06)', border: 'rgba(0,229,255,0.25)', accent: '#00E5FF' },
+      '💥': { bg: 'rgba(239,83,80,0.08)', border: 'rgba(239,68,68,0.2)', accent: '#EF5350' },
+      '📊': { bg: 'rgba(139,92,246,0.06)', border: 'rgba(168,85,247,0.2)', accent: '#8B5CF6' },
+      '🎯': { bg: 'rgba(34,197,94,0.08)', border: 'rgba(5,150,105,0.2)', accent: '#22C55E' },
+      '📚': { bg: 'rgba(255,184,0,0.08)', border: 'rgba(251,191,36,0.2)', accent: '#FFB800' },
+      '🔒': { bg: 'rgba(139,92,246,0.06)', border: 'rgba(99,102,241,0.2)', accent: '#8B5CF6' },
+      '❓': { bg: 'rgba(0,229,255,0.06)', border: 'rgba(0,229,255,0.25)', accent: '#00E5FF' },
+      '📈': { bg: 'rgba(34,197,94,0.08)', border: 'rgba(34,197,94,0.2)', accent: '#22C55E' },
+      '📰': { bg: 'rgba(255,184,0,0.08)', border: 'rgba(251,191,36,0.2)', accent: '#FFB800' },
+      '⚖️': { bg: 'rgba(139,92,246,0.06)', border: 'rgba(168,85,247,0.2)', accent: '#8B5CF6' },
+      '⚖': { bg: 'rgba(139,92,246,0.06)', border: 'rgba(168,85,247,0.2)', accent: '#8B5CF6' },
+      '💡': { bg: 'rgba(255,184,0,0.08)', border: 'rgba(251,191,36,0.2)', accent: '#FFB800' },
+      '⚠️': { bg: 'rgba(239,83,80,0.08)', border: 'rgba(239,68,68,0.15)', accent: '#EF5350' },
+      '⚠': { bg: 'rgba(239,83,80,0.08)', border: 'rgba(239,68,68,0.15)', accent: '#EF5350' },
+      '💱': { bg: 'rgba(34,197,94,0.08)', border: 'rgba(34,197,94,0.2)', accent: '#22C55E' },
+      '🟢': { bg: 'rgba(34,197,94,0.08)', border: 'rgba(34,197,94,0.2)', accent: '#22C55E' },
+      '🔴': { bg: 'rgba(239,83,80,0.08)', border: 'rgba(239,68,68,0.15)', accent: '#EF5350' },
+      '🟡': { bg: 'rgba(255,184,0,0.08)', border: 'rgba(251,191,36,0.2)', accent: '#FFB800' },
     };
 
     const flushTable = () => {
@@ -1757,7 +1731,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
             width: '100%',
             borderCollapse: 'collapse',
             fontSize: '11px',
-            background: 'var(--bg3)',
+            background: '#0C1220',
             borderRadius: '8px',
             overflow: 'hidden',
           }}>
@@ -1767,8 +1741,8 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
                   <th key={hi} style={{
                     padding: '6px 8px',
                     textAlign: isRtl ? 'right' : 'left',
-                    borderBottom: '1px solid var(--border2)',
-                    color: 'var(--cyan)',
+                    borderBottom: '1px solid rgba(0,229,255,0.25)',
+                    color: '#00E5FF',
                     fontWeight: 600,
                     whiteSpace: 'nowrap',
                   }}>{parseInline(h)}</th>
@@ -1782,9 +1756,9 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
                 <td key={ci} style={{
                   padding: '5px 8px',
                   textAlign: isRtl ? 'right' : 'left',
-                  borderBottom: '1px solid var(--border)',
-                  color: cell.includes('📈') || cell.includes('صاعد') || cell.includes('Up') || cell.includes('شراء') || cell.includes('Buy') ? 'var(--bull)' :
-                         cell.includes('📉') || cell.includes('هابط') || cell.includes('Down') || cell.includes('بيع') || cell.includes('Sell') ? 'var(--bear)' : 'var(--text2)',
+                  borderBottom: '1px solid rgba(255,255,255,0.085)',
+                  color: cell.includes('📈') || cell.includes('صاعد') || cell.includes('Up') || cell.includes('شراء') || cell.includes('Buy') ? '#22C55E' :
+                         cell.includes('📉') || cell.includes('هابط') || cell.includes('Down') || cell.includes('بيع') || cell.includes('Sell') ? '#EF5350' : '#B0C4D8',
                 }}>{parseInline(cell)}</td>
               ))}</tr>
             ))}</tbody>
@@ -1799,7 +1773,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
       const parts = t.split(/(\*\*[^*]+\*\*)/g);
       return parts.map((part, j) => {
         if (part.startsWith('**') && part.endsWith('**')) {
-          return <strong key={j} style={{ color: 'var(--cyan)' }}>{part.slice(2, -2)}</strong>;
+          return <strong key={j} style={{ color: '#00E5FF' }}>{part.slice(2, -2)}</strong>;
         }
         // Highlight numbers/percentages
         const numParts = part.split(/([+\-]?\d+\.?\d*\s*%)/g);
@@ -1807,7 +1781,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
           return <span key={j}>{numParts.map((np, nj) => {
             if (/^[+\-]?\d+\.?\d*\s*%$/.test(np)) {
               const isPositive = np.startsWith('+') || (!np.startsWith('-') && parseFloat(np) > 0);
-              return <span key={nj} style={{ color: isPositive ? 'var(--bull)' : 'var(--bear)', fontWeight: 600 }}>{np}</span>;
+              return <span key={nj} style={{ color: isPositive ? '#22C55E' : '#EF5350', fontWeight: 600 }}>{np}</span>;
             }
             return <span key={nj}>{np}</span>;
           })}</span>;
@@ -1829,7 +1803,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         elements.push(
           <div key={`hr-${i}`} className="my-2" style={{
             height: '1px',
-            background: 'linear-gradient(90deg, transparent, var(--border2), transparent)',
+            background: 'linear-gradient(90deg, transparent, rgba(0,229,255,0.25), transparent)',
             direction: isRtl ? 'rtl' : 'ltr',
           }} />
         );
@@ -1884,7 +1858,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
           } else {
             elements.push(
               <div key={`emoji-heading-${i}`} className="mt-3 mb-1" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-                <span style={{ color: 'var(--cyan)', fontWeight: 700, fontSize: '14px' }}>
+                <span style={{ color: '#00E5FF', fontWeight: 700, fontSize: '14px' }}>
                   <span style={{ marginRight: '4px' }}>{numText}</span>
                   {parseInline(titleText.replace(/\*\*/g, ''))}
                 </span>
@@ -1897,7 +1871,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         const fontSize = level === 1 ? '15px' : level === 2 ? '13px' : level === 3 ? '12px' : '11px';
         elements.push(
           <div key={`heading-${i}`} className="mt-2 mb-1" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-            <span style={{ color: 'var(--cyan)', fontWeight: 700, fontSize }}>{parseInline(headingText.replace(/\*\*/g, ''))}</span>
+            <span style={{ color: '#00E5FF', fontWeight: 700, fontSize }}>{parseInline(headingText.replace(/\*\*/g, ''))}</span>
           </div>
         );
         i++; continue;
@@ -1916,7 +1890,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         if (titleText && titleText.trim()) {
           elements.push(
             <div key={`bare-emoji-heading-${i}`} className="mt-3 mb-1" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-              <span style={{ color: 'var(--cyan)', fontWeight: 700, fontSize: '14px' }}>
+              <span style={{ color: '#00E5FF', fontWeight: 700, fontSize: '14px' }}>
                 <span style={{ marginRight: '4px' }}>{numText}</span>
                 {parseInline(titleText.replace(/\*\*/g, ''))}
               </span>
@@ -1932,12 +1906,12 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         elements.push(
           <div key={`quote-${i}`} className="my-1 px-3 py-1.5" style={{
             direction: isRtl ? 'rtl' : 'ltr',
-            borderLeft: isRtl ? 'none' : '2px solid var(--border2)',
-            borderRight: isRtl ? '2px solid var(--border2)' : 'none',
-            background: 'var(--cyan3)',
+            borderLeft: isRtl ? 'none' : '2px solid rgba(0,229,255,0.25)',
+            borderRight: isRtl ? '2px solid rgba(0,229,255,0.25)' : 'none',
+            background: 'rgba(0,229,255,0.05)',
             borderRadius: '4px',
           }}>
-            <span className="text-[12px] italic" style={{ color: 'var(--text2)' }}>{parseInline(quoteContent)}</span>
+            <span className="text-[12px] italic" style={{ color: '#B0C4D8' }}>{parseInline(quoteContent)}</span>
           </div>
         );
         i++; continue;
@@ -1967,7 +1941,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
       if (sectionMatch) {
         const sectionTitle = sectionMatch[1];
         const emoji = sectionTitle.charAt(0);
-        const style = sectionStyles[emoji] || { bg: 'var(--cyan2)', border: 'var(--border2)', accent: 'var(--cyan)' };
+        const style = sectionStyles[emoji] || { bg: 'rgba(0,229,255,0.06)', border: 'rgba(0,229,255,0.25)', accent: '#00E5FF' };
         elements.push(
           <div key={`section-${i}`} className="mt-3 mb-1.5 px-3 py-2 rounded-lg" style={{
             background: style.bg,
@@ -1993,8 +1967,8 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         const emoji = scenarioMatch[1];
         const desc = scenarioMatch[2].trim();
         const pct = parseInt(scenarioMatch[3]);
-        const color = emoji === '🟢' ? 'var(--bull)' : emoji === '🟡' ? 'var(--gold)' : 'var(--bear)';
-        const bgColor = emoji === '🟢' ? 'var(--bull2)' : emoji === '🟡' ? 'var(--gold2)' : 'var(--bear2)';
+        const color = emoji === '🟢' ? '#22C55E' : emoji === '🟡' ? '#FFB800' : '#EF5350';
+        const bgColor = emoji === '🟢' ? 'rgba(34,197,94,0.08)' : emoji === '🟡' ? 'rgba(255,184,0,0.08)' : 'rgba(239,83,80,0.08)';
         elements.push(
           <div key={`scenario-${i}`} className="my-1.5 px-3 py-2 rounded-lg" style={{
             background: bgColor,
@@ -2008,7 +1982,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
               </span>
               <span style={{ color, fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap' }}>{pct}%</span>
             </div>
-            <div style={{ width: '100%', height: '5px', background: 'var(--bg4)', borderRadius: '3px', overflow: 'hidden' }}>
+            <div style={{ width: '100%', height: '5px', background: '#111828', borderRadius: '3px', overflow: 'hidden' }}>
               <div style={{
                 width: `${pct}%`,
                 height: '100%',
@@ -2051,21 +2025,21 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
           // Parse change percentage to determine color
           const changeMatch = changeLine.match(/([+\-−]?\d+\.?\d*\s*%|[-+]?\d+\.?\d*\s*%)/);
           const isUp = changeMatch ? !changeMatch[1].startsWith('-') && !changeMatch[1].startsWith('−') : false;
-          const trendColor = isUp ? 'var(--bull)' : 'var(--bear)';
-          const trendBg = isUp ? 'var(--bull2)' : 'var(--bear2)';
+          const trendColor = isUp ? '#22C55E' : '#EF5350';
+          const trendBg = isUp ? 'rgba(34,197,94,0.08)' : 'rgba(239,83,80,0.08)';
 
           elements.push(
             <div key={`price-card-${i}`} className="my-2 px-3 py-2.5 rounded-lg" style={{
-              background: 'var(--bg3)',
+              background: '#0C1220',
               border: `1px solid ${trendColor}33`,
               direction: isRtl ? 'rtl' : 'ltr',
             }}>
               <div className="flex items-center justify-between gap-3" style={{ flexWrap: 'wrap' }}>
                 <div className="flex items-baseline gap-2">
-                  <span style={{ color: 'var(--text3)', fontSize: '10px', fontWeight: 600 }}>
+                  <span style={{ color: '#8A9DB2', fontSize: '10px', fontWeight: 600 }}>
                     {isRtl ? 'السعر' : 'Price'}
                   </span>
-                  <span style={{ color: 'var(--text)', fontSize: '18px', fontWeight: 700 }}>
+                  <span style={{ color: '#E8EDF5', fontSize: '18px', fontWeight: 700 }}>
                     {parseInline(currentPrice.replace(/\*\*/g, ''))}
                   </span>
                 </div>
@@ -2082,8 +2056,8 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
                   </span>
                 </div>
               </div>
-              <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--text3)' }}>
-                <span style={{ fontWeight: 600, color: 'var(--text2)' }}>
+              <div style={{ marginTop: '6px', fontSize: '11px', color: '#8A9DB2' }}>
+                <span style={{ fontWeight: 600, color: '#B0C4D8' }}>
                   {isRtl ? 'الاتجاه' : 'Trend'}:
                 </span>{' '}
                 <span style={{ color: trendColor, fontWeight: 600 }}>
@@ -2129,12 +2103,12 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
           const isSell = reasonText.includes('بيع') || reasonText.includes('sell') || reasonText.includes('short');
           const isHold = reasonText.includes('انتظر') || reasonText.includes('hold') || reasonText.includes('wait');
           const actionLabel = isSell ? (isRtl ? 'توصية بيع' : 'SELL') : isHold ? (isRtl ? 'انتظار' : 'HOLD') : (isRtl ? 'توصية شراء' : 'BUY');
-          const actionColor = isSell ? 'var(--bear)' : isHold ? 'var(--gold)' : 'var(--bull)';
-          const actionBg = isSell ? 'var(--bear2)' : isHold ? 'var(--gold2)' : 'var(--bull2)';
+          const actionColor = isSell ? '#EF5350' : isHold ? '#FFB800' : '#22C55E';
+          const actionBg = isSell ? 'rgba(239,83,80,0.08)' : isHold ? 'rgba(255,184,0,0.08)' : 'rgba(34,197,94,0.08)';
 
           elements.push(
             <div key={`rec-card-${i}`} className="my-2 rounded-lg overflow-hidden" style={{
-              background: 'var(--bg3)',
+              background: '#0C1220',
               border: `1px solid ${actionColor}44`,
               direction: isRtl ? 'rtl' : 'ltr',
             }}>
@@ -2151,33 +2125,33 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
               {/* Entry / Exit / Stop grid */}
               <div className="grid grid-cols-3 gap-2 p-2.5" style={{ fontSize: '11px' }}>
                 <div>
-                  <div style={{ color: 'var(--text3)', fontSize: '9px', fontWeight: 600, marginBottom: '2px' }}>
+                  <div style={{ color: '#8A9DB2', fontSize: '9px', fontWeight: 600, marginBottom: '2px' }}>
                     {isRtl ? 'الدخول' : 'Entry'}
                   </div>
-                  <div style={{ color: 'var(--text)', fontWeight: 700, fontSize: '12px' }}>
+                  <div style={{ color: '#E8EDF5', fontWeight: 700, fontSize: '12px' }}>
                     {parseInline(entry.replace(/\*\*/g, ''))}
                   </div>
                 </div>
                 <div>
-                  <div style={{ color: 'var(--text3)', fontSize: '9px', fontWeight: 600, marginBottom: '2px' }}>
+                  <div style={{ color: '#8A9DB2', fontSize: '9px', fontWeight: 600, marginBottom: '2px' }}>
                     {isRtl ? 'الخروج' : 'Target'}
                   </div>
-                  <div style={{ color: 'var(--bull)', fontWeight: 700, fontSize: '12px' }}>
+                  <div style={{ color: '#22C55E', fontWeight: 700, fontSize: '12px' }}>
                     {parseInline(exitLine.replace(/\*\*/g, ''))}
                   </div>
                 </div>
                 <div>
-                  <div style={{ color: 'var(--text3)', fontSize: '9px', fontWeight: 600, marginBottom: '2px' }}>
+                  <div style={{ color: '#8A9DB2', fontSize: '9px', fontWeight: 600, marginBottom: '2px' }}>
                     {isRtl ? 'وقف الخسارة' : 'Stop'}
                   </div>
-                  <div style={{ color: 'var(--bear)', fontWeight: 700, fontSize: '12px' }}>
+                  <div style={{ color: '#EF5350', fontWeight: 700, fontSize: '12px' }}>
                     {stopLine ? parseInline(stopLine.replace(/\*\*/g, '')) : '—'}
                   </div>
                 </div>
               </div>
               {reasonLine && (
-                <div style={{ padding: '4px 12px 8px', fontSize: '10px', color: 'var(--text2)', lineHeight: 1.5 }}>
-                  <span style={{ color: 'var(--text3)', fontWeight: 600 }}>{isRtl ? 'السبب: ' : 'Reason: '}</span>
+                <div style={{ padding: '4px 12px 8px', fontSize: '10px', color: '#B0C4D8', lineHeight: 1.5 }}>
+                  <span style={{ color: '#8A9DB2', fontWeight: 600 }}>{isRtl ? 'السبب: ' : 'Reason: '}</span>
                   {parseInline(reasonLine.replace(/\*\*/g, ''))}
                 </div>
               )}
@@ -2199,25 +2173,25 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
       const confMatch = trimmed.match(/(?:ثقة|درجة\s+الثقة|مستوى\s+الثقة|confidence(?:\s+level)?|confiance|güven|confianza)\s*[:：]?\s*(\d+)\s*%/i);
       if (confMatch) {
         const pct = parseInt(confMatch[1]);
-        const barColor = pct >= 75 ? 'var(--bull)' : pct >= 50 ? 'var(--gold)' : 'var(--bear)';
+        const barColor = pct >= 75 ? '#22C55E' : pct >= 50 ? '#FFB800' : '#EF5350';
         const label = isRtl
           ? (pct >= 75 ? 'ثقة عالية' : pct >= 50 ? 'ثقة متوسطة' : 'ثقة منخفضة')
           : (pct >= 75 ? 'High confidence' : pct >= 50 ? 'Medium confidence' : 'Low confidence');
         elements.push(
           <div key={`conf-${i}`} className="my-2 px-3 py-2 rounded-lg" style={{
-            background: 'var(--purple2)',
+            background: 'rgba(139,92,246,0.06)',
             border: '1px solid rgba(99,102,241,0.15)',
             direction: isRtl ? 'rtl' : 'ltr',
           }}>
             <div className="flex items-center justify-between gap-2 mb-1.5">
-              <span style={{ color: 'var(--purple)', fontSize: '11px', fontWeight: 600 }}>
+              <span style={{ color: '#8B5CF6', fontSize: '11px', fontWeight: 600 }}>
                 {isRtl ? '📊 مستوى الثقة' : '📊 Confidence Level'}
               </span>
               <span style={{ color: barColor, fontSize: '11px', fontWeight: 700 }}>
                 {label} · {pct}%
               </span>
             </div>
-            <div style={{ width: '100%', height: '6px', background: 'var(--bg4)', borderRadius: '3px', overflow: 'hidden' }}>
+            <div style={{ width: '100%', height: '6px', background: '#111828', borderRadius: '3px', overflow: 'hidden' }}>
               <div style={{ width: `${pct}%`, height: '100%', background: `linear-gradient(90deg, ${barColor}, ${barColor}88)`, borderRadius: '3px', transition: 'width 0.5s ease' }} />
             </div>
           </div>
@@ -2230,7 +2204,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
           && !/^[**]?[🎯📊⚖]/.test(trimmed)) {
         elements.push(
           <div key={`rec-${i}`} className="my-1.5 px-3 py-2 rounded-lg" style={{
-            background: 'var(--bull2)',
+            background: 'rgba(34,197,94,0.08)',
             border: '1px solid rgba(5,150,105,0.25)',
             direction: isRtl ? 'rtl' : 'ltr',
           }}>
@@ -2248,7 +2222,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         const bulletContent = trimmed.replace(/^[-•]\s+/, '');
         elements.push(
           <div key={`bullet-${i}`} className="flex gap-1.5" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-            <span style={{ color: 'var(--cyan)', marginTop: '2px' }}>&#x2022;</span>
+            <span style={{ color: '#00E5FF', marginTop: '2px' }}>&#x2022;</span>
             <span className="text-[13px] leading-relaxed">{parseInline(bulletContent)}</span>
           </div>
         );
@@ -2260,8 +2234,8 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         const bulletContent = line.trim().replace(/^[-•]\s+/, '');
         elements.push(
           <div key={`sub-bullet-${i}`} className="flex gap-1.5" style={{ direction: isRtl ? 'rtl' : 'ltr', paddingLeft: isRtl ? '0' : '16px', paddingRight: isRtl ? '16px' : '0' }}>
-            <span style={{ color: 'var(--text3)', marginTop: '2px', fontSize: '10px' }}>&#x25E6;</span>
-            <span className="text-[12px] leading-relaxed" style={{ color: 'var(--text2)' }}>{parseInline(bulletContent)}</span>
+            <span style={{ color: '#8A9DB2', marginTop: '2px', fontSize: '10px' }}>&#x25E6;</span>
+            <span className="text-[12px] leading-relaxed" style={{ color: '#B0C4D8' }}>{parseInline(bulletContent)}</span>
           </div>
         );
         i++; continue;
@@ -2287,10 +2261,10 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
   // ─── Market pulse color helper ─────────────────────────────────
   const getPulseColor = () => {
     switch (marketPulse) {
-      case 'bullish': return 'var(--bull)';
-      case 'bearish': return 'var(--bear)';
-      case 'neutral': return 'var(--gold)';
-      default: return 'var(--text3)';
+      case 'bullish': return '#22C55E';
+      case 'bearish': return '#EF5350';
+      case 'neutral': return '#FFB800';
+      default: return '#8A9DB2';
     }
   };
 
@@ -2370,12 +2344,12 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
           <div className="assistant-header px-5 py-4 flex items-center gap-3" onTouchStart={handleHeaderTouchStart} onTouchMove={handleHeaderTouchMove}>
             {/* Brain avatar */}
             <div className="assistant-header-avatar flex items-center justify-center rounded-xl" style={{ width: 40, height: 40 }}>
-              <BrainIcon size={24} color="var(--cyan)" pulse={true} />
+              <BrainIcon size={24} color="#00E5FF" pulse={true} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{text.headerTitle}</p>
+              <p className="text-sm font-bold" style={{ color: '#E8EDF5' }}>{text.headerTitle}</p>
               <div className="flex items-center gap-1.5">
-                <p className="text-xs truncate" style={{ color: 'var(--text3)' }}>{text.headerSubtitle}</p>
+                <p className="text-xs truncate" style={{ color: '#8A9DB2' }}>{text.headerSubtitle}</p>
               </div>
             </div>
             {/* Status indicator + Market pulse + History/New/Close buttons */}
@@ -2398,7 +2372,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
                   aria-label={text.newConversation}
                   title={text.newConversation}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8A9DB2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
                 </button>
@@ -2412,7 +2386,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
                   aria-label={text.chatHistory}
                   title={text.chatHistory}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8A9DB2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
                   </svg>
                 </button>
@@ -2420,7 +2394,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
               {/* Online indicator */}
               <div className="flex items-center gap-1.5">
                 <div className="assistant-online-dot" style={{ width: 7, height: 7 }} />
-                <span className="text-[10px] hidden sm:inline" style={{ color: 'var(--text3)' }}>
+                <span className="text-[10px] hidden sm:inline" style={{ color: '#8A9DB2' }}>
                   {locale === 'ar' ? 'متصل' : 'Online'}
                 </span>
               </div>
@@ -2432,7 +2406,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
                   style={{ width: 28, height: 28 }}
                   aria-label={locale === 'ar' ? 'إغلاق' : 'Close'}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="2.5" strokeLinecap="round">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8A9DB2" strokeWidth="2.5" strokeLinecap="round">
                     <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
                 </button>
@@ -2455,7 +2429,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
                 <div className="chat-history-list">
                   {!session?.user?.id ? (
                     <div className="chat-history-empty">
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#8A9DB2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
                       </svg>
                       <p>{text.loginToSave}</p>
@@ -2467,7 +2441,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
                     </div>
                   ) : sessionsList.length === 0 ? (
                     <div className="chat-history-empty">
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#8A9DB2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                       </svg>
                       <p>{text.noConversations}</p>

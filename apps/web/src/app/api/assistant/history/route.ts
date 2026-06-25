@@ -80,7 +80,22 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { action, sessionId, role, content, locale, title, sources, toolsUsed } = body;
+    let { action, sessionId, role, content, locale, title, sources, toolsUsed } = body;
+
+    // V504: backward-compatible — استنتج action عندما لا يرسله العميل
+    if (!action) {
+      console.warn(
+        '[History API] POST without action — inferring from payload. keys:',
+        Object.keys(body || {}),
+      );
+      if (role && content) {
+        // حمّل رسالة: يوجد role + content
+        action = 'save_message';
+      } else if (sessionId) {
+        // حمّل جلسة: يوجد sessionId فقط
+        action = 'load_session';
+      }
+    }
 
     const dbReady = await ensureDbReady();
     if (!dbReady) {

@@ -9,9 +9,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { usePathname } from 'next/navigation';
-// V503: react-markdown بدون remark-gfm (يسبب ESM errors)
-// الجداول تُعالج يدويًا قبل تمريرها لـ ReactMarkdown
-import ReactMarkdown from 'react-markdown';
+// V504: parser مخصص يدوي (بدون react-markdown / remark-gfm)
+// يدعم: الجداول، العناوين، bold، القوائم، code blocks، inline code، RTL
 // V480: استخدم auth-store لكن مع تأجيل التهيئة (lazy)
 let useAuthStoreHook: any = null;
 try {
@@ -1655,90 +1654,279 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
   // ─── Render Analytical Card Content (Structured Sections) ─────
   // V1007: Wrapped in useCallback with [isRtl] dep so the function reference
   // stays stable across renders. Without this, MessageBubble (now React.memo)
-  // V500: استخدم react-markdown + remark-gfm لعرض الردود بشكل احترافي
-  // بدلاً من الـ parser المخصص الذي يكسر الجداول
+  // V504: parser يدوي خالص (بدون react-markdown) — مبسط ومستقر
+  // يدعم: الجداول، headings، bold، bullet/numbered lists، code blocks،
+  // inline code، horizontal rules، paragraphs، RTL — كلها inline styles.
   const renderContent = useCallback((content: string) => {
-    // إصلاح بسيط للـ markdown أثناء الـ streaming
-    let safeContent = content;
+    // إصلاح بسيط للـ markdown أثناء الـ streaming (إغلاق الوسوم المفتوحة)
+    let safeContent = content || '';
     const boldCount = (safeContent.match(/\*\*/g) || []).length;
     if (boldCount % 2 !== 0) safeContent += '**';
     const fenceCount = (safeContent.match(/```/g) || []).length;
     if (fenceCount % 2 !== 0) safeContent += '\n```';
 
-    // V503: تحويل جداول Markdown إلى HTML قبل ReactMarkdown
-    // لأن react-markdown بدون remark-gfm لا يدعم الجداول
-    safeContent = safeContent.replace(
-      /(^|\n)(\|[^\n]+\|\n\|[-| :]+\|[^\n]*(?:\n\|[^\n]+\|)*)/g,
-      (match, prefix, table) => {
-        const lines = table.trim().split('\n');
-        if (lines.length < 2) return match;
-        const headers = lines[0].split('|').map(s => s.trim()).filter(s => s !== '');
-        const rows = lines.slice(2).map(line => line.split('|').map(s => s.trim()).filter(s => s !== ''));
-        let html = prefix + '<table><thead><tr>';
-        headers.forEach(h => { html += `<th>${h}</th>`; });
-        html += '</tr></thead><tbody>';
-        rows.forEach(row => {
-          html += '<tr>';
-          row.forEach(cell => { html += `<td>${cell}</td>`; });
-          html += '</tr>';
-        });
-        html += '</tbody></table>';
-        return html;
-      }
-    );
+    // ── Helpers ──────────────────────────────────────────────────
+    // لون ذكي لخلايا الجداول حسب دلالة النص (صاعد/هابط/محايد)
+    const getCellColor = (text: string): string => {
+      const t = text || '';
+      if (t.includes('📈') || t.includes('صاعد') || t.includes('Buy') || t.includes('شراء') || t.includes('🟢') || t.includes('Long')) return '#10B981';
+      if (t.includes('📉') || t.includes('هابط') || t.includes('Sell') || t.includes('بيع') || t.includes('🔴') || t.includes('Short')) return '#EF4444';
+      if (t.includes('محايد') || t.includes('Neutral') || t.includes('🟡') || t.includes('Hold') || t.includes('انتظار')) return '#F59E0B';
+      return '#D1D5DB';
+    };
 
+    // parser للـ inline formatting: **bold** و `code` فقط
+    const parseInline = (text: string): any[] => {
+      if (!text) return [];
+      const nodes: any[] = [];
+      const regex = /(\*\*.+?\*\*)|(`[^`]+`)/g;
+      let lastIndex = 0;
+      let key = 0;
+      let match: RegExpExecArray | null;
+      while ((match = regex.exec(text)) !== null) {
+        if (match.index > lastIndex) {
+          nodes.push(text.slice(lastIndex, match.index));
+        }
+        if (match[1]) {
+          nodes.push(
+            <strong key={`b${key++}`} style={{ color: '#E5E7EB', fontWeight: 700 }}>
+              {match[1].slice(2, -2)}
+            </strong>
+          );
+        } else if (match[2]) {
+          nodes.push(
+            <code key={`c${key++}`} style={{ background: 'rgba(0,229,255,0.1)', padding: '1px 4px', borderRadius: '3px', fontSize: '11px', color: '#00E5FF', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
+              {match[2].slice(1, -1)}
+            </code>
+          );
+        }
+        lastIndex = match.index + match[0].length;
+      }
+      if (lastIndex < text.length) {
+        nodes.push(text.slice(lastIndex));
+      }
+      return nodes;
+    };
+
+    // ── Block parsing ────────────────────────────────────────────
+    type Block =
+      | { type: 'heading'; level: 1 | 2 | 3; content: string }
+      | { type: 'paragraph'; content: string }
+      | { type: 'code'; lang: string; content: string }
+      | { type: 'table'; headers: string[]; rows: string[][] }
+      | { type: 'hr' }
+      | { type: 'bullets'; items: string[] }
+      | { type: 'ordered'; items: string[] };
+
+    const lines = safeContent.split('\n');
+    const blocks: Block[] = [];
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+
+      // Code fence: ```lang ... ```
+      const fenceMatch = line.match(/^```(\w*)/);
+      if (fenceMatch) {
+        const lang = fenceMatch[1] || '';
+        const codeLines: string[] = [];
+        i++;
+        while (i < lines.length && !lines[i].startsWith('```')) {
+          codeLines.push(lines[i]);
+          i++;
+        }
+        i++; // skip closing ```
+        blocks.push({ type: 'code', lang, content: codeLines.join('\n') });
+        continue;
+      }
+
+      // Heading: # / ## / ###
+      const headingMatch = line.match(/^(#{1,3})\s+(.*)/);
+      if (headingMatch) {
+        const level = headingMatch[1].length as 1 | 2 | 3;
+        blocks.push({ type: 'heading', level, content: headingMatch[2].trim() });
+        i++;
+        continue;
+      }
+
+      // Horizontal rule: --- / *** / ___ (بدون أنابيب)
+      if (/^(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
+        blocks.push({ type: 'hr' });
+        i++;
+        continue;
+      }
+
+      // Table: سطر يبدأ بـ | يليه سطر فاصل |---|---|
+      if (
+        line.trim().startsWith('|') &&
+        i + 1 < lines.length &&
+        /^\|[\s:|-]+\|?\s*$/.test(lines[i + 1]) &&
+        lines[i + 1].includes('-')
+      ) {
+        const parseRow = (rowLine: string): string[] => {
+          let r = rowLine.trim();
+          if (r.startsWith('|')) r = r.slice(1);
+          if (r.endsWith('|')) r = r.slice(0, -1);
+          return r.split('|').map(c => c.trim());
+        };
+        const headers = parseRow(line);
+        i += 2; // skip header + separator
+        const rows: string[][] = [];
+        while (i < lines.length && lines[i].trim().startsWith('|')) {
+          rows.push(parseRow(lines[i]));
+          i++;
+        }
+        blocks.push({ type: 'table', headers, rows });
+        continue;
+      }
+
+      // Bullet list: - item أو • item
+      if (/^\s*[-•]\s+/.test(line)) {
+        const items: string[] = [];
+        while (i < lines.length && /^\s*[-•]\s+/.test(lines[i])) {
+          items.push(lines[i].replace(/^\s*[-•]\s+/, ''));
+          i++;
+        }
+        blocks.push({ type: 'bullets', items });
+        continue;
+      }
+
+      // Numbered list: 1. item
+      if (/^\s*\d+\.\s+/.test(line)) {
+        const items: string[] = [];
+        while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
+          items.push(lines[i].replace(/^\s*\d+\.\s+/, ''));
+          i++;
+        }
+        blocks.push({ type: 'ordered', items });
+        continue;
+      }
+
+      // Empty line — skip
+      if (line.trim() === '') {
+        i++;
+        continue;
+      }
+
+      // Paragraph — اجمع الأسطر المتتالية غير الخاصة
+      const paraLines: string[] = [];
+      while (
+        i < lines.length &&
+        lines[i].trim() !== '' &&
+        !lines[i].match(/^```/) &&
+        !lines[i].match(/^(#{1,3})\s+/) &&
+        !/^(-{3,}|\*{3,}|_{3,})\s*$/.test(lines[i]) &&
+        !/^\s*[-•]\s+/.test(lines[i]) &&
+        !/^\s*\d+\.\s+/.test(lines[i]) &&
+        !(
+          lines[i].trim().startsWith('|') &&
+          i + 1 < lines.length &&
+          /^\|[\s:|-]+\|?\s*$/.test(lines[i + 1]) &&
+          lines[i + 1].includes('-')
+        )
+      ) {
+        paraLines.push(lines[i]);
+        i++;
+      }
+      blocks.push({ type: 'paragraph', content: paraLines.join(' ') });
+    }
+
+    // ── Render blocks ────────────────────────────────────────────
     return (
-      <div className="assistant-markdown" dir={isRtl ? 'rtl' : 'ltr'}>
-        <ReactMarkdown
-          components={{
-            table: ({ children }) => (
-              <div style={{ overflowX: 'auto', margin: '8px 0' }}>
-                <table style={{
-                  width: '100%',
-                  borderCollapse: 'collapse',
-                  fontSize: '11px',
+      <div
+        dir={isRtl ? 'rtl' : 'ltr'}
+        style={{ color: '#D1D5DB', fontSize: '13px', lineHeight: 1.55, wordBreak: 'break-word' }}
+      >
+        {blocks.map((block, idx) => {
+          switch (block.type) {
+            case 'heading': {
+              if (block.level === 1) {
+                return <h1 key={idx} style={{ fontSize: '15px', fontWeight: 700, margin: '10px 0 6px', color: '#E5E7EB' }}>{parseInline(block.content)}</h1>;
+              }
+              if (block.level === 2) {
+                return <h2 key={idx} style={{ fontSize: '13px', fontWeight: 700, margin: '10px 0 5px', color: '#E5E7EB' }}>{parseInline(block.content)}</h2>;
+              }
+              return <h3 key={idx} style={{ fontSize: '12px', fontWeight: 600, margin: '8px 0 4px', color: '#9CA3AF' }}>{parseInline(block.content)}</h3>;
+            }
+            case 'paragraph':
+              return <p key={idx} style={{ margin: '4px 0', lineHeight: 1.5, color: '#D1D5DB' }}>{parseInline(block.content)}</p>;
+            case 'code':
+              return (
+                <pre key={idx} style={{
                   background: 'rgba(15,22,36,0.6)',
+                  border: '1px solid rgba(255,255,255,0.05)',
                   borderRadius: '8px',
-                  overflow: 'hidden',
-                }}>{children}</table>
-              </div>
-            ),
-            thead: ({ children }) => <thead style={{ background: 'rgba(0,229,255,0.08)' }}>{children}</thead>,
-            th: ({ children }) => <th style={{
-              padding: '6px 8px',
-              textAlign: isRtl ? 'right' : 'left',
-              borderBottom: '1px solid rgba(0,229,255,0.2)',
-              color: '#00E5FF',
-              fontWeight: 600,
-              whiteSpace: 'nowrap',
-            }}>{children}</th>,
-            td: ({ children }) => {
-              const text = typeof children === 'string' ? children : '';
-              const color = text.includes('📈') || text.includes('صاعد') || text.includes('Buy') || text.includes('شراء') || text.includes('🟢') ? '#10B981' :
-                     text.includes('📉') || text.includes('هابط') || text.includes('Sell') || text.includes('بيع') || text.includes('🔴') ? '#EF4444' :
-                     '#9CA3AF';
-              return <td style={{
-                padding: '5px 8px',
-                textAlign: isRtl ? 'right' : 'left',
-                borderBottom: '1px solid rgba(255,255,255,0.05)',
-                color,
-              }}>{children}</td>;
-            },
-            h1: ({ children }) => <h1 style={{ fontSize: '15px', fontWeight: 700, margin: '10px 0 6px', color: '#E5E7EB' }}>{children}</h1>,
-            h2: ({ children }) => <h2 style={{ fontSize: '13px', fontWeight: 700, margin: '10px 0 5px', color: '#E5E7EB' }}>{children}</h2>,
-            h3: ({ children }) => <h3 style={{ fontSize: '12px', fontWeight: 600, margin: '8px 0 4px', color: '#9CA3AF' }}>{children}</h3>,
-            p: ({ children }) => <p style={{ margin: '4px 0', lineHeight: 1.5, color: '#D1D5DB' }}>{children}</p>,
-            ul: ({ children }) => <ul style={{ margin: '4px 0', paddingLeft: isRtl ? 0 : 16, paddingRight: isRtl ? 16 : 0 }}>{children}</ul>,
-            ol: ({ children }) => <ol style={{ margin: '4px 0', paddingLeft: isRtl ? 0 : 16, paddingRight: isRtl ? 16 : 0 }}>{children}</ol>,
-            li: ({ children }) => <li style={{ margin: '2px 0', color: '#D1D5DB', lineHeight: 1.4 }}>{children}</li>,
-            strong: ({ children }) => <strong style={{ color: '#E5E7EB', fontWeight: 700 }}>{children}</strong>,
-            hr: () => <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '8px 0' }} />,
-            code: ({ children }) => <code style={{ background: 'rgba(0,229,255,0.1)', padding: '1px 4px', borderRadius: '3px', fontSize: '11px', color: '#00E5FF' }}>{children}</code>,
-            blockquote: ({ children }) => <blockquote style={{ borderLeft: isRtl ? 'none' : '3px solid #00E5FF', borderRight: isRtl ? '3px solid #00E5FF' : 'none', paddingLeft: 8, paddingRight: 8, margin: '6px 0', color: '#9CA3AF' }}>{children}</blockquote>,
-          }}
-        >
-          {safeContent}
-        </ReactMarkdown>
+                  padding: '10px 12px',
+                  margin: '8px 0',
+                  overflowX: 'auto',
+                  direction: 'ltr',
+                }}>
+                  <code style={{ fontSize: '11px', color: '#00E5FF', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', whiteSpace: 'pre' }}>
+                    {block.content}
+                  </code>
+                </pre>
+              );
+            case 'table':
+              return (
+                <div key={idx} style={{ overflowX: 'auto', margin: '8px 0', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                  <table style={{
+                    width: '100%',
+                    borderCollapse: 'collapse',
+                    fontSize: '11px',
+                    background: 'rgba(15,22,36,0.6)',
+                  }}>
+                    <thead>
+                      <tr style={{ background: 'rgba(0,229,255,0.08)' }}>
+                        {block.headers.map((h, hi) => (
+                          <th key={hi} style={{
+                            padding: '6px 8px',
+                            textAlign: isRtl ? 'right' : 'left',
+                            borderBottom: '1px solid rgba(0,229,255,0.2)',
+                            color: '#00E5FF',
+                            fontWeight: 600,
+                            whiteSpace: 'nowrap',
+                          }}>{parseInline(h)}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {block.rows.map((row, ri) => (
+                        <tr key={ri} style={{ background: ri % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent' }}>
+                          {row.map((cell, ci) => (
+                            <td key={ci} style={{
+                              padding: '5px 8px',
+                              textAlign: isRtl ? 'right' : 'left',
+                              borderBottom: '1px solid rgba(255,255,255,0.05)',
+                              color: getCellColor(cell),
+                            }}>{parseInline(cell)}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            case 'hr':
+              return <hr key={idx} style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '8px 0' }} />;
+            case 'bullets':
+              return (
+                <ul key={idx} style={{ margin: '4px 0', paddingLeft: isRtl ? 0 : 16, paddingRight: isRtl ? 16 : 0, listStyle: 'disc' }}>
+                  {block.items.map((item, ii) => (
+                    <li key={ii} style={{ margin: '2px 0', color: '#D1D5DB', lineHeight: 1.4 }}>{parseInline(item)}</li>
+                  ))}
+                </ul>
+              );
+            case 'ordered':
+              return (
+                <ol key={idx} style={{ margin: '4px 0', paddingLeft: isRtl ? 0 : 16, paddingRight: isRtl ? 16 : 0, listStyle: 'decimal' }}>
+                  {block.items.map((item, ii) => (
+                    <li key={ii} style={{ margin: '2px 0', color: '#D1D5DB', lineHeight: 1.4 }}>{parseInline(item)}</li>
+                  ))}
+                </ol>
+              );
+            default:
+              return null;
+          }
+        })}
       </div>
     );
   }, [isRtl]);

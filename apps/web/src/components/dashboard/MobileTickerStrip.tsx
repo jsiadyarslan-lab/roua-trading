@@ -32,10 +32,15 @@ function SymbolButton({ symbol, isActive, onSelect }: SymbolButtonProps) {
   const isUp = chgPct >= 0
   const price = quote?.price && quote.price > 0 ? fmtPriceLocale(quote.price, symbol) : '—'
 
-  // V437: Vivid colors for price direction
+  // V521: Name + Price + Background all change color with price direction
   // Green: bright neon lime for up, Red: bright neon coral for down
   const priceColor = isUp ? '#00FF88' : '#FF3355'
   const pctBg = isUp ? 'rgba(0,255,136,0.12)' : 'rgba(255,51,85,0.12)'
+  // Background tint follows price direction
+  const dirBg = isUp ? 'rgba(0,255,136,0.08)' : 'rgba(255,51,85,0.08)'
+  // Active state overrides with cyan tint (selection indicator)
+  const buttonBg = isActive ? 'rgba(0,212,255,0.12)' : dirBg
+  const buttonBorder = isActive ? '1px solid rgba(0,212,255,0.4)' : `1px solid ${isUp ? 'rgba(0,255,136,0.2)' : 'rgba(255,51,85,0.2)'}`
 
   return (
     <button key={symbol} type="button"
@@ -43,11 +48,11 @@ function SymbolButton({ symbol, isActive, onSelect }: SymbolButtonProps) {
       style={{
         display:'flex', alignItems:'center', gap:6,
         padding:'4px 10px', borderRadius:8, flexShrink:0, cursor:'pointer',
-        border: isActive ? '1px solid rgba(0,212,255,0.4)' : '1px solid rgba(255,255,255,0.06)',
-        background: isActive ? 'rgba(0,212,255,0.1)' : 'rgba(255,255,255,0.03)',
+        border: buttonBorder,
+        background: buttonBg,
       }}>
       <div style={{ display:'flex', flexDirection:'column', gap:1, alignItems:'flex-start' }}>
-        <span style={{ fontSize:10, fontWeight:800, color:'#E8ECF4', fontFamily:"'JetBrains Mono',monospace", lineHeight:1, letterSpacing:'0.05em' }}>
+        <span style={{ fontSize:10, fontWeight:800, color: priceColor, fontFamily:"'JetBrains Mono',monospace", lineHeight:1, letterSpacing:'0.05em' }}>
           {symbol.split('/')[0]}
         </span>
         <span style={{ fontSize:11, fontWeight:800, color: priceColor, fontFamily:"'JetBrains Mono',monospace", lineHeight:1.2, textShadow: isUp ? '0 0 6px rgba(0,255,136,0.5)' : '0 0 6px rgba(255,51,85,0.5)' }}>

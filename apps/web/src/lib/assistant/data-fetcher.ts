@@ -390,95 +390,64 @@ async function fetchPrices(symbols: string[]): Promise<PriceData[]> {
 async function fetchSignals(assets: DetectedAsset[]): Promise<SignalData[]> {
   try {
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    
-    // Fetch trading signals
-    const [tradingSignals, recommendations, councilBriefs] = await Promise.allSettled([
-      db.tradingSignal.findMany({
+
+    // V517: النموذج الصحيح هو db.signal (له pair/action/confidence/reason/...)
+    // و db.tradingBrief للموجزات (له pair/direction/entryPrice/stopLoss/takeProfit/confidence)
+    const [tradingSignals, councilBriefs] = await Promise.allSettled([
+      db.signal.findMany({
         where: {
           OR: [
-            { status: { in: ['ACTIVE', 'active', 'Active', 'PENDING', 'pending', 'VALID', 'valid', 'OPEN', 'open'] } },
+            { status: 'ACTIVE' },
             { createdAt: { gte: weekAgo } },
           ],
         },
         select: {
           pair: true, action: true, confidence: true, reason: true,
-          entryPrice: true, stopLoss: true, takeProfit: true, riskReward: true,
-          source: true, category: true, timeframe: true, status: true,
-          createdAt: true,
+          entryPrice: true, stopLoss: true, takeProfit: true,
+          status: true, createdAt: true,
         },
         orderBy: { confidence: 'desc' },
         take: 20,
       }),
-      db.personalizedRecommendation.findMany({
+      db.tradingBrief.findMany({
         where: {
-          isDismissed: false,
-          OR: [
-            { validUntil: { gte: new Date() } },
-            { createdAt: { gte: weekAgo } },
-          ],
-        },
-        select: {
-          title: true, titleEn: true, recommendationType: true, summary: true,
-          action: true, confidenceScore: true, urgencyLevel: true, asset: true,
-          entryPrice: true, targetPrice: true, stopLoss: true, timeHorizon: true,
-          validUntil: true, createdAt: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 15,
-      }),
-      db.councilBrief.findMany({
-        where: {
-          reviewStatus: 'approved',
           createdAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) },
         },
         select: {
           pair: true, direction: true, entryPrice: true, stopLoss: true,
-          takeProfit: true, confidence: true, timeframe: true, consensusJson: true, createdAt: true,
+          takeProfit: true, confidence: true, timeframe: true,
+          analysisSummary: true, strictRules: true, createdAt: true,
         },
         orderBy: { createdAt: 'desc' },
         take: 10,
-      }),
+      }).catch(() => []),
     ]);
-    
+
     const results: SignalData[] = [];
-    
-    // Map trading signals
+
+    // Map trading signals (V517: حقول صحيحة)
     for (const s of settledValue(tradingSignals, [])) {
       results.push({
         pair: s.pair, action: s.action, confidence: s.confidence,
         reason: s.reason, entryPrice: s.entryPrice, stopLoss: s.stopLoss,
-        takeProfit: s.takeProfit, riskReward: s.riskReward, source: s.source,
-        category: s.category, timeframe: s.timeframe, status: s.status,
-        createdAt: s.createdAt, type: 'signal',
-      });
+        takeProfit: s.takeProfit, riskReward: null, source: 'signal',
+        category: 'trading', timeframe: 'short',
+        status: s.status, createdAt: s.createdAt, type: 'signal',
+      } as any);
     }
-    
-    // Map recommendations
-    for (const r of settledValue(recommendations, [])) {
-      results.push({
-        pair: r.asset || r.title, action: r.action || 'HOLD',
-        confidence: r.confidenceScore || 50, reason: r.summary,
-        entryPrice: typeof r.entryPrice === 'number' ? r.entryPrice : (r.entryPrice ? parseFloat(String(r.entryPrice)) : null),
-        stopLoss: typeof r.stopLoss === 'number' ? r.stopLoss : (r.stopLoss ? parseFloat(String(r.stopLoss)) : null),
-        takeProfit: typeof r.targetPrice === 'number' ? r.targetPrice : (r.targetPrice ? parseFloat(String(r.targetPrice)) : null),
-        riskReward: null, source: 'AI Recommendation',
-        category: r.recommendationType, timeframe: r.timeHorizon,
-        status: 'RECOMMENDATION', createdAt: r.createdAt, type: 'recommendation',
-      });
-    }
-    
-    // Map council briefs
+
+    // Map council briefs (V517: analysisSummary بدل consensusJson)
     for (const b of settledValue(councilBriefs, [])) {
       results.push({
         pair: b.pair, action: b.direction || 'NEUTRAL',
-        confidence: b.confidence, reason: null,
+        confidence: b.confidence, reason: (b as any).analysisSummary ?? null,
         entryPrice: b.entryPrice, stopLoss: b.stopLoss,
         takeProfit: b.takeProfit, riskReward: null, source: 'AI Council',
         category: 'council', timeframe: b.timeframe,
         status: 'COUNCIL', createdAt: b.createdAt, type: 'council',
-      });
+      } as any);
     }
-    
+
     return results;
   } catch {
     return [];
@@ -488,62 +457,76 @@ async function fetchSignals(assets: DetectedAsset[]): Promise<SignalData[]> {
 async function fetchAnalyses(assets: DetectedAsset[]): Promise<AnalysisData[]> {
   try {
     const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-    
-    // If specific assets mentioned, filter by their symbols
+
+    // V517: roua-trading لا يملك stockAnalysis/marketAnalysis — نستخدم ContentArticle + StrategyReport
     const assetSymbols = assets.map(a => a.shortSymbol).filter(Boolean);
-    const stockWhere = assetSymbols.length > 0
-      ? { isPublished: true, createdAt: { gte: twoWeeksAgo }, symbol: { in: assetSymbols } }
-      : { isPublished: true, createdAt: { gte: twoWeeksAgo } };
-    
-    const [stockAnalyses, marketAnalyses] = await Promise.allSettled([
-      db.stockAnalysis.findMany({
-        where: stockWhere,
-        select: {
-          title: true, slug: true, symbol: true, summary: true, analysisType: true,
-          overallSignal: true, overallScore: true, confidenceScore: true,
-          technicalScore: true, fundamentalScore: true, sentiment: true,
-          priceAtAnalysis: true, riskLevel: true, createdAt: true,
+
+    const [contentArticles, strategyReports] = await Promise.allSettled([
+      db.contentArticle.findMany({
+        where: {
+          contentType: { in: ['ANALYSIS', 'MARKET_REPORT'] },
+          createdAt: { gte: twoWeeksAgo },
+          ...(assetSymbols.length > 0 ? { symbol: { in: assetSymbols } } : {}),
         },
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-      }),
-      db.marketAnalysis.findMany({
-        where: { isPublished: true, createdAt: { gte: twoWeeksAgo } },
         select: {
-          title: true, slug: true, assetClass: true, analysisType: true, sentiment: true,
+          titleAr: true, titleEn: true, summaryAr: true, summaryEn: true,
+          symbol: true, contentType: true, sentiment: true,
           confidenceScore: true, riskLevel: true, createdAt: true,
         },
         orderBy: { createdAt: 'desc' },
         take: 10,
-      }),
+      }).catch(() => []),
+      db.strategyReport.findMany({
+        where: { createdAt: { gte: twoWeeksAgo } },
+        select: {
+          title: true, symbol: true, assetName: true, type: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      }).catch(() => []),
     ]);
-    
+
     const results: AnalysisData[] = [];
-    
-    for (const a of settledValue(stockAnalyses, [])) {
+
+    // Map content articles
+    for (const a of settledValue(contentArticles, [])) {
       results.push({
-        title: a.title, slug: a.slug, symbol: a.symbol,
-        analysisType: a.analysisType, overallSignal: a.overallSignal,
-        overallScore: a.overallScore, confidenceScore: a.confidenceScore,
-        technicalScore: a.technicalScore, fundamentalScore: a.fundamentalScore,
-        sentiment: a.sentiment, priceAtAnalysis: a.priceAtAnalysis,
-        riskLevel: a.riskLevel, summary: a.summary,
-        createdAt: a.createdAt, source: 'stock',
-      });
-    }
-    
-    for (const a of settledValue(marketAnalyses, [])) {
-      results.push({
-        title: a.title, slug: a.slug, symbol: a.assetClass,
-        analysisType: a.analysisType, overallSignal: a.sentiment,
-        overallScore: a.confidenceScore, confidenceScore: a.confidenceScore,
+        title: a.titleAr ?? a.titleEn ?? '',
+        slug: '',
+        symbol: a.symbol ?? 'MARKET',
+        analysisType: a.contentType ?? 'ANALYSIS',
+        overallSignal: a.sentiment ?? 'NEUTRAL',
+        overallScore: a.confidenceScore ?? 0,
+        confidenceScore: a.confidenceScore ?? 0,
         technicalScore: null, fundamentalScore: null,
-        sentiment: a.sentiment, priceAtAnalysis: null,
-        riskLevel: a.riskLevel, summary: null,
-        createdAt: a.createdAt, source: 'market',
-      });
+        sentiment: a.sentiment ?? 'NEUTRAL',
+        priceAtAnalysis: null,
+        riskLevel: (a as any).riskLevel ?? 'medium',
+        summary: a.summaryAr ?? a.summaryEn ?? '',
+        createdAt: a.createdAt, source: 'content',
+      } as any);
     }
-    
+
+    // Map strategy reports
+    for (const r of settledValue(strategyReports, [])) {
+      results.push({
+        title: r.title ?? '',
+        slug: '',
+        symbol: r.symbol ?? 'MARKET',
+        analysisType: r.type ?? 'STRATEGY',
+        overallSignal: 'NEUTRAL',
+        overallScore: 0,
+        confidenceScore: 0,
+        technicalScore: null, fundamentalScore: null,
+        sentiment: 'NEUTRAL',
+        priceAtAnalysis: null,
+        riskLevel: 'medium',
+        summary: r.title ?? '',
+        createdAt: r.createdAt, source: 'strategy',
+      } as any);
+    }
+
     return results;
   } catch {
     return [];
@@ -553,93 +536,58 @@ async function fetchAnalyses(assets: DetectedAsset[]): Promise<AnalysisData[]> {
 async function fetchNews(query: string, assets: DetectedAsset[], locale: Locale): Promise<NewsData[]> {
   try {
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
-    
-    // Build asset tag filter
-    const assetTags: string[] = [];
-    for (const asset of assets) {
-      assetTags.push(asset.shortSymbol);
-      assetTags.push(asset.nameEn);
-      assetTags.push(asset.nameAr);
-    }
-    
-    // V700: Fetch TWO batches — one matching user's locale, one general
-    // This ensures we always prioritize news the user can actually read
-    
-    const assetFilter = assetTags.length > 0
-      ? assetTags.map(tag => ({ affectedAssets: { contains: tag } }))
+
+    // V517: النموذج الصحيح هو NewsArticle (له title, translatedTitle, content, translatedContent,
+    // summary, sentiment, sentimentLabel, impactLevel, affectedAssets (JSON string), category)
+    const assetSymbols = assets.map(a => a.shortSymbol).filter(Boolean);
+
+    // Build OR filter for affectedAssets (JSON string contains)
+    const assetFilter = assetSymbols.length > 0
+      ? assetSymbols.map(sym => ({ affectedAssets: { contains: `"${sym}"` } }))
       : [];
-    
-    // Batch 1: News in user's locale (PRIORITY)
-    const localeWhere: any = {
-      isReady: true,
-      createdAt: { gte: threeDaysAgo },
-      locale: { in: [locale, 'ar'] },  // Prioritize user's locale + Arabic
+
+    const where: any = {
+      publishedAt: { gte: threeDaysAgo },
     };
-    if (assetFilter.length > 0) localeWhere.OR = assetFilter;
-    
-    // Batch 2: All news matching assets (FALLBACK, limited)
-    const generalWhere: any = {
-      isReady: true,
-      createdAt: { gte: threeDaysAgo },
-    };
-    if (assetFilter.length > 0) generalWhere.OR = assetFilter;
-    
-    const [localeNews, generalNews] = await Promise.allSettled([
-      db.newsItem.findMany({
-        where: localeWhere,
-        select: {
-          title: true, titleAr: true, summary: true, summaryAr: true, slug: true,
-          sentiment: true, impactLevel: true, affectedAssets: true, category: true,
-          publishedAt: true, sourceName: true, locale: true,
-        },
-        orderBy: { publishedAt: 'desc' },
-        take: 15,
-      }),
-      db.newsItem.findMany({
-        where: generalWhere,
-        select: {
-          title: true, titleAr: true, summary: true, summaryAr: true, slug: true,
-          sentiment: true, impactLevel: true, affectedAssets: true, category: true,
-          publishedAt: true, sourceName: true, locale: true,
-        },
-        orderBy: { publishedAt: 'desc' },
-        take: 15,
-      }),
-    ]);
-    
-    // V700: Merge results — locale-matched first, then fill with general
-    // Deduplicate by slug
-    const seenSlugs = new Set<string>();
-    const merged: NewsData[] = [];
-    
-    // Add locale-priority news first
-    for (const n of settledValue(localeNews, [])) {
-      if (n.slug && seenSlugs.has(n.slug)) continue;
-      if (n.slug) seenSlugs.add(n.slug);
-      merged.push(mapNewsItem(n));
-    }
-    
-    // V700: Keep ALL news — flag non-Arabic items for AI translation
-    const isAr = locale === 'ar';
-    for (const n of settledValue(generalNews, [])) {
-      if (merged.length >= 20) break;
-      if (n.slug && seenSlugs.has(n.slug)) continue;
-      if (n.slug) seenSlugs.add(n.slug);
-      const item = mapNewsItem(n);
-      // Flag items that aren't in the user's language and lack translation
-      if (isAr && !n.titleAr && !n.summaryAr && n.locale !== 'ar') {
-        item.needsTranslation = true;
-      }
-      merged.push(item);
-    }
-    
-    return merged;
+    if (assetFilter.length > 0) where.OR = assetFilter;
+
+    const news = await db.newsArticle.findMany({
+      where,
+      select: {
+        title: true, translatedTitle: true, content: true, translatedContent: true,
+        summary: true, url: true, source: true, sentiment: true, sentimentLabel: true,
+        impactLevel: true, affectedAssets: true, category: true, publishedAt: true,
+      },
+      orderBy: { publishedAt: 'desc' },
+      take: 20,
+    });
+
+    return news.map((n: any) => {
+      let assetsList: string[] = [];
+      try { if (n.affectedAssets) assetsList = JSON.parse(n.affectedAssets); } catch {}
+      return {
+        title: n.translatedTitle ?? n.title ?? '',
+        titleAr: n.translatedTitle,
+        summary: n.summary ?? n.translatedContent ?? '',
+        summaryAr: n.summary,
+        slug: '',
+        sentiment: n.sentimentLabel ?? 'NEUTRAL',
+        impactLevel: n.impactLevel ?? 'medium',
+        affectedAssets: assetsList.join(', '),
+        category: n.category ?? 'General',
+        publishedAt: n.publishedAt,
+        sourceName: n.source,
+        locale: 'ar',
+        needsTranslation: false,
+      } as NewsData;
+    });
   } catch {
     return [];
   }
 }
 
 function mapNewsItem(n: any): NewsData {
+  // V517: Kept for backward compatibility but unused now
   return {
     title: n.title,
     titleAr: n.titleAr,
@@ -653,53 +601,37 @@ function mapNewsItem(n: any): NewsData {
     publishedAt: n.publishedAt,
     sourceName: n.sourceName,
     locale: n.locale,
-    needsTranslation: false,  // caller will set this if needed
+    needsTranslation: false,
   };
 }
 
 async function fetchReports(locale: Locale): Promise<ReportData[]> {
   try {
-    const [economicReports, marketAnalyses] = await Promise.allSettled([
-      db.economicReport.findMany({
-        where: { isPublished: true, locale: { in: [locale, 'ar'] } },
-        select: {
-          title: true, slug: true, summary: true, reportType: true, scope: true,
-          marketImpact: true, confidenceScore: true, publishedAt: true,
-        },
-        orderBy: { publishedAt: 'desc' },
-        take: 5,
-      }),
-      db.marketAnalysis.findMany({
-        where: { isPublished: true, locale: { in: [locale, 'ar'] } },
-        select: {
-          title: true, slug: true, assetClass: true, analysisType: true,
-          sentiment: true, confidenceScore: true, riskLevel: true, createdAt: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-      }),
-    ]);
-    
+    // V517: roua-trading لا يملك economicReport/marketAnalysis — نستخدم StrategyReport
+    const reports = await db.strategyReport.findMany({
+      select: {
+        title: true, symbol: true, assetName: true, type: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    }).catch(() => []);
+
     const results: ReportData[] = [];
-    
-    for (const r of settledValue(economicReports, [])) {
+    for (const r of settledValue(Promise.resolve(reports) as any, [])) {
       results.push({
-        title: r.title, slug: r.slug, summary: r.summary,
-        reportType: r.reportType, scope: r.scope,
-        marketImpact: r.marketImpact, confidenceScore: r.confidenceScore,
-        publishedAt: r.publishedAt, source: 'economic',
-      });
+        title: r.title ?? '',
+        slug: '',
+        summary: r.title ?? '',
+        reportType: r.type ?? 'STRATEGY',
+        scope: r.assetName ?? r.symbol ?? '',
+        marketImpact: 'NEUTRAL',
+        confidenceScore: 0,
+        publishedAt: r.createdAt,
+        source: 'strategy',
+      } as any);
     }
-    
-    for (const a of settledValue(marketAnalyses, [])) {
-      results.push({
-        title: a.title, slug: a.slug, summary: null,
-        reportType: a.analysisType, scope: a.assetClass,
-        marketImpact: a.sentiment, confidenceScore: a.confidenceScore,
-        publishedAt: a.createdAt, source: 'market',
-      });
-    }
-    
+
     return results;
   } catch {
     return [];
@@ -1041,89 +973,107 @@ function buildBroadContextForAI(
   return sections.join('\n');
 }
 // V516 Fix 1: استبدال stub functions بدوال حقيقية تجلب بيانات من DB
-// بدل إرجاع [] فارغ دائماً، نجلب أحدث المؤشرات والإشارات والتحليلات والأخبار
+// V517: تكييف للاستعلام عن النماذج الفعلية في schema roua-trading
+//   NewsArticle (بدل news/newsItem)
+//   Signal (بالحقول الصحيحة pair/action/confidence/reason/...)
+//   ContentArticle (بدل marketAnalysis/stockAnalysis)
+//   StrategyReport (بدل economicReport)
 async function fetchBroadPrices(): Promise<PriceData[]> {
-  try {
-    // V516: نجلب أحدث 20 مؤشر سعري من DB (الأكثر تحديثاً)
-    const indicators = await db.marketIndicator.findMany({
-      orderBy: { updatedAt: 'desc' },
-      take: 20,
-    });
-    return indicators.map((ind: any) => ({
-      symbol: ind.symbol,
-      price: ind.price ?? 0,
-      change: ind.change24h ?? 0,
-      changePercent: ind.changePercent24h ?? 0,
-      high: ind.high24h ?? ind.price ?? 0,
-      low: ind.low24h ?? ind.price ?? 0,
-      volume: ind.volume24h ?? 0,
-      timestamp: ind.updatedAt?.toISOString() ?? new Date().toISOString(),
-      source: 'db',
-    } as PriceData));
-  } catch (e) {
-    console.warn('[V516] fetchBroadPrices error:', e);
-    return [];
-  }
+  // V517: roua-trading لا يملك model MarketIndicator — نُرجع []
+  // الأسعار تأتي من realtime-search.ts (Yahoo Finance via NestJS)
+  return [];
 }
 
 async function fetchBroadSignals(): Promise<SignalData[]> {
   try {
+    // V517: النموذج الصحيح هو Signal بحقول: pair/action/confidence/reason/entryPrice/stopLoss/takeProfit
     const signals = await db.signal.findMany({
+      where: { status: 'ACTIVE' },
       orderBy: { createdAt: 'desc' },
       take: 10,
     });
     return signals.map((s: any) => ({
-      symbol: s.symbol,
-      type: s.type ?? 'NEUTRAL',
-      direction: s.direction ?? 'NEUTRAL',
-      strength: s.strength ?? 0,
-      price: s.price ?? 0,
+      symbol: s.pair ?? 'UNKNOWN',
+      type: s.action ?? 'NEUTRAL',
+      direction: s.action ?? 'NEUTRAL',
+      strength: s.confidence ?? 0,
+      price: s.entryPrice ? Number(s.entryPrice) : 0,
+      stopLoss: s.stopLoss ? Number(s.stopLoss) : undefined,
+      takeProfit: s.takeProfit ? Number(s.takeProfit) : undefined,
+      reason: s.reason ?? '',
       timestamp: s.createdAt?.toISOString() ?? new Date().toISOString(),
       source: 'db',
     } as SignalData));
   } catch (e) {
-    console.warn('[V516] fetchBroadSignals error:', e);
+    console.warn('[V517] fetchBroadSignals error:', e);
     return [];
   }
 }
 
 async function fetchBroadAnalyses(_regional?: string): Promise<AnalysisData[]> {
   try {
-    const analyses = await db.marketAnalysis.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 10,
-    });
-    return analyses.map((a: any) => ({
-      symbol: a.symbol,
-      summary: a.summary ?? '',
-      recommendation: a.recommendation ?? 'NEUTRAL',
-      confidence: a.confidence ?? 0,
+    // V517: نستخدم ContentArticle (التحليلات المُولّدة) + StrategyReport
+    const [articles, reports] = await Promise.all([
+      db.contentArticle.findMany({
+        where: { contentType: { in: ['ANALYSIS', 'MARKET_REPORT', 'NEWS_DIGEST'] } },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      }).catch(() => []),
+      db.strategyReport.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      }).catch(() => []),
+    ]);
+    const fromArticles = (articles as any[]).map((a: any) => ({
+      symbol: a.symbol ?? 'MARKET',
+      summary: a.summaryAr ?? a.summaryEn ?? a.titleAr ?? '',
+      recommendation: a.contentType ?? 'NEUTRAL',
+      confidence: 0,
       timestamp: a.createdAt?.toISOString() ?? new Date().toISOString(),
-      source: 'db',
+      source: 'content',
     } as AnalysisData));
+    const fromReports = (reports as any[]).map((r: any) => ({
+      symbol: r.symbol ?? 'MARKET',
+      summary: r.title ?? '',
+      recommendation: r.type ?? 'NEUTRAL',
+      confidence: 0,
+      timestamp: r.createdAt?.toISOString() ?? new Date().toISOString(),
+      source: 'strategy',
+    } as AnalysisData));
+    return [...fromArticles, ...fromReports];
   } catch (e) {
-    console.warn('[V516] fetchBroadAnalyses error:', e);
+    console.warn('[V517] fetchBroadAnalyses error:', e);
     return [];
   }
 }
 
 async function fetchBroadNews(_locale?: any): Promise<NewsData[]> {
   try {
-    const news = await db.news.findMany({
+    // V517: النموذج الصحيح هو NewsArticle
+    const news = await db.newsArticle.findMany({
       orderBy: { publishedAt: 'desc' },
-      take: 10,
+      take: 15,
     });
-    return news.map((n: any) => ({
-      title: n.title ?? '',
-      summary: n.summary ?? '',
-      url: n.url ?? '',
-      source: n.source ?? '',
-      publishedAt: n.publishedAt?.toISOString() ?? new Date().toISOString(),
-      sentiment: n.sentiment ?? 'NEUTRAL',
-      assets: n.mentionedAssets ?? [],
-    } as NewsData));
+    return news.map((n: any) => {
+      // Parse affectedAssets (JSON string) safely
+      let assets: string[] = [];
+      try {
+        if (n.affectedAssets) assets = JSON.parse(n.affectedAssets);
+      } catch {}
+      return {
+        title: n.translatedTitle ?? n.title ?? '',
+        summary: n.summary ?? n.translatedContent ?? '',
+        url: n.url ?? '',
+        source: n.source ?? '',
+        publishedAt: n.publishedAt?.toISOString() ?? new Date().toISOString(),
+        sentiment: n.sentimentLabel ?? 'NEUTRAL',
+        impactLevel: n.impactLevel ?? 'medium',
+        category: n.category ?? 'General',
+        assets,
+      } as any;
+    });
   } catch (e) {
-    console.warn('[V516] fetchBroadNews error:', e);
+    console.warn('[V517] fetchBroadNews error:', e);
     return [];
   }
 }

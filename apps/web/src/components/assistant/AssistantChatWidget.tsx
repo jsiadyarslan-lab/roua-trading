@@ -1745,42 +1745,83 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
     const flushTable = () => {
       if (tableHeaders.length === 0 && tableRows.length === 0) return;
       inTable = false;
-      // V515: Use .asst-tbl-wrap + table.asst-tbl + .asst-pill classes
-      // (matches observer/index.html design spec)
+      // V517: تحسين تنسيق الجداول
+      // - عمود "الاتجاه" فقط هو الذي يعرض pills (long/short/watch)
+      // - عمود "السعر" أو "التغير" يستخدم .pos/.neg حسب الإشارة
+      // - باقي الأعمدة نص عادي
+      // تحديد فهرس عمود الاتجاه: نبحث عن "اتجاه|direction|trend" في الـ headers
+      const directionColIdx = tableHeaders.findIndex(h =>
+        /اتجاه|direction|trend|النوع|signal|action/i.test(h)
+      );
+      const priceColIdx = tableHeaders.findIndex(h =>
+        /سعر|price|كم|current/i.test(h)
+      );
+      const changeColIdx = tableHeaders.findIndex(h =>
+        /تغير|change|Δ|Δ \(24|delta/i.test(h)
+      );
+
       elements.push(
         <div key={`table-${i}`} className="asst-tbl-wrap" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
           <table className="asst-tbl">
             {tableHeaders.length > 0 && (
               <thead>
                 <tr>{tableHeaders.map((h, hi) => (
-                  <th key={hi} style={{ textAlign: isRtl ? 'right' : 'left' }}>{parseInline(h)}</th>
+                  <th key={hi} style={{ textAlign: isRtl ? 'right' : 'left', whiteSpace: 'nowrap' }}>{parseInline(h)}</th>
                 ))}</tr>
               </thead>
             )}
             <tbody>{tableRows.map((row, ri) => (
               <tr key={ri}>{row.map((cell, ci) => {
-                // V515: Classify cell content into .sym / .pos / .neg / .neu + pill
-                const lower = cell.toLowerCase();
-                const isBuy   = cell.includes('📈') || cell.includes('صاعد') || lower.includes('up') || cell.includes('شراء') || lower.includes('buy') || lower.includes('long');
-                const isSell  = cell.includes('📉') || cell.includes('هابط') || lower.includes('down') || cell.includes('بيع') || lower.includes('sell') || lower.includes('short');
-                const isWatch = lower.includes('watch') || lower.includes('مراقبة') || cell.includes('🟡');
-                let cls = '';
-                if (isBuy)   cls = 'pos';
-                else if (isSell)  cls = 'neg';
-                else cls = 'neu';
-                // First column gets .sym styling (bold)
+                const lower = cell.toLowerCase().trim();
                 const isSymCol = ci === 0;
-                // Render pill if cell matches long/short/watch keywords
-                const showPill = isBuy || isSell || isWatch;
+                const isDirectionCol = ci === directionColIdx;
+                const isChangeCol = ci === changeColIdx;
+
+                // كشف الإشارة (للأعمدة الرقمية فقط)
+                const hasPlus = cell.includes('+') || cell.includes('▲') || cell.includes('🟢');
+                const hasMinus = cell.includes('-') && !cell.includes('--') || cell.includes('▼') || cell.includes('🔻') || cell.includes('🔴');
+                const isNumericChange = isChangeCol && /[-+]?[\d.,]+\s*%/.test(cell);
+
+                // كشف اتجاه صريح (long/short/hold/buy/sell)
+                const isBuy   = /\b(buy|long|شراء|صاعد|bullish|🟢|📈)\b/i.test(cell);
+                const isSell  = /\b(sell|short|بيع|هابط|bearish|🔴|📉|🔻)\b/i.test(cell);
+                const isWatch = /\b(hold|watch|انتظار|مراقبة|محايد|neutral|🟡|↔️|➡️)\b/i.test(cell);
+
+                // تحديد العرض
+                if (isDirectionCol && (isBuy || isSell || isWatch)) {
+                  // عمود الاتجاه: عرض pill ملون
+                  const pillClass = isBuy ? 'long' : isSell ? 'short' : 'watch';
+                  const pillText = cell.replace(/📈|📉|🟡|🔴|🟢|↔️|➡️|▲|▼|🔻/g, '').trim() || (isBuy ? 'Long' : isSell ? 'Short' : 'Watch');
+                  return (
+                    <td key={ci} style={{ textAlign: isRtl ? 'right' : 'left' }}>
+                      <span className={`asst-pill ${pillClass}`}>{parseInline(pillText)}</span>
+                    </td>
+                  );
+                }
+
+                // عمود التغير النسبي: تلوين حسب الإشارة
+                if (isNumericChange) {
+                  const isPositive = hasPlus || (!hasMinus && parseFloat(cell.replace(/[^\d.-]/g, '')) > 0);
+                  return (
+                    <td key={ci} style={{ textAlign: isRtl ? 'right' : 'left' }}>
+                      <span className={isPositive ? 'pos' : 'neg'} style={{ fontWeight: 600 }}>{parseInline(cell)}</span>
+                    </td>
+                  );
+                }
+
+                // العمود الأول (الرمز): bold
+                if (isSymCol) {
+                  return (
+                    <td key={ci} style={{ textAlign: isRtl ? 'right' : 'left' }}>
+                      <span className="sym">{parseInline(cell)}</span>
+                    </td>
+                  );
+                }
+
+                // خلية عادية
                 return (
                   <td key={ci} style={{ textAlign: isRtl ? 'right' : 'left' }}>
-                    {showPill ? (
-                      <span className={`asst-pill ${isBuy ? 'long' : isSell ? 'short' : 'watch'}`}>
-                        {parseInline(cell.replace(/📈|📉|🟡/g, '').trim())}
-                      </span>
-                    ) : (
-                      <span className={isSymCol ? 'sym' : cls}>{parseInline(cell)}</span>
-                    )}
+                    <span>{parseInline(cell)}</span>
                   </td>
                 );
               })}</tr>
@@ -2265,7 +2306,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         i++; continue;
       }
 
-      // V515: Sub-bullet points
+      // V517: Sub-bullet points
       if (/^\s{2,}[-•]\s/.test(line)) {
         const bulletContent = line.trim().replace(/^[-•]\s+/, '');
         elements.push(
@@ -2277,13 +2318,34 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         i++; continue;
       }
 
-      // V515: Regular line — uses .asst-content styling
+      // V517: Regular line — دمج الأسطر المتتالية في فقرة واحدة
+      // (كانت كل سطر div مستقل مما يسبب تفتتاً بصرياً)
+      // نجمع الأسطر المتتالية حتى نصل لعنصر خاص (bullet/heading/table)
+      const paragraphLines: string[] = [trimmed];
+      let j = i + 1;
+      while (j < lines.length) {
+        const nextLine = lines[j];
+        const nextTrimmed = nextLine.trim();
+        if (nextTrimmed.length === 0) break;
+        // توقف عند أنماط خاصة
+        if (/^#{1,4}\s/.test(nextTrimmed)) break;
+        if (/^[-•]\s/.test(nextTrimmed)) break;
+        if (/^\s{2,}[-•]\s/.test(nextLine)) break;
+        if (nextTrimmed.startsWith('> ')) break;
+        if (/^-{3,}$/.test(nextTrimmed)) break;
+        if (nextTrimmed.includes('|') && nextTrimmed.split('|').length >= 3) break;
+        if (nextTrimmed.includes('\t') && nextTrimmed.split('\t').length >= 3) break;
+        if (/^\*\*[🧠🔍💥📊🎯📚🔒❓📈📰⚖💡⚠💱🟢🔴🟡🔄📏]/.test(nextTrimmed)) break;
+        paragraphLines.push(nextTrimmed);
+        j++;
+      }
+      const paragraphText = paragraphLines.join(' ');
       elements.push(
-        <div key={`line-${i}`} style={{ fontSize: '13px', lineHeight: 1.6, color: 'var(--text)', direction: isRtl ? 'rtl' : 'ltr' }}>
-          {parseInline(trimmed)}
-        </div>
+        <p key={`line-${i}`} style={{ fontSize: '13px', lineHeight: 1.7, color: 'var(--text)', direction: isRtl ? 'rtl' : 'ltr', margin: '0 0 8px 0' }}>
+          {parseInline(paragraphText)}
+        </p>
       );
-      i++;
+      i = j; continue;
     }
 
     if (inTable) flushTable();

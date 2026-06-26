@@ -2058,8 +2058,35 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         }
       }
 
+      // V524: كشف "SIGNAL:" block — تنسيق خاص به، لا كـ section عادي
+      // الـ AI يكتب: **🚦 SIGNAL: BUY BTC** أو **🚦 SIGNAL: SELL XAU**
+      // هذا يجب أن يُعرض كـ signal card مميز، لا كـ .asst-sec
+      const signalMatch = trimmed.match(/^\*\*[🚦⚡🎯💰]*\s*SIGNAL\s*[:：]\s*(.+?)\*\*$/i);
+      if (signalMatch) {
+        const signalText = signalMatch[1].trim();
+        // كشف BUY/SELL/HOLD
+        const isBuy = /\b(buy|long|شراء)\b/i.test(signalText);
+        const isSell = /\b(sell|short|بيع)\b/i.test(signalText);
+        const signalClass = isSell ? 'red' : isBuy ? 'green' : 'gold';
+        const signalLabel = isSell ? 'SELL' : isBuy ? 'BUY' : 'HOLD';
+        elements.push(
+          <div key={`signal-${i}`} className={`asst-action ${isSell ? 'urgent' : isBuy ? 'profit' : 'watch'}`} style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
+            <div className="asst-action-ic">🚦</div>
+            <div className="asst-action-body">
+              <div className="asst-action-h">
+                <span style={{ color: isSell ? 'var(--red)' : isBuy ? 'var(--green)' : 'var(--gold)', fontWeight: 700 }}>
+                  SIGNAL: {signalLabel} {signalText.replace(/^(BUY|SELL|HOLD|LONG|SHORT)\s*/i, '')}
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+        i++; continue;
+      }
+
       // V515: Section header (emoji + bold) — render as .asst-sec with mapped color class
-      const sectionMatch = trimmed.match(/^\*\*([🧠🔍💥📊🎯📚🔒❓📈📰⚖💡⚠️💱🟢🔴🟡🔄📏][^*]+)\*\*:?\s*$/);
+      // V524: أزلت § من .n لأنه يظهر كحرف غريب. استخدم رمز القسم § فقط إن لم يكن emoji
+      const sectionMatch = trimmed.match(/^\*\*([🧠🔍💥📊🎯📚🔒❓📈📰⚖💡⚠️💱🟢🔴🟡🔄📏🚦⚡💰][^*]+)\*\*:?\s*$/);
       if (sectionMatch) {
         const sectionTitle = sectionMatch[1];
         const emoji = sectionTitle.charAt(0);
@@ -2073,10 +2100,10 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
           '📏': 'cyan',
         };
         const secClass = emojiToSecClass[emoji] || 'cyan';
-        const titleNoEmoji = sectionTitle.replace(/^[🧠🔍💥📊🎯📚🔒❓📈📰⚖💡⚠💱🟢🔴🟡🔄📏]\s*/, '');
+        const titleNoEmoji = sectionTitle.replace(/^[🧠🔍💥📊🎯📚🔒❓📈📰⚖💡⚠💱🟢🔴🟡🔄📏🚦⚡💰]\s*/, '');
         elements.push(
           <div key={`section-${i}`} className={`asst-sec ${secClass}`} style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-            <span className="n">§</span>
+            <span className="n">•</span>
             {parseInline(titleNoEmoji)}
           </div>
         );

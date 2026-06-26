@@ -2058,30 +2058,61 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         }
       }
 
-      // V524: كشف "SIGNAL:" block — تنسيق خاص به، لا كـ section عادي
-      // الـ AI يكتب: **🚦 SIGNAL: BUY BTC** أو **🚦 SIGNAL: SELL XAU**
-      // هذا يجب أن يُعرض كـ signal card مميز، لا كـ .asst-sec
-      const signalMatch = trimmed.match(/^\*\*[🚦⚡🎯💰]*\s*SIGNAL\s*[:：]\s*(.+?)\*\*$/i);
+      // V525: كشف "SIGNAL:" block — تنسيق خاص به، لا كـ section عادي
+      // الـ AI يكتبها بأحد نمطين:
+      //   **🚦 SIGNAL: SELL XAU**   (bold)
+      //   🚦 SIGNAL: SELL XAU       (plain)
+      // يتبعها bullets: Entry / Stop Loss / Take Profit / Position Size / Confidence / Rationale
+      // هذا الكشف يدمج السطر + كل bullets التابعة في asst-action card واحد
+      const signalMatch = trimmed.match(/^[*\s]*[🚦⚡🎯💰]*\s*SIGNAL\s*[:：]\s*(.+?)\s*[*]*$/i);
       if (signalMatch) {
-        const signalText = signalMatch[1].trim();
+        const signalText = signalMatch[1].replace(/\*/g, '').trim();
         // كشف BUY/SELL/HOLD
         const isBuy = /\b(buy|long|شراء)\b/i.test(signalText);
         const isSell = /\b(sell|short|بيع)\b/i.test(signalText);
-        const signalClass = isSell ? 'red' : isBuy ? 'green' : 'gold';
         const signalLabel = isSell ? 'SELL' : isBuy ? 'BUY' : 'HOLD';
+        const actionClass = isSell ? 'urgent' : isBuy ? 'profit' : 'watch';
+        const signalColor = isSell ? 'var(--red)' : isBuy ? 'var(--green)' : 'var(--gold)';
+
+        // V525: اجمع الأسطر التابعة (Entry/SL/TP/Size/Confidence/Rationale)
+        const details: { label: string; value: string }[] = [];
+        let j = i + 1;
+        while (j < lines.length) {
+          const detLine = lines[j].trim();
+          if (!detLine) break;
+          // توقف عند أنماط غير bullet وغير label:value
+          if (!/^[-•*]\s/.test(detLine) && !/^(Entry|Stop|Take|Position|Confidence|Rationale|الحجم|الثقة|السبب|الدخول|الخروج|وقف|الهدف)/i.test(detLine)) break;
+          const cleanLine = detLine.replace(/^[-•*]\s*/, '');
+          const m = cleanLine.match(/^([^:：]+)[:：]\s*(.+)$/);
+          if (m) {
+            details.push({ label: m[1].trim(), value: m[2].trim() });
+          }
+          j++;
+        }
+
         elements.push(
-          <div key={`signal-${i}`} className={`asst-action ${isSell ? 'urgent' : isBuy ? 'profit' : 'watch'}`} style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
+          <div key={`signal-${i}`} className={`asst-action ${actionClass}`} style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
             <div className="asst-action-ic">🚦</div>
             <div className="asst-action-body">
               <div className="asst-action-h">
-                <span style={{ color: isSell ? 'var(--red)' : isBuy ? 'var(--green)' : 'var(--gold)', fontWeight: 700 }}>
+                <span style={{ color: signalColor, fontWeight: 700, fontSize: '13px' }}>
                   SIGNAL: {signalLabel} {signalText.replace(/^(BUY|SELL|HOLD|LONG|SHORT)\s*/i, '')}
                 </span>
               </div>
+              {details.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', marginTop: '6px', fontSize: '11px' }}>
+                  {details.map((d, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: '4px' }}>
+                      <span style={{ color: 'var(--text3)', fontWeight: 600 }}>{d.label}:</span>
+                      <span style={{ color: 'var(--text)' }}>{parseInline(d.value)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         );
-        i++; continue;
+        i = j; continue;
       }
 
       // V515: Section header (emoji + bold) — render as .asst-sec with mapped color class

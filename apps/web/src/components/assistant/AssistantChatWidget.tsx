@@ -1955,6 +1955,31 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         flushTable();
       }
 
+      // V520: كشف النمط "رقم عاري على سطر + عنوان على السطر التالي"
+      // الـ AI يكتب أحياناً:
+      //   1
+      //   Current Price & Direction
+      // بدل: ## 1. Current Price & Direction
+      // هذا الكشف يدمجهما في .asst-sec.cyan مع الرقم في .n
+      const bareNumberMatch = trimmed.match(/^([1-9])$/);
+      if (bareNumberMatch) {
+        const nextLine = (lines[i + 1] || '').trim();
+        // السطر التالي يجب أن يكون عنواناً (نص غير فارغ، ليس رقم، ليس جدول، ليس bullet)
+        if (nextLine && nextLine.length > 2 && !/^[1-9]$/.test(nextLine)
+            && !nextLine.includes('|') && !/^[-•]\s/.test(nextLine)
+            && !/^#{1,4}\s/.test(nextLine)) {
+          const numDigit = bareNumberMatch[1];
+          elements.push(
+            <div key={`bare-num-section-${i}`} className="asst-sec cyan" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
+              <span className="n">{numDigit}</span>
+              {parseInline(nextLine.replace(/\*\*/g, ''))}
+            </div>
+          );
+          i += 2; // تخطّ السطرين معاً (الرقم + العنوان)
+          continue;
+        }
+      }
+
       // Section header (emoji + bold)
       const sectionMatch = trimmed.match(/^\*\*([🧠🔍💥📊🎯📚🔒❓📈📰⚖💡⚠️💱🟢🔴🟡🔄📏][^*]+)\*\*:?\s*$/);
       if (sectionMatch) {

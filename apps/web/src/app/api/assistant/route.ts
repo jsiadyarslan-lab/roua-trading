@@ -976,32 +976,30 @@ Each analysis section MUST have:
 ## 🎯 V516 Fix 8 — ACTIONABLE SIGNALS (CRITICAL):
 You are NOT a news article. You are a TRADING ASSISTANT for an automated trading platform. Every analysis MUST end with a concrete, executable signal — not generic advice.
 
-### MANDATORY output for any analysis of an asset the user holds:
-After analyzing an asset, output a "SIGNAL" block in this EXACT format:
+### MANDATORY: Every analysis MUST end with this EXACT block (copy the format):
 
-\`\`\`
-**🚦 SIGNAL: [BUY / SELL / HOLD] [SYMBOL]**
-- Entry: [exact price or range, e.g. "$60,200 - $60,500"]
-- Stop Loss: [exact price, e.g. "$58,800" — must be 1-3% from entry]
-- Take Profit 1: [exact price]
-- Take Profit 2: [exact price, optional]
-- Position Size: [e.g. "2% of portfolio" or "0.1 BTC"]
-- Confidence: [55-90%]
-- Rationale: [1-2 sentences citing RSI/MACD/Support/Resistance from the data above]
-\`\`\`
+🚦 SIGNAL: BUY BTC
+- Entry: $60,200
+- Stop Loss: $58,800
+- Take Profit 1: $61,500
+- Take Profit 2: $62,800
+- Position Size: 2% of portfolio
+- Confidence: 68%
+- Rationale: RSI=58 + MACD bullish cross + price above EMA50
 
 ### RULES:
-1. NEVER say "Hold position; consider tightening stop-losses" — that is NOT actionable.
-2. NEVER give a range like "7,200-7,250" without specifying WHICH is the SL price.
-3. SL must be a SINGLE number, not a range.
-4. If you cannot compute a signal (e.g. insufficient data), say: "⚠️ No signal — data insufficient for [SYMBOL]. Try again in a few minutes."
-5. Probabilities (🟢/🟡/🔴) MUST sum to 100% and MUST be derived from the technical indicators, not guessed.
-6. Always prioritize the user's OPEN POSITIONS (provided in context) over general market analysis.
+1. Replace BUY/SELL/HOLD and BTC with the actual signal and symbol.
+2. The FIRST line must be exactly: 🚦 SIGNAL: [BUY|SELL|HOLD] [SYMBOL]
+3. Then 7 bullet lines starting with "- Entry:", "- Stop Loss:", etc.
+4. NEVER say "Hold position; consider tightening stop-losses" — give exact numbers.
+5. SL must be a SINGLE number (not a range).
+6. If data insufficient, output: 🚦 SIGNAL: HOLD [SYMBOL] (with Rationale: data insufficient)
+7. Probabilities (🟢/🟡/🔴) MUST sum to 100% and be derived from technical indicators.
 
-### Anti-pattern FORBIDDEN:
-❌ "Current investors: Hold position; consider tightening stop-losses around 7,250"
-❌ "New investors: If you wish to enter, target a 7,300 entry with a stop-loss ≈ 1.5% below"
-✅ "🚦 SIGNAL: BUY SPX → Entry: 7,300 | SL: 7,200 | TP1: 7,420 | TP2: 7,500 | Size: 2% | Confidence: 68% | RSI=58 + MACD bullish cross"`);
+### FORBIDDEN anti-patterns:
+❌ "Hold position; consider tightening stop-losses around 7,250"
+❌ "If you wish to enter, target a 7,300 entry"
+✅ Exact format above with exact numbers.`);
 
   // ═══ DEEP SEARCH MODE ═══
   if (deepSearch) {

@@ -1745,42 +1745,45 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
     const flushTable = () => {
       if (tableHeaders.length === 0 && tableRows.length === 0) return;
       inTable = false;
+      // V515: Use .asst-tbl-wrap + table.asst-tbl + .asst-pill classes
+      // (matches observer/index.html design spec)
       elements.push(
-        <div key={`table-${i}`} className="my-2 overflow-x-auto" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-          <table style={{
-            width: '100%',
-            borderCollapse: 'collapse',
-            fontSize: '11px',
-            background: '#0C1220',
-            borderRadius: '8px',
-            overflow: 'hidden',
-          }}>
+        <div key={`table-${i}`} className="asst-tbl-wrap" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
+          <table className="asst-tbl">
             {tableHeaders.length > 0 && (
               <thead>
                 <tr>{tableHeaders.map((h, hi) => (
-                  <th key={hi} style={{
-                    padding: '6px 8px',
-                    textAlign: isRtl ? 'right' : 'left',
-                    borderBottom: '1px solid rgba(0,229,255,0.25)',
-                    color: '#00E5FF',
-                    fontWeight: 600,
-                    whiteSpace: 'nowrap',
-                  }}>{parseInline(h)}</th>
+                  <th key={hi} style={{ textAlign: isRtl ? 'right' : 'left' }}>{parseInline(h)}</th>
                 ))}</tr>
               </thead>
             )}
             <tbody>{tableRows.map((row, ri) => (
-              // V1012 (Phase 3): Zebra striping for tables — alternating row
-              // backgrounds make comparison tables much easier to scan.
-              <tr key={ri} style={{ background: ri % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>{row.map((cell, ci) => (
-                <td key={ci} style={{
-                  padding: '5px 8px',
-                  textAlign: isRtl ? 'right' : 'left',
-                  borderBottom: '1px solid rgba(255,255,255,0.085)',
-                  color: cell.includes('📈') || cell.includes('صاعد') || cell.includes('Up') || cell.includes('شراء') || cell.includes('Buy') ? '#22C55E' :
-                         cell.includes('📉') || cell.includes('هابط') || cell.includes('Down') || cell.includes('بيع') || cell.includes('Sell') ? '#EF5350' : '#B0C4D8',
-                }}>{parseInline(cell)}</td>
-              ))}</tr>
+              <tr key={ri}>{row.map((cell, ci) => {
+                // V515: Classify cell content into .sym / .pos / .neg / .neu + pill
+                const lower = cell.toLowerCase();
+                const isBuy   = cell.includes('📈') || cell.includes('صاعد') || lower.includes('up') || cell.includes('شراء') || lower.includes('buy') || lower.includes('long');
+                const isSell  = cell.includes('📉') || cell.includes('هابط') || lower.includes('down') || cell.includes('بيع') || lower.includes('sell') || lower.includes('short');
+                const isWatch = lower.includes('watch') || lower.includes('مراقبة') || cell.includes('🟡');
+                let cls = '';
+                if (isBuy)   cls = 'pos';
+                else if (isSell)  cls = 'neg';
+                else cls = 'neu';
+                // First column gets .sym styling (bold)
+                const isSymCol = ci === 0;
+                // Render pill if cell matches long/short/watch keywords
+                const showPill = isBuy || isSell || isWatch;
+                return (
+                  <td key={ci} style={{ textAlign: isRtl ? 'right' : 'left' }}>
+                    {showPill ? (
+                      <span className={`asst-pill ${isBuy ? 'long' : isSell ? 'short' : 'watch'}`}>
+                        {parseInline(cell.replace(/📈|📉|🟡/g, '').trim())}
+                      </span>
+                    ) : (
+                      <span className={isSymCol ? 'sym' : cls}>{parseInline(cell)}</span>
+                    )}
+                  </td>
+                );
+              })}</tr>
             ))}</tbody>
           </table>
         </div>
@@ -1793,15 +1796,16 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
       const parts = t.split(/(\*\*[^*]+\*\*)/g);
       return parts.map((part, j) => {
         if (part.startsWith('**') && part.endsWith('**')) {
-          return <strong key={j} style={{ color: '#00E5FF' }}>{part.slice(2, -2)}</strong>;
+          // V515: Use var(--cyan) instead of hardcoded #00E5FF
+          return <strong key={j} style={{ color: 'var(--cyan)', fontWeight: 600 }}>{part.slice(2, -2)}</strong>;
         }
-        // Highlight numbers/percentages
+        // V515: Highlight numbers/percentages using var(--green) / var(--red)
         const numParts = part.split(/([+\-]?\d+\.?\d*\s*%)/g);
         if (numParts.length > 1) {
           return <span key={j}>{numParts.map((np, nj) => {
             if (/^[+\-]?\d+\.?\d*\s*%$/.test(np)) {
               const isPositive = np.startsWith('+') || (!np.startsWith('-') && parseFloat(np) > 0);
-              return <span key={nj} style={{ color: isPositive ? '#22C55E' : '#EF5350', fontWeight: 600 }}>{np}</span>;
+              return <span key={nj} style={{ color: isPositive ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>{np}</span>;
             }
             return <span key={nj}>{np}</span>;
           })}</span>;
@@ -1818,7 +1822,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
       const thinkingMatch = trimmed.match(/^[*\s]*🧠\s*(جاري التحليل|Analyzing|Analyse en cours|Analiz ediliyor|Analizando)[:\s]*.*/);
       if (thinkingMatch) { i++; continue; }
 
-      // Horizontal rule
+      // V515: Horizontal rule — subtle gradient divider (kept inline since no .asst-* equivalent)
       if (/^-{3,}$/.test(trimmed)) {
         elements.push(
           <div key={`hr-${i}`} className="my-2" style={{
@@ -1836,25 +1840,28 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         const level = headingMatch[1].length;
         const headingText = headingMatch[2];
 
-        // V1009: If the heading text starts with an emoji that has a section
-        // style (🟢 🔴 🟡 📊 🎯 📈 ⚠️ 💡 ...), render it as a colored section
-        // block instead of a plain cyan heading. AI often emits headings like
-        // "### 🟢 السيناريو الصعودي" — without this branch they render as
-        // plain headings with no color coding, losing the visual hierarchy.
+        // V515: Map emoji sections to .asst-sec color classes (cyan/purple/gold/green/red)
+        // instead of inline styles. Matches observer/index.html design spec.
+        const emojiToSecClass: Record<string, string> = {
+          '🧠': 'purple', '🔍': 'cyan',   '💥': 'red',    '📊': 'purple',
+          '🎯': 'green',  '📚': 'gold',   '🔒': 'purple', '❓': 'cyan',
+          '📈': 'green',  '📰': 'gold',   '⚖️': 'purple', '⚖': 'purple',
+          '💡': 'gold',   '⚠️': 'red',    '⚠': 'red',     '💱': 'green',
+          '🟢': 'green',  '🔴': 'red',    '🟡': 'gold',   '🔄': 'cyan',
+        };
+
         const firstChar = headingText.charAt(0);
+        const secClass = emojiToSecClass[firstChar];
         const sectionStyle = sectionStyles[firstChar];
-        if (sectionStyle) {
-          // Strip any leading ** from the heading text (some AI outputs
-          // wrap the title in ** ** even after ###)
+
+        if (secClass && sectionStyle) {
           const cleanTitle = headingText.replace(/^\*\*|\*\*$/g, '').trim();
+          // Strip leading emoji from displayed title (it's already encoded in color)
+          const titleNoEmoji = cleanTitle.replace(/^[🧠🔍💥📊🎯📚🔒❓📈📰⚖💡⚠💱🟢🔴🟡🔄]\s*/, '');
           elements.push(
-            <div key={`section-heading-${i}`} className="mt-3 mb-1.5 px-3 py-2 rounded-lg" style={{
-              background: sectionStyle.bg,
-              borderLeft: isRtl ? 'none' : `3px solid ${sectionStyle.accent}`,
-              borderRight: isRtl ? `3px solid ${sectionStyle.accent}` : 'none',
-              direction: isRtl ? 'rtl' : 'ltr',
-            }}>
-              <span style={{ color: sectionStyle.accent, fontWeight: 700, fontSize: level === 1 ? '14px' : '13px' }}>{parseInline(cleanTitle)}</span>
+            <div key={`section-heading-${i}`} className={`asst-sec ${secClass}`} style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
+              <span className="n">{level}</span>
+              {parseInline(titleNoEmoji)}
             </div>
           );
           i++; continue;
@@ -1876,22 +1883,23 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
           if (!titleText || !titleText.trim()) {
             // Fall through to regular heading rendering
           } else {
+            // V515: Render emoji-number headings as .asst-sec.cyan with the number in .n
+            const numDigit = numText.charAt(0);
             elements.push(
-              <div key={`emoji-heading-${i}`} className="mt-3 mb-1" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-                <span style={{ color: '#00E5FF', fontWeight: 700, fontSize: '14px' }}>
-                  <span style={{ marginRight: '4px' }}>{numText}</span>
-                  {parseInline(titleText.replace(/\*\*/g, ''))}
-                </span>
+              <div key={`emoji-heading-${i}`} className="asst-sec cyan" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
+                <span className="n">{numDigit}</span>
+                {parseInline(titleText.replace(/\*\*/g, ''))}
               </div>
             );
             i++; continue;
           }
         }
 
-        const fontSize = level === 1 ? '15px' : level === 2 ? '13px' : level === 3 ? '12px' : '11px';
+        // V515: Plain heading (no emoji) — render as .asst-sec.cyan too, with the level as the number
         elements.push(
-          <div key={`heading-${i}`} className="mt-2 mb-1" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-            <span style={{ color: '#00E5FF', fontWeight: 700, fontSize }}>{parseInline(headingText.replace(/\*\*/g, ''))}</span>
+          <div key={`heading-${i}`} className="asst-sec cyan" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
+            <span className="n">{level}</span>
+            {parseInline(headingText.replace(/\*\*/g, ''))}
           </div>
         );
         i++; continue;
@@ -1902,36 +1910,37 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
       // The branch above only triggers when there's a ## prefix; this one
       // catches the bare-emoji-number case.
       // V1010: Changed \s+ to \s* so "1️⃣السعر" (no space) is also detected.
+      // V515: Render as .asst-sec.cyan with the digit in .n
       const bareEmojiNumberMatch = trimmed.match(/^([1-9]\uFE0F\u20E3)\s*(.+)/);
       if (bareEmojiNumberMatch) {
         const numText = bareEmojiNumberMatch[1];
         const titleText = bareEmojiNumberMatch[2];
         // Only render as heading if there's actual title text
         if (titleText && titleText.trim()) {
+          const numDigit = numText.charAt(0);
           elements.push(
-            <div key={`bare-emoji-heading-${i}`} className="mt-3 mb-1" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-              <span style={{ color: '#00E5FF', fontWeight: 700, fontSize: '14px' }}>
-                <span style={{ marginRight: '4px' }}>{numText}</span>
-                {parseInline(titleText.replace(/\*\*/g, ''))}
-              </span>
+            <div key={`bare-emoji-heading-${i}`} className="asst-sec cyan" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
+              <span className="n">{numDigit}</span>
+              {parseInline(titleText.replace(/\*\*/g, ''))}
             </div>
           );
           i++; continue;
         }
       }
 
-      // Blockquote
+      // V515: Blockquote — render as .asst-alert.info (matches design spec)
       if (trimmed.startsWith('> ')) {
         const quoteContent = trimmed.replace(/^>\s*/, '');
         elements.push(
-          <div key={`quote-${i}`} className="my-1 px-3 py-1.5" style={{
-            direction: isRtl ? 'rtl' : 'ltr',
-            borderLeft: isRtl ? 'none' : '2px solid rgba(0,229,255,0.25)',
-            borderRight: isRtl ? '2px solid rgba(0,229,255,0.25)' : 'none',
-            background: 'rgba(0,229,255,0.05)',
-            borderRadius: '4px',
-          }}>
-            <span className="text-[12px] italic" style={{ color: '#B0C4D8' }}>{parseInline(quoteContent)}</span>
+          <div key={`quote-${i}`} className="asst-alert info" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
+            <div className="asst-alert-ic">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--cyan)' }}>
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+            </div>
+            <div className="asst-alert-body">
+              <div className="asst-alert-d">{parseInline(quoteContent)}</div>
+            </div>
           </div>
         );
         i++; continue;
@@ -1956,20 +1965,26 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         flushTable();
       }
 
-      // Section header (emoji + bold)
+      // V515: Section header (emoji + bold) — render as .asst-sec with mapped color class
       const sectionMatch = trimmed.match(/^\*\*([🧠🔍💥📊🎯📚🔒❓📈📰⚖💡⚠️💱🟢🔴🟡🔄📏][^*]+)\*\*:?\s*$/);
       if (sectionMatch) {
         const sectionTitle = sectionMatch[1];
         const emoji = sectionTitle.charAt(0);
-        const style = sectionStyles[emoji] || { bg: 'rgba(0,229,255,0.06)', border: 'rgba(0,229,255,0.25)', accent: '#00E5FF' };
+        // V515: Map emoji → .asst-sec color class
+        const emojiToSecClass: Record<string, string> = {
+          '🧠': 'purple', '🔍': 'cyan',   '💥': 'red',    '📊': 'purple',
+          '🎯': 'green',  '📚': 'gold',   '🔒': 'purple', '❓': 'cyan',
+          '📈': 'green',  '📰': 'gold',   '⚖️': 'purple', '⚖': 'purple',
+          '💡': 'gold',   '⚠️': 'red',    '⚠': 'red',     '💱': 'green',
+          '🟢': 'green',  '🔴': 'red',    '🟡': 'gold',   '🔄': 'cyan',
+          '📏': 'cyan',
+        };
+        const secClass = emojiToSecClass[emoji] || 'cyan';
+        const titleNoEmoji = sectionTitle.replace(/^[🧠🔍💥📊🎯📚🔒❓📈📰⚖💡⚠💱🟢🔴🟡🔄📏]\s*/, '');
         elements.push(
-          <div key={`section-${i}`} className="mt-3 mb-1.5 px-3 py-2 rounded-lg" style={{
-            background: style.bg,
-            borderLeft: isRtl ? 'none' : `3px solid ${style.accent}`,
-            borderRight: isRtl ? `3px solid ${style.accent}` : 'none',
-            direction: isRtl ? 'rtl' : 'ltr',
-          }}>
-            <span style={{ color: style.accent, fontWeight: 700, fontSize: '12px' }}>{sectionTitle}</span>
+          <div key={`section-${i}`} className={`asst-sec ${secClass}`} style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
+            <span className="n">§</span>
+            {parseInline(titleNoEmoji)}
           </div>
         );
         i++; continue;
@@ -1978,6 +1993,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
       // V1011 (Phase 2): Scenario probability bar — visualizes "🟢 السيناريو الصعودي: ... الاحتمال: 40%"
       // as a colored progress bar instead of plain text. Catches both Arabic and English
       // patterns, with or without a bullet prefix.
+      // V515: Uses var(--green) / var(--gold) / var(--red) instead of hardcoded hex.
       // Pattern examples matched:
       //   "🟢 السيناريو الصعودي: إذا استعاد... قد يصل إلى $4,500، الاحتمال: 40%"
       //   "- 🟡 السيناريو المحايد: ... الاحتمال: 30%"
@@ -1987,7 +2003,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         const emoji = scenarioMatch[1];
         const desc = scenarioMatch[2].trim();
         const pct = parseInt(scenarioMatch[3]);
-        const color = emoji === '🟢' ? '#22C55E' : emoji === '🟡' ? '#FFB800' : '#EF5350';
+        const color = emoji === '🟢' ? 'var(--green)' : emoji === '🟡' ? 'var(--gold)' : 'var(--red)';
         const bgColor = emoji === '🟢' ? 'rgba(34,197,94,0.08)' : emoji === '🟡' ? 'rgba(255,184,0,0.08)' : 'rgba(239,83,80,0.08)';
         elements.push(
           <div key={`scenario-${i}`} className="my-1.5 px-3 py-2 rounded-lg" style={{
@@ -2237,33 +2253,33 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
       // Empty line
       if (trimmed.length === 0) { i++; continue; }
 
-      // Bullet points
+      // V515: Bullet points — uses .asst-content styling conventions
       if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
         const bulletContent = trimmed.replace(/^[-•]\s+/, '');
         elements.push(
-          <div key={`bullet-${i}`} className="flex gap-1.5" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-            <span style={{ color: '#00E5FF', marginTop: '2px' }}>&#x2022;</span>
-            <span className="text-[13px] leading-relaxed">{parseInline(bulletContent)}</span>
+          <div key={`bullet-${i}`} className="flex gap-1.5 asst-content-li" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
+            <span style={{ color: 'var(--cyan)', marginTop: '2px', fontSize: '13px' }}>&#x2022;</span>
+            <span style={{ fontSize: '12.5px', color: 'var(--text2)', lineHeight: 1.6, flex: 1 }}>{parseInline(bulletContent)}</span>
           </div>
         );
         i++; continue;
       }
 
-      // Sub-bullet points
+      // V515: Sub-bullet points
       if (/^\s{2,}[-•]\s/.test(line)) {
         const bulletContent = line.trim().replace(/^[-•]\s+/, '');
         elements.push(
           <div key={`sub-bullet-${i}`} className="flex gap-1.5" style={{ direction: isRtl ? 'rtl' : 'ltr', paddingLeft: isRtl ? '0' : '16px', paddingRight: isRtl ? '16px' : '0' }}>
-            <span style={{ color: '#8A9DB2', marginTop: '2px', fontSize: '10px' }}>&#x25E6;</span>
-            <span className="text-[12px] leading-relaxed" style={{ color: '#B0C4D8' }}>{parseInline(bulletContent)}</span>
+            <span style={{ color: 'var(--text3)', marginTop: '2px', fontSize: '10px' }}>&#x25E6;</span>
+            <span style={{ fontSize: '12px', color: 'var(--text3)', lineHeight: 1.6, flex: 1 }}>{parseInline(bulletContent)}</span>
           </div>
         );
         i++; continue;
       }
 
-      // Regular line
+      // V515: Regular line — uses .asst-content styling
       elements.push(
-        <div key={`line-${i}`} className="text-[13px] leading-relaxed" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
+        <div key={`line-${i}`} style={{ fontSize: '13px', lineHeight: 1.6, color: 'var(--text)', direction: isRtl ? 'rtl' : 'ltr' }}>
           {parseInline(trimmed)}
         </div>
       );

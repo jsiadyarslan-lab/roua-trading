@@ -28,6 +28,7 @@ try {
 import { detectStockSymbol } from '@/lib/assistant/tools';
 import { renderSparkline, renderMiniCandlestick, getTrendColor } from '@/lib/assistant/chart-helpers';
 import BrainIcon from './BrainIcon';
+import IntelligenceOrb from './IntelligenceOrb';
 import ThinkingIndicator from './ThinkingIndicator';
 import ChatInput from './ChatInput';
 import WelcomeScreen from './WelcomeScreen';
@@ -2320,7 +2321,8 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
           }}
           aria-label={text.ariaLabel}
         >
-          <BrainIcon size={34} color="#00E5FF" pulse={true} />
+          {/* Intelligence Orb — Living Light (V513) */}
+          <IntelligenceOrb size={56} />
           {/* ── Notification dot for proactive suggestions ── */}
           {proactiveSuggestions.length > 0 && (
             <div className="fab-notification-dot" />
@@ -2361,9 +2363,9 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
           </div>
           {/* ── Header (Enhanced with market pulse) ── */}
           <div className="assistant-header px-5 py-4 flex items-center gap-3" onTouchStart={handleHeaderTouchStart} onTouchMove={handleHeaderTouchMove}>
-            {/* Brain avatar */}
+            {/* Intelligence Orb avatar — Living Light (V513) */}
             <div className="assistant-header-avatar flex items-center justify-center rounded-xl" style={{ width: 40, height: 40 }}>
-              <BrainIcon size={24} color="#00E5FF" pulse={true} />
+              <IntelligenceOrb size={36} />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold" style={{ color: '#E8EDF5' }}>{text.headerTitle}</p>

@@ -565,6 +565,18 @@ function buildArabicAgentPrompt(
 ): string {
   const parts: string[] = [];
 
+  // V519: قواعد التنسيق الإلزامية — في أول الـ prompt لضمان الالتزام
+  parts.push(`## ⚠️ قواعد التنسيق الإلزامية (اقرأها أولاً):
+
+1. **لا تكتب رقمًا على سطر منفرد.** اكتب "## 1. عنوان القسم" وليس "1" ثم سطر جديد.
+2. **الجداول يجب أن تكون كاملة:** سطر عنوان + سطر فاصل |---|---| + صف بيانات واحد على الأقل. إذا لم يكن لديك بيانات حقيقية لصف البيانات، لا تكتب جدولاً — اكتب فقرة بدلاً من ذلك.
+3. **صيغة الجدول الصحيحة:**
+| الأصل | السعر | التغير |
+|---|---|---|
+| BTC | $60,200 | +0.85% |
+4. **الفقرات:** 3-5 جمل كاملة لكل فقرة. لا أسطر مفردة.
+5. **لا تخلط بين العنوان والأعمدة:** لا تكتب "جدول الصفقات | الأصل | النوع |..." — هذا خطأ. اكتب "## جدول الصفقات" كعنوان، ثم الجدول تحته.`);
+
   parts.push(`أنت "مساعد رؤى" — مساعد تداول ذكي لمنصة Roua Trading.
 
 ## قواعد أساسية:
@@ -826,6 +838,18 @@ function buildEnglishAgentPrompt(
 ): string {
   const parts: string[] = [];
   const hasRealtimePrices = realtimeData.prices.length > 0 && realtimeData.prices.some(p => p.price !== null);
+
+  // V519: Mandatory formatting rules — at the very start of the prompt
+  parts.push(`## ⚠️ MANDATORY FORMATTING RULES (read first):
+
+1. **Never write a number on its own line.** Write "## 1. Section Title" not "1" then newline.
+2. **Tables must be complete:** header row + separator |---|---| + at least one data row. If you don't have real data for the data row, do NOT write a table — write a paragraph instead.
+3. **Correct table format:**
+| Asset | Price | Change |
+|---|---|---|
+| BTC | $60,200 | +0.85% |
+4. **Paragraphs:** 3-5 complete sentences each. No single-line fragments.
+5. **Do NOT mix heading and columns:** Never write "Trade Table | Asset | Type |..." — this is WRONG. Write "## Trade Table" as a heading, then the table below it.`);
 
   parts.push(`You are "Rouaa Smart Assistant" — an advanced financial assistant for the Rouaa platform.
 

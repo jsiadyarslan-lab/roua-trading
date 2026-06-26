@@ -1987,21 +1987,48 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         i++; continue;
       }
 
-      // Table detection
+      // V519: Table detection — require look-ahead to avoid false positives.
+      // A single pipe line with no following pipe/separator line is NOT a table.
+      // Prevents AI's broken "heading | col1 | col2 |" from rendering as garbage.
       const isPipeTable = trimmed.includes('|') && trimmed.split('|').length >= 3;
       const isTabTable = trimmed.includes('\t') && trimmed.split('\t').length >= 3;
+      const isTableSeparator = /^[|\s\-:]+$/.test(trimmed) && trimmed.includes('-');
 
-      if (isPipeTable) {
-        if (/^[|\s\-:]+$/.test(trimmed)) { i++; continue; }
-        const cells = trimmed.split('|').map(c => c.trim()).filter(c => c.length > 0);
-        if (!inTable) { inTable = true; tableHeaders = cells; }
-        else { tableRows.push(cells); }
-        i++; continue;
+      if (isTableSeparator && inTable) {
+        i++; continue; // separator line inside table, skip
+      }
+
+      if (isPipeTable && !isTableSeparator) {
+        if (inTable) {
+          // Already in table — this is a data row
+          const cells = trimmed.split('|').map(c => c.trim()).filter(c => c.length > 0);
+          tableRows.push(cells);
+          i++; continue;
+        }
+        // Not in table — look ahead to confirm it's a real table
+        const nextLine = (lines[i + 1] || '').trim();
+        const nextIsPipe = nextLine.includes('|') && nextLine.split('|').length >= 3;
+        const nextIsSep = /^[|\s\-:]+$/.test(nextLine) && nextLine.includes('-');
+        if (nextIsPipe || nextIsSep) {
+          inTable = true;
+          tableHeaders = trimmed.split('|').map(c => c.trim()).filter(c => c.length > 0);
+          i++; continue;
+        }
+        // Single pipe line, no following pipe line → NOT a table. Fall through.
       } else if (isTabTable) {
-        const cells = trimmed.split('\t').map(c => c.trim()).filter(c => c.length > 0);
-        if (!inTable) { inTable = true; tableHeaders = cells; }
-        else { tableRows.push(cells); }
-        i++; continue;
+        if (inTable) {
+          const cells = trimmed.split('\t').map(c => c.trim()).filter(c => c.length > 0);
+          tableRows.push(cells);
+          i++; continue;
+        }
+        const nextLine = (lines[i + 1] || '').trim();
+        const nextIsTab = nextLine.includes('\t') && nextLine.split('\t').length >= 3;
+        if (nextIsTab) {
+          inTable = true;
+          tableHeaders = trimmed.split('\t').map(c => c.trim()).filter(c => c.length > 0);
+          i++; continue;
+        }
+        // Single tab line → fall through.
       } else if (inTable) {
         flushTable();
       }
@@ -2333,8 +2360,19 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         if (/^\s{2,}[-•]\s/.test(nextLine)) break;
         if (nextTrimmed.startsWith('> ')) break;
         if (/^-{3,}$/.test(nextTrimmed)) break;
-        if (nextTrimmed.includes('|') && nextTrimmed.split('|').length >= 3) break;
-        if (nextTrimmed.includes('\t') && nextTrimmed.split('\t').length >= 3) break;
+        // V519: Only break on pipe lines that start a REAL table (followed by
+        // another pipe/separator line). Single pipe lines are merged into paragraph.
+        if (nextTrimmed.includes('|') && nextTrimmed.split('|').length >= 3) {
+          const afterNext = (lines[j + 1] || '').trim();
+          const afterIsPipe = afterNext.includes('|') && afterNext.split('|').length >= 3;
+          const afterIsSep = /^[|\s\-:]+$/.test(afterNext) && afterNext.includes('-');
+          if (afterIsPipe || afterIsSep) break;
+        }
+        if (nextTrimmed.includes('\t') && nextTrimmed.split('\t').length >= 3) {
+          const afterNext = (lines[j + 1] || '').trim();
+          const afterIsTab = afterNext.includes('\t') && afterNext.split('\t').length >= 3;
+          if (afterIsTab) break;
+        }
         if (/^\*\*[🧠🔍💥📊🎯📚🔒❓📈📰⚖💡⚠💱🟢🔴🟡🔄📏]/.test(nextTrimmed)) break;
         paragraphLines.push(nextTrimmed);
         j++;

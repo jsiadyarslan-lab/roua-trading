@@ -928,15 +928,11 @@ export default function RouaChart({
         // NEW candle: append and use setCandles with skipIndicatorRebuild
         // This uses setData() but preserves indicator series (they stay
         // visible with slightly stale last-point data until next recalc).
-        // V462c: Do NOT apply sanitizeOhlc to a new candle — a brand-new
-        // candle is naturally flat (open=high=low=close=price) and the
-        // body will appear as soon as price moves. sanitizeOhlc leaves
-        // open===close which makes the body invisible.
-        const sanitizedCandle = { ...alignedCandle };
-        // V462f: Assign NEW array instead of push (same fix as useChart.ts).
-        // push() mutates in place — if candlesRef.current was replaced
-        // elsewhere, the push goes to an orphaned array.
-        candlesRef.current = [...candlesRef.current, sanitizedCandle];
+        // FIX: Sanitize the new candle's OHLC using sanitizeOhlc to prevent
+        // near-flat candles (dots) from Binance 1m/5m data.
+        const s = sanitizeOhlc(alignedCandle.open, alignedCandle.high, alignedCandle.low, alignedCandle.close);
+        const sanitizedCandle = { ...alignedCandle, open: s.open, high: s.high, low: s.low, close: s.close };
+        candlesRef.current.push(sanitizedCandle);
         // PERF FIX: Use updateCandleRef (O(1) series.update) instead of full setData()
         // setData() destroys and recreates all indicator series → "rubbery" animation
         // updateCandleRef only updates the single new candle, indicators stay intact
@@ -1271,13 +1267,6 @@ export default function RouaChart({
         const currentCandleTime = candlesRef.current.length > 0
           ? candlesRef.current[candlesRef.current.length - 1].time
           : 0;
-        // V462d: Keep a reference to the live candle so we can restore it
-        // after the merge. Previously, if REST returned data that didn't
-        // include the live candle's time, the live candle would be lost
-        // (merged array wouldn't contain it) → chart shows no live candle.
-        const liveCandle = currentCandleTime > 0
-          ? candlesRef.current[candlesRef.current.length - 1]
-          : null;
         let changed = false;
         for (const nc of newCandles) {
           if (nc.time === currentCandleTime) continue; // تخطِّ الشمعة الحالية
@@ -1289,16 +1278,6 @@ export default function RouaChart({
             existingMap.set(nc.time, nc);
             changed = true;
           }
-        }
-
-        // V462d: Ensure the live candle is in the merged result.
-        // If REST didn't return the live candle's time (common — REST only
-        // returns closed candles), existingMap won't have it. We must
-        // restore it from the saved reference, otherwise the chart will
-        // lose the live candle every 2 minutes.
-        if (liveCandle && !existingMap.has(liveCandle.time)) {
-          existingMap.set(liveCandle.time, liveCandle);
-          changed = true;
         }
 
         if (changed) {
@@ -1386,13 +1365,12 @@ export default function RouaChart({
             initializeState(incState, unique);
             incrementalInitializedRef.current = true;
           } catch { /* incremental calc not critical */ }
-          // V462e: DISABLED resetView on fetchCandles — was causing the chart
-          // to jump/zoom every time data was fetched. scrollToRealTime() in
-          // updateLastCandle already keeps the view on the latest candle.
-          // Only fit content on the VERY FIRST load (when user hasn't scrolled yet).
-          // requestAnimationFrame(() => {
-          //   if (!cancelled) resetViewRef.current();
-          // });
+          // FIX: Auto-fit chart to show new timeframe data range.
+          // Without this, the chart may keep the old scroll position and the
+          // user sees blank or unchanged data even though new data was loaded.
+          requestAnimationFrame(() => {
+            if (!cancelled) resetViewRef.current();
+          });
           // DISABLED: Auto-run pattern detection removed.
           // Patterns are ONLY drawn when the user explicitly enables overlay
           // toggles in the AI Smart Panel. Previously this auto-drew all
@@ -1580,38 +1558,6 @@ export default function RouaChart({
       chart.updateLastCandle(currentPrice);
     }
   }, [currentPrice]);
-
-  // ── V462e DIAGNOSTIC: Live Candle Debug every 3s (user-requested) ──
-  // SAFE: Read-only observer. Logs OHLC, body size, total candles.
-  // Watch this when the chart breaks (after 4-5 candles) to see if:
-  //   - Body Size goes to 0 → candle being wiped/reset
-  //   - Total candles decreases → setData() called somewhere
-  //   - Time jumps backward → stale data overwriting
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const candles = candlesRef.current;
-      if (!candles || candles.length === 0) return;
-      const last = candles[candles.length - 1];
-      const prev = candles.length > 1 ? candles[candles.length - 2] : null;
-      const bodySize = Math.abs((last.close || 0) - (last.open || 0));
-      const now = Math.floor(Date.now() / 1000);
-      const ageSeconds = now - (last.time as number);
-      console.warn(`[V462e] 🔍 ${timeframe_} Debug:`, {
-        time: last.time ? new Date(last.time * 1000).toLocaleTimeString() : 'N/A',
-        ageSeconds,
-        O: last.open,
-        H: last.high,
-        L: last.low,
-        C: last.close,
-        bodySize: bodySize.toFixed(6),
-        totalCandles: candles.length,
-        prevClose: prev?.close,
-        currentPrice,
-        mobile,
-      });
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [selectedSymbol_, timeframe_, mobile, currentPrice]);
 
   // ── Price Pulse Animation ──────────────────────────────
   useEffect(() => {
@@ -2121,11 +2067,10 @@ export default function RouaChart({
 
       // Re-fetch data to ensure fresh candles
       setCandlesRef.current([...candlesRef.current]);
-      // V462e: DISABLED resetView on multi-chart transition — was causing
-      // the chart to zoom out unexpectedly. User scroll position is respected.
-      // setTimeout(() => {
-      //   resetViewRef.current();
-      // }, 300);
+      // Fit content to show all candles
+      setTimeout(() => {
+        resetViewRef.current();
+      }, 300);
     }
   }, [isMultiChart, isGridCell]); // FIX: Removed chart.chartRef/chart.containerRef from deps — refs are stable
 

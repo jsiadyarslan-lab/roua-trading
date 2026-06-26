@@ -49,8 +49,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ sessions: [] });
     }
 
-    // V478: استخدم جدول chat_sessions (قد لا يكون موجودًا)
-    // نحاول إنشاءه ديناميكيًا إذا لم يكن موجودًا
+    // V518: تأكد من وجود الجداول قبل الاستعلام (كان يفشل بصمت)
+    try {
+      await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS chat_sessions (id TEXT PRIMARY KEY, "userId" TEXT NOT NULL, locale TEXT DEFAULT 'ar', title TEXT, "pageUrl" TEXT, "messageCount" INTEGER DEFAULT 0, "createdAt" TIMESTAMP DEFAULT NOW(), "updatedAt" TIMESTAMP DEFAULT NOW())`);
+      await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS chat_messages (id TEXT PRIMARY KEY, "sessionId" TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, sources TEXT, "toolsUsed" TEXT, "createdAt" TIMESTAMP DEFAULT NOW())`);
+    } catch (createErr: any) {
+      console.warn('[History API] CREATE TABLE warning:', createErr?.message?.slice(0, 100));
+    }
+
     try {
       const sessions = await db.$queryRaw`
         SELECT id, title, locale, "messageCount", "createdAt", "updatedAt"
@@ -60,10 +66,12 @@ export async function GET(request: NextRequest) {
         LIMIT 50
       ` as any[];
 
+      console.log(`[History API] GET: found ${sessions?.length || 0} sessions for user ${userId.slice(0, 8)}`);
       return NextResponse.json({ sessions: sessions || [] });
-    } catch (dbErr) {
-      // الجدول غير موجود — ارجع قائمة فارغة
-      return NextResponse.json({ sessions: [] });
+    } catch (dbErr: any) {
+      console.error('[History API] Query error:', dbErr?.message?.slice(0, 200));
+      // الجدول غير موجود — ارجع قائمة فارغة مع تفاصيل الخطأ
+      return NextResponse.json({ sessions: [], error: 'table_unavailable' });
     }
   } catch (error: any) {
     console.error('[History API] GET error:', error?.message);

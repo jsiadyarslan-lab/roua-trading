@@ -716,38 +716,9 @@ export class PositionMonitorService {
     // trackedHigh equals entryPrice (the initial value set at position creation).
     const currentPrice = quote?.price ?? null;
 
-    // V351d: If quote fetch failed, log a MONITOR_TICK with the error so we can
-    // see in the lifecycle log WHY the position is not being monitored properly.
-    // Previously, this just returned early silently — making it impossible to
-    // diagnose why MONITOR_TICK events were 0.
+    // V512: MONITOR_TICK للـ quote failure — حذف من DB، console.warn فقط
     if (currentPrice === null) {
-      // V351d: Log the failure as a MONITOR_TICK with error metadata
-      if (this.getLifecycle()) {
-        const now = Date.now();
-        const lastLog = this.lastTickLogTime.get(position.id) || 0;
-        if (now - lastLog >= this.MONITOR_TICK_LOG_INTERVAL_MS) {
-          this.lastTickLogTime.set(position.id, now);
-          try {
-            await this.getLifecycle()?.log({
-              positionId: position.id,
-              userId: position.userId,
-              eventType: 'MONITOR_TICK',
-              module: 'position-monitor',
-              reason: `Quote fetch FAILED — position not monitored this tick. Error: ${quoteError || 'quote was null'}`,
-              // price is optional (number | undefined) — omit when null
-              metadata: {
-                quoteError: quoteError || 'quote was null',
-                symbol: position.symbol,
-                source: position.source,
-                exchange: position.exchange,
-                failedAt: new Date().toISOString(),
-              },
-            });
-          } catch (logErr: any) {
-            this.logger.warn(`V351d: Failed to log quote-failure MONITOR_TICK: ${logErr.message}`);
-          }
-        }
-      }
+      this.logger.warn(`Quote fetch failed for ${position.symbol}: ${quoteError || 'quote was null'}`);
       return result; // Skip — can't check SL/TP without price
     }
 
@@ -829,57 +800,11 @@ export class PositionMonitorService {
 
     const pnlPercent = (unrealizedPnl / (entryPrice * quantity)) * 100;
 
-    // V339+V340: Log MONITOR_TICK — sampled to every 5s to reduce DB load.
-    // SL/TP checks still run every 1s, but we only LOG every 5s.
-    // V342: Moved AFTER SL/TP check — don't log tick if position is being closed.
-    if (this.getLifecycle()) {
-      const now = Date.now();
-      const lastLog = this.lastTickLogTime.get(position.id) || 0;
-      if (now - lastLog >= this.MONITOR_TICK_LOG_INTERVAL_MS) {
-        this.lastTickLogTime.set(position.id, now);
-
-        // Calculate TP progress for V338 Trailing TP visibility
-        let tpProgress: number | null = null;
-        if (takeProfitNum !== null && entryPrice > 0) {
-          const tpDistance = position.side === 'BUY'
-            ? (takeProfitNum - entryPrice)
-            : (entryPrice - takeProfitNum);
-          if (tpDistance > 0) {
-            const profitDistance = position.side === 'BUY'
-              ? (currentPrice - entryPrice)
-              : (entryPrice - currentPrice);
-            tpProgress = profitDistance / tpDistance;
-          }
-        }
-
-        await this.getLifecycle()?.log({
-          positionId: position.id,
-          userId: position.userId,
-          eventType: 'MONITOR_TICK',
-          module: 'position-monitor',
-          reason: `Tick: price=${currentPrice.toFixed(6)} PnL=${pnlPercent.toFixed(2)}% tpProgress=${tpProgress !== null ? (tpProgress * 100).toFixed(1) + '%' : 'N/A'}`,
-          price: currentPrice,
-          highestPrice: effectiveHigh,
-          lowestPrice: effectiveLow,
-          metadata: {
-            currentPrice,
-            effectiveHigh,
-            effectiveLow,
-            unrealizedPnl,
-            pnlPercent,
-            tpProgress,
-            stopLoss: stopLossNum,
-            takeProfit: takeProfitNum,
-            entryPrice,
-            side: position.side,
-            source: position.source,
-            quoteHigh,
-            quoteLow,
-            trackedHigh,
-            trackedLow,
-          },
-        });
-      }
+    // V512: MONITOR_TICK تم حذفه من DB — كان يولد 691,200 صف/يوم بلا فائدة
+    // البيانات موجودة بالفعل في جدول Position (currentPrice, unrealizedPnl)
+    // للأرشيف: console.debug فقط (يظهر في Railway logs)
+    if (process.env.NODE_ENV === 'development') {
+      this.logger.debug(`Tick: ${position.symbol} price=${currentPrice.toFixed(6)} PnL=${pnlPercent.toFixed(2)}%`);
     }
 
     // ── V187 FIX: Agent SL/TP + MAX_HOLDING check ──

@@ -304,7 +304,7 @@ async function aiPreAnalysis(
 - إذا سأل عن سعر أصل → needsRealtimePrices = true
 - إذا سأل عن توصية أو تحليل → needsRealtimePrices = true AND needsDBData = true
 - إذا سأل عن أسهم سعودية/خليجية → region = "saudi" أو "gcc"
-- أضف دائماً BTC و XAU و WTI كسياق سوقي إذا كان السؤال عاماً
+- V516 Fix 3: لا تضيف BTC/XAU/WTI تلقائياً — حلّل فقط ما يسأل عنه المستخدم أو ما يملكه من صفقات
 - كن مختصراً: 1-5 رموز كحد أقصى`
     : `You are a financial query analyzer. Your task: analyze the user's question and determine what data they need.
 
@@ -323,7 +323,7 @@ Rules:
 - If asking about an asset price → needsRealtimePrices = true
 - If asking for recommendation or analysis → needsRealtimePrices = true AND needsDBData = true
 - If asking about Saudi/GCC stocks → region = "saudi" or "gcc"
-- Always add BTC, XAU, WTI as market context if the question is general
+- V516 Fix 3: Do NOT auto-add BTC/XAU/WTI — only analyze what the user asked about or what positions they hold
 - Be concise: max 1-5 symbols`;
 
   const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
@@ -360,7 +360,9 @@ Rules:
     console.log(`[V1000] AI Pre-Analysis: assets=${parsed.assets?.join(',')}, type=${parsed.responseType}, realtime=${parsed.needsRealtimePrices}, region=${parsed.region} (via ${result.provider} in ${result.duration}ms)`);
 
     return {
-      assets: Array.isArray(parsed.assets) ? parsed.assets.slice(0, 8) : ['BTC', 'XAU', 'WTI'],
+      // V516 Fix 3: لا hardcoded defaults — إذا كان parsed.assets فارغ، نُرجع []
+      // وسيتم تعبئته من صفقات المستخدم في fetchBroadData
+      assets: Array.isArray(parsed.assets) ? parsed.assets.slice(0, 8) : [],
       topics: Array.isArray(parsed.topics) ? parsed.topics.slice(0, 5) : [],
       responseType: parsed.responseType || 'overview',
       needsRealtimePrices: parsed.needsRealtimePrices !== false,
@@ -377,19 +379,23 @@ Rules:
     const assets: string[] = [];
     const topics: string[] = [];
 
-    // Detect assets
+    // V516 Fix 3: كشف أوسع للأصول يشمل العملات الرقمية التي يملكها المستخدمون
     if (/btc|bitcoin|بيتكوين|بتكوين/i.test(msg)) assets.push('BTC');
-    if (/eth|ethereum|إيثريوم/i.test(msg)) assets.push('ETH');
+    if (/eth|ethereum|إيثريوم|ايثريوم/i.test(msg)) assets.push('ETH');
+    if (/xrp|ripple|ريبل/i.test(msg)) assets.push('XRP');
+    if (/ada|cardano|كاردانو/i.test(msg)) assets.push('ADA');
+    if (/\bsol\b|solana|سولانا/i.test(msg)) assets.push('SOL');
+    if (/doge|dogecoin|دوج/i.test(msg)) assets.push('DOGE');
+    if (/bnb|binance/i.test(msg)) assets.push('BNB');
     if (/xau|gold|ذهب/i.test(msg)) assets.push('XAU');
     if (/wti|oil|نفط|brent|برنت/i.test(msg)) assets.push('WTI');
     if (/eurusd|يورو/i.test(msg)) assets.push('EURUSD');
     if (/gbpusd|جنيه/i.test(msg)) assets.push('GBPUSD');
     if (/spx|s&p|سب/i.test(msg)) assets.push('SPX');
 
-    // Default market context
-    if (assets.length === 0) {
-      assets.push('BTC', 'XAU', 'WTI', 'SPX', 'EURUSD');
-    }
+    // V516 Fix 3: لا hardcoded defaults — إذا لم يُكشف أي أصل،
+    // سيتم استخدام صفقات المستخدم الفعلية من fetchBroadData
+    // (بدل إجبار BTC/XAU/WTI/SPX/EURUSD على المستخدم)
 
     // Detect region
     let region: AISearchPlan['region'] = 'global';
@@ -769,6 +775,26 @@ ${realtimeData.marketContext}`);
 ${dbContextForAI}`);
   }
 
+  // V516 Fix 6: portfolio-prioritization — حقن صفقات المستخدم المفتوحة كأولوية قصوى
+  if (dbData.userPositions && dbData.userPositions.length > 0) {
+    const posList = dbData.userPositions.map(p => {
+      const side = p.side === 'LONG' || p.side === 'BUY' ? 'LONG' : 'SHORT';
+      const pnl = p.unrealizedPnl ?? 0;
+      const pnlStr = pnl >= 0 ? `+${pnl.toFixed(2)}$` : `${pnl.toFixed(2)}$`;
+      return `  • ${p.symbol} (${side}, الإدخال: ${p.entryPrice ?? 'N/A'}, PnL: ${pnlStr}, الحجم: ${p.volume ?? 'N/A'})`;
+    }).join('\n');
+    parts.push(`\n## 🎯 الأولوية القصوى: صفقات المستخدم المفتوحة
+لدى المستخدم ${dbData.userPositions.length} صفقة مفتوحة حالياً:
+${posList}
+
+**يجب تحليل هذه الأصول أولاً** قبل أي تحليل سوقي عام. ركّز على:
+1. هل يجب الإبقاء على الصفقة أم إغلاقها؟ (بناءً على RSI/MACD/الدعم والمقاومة)
+2. هل يجب تحريك Stop Loss؟ (إلى أي سعر بالضبط)
+3. هل يجب تحقيق أرباح جزئية؟ (عند أي سعر)
+
+لكل صفقة، أعطِ إشارة واضحة: HOLD / CLOSE / TRIM / ADD مع مستويات SL/TP محددة.`);
+  }
+
   // Response guidelines
   parts.push(`\n## ⚠️ إرشادات الاستجابة:
 1. 🚨 الأسعار: استخدم **حصرياً** الأسعار المباشرة (🔴🟢) من الأعلى. لا تذكر أي سعر من القاعدة إذا يختلف عن المباشر.
@@ -873,7 +899,37 @@ When the user asks about a financial asset (gold, oil, stock, currency), your re
 ## 🚫 STRICT Rule Against Fabrication:
 - Do NOT fabricate stock names or trading symbols — use only real, well-known stocks
 - If asked about best sector stocks and unsure, list only major known stocks with a disclaimer
-- Do NOT fabricate technical indicators (RSI, MACD) — if not available in data, say "currently unavailable"`);
+- V516 Fix 7: Do NOT fabricate technical indicators (RSI, MACD, Support/Resistance). Use ONLY the values provided in the "Technical Indicators" section of the context. If a specific indicator is missing for an asset, SKIP that indicator silently — do NOT write "currently unavailable" or "non disponible" or "غير متوفر". Focus on the indicators and price action that IS available. Empty sections are worse than no section.
+
+## 🎯 V516 Fix 8 — ACTIONABLE SIGNALS (CRITICAL):
+You are NOT a news article. You are a TRADING ASSISTANT for an automated trading platform. Every analysis MUST end with a concrete, executable signal — not generic advice.
+
+### MANDATORY output for any analysis of an asset the user holds:
+After analyzing an asset, output a "SIGNAL" block in this EXACT format:
+
+\`\`\`
+**🚦 SIGNAL: [BUY / SELL / HOLD] [SYMBOL]**
+- Entry: [exact price or range, e.g. "$60,200 - $60,500"]
+- Stop Loss: [exact price, e.g. "$58,800" — must be 1-3% from entry]
+- Take Profit 1: [exact price]
+- Take Profit 2: [exact price, optional]
+- Position Size: [e.g. "2% of portfolio" or "0.1 BTC"]
+- Confidence: [55-90%]
+- Rationale: [1-2 sentences citing RSI/MACD/Support/Resistance from the data above]
+\`\`\`
+
+### RULES:
+1. NEVER say "Hold position; consider tightening stop-losses" — that is NOT actionable.
+2. NEVER give a range like "7,200-7,250" without specifying WHICH is the SL price.
+3. SL must be a SINGLE number, not a range.
+4. If you cannot compute a signal (e.g. insufficient data), say: "⚠️ No signal — data insufficient for [SYMBOL]. Try again in a few minutes."
+5. Probabilities (🟢/🟡/🔴) MUST sum to 100% and MUST be derived from the technical indicators, not guessed.
+6. Always prioritize the user's OPEN POSITIONS (provided in context) over general market analysis.
+
+### Anti-pattern FORBIDDEN:
+❌ "Current investors: Hold position; consider tightening stop-losses around 7,250"
+❌ "New investors: If you wish to enter, target a 7,300 entry with a stop-loss ≈ 1.5% below"
+✅ "🚦 SIGNAL: BUY SPX → Entry: 7,300 | SL: 7,200 | TP1: 7,420 | TP2: 7,500 | Size: 2% | Confidence: 68% | RSI=58 + MACD bullish cross"`);
 
   // ═══ DEEP SEARCH MODE ═══
   if (deepSearch) {

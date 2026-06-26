@@ -1040,32 +1040,135 @@ function buildBroadContextForAI(
 
   return sections.join('\n');
 }
-async function fetchBroadPrices(): Promise<PriceData[]> { return []; }
-async function fetchBroadSignals(): Promise<SignalData[]> { return []; }
-async function fetchBroadAnalyses(_regional?: string): Promise<AnalysisData[]> { return []; }
-async function fetchBroadNews(_locale?: any): Promise<NewsData[]> { return []; }
+// V516 Fix 1: استبدال stub functions بدوال حقيقية تجلب بيانات من DB
+// بدل إرجاع [] فارغ دائماً، نجلب أحدث المؤشرات والإشارات والتحليلات والأخبار
+async function fetchBroadPrices(): Promise<PriceData[]> {
+  try {
+    // V516: نجلب أحدث 20 مؤشر سعري من DB (الأكثر تحديثاً)
+    const indicators = await db.marketIndicator.findMany({
+      orderBy: { updatedAt: 'desc' },
+      take: 20,
+    });
+    return indicators.map((ind: any) => ({
+      symbol: ind.symbol,
+      price: ind.price ?? 0,
+      change: ind.change24h ?? 0,
+      changePercent: ind.changePercent24h ?? 0,
+      high: ind.high24h ?? ind.price ?? 0,
+      low: ind.low24h ?? ind.price ?? 0,
+      volume: ind.volume24h ?? 0,
+      timestamp: ind.updatedAt?.toISOString() ?? new Date().toISOString(),
+      source: 'db',
+    } as PriceData));
+  } catch (e) {
+    console.warn('[V516] fetchBroadPrices error:', e);
+    return [];
+  }
+}
+
+async function fetchBroadSignals(): Promise<SignalData[]> {
+  try {
+    const signals = await db.signal.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+    return signals.map((s: any) => ({
+      symbol: s.symbol,
+      type: s.type ?? 'NEUTRAL',
+      direction: s.direction ?? 'NEUTRAL',
+      strength: s.strength ?? 0,
+      price: s.price ?? 0,
+      timestamp: s.createdAt?.toISOString() ?? new Date().toISOString(),
+      source: 'db',
+    } as SignalData));
+  } catch (e) {
+    console.warn('[V516] fetchBroadSignals error:', e);
+    return [];
+  }
+}
+
+async function fetchBroadAnalyses(_regional?: string): Promise<AnalysisData[]> {
+  try {
+    const analyses = await db.marketAnalysis.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+    return analyses.map((a: any) => ({
+      symbol: a.symbol,
+      summary: a.summary ?? '',
+      recommendation: a.recommendation ?? 'NEUTRAL',
+      confidence: a.confidence ?? 0,
+      timestamp: a.createdAt?.toISOString() ?? new Date().toISOString(),
+      source: 'db',
+    } as AnalysisData));
+  } catch (e) {
+    console.warn('[V516] fetchBroadAnalyses error:', e);
+    return [];
+  }
+}
+
+async function fetchBroadNews(_locale?: any): Promise<NewsData[]> {
+  try {
+    const news = await db.news.findMany({
+      orderBy: { publishedAt: 'desc' },
+      take: 10,
+    });
+    return news.map((n: any) => ({
+      title: n.title ?? '',
+      summary: n.summary ?? '',
+      url: n.url ?? '',
+      source: n.source ?? '',
+      publishedAt: n.publishedAt?.toISOString() ?? new Date().toISOString(),
+      sentiment: n.sentiment ?? 'NEUTRAL',
+      assets: n.mentionedAssets ?? [],
+    } as NewsData));
+  } catch (e) {
+    console.warn('[V516] fetchBroadNews error:', e);
+    return [];
+  }
+}
 function settledValue<T>(result: PromiseSettledResult<T>, fallback: T): T {
   return result.status === 'fulfilled' ? result.value : fallback;
 }
 
 // V492: تعريف detectMentionedAssets — كانت مفقودة
+// V516 Fix 4: إضافة XRP/ADA/SOL/DOGE/BNB (الأصول الفعلية للمستخدمين)
 function detectMentionedAssets(message: string): string[] {
   const assets: string[] = [];
   const lower = message.toLowerCase();
   const patterns: Array<{ pattern: RegExp; symbol: string }> = [
     { pattern: /\b(btc|bitcoin|بيتكوين)\b/i, symbol: 'BTC' },
-    { pattern: /\b(eth|ethereum|إيثريوم)\b/i, symbol: 'ETH' },
+    { pattern: /\b(eth|ethereum|إيثريوم|ايثريوم)\b/i, symbol: 'ETH' },
+    // V516: عملات رقمية يملكها المستخدمون فعلاً
+    { pattern: /\b(xrp|ripple|ريبل)\b/i, symbol: 'XRP' },
+    { pattern: /\b(ada|cardano|كاردانو)\b/i, symbol: 'ADA' },
+    { pattern: /\b(sol|solana|سولانا)\b/i, symbol: 'SOL' },
+    { pattern: /\b(doge|dogecoin|دوج)\b/i, symbol: 'DOGE' },
+    { pattern: /\b(bnb|binance\s*coin|بينانس)\b/i, symbol: 'BNB' },
+    { pattern: /\b(matic|polygon|بوليجون)\b/i, symbol: 'MATIC' },
+    { pattern: /\b(link|chainlink|تشين\s*لينك)\b/i, symbol: 'LINK' },
+    { pattern: /\b(avax|avalanche|أفالانش)\b/i, symbol: 'AVAX' },
+    // المعادن والسلع
     { pattern: /\b(xau|gold|ذهب)\b/i, symbol: 'XAU' },
     { pattern: /\b(xag|silver|فضة)\b/i, symbol: 'XAG' },
-    { pattern: /\b(oil|wti|نفط)\b/i, symbol: 'WTI' },
-    { pattern: /\b(eurusd|يورو)\b/i, symbol: 'EURUSD' },
-    { pattern: /\b(gbpusd|جنيه)\b/i, symbol: 'GBPUSD' },
-    { pattern: /\b(usdjpy|ين)\b/i, symbol: 'USDJPY' },
-    { pattern: /\b(spx|s&p)\b/i, symbol: 'SPX' },
+    { pattern: /\b(oil|wti|crude|نفط)\b/i, symbol: 'WTI' },
+    // الفوركس
+    { pattern: /\b(eurusd|eur\/usd|يورو)\b/i, symbol: 'EURUSD' },
+    { pattern: /\b(gbpusd|gbp\/usd|جنيه)\b/i, symbol: 'GBPUSD' },
+    { pattern: /\b(usdjpy|usd\/jpy|ين)\b/i, symbol: 'USDJPY' },
+    // المؤشرات
+    { pattern: /\b(spx|s&p|sp500|s&p\s*500)\b/i, symbol: 'SPX' },
     { pattern: /\b(ndx|nasdaq|ناسداك)\b/i, symbol: 'NDX' },
+    { pattern: /\b(dji|dow\s*jones|داو)\b/i, symbol: 'DJI' },
+    { pattern: /\b(dxy|dollar\s*index|دولار)\b/i, symbol: 'DXY' },
+    // أسهم فردية
     { pattern: /\b(nvda|nvidia|إنفيديا)\b/i, symbol: 'NVDA' },
     { pattern: /\b(aapl|apple|أبل)\b/i, symbol: 'AAPL' },
     { pattern: /\b(tsla|tesla|تسلا)\b/i, symbol: 'TSLA' },
+    { pattern: /\b(msft|microsoft|مايكروسوفت)\b/i, symbol: 'MSFT' },
+    { pattern: /\b(amzn|amazon|أمازون)\b/i, symbol: 'AMZN' },
+    { pattern: /\b(googl|google|جوجل)\b/i, symbol: 'GOOGL' },
+    { pattern: /\b(meta|facebook|فيسبوك)\b/i, symbol: 'META' },
   ];
   for (const { pattern, symbol } of patterns) {
     if (pattern.test(lower) && !assets.includes(symbol)) {
@@ -1378,18 +1481,15 @@ async function fetchRouaTradingUserData(
   console.warn('[V490] fetchRouaTradingUserData START: userId=', userId || 'MISSING', 'cookie=', sessionCookie ? 'present' : 'MISSING', 'msg=', message.slice(0, 40));
 
   try {
+    // V516 Fix 2: إزالة keyword gate — نجلب صفقات المستخدم دائماً
+    // السبب: المساعد كان لا يحلل صفقات المستخدم إلا إذا قال "حلل صفقاتي"
+    // هذا جعل الـ AI يحلل S&P 500 و Gold بدلاً من XRP/ADA/SOL التي يملكها المستخدم
+    // الآن نجلب الصفقات دائماً، ونبقي gate فقط لـ councilBriefs (أثقل)
     const msgLower = message.toLowerCase();
-
-    const needsPositions = /صفقات|مراكز|محفظت|مفتوح|صفقاتي|positions|portfolio|my trades|my positions/.test(msgLower);
     const needsCouncil = /مجلس|وكلاء|تصويت|إجماع|council|agents|vote|consensus/.test(msgLower);
     const needsStats = /أداء|أدائي|إحصائي|فوز|ربح|خسارة|performance|stats|win rate/.test(msgLower);
 
-    console.warn('[V490] needs:', { needsPositions, needsCouncil, needsStats });
-
-    if (!needsPositions && !needsCouncil && !needsStats) {
-      console.warn('[V490] No user data needed — returning null');
-      return null;
-    }
+    console.warn('[V516] fetching user positions (always), council:', needsCouncil, 'stats:', needsStats);
 
     let effectiveUserId = userId;
 
@@ -1427,16 +1527,14 @@ async function fetchRouaTradingUserData(
       return { positions: [], closedTrades: [], councilBriefs: [], stats: null };
     }
 
-    // V490: استدعِ fetchRouaPositions مباشرة (لا Promise.allSettled)
+    // V516 Fix 2: دائماً نجلب الصفقات (إزالة needsPositions gate)
     let positions: UserPositionData[] = [];
-    if (needsPositions) {
-      console.warn('[V490] Calling fetchRouaPositions...');
-      try {
-        positions = await fetchRouaPositions(effectiveUserId);
-        console.warn(`[V490] fetchRouaPositions returned ${positions.length} positions`);
-      } catch (err: any) {
-        console.warn('[V490] fetchRouaPositions ERROR:', err?.message?.slice(0, 100));
-      }
+    console.warn('[V516] Calling fetchRouaPositions (always)...');
+    try {
+      positions = await fetchRouaPositions(effectiveUserId);
+      console.warn(`[V516] fetchRouaPositions returned ${positions.length} positions`);
+    } catch (err: any) {
+      console.warn('[V516] fetchRouaPositions ERROR:', err?.message?.slice(0, 100));
     }
 
     let councilBriefs: CouncilBriefData[] = [];

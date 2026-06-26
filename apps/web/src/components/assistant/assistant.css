@@ -18,6 +18,9 @@
   --bull2: rgba(34,197,94,.08);
   --bear: #EF5350;
   --bear2: rgba(239,83,80,.08);
+  /* Aliases for V514 (clearer semantic names) */
+  --green: #22C55E;
+  --red: #EF5350;
   --border: rgba(255,255,255,.085);
   --border2: rgba(0,229,255,.25);
   --border3: rgba(255,255,255,.045);
@@ -692,16 +695,18 @@
    MESSAGE BUBBLES — Spring Physics Entrance + Streaming Text
    ═══════════════════════════════════════════════════════════════════ */
 .msg-user {
-  background: linear-gradient(135deg, rgba(0, 229, 255, 0.2), rgba(0, 229, 255, 0.08));
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.12), rgba(0, 229, 255, 0.04));
   color: #F0F8FF;
-  border: 1px solid rgba(0, 229, 255, 0.15);
+  border: 1px solid rgba(0, 229, 255, 0.12);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
 }
 
 .msg-assistant {
-  background: var(--bg3);
+  background: rgba(15, 20, 33, 0.55);
   color: var(--text);
-  border: 1px solid var(--border);
-  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 /* Spring physics entrance animation */
@@ -2242,4 +2247,349 @@ html[dir="ltr"] .chat-input-row .chat-plus-wrapper { order: 1; }
 .chat-header-btn:hover {
   background: var(--bg3);
   color: var(--text);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   V514 — ASSISTANT WINDOW REDESIGN
+   "كرة الذكاء" — New message rendering system
+   Imported from observer/index.html design spec
+   Sections / Summary cards / Tables / TA list / Actions / Alerts / Risk
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Section badges (numbered chapter headers inside assistant replies) ── */
+.asst-sec {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  align-self: flex-start;
+  border: 1px solid;
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+.asst-sec .n {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  color: #fff;
+}
+.asst-sec.cyan   { color: var(--cyan);   background: rgba(0, 229, 255, .06);   border-color: rgba(0, 229, 255, .18); }
+.asst-sec.cyan   .n { background: rgba(0, 229, 255, .25); }
+.asst-sec.purple { color: #8B5CF6;       background: rgba(139, 92, 246, .06);  border-color: rgba(139, 92, 246, .18); }
+.asst-sec.purple .n { background: rgba(139, 92, 246, .3); }
+.asst-sec.gold   { color: var(--gold);   background: rgba(255, 184, 0, .06);   border-color: rgba(255, 184, 0, .18); }
+.asst-sec.gold   .n { background: rgba(255, 184, 0, .3); }
+.asst-sec.green  { color: var(--green);  background: rgba(34, 197, 94, .06);   border-color: rgba(34, 197, 94, .18); }
+.asst-sec.green  .n { background: rgba(34, 197, 94, .3); }
+.asst-sec.red    { color: var(--red);    background: rgba(239, 68, 68, .06);   border-color: rgba(239, 68, 68, .18); }
+.asst-sec.red    .n { background: rgba(239, 68, 68, .3); }
+
+/* ── Summary card (2x2 grid for key metrics) ── */
+.asst-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(15, 20, 33, .5);
+  border: 1px solid rgba(255, 255, 255, .04);
+  margin: 8px 0;
+}
+.asst-summary .item { display: flex; flex-direction: column; gap: 3px; }
+.asst-summary .lbl  { font-size: 10.5px; color: var(--text3); font-weight: 500; }
+.asst-summary .val  { font-size: 15px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.asst-summary .val.pos  { color: var(--green); }
+.asst-summary .val.neg  { color: var(--red); }
+.asst-summary .val.cyan { color: var(--cyan); }
+
+/* ── Data table ── */
+.asst-tbl-wrap {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .04);
+  margin: 8px 0;
+}
+table.asst-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+table.asst-tbl th {
+  background: rgba(0, 229, 255, .04);
+  color: var(--cyan);
+  font-weight: 600;
+  padding: 8px;
+  text-align: right;
+  font-size: 11px;
+}
+table.asst-tbl td {
+  padding: 7px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, .03);
+  color: var(--text2);
+}
+table.asst-tbl tbody tr:nth-child(even) { background: rgba(255, 255, 255, .01); }
+table.asst-tbl tbody tr:last-child td { border-bottom: none; }
+table.asst-tbl tbody tr:hover { background: rgba(0, 229, 255, .03); }
+table.asst-tbl .sym { font-weight: 700; color: var(--text); font-size: 12px; }
+table.asst-tbl .pos { color: var(--green); font-weight: 600; }
+table.asst-tbl .neg { color: var(--red);   font-weight: 600; }
+table.asst-tbl .neu { color: var(--text2); }
+
+/* Pills for table cells */
+.asst-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.asst-pill.long  { background: rgba(34, 197, 94, .12); color: var(--green); }
+.asst-pill.short { background: rgba(239, 68, 68, .12); color: var(--red); }
+.asst-pill.watch { background: rgba(255, 184, 0, .12); color: var(--gold); }
+
+/* ── Technical analysis list ── */
+.asst-ta-list { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
+.asst-ta-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(15, 20, 33, .3);
+  border: 1px solid rgba(255, 255, 255, .04);
+}
+.asst-ta-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 229, 255, .08);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--cyan);
+}
+.asst-ta-item.bull    .asst-ta-icon { background: rgba(34, 197, 94, .1);  color: var(--green); }
+.asst-ta-item.bear    .asst-ta-icon { background: rgba(239, 68, 68, .1);  color: var(--red); }
+.asst-ta-item.neutral .asst-ta-icon { background: rgba(255, 184, 0, .1);  color: var(--gold); }
+.asst-ta-body { flex: 1; min-width: 0; }
+.asst-ta-title { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.asst-ta-desc  { font-size: 11px; color: var(--text2); line-height: 1.5; }
+.asst-ta-tag {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  font-weight: 700;
+}
+.asst-ta-tag.bull    { background: rgba(34, 197, 94, .12); color: var(--green); }
+.asst-ta-tag.bear    { background: rgba(239, 68, 68, .12); color: var(--red); }
+.asst-ta-tag.neutral { background: rgba(255, 184, 0, .12); color: var(--gold); }
+
+/* ── Action boxes (border-left colored) ── */
+.asst-actions { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
+.asst-action {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(15, 20, 33, .3);
+  border: 1px solid rgba(255, 255, 255, .04);
+  border-left: 3px solid var(--cyan);
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.asst-action.urgent { border-left-color: var(--red); }
+.asst-action.profit { border-left-color: var(--green); }
+.asst-action.watch  { border-left-color: var(--gold); }
+.asst-action-ic {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, .03);
+  font-size: 13px;
+}
+.asst-action.urgent .asst-action-ic { background: rgba(239, 68, 68, .1); }
+.asst-action.profit .asst-action-ic { background: rgba(34, 197, 94, .1); }
+.asst-action.watch  .asst-action-ic { background: rgba(255, 184, 0, .1); }
+.asst-action-body { flex: 1; min-width: 0; }
+.asst-action-h {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+.asst-action-h .when {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--text3);
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .03);
+}
+.asst-action-d { font-size: 11px; color: var(--text2); line-height: 1.5; }
+
+/* ── Alerts (warn/info) ── */
+.asst-alert {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: rgba(15, 20, 33, .3);
+  border: 1px solid rgba(255, 255, 255, .04);
+  margin: 8px 0;
+}
+.asst-alert.warn { border-left: 3px solid var(--gold); }
+.asst-alert.info { border-left: 3px solid var(--cyan); }
+.asst-alert-ic { flex-shrink: 0; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; }
+.asst-alert-body { flex: 1; min-width: 0; }
+.asst-alert-t { font-size: 11.5px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.asst-alert-d { font-size: 11px; color: var(--text2); line-height: 1.5; }
+
+/* ── Risk notice ── */
+.asst-risk {
+  margin-top: 4px;
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, .04);
+  border: 1px solid rgba(239, 68, 68, .10);
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.asst-risk-ic { flex-shrink: 0; color: var(--red); opacity: .8; font-size: 14px; }
+.asst-risk-d  { font-size: 10.5px; color: var(--text3); line-height: 1.5; }
+
+/* ── Compact typing indicator (replaces old one when needed) ── */
+.asst-typing-compact {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 4px;
+}
+.asst-typing-dots { display: flex; gap: 4px; }
+.asst-typing-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cyan);
+  opacity: .4;
+  animation: asst-typing-bounce 1.4s ease-in-out infinite;
+}
+.asst-typing-dots span:nth-child(2) { animation-delay: .2s; }
+.asst-typing-dots span:nth-child(3) { animation-delay: .4s; }
+.asst-typing-lbl { font-size: 11px; color: var(--text3); font-weight: 500; }
+@keyframes asst-typing-bounce {
+  0%, 60%, 100% { opacity: .4; transform: translateY(0); }
+  30%           { opacity: 1;  transform: translateY(-3px); }
+}
+
+/* ── Quick hint chips (clickable suggestions under input) ── */
+.asst-quick-hints {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding: 0 2px;
+}
+.asst-quick-hint {
+  padding: 5px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .03);
+  border: 1px solid rgba(255, 255, 255, .04);
+  color: var(--text2);
+  font-size: 10.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .2s ease;
+  font-family: inherit;
+}
+.asst-quick-hint:hover {
+  background: rgba(0, 229, 255, .06);
+  border-color: rgba(0, 229, 255, .18);
+  color: var(--cyan);
+  transform: translateY(-1px);
+}
+
+/* ── New bubble style for assistant messages (cleaner) ── */
+.assistant-msg-bubble-v514 {
+  background: rgba(15, 20, 33, .4);
+  border: 1px solid rgba(255, 255, 255, .04);
+  border-top-left-radius: 4px;
+  border-top-right-radius: 12px;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+.user-msg-bubble-v514 {
+  background: linear-gradient(135deg, rgba(0, 229, 255, .10), rgba(0, 229, 255, .04));
+  border: 1px solid rgba(0, 229, 255, .10);
+  border-top-left-radius: 12px;
+  border-top-right-radius: 4px;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+/* ── Message timestamp ── */
+.asst-msg-time {
+  font-size: 10px;
+  color: var(--text3);
+  margin-top: 4px;
+  padding: 0 4px;
+  font-weight: 500;
+}
+
+/* ── Lead paragraph inside assistant content ── */
+.asst-lead {
+  color: var(--text);
+  font-weight: 500;
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+/* ── Assistant content container ── */
+.asst-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.asst-content p { margin: 0; }
+.asst-content ul, .asst-content ol { margin: 4px 0; padding-right: 18px; }
+.asst-content li { font-size: 12.5px; color: var(--text2); line-height: 1.6; margin-bottom: 4px; }
+.asst-content strong { color: var(--text); font-weight: 600; }
+.asst-content code {
+  background: rgba(0, 229, 255, .08);
+  color: var(--cyan);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: 'SF Mono', Monaco, monospace;
+}
+
+/* Mobile adjustments for V514 */
+@media (max-width: 480px) {
+  .asst-summary { grid-template-columns: 1fr; }
+  table.asst-tbl { font-size: 11px; }
+  table.asst-tbl th, table.asst-tbl td { padding: 6px; }
 }

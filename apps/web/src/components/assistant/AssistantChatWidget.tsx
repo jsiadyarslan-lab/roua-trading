@@ -2615,6 +2615,26 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
             inputRef={inputRef}
             fileInputRef={fileInputRef}
           />
+
+          {/* ── V514: Quick Hint Chips — clickable suggestions under input ── */}
+          {messages.length === 0 && !isLoading && (
+            <div className="asst-quick-hints" dir={isRtl ? 'rtl' : 'ltr'}>
+              {text.quickActions.slice(0, 4).map((qa, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className="asst-quick-hint"
+                  onClick={() => {
+                    setInput(qa.prompt);
+                    inputRef.current?.focus();
+                  }}
+                >
+                  <span style={{ marginLeft: isRtl ? 0 : 4, marginRight: isRtl ? 4 : 0 }}>{qa.icon}</span>
+                  {qa.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </>

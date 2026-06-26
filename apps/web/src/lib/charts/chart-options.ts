@@ -34,13 +34,6 @@ export function buildChartOptions(opts: {
   return {
     width,
     height,
-    // V465: autoSize lets lightweight-charts observe the container and resize
-    // automatically. Combined with the visualViewport listener in useChart,
-    // this fixes the mobile-only chart stretching issue.
-    autoSize: true,
-    // V465: Cap devicePixelRatio at 2 to prevent canvas memory issues on
-    // high-DPI mobile devices (Safari "Total canvas memory use exceeds limit")
-    devicePixelRatio: Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 2),
     layout: {
       background: { color: isMobile ? '#000000' : bgColor },
       textColor,

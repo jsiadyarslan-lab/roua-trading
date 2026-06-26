@@ -118,8 +118,6 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const shortcutsRef = useRef<KeyboardShortcuts | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const windowResizeHandlerRef = useRef<(() => void) | null>(null);
-  // V465: visualViewport handler ref (for cleanup on chart destroy)
-  const visualViewportHandlerRef = useRef<(() => void) | null>(null);
   // نتتبع آخر dimensions طبقناها على الشارت — أدق من chart.options()
   const lastAppliedSizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
   const mainSeriesRef = useRef<ISeriesApi<SeriesType> | null>(null);
@@ -178,22 +176,6 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // high-frequency market conditions.
   const rafBufferRef = useRef<CandleData | null>(null);
   const rafIdRef = useRef<number>(0);
-  // V461: isUpdating flag — prevents race condition between updateLastCandle
-  // (from useMarketStore price) and _flushUpdateCandle (from polling/WS).
-  // On mobile, the main thread is busier (touch events, scroll handling),
-  // so the two paths can interleave across paint frames, causing the candle
-  // to flicker/stretch. The flag ensures only ONE path updates the series
-  // at a time — the second path skips if the first is mid-update.
-  const isUpdatingRef = useRef(false);
-  // V462: refreshIndicatorsDataRef — avoids TDZ (Temporal Dead Zone) error.
-  // updateLastCandle (line ~1183) needs to call refreshIndicatorsData, but
-  // refreshIndicatorsData is defined LATER (line ~1351). Adding it to
-  // useCallback's deps array throws "Cannot access 'X' before initialization"
-  // because the const is in TDZ when the deps array is evaluated.
-  // The ref breaks the cycle: updateLastCandle reads refreshIndicatorsDataRef.current
-  // (always initialized as null), and the ref is updated AFTER refreshIndicatorsData
-  // is defined. No TDZ, no circular dependency.
-  const refreshIndicatorsDataRef = useRef<() => void>(() => {});
   // PERF: Debounced indicator refresh timer.
   // After a WS candle update, we schedule a debounced (500ms) indicator
   // data refresh that recalculates all active indicators and updates
@@ -748,37 +730,6 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     window.addEventListener('resize', handleWindowResize);
     windowResizeHandlerRef.current = handleWindowResize;
 
-    // ── V465: Visual Viewport Listener (critical for real mobile) ──
-    // On real mobile browsers, window.innerWidth/innerHeight change when
-    // the URL bar shows/hides. The visualViewport API fires 'resize' and
-    // 'scroll' events for these changes — window 'resize' does NOT fire
-    // for URL bar show/hide on iOS Safari.
-    // This is the key difference between desktop-mobile-view (stable
-    // innerHeight) and real mobile (constant innerHeight changes).
-    const handleVisualViewportChange = () => {
-      if (!chart || !containerRef.current) return;
-      if (winResizeTimer) clearTimeout(winResizeTimer);
-      winResizeTimer = setTimeout(() => {
-        if (chart && containerRef.current) {
-          const w = containerRef.current.clientWidth;
-          const h = containerRef.current.clientHeight;
-          if (w > 0 && h > 0) {
-            const last = lastAppliedSizeRef.current;
-            if (Math.abs(last.w - w) < 3 && Math.abs(last.h - h) < 3) return;
-            chart.applyOptions({ width: w, height: h });
-            lastAppliedSizeRef.current = { w, h };
-          }
-        }
-        winResizeTimer = null;
-      }, 100);
-    };
-    if (typeof window !== 'undefined' && window.visualViewport) {
-      window.visualViewport.addEventListener('resize', handleVisualViewportChange);
-      window.visualViewport.addEventListener('scroll', handleVisualViewportChange);
-    }
-    // Store for cleanup
-    visualViewportHandlerRef.current = handleVisualViewportChange;
-
     // ── Subscribe to visible range change (if callback already registered) ──
     if (visibleRangeCallbackRef.current) {
       chart.timeScale().subscribeVisibleLogicalRangeChange(visibleRangeCallbackRef.current);
@@ -888,12 +839,6 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       if (windowResizeHandlerRef.current) {
         window.removeEventListener('resize', windowResizeHandlerRef.current);
         windowResizeHandlerRef.current = null;
-      }
-      // V465: Clean up visualViewport listeners
-      if (visualViewportHandlerRef.current && typeof window !== 'undefined' && window.visualViewport) {
-        window.visualViewport.removeEventListener('resize', visualViewportHandlerRef.current);
-        window.visualViewport.removeEventListener('scroll', visualViewportHandlerRef.current);
-        visualViewportHandlerRef.current = null;
       }
       // Clean up debounced indicator refresh timer
       if (indicatorRefreshTimerRef.current) {
@@ -1217,22 +1162,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
 
   // ── Update Last Candle (live tick) ─────────────────────
-  // V462: Fixed critical bug where 1m candle would freeze after a few minutes.
-  // The previous logic always updated the SAME time (lastCandle.time) even
-  // after the minute had ended — so no new candle was ever created from
-  // the price-tick path. Only the polling/WS path could open a new candle,
-  // and on mobile that path gets throttled → candle freezes.
-  //
-  // FIX (mirrors TradingView's recommended pattern):
-  //   1. Compute currentPeriodStart from timeframe
-  //   2. If lastCandle.time < currentPeriodStart → OPEN NEW CANDLE
-  //   3. Else → update existing candle's high/low/close
-  //   4. After update, scroll chart to real-time so new candle is visible
   const updateLastCandle = useCallback((price: number) => {
     if (isPaused || !candleSeriesRef.current || !candlesRef.current.length) return;
-    // V461: Skip if _flushUpdateCandle is mid-update — prevents race condition
-    // where both paths write to the series in the same paint cycle.
-    if (isUpdatingRef.current) return;
     chartDiag.priceTicks++; chartDiag.lastPriceAt = Date.now();
 
     const candles = candlesRef.current;
@@ -1241,176 +1172,54 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     const lastTime = sanitizeTime(last.time);
     if (lastTime === null) return; // Invalid time — skip this update entirely
 
-    // V462: Compute current period start based on timeframe.
-    // Timeframe values in TIMEFRAMES use '1min','5min','15min','30min','1h','4h','1day','1week'.
-    const TF_TO_SECONDS: Record<string, number> = {
-      '1s': 1, '5s': 5, '15s': 15, '30s': 30,
-      '1min': 60, '5min': 300, '15min': 900, '30min': 1800,
-      '1h': 3600, '2h': 7200, '4h': 14400,
-      '1day': 86400, '1week': 604800, '1month': 2592000, '3month': 7776000,
-    };
-    const tfSec = TF_TO_SECONDS[timeframe] || 60;
-    const nowSec = Math.floor(Date.now() / 1000);
-    const currentPeriodStart = nowSec - (nowSec % tfSec);
-
-    const chart = chartInstanceRef.current;
-
-    // V462: Branch — new candle period vs. same period
-    if ((lastTime as number) < currentPeriodStart) {
-      // 🆕 NEW CANDLE — the period has rolled over since lastCandle.time.
-      // This is the fix for the "frozen candle" bug on mobile: previously
-      // the price-tick path never created new candles, so when polling was
-      // throttled by the browser, no new candle would appear.
-      //
-      // V462c: Do NOT apply sanitizeOhlc to the new candle. sanitizeOhlc
-      // expands high/low but leaves open===close, so the body stays flat
-      // (renders as invisible dot). A brand-new candle is SUPPOSED to be
-      // flat (open=high=low=close=price) — that's the natural state at
-      // the start of a period. The body will appear as soon as the next
-      // price tick moves close away from open.
-      const newCandle: CandleData = {
-        time: currentPeriodStart,
-        open: price,
-        high: price,
-        low: price,
-        close: price,
-        volume: 1,
-      };
-      // V462f: CRITICAL — must create a NEW array and assign to candlesRef.current.
-      // Previously: candles.push(newCandle) mutated the array in place. But if
-      // candlesRef.current was replaced elsewhere (e.g. periodic refresh sets
-      // candlesRef.current = merged), the array we're mutating is NOT the one
-      // candlesRef.current points to. Result: new candle goes to an orphaned
-      // array, candlesRef.current keeps the old last candle → chart shows
-      // stale 06:14 candle forever, while 06:16/06:17 are created in void.
-      //
-      // FIX: Always assign a NEW array to candlesRef.current so the reference
-      // is guaranteed fresh. This matches how setCandles and other paths
-      // update the ref.
-      const newCandles = [...candlesRef.current, newCandle];
-      // Keep candles array bounded
-      if (newCandles.length > MAX_VISIBLE_CANDLES) {
-        candlesRef.current = newCandles.slice(newCandles.length - MAX_VISIBLE_CANDLES);
-      } else {
-        candlesRef.current = newCandles;
-      }
-
-      console.warn(`[V462c] 🆕 NEW ${timeframe} CANDLE: time=${new Date(currentPeriodStart * 1000).toLocaleTimeString()} open=${price} (flat — body appears when price moves)`);
-
-      if (settings.type === 'line' || settings.type === 'area') {
-        try {
-          candleSeriesRef.current.update({
-            time: currentPeriodStart as Time,
-            value: newCandle.close,
-          } as any);
-        } catch { /* chart destroyed */ }
-      } else if (settings.type === 'heikin-ashi') {
-        const prev = candles.length > 1 ? candles[candles.length - 2] : newCandle;
-        const haClose = (newCandle.open + newCandle.high + newCandle.low + newCandle.close) / 4;
-        const haOpen = (prev.open + prev.close) / 2;
-        const haHigh = Math.max(newCandle.high, haOpen, haClose);
-        const haLow = Math.min(newCandle.low, haOpen, haClose);
-        try {
-          candleSeriesRef.current.update({
-            time: currentPeriodStart as Time, open: haOpen, high: haHigh, low: haLow, close: haClose,
-          } as any);
-        } catch { /* chart destroyed */ }
-      } else {
-        try {
-          candleSeriesRef.current.update({
-            time: currentPeriodStart as Time,
-            open: newCandle.open, high: newCandle.high, low: newCandle.low, close: newCandle.close,
-          } as any);
-        } catch (e) {
-          console.warn(`[V462c] series.update failed for new candle:`, e);
-        }
-      }
-
-      // Update volume for new candle
-      if (volumeSeriesRef.current) {
-        try {
-          volumeSeriesRef.current.update({
-            time: currentPeriodStart as Time,
-            value: 1,
-            color: newCandle.close >= newCandle.open ? SHARED_COLORS.volumeUp : SHARED_COLORS.volumeDown,
-          } as any);
-        } catch { /* chart destroyed */ }
-      }
-
-      // V462e: Scroll to real-time with setTimeout(10ms) to prevent
-      // "chart pulls itself into corner" issue. Direct call races with
-      // the series.update() paint cycle. setTimeout lets the paint finish
-      // first, then scrolls smoothly.
-      if (chart) {
-        try {
-          setTimeout(() => {
-            try { chart.timeScale().scrollToRealTime(); } catch { /* non-critical */ }
-          }, 10);
-        } catch { /* non-critical */ }
-      }
-
-      // Refresh indicators on new candle (V462: use ref to avoid TDZ)
-      if (indicatorRefreshTimerRef.current) clearTimeout(indicatorRefreshTimerRef.current);
-      indicatorRefreshTimerRef.current = setTimeout(() => {
-        refreshIndicatorsDataRef.current();
-        indicatorRefreshTimerRef.current = null;
-      }, 200);
-
-      if (drawingRendererRef.current) {
-        drawingRendererRef.current.requestRender();
-      }
-      return;
-    }
-
-    // 🔄 SAME PERIOD — update existing candle's high/low/close.
-    // V461: Create a NEW object every time — never mutate `last` in place.
-    const newHigh = Math.max(last.high, price);
-    const newLow = Math.min(last.low, price);
-    const s = sanitizeOhlc(last.open, newHigh, newLow, price);
-    const sanitized: CandleData = {
-      time: lastTime as number,
-      open: s.open,
-      high: s.high,
-      low: s.low,
-      close: s.close,
-      volume: last.volume,
-    };
+    const updated = { ...last, time: lastTime, close: price, high: Math.max(last.high, price), low: Math.min(last.low, price) };
+    // FIX: Sanitize OHLC — near-flat candles from Binance 1m/5m data render as dots.
+    const s = sanitizeOhlc(updated.open, updated.high, updated.low, updated.close);
+    const sanitized = { ...updated, open: s.open, high: s.high, low: s.low, close: s.close };
+    // PERF FIX: Mutate last element directly instead of creating new array
+    // [...candles.slice(0,-1), sanitized] = O(n) allocation on every tick
+    // Direct mutation = O(1), no GC pressure
     candlesRef.current[candlesRef.current.length - 1] = sanitized;
 
-    if (!candleSeriesRef.current) return;
+    if (!candleSeriesRef.current) return; // Chart was destroyed — skip update
 
     if (settings.type === 'line' || settings.type === 'area') {
+      // FIX C5: Line/Area series use {time, value} format, not OHLC
       try {
         candleSeriesRef.current.update({
           time: lastTime as Time,
           value: sanitized.close,
         } as any);
-      } catch { /* chart destroyed */ }
+      } catch { /* chart was destroyed between the null check and update */ }
     } else if (settings.type === 'heikin-ashi') {
+      // Only recalculate last candle for HA, not entire series
       const prevCandle = candles.length > 1 ? candles[candles.length - 2] : sanitized;
       const haClose = (sanitized.open + sanitized.high + sanitized.low + sanitized.close) / 4;
       const haOpen = prevCandle === sanitized ? (sanitized.open + haClose) / 2 : (prevCandle.open + prevCandle.close) / 2;
       const haHigh = Math.max(sanitized.high, haOpen, haClose);
       const haLow = Math.min(sanitized.low, haOpen, haClose);
+      const lastDisplay = { ...sanitized, open: haOpen, high: haHigh, low: haLow, close: haClose };
       try { candleSeriesRef.current.update({
-        time: lastTime as Time, open: haOpen, high: haHigh, low: haLow, close: haClose,
+        time: lastTime as Time, open: lastDisplay.open, high: lastDisplay.high, low: lastDisplay.low, close: lastDisplay.close,
       } as any);
-      } catch { /* chart destroyed */ }
+      } catch { /* chart was destroyed between the null check and update */ }
     } else {
       try {
         candleSeriesRef.current.update({
           time: lastTime as Time, open: sanitized.open, high: sanitized.high, low: sanitized.low, close: sanitized.close,
         } as any);
-      } catch { /* chart destroyed */ }
+      } catch { /* chart was destroyed between the null check and update */ }
     }
 
-    // Update volume
+    // Update volume — use `sanitized` (not `last`) for correct color after price change
     if (volumeSeriesRef.current) {
       volumeSeriesRef.current.update({
         time: lastTime as Time,
         value: last.volume,
         color: sanitized.close >= sanitized.open ? SHARED_COLORS.volumeUp : SHARED_COLORS.volumeDown,
       } as any);
+      // FIX: If volume was previously all-zero (histogram hidden) but this tick
+      // has non-zero volume, make the histogram visible again.
       if (last.volume > 0 && !hasVolumeRef.current) {
         hasVolumeRef.current = true;
         volumeSeriesRef.current.applyOptions({
@@ -1418,7 +1227,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         });
       }
     }
-  }, [isPaused, settings.type, timeframe]); // V462: removed refreshIndicatorsData — uses ref to avoid TDZ
+  }, [isPaused, settings.type]);
 
   // ── Refresh Indicators Data In-Place ─────────────────────
   // Recalculates all active indicators and updates their series
@@ -1490,10 +1299,6 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     }
   }, [hashIndicatorParams, getDataSignature]);
 
-  // V462: Keep ref in sync so updateLastCandle (defined above) can call
-  // refreshIndicatorsData without TDZ issues.
-  refreshIndicatorsDataRef.current = refreshIndicatorsData;
-
   // ── Fast Incremental Candle Update (rAF-batched) ──────
   // Used by WebSocket onCandleUpdate for updating EXISTING candles.
   // Uses lightweight-charts' update() API instead of setData() —
@@ -1513,158 +1318,121 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     const time = sanitizeTime(candle.time);
     if (time === null) return;
 
-    // V461: Set isUpdating flag to prevent updateLastCandle from writing
-    // to the series while we're mid-update. This prevents race condition
-    // where both paths call series.update() in the same paint cycle.
-    isUpdatingRef.current = true;
-    try {
-      const candles = candlesRef.current;
-      const lastCandle = candles[candles.length - 1];
+    const candles = candlesRef.current;
+    const lastCandle = candles[candles.length - 1];
 
-      // Only use incremental update for the LAST candle
-      // (which is the one WebSocket updates in real-time)
-      if (lastCandle && lastCandle.time === time) {
-        chartDiag.klineUpdates++; chartDiag.lastKlineAt = Date.now(); chartDiag.lastCandleTime = time as number;
-        // الـ kline من Binance يصل متأخراً — close وhigh وlow قد تكون أقل دقة
-        // من البيانات التي رسمناها عبر updateLastCandle
-        const isClosed = !!(candle as any)._isClosed;
-        // للشمعة المفتوحة: close من آخر price tick (أحدث)
-        // للشمعة المغلقة: close من kline (نهائي ودقيق)
-        const closeToUse = isClosed ? candle.close : lastCandle.close;
-        // high وlow: دائماً نأخذ الأقصى — لا يتراجعان أبداً
-        const mergedHigh = Math.max(lastCandle.high, candle.high);
-        const mergedLow  = Math.min(lastCandle.low,  candle.low);
-        // V462c: ALWAYS keep lastCandle.open — NEVER use candle.open from polling.
-        // The polling path can send a different open (from backend's first tick
-        // of the period), which would make the candle body jump between values.
-        // The open is set once when the candle is created (in updateLastCandle's
-        // new-candle branch) and must NEVER change during the period.
-        const s = sanitizeOhlc(lastCandle.open, mergedHigh, mergedLow, closeToUse);
-        // V461: Create a NEW object — never mutate lastCandle in place.
-        const updated: CandleData = {
-          time: time as number,
-          open: s.open,
-          high: s.high,
-          low: s.low,
-          close: s.close,
-          volume: candle.volume || lastCandle.volume,
-        };
-        candles[candles.length - 1] = updated;
+    // Only use incremental update for the LAST candle
+    // (which is the one WebSocket updates in real-time)
+    if (lastCandle && lastCandle.time === time) {
+      chartDiag.klineUpdates++; chartDiag.lastKlineAt = Date.now(); chartDiag.lastCandleTime = time as number;
+      // الـ kline من Binance يصل متأخراً — close وhigh وlow قد تكون أقل دقة
+      // من البيانات التي رسمناها عبر updateLastCandle
+      const isClosed = !!(candle as any)._isClosed;
+      // للشمعة المفتوحة: close من آخر price tick (أحدث)
+      // للشمعة المغلقة: close من kline (نهائي ودقيق)
+      const closeToUse = isClosed ? candle.close : lastCandle.close;
+      // high وlow: دائماً نأخذ الأقصى — لا يتراجعان أبداً
+      const mergedHigh = Math.max(lastCandle.high, candle.high);
+      const mergedLow  = Math.min(lastCandle.low,  candle.low);
+      const s = sanitizeOhlc(candle.open, mergedHigh, mergedLow, closeToUse);
+      const updated = { ...candle, time, open: s.open, high: s.high, low: s.low, close: s.close };
+      candles[candles.length - 1] = updated;
 
-        // FIX C5: For Line/Area chart types, the series expects {time, value} format,
-        // NOT {time, open, high, low, close}. Sending OHLC data to a Line/Area series
-        // causes a silent error and the chart stops updating. This was the root cause
-        // of "candles disappear after switching to Line/Area type" bug.
-        const chartType = settings.type;
-        if (chartType === 'line' || chartType === 'area') {
-          try {
-            candleSeriesRef.current.update({
-              time: time as Time,
-              value: updated.close,
-            } as any);
-          } catch { /* chart destroyed */ }
-        } else if (chartType === 'heikin-ashi') {
-          const prev = candles.length > 1 ? candles[candles.length - 2] : updated;
-          const haClose = (updated.open + updated.high + updated.low + updated.close) / 4;
-          const haOpen = prev === updated ? (updated.open + haClose) / 2 : (prev.open + prev.close) / 2;
-          const haHigh = Math.max(updated.high, haOpen, haClose);
-          const haLow = Math.min(updated.low, haOpen, haClose);
-          try {
-            candleSeriesRef.current.update({
-              time: time as Time, open: haOpen, high: haHigh, low: haLow, close: haClose,
-            } as any);
-          } catch { /* chart destroyed */ }
-        } else {
-          // Candlestick, Hollow, Bar types — use OHLC format
-          try {
-            candleSeriesRef.current.update({
-              time: time as Time,
-              open: updated.open, high: updated.high, low: updated.low, close: updated.close,
-            } as any);
-          } catch { /* chart destroyed */ }
-        }
-
-        // Update volume
-        if (volumeSeriesRef.current) {
-          try {
-            volumeSeriesRef.current.update({
-              time: time as Time,
-              value: candle.volume || 0,
-              color: updated.close >= updated.open ? SHARED_COLORS.volumeUp : SHARED_COLORS.volumeDown,
-            } as any);
-          } catch { /* chart destroyed */ }
-        }
-
-        // لا نُحدَّث المؤشرات مع كل tick — فقط عند فتح شمعة جديدة
-
-        // V255 FIX: Request drawing re-render after candle data update.
-        // When the last candle's price changes, the chart might auto-scroll
-        // or the Y-axis range might change, requiring drawings to re-calculate
-        // their pixel positions. Using requestRender() (lightweight) instead of
-        // redraw() (heavy) because drawing DATA hasn't changed, only coordinates.
-        if (drawingRendererRef.current) {
-          drawingRendererRef.current.requestRender();
-        }
-      } else if (lastCandle && time !== null && time > (lastCandle.time as number)) {
-        chartDiag.newCandleFired++; chartDiag.lastKlineAt = Date.now(); chartDiag.lastCandleTime = time as number;
-        // ── شمعة جديدة: الوقت أكبر من آخر شمعة ──────────────────────────
-        // نُضيف الشمعة الجديدة للـ chart بدلاً من تجاهلها
-        const s = sanitizeOhlc(candle.open, candle.high, candle.low, candle.close);
-        const newCandle: CandleData = {
-          time: time as number,
-          open: s.open,
-          high: s.high,
-          low: s.low,
-          close: s.close,
-          volume: candle.volume,
-        };
-        // V462f: Assign NEW array to candlesRef.current (same fix as updateLastCandle).
-        // candles.push() mutates in place — if candlesRef.current was replaced
-        // elsewhere, the push goes to an orphaned array.
-        const newCandlesArr = [...candlesRef.current, newCandle];
-        if (newCandlesArr.length > MAX_VISIBLE_CANDLES) {
-          candlesRef.current = newCandlesArr.slice(newCandlesArr.length - MAX_VISIBLE_CANDLES);
-        } else {
-          candlesRef.current = newCandlesArr;
-        }
-
-        const chartType = settings.type;
+      // FIX C5: For Line/Area chart types, the series expects {time, value} format,
+      // NOT {time, open, high, low, close}. Sending OHLC data to a Line/Area series
+      // causes a silent error and the chart stops updating. This was the root cause
+      // of "candles disappear after switching to Line/Area type" bug.
+      const chartType = settings.type;
+      if (chartType === 'line' || chartType === 'area') {
         try {
-          if (chartType === 'line' || chartType === 'area') {
-            candleSeriesRef.current.update({ time: time as Time, value: newCandle.close } as any);
-          } else if (chartType === 'heikin-ashi') {
-            const prev = newCandlesArr.length > 1 ? newCandlesArr[newCandlesArr.length - 2] : newCandle;
-            const haClose = (newCandle.open + newCandle.high + newCandle.low + newCandle.close) / 4;
-            const haOpen = (prev.open + prev.close) / 2;
-            const haHigh = Math.max(newCandle.high, haOpen, haClose);
-            const haLow  = Math.min(newCandle.low,  haOpen, haClose);
-            candleSeriesRef.current.update({ time: time as Time, open: haOpen, high: haHigh, low: haLow, close: haClose } as any);
-          } else {
-            candleSeriesRef.current.update({ time: time as Time, open: newCandle.open, high: newCandle.high, low: newCandle.low, close: newCandle.close } as any);
-          }
-          if (volumeSeriesRef.current) {
-            volumeSeriesRef.current.update({ time: time as Time, value: candle.volume || 0, color: newCandle.close >= newCandle.open ? SHARED_COLORS.volumeUp : SHARED_COLORS.volumeDown } as any);
-          }
+          candleSeriesRef.current.update({
+            time: time as Time,
+            value: updated.close,
+          } as any);
         } catch { /* chart destroyed */ }
-
-        // V255 FIX: Request drawing re-render after new candle is added.
-        // When a new candle appears, the chart auto-scrolls, changing the
-        // visible range. Drawings need to recalculate their pixel positions
-        // to move with the chart. Using requestRender() for performance.
-        if (drawingRendererRef.current) {
-          drawingRendererRef.current.requestRender();
-        }
-
-        // تحديث المؤشرات عند فتح شمعة جديدة فقط
-        if (indicatorRefreshTimerRef.current) clearTimeout(indicatorRefreshTimerRef.current);
-        indicatorRefreshTimerRef.current = setTimeout(() => {
-          refreshIndicatorsData();
-          indicatorRefreshTimerRef.current = null;
-        }, 200);
+      } else if (chartType === 'heikin-ashi') {
+        const prev = candles.length > 1 ? candles[candles.length - 2] : updated;
+        const haClose = (updated.open + updated.high + updated.low + updated.close) / 4;
+        const haOpen = prev === updated ? (updated.open + haClose) / 2 : (prev.open + prev.close) / 2;
+        const haHigh = Math.max(updated.high, haOpen, haClose);
+        const haLow = Math.min(updated.low, haOpen, haClose);
+        try {
+          candleSeriesRef.current.update({
+            time: time as Time, open: haOpen, high: haHigh, low: haLow, close: haClose,
+          } as any);
+        } catch { /* chart destroyed */ }
+      } else {
+        // Candlestick, Hollow, Bar types — use OHLC format
+        try {
+          candleSeriesRef.current.update({
+            time: time as Time,
+            open: updated.open, high: updated.high, low: updated.low, close: updated.close,
+          } as any);
+        } catch { /* chart destroyed */ }
       }
-    } finally {
-      // V461: Always reset the flag, even if an error occurred
-      isUpdatingRef.current = false;
+
+      // Update volume
+      if (volumeSeriesRef.current) {
+        try {
+          volumeSeriesRef.current.update({
+            time: time as Time,
+            value: candle.volume || 0,
+            color: updated.close >= updated.open ? SHARED_COLORS.volumeUp : SHARED_COLORS.volumeDown,
+          } as any);
+        } catch { /* chart destroyed */ }
+      }
+
+      // لا نُحدَّث المؤشرات مع كل tick — فقط عند فتح شمعة جديدة
+
+      // V255 FIX: Request drawing re-render after candle data update.
+      // When the last candle's price changes, the chart might auto-scroll
+      // or the Y-axis range might change, requiring drawings to re-calculate
+      // their pixel positions. Using requestRender() (lightweight) instead of
+      // redraw() (heavy) because drawing DATA hasn't changed, only coordinates.
+      if (drawingRendererRef.current) {
+        drawingRendererRef.current.requestRender();
+      }
+    } else if (lastCandle && time !== null && time > (lastCandle.time as number)) {
+      chartDiag.newCandleFired++; chartDiag.lastKlineAt = Date.now(); chartDiag.lastCandleTime = time as number;
+      // ── شمعة جديدة: الوقت أكبر من آخر شمعة ──────────────────────────
+      // نُضيف الشمعة الجديدة للـ chart بدلاً من تجاهلها
+      const s = sanitizeOhlc(candle.open, candle.high, candle.low, candle.close);
+      const newCandle = { ...candle, time, open: s.open, high: s.high, low: s.low, close: s.close };
+      candles.push(newCandle);
+
+      const chartType = settings.type;
+      try {
+        if (chartType === 'line' || chartType === 'area') {
+          candleSeriesRef.current.update({ time: time as Time, value: newCandle.close } as any);
+        } else if (chartType === 'heikin-ashi') {
+          const prev = candles[candles.length - 2] ?? newCandle;
+          const haClose = (newCandle.open + newCandle.high + newCandle.low + newCandle.close) / 4;
+          const haOpen = (prev.open + prev.close) / 2;
+          const haHigh = Math.max(newCandle.high, haOpen, haClose);
+          const haLow  = Math.min(newCandle.low,  haOpen, haClose);
+          candleSeriesRef.current.update({ time: time as Time, open: haOpen, high: haHigh, low: haLow, close: haClose } as any);
+        } else {
+          candleSeriesRef.current.update({ time: time as Time, open: newCandle.open, high: newCandle.high, low: newCandle.low, close: newCandle.close } as any);
+        }
+        if (volumeSeriesRef.current) {
+          volumeSeriesRef.current.update({ time: time as Time, value: candle.volume || 0, color: newCandle.close >= newCandle.open ? SHARED_COLORS.volumeUp : SHARED_COLORS.volumeDown } as any);
+        }
+      } catch { /* chart destroyed */ }
+
+      // V255 FIX: Request drawing re-render after new candle is added.
+      // When a new candle appears, the chart auto-scrolls, changing the
+      // visible range. Drawings need to recalculate their pixel positions
+      // to move with the chart. Using requestRender() for performance.
+      if (drawingRendererRef.current) {
+        drawingRendererRef.current.requestRender();
+      }
+
+      // تحديث المؤشرات عند فتح شمعة جديدة فقط
+      if (indicatorRefreshTimerRef.current) clearTimeout(indicatorRefreshTimerRef.current);
+      indicatorRefreshTimerRef.current = setTimeout(() => {
+        refreshIndicatorsData();
+        indicatorRefreshTimerRef.current = null;
+      }, 200);
     }
   }, [isPaused, settings.type, refreshIndicatorsData]);
 

@@ -1526,7 +1526,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Right Panel — V554: always visible on desktop (above 768px) */}
-          <div className="dash-col dash-col-right animate-in-3" style={{ height: '100%' }}>
+          <div className="dash-col dash-col-right animate-in-3" style={{ height: '100%', width: rightPanelCollapsed ? '40px' : '100%', minWidth: 0, overflow: 'hidden' }}>
               {mode === 'trader' && <RightPanelLayout quotes={quotes} />}
               {mode === 'investor' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: '100%' }}>

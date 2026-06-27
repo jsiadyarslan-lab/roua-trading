@@ -2577,7 +2577,9 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
           style={{
             width: 56,
             height: 56,
-            [isRtl ? 'left' : 'right']: '1.5rem',
+            // V545: FAB دائماً على اليمين (بكل اللغات)
+            right: '1.5rem',
+            left: 'auto',
             bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
           }}
           aria-label={text.ariaLabel}
@@ -2657,17 +2659,9 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
                 <p className="text-xs truncate" style={{ color: '#8A9DB2' }}>{text.headerSubtitle}</p>
               </div>
             </div>
-            {/* Status indicator + Market pulse + History/New/Close buttons */}
+            {/* Status indicator + History/New/Close buttons */}
             <div className="flex items-center gap-2">
-              {/* ── Market Pulse Indicator (floating variant only) ── */}
-              {variant === 'floating' && (
-                <div className={`flex items-center gap-1 px-2 py-1 rounded-md pulse-badge-${marketPulse}`}>
-                  <div className={`rounded-full pulse-dot-${marketPulse}`} style={{ width: 6, height: 6 }} />
-                  <span className={`text-[9px] font-medium pulse-${marketPulse}`}>
-                    {getPulseLabel()}
-                  </span>
-                </div>
-              )}
+              {/* V545: Market Pulse Indicator removed — was showing 'محايد' badge */}
               {/* ── New Conversation button (always visible for logged-in users) ── */}
               {session?.user?.id && (
                 <button

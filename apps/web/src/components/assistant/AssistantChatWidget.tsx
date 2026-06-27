@@ -246,6 +246,10 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
   const resizeStartY = useRef(0);
   const resizeStartHeight = useRef(0);
   const headerTouchStartY = useRef(0);
+  // V544: state للعرض + resize أفقي
+  const [panelWidth, setPanelWidth] = useState(308);
+  const resizeStartX = useRef(0);
+  const resizeStartWidth = useRef(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -348,20 +352,46 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
     }
   };
 
-  // ─── Manual resize: drag handle ───────────────────────────────
-  const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+  // ─── V544: Manual resize — vertical + horizontal ──────────────
+  // 4 أنواع من resize handles:
+  // - top: تقليل/زيادة الارتفاع من الأعلى
+  // - bottom: تقليل/زيادة الارتفاع من الأسفل
+  // - left: تقليل/زيادة العرض من اليسار (النافذة على اليمين)
+  // - corner (top-left): تقليل/زيادة الارتفاع + العرض معاً
+  const handleResizeStart = useCallback((direction: 'top' | 'bottom' | 'left' | 'corner') => (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsResizing(true);
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    resizeStartX.current = clientX;
     resizeStartY.current = clientY;
+    resizeStartWidth.current = panelWidth;
     resizeStartHeight.current = panelHeight;
 
     const handleMove = (ev: MouseEvent | TouchEvent) => {
-      const moveY = 'touches' in ev ? ev.touches[0].clientY : ev.clientY;
-      // Dragging UP = bigger panel (increase height)
-      const delta = resizeStartY.current - moveY;
-      const newH = Math.min(MAX_PANEL_HEIGHT, Math.max(MIN_PANEL_HEIGHT, resizeStartHeight.current + delta));
-      setPanelHeight(newH);
+      const moveX = 'touches' in ev ? ev.touches[0].clientX : (ev as MouseEvent).clientX;
+      const moveY = 'touches' in ev ? ev.touches[0].clientY : (ev as MouseEvent).clientY;
+      const deltaX = moveX - resizeStartX.current;
+      const deltaY = moveY - resizeStartY.current;
+
+      // V544: النافذة على اليمين، فالسحب لليسار (deltaX < 0) يزيد العرض
+      if (direction === 'left' || direction === 'corner') {
+        const newW = Math.min(600, Math.max(280, resizeStartWidth.current - deltaX));
+        setPanelWidth(newW);
+      }
+
+      // V544: السحب لأعلى (deltaY < 0) من top يزيد الارتفاع
+      if (direction === 'top' || direction === 'corner') {
+        const newH = Math.min(window.innerHeight - 32, Math.max(300, resizeStartHeight.current - deltaY));
+        setPanelHeight(newH);
+      }
+
+      // V544: السحب لأسفل (deltaY > 0) من bottom يزيد الارتفاع
+      if (direction === 'bottom') {
+        const newH = Math.min(window.innerHeight - 32, Math.max(300, resizeStartHeight.current + deltaY));
+        setPanelHeight(newH);
+      }
     };
 
     const handleUp = () => {
@@ -374,13 +404,19 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
       document.body.style.cursor = '';
     };
 
+    const cursors: Record<string, string> = {
+      top: 'ns-resize',
+      bottom: 'ns-resize',
+      left: 'ew-resize',
+      corner: 'nwse-resize',
+    };
     document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'ns-resize';
+    document.body.style.cursor = cursors[direction];
     document.addEventListener('mousemove', handleMove);
     document.addEventListener('mouseup', handleUp);
     document.addEventListener('touchmove', handleMove, { passive: false });
     document.addEventListener('touchend', handleUp);
-  }, [panelHeight, MAX_PANEL_HEIGHT]);
+  }, [panelWidth, panelHeight]);
 
   // ─── Auto-scroll to bottom ──────────────────────────────────────
   // V1007: Previously deps were [messages, thinkingPhase] which fired on EVERY
@@ -2564,19 +2600,51 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
             height: '500px',
             maxHeight: '500px',
           } : {
-            // V539: النافذة تمتد من أعلى الصفحة لأسفلها بالكامل
-            width: 'min(308px, calc(100vw - 32px))',
-            // top + bottom معاً يحددان الارتفاع تلقائياً = كامل الصفحة
-            top: '16px',
-            bottom: '16px',
-            height: 'auto', // الارتفاع يُحسب من top + bottom
+            // V544: عرض وارتفاع قابلان للتعديل + تثبيت على اليمين دائماً
+            width: `${panelWidth}px`,
+            height: `${panelHeight}px`,
             maxHeight: 'none',
-            transition: isResizing ? 'none' : 'height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-            [isRtl ? 'left' : 'right']: '1rem',
+            transition: isResizing ? 'none' : 'width 0.3s ease, height 0.3s ease',
+            // V544: تثبيت على اليمين دائماً (بكل اللغات)
+            right: '1rem',
+            left: 'auto',
+            top: '16px',
           }}
           dir={isRtl ? 'rtl' : 'ltr'}
         >
-          {/* ── V539: Resize Handle removed — panel height is fixed to full page ── */}
+          {/* ── V544: Resize Handles (top, bottom, left, corner) ── */}
+          <div
+            onMouseDown={handleResizeStart('top')}
+            onTouchStart={handleResizeStart('top')}
+            style={{
+              position: 'absolute', top: 0, left: 0, right: 0, height: '6px',
+              cursor: 'ns-resize', zIndex: 10,
+            }}
+          />
+          <div
+            onMouseDown={handleResizeStart('bottom')}
+            onTouchStart={handleResizeStart('bottom')}
+            style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0, height: '6px',
+              cursor: 'ns-resize', zIndex: 10,
+            }}
+          />
+          <div
+            onMouseDown={handleResizeStart('left')}
+            onTouchStart={handleResizeStart('left')}
+            style={{
+              position: 'absolute', top: 0, bottom: 0, left: 0, width: '6px',
+              cursor: 'ew-resize', zIndex: 10,
+            }}
+          />
+          <div
+            onMouseDown={handleResizeStart('corner')}
+            onTouchStart={handleResizeStart('corner')}
+            style={{
+              position: 'absolute', top: 0, left: 0, width: '12px', height: '12px',
+              cursor: 'nwse-resize', zIndex: 11,
+            }}
+          />
           {/* ── Header (Enhanced with market pulse) ── */}
           <div className="assistant-header px-5 py-4 flex items-center gap-3" onTouchStart={handleHeaderTouchStart} onTouchMove={handleHeaderTouchMove}>
             {/* Intelligence Orb avatar — Living Light (V513) */}

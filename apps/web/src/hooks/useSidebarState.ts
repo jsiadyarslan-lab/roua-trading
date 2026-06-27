@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
 
 export type TabId =
   | 'portfolio'
@@ -29,59 +31,62 @@ const TAB_ORDER: TabId[] = [
   'correlation',
 ]
 
-const STORAGE_KEY = 'roua-sidebar-collapsed'
-
-function getInitialCollapsed(): boolean {
-  if (typeof window === 'undefined') return true
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    // Default collapsed (true) if no stored preference
-    return stored === null ? true : stored === 'true'
-  } catch {
-    return true
-  }
+// V553: Zustand store مشترك للـ sidebar state
+// كان كل component يستدعي useSidebarState() يُنشئ state منفصل
+// فالزر في PrimarySidebarLayout يحدّث state محلي لا يراه dashboard page
+// الآن الكل يشارك نفس الحالة عبر Zustand
+interface SidebarStore {
+  activeTab: TabId
+  collapsed: boolean
+  drawerOpen: boolean
+  searchQuery: string
+  setActiveTab: (tab: TabId) => void
+  setCollapsed: (value: boolean | ((prev: boolean) => boolean)) => void
+  toggleCollapse: () => void
+  setDrawerOpen: (open: boolean) => void
+  setSearchQuery: (q: string) => void
 }
 
-export function useSidebarState() {
-  const [activeTab, setActiveTab] = useState<TabId>('portfolio')
-  const [collapsed, setCollapsedState] = useState<boolean>(true)
-  const [drawerOpen, setDrawerOpen] = useState<boolean>(false)
-  const [searchQuery, setSearchQuery] = useState<string>('')
-
-  // Hydrate from localStorage after mount to avoid SSR mismatch
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      if (saved !== null) setCollapsedState(saved === 'true')
-    } catch {
-      // ignore storage errors
+export const useSidebarStore = create<SidebarStore>()(
+  persist(
+    (set, get) => ({
+      activeTab: 'portfolio',
+      collapsed: true,
+      drawerOpen: false,
+      searchQuery: '',
+      setActiveTab: (tab) => set({ activeTab: tab }),
+      setCollapsed: (value) => set((state) => ({
+        collapsed: typeof value === 'function' ? value(state.collapsed) : value,
+      })),
+      toggleCollapse: () => set((state) => ({ collapsed: !state.collapsed })),
+      setDrawerOpen: (open) => set({ drawerOpen: open }),
+      setSearchQuery: (q) => set({ searchQuery: q }),
+    }),
+    {
+      name: 'roua-sidebar-state',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ collapsed: state.collapsed }),
     }
-  }, [])
+  )
+)
 
-  const setCollapsed = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
-    setCollapsedState((prev) => {
-      const next = typeof value === 'function' ? value(prev) : value
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem(STORAGE_KEY, String(next))
-        } catch {
-          // ignore storage errors
-        }
-      }
-      return next
-    })
-  }, [])
-
-  const toggleCollapse = useCallback(() => {
-    setCollapsed((prev) => !prev)
-  }, [setCollapsed])
+// V553: Hook يستخدم Zustand store المشترك
+export function useSidebarState() {
+  const activeTab = useSidebarStore(s => s.activeTab)
+  const collapsed = useSidebarStore(s => s.collapsed)
+  const drawerOpen = useSidebarStore(s => s.drawerOpen)
+  const searchQuery = useSidebarStore(s => s.searchQuery)
+  const setActiveTab = useSidebarStore(s => s.setActiveTab)
+  const setCollapsed = useSidebarStore(s => s.setCollapsed)
+  const toggleCollapse = useSidebarStore(s => s.toggleCollapse)
+  const setDrawerOpen = useSidebarStore(s => s.setDrawerOpen)
+  const setSearchQuery = useSidebarStore(s => s.setSearchQuery)
 
   // Keyboard shortcuts
   useEffect(() => {
     if (typeof window === 'undefined') return
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 1-0 keys for tab switching (only when no input is focused)
       const target = e.target as HTMLElement
       const isInputFocused =
         target.tagName === 'INPUT' ||
@@ -90,7 +95,6 @@ export function useSidebarState() {
         target.isContentEditable
 
       if (!isInputFocused) {
-        // Number keys 1-9 and 0 for tab switching
         const key = e.key
         if (key >= '1' && key <= '9') {
           const index = parseInt(key) - 1
@@ -99,7 +103,6 @@ export function useSidebarState() {
             setActiveTab(TAB_ORDER[index])
           }
         } else if (key === '0') {
-          // 0 maps to the 10th tab
           const index = 9
           if (index < TAB_ORDER.length) {
             e.preventDefault()
@@ -108,13 +111,11 @@ export function useSidebarState() {
         }
       }
 
-      // Ctrl+B to toggle collapse
       if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
         e.preventDefault()
         toggleCollapse()
       }
 
-      // Escape to close drawer
       if (e.key === 'Escape') {
         setDrawerOpen(false)
       }
@@ -122,7 +123,7 @@ export function useSidebarState() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [toggleCollapse])
+  }, [setActiveTab, toggleCollapse, setDrawerOpen])
 
   return {
     activeTab,

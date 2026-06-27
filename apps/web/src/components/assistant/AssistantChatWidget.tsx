@@ -1920,28 +1920,50 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
           i = j; continue;
         }
 
-        // Table detection: pipe table
-        const isPipeRow = trimmed.includes('|') && trimmed.split('|').filter(c => c.trim()).length >= 2;
-        const isSeparator = /^\|?[\s\-:|]+$/.test(trimmed) && trimmed.includes('-') && trimmed.includes('|');
+        // V572: Table detection — pipe table OR tab-separated table
+        const isPipeRow = trimmed.includes('|') && trimmed.split('|').map(c => c.trim()).filter(c => c).length >= 2;
+        const isSeparator = /^\|?[\s\-:|]+$/.test(trimmed) && trimmed.includes('-');
 
         if (isPipeRow && !isSeparator) {
-          // تحقق إذا كان الجدول التالي separator أو صف بيانات
           const nextLine = (lines[i + 1] || '').trim();
-          const nextIsSep = /^\|?[\s\-:|]+$/.test(nextLine) && nextLine.includes('-');
-          const nextIsPipe = nextLine.includes('|') && nextLine.split('|').filter(c => c.trim()).length >= 2;
+          const nextIsSep = /^\|?[\s\-:|]+$/.test(nextLine) && nextLine.includes('-') && nextLine.includes('|');
+          const nextIsPipe = nextLine.includes('|') && nextLine.split('|').map(c => c.trim()).filter(c => c).length >= 2;
 
           if (nextIsSep || nextIsPipe) {
-            // اجمع الجدول كاملاً
             const headers = trimmed.split('|').map(c => c.trim()).filter(c => c);
             const rows: string[][] = [];
             let k = i + 1;
-            // تخطّي separator
             if (nextIsSep) k++;
             while (k < lines.length) {
               const rowLine = lines[k].trim();
               if (!rowLine.includes('|')) break;
               const cells = rowLine.split('|').map(c => c.trim()).filter(c => c);
               if (cells.length >= 2) rows.push(cells);
+              else break;
+              k++;
+            }
+            if (headers.length >= 2) {
+              elements.push(renderTable(headers, rows));
+              i = k; continue;
+            }
+          }
+        }
+
+        // V572: Tab-separated table detection
+        const isTabRow = trimmed.includes('\t') && trimmed.split('\t').filter(c => c.trim()).length >= 3;
+        if (isTabRow) {
+          const nextLine = (lines[i + 1] || '').trim();
+          const nextIsTab = nextLine.includes('\t') && nextLine.split('\t').filter(c => c.trim()).length >= 3;
+          if (nextIsTab) {
+            const headers = trimmed.split('\t').map(c => c.trim()).filter(c => c);
+            const rows: string[][] = [];
+            let k = i + 1;
+            while (k < lines.length) {
+              const rowLine = lines[k].trim();
+              if (!rowLine.includes('\t')) break;
+              const cells = rowLine.split('\t').map(c => c.trim()).filter(c => c);
+              if (cells.length >= 2) rows.push(cells);
+              else break;
               k++;
             }
             elements.push(renderTable(headers, rows));

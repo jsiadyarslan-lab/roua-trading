@@ -1,8 +1,8 @@
 'use client';
 
 // Client Component wrapper for AssistantChatWidget.
-// Required because layout.tsx is a Server Component and cannot use `ssr: false` with next/dynamic,
-// but AssistantChatWidget uses localStorage and window APIs that require client-only rendering.
+// V572: المساعد متاح فقط في صفحات dashboard (ليس في صفحة الهبوط)
+import { usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
 
 const AssistantChatWidget = dynamic(
@@ -11,5 +11,12 @@ const AssistantChatWidget = dynamic(
 );
 
 export default function AssistantChatWidgetClient() {
+  const pathname = usePathname();
+
+  // V572: اعرض المساعد فقط في صفحات /dashboard
+  const isDashboard = pathname.includes('/dashboard');
+
+  if (!isDashboard) return null;
+
   return <AssistantChatWidget />;
 }

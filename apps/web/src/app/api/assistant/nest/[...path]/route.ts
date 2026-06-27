@@ -1,28 +1,66 @@
-import { createNestJSProxyHandlers } from '@/lib/nestjs-proxy'
+import { NextRequest, NextResponse } from 'next/server'
+import { db, ensureDbReady } from '@/lib/db'
+import crypto from 'crypto'
 
 /**
- * Catch-all proxy for /api/assistant/nest/* → NestJS backend /api/assistant/*
- *
- * This activates the FULL NestJS Assistant system:
- * - 6 context layers (user trading, council, learning, market, news, system health)
- * - 12 executable functions (getTradeJournalSummary, suggestAction, etc.)
- * - Intent classifier (analysis/news/council/performance/diagnosis)
- * - Arabic + English system prompts with 5-section template
- * - Response cleaner + cache
- *
- * Routes proxied:
- *   POST /api/assistant/nest/chat          → NestJS /api/assistant/chat
- *   POST /api/assistant/nest/chat/stream   → NestJS /api/assistant/chat/stream
- *   GET  /api/assistant/nest/context       → NestJS /api/assistant/context
- *   GET  /api/assistant/nest/functions     → NestJS /api/assistant/functions
- *   POST /api/assistant/nest/functions/execute → NestJS /api/assistant/functions/execute
- *   GET  /api/assistant/nest/intelligence/* → NestJS /api/assistant/intelligence/*
- *   GET  /api/assistant/nest/health        → NestJS /api/assistant/health
- *
- * Auth: auto-handled by createNestJSProxyHandlers (session injection)
+ * V564: Custom proxy that strips '/nest' prefix before forwarding to NestJS.
+ * The generic createNestJSProxyHandlers forwarded the full pathname
+ * (/api/assistant/nest/chat) which NestJS rejected with 404.
+ * This proxy rewrites: /api/assistant/nest/* → /api/assistant/*
  */
 
 export const dynamic = 'force-dynamic'
 
-const { GET, POST, PUT, PATCH, DELETE } = createNestJSProxyHandlers()
-export { GET, POST, PUT, PATCH, DELETE }
+const rawTarget = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001';
+const API_TARGET = rawTarget.includes('http://api:') ? 'http://127.0.0.1:3001' : rawTarget;
+
+async function getOrCreateSession(request: NextRequest): Promise<string | null> {
+  try {
+    const sessionCookie = request.headers.get('cookie') || '';
+    const rouaSession = sessionCookie.match(/roua_session=([^;]+)/)?.[1];
+    if (rouaSession) return rouaSession;
+    const authHeader = request.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) return authHeader.slice(7);
+    const headerSession = request.headers.get('x-roua-session');
+    if (headerSession) return headerSession;
+
+    const dbReady = await ensureDbReady();
+    if (!dbReady) return null;
+
+    const guestId = `guest-${crypto.randomUUID()}`;
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await (db as any).session.create({ data: { token, userId: guestId, isActive: true, expiresAt, ipAddress: '127.0.0.1', userAgent: 'Roua-Proxy' } });
+    await (db as any).user.create({ data: { id: guestId, email: `${guestId}@roua.auto`, displayName: 'Guest' } }).catch(() => {});
+    return token;
+  } catch { return null; }
+}
+
+async function handleProxy(request: NextRequest, method: string): Promise<NextResponse> {
+  const { pathname, search } = request.nextUrl;
+  const nestjsPath = pathname.replace('/api/assistant/nest/', '/api/assistant/');
+  const targetUrl = `${API_TARGET}${nestjsPath}${search}`;
+
+  const token = await getOrCreateSession(request);
+  if (!token) return NextResponse.json({ error: 'Auth failed' }, { status: 401 });
+
+  try {
+    const body = (method === 'GET' || method === 'DELETE') ? undefined : await request.text();
+    const response = await fetch(targetUrl, {
+      method,
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, 'x-roua-session': token, 'Cookie': `roua_session=${token}` },
+      body,
+      signal: AbortSignal.timeout(45_000),
+    });
+    const responseBody = await response.text();
+    return new NextResponse(responseBody, { status: response.status, headers: { 'Content-Type': response.headers.get('content-type') || 'application/json', 'Set-Cookie': `roua_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800` } });
+  } catch (error: any) {
+    return NextResponse.json({ error: 'NestJS unavailable', details: error?.message?.slice(0, 100) }, { status: 502 });
+  }
+}
+
+export async function GET(request: NextRequest) { return handleProxy(request, 'GET'); }
+export async function POST(request: NextRequest) { return handleProxy(request, 'POST'); }
+export async function PUT(request: NextRequest) { return handleProxy(request, 'PUT'); }
+export async function PATCH(request: NextRequest) { return handleProxy(request, 'PATCH'); }
+export async function DELETE(request: NextRequest) { return handleProxy(request, 'DELETE'); }

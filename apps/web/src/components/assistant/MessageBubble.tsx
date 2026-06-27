@@ -155,11 +155,11 @@ function MessageBubble({
       {/* Hide empty bubble for assistant placeholder messages (shown while loading) */}
       {!(msg.role === 'assistant' && !msg.content) && (
         <div
-          className={`max-w-[88%] px-4 py-3 text-sm leading-relaxed ${msg.role === 'user' ? 'msg-user' : 'msg-assistant'} ${isStreaming ? 'streaming-cursor' : ''}`}
+          className={`w-full px-3 py-2.5 text-sm leading-relaxed ${msg.role === 'user' ? 'msg-user' : 'msg-assistant'} ${isStreaming ? 'streaming-cursor' : ''}`}
           style={{
             borderRadius: msg.role === 'user'
-              ? (isRtl ? '16px 4px 16px 16px' : '4px 16px 16px 16px')
-              : (isRtl ? '4px 16px 16px 16px' : '16px 4px 16px 16px'),
+              ? (isRtl ? '12px 4px 12px 12px' : '4px 12px 12px 12px')
+              : (isRtl ? '4px 12px 12px 12px' : '12px 4px 12px 12px'),
           }}
         >
           {msg.role === 'assistant' ? renderContent(msg.content) : msg.content}

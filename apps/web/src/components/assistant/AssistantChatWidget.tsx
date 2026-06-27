@@ -2738,7 +2738,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
           {/* ── Messages ── */}
           <div
             ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto p-4 space-y-3 chat-messages"
+            className="flex-1 overflow-y-auto px-2 py-3 space-y-2 chat-messages"
             style={{ minHeight: '80px' }}
             role="log"
             aria-live="polite"

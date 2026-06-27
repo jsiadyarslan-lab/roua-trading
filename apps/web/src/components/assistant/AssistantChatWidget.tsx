@@ -2033,12 +2033,13 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         flushTable();
       }
 
-      // V520: كشف النمط "رقم عاري على سطر + عنوان على السطر التالي"
+      // V520/V531: كشف النمط "رقم عاري على سطر + عنوان على السطر التالي"
       // الـ AI يكتب أحياناً:
       //   1
       //   Current Price & Direction
       // بدل: ## 1. Current Price & Direction
       // هذا الكشف يدمجهما في .asst-sec.cyan مع الرقم في .n
+      // V531: عرض keycap emoji (1️⃣) بدل الرقم العاري
       const bareNumberMatch = trimmed.match(/^([1-9])$/);
       if (bareNumberMatch) {
         const nextLine = (lines[i + 1] || '').trim();
@@ -2047,9 +2048,11 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
             && !nextLine.includes('|') && !/^[-•]\s/.test(nextLine)
             && !/^#{1,4}\s/.test(nextLine)) {
           const numDigit = bareNumberMatch[1];
+          // V531: تحويل الرقم إلى keycap emoji (1→1️⃣, 2→2️⃣, ...)
+          const keycapEmoji = `${numDigit}\uFE0F\u20E3`;
           elements.push(
             <div key={`bare-num-section-${i}`} className="asst-sec cyan" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-              <span className="n">{numDigit}</span>
+              <span className="n">{keycapEmoji}</span>
               {parseInline(nextLine.replace(/\*\*/g, ''))}
             </div>
           );

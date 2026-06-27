@@ -1365,6 +1365,101 @@ export async function POST(request: Request) {
       }
     }
 
+    // V531: استدعِ NestJS Assistant Context Engine أولاً (6 طبقات سياق + 12 functions)
+    // إذا نجح، ابثّ الرد بنفس streaming format الذي يتوقعه الـ widget
+    // إذا فشل، انتقل للمنطق القديم (fallback)
+    try {
+      const NESTJS_API_URL = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001';
+      const nestjsResponse = await fetch(`${NESTJS_API_URL}/api/assistant/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'cookie': sessionCookie,
+        },
+        body: JSON.stringify({
+          message: sanitizedMessage,
+          language: locale,
+          conversationHistory: (history || []).slice(-10).map((h: any) => ({
+            role: h.role,
+            content: h.content,
+          })),
+        }),
+        signal: AbortSignal.timeout(45_000),
+      });
+
+      if (nestjsResponse.ok) {
+        const data = await nestjsResponse.json();
+        if (data.success && data.reply) {
+          console.log(`[V531] NestJS Assistant OK — model=${data.model} functions=[${(data.functionsCalled || []).join(',')}] ${data.processingTimeMs}ms`);
+
+          // ابثّ الرد بنفس streaming format الذي يتوقعه الـ widget
+          const reply: string = data.reply;
+          const encoder = new TextEncoder();
+          const stream = new ReadableStream({
+            async start(controller) {
+              try {
+                // ابثّ الرد كـ tokens (نفس منطق streaming القديم)
+                const tokens = reply.match(/\S+\s*|\s+/g) || [reply];
+                for (let i = 0; i < tokens.length; i++) {
+                  controller.enqueue(encoder.encode(tokens[i]));
+                  const token = tokens[i];
+                  const isSentenceEnd = /[.!?؟]\s*$/.test(token);
+                  const isParagraphBreak = /\n\s*\n/.test(token);
+                  if (isParagraphBreak) {
+                    await new Promise(r => setTimeout(r, 80));
+                  } else if (isSentenceEnd) {
+                    await new Promise(r => setTimeout(r, 40));
+                  } else if (i % 3 === 0) {
+                    await new Promise(r => setTimeout(r, 12));
+                  }
+                }
+                // ابثّ metadata في النهاية (نفس format القديم)
+                controller.enqueue(encoder.encode('\n\n__ROUAA_METADATA__\n'));
+                const metadata = {
+                  sources: data.functionsCalled || [],
+                  toolsUsed: data.functionsCalled || [],
+                  path: 'nestjs-context-engine',
+                  dataPoints: 0,
+                  fetchTimeMs: data.processingTimeMs || 0,
+                  realtimePricesFound: 0,
+                  locale,
+                  timestamp: new Date().toISOString(),
+                  version: 'V531',
+                  model: data.model,
+                  cached: data.cached,
+                };
+                controller.enqueue(encoder.encode(JSON.stringify(metadata)));
+                controller.close();
+              } catch (streamErr: any) {
+                controller.error(streamErr);
+              }
+            },
+          });
+
+          const totalTime = Date.now() - startTime;
+          console.log(`[V531] Complete: nestjs-stream | ${totalTime}ms total | ${reply.length} chars`);
+
+          return new Response(stream, {
+            status: 200,
+            headers: {
+              'Content-Type': 'text/plain; charset=utf-8',
+              'Transfer-Encoding': 'chunked',
+              'X-Response-Locale': locale,
+              'X-Stream-Mode': 'true',
+              'X-Response-Path': 'nestjs-context-engine',
+              'X-Response-Time': `${totalTime}ms`,
+              'X-Response-Version': 'V531',
+            },
+          });
+        }
+      } else {
+        console.warn(`[V531] NestJS Assistant returned ${nestjsResponse.status} — falling back to legacy`);
+      }
+    } catch (nestjsErr: any) {
+      console.warn(`[V531] NestJS Assistant failed: ${nestjsErr?.message?.slice(0, 100)} — falling back to legacy`);
+    }
+    // ── V531 fallback: استمر في المنطق القديم إذا فشل NestJS ──
+
     // ── Normalize conversationMemory ──
     let conversationMemoryStr: string | undefined;
     const rawMem = parsed.data.conversationMemory;

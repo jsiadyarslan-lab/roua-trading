@@ -171,6 +171,17 @@ export interface MarketPriceDTO {
   ask?: number;
   assetClass: 'FOREX' | 'COMMODITY' | 'CRYPTO' | 'INDEX' | 'UNKNOWN';
   fetchedAt: Date;
+  // V531: المؤشرات الفنية المحسوبة من الشموع التاريخية
+  technicals?: {
+    rsi14?: number;
+    macd?: { value: number; signal: number; histogram: number; crossover: 'bullish' | 'bearish' | 'none' };
+    ema50?: number;
+    sma20?: number;
+    support?: number;
+    resistance?: number;
+    trend?: 'bullish' | 'bearish' | 'neutral';
+    priceVsEma50?: 'above' | 'below';
+  };
 }
 
 export interface MarketContext {

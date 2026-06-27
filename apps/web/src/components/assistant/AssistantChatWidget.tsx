@@ -2048,9 +2048,11 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
             && !nextLine.includes('|') && !/^[-•]\s/.test(nextLine)
             && !/^#{1,4}\s/.test(nextLine)) {
           const numDigit = bareNumberMatch[1];
+          // V533: عرض الرقم بداخل دائرة CSS — استخدم span منفصل للرقم
+          // بدل الاعتماد على ::before pseudo-element (أكثر توافقاً)
           elements.push(
             <div key={`bare-num-section-${i}`} className="asst-sec cyan" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-              <span className="n" data-num={numDigit}>{numDigit}</span>
+              <span className="n n-badge">{numDigit}</span>
               {parseInline(nextLine.replace(/\*\*/g, ''))}
             </div>
           );

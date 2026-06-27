@@ -2094,30 +2094,46 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         flushTable();
       }
 
-      // V520/V531: كشف النمط "رقم عاري على سطر + عنوان على السطر التالي"
-      // الـ AI يكتب أحياناً:
-      //   1
-      //   Current Price & Direction
-      // بدل: ## 1. Current Price & Direction
-      // هذا الكشف يدمجهما في .asst-sec.cyan مع الرقم في .n
-      // V532: عرض الرقم بداخل دائرة CSS (بدل keycap emoji الذي لا يدعمه الخط)
-      const bareNumberMatch = trimmed.match(/^([1-9])$/);
+      // V568: كشف الأرقام العارية + المدموجة مع عناوين
+      const bareNumberMatch = trimmed.match(/^([1-9])\s*(.*)$/);
       if (bareNumberMatch) {
+        const numDigit = bareNumberMatch[1];
+        const inlineTitle = bareNumberMatch[2]?.trim();
         const nextLine = (lines[i + 1] || '').trim();
-        // السطر التالي يجب أن يكون عنواناً (نص غير فارغ، ليس رقم، ليس جدول، ليس bullet)
+
+        // نمط 2: الرقم + العنوان على نفس السطر (مثل "1Current Price")
+        if (inlineTitle && inlineTitle.length > 2) {
+          elements.push(
+            <div key={`inline-num-section-${i}`} className="asst-sec cyan" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: 22, height: 22, minWidth: 22, borderRadius: '50%',
+                fontSize: 12, fontWeight: 800, color: '#fff', background: '#00E5FF',
+                flexShrink: 0,
+              }}>{numDigit}</span>
+              {parseInline(inlineTitle.replace(/\*\*/g, ''))}
+            </div>
+          );
+          i += 1;
+          continue;
+        }
+
+        // نمط 1: الرقم على سطر منفصل + العنوان على السطر التالي
         if (nextLine && nextLine.length > 2 && !/^[1-9]$/.test(nextLine)
             && !nextLine.includes('|') && !/^[-•]\s/.test(nextLine)
             && !/^#{1,4}\s/.test(nextLine)) {
-          const numDigit = bareNumberMatch[1];
-          // V533: عرض الرقم بداخل دائرة CSS — استخدم span منفصل للرقم
-          // بدل الاعتماد على ::before pseudo-element (أكثر توافقاً)
           elements.push(
             <div key={`bare-num-section-${i}`} className="asst-sec cyan" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-              <span className="n n-badge">{numDigit}</span>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: 22, height: 22, minWidth: 22, borderRadius: '50%',
+                fontSize: 12, fontWeight: 800, color: '#fff', background: '#00E5FF',
+                flexShrink: 0,
+              }}>{numDigit}</span>
               {parseInline(nextLine.replace(/\*\*/g, ''))}
             </div>
           );
-          i += 2; // تخطّ السطرين معاً (الرقم + العنوان)
+          i += 2;
           continue;
         }
       }

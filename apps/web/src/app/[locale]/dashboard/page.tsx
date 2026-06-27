@@ -1384,7 +1384,21 @@ export default function DashboardPage() {
       {/* Scoped styles via useScopedStyle */}<BotEngine />
 
       {!isMobileViewport && (
-        <div className={`dash-grid dashboard-shell${chartFullscreen ? ' chart-fullscreen' : ''}`}>
+        <div
+          className={`dash-grid dashboard-shell${chartFullscreen ? ' chart-fullscreen' : ''}`}
+          style={{
+            display: 'grid',
+            gridTemplateColumns: chartFullscreen
+              ? '0px minmax(0, 1fr) 0px'
+              : `${sidebarCollapsed ? '40px' : 'minmax(220px, 260px)'} minmax(0, 1fr) ${rightPanelCollapsed ? '40px' : 'minmax(280px, 320px)'}`,
+            gap: 12,
+            minHeight: `calc(100dvh - ${HEADER_H}px)`,
+            height: `calc(100dvh - ${HEADER_H}px)`,
+            padding: 8,
+            boxSizing: 'border-box',
+            overflow: 'hidden',
+          }}
+        >
           {/* V554: Left Sidebar — always visible on desktop (above 768px), collapsible */}
           <div className="dash-col dash-col-left animate-in-1" style={{ height: '100%' }}>
             <PrimarySidebarLayout />

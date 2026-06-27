@@ -85,7 +85,7 @@ export const CHAT_TEXT: Record<Locale, {
 }> = {
   ar: {
     ariaLabel: 'مساعد رؤى الذكي',
-    headerTitle: 'مساعد رؤى',
+    headerTitle: 'مساعد رؤى للتداول',
     headerSubtitle: 'اسأل عن الأسواق والأسهم والتقارير',
     greeting: 'كيف يمكنني مساعدتك؟',
     inputPlaceholder: 'اكتب سؤالك... (مثل: حلل سهم AAPL)',

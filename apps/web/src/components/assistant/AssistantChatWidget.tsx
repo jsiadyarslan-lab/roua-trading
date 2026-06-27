@@ -2648,64 +2648,55 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
             }}
           />
           {/* ── Header (Enhanced with market pulse) ── */}
-          <div className="assistant-header px-5 py-4 flex items-center gap-3" onTouchStart={handleHeaderTouchStart} onTouchMove={handleHeaderTouchMove}>
+          <div className="assistant-header px-3 py-3 flex items-center gap-2" onTouchStart={handleHeaderTouchStart} onTouchMove={handleHeaderTouchMove}>
             {/* Intelligence Orb avatar — Living Light (V513) */}
-            <div className="assistant-header-avatar flex items-center justify-center rounded-xl" style={{ width: 40, height: 40 }}>
-              <IntelligenceOrb size={36} />
+            <div className="assistant-header-avatar flex items-center justify-center rounded-xl" style={{ width: 32, height: 32, flexShrink: 0 }}>
+              <IntelligenceOrb size={28} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold" style={{ color: '#E8EDF5' }}>{text.headerTitle}</p>
-              <div className="flex items-center gap-1.5">
-                <p className="text-xs truncate" style={{ color: '#8A9DB2' }}>{text.headerSubtitle}</p>
-              </div>
+              <p className="text-xs font-bold truncate" style={{ color: '#E8EDF5' }}>{text.headerTitle}</p>
+              <p className="text-[10px] truncate" style={{ color: '#8A9DB2' }}>{text.headerSubtitle}</p>
             </div>
-            {/* Status indicator + History/New/Close buttons */}
-            <div className="flex items-center gap-2">
-              {/* V545: Market Pulse Indicator removed — was showing 'محايد' badge */}
-              {/* ── New Conversation button (always visible for logged-in users) ── */}
+            {/* V546: أزرار التنسيق الموحد — كلها 24×24 بفجوة 4px */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {/* ── New Conversation button ── */}
               {session?.user?.id && (
                 <button
                   onClick={startNewConversation}
-                  className="rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110 chat-header-btn"
-                  style={{ width: 28, height: 28 }}
+                  className="rounded-md flex items-center justify-center transition-all duration-200 hover:scale-110 hover:bg-white/5"
+                  style={{ width: 24, height: 24 }}
                   aria-label={text.newConversation}
                   title={text.newConversation}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8A9DB2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8A9DB2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
                 </button>
               )}
-              {/* ── Chat History button (logged-in users only) ── */}
+              {/* ── Chat History button ── */}
               {session?.user?.id && (
                 <button
                   onClick={openHistory}
-                  className="rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110 chat-header-btn"
-                  style={{ width: 28, height: 28 }}
+                  className="rounded-md flex items-center justify-center transition-all duration-200 hover:scale-110 hover:bg-white/5"
+                  style={{ width: 24, height: 24 }}
                   aria-label={text.chatHistory}
                   title={text.chatHistory}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8A9DB2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8A9DB2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
                   </svg>
                 </button>
               )}
-              {/* Online indicator */}
-              <div className="flex items-center gap-1.5">
-                <div className="assistant-online-dot" style={{ width: 7, height: 7 }} />
-                <span className="text-[10px] hidden sm:inline" style={{ color: '#8A9DB2' }}>
-                  {locale === 'ar' ? 'متصل' : 'Online'}
-                </span>
-              </div>
+              {/* V546: Online indicator removed */}
               {/* Close button (floating variant only) */}
               {variant === 'floating' && (
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="btn-close rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110"
-                  style={{ width: 28, height: 28 }}
+                  className="rounded-md flex items-center justify-center transition-all duration-200 hover:scale-110 hover:bg-red-500/10"
+                  style={{ width: 24, height: 24 }}
                   aria-label={locale === 'ar' ? 'إغلاق' : 'Close'}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8A9DB2" strokeWidth="2.5" strokeLinecap="round">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8A9DB2" strokeWidth="2.5" strokeLinecap="round">
                     <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
                 </button>

@@ -1370,12 +1370,20 @@ export async function POST(request: Request) {
     // إذا فشل، انتقل للمنطق القديم (fallback)
     try {
       const NESTJS_API_URL = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001';
+      const nestjsHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      // V566: مرر الـ auth بكل الطرق الممكنة (cookie + Bearer + x-roua-session)
+      if (sessionCookie) nestjsHeaders['cookie'] = sessionCookie;
+      if (rouaSession) {
+        nestjsHeaders['authorization'] = `Bearer ${rouaSession}`;
+        nestjsHeaders['x-roua-session'] = rouaSession;
+      }
+
+      console.log(`[V566] Calling NestJS Assistant: hasCookie=${!!sessionCookie} hasSession=${!!rouaSession}`);
       const nestjsResponse = await fetch(`${NESTJS_API_URL}/api/assistant/chat`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'cookie': sessionCookie,
-        },
+        headers: nestjsHeaders,
         body: JSON.stringify({
           message: sanitizedMessage,
           language: locale,
@@ -1453,10 +1461,11 @@ export async function POST(request: Request) {
           });
         }
       } else {
-        console.warn(`[V531] NestJS Assistant returned ${nestjsResponse.status} — falling back to legacy`);
+        const errText = await nestjsResponse.text().catch(() => 'no body');
+        console.warn(`[V566] NestJS Assistant returned ${nestjsResponse.status}: ${errText.slice(0, 200)} — falling back to legacy`);
       }
     } catch (nestjsErr: any) {
-      console.warn(`[V531] NestJS Assistant failed: ${nestjsErr?.message?.slice(0, 100)} — falling back to legacy`);
+      console.warn(`[V566] NestJS Assistant failed: ${nestjsErr?.message?.slice(0, 150)} — falling back to legacy`);
     }
     // ── V531 fallback: استمر في المنطق القديم إذا فشل NestJS ──
 

@@ -1716,847 +1716,322 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
   // each time, defeating the memoization.
   const renderContent = useCallback((content: string) => {
     try {
-    // V1006: Normalize partial markdown during streaming — close unclosed tags
-    // V1006: Normalize partial markdown during streaming — close unclosed tags
-    // so the renderer doesn't break on incomplete ** or ## or | (tables)
-    let safeContent = content;
-    // Count unclosed ** markers
-    const boldCount = (safeContent.match(/\*\*/g) || []).length;
-    if (boldCount % 2 !== 0) safeContent += '**';
-    // Close unclosed code fences
-    const fenceCount = (safeContent.match(/```/g) || []).length;
-    if (fenceCount % 2 !== 0) safeContent += '\n```';
+      // V570: renderContent نظيف وبسيط — يحل محل 837 سطر من التعديلات المتراكمة
+      // يعتمد على inline styles فقط (لا CSS classes لتجنب specificity conflicts)
 
-    // V1009: Pre-processing pass — fix common AI-generated markdown quirks
-    // that the line-by-line parser below cannot handle on its own.
-    // All fixes are surgical regex substitutions; no content is lost.
-    //
-    // (a) Inline headings: "...text. ### Heading" → "...text.\n### Heading"
-    //     AI often emits headings at the END of a paragraph line instead of
-    //     on their own line. The heading regex (^(#{1,4})\s+) requires the
-    //     heading to be at the START of a line, so without this fix the
-    //     heading renders as raw text.
-    //     V1033: Changed {1,3} to {1,4} so #### (h4) is also detected.
-    safeContent = safeContent.replace(/([^\n])\s+(#{1,4}\s+)/g, '$1\n$2');
-    //
-    // (b) Heading glued to a tab-table row: "## Heading\tcell\tcell" →
-    //     "## Heading\ncell\tcell". AI sometimes puts the heading and the
-    //     first table row on the same line, separated by a tab. Without
-    //     this fix, the heading becomes a table cell and the table starts
-    //     one column late.
-    safeContent = safeContent.replace(/^(#{1,3}\s+[^\n\t]*?)\t/gm, '$1\n');
-    //
-    // (c) Stray horizontal rules inside tab-table rows: a "---" cell is
-    //     treated as a normal cell. Promote it to its own line so the
-    //     horizontal-rule branch below picks it up. Also catches "---"
-    //     glued to the end of a tab-row: "...\t---" → "...\n---".
-    safeContent = safeContent.replace(/\t---\s*$/gm, '\n---');
-    safeContent = safeContent.replace(/\t---\t/g, '\n---\n');
-    //
-    // (d) Orphan bullet markers: "- \nActual content" → "- Actual content".
-    //     AI sometimes emits a bullet marker on its own line followed by
-    //     the content on the next line. Without this fix the parser sees
-    //     an empty bullet followed by a plain text line, so the bullet
-    //     point is lost.
-    //     V1010: Also handle the case where there's a BLANK line between
-    //     the bullet marker and the content:
-    //       "-\n\nActual content" → "- Actual content"
-    //     The previous regex only matched a single \n; now it accepts
-    //     any whitespace (including newlines) between the marker and content.
-    safeContent = safeContent.replace(/^[-•]\s*\n\s*\n?([^\n])/gm, '- $1');
-    //
-    // (e) Normalize "• " bullet markers to "- " so the bullet branch below
-    //     (which only matches "- " and "• ") handles them uniformly.
-    safeContent = safeContent.replace(/^•\s+/gm, '- ');
-    //
-    // (f) Inline horizontal rules glued to text: "text --- text" →
-    //     "text\n---\ntext". The HR branch only matches ^-{3,}$.
-    safeContent = safeContent.replace(/[^\n]\s+---\s+([^\n])/g, '\n---\n$1');
-    safeContent = safeContent.replace(/([^\n])\s+---\s*$/g, '$1\n---');
+      const dir = isRtl ? 'rtl' : 'ltr';
+      const lines = content.split('\n');
+      const elements: React.ReactNode[] = [];
+      let i = 0;
 
-    const lines = safeContent.split('\n');
-    const elements: React.ReactNode[] = [];
-    let i = 0;
-    let inTable = false;
-    let tableRows: string[][] = [];
-    let tableHeaders: string[] = [];
+      // ── Inline parser: **bold** + numbers ──
+      const parseInline = (text: string): React.ReactNode[] => {
+        const parts = text.split(/(\*\*[^*]+\*\*)/g);
+        return parts.map((part, j) => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+            return <strong key={j} style={{ color: '#00E5FF', fontWeight: 600 }}>{part.slice(2, -2)}</strong>;
+          }
+          // ألوان الأرقام والنسب
+          const numParts = part.split(/([+\-]?[\d.,]+\s*%|\$[\d.,]+)/g);
+          if (numParts.length > 1) {
+            return <span key={j}>{numParts.map((np, nj) => {
+              if (/^[+\-]?[\d.,]+\s*%$/.test(np)) {
+                const isPos = np.startsWith('+') || (!np.startsWith('-') && parseFloat(np) > 0);
+                return <span key={nj} style={{ color: isPos ? '#22C55E' : '#EF5350', fontWeight: 600 }}>{np}</span>;
+              }
+              if (/^\$[\d.,]+$/.test(np)) {
+                return <span key={nj} style={{ color: '#00E5FF', fontWeight: 600 }}>{np}</span>;
+              }
+              return <span key={nj}>{np}</span>;
+            })}</span>;
+          }
+          return <span key={j}>{part}</span>;
+        });
+      };
 
-    const sectionStyles: Record<string, { bg: string; border: string; accent: string }> = {
-      '🧠': { bg: 'rgba(139,92,246,0.06)', border: 'rgba(139,92,246,0.25)', accent: '#8B5CF6' },
-      '🔍': { bg: 'rgba(0,229,255,0.06)', border: 'rgba(0,229,255,0.25)', accent: '#00E5FF' },
-      '💥': { bg: 'rgba(239,83,80,0.08)', border: 'rgba(239,68,68,0.2)', accent: '#EF5350' },
-      '📊': { bg: 'rgba(139,92,246,0.06)', border: 'rgba(168,85,247,0.2)', accent: '#8B5CF6' },
-      '🎯': { bg: 'rgba(34,197,94,0.08)', border: 'rgba(5,150,105,0.2)', accent: '#22C55E' },
-      '📚': { bg: 'rgba(255,184,0,0.08)', border: 'rgba(251,191,36,0.2)', accent: '#FFB800' },
-      '🔒': { bg: 'rgba(139,92,246,0.06)', border: 'rgba(99,102,241,0.2)', accent: '#8B5CF6' },
-      '❓': { bg: 'rgba(0,229,255,0.06)', border: 'rgba(0,229,255,0.25)', accent: '#00E5FF' },
-      '📈': { bg: 'rgba(34,197,94,0.08)', border: 'rgba(34,197,94,0.2)', accent: '#22C55E' },
-      '📰': { bg: 'rgba(255,184,0,0.08)', border: 'rgba(251,191,36,0.2)', accent: '#FFB800' },
-      '⚖️': { bg: 'rgba(139,92,246,0.06)', border: 'rgba(168,85,247,0.2)', accent: '#8B5CF6' },
-      '⚖': { bg: 'rgba(139,92,246,0.06)', border: 'rgba(168,85,247,0.2)', accent: '#8B5CF6' },
-      '💡': { bg: 'rgba(255,184,0,0.08)', border: 'rgba(251,191,36,0.2)', accent: '#FFB800' },
-      '⚠️': { bg: 'rgba(239,83,80,0.08)', border: 'rgba(239,68,68,0.15)', accent: '#EF5350' },
-      '⚠': { bg: 'rgba(239,83,80,0.08)', border: 'rgba(239,68,68,0.15)', accent: '#EF5350' },
-      '💱': { bg: 'rgba(34,197,94,0.08)', border: 'rgba(34,197,94,0.2)', accent: '#22C55E' },
-      '🟢': { bg: 'rgba(34,197,94,0.08)', border: 'rgba(34,197,94,0.2)', accent: '#22C55E' },
-      '🔴': { bg: 'rgba(239,83,80,0.08)', border: 'rgba(239,68,68,0.15)', accent: '#EF5350' },
-      '🟡': { bg: 'rgba(255,184,0,0.08)', border: 'rgba(251,191,36,0.2)', accent: '#FFB800' },
-    };
-
-    const flushTable = () => {
-      if (tableHeaders.length === 0 && tableRows.length === 0) return;
-      inTable = false;
-      // V517: تحسين تنسيق الجداول
-      // - عمود "الاتجاه" فقط هو الذي يعرض pills (long/short/watch)
-      // - عمود "السعر" أو "التغير" يستخدم .pos/.neg حسب الإشارة
-      // - باقي الأعمدة نص عادي
-      // تحديد فهرس عمود الاتجاه: نبحث عن "اتجاه|direction|trend" في الـ headers
-      const directionColIdx = tableHeaders.findIndex(h =>
-        /اتجاه|direction|trend|النوع|signal|action/i.test(h)
-      );
-      const priceColIdx = tableHeaders.findIndex(h =>
-        /سعر|price|كم|current/i.test(h)
-      );
-      const changeColIdx = tableHeaders.findIndex(h =>
-        /تغير|change|Δ|Δ \(24|delta/i.test(h)
-      );
-
-      elements.push(
-        <div key={`table-${i}`} className="asst-tbl-wrap" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-          <table className="asst-tbl">
-            {tableHeaders.length > 0 && (
+      // ── Table renderer ──
+      const renderTable = (headers: string[], rows: string[][]) => {
+        return (
+          <div key={`tbl-${i}`} style={{ margin: '8px 0', overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
               <thead>
-                <tr>{tableHeaders.map((h, hi) => (
-                  <th key={hi} style={{ textAlign: isRtl ? 'right' : 'left', whiteSpace: 'nowrap' }}>{parseInline(h)}</th>
+                <tr>{headers.map((h, hi) => (
+                  <th key={hi} style={{
+                    padding: '6px 8px', textAlign: isRtl ? 'right' : 'left',
+                    borderBottom: '1px solid rgba(0,229,255,0.3)',
+                    color: '#00E5FF', fontWeight: 600, whiteSpace: 'nowrap',
+                    background: 'rgba(0,229,255,0.04)',
+                  }}>{parseInline(h)}</th>
                 ))}</tr>
               </thead>
-            )}
-            <tbody>{tableRows.map((row, ri) => (
-              <tr key={ri}>{row.map((cell, ci) => {
-                const lower = cell.toLowerCase().trim();
-                const isSymCol = ci === 0;
-                const isDirectionCol = ci === directionColIdx;
-                const isChangeCol = ci === changeColIdx;
+              <tbody>
+                {rows.map((row, ri) => (
+                  <tr key={ri} style={{ background: ri % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+                    {row.map((cell, ci) => {
+                      const lower = cell.toLowerCase();
+                      const isBuy = /buy|long|شراء|صاعد|bullish|🟢|📈/.test(cell);
+                      const isSell = /sell|short|بيع|هابط|bearish|🔴|📉/.test(cell);
+                      const color = isBuy ? '#22C55E' : isSell ? '#EF5350' : '#B0C4D8';
+                      return (
+                        <td key={ci} style={{
+                          padding: '5px 8px', textAlign: isRtl ? 'right' : 'left',
+                          borderBottom: '1px solid rgba(255,255,255,0.03)',
+                          color, fontWeight: ci === 0 ? 700 : 400,
+                        }}>{parseInline(cell)}</td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      };
 
-                // كشف الإشارة (للأعمدة الرقمية فقط)
-                const hasPlus = cell.includes('+') || cell.includes('▲') || cell.includes('🟢');
-                const hasMinus = cell.includes('-') && !cell.includes('--') || cell.includes('▼') || cell.includes('🔻') || cell.includes('🔴');
-                const isNumericChange = isChangeCol && /[-+]?[\d.,]+\s*%/.test(cell);
-
-                // كشف اتجاه صريح (long/short/hold/buy/sell)
-                const isBuy   = /\b(buy|long|شراء|صاعد|bullish|🟢|📈)\b/i.test(cell);
-                const isSell  = /\b(sell|short|بيع|هابط|bearish|🔴|📉|🔻)\b/i.test(cell);
-                const isWatch = /\b(hold|watch|انتظار|مراقبة|محايد|neutral|🟡|↔️|➡️)\b/i.test(cell);
-
-                // تحديد العرض
-                if (isDirectionCol && (isBuy || isSell || isWatch)) {
-                  // عمود الاتجاه: عرض pill ملون
-                  const pillClass = isBuy ? 'long' : isSell ? 'short' : 'watch';
-                  const pillText = cell.replace(/📈|📉|🟡|🔴|🟢|↔️|➡️|▲|▼|🔻/g, '').trim() || (isBuy ? 'Long' : isSell ? 'Short' : 'Watch');
-                  return (
-                    <td key={ci} style={{ textAlign: isRtl ? 'right' : 'left' }}>
-                      <span className={`asst-pill ${pillClass}`}>{parseInline(pillText)}</span>
-                    </td>
-                  );
-                }
-
-                // عمود التغير النسبي: تلوين حسب الإشارة
-                if (isNumericChange) {
-                  const isPositive = hasPlus || (!hasMinus && parseFloat(cell.replace(/[^\d.-]/g, '')) > 0);
-                  return (
-                    <td key={ci} style={{ textAlign: isRtl ? 'right' : 'left' }}>
-                      <span className={isPositive ? 'pos' : 'neg'} style={{ fontWeight: 600 }}>{parseInline(cell)}</span>
-                    </td>
-                  );
-                }
-
-                // العمود الأول (الرمز): bold
-                if (isSymCol) {
-                  return (
-                    <td key={ci} style={{ textAlign: isRtl ? 'right' : 'left' }}>
-                      <span className="sym">{parseInline(cell)}</span>
-                    </td>
-                  );
-                }
-
-                // خلية عادية
-                return (
-                  <td key={ci} style={{ textAlign: isRtl ? 'right' : 'left' }}>
-                    <span>{parseInline(cell)}</span>
-                  </td>
-                );
-              })}</tr>
-            ))}</tbody>
-          </table>
+      // ── Section badge renderer ──
+      const renderSection = (num: string, title: string, key: string) => (
+        <div key={key} style={{
+          display: 'flex', alignItems: 'center', gap: '8px',
+          padding: '6px 10px', margin: '10px 0 6px',
+          borderRadius: '6px',
+          background: 'rgba(0,229,255,0.06)',
+          border: '1px solid rgba(0,229,255,0.18)',
+          direction: dir,
+        }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 22, height: 22, minWidth: 22, borderRadius: '50%',
+            fontSize: 12, fontWeight: 800, color: '#fff', background: '#00E5FF',
+            flexShrink: 0,
+          }}>{num}</span>
+          <span style={{ color: '#00E5FF', fontWeight: 700, fontSize: '12px' }}>
+            {parseInline(title.replace(/\*\*/g, ''))}
+          </span>
         </div>
       );
-      tableHeaders = [];
-      tableRows = [];
-    };
 
-    const parseInline = (t: string): React.ReactNode[] => {
-      const parts = t.split(/(\*\*[^*]+\*\*)/g);
-      return parts.map((part, j) => {
-        if (part.startsWith('**') && part.endsWith('**')) {
-          // V515: Use var(--cyan) instead of hardcoded #00E5FF
-          return <strong key={j} style={{ color: 'var(--cyan)', fontWeight: 600 }}>{part.slice(2, -2)}</strong>;
-        }
-        // V515: Highlight numbers/percentages using var(--green) / var(--red)
-        const numParts = part.split(/([+\-]?\d+\.?\d*\s*%)/g);
-        if (numParts.length > 1) {
-          return <span key={j}>{numParts.map((np, nj) => {
-            if (/^[+\-]?\d+\.?\d*\s*%$/.test(np)) {
-              const isPositive = np.startsWith('+') || (!np.startsWith('-') && parseFloat(np) > 0);
-              return <span key={nj} style={{ color: isPositive ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>{np}</span>;
-            }
-            return <span key={nj}>{np}</span>;
-          })}</span>;
-        }
-        return <span key={j}>{part}</span>;
-      });
-    };
+      // ── Main loop ──
+      while (i < lines.length) {
+        const line = lines[i];
+        const trimmed = line.trim();
 
-    while (i < lines.length) {
-      const line = lines[i];
-      const trimmed = line.trim();
+        // سطر فارغ
+        if (!trimmed) { i++; continue; }
 
-      // Filter 🧠 thinking lines
-      const thinkingMatch = trimmed.match(/^[*\s]*🧠\s*(جاري التحليل|Analyzing|Analyse en cours|Analiz ediliyor|Analizando)[:\s]*.*/);
-      if (thinkingMatch) { i++; continue; }
-
-      // V515: Horizontal rule — subtle gradient divider (kept inline since no .asst-* equivalent)
-      if (/^-{3,}$/.test(trimmed)) {
-        elements.push(
-          <div key={`hr-${i}`} className="my-2" style={{
-            height: '1px',
-            background: 'linear-gradient(90deg, transparent, rgba(0,229,255,0.25), transparent)',
-            direction: isRtl ? 'rtl' : 'ltr',
-          }} />
-        );
-        i++; continue;
-      }
-
-      // Heading — V1033: now supports #### (h4) in addition to # ## ###
-      const headingMatch = trimmed.match(/^(#{1,4})\s+(.+)/);
-      if (headingMatch) {
-        const level = headingMatch[1].length;
-        const headingText = headingMatch[2];
-
-        // V515: Map emoji sections to .asst-sec color classes (cyan/purple/gold/green/red)
-        // instead of inline styles. Matches observer/index.html design spec.
-        const emojiToSecClass: Record<string, string> = {
-          '🧠': 'purple', '🔍': 'cyan',   '💥': 'red',    '📊': 'purple',
-          '🎯': 'green',  '📚': 'gold',   '🔒': 'purple', '❓': 'cyan',
-          '📈': 'green',  '📰': 'gold',   '⚖️': 'purple', '⚖': 'purple',
-          '💡': 'gold',   '⚠️': 'red',    '⚠': 'red',     '💱': 'green',
-          '🟢': 'green',  '🔴': 'red',    '🟡': 'gold',   '🔄': 'cyan',
-        };
-
-        const firstChar = headingText.charAt(0);
-        const secClass = emojiToSecClass[firstChar];
-        const sectionStyle = sectionStyles[firstChar];
-
-        if (secClass && sectionStyle) {
-          const cleanTitle = headingText.replace(/^\*\*|\*\*$/g, '').trim();
-          // Strip leading emoji from displayed title (it's already encoded in color)
-          const titleNoEmoji = cleanTitle.replace(/^[🧠🔍💥📊🎯📚🔒❓📈📰⚖💡⚠💱🟢🔴🟡🔄]\s*/, '');
+        // تنبيه المخاطر
+        if (/⚠️.*تنبيه|⚠️.*Risk|⚠️.*Disclaimer|تنبيه المخاطر|Risk Disclaimer/i.test(trimmed)) {
           elements.push(
-            <div key={`section-heading-${i}`} className={`asst-sec ${secClass}`} style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-              <span className="n">{level}</span>
-              {parseInline(titleNoEmoji)}
-            </div>
+            <p key={`risk-${i}`} style={{
+              fontSize: '10px', color: '#6A7A8E', margin: '6px 0',
+              padding: '6px 8px', borderRadius: '6px',
+              background: 'rgba(239,68,68,0.04)',
+              border: '1px solid rgba(239,68,68,0.10)',
+              direction: dir, lineHeight: 1.5,
+            }}>{parseInline(trimmed.replace(/\*\*/g, ''))}</p>
           );
           i++; continue;
         }
 
-        // V1009: Detect emoji-number headings (1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣ 6️⃣ 7️⃣ 8️⃣ 9️⃣ 🔟)
-        // even WITHOUT a ## prefix. AI often emits these as plain text lines
-        // like "1️⃣ السعر الحالي والاتجاه:" — without this branch they render
-        // as regular body text instead of headings.
-        // V1010: Changed \s+ to \s* so headings WITHOUT a space after the emoji
-        // (e.g. "1️⃣السعر الحالي") are also detected. AI often omits the space.
-        const emojiNumberMatch = headingText.match(/^([1-9]\uFE0F\u20E3|\u2781-\u2789]|\u2460-\u2473]|\uD83D\uDD1F])\s*(.+)/);
-        // Also handle the case where the heading itself (no ## prefix) is just an emoji-number line
-        const directEmojiNumberMatch = !emojiNumberMatch && trimmed.match(/^([1-9]\uFE0F\u20E3)\s*(.+)/);
-        if (emojiNumberMatch || directEmojiNumberMatch) {
-          const numText = (emojiNumberMatch || directEmojiNumberMatch)![1];
-          const titleText = (emojiNumberMatch || directEmojiNumberMatch)![2];
-          // Skip if title is empty (just the emoji-number alone on a line)
-          if (!titleText || !titleText.trim()) {
-            // Fall through to regular heading rendering
-          } else {
-            // V515: Render emoji-number headings as .asst-sec.cyan with the number in .n
-            const numDigit = numText.charAt(0);
-            elements.push(
-              <div key={`emoji-heading-${i}`} className="asst-sec cyan" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-                <span className="n">{numDigit}</span>
-                {parseInline(titleText.replace(/\*\*/g, ''))}
-              </div>
-            );
+        // Headings: ## أو ### أو ####
+        const headingMatch = trimmed.match(/^#{1,4}\s+(.+)/);
+        if (headingMatch) {
+          const title = headingMatch[1].replace(/\*\*/g, '');
+          const emojiMatch = title.match(/([📊🎯📈📉🟢🟡🔴💡⚠️🔍🧠📰])/);
+          const cleanTitle = title.replace(/^([📊🎯📈📉🟢🟡🔴💡⚠️🔍🧠📰])\s*/, '');
+          elements.push(renderSection('•', cleanTitle, `h-${i}`));
+          i++; continue;
+        }
+
+        // أرقام keycap: 1️⃣ 2️⃣ 3️⃣
+        const keycapMatch = trimmed.match(/^([1-9])\uFE0F?\u20E3?\s*(.*)/);
+        if (keycapMatch) {
+          const num = keycapMatch[1];
+          const title = keycapMatch[2]?.trim();
+          if (title && title.length > 1) {
+            elements.push(renderSection(num, title, `kc-${i}`));
             i++; continue;
           }
         }
 
-        // V515: Plain heading (no emoji) — render as .asst-sec.cyan too, with the level as the number
-        elements.push(
-          <div key={`heading-${i}`} className="asst-sec cyan" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-            <span className="n">{level}</span>
-            {parseInline(headingText.replace(/\*\*/g, ''))}
-          </div>
-        );
-        i++; continue;
-      }
-
-      // V1009: Detect emoji-number headings WITHOUT any ## prefix.
-      // Pattern: "1️⃣ السعر الحالي والاتجاه:" at the start of a line.
-      // The branch above only triggers when there's a ## prefix; this one
-      // catches the bare-emoji-number case.
-      // V1010: Changed \s+ to \s* so "1️⃣السعر" (no space) is also detected.
-      // V515: Render as .asst-sec.cyan with the digit in .n
-      const bareEmojiNumberMatch = trimmed.match(/^([1-9]\uFE0F\u20E3)\s*(.+)/);
-      if (bareEmojiNumberMatch) {
-        const numText = bareEmojiNumberMatch[1];
-        const titleText = bareEmojiNumberMatch[2];
-        // Only render as heading if there's actual title text
-        if (titleText && titleText.trim()) {
-          const numDigit = numText.charAt(0);
-          elements.push(
-            <div key={`bare-emoji-heading-${i}`} className="asst-sec cyan" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-              <span className="n">{numDigit}</span>
-              {parseInline(titleText.replace(/\*\*/g, ''))}
-            </div>
-          );
+        // رقم عاري + عنوان على نفس السطر: "1Current Price" أو "1 عنوان"
+        const inlineNumMatch = trimmed.match(/^([1-9])\s+(.{2,})/);
+        if (inlineNumMatch && !trimmed.includes('|')) {
+          elements.push(renderSection(inlineNumMatch[1], inlineNumMatch[2], `in-${i}`));
           i++; continue;
         }
-      }
 
-      // V515: Blockquote — render as .asst-alert.info (matches design spec)
-      if (trimmed.startsWith('> ')) {
-        const quoteContent = trimmed.replace(/^>\s*/, '');
-        elements.push(
-          <div key={`quote-${i}`} className="asst-alert info" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-            <div className="asst-alert-ic">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--cyan)' }}>
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
-              </svg>
-            </div>
-            <div className="asst-alert-body">
-              <div className="asst-alert-d">{parseInline(quoteContent)}</div>
-            </div>
-          </div>
-        );
-        i++; continue;
-      }
-
-      // V519: Table detection — require look-ahead to avoid false positives.
-      // A single pipe line with no following pipe/separator line is NOT a table.
-      // Prevents AI's broken "heading | col1 | col2 |" from rendering as garbage.
-      const isPipeTable = trimmed.includes('|') && trimmed.split('|').length >= 3;
-      const isTabTable = trimmed.includes('\t') && trimmed.split('\t').length >= 3;
-      const isTableSeparator = /^[|\s\-:]+$/.test(trimmed) && trimmed.includes('-');
-
-      if (isTableSeparator && inTable) {
-        i++; continue; // separator line inside table, skip
-      }
-
-      if (isPipeTable && !isTableSeparator) {
-        if (inTable) {
-          // Already in table — this is a data row
-          const cells = trimmed.split('|').map(c => c.trim()).filter(c => c.length > 0);
-          tableRows.push(cells);
-          i++; continue;
-        }
-        // Not in table — look ahead to confirm it's a real table
-        const nextLine = (lines[i + 1] || '').trim();
-        const nextIsPipe = nextLine.includes('|') && nextLine.split('|').length >= 3;
-        const nextIsSep = /^[|\s\-:]+$/.test(nextLine) && nextLine.includes('-');
-        if (nextIsPipe || nextIsSep) {
-          inTable = true;
-          tableHeaders = trimmed.split('|').map(c => c.trim()).filter(c => c.length > 0);
-          i++; continue;
-        }
-        // Single pipe line, no following pipe line → NOT a table. Fall through.
-      } else if (isTabTable) {
-        if (inTable) {
-          const cells = trimmed.split('\t').map(c => c.trim()).filter(c => c.length > 0);
-          tableRows.push(cells);
-          i++; continue;
-        }
-        const nextLine = (lines[i + 1] || '').trim();
-        const nextIsTab = nextLine.includes('\t') && nextLine.split('\t').length >= 3;
-        if (nextIsTab) {
-          inTable = true;
-          tableHeaders = trimmed.split('\t').map(c => c.trim()).filter(c => c.length > 0);
-          i++; continue;
-        }
-        // Single tab line → fall through.
-      } else if (inTable) {
-        flushTable();
-      }
-
-      // V568: كشف الأرقام العارية + المدموجة مع عناوين
-      const bareNumberMatch = trimmed.match(/^([1-9])\s*(.*)$/);
-      if (bareNumberMatch) {
-        const numDigit = bareNumberMatch[1];
-        const inlineTitle = bareNumberMatch[2]?.trim();
-        const nextLine = (lines[i + 1] || '').trim();
-
-        // نمط 2: الرقم + العنوان على نفس السطر (مثل "1Current Price")
-        if (inlineTitle && inlineTitle.length > 2) {
-          elements.push(
-            <div key={`inline-num-section-${i}`} className="asst-sec cyan" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                width: 22, height: 22, minWidth: 22, borderRadius: '50%',
-                fontSize: 12, fontWeight: 800, color: '#fff', background: '#00E5FF',
-                flexShrink: 0,
-              }}>{numDigit}</span>
-              {parseInline(inlineTitle.replace(/\*\*/g, ''))}
-            </div>
-          );
-          i += 1;
-          continue;
-        }
-
-        // نمط 1: الرقم على سطر منفصل + العنوان على السطر التالي
-        if (nextLine && nextLine.length > 2 && !/^[1-9]$/.test(nextLine)
-            && !nextLine.includes('|') && !/^[-•]\s/.test(nextLine)
-            && !/^#{1,4}\s/.test(nextLine)) {
-          elements.push(
-            <div key={`bare-num-section-${i}`} className="asst-sec cyan" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                width: 22, height: 22, minWidth: 22, borderRadius: '50%',
-                fontSize: 12, fontWeight: 800, color: '#fff', background: '#00E5FF',
-                flexShrink: 0,
-              }}>{numDigit}</span>
-              {parseInline(nextLine.replace(/\*\*/g, ''))}
-            </div>
-          );
-          i += 2;
-          continue;
-        }
-      }
-
-      // V525: كشف "SIGNAL:" block — تنسيق خاص به، لا كـ section عادي
-      // الـ AI يكتبها بأحد نمطين:
-      //   **🚦 SIGNAL: SELL XAU**   (bold)
-      //   🚦 SIGNAL: SELL XAU       (plain)
-      // يتبعها bullets: Entry / Stop Loss / Take Profit / Position Size / Confidence / Rationale
-      // هذا الكشف يدمج السطر + كل bullets التابعة في asst-action card واحد
-      const signalMatch = trimmed.match(/^[*\s]*[🚦⚡🎯💰]*\s*SIGNAL\s*[:：]\s*(.+?)\s*[*]*$/i);
-      if (signalMatch) {
-        const signalText = signalMatch[1].replace(/\*/g, '').trim();
-        // كشف BUY/SELL/HOLD
-        const isBuy = /\b(buy|long|شراء)\b/i.test(signalText);
-        const isSell = /\b(sell|short|بيع)\b/i.test(signalText);
-        const signalLabel = isSell ? 'SELL' : isBuy ? 'BUY' : 'HOLD';
-        const actionClass = isSell ? 'urgent' : isBuy ? 'profit' : 'watch';
-        const signalColor = isSell ? 'var(--red)' : isBuy ? 'var(--green)' : 'var(--gold)';
-
-        // V525: اجمع الأسطر التابعة (Entry/SL/TP/Size/Confidence/Rationale)
-        const details: { label: string; value: string }[] = [];
-        let j = i + 1;
-        while (j < lines.length) {
-          const detLine = lines[j].trim();
-          if (!detLine) break;
-          // توقف عند أنماط غير bullet وغير label:value
-          if (!/^[-•*]\s/.test(detLine) && !/^(Entry|Stop|Take|Position|Confidence|Rationale|الحجم|الثقة|السبب|الدخول|الخروج|وقف|الهدف)/i.test(detLine)) break;
-          const cleanLine = detLine.replace(/^[-•*]\s*/, '');
-          const m = cleanLine.match(/^([^:：]+)[:：]\s*(.+)$/);
-          if (m) {
-            details.push({ label: m[1].trim(), value: m[2].trim() });
+        // رقم عاري على سطر + عنوان على السطر التالي
+        const bareNumMatch = trimmed.match(/^([1-9])$/);
+        if (bareNumMatch) {
+          const nextLine = (lines[i + 1] || '').trim();
+          if (nextLine && nextLine.length > 2 && !/^[1-9]$/.test(nextLine)
+              && !nextLine.includes('|') && !/^[-•]/.test(nextLine)) {
+            elements.push(renderSection(bareNumMatch[1], nextLine, `bn-${i}`));
+            i += 2; continue;
           }
-          j++;
         }
 
-        elements.push(
-          <div key={`signal-${i}`} className={`asst-action ${actionClass}`} style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-            <div className="asst-action-ic">🚦</div>
-            <div className="asst-action-body">
-              <div className="asst-action-h">
-                <span style={{ color: signalColor, fontWeight: 700, fontSize: '13px' }}>
-                  SIGNAL: {signalLabel} {signalText.replace(/^(BUY|SELL|HOLD|LONG|SHORT)\s*/i, '')}
+        // SIGNAL block
+        const signalMatch = trimmed.match(/^[*\s]*[🚦⚡🎯💰]*\s*SIGNAL\s*[:：]\s*(.+)/i);
+        if (signalMatch) {
+          const signalText = signalMatch[1].replace(/\*/g, '').trim();
+          const isBuy = /buy|long|شراء/i.test(signalText);
+          const isSell = /sell|short|بيع/i.test(signalText);
+          const label = isSell ? 'SELL' : isBuy ? 'BUY' : 'HOLD';
+          const color = isSell ? '#EF5350' : isBuy ? '#22C55E' : '#FFB800';
+
+          // اجمع التفاصيل
+          const details: { label: string; value: string }[] = [];
+          let j = i + 1;
+          while (j < lines.length) {
+            const detLine = lines[j].trim();
+            if (!detLine) break;
+            const m = detLine.match(/^[-•*]?\s*\*?\*?([^:：]+)[:：]\s*(.+)/);
+            if (m) { details.push({ label: m[1].trim(), value: m[2].replace(/\*\*/g, '').trim() }); j++; }
+            else break;
+          }
+
+          elements.push(
+            <div key={`sig-${i}`} style={{
+              margin: '8px 0', padding: '10px 12px', borderRadius: '8px',
+              background: 'rgba(15,20,33,0.5)',
+              borderLeft: `3px solid ${color}`,
+              border: `1px solid ${color}33`,
+              direction: dir,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: details.length > 0 ? '8px' : 0 }}>
+                <span style={{ fontSize: '16px' }}>🚦</span>
+                <span style={{ color, fontWeight: 700, fontSize: '13px' }}>
+                  SIGNAL: {label} {signalText.replace(/^(BUY|SELL|HOLD|LONG|SHORT)\s*/i, '')}
                 </span>
               </div>
               {details.length > 0 && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', marginTop: '6px', fontSize: '11px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', fontSize: '11px' }}>
                   {details.map((d, idx) => (
                     <div key={idx} style={{ display: 'flex', gap: '4px' }}>
-                      <span style={{ color: 'var(--text3)', fontWeight: 600 }}>{d.label}:</span>
-                      <span style={{ color: 'var(--text)' }}>{parseInline(d.value)}</span>
+                      <span style={{ color: '#8A9DB2', fontWeight: 600 }}>{d.label}:</span>
+                      <span style={{ color: '#E8EDF5' }}>{parseInline(d.value)}</span>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-          </div>
-        );
-        i = j; continue;
-      }
+          );
+          i = j; continue;
+        }
 
-      // V515: Section header (emoji + bold) — render as .asst-sec with mapped color class
-      // V524: أزلت § من .n لأنه يظهر كحرف غريب. استخدم رمز القسم § فقط إن لم يكن emoji
-      const sectionMatch = trimmed.match(/^\*\*([🧠🔍💥📊🎯📚🔒❓📈📰⚖💡⚠️💱🟢🔴🟡🔄📏🚦⚡💰][^*]+)\*\*:?\s*$/);
-      if (sectionMatch) {
-        const sectionTitle = sectionMatch[1];
-        const emoji = sectionTitle.charAt(0);
-        // V515: Map emoji → .asst-sec color class
-        const emojiToSecClass: Record<string, string> = {
-          '🧠': 'purple', '🔍': 'cyan',   '💥': 'red',    '📊': 'purple',
-          '🎯': 'green',  '📚': 'gold',   '🔒': 'purple', '❓': 'cyan',
-          '📈': 'green',  '📰': 'gold',   '⚖️': 'purple', '⚖': 'purple',
-          '💡': 'gold',   '⚠️': 'red',    '⚠': 'red',     '💱': 'green',
-          '🟢': 'green',  '🔴': 'red',    '🟡': 'gold',   '🔄': 'cyan',
-          '📏': 'cyan',
-        };
-        const secClass = emojiToSecClass[emoji] || 'cyan';
-        const titleNoEmoji = sectionTitle.replace(/^[🧠🔍💥📊🎯📚🔒❓📈📰⚖💡⚠💱🟢🔴🟡🔄📏🚦⚡💰]\s*/, '');
-        elements.push(
-          <div key={`section-${i}`} className={`asst-sec ${secClass}`} style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-            <span className="n">•</span>
-            {parseInline(titleNoEmoji)}
-          </div>
-        );
-        i++; continue;
-      }
+        // Table detection: pipe table
+        const isPipeRow = trimmed.includes('|') && trimmed.split('|').filter(c => c.trim()).length >= 2;
+        const isSeparator = /^\|?[\s\-:|]+$/.test(trimmed) && trimmed.includes('-') && trimmed.includes('|');
 
-      // V1011 (Phase 2): Scenario probability bar — visualizes "🟢 السيناريو الصعودي: ... الاحتمال: 40%"
-      // as a colored progress bar instead of plain text. Catches both Arabic and English
-      // patterns, with or without a bullet prefix.
-      // V515: Uses var(--green) / var(--gold) / var(--red) instead of hardcoded hex.
-      // Pattern examples matched:
-      //   "🟢 السيناريو الصعودي: إذا استعاد... قد يصل إلى $4,500، الاحتمال: 40%"
-      //   "- 🟡 السيناريو المحايد: ... الاحتمال: 30%"
-      //   "🟢 Bullish scenario: ... Probability: 40%"
-      const scenarioMatch = trimmed.match(/^[-•]?\s*(🟢|🟡|🔴)\s+(.+?)[,،]?\s*(?:الاحتمال|Probability|Probabilité|Olasılık|Probabilidad)[:\s]*(\d+)\s*%/);
-      if (scenarioMatch) {
-        const emoji = scenarioMatch[1];
-        const desc = scenarioMatch[2].trim();
-        const pct = parseInt(scenarioMatch[3]);
-        const color = emoji === '🟢' ? 'var(--green)' : emoji === '🟡' ? 'var(--gold)' : 'var(--red)';
-        const bgColor = emoji === '🟢' ? 'rgba(34,197,94,0.08)' : emoji === '🟡' ? 'rgba(255,184,0,0.08)' : 'rgba(239,83,80,0.08)';
-        elements.push(
-          <div key={`scenario-${i}`} className="my-1.5 px-3 py-2 rounded-lg" style={{
-            background: bgColor,
-            border: `1px solid ${color}33`,
-            direction: isRtl ? 'rtl' : 'ltr',
-          }}>
-            <div className="flex items-center justify-between gap-2 mb-1.5">
-              <span style={{ color, fontSize: '11px', fontWeight: 700, flex: 1 }}>
-                <span style={{ marginLeft: '4px' }}>{emoji}</span>
-                {parseInline(desc.replace(/\*\*/g, ''))}
-              </span>
-              <span style={{ color, fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap' }}>{pct}%</span>
-            </div>
-            <div style={{ width: '100%', height: '5px', background: '#111828', borderRadius: '3px', overflow: 'hidden' }}>
-              <div style={{
-                width: `${pct}%`,
-                height: '100%',
-                background: `linear-gradient(90deg, ${color}, ${color}aa)`,
-                borderRadius: '3px',
-                transition: 'width 0.5s ease',
-              }} />
-            </div>
-          </div>
-        );
-        i++; continue;
-      }
+        if (isPipeRow && !isSeparator) {
+          // تحقق إذا كان الجدول التالي separator أو صف بيانات
+          const nextLine = (lines[i + 1] || '').trim();
+          const nextIsSep = /^\|?[\s\-:|]+$/.test(nextLine) && nextLine.includes('-');
+          const nextIsPipe = nextLine.includes('|') && nextLine.split('|').filter(c => c.trim()).length >= 2;
 
-      // V1011 (Phase 2): Price card — combines "السعر الحالي" + "التغير اليومي" + "الاتجاه"
-      // bullets into one unified card. AI often emits these as 3 consecutive bullets:
-      //   • السعر الحالي: $4,361.4
-      //   • التغير اليومي: +0.23%
-      //   • الاتجاه العام: صاعد
-      // We detect the first one, look ahead for the next 2, and render as a single card.
-      // Falls through to normal bullet rendering if look-ahead fails.
-      const priceStartMatch = trimmed.match(/^[-•]?\s*\*?\*?(?:السعر\s+الحالي|Current\s+Price|Prix\s+actuel|Güncel\s+Fiyat|Precio\s+actual)\*?\*?\s*[:：]\s*(.+)$/i);
-      if (priceStartMatch && i + 2 < lines.length) {
-        const currentPrice = priceStartMatch[1].trim();
-        // Look ahead for change + trend (allow 1-3 lines)
-        let changeLine: string | null = null;
-        let trendLine: string | null = null;
-        let consumedExtra = 0;
-        for (let look = i + 1; look < Math.min(i + 4, lines.length) && (!changeLine || !trendLine); look++) {
-          const lookTrim = lines[look].trim();
-          if (!changeLine) {
-            const cm = lookTrim.match(/^[-•]?\s*\*?\*?(?:التغير\s+اليومي|Daily\s+Change|Variation\s+quotidienne|Günlük\s+Değişim|Cambio\s+diario)\*?\*?\s*[:：]\s*(.+)$/i);
-            if (cm) { changeLine = cm[1].trim(); consumedExtra = Math.max(consumedExtra, look - i); continue; }
-          }
-          if (!trendLine) {
-            const tm = lookTrim.match(/^[-•]?\s*\*?\*?(?:الاتجاه\s+(?:العام)?|Trend|Direction|Yön|Tendencia)\*?\*?\s*[:：]\s*(.+)$/i);
-            if (tm) { trendLine = tm[1].trim(); consumedExtra = Math.max(consumedExtra, look - i); continue; }
+          if (nextIsSep || nextIsPipe) {
+            // اجمع الجدول كاملاً
+            const headers = trimmed.split('|').map(c => c.trim()).filter(c => c);
+            const rows: string[][] = [];
+            let k = i + 1;
+            // تخطّي separator
+            if (nextIsSep) k++;
+            while (k < lines.length) {
+              const rowLine = lines[k].trim();
+              if (!rowLine.includes('|')) break;
+              const cells = rowLine.split('|').map(c => c.trim()).filter(c => c);
+              if (cells.length >= 2) rows.push(cells);
+              k++;
+            }
+            elements.push(renderTable(headers, rows));
+            i = k; continue;
           }
         }
-        if (changeLine && trendLine) {
-          // Parse change percentage to determine color
-          const changeMatch = changeLine.match(/([+\-−]?\d+\.?\d*\s*%|[-+]?\d+\.?\d*\s*%)/);
-          const isUp = changeMatch ? !changeMatch[1].startsWith('-') && !changeMatch[1].startsWith('−') : false;
-          const trendColor = isUp ? '#22C55E' : '#EF5350';
-          const trendBg = isUp ? 'rgba(34,197,94,0.08)' : 'rgba(239,83,80,0.08)';
 
+        // Horizontal rule
+        if (/^-{3,}$/.test(trimmed)) {
+          elements.push(<div key={`hr-${i}`} style={{ height: '1px', background: 'linear-gradient(90deg, transparent, rgba(0,229,255,0.25), transparent)', margin: '8px 0' }} />);
+          i++; continue;
+        }
+
+        // Blockquote
+        if (trimmed.startsWith('> ')) {
           elements.push(
-            <div key={`price-card-${i}`} className="my-2 px-3 py-2.5 rounded-lg" style={{
-              background: '#0C1220',
-              border: `1px solid ${trendColor}33`,
-              direction: isRtl ? 'rtl' : 'ltr',
+            <div key={`q-${i}`} style={{
+              margin: '6px 0', padding: '8px 10px', borderRadius: '6px',
+              background: 'rgba(0,229,255,0.05)',
+              borderLeft: isRtl ? 'none' : '2px solid rgba(0,229,255,0.3)',
+              borderRight: isRtl ? '2px solid rgba(0,229,255,0.3)' : 'none',
+              direction: dir,
             }}>
-              <div className="flex items-center justify-between gap-3" style={{ flexWrap: 'wrap' }}>
-                <div className="flex items-baseline gap-2">
-                  <span style={{ color: '#8A9DB2', fontSize: '10px', fontWeight: 600 }}>
-                    {isRtl ? 'السعر' : 'Price'}
-                  </span>
-                  <span style={{ color: '#E8EDF5', fontSize: '18px', fontWeight: 700 }}>
-                    {parseInline(currentPrice.replace(/\*\*/g, ''))}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span style={{
-                    color: trendColor,
-                    fontSize: '13px',
-                    fontWeight: 700,
-                    padding: '2px 8px',
-                    background: trendBg,
-                    borderRadius: '6px',
-                  }}>
-                    {isUp ? '▲' : '▼'} {parseInline(changeLine.replace(/\*\*/g, ''))}
-                  </span>
-                </div>
-              </div>
-              <div style={{ marginTop: '6px', fontSize: '11px', color: '#8A9DB2' }}>
-                <span style={{ fontWeight: 600, color: '#B0C4D8' }}>
-                  {isRtl ? 'الاتجاه' : 'Trend'}:
-                </span>{' '}
-                <span style={{ color: trendColor, fontWeight: 600 }}>
-                  {parseInline(trendLine.replace(/\*\*/g, ''))}
-                </span>
-              </div>
+              <span style={{ fontSize: '12px', color: '#B0C4D8', fontStyle: 'italic' }}>{parseInline(trimmed.replace(/^>\s*/, ''))}</span>
             </div>
           );
-          i += consumedExtra + 1;
-          continue;
+          i++; continue;
         }
-        // If look-ahead failed, fall through to regular bullet rendering
-      }
 
-      // V1011 (Phase 2): Recommendation card — combines "نقطة الدخول" + "نقطة الخروج" + "وقف الخسارة"
-      // bullets into one prominent card with BUY/SELL/HOLD color coding.
-      // Pattern detection: bullet starting with "نقطة الدخول" or "Entry Point".
-      const entryMatch = trimmed.match(/^[-•]?\s*\*?\*?(?:نقطة\s+الدخول|Entry\s+Point|Point\s+d'entrée|Giriş\s+Noktası|Punto\s+de\s+entrada)\*?\*?\s*[:：]\s*(.+)$/i);
-      if (entryMatch && i + 1 < lines.length) {
-        const entry = entryMatch[1].trim();
-        let exitLine: string | null = null;
-        let stopLine: string | null = null;
-        let reasonLine: string | null = null;
-        let consumedExtra = 0;
-        for (let look = i + 1; look < Math.min(i + 5, lines.length); look++) {
-          const lookTrim = lines[look].trim();
-          if (!exitLine) {
-            const em = lookTrim.match(/^[-•]?\s*\*?\*?(?:نقطة\s+الخروج|Exit\s+Point|Point\s+de\s+sortie|Çıkış\s+Noktası|Punto\s+de\s+salida)\*?\*?\s*[:：]\s*(.+)$/i);
-            if (em) { exitLine = em[1].trim(); consumedExtra = Math.max(consumedExtra, look - i); continue; }
-          }
-          if (!stopLine) {
-            const sm = lookTrim.match(/^[-•]?\s*\*?\*?(?:وقف\s+الخسارة|Stop\s+Loss|Stop-loss|Stop\s+perte|Zarar\s+Durdur|Stop\s+pérdida)\*?\*?\s*[:：]\s*(.+)$/i);
-            if (sm) { stopLine = sm[1].trim(); consumedExtra = Math.max(consumedExtra, look - i); continue; }
-          }
-          if (!reasonLine) {
-            const rm = lookTrim.match(/^[-•]?\s*\*?\*?(?:السبب|Reason|Raison|Sebep|Razón)\*?\*?\s*[:：]\s*(.+)$/i);
-            if (rm) { reasonLine = rm[1].trim(); consumedExtra = Math.max(consumedExtra, look - i); continue; }
-          }
-        }
-        if (exitLine) {
-          // Try to determine BUY / SELL / HOLD from reason text (default BUY for entry/exit pattern)
-          const reasonText = (reasonLine || '').toLowerCase();
-          const isSell = reasonText.includes('بيع') || reasonText.includes('sell') || reasonText.includes('short');
-          const isHold = reasonText.includes('انتظر') || reasonText.includes('hold') || reasonText.includes('wait');
-          const actionLabel = isSell ? (isRtl ? 'توصية بيع' : 'SELL') : isHold ? (isRtl ? 'انتظار' : 'HOLD') : (isRtl ? 'توصية شراء' : 'BUY');
-          const actionColor = isSell ? '#EF5350' : isHold ? '#FFB800' : '#22C55E';
-          const actionBg = isSell ? 'rgba(239,83,80,0.08)' : isHold ? 'rgba(255,184,0,0.08)' : 'rgba(34,197,94,0.08)';
-
+        // Bullet points
+        if (/^[-•*]\s/.test(trimmed)) {
+          const bulletContent = trimmed.replace(/^[-•*]\s+/, '');
           elements.push(
-            <div key={`rec-card-${i}`} className="my-2 rounded-lg overflow-hidden" style={{
-              background: '#0C1220',
-              border: `1px solid ${actionColor}44`,
-              direction: isRtl ? 'rtl' : 'ltr',
-            }}>
-              {/* Action header bar */}
-              <div style={{
-                background: actionBg,
-                padding: '6px 12px',
-                borderBottom: `1px solid ${actionColor}33`,
-              }}>
-                <span style={{ color: actionColor, fontWeight: 700, fontSize: '12px' }}>
-                  🎯 {actionLabel}
-                </span>
-              </div>
-              {/* Entry / Exit / Stop grid */}
-              <div className="grid grid-cols-3 gap-2 p-2.5" style={{ fontSize: '11px' }}>
-                <div>
-                  <div style={{ color: '#8A9DB2', fontSize: '9px', fontWeight: 600, marginBottom: '2px' }}>
-                    {isRtl ? 'الدخول' : 'Entry'}
-                  </div>
-                  <div style={{ color: '#E8EDF5', fontWeight: 700, fontSize: '12px' }}>
-                    {parseInline(entry.replace(/\*\*/g, ''))}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ color: '#8A9DB2', fontSize: '9px', fontWeight: 600, marginBottom: '2px' }}>
-                    {isRtl ? 'الخروج' : 'Target'}
-                  </div>
-                  <div style={{ color: '#22C55E', fontWeight: 700, fontSize: '12px' }}>
-                    {parseInline(exitLine.replace(/\*\*/g, ''))}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ color: '#8A9DB2', fontSize: '9px', fontWeight: 600, marginBottom: '2px' }}>
-                    {isRtl ? 'وقف الخسارة' : 'Stop'}
-                  </div>
-                  <div style={{ color: '#EF5350', fontWeight: 700, fontSize: '12px' }}>
-                    {stopLine ? parseInline(stopLine.replace(/\*\*/g, '')) : '—'}
-                  </div>
-                </div>
-              </div>
-              {reasonLine && (
-                <div style={{ padding: '4px 12px 8px', fontSize: '10px', color: '#B0C4D8', lineHeight: 1.5 }}>
-                  <span style={{ color: '#8A9DB2', fontWeight: 600 }}>{isRtl ? 'السبب: ' : 'Reason: '}</span>
-                  {parseInline(reasonLine.replace(/\*\*/g, ''))}
-                </div>
-              )}
+            <div key={`b-${i}`} style={{ display: 'flex', gap: '6px', margin: '3px 0', direction: dir }}>
+              <span style={{ color: '#00E5FF', flexShrink: 0, marginTop: '2px', fontSize: '13px' }}>•</span>
+              <span style={{ fontSize: '12.5px', color: '#B0C4D8', lineHeight: 1.6, flex: 1 }}>{parseInline(bulletContent)}</span>
             </div>
           );
-          i += consumedExtra + 1;
-          continue;
+          i++; continue;
         }
-        // If look-ahead failed, fall through to regular bullet rendering
-      }
 
-      // V1011 (Phase 2): Confidence meter — improved to catch more patterns.
-      // Previous regex required "ثقة ... %" or "Confidence ... %" on the same line.
-      // Now also catches:
-      //   "درجة الثقة: 60%"
-      //   "Confidence level: 60%"
-      //   "مستوى الثقة 60%"
-      //   "confidence: 60%"
-      const confMatch = trimmed.match(/(?:ثقة|درجة\s+الثقة|مستوى\s+الثقة|confidence(?:\s+level)?|confiance|güven|confianza)\s*[:：]?\s*(\d+)\s*%/i);
-      if (confMatch) {
-        const pct = parseInt(confMatch[1]);
-        const barColor = pct >= 75 ? '#22C55E' : pct >= 50 ? '#FFB800' : '#EF5350';
-        const label = isRtl
-          ? (pct >= 75 ? 'ثقة عالية' : pct >= 50 ? 'ثقة متوسطة' : 'ثقة منخفضة')
-          : (pct >= 75 ? 'High confidence' : pct >= 50 ? 'Medium confidence' : 'Low confidence');
-        elements.push(
-          <div key={`conf-${i}`} className="my-2 px-3 py-2 rounded-lg" style={{
-            background: 'rgba(139,92,246,0.06)',
-            border: '1px solid rgba(99,102,241,0.15)',
-            direction: isRtl ? 'rtl' : 'ltr',
-          }}>
-            <div className="flex items-center justify-between gap-2 mb-1.5">
-              <span style={{ color: '#8B5CF6', fontSize: '11px', fontWeight: 600 }}>
-                {isRtl ? '📊 مستوى الثقة' : '📊 Confidence Level'}
-              </span>
-              <span style={{ color: barColor, fontSize: '11px', fontWeight: 700 }}>
-                {label} · {pct}%
-              </span>
+        // Scenario lines (🟢 🟡 🔴)
+        if (/^[🟢🟡🔴]/.test(trimmed)) {
+          const isBull = trimmed.startsWith('🟢');
+          const isBear = trimmed.startsWith('🔴');
+          const color = isBull ? '#22C55E' : isBear ? '#EF5350' : '#FFB800';
+          elements.push(
+            <div key={`sc-${i}`} style={{
+              display: 'flex', gap: '6px', margin: '3px 0', padding: '6px 8px',
+              borderRadius: '6px', background: `${color}0D`, direction: dir,
+            }}>
+              <span style={{ fontSize: '12.5px', color, lineHeight: 1.6, flex: 1 }}>{parseInline(trimmed)}</span>
             </div>
-            <div style={{ width: '100%', height: '6px', background: '#111828', borderRadius: '3px', overflow: 'hidden' }}>
-              <div style={{ width: `${pct}%`, height: '100%', background: `linear-gradient(90deg, ${barColor}, ${barColor}88)`, borderRadius: '3px', transition: 'width 0.5s ease' }} />
-            </div>
-          </div>
-        );
-        i++; continue;
-      }
-
-      // Recommendation line
-      if ((trimmed.includes('توصية') || trimmed.includes('Recommendation') || trimmed.includes('Recommandation') || trimmed.includes('Tavsiye') || trimmed.includes('Recomendación') || trimmed.includes('التوصية') || trimmed.includes('Tavsiyesi') || trimmed.includes('Recomendación unificada'))
-          && !/^[**]?[🎯📊⚖]/.test(trimmed)) {
-        elements.push(
-          <div key={`rec-${i}`} className="my-1.5 px-3 py-2 rounded-lg" style={{
-            background: 'rgba(34,197,94,0.08)',
-            border: '1px solid rgba(5,150,105,0.25)',
-            direction: isRtl ? 'rtl' : 'ltr',
-          }}>
-            {parseInline(trimmed)}
-          </div>
-        );
-        i++; continue;
-      }
-
-      // Empty line
-      if (trimmed.length === 0) { i++; continue; }
-
-      // V515: Bullet points — uses .asst-content styling conventions
-      if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
-        const bulletContent = trimmed.replace(/^[-•]\s+/, '');
-        elements.push(
-          <div key={`bullet-${i}`} className="flex gap-1.5 asst-content-li" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-            <span style={{ color: 'var(--cyan)', marginTop: '2px', fontSize: '13px' }}>&#x2022;</span>
-            <span style={{ fontSize: '12.5px', color: 'var(--text2)', lineHeight: 1.6, flex: 1 }}>{parseInline(bulletContent)}</span>
-          </div>
-        );
-        i++; continue;
-      }
-
-      // V517: Sub-bullet points
-      if (/^\s{2,}[-•]\s/.test(line)) {
-        const bulletContent = line.trim().replace(/^[-•]\s+/, '');
-        elements.push(
-          <div key={`sub-bullet-${i}`} className="flex gap-1.5" style={{ direction: isRtl ? 'rtl' : 'ltr', paddingLeft: isRtl ? '0' : '16px', paddingRight: isRtl ? '16px' : '0' }}>
-            <span style={{ color: 'var(--text3)', marginTop: '2px', fontSize: '10px' }}>&#x25E6;</span>
-            <span style={{ fontSize: '12px', color: 'var(--text3)', lineHeight: 1.6, flex: 1 }}>{parseInline(bulletContent)}</span>
-          </div>
-        );
-        i++; continue;
-      }
-
-      // V517: Regular line — دمج الأسطر المتتالية في فقرة واحدة
-      // (كانت كل سطر div مستقل مما يسبب تفتتاً بصرياً)
-      // نجمع الأسطر المتتالية حتى نصل لعنصر خاص (bullet/heading/table)
-      const paragraphLines: string[] = [trimmed];
-      let j = i + 1;
-      while (j < lines.length) {
-        const nextLine = lines[j];
-        const nextTrimmed = nextLine.trim();
-        if (nextTrimmed.length === 0) break;
-        // توقف عند أنماط خاصة
-        if (/^#{1,4}\s/.test(nextTrimmed)) break;
-        if (/^[-•]\s/.test(nextTrimmed)) break;
-        if (/^\s{2,}[-•]\s/.test(nextLine)) break;
-        if (nextTrimmed.startsWith('> ')) break;
-        if (/^-{3,}$/.test(nextTrimmed)) break;
-        // V519: Only break on pipe lines that start a REAL table (followed by
-        // another pipe/separator line). Single pipe lines are merged into paragraph.
-        if (nextTrimmed.includes('|') && nextTrimmed.split('|').length >= 3) {
-          const afterNext = (lines[j + 1] || '').trim();
-          const afterIsPipe = afterNext.includes('|') && afterNext.split('|').length >= 3;
-          const afterIsSep = /^[|\s\-:]+$/.test(afterNext) && afterNext.includes('-');
-          if (afterIsPipe || afterIsSep) break;
+          );
+          i++; continue;
         }
-        if (nextTrimmed.includes('\t') && nextTrimmed.split('\t').length >= 3) {
-          const afterNext = (lines[j + 1] || '').trim();
-          const afterIsTab = afterNext.includes('\t') && afterNext.split('\t').length >= 3;
-          if (afterIsTab) break;
+
+        // Regular paragraph — ادمج الأسطر المتتالية
+        const paraLines: string[] = [trimmed];
+        let j2 = i + 1;
+        while (j2 < lines.length) {
+          const next = lines[j2].trim();
+          if (!next) break;
+          if (/^#{1,4}\s/.test(next)) break;
+          if (/^[-•*]\s/.test(next)) break;
+          if (/^\|/.test(next) || next.includes('|') && next.split('|').length >= 3) break;
+          if (/^[1-9]$/ .test(next)) break;
+          if (/^[🟢🟡🔴]/.test(next)) break;
+          if (/SIGNAL/i.test(next)) break;
+          if (/⚠️.*تنبيه|⚠️.*Risk/i.test(next)) break;
+          paraLines.push(next);
+          j2++;
         }
-        if (/^\*\*[🧠🔍💥📊🎯📚🔒❓📈📰⚖💡⚠💱🟢🔴🟡🔄📏]/.test(nextTrimmed)) break;
-        paragraphLines.push(nextTrimmed);
-        j++;
+        const paraText = paraLines.join(' ');
+        elements.push(
+          <p key={`p-${i}`} style={{
+            fontSize: '13px', lineHeight: 1.7, color: '#E8EDF5',
+            margin: '0 0 8px', direction: dir,
+          }}>{parseInline(paraText)}</p>
+        );
+        i = j2;
       }
-      const paragraphText = paragraphLines.join(' ');
-      elements.push(
-        <p key={`line-${i}`} style={{ fontSize: '13px', lineHeight: 1.7, color: 'var(--text)', direction: isRtl ? 'rtl' : 'ltr', margin: '0 0 8px 0' }}>
-          {parseInline(paragraphText)}
-        </p>
-      );
-      i = j; continue;
-    }
 
-    if (inTable) flushTable();
-
-    return <>{elements}</>;
+      return <>{elements}</>;
     } catch (err) {
       console.error('[renderContent] Error:', err);
       return <div style={{ whiteSpace: 'pre-wrap', color: '#D1D5DB' }}>{content}</div>;
     }
   }, [isRtl]);
+
   // ─── Market pulse color helper ─────────────────────────────────
   const getPulseColor = () => {
     switch (marketPulse) {

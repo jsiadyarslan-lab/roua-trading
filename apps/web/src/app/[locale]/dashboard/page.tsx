@@ -24,6 +24,7 @@ import { T as SharedT } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { getSymbolLeverage } from '@/lib/margin-calculator'
 import { useSidebarState } from '@/hooks/useSidebarState'
+import { useRightPanelState } from '@/hooks/useRightPanelState'
 
 import { getDirection } from '@/lib/i18n-utils';
 const DASHBOARD_SYMBOLS = ['BTC/USD', 'ETH/USD', 'EUR/USD', 'GBP/USD', 'XAU/USD', 'AAPL', 'TSLA']
@@ -545,6 +546,7 @@ export default function DashboardPage() {
   const t = useTranslations('dashboard.home')
   const tc = useTranslations('common')
   const { collapsed: sidebarCollapsed } = useSidebarState()
+  const { collapsed: rightPanelCollapsed } = useRightPanelState()
   useScopedStyle(`.dashboard-shell {
           min-height: calc(100dvh - ${HEADER_H}px);
           background: ${T.bg};
@@ -557,7 +559,7 @@ export default function DashboardPage() {
 
         .dash-grid {
           display: grid;
-          grid-template-columns: ${sidebarCollapsed ? '40px' : 'minmax(220px, 260px)'} minmax(0, 1fr) minmax(280px, 320px);
+          grid-template-columns: ${sidebarCollapsed ? '40px' : 'minmax(220px, 260px)'} minmax(0, 1fr) ${rightPanelCollapsed ? '40px' : 'minmax(280px, 320px)'};
           gap: 12px;
           min-height: calc(100dvh - ${HEADER_H}px);
           height: calc(100dvh - ${HEADER_H}px);

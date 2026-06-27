@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Brain, ScanSearch, Sparkles, Waves, Swords, Landmark, Bot } from 'lucide-react'
+import { Brain, ScanSearch, Sparkles, Swords, Landmark, Bot, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { AgentControlMini } from '@/components/dashboard/AgentControlMini'
 import { ScannerMini } from '@/components/dashboard/ScannerMini'
 import { BotCommandCenter } from '@/components/dashboard/BotCommandCenter'
@@ -12,6 +12,7 @@ import { MultiTfScannerMini } from '@/components/dashboard/MultiTfScannerMini'
 import { useDecisionFlow } from '@/hooks/useDecisionFlow'
 import { useTabAlertStore, type TabId } from '@/hooks/useTabAlertStore'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { useRightPanelState } from '@/hooks/useRightPanelState'
 import { useTranslations } from 'next-intl'
 
 const T = {
@@ -55,6 +56,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
   const [active, setActive] = useState('executor')
   const { selectedSymbol, scanner, council } = useDecisionFlow()
   const { alerts, clearAlert } = useTabAlertStore()
+  const { collapsed: rightCollapsed, toggleCollapse: toggleRightCollapse } = useRightPanelState()
 
   // Clear alerts when user opens a tab
   const handleTabClick = (tabId: string) => {
@@ -81,6 +83,81 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
   } as const
 
   const headline = headlineMap[active as keyof typeof headlineMap] ?? tr('headlineDefault')
+
+  // V555: عند الطي، اعرض زر فتح صغير فقط
+  if (rightCollapsed) {
+    return (
+      <div
+        className="dash-col"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+          height: '100%',
+          minHeight: 0,
+          background: 'rgba(26, 29, 41, 0.65)',
+          backdropFilter: 'blur(16px) saturate(1.4)',
+          WebkitBackdropFilter: 'blur(16px) saturate(1.4)',
+          border: '1px solid rgba(255,255,255,0.06)',
+          borderRadius: 14,
+          overflow: 'hidden',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)',
+          padding: '8px 4px',
+          gap: 8,
+        }}
+      >
+        <button
+          type="button"
+          onClick={toggleRightCollapse}
+          title={tr('expand') || 'Expand'}
+          aria-label="Expand right panel"
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 6,
+            border: '1px solid rgba(0,212,255,0.18)',
+            background: 'rgba(0, 0, 0, 0.9)',
+            color: T.text3,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <PanelLeftOpen size={14} />
+        </button>
+        {/* أيقونات التبويبات مصغرة */}
+        {TABS.map(t => {
+          const Icon = t.icon
+          const isActive = active === t.id
+          return (
+            <button
+              key={t.id}
+              onClick={() => { handleTabClick(t.id); toggleRightCollapse(); }}
+              title={t.label}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 6,
+                background: isActive ? `${t.accent}18` : 'rgba(255,255,255,0.035)',
+                border: `1px solid ${isActive ? `${t.accent}55` : 'rgba(255,255,255,0.08)'}`,
+                color: isActive ? t.accent : T.text3,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <Icon size={13} />
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
 
   return (
     <div
@@ -159,6 +236,29 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
               {selectedSymbol}
             </div>
           </div>
+          {/* V555: زر طي اللوحة اليمنى */}
+          <button
+            type="button"
+            onClick={toggleRightCollapse}
+            title="Collapse"
+            aria-label="Collapse right panel"
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: 6,
+              border: '1px solid rgba(0,212,255,0.18)',
+              background: 'rgba(0, 0, 0, 0.9)',
+              color: T.text3,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              flexShrink: 0,
+            }}
+          >
+            <PanelLeftClose size={13} />
+          </button>
         </div>
 
       <div

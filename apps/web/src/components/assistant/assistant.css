@@ -2293,15 +2293,10 @@ html[dir="ltr"] .chat-input-row .chat-plus-wrapper { order: 1; }
   font-size: 12px;
   font-weight: 800;
   color: #fff;
-  background: currentColor;
-  position: relative;
+  background: var(--cyan);
   flex-shrink: 0;
 }
-.asst-sec .n-badge > * {
-  color: #fff;
-}
-/* اجعل الرقم داخل .n-badge أبيض على الخلفية الملوّنة */
-.asst-sec.cyan   .n-badge { background: var(--cyan); }
+/* لون الخلفية حسب لون القسم */
 .asst-sec.purple .n-badge { background: #8B5CF6; }
 .asst-sec.gold   .n-badge { background: var(--gold); }
 .asst-sec.green  .n-badge { background: var(--green); }

@@ -71,6 +71,7 @@ export function PrimarySidebarLayout() {
         activeTab={activeTab}
         onTabChange={(id) => setActiveTab(id as TabId)}
         collapsed={collapsed}
+        onToggleCollapse={toggleCollapse}
         badges={badges}
       />
 
@@ -84,42 +85,7 @@ export function PrimarySidebarLayout() {
         />
       )}
 
-      {/* V560: زر الطي — في أسفل الـ sidebar بدل الأعلى */}
-      <button
-        type="button"
-        onClick={toggleCollapse}
-        title={collapsed ? tsl('expand') : tsl('collapse')}
-        aria-label={collapsed ? tsl('expandAria') : tsl('collapseAria')}
-        className="sidebar-collapse-btn"
-        style={{
-          position: 'absolute',
-          bottom: 8,
-          insetInlineStart: collapsed ? 10 : 8,
-          zIndex: 10,
-          width: 24,
-          height: 24,
-          borderRadius: 6,
-          border: '1px solid rgba(0,212,255,0.18)',
-          background: 'rgba(0, 0, 0, 0.9)',
-          color: T.text3,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          transition: 'all 0.2s ease',
-          backdropFilter: 'blur(8px)',
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.color = T.cyan
-          e.currentTarget.style.borderColor = T.cyan
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.color = T.text3
-          e.currentTarget.style.borderColor = 'rgba(0,212,255,0.18)'
-        }}
-      >
-        {collapsed ? <PanelRightOpen size={13} /> : <PanelRightClose size={13} />}
-      </button>
+      {/* V561: زر الطي نُقل إلى SidebarIconRail (أعلى الشريط) */}
     </div>
   )
 }

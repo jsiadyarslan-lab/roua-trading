@@ -13,6 +13,8 @@ import {
   CalendarDays,
   FlaskConical,
   GitBranch,
+  PanelRightClose,
+  PanelRightOpen,
   type LucideIcon,
 } from 'lucide-react'
 import { T } from '@/lib/theme-tokens'
@@ -47,6 +49,7 @@ interface SidebarIconRailProps {
   activeTab: string
   onTabChange: (tabId: string) => void
   collapsed: boolean
+  onToggleCollapse?: () => void
   badges?: Record<string, number>
 }
 
@@ -55,6 +58,7 @@ export function SidebarIconRail({
   activeTab,
   onTabChange,
   collapsed,
+  onToggleCollapse,
   badges = {},
 }: SidebarIconRailProps) {
   const t = useTranslations('dashboard.sidebarTabs')
@@ -84,6 +88,46 @@ export function SidebarIconRail({
         overflow: 'visible',
       }}
     >
+      {/* V561: زر الطي — أعلى الشريط، قبل الأيقونات */}
+      {onToggleCollapse && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          padding: '6px 0 4px',
+          borderBottom: '1px solid rgba(0,212,255,0.08)',
+          flexShrink: 0,
+        }}>
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            title={collapsed ? 'Expand' : 'Collapse'}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 6,
+              border: '1px solid rgba(0,212,255,0.18)',
+              background: 'rgba(0, 0, 0, 0.9)',
+              color: T.text3,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.color = T.cyan
+              e.currentTarget.style.borderColor = T.cyan
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.color = T.text3
+              e.currentTarget.style.borderColor = 'rgba(0,212,255,0.18)'
+            }}
+          >
+            {collapsed ? <PanelRightOpen size={14} /> : <PanelRightClose size={14} />}
+          </button>
+        </div>
+      )}
       {/* Icon buttons — compact */}
       <div
         className="custom-scrollbar"

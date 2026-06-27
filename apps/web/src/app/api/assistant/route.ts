@@ -1365,22 +1365,46 @@ export async function POST(request: Request) {
       }
     }
 
-    // V531: استدعِ NestJS Assistant Context Engine أولاً (6 طبقات سياق + 12 functions)
-    // إذا نجح، ابثّ الرد بنفس streaming format الذي يتوقعه الـ widget
-    // إذا فشل، انتقل للمنطق القديم (fallback)
+    // V571: استدعِ NestJS Assistant Context Engine — مع إنشاء guest session إذا لزم
     try {
       const NESTJS_API_URL = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001';
+
+      // V571: إذا لم يوجد rouaSession، أنشئ guest session
+      let effectiveSession = rouaSession;
+      if (!effectiveSession) {
+        try {
+          const dbReady = await ensureDbReady();
+          if (dbReady) {
+            const crypto = await import('crypto');
+            const guestId = `guest-${crypto.randomUUID()}`;
+            const guestToken = crypto.randomBytes(32).toString('hex');
+            const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+            await (db as any).session.create({
+              data: { token: guestToken, userId: guestId, isActive: true, expiresAt,
+                ipAddress: '127.0.0.1', userAgent: 'Roua-Assistant' },
+            });
+            await (db as any).user.create({
+              data: { id: guestId, email: `${guestId}@roua.auto`, displayName: 'Guest' },
+            }).catch(() => {});
+            effectiveSession = guestToken;
+            console.log(`[V571] Created guest session for NestJS: ${guestId.slice(0, 12)}`);
+          }
+        } catch (guestErr: any) {
+          console.warn(`[V571] Guest session creation failed: ${guestErr?.message?.slice(0, 80)}`);
+        }
+      }
+
       const nestjsHeaders: Record<string, string> = {
         'Content-Type': 'application/json',
       };
-      // V566: مرر الـ auth بكل الطرق الممكنة (cookie + Bearer + x-roua-session)
       if (sessionCookie) nestjsHeaders['cookie'] = sessionCookie;
-      if (rouaSession) {
-        nestjsHeaders['authorization'] = `Bearer ${rouaSession}`;
-        nestjsHeaders['x-roua-session'] = rouaSession;
+      if (effectiveSession) {
+        nestjsHeaders['cookie'] = `roua_session=${effectiveSession}`;
+        nestjsHeaders['authorization'] = `Bearer ${effectiveSession}`;
+        nestjsHeaders['x-roua-session'] = effectiveSession;
       }
 
-      console.log(`[V566] Calling NestJS Assistant: hasCookie=${!!sessionCookie} hasSession=${!!rouaSession}`);
+      console.log(`[V571] Calling NestJS Assistant: hasSession=${!!effectiveSession}`);
       const nestjsResponse = await fetch(`${NESTJS_API_URL}/api/assistant/chat`, {
         method: 'POST',
         headers: nestjsHeaders,

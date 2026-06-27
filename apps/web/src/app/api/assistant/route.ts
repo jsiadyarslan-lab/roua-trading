@@ -1311,6 +1311,19 @@ function buildDataOnlyFallback(data: FetchedData, realtimeData: RealtimeSearchRe
     ? '*⚠️ تنبيه المخاطر: المعلومات لأغراض تعليمية ومعلوماتية فقط ولا تعتبر نصيحة استثمارية.*'
     : '*⚠️ Risk Disclaimer: Information is for educational purposes only and does not constitute investment advice.*');
 
+  // V528: SIGNAL reminder في آخر الـ prompt — الـ AI يقلّد آخر شيء يراه
+  // تأكد من أن ردك ينتهي بـ SIGNAL block بالضبط بهذا الشكل:
+  // 🚦 SIGNAL: BUY/SSELL/HOLD SYMBOL
+  // - Entry: ...
+  // - Stop Loss: ...
+  // - Take Profit 1: ...
+  // - Position Size: ...
+  // - Confidence: ...%
+  // - Rationale: ...
+  parts.push(isAr
+    ? `\n\n## ⚠️⚠️⚠️ تذكير أخير حرج — اقرأ هذا قبل أن تكتب ردك:\nردك MUST ينتهي بـ SIGNAL block بهذا الشكل:\n🚦 SIGNAL: BUY BTC\n- Entry: $XX,XXX\n- Stop Loss: $XX,XXX\n- Take Profit 1: $XX,XXX\n- Position Size: 2% of portfolio\n- Confidence: 68%\n- Rationale: RSI=XX + MACD XXX\n\nلا تكتب أي شيء بعد SIGNAL. SIGNAL هو آخر شيء في ردك.`
+    : `\n\n## ⚠️⚠️⚠️ FINAL CRITICAL REMINDER — read this before writing your response:\nYour response MUST end with a SIGNAL block in this exact format:\n🚦 SIGNAL: BUY BTC\n- Entry: $XX,XXX\n- Stop Loss: $XX,XXX\n- Take Profit 1: $XX,XXX\n- Position Size: 2% of portfolio\n- Confidence: 68%\n- Rationale: RSI=XX + MACD XXX\n\nDo not write anything after SIGNAL. SIGNAL is the last thing in your response.`);
+
   return parts.join('\n');
 }
 

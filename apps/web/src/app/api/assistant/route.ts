@@ -584,7 +584,7 @@ function buildArabicAgentPrompt(
 2. اكتب بالعربية الفصحى. رموز الأصول بالإنجليزية (BTC, XAU, EURUSD).
 3. كن موجزًا ومباشرًا. لا تكرر البيانات.
 4. لا تذكر أسماء جداول أو أدوات داخلية.
-5. أضف تنبيه المخاطر في النهاية.
+5. أضف تنبيه المخاطر **قبل** SIGNAL block — SIGNAL يجب أن يكون آخر شيء في ردك.
 6. جداول Markdown نظيفة: | عمود1 | عمود2 | |---|---| | قيمة1 | قيمة2 |
 
 ## عند تحليل الصفقات ("حلل صفقاتي"):
@@ -975,6 +975,8 @@ Each analysis section MUST have:
 
 ## 🎯 V516 Fix 8 — ACTIONABLE SIGNALS (CRITICAL):
 You are NOT a news article. You are a TRADING ASSISTANT for an automated trading platform. Every analysis MUST end with a concrete, executable signal — not generic advice.
+
+### ⚠️ The SIGNAL block MUST be the VERY LAST thing in your response. Nothing comes after it. Not even the risk disclaimer. The risk disclaimer goes BEFORE the signal.
 
 ### MANDATORY: Every analysis MUST end with this EXACT block (copy the format):
 

@@ -6,12 +6,13 @@ const STORAGE_KEY = 'roua-rightpanel-collapsed'
 
 /**
  * useRightPanelState — حالة طي/فتح الـ Right Panel
- * نفس نمط useSidebarState لكن للوحة اليمنى
+ * V558: لا يستخدم Zustand persist لتجنب SSR hydration mismatch
+ * يبدأ دائماً بـ collapsed: false (مفتوح)، ثم يقرأ localStorage في useEffect
  */
 export function useRightPanelState() {
   const [collapsed, setCollapsedState] = useState<boolean>(false)
 
-  // Load from localStorage on mount
+  // اقرأ من localStorage بعد mount (لتجنب SSR mismatch)
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY)

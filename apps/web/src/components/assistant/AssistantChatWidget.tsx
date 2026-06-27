@@ -2040,6 +2040,11 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
       // بدل: ## 1. Current Price & Direction
       // هذا الكشف يدمجهما في .asst-sec.cyan مع الرقم في .n
       // V531: عرض keycap emoji (1️⃣) بدل الرقم العاري
+      // V532: استخدم Unicode keycap emoji جاهزة بدل تكوينها (أكثر توافقاً مع الخطوط)
+      const KEYCAP_EMOJIS: Record<string, string> = {
+        '1': '1️⃣', '2': '2️⃣', '3': '3️⃣', '4': '4️⃣', '5': '5️⃣',
+        '6': '6️⃣', '7': '7️⃣', '8': '8️⃣', '9': '9️⃣',
+      };
       const bareNumberMatch = trimmed.match(/^([1-9])$/);
       if (bareNumberMatch) {
         const nextLine = (lines[i + 1] || '').trim();
@@ -2048,11 +2053,10 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
             && !nextLine.includes('|') && !/^[-•]\s/.test(nextLine)
             && !/^#{1,4}\s/.test(nextLine)) {
           const numDigit = bareNumberMatch[1];
-          // V531: تحويل الرقم إلى keycap emoji (1→1️⃣, 2→2️⃣, ...)
-          const keycapEmoji = `${numDigit}\uFE0F\u20E3`;
+          const keycapEmoji = KEYCAP_EMOJIS[numDigit] || numDigit;
           elements.push(
             <div key={`bare-num-section-${i}`} className="asst-sec cyan" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-              <span className="n">{keycapEmoji}</span>
+              <span className="n" style={{ fontSize: '13px', lineHeight: 1 }}>{keycapEmoji}</span>
               {parseInline(nextLine.replace(/\*\*/g, ''))}
             </div>
           );

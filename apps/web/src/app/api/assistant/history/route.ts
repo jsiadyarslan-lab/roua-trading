@@ -36,7 +36,7 @@ async function getUserIdFromRequest(request: NextRequest): Promise<string | null
   }
 }
 
-// GET — قائمة كل الجلسات
+// GET — قائمة كل الجلسات OR تحميل جلسة محددة (sessionId=current → آخر جلسة)
 export async function GET(request: NextRequest) {
   try {
     const userId = await getUserIdFromRequest(request);
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ sessions: [] });
     }
 
-    // V518: تأكد من وجود الجداول قبل الاستعلام (كان يفشل بصمت)
+    // V518: تأكد من وجود الجداول قبل الاستعلام
     try {
       await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS chat_sessions (id TEXT PRIMARY KEY, "userId" TEXT NOT NULL, locale TEXT DEFAULT 'ar', title TEXT, "pageUrl" TEXT, "messageCount" INTEGER DEFAULT 0, "createdAt" TIMESTAMP DEFAULT NOW(), "updatedAt" TIMESTAMP DEFAULT NOW())`);
       await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS chat_messages (id TEXT PRIMARY KEY, "sessionId" TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, sources TEXT, "toolsUsed" TEXT, "createdAt" TIMESTAMP DEFAULT NOW())`);
@@ -57,6 +57,99 @@ export async function GET(request: NextRequest) {
       console.warn('[History API] CREATE TABLE warning:', createErr?.message?.slice(0, 100));
     }
 
+    // V535: تحقق من sessionId parameter (لتحميل جلسة محددة)
+    const { searchParams } = new URL(request.url);
+    const sessionIdParam = searchParams.get('sessionId');
+
+    // V535: sessionId=current → حمّل آخر جلسة للمستخدم مع رسائلها
+    if (sessionIdParam === 'current') {
+      try {
+        const lastSession = await db.$queryRaw`
+          SELECT id, title, locale, "messageCount", "createdAt", "updatedAt"
+          FROM chat_sessions
+          WHERE "userId" = ${userId}
+          ORDER BY "updatedAt" DESC
+          LIMIT 1
+        ` as any[];
+
+        if (!lastSession || lastSession.length === 0) {
+          return NextResponse.json({ session: null, messages: [] });
+        }
+
+        const session = lastSession[0];
+        const messages = await db.$queryRaw`
+          SELECT role, content, sources, "toolsUsed", "createdAt"
+          FROM chat_messages
+          WHERE "sessionId" = ${session.id}
+          ORDER BY "createdAt" ASC
+        ` as any[];
+
+        // Parse sources/toolsUsed from JSON
+        const parsedMessages = (messages || []).map((m: any) => ({
+          role: m.role,
+          content: m.content,
+          sources: (() => { try { return JSON.parse(m.sources || '[]'); } catch { return []; } })(),
+          toolCalls: (() => { try { return JSON.parse(m.toolsUsed || '[]'); } catch { return []; } })(),
+          createdAt: m.createdAt,
+        }));
+
+        console.log(`[History API] GET current: session=${session.id?.slice(0, 12)} msgs=${parsedMessages.length}`);
+        return NextResponse.json({
+          session: {
+            id: session.id,
+            title: session.title,
+            locale: session.locale,
+            messageCount: session.messageCount,
+            createdAt: session.createdAt,
+            updatedAt: session.updatedAt,
+          },
+          messages: parsedMessages,
+        });
+      } catch (dbErr: any) {
+        console.error('[History API] GET current error:', dbErr?.message?.slice(0, 200));
+        return NextResponse.json({ session: null, messages: [], error: 'load_current_failed' });
+      }
+    }
+
+    // V535: sessionId=<id> → حمّل جلسة محددة بـ id
+    if (sessionIdParam && sessionIdParam !== 'current') {
+      try {
+        const session = await db.$queryRaw`
+          SELECT id, title, locale, "messageCount", "createdAt", "updatedAt"
+          FROM chat_sessions
+          WHERE id = ${sessionIdParam} AND "userId" = ${userId}
+        ` as any[];
+
+        if (!session || session.length === 0) {
+          return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+        }
+
+        const messages = await db.$queryRaw`
+          SELECT role, content, sources, "toolsUsed", "createdAt"
+          FROM chat_messages
+          WHERE "sessionId" = ${sessionIdParam}
+          ORDER BY "createdAt" ASC
+        ` as any[];
+
+        const parsedMessages = (messages || []).map((m: any) => ({
+          role: m.role,
+          content: m.content,
+          sources: (() => { try { return JSON.parse(m.sources || '[]'); } catch { return []; } })(),
+          toolCalls: (() => { try { return JSON.parse(m.toolsUsed || '[]'); } catch { return []; } })(),
+          createdAt: m.createdAt,
+        }));
+
+        return NextResponse.json({
+          session: session[0],
+          messages: parsedMessages,
+        });
+      } catch (dbErr: any) {
+        console.error('[History API] GET session error:', dbErr?.message?.slice(0, 200));
+        return NextResponse.json({ error: 'Failed to load session' }, { status: 500 });
+      }
+    }
+
+    // V518: لا sessionId → ارجع قائمة كل الجلسات
     try {
       const sessions = await db.$queryRaw`
         SELECT id, title, locale, "messageCount", "createdAt", "updatedAt"
@@ -70,7 +163,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ sessions: sessions || [] });
     } catch (dbErr: any) {
       console.error('[History API] Query error:', dbErr?.message?.slice(0, 200));
-      // الجدول غير موجود — ارجع قائمة فارغة مع تفاصيل الخطأ
       return NextResponse.json({ sessions: [], error: 'table_unavailable' });
     }
   } catch (error: any) {

@@ -103,7 +103,7 @@ export const CHAT_TEXT: Record<Locale, {
       { label: 'ملخص السوق', icon: '📊', prompt: 'ما هي أهم أحداث السوق اليوم؟' },
       { label: 'شرح مصطلح', icon: '💡', prompt: 'ما هو الفرق بين مؤشر RSI و MACD؟' },
       { label: 'تحليل سهم', icon: '📈', prompt: 'حلل سهم NVDA من الناحية الأساسية والفنية' },
-      { label: 'أخبار الذهب', icon: '🥇', prompt: 'ما هي آخر الأخبار عن الذهب وتأثيرها على السعر؟' },
+      { label: 'حلل صفقاتي', icon: '💼', prompt: 'حلل صفقاتي المفتوحة وأعطني توصيات لكل صفقة' },
       { label: 'قارن أسهم', icon: '⚖️', prompt: 'قارن بين أداء سهمي AAPL و MSFT' },
     ],
     timeGreetingPrefix: '',

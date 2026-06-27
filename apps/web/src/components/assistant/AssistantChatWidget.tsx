@@ -223,11 +223,13 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
     chatSessionIdRef.current = chatSessionId;
   }, [chatSessionId]);
 
-  // ─── V548: عودة للارتفاع الكامل من أعلى الصفحة (تراجع عن V547) ──
+  // ─── V549: ارتفاع كامل من أسفل الصفحة لأعلاها ──
+  // النافذة تفتح فتمتد من أسفل الصفحة (فوق FAB) إلى أعلى الصفحة
   const calcFixedHeight = () => {
     if (typeof window === 'undefined') return 600;
-    // هامش علوي 16px + هامش سفلي 16px
-    return Math.max(400, window.innerHeight - 32);
+    // الارتفاع = كامل ارتفاع النافذة - هامش علوي 16px - هامش سفلي (FAB + safe area)
+    // FAB على bottom: 1.5rem (24px) + ارتفاع FAB 56px + فجوة 8px = 88px من الأسفل
+    return Math.max(400, window.innerHeight - 16 - 88);
   };
   const [panelHeight, setPanelHeight] = useState(calcFixedHeight);
 
@@ -737,7 +739,8 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
       if (marketPulse === 'bullish' || marketPulse === 'bearish') {
         suggestions.push({ label: text.proactiveGoldMove, prompt: locale === 'ar' ? 'ما هي حركة الذهب اليوم؟' : 'What is gold doing today?' });
       }
-      suggestions.push({ label: text.proactiveEconReport, prompt: locale === 'ar' ? 'ما هي أحدث التقارير الاقتصادية؟' : 'What are the latest economic reports?' });
+      // V551: استبدل "تقرير اقتصادي جديد" بـ "حلل صفقاتي"
+      suggestions.push({ label: '💼 ' + (locale === 'ar' ? 'حلل صفقاتي' : 'Analyze my positions'), prompt: locale === 'ar' ? 'حلل صفقاتي المفتوحة وأعطني توصيات لكل صفقة' : 'Analyze my open positions and give recommendations' });
 
       // Based on user interests
       if (prefs.frequentlyAskedAssets.length > 0) {
@@ -2601,17 +2604,17 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
             height: '500px',
             maxHeight: '500px',
           } : {
-            // V548: عرض وارتفاع قابلان للتعديل + تثبيت على اليمين + فتح من الأعلى
+            // V549: عرض وارتفاع قابلان للتعديل + تثبيت على اليمين
             width: `${panelWidth}px`,
             height: `${panelHeight}px`,
             maxHeight: 'none',
             transition: isResizing ? 'none' : 'width 0.3s ease, height 0.3s ease',
-            // V548: تثبيت على اليمين دائماً (بكل اللغات)
+            // V549: تثبيت على اليمين دائماً (بكل اللغات)
             right: '1rem',
             left: 'auto',
-            // V548: النافذة تفتح من أعلى الصفحة (كامل الارتفاع)
-            top: '16px',
-            bottom: 'auto',
+            // V549: النافذة مثبتة من الأسفل (فوق FAB)، تمتد لأعلى بكامل الارتفاع
+            bottom: 'calc(1.5rem + 56px + env(safe-area-inset-bottom, 0px))',
+            top: 'auto',
           }}
           dir={isRtl ? 'rtl' : 'ltr'}
         >
@@ -2885,26 +2888,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
             inputRef={inputRef}
             fileInputRef={fileInputRef}
           />
-
-          {/* ── V514: Quick Hint Chips — clickable suggestions under input ── */}
-          {messages.length === 0 && !isLoading && (
-            <div className="asst-quick-hints" dir={isRtl ? 'rtl' : 'ltr'}>
-              {text.quickActions.slice(0, 4).map((qa, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  className="asst-quick-hint"
-                  onClick={() => {
-                    setInput(qa.prompt);
-                    inputRef.current?.focus();
-                  }}
-                >
-                  <span style={{ marginLeft: isRtl ? 0 : 4, marginRight: isRtl ? 4 : 0 }}>{qa.icon}</span>
-                  {qa.label}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* V552: Quick Hint Chips removed — were cluttering the input area */}
         </div>
       )}
     </>

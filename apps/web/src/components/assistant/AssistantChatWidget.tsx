@@ -223,12 +223,12 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
     chatSessionIdRef.current = chatSessionId;
   }, [chatSessionId]);
 
-  // ─── V538: Panel height fills from top to bottom of page ──
-  // الارتفاع الثابت = كامل ارتفاع النافذة - هامش علوي (navbar) - هامش سفلي (FAB)
+  // ─── V547: Panel height — يفتح من أسفل الصفحة بارتفاع متوسط ──
+  // الارتفاع الافتراضي = نصف ارتفاع النافذة (يفتح من الأسفل لأعلى)
   const calcFixedHeight = () => {
-    if (typeof window === 'undefined') return 600;
-    // هامش علوي 80px (navbar) + هامش سفلي 100px (FAB + safe area)
-    return Math.max(400, window.innerHeight - 80 - 100);
+    if (typeof window === 'undefined') return 500;
+    // نصف ارتفاع النافذة، بحد أدنى 400px وحد أقصى (النافذة - 120px)
+    return Math.max(400, Math.min(window.innerHeight - 120, Math.floor(window.innerHeight * 0.6)));
   };
   const [panelHeight, setPanelHeight] = useState(calcFixedHeight);
 
@@ -2602,15 +2602,17 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
             height: '500px',
             maxHeight: '500px',
           } : {
-            // V544: عرض وارتفاع قابلان للتعديل + تثبيت على اليمين دائماً
+            // V547: عرض وارتفاع قابلان للتعديل + تثبيت على اليمين دائماً
             width: `${panelWidth}px`,
             height: `${panelHeight}px`,
             maxHeight: 'none',
             transition: isResizing ? 'none' : 'width 0.3s ease, height 0.3s ease',
-            // V544: تثبيت على اليمين دائماً (بكل اللغات)
+            // V547: تثبيت على اليمين دائماً (بكل اللغات)
             right: '1rem',
             left: 'auto',
-            top: '16px',
+            // V547: النافذة تفتح من أسفل الصفحة (فوق الـ FAB مباشرة)
+            bottom: 'calc(1.5rem + 64px + env(safe-area-inset-bottom, 0px))',
+            top: 'auto',
           }}
           dir={isRtl ? 'rtl' : 'ltr'}
         >

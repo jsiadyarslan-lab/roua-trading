@@ -11,6 +11,7 @@ import { DeepSeekService } from './deepseek.service';
 import { CerebrasService } from './cerebras.service';
 import { MistralService } from './mistral.service';
 import { NvidiaService } from './nvidia.service';
+import { CloudflareService } from './cloudflare.service';
 import { RagService } from './rag.service';
 import { AiUsageLoggerService } from './ai-usage-logger.service';
 import { withExponentialBackoff } from './retry.util';
@@ -108,6 +109,7 @@ export class AIOrchestratorService {
     huggingface: ['HUGGINGFACE_API_KEY', 'HF_API_KEY'],
     openrouter:  ['OPENROUTER_API_KEY', 'OPEN_ROUTER_API_KEY'],
     deepseek:    ['DEEPSEEK_API_KEY'],
+    cloudflare:  ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID'],
   };
 
   /**
@@ -149,13 +151,13 @@ export class AIOrchestratorService {
    * the monthly budget is exceeded.
    */
   private readonly ROUTING: Record<string, { primary: string; fallback: string[] }> = {
-    sentiment:        { primary: 'groq',       fallback: ['cerebras', 'gemini', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock'] },
-    market_analysis:  { primary: 'gemini',     fallback: ['cerebras', 'groq', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock'] },
-    prediction:       { primary: 'gemini',     fallback: ['cerebras', 'groq', 'ollama', 'mistral', 'nvidia', 'glm', 'bedrock'] },
-    signal_generation:{ primary: 'gemini',     fallback: ['groq', 'cerebras', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock'] },
-    risk_analysis:    { primary: 'gemini',     fallback: ['cerebras', 'groq', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock'] },
-    translation:      { primary: 'groq',       fallback: ['cerebras', 'gemini', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock'] },
-    general:          { primary: 'gemini',     fallback: ['groq', 'cerebras', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock'] },
+    sentiment:        { primary: 'groq',       fallback: ['cerebras', 'gemini', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock', 'cloudflare'] },
+    market_analysis:  { primary: 'gemini',     fallback: ['cerebras', 'groq', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock', 'cloudflare'] },
+    prediction:       { primary: 'gemini',     fallback: ['cerebras', 'groq', 'ollama', 'mistral', 'nvidia', 'glm', 'bedrock', 'cloudflare'] },
+    signal_generation:{ primary: 'gemini',     fallback: ['groq', 'cerebras', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock', 'cloudflare'] },
+    risk_analysis:    { primary: 'gemini',     fallback: ['cerebras', 'groq', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock', 'cloudflare'] },
+    translation:      { primary: 'groq',       fallback: ['cerebras', 'gemini', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock', 'cloudflare'] },
+    general:          { primary: 'gemini',     fallback: ['groq', 'cerebras', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock', 'cloudflare'] },
   };
 
   /** Bedrock monthly budget guard — blocks Bedrock calls when budget exceeded
@@ -185,6 +187,7 @@ export class AIOrchestratorService {
     private readonly cerebrasService: CerebrasService,
     private readonly mistralService: MistralService,
     private readonly nvidiaService: NvidiaService,
+    private readonly cloudflareService: CloudflareService,
     private readonly usageLogger: AiUsageLoggerService,
     private readonly cache: AiCacheService,
     @Inject(forwardRef(() => StrategicCouncilService)) private readonly strategicCouncil: StrategicCouncilService,
@@ -485,6 +488,7 @@ export class AIOrchestratorService {
       { id: 'bedrock', name: 'Bedrock/Claude 4.5 Haiku', keyEnv: 'AWS_ACCESS_KEY_ID' },
       { id: 'nvidia', name: 'NVIDIA NIM/Llama 3.3 70B', keyEnv: 'NVIDIA_API_KEY', altKeyEnv: 'NVIDIA_NIM_API_KEY' },  // 40 req/min FREE
       { id: 'mistral', name: 'Mistral/Small', keyEnv: 'MISTRAL_API_KEY', altKeyEnv: 'MISTRAL_KEY' },  // 1B tokens/month FREE
+      { id: 'cloudflare', name: 'Cloudflare/Llama 3.3 70B', keyEnv: 'CLOUDFLARE_API_TOKEN' },  // 10,000 neurons/day FREE
       // Legacy models (still available as fallback)
       { id: 'huggingface', name: 'HuggingFace/Mistral-7B', keyEnv: 'HUGGINGFACE_API_KEY', altKeyEnv: 'HF_API_KEY' },
       { id: 'openrouter', name: 'OpenRouter/Llama 3.1', keyEnv: 'OPENROUTER_API_KEY' },
@@ -572,7 +576,7 @@ export class AIOrchestratorService {
     cooldownExpiresAt: string | null;
     cooldownRemainingMs: number;
   }> {
-    const models = ['groq', 'glm', 'gemini', 'cerebras', 'ollama', 'bedrock', 'nvidia', 'mistral', 'huggingface', 'openrouter', 'deepseek'];
+    const models = ['groq', 'glm', 'gemini', 'cerebras', 'ollama', 'bedrock', 'nvidia', 'mistral', 'cloudflare', 'huggingface', 'openrouter', 'deepseek'];
     const now = Date.now();
 
     return models.map(model => {
@@ -599,7 +603,7 @@ export class AIOrchestratorService {
     consensus: string;
   }> {
     const enrichedRequest = await this._enrichWithContext(request);
-    this.logger.debug(`🎼 Multi-model analysis for ${enrichedRequest.type} — 8 models`);
+    this.logger.debug(`🎼 Multi-model analysis for ${enrichedRequest.type} — 9 models`);
 
     const results = await Promise.allSettled([
       this.groqService.analyze(enrichedRequest),
@@ -610,6 +614,7 @@ export class AIOrchestratorService {
       this.bedrockService.analyze(enrichedRequest),
       this.nvidiaService.analyze(enrichedRequest),
       this.mistralService.analyze(enrichedRequest),
+      this.cloudflareService.analyze(enrichedRequest),
       // Legacy models
       this.huggingfaceService.analyze(enrichedRequest),
       this.openrouterService.analyze(enrichedRequest),
@@ -644,6 +649,7 @@ export class AIOrchestratorService {
       { model: 'Bedrock/Claude 4.5 Haiku',   available: this._isModelKeyAvailable('bedrock'),     specialty: '☁️ أفضل جودة/سعر — مخاطر وأمان (Haiku 4.5 + Nova)' },
       { model: 'NVIDIA NIM/Llama 3.3 70B',   available: this._isModelKeyAvailable('nvidia'),      specialty: '🟢 تباين ومعاكسة — نماذج متنوعة (40 طلب/دقيقة مجاناً)' },
       { model: 'Mistral/Small',              available: this._isModelKeyAvailable('mistral'),     specialty: '🔮 سيناريوهات — تحليل عميق (1 مليار token/شهر مجاناً)' },
+      { model: 'Cloudflare/Llama 3.3 70B',  available: this._isModelKeyAvailable('cloudflare'),   specialty: '☁️ fallback موثوق — 10,000 neurons/day مجاناً' },
     ];
   }
 
@@ -961,6 +967,7 @@ export class AIOrchestratorService {
       gemini: 15_000,
       cerebras: 15_000,
       bedrock: 15_000,
+      cloudflare: 15_000,
       ollama: 15_000,
       huggingface: 15_000,
       openrouter: 15_000,
@@ -985,6 +992,7 @@ export class AIOrchestratorService {
           case 'cerebras':    return this.cerebrasService.analyze(request);
           case 'mistral':     return this.mistralService.analyze(request);
           case 'nvidia':      return this.nvidiaService.analyze(request);
+          case 'cloudflare':  return this.cloudflareService.analyze(request);
           default:            return this.geminiService.analyze(request);
         }
       };
@@ -1127,6 +1135,7 @@ export class AIOrchestratorService {
       huggingface: -0.02,
       ollama: 0.00,
       bedrock: 0.05,
+      cloudflare: 0.01,
       openrouter: 0.00,
       deepseek: 0.03,
     };

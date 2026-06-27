@@ -12,6 +12,7 @@ import { DeepSeekService } from './services/deepseek.service';
 import { CerebrasService } from './services/cerebras.service';
 import { MistralService } from './services/mistral.service';
 import { NvidiaService } from './services/nvidia.service';
+import { CloudflareService } from './services/cloudflare.service';
 import { EmbeddingService } from './services/embedding.service';
 import { RagService } from './services/rag.service';
 import { AiUsageLoggerService } from './services/ai-usage-logger.service';
@@ -40,6 +41,7 @@ import { CouncilIntelligenceModule } from './council-intelligence/council-intell
     BedrockService,       // AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY
     NvidiaService,        // NVIDIA_API_KEY — replaces OpenRouter (40 req/min FREE)
     MistralService,       // MISTRAL_API_KEY — replaces DeepSeek (1B tokens/month FREE)
+    CloudflareService,    // CLOUDFLARE_API_TOKEN — fallback for all council roles (10,000 neurons/day FREE)
 
     // Legacy services (still available as fallback in _callModel)
     HuggingFaceService,   // HUGGINGFACE_API_KEY (legacy)
@@ -82,6 +84,7 @@ import { CouncilIntelligenceModule } from './council-intelligence/council-intell
     CerebrasService,
     MistralService,
     NvidiaService,
+    CloudflareService,
     HuggingFaceService,
     OllamaService,
     BedrockService,

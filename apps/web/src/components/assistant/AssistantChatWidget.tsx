@@ -223,12 +223,11 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
     chatSessionIdRef.current = chatSessionId;
   }, [chatSessionId]);
 
-  // ─── V547: Panel height — يفتح من أسفل الصفحة بارتفاع متوسط ──
-  // الارتفاع الافتراضي = نصف ارتفاع النافذة (يفتح من الأسفل لأعلى)
+  // ─── V548: عودة للارتفاع الكامل من أعلى الصفحة (تراجع عن V547) ──
   const calcFixedHeight = () => {
-    if (typeof window === 'undefined') return 500;
-    // نصف ارتفاع النافذة، بحد أدنى 400px وحد أقصى (النافذة - 120px)
-    return Math.max(400, Math.min(window.innerHeight - 120, Math.floor(window.innerHeight * 0.6)));
+    if (typeof window === 'undefined') return 600;
+    // هامش علوي 16px + هامش سفلي 16px
+    return Math.max(400, window.innerHeight - 32);
   };
   const [panelHeight, setPanelHeight] = useState(calcFixedHeight);
 
@@ -2602,17 +2601,17 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
             height: '500px',
             maxHeight: '500px',
           } : {
-            // V547: عرض وارتفاع قابلان للتعديل + تثبيت على اليمين دائماً
+            // V548: عرض وارتفاع قابلان للتعديل + تثبيت على اليمين + فتح من الأعلى
             width: `${panelWidth}px`,
             height: `${panelHeight}px`,
             maxHeight: 'none',
             transition: isResizing ? 'none' : 'width 0.3s ease, height 0.3s ease',
-            // V547: تثبيت على اليمين دائماً (بكل اللغات)
+            // V548: تثبيت على اليمين دائماً (بكل اللغات)
             right: '1rem',
             left: 'auto',
-            // V547: النافذة تفتح من أسفل الصفحة (فوق الـ FAB مباشرة)
-            bottom: 'calc(1.5rem + 64px + env(safe-area-inset-bottom, 0px))',
-            top: 'auto',
+            // V548: النافذة تفتح من أعلى الصفحة (كامل الارتفاع)
+            top: '16px',
+            bottom: 'auto',
           }}
           dir={isRtl ? 'rtl' : 'ltr'}
         >

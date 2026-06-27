@@ -548,11 +548,17 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
   const loadSession = useCallback(async (sessionId: string) => {
     if (!session?.user?.id) return;
     try {
+      console.log('[Chat History] Loading session:', sessionId);
       const res = await fetch(`/api/assistant/history?sessionId=${sessionId}`, { credentials: 'include' });
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.warn('[Chat History] Load session failed:', res.status);
+        return;
+      }
       const data = await res.json();
-      if (data.session?.messages) {
-        const loadedMessages: Message[] = data.session.messages.map((m: any) => ({
+      // V537: V535 يرجع { session, messages } بدل { session: { messages } }
+      const messagesArray = data.messages || data.session?.messages || [];
+      if (messagesArray.length > 0) {
+        const loadedMessages: Message[] = messagesArray.map((m: any) => ({
           role: m.role as 'user' | 'assistant',
           content: m.content,
           timestamp: new Date(m.createdAt).getTime(),
@@ -560,9 +566,13 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
           toolsUsed: m.toolCalls,
         }));
         setMessages(loadedMessages);
-        setChatSessionId(data.session.id);
-        chatSessionIdRef.current = data.session.id; // Update ref immediately
+        const loadedSessionId = data.session?.id || sessionId;
+        setChatSessionId(loadedSessionId);
+        chatSessionIdRef.current = loadedSessionId;
         setShowHistory(false);
+        console.log('[Chat History] Loaded session:', loadedSessionId, 'with', loadedMessages.length, 'messages');
+      } else {
+        console.warn('[Chat History] Session has no messages');
       }
     } catch (err) {
       console.error('[Chat History] Load session error:', err);
@@ -609,6 +619,10 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
     if (!session?.user?.id) return;
     try {
       const currentSessionId = chatSessionIdRef.current;
+      // V537: ولّد عنواناً تلقائياً من أول رسالة مستخدم
+      const autoTitle = role === 'user'
+        ? content.trim().slice(0, 50) + (content.length > 50 ? '…' : '')
+        : undefined;
       const res = await fetch('/api/assistant/history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -621,6 +635,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
           sources,
           toolsUsed,
           locale,
+          title: currentSessionId ? undefined : autoTitle, // عنوان فقط عند create_session
         }),
       });
       if (res.ok) {

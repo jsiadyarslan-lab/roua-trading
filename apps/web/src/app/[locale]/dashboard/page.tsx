@@ -557,7 +557,7 @@ export default function DashboardPage() {
 
         .dash-grid {
           display: grid;
-          grid-template-columns: ${sidebarCollapsed ? '40px' : 'minmax(240px, 280px)'} minmax(0, 1fr) minmax(300px, 350px);
+          grid-template-columns: ${sidebarCollapsed ? '40px' : 'minmax(220px, 260px)'} minmax(0, 1fr) minmax(280px, 320px);
           gap: 12px;
           min-height: calc(100dvh - ${HEADER_H}px);
           height: calc(100dvh - ${HEADER_H}px);
@@ -1383,12 +1383,10 @@ export default function DashboardPage() {
 
       {!isMobileViewport && (
         <div className={`dash-grid dashboard-shell${chartFullscreen ? ' chart-fullscreen' : ''}`}>
-          {/* Left Sidebar — hidden on compact desktop when drawer is used */}
-          {!(isCompactDesktopViewport && !sidebarPinned) && (
-            <div className="dash-col dash-col-left animate-in-1" style={{ height: '100%' }}>
-              <PrimarySidebarLayout />
-            </div>
-          )}
+          {/* V554: Left Sidebar — always visible on desktop (above 768px), collapsible */}
+          <div className="dash-col dash-col-left animate-in-1" style={{ height: '100%' }}>
+            <PrimarySidebarLayout />
+          </div>
 
           {/* Center Column: Mode Banner + Chart + Balance + Positions */}
           <div className="dash-col dash-col-center animate-in-2" style={{ display: 'flex', flexDirection: 'column', gap: 0, minWidth: 0, minHeight: 0, height: '100%', overflow: 'hidden' }}>
@@ -1511,9 +1509,8 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Right Panel — mode-aware content */}
-          {!isCompactDesktopViewport && (
-            <div className="dash-col dash-col-right animate-in-3" style={{ height: '100%' }}>
+          {/* Right Panel — V554: always visible on desktop (above 768px) */}
+          <div className="dash-col dash-col-right animate-in-3" style={{ height: '100%' }}>
               {mode === 'trader' && <RightPanelLayout quotes={quotes} />}
               {mode === 'investor' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: '100%' }}>
@@ -1535,34 +1532,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
               )}
-            </div>
-          )}
-
-          {isCompactDesktopViewport && (
-            <div className="dash-col dash-col-right-mobile panel" style={{ padding: '0 4px 20px' }}>
-              {mode === 'trader' && <RightPanelLayout quotes={quotes} />}
-              {mode === 'investor' && (
-                <>
-                  <PortfolioMini dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} selectedSymbol={selectedSymbol} />
-                  <div style={{ height: 10 }} />
-                  <WatchlistMini selectedSymbol={selectedSymbol} onSelectSymbol={handleSelectSymbol} />
-                </>
-              )}
-              {mode === 'ai' && (
-                <>
-                  <AlNarratorMini selectedSymbol={selectedSymbol} dataStatus={quoteStatus} />
-                  <div style={{ height: 10 }} />
-                  <ScannerMini selectedSymbol={selectedSymbol} />
-                </>
-              )}
-              {mode === 'trader' && (
-                <>
-                  <div style={{ height: 10 }} />
-                  <WatchlistMini onSelectSymbol={handleSelectSymbol} />
-                </>
-              )}
-            </div>
-          )}
+          </div>
         </div>
       )}
 
@@ -2453,8 +2423,8 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Sidebar Drawer for compact desktop */}
-      {isCompactDesktopViewport && !sidebarPinned && (
+      {/* V554: Sidebar Drawer — mobile only (compact desktop now has fixed sidebar) */}
+      {isMobileViewport && sidebarDrawerOpen && (
         <SidebarDrawer
           open={sidebarDrawerOpen}
           onClose={() => setSidebarDrawerOpen(false)}
@@ -2465,8 +2435,8 @@ export default function DashboardPage() {
         </SidebarDrawer>
       )}
 
-      {/* FAB button to open sidebar on compact desktop */}
-      {isCompactDesktopViewport && !sidebarDrawerOpen && !sidebarPinned && (
+      {/* V554: FAB button — mobile only */}
+      {isMobileViewport && !sidebarDrawerOpen && (
         <button
           type="button"
           className="sidebar-fab sidebar-fab--pulsing"

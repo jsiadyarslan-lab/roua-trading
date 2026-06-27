@@ -151,13 +151,13 @@ export class AIOrchestratorService {
    * the monthly budget is exceeded.
    */
   private readonly ROUTING: Record<string, { primary: string; fallback: string[] }> = {
-    sentiment:        { primary: 'groq',       fallback: ['cerebras', 'gemini', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock', 'cloudflare'] },
-    market_analysis:  { primary: 'gemini',     fallback: ['cerebras', 'groq', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock', 'cloudflare'] },
-    prediction:       { primary: 'gemini',     fallback: ['cerebras', 'groq', 'ollama', 'mistral', 'nvidia', 'glm', 'bedrock', 'cloudflare'] },
-    signal_generation:{ primary: 'gemini',     fallback: ['groq', 'cerebras', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock', 'cloudflare'] },
-    risk_analysis:    { primary: 'gemini',     fallback: ['cerebras', 'groq', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock', 'cloudflare'] },
-    translation:      { primary: 'groq',       fallback: ['cerebras', 'gemini', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock', 'cloudflare'] },
-    general:          { primary: 'gemini',     fallback: ['groq', 'cerebras', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock', 'cloudflare'] },
+    sentiment:        { primary: 'cloudflare',  fallback: ['groq', 'gemini', 'cerebras', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock'] },
+    market_analysis:  { primary: 'cloudflare',  fallback: ['gemini', 'groq', 'cerebras', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock'] },
+    prediction:       { primary: 'cloudflare',  fallback: ['gemini', 'groq', 'cerebras', 'ollama', 'mistral', 'nvidia', 'glm', 'bedrock'] },
+    signal_generation:{ primary: 'cloudflare',  fallback: ['gemini', 'groq', 'cerebras', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock'] },
+    risk_analysis:    { primary: 'cloudflare',  fallback: ['gemini', 'groq', 'cerebras', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock'] },
+    translation:      { primary: 'cloudflare',  fallback: ['groq', 'gemini', 'cerebras', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock'] },
+    general:          { primary: 'cloudflare',  fallback: ['gemini', 'groq', 'cerebras', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock'] },
   };
 
   /** Bedrock monthly budget guard — blocks Bedrock calls when budget exceeded

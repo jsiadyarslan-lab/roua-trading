@@ -759,6 +759,11 @@ export class AIOrchestratorService {
       return keys.every(key => !!resolveKey(key));
     }
 
+    // For cloudflare: ALL listed keys must be present (token + account ID)
+    if (model === 'cloudflare') {
+      return keys.every(key => !!resolveKey(key));
+    }
+
     // Default for groq, glm, openrouter, deepseek: at least ONE key must be present
     return keys.some(key => !!resolveKey(key));
   }

@@ -2564,26 +2564,19 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
             height: '500px',
             maxHeight: '500px',
           } : {
-            // V538: تقليل العرض 30% (440px → 308px)
+            // V539: النافذة تمتد من أعلى الصفحة لأسفلها بالكامل
             width: 'min(308px, calc(100vw - 32px))',
-            height: `${panelHeight}px`,
-            maxHeight: `${MAX_PANEL_HEIGHT}px`,
+            // top + bottom معاً يحددان الارتفاع تلقائياً = كامل الصفحة
+            top: '16px',
+            bottom: '16px',
+            height: 'auto', // الارتفاع يُحسب من top + bottom
+            maxHeight: 'none',
             transition: isResizing ? 'none' : 'height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-            // V538: النافذة تمتد من الأعلى (80px تحت navbar) للأسفل
-            top: '80px',
-            bottom: 'auto',
             [isRtl ? 'left' : 'right']: '1rem',
           }}
           dir={isRtl ? 'rtl' : 'ltr'}
         >
-          {/* ── Resize Handle (top edge) ── */}
-          <div
-            onMouseDown={handleResizeStart}
-            onTouchStart={handleResizeStart}
-            className="resize-handle"
-          >
-            <div className="resize-handle-bar" />
-          </div>
+          {/* ── V539: Resize Handle removed — panel height is fixed to full page ── */}
           {/* ── Header (Enhanced with market pulse) ── */}
           <div className="assistant-header px-5 py-4 flex items-center gap-3" onTouchStart={handleHeaderTouchStart} onTouchMove={handleHeaderTouchMove}>
             {/* Intelligence Orb avatar — Living Light (V513) */}

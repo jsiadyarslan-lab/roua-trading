@@ -1230,8 +1230,8 @@ html[dir="ltr"] .chat-input-row .chat-plus-wrapper { order: 1; }
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: 6px 8px;
-  border-radius: 12px;
+  padding: 4px 6px;
+  border-radius: 10px;
   background: rgba(0, 229, 255, 0.04);
   border: 1px solid rgba(0, 229, 255, 0.08);
   color: var(--text3);
@@ -1365,15 +1365,15 @@ html[dir="ltr"] .chat-input-row .chat-plus-wrapper { order: 1; }
 .chat-textarea {
   flex: 1;
   min-width: 0;
-  padding: 8px 12px;
+  padding: 6px 10px;
   background: transparent;
   color: var(--text);
   border: none;
   outline: none;
   resize: none;
-  font-size: 14px;
-  line-height: 1.5;
-  max-height: 120px;
+  font-size: 13px;
+  line-height: 1.4;
+  max-height: 90px;
   overflow-y: auto;
   font-family: inherit;
 }
@@ -1404,9 +1404,9 @@ html[dir="ltr"] .chat-input-row .chat-plus-wrapper { order: 1; }
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
   background: rgba(0, 229, 255, 0.06);
   border: 1px solid rgba(0, 229, 255, 0.1);
   color: var(--text3);

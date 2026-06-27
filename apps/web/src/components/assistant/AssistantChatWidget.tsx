@@ -223,10 +223,12 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
     chatSessionIdRef.current = chatSessionId;
   }, [chatSessionId]);
 
-  // ─── V1030: Fixed panel height — fills from header to bottom of page ──
+  // ─── V538: Panel height fills from top to bottom of page ──
+  // الارتفاع الثابت = كامل ارتفاع النافذة - هامش علوي (navbar) - هامش سفلي (FAB)
   const calcFixedHeight = () => {
-    if (typeof window === 'undefined') return 480;
-    return Math.max(380, window.innerHeight - 130 - 88);
+    if (typeof window === 'undefined') return 600;
+    // هامش علوي 80px (navbar) + هامش سفلي 100px (FAB + safe area)
+    return Math.max(400, window.innerHeight - 80 - 100);
   };
   const [panelHeight, setPanelHeight] = useState(calcFixedHeight);
 
@@ -2562,17 +2564,15 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
             height: '500px',
             maxHeight: '500px',
           } : {
-            width: 'min(440px, calc(100vw - 48px))',
+            // V538: تقليل العرض 30% (440px → 308px)
+            width: 'min(308px, calc(100vw - 32px))',
             height: `${panelHeight}px`,
             maxHeight: `${MAX_PANEL_HEIGHT}px`,
             transition: isResizing ? 'none' : 'height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-            bottom: 'calc(5.5rem + env(safe-area-inset-bottom, 0px))',
-            top: 'auto',
-            // Ensure panel never goes above the navbar area (navbar bottom ≈ 130px)
-            ...(typeof window !== 'undefined' && (window.innerHeight - BOTTOM_OFFSET - panelHeight < NAVBAR_BOTTOM_RESERVE)
-              ? { top: `${NAVBAR_BOTTOM_RESERVE}px`, bottom: 'auto' }
-              : {}),
-            [isRtl ? 'left' : 'right']: '1.5rem',
+            // V538: النافذة تمتد من الأعلى (80px تحت navbar) للأسفل
+            top: '80px',
+            bottom: 'auto',
+            [isRtl ? 'left' : 'right']: '1rem',
           }}
           dir={isRtl ? 'rtl' : 'ltr'}
         >

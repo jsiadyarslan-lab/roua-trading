@@ -1470,9 +1470,11 @@ export async function POST(request: Request) {
       // - Add ONE retry for premium tier before falling to weak
       // - Use simplified prompt for weak fallback (strip deep template, keep essentials)
       // V498: أفضل النماذج أولاً — bedrock (Claude) + groq (Llama 3.3 70B) قبل cerebras
-      const premiumProviders: AIProvider[] = ['bedrock', 'groq', 'gemini', 'glm', 'cerebras', 'sambanova', 'mistral', 'deepseek', 'cohere', 'cloudflare'];
-      const englishProviders: AIProvider[] = ['bedrock', 'groq', 'gemini', 'glm', 'cerebras', 'sambanova', 'mistral', 'deepseek', 'cohere', 'cloudflare'];
-      const deepProviders: AIProvider[] = ['bedrock', 'groq', 'gemini', 'glm', 'cerebras', 'sambanova', 'mistral', 'deepseek', 'cohere'];
+      // V529: ترتيب الـ providers بحسب القوة الفعلية + التوفر الحالي
+      // GLM أولاً (verified working in logs)، Bedrock ثانياً (قوي عند التوفر)، ثم البقية
+      const premiumProviders: AIProvider[] = ['glm', 'bedrock', 'groq', 'cerebras', 'gemini', 'sambanova', 'mistral', 'deepseek', 'cohere', 'cloudflare', 'deepinfra', 'siliconflow', 'openrouter', 'grok', 'zukijourney', 'nagaai', 'z-ai-sdk', 'hf'];
+      const englishProviders: AIProvider[] = ['glm', 'bedrock', 'groq', 'cerebras', 'gemini', 'sambanova', 'mistral', 'deepseek', 'cohere', 'cloudflare', 'deepinfra', 'siliconflow', 'openrouter', 'grok', 'zukijourney', 'nagaai', 'z-ai-sdk', 'hf'];
+      const deepProviders: AIProvider[] = ['glm', 'bedrock', 'groq', 'cerebras', 'gemini', 'sambanova', 'mistral', 'deepseek', 'cohere', 'cloudflare', 'deepinfra', 'siliconflow', 'openrouter', 'grok', 'zukijourney', 'nagaai', 'z-ai-sdk', 'hf'];
       // Weak providers — only used as last resort when all premium fail
       const weakFallbackProviders: AIProvider[] = ['nvidia', 'ollama'];
 

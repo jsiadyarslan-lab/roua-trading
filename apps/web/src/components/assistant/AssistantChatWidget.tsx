@@ -495,8 +495,11 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
           return;
         }
         const data = await res.json();
-        if (data.session?.messages?.length > 0) {
-          const loadedMessages: Message[] = data.session.messages.map((m: any) => ({
+        // V536: V535 يرجع { session, messages } بدل { session: { messages } }
+        // ادعم كلا البنيتين للتوافق مع الإصدارات السابقة
+        const messagesArray = data.messages || data.session?.messages || [];
+        if (messagesArray.length > 0) {
+          const loadedMessages: Message[] = messagesArray.map((m: any) => ({
             role: m.role as 'user' | 'assistant',
             content: m.content,
             timestamp: new Date(m.createdAt).getTime(),
@@ -504,9 +507,12 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
             toolsUsed: m.toolCalls,
           }));
           setMessages(loadedMessages);
-          setChatSessionId(data.session.id);
-          chatSessionIdRef.current = data.session.id; // Update ref immediately
-          console.log('[Chat History] Loaded session:', data.session.id, 'with', loadedMessages.length, 'messages');
+          const sessionId = data.session?.id || data.sessionId;
+          if (sessionId) {
+            setChatSessionId(sessionId);
+            chatSessionIdRef.current = sessionId;
+          }
+          console.log('[Chat History] Loaded session:', sessionId, 'with', loadedMessages.length, 'messages');
         } else {
           console.log('[Chat History] No previous session found — starting fresh');
         }
@@ -2586,8 +2592,8 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
                   </span>
                 </div>
               )}
-              {/* ── New Conversation button ── */}
-              {session?.user?.id && messages.length > 0 && (
+              {/* ── New Conversation button (always visible for logged-in users) ── */}
+              {session?.user?.id && (
                 <button
                   onClick={startNewConversation}
                   className="rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110 chat-header-btn"

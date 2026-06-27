@@ -84,7 +84,7 @@ export function PrimarySidebarLayout() {
         />
       )}
 
-      {/* Collapse/Expand toggle — positioned inside sidebar */}
+      {/* V560: زر الطي — في أسفل الـ sidebar بدل الأعلى */}
       <button
         type="button"
         onClick={toggleCollapse}
@@ -93,7 +93,7 @@ export function PrimarySidebarLayout() {
         className="sidebar-collapse-btn"
         style={{
           position: 'absolute',
-          top: 8,
+          bottom: 8,
           insetInlineStart: collapsed ? 10 : 8,
           zIndex: 10,
           width: 24,

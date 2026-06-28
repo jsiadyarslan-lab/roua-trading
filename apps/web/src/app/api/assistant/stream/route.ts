@@ -15,8 +15,9 @@ import { fetchAssetData, detectAsset, fetchMultipleAssetData } from '@/lib/assis
 import { buildDataContext, buildHTMLCards, buildAgenticAnalysis } from '@/lib/assistant/response-builder';
 import { detectPositionSizingQuestion, calculatePositionSize, buildPositionSizeHTML } from '@/lib/assistant/position-calculator';
 // V575: markdown-it لتحويل Markdown → HTML في stream route
+// V577: html:true لتمرير HTML tags الموجودة بدون تعديل (لـ HTML cards)
 import MarkdownIt from 'markdown-it';
-const md = new MarkdownIt({ html: false, breaks: true, linkify: true });
+const md = new MarkdownIt({ html: true, breaks: true, linkify: true });
 
 function preprocessMarkdown(text: string): string {
   let out = text;
@@ -466,8 +467,10 @@ export async function POST(request: Request) {
             .trim();
         }
 
-        // V575: تحويل Markdown → HTML قبل الإرسال
-        if (!isHtmlResponse && finalResponse) {
+        // V577: دائماً حوّل Markdown → HTML (حتى لو isHtmlResponse=true)
+        // السبب: HTML cards تكون بالفعل HTML، لكن نص الـ AI يكون Markdown
+        // markdown-it مع html:true يمرر HTML الموجود بدون تعديل
+        if (finalResponse) {
           finalResponse = markdownToHtml(finalResponse);
           isHtmlResponse = true;
         }

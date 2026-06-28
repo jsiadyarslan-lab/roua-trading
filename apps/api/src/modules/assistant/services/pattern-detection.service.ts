@@ -48,9 +48,54 @@ export class PatternDetectionService {
     this.logger.log('🔍 PatternDetectionService initialized');
   }
 
-  async detect(userId: string, days: number = 60): Promise<PatternReport> {
+  /**
+   * RC-4: يحوّل UTC timestamp إلى التوقيت المحلي للمستخدم
+   * @param dateUtc التاريخ بـ UTC
+   * @param userTimezone timezone IANA (مثل 'Asia/Dubai', 'Europe/Berlin')
+   * @returns التاريخ المحلي
+   */
+  private _toUserLocalTime(dateUtc: Date, userTimezone?: string): Date {
+    if (!userTimezone) return dateUtc; // fallback: استخدم UTC (السلوك السابق)
+    try {
+      // استخدم Intl.DateTimeFormat لتحويل UTC → local time
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: userTimezone,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false,
+      });
+      const parts = formatter.formatToParts(dateUtc);
+      const get = (type: string) => parts.find(p => p.type === type)?.value || '0';
+      const localStr = `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}:${get('second')}Z`;
+      return new Date(localStr);
+    } catch {
+      return dateUtc; // timezone غير صالح → fallback UTC
+    }
+  }
+
+  /**
+   * RC-5: حساب Wilson score interval lower bound للثقة الإحصائية
+   * الصيغة السابقة (50 + wins * 10) كانت تعطي ثقة أعلى لعينات أصغر — عكس المنطق.
+   * Wilson: ثقة تنخفض مع العينات الصغيرة (مثلاً 5/5 = 48% لا 95%).
+   * @param successes عدد النجاحات (wins)
+   * @param total إجمالي العينة
+   * @param z Z-score (1.96 لـ 95% CI, 1.44 لـ 85% CI)
+   * @returns قيمة بين 0-100 تمثل الثقة الإحصائية
+   */
+  private _wilsonConfidence(successes: number, total: number, z: number = 1.96): number {
+    if (total === 0) return 0;
+    const p = successes / total;
+    const n = total;
+    const z2 = z * z;
+    const denominator = 1 + z2 / n;
+    const numerator = p + z2 / (2 * n) - z * Math.sqrt((p * (1 - p) + z2 / (4 * n)) / n);
+    // النتيجة lower bound (0-1) → حوّل لنسبة مئوية (0-100)
+    return Math.max(0, Math.min(100, Math.round((numerator / denominator) * 100)));
+  }
+
+  async detect(userId: string, days: number = 60, userTimezone?: string): Promise<PatternReport> {
     const startTime = Date.now();
-    this.logger.log(`🔍 Detecting patterns for user ${userId} (${days} days)`);
+    this.logger.log(`🔍 Detecting patterns for user ${userId} (${days} days, tz=${userTimezone || 'UTC'})`);
 
     const to = new Date();
     const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
@@ -96,7 +141,8 @@ export class PatternDetectionService {
 
     const patterns: Pattern[] = [];
 
-    patterns.push(...this._detectTimePatterns(positions));
+    // RC-4: مرر userTimezone لـ _detectTimePatterns لاستخدام التوقيت المحلي
+    patterns.push(...this._detectTimePatterns(positions, userTimezone));
     patterns.push(...this._detectSymbolPatterns(positions));
     patterns.push(...this._detectDirectionPatterns(positions));
     patterns.push(...this._detectSourcePatterns(positions));
@@ -131,7 +177,7 @@ export class PatternDetectionService {
 
   // ─── Time Patterns ──────────────────────────────────────────
 
-  private _detectTimePatterns(positions: any[]): Pattern[] {
+  private _detectTimePatterns(positions: any[], userTimezone?: string): Pattern[] {
     const patterns: Pattern[] = [];
     if (positions.length < 5) return patterns;
 
@@ -139,7 +185,9 @@ export class PatternDetectionService {
     const byDay: Record<number, { wins: number; losses: number; pnl: number }> = {};
 
     for (const p of positions) {
-      const day = new Date(p.openedAt).getDay();
+      // RC-4: استخدم التوقيت المحلي للمستخدم بدل UTC
+      const localDate = this._toUserLocalTime(new Date(p.openedAt), userTimezone);
+      const day = localDate.getDay();
       if (!byDay[day]) byDay[day] = { wins: 0, losses: 0, pnl: 0 };
       if (Number(p.realizedPnl) > 0) byDay[day].wins++;
       else if (Number(p.realizedPnl) < 0) byDay[day].losses++;
@@ -163,7 +211,8 @@ export class PatternDetectionService {
         type: 'TIME',
         name: `أفضل يوم: ${dayNames[bestDay]}`,
         description: `تداولات يوم ${dayNames[bestDay]} هي الأكثر ربحًا`,
-        confidence: Math.min(95, 50 + stats.wins * 10),
+        // RC-5: استخدم Wilson score بدل 50+wins*10 (كان يعطي ثقة أعلى لعينات أصغر)
+        confidence: this._wilsonConfidence(stats.wins, stats.wins + stats.losses, 1.96),
         evidence: [
           { metric: 'الفوز', value: `${stats.wins}` },
           { metric: 'الخسارة', value: `${stats.losses}` },
@@ -191,7 +240,8 @@ export class PatternDetectionService {
         type: 'TIME',
         name: `أسوأ يوم: ${dayNames[worstDay]}`,
         description: `تداولات يوم ${dayNames[worstDay]} خاسرة`,
-        confidence: Math.min(95, 50 + stats.losses * 10),
+        // RC-5: استخدم Wilson score لثقة إحصائية صحيحة
+        confidence: this._wilsonConfidence(stats.losses, stats.wins + stats.losses, 1.96),
         evidence: [
           { metric: 'الفوز', value: `${stats.wins}` },
           { metric: 'الخسارة', value: `${stats.losses}` },
@@ -265,7 +315,8 @@ export class PatternDetectionService {
           type: 'SYMBOL',
           name: `أفضل رمز: ${best[0]}`,
           description: `${best[0]} يحقّق أفضل أداء`,
-          confidence: Math.min(90, 50 + best[1].wins * 8),
+          // RC-5: استخدم Wilson score
+          confidence: this._wilsonConfidence(best[1].wins, best[1].wins + best[1].losses, 1.44),
           evidence: [
             { metric: 'صفقات', value: `${best[1].total}` },
             { metric: 'Win Rate', value: `${Math.round((best[1].wins / best[1].total) * 100)}%` },
@@ -282,7 +333,8 @@ export class PatternDetectionService {
           type: 'SYMBOL',
           name: `أسوأ رمز: ${worst[0]}`,
           description: `${worst[0]} خاسر بشكل متكرر`,
-          confidence: Math.min(90, 50 + worst[1].losses * 8),
+          // RC-5: استخدم Wilson score
+          confidence: this._wilsonConfidence(worst[1].losses, worst[1].wins + worst[1].losses, 1.44),
           evidence: [
             { metric: 'صفقات', value: `${worst[1].total}` },
             { metric: 'Win Rate', value: `${Math.round((worst[1].wins / worst[1].total) * 100)}%` },
@@ -385,7 +437,8 @@ export class PatternDetectionService {
           type: 'SOURCE',
           name: `${label} ناجح`,
           description: `صفقات ${label} تحقق ${winRate.toFixed(0)}% فوز`,
-          confidence: Math.min(85, 50 + stats.wins * 7),
+          // RC-5: استخدم Wilson score
+          confidence: this._wilsonConfidence(stats.wins, stats.wins + stats.losses, 1.44),
           evidence: [
             { metric: 'صفقات', value: `${stats.total}` },
             { metric: 'Win Rate', value: `${winRate.toFixed(0)}%` },
@@ -399,7 +452,8 @@ export class PatternDetectionService {
           type: 'SOURCE',
           name: `${label} خاسر`,
           description: `صفقات ${label} تحقق فقط ${winRate.toFixed(0)}% فوز`,
-          confidence: Math.min(85, 50 + stats.losses * 7),
+          // RC-5: استخدم Wilson score
+          confidence: this._wilsonConfidence(stats.losses, stats.wins + stats.losses, 1.44),
           evidence: [
             { metric: 'صفقات', value: `${stats.total}` },
             { metric: 'Win Rate', value: `${winRate.toFixed(0)}%` },

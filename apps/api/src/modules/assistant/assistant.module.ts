@@ -53,6 +53,8 @@ import { SystemHealthContextBuilder } from './builders/system-health-context.bui
 // Common modules
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { RedisModule } from '../../common/redis/redis.module';
+// A-5: Audit trail للمساعد — تسجيل كل عملية /chat حساسة
+import { AuditModule } from '../../audit/audit.module';
 
 // Feature modules we depend on (forwardRef لمنع الاعتماد الدائري)
 import { TradingModule } from '../trading/trading.module';
@@ -66,6 +68,7 @@ import { StrategicCouncilModule } from '../ai/strategic-council/strategic-counci
   imports: [
     PrismaModule,
     RedisModule,
+    AuditModule, // A-5: Audit trail
     forwardRef(() => TradingModule),
     forwardRef(() => AiModule),
     forwardRef(() => CouncilIntelligenceModule),

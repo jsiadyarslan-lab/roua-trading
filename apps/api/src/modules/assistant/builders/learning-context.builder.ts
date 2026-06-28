@@ -21,6 +21,10 @@ import {
 export class LearningContextBuilder {
   private readonly logger = new Logger(LearningContextBuilder.name);
 
+  // RC-2: تتبع آخر خطأ
+  private _lastError: string | null = null;
+  get lastError(): string | null { return this._lastError; }
+
   constructor(
     private readonly prisma: PrismaService,
     @Optional() private readonly tradeJournal?: TradeJournalService,
@@ -31,6 +35,8 @@ export class LearningContextBuilder {
   }
 
   async build(userId: string, symbol?: string): Promise<LearningContext> {
+    // RC-2: إعادة التهيئة قبل كل build
+    this._lastError = null;
     const startTime = Date.now();
     try {
       const [recentJournalsRaw, tradeStatsRaw, voteAccuracyRaw, memorySummary] =
@@ -67,8 +73,10 @@ export class LearningContextBuilder {
         activeMemories,
         memorySummary,
       };
-    } catch (error) {
-      this.logger.error(`❌ Failed to build LearningContext: ${error.message}`);
+    } catch (error: any) {
+      // RC-2: سجّل الخطأ
+      this._lastError = `LearningContext build: ${error?.message || 'unknown'}`;
+      this.logger.error(`❌ Failed to build LearningContext: ${this._lastError}`);
       return {
         recentJournalEntries: [],
         tradeStats: this._emptyTradeStats(),

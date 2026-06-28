@@ -69,11 +69,32 @@ export class AutoDiagnosisService {
   }
 
   /**
+   * RC-4: يحوّل UTC timestamp إلى التوقيت المحلي للمستخدم
+   */
+  private _toUserLocalTime(dateUtc: Date, userTimezone?: string): Date {
+    if (!userTimezone) return dateUtc;
+    try {
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: userTimezone,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false,
+      });
+      const parts = formatter.formatToParts(dateUtc);
+      const get = (type: string) => parts.find(p => p.type === type)?.value || '0';
+      const localStr = `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}:${get('second')}Z`;
+      return new Date(localStr);
+    } catch {
+      return dateUtc;
+    }
+  }
+
+  /**
    * يولّد تقرير تشخيص شامل لمستخدم
    */
-  async diagnose(userId: string, days: number = 30): Promise<DiagnosisReport> {
+  async diagnose(userId: string, days: number = 30, userTimezone?: string): Promise<DiagnosisReport> {
     const startTime = Date.now();
-    this.logger.log(`🔬 Starting diagnosis for user ${userId} (${days} days)`);
+    this.logger.log(`🔬 Starting diagnosis for user ${userId} (${days} days, tz=${userTimezone || 'UTC'})`);
 
     const to = new Date();
     const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
@@ -174,7 +195,8 @@ export class AutoDiagnosisService {
     // 5. كشف المشاكل
     findings.push(...this._detectStopLossIssues(closedPositions));
     findings.push(...this._detectSymbolConcentration(closedPositions, openPositions));
-    findings.push(...this._detectTimingIssues(closedPositions));
+    // RC-4: مرر userTimezone لتحليلات الوقت
+    findings.push(...this._detectTimingIssues(closedPositions, userTimezone));
     findings.push(...this._detectRiskExposure(openPositions));
     findings.push(...this._detectStreakIssues(losses, wins));
     findings.push(...this._detectHoldingTimeIssues(closedPositions));
@@ -330,7 +352,7 @@ export class AutoDiagnosisService {
     return findings;
   }
 
-  private _detectTimingIssues(positions: any[]): DiagnosisFinding[] {
+  private _detectTimingIssues(positions: any[], userTimezone?: string): DiagnosisFinding[] {
     const findings: DiagnosisFinding[] = [];
 
     if (positions.length < 10) return findings;
@@ -349,7 +371,9 @@ export class AutoDiagnosisService {
     const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
     for (const p of positions) {
-      const day = new Date(p.openedAt).getDay().toString();
+      // RC-4: استخدم التوقيت المحلي بدل UTC
+      const localDate = this._toUserLocalTime(new Date(p.openedAt), userTimezone);
+      const day = localDate.getDay().toString();
       if (Number(p.realizedPnl) > 0) byDay[day].wins++;
       else if (Number(p.realizedPnl) < 0) byDay[day].losses++;
       byDay[day].pnl += Number(p.realizedPnl) || 0;
@@ -375,7 +399,9 @@ export class AutoDiagnosisService {
     // ساعات خاسرة
     const byHour: Record<string, { wins: number; losses: number; pnl: number }> = {};
     for (const p of positions) {
-      const hour = new Date(p.openedAt).getHours().toString();
+      // RC-4: استخدم التوقيت المحلي بدل UTC
+      const localDate = this._toUserLocalTime(new Date(p.openedAt), userTimezone);
+      const hour = localDate.getHours().toString();
       if (!byHour[hour]) byHour[hour] = { wins: 0, losses: 0, pnl: 0 };
       if (Number(p.realizedPnl) > 0) byHour[hour].wins++;
       else if (Number(p.realizedPnl) < 0) byHour[hour].losses++;

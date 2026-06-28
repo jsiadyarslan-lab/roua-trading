@@ -433,11 +433,17 @@ export class FunctionRegistryService {
     }
 
     // ابحث عن آخر brief للرمز المطلوب
+    // RC-11: فحص صارم لـ userId — empty string لا يجب أن يتجاوز الفلتر
+    const briefWhere: any = {
+      OR: [{ userId }, { userId: null }],
+      pair: args.symbol,
+    };
+    if (!userId || userId === '') {
+      // لو userId فارغ، ابحث فقط في briefs العامة (userId = null)
+      briefWhere.OR = [{ userId: null }];
+    }
     const brief = await this.prisma.tradingBrief.findFirst({
-      where: {
-        OR: [{ userId }, { userId: null }],
-        pair: args.symbol,
-      },
+      where: briefWhere,
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -537,12 +543,18 @@ export class FunctionRegistryService {
   }
 
   private async _getCouncilConsensus(userId: string): Promise<any> {
+    // RC-11: فحص صارم لـ userId
+    const where: any = {
+      isActive: true,
+      reviewStatus: 'ACTIVE',
+    };
+    if (userId && userId !== '') {
+      where.OR = [{ userId }, { userId: null }];
+    } else {
+      where.userId = null;
+    }
     const briefs = await this.prisma.tradingBrief.findMany({
-      where: {
-        OR: [{ userId }, { userId: null }],
-        isActive: true,
-        reviewStatus: 'ACTIVE',
-      },
+      where,
       orderBy: { createdAt: 'desc' },
       take: 20,
       select: {
@@ -654,10 +666,15 @@ export class FunctionRegistryService {
   }
 
   private async _getSystemMemory(userId: string, args: any): Promise<any> {
+    // RC-11: فحص صارم لـ userId
     const where: any = {
       isActive: true,
-      OR: [{ userId }, { userId: null }],
     };
+    if (userId && userId !== '') {
+      where.OR = [{ userId }, { userId: null }];
+    } else {
+      where.userId = null;
+    }
     if (args.symbol) where.symbol = args.symbol;
     if (args.type) where.type = args.type;
 

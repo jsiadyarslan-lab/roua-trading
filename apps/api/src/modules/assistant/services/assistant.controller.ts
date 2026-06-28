@@ -22,6 +22,7 @@ import {
   Res,
   UseGuards,
   Logger,
+  Headers,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
@@ -39,6 +40,10 @@ import { DailyBriefService } from './daily-brief.service';
 import { RiskAlertService } from './risk-alert.service';
 import { IntelligenceCoordinatorService } from './intelligence-coordinator.service';
 import { ContextRequest } from '../types/context.types';
+// RC-12: Redis for idempotency
+import { RedisService } from '../../../common/redis/redis.service';
+// A-5: Audit trail للمساعد
+import { AuditService } from '../../../audit/audit.service';
 
 @Controller('assistant')
 @UseGuards(AuthGuard)
@@ -58,6 +63,10 @@ export class AssistantController {
     private readonly dailyBrief: DailyBriefService,
     private readonly riskAlert: RiskAlertService,
     private readonly intelligenceCoordinator: IntelligenceCoordinatorService,
+    // RC-12: Redis لـ idempotency
+    private readonly redis: RedisService,
+    // A-5: Audit trail
+    private readonly auditService: AuditService,
   ) {
     this.logger.log('🤖 AssistantController initialized — Phase 5 (Intelligence Layer)');
   }
@@ -165,6 +174,7 @@ export class AssistantController {
       conversationHistory?: ChatMessage[];
       skipContextCache?: boolean;
     },
+    @Headers('idempotency-key') idempotencyKey?: string,
   ) {
     const userId: string = req.user.id;
 
@@ -182,6 +192,53 @@ export class AssistantController {
       };
     }
 
+    // RC-12: Idempotency check — لو العميل أرسل Idempotency-Key، تحقق من Redis
+    // لو نفس key مُعالج الآن أو مُخزّن، ارجع الـ cached response
+    if (idempotencyKey && typeof idempotencyKey === 'string' && idempotencyKey.length <= 100) {
+      const idemKey = `assistant:idem:${userId}:${idempotencyKey}`;
+      try {
+        const cached = await this.redis.get(idemKey);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          this.logger.log(`🔄 Idempotency HIT — user=${userId} key=${idempotencyKey.slice(0, 12)}...`);
+          return { success: parsed.success, data: parsed.data, idempotent: true };
+        }
+      } catch (e: any) {
+        this.logger.warn(`Idempotency check failed: ${e.message}`);
+      }
+    }
+
+    // RC-6: تحقق من conversationHistory لمنع prompt injection
+    // المهاجم يمكنه إرسال role='system' أو role='assistant' بمحتوى خبيث
+    let sanitizedHistory: ChatMessage[] | undefined;
+    if (body.conversationHistory !== undefined) {
+      if (!Array.isArray(body.conversationHistory)) {
+        return {
+          success: false,
+          error: 'conversationHistory must be an array',
+        };
+      }
+      if (body.conversationHistory.length > 20) {
+        return {
+          success: false,
+          error: 'conversationHistory too long (max 20 messages)',
+        };
+      }
+      // فلتر: فقط 'user' و 'assistant' مسموح، وحد حجم كل رسالة
+      const ALLOWED_ROLES = new Set(['user', 'assistant']);
+      const MAX_MSG_LEN = 2000;
+      sanitizedHistory = body.conversationHistory
+        .filter((m: any) => m && typeof m === 'object')
+        .filter((m: any) => ALLOWED_ROLES.has(m.role))
+        .map((m: any) => ({
+          role: m.role,
+          content: typeof m.content === 'string' ? m.content.slice(0, MAX_MSG_LEN) : '',
+          timestamp: typeof m.timestamp === 'number' ? m.timestamp : Date.now(),
+        }))
+        .filter((m: ChatMessage) => m.content.length > 0)
+        .slice(-5); // آخر 5 فقط (مثل السلوك السابق)
+    }
+
     this.logger.log(
       `💬 Chat — user=${userId} lang=${body.language ?? 'ar'} msg="${body.message.slice(0, 80)}${body.message.length > 80 ? '...' : ''}"`,
     );
@@ -191,14 +248,52 @@ export class AssistantController {
       message: body.message.trim(),
       language: body.language || 'ar',
       symbol: body.symbol,
-      conversationHistory: body.conversationHistory,
+      conversationHistory: sanitizedHistory,
       skipContextCache: body.skipContextCache,
     });
 
-    return {
+    const result = {
       success: response.success,
       data: response,
     };
+
+    // RC-12: خزّن الـ response في Redis لـ 60 ثانية لو أُرسل Idempotency-Key
+    if (idempotencyKey && typeof idempotencyKey === 'string' && idempotencyKey.length <= 100) {
+      const idemKey = `assistant:idem:${userId}:${idempotencyKey}`;
+      try {
+        await this.redis.set(idemKey, JSON.stringify(result), 60_000); // 60 ثانية
+      } catch (e: any) {
+        this.logger.warn(`Idempotency store failed: ${e.message}`);
+      }
+    }
+
+    // A-5: Audit trail — سجّل كل عملية /chat (لاحتوائها على بيانات حساسة)
+    // لا تسجل content كامل (خصوصية) — فقط metadata
+    try {
+      await this.auditService.log({
+        userId,
+        action: 'ASSISTANT_CHAT',
+        resource: 'assistant',
+        details: JSON.stringify({
+          messageLength: body.message.length,
+          messagePreview: body.message.slice(0, 50), // أول 50 حرف فقط
+          language: body.language || 'ar',
+          symbol: body.symbol,
+          model: response.model,
+          functionsCalled: response.functionsCalled,
+          processingTimeMs: response.processingTimeMs,
+          cached: response.cached,
+          dataStale: response.dataStale,
+          idempotencyKey: idempotencyKey || undefined,
+        }),
+        ipAddress: req.ip || req.socket?.remoteAddress,
+        userAgent: req.headers['user-agent'],
+      });
+    } catch (e: any) {
+      this.logger.warn(`Audit log failed: ${e.message}`);
+    }
+
+    return result;
   }
 
   /**
@@ -230,6 +325,17 @@ export class AssistantController {
   ) {
     const userId: string = req.user.id;
 
+    // RC-7: تتبع اتصال العميل — لو أغلق المتصفح، أوقف المعالجة
+    let clientDisconnected = false;
+    req.on('close', () => {
+      clientDisconnected = true;
+      this.logger.log(`🔌 SSE client disconnected (user=${userId}) — aborting further processing`);
+    });
+    req.on('aborted', () => {
+      clientDisconnected = true;
+      this.logger.log(`🔌 SSE client aborted (user=${userId})`);
+    });
+
     // SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -237,8 +343,9 @@ export class AssistantController {
     res.setHeader('X-Accel-Buffering', 'no'); // disables Nginx buffering
     res.flushHeaders?.();
 
-    // helper لإرسال SSE event
+    // helper لإرسال SSE event (يتحقق من disconnection)
     const sendEvent = (event: string, data: any) => {
+      if (clientDisconnected) return; // RC-7: لا ترسل لاتصال ميت
       try {
         res.write(`event: ${event}\n`);
         res.write(`data: ${JSON.stringify(data)}\n\n`);
@@ -249,6 +356,7 @@ export class AssistantController {
 
     // heartbeat كل 15s لمنع الـ timeouts
     const heartbeatInterval = setInterval(() => {
+      if (clientDisconnected) return; // RC-7
       try {
         res.write(': heartbeat\n\n');
       } catch {
@@ -267,19 +375,60 @@ export class AssistantController {
         return res.end();
       }
 
+      // RC-6: نفس تحقق conversationHistory المطبق على /chat
+      let sanitizedHistory: ChatMessage[] | undefined;
+      if (body.conversationHistory !== undefined) {
+        if (!Array.isArray(body.conversationHistory)) {
+          sendEvent('error', { message: 'conversationHistory must be an array' });
+          return res.end();
+        }
+        if (body.conversationHistory.length > 20) {
+          sendEvent('error', { message: 'conversationHistory too long (max 20 messages)' });
+          return res.end();
+        }
+        const ALLOWED_ROLES = new Set(['user', 'assistant']);
+        const MAX_MSG_LEN = 2000;
+        sanitizedHistory = body.conversationHistory
+          .filter((m: any) => m && typeof m === 'object')
+          .filter((m: any) => ALLOWED_ROLES.has(m.role))
+          .map((m: any) => ({
+            role: m.role,
+            content: typeof m.content === 'string' ? m.content.slice(0, MAX_MSG_LEN) : '',
+            timestamp: typeof m.timestamp === 'number' ? m.timestamp : Date.now(),
+          }))
+          .filter((m: ChatMessage) => m.content.length > 0)
+          .slice(-5);
+      }
+
       this.logger.log(
         `🌊 SSE Chat — user=${userId} lang=${body.language ?? 'ar'} msg="${body.message.slice(0, 60)}..."`,
       );
 
       // 1. استدعِ chat service (ينفّذ كل المنطق: context + functions + LLM + cache)
+      // RC-7: لو العميل أغلق قبل بدء المعالجة، ألغِ
+      if (clientDisconnected) {
+        this.logger.log(`🔌 Client disconnected before chat() — skipping LLM call (user=${userId})`);
+        clearInterval(heartbeatInterval);
+        try { res.end(); } catch { /* ignore */ }
+        return;
+      }
+
       const response = await this.chatService.chat({
         userId,
         message: body.message.trim(),
         language: body.language || 'ar',
         symbol: body.symbol,
-        conversationHistory: body.conversationHistory,
+        conversationHistory: sanitizedHistory,
         skipContextCache: body.skipContextCache,
       });
+
+      // RC-7: لو العميل أغلق أثناء chat()، لا ترسل chunks
+      if (clientDisconnected) {
+        this.logger.log(`🔌 Client disconnected during chat() — skipping chunks (user=${userId}, saved LLM cost already incurred)`);
+        clearInterval(heartbeatInterval);
+        try { res.end(); } catch { /* ignore */ }
+        return;
+      }
 
       // 2. أرسل metadata أولًا
       sendEvent('context', {
@@ -289,6 +438,9 @@ export class AssistantController {
         warnings: response.warnings ?? [],
         experienceLevel: response.experienceLevel,
         cached: response.cached,
+        // RC-2: مرر dataStale للعميل
+        dataStale: response.dataStale,
+        failedBuilders: response.failedBuilders,
       });
 
       // 3. أرسل قائمة الـ functions التي استُدعيت
@@ -306,6 +458,11 @@ export class AssistantController {
       const CHUNK_SIZE = 4; // 4 كلمات لكل chunk
 
       for (let i = 0; i < words.length; i += CHUNK_SIZE) {
+        // RC-7: تحقق من disconnection قبل كل chunk
+        if (clientDisconnected) {
+          this.logger.log(`🔌 Client disconnected mid-stream at chunk ${i} (user=${userId})`);
+          break;
+        }
         const chunk = words.slice(i, i + CHUNK_SIZE).join('');
         if (chunk) {
           sendEvent('chunk', { chunk });
@@ -314,22 +471,28 @@ export class AssistantController {
         }
       }
 
-      // 5. أرسل done event
-      sendEvent('done', {
-        fullReply: reply,
-        model: response.model,
-        processingTimeMs: response.processingTimeMs,
-        cached: response.cached,
-        cacheCategory: response.cacheCategory,
-        success: response.success,
-      });
+      // 5. أرسل done event (إلا لو العميل أغلق)
+      if (!clientDisconnected) {
+        sendEvent('done', {
+          fullReply: reply,
+          model: response.model,
+          processingTimeMs: response.processingTimeMs,
+          cached: response.cached,
+          cacheCategory: response.cacheCategory,
+          success: response.success,
+          // RC-2
+          dataStale: response.dataStale,
+        });
+      }
 
       this.logger.log(
-        `✅ SSE Chat done — user=${userId} model=${response.model} cached=${response.cached} ${response.processingTimeMs}ms`,
+        `✅ SSE Chat done — user=${userId} model=${response.model} cached=${response.cached} ${response.processingTimeMs}ms${clientDisconnected ? ' (client disconnected)' : ''}`,
       );
     } catch (error) {
       this.logger.error(`❌ SSE Chat failed: ${error.message}`, error.stack);
-      sendEvent('error', { message: error.message });
+      if (!clientDisconnected) {
+        sendEvent('error', { message: error.message });
+      }
     } finally {
       clearInterval(heartbeatInterval);
       try {
@@ -438,11 +601,13 @@ export class AssistantController {
   async getDiagnosis(
     @Req() req: any,
     @Query('days') days?: string,
+    // RC-4: قبول timezone اختياري
+    @Query('timezone') timezone?: string,
   ) {
     const userId: string = req.user.id;
     const d = days ? Math.min(Math.max(parseInt(days, 10) || 30, 1), 365) : 30;
-    this.logger.log(`🔬 Diagnosis — user=${userId} days=${d}`);
-    const report = await this.autoDiagnosis.diagnose(userId, d);
+    this.logger.log(`🔬 Diagnosis — user=${userId} days=${d} tz=${timezone || 'UTC'}`);
+    const report = await this.autoDiagnosis.diagnose(userId, d, timezone);
     return { success: true, data: report };
   }
 
@@ -456,11 +621,13 @@ export class AssistantController {
   async getPatterns(
     @Req() req: any,
     @Query('days') days?: string,
+    // RC-4: قبول timezone اختياري (IANA name مثل 'Asia/Dubai')
+    @Query('timezone') timezone?: string,
   ) {
     const userId: string = req.user.id;
     const d = days ? Math.min(Math.max(parseInt(days, 10) || 60, 1), 365) : 60;
-    this.logger.log(`🔍 Patterns — user=${userId} days=${d}`);
-    const report = await this.patternDetection.detect(userId, d);
+    this.logger.log(`🔍 Patterns — user=${userId} days=${d} tz=${timezone || 'UTC'}`);
+    const report = await this.patternDetection.detect(userId, d, timezone);
     return { success: true, data: report };
   }
 

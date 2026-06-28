@@ -61,6 +61,9 @@ export interface AssistantChatResponse {
   conversationId?: string;
   warnings?: string[];
   experienceLevel?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+  // RC-2: علامة فشل البيانات — يجب على الواجهة عرض تحذير بارز
+  dataStale?: boolean;
+  failedBuilders?: string[];
 }
 
 // ─── System Prompts per language ─────────────────────────────
@@ -233,6 +236,15 @@ export class AssistantChatService {
         warnings.push(...context.summary.warnings);
       }
 
+      // RC-2: لو dataStale، أضف تحذير واضح للمستخدم في الـ response
+      // (الـ warning يُعرض في الواجهة كـ "تحذيرات النظام")
+      if (context.dataStale) {
+        const staleWarning = context.summary.warnings.find(w => w.includes('فشل تحميلها'));
+        if (staleWarning && !warnings.includes(staleWarning)) {
+          warnings.push(staleWarning);
+        }
+      }
+
       // 2. صنّف الرسالة لاختيار TTL مناسب للـ cache
       const cacheCategory = this.translationCache.classifyMessage(request.message);
 
@@ -267,6 +279,9 @@ export class AssistantChatService {
           cacheCategory,
           warnings,
           experienceLevel: context.summary.experienceLevel,
+          // RC-2: مرر dataStale حتى لو كان الرد من cache — المستخدم يجب أن يعرف
+          dataStale: context.dataStale,
+          failedBuilders: context.failedBuilders,
         };
       }
 
@@ -330,11 +345,21 @@ export class AssistantChatService {
       // 8. استدعِ الـ LLM
       let llmResponse: AIAnalysisResponse | null = null;
       if (this.orchestrator) {
+        // RC-10: استخرج الرموز من السؤال لتفعيل price hallucination guard
+        // الـ AIOrchestrator يحقن الأسعار اللحظية فقط لو request.symbol موجود
+        // لكن request.symbol كان undefined دائماً → الـ guard لا يُفعّل
+        // نعيد استخدام intent المُصنّف في السطر 289 (تجنب التكرار)
+        const detectedSymbol = request.symbol
+          || (intent.assets.length > 0 ? intent.assets[0].symbol : undefined);
+
         const aiRequest: AIAnalysisRequest = {
           prompt: `${systemPrompt}\n\n${userPrompt}`,
           type: 'general',
           language,
-          symbol: request.symbol,
+          // RC-10: مرر الرمز المكتشف (لو وُجد) لتفعيل price hallucination guard
+          symbol: detectedSymbol,
+          // RC-1: تمرير userId لمنع cross-user cache leakage في AIOrchestrator
+          userId: request.userId,
         };
 
         try {
@@ -362,6 +387,15 @@ export class AssistantChatService {
 
       // V466: نظّف الرد من التكرار + leaked metadata + non-Arabic chars
       reply = this.responseCleaner.clean(reply, language);
+
+      // RC-2: لو dataStale، أضف تحذير صريح في بداية الرد
+      // هذا يضمن أن المستخدم يرى التحذير حتى لو أخفى الـ warnings array
+      if (context.dataStale) {
+        const staleBanner = language === 'ar'
+          ? '⚠️ **تنبيه**: بعض بيانات النظام فشل تحميلها. قد لا يكون هذا الرد مبنياً على بيانات حديثة. يرجى التحديث وإعادة المحاولة.\n\n'
+          : '⚠️ **Notice**: Some system data failed to load. This response may be based on stale data. Please refresh and try again.\n\n';
+        reply = staleBanner + reply;
+      }
 
       // 10. خزّن في cache (إلا لو كان REALTIME)
       if (cacheCategory !== 'REALTIME') {
@@ -393,6 +427,9 @@ export class AssistantChatService {
         cacheCategory,
         warnings,
         experienceLevel: context.summary.experienceLevel,
+        // RC-2: مرر dataStale و failedBuilders
+        dataStale: context.dataStale,
+        failedBuilders: context.failedBuilders,
       };
     } catch (error) {
       const processingTimeMs = Date.now() - startTime;

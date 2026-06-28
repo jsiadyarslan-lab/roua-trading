@@ -56,28 +56,54 @@ export class ContextAggregatorService {
     }
 
     // 2. اجمع كل الطبقات بالتوازي
+    // RC-3: حذف الاستدعاء المكرر لـ marketBuilder — كان يستدعيه مرتين
+    // (مرة بـ [] ومرة بـ userSymbols)، مما يستهلك ضعف API calls
+    // الحل: انتظر userTrading أولاً، ثم مرر رموز المستخدم الفعلية لـ market
     const generatedAt = new Date();
     const startTime = Date.now();
 
-    const [
-      userTrading,
-      council,
-      learning,
-      market,
-      news,
-      systemHealth,
-    ] = await Promise.all([
-      this.userTradingBuilder.build(request.userId),
+    // اجمع userTrading أولاً (لأن market يحتاج رموز المستخدم)
+    const userTrading = await this.userTradingBuilder.build(request.userId);
+
+    // RC-3: اجمع البقية بالتوازي (market سيستخدم رموز المستخدم الفعلية)
+    const userSymbols = userTrading.openPositions.map((p) => p.symbol);
+    const [council, learning, market, news, systemHealth] = await Promise.all([
       this.councilBuilder.build(request.userId, request.language),
       this.learningBuilder.build(request.userId, request.symbol),
-      this.marketBuilder.build(this._extractUserSymbols(/* from userTrading — will pass */ )),
+      this.marketBuilder.build(userSymbols), // RC-3: استدعاء واحد فقط بـ userSymbols الفعلية
       this.newsBuilder.build(request.symbol),
       this.systemHealthBuilder.build(request.userId),
     ]);
 
-    // 3. أعد بناء market برموز المستخدم الفعلية (من الصفقات المفتوحة)
-    const userSymbols = userTrading.openPositions.map((p) => p.symbol);
-    const marketWithUserSymbols = await this.marketBuilder.build(userSymbols);
+    // RC-3: لم نعد نحتاج إعادة بناء market — استخدمنا userSymbols من البداية
+    const marketWithUserSymbols = market;
+
+    // RC-2: اجمع الأخطاء من كل builders لتحديد dataStale
+    const failedBuilders: string[] = [];
+    if (this.userTradingBuilder.lastError) {
+      failedBuilders.push(`userTrading: ${this.userTradingBuilder.lastError}`);
+    }
+    if (this.councilBuilder.lastError) {
+      failedBuilders.push(`council: ${this.councilBuilder.lastError}`);
+    }
+    if (this.learningBuilder.lastError) {
+      failedBuilders.push(`learning: ${this.learningBuilder.lastError}`);
+    }
+    if (this.marketBuilder.lastError) {
+      failedBuilders.push(`market: ${this.marketBuilder.lastError}`);
+    }
+    if (this.newsBuilder.lastError) {
+      failedBuilders.push(`news: ${this.newsBuilder.lastError}`);
+    }
+    if (this.systemHealthBuilder.lastError) {
+      failedBuilders.push(`systemHealth: ${this.systemHealthBuilder.lastError}`);
+    }
+    // RC-2: dataStale=true لو فشل أي builder حرج (userTrading/council/systemHealth)
+    // market/news/learning فشلها أقل خطورة لأن المساعد يمكنه العمل بدونها
+    const dataStale =
+      !!this.userTradingBuilder.lastError ||
+      !!this.councilBuilder.lastError ||
+      !!this.systemHealthBuilder.lastError;
 
     // 4. ابنِ summary ذكي
     const summary = this._buildSummary(
@@ -88,6 +114,8 @@ export class ContextAggregatorService {
       marketWithUserSymbols,
       news,
       systemHealth,
+      dataStale,
+      failedBuilders,
     );
 
     const context: AssistantContext = {
@@ -102,6 +130,9 @@ export class ContextAggregatorService {
       market: marketWithUserSymbols,
       news,
       systemHealth,
+      // RC-2: حقول تتبع فشل البيانات
+      dataStale,
+      failedBuilders,
       summary,
     };
 
@@ -128,6 +159,8 @@ export class ContextAggregatorService {
     market: any,
     news: any,
     systemHealth: any,
+    dataStale: boolean = false,
+    failedBuilders: string[] = [],
   ): AssistantContextSummary {
     const notes: string[] = [];
     const warnings: string[] = [];
@@ -200,6 +233,10 @@ export class ContextAggregatorService {
       `حالة السوق: ${market.marketSentiment}`,
       `حالة النظام: ${systemHealth.systemStatus}`,
     ];
+    // RC-2: لو dataStale، أضف علامة واضحة للـ LLM
+    if (dataStale) {
+      briefParts.push('⚠️ بعض البيانات غير متاحة (قد تكون قديمة أو غير مكتملة)');
+    }
     const brief = briefParts.join('، ');
 
     // استنتاج مستوى الخبرة
@@ -208,12 +245,23 @@ export class ContextAggregatorService {
     // اللغة المفضلة
     const preferredLanguage = request.language ?? 'ar';
 
+    // RC-2: لو dataStale، أضف تحذير صريح في warnings
+    if (dataStale) {
+      warnings.push(
+        '⚠️ تحذير: بعض البيانات فشل تحميلها — قد لا يكون هذا الرد دقيقاً. ' +
+        `البنّاؤون الفاشلون: ${failedBuilders.join(' | ')}`,
+      );
+    }
+
     return {
       brief,
       notes,
       warnings,
       preferredLanguage,
       experienceLevel,
+      // RC-2: مرر علامة dataStale و failedBuilders للـ summary
+      dataStale,
+      failedBuilders,
     };
   }
 

@@ -764,7 +764,10 @@ export class StrategicCouncilService {
       // executed by the Smart Executor. Previously only 'ACTIVE' was returned,
       // so modified briefs were invisible to the executor.
       const where: any = { isActive: true, reviewStatus: { in: ['ACTIVE', 'MODIFIED'] } };
-      if (userId) where.userId = userId;
+      // RC-11: فحص صارم لـ userId — empty string لا يجب أن يتجاوز الفلتر
+      if (userId !== undefined && userId !== null && userId !== '') {
+        where.userId = userId;
+      }
 
       const briefs = await this.prisma.tradingBrief.findMany({
         where,

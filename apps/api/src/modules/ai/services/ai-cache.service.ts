@@ -124,21 +124,32 @@ export class AiCacheService implements OnModuleDestroy {
     this.inFlightRequests.delete(key);
   }
 
-  /** Generate Redis cache key from request */
+  /** Generate Redis cache key from request
+   *  RC-1: cache key يجب أن يحوي userId لمنع cross-user data leakage.
+   *  لو userId غير موجود، نستخدم 'anon' (للـ background jobs مثلاً).
+   *  لكن للمساعد، userId يجب أن يُمرّر دائماً من AssistantChatService.
+   */
   generateRedisCacheKey(request: any): string {
-    return `ai:analysis:${this._hashPrompt(this._stableStringify(request))}`;
+    const userId = request.userId || 'anon';
+    return `ai:analysis:${userId}:${this._hashPrompt(this._stableStringify(request))}`;
   }
 
-  /** Generate in-memory cache key from request */
+  /** Generate in-memory cache key from request
+   *  RC-1: نفس المبدأ — userId جزء من الـ key
+   */
   generateMemoryCacheKey(request: any): string {
     const type = request.type || 'general';
     const symbol = request.symbol || '';
-    return `${type}:${symbol}:${this._hashPrompt(this._stableStringify(request))}`;
+    const userId = request.userId || 'anon';
+    return `${userId}:${type}:${symbol}:${this._hashPrompt(this._stableStringify(request))}`;
   }
 
-  /** Generate deduplication key */
+  /** Generate deduplication key
+   *  RC-1: userId جزء من الـ dedupe key — لا ديدب بين مستخدمين مختلفين
+   */
   generateDedupeKey(request: any): string {
-    return `ai:${request.type || 'general'}:${request.symbol || ''}:${this._hashPrompt(this._stableStringify(request))}`;
+    const userId = request.userId || 'anon';
+    return `ai:${userId}:${request.type || 'general'}:${request.symbol || ''}:${this._hashPrompt(this._stableStringify(request))}`;
   }
 
   /** Get the TTL for a given cache type */

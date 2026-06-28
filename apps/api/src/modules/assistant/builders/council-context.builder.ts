@@ -14,6 +14,10 @@ import { CouncilContext, CouncilBriefDTO } from '../types/context.types';
 export class CouncilContextBuilder {
   private readonly logger = new Logger(CouncilContextBuilder.name);
 
+  // RC-2: تتبع آخر خطأ
+  private _lastError: string | null = null;
+  get lastError(): string | null { return this._lastError; }
+
   constructor(
     private readonly prisma: PrismaService,
     @Optional() @Inject(forwardRef(() => StrategicCouncilService))
@@ -23,6 +27,8 @@ export class CouncilContextBuilder {
   }
 
   async build(userId: string, language?: string): Promise<CouncilContext> {
+    // RC-2: إعادة التهيئة قبل كل build
+    this._lastError = null;
     const startTime = Date.now();
     try {
       // استخدم getActiveBriefs من StrategicCouncilService
@@ -58,11 +64,16 @@ export class CouncilContextBuilder {
   // ─── Helpers ────────────────────────────────────────────────
 
   private async _getActiveBriefsSafe(userId: string, language?: string): Promise<any[]> {
-    if (!this.councilService) return [];
+    if (!this.councilService) {
+      this._lastError = 'councilService unavailable';
+      return [];
+    }
     try {
       return await this.councilService.getActiveBriefs(userId, language);
-    } catch (e) {
-      this.logger.warn(`getActiveBriefs failed: ${e.message}`);
+    } catch (e: any) {
+      // RC-2: سجّل الخطأ
+      this._lastError = `getActiveBriefs: ${e?.message || 'unknown'}`;
+      this.logger.warn(`getActiveBriefs failed: ${this._lastError}`);
       return [];
     }
   }
@@ -76,8 +87,12 @@ export class CouncilContextBuilder {
       //   analysisSummary (وليس summary), createdAt, updatedAt
       // ملاحظة: consensusScore, expectedRr, councilVotes, aiReasoning, rejectionReasons
       // ليست في TradingBrief — هذه تأتي من TradeJournal أو تُحسب لاحقًا.
+      // RC-11: استخدم فحص صارم لـ userId — empty string ('') يعتبر falsy في `if (userId)`
+      // لكنه يُمرّر للـ Prisma كـ '' فيتجاوز الفلتر. يجب فحص null/undefined فقط.
       const where: any = {};
-      if (userId) where.userId = userId;
+      if (userId !== undefined && userId !== null && userId !== '') {
+        where.userId = userId;
+      }
 
       return await this.prisma.tradingBrief.findMany({
         where,
@@ -102,8 +117,10 @@ export class CouncilContextBuilder {
           userId: true,
         },
       });
-    } catch (e) {
-      this.logger.warn(`getRecentBriefsSafe failed: ${e.message}`);
+    } catch (e: any) {
+      // RC-2: سجّل الخطأ
+      this._lastError = `getRecentBriefsSafe: ${e?.message || 'unknown'}`;
+      this.logger.warn(`getRecentBriefsSafe failed: ${this._lastError}`);
       return [];
     }
   }

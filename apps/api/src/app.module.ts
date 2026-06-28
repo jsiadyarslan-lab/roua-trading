@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -11,6 +11,8 @@ import { FeatureFlagModule } from './common/feature-flags/feature-flag.module';
 import { TradeLifecycleModule } from './common/trade-lifecycle/trade-lifecycle.module';
 // V341: Position State Machine — single decision point for position lifecycle
 import { StateMachineModule } from './common/state-machine/state-machine.module';
+// RC-8: Custom ThrottlerGuard per-user (يفعّل @Throttle decorators التي كانت معطّلة)
+import { UserThrottlerGuard } from './common/guards/user-throttler.guard';
 import { AuthModule } from './auth/auth.module';
 import { ExchangeModule } from './modules/exchange/exchange.module';
 import { AiModule } from './modules/ai/ai.module';
@@ -75,6 +77,13 @@ import { PrismaService } from './common/prisma/prisma.service';
     {
       provide: APP_INTERCEPTOR,
       useClass: UserIsolationInterceptor,
+    },
+    // RC-8: تفعيل UserThrottlerGuard عالمياً — يفعّل كل @Throttle decorators
+    // التي كانت معطّلة (ThrottlerModule وحده لا يكفي، يجب APP_GUARD)
+    // getTracker() يرجع userId لو مسجّل، وإلا IP (للـ public routes)
+    {
+      provide: APP_GUARD,
+      useClass: UserThrottlerGuard,
     },
   ],
   imports: [

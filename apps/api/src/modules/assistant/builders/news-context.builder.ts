@@ -15,6 +15,10 @@ import { NewsContext, NewsItemDTO } from '../types/context.types';
 export class NewsContextBuilder {
   private readonly logger = new Logger(NewsContextBuilder.name);
 
+  // RC-2: تتبع آخر خطأ
+  private _lastError: string | null = null;
+  get lastError(): string | null { return this._lastError; }
+
   constructor(
     private readonly prisma: PrismaService,
     @Optional() private readonly newsService?: NewsService,
@@ -24,6 +28,8 @@ export class NewsContextBuilder {
   }
 
   async build(symbol?: string): Promise<NewsContext> {
+    // RC-2: إعادة التهيئة قبل كل build
+    this._lastError = null;
     const startTime = Date.now();
     try {
       const [recentNewsRaw, marketNewsRaw, sentimentSummary] = await Promise.all([
@@ -45,8 +51,10 @@ export class NewsContextBuilder {
         marketNews,
         sentimentSummary,
       };
-    } catch (error) {
-      this.logger.error(`❌ Failed to build NewsContext: ${error.message}`);
+    } catch (error: any) {
+      // RC-2: سجّل الخطأ
+      this._lastError = `NewsContext build: ${error?.message || 'unknown'}`;
+      this.logger.error(`❌ Failed to build NewsContext: ${this._lastError}`);
       return {
         recentNews: [],
         marketNews: [],

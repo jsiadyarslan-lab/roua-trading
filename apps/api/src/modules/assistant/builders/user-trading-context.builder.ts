@@ -19,6 +19,10 @@ import {
 export class UserTradingContextBuilder {
   private readonly logger = new Logger(UserTradingContextBuilder.name);
 
+  // RC-2: تتبع آخر خطأ — يُفحص من ContextAggregator بعد كل build()
+  private _lastError: string | null = null;
+  get lastError(): string | null { return this._lastError; }
+
   constructor(
     private readonly prisma: PrismaService,
     @Optional() @Inject(forwardRef(() => TradingService))
@@ -28,6 +32,8 @@ export class UserTradingContextBuilder {
   }
 
   async build(userId: string): Promise<UserTradingContext> {
+    // RC-2: إعادة التهيئة قبل كل build لتفادي تسرّب الأخطاء بين الطلبات
+    this._lastError = null;
     const startTime = Date.now();
     try {
       // تنفيذ متوازي لجميع الاستعلامات
@@ -77,17 +83,25 @@ export class UserTradingContextBuilder {
   // ─── Helpers ────────────────────────────────────────────────
 
   private async _getOpenPositionsSafe(userId: string): Promise<any[]> {
-    if (!this.tradingService) return [];
+    if (!this.tradingService) {
+      this._lastError = 'tradingService unavailable';
+      return [];
+    }
     try {
       return await this.tradingService.getOpenPositions(userId);
-    } catch (e) {
-      this.logger.warn(`getOpenPositions failed: ${e.message}`);
+    } catch (e: any) {
+      // RC-2: سجّل الخطأ بدل ابتلاعه صامتاً — ContextAggregator سيفحص lastError
+      this._lastError = `getOpenPositions: ${e?.message || 'unknown'}`;
+      this.logger.warn(`getOpenPositions failed: ${this._lastError}`);
       return [];
     }
   }
 
   private async _getPositionSummarySafe(userId: string): Promise<any | null> {
-    if (!this.tradingService) return null;
+    if (!this.tradingService) {
+      this._lastError = 'tradingService unavailable';
+      return null;
+    }
     try {
       const summary = await this.tradingService.getPositionSummary(userId);
       // V458: getPositionSummary returns:
@@ -109,8 +123,10 @@ export class UserTradingContextBuilder {
         displayedBalance, // DB balance + usedMargin
         riskExposurePercent,
       };
-    } catch (e) {
-      this.logger.warn(`getPositionSummary failed: ${e.message}`);
+    } catch (e: any) {
+      // RC-2: سجّل الخطأ — لا تبتلعه صامتاً
+      this._lastError = `getPositionSummary: ${e?.message || 'unknown'}`;
+      this.logger.warn(`getPositionSummary failed: ${this._lastError}`);
       return null;
     }
   }
@@ -143,6 +159,7 @@ export class UserTradingContextBuilder {
         },
       });
       // حوّل إلى صيغة ClosedTradeDTO مع حساب pnlPercent وresult
+      // RC-2: لو positions.length === 0 لكن الاستعلام نجح، لا نعتبره خطأ
       return positions.map((p: any) => {
         const entry = Number(p.entryPrice) || 0;
         const exit = p.exitPrice ? Number(p.exitPrice) : entry;
@@ -172,8 +189,10 @@ export class UserTradingContextBuilder {
           closeReason: p.closeReason,
         };
       });
-    } catch (e) {
-      this.logger.warn(`getRecentClosedTrades failed: ${e.message}`);
+    } catch (e: any) {
+      // RC-2: سجّل الخطأ
+      this._lastError = `getRecentClosedTrades: ${e?.message || 'unknown'}`;
+      this.logger.warn(`getRecentClosedTrades failed: ${this._lastError}`);
       return [];
     }
   }
@@ -221,8 +240,10 @@ export class UserTradingContextBuilder {
         winRate,
         netPnl,
       };
-    } catch (e) {
-      this.logger.warn(`getTodayStats failed: ${e.message}`);
+    } catch (e: any) {
+      // RC-2: سجّل الخطأ
+      this._lastError = `getTodayStats: ${e?.message || 'unknown'}`;
+      this.logger.warn(`getTodayStats failed: ${this._lastError}`);
       return {
         tradesOpened: 0,
         tradesClosed: 0,

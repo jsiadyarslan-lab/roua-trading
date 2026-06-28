@@ -8,6 +8,9 @@ export interface AIAnalysisRequest {
   prompt: string;
   type: 'market_analysis' | 'sentiment' | 'prediction' | 'general' | 'signal_generation' | 'risk_analysis' | 'translation';
   language?: string; // 'ar' | 'en'
+  // RC-1: userId إلزامي لمنع cross-user cache leakage
+  // لو لم يُمرّر، cache key لن يحوي userId وقد يتسرب بين المستخدمين
+  userId?: string;
 }
 
 export interface AIAnalysisResponse {
@@ -147,8 +150,46 @@ export class GroqService {
   }
 
   private _buildSystemPrompt(request: AIAnalysisRequest): string {
-    const lang = request.language === 'en' ? 'English' : 'Arabic';
-    return `You are a financial analysis AI specializing in ${request.type}. Respond in ${lang}. Be concise, data-driven, and professional. Always include risk disclaimers.`;
+    // RC-9: احترم كل اللغات، لا تحوّل كل ما هو غير 'en' إلى 'Arabic'
+    // المشكلة السابقة: 'fr' كان يُحوّل إلى "Arabic" → تعليمات متناقضة مع LanguageRouter
+    // الذي يطلب "Respond in French". LLM يحتار ويخلط اللغات.
+    const languageNames: Record<string, string> = {
+      ar: 'Arabic',
+      en: 'English',
+      fr: 'French',
+      es: 'Spanish',
+      de: 'German',
+      ru: 'Russian',
+      zh: 'Chinese (Simplified)',
+      ja: 'Japanese',
+      ko: 'Korean',
+      tr: 'Turkish',
+      fa: 'Persian',
+      pt: 'Portuguese',
+      it: 'Italian',
+      nl: 'Dutch',
+      pl: 'Polish',
+      hi: 'Hindi',
+      vi: 'Vietnamese',
+      th: 'Thai',
+      sv: 'Swedish',
+      uk: 'Ukrainian',
+      ur: 'Urdu',
+      fil: 'Filipino',
+      da: 'Danish',
+      no: 'Norwegian',
+      fi: 'Finnish',
+      cs: 'Czech',
+      hu: 'Hungarian',
+      ro: 'Romanian',
+      bn: 'Bengali',
+      he: 'Hebrew',
+      id: 'Indonesian',
+      ms: 'Malay',
+    };
+    const langCode = (request.language || 'ar').toLowerCase().slice(0, 2);
+    const langName = languageNames[langCode] || 'Arabic'; // fallback للعربية (اللغة الأساسية للمنصة)
+    return `You are a financial analysis AI specializing in ${request.type}. Respond in ${langName}. Be concise, data-driven, and professional. Always include risk disclaimers.`;
   }
 
   private _stubResponse(request: AIAnalysisRequest): AIAnalysisResponse {

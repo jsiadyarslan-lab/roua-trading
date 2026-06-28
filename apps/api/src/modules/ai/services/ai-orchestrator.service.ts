@@ -404,9 +404,22 @@ export class AIOrchestratorService {
     }
 
     if (!result) {
+      // RC-9: احترم كل اللغات في fallback message، لا تحوّل كل ما هو غير 'en' إلى عربي
+      const fallbackLangs: Record<string, string> = {
+        en: 'Analysis currently unavailable. Please try again later.',
+        fr: "L'analyse est actuellement indisponible. Veuillez réessayer plus tard.",
+        es: 'El análisis no está disponible actualmente. Inténtalo de nuevo más tarde.',
+        de: 'Analyse derzeit nicht verfügbar. Bitte versuche es später erneut.',
+        ru: 'Анализ временно недоступен. Пожалуйста, попробуйте позже.',
+        tr: 'Analiz şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.',
+        // بقية اللغات → fallback للعربية
+      };
+      const langCode = (enrichedRequest.language || 'ar').toLowerCase().slice(0, 2);
+      const fallbackContent = fallbackLangs[langCode]
+        || 'التحليل غير متاح حالياً. يرجى المحاولة لاحقاً.';
       result = {
         model: 'Orchestrator/Fallback',
-        content: enrichedRequest.language === 'en' ? 'Analysis currently unavailable. Please try again later.' : 'التحليل غير متاح حالياً. يرجى المحاولة لاحقاً.',
+        content: fallbackContent,
         confidence: 0,
         processingTimeMs: 0,
         language: enrichedRequest.language || 'ar',

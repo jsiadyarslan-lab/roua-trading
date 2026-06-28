@@ -251,6 +251,11 @@ export interface AssistantContext {
   news: NewsContext;
   systemHealth: SystemHealthContext;
 
+  // RC-2: علامة فشل جمع البيانات — يجب على المساعد تحذير المستخدم
+  dataStale: boolean;
+  // RC-2: قائمة الـ builders الذين فشلوا (للـ debugging و audit)
+  failedBuilders: string[];
+
   // ملخص نصي مُجهّز للـ LLM
   summary: AssistantContextSummary;
 }
@@ -266,6 +271,10 @@ export interface AssistantContextSummary {
   preferredLanguage: string;
   // مستوى خبرة المستخدم (يُستنتج من سجل التداول)
   experienceLevel: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+  // RC-2: علامة فشل البيانات (مرآة لـ AssistantContext.dataStale)
+  dataStale: boolean;
+  // RC-2: قائمة الـ builders الفاشلين
+  failedBuilders: string[];
 }
 
 // ─── Request Types ────────────────────────────────────────────

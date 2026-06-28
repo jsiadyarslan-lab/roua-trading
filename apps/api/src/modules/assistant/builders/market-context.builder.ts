@@ -19,6 +19,10 @@ const TOP_SYMBOLS = [
 export class MarketContextBuilder {
   private readonly logger = new Logger(MarketContextBuilder.name);
 
+  // RC-2: تتبع آخر خطأ
+  private _lastError: string | null = null;
+  get lastError(): string | null { return this._lastError; }
+
   constructor(
     @Optional() private readonly exchangeService?: ExchangeService,
   ) {
@@ -26,8 +30,13 @@ export class MarketContextBuilder {
   }
 
   async build(userSymbols: string[] = []): Promise<MarketContext> {
+    // RC-2: إعادة التهيئة قبل كل build
+    this._lastError = null;
     const startTime = Date.now();
     try {
+      if (!this.exchangeService) {
+        this._lastError = 'exchangeService unavailable';
+      }
       // دمج الرموز الرئيسية + رموز المستخدم (بدون تكرار)
       const uniqueUserSymbols = Array.from(
         new Set(userSymbols.filter((s) => !TOP_SYMBOLS.includes(s))),
@@ -68,8 +77,10 @@ export class MarketContextBuilder {
         volatilityIndex,
         fetchedAt: new Date(),
       };
-    } catch (error) {
-      this.logger.error(`❌ Failed to build MarketContext: ${error.message}`);
+    } catch (error: any) {
+      // RC-2: سجّل الخطأ بدل ابتلاعه صامتاً
+      this._lastError = `MarketContext build: ${error?.message || 'unknown'}`;
+      this.logger.error(`❌ Failed to build MarketContext: ${this._lastError}`);
       return {
         topSymbols: [],
         userSymbols: [],

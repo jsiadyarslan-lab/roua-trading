@@ -15,6 +15,10 @@ import { SystemHealthContext } from '../types/context.types';
 export class SystemHealthContextBuilder {
   private readonly logger = new Logger(SystemHealthContextBuilder.name);
 
+  // RC-2: تتبع آخر خطأ
+  private _lastError: string | null = null;
+  get lastError(): string | null { return this._lastError; }
+
   private readonly COOLDOWN_REDIS_KEY = 'system:cooldown:active';
   private readonly COOLDOWN_UNTIL_KEY = 'system:cooldown:until';
   private readonly COOLDOWN_REASON_KEY = 'system:cooldown:reason';
@@ -28,6 +32,8 @@ export class SystemHealthContextBuilder {
   }
 
   async build(userId: string): Promise<SystemHealthContext> {
+    // RC-2: إعادة التهيئة قبل كل build
+    this._lastError = null;
     const startTime = Date.now();
     try {
       const [
@@ -74,8 +80,10 @@ export class SystemHealthContextBuilder {
         cooldownEndsAt: cooldownInfo.until,
         selfHealingEvents: recentEvents,
       };
-    } catch (error) {
-      this.logger.error(`❌ Failed to build SystemHealthContext: ${error.message}`);
+    } catch (error: any) {
+      // RC-2: سجّل الخطأ — SystemHealth فاشل يعني المساعد لا يرى التبريد/الأخطاء
+      this._lastError = `SystemHealthContext build: ${error?.message || 'unknown'}`;
+      this.logger.error(`❌ Failed to build SystemHealthContext: ${this._lastError}`);
       return {
         systemStatus: 'DEGRADED',
         activeBriefsCount: 0,

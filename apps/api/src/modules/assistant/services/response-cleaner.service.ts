@@ -29,6 +29,16 @@ const md = new MarkdownIt({
 function preprocessMarkdown(text: string): string {
   let out = text;
 
+  // V575.2: فصل --- ### و --- ## قبل أي شيء آخر
+  // المشكلة: الـ LLM يدمج نهاية جدول مع --- وبداية جدول آخر على نفس السطر
+  // مثال: "| 🟢 | --- ### 2️⃣ جدول | الأصل |..."
+  // الحل: نفصل عند | --- ### ونضع | في نهاية سطر، ثم --- على سطر، ثم ### على سطر
+  out = out.replace(/\|\s+---\s+###\s/g, '|\n---\n### ');
+  out = out.replace(/\|\s+---\s+##\s/g, '|\n---\n## ');
+  out = out.replace(/\|\s+---\s+#\s/g, '|\n---\n# ');
+  // فصل --- بعد | (نهاية صف جدول) حتى لو لم يتبعها heading
+  out = out.replace(/\|\s+---\s+/g, '|\n---\n');
+
   // 1. حماية table separators (|---|---|)
   const tableSeparators: string[] = [];
   out = out.replace(/\|[-:\s|]+\|/g, (match) => {

@@ -2488,5 +2488,36 @@ IMPORTANT: You have already called a tool and received results above. Now provid
   // Add disclaimer
   prompt += `\n\n${DISCLAIMERS[locale]}`;
 
+  // V576: Locale enforcement — يُحقن في النهاية لضمان عدم تجاوزه
+  if (locale === 'ar') {
+    prompt += `
+
+🔴🔴🔴 🔴🔴🔴 🔴🔴🔴
+قاعدة اللغة النهائية — صارمة جداً:
+- ردك بالكامل يجب أن يكون بالعربية الفصحى — لا كلمة إنجليزية واحدة في النص
+- البيانات التي تلقيتها بالإنجليزية (prices, RSI, MACD) يجب ترجمتها للعربية في الرد
+- "bullish" → "صاعد"، "bearish" → "هابط"، "neutral" → "محايد"
+- "BUY" → "شراء"، "SELL" → "بيع"، "HOLD" → "انتظار"
+- "Support" → "الدعم"، "Resistance" → "المقاومة"
+- "Stop Loss" → "وقف الخسارة"، "Take Profit" → "جني الأرباح"
+- "Entry" → "الدخول"، "Exit" → "الخروج"
+- "Position" → "مركز"، "Trade" → "صفقة"
+- "Volume" → "الحجم"، "Volatility" → "التقلب"
+- استثناء: رموز الأصول (BTC, XAU, EURUSD, BNB) تبقى بالإنجليزية
+- استثناء: الأرقام (1.14037, +0.10$, 45%) تبقى كما هي
+- لو خالفت هذه القاعدة، الرد كله سيُرفض
+🔴🔴🔴 🔴🔴🔴 🔴🔴🔴`;
+  } else if (locale === 'en') {
+    prompt += `
+
+🔴🔴🔴 FINAL LANGUAGE RULE — STRICT:
+- Your entire response MUST be in English only
+- Do NOT use any Arabic words in table headers or text
+- Use English headers: Asset, Type, Entry, Current, PnL
+- Use English terms: bullish, bearish, neutral, support, resistance
+- Exception: asset symbols (BTC, XAU, EURUSD) stay as-is
+🔴🔴🔴`;
+  }
+
   return prompt;
 }

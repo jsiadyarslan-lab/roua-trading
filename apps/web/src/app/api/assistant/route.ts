@@ -25,6 +25,37 @@ import type { Locale } from '@/lib/assistant/tools';
 import { fetchBroadData, type FetchedData } from '@/lib/assistant/data-fetcher';
 import { filterResponse } from '@/lib/assistant/response-filter';
 import { searchRealTimePrices, type RealtimeSearchResult } from '@/lib/assistant/realtime-search';
+// V575: markdown-it لتحويل Markdown → HTML على الـ backend (Next.js route handler)
+import MarkdownIt from 'markdown-it';
+const md = new MarkdownIt({ html: false, breaks: true, linkify: true });
+
+// V575.2: Preprocessor — يفصل Markdown elements على أسطر منفصلة قبل تحويلها لـ HTML
+function preprocessMarkdown(text: string): string {
+  let out = text;
+  // فصل --- ### قبل أي شيء آخر (LLM يدمجها على نفس السطر)
+  out = out.replace(/\|\s+---\s+###\s/g, '|\n---\n### ');
+  out = out.replace(/\|\s+---\s+##\s/g, '|\n---\n## ');
+  out = out.replace(/\|\s+---\s+#\s/g, '|\n---\n# ');
+  out = out.replace(/\|\s+---\s+/g, '|\n---\n');
+  // حماية table separators و rows
+  const tableSeparators: string[] = [];
+  out = out.replace(/\|[-:\s|]+\|/g, (m) => { tableSeparators.push(m); return `__TS_${tableSeparators.length - 1}__`; });
+  const tableRows: string[] = [];
+  out = out.replace(/\|[^\n]+\|/g, (m) => { if ((m.match(/\|/g) || []).length >= 3) { tableRows.push(m); return `__TR_${tableRows.length - 1}__`; } return m; });
+  // فصل --- و ###
+  out = out.replace(/(\S)\s+---\s+/g, '$1\n---\n');
+  out = out.replace(/\s+---\s+(\S)/g, '\n---\n$1');
+  out = out.replace(/([^\n\s])\s+---/g, '$1\n---');
+  out = out.replace(/([^\n])\s+###\s+/g, '$1\n### ');
+  out = out.replace(/([^\n])\s+##\s+/g, '$1\n## ');
+  out = out.replace(/([^\n])\s+#\s+/g, '$1\n# ');
+  out = out.replace(/(#{1,4}\s+[^\n]+?)\s+(__TR_\d+__)/g, '$1\n$2');
+  // استعادة
+  out = out.replace(/__TR_(\d+)__/g, (_m, i) => tableRows[parseInt(i, 10)]);
+  out = out.replace(/__TS_(\d+)__/g, (_m, i) => tableSeparators[parseInt(i, 10)]);
+  out = out.replace(/\n{3,}/g, '\n\n').trim();
+  return out;
+}
 // V1013: classifyIntent is used to inject a locale-aware hint into the AI
 // message stack so the model picks the right response template (chat vs.
 // education vs. comparison vs. analysis) instead of always defaulting to
@@ -191,7 +222,9 @@ function cleanResponse(text: string, locale: Locale): string {
       .trim();
   }
 
-  return cleaned;
+  // V575: تحويل Markdown → HTML قبل الإرجاع
+  const html = md.render(preprocessMarkdown(cleaned));
+  return html;
 }
 
 // ─── V1000: Enhanced Repetition Loop Detector ──────────────────

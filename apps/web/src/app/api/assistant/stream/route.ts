@@ -481,62 +481,31 @@ export async function POST(request: Request) {
         // We need to extract just the AI analysis part for streaming.
 
         if (earlyHtmlSent && finalResponse) {
-          // Find where AI analysis starts (after the HTML cards)
-          // The HTML cards were already sent, so find the AI text after them
-          const htmlCardsContent = isHtmlResponse
-            ? (preFetchedDataBundle
-              ? buildHTMLCards(preBundle, locale)
-              : '')
-            : '';
-
+          // V578: بعد markdownToHtml، الـ finalResponse كله HTML
+          // أرسله كـ chunk واحد بدون تقسيم (التقسيم يكسر HTML tags)
           let aiTextPart = finalResponse;
+
+          // لو HTML cards أُرسلت مبكراً، افصلها (لو تطابقت)
+          const htmlCardsContent = preFetchedDataBundle
+            ? buildHTMLCards(preBundle, locale)
+            : '';
           if (htmlCardsContent && finalResponse.startsWith(htmlCardsContent)) {
             aiTextPart = finalResponse.slice(htmlCardsContent.length).trim();
           }
 
           if (aiTextPart) {
-            // Stream AI analysis text word-by-word for typewriter effect
-            const CHUNK_SIZE = 6;
-            const words = aiTextPart.split(/(\s+)/);
-            let buffer = '';
-            let chunkIndex = 1; // Start from 1 since 0 was the HTML cards
-
-            for (let i = 0; i < words.length; i++) {
-              buffer += words[i];
-              const wordCount = buffer.split(/\S+/).length - 1;
-              if (wordCount >= CHUNK_SIZE || i === words.length - 1) {
-                send('token', { content: buffer, index: chunkIndex });
-                chunkIndex++;
-                buffer = '';
-                if (i < words.length - 1) {
-                  await new Promise(r => setTimeout(r, 25));
-                }
-              }
-            }
+            // V578: أرسل HTML كـ chunk واحد — لا تقسمه
+            send('token', { content: aiTextPart, index: 1 });
           }
         } else if (finalResponse) {
-          // No early HTML sent — stream the full response
-          const isLargeHtml = isHtmlResponse && finalResponse.length > 2000;
-
-          if (isLargeHtml) {
-            // For large HTML: split at logical boundaries for faster streaming
-            const segments = finalResponse.split(/(<\/div>|---|\n\n)/);
-            let streamBuffer = '';
-            let streamChunkIndex = 0;
-
-            for (let i = 0; i < segments.length; i++) {
-              streamBuffer += segments[i];
-              if (i % 2 === 1 || i === segments.length - 1) {
-                send('token', { content: streamBuffer, index: streamChunkIndex });
-                streamChunkIndex++;
-                streamBuffer = '';
-                if (i < segments.length - 1) {
-                  await new Promise(r => setTimeout(r, 30));
-                }
-              }
-            }
+          // V578: لا تقسم HTML — أرسله كـ chunk واحد كامل
+          // التقسيم يكسر HTML tags (مثل <table> → < + table + >)
+          // الواجهة تعرضها كنص خام بدلاً من HTML مرئي
+          if (isHtmlResponse) {
+            // HTML response: أرسل كـ chunk واحد
+            send('token', { content: finalResponse, index: 0 });
           } else {
-            // For text responses: word-by-word typewriter effect
+            // Text response: word-by-word typewriter effect
             const CHUNK_SIZE = 8;
             const words = finalResponse.split(/(\s+)/);
             let buffer = '';

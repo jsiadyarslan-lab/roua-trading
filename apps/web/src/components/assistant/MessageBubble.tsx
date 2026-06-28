@@ -20,9 +20,44 @@ interface MessageBubbleProps {
   renderInlineChart: (msg: Message) => React.ReactNode;
 }
 
-/** Strip markdown for plain-text clipboard copy */
+/** Strip markdown AND HTML for plain-text clipboard copy */
 function stripMarkdown(md: string): string {
   return md
+    // V576: إزالة HTML tags (الردود الآن HTML، ليس Markdown)
+    .replace(/<h[1-6][^>]*>/gi, '\n')
+    .replace(/<\/h[1-6]>/gi, '\n')
+    .replace(/<table[^>]*>/gi, '\n')
+    .replace(/<\/table>/gi, '\n')
+    .replace(/<thead[^>]*>/gi, '')
+    .replace(/<\/thead>/gi, '')
+    .replace(/<tbody[^>]*>/gi, '')
+    .replace(/<\/tbody>/gi, '')
+    .replace(/<tr[^>]*>/gi, '\n')
+    .replace(/<\/tr>/gi, '')
+    .replace(/<t[hd][^>]*>/gi, ' | ')
+    .replace(/<\/t[hd]>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<hr\s*\/?>/gi, '\n---\n')
+    .replace(/<p[^>]*>/gi, '')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<ul[^>]*>/gi, '\n')
+    .replace(/<\/ul>/gi, '\n')
+    .replace(/<ol[^>]*>/gi, '\n')
+    .replace(/<\/ol>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '• ')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<strong[^>]*>/gi, '')
+    .replace(/<\/strong>/gi, '')
+    .replace(/<b[^>]*>/gi, '')
+    .replace(/<\/b>/gi, '')
+    .replace(/<em[^>]*>/gi, '')
+    .replace(/<\/em>/gi, '')
+    .replace(/<code[^>]*>/gi, '')
+    .replace(/<\/code>/gi, '')
+    .replace(/<a[^>]*href="([^"]*)"[^>]*>/gi, '$1 ')
+    .replace(/<\/a>/gi, '')
+    .replace(/<[^>]+>/g, '') // أي HTML tag متبقي
+    // إزالة Markdown المتبقي
     .replace(/```[\s\S]*?```/g, m => m.replace(/```\w*\n?/g, '').trim())
     .replace(/`([^`]+)`/g, '$1')
     .replace(/\*\*([^*]+)\*\*/g, '$1')
@@ -35,7 +70,12 @@ function stripMarkdown(md: string): string {
     .replace(/^>\s+/gm, '')
     .replace(/^[-*+]\s+/gm, '')
     .replace(/^\d+\.\s+/gm, '')
-    .replace(/\n{2,}/g, '\n\n')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
 

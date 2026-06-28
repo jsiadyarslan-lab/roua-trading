@@ -1682,7 +1682,36 @@ Example:
 **🎯 Recommendation:** [What should investors watch for?]
 **⚠️ Risk Disclaimer**`,
 
-    default: `Respond in a structured, professional manner. Use appropriate emojis. Add risk disclaimer when discussing investments. Be accurate with numbers.`,
+    default: `Respond in a structured, professional manner using this format:
+
+### 1️⃣ Current Price & Direction
+- Current price + daily change
+- General trend (bullish/bearish/neutral) with brief reason
+
+### 2️⃣ Technical Analysis
+- Nearest support + nearest resistance
+- RSI / MACD / Moving Average if available
+
+### 3️⃣ Fundamental Factors
+- Factor 1 + specific number
+- Factor 2 + specific number
+
+### 4️⃣ Scenarios
+Use this EXACT table format (English headers ONLY — no Arabic):
+| Scenario | Conditions | Price Target | Probability |
+|---|---|---|---|
+| 🟢 Bullish | ... | ... | XX% |
+| 🟡 Neutral | ... | ... | XX% |
+| 🔴 Bearish | ... | ... | XX% |
+
+### 5️⃣ Recommendation
+- For current holders: what to do
+- For new investors: entry + stop-loss + target
+
+IMPORTANT:
+- ALL table headers MUST be in English: Asset, Type, Entry, Current, PnL, Scenario, Conditions, Price Target, Probability
+- Do NOT use Arabic words anywhere in the response
+- Use appropriate emojis. Add risk disclaimer. Be accurate with numbers.`,
   },
 
   fr: {

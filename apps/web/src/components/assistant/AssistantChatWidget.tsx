@@ -1725,22 +1725,26 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
       let i = 0;
 
       // ── Inline parser: **bold** + numbers ──
+      // UI-3: تحسين parseInline — ألوان أوضح للأرقام والنسب
       const parseInline = (text: string): React.ReactNode[] => {
         const parts = text.split(/(\*\*[^*]+\*\*)/g);
         return parts.map((part, j) => {
           if (part.startsWith('**') && part.endsWith('**')) {
-            return <strong key={j} style={{ color: '#00E5FF', fontWeight: 600 }}>{part.slice(2, -2)}</strong>;
+            return <strong key={j} style={{ color: '#00E5FF', fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
           }
-          // ألوان الأرقام والنسب
-          const numParts = part.split(/([+\-]?[\d.,]+\s*%|\$[\d.,]+)/g);
+          // ألوان الأرقام والنسب — تباين أعلى
+          const numParts = part.split(/([+\-]?[\d.,]+\s*%|\$[\d.,]+|[\d.,]+\s*(?:نقطة|pips?|USD|EUR|GBP|points?))/g);
           if (numParts.length > 1) {
             return <span key={j}>{numParts.map((np, nj) => {
               if (/^[+\-]?[\d.,]+\s*%$/.test(np)) {
                 const isPos = np.startsWith('+') || (!np.startsWith('-') && parseFloat(np) > 0);
-                return <span key={nj} style={{ color: isPos ? '#22C55E' : '#EF5350', fontWeight: 600 }}>{np}</span>;
+                return <span key={nj} style={{ color: isPos ? '#22C55E' : '#EF5350', fontWeight: 700 }}>{np}</span>;
               }
               if (/^\$[\d.,]+$/.test(np)) {
-                return <span key={nj} style={{ color: '#00E5FF', fontWeight: 600 }}>{np}</span>;
+                return <span key={nj} style={{ color: '#00E5FF', fontWeight: 700 }}>{np}</span>;
+              }
+              if (/[\d.,]+\s*(نقطة|pips?|USD|EUR|GBP|points?)/.test(np)) {
+                return <span key={nj} style={{ color: '#FFB800', fontWeight: 600 }}>{np}</span>;
               }
               return <span key={nj}>{np}</span>;
             })}</span>;
@@ -1750,33 +1754,64 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
       };
 
       // ── Table renderer ──
+      // UI-1: تحسين تنسيق الجداول — حدود واضحة + padding أكبر + fontSize أكبر + border-radius
       const renderTable = (headers: string[], rows: string[][]) => {
         return (
-          <div key={`tbl-${i}`} style={{ margin: '8px 0', overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+          <div key={`tbl-${i}`} style={{
+            margin: '12px 0',
+            overflowX: 'auto',
+            borderRadius: '8px',
+            border: '1px solid rgba(0,229,255,0.20)',
+            background: 'rgba(15,20,33,0.40)',
+          }}>
+            <table style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              fontSize: '12.5px',
+              fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
+            }}>
               <thead>
                 <tr>{headers.map((h, hi) => (
                   <th key={hi} style={{
-                    padding: '6px 8px', textAlign: isRtl ? 'right' : 'left',
-                    borderBottom: '1px solid rgba(0,229,255,0.3)',
-                    color: '#00E5FF', fontWeight: 600, whiteSpace: 'nowrap',
-                    background: 'rgba(0,229,255,0.04)',
+                    padding: '10px 12px',
+                    textAlign: isRtl ? 'right' : 'left',
+                    borderBottom: '2px solid rgba(0,229,255,0.40)',
+                    borderLeft: hi > 0 ? '1px solid rgba(0,229,255,0.10)' : 'none',
+                    color: '#00E5FF',
+                    fontWeight: 700,
+                    whiteSpace: 'nowrap',
+                    background: 'rgba(0,229,255,0.08)',
+                    fontSize: '12px',
+                    letterSpacing: '0.02em',
                   }}>{parseInline(h)}</th>
                 ))}</tr>
               </thead>
               <tbody>
                 {rows.map((row, ri) => (
-                  <tr key={ri} style={{ background: ri % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+                  <tr key={ri} style={{
+                    background: ri % 2 === 0 ? 'rgba(255,255,255,0.015)' : 'rgba(0,229,255,0.025)',
+                  }}>
                     {row.map((cell, ci) => {
                       const lower = cell.toLowerCase();
                       const isBuy = /buy|long|شراء|صاعد|bullish|🟢|📈/.test(cell);
                       const isSell = /sell|short|بيع|هابط|bearish|🔴|📉/.test(cell);
-                      const color = isBuy ? '#22C55E' : isSell ? '#EF5350' : '#B0C4D8';
+                      const isUrgent = /عاجل|حرج|urgent|critical|⚠️/.test(cell);
+                      const isGood = /جيد|good|safe|آمن|🟢/.test(cell);
+                      // لون الخلية: أحمر للخسارة/بيع/عاجل، أخضر للربح/شراء/جيد، أبيض للأخرى
+                      let color = '#E8EDF5';
+                      if (isUrgent) color = '#EF5350';
+                      else if (isGood) color = '#22C55E';
+                      else if (isBuy) color = '#22C55E';
+                      else if (isSell) color = '#EF5350';
                       return (
                         <td key={ci} style={{
-                          padding: '5px 8px', textAlign: isRtl ? 'right' : 'left',
-                          borderBottom: '1px solid rgba(255,255,255,0.03)',
-                          color, fontWeight: ci === 0 ? 700 : 400,
+                          padding: '9px 12px',
+                          textAlign: isRtl ? 'right' : 'left',
+                          borderBottom: '1px solid rgba(0,229,255,0.08)',
+                          borderLeft: ci > 0 ? '1px solid rgba(0,229,255,0.06)' : 'none',
+                          color,
+                          fontWeight: ci === 0 ? 700 : 500,
+                          whiteSpace: 'nowrap',
                         }}>{parseInline(cell)}</td>
                       );
                     })}
@@ -1789,22 +1824,26 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
       };
 
       // ── Section badge renderer ──
+      // UI-2: تحسين العناوين — fontSize أكبر + margin أوضح + تباين أعلى
       const renderSection = (num: string, title: string, key: string) => (
         <div key={key} style={{
-          display: 'flex', alignItems: 'center', gap: '8px',
-          padding: '6px 10px', margin: '10px 0 6px',
-          borderRadius: '6px',
-          background: 'rgba(0,229,255,0.06)',
-          border: '1px solid rgba(0,229,255,0.18)',
+          display: 'flex', alignItems: 'center', gap: '10px',
+          padding: '10px 14px', margin: '16px 0 8px',
+          borderRadius: '8px',
+          background: 'linear-gradient(135deg, rgba(0,229,255,0.10) 0%, rgba(0,229,255,0.04) 100%)',
+          border: '1px solid rgba(0,229,255,0.30)',
+          borderLeft: isRtl ? 'none' : '3px solid #00E5FF',
+          borderRight: isRtl ? '3px solid #00E5FF' : 'none',
           direction: dir,
         }}>
           <span style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            width: 22, height: 22, minWidth: 22, borderRadius: '50%',
-            fontSize: 12, fontWeight: 800, color: '#fff', background: '#00E5FF',
+            width: 26, height: 26, minWidth: 26, borderRadius: '50%',
+            fontSize: 14, fontWeight: 800, color: '#0B0E14', background: '#00E5FF',
             flexShrink: 0,
+            boxShadow: '0 0 8px rgba(0,229,255,0.30)',
           }}>{num}</span>
-          <span style={{ color: '#00E5FF', fontWeight: 700, fontSize: '12px' }}>
+          <span style={{ color: '#00E5FF', fontWeight: 700, fontSize: '14px', letterSpacing: '0.01em' }}>
             {parseInline(title.replace(/\*\*/g, ''))}
           </span>
         </div>
@@ -1994,28 +2033,34 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         }
 
         // Bullet points
+        // UI-3: تحسين bullets — margin أوضح + fontSize أكبر + لون أوضح
         if (/^[-•*]\s/.test(trimmed)) {
           const bulletContent = trimmed.replace(/^[-•*]\s+/, '');
           elements.push(
-            <div key={`b-${i}`} style={{ display: 'flex', gap: '6px', margin: '3px 0', direction: dir }}>
-              <span style={{ color: '#00E5FF', flexShrink: 0, marginTop: '2px', fontSize: '13px' }}>•</span>
-              <span style={{ fontSize: '12.5px', color: '#B0C4D8', lineHeight: 1.6, flex: 1 }}>{parseInline(bulletContent)}</span>
+            <div key={`b-${i}`} style={{ display: 'flex', gap: '8px', margin: '5px 0', direction: dir }}>
+              <span style={{ color: '#00E5FF', flexShrink: 0, marginTop: '3px', fontSize: '14px', fontWeight: 700 }}>•</span>
+              <span style={{ fontSize: '13px', color: '#D1D9E5', lineHeight: 1.7, flex: 1 }}>{parseInline(bulletContent)}</span>
             </div>
           );
           i++; continue;
         }
 
         // Scenario lines (🟢 🟡 🔴)
+        // UI-3: تحسين scenario lines — padding أكبر + border واضح
         if (/^[🟢🟡🔴]/.test(trimmed)) {
           const isBull = trimmed.startsWith('🟢');
           const isBear = trimmed.startsWith('🔴');
           const color = isBull ? '#22C55E' : isBear ? '#EF5350' : '#FFB800';
           elements.push(
             <div key={`sc-${i}`} style={{
-              display: 'flex', gap: '6px', margin: '3px 0', padding: '6px 8px',
-              borderRadius: '6px', background: `${color}0D`, direction: dir,
+              display: 'flex', gap: '8px', margin: '6px 0', padding: '8px 12px',
+              borderRadius: '6px',
+              background: `${color}14`,
+              borderLeft: isRtl ? 'none' : `3px solid ${color}`,
+              borderRight: isRtl ? `3px solid ${color}` : 'none',
+              direction: dir,
             }}>
-              <span style={{ fontSize: '12.5px', color, lineHeight: 1.6, flex: 1 }}>{parseInline(trimmed)}</span>
+              <span style={{ fontSize: '13px', color, lineHeight: 1.7, flex: 1, fontWeight: 500 }}>{parseInline(trimmed)}</span>
             </div>
           );
           i++; continue;
@@ -2040,8 +2085,8 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
         const paraText = paraLines.join(' ');
         elements.push(
           <p key={`p-${i}`} style={{
-            fontSize: '13px', lineHeight: 1.7, color: '#E8EDF5',
-            margin: '0 0 8px', direction: dir,
+            fontSize: '13.5px', lineHeight: 1.8, color: '#D1D9E5',
+            margin: '0 0 12px', direction: dir,
           }}>{parseInline(paraText)}</p>
         );
         i = j2;

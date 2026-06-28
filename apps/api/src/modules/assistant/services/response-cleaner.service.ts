@@ -31,16 +31,30 @@ export class ResponseCleanerService {
     // BUG-1: استبدل عبارات "بيانات غير متاحة" و null/undefined بـ "-"
     // الـ LLM أحياناً يولّد هذه العبارات حين يرى null في JSON data
     // هذا يكسر تنسيق الجداول (مثل: "0.0[بيانات غير متاحة]2")
+    // BE-1: تقوية الـ regex ليشمل كل variations محتملة
     cleaned = cleaned
+      // كل variations من "بيانات غير متاحة"
       .replace(/\[بيانات غير متاحة\]/gi, '-')
+      .replace(/\[بيانات غير متوفرة\]/gi, '-')
       .replace(/\[غير متاح\]/gi, '-')
+      .replace(/\[غير متوفر\]/gi, '-')
+      .replace(/\[لا توجد بيانات\]/gi, '-')
+      .replace(/\[لا تتوفر بيانات\]/gi, '-')
       .replace(/\[not available\]/gi, '-')
+      .replace(/\[no data\]/gi, '-')
+      .replace(/\[data not available\]/gi, '-')
       .replace(/\[N\/A\]/gi, '-')
+      // bare null/undefined (لكن ليس داخل JSON)
       .replace(/\bnull\b/gi, '-')
       .replace(/\bundefined\b/gi, '-')
       // أصلح الأرقام المكسورة مثل "0.0-2" → "0.0" (احتفظ بالرقم الصحيح)
       .replace(/(\d+\.\d+)-(\d+)/g, '$1')
-      .replace(/(\d+)-(\d+\.\d+)/g, '$2');
+      .replace(/(\d+)-(\d+\.\d+)/g, '$2')
+      // أصلح "-$" أو "+$" بدون رقم (نتيجة استبدال null قبل $)
+      .replace(/([+\-])\$\s/g, '$1$ ')
+      // أصلح الأرقام المتقطعة مثل "+3.-$" → "+3.00$"
+      .replace(/(\d+\.)-\$/g, '$100$')
+      .replace(/(\d+\.)-\s/g, '$10 ');
 
     // 1. إزالة tool call tags
     cleaned = cleaned

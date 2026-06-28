@@ -56,6 +56,22 @@ export class ResponseCleanerService {
       .replace(/(\d+\.)-\$/g, '$100$')
       .replace(/(\d+\.)-\s/g, '$10 ');
 
+    // UI-FIX: تطبيع الأسطر — الـ LLM أحياناً يضع --- و ### في وسط السطر
+    // بدل سطر منفصل. هذا يكسر renderContent في الواجهة.
+    // الحل: ضع --- و ### على سطور منفصلة قبل إرسالها للواجهة
+    // تنبيه: الـ regex يجب أن يكون دقيقاً لتفادي كسر النصوص العادية
+    cleaned = cleaned
+      // --- separator: ضع على سطر منفصل (فقط عندما يكون --- محاط بمسافات أو في بداية/نهاية السطر)
+      .replace(/\s+---\s+/g, '\n---\n')
+      .replace(/^---\s+/gm, '---\n')
+      .replace(/\s+---$/gm, '\n---')
+      // ### headings: ابدأ سطر جديد قبل ### (فقط عندما يتبعها نص = heading pattern)
+      .replace(/\s+###\s+([^\n])/g, '\n### $1')
+      .replace(/\s+##\s+([^\n])/g, '\n## $1')
+      // إزالة الأسطر الفارغة الزائدة بعد التطبيع
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
     // 1. إزالة tool call tags
     cleaned = cleaned
       .replace(/\[TOOL_CALL\][\s\S]*?\[\/TOOL_CALL\]/g, '')

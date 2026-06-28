@@ -11,12 +11,14 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Injectable, Logger } from '@nestjs/common';
-import { marked } from 'marked';
+import MarkdownIt from 'markdown-it';
 
-// Configure marked for GFM + line breaks
-marked.setOptions({
-  gfm: true,
+// V575: markdown-it (CommonJS نقي) بدل marked (ESM فقط، يفشل على Railway)
+const md = new MarkdownIt({
+  html: false,
   breaks: true,
+  linkify: true,
+  typographer: false,
 });
 
 /**
@@ -68,16 +70,16 @@ function preprocessMarkdown(text: string): string {
 }
 
 /**
- * V574: يحول Markdown إلى HTML نظيف باستخدام marked + preprocessor
- * الحل المستدام: backend يولّد HTML، frontend يعرضه فقط
+ * V575: يحول Markdown إلى HTML نظيف باستخدام markdown-it + preprocessor
+ * markdown-it هو CommonJS نقي (يعمل مع require() على Railway)
  */
 function markdownToHtml(markdown: string): string {
   try {
     const preprocessed = preprocessMarkdown(markdown);
-    const html = marked.parse(preprocessed) as string;
+    const html = md.render(preprocessed);
     return html;
   } catch (e: any) {
-    // fallback: ارجع النص الأصلي لو فشل marked
+    // fallback: ارجع النص مع <br> للأسطر الجديدة
     return `<p>${markdown.replace(/\n/g, '<br>')}</p>`;
   }
 }

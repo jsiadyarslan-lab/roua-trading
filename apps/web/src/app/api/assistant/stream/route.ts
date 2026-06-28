@@ -21,14 +21,49 @@ const md = new MarkdownIt({ html: true, breaks: true, linkify: true });
 
 function preprocessMarkdown(text: string): string {
   let out = text;
+
+  // V580: دمج خلايا الجدول المبعثرة + إضافة separator تلقائياً
+  out = out.replace(/(?:^[ \t]*\|[^\n]+\n?)+/gm, (block) => {
+    const lines = block.trim().split('\n').map(l => l.trim()).filter(l => l.startsWith('|'));
+    if (lines.length < 2) return block;
+    // ادمج الأسطر في سطر واحد (صف جدول واحد)
+    const merged = lines.join(' ').replace(/\|\s*\|/g, '|');
+    return merged + '\n';
+  });
+
+  // V580.2: إزالة الأسطر الفارغة بين صفوف الجدول (سطور تحوي |)
+  // كرر العملية عدة مرات للحالات المتعددة
+  for (let i = 0; i < 5; i++) {
+    const before = out;
+    out = out.replace(/([^\n]*\|[^\n]*)\n\s*\n\s*([^\n]*\|)/g, '$1\n$2');
+    if (out === before) break;
+  }
+
+  // V580.1: لو صفين متتاليين يحويان | وليس بينهما separator، أضف separator تلقائياً
+  // ملاحظة: السطر قد لا ينتهي بـ | (الـ LLM أحياناً ينسى | الأخيرة)
+  out = out.replace(/^(\|[^\n]+)\n(\|[^\n]+)/gm, (match: string, header: string, firstRow: string) => {
+    if (header.includes('---')) return match;
+    // أضف | في نهاية header لو ناقصة
+    const cleanHeader = header.trim().endsWith('|') ? header : header + ' |';
+    const colCount = (cleanHeader.match(/\|/g) || []).length - 1;
+    if (colCount < 2) return match;
+    const separator = '|' + Array(colCount).fill('---').join('|') + '|';
+    return cleanHeader + '\n' + separator + '\n' + firstRow;
+  });
+
+  // V575.2: فصل --- ### قبل أي شيء آخر
   out = out.replace(/\|\s+---\s+###\s/g, '|\n---\n### ');
   out = out.replace(/\|\s+---\s+##\s/g, '|\n---\n## ');
   out = out.replace(/\|\s+---\s+#\s/g, '|\n---\n# ');
   out = out.replace(/\|\s+---\s+/g, '|\n---\n');
+
+  // حماية table separators و rows
   const tableSeparators: string[] = [];
   out = out.replace(/\|[-:\s|]+\|/g, (m) => { tableSeparators.push(m); return `__TS_${tableSeparators.length - 1}__`; });
   const tableRows: string[] = [];
   out = out.replace(/\|[^\n]+\|/g, (m) => { if ((m.match(/\|/g) || []).length >= 3) { tableRows.push(m); return `__TR_${tableRows.length - 1}__`; } return m; });
+
+  // فصل --- و ###
   out = out.replace(/(\S)\s+---\s+/g, '$1\n---\n');
   out = out.replace(/\s+---\s+(\S)/g, '\n---\n$1');
   out = out.replace(/([^\n\s])\s+---/g, '$1\n---');
@@ -36,6 +71,8 @@ function preprocessMarkdown(text: string): string {
   out = out.replace(/([^\n])\s+##\s+/g, '$1\n## ');
   out = out.replace(/([^\n])\s+#\s+/g, '$1\n# ');
   out = out.replace(/(#{1,4}\s+[^\n]+?)\s+(__TR_\d+__)/g, '$1\n$2');
+
+  // استعادة
   out = out.replace(/__TR_(\d+)__/g, (_m, i) => tableRows[parseInt(i, 10)]);
   out = out.replace(/__TS_(\d+)__/g, (_m, i) => tableSeparators[parseInt(i, 10)]);
   out = out.replace(/\n{3,}/g, '\n\n').trim();

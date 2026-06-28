@@ -78,13 +78,10 @@ import { PrismaService } from './common/prisma/prisma.service';
       provide: APP_INTERCEPTOR,
       useClass: UserIsolationInterceptor,
     },
-    // RC-8: تفعيل UserThrottlerGuard عالمياً — يفعّل كل @Throttle decorators
-    // التي كانت معطّلة (ThrottlerModule وحده لا يكفي، يجب APP_GUARD)
-    // getTracker() يرجع userId لو مسجّل، وإلا IP (للـ public routes)
-    {
-      provide: APP_GUARD,
-      useClass: UserThrottlerGuard,
-    },
+    // RC-8 REMOVED: UserThrottlerGuard كـ APP_GUARD كان يكسر الـ dashboard بالكامل
+    // (429 Too Many Requests على كل endpoints لأن dashboard يرسل 10+ طلبات متوازية)
+    // الحل الصحيح: تطبيق throttle فقط على assistant endpoints عبر @UseGuards
+    // وليس عالمياً. سيتم إضافته بشكل targeted لاحقاً.
   ],
   imports: [
     // ── Configuration ──

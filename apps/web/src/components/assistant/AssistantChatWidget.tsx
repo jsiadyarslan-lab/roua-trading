@@ -1755,6 +1755,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
 
       // ── Table renderer ──
       // UI-1: تحسين تنسيق الجداول — حدود واضحة + padding أكبر + fontSize أكبر + border-radius
+      // FIX: إزالة whiteSpace: nowrap (كان يسبب امتداد أفقي لا نهائي)
       const renderTable = (headers: string[], rows: string[][]) => {
         return (
           <div key={`tbl-${i}`} style={{
@@ -1763,12 +1764,14 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
             borderRadius: '8px',
             border: '1px solid rgba(0,229,255,0.20)',
             background: 'rgba(15,20,33,0.40)',
+            maxWidth: '100%',
           }}>
             <table style={{
               width: '100%',
               borderCollapse: 'collapse',
               fontSize: '12.5px',
-              fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
+              fontFamily: 'inherit',
+              tableLayout: 'fixed',
             }}>
               <thead>
                 <tr>{headers.map((h, hi) => (
@@ -1779,10 +1782,11 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
                     borderLeft: hi > 0 ? '1px solid rgba(0,229,255,0.10)' : 'none',
                     color: '#00E5FF',
                     fontWeight: 700,
-                    whiteSpace: 'nowrap',
                     background: 'rgba(0,229,255,0.08)',
                     fontSize: '12px',
                     letterSpacing: '0.02em',
+                    wordBreak: 'break-word',
+                    overflowWrap: 'break-word',
                   }}>{parseInline(h)}</th>
                 ))}</tr>
               </thead>
@@ -1811,7 +1815,9 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
                           borderLeft: ci > 0 ? '1px solid rgba(0,229,255,0.06)' : 'none',
                           color,
                           fontWeight: ci === 0 ? 700 : 500,
-                          whiteSpace: 'nowrap',
+                          wordBreak: 'break-word',
+                          overflowWrap: 'break-word',
+                          lineHeight: 1.5,
                         }}>{parseInline(cell)}</td>
                       );
                     })}

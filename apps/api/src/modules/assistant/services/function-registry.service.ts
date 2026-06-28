@@ -355,14 +355,18 @@ export class FunctionRegistryService {
         currentPrice: Number(p.currentPrice),
         quantity: Number(p.quantity),
         unrealizedPnl: Number(p.unrealizedPnl),
-        stopLoss: p.stopLoss ? Number(p.stopLoss) : null,
-        takeProfit: p.takeProfit ? Number(p.takeProfit) : null,
+        // BUG-1: استخدم "N/A" بدل null — null يجعل LLM يولّد "[بيانات غير متاحة]" في الجداول
+        // "N/A" صريح ولا يكسر تنسيق الجدول
+        stopLoss: p.stopLoss != null ? Number(p.stopLoss) : 'N/A',
+        takeProfit: p.takeProfit != null ? Number(p.takeProfit) : 'N/A',
         openedAt: p.openedAt,
         durationMinutes: Math.round(
           (Date.now() - new Date(p.openedAt).getTime()) / 60000,
         ),
         source: p.source,
       })),
+      // BUG-1: تعليمات صريحة للـ LLM عن كيفية عرض N/A
+      _formattingHint: 'لو stopLoss أو takeProfit = "N/A"، اعرضها كـ "-" في الجدول. لا تقل "بيانات غير متاحة".',
     };
   }
 

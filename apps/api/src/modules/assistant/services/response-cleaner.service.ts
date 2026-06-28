@@ -28,6 +28,20 @@ export class ResponseCleanerService {
 
     let cleaned = text;
 
+    // BUG-1: استبدل عبارات "بيانات غير متاحة" و null/undefined بـ "-"
+    // الـ LLM أحياناً يولّد هذه العبارات حين يرى null في JSON data
+    // هذا يكسر تنسيق الجداول (مثل: "0.0[بيانات غير متاحة]2")
+    cleaned = cleaned
+      .replace(/\[بيانات غير متاحة\]/gi, '-')
+      .replace(/\[غير متاح\]/gi, '-')
+      .replace(/\[not available\]/gi, '-')
+      .replace(/\[N\/A\]/gi, '-')
+      .replace(/\bnull\b/gi, '-')
+      .replace(/\bundefined\b/gi, '-')
+      // أصلح الأرقام المكسورة مثل "0.0-2" → "0.0" (احتفظ بالرقم الصحيح)
+      .replace(/(\d+\.\d+)-(\d+)/g, '$1')
+      .replace(/(\d+)-(\d+\.\d+)/g, '$2');
+
     // 1. إزالة tool call tags
     cleaned = cleaned
       .replace(/\[TOOL_CALL\][\s\S]*?\[\/TOOL_CALL\]/g, '')

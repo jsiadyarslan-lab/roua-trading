@@ -69,7 +69,11 @@ echo ""
 echo "━━━ Layer 3: Unit Tests (Jest) ━━━"
 cd "$API_DIR"
 if [ -f "jest.config.js" ] && command -v bunx &>/dev/null; then
-  UNIT_OUTPUT=$(bunx jest --config ./jest.config.js __tests__/assistant-rc-fixes.spec.ts --no-cache 2>&1)
+  # شغّل فقط ملفات اختبار RC + BUG fixes (تجنّب pre-existing failing tests)
+  UNIT_OUTPUT=$(bunx jest --config ./jest.config.js \
+    __tests__/assistant-rc-fixes.spec.ts \
+    __tests__/assistant-bug-fixes.spec.ts \
+    --no-cache 2>&1)
   UNIT_RESULT=$?
   UNIT_SUMMARY=$(echo "$UNIT_OUTPUT" | grep "Tests:" | tail -1)
   echo "  $UNIT_SUMMARY"

@@ -268,15 +268,20 @@ export class AssistantController {
     }
 
     // A-5: Audit trail — سجّل كل عملية /chat (لاحتوائها على بيانات حساسة)
-    // لا تسجل content كامل (خصوصية) — فقط metadata
+    // privacy: لا تسجل أي جزء من content — فقط length + hash (للـ debugging بدون تعريض خصوصية)
     try {
+      const messageHash = require('crypto')
+        .createHash('sha256')
+        .update(body.message)
+        .digest('hex')
+        .slice(0, 16);
       await this.auditService.log({
         userId,
         action: 'ASSISTANT_CHAT',
         resource: 'assistant',
         details: JSON.stringify({
           messageLength: body.message.length,
-          messagePreview: body.message.slice(0, 50), // أول 50 حرف فقط
+          messageHash, // hash فقط (لا محتوى) — للـ debugging والربط بين الطلبات
           language: body.language || 'ar',
           symbol: body.symbol,
           model: response.model,

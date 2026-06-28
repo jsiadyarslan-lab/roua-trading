@@ -175,6 +175,7 @@ export class GroqService {
       sv: 'Swedish',
       uk: 'Ukrainian',
       ur: 'Urdu',
+      // RC-9 fix: 'fil' قبل slice(0,2) لتفادي collision مع 'fi' (Finnish)
       fil: 'Filipino',
       da: 'Danish',
       no: 'Norwegian',
@@ -187,7 +188,9 @@ export class GroqService {
       id: 'Indonesian',
       ms: 'Malay',
     };
-    const langCode = (request.language || 'ar').toLowerCase().slice(0, 2);
+    // RC-9: استخدم اللغة كاملة أولاً (لـ 'fil' وغيرها)، ثم slice(0,2) كـ fallback
+    const fullLang = (request.language || 'ar').toLowerCase();
+    const langCode = fullLang in languageNames ? fullLang : fullLang.slice(0, 2);
     const langName = languageNames[langCode] || 'Arabic'; // fallback للعربية (اللغة الأساسية للمنصة)
     return `You are a financial analysis AI specializing in ${request.type}. Respond in ${langName}. Be concise, data-driven, and professional. Always include risk disclaimers.`;
   }

@@ -14,6 +14,40 @@ import { buildAssistantContext } from '@/lib/assistant/context-builder';
 import { fetchAssetData, detectAsset, fetchMultipleAssetData } from '@/lib/assistant/data-fetcher';
 import { buildDataContext, buildHTMLCards, buildAgenticAnalysis } from '@/lib/assistant/response-builder';
 import { detectPositionSizingQuestion, calculatePositionSize, buildPositionSizeHTML } from '@/lib/assistant/position-calculator';
+// V575: markdown-it لتحويل Markdown → HTML في stream route
+import MarkdownIt from 'markdown-it';
+const md = new MarkdownIt({ html: false, breaks: true, linkify: true });
+
+function preprocessMarkdown(text: string): string {
+  let out = text;
+  out = out.replace(/\|\s+---\s+###\s/g, '|\n---\n### ');
+  out = out.replace(/\|\s+---\s+##\s/g, '|\n---\n## ');
+  out = out.replace(/\|\s+---\s+#\s/g, '|\n---\n# ');
+  out = out.replace(/\|\s+---\s+/g, '|\n---\n');
+  const tableSeparators: string[] = [];
+  out = out.replace(/\|[-:\s|]+\|/g, (m) => { tableSeparators.push(m); return `__TS_${tableSeparators.length - 1}__`; });
+  const tableRows: string[] = [];
+  out = out.replace(/\|[^\n]+\|/g, (m) => { if ((m.match(/\|/g) || []).length >= 3) { tableRows.push(m); return `__TR_${tableRows.length - 1}__`; } return m; });
+  out = out.replace(/(\S)\s+---\s+/g, '$1\n---\n');
+  out = out.replace(/\s+---\s+(\S)/g, '\n---\n$1');
+  out = out.replace(/([^\n\s])\s+---/g, '$1\n---');
+  out = out.replace(/([^\n])\s+###\s+/g, '$1\n### ');
+  out = out.replace(/([^\n])\s+##\s+/g, '$1\n## ');
+  out = out.replace(/([^\n])\s+#\s+/g, '$1\n# ');
+  out = out.replace(/(#{1,4}\s+[^\n]+?)\s+(__TR_\d+__)/g, '$1\n$2');
+  out = out.replace(/__TR_(\d+)__/g, (_m, i) => tableRows[parseInt(i, 10)]);
+  out = out.replace(/__TS_(\d+)__/g, (_m, i) => tableSeparators[parseInt(i, 10)]);
+  out = out.replace(/\n{3,}/g, '\n\n').trim();
+  return out;
+}
+
+function markdownToHtml(markdown: string): string {
+  try {
+    return md.render(preprocessMarkdown(markdown));
+  } catch {
+    return markdown;
+  }
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -430,6 +464,12 @@ export async function POST(request: Request) {
             .replace(/[\u0400-\u04FF]/g, '')
             .replace(/\s{2,}/g, ' ')
             .trim();
+        }
+
+        // V575: تحويل Markdown → HTML قبل الإرسال
+        if (!isHtmlResponse && finalResponse) {
+          finalResponse = markdownToHtml(finalResponse);
+          isHtmlResponse = true;
         }
 
         // ── Stream the response in chunks ──

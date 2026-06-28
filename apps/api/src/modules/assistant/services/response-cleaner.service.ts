@@ -11,6 +11,76 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Injectable, Logger } from '@nestjs/common';
+import { marked } from 'marked';
+
+// Configure marked for GFM + line breaks
+marked.setOptions({
+  gfm: true,
+  breaks: true,
+});
+
+/**
+ * V574: Preprocessor — يحمي عناصر Markdown قبل فصل الأسطر
+ * المشكلة: الـ LLM يخرج --- ### | على نفس السطر، و |---|---| يحوي --- التي تُطابق كـ horizontal rule
+ * الحل: نضع placeholders لـ table separators و table rows قبل أي معالجة، ثم نستعيدها
+ */
+function preprocessMarkdown(text: string): string {
+  let out = text;
+
+  // 1. حماية table separators (|---|---|)
+  const tableSeparators: string[] = [];
+  out = out.replace(/\|[-:\s|]+\|/g, (match) => {
+    tableSeparators.push(match);
+    return `__TABLE_SEP_${tableSeparators.length - 1}__`;
+  });
+
+  // 2. حماية table rows كاملة (|...|...|...|)
+  const tableRows: string[] = [];
+  out = out.replace(/\|[^\n]+\|/g, (match) => {
+    // فقط لو يحوي 3+ | (أي row جدول حقيقي: |col1|col2|col3|)
+    if ((match.match(/\|/g) || []).length >= 3) {
+      tableRows.push(match);
+      return `__TABLE_ROW_${tableRows.length - 1}__`;
+    }
+    return match;
+  });
+
+  // 3. فصل --- (horizontal rule)
+  out = out.replace(/(\S)\s+---\s+/g, '$1\n---\n');
+  out = out.replace(/\s+---\s+(\S)/g, '\n---\n$1');
+  out = out.replace(/([^\n\s])\s+---/g, '$1\n---');
+
+  // 4. فصل ## ### headings
+  out = out.replace(/([^\n])\s+###\s+/g, '$1\n### ');
+  out = out.replace(/([^\n])\s+##\s+/g, '$1\n## ');
+  out = out.replace(/([^\n])\s+#\s+/g, '$1\n# ');
+
+  // 4.5. فصل heading الملتصق بـ table row placeholder
+  out = out.replace(/(#{1,4}\s+[^\n]+?)\s+(__TABLE_ROW_\d+__)/g, '$1\n$2');
+
+  // 5. استعادة table rows و separators
+  out = out.replace(/__TABLE_ROW_(\d+)__/g, (_match, idx) => tableRows[parseInt(idx, 10)]);
+  out = out.replace(/__TABLE_SEP_(\d+)__/g, (_match, idx) => tableSeparators[parseInt(idx, 10)]);
+
+  // 6. تنظيف
+  out = out.replace(/\n{3,}/g, '\n\n').trim();
+  return out;
+}
+
+/**
+ * V574: يحول Markdown إلى HTML نظيف باستخدام marked + preprocessor
+ * الحل المستدام: backend يولّد HTML، frontend يعرضه فقط
+ */
+function markdownToHtml(markdown: string): string {
+  try {
+    const preprocessed = preprocessMarkdown(markdown);
+    const html = marked.parse(preprocessed) as string;
+    return html;
+  } catch (e: any) {
+    // fallback: ارجع النص الأصلي لو فشل marked
+    return `<p>${markdown.replace(/\n/g, '<br>')}</p>`;
+  }
+}
 
 @Injectable()
 export class ResponseCleanerService {
@@ -148,7 +218,10 @@ export class ResponseCleanerService {
         .trim();
     }
 
-    return cleaned;
+    // V574: تحويل Markdown إلى HTML على الـ backend
+    // الـ frontend سيعرض HTML مباشرة بدل محاولة parse Markdown
+    const html = markdownToHtml(cleaned);
+    return html;
   }
 
   /**

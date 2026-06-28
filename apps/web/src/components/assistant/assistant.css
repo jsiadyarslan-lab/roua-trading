@@ -2615,3 +2615,164 @@ table.asst-tbl .neu { color: var(--text2); }
   table.asst-tbl { font-size: 11px; }
   table.asst-tbl th, table.asst-tbl td { padding: 6px; }
 }
+
+/* ═══════════════════════════════════════════════════════════
+ * V574: MarkdownRenderer HTML styling
+ * الـ backend يولّد HTML نظيف عبر marked، هذا CSS لعرضه
+ * ═══════════════════════════════════════════════════════════ */
+
+.assistant-html-content {
+  color: #E8EDF5;
+  font-size: 13.5px;
+  line-height: 1.8;
+  word-break: break-word;
+}
+
+.assistant-html-content h1,
+.assistant-html-content h2,
+.assistant-html-content h3,
+.assistant-html-content h4,
+.assistant-html-content h5,
+.assistant-html-content h6 {
+  color: #00E5FF;
+  font-weight: 700;
+  margin: 16px 0 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(0,229,255,0.10) 0%, rgba(0,229,255,0.04) 100%);
+  border-left: 3px solid #00E5FF;
+}
+
+.assistant-html-content h1 { font-size: 18px; font-weight: 800; }
+.assistant-html-content h2 { font-size: 16px; }
+.assistant-html-content h3 { font-size: 14px; }
+.assistant-html-content h4 { font-size: 13px; }
+
+.assistant-html-content p {
+  font-size: 13.5px;
+  line-height: 1.8;
+  color: #D1D9E5;
+  margin: 0 0 12px;
+}
+
+.assistant-html-content ul,
+.assistant-html-content ol {
+  margin: 8px 0 12px;
+  padding-left: 20px;
+}
+
+.assistant-html-content li {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #D1D9E5;
+  margin: 4px 0;
+}
+
+.assistant-html-content hr {
+  height: 1px;
+  border: none;
+  background: linear-gradient(90deg, transparent, rgba(0,229,255,0.30), transparent);
+  margin: 16px 0;
+}
+
+.assistant-html-content blockquote {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(0,229,255,0.05);
+  border-left: 2px solid #00E5FF;
+  color: #B0C4D8;
+  font-style: italic;
+  font-size: 12px;
+}
+
+.assistant-html-content strong {
+  color: #00E5FF;
+  font-weight: 700;
+}
+
+.assistant-html-content em {
+  color: #FFB800;
+  font-style: italic;
+}
+
+.assistant-html-content code {
+  background: rgba(0,229,255,0.10);
+  color: #00E5FF;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+.assistant-html-content a {
+  color: #00E5FF;
+  text-decoration: underline;
+}
+
+/* Tables (GFM) */
+.assistant-html-content table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  table-layout: fixed;
+  margin: 12px 0;
+  border: 1px solid rgba(0,229,255,0.20);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(15,20,33,0.40);
+}
+
+.assistant-html-content thead {
+  background: rgba(0,229,255,0.08);
+}
+
+.assistant-html-content th {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 2px solid rgba(0,229,255,0.40);
+  color: #00E5FF;
+  font-weight: 700;
+  font-size: 12px;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.assistant-html-content td {
+  padding: 9px 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(0,229,255,0.08);
+  color: #E8EDF5;
+  font-weight: 500;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.5;
+}
+
+.assistant-html-content tbody tr:nth-child(odd) {
+  background: rgba(255,255,255,0.015);
+}
+
+.assistant-html-content tbody tr:nth-child(even) {
+  background: rgba(0,229,255,0.025);
+}
+
+/* RTL adjustments */
+[dir="rtl"] .assistant-html-content ul,
+[dir="rtl"] .assistant-html-content ol {
+  padding-left: 0;
+  padding-right: 20px;
+}
+
+[dir="rtl"] .assistant-html-content h1,
+[dir="rtl"] .assistant-html-content h2,
+[dir="rtl"] .assistant-html-content h3,
+[dir="rtl"] .assistant-html-content h4 {
+  border-left: none;
+  border-right: 3px solid #00E5FF;
+}
+
+[dir="rtl"] .assistant-html-content blockquote {
+  border-left: none;
+  border-right: 2px solid #00E5FF;
+}

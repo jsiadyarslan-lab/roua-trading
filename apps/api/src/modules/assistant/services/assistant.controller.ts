@@ -680,6 +680,40 @@ export class AssistantController {
   }
 
   /**
+   * GET /api/assistant/debug/markdown
+   * V575: Endpoint تشخيصي — يحول Markdown إلى HTML ويرجعه
+   * يستخدم للتحقق أن markdown-it يعمل على Railway
+   */
+  @Get('debug/markdown')
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  async debugMarkdown() {
+    const testMarkdown = `## عنوان تجريبي\n\n| الأصل | السعر |\n|---|---|\n| BTC | 95000 |\n\n---\n\nفقرة عادية.\n\n### عنوان فرعي`;
+    const html = this.responseCleaner ? this.responseCleaner.constructor : 'N/A';
+    // استدعاء clean مباشرة
+    let result = '';
+    try {
+      // @ts-ignore — نتجاوز TypeScript للوصول لـ ResponseCleanerService
+      const cleaner = (this as any).chatService?.responseCleaner;
+      if (cleaner) {
+        result = cleaner.clean(testMarkdown, 'ar');
+      } else {
+        result = 'ERROR: ResponseCleanerService not accessible';
+      }
+    } catch (e: any) {
+      result = `ERROR: ${e?.message || e}`;
+    }
+    return {
+      success: true,
+      input: testMarkdown,
+      output: result,
+      isHtml: result.includes('<'),
+      hasTable: result.includes('<table>'),
+      hasH2: result.includes('<h2>'),
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
    * GET /api/assistant/health
    * فحص صحة الـ Assistant module
    */

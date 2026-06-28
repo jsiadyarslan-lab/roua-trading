@@ -87,9 +87,10 @@ function markdownToHtml(markdown: string): string {
   try {
     const preprocessed = preprocessMarkdown(markdown);
     const html = md.render(preprocessed);
+    console.log('[V575 markdownToHtml] SUCCESS — input:', markdown.length, 'chars → output:', html.length, 'chars | has <table>:', html.includes('<table>'));
     return html;
   } catch (e: any) {
-    // fallback: ارجع النص مع <br> للأسطر الجديدة
+    console.error('[V575 markdownToHtml] FAILED:', e?.message || e);
     return `<p>${markdown.replace(/\n/g, '<br>')}</p>`;
   }
 }

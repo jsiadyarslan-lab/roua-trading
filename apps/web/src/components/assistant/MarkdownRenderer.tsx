@@ -51,12 +51,19 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     }
   }, [content]);
 
+  // V579: لف الجداول في wrapper للتمرير الأفقي على الشاشات الصغيرة
+  const wrappedHtml = useMemo(() => {
+    if (!safeHtml) return '';
+    // لف كل <table> في <div class="md-table-wrap">
+    return safeHtml.replace(/<table/g, '<div class="md-table-wrap"><table').replace(/<\/table>/g, '</table></div>');
+  }, [safeHtml]);
+
   return (
     <div
       className="assistant-html-content"
       dir={dir}
       style={{ direction: dir }}
-      dangerouslySetInnerHTML={{ __html: safeHtml }}
+      dangerouslySetInnerHTML={{ __html: wrappedHtml }}
     />
   );
 };

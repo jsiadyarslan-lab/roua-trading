@@ -47,7 +47,7 @@ type CacheCategory = keyof typeof TTL_STRATEGY;
 @Injectable()
 export class TranslationCacheService {
   private readonly logger = new Logger(TranslationCacheService.name);
-  private readonly CACHE_PREFIX = 'assistant:cache:v574:'; // V574: version bump يُبطل كل cache القديم (Markdown → HTML)
+  private readonly CACHE_PREFIX = 'assistant:cache:v575:'; // V575: bump آخر لتفادي cache من v574 (كان marked ESM يفشل)
 
   // إحصائيات في الذاكرة (تُصفّر عند الـ restart)
   private stats: CacheStats = {

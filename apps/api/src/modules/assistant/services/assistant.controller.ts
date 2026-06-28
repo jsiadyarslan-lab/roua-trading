@@ -44,6 +44,8 @@ import { ContextRequest } from '../types/context.types';
 import { RedisService } from '../../../common/redis/redis.service';
 // A-5: Audit trail للمساعد
 import { AuditService } from '../../../audit/audit.service';
+// V575: حقن ResponseCleanerService مباشرة للـ diagnostic endpoint
+import { ResponseCleanerService } from './response-cleaner.service';
 
 @Controller('assistant')
 @UseGuards(AuthGuard)
@@ -67,6 +69,8 @@ export class AssistantController {
     private readonly redis: RedisService,
     // A-5: Audit trail
     private readonly auditService: AuditService,
+    // V575: diagnostic
+    private readonly responseCleanerService: ResponseCleanerService,
   ) {
     this.logger.log('🤖 AssistantController initialized — Phase 5 (Intelligence Layer)');
   }
@@ -688,17 +692,10 @@ export class AssistantController {
   @Throttle({ default: { limit: 60, ttl: 60000 } })
   async debugMarkdown() {
     const testMarkdown = `## عنوان تجريبي\n\n| الأصل | السعر |\n|---|---|\n| BTC | 95000 |\n\n---\n\nفقرة عادية.\n\n### عنوان فرعي`;
-    const html = this.responseCleaner ? this.responseCleaner.constructor : 'N/A';
-    // استدعاء clean مباشرة
+    // استدعاء clean مباشرة من ResponseCleanerService
     let result = '';
     try {
-      // @ts-ignore — نتجاوز TypeScript للوصول لـ ResponseCleanerService
-      const cleaner = (this as any).chatService?.responseCleaner;
-      if (cleaner) {
-        result = cleaner.clean(testMarkdown, 'ar');
-      } else {
-        result = 'ERROR: ResponseCleanerService not accessible';
-      }
+      result = this.responseCleanerService.clean(testMarkdown, 'ar');
     } catch (e: any) {
       result = `ERROR: ${e?.message || e}`;
     }

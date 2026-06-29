@@ -88,6 +88,8 @@ export class AIOrchestratorService {
   private readonly LATENCY_THRESHOLD_MS = 10_000; // 10 seconds — models slower than this get cooldown
   private readonly LATENCY_SAMPLE_WINDOW = 5;     // Use last 5 samples for average
   private readonly LATENCY_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes cooldown for slow models
+  // V585: Cloudflare Workers AI free tier بطيء بطبيعته — لا نضعه في cooldown
+  private readonly LATENCY_EXEMPT_MODELS = new Set(['cloudflare', 'ollama']);
   private readonly modelLatencyCooldowns = new Map<string, number>(); // model → cooldown until timestamp
 
   /** Model key environment variable mapping
@@ -335,7 +337,13 @@ export class AIOrchestratorService {
         continue;
       }
       const latencyInfo = this.modelLatencies.get(model);
-      if (latencyInfo && latencyInfo.samples >= 3 && latencyInfo.avgMs > this.LATENCY_THRESHOLD_MS) {
+      // V585: استثنِ Cloudflare و Ollama من latency cooldown (بطيئة بطبيعتها لكنها تعمل)
+      if (
+        latencyInfo &&
+        latencyInfo.samples >= 3 &&
+        latencyInfo.avgMs > this.LATENCY_THRESHOLD_MS &&
+        !this.LATENCY_EXEMPT_MODELS.has(model)
+      ) {
         // Model is consistently slow — put in cooldown
         this.modelLatencyCooldowns.set(model, Date.now() + this.LATENCY_COOLDOWN_MS);
         this.logger.warn(`🐌 Model ${model} avg latency ${Math.round(latencyInfo.avgMs)}ms > ${this.LATENCY_THRESHOLD_MS}ms — ${this.LATENCY_COOLDOWN_MS / 60000}min cooldown`);
@@ -985,7 +993,7 @@ export class AIOrchestratorService {
       gemini: 15_000,
       cerebras: 15_000,
       bedrock: 15_000,
-      cloudflare: 15_000,
+      cloudflare: 30_000, // V585: free tier — يحتاج وقت أطول
       ollama: 15_000,
       huggingface: 15_000,
       openrouter: 15_000,

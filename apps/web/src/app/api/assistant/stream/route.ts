@@ -404,7 +404,7 @@ export async function POST(request: Request) {
                 aiAnalysis = await buildAgenticAnalysis(
                   sanitizedMessage,
                   combinedContext,
-                  locale: effectiveLocale,
+                  effectiveLocale,
                   multiResult.primary!,
                   history,
                 );
@@ -447,7 +447,7 @@ export async function POST(request: Request) {
           let aiAnalysis = '';
           try {
             send('status', { message: STATUS_MESSAGES[effectiveLocale][2] }); // "جاري تحضير الإجابة..."
-            aiAnalysis = await buildAgenticAnalysis(sanitizedMessage, preFetchedToolData, locale: effectiveLocale, preBundle, history);
+            aiAnalysis = await buildAgenticAnalysis(sanitizedMessage, preFetchedToolData, effectiveLocale, preBundle, history);
           } catch { /* Cards only */ }
 
           finalResponse = aiAnalysis ? htmlCards + '\n' + aiAnalysis : htmlCards;
@@ -469,11 +469,11 @@ export async function POST(request: Request) {
                     && (!preParsed.params.pageUrl || preParsed.params.pageUrl.trim() === '')
                     && context.pageUrl) {
                   preParsed.params.pageUrl = context.pageUrl;
-                  const directResult = await executeTool(preParsed.tool, preParsed.params, locale: effectiveLocale, userId);
+                  const directResult = await executeTool(preParsed.tool, preParsed.params, effectiveLocale, userId);
                   const formattedResults = formatToolResults([directResult]);
                   toolResult = { results: [directResult], formattedResults };
                 } else {
-                  toolResult = await processToolCalls(aiContent, locale: effectiveLocale, userId);
+                  toolResult = await processToolCalls(aiContent, effectiveLocale, userId);
                 }
               } catch {
                 finalResponse = stripToolCallMarkup(aiContent);

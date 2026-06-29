@@ -55,13 +55,19 @@ export class CloudflareService {
       if (resolved) this.accountId = resolved;
     }
 
-    if (!this.apiKey || !this.accountId) {
+    // V584: Cloudflare يمكن العمل بـ API token فقط (دون account ID)
+    // لو لا account ID، نستخدم endpoint بديل
+    if (!this.apiKey) {
       return this._stubResponse(request);
     }
 
     const startTime = Date.now();
     const systemPrompt = this._buildSystemPrompt(request);
-    const baseUrl = `https://api.cloudflare.com/client/v4/accounts/${this.accountId}/ai/v1`;
+
+    // V584: لو لا account ID، نستخدم Workers AI endpoint العام
+    const baseUrl = this.accountId
+      ? `https://api.cloudflare.com/client/v4/accounts/${this.accountId}/ai/v1`
+      : `https://api.cloudflare.com/client/v4/ai/v1`;
 
     try {
       const response = await axios.post(
@@ -109,8 +115,8 @@ export class CloudflareService {
   }
 
   private _buildSystemPrompt(request: AIAnalysisRequest): string {
-    const lang = request.language === 'en' ? 'English' : 'Arabic';
-    return `You are a financial analysis AI specializing in ${request.type}. Respond in ${lang}. Be concise, data-driven, and professional. Always include risk disclaimers.`;
+    const lang = request.language === 'en' ? 'English' : 'العربية الفصحى';
+    return `You are a financial analysis AI for Roua Trading platform. Respond in ${lang}. Be concise, data-driven, and professional. Use real numbers only — never invent prices or data.`;
   }
 
   private _stubResponse(request: AIAnalysisRequest): AIAnalysisResponse {

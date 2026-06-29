@@ -226,10 +226,14 @@ ${text}`;
   /**
    * Build a stable cache key from text + language.
    * Uses a simple hash to keep the key short.
+   * V592: Includes DICTIONARY_VERSION so cache is invalidated when the
+   * local-translation-dictionary is updated.
    */
   private _buildCacheKey(text: string, language: string): string {
     const crypto = require('crypto');
     const hash = crypto.createHash('sha256').update(text).digest('hex').slice(0, 16);
-    return `brief-translation:${language}:${hash}`;
+    // Bump this version when local-translation-dictionary.ts changes
+    const DICTIONARY_VERSION = 'v2';
+    return `brief-translation:${language}:${DICTIONARY_VERSION}:${hash}`;
   }
 }

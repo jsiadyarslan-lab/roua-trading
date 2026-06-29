@@ -453,6 +453,149 @@ export const ARABIC_TO_ENGLISH_PHRASES: Array<[string, string]> = [
   ['المستوى', 'level'],
   ['تحول', 'shift'],
   ['واضح', 'clear'],
+  
+  // Round 4: words from GBP/USD and USD/JPY briefs
+  ['التحوط', 'hedging'],
+  ['بيع الجنيه الإسترليني', 'selling the British Pound'],
+  ['الجنيه الإسترليني', 'British Pound'],
+  ['الجنيه', 'Pound'],
+  ['الإسترليني', 'Sterling'],
+  ['الدولار الأمريكي', 'US Dollar'],
+  ['الدولار', 'Dollar'],
+  ['الأمريكي', 'American'],
+  ['الأمام', 'forward'],
+  ['الأخبار المحلية', 'local news'],
+  ['الأخبار', 'news'],
+  ['المحلية', 'local'],
+  ['توقعات التدفقات الصافية', 'net flow expectations'],
+  ['توقعات', 'expectations'],
+  ['التدفقات الصافية', 'net flows'],
+  ['التدفقات', 'flows'],
+  ['الصافية', 'net'],
+  ['القياسية', 'standard'],
+  ['الربع الثاني', 'second quarter'],
+  ['الربع', 'quarter'],
+  ['الثاني', 'second'],
+  ['وارتفاع الإنتاج الصناعي', 'and rising industrial production'],
+  ['وارتفاع', 'and rising'],
+  ['ارتفاع', 'rise'],
+  ['الإنتاج الصناعي', 'industrial production'],
+  ['الإنتاج', 'production'],
+  ['الصناعي', 'industrial'],
+  ['للسيارات', 'for cars'],
+  ['وإعادة شراء السندات', 'and bond buybacks'],
+  ['وإعادة', 'and redoing'],
+  ['إعادة', 're-'],
+  ['شراء', 'buying'],
+  ['السندات', 'bonds'],
+  ['المخاوف التكنولوجية المستمرة', 'ongoing tech concerns'],
+  ['المخاوف', 'concerns'],
+  ['التكنولوجية المستمرة', 'ongoing tech'],
+  ['التكنولوجية', 'tech'],
+  ['المستمرة', 'ongoing'],
+  ['التكنولوجيا', 'technology'],
+  ['تدفع', 'push'],
+  ['يمثل', 'represents'],
+  ['الإجماع الكمي', 'Quantitative consensus'],
+  ['الإجماع', 'consensus'],
+  ['الكمي', 'quantitative'],
+  ['أهمية الحذر', 'importance of caution'],
+  ['أهمية', 'importance'],
+  ['الحذر', 'caution'],
+  ['trading النشط', 'active trading'],
+  ['النشط', 'active'],
+  ['frsentiment Analyst', 'Sentiment Analyst'],
+  ['فرصة للاستثمار', 'opportunity to invest'],
+  ['فرصة للدخول', 'opportunity to enter'],
+  ['فرصة', 'opportunity'],
+  ['للاستثمار', 'to invest'],
+  ['للدخول', 'to enter'],
+  ['بناءً', 'based on'],
+  ['حركة صغيرة', 'small movement'],
+  ['حركة', 'movement'],
+  ['صغيرة', 'small'],
+  ['تتناقض توقعات', 'contradict expectations'],
+  ['تتناقض', 'contradict'],
+  ['signals متضاربة', 'conflicting signals'],
+  ['متضاربة', 'conflicting'],
+  ['يعزز حالة', 'reinforces the state'],
+  ['يعزز', 'reinforces'],
+  ['حالة', 'state'],
+  ['حجم position', 'position size'],
+  ['حجم', 'size'],
+  ['صغيرًا للغاية', 'very small'],
+  ['صغيرًا', 'small'],
+  ['للغاية', 'very'],
+  ['نظرًا لعدم', 'due to lack of'],
+  ['نظرًا', 'given'],
+  ['لعدم', 'due to'],
+  ['لذلك،', 'therefore,'],
+  ['لذلك', 'therefore'],
+  ['نوصي ببيع', 'we recommend selling'],
+  ['نوصي', 'we recommend'],
+  ['ببيع', 'selling'],
+  ['قوية مدعومة', 'strong supported'],
+  ['قوية', 'strong'],
+  ['مدعومة', 'supported'],
+  ['نسبياً', 'relatively'],
+  ['إشارة', 'signal'],
+  ['خبراء آخرين', 'other experts'],
+  ['خبراء', 'experts'],
+  ['آخرين', 'others'],
+  ['النهائية', 'final'],
+  ['شراء', 'BUY'],
+  ['بناءً on', 'based on'],
+  ['والتأكيد', 'and confirming'],
+  ['التأكيد', 'confirming'],
+  ['الرأي', 'view'],
+  ['يوافق', 'agrees'],
+  ['الوضع', 'situation'],
+  ['three probabilityات', 'three probabilities'],
+  ['probabilityات', 'probabilities'],
+  ['ثلاثة', 'three'],
+  ['تفضيل', 'preference'],
+  ['الظروف economic', 'economic conditions'],
+  ['الظروف', 'conditions'],
+  ['والسياسية المتغيرة', 'and changing political'],
+  ['والسياسية', 'and political'],
+  ['المتغيرة', 'changing'],
+  ['تؤثر', 'affect'],
+  ['حركة سعر صرف', 'exchange rate movement'],
+  ['سعر صرف', 'exchange rate'],
+  ['سعر', 'price'],
+  ['صرف', 'exchange'],
+  ['الولايات المتحدة', 'United States'],
+  ['الولايات', 'States'],
+  ['المتحدة', 'United'],
+  ['واليابان', 'and Japan'],
+  ['اليابان', 'Japan'],
+  ['السياسة النقدية', 'monetary policy'],
+  ['السياسة', 'policy'],
+  ['النقدية', 'monetary'],
+  ['المتعلقة', 'related'],
+  ['بالسياسة', 'to policy'],
+  ['الاعتبار', 'consideration'],
+  ['نضع', 'we put'],
+  ['المرتبطة', 'associated'],
+  ['بالوضع', 'to the situation'],
+  ['إدارة', 'management'],
+  ['الصارمة', 'strict'],
+  ['بما', 'including'],
+  ['تحديد', 'determining'],
+  ['أوامر وقف الخسارة', 'stop-loss orders'],
+  ['أوامر', 'orders'],
+  ['وقف', 'stop'],
+  ['الخسارة', 'loss'],
+  ['لتقليل', 'to reduce'],
+  ['المحتملة', 'potential'],
+  ['تطبيق', 'applying'],
+  ['الdata', 'the data'],
+  ['تحليلات', 'analyses'],
+  ['تظهر', 'show'],
+  ['يعني', 'means'],
+  ['there فرصة', 'there is opportunity'],
+  ['مستوى', 'level'],
+  ['exceeded price', 'price exceeds'],
 ];
 
 /**
@@ -506,6 +649,66 @@ export function localTranslateArabicToEnglish(text: string): string {
   result = result.replace(/\s+\)/g, ')');
   result = result.replace(/\(\s+/g, '(');
   result = result.replace(/\s+،/g, '،');
+  
+  // V592: Post-processing for Arabic morphology attached to English words
+  
+  // Pattern 1: "ال" + English word → "the " + English word
+  // e.g. "الrisk" → "the risk", "الdata" → "the data"
+  result = result.replace(/\u0627\u0644([A-Za-z][A-Za-z]+)/g, 'the $1');
+  
+  // Pattern 2: "وال" + English word → "and the " + English word
+  // e.g. "والvolatilityات" → "and the volatilities"
+  result = result.replace(/\u0648\u0627\u0644([A-Za-z][A-Za-z]+)/g, 'and the $1');
+  
+  // Pattern 3: English word + "ات" (Arabic plural suffix) → English word + "s"
+  // e.g. "volatilityات" → "volatilities", "probabilityات" → "probabilities"
+  result = result.replace(/([A-Za-z][A-Za-z]+)\u0627\u062a/g, '$1s');
+  
+  // Pattern 4: English word + "ة" (Arabic feminine suffix) → English word
+  // e.g. "largeة" → "large", "bearishة" → "bearish"
+  result = result.replace(/([A-Za-z][A-Za-z]+)\u0629/g, '$1');
+  
+  // Pattern 5: "س" + English verb (future tense prefix) → "will " + verb
+  // e.g. "سindicates" → "will indicate"
+  result = result.replace(/\u0633([A-Za-z]{4,})/g, (match, verb) => {
+    // Simple heuristic: just use "will " + verb
+    return `will ${verb}`;
+  });
+  
+  // Pattern 6: "ي" + English verb (present tense prefix) → "" + verb
+  // e.g. "يبرر" already handled, but "يindicates" → "indicates"
+  result = result.replace(/\u064a([A-Za-z]{4,})/g, '$1');
+  
+  // Pattern 7: "ب" + English word (preposition) → "by/with " + word
+  // e.g. "بvolatility" → "with volatility"
+  result = result.replace(/\u0628([A-Za-z]{4,})/g, 'with $1');
+  
+  // Pattern 8: "ل" + English word (preposition "for") → "for " + word
+  // e.g. "لvolatility" → "for volatility"
+  result = result.replace(/\u0644([A-Za-z]{4,})/g, 'for $1');
+  
+  // Pattern 9: "ا" standalone prefix on English → remove
+  result = result.replace(/\u0627([A-Za-z]{4,})/g, '$1');
+  
+  // Pattern 10: English word + "،" (Arabic comma) → English word + ","
+  result = result.replace(/([A-Za-z])\u060c/g, '$1,');
+  
+  // Pattern 11: Standalone single Arabic letters (residue) → remove
+  // Only remove if surrounded by spaces or at boundaries
+  result = result.replace(/\s+[\u0627\u0648\u0628\u0644\u0641\u0642\u0643\u0645\u0646\u0647\u064a\u0633\u0639\u062a\u062d\u0631\u0635\u0636\u0637\u0630\u0621\u0624\u0626\u0629]\s+/g, ' ');
+  result = result.replace(/^[\u0627\u0648\u0628\u0644\u0641\u0642\u0643\u0645\u0646\u0647\u064a\u0633\u0639\u062a\u062d\u0631\u0635\u0636\u0637\u0630\u0621\u0624\u0626\u0629]\s+/g, '');
+  result = result.replace(/\s+[\u0627\u0648\u0628\u0644\u0641\u0642\u0643\u0645\u0646\u0647\u064a\u0633\u0639\u062a\u062d\u0631\u0635\u0636\u0637\u0630\u0621\u0624\u0626\u0629]$/g, '');
+  
+  // Final cleanup: remove any remaining Arabic characters that couldn't be translated
+  // (these are usually residue from partial matches)
+  // result = result.replace(/[\u0600-\u06FF\u0750-\u077F]+/g, '');
+  
+  // Clean up double spaces again (from removals)
+  result = result.replace(/\s+/g, ' ').trim();
+  result = result.replace(/\s+,/g, ',');
+  result = result.replace(/\s+\./g, '.');
+  result = result.replace(/\s+\)/g, ')');
+  result = result.replace(/\(\s+/g, '(');
   
   return result;
 }

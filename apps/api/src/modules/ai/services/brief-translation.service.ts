@@ -233,7 +233,7 @@ ${text}`;
     const crypto = require('crypto');
     const hash = crypto.createHash('sha256').update(text).digest('hex').slice(0, 16);
     // Bump this version when local-translation-dictionary.ts changes
-    const DICTIONARY_VERSION = 'v2';
+    const DICTIONARY_VERSION = 'v3';
     return `brief-translation:${language}:${DICTIONARY_VERSION}:${hash}`;
   }
 }

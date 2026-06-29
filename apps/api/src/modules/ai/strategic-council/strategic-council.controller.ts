@@ -106,7 +106,7 @@ export class StrategicCouncilController {
   @Get('briefs/active')
   async getActiveBriefs(@Query('symbol') symbol?: string, @Query('language') language?: string) {
     if (symbol) {
-      const briefs = await this.councilService.getBriefsForPair(symbol);
+      const briefs = await this.councilService.getBriefsForPair(symbol, language);
       return { success: true, data: briefs };
     }
     const briefs = await this.councilService.getActiveBriefs(undefined, language);

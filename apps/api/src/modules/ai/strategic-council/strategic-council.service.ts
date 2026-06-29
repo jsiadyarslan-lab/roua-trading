@@ -1158,13 +1158,33 @@ export class StrategicCouncilService {
   /**
    * Get active briefs for a specific pair
    */
-  async getBriefsForPair(pair: string): Promise<TradingBriefDTO[]> {
+  async getBriefsForPair(pair: string, language?: string): Promise<TradingBriefDTO[]> {
     try {
       const briefs = await this.prisma.tradingBrief.findMany({
         where: { pair, isActive: true, reviewStatus: 'ACTIVE' },
         orderBy: { issuedAt: 'desc' },
       });
-      return briefs.map((b) => this._toDTO(b));
+      const dtos = briefs.map((b) => this._toDTO(b));
+
+      // V308: Translate analysisSummary to user's locale if needed
+      if (language && language !== 'ar' && this.briefTranslation) {
+        const translations = await this.briefTranslation.translateBatch(
+          dtos
+            .filter((d) => d.analysisSummary)
+            .map((d) => ({
+              id: d.id,
+              text: d.analysisSummary!,
+              label: `${d.pair} ${d.timeframe} analysisSummary`,
+            })),
+          language,
+        );
+        for (const dto of dtos) {
+          const translated = translations.get(dto.id);
+          if (translated) dto.analysisSummary = translated;
+        }
+      }
+
+      return dtos;
     } catch (error: any) {
       this.logger.error(`🏛️ getBriefsForPair failed: ${error.message}`);
       // Return empty array instead of crashing — consistent with getActiveBriefs and getBriefHistory
@@ -1301,7 +1321,7 @@ export class StrategicCouncilService {
    * This is used by both the Strategic Council (to adjust confidence)
    * and the Smart Executor (as a pre-execution risk gate).
    */
-  async getNewsRiskScore(pair: string): Promise<{
+  async getNewsRiskScore(pair: string, language: string = 'ar'): Promise<{
     score: number;          // -1 to +1 (negative = bearish news, positive = bullish news)
     riskLevel: 'low' | 'medium' | 'high' | 'critical';
     opposingNews: boolean;  // true if high-impact news opposes the brief direction
@@ -1309,11 +1329,17 @@ export class StrategicCouncilService {
     highImpactCount: number;
     recentArticleCount: number;
   }> {
+    // V592: i18n — sentiment labels match the brief's language.
+    const isAr = language === 'ar';
+    const SENTIMENT_LABELS = isAr
+      ? { strongPos: 'إيجابي قوي', lightPos: 'إيجابي خفيف', strongNeg: 'سلبي قوي', lightNeg: 'سلبي خفيف', neutral: 'محايد', noNews: 'لا أخبار متاحة' }
+      : { strongPos: 'Strong Positive', lightPos: 'Light Positive', strongNeg: 'Strong Negative', lightNeg: 'Light Negative', neutral: 'Neutral', noNews: 'No news available' };
+
     const defaultResult = {
       score: 0,
       riskLevel: 'low' as const,
       opposingNews: false,
-      sentimentLabel: 'لا أخبار متاحة',
+      sentimentLabel: SENTIMENT_LABELS.noNews,
       highImpactCount: 0,
       recentArticleCount: 0,
     };
@@ -1368,8 +1394,8 @@ export class StrategicCouncilService {
       else if (highImpactCount >= 1 || Math.abs(score) > 0.3) riskLevel = 'medium';
       else riskLevel = 'low';
 
-      const sentimentLabel = score > 0.3 ? 'إيجابي قوي' : score > 0.1 ? 'إيجابي خفيف'
-        : score < -0.3 ? 'سلبي قوي' : score < -0.1 ? 'سلبي خفيف' : 'محايد';
+      const sentimentLabel = score > 0.3 ? SENTIMENT_LABELS.strongPos : score > 0.1 ? SENTIMENT_LABELS.lightPos
+        : score < -0.3 ? SENTIMENT_LABELS.strongNeg : score < -0.1 ? SENTIMENT_LABELS.lightNeg : SENTIMENT_LABELS.neutral;
 
       return {
         score,
@@ -1549,7 +1575,7 @@ export class StrategicCouncilService {
     // Now it sees recent news sentiment, impact levels, and affected assets
     // before making BUY/SELL/HOLD decisions.
     const newsContext = await this._fetchNewsContextForPair(pair);
-    const newsRisk = await this.getNewsRiskScore(pair);
+    const newsRisk = await this.getNewsRiskScore(pair, language);
 
     // Get AI consensus analysis
     // FIX: Pass forceFresh=true to bypass stale Redis cache from startup session.
@@ -1592,8 +1618,12 @@ export class StrategicCouncilService {
     // uses the news-adjusted values.
     consensus.consensusScore = newsAdjustedConfidence;
     if (newsContext) {
-      consensus.masterStrategy = (consensus.masterStrategy || '') +
-        `\n\n📰 سياق الأخبار: مشاعر=${newsRisk.sentimentLabel}, مخاطر=${newsRisk.riskLevel}, نقاط=${newsRisk.score.toFixed(2)} (${newsRisk.recentArticleCount} خبر حديث)`;
+      // V592: i18n — news context suffix must match the brief's language.
+      // Previously hardcoded Arabic, now uses the same `language` prop.
+      const newsSuffix = language === 'ar'
+        ? `\n\n📰 سياق الأخبار: مشاعر=${newsRisk.sentimentLabel}, مخاطر=${newsRisk.riskLevel}, نقاط=${newsRisk.score.toFixed(2)} (${newsRisk.recentArticleCount} خبر حديث)`
+        : `\n\n📰 News context: sentiment=${newsRisk.sentimentLabel}, risk=${newsRisk.riskLevel}, score=${newsRisk.score.toFixed(2)} (${newsRisk.recentArticleCount} recent articles)`;
+      consensus.masterStrategy = (consensus.masterStrategy || '') + newsSuffix;
     }
 
     // FIX: When AI models fail (isFallback=true, confidence=0), generate a technical-analysis

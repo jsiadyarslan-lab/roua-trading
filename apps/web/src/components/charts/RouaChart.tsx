@@ -63,7 +63,7 @@ import type { AIAnalysisResult } from './AIPatternPanel';
 import { T } from '@/lib/unified-tokens';
 import { fmtPrice as unifiedFmtPrice } from '@/lib/price-format';
 import { ScopedStyle } from '@/components/ScopedStyle';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 
 interface RouaChartProps {
   currentPrice?: number | null;
@@ -364,6 +364,7 @@ export default function RouaChart({
   onToggleExpand,
 }: RouaChartProps) {
   const tc = useTranslations('dashboard.chart');
+  const chartLocale = useLocale();
   const { selectedSymbol, timeframe: storeTimeframe, setTimeframe, setSelectedSymbol } = useSymbolStore();
 
   // ── Effective symbol/timeframe ──
@@ -2805,7 +2806,7 @@ export default function RouaChart({
       try {
         const [signals, briefs] = await Promise.all([
           fetchSignalsForChart(selectedSymbol_),
-          fetchStrategicBriefs(selectedSymbol_),
+          fetchStrategicBriefs(selectedSymbol_, chartLocale),
         ]);
         if (cancelled) return;
 

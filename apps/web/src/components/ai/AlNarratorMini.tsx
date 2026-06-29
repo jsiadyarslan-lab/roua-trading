@@ -89,7 +89,7 @@ export function AlNarratorMini({
   const fetchBriefs = useCallback(async () => {
     if (!selectedSymbol) return;
     try {
-      const res = await fetch(`/api/strategic-council/briefs/active?symbol=${encodeURIComponent(selectedSymbol)}`);
+      const res = await fetch(`/api/strategic-council/briefs/active?symbol=${encodeURIComponent(selectedSymbol)}&language=${encodeURIComponent(locale)}`);
       if (!res.ok) return;
       const json = await res.json();
       const briefs = Array.isArray(json?.briefs) ? json.briefs
@@ -97,7 +97,7 @@ export function AlNarratorMini({
         : Array.isArray(json) ? json : [];
       setActiveBriefs(briefs.filter((b: any) => b.isActive).slice(0, 3));
     } catch { /* silent — briefs are supplementary */ }
-  }, [selectedSymbol]);
+  }, [selectedSymbol, locale]);
 
   useEffect(() => {
     fetchNarrative();

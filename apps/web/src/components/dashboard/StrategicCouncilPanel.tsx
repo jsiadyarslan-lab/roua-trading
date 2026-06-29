@@ -83,7 +83,7 @@ export function StrategicCouncilPanel() {
 
   const fetchActiveBriefs = useCallback(async () => {
     try {
-      const res = await fetch('/api/strategic-council/briefs/active')
+      const res = await fetch(`/api/strategic-council/briefs/active?language=${encodeURIComponent(locale)}`)
       const data = await res.json()
       if (data.success) {
         setActiveBriefs(data.data || [])
@@ -94,11 +94,11 @@ export function StrategicCouncilPanel() {
     } catch {
       setBackendOffline(true)
     }
-  }, [])
+  }, [locale])
 
   const fetchHistory = useCallback(async () => {
     try {
-      const res = await fetch('/api/strategic-council/briefs/history')
+      const res = await fetch(`/api/strategic-council/briefs/history?language=${encodeURIComponent(locale)}`)
       const data = await res.json()
       if (data.success) {
         setHistoryBriefs(data.data || [])
@@ -109,7 +109,7 @@ export function StrategicCouncilPanel() {
     } catch {
       setBackendOffline(true)
     }
-  }, [])
+  }, [locale])
 
   const fetchLastSession = useCallback(async () => {
     try {

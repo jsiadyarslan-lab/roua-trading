@@ -840,7 +840,7 @@ export class StrategicCouncilService {
           .map(a => `${a.role} [${a.model}] voted ${a.vote} @ ${a.confidence}% — ${a.reason}`)
           .join('\n\n');
 
-        const strategyPrompt = language === 'en'
+        const strategyPrompt = language !== 'ar'
           ? `You are the Council Master synthesizing the final trading strategy for ${symbol}.
 
 ${totalModels} council members have analyzed this market — 8 AI agents${hasPredictionMarketVote ? ' + 1 prediction market vote (Polymarket, real-money forecasting data)' : ''}. Their individual votes, confidence levels, and — most importantly — their specific reasoning are below. Your job is to write a CONCISE (4-6 sentences, max 200 words) synthesis that:

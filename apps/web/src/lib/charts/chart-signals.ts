@@ -57,10 +57,13 @@ export async function fetchSignalsForChart(symbol: string): Promise<ChartSignal[
 
 /**
  * Fetch active strategic council briefs for a symbol
+ * @param symbol Trading pair (e.g. BTC/USDT)
+ * @param language Optional locale for translation (e.g. 'en', 'ar', 'fr')
  */
-export async function fetchStrategicBriefs(symbol: string): Promise<StrategicBrief[]> {
+export async function fetchStrategicBriefs(symbol: string, language?: string): Promise<StrategicBrief[]> {
   try {
-    const res = await fetch(`/api/strategic-council/briefs/active?symbol=${encodeURIComponent(symbol)}`);
+    const langParam = language ? `&language=${encodeURIComponent(language)}` : '';
+    const res = await fetch(`/api/strategic-council/briefs/active?symbol=${encodeURIComponent(symbol)}${langParam}`);
     if (!res.ok) return [];
     const data = await res.json();
     const briefs = Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : [];

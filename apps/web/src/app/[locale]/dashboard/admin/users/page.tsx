@@ -70,6 +70,8 @@ function getTierStyle(tier: string) {
 
 export default function AdminUsersPage() {
   const tn = useTranslations('notifications.admin')
+  const t = useTranslations('frontend')
+  const tf = useTranslations('frontend')
   const locale = useLocale();
   const dir = getDirection(locale);
   const [users, setUsers] = useState<AdminUser[]>([])
@@ -135,7 +137,7 @@ export default function AdminUsersPage() {
       const res = await fetch(`/api/admin/stats`, {
         headers: { 'Authorization': `Bearer ${adminToken}` },
       })
-      if (!res.ok) throw new Error('فشل في جلب الإحصائيات')
+      if (!res.ok) throw new Error(t('msg_e5c97cae25'))
       const stats = await res.json()
       const guestCount = stats.users?.guests || 0
       if (guestCount === 0) {

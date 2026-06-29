@@ -48,6 +48,8 @@ interface NotifConfig {
 
 export default function AdminNotificationsPage() {
   const tn = useTranslations('notifications.admin')
+  const t = useTranslations('frontend')
+  const tf = useTranslations('frontend')
   useScopedStyle(`@keyframes fadeInSlideUp {
           from { opacity: 0; transform: translateY(14px); }
           to { opacity: 1; transform: translateY(0); }
@@ -341,7 +343,7 @@ export default function AdminNotificationsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: eventKey,
-          title: `[تجربة] ${eventData.label}`,
+          title: t('msg_30d4e6909e', { label: eventData.label }),
           body: `هذا تنبيه تجريبي للحدث: ${eventData.label}`,
           severity: eventKey === 'system_error' ? 'error' : 'info',
         }),

@@ -35,6 +35,7 @@ interface EAStatus {
 export default function EABridgePage() {
   const { user } = useAuth()
   const t = useTranslations('common')
+  const tf = useTranslations('frontend')
 
   const [tokens, setTokens] = useState<EATokenInfo[]>([])
   const [loading, setLoading] = useState(true)
@@ -437,27 +438,27 @@ export default function EABridgePage() {
             {[
               {
                 step: 1,
-                title: 'أنشئ توكن أعلاه',
+                title: tf('msg_5f22e7eb6c'),
                 desc: 'اضغط "إنشاء توكن" وانسخ الرمز الناتج',
               },
               {
                 step: 2,
-                title: 'افتح MetaEditor في MT5',
+                title: tf('msg_121547428c'),
                 desc: 'Tools → MetaQuotes Language Editor (أو F4)',
               },
               {
                 step: 3,
-                title: 'الصق كود EA والcompile',
+                title: tf('msg_6eac84ed97'),
                 desc: 'انسخ كود JABER.mq5 → ملف جديد → Compile → يجب أن يكون 0 أخطاء',
               },
               {
                 step: 4,
-                title: 'أضف رابط السماح في MT5',
+                title: tf('msg_290631918c'),
                 desc: 'Tools → Options → Expert Advisors → Allow WebRequest → أضف: ' + apiUrl + ' (نفس عنوان المنصة)',
               },
               {
                 step: 5,
-                title: 'شغّل EA وأدخل التوكن',
+                title: tf('msg_e2839b33a9'),
                 desc: 'اسحب EA على الشارت → EA_Token = التوكن المنسوخ → Cloud_Base_URL = ' + apiUrl,
               },
             ].map(item => (

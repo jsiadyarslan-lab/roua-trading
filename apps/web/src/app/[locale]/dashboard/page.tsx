@@ -109,6 +109,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
   onClose: () => void
 }) {
   const t = useTranslations('dashboard.trading')
+  const tf = useTranslations('frontend')
   const tc = useTranslations('common')
   const [orderSide, setOrderSide] = useState<'buy' | 'sell'>('buy')
   const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop_limit'>('market')
@@ -545,6 +546,7 @@ export default function DashboardPage() {
   const dir = getDirection(locale);
   const t = useTranslations('dashboard.home')
   const tc = useTranslations('common')
+  const tf = useTranslations('frontend')
   const { collapsed: sidebarCollapsed } = useSidebarState()
   const { collapsed: rightPanelCollapsed } = useRightPanelState()
   useScopedStyle(`.dashboard-shell {
@@ -2256,27 +2258,27 @@ export default function DashboardPage() {
                 <div style={{ width:32, height:3, background:'rgba(255,255,255,0.1)', borderRadius:2, margin:'0 auto 14px' }}/>
                 <div style={{ fontSize:13, fontWeight:800, color:'#E8ECF4', fontFamily:"'Cairo',sans-serif", marginBottom:14 }}>كل الصفحات</div>
                 {[
-                  { title:'التداول', items:[
+                  { title:tf('msg_d4379ee674'), items:[
                     { label:'المحفظة', icon:'💼', href:'/dashboard/portfolio' },
                     { label:'المراكز', icon:'📋', href:'/dashboard/positions' },
                     { label:'الإشارات', icon:'📡', href:'/dashboard/signals' },
                     { label:'التداول الاجتماعي', icon:'👥', href:'/dashboard/copy-trading' },
                   ]},
-                  { title:'التحليل', items:[
+                  { title:tf('msg_b4fb7013e5'), items:[
                     { label:'الأخبار', icon:'📰', href:'/dashboard/news' },
                     { label:'السكانر', icon:'🔍', href:'/dashboard/scanner' },
                     { label:'أسواق التنبؤ', icon:'🔮', href:'/dashboard/prediction-market' },
                     { label:'الارتباط', icon:'🕸️', href:'/dashboard/correlation' },
                     { label:'الشبكة العصبية', icon:'🧠', href:'/dashboard/neural' },
                   ]},
-                  { title:'الذكاء الاصطناعي', items:[
+                  { title:tf('msg_972ded6d9d'), items:[
                     { label:'المجلس الاستراتيجي', icon:'🏛️', href:'/dashboard/council' },
                     { label:'مجلس AI', icon:'🧠', href:'/dashboard/ai' },
                     { label:'الوكيل الآلي', icon:'🤖', href:'/dashboard/autonomous-trader' },
                     { label:'الملاذ', icon:'🛡️', href:'/dashboard/sanctuary' },
                     { label:'الاستراتيجيات', icon:'🎯', href:'/dashboard/strategies' },
                   ]},
-                  { title:'الحساب', items:[
+                  { title:tf('msg_0869f7a38d'), items:[
                     { label:'الإعدادات', icon:'⚙️', href:'/dashboard/settings' },
                     { label:'الأمان', icon:'🔒', href:'/dashboard/security/2fa' },
                     { label:'الإشعارات', icon:'🔔', href:'/dashboard/notifications' },

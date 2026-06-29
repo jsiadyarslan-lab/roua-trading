@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useBotStore } from '@/hooks/useBotStore'
 
@@ -34,6 +34,8 @@ export type NarratorSnapshot = {
 }
 
 export function useDecisionFlow() {
+  const t = useTranslations('frontend')
+  const tf = useTranslations('frontend');
   const locale = useLocale()
   const selectedSymbol = useSymbolStore((state) => state.selectedSymbol)
   const { engineState, isOn } = useBotStore()
@@ -111,7 +113,7 @@ export function useDecisionFlow() {
     if (loading) {
       return {
         tone: '#00E5FF',
-        title: 'محرك القرار يفحص السوق',
+        title: t('msg_242393065d'),
         detail: `جاري جمع قراءة ${selectedSymbol} من السكانر والمجلس والبوت`,
       }
     }
@@ -119,7 +121,7 @@ export function useDecisionFlow() {
     if (council?.recommendation === 'BUY' && signalActive) {
       return {
         tone: '#00C853',
-        title: `${selectedSymbol} جاهز هجوميًا`,
+        title: t('msg_63149b4d5e', { selectedSymbol: selectedSymbol }),
         detail: council.conflictExplanation || scanner?.reasons?.[0] || 'الطبقات الأساسية متوافقة على الشراء',
       }
     }
@@ -127,7 +129,7 @@ export function useDecisionFlow() {
     if (council?.recommendation === 'SELL' && signalActive) {
       return {
         tone: '#FF3B30',
-        title: `${selectedSymbol} تحت ضغط بيعي`,
+        title: t('msg_4fca3cd8c3', { selectedSymbol: selectedSymbol }),
         detail: council.conflictExplanation || scanner?.reasons?.[0] || 'الطبقات الأساسية متوافقة على البيع',
       }
     }
@@ -135,14 +137,14 @@ export function useDecisionFlow() {
     if (council?.conflictExplanation) {
       return {
         tone: '#FFB800',
-        title: 'تعارض يمنع الاندفاع',
+        title: t('msg_9b3c782df2'),
         detail: council.conflictExplanation,
       }
     }
 
     return {
       tone: '#00E5FF',
-      title: `${selectedSymbol} قيد المراقبة`,
+      title: t('msg_4481dfd993', { selectedSymbol: selectedSymbol }),
       detail: narrator?.summary || scanner?.reasons?.[0] || 'لا توجد فرصة واضحة كفاية بعد',
     }
   }, [loading, selectedSymbol, council, signalActive, scanner, narrator])

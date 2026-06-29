@@ -2,6 +2,7 @@ import { Controller, Get, Post, Param, Query, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthGuard } from '../../common/guards/auth.guard';
 import { PredictionMarketService } from './prediction-market.service';
+import { t } from '../../i18n/i18n.helper';
 
 /**
  * Prediction Market Controller — REST API for the PredictionGap system.
@@ -57,7 +58,7 @@ export class PredictionMarketController {
     if (!event) {
       return {
         success: false,
-        error: 'الحدث غير موجود',
+        error: t('prediction_market_controller.not_found'),
       };
     }
 
@@ -132,7 +133,7 @@ export class PredictionMarketController {
     return {
       success: true,
       data: events.slice(0, 5), // Top 5 most relevant
-      message: 'أحداث تنبؤية تؤثر على محفظتك',
+      message: t('prediction_market_controller.msg_a03787ce'),
     };
   }
 
@@ -162,7 +163,7 @@ export class PredictionMarketController {
     if (aiProbability === null) {
       return {
         success: false,
-        error: 'لم يتم العثور على الحدث أو فشل التحليل',
+        error: t('prediction_market_controller.not_failure_analysis'),
       };
     }
 

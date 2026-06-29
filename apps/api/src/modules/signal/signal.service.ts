@@ -8,6 +8,7 @@ import { PredictionMarketService } from '../prediction-market/prediction-market.
 import { TradingService } from '../trading/trading.service';
 import { NotificationService } from '../notification/notification.service';
 import { OrderSide, OrderType } from '../trading/trading.types';
+import { t } from '../../i18n/i18n.helper';
 
 /**
  * Signal Service — Roua Trading Signal Generation
@@ -359,7 +360,7 @@ Reason: [detailed explanation of the recommendation]`;
     });
 
     if (!signal) {
-      throw new Error('الإشارة غير موجودة');
+      throw new Error(t('signal_service.signal_not_found'));
     }
 
     return this.prisma.signal.update({
@@ -394,7 +395,7 @@ Reason: [detailed explanation of the recommendation]`;
     });
 
     if (!signal) {
-      throw new NotFoundException('الإشارة غير موجودة');
+      throw new NotFoundException(t('signal_service.signal_not_found'));
     }
 
     // Step 2: Validate signal is actionable
@@ -403,15 +404,15 @@ Reason: [detailed explanation of the recommendation]`;
     }
 
     if (signal.action === 'WAIT') {
-      throw new BadRequestException('لا يمكن تنفيذ إشارة انتظار — ليست توصية شراء أو بيع');
+      throw new BadRequestException(t('signal_service.execute'));
     }
 
     if (!signal.entryPrice || Number(signal.entryPrice) <= 0) {
-      throw new BadRequestException('الإشارة لا تحتوي على سعر دخول صالح');
+      throw new BadRequestException(t('signal_service.signal_valid'));
     }
 
     if (!signal.stopLoss || Number(signal.stopLoss) <= 0) {
-      throw new BadRequestException('الإشارة لا تحتوي على وقف خسارة — لا يمكن التنفيذ بدون وقف خسارة');
+      throw new BadRequestException(t('signal_service.signal_execution'));
     }
 
     // Step 3: Calculate quantity if not provided
@@ -427,7 +428,7 @@ Reason: [detailed explanation of the recommendation]`;
 
     // Step 4: Place order via TradingService (if available)
     if (!this.tradingService) {
-      throw new BadRequestException('خدمة التداول غير متاحة — لا يمكن تنفيذ الإشارة تلقائياً');
+      throw new BadRequestException(t('signal_service.trading_not_execute_signal'));
     }
 
     const order = await this.tradingService.placeOrder(userId, {

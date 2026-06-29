@@ -29,6 +29,7 @@ import { ExecutionGatewayService } from '../execution/gateways/execution-gateway
 import { StrategicCouncilService } from '../ai/strategic-council/strategic-council.service';
 // V339: Trade Lifecycle Logger — for OPEN event logging
 import { TradeLifecycleLogger } from '../../common/trade-lifecycle/trade-lifecycle.logger';
+import { t } from '../../i18n/i18n.helper';
 /**
  * Trading Engine Service — Roua Trading (رؤى)
  *
@@ -154,7 +155,7 @@ export class TradingService {
 
     if (request.quantity <= 0) {
       throw new BadRequestException(
-        `الكمية بعد التقريب أصبحت صفراً — قيمة الطلب صغيرة جداً (${request.quantity})`,
+        t('trading_service.quantity_yet_order', { quantity: request.quantity }),
       );
     }
 
@@ -165,12 +166,12 @@ export class TradingService {
     });
 
     if (!credential) {
-      throw new NotFoundException('بيانات الاعتماد غير موجودة');
+      throw new NotFoundException(t('trading_service.not_found'));
     }
 
     if (!credential.isValid) {
       throw new BadRequestException(
-        'بيانات الاعتماد غير صالحة — يرجى التحقق من مفتاح API',
+        t('trading_service.not_valid_please_verify_key'),
       );
     }
 
@@ -192,7 +193,7 @@ export class TradingService {
       const permissions = JSON.parse(credential.permissions || '["read"]');
       if (!permissions.includes('trade')) {
         throw new ForbiddenException(
-          'مفتاح API لا يملك صلاحية التداول — أضف مفتاحاً بصلاحية trade',
+          t('trading_service.key_api_validity_trading'),
         );
       }
     }
@@ -209,7 +210,7 @@ export class TradingService {
         currentPrice = quote.price;
       } catch (error: any) {
         throw new BadRequestException(
-          `فشل في جلب سعر السوق لـ ${request.symbol}: ${error.message}`,
+          t('trading_service.failure_market', { symbol: request.symbol, message: error.message }),
         );
       }
     }
@@ -269,7 +270,7 @@ export class TradingService {
         });
 
         throw new ForbiddenException(
-          `🛡️ تم رفض الطلب: ${riskCheck.reason}`,
+          t('trading_service.done_order', { reason: riskCheck.reason }),
         );
       }
     }
@@ -325,7 +326,7 @@ export class TradingService {
       });
 
       throw new BadRequestException(
-        `فشل في تنفيذ الطلب: ${execution.error}`,
+        t('trading_service.failure_execute_order', { error: execution.error }),
       );
     }
 
@@ -474,7 +475,7 @@ export class TradingService {
     });
 
     if (!order) {
-      throw new NotFoundException('الطلب غير موجود');
+      throw new NotFoundException(t('trading_service.order_not_found'));
     }
 
     if (!['PENDING', 'ACCEPTED', 'PARTIALLY_FILLED'].includes(order.status)) {
@@ -573,7 +574,7 @@ export class TradingService {
     });
 
     if (!order) {
-      throw new NotFoundException('الطلب غير موجود');
+      throw new NotFoundException(t('trading_service.order_not_found'));
     }
 
     return order;
@@ -705,7 +706,7 @@ export class TradingService {
       // (DB down, exchange unreachable). Users saw "0 positions, $0 P&L" and
       // thought their positions were empty when the system was actually broken.
       // Now we throw so the caller gets a proper error response.
-      throw new Error(`فشل في جلب ملخص المراكز: ${error.message}`);
+      throw new Error(t('trading_service.failure_positions', { message: error.message }));
     }
   }
 
@@ -751,7 +752,7 @@ export class TradingService {
     });
 
     if (!position) {
-      throw new NotFoundException('المركز غير موجود');
+      throw new NotFoundException(t('trading_service.position_not_found'));
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -815,7 +816,7 @@ export class TradingService {
         );
         return {
           success: false,
-          error: `V423: لا يمكن إغلاق الصفقة الآلية قبل مرور ${V423_MIN_HOURS} ساعة (مضت ${holdingHours.toFixed(1)} ساعة فقط)`,
+          error: t('trading_service.trade', { V423_MIN_HOURS: V423_MIN_HOURS }),
           blockedByV423: true,
           holdingHours: holdingHours.toFixed(1),
           minHours: V423_MIN_HOURS,
@@ -1013,7 +1014,7 @@ export class TradingService {
     const closeQuantity = request.quantity ?? posQuantity;
     if (closeQuantity > posQuantity) {
       throw new BadRequestException(
-        `كمية الإغلاق (${closeQuantity}) أكبر من حجم المركز (${posQuantity})`,
+        t('trading_service.closing_position', { closeQuantity: closeQuantity, posQuantity: posQuantity }),
       );
     }
 
@@ -1113,7 +1114,7 @@ export class TradingService {
         }
       } catch (mt5Err: any) {
         this.logger.error(`❌ V226: MT5 close gateway error: ${mt5Err.message}`);
-        execution = { success: false, error: `فشل إغلاق مركز MT5: ${mt5Err.message}` };
+        execution = { success: false, error: t('trading_service.failure', { message: mt5Err.message }) };
       }
     } else if (this._isMT5Exchange(credential?.exchange) && !this.executionGateway) {
       // MT5 but gateway not available — fall through to CCXT (which will fail gracefully)
@@ -1227,7 +1228,7 @@ export class TradingService {
       // Only throw for real trading positions where the exchange might have
       // partially executed — force-closing would lose sync with exchange state.
       throw new BadRequestException(
-        `فشل في إغلاق المركز: ${execution.error}`,
+        t('trading_service.failure_position', { error: execution.error }),
       );
     }
 
@@ -1628,7 +1629,7 @@ export class TradingService {
     });
 
     if (!position) {
-      throw new NotFoundException('المركز غير موجود');
+      throw new NotFoundException(t('trading_service.position_not_found'));
     }
 
     if (position.status !== 'OPEN') {
@@ -1908,7 +1909,7 @@ export class TradingService {
     });
 
     if (!position) {
-      throw new NotFoundException('المركز غير موجود');
+      throw new NotFoundException(t('trading_service.position_not_found'));
     }
 
     if (position.status !== 'OPEN') {
@@ -2550,7 +2551,7 @@ export class TradingService {
       if (exchangeName === 'paper-trading') {
         const currentPrice = await this.exchangeService.getQuote(request.symbol).then(q => q?.price ?? 0).catch(() => 0);
         if (currentPrice <= 0) {
-          return { success: false, error: `لا يمكن جلب سعر ${request.symbol} للتداول الورقي` };
+          return { success: false, error: t('trading_service.msg_1c27fd30', { symbol: request.symbol }) };
         }
         return await this._executePaperTrade(request, currentPrice, userId);
       }
@@ -2613,7 +2614,7 @@ export class TradingService {
           this.logger.error(`❌ V226: MT5 gateway execution failed: ${gatewayErr.message}`);
           return {
             success: false,
-            error: `فشل تنفيذ أمر MT5: ${gatewayErr.message}`,
+            error: t('trading_service.failure_execute', { message: gatewayErr.message }),
           };
         }
       }
@@ -2724,7 +2725,7 @@ export class TradingService {
 
           return {
             success: false,
-            error: `رصيد ${balance.currency} غير متاح في أي محفظة. ` +
+            error: t('trading_service.not', { currency: balance.currency }) +
               `المحاولات: ${walletSummary}. ` +
               `العملات المتاحة: ${allNonZeroCurrencies || 'لا يوجد'}. ` +
               permissionsInfo +
@@ -2764,7 +2765,7 @@ export class TradingService {
           if (adjustedQuantity <= 0) {
             return {
               success: false,
-              error: `رصيد ${balance.currency} غير كافٍ: متاح ${balance.available}، مطلوب ${request.quantity}`,
+              error: t('trading_service.not_required', { currency: balance.currency, available: balance.available, quantity: request.quantity }),
             };
           }
 
@@ -2800,7 +2801,7 @@ export class TradingService {
           if (!request.price) {
             return {
               success: false,
-              error: 'سعر الحد مطلوب للطلبات المحددة',
+              error: t('trading_service.limit_required'),
             };
           }
           
@@ -2879,30 +2880,30 @@ export class TradingService {
 
       // Parse common CCXT errors
       if (message.includes('Insufficient')) {
-        return { success: false, error: 'رصيد غير كافي لتنفيذ الطلب' };
+        return { success: false, error: t('trading_service.not_sufficient_order') };
       }
       if (message.includes('Invalid order')) {
         return {
           success: false,
-          error: 'طلب غير صالح — تحقق من الكمية والسعر',
+          error: t('trading_service.not_valid_quantity'),
         };
       }
       if (message.includes('Rate limit')) {
         return {
           success: false,
-          error: 'تم تجاوز حد الطلبات — حاول مرة أخرى بعد قليل',
+          error: t('trading_service.done_orders_yet'),
         };
       }
       if (message.includes('Network')) {
         return {
           success: false,
-          error: 'خطأ في الاتصال بالبورصة — تحقق من الإنترنت',
+          error: t('trading_service.error'),
         };
       }
 
       return {
         success: false,
-        error: `خطأ في التنفيذ: ${message}`,
+        error: t('trading_service.error_execution', { message: message }),
       };
     }
   }
@@ -3017,7 +3018,7 @@ export class TradingService {
               `position closed ${closedAgo} min ago (cooldown: ${COOLDOWN_MINUTES} min).`
             );
             throw new Error(
-              `BLOCKED_BY_COOLDOWN: تم إغلاق مركز على ${request.symbol} قبل ${closedAgo} دقيقة — ` +
+              t('trading_service.done', { symbol: request.symbol, closedAgo: closedAgo }) +
               `انتظر ${COOLDOWN_MINUTES - closedAgo} دقيقة قبل فتح مركز جديد`
             );
           }

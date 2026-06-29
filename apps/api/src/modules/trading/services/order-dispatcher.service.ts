@@ -9,6 +9,7 @@ import { TradingService } from '../trading.service';
 import { OrderSide, OrderType } from '../trading.types';
 import { OrderCommand } from '../events/order.events';
 import * as crypto from 'crypto';
+import { t } from '../../../i18n/i18n.helper';
 
 export interface AutoOrderRequest {
   source: 'smart_executor' | 'agent';
@@ -86,7 +87,7 @@ export class OrderDispatcherService {
     // Check source-specific lock first (with smart TTL based on timeframe)
     const isUnique = await this.idempotency.checkAndLock(sourceIdempotencyKey, request.timeframe);
     if (!isUnique) {
-      return { success: false, message: `أمر مكرر — ${request.symbol} ${request.side} (${request.source})` };
+      return { success: false, message: t('order_dispatcher_service.msg_a5e120da', { symbol: request.symbol, side: request.side, source: request.source }) };
     }
 
     // Check per-symbol lock (shorter TTL — just prevents rapid-fire duplicates)
@@ -94,14 +95,14 @@ export class OrderDispatcherService {
     if (!isSymbolUnique) {
       // Release the source lock since we're not proceeding
       try { await this.idempotency.releaseLock(sourceIdempotencyKey); } catch {}
-      return { success: false, message: `مركز نشط على ${request.symbol} ${request.side} من ${request.source}` };
+      return { success: false, message: t('order_dispatcher_service.msg_2aca0b87', { symbol: request.symbol, side: request.side, source: request.source }) };
     }
 
     try {
       if (!request.stopLoss || request.stopLoss <= 0) {
         await this.idempotency.releaseLock(sourceIdempotencyKey);
         try { await this.idempotency.releaseLock(symbolSourceIdempotencyKey); } catch {}
-        return { success: false, error: `وقف الخسارة إجباري` };
+        return { success: false, error: t('order_dispatcher_service.loss') };
       }
 
       // ═══════════════════════════════════════════════════════════
@@ -160,7 +161,7 @@ export class OrderDispatcherService {
         await this.idempotency.releaseLock(sourceIdempotencyKey);
         try { await this.idempotency.releaseLock(symbolSourceIdempotencyKey); } catch {}
         this.logger.warn(`🛡️ V221 DB-COOLDOWN: Blocked ${request.source} ${request.side} on ${request.symbol} — position closed ${closedAgo} min ago (cooldown: ${COOLDOWN_MINUTES} min)`);
-        return { success: false, message: `تم إغلاق مركز على ${request.symbol} قبل ${closedAgo} دقيقة — انتظر ${COOLDOWN_MINUTES - closedAgo} دقيقة قبل فتح مركز جديد` };
+        return { success: false, message: t('order_dispatcher_service.done', { symbol: request.symbol, closedAgo: closedAgo }) };
       }
 
       const command: OrderCommand = {
@@ -185,7 +186,7 @@ export class OrderDispatcherService {
       if (!riskCheck.allowed) {
         await this.idempotency.releaseLock(sourceIdempotencyKey);
         try { await this.idempotency.releaseLock(symbolSourceIdempotencyKey); } catch {}
-        return { success: false, error: `مرفوض: ${riskCheck.reason}` };
+        return { success: false, error: t('order_dispatcher_service.msg_c9f920c1', { reason: riskCheck.reason }) };
       }
 
       const result = await this.tradingService.placeOrder(request.userId, {

@@ -9,6 +9,7 @@ import { NotificationService } from '../../notification/notification.service';
 // V339: Trade Lifecycle Logger — for OPEN event logging
 import { TradeLifecycleLogger } from '../../../common/trade-lifecycle/trade-lifecycle.logger';
 import * as ccxt from 'ccxt';
+import { t } from '../../../i18n/i18n.helper';
 
 /**
  * Order Consumer Service — RabbitMQ Order Processor
@@ -115,7 +116,7 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
       });
 
       if (!order) {
-        return { success: false, error: 'الطلب غير موجود' };
+        return { success: false, error: t('order_consumer_service.order_not_found') };
       }
 
       // Convert Decimal status check — status is enum string, not Decimal
@@ -132,7 +133,7 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
         await this.stateManager.updateOrderStatus(message.orderId, 'REJECTED', {
           reason: 'بيانات الاعتماد غير صالحة',
         });
-        return { success: false, error: 'بيانات الاعتماد غير صالحة' };
+        return { success: false, error: t('order_consumer_service.not_valid') };
       }
 
       // Step 3: Decrypt credentials

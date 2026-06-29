@@ -9,6 +9,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { ContextAggregatorService } from './context-aggregator.service';
 import { RedisService } from '../../../common/redis/redis.service';
+import { t } from '../../../i18n/i18n.helper';
 
 export type AlertSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
 export type AlertCategory = 'RISK' | 'POSITION' | 'SYSTEM' | 'MARKET' | 'PERFORMANCE';
@@ -81,7 +82,7 @@ export class RiskAlertService {
           severity: 'CRITICAL',
           category: 'POSITION',
           title: `صفقة ${p.symbol} خاسرة ${p.unrealizedPnlPercent.toFixed(1)}%`,
-          message: `مركز ${p.side} على ${p.symbol} خاسر ${p.unrealizedPnl.toFixed(2)}$ (${p.unrealizedPnlPercent.toFixed(2)}%)`,
+          message: t('risk_alert_service.msg_b7c8370f', { side: p.side, symbol: p.symbol }),
           recommendation: 'راجع هذه الصفقة فورًا — فكّر في الإغلاق إذا كان السوق تغيّر',
           detectedAt: now,
           metadata: {
@@ -115,7 +116,7 @@ export class RiskAlertService {
         severity: 'CRITICAL',
         category: 'RISK',
         title: `مخاطرة مرتفعة جدًا (${context.userTrading.positionSummary.riskExposurePercent.toFixed(0)}%)`,
-        message: `${context.userTrading.positionSummary.riskExposurePercent.toFixed(1)}% من رأس المال مستثمرة`,
+        message: t('risk_alert_service.msg_265ce9d7'),
         recommendation: 'قلّل المخاطرة فورًا — أغلق بعض الصفقات',
         detectedAt: now,
         metadata: { exposurePercent: context.userTrading.positionSummary.riskExposurePercent },
@@ -126,7 +127,7 @@ export class RiskAlertService {
         severity: 'HIGH',
         category: 'RISK',
         title: `مخاطرة عالية (${context.userTrading.positionSummary.riskExposurePercent.toFixed(0)}%)`,
-        message: `${context.userTrading.positionSummary.riskExposurePercent.toFixed(1)}% من رأس المال مستثمرة`,
+        message: t('risk_alert_service.msg_265ce9d7'),
         recommendation: 'راقب المخاطرة — تجنّب فتح صفقات جديدة كبيرة',
         detectedAt: now,
         metadata: { exposurePercent: context.userTrading.positionSummary.riskExposurePercent },
@@ -140,7 +141,7 @@ export class RiskAlertService {
         severity: 'HIGH',
         category: 'RISK',
         title: `${context.userTrading.positionSummary.count} صفقات مفتوحة`,
-        message: 'عدد كبير من الصفقات يصعّب الإدارة ويزيد المخاطرة',
+        message: t('risk_alert_service.trades_risk'),
         recommendation: 'حدّ أقصى موصى به: 5-6 صفقات. أغلق بعض الصفقات.',
         detectedAt: now,
         metadata: { count: context.userTrading.positionSummary.count },
@@ -168,7 +169,7 @@ export class RiskAlertService {
         severity: 'CRITICAL',
         category: 'SYSTEM',
         title: 'النظام في حالة خطأ',
-        message: 'بعض المكوّنات لا تعمل — قد لا يستجيب النظام بشكل صحيح',
+        message: t('risk_alert_service.system_valid'),
         recommendation: 'لا تفتح صفقات جديدة حتى تستقر الحالة. تواصل مع الدعم إن لزم.',
         detectedAt: now,
       });
@@ -178,7 +179,7 @@ export class RiskAlertService {
         severity: 'MEDIUM',
         category: 'SYSTEM',
         title: 'النظام في حالة تدهور',
-        message: 'بعض المكوّنات قد لا تعمل بشكل كامل',
+        message: t('risk_alert_service.msg_b4390acf'),
         recommendation: 'كن حذرًا — راجع الصفقات يدويًا',
         detectedAt: now,
       });
@@ -193,7 +194,7 @@ export class RiskAlertService {
           severity: 'MEDIUM',
           category: 'POSITION',
           title: `صفقة ${p.symbol} معلّقة ${hours} ساعة`,
-          message: `مركز ${p.symbol} ${p.side} منذ ${hours} ساعة`,
+          message: t('risk_alert_service.msg_9ec1c295', { symbol: p.symbol, side: p.side, hours: hours }),
           recommendation: 'راجع السبب — هل تنتظر هدفًا بعيدًا؟ هل السوق تغيّر؟',
           detectedAt: now,
           metadata: { positionId: p.id, symbol: p.symbol, durationHours: hours },
@@ -211,7 +212,7 @@ export class RiskAlertService {
         severity: 'HIGH',
         category: 'PERFORMANCE',
         title: `أداء ضعيف اليوم (${context.userTrading.todayStats.winRate.toFixed(0)}% فوز)`,
-        message: `${context.userTrading.todayStats.wins}W / ${context.userTrading.todayStats.losses}L اليوم`,
+        message: t('risk_alert_service.today', { wins: context.userTrading.todayStats.wins, losses: context.userTrading.todayStats.losses }),
         recommendation: 'فكّر في إيقاف التداول لبقية اليوم — راجع ما حدث',
         detectedAt: now,
         metadata: {
@@ -228,7 +229,7 @@ export class RiskAlertService {
         severity: 'HIGH',
         category: 'PERFORMANCE',
         title: `${context.userTrading.todayStats.losses} خسائر متتالية اليوم`,
-        message: `سلسلة خسائر قد تؤثر على قراراتك`,
+        message: t('risk_alert_service.msg_3b879a09'),
         recommendation: 'خذ استراحة — لا تطارد الخسائر. عُد غدًا بحالة أفضل.',
         detectedAt: now,
       });
@@ -258,7 +259,7 @@ export class RiskAlertService {
           severity: 'MEDIUM',
           category: 'MARKET',
           title: 'مشاعر سوقية سلبية',
-          message: `${negPercent.toFixed(0)}% من الأخبار سلبية (${context.news.sentimentSummary.negative} خبر)`,
+          message: t('risk_alert_service.msg_80b95403', { negative: context.news.sentimentSummary.negative }),
           recommendation: 'كن حذرًا في فتح صفقات BUY — المشاعر سلبية',
           detectedAt: now,
           metadata: { negativePercent: negPercent },

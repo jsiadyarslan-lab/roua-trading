@@ -15,6 +15,7 @@ import {
   SwarmAgent,
   BacktestStrategy,
 } from '../neural.types';
+import { t } from '../../../i18n/i18n.helper';
 
 /**
  * Neural Swarm Service — Multi-Agent Trading Coordination
@@ -182,7 +183,7 @@ export class NeuralSwarmService {
     // The swarmOwners Map exists for this purpose but wasn't used here.
     const owner = this.swarmOwners.get(swarmId);
     if (owner && owner !== userId) {
-      throw new ForbiddenException('غير مصرح بإيقاف هذا السرب');
+      throw new ForbiddenException(t('neural_swarm_service.not_this'));
     }
 
     swarm.status = 'STOPPED';

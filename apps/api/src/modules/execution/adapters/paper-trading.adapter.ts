@@ -15,6 +15,7 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
 import { MarketDataAggregatorService } from '../../analytics/aggregator.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import { calculateMargin, getSymbolMetadata, AssetClass } from '../../trading/services/symbol-metadata';
+import { t } from '../../../i18n/i18n.helper';
 
 /**
  * PaperTradingAdapter — Simulated Exchange for Risk-Free Trading
@@ -104,7 +105,7 @@ export class PaperTradingAdapter implements IExchangeAdapter {
       if (currentPrice <= 0) {
         return {
           success: false,
-          error: `لا يمكن الحصول على السعر الحالي لـ ${order.symbol}`,
+          error: t('paper_trading_adapter.price', { symbol: order.symbol }),
           timestamp: new Date(),
         };
       }
@@ -126,7 +127,7 @@ export class PaperTradingAdapter implements IExchangeAdapter {
         if (positionPercent > MAX_POSITION_PERCENT) {
           return {
             success: false,
-            error: `حجم المركز الورقي (${positionPercent.toFixed(1)}% = $${orderNotional.toFixed(2)} من $${balance.toFixed(0)}) يتجاوز الحد (${MAX_POSITION_PERCENT}%). يجب أن يعكس التداول الورقي السلوك الحقيقي.`,
+            error: t('paper_trading_adapter.position_limit_must_trading', { MAX_POSITION_PERCENT: MAX_POSITION_PERCENT }),
             timestamp: new Date(),
           };
         }
@@ -136,7 +137,7 @@ export class PaperTradingAdapter implements IExchangeAdapter {
         if (orderNotional > 500) {
           return {
             success: false,
-            error: `قيمة الطلب الورقي ($${orderNotional.toFixed(2)}) تتجاوز الحد الأقصى ($500).`,
+            error: t('paper_trading_adapter.order_limit_max'),
             timestamp: new Date(),
           };
         }
@@ -635,14 +636,14 @@ export class PaperTradingAdapter implements IExchangeAdapter {
       // in placeOrder() properly rejects the order.
       // ═══════════════════════════════════════════════════
       if (price <= 0) {
-        throw new Error(`لا يمكن الحصول على سعر صالح لـ ${symbol} — تم إلغاء الأمر الوهمي`);
+        throw new Error(t('paper_trading_adapter.valid_done_order', { symbol: symbol }));
       }
 
       return price;
     } catch (error: any) {
       this.logger.error(`Failed to get price for ${symbol}: ${error.message}`);
       // Throw instead of returning 0 — let the caller handle the failure
-      throw new Error(`فشل في جلب السعر لـ ${symbol}: ${error.message}`);
+      throw new Error(t('paper_trading_adapter.failure_price', { symbol: symbol, message: error.message }));
     }
   }
 

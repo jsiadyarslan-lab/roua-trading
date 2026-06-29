@@ -48,6 +48,7 @@ import {
 import { PlaceOrderDto as V2PlaceOrderDto } from './controllers/dtos/place-order.dto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
+import { t } from '../../i18n/i18n.helper';
 
 /**
  * Trading Controller — Unified REST API for Trading Engine
@@ -210,7 +211,7 @@ export class TradingController {
     // V239: Accept both credentialId (frontend V1) and exchangeCredentialId (V2)
     const resolvedCredentialId = body.credentialId || (body as any).exchangeCredentialId;
     if (!resolvedCredentialId) {
-      throw new BadRequestException('credentialId مطلوب');
+      throw new BadRequestException(t('trading_controller.required'));
     }
     const request: PlaceOrderRequest = {
       credentialId: resolvedCredentialId,
@@ -233,36 +234,36 @@ export class TradingController {
       !request.quantity
     ) {
       throw new BadRequestException(
-        'بيانات الطلب غير مكتملة — يرجى تعبئة جميع الحقول المطلوبة',
+        t('trading_controller.order_not_completed_please'),
       );
     }
 
     if (!['BUY', 'SELL'].includes(request.side)) {
       throw new BadRequestException(
-        'جانب الطلب يجب أن يكون BUY أو SELL',
+        t('trading_controller.order_must'),
       );
     }
 
     if (!['MARKET', 'LIMIT'].includes(request.type)) {
-      throw new BadRequestException('نوع الطلب غير صالح');
+      throw new BadRequestException(t('trading_controller.order_not_valid'));
     }
 
     if (request.quantity <= 0) {
       throw new BadRequestException(
-        'الكمية يجب أن تكون أكبر من صفر',
+        t('trading_controller.quantity_must'),
       );
     }
 
     // ── Stop-loss is MANDATORY (enforced by RiskGatekeeper check #1) ──
     if (!body.stopLoss || Number(body.stopLoss) <= 0) {
       throw new BadRequestException(
-        'وقف الخسارة إجباري. لا يمكن تقديم أمر بدون وقف خسارة — هذا القانون الأول في منصة رؤى.',
+        t('trading_controller.loss_this'),
       );
     }
 
     // ── LIMIT orders require a price (#18: added from V2 validation) ──
     if (request.type === 'LIMIT' && !request.price) {
-      throw new BadRequestException('سعر الحد مطلوب للطلبات المحددة (LIMIT)');
+      throw new BadRequestException(t('trading_controller.limit_required'));
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -333,7 +334,7 @@ export class TradingController {
     const isUnique = await this.idempotencyService!.checkAndLock(idempotencyKey);
     if (!isUnique) {
       throw new ConflictException(
-        'تم استلام هذا الطلب مسبقاً. لا يمكن تكرار نفس idempotencyKey خلال 24 ساعة.',
+        t('trading_controller.done_this_order'),
       );
     }
 
@@ -377,7 +378,7 @@ export class TradingController {
       );
       await this.idempotencyService!.releaseLock(idempotencyKey);
       throw new ForbiddenException(
-        `🛡️ تم رفض الطلب: ${riskResult.reason}`,
+        t('trading_controller.done_order', undefined, { reason: riskResult.reason }),
       );
     }
 
@@ -512,11 +513,11 @@ export class TradingController {
       const order = await this.stateManager.findOrderById(orderId);
 
       if (!order) {
-        throw new NotFoundException('الطلب غير موجود');
+        throw new NotFoundException(t('trading_controller.order_not_found'));
       }
 
       if (order.userId !== req.user.id) {
-        throw new ForbiddenException('ليس لديك صلاحية إلغاء هذا الطلب');
+        throw new ForbiddenException(t('trading_controller.validity_this_order'));
       }
 
       if (!['PENDING', 'ACCEPTED'].includes(order.status)) {
@@ -590,11 +591,11 @@ export class TradingController {
       const order = await this.stateManager.findOrderById(orderId);
 
       if (!order) {
-        throw new NotFoundException('الطلب غير موجود');
+        throw new NotFoundException(t('trading_controller.order_not_found'));
       }
 
       if (order.userId !== req.user.id) {
-        throw new ForbiddenException('ليس لديك صلاحية الوصول لهذا الطلب');
+        throw new ForbiddenException(t('trading_controller.validity_order'));
       }
 
       return { success: true, data: order };
@@ -778,7 +779,7 @@ export class TradingController {
     };
 
     if (!request.positionId) {
-      throw new BadRequestException('معرف المركز مطلوب');
+      throw new BadRequestException(t('trading_controller.position_required'));
     }
 
     // FIX: Use closePositionWithRetry to handle OPTIMISTIC_LOCK_FAILURE
@@ -806,7 +807,7 @@ export class TradingController {
     const reason = body.reason || 'User requested force close';
 
     if (!positionId) {
-      throw new BadRequestException('معرف المركز مطلوب');
+      throw new BadRequestException(t('trading_controller.position_required'));
     }
 
     return this.tradingService.forceClosePosition(
@@ -1139,7 +1140,7 @@ export class TradingController {
 
     if (!portfolioValue || !entryPrice || !stopLossPrice) {
       throw new BadRequestException(
-        'قيمة المحفظة وسعر الدخول ووقف الخسارة مطلوبة',
+        t('trading_controller.wallet_login_loss_required'),
       );
     }
 
@@ -1196,7 +1197,7 @@ export class TradingController {
         const activeCredId = setting?.value || null;
 
         if (!activeCredId) {
-          result.checks.activeCredential = { status: 'NO_ACTIVE_CREDENTIAL', message: 'لا يوجد حساب نشط — اضبط حساب التداول في الإعدادات' };
+          result.checks.activeCredential = { status: 'NO_ACTIVE_CREDENTIAL', message: t('trading_controller.trading_settings') };
           return { success: true, diagnostic: result };
         }
 
@@ -1250,19 +1251,19 @@ export class TradingController {
         if (allExistingOpen.some(p => p.credentialId === activeCredId)) {
           result.checks.prediction = {
             action: 'WOULD_AVERAGE_INTO_EXISTING_POSITION',
-            message: 'سيتم إضافة الكمية إلى المركز المفتوح على نفس الحساب (averaging)',
+            message: t('trading_controller.quantity_position_account'),
             note: 'لن يتم إنشاء مركز جديد — سيتم تحديث المركز الحالي بكمية وسعر متوسط',
           };
         } else if (allExistingOpen.length > 0) {
           result.checks.prediction = {
             action: 'WOULD_CREATE_NEW_POSITION',
-            message: 'سيتم إنشاء مركز جديد على الحساب النشط (لا يوجد مركز مفتوح على نفس الحساب)',
+            message: t('trading_controller.account_open_account'),
             note: `يوجد ${allExistingOpen.length} مركز مفتوح على حسابات أخرى — لن يتم دمجهم بفضل إصلاح V349`,
           };
         } else {
           result.checks.prediction = {
             action: 'WOULD_CREATE_NEW_POSITION',
-            message: 'سيتم إنشاء مركز جديد — لا توجد مراكز مفتوحة على هذا الرمز',
+            message: t('trading_controller.open_this'),
           };
         }
 
@@ -1292,7 +1293,7 @@ export class TradingController {
             note: 'ينطبق فقط على المصادر الآلية (smart_executor/agent) — الصفقات اليدوية تتجاوز هذا الفحص',
           };
         } else {
-          result.checks.cooldown = { status: 'OK', message: 'لا يوجد cooldown على الحساب النشط' };
+          result.checks.cooldown = { status: 'OK', message: t('trading_controller.account') };
         }
 
         // Check 4: Paper balance check

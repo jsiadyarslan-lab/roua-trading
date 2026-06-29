@@ -3,6 +3,7 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AuditService } from '../../../audit/audit.service';
 import { OrderCommand, OrderEventTypeEnum, OrderStatusEnum } from '../events/order.events';
 import { OrderSide, OrderType, OrderEventType, OrderStatus } from '../trading.types';
+import { t } from '../../../i18n/i18n.helper';
 
 /**
  * Order State Manager Service — Order Lifecycle Management
@@ -203,7 +204,7 @@ export class OrderStateManagerService {
     });
 
     if (!order) {
-      throw new NotFoundException(`الطلب ${orderId} غير موجود`);
+      throw new NotFoundException(t('order_state_manager_service.order_not_found', { orderId: orderId }));
     }
 
     return order;

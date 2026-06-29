@@ -11,6 +11,7 @@ import {
   Request,
 } from '@nestjs/common';
 import { NotificationService } from './notification.service';
+import { t } from '../../i18n/i18n.helper';
 
 /**
  * Notification Controller — REST API for notifications
@@ -40,7 +41,7 @@ export class NotificationController {
     @Query('type') type?: string,
   ) {
     const userId = req.user?.id;
-    if (!userId) return { success: false, error: 'غير مصرح' };
+    if (!userId) return { success: false, error: t('notification_controller.not', req) };
 
     const result = await this.notificationService.getUserNotifications(userId, {
       limit: limit ? parseInt(limit) : 50,
@@ -85,7 +86,7 @@ export class NotificationController {
     @Body() body: { ids?: string[] },
   ) {
     const userId = req.user?.id;
-    if (!userId) return { success: false, error: 'غير مصرح' };
+    if (!userId) return { success: false, error: t('notification_controller.not', req) };
 
     const result = await this.notificationService.markAsRead(userId, body.ids);
     return { success: true, updated: result.count };
@@ -97,7 +98,7 @@ export class NotificationController {
   @Put('read-all')
   async markAllAsRead(@Request() req: any) {
     const userId = req.user?.id;
-    if (!userId) return { success: false, error: 'غير مصرح' };
+    if (!userId) return { success: false, error: t('notification_controller.not', req) };
 
     const result = await this.notificationService.markAsRead(userId);
     return { success: true, updated: result.count };
@@ -109,7 +110,7 @@ export class NotificationController {
   @Get('preferences')
   async getPreferences(@Request() req: any) {
     const userId = req.user?.id;
-    if (!userId) return { success: false, error: 'غير مصرح' };
+    if (!userId) return { success: false, error: t('notification_controller.not', req) };
 
     const prefs = await this.notificationService.getPreferences(userId);
     return { success: true, data: prefs };
@@ -124,7 +125,7 @@ export class NotificationController {
     @Body() updates: Record<string, any>,
   ) {
     const userId = req.user?.id;
-    if (!userId) return { success: false, error: 'غير مصرح' };
+    if (!userId) return { success: false, error: t('notification_controller.not', req) };
 
     // Whitelist allowed fields
     const allowedFields = [
@@ -149,7 +150,7 @@ export class NotificationController {
   @Delete(':id')
   async deleteNotification(@Request() req: any, @Param('id') id: string) {
     const userId = req.user?.id;
-    if (!userId) return { success: false, error: 'غير مصرح' };
+    if (!userId) return { success: false, error: t('notification_controller.not', req) };
 
     // Verify ownership
     const { PrismaService } = await import('../../common/prisma/prisma.service');

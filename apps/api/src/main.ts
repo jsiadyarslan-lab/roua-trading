@@ -9,6 +9,7 @@ import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { PrismaService } from './common/prisma/prisma.service';
 import { RedisService } from './common/redis/redis.service';
+import { t } from './i18n/i18n.helper';
 
 // FIX: Prevent unhandled promise rejections from crashing the process.
 // In Node.js 18+, unhandled rejections terminate the process by default.
@@ -145,7 +146,7 @@ async function bootstrap() {
 
       return res.status(403).json({
         statusCode: 403,
-        message: 'طلب مرفوض — مصدر غير مصرح به (CSRF protection)',
+        message: t('main.not'),
         timestamp: new Date().toISOString(),
         path: req.url,
       });
@@ -364,7 +365,7 @@ async function bootstrap() {
       if (!token) {
         return res.json({
           status: 'error',
-          message: 'METAAPI_TOKEN غير مضبوط — أضفه كمتغير بيئة في Railway',
+          message: t('main.not_2'),
           tokenPresent: false,
           elapsed: Date.now() - start,
           timestamp: new Date().toISOString(),
@@ -409,7 +410,7 @@ async function bootstrap() {
           if (msg.includes('Unauthorized') || msg.includes('401') || msg.includes('Invalid token') || msg.includes('Forbidden')) {
             return res.json({
               status: 'error',
-              message: 'مفتاح MetaAPI غير صالح — تم رفض الاتصال',
+              message: t('main.key_not_valid_done'),
               tokenPresent: true,
               tokenValid: false,
               error: msg.substring(0, 200),
@@ -421,7 +422,7 @@ async function bootstrap() {
           tokenValid = true;
           return res.json({
             status: 'partial',
-            message: 'المفتاح موجود لكن فشل جلب الحسابات',
+            message: t('main.found_failure_accounts'),
             tokenPresent: true,
             tokenValid: true,
             error: msg.substring(0, 200),
@@ -454,7 +455,7 @@ async function bootstrap() {
       } catch (error: any) {
         return res.json({
           status: 'error',
-          message: 'فشل اختبار اتصال MetaAPI Cloud',
+          message: t('main.failure'),
           tokenPresent: true,
           tokenValid: false,
           error: (error?.message || String(error)).substring(0, 200),

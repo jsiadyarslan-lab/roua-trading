@@ -23,6 +23,7 @@ import {
   Matches,
 } from 'class-validator';
 import { OrderSide, OrderType } from '../../trading.types';
+import { t } from '../../../../i18n/i18n.helper';
 
 // Re-export Prisma enums for DTO use — single source of truth
 
@@ -43,7 +44,7 @@ export class PlaceOrderDto {
   @IsString()
   @MaxLength(30)
   // SECURITY: Only allow alphanumeric + / . - _ (no SQL/shell special chars)
-  @Matches(/^[A-Za-z0-9\/\.\-_]+$/, { message: 'رمز التداول غير صالح — أحرف وأرقام و / . - _ فقط' })
+  @Matches(/^[A-Za-z0-9\/\.\-_]+$/, { message: t('place_order_dto.trading_not_valid') })
   symbol!: string;
 
   @IsEnum(OrderSide)

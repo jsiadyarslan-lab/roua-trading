@@ -46,6 +46,7 @@ import {
   OrderTypeEnum,
 } from '../events/order.events';
 import { PlaceOrderDto as V2PlaceOrderDto } from './dtos/place-order.dto';
+import { t } from '../../../i18n/i18n.helper';
 
 /**
  * Order Controller — V2 Thin Redirect Layer
@@ -110,7 +111,7 @@ export class OrderController {
     const isUnique = await this.idempotencyService.checkAndLock(idempotencyKey);
     if (!isUnique) {
       throw new ConflictException(
-        'تم استلام هذا الطلب مسبقاً. لا يمكن تكرار نفس idempotencyKey خلال 24 ساعة.',
+        t('order_controller.done_this_order'),
       );
     }
 
@@ -159,7 +160,7 @@ export class OrderController {
       await this.idempotencyService.releaseLock(idempotencyKey);
 
       throw new ForbiddenException(
-        `🛡️ تم رفض الطلب: ${riskResult.reason}`,
+        t('order_controller.done_order', undefined, { reason: riskResult.reason }),
       );
     }
 
@@ -267,11 +268,11 @@ export class OrderController {
     const order = await this.stateManager.findOrderById(orderId);
 
     if (!order) {
-      throw new NotFoundException('الطلب غير موجود');
+      throw new NotFoundException(t('order_controller.order_not_found'));
     }
 
     if (order.userId !== req.user.id) {
-      throw new ForbiddenException('ليس لديك صلاحية الوصول لهذا الطلب');
+      throw new ForbiddenException(t('order_controller.validity_order'));
     }
 
     return { success: true, data: order };
@@ -287,11 +288,11 @@ export class OrderController {
     const order = await this.stateManager.findOrderById(orderId);
 
     if (!order) {
-      throw new NotFoundException('الطلب غير موجود');
+      throw new NotFoundException(t('order_controller.order_not_found'));
     }
 
     if (order.userId !== req.user.id) {
-      throw new ForbiddenException('ليس لديك صلاحية إلغاء هذا الطلب');
+      throw new ForbiddenException(t('order_controller.validity_this_order'));
     }
 
     if (!['PENDING', 'ACCEPTED'].includes(order.status)) {
@@ -338,19 +339,19 @@ export class OrderController {
    */
   private _validateOrderBusinessLogic(body: V2PlaceOrderDto): void {
     if (body.type === 'LIMIT' && !body.price) {
-      throw new BadRequestException('سعر الحد مطلوب للطلبات المحددة (LIMIT)');
+      throw new BadRequestException(t('order_controller.limit_required'));
     }
 
     if (body.stopLoss !== undefined && body.stopLoss <= 0) {
-      throw new BadRequestException('وقف الخسارة يجب أن يكون رقماً أكبر من صفر');
+      throw new BadRequestException(t('order_controller.loss_must'));
     }
 
     if (body.takeProfit !== undefined && body.takeProfit <= 0) {
-      throw new BadRequestException('جني الأرباح يجب أن يكون رقماً أكبر من صفر');
+      throw new BadRequestException(t('order_controller.profits_must'));
     }
 
     if (!/^[A-Za-z0-9/_.-]+$/.test(body.symbol)) {
-      throw new BadRequestException('رمز التداول يحتوي على أحرف غير صالحة');
+      throw new BadRequestException(t('order_controller.trading_not_valid'));
     }
   }
 }

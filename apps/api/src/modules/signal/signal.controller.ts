@@ -2,6 +2,7 @@ import { Controller, Get, Post, Param, Body, Delete, UseGuards, Request, Logger,
 import { SignalService } from './signal.service';
 import { AuthGuard } from '../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
+import { t } from '../../i18n/i18n.helper';
 
 @Controller('signals')
 @UseGuards(AuthGuard)
@@ -70,7 +71,7 @@ export class SignalController {
     const userId = req.user.id;
 
     if (!body.credentialId) {
-      throw new BadRequestException('معرف بيانات الاعتماد مطلوب لتنفيذ الإشارة');
+      throw new BadRequestException(t('signal_controller.required_signal', req));
     }
 
     const result = await this.signalService.executeSignal(userId, signalId, body.credentialId, body.quantity);

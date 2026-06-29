@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { Throttle } from '@nestjs/throttler';
 import { AuthGuard, Public } from '../common/guards/auth.guard';
+import { t } from '../i18n/i18n.helper';
 
 @Controller('auth')
 @UseGuards(AuthGuard)
@@ -132,7 +133,7 @@ export class AuthController {
       return { success: true, user: result.user };
     }
 
-    return { error: 'بيانات اعتماد غير صالحة' };
+    return { error: t('auth_controller.not_valid', req) };
   }
 
   // ── Check Session ──

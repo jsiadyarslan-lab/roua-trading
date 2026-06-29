@@ -14,6 +14,7 @@ import { OrderDispatcherService } from '../../../modules/trading/services/order-
 import { ExposureManagerService } from '../../../modules/trading/services/exposure-manager.service';
 import { TradeCoordinationService } from '../../../modules/trading/services/trade-coordination.service';
 import { CredentialsService } from '../../../modules/portfolio/credentials/credentials.service';
+import { t } from '../../../i18n/i18n.helper';
 
 /**
  * OrderExecutorService — Executes trades with safety and precision
@@ -100,7 +101,7 @@ export class OrderExecutorService implements OnModuleDestroy {
     if (!this.orderDispatcher) {
       return {
         success: false,
-        error: 'نظام التنفيذ غير متاح حالياً — يرجى المحاولة لاحقاً',
+        error: t('order_executor_service.execution_not_please_attempt_later'),
         executionTimeMs: Date.now() - startTime,
       };
     }
@@ -172,7 +173,7 @@ export class OrderExecutorService implements OnModuleDestroy {
       if (this._isDuplicateOrder(userId, signal.symbol, signal.action)) {
         return {
           success: false,
-          error: 'أمر مكرر — تم تقديم أمر مشابه مؤخراً',
+          error: t('order_executor_service.done'),
           executionTimeMs: Date.now() - startTime,
         };
       }
@@ -182,7 +183,7 @@ export class OrderExecutorService implements OnModuleDestroy {
         this.logger.error('⚡ ORDER REJECTED: No stop-loss');
         return {
           success: false,
-          error: 'وقف الخسارة إجباري — لا يمكن تنفيذ أمر بدون وقف خسارة',
+          error: t('order_executor_service.loss_execute'),
           executionTimeMs: Date.now() - startTime,
         };
       }
@@ -226,7 +227,7 @@ export class OrderExecutorService implements OnModuleDestroy {
         if (!executionPrice || executionPrice <= 0) {
           return {
             success: false,
-            error: `سعر التنفيذ غير صالح (${executionPrice}) لـ ${signal.symbol} — تم إلغاء الأمر`,
+            error: t('order_executor_service.execution_not_valid_done_order', { executionPrice: executionPrice, symbol: signal.symbol }),
             executionTimeMs: Date.now() - startTime,
           };
         }
@@ -236,7 +237,7 @@ export class OrderExecutorService implements OnModuleDestroy {
         if (tradeValue < 1) {
           return {
             success: false,
-            error: `قيمة الصفقة صغيرة جداً ($${tradeValue.toFixed(4)}) — تم الإلغاء`,
+            error: t('order_executor_service.trade_done'),
             executionTimeMs: Date.now() - startTime,
           };
         }
@@ -389,7 +390,7 @@ export class OrderExecutorService implements OnModuleDestroy {
       if (!credential || !credential.isValid) {
         return {
           success: false,
-          error: 'بيانات الاعتماد غير صالحة',
+          error: t('order_executor_service.not_valid'),
           executionTimeMs: Date.now() - startTime,
         };
       }
@@ -398,7 +399,7 @@ export class OrderExecutorService implements OnModuleDestroy {
       if (!permissions.includes('trade')) {
         return {
           success: false,
-          error: 'مفتاح API لا يملك صلاحية التداول — لا يمكن سحب الأموال',
+          error: t('order_executor_service.key_api_validity_trading'),
           executionTimeMs: Date.now() - startTime,
         };
       }
@@ -416,7 +417,7 @@ export class OrderExecutorService implements OnModuleDestroy {
         );
         return {
           success: false,
-          error: `بيع ${signal.symbol} غير ممكن على حساب سبوت (${credential.exchange}) — يحتاج حساب مارجن/فيوتشر للبيع على المكشوف`,
+          error: t('order_executor_service.not', { symbol: signal.symbol, exchange: credential.exchange }),
           executionTimeMs: Date.now() - startTime,
         };
       }
@@ -447,7 +448,7 @@ export class OrderExecutorService implements OnModuleDestroy {
           );
           return {
             success: false,
-            error: `رصيد غير كافي في ${credential.exchange} — يحتاج $${balanceCheck.required.toFixed(2)}، المتاح $${balanceCheck.available.toFixed(2)}`,
+            error: t('order_executor_service.not_sufficient_available', { exchange: credential.exchange }),
             executionTimeMs: Date.now() - startTime,
           };
         }
@@ -601,7 +602,7 @@ export class OrderExecutorService implements OnModuleDestroy {
 
       return {
         success: false,
-        error: `فشل في التنفيذ: ${error.message}`,
+        error: t('order_executor_service.failure_execution', { message: error.message }),
         executionTimeMs,
       };
     } finally {

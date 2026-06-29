@@ -13,6 +13,7 @@ import { RateLimiterService } from './rate-limiter.service';
 import { AuditService } from '../../../audit/audit.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import { UnifiedOrder } from '../adapters/base-adapter.interface';
+import { t } from '../../../i18n/i18n.helper';
 
 /**
  * OrderQueueProcessor — BullMQ Worker for Order Execution
@@ -271,7 +272,7 @@ export class OrderQueueProcessor extends WorkerHost implements OnModuleDestroy {
       });
 
       if (!order) {
-        return { success: false, error: 'الطلب غير موجود' };
+        return { success: false, error: t('order_queue_processor.order_not_found') };
       }
 
       if (order.status !== 'ACCEPTED' && order.status !== 'PENDING') {
@@ -289,14 +290,14 @@ export class OrderQueueProcessor extends WorkerHost implements OnModuleDestroy {
       });
 
       if (!credential) {
-        return { success: false, error: 'بيانات الاعتماد غير موجودة' };
+        return { success: false, error: t('order_queue_processor.not_found') };
       }
 
       if (credential.userId !== userId) {
         this.logger.error(
           `⚙️ SECURITY: User ${userId} attempted to execute order with credential ${exchangeCredentialId} owned by ${credential.userId}`,
         );
-        return { success: false, error: 'بيانات الاعتماد لا تنتمي لحسابك' };
+        return { success: false, error: t('order_queue_processor.msg_69ba65db') };
       }
 
       // Step 2: Check rate limits

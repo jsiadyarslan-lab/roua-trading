@@ -28,6 +28,7 @@ import {
   ContentType,
   ContentStatus,
 } from './types/content.types';
+import { t } from '../../i18n/i18n.helper';
 
 /**
  * Content Agent API
@@ -68,7 +69,7 @@ export class ContentAgentController {
         qualityScore: result.content.qualityScore,
         optimization: result.optimization,
       },
-      message: `تم توليد المحتوى بنجاح — الجودة: ${result.content.qualityScore}%`,
+      message: t('content_agent_controller.done', req, { qualityScore: result.content.qualityScore }),
     };
   }
 
@@ -86,7 +87,7 @@ export class ContentAgentController {
     return {
       success: true,
       data: result.results,
-      message: `تم توليد ${successCount}/${result.results.length} محتوى بنجاح`,
+      message: t('content_agent_controller.done_2', req, { successCount: successCount, length: result.results.length }),
     };
   }
 
@@ -110,7 +111,7 @@ export class ContentAgentController {
     return {
       success: true,
       data: result.article,
-      message: 'تم نشر التنبيه العاجل',
+      message: t('content_agent_controller.done_3', req),
     };
   }
 
@@ -229,7 +230,7 @@ export class ContentAgentController {
     return {
       success: true,
       data: result,
-      message: 'تم نشر المحتوى بنجاح',
+      message: t('content_agent_controller.done_4', req),
     };
   }
 
@@ -246,7 +247,7 @@ export class ContentAgentController {
     return {
       success: true,
       data: result,
-      message: `تم جدولة المحتوى للنشر في ${dto.scheduledAt}`,
+      message: t('content_agent_controller.done_5', req, { scheduledAt: dto.scheduledAt }),
     };
   }
 
@@ -261,7 +262,7 @@ export class ContentAgentController {
     return {
       success: true,
       data: result,
-      message: 'تم تحديث المحتوى',
+      message: t('content_agent_controller.done_6', req),
     };
   }
 
@@ -276,7 +277,7 @@ export class ContentAgentController {
     return {
       success: true,
       data: result,
-      message: 'تم أرشفة المحتوى',
+      message: t('content_agent_controller.done_7', req),
     };
   }
 }

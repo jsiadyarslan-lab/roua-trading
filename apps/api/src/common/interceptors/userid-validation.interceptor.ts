@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { Request } from 'express';
+import { t } from '../../i18n/i18n.helper';
 
 /**
  * User ID Validation Interceptor — Defense-in-Depth Layer 3
@@ -38,7 +39,7 @@ export class UserIdValidationInterceptor implements NestInterceptor {
           `🚨 SECURITY: Authenticated request has invalid userId="${userId}" — ` +
           `possible auth bypass or session corruption! Path: ${request.method} ${request.url}`
         );
-        throw new ForbiddenException('هوية المستخدم غير صالحة — يرجى تسجيل الدخول مرة أخرى');
+        throw new ForbiddenException(t('userid_validation_interceptor.user_not_valid_please_login'));
       }
     }
 
@@ -54,9 +55,10 @@ export class UserIdValidationInterceptor implements NestInterceptor {
  */
 export function validateUserId(userId: string, context?: string): string {
   if (!userId || typeof userId !== 'string' || userId.trim() === '') {
-    throw new ForbiddenException(
-      `هوية المستخدم غير صالحة${context ? ` (${context})` : ''} — يرجى تسجيل الدخول مرة أخرى`
-    );
+    const msg = context
+      ? t('userid_validation_interceptor.user_not_valid_please_login')
+      : t('userid_validation_interceptor.user_not_valid');
+    throw new ForbiddenException(msg);
   }
   return userId;
 }

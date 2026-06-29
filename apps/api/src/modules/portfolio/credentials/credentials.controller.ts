@@ -3,6 +3,7 @@ import { CredentialsService } from './credentials.service';
 import { AuthGuard } from '../../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
 import { IsString, IsNotEmpty, IsOptional, IsBoolean } from 'class-validator';
+import { t } from '../../../i18n/i18n.helper';
 
 class AddCredentialDto {
   @IsString()
@@ -53,7 +54,7 @@ export class CredentialsController {
       /^guest-[a-f0-9]+@roua\.auto$/.test(email);
 
     if (isGuest) {
-      throw new ForbiddenException('يجب تسجيل الدخول بحساب حقيقي لربط مفاتيح البورصة أو عرض أرصدتها');
+      throw new ForbiddenException(t('credentials_controller.must_login_login_exchange', req));
     }
   }
 
@@ -110,7 +111,7 @@ export class CredentialsController {
   ) {
     this.assertRealUser(req);
     if (!body.exchange || !body.label || !body.apiKey || !body.apiSecret) {
-      throw new BadRequestException('جميع الحقول مطلوبة');
+      throw new BadRequestException(t('credentials_controller.required', req));
     }
 
     try {

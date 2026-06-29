@@ -14,6 +14,7 @@ import {
   GeneratedContent,
   ContentType,
 } from '../types/content.types';
+import { t } from '../../../i18n/i18n.helper';
 
 /**
  * ContentPublisherService — Publishing and scheduling engine
@@ -151,11 +152,11 @@ export class ContentPublisherService {
     });
 
     if (!article) {
-      throw new Error('المحتوى غير موجود');
+      throw new Error(t('content_publisher_service.not_found'));
     }
 
     if (article.status === ContentStatus.PUBLISHED) {
-      throw new Error('المحتوى منشور بالفعل');
+      throw new Error(t('content_publisher_service.msg_543dca66'));
     }
 
     const updated = await this.prisma.contentArticle.update({

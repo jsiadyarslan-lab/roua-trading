@@ -11,6 +11,7 @@ import { StrategicCouncilService } from './strategic-council.service';
 import { AuthGuard, Public } from '../../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
 import { AIOrchestratorService } from '../services/ai-orchestrator.service';
+import { t } from '../../../i18n/i18n.helper';
 
 /** V267: Supported AI languages — the 32 UI locales supported by the frontend.
  *  The AI Council, News, Coach, Signals modules now accept this union
@@ -157,7 +158,7 @@ export class StrategicCouncilController {
   ) {
     const pairs = body.pairs || [];
     if (pairs.length === 0) {
-      return { success: false, message: 'حدد زوجاً واحداً على الأقل' };
+      return { success: false, message: t('strategic_council_controller.msg_8cb8dae2', req) };
     }
 
     // V267: Resolve the AI locale from request (query > body > user > Accept-Language > 'ar')
@@ -172,7 +173,7 @@ export class StrategicCouncilController {
     if (this.councilService.isInSessionNow()) {
       return {
         success: false,
-        message: 'جلسة أخرى قيد التشغيل حالياً — يرجى الانتظار حتى تنتهي',
+        message: t('strategic_council_controller.inprogress_please_waiting', req),
         status: 'already_running',
       };
     }
@@ -192,7 +193,7 @@ export class StrategicCouncilController {
         status: 'processing',
         pairs,
         language,
-        message: 'تم بدء الجلسة — راقب النتائج خلال دقيقة واحدة',
+        message: t('strategic_council_controller.done_session', req),
       },
     };
   }

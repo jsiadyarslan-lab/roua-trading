@@ -14,6 +14,7 @@ import { NewsService } from './news.service';
 import { NewsIntegrationService } from './news-integration.service';
 import { AuthGuard, Public } from '../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
+import { t } from '../../i18n/i18n.helper';
 
 @Controller('news')
 @UseGuards(AuthGuard)
@@ -56,7 +57,7 @@ export class NewsController {
       return { success: true, data: news, count: news.length };
     } catch (error: any) {
       this.logger.error(`Failed to fetch news: ${error.message}`, error.stack);
-      throw new InternalServerErrorException('فشل في جلب الأخبار');
+      throw new InternalServerErrorException(t('news_controller.failure'));
     }
   }
 
@@ -91,7 +92,7 @@ export class NewsController {
       return { success: true, data: news, count: news.length };
     } catch (error: any) {
       this.logger.error(`Failed to fetch news feed: ${error.message}`, error.stack);
-      throw new InternalServerErrorException('فشل في جلب تغذية الأخبار');
+      throw new InternalServerErrorException(t('news_controller.failure_2'));
     }
   }
 
@@ -111,7 +112,7 @@ export class NewsController {
       return { success: true, data: sentiment };
     } catch (error: any) {
       this.logger.error(`Failed to fetch market sentiment: ${error.message}`, error.stack);
-      throw new InternalServerErrorException('فشل في جلب مشاعر السوق');
+      throw new InternalServerErrorException(t('news_controller.failure_market'));
     }
   }
 
@@ -132,7 +133,7 @@ export class NewsController {
     @Req() req?: any,
   ) {
     if (!body.text) {
-      throw new BadRequestException('النص مطلوب للتحليل');
+      throw new BadRequestException(t('news_controller.required'));
     }
 
     // V267: Resolve language from body > user > Accept-Language > 'ar'
@@ -151,7 +152,7 @@ export class NewsController {
       return { success: true, data: analysis, language };
     } catch (error: any) {
       this.logger.error(`Failed to analyze news: ${error.message}`, error.stack);
-      throw new InternalServerErrorException('فشل في تحليل الخبر');
+      throw new InternalServerErrorException(t('news_controller.failure_3'));
     }
   }
 
@@ -180,10 +181,10 @@ export class NewsController {
   async triggerFetch() {
     try {
       await this.newsService.fetchAndAnalyzeNews();
-      return { success: true, message: 'تم جلب وتحليل الأخبار بنجاح' };
+      return { success: true, message: t('news_controller.done') };
     } catch (error: any) {
       this.logger.error(`Manual fetch failed: ${error.message}`, error.stack);
-      throw new InternalServerErrorException('فشل في جلب الأخبار');
+      throw new InternalServerErrorException(t('news_controller.failure'));
     }
   }
 
@@ -199,10 +200,10 @@ export class NewsController {
   async triggerPipeline(@Body() body?: { maxItems?: number }) {
     try {
       const result = await this.newsIntegration.triggerNewsPipeline(body?.maxItems || 15);
-      return { success: true, data: result, message: 'تم تشغيل خط أنابيب الأخبار' };
+      return { success: true, data: result, message: t('news_controller.done_2') };
     } catch (error: any) {
       this.logger.error(`Pipeline trigger failed: ${error.message}`, error.stack);
-      throw new InternalServerErrorException('فشل في تشغيل خط الأنابيب');
+      throw new InternalServerErrorException(t('news_controller.failure_4'));
     }
   }
 }

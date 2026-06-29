@@ -6,6 +6,7 @@
 import { Injectable, CanActivate, ExecutionContext, Logger, SetMetadata, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
+import { t } from '../../i18n/i18n.helper';
 
 /**
  * Metadata key for marking routes as integration-only.
@@ -53,19 +54,19 @@ export class IntegrationGuard implements CanActivate {
     // No key configured = integration not set up
     if (!expectedKey) {
       this.logger.warn('INTEGRATION_API_KEY not configured — integration access denied');
-      throw new UnauthorizedException('مفتاح التكامل غير مُعد — يرجى تهيئة INTEGRATION_API_KEY');
+      throw new UnauthorizedException(t('integration_guard.key_not_please'));
     }
 
     // No key provided
     if (!apiKey) {
       this.logger.warn(`Missing X-Integration-Key header from ${request.ip}`);
-      throw new UnauthorizedException('مفتاح التكامل مطلوب (X-Integration-Key)');
+      throw new UnauthorizedException(t('integration_guard.key_required'));
     }
 
     // Timing-safe comparison
     if (apiKey.length !== expectedKey.length) {
       this.logger.warn(`Invalid integration key attempt from ${request.ip}`);
-      throw new UnauthorizedException('مفتاح التكامل غير صالح');
+      throw new UnauthorizedException(t('integration_guard.key_not_valid'));
     }
 
     let result = 0;
@@ -75,7 +76,7 @@ export class IntegrationGuard implements CanActivate {
 
     if (result !== 0) {
       this.logger.warn(`Invalid integration key attempt from ${request.ip}`);
-      throw new UnauthorizedException('مفتاح التكامل غير صالح');
+      throw new UnauthorizedException(t('integration_guard.key_not_valid'));
     }
 
     // Mark request as integration for downstream use

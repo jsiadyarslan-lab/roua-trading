@@ -38,6 +38,7 @@ import {
   OrderType,
 } from './types/agent.types';
 import { PerformanceTracker } from './models/performance';
+import { t } from '../../i18n/i18n.helper';
 
 /**
  * AutonomousTraderAgentService — The Brain of Autonomous Trading
@@ -408,7 +409,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     // Check if agent is already running
     const existingState = await this._getAgentState(userId);
     if (existingState && existingState.status === AgentStatus.RUNNING) {
-      throw new BadRequestException('الوكيل يعمل بالفعل — أوقفه أولاً ثم أعد تشغيله');
+      throw new BadRequestException(t('agent_service.agent_first_then_retry'));
     }
 
     // FIX: If agent was stopped due to DAILY_LIMIT_REACHED, allow restart
@@ -477,7 +478,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     if (!globalAutoTradingEnabled) {
       this.logger.error(`🚫 AUTO_TRADING_ENABLED=false (global) — cannot start agent for user ${userId}`);
       throw new BadRequestException(
-        'التداول الذاتي معطّل على مستوى النظام — لا يمكن تفعيل الوكيل. يمكنك تفعيله من إعدادات النظام',
+        t('agent_service.trading_autonomous_disabled_system_activate'),
       );
     }
 
@@ -555,7 +556,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     if (!userAutoTradingEnabled) {
       this.logger.warn(`🚫 User ${userId} has autoTradingEnabled=false — cannot start agent`);
       throw new BadRequestException(
-        'التداول الذاتي معطّل في إعداداتك — فعّله من صفحة إعدادات الوكيل',
+        t('agent_service.trading_autonomous_disabled_agent'),
       );
     }
 
@@ -635,11 +636,11 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         });
       } catch (error: any) {
         this.logger.error(`Database error looking up credential: ${error.message}`);
-        throw new ServiceUnavailableException('خطأ في قاعدة البيانات — يرجى المحاولة لاحقاً');
+        throw new ServiceUnavailableException(t('agent_service.error_base_data_please_attempt'));
       }
 
       if (!credential) {
-        throw new NotFoundException('الحساب المفعّل غير صالح أو غير موجود — اختر حساباً آخر من الإعدادات');
+        throw new NotFoundException(t('agent_service.account_not_valid_not_found'));
       }
 
       // V135: Determine trading mode — separate testnet from paper trading.
@@ -789,7 +790,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
 
     const state = await this._getAgentState(userId);
     if (!state) {
-      throw new NotFoundException('الوكيل غير نشط');
+      throw new NotFoundException(t('agent_service.agent_not'));
     }
 
     state.status = emergency ? AgentStatus.EMERGENCY_STOP : AgentStatus.STOPPED;
@@ -899,7 +900,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
 
     const state = await this._getAgentState(userId);
     if (!state || state.status !== AgentStatus.RUNNING) {
-      throw new BadRequestException('الوكيل ليس في حالة تشغيل');
+      throw new BadRequestException(t('agent_service.agent'));
     }
 
     const previousStrategy = state.config.strategy;
@@ -943,7 +944,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
 
     const state = await this._getAgentState(userId);
     if (!state) {
-      throw new NotFoundException('الوكيل غير نشط');
+      throw new NotFoundException(t('agent_service.agent_not'));
     }
 
     if (dto.maxPositionSizePercent) state.config.maxPositionSizePercent = dto.maxPositionSizePercent;

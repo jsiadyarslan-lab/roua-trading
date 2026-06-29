@@ -43,6 +43,7 @@ import {
   EABridgeResponse,
   EAConfig,
 } from './ea-bridge.types';
+import { t } from '../../i18n/i18n.helper';
 
 @Controller('ea-bridge')
 export class EABridgeController {
@@ -74,13 +75,13 @@ export class EABridgeController {
       const expectedSecret = process.env.EA_BRIDGE_SECRET || process.env.INTEGRATION_API_KEY;
       if (!expectedSecret || secret !== expectedSecret) {
         this.logger.warn(`EA Bridge: generate-token called with invalid secret`);
-        throw new ForbiddenException('مفتاح EA_BRIDGE_SECRET غير صالح');
+        throw new ForbiddenException(t('ea_bridge_controller.key_not_valid', req));
       }
       userId = body?.userId;
     }
 
     if (!userId || userId.length < 5) {
-      throw new BadRequestException('userId مطلوب ويجب أن يكون 5 أحرف على الأقل');
+      throw new BadRequestException(t('ea_bridge_controller.required', req));
     }
 
     const label = body.label || 'MT5 EA';

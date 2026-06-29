@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AIOrchestratorService } from '../ai/services/ai-orchestrator.service';
+import { t } from '../../i18n/i18n.helper';
 
 interface NewsFilter {
   symbol?: string;
@@ -126,7 +127,7 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
       // FIX: Previously returned [] which masked database failures.
       // Now throw so the client gets a proper 500 error instead of
       // silently showing "no news" when the DB is actually down.
-      throw new Error(`فشل في جلب الأخبار: ${error.message}`);
+      throw new Error(t('news_service.failure', { message: error.message }));
     }
   }
 

@@ -28,6 +28,7 @@ import { Throttle } from '@nestjs/throttler';
 import { MarketScannerService } from './services/market-scanner.service';
 import { PositionMonitorService } from './services/position-monitor.service';
 import { MarketBroadcasterService } from './services/market-broadcaster.service';
+import { t } from '../../i18n/i18n.helper';
 
 /**
  * Engine Controller — واجهة إدارة البنية التحتية الحية
@@ -100,7 +101,7 @@ export class EngineController {
       };
     } catch (error: any) {
       this.logger.error(`Engine health check failed: ${error.message}`, error.stack);
-      throw new InternalServerErrorException('فشل في فحص حالة المحرك');
+      throw new InternalServerErrorException(t('engine_controller.failure'));
     }
   }
 

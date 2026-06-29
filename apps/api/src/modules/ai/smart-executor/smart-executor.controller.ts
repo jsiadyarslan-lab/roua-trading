@@ -10,6 +10,7 @@ import { SmartExecutorService } from './smart-executor.service';
 import { AuthGuard, Public } from '../../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
 import { ExposureManagerService } from '../../trading/services/exposure-manager.service';
+import { t } from '../../../i18n/i18n.helper';
 
 @Controller('smart-executor')
 @UseGuards(AuthGuard)
@@ -63,12 +64,12 @@ export class SmartExecutorController {
   async stop(@Request() req: any) {
     const userId = req.user?.id;
     if (!userId) {
-      return { success: false, error: 'المستخدم غير مُصادق عليه' };
+      return { success: false, error: t('smart_executor_controller.user_not') };
     }
     this.logger.log(`⚔️ Smart Executor stop requested by user ${userId} — disabling user only (not global)`);
     await this.executorService.disableUser(userId);
     const status = await this.executorService.getStatus(userId);
-    return { success: true, data: status, message: 'تم تعطيل المنفذ الذكي لحسابك' };
+    return { success: true, data: status, message: t('smart_executor_controller.done_disable') };
   }
 
   /**
@@ -79,7 +80,7 @@ export class SmartExecutorController {
   async emergencyStop(@Request() req: any) {
     const userId = req.user?.id;
     if (!userId) {
-      return { success: false, error: 'المستخدم غير مُصادق عليه' };
+      return { success: false, error: t('smart_executor_controller.user_not') };
     }
     this.logger.warn(`🚨 EMERGENCY STOP requested by user ${userId} — disabling executor and closing all positions`);
 
@@ -107,7 +108,7 @@ export class SmartExecutorController {
 
     return {
       success: true,
-      message: `تم إيقاف المنفذ الذكي وإغلاق ${closed.length} صفقة`,
+      message: t('smart_executor_controller.done_stop', undefined, { length: closed.length }),
       closed,
       failed,
     };
@@ -138,7 +139,7 @@ export class SmartExecutorController {
     },
   ) {
     const state = await this.executorService.enableUser(req.user.id, body);
-    return { success: true, data: state, message: 'تم تفعيل المنفذ الذكي' };
+    return { success: true, data: state, message: t('smart_executor_controller.done_activate') };
   }
 
   // REMOVED: POST /api/smart-executor/user/auto-enable — This was a BACKDOOR
@@ -153,7 +154,7 @@ export class SmartExecutorController {
   @Post('user/disable')
   async disableUser(@Request() req: any) {
     await this.executorService.disableUser(req.user.id);
-    return { success: true, message: 'تم إيقاف المنفذ الذكي' };
+    return { success: true, message: t('smart_executor_controller.done_stop_2') };
   }
 
   /**
@@ -163,7 +164,7 @@ export class SmartExecutorController {
   async getUserStatus(@Request() req: any) {
     const userId = req.user?.id;
     if (!userId) {
-      return { success: false, error: 'المستخدم غير مُصادق عليه' };
+      return { success: false, error: t('smart_executor_controller.user_not') };
     }
     const userState = await this.executorService.getUserState(userId);
     const globalStatus = await this.executorService.getStatus(userId);
@@ -187,7 +188,7 @@ export class SmartExecutorController {
     return {
       success: true,
       data: result,
-      message: `تم حذف ${result.deleted} مركز وهمي من قاعدة البيانات`,
+      message: t('smart_executor_controller.done_base_data', undefined, { deleted: result.deleted }),
     };
   }
 
@@ -203,7 +204,7 @@ export class SmartExecutorController {
     return {
       success: true,
       data: result,
-      message: `تم تعطيل ${result.disabled} مستخدم تم تفعيلهم تلقائياً`,
+      message: t('smart_executor_controller.done_disable_done', undefined, { disabled: result.disabled }),
     };
   }
 
@@ -230,14 +231,14 @@ export class SmartExecutorController {
   async nuclearCleanup(@Request() req: any) {
     const userId = req.user?.id;
     if (!userId) {
-      return { success: false, error: 'المستخدم غير مُصادق عليه — لا يمكن تنفيذ التنظيف' };
+      return { success: false, error: t('smart_executor_controller.user_not_execute') };
     }
     this.logger.warn(`⚔️ V168 NUCLEAR CLEANUP requested by user ${userId}`);
     const result = await this.executorService.nuclearCleanup(userId);
     return {
       success: true,
       data: result,
-      message: `تم حذف جميع البيانات الوهمية: ${result.briefs} وثيقة، ${result.positions} مركز، ${result.trades} صفقة، ${result.paperOrders} أمر ورقي، ${result.paperCredentials} بيانات ورقية`,
+      message: t('smart_executor_controller.done_data', undefined, { briefs: result.briefs, positions: result.positions, trades: result.trades, paperOrders: result.paperOrders, paperCredentials: result.paperCredentials }),
     };
   }
 
@@ -252,7 +253,7 @@ export class SmartExecutorController {
   async getExposure(@Request() req: any) {
     const userId = req.user?.id;
     if (!userId) {
-      return { success: false, error: 'المستخدم غير مُصادق عليه' };
+      return { success: false, error: t('smart_executor_controller.user_not') };
     }
     const summary = await this.exposureManager.getExposureSummary(userId);
     return { success: true, data: summary };

@@ -12,6 +12,7 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
+import { t } from '../../../i18n/i18n.helper';
 
 export type HealingLevel = 1 | 2 | 3;
 export type ComponentStatus = 'HEALTHY' | 'DEGRADED' | 'FAILED' | 'DISABLED';
@@ -186,7 +187,7 @@ export class SelfHealingService {
           report.push({
             component,
             status: 'DISABLED',
-            message: `${config.name} معطّل تلقائياً بسبب فشل متكرر`,
+            message: t('self_healing_service.disabled_failure', { name: config.name }),
             level: 3,
             action: 'يحتاج تفعيل يدوي أو يُفعّل تلقائياً بعد ٣٠ دقيقة',
             timestamp: Date.now(),
@@ -199,7 +200,7 @@ export class SelfHealingService {
           report.push({
             component,
             status,
-            message: `${config.name}: ${count} فشل متتالي`,
+            message: t('self_healing_service.failure', { name: config.name, count: count }),
             level: count >= config.criticalThreshold ? 3 : count >= config.degradeThreshold ? 2 : 1,
             action: count >= config.criticalThreshold ? 'سيتم تعطيل المكون تلقائياً' : 'مراقبة',
             timestamp: parsed.lastFailureAt || Date.now(),
@@ -208,7 +209,7 @@ export class SelfHealingService {
           report.push({
             component,
             status: 'HEALTHY',
-            message: `${config.name}: يعمل بشكل طبيعي`,
+            message: t('self_healing_service.msg_069b1936', { name: config.name }),
             level: 1,
             action: 'لا إجراء مطلوب',
             timestamp: Date.now(),
@@ -218,7 +219,7 @@ export class SelfHealingService {
         report.push({
           component,
           status: 'HEALTHY',
-          message: `${config.name}: حالة غير معروفة`,
+          message: t('self_healing_service.not', { name: config.name }),
           level: 1,
           action: 'لا إجراء مطلوب',
           timestamp: Date.now(),
@@ -239,7 +240,7 @@ export class SelfHealingService {
       return {
         component,
         status: 'FAILED',
-        message: `${name}: فشل حرج (${failureCount} فشل متتالي) — ${lastError}`,
+        message: t('self_healing_service.failure_failure', { name: name, failureCount: failureCount, lastError: lastError }),
         level: 3,
         action: 'تعطيل تلقائي فوري لحماية الحساب',
         timestamp: Date.now(),
@@ -250,7 +251,7 @@ export class SelfHealingService {
       return {
         component,
         status: 'DEGRADED',
-        message: `${name}: أداء متدهور (${failureCount} فشل) — ${lastError}`,
+        message: t('self_healing_service.failure_2', { name: name, failureCount: failureCount, lastError: lastError }),
         level: 2,
         action: 'مراقبة مكثفة + تنبيه',
         timestamp: Date.now(),
@@ -260,7 +261,7 @@ export class SelfHealingService {
     return {
       component,
       status: 'HEALTHY',
-      message: `${name}: فشل عابر (${failureCount})`,
+      message: t('self_healing_service.failure_3', { name: name, failureCount: failureCount }),
       level: 1,
       action: 'لا إجراء',
       timestamp: Date.now(),

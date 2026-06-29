@@ -18,6 +18,7 @@ import {
 import { ScannerService } from './scanner.service';
 import { MarketCategory } from './scanner.types';
 import { AuthGuard, Public } from '../../common/guards/auth.guard';
+import { t } from '../../i18n/i18n.helper';
 
 @Controller('scanner')
 @UseGuards(AuthGuard)
@@ -49,7 +50,7 @@ export class ScannerController {
       return await this.scannerService.fullScan(tf, cat);
     } catch (error: any) {
       this.logger.error(`Full scan failed: ${error.message}`, error.stack);
-      throw new InternalServerErrorException('فشل في إجراء المسح الكامل للسوق');
+      throw new InternalServerErrorException(t('scanner_controller.failure'));
     }
   }
 
@@ -71,7 +72,7 @@ export class ScannerController {
       return await this.scannerService.heatmapData(cat);
     } catch (error: any) {
       this.logger.error(`Heatmap failed: ${error.message}`, error.stack);
-      throw new InternalServerErrorException('فشل في جلب بيانات خريطة الحرارة');
+      throw new InternalServerErrorException(t('scanner_controller.failure_2'));
     }
   }
 
@@ -89,7 +90,7 @@ export class ScannerController {
       return await this.scannerService.deepAnalysis(symbol);
     } catch (error: any) {
       this.logger.error(`Deep analysis failed for ${symbol}: ${error.message}`, error.stack);
-      throw new InternalServerErrorException(`فشل في تحليل ${symbol}`);
+      throw new InternalServerErrorException(t('scanner_controller.failure_3', undefined, { symbol: symbol }));
     }
   }
 
@@ -107,7 +108,7 @@ export class ScannerController {
       return await this.scannerService.multiTimeframeAnalysis(symbol);
     } catch (error: any) {
       this.logger.error(`Multi-TF analysis failed for ${symbol}: ${error.message}`, error.stack);
-      throw new InternalServerErrorException(`فشل في التحليل متعدد الأطر الزمنية لـ ${symbol}`);
+      throw new InternalServerErrorException(t('scanner_controller.failure_analysis', undefined, { symbol: symbol }));
     }
   }
 
@@ -124,7 +125,7 @@ export class ScannerController {
       return await this.scannerService.marketOverview();
     } catch (error: any) {
       this.logger.error(`Market overview failed: ${error.message}`, error.stack);
-      throw new InternalServerErrorException('فشل في جلب نظرة عامة على السوق');
+      throw new InternalServerErrorException(t('scanner_controller.failure_market'));
     }
   }
 
@@ -152,7 +153,7 @@ export class ScannerController {
       return await this.scannerService.fullScan(tf, cat);
     } catch (error: any) {
       this.logger.error(`Force scan failed: ${error.message}`, error.stack);
-      throw new InternalServerErrorException('فشل في إجراء المسح الإجباري');
+      throw new InternalServerErrorException(t('scanner_controller.failure_4', req));
     }
   }
 }

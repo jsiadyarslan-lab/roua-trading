@@ -33,6 +33,7 @@ import {
 } from './base-adapter.interface';
 import { AuditService } from '../../../audit/audit.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { t } from '../../../i18n/i18n.helper';
 
 /**
  * MetaAPI Connection State
@@ -128,7 +129,7 @@ export class MT5Adapter implements IExchangeAdapter {
             );
             return {
               success: false,
-              error: `حجم المركز (${positionPercent.toFixed(1)}% من الرصيد) يتجاوز الحد الأقصى (${this.MAX_POSITION_PERCENT}%)`,
+              error: t('mt5_adapter.position_balance_limit_max', { MAX_POSITION_PERCENT: this.MAX_POSITION_PERCENT }),
               timestamp: new Date(),
             };
           }
@@ -188,35 +189,35 @@ export class MT5Adapter implements IExchangeAdapter {
       if (errorMsg.includes('No connection') || errorMsg.includes('ECONNREFUSED')) {
         return {
           success: false,
-          error: 'فشل الاتصال بسيرفر MT5 — تأكد أن الـ Terminal مفتوح أو أن الـ VPS يعمل',
+          error: t('mt5_adapter.failure_ensure_open'),
           timestamp: new Date(),
         };
       }
       if (errorMsg.includes('Invalid volume') || errorMsg.includes('volume')) {
         return {
           success: false,
-          error: `حجم الكمية غير صالح لـ MT5: ${order.quantity} — تحقق من الحد الأدنى والأقصى للحجم على ${order.symbol}`,
+          error: t('mt5_adapter.quantity_not_valid_limit_min', { quantity: order.quantity, symbol: order.symbol }),
           timestamp: new Date(),
         };
       }
       if (errorMsg.includes('Insufficient') || errorMsg.includes('Not enough money')) {
         return {
           success: false,
-          error: 'رصيد غير كافٍ في حساب MT5 لفتح هذا المركز',
+          error: t('mt5_adapter.not_this_position'),
           timestamp: new Date(),
         };
       }
       if (errorMsg.includes('Market is closed') || errorMsg.includes('trade is disabled')) {
         return {
           success: false,
-          error: 'السوق مغلق حالياً — لا يمكن تنفيذ الصفقة',
+          error: t('mt5_adapter.market_closed_execute_trade'),
           timestamp: new Date(),
         };
       }
 
       return {
         success: false,
-        error: `فشل تنفيذ أمر MT5: ${errorMsg}`,
+        error: t('mt5_adapter.failure_execute', { errorMsg: errorMsg }),
         timestamp: new Date(),
       };
     }
@@ -507,7 +508,7 @@ export class MT5Adapter implements IExchangeAdapter {
         await (account as any).waitDeployed();
       } catch (deployErr: any) {
         this.logger.warn(`📊 V187: Deploy failed: ${deployErr.message?.substring(0, 80)}`);
-        throw new Error(`حساب MT5 غير مُنشر (حالة: ${accountState}): ${deployErr.message?.substring(0, 60)}`);
+        throw new Error(t('mt5_adapter.not', { accountState: accountState }));
       }
     }
 
@@ -565,14 +566,14 @@ export class MT5Adapter implements IExchangeAdapter {
       const token = process.env.METAAPI_TOKEN;
 
       if (!token) {
-        throw new Error('METAAPI_TOKEN غير مضبوط — مطلوب للاتصال بـ MetaAPI Cloud');
+        throw new Error(t('mt5_adapter.not_required'));
       }
 
       this.metaApi = new MetaApiClass(token);
       return this.metaApi;
     } catch (error: any) {
       if (error.message?.includes('METAAPI_TOKEN')) throw error;
-      throw new Error(`فشل في تحميل MetaAPI SDK: ${error.message}. تأكد من تثبيت metaapi.cloud-sdk`);
+      throw new Error(t('mt5_adapter.failure_ensure', { message: error.message }));
     }
   }
 

@@ -23,6 +23,7 @@ import { AutonomousTraderAgentService } from './agent.service';
 import { MarketAnalyzerService } from './services/market-analyzer.service';
 import { SignalEvaluatorService } from './services/signal-evaluator.service';
 import { StartAgentDto, ChangeStrategyDto, UpdateRiskParamsDto, UpdateAgentSettingsDto, StrategyType } from './types/agent.types';
+import { t } from '../../i18n/i18n.helper';
 
 /**
  * Public Agent Status Controller (no auth required)
@@ -65,7 +66,7 @@ export class AutonomousTraderPublicController {
   async fixDb(@Req() req: any) {
     // SECURITY: Only INSTITUTIONAL (admin) users can run DB fixes
     if (!req.user || req.user.tier !== 'INSTITUTIONAL') {
-      throw new ForbiddenException('فقط المستخدمون المؤسسيون يمكنهم تنفيذ إصلاحات قاعدة البيانات');
+      throw new ForbiddenException(t('agent_controller.execute_fixes_base_data', req));
     }
 
     // REMOVED: DROP INDEX CASCADE — all DDL removed from application code.
@@ -155,7 +156,7 @@ export class AutonomousTraderAgentController {
       return {
         success: true,
         data: state,
-        message: `تم تفعيل وكيل التداول الذاتي — الاستراتيجية: ${dto.strategy}`,
+        message: t('agent_controller.done_activate_trading_autonomous_strategy', req, { strategy: dto.strategy }),
       };
     } catch (error: any) {
       this.logger.error(`[startAgent] Service error: ${error.message}`);
@@ -252,7 +253,7 @@ export class AutonomousTraderAgentController {
     return {
       success: true,
       data: state,
-      message: `تم تغيير الاستراتيجية إلى: ${dto.strategy}`,
+      message: t('agent_controller.done_strategy', req, { strategy: dto.strategy }),
     };
   }
 
@@ -270,7 +271,7 @@ export class AutonomousTraderAgentController {
       if (!market) {
         return {
           success: false,
-          message: 'لا يمكن تحليل السوق حالياً',
+          message: t('agent_controller.market', req),
           data: null,
         };
       }
@@ -300,7 +301,7 @@ export class AutonomousTraderAgentController {
     return {
       success: true,
       data: state,
-      message: 'تم تحديث معلمات المخاطر',
+      message: t('agent_controller.done', req),
     };
   }
 
@@ -329,7 +330,7 @@ export class AutonomousTraderAgentController {
     return {
       success: true,
       data: settings,
-      message: 'تم تحديث إعدادات الوكيل',
+      message: t('agent_controller.done_agent', req),
     };
   }
 
@@ -356,7 +357,7 @@ export class AutonomousTraderAgentController {
 
     // Allow any authenticated user to control their own auto-trading settings
     if (!user) {
-      throw new ForbiddenException('يجب تسجيل الدخول أولاً');
+      throw new ForbiddenException(t('agent_controller.must_login_login_first', req));
     }
 
     if (body.autoTradingEnabled !== undefined) {

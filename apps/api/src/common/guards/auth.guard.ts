@@ -3,6 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { t } from '../../i18n/i18n.helper';
 
 /**
  * Metadata key for marking routes as public (skip auth)
@@ -105,7 +106,7 @@ export class AuthGuard implements CanActivate {
         // Without this, every API request creates a connection attempt that leaks.
         if (!this.prisma.isAvailable()) {
           this.logger.warn('DB unavailable during session validation — rejecting');
-          throw new UnauthorizedException('يرجى تسجيل الدخول للوصول إلى هذا المورد');
+          throw new UnauthorizedException(t('auth_guard.please_login_login_this'));
         }
         const session = await this.prisma.session.findUnique({
           where: { token: sessionToken },
@@ -176,7 +177,7 @@ export class AuthGuard implements CanActivate {
 
     // 🔒 PROTECTED ROUTE: No valid session → reject with 401
     this.logger.warn(`Unauthenticated request to protected route: ${request.method} ${request.url}`);
-    throw new UnauthorizedException('يرجى تسجيل الدخول للوصول إلى هذا المورد');
+    throw new UnauthorizedException(t('auth_guard.please_login_login_this'));
   }
 
   /**

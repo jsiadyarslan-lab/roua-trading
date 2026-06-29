@@ -14,6 +14,7 @@ import { PaperTradingAdapter } from '../adapters/paper-trading.adapter';
 import { MT5Adapter } from '../adapters/mt5.adapter';
 import { MarketDataAggregatorService } from '../../analytics/aggregator.service';
 import { RedisService } from '../../../common/redis/redis.service';
+import { t } from '../../../i18n/i18n.helper';
 
 /**
  * ExecutionGatewayService — Exchange Adapter Router
@@ -100,11 +101,11 @@ export class ExecutionGatewayService {
     });
 
     if (!credential) {
-      throw new NotFoundException(`بيانات الاعتماد ${exchangeCredentialId} غير موجودة`);
+      throw new NotFoundException(t('execution_gateway_service.not_found', { exchangeCredentialId: exchangeCredentialId }));
     }
 
     if (!credential.isValid) {
-      throw new NotFoundException('بيانات الاعتماد غير صالحة — يرجى التحقق من مفتاح API');
+      throw new NotFoundException(t('execution_gateway_service.not_valid_please_verify_key'));
     }
 
     // Step 3: Re-validate permissions (security: check before EVERY execution)
@@ -350,14 +351,14 @@ export class ExecutionGatewayService {
         });
 
         throw new NotFoundException(
-          '🚫 تم إلغاء بيانات الاعتماد — تحتوي على صلاحيات سحب أو تحويل ممنوعة!',
+          t('execution_gateway_service.done'),
         );
       }
 
       // Verify trade permission exists
       if (!permissions.includes('trade')) {
         throw new NotFoundException(
-          'مفتاح API لا يملك صلاحية التداول — أضف مفتاحاً بصلاحية trade.',
+          t('execution_gateway_service.key_api_validity_trading'),
         );
       }
     } catch (error: any) {
@@ -365,7 +366,7 @@ export class ExecutionGatewayService {
       // On parse error, REJECT execution — safer than allowing with warning
       this.logger.error(`Could not parse permissions for credential ${credential.id} — BLOCKING execution for safety`);
       throw new NotFoundException(
-        'لا يمكن التحقق من صلاحيات مفتاح API — يرجى إعادة إنشاء المفتاح أو التحقق من إعدادات البورصة',
+        t('execution_gateway_service.verify_key_api_please_verify'),
       );
     }
   }

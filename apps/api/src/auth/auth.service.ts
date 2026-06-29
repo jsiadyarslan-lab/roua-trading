@@ -14,6 +14,7 @@ import type {
   AuthenticationResponseJSON,
 } from '@simplewebauthn/server';
 import * as crypto from 'crypto';
+import { t } from '../i18n/i18n.helper';
 
 interface DeviceInfo {
   browser?: string;
@@ -74,13 +75,13 @@ export class AuthService {
 
   async generateRegistrationChallenge(email: string, displayName?: string) {
     if (!email || !email.includes('@')) {
-      throw new BadRequestException('يرجى إدخال بريد إلكتروني صحيح');
+      throw new BadRequestException(t('auth_service.please_input_valid'));
     }
 
     const existingUser = await this.prisma.user.findUnique({ where: { email } });
 
     if (existingUser && existingUser.passkeyId) {
-      throw new ConflictException('هذا البريد مسجل بالفعل. يرجى تسجيل الدخول.');
+      throw new ConflictException(t('auth_service.this_email_please_login_login'));
     }
 
     const userId = this.getUserIdBuffer(email);
@@ -127,7 +128,7 @@ export class AuthService {
       return options;
     } catch (error) {
       this.logger.error(`Failed to generate registration challenge for ${email}: ${error instanceof Error ? error.message : String(error)}`);
-      throw new BadRequestException('حدث خطأ في إنشاء التحدي. تأكد من إعداد RP_ID و RP_NAME و ORIGIN بشكل صحيح.');
+      throw new BadRequestException(t('auth_service.occurred_error_ensure_valid'));
     }
   }
 
@@ -135,13 +136,13 @@ export class AuthService {
 
   async generateAuthenticationChallenge(email: string) {
     if (!email) {
-      throw new BadRequestException('يرجى توفير البريد الإلكتروني');
+      throw new BadRequestException(t('auth_service.please_email_electronic'));
     }
 
     const user = await this.prisma.user.findUnique({ where: { email } });
 
     if (!user || !user.passkeyId) {
-      throw new NotFoundException('المستخدم غير موجود. يرجى التسجيل أولاً.');
+      throw new NotFoundException(t('auth_service.user_not_found_please_first'));
     }
 
     try {
@@ -163,7 +164,7 @@ export class AuthService {
       return options;
     } catch (error) {
       this.logger.error(`Failed to generate authentication challenge for ${email}: ${error instanceof Error ? error.message : String(error)}`);
-      throw new BadRequestException('حدث خطأ في إنشاء تحدي المصادقة. تأكد من إعداد RP_ID بشكل صحيح.');
+      throw new BadRequestException(t('auth_service.occurred_error_ensure_valid_2'));
     }
   }
 
@@ -184,11 +185,11 @@ export class AuthService {
         user = await this.prisma.user.findUnique({ where: { email } });
       }
     }
-    if (!user) { throw new NotFoundException('المستخدم غير موجود'); }
+    if (!user) { throw new NotFoundException(t('auth_service.user_not_found')); }
 
     const challengeKey = `auth:challenge:reg:${email}`;
     const storedChallenge = await this.redis.get(challengeKey);
-    if (!storedChallenge) { throw new BadRequestException('انتهت صلاحية التحدي أو غير موجود'); }
+    if (!storedChallenge) { throw new BadRequestException(t('auth_service.expired_validity_not_found')); }
 
     const challengeData = JSON.parse(storedChallenge as string);
 
@@ -201,7 +202,7 @@ export class AuthService {
       });
 
       if (!verification.verified || !verification.registrationInfo) {
-        throw new BadRequestException('فشل التحقق من بيانات الاعتماد');
+        throw new BadRequestException(t('auth_service.failure_verify'));
       }
 
       await this.redis.del(challengeKey);
@@ -281,18 +282,18 @@ export class AuthService {
       await this.redis.del(challengeKey);
       if (error instanceof BadRequestException) throw error;
       this.logger.error(`Registration verification error for ${email}: ${error instanceof Error ? error.message : String(error)}`);
-      throw new BadRequestException('حدث خطأ في التحقق من التسجيل. تأكد من إعداد ORIGIN و RP_ID بشكل صحيح.');
+      throw new BadRequestException(t('auth_service.occurred_error_verify_ensure_valid'));
     }
   }
 
   async verifyAuthentication(email: string, assertion: AuthenticationResponseJSON, userAgent?: string, ipAddress?: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user) { throw new NotFoundException('المستخدم غير موجود'); }
-    if (!user.passkeyId) { throw new BadRequestException('لم يتم تسجيل Passkey لهذا الحساب'); }
+    if (!user) { throw new NotFoundException(t('auth_service.user_not_found')); }
+    if (!user.passkeyId) { throw new BadRequestException(t('auth_service.not_login_account')); }
 
     const challengeKey = `auth:challenge:auth:${email}`;
     const storedChallenge = await this.redis.get(challengeKey);
-    if (!storedChallenge) { throw new BadRequestException('انتهت صلاحية التحدي أو غير موجود'); }
+    if (!storedChallenge) { throw new BadRequestException(t('auth_service.expired_validity_not_found')); }
 
     const challengeData = JSON.parse(storedChallenge as string);
 
@@ -310,7 +311,7 @@ export class AuthService {
         },
       });
 
-      if (!verification.verified) { throw new BadRequestException('فشل التحقق من المصادقة'); }
+      if (!verification.verified) { throw new BadRequestException(t('auth_service.failure_verify_2')); }
 
       await this.redis.del(challengeKey);
 
@@ -448,7 +449,7 @@ export class AuthService {
       await this.redis.del(challengeKey);
       if (error instanceof BadRequestException) throw error;
       this.logger.error(`Authentication verification error for ${email}: ${error instanceof Error ? error.message : String(error)}`);
-      throw new BadRequestException('حدث خطأ في التحقق من المصادقة. تأكد من إعداد ORIGIN و RP_ID بشكل صحيح.');
+      throw new BadRequestException(t('auth_service.occurred_error_verify_ensure_valid_2'));
     }
   }
 
@@ -528,7 +529,7 @@ export class AuthService {
    */
   async refreshSession(refreshToken: string, userAgent?: string, ipAddress?: string) {
     if (!refreshToken) {
-      throw new BadRequestException('رمز التحديث مطلوب');
+      throw new BadRequestException(t('auth_service.updating_required'));
     }
 
     // Look up session by refresh token
@@ -538,7 +539,7 @@ export class AuthService {
     });
 
     if (!session || !session.isActive) {
-      throw new BadRequestException('رمز التحديث غير صالح أو منتهي الصلاحية');
+      throw new BadRequestException(t('auth_service.updating_not_valid_permission'));
     }
 
     // Check if refresh token has expired (use a longer TTL for refresh tokens)
@@ -549,12 +550,12 @@ export class AuthService {
         where: { id: session.id },
         data: { isActive: false },
       }).catch(() => {});
-      throw new BadRequestException('انتهت صلاحية رمز التحديث. يرجى تسجيل الدخول مرة أخرى.');
+      throw new BadRequestException(t('auth_service.expired_validity_updating_please_login'));
     }
 
     const isGuest = session.user.email === 'guest@roua.auto' || session.user.email.startsWith('guest-') || session.user.id.startsWith('guest');
     if (isGuest) {
-      throw new BadRequestException('لا يمكن تجديد جلسة الضيف');
+      throw new BadRequestException(t('auth_service.msg_9a4f05a9'));
     }
 
     // Deactivate old session
@@ -643,11 +644,11 @@ export class AuthService {
     });
 
     if (!session) {
-      throw new NotFoundException('الجلسة غير موجودة');
+      throw new NotFoundException(t('auth_service.session_not_found'));
     }
 
     if (session.userId !== userId) {
-      throw new ForbiddenException('ليس لديك صلاحية لإنهاء هذه الجلسة');
+      throw new ForbiddenException(t('auth_service.validity_this_session'));
     }
 
     // Deactivate the session

@@ -17,6 +17,7 @@ import { isValidUserId } from '../../../common/interceptors/userid-validation.in
 import * as crypto from 'crypto';
 import * as ccxt from 'ccxt';
 import { hostname } from 'os';
+import { t } from '../../../i18n/i18n.helper';
 
 /**
  * Credentials Service — Secure Exchange API Key Management
@@ -212,7 +213,7 @@ export class CredentialsService {
       });
 
       throw new BadRequestException(
-        `فشل في التحقق من مفتاح API: ${validation.error}`,
+        t('credentials_service.failure_verify_key', { error: validation.error }),
       );
     }
 
@@ -233,7 +234,7 @@ export class CredentialsService {
         });
 
         throw new ForbiddenException(
-          '🚫 تم رفض المفتاح! يحتوي على صلاحيات سحب أو تحويل. رؤى لا تقبل مفاتيح تسمح بالسحب — مبدأنا: غير أمين (Non-Custodial).',
+          t('credentials_service.done_not'),
         );
       }
     }
@@ -366,11 +367,11 @@ export class CredentialsService {
     });
 
     if (!credential) {
-      throw new NotFoundException('بيانات الاعتماد غير موجودة');
+      throw new NotFoundException(t('credentials_service.not_found'));
     }
 
     if (credential.userId !== userId) {
-      throw new ForbiddenException('غير مصرح بتعديل بيانات الاعتماد هذه');
+      throw new ForbiddenException(t('credentials_service.not_this'));
     }
 
     const updated = await this.prisma.exchangeCredential.update({
@@ -401,7 +402,7 @@ export class CredentialsService {
     });
 
     if (!credential) {
-      throw new NotFoundException('بيانات الاعتماد غير موجودة');
+      throw new NotFoundException(t('credentials_service.not_found'));
     }
 
     // V155 SECURITY FIX: IDOR — verify credential ownership before deleting.
@@ -409,7 +410,7 @@ export class CredentialsService {
     // by guessing/scanning the UUID. This is the same check that updateCredential
     // already had, but was missing here.
     if (credential.userId !== userId) {
-      throw new ForbiddenException('غير مصرح بحذف بيانات الاعتماد هذه');
+      throw new ForbiddenException(t('credentials_service.not_this_2'));
     }
 
     await this.prisma.exchangeCredential.delete({
@@ -476,7 +477,7 @@ export class CredentialsService {
     });
 
     if (!credential) {
-      throw new NotFoundException('بيانات الاعتماد غير موجودة');
+      throw new NotFoundException(t('credentials_service.not_found'));
     }
 
     // SECURITY: Verify credential ownership when userId is provided
@@ -491,7 +492,7 @@ export class CredentialsService {
           attemptBy: userId,
         }),
       });
-      throw new ForbiddenException('ليس لديك صلاحية الوصول إلى بيانات الاعتماد هذه');
+      throw new ForbiddenException(t('credentials_service.validity_this'));
     }
 
     const apiKey = this._decrypt({
@@ -642,7 +643,7 @@ export class CredentialsService {
               currency: 'USD',
               usedMargin: 0,
               assets: [],
-              error: 'بيانات الاعتماد غير مكتملة — يرجى حذف المفتاح وإضافته مرة أخرى',
+              error: t('credentials_service.not_completed_please'),
             };
           }
 
@@ -1145,7 +1146,7 @@ export class CredentialsService {
         return {
           exchange, label, credentialId, isTestnet,
           equity: 0, available: 0, currency: 'USD', usedMargin: 0, assets: [],
-          error: `تعذر الاتصال بالبورصة — يرجى المحاولة لاحقاً`,
+          error: t('credentials_service.please_attempt_later'),
           // V164d: Include the raw error for frontend diagnostic display
           errorDetail: errMsg.substring(0, 200),
         };
@@ -1156,7 +1157,7 @@ export class CredentialsService {
         return {
           exchange, label, credentialId, isTestnet,
           equity: 0, available: 0, currency: 'USD', usedMargin: 0, assets: [],
-          error: `مفتاح API غير صالح أو منتهي الصلاحية — يرجى حذفه وإضافته مرة أخرى`,
+          error: t('credentials_service.key_api_not_valid_permission'),
           // V164d: Include raw error — this will reveal if it's IP whitelist, bad key, etc.
           errorDetail: errMsg.substring(0, 200),
         };
@@ -1166,7 +1167,7 @@ export class CredentialsService {
       return {
         exchange, label, credentialId, isTestnet,
         equity: 0, available: 0, currency: 'USD', usedMargin: 0, assets: [],
-        error: `خطأ في جلب الرصيد: ${errMsg.substring(0, 100)}`,
+        error: t('credentials_service.error_balance'),
         errorDetail: errMsg.substring(0, 200),
       };
     }
@@ -1175,7 +1176,7 @@ export class CredentialsService {
       return {
         exchange, label, credentialId, isTestnet,
         equity: 0, available: 0, currency: 'USD', usedMargin: 0, assets: [],
-        error: 'لم يتم استلام بيانات الرصيد من البورصة',
+        error: t('credentials_service.not_balance_exchange'),
       };
     }
 
@@ -1308,7 +1309,7 @@ export class CredentialsService {
         `The credential needs to be re-added with the current encryption key.`
       );
       throw new BadRequestException(
-        'فشل فك تشفير بيانات الاعتماد — يرجى حذف المفتاح وإضافته مرة أخرى'
+        t('credentials_service.failure_decrypt_please')
       );
     }
   }
@@ -1343,7 +1344,7 @@ export class CredentialsService {
           `⏱ API key validation for ${exchange} timed out after ${TIMEOUT_MS / 1000}s — ` +
           `REJECTING the key for safety. User should try again later.`
         );
-        resolve({ valid: false, error: `انتهت مهلة التحقق من مفتاح API (${TIMEOUT_MS / 1000}s). يرجى المحاولة مرة أخرى.` });
+        resolve({ valid: false, error: t('credentials_service.expired_verify_key_api_please') });
       }, TIMEOUT_MS);
     });
 
@@ -1465,7 +1466,7 @@ export class CredentialsService {
             const testnetHint = isBinanceTest
               ? ' تأكد أن المفتاح من Binance Testnet وليس من الحساب الحي، وأن صلاحية القراءة مفعلة وأن قيود IP تسمح بخادم المنصة.'
               : ' إذا كنت تستخدم مفتاح Testnet، اختر "Binance Spot Testnet" أو "Binance Futures Testnet" بدلاً من "Binance". تأكد أيضاً من تفعيل صلاحية القراءة وقيود IP.'
-            return { valid: false, error: `تعذر قراءة رصيد Binance بهذا المفتاح.${testnetHint}` };
+            return { valid: false, error: t('credentials_service.msg_2c868a81', { testnetHint: testnetHint }) };
           }
 
           // For non-Binance exchanges, keep the lighter public check fallback.
@@ -1482,14 +1483,14 @@ export class CredentialsService {
               const testnetHint2 = isBinanceTest
                 ? ' تأكد أن المفتاح من Binance Testnet وليس من الحساب الحي.'
                 : ' إذا كنت تستخدم مفتاح Testnet، اختر "Binance Spot Testnet" أو "Binance Futures Testnet" بدلاً من "Binance".';
-              return { valid: false, error: `مفتاح API غير صالح أو منتهي الصلاحية.${testnetHint2}` };
+              return { valid: false, error: t('credentials_service.key_api_not_valid_permission_2', { testnetHint2: testnetHint2 }) };
             }
           }
           // Provide specific error messages for testnet/live mismatches
           const testnetHint = isBinanceTest
             ? ' تأكد أن المفتاح من Binance Testnet وليس من الحساب الحي.'
             : ' إذا كنت تستخدم مفتاح Testnet، اختر "Binance Spot Testnet" أو "Binance Futures Testnet" بدلاً من "Binance".';
-          return { valid: false, error: `مفتاح API غير صالح أو منتهي الصلاحية.${testnetHint}` };
+          return { valid: false, error: t('credentials_service.key_api_not_valid_permission_3', { testnetHint: testnetHint }) };
         }
 
         // If connection error → can't reach exchange, accept with warning
@@ -1504,7 +1505,7 @@ export class CredentialsService {
           if (exchange.toLowerCase().includes('binance')) {
             return {
               valid: false,
-              error: 'مفتاح Binance لا يستطيع قراءة الرصيد. فعّل صلاحية القراءة وتأكد من قيود IP أو أضف IP الخادم في Binance.',
+              error: t('credentials_service.key_balance_validity'),
             };
           }
           this.logger.warn(`Key valid but restricted: ${balanceMessage.substring(0, 100)}`);
@@ -1521,7 +1522,7 @@ export class CredentialsService {
         } catch (tickerError: any) {
           const tickerMessage = tickerError.message || '';
           if (this._isAuthError(tickerMessage)) {
-            return { valid: false, error: 'مفتاح API غير صالح أو منتهي الصلاحية' };
+            return { valid: false, error: t('credentials_service.key_api_not_valid_permission_4') };
           }
           if (this._isConnectionError(tickerMessage)) {
             this.logger.warn(`تعذر الاتصال بالبورصة ${exchange}: ${tickerMessage.substring(0, 80)}`);
@@ -1542,14 +1543,14 @@ export class CredentialsService {
       // Catch CCXT NotSupported error (e.g., Binance Futures Testnet sandbox deprecated)
       if (error.constructor?.name === 'NotSupported' || message.includes('not supported') || message.includes('NotSupported')) {
         this.logger.warn(`Exchange feature not supported for ${exchange}: ${message.substring(0, 100)}`);
-        return { valid: false, error: `Binance Futures Testnet لم يعد مدعوماً من CCXT. استخدم Binance Spot Testnet أو الحساب الحي بدلاً منه.` };
+        return { valid: false, error: t('credentials_service.not_account') };
       }
 
       if (this._isAuthError(message)) {
         const testnetHint3 = isBinanceTest
           ? ' تأكد أن المفتاح من Binance Testnet وليس من الحساب الحي.'
           : ' إذا كنت تستخدم مفتاح Testnet، اختر "Binance Spot Testnet" أو "Binance Futures Testnet" بدلاً من "Binance".';
-        return { valid: false, error: `مفتاح API غير صالح أو منتهي الصلاحية.${testnetHint3}` };
+        return { valid: false, error: t('credentials_service.key_api_not_valid_permission_5', { testnetHint3: testnetHint3 }) };
       }
 
       if (this._isConnectionError(message)) {
@@ -1558,7 +1559,7 @@ export class CredentialsService {
       }
 
       if (message.includes('Permission') || message.includes('forbidden')) {
-        return { valid: false, error: 'صلاحيات المفتاح غير كافية' };
+        return { valid: false, error: t('credentials_service.not_sufficient') };
       }
 
       if (message.includes('not supported')) {
@@ -1597,10 +1598,10 @@ export class CredentialsService {
 
       // Validate required fields
       if (!accountId || !password) {
-        return { valid: false, error: 'رقم حساب MT5 وكلمة السر مطلوبان' };
+        return { valid: false, error: t('credentials_service.msg_428e53fb') };
       }
       if (!server) {
-        return { valid: false, error: 'اسم سيرفر MT5 مطلوب (مثال: MetaQuotes-Demo)' };
+        return { valid: false, error: t('credentials_service.required') };
       }
 
       // Try to connect via MetaAPI
@@ -1661,7 +1662,7 @@ export class CredentialsService {
               // If getAccount also fails, try searching again
             }
           } else if (msg.includes('Invalid credentials') || msg.includes('authentication')) {
-            return { valid: false, error: 'بيانات حساب MT5 غير صحيحة — تأكد من رقم الحساب وكلمة السر واسم السيرفر' };
+            return { valid: false, error: t('credentials_service.not_valid_ensure_account') };
           } else if (msg.includes('server not found') || msg.includes('Unknown server')) {
             return { valid: false, error: `سيرفر MT5 "${server}" غير معروف — تأكد من كتابة الاسم بشكل صحيح` };
           } else {
@@ -1690,7 +1691,7 @@ export class CredentialsService {
       } catch (connErr: any) {
         const msg = connErr.message || '';
         if (msg.includes('Invalid credentials') || msg.includes('authentication failed')) {
-          return { valid: false, error: 'فشل المصادقة على حساب MT5 — تأكد من بيانات الاعتماد' };
+          return { valid: false, error: t('credentials_service.failure_ensure') };
         }
         if (msg.includes('No connection') || msg.includes('timeout')) {
           // Connection issue — accept with warning (Terminal may be offline)
@@ -1819,7 +1820,7 @@ export class CredentialsService {
           currency: 'USD',
           usedMargin: 0,
           assets: [],
-          error: 'METAAPI_TOKEN غير مضبوط — لا يمكن الاتصال بحساب MT5 الحقيقي',
+          error: t('credentials_service.not'),
           errorDetail: 'METAAPI_TOKEN env var not set. MT5 accounts REQUIRE this token to connect to MetaAPI Cloud. Add it in Railway environment variables.',
         } as any;
       }
@@ -1841,7 +1842,7 @@ export class CredentialsService {
           currency: 'USD',
           usedMargin: 0,
           assets: [],
-          error: 'بيانات MT5 غير مكتملة',
+          error: t('credentials_service.not_completed'),
           errorDetail: 'Missing accountId, password, or server name for MT5 credential',
         };
       }
@@ -1905,7 +1906,7 @@ export class CredentialsService {
             exchange: cred.exchange, label: cred.label, credentialId: cred.id,
             isTestnet: isDemo, equity: 0, available: 0, currency: 'USD',
             usedMargin: 0, assets: [],
-            error: `جاري تسجيل حساب ${accountId}...`,
+            error: t('credentials_service.inprogress_login', { accountId: accountId }),
             errorDetail: `Account auto-create on cooldown — waiting ${waitSec}s before retry`,
           };
         }
@@ -1951,7 +1952,7 @@ export class CredentialsService {
             exchange: cred.exchange, label: cred.label, credentialId: cred.id,
             isTestnet: isDemo, equity: 0, available: 0, currency: 'USD',
             usedMargin: 0, assets: [],
-            error: `فشل تسجيل حساب ${accountId}`,
+            error: t('credentials_service.failure_login', { accountId: accountId }),
             errorDetail: `Auto-create failed: ${createErr.message?.substring(0, 150)}`,
           };
         }
@@ -2131,7 +2132,7 @@ export class CredentialsService {
           exchange: cred.exchange, label: cred.label, credentialId: cred.id,
           isTestnet: isDemo, equity: 0, available: 0, currency: 'USD',
           usedMargin: 0, assets: [],
-          error: `فشل الاتصال بـ ${accountId}`,
+          error: t('credentials_service.failure', { accountId: accountId }),
           errorDetail: detailedError,
           _metaapiDown: true,
           _metaapiError: `ALL_METHODS_FAILED: ${detailedError}`,
@@ -2969,7 +2970,7 @@ export class CredentialsService {
         restApiWorks: false,
         rpcWorks: false,
         steps,
-        error: 'METAAPI_TOKEN غير مضبوط',
+        error: t('credentials_service.not_2'),
         fixSuggestion: 'أضف METAAPI_TOKEN كمتغير بيئة في Railway — بدون هذا المفتاح لا يمكن لأي حساب MT5 أن يعمل',
       };
     }
@@ -2993,7 +2994,7 @@ export class CredentialsService {
     }
     if (!cred || cred.userId !== userId) {
       steps.push({ step: 'Credential', success: false, message: `Credential not found (id: ${credentialId?.substring(0, 8)}...) and no MT5 credentials exist for this user`, durationMs: Date.now() - step2Start });
-      return { tokenPresent: true, tokenValid: false, credentialFound: false, accountExists: false, restApiWorks: false, rpcWorks: false, steps, error: 'بيانات الاعتماد غير موجودة — لم يتم العثور على حساب MT5', fixSuggestion: 'أضف حساب MT5 من صفحة الإعدادات أولاً' };
+      return { tokenPresent: true, tokenValid: false, credentialFound: false, accountExists: false, restApiWorks: false, rpcWorks: false, steps, error: t('credentials_service.not_found_not'), fixSuggestion: 'أضف حساب MT5 من صفحة الإعدادات أولاً' };
     }
     const isDemo = cred.exchange === 'mt5_demo' || cred.testnet === true;
     steps.push({ step: 'Credential', success: true, message: `Found: ${cred.exchange}/${cred.label} (demo: ${isDemo})`, durationMs: Date.now() - step2Start });
@@ -3053,12 +3054,12 @@ export class CredentialsService {
       server = decrypted.passphrase || '';
       if (!accountId || !password || !server) {
         steps.push({ step: 'Decrypt', success: false, message: `Missing fields: accountId=${!!accountId}, password=${!!password}, server=${!!server}`, durationMs: Date.now() - step3Start });
-        return { tokenPresent: true, tokenValid: false, credentialFound: true, accountExists: false, restApiWorks: false, rpcWorks: false, steps, error: 'بيانات MT5 غير مكتملة', fixSuggestion: 'احذف الحساب وأضفه مرة أخرى مع التأكد من رقم الحساب وكلمة السر واسم السيرفر' };
+        return { tokenPresent: true, tokenValid: false, credentialFound: true, accountExists: false, restApiWorks: false, rpcWorks: false, steps, error: t('credentials_service.not_completed'), fixSuggestion: 'احذف الحساب وأضفه مرة أخرى مع التأكد من رقم الحساب وكلمة السر واسم السيرفر' };
       }
       steps.push({ step: 'Decrypt', success: true, message: `accountId=${accountId}, server=${server}`, durationMs: Date.now() - step3Start });
     } catch (decryptErr: any) {
       steps.push({ step: 'Decrypt', success: false, message: decryptErr.message?.substring(0, 100), durationMs: Date.now() - step3Start });
-      return { tokenPresent: true, tokenValid: false, credentialFound: true, accountExists: false, restApiWorks: false, rpcWorks: false, steps, error: 'فشل في فك تشفير بيانات الحساب', fixSuggestion: 'احذف الحساب وأضفه مرة أخرى — مفتاح التشفير قد يكون تغير' };
+      return { tokenPresent: true, tokenValid: false, credentialFound: true, accountExists: false, restApiWorks: false, rpcWorks: false, steps, error: t('credentials_service.failure_decrypt_account'), fixSuggestion: 'احذف الحساب وأضفه مرة أخرى — مفتاح التشفير قد يكون تغير' };
     }
 
     // Step 4: Validate token with MetaAPI
@@ -3140,7 +3141,7 @@ export class CredentialsService {
         const isBillingError = errMsg.includes('top up') || errMsg.includes('subscription') ||
           errMsg.includes('payment') || errMsg.includes('billing');
         if (isBillingError) {
-          steps.push({ step: 'Auto-Deploy', success: false, message: `رصيد MetaAPI غير كافي — يجب شحن الحساب في metaapi.cloud`, durationMs: Date.now() - deployStart });
+          steps.push({ step: 'Auto-Deploy', success: false, message: t('credentials_service.not_sufficient_must_account'), durationMs: Date.now() - deployStart });
         } else {
           steps.push({ step: 'Auto-Deploy', success: false, message: `Deploy failed: ${errMsg.substring(0, 100)}`, durationMs: Date.now() - deployStart });
         }

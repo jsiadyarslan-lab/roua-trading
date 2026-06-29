@@ -6,6 +6,7 @@ import { CredentialsService } from '../../portfolio/credentials/credentials.serv
 import { ExchangeService } from '../../exchange/exchange.service';
 import { RiskCheckResult, OrderCommand } from '../events/order.events';
 import * as ccxt from 'ccxt';
+import { t } from '../../../i18n/i18n.helper';
 
 /**
  * Risk Gatekeeper Service — Pre-Trade Risk Validation
@@ -772,7 +773,7 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
       // 2. The credential lookup itself can fail (DB timeout, etc.)
       // 3. The maxPositionSizePercent was set to 5% by admin settings, and with
       //    a small portfolio estimation, orders were calculated as 100% of portfolio
-      // This caused the error: "حجم المركز (100.0%) يتجاوز الحد الأقصى (5%)"
+      // This caused the error: t('risk_gatekeeper_service.position_limit_max')
       // blocking ALL paper-trading executions.
       // ── V181: Now uses _isSimulatedCredential() which only matches pure paper ──
       const isPaperByFlag = command.isPaperTrading === true;

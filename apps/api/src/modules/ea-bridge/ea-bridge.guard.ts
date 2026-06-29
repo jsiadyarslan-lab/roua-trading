@@ -7,6 +7,7 @@ import { Injectable, CanActivate, ExecutionContext, Logger, UnauthorizedExceptio
 import { Request } from 'express';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
+import { t } from '../../i18n/i18n.helper';
 
 /**
  * EABridgeGuard — EA Token Authentication
@@ -45,13 +46,13 @@ export class EABridgeGuard implements CanActivate {
 
     if (!eaToken) {
       this.logger.warn(`EA Bridge: Missing X-EA-Token header from ${request.ip}`);
-      throw new UnauthorizedException('رمز EA مطلوب (X-EA-Token)');
+      throw new UnauthorizedException(t('ea_bridge_guard.required'));
     }
 
     // التحقق من صيغة الرمز (يبدأ بـ ea_ )
     if (!eaToken.startsWith('ea_')) {
       this.logger.warn(`EA Bridge: Invalid token format from ${request.ip}`);
-      throw new UnauthorizedException('صيغة رمز EA غير صالحة');
+      throw new UnauthorizedException(t('ea_bridge_guard.not_valid'));
     }
 
     // البحث في Redis أولاً
@@ -74,7 +75,7 @@ export class EABridgeGuard implements CanActivate {
     // البحث في قاعدة البيانات
     if (!this.prisma.isAvailable()) {
       this.logger.warn('EA Bridge: DB unavailable during token validation');
-      throw new UnauthorizedException('خدمة المصادقة غير متوفرة حالياً');
+      throw new UnauthorizedException(t('ea_bridge_guard.not'));
     }
 
     try {
@@ -85,12 +86,12 @@ export class EABridgeGuard implements CanActivate {
 
       if (!token) {
         this.logger.warn(`EA Bridge: Unknown token ${eaToken.substring(0, 12)}...`);
-        throw new UnauthorizedException('رمز EA غير معروف');
+        throw new UnauthorizedException(t('ea_bridge_guard.not_2'));
       }
 
       if (!token.isActive) {
         this.logger.warn(`EA Bridge: Deactivated token ${eaToken.substring(0, 12)}... for user ${token.userId}`);
-        throw new UnauthorizedException('رمز EA معطّل — يرجى إنشاء رمز جديد');
+        throw new UnauthorizedException(t('ea_bridge_guard.disabled_please'));
       }
 
       // تخزين في Redis للتسريع
@@ -115,7 +116,7 @@ export class EABridgeGuard implements CanActivate {
       if (error instanceof UnauthorizedException) throw error;
 
       this.logger.error(`EA Bridge: Token validation error: ${error.message}`);
-      throw new UnauthorizedException('فشل في التحقق من رمز EA');
+      throw new UnauthorizedException(t('ea_bridge_guard.failure_verify'));
     }
   }
 
@@ -129,14 +130,14 @@ export class EABridgeGuard implements CanActivate {
     const expectedKey = process.env.INTEGRATION_API_KEY || process.env.EA_BRIDGE_SECRET;
 
     if (!expectedKey) {
-      throw new UnauthorizedException('EA Bridge غير مُعد — يرجى تهيئة EA_BRIDGE_SECRET');
+      throw new UnauthorizedException(t('ea_bridge_guard.not_please'));
     }
 
     // التحقق من أن الرمز يطابق النمط
     // ea_live_{secret_prefix}_{userId}
     const parts = eaToken.split('_');
     if (parts.length < 4) {
-      throw new UnauthorizedException('صيغة رمز EA غير صالحة');
+      throw new UnauthorizedException(t('ea_bridge_guard.not_valid'));
     }
 
     // parts[0] = 'ea', parts[1] = 'live/demo, parts[2..-2] = secret fragment, parts[-1] = userId
@@ -145,13 +146,13 @@ export class EABridgeGuard implements CanActivate {
 
     // تحقق بسيط: الجزء السري يجب أن يكون جزءاً من EA_BRIDGE_SECRET
     if (!expectedKey.includes(secretFragment) && secretFragment !== expectedKey) {
-      throw new UnauthorizedException('رمز EA غير صالح');
+      throw new UnauthorizedException(t('ea_bridge_guard.not_valid_2'));
     }
 
     // التحقق من وجود المستخدم
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
-      throw new UnauthorizedException('مستخدم EA غير موجود');
+      throw new UnauthorizedException(t('ea_bridge_guard.not_found'));
     }
 
     (request as any).user = { id: userId };

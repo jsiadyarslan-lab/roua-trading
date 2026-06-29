@@ -433,7 +433,7 @@ export async function POST(request: Request) {
           for (let round = 0; round <= maxToolRounds; round++) {
             const result = await chatCompletion(
               currentMessages.map(m => ({ role: m.role, content: m.content })),
-              { temperature: 0.5, maxTokens: 2000, locale, allowFallback: true }
+              { temperature: 0.5, maxTokens: 4000, locale, allowFallback: true }
             );
             const aiContent = result.content || '';
 
@@ -491,6 +491,35 @@ export async function POST(request: Request) {
 
         // Post-processing
         finalResponse = stripExternalUrls(finalResponse);
+
+        // V588: تنظيف عام (كل اللغات)
+        // استبدل [data unavailable] و [بيانات غير متاحة] بـ -
+        finalResponse = finalResponse
+          .replace(/\[data unavailable\]/gi, '-')
+          .replace(/\[بيانات غير متاحة\]/gi, '-')
+          .replace(/\[بيانات غير متوفرة\]/gi, '-')
+          .replace(/\[not available\]/gi, '-')
+          .replace(/\[N\/A\]/gi, '-')
+          .replace(/\bnull\b/gi, '-')
+          .replace(/\bundefined\b/gi, '-');
+
+        // V588: إزالة أقسام Fibonacci المخترعة (LLM يهلوسها رغم المنع)
+        finalResponse = finalResponse
+          .replace(/Fibonacci Retracement.*?(?=\n(?:###|##|---|\d️⃣|🚦|Risk|$))/gs, '')
+          .replace(/Fibonacci.*?Levels?.*?(?=\n(?:###|##|---|\d️⃣|🚦|Risk|$))/gs, '')
+          .replace(/\| *23\.6%.*?\n/g, '')
+          .replace(/\| *38\.2%.*?\n/g, '')
+          .replace(/\| *50%.*?\n/g, '')
+          .replace(/\| *61\.8%.*?\n/g, '')
+          .replace(/\| *78\.6%.*?\n/g, '');
+
+        // V588: إزالة الاحتمالات المخترعة ("72% of the time", "68% probable")
+        finalResponse = finalResponse
+          .replace(/\d+% of the time/gi, '')
+          .replace(/\d+% probable/gi, '')
+          .replace(/historically precedes/gi, 'may precede')
+          .replace(/historically.*?reversed/gi, 'may reverse');
+
         if (locale === 'ar') {
           finalResponse = finalResponse
             .replace(/[\u0E00-\u0E7F]/g, '')

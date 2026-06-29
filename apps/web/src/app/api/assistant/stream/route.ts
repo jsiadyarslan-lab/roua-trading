@@ -502,6 +502,36 @@ export async function POST(request: Request) {
             .replace(/[\u0400-\u04FF]/g, '')
             .replace(/\s{2,}/g, ' ')
             .trim();
+        } else {
+          // V586: تنظيف الردود الإنجليزية من الكلمات العربية المتسربة
+          const AR_TO_EN_TABLE_HEADERS: Record<string, string> = {
+            'الأصل': 'Asset',
+            'النوع': 'Type',
+            'الدخول': 'Entry',
+            'الحالي': 'Current',
+            'السعر': 'Price',
+            'الاتجاه': 'Trend',
+            'التغير': 'Change',
+            'الأولوية': 'Priority',
+            'الحالة': 'Status',
+            'السيناريو': 'Scenario',
+            'الشروط': 'Conditions',
+            'نطاق السعر': 'Price Range',
+            'الاحتمال': 'Probability',
+            'الإجراء': 'Action',
+            'التوصية': 'Recommendation',
+            'المستوى': 'Level',
+            'الهدف': 'Target',
+          };
+          for (const [ar, en] of Object.entries(AR_TO_EN_TABLE_HEADERS)) {
+            finalResponse = finalResponse.replace(new RegExp(ar, 'g'), en);
+          }
+          // إزالة أي كلمات عربية متبقية في الجداول الإنجليزية
+          finalResponse = finalResponse.replace(/\|[\s\u0600-\u06FF]+(?:\||$)/g, (match) => {
+            // لو الخلية كلها عربية، استبدلها بـ -
+            const cleaned = match.replace(/[\u0600-\u06FF]+/g, '').trim();
+            return cleaned || '| - |';
+          });
         }
 
         // V577: دائماً حوّل Markdown → HTML (حتى لو isHtmlResponse=true)

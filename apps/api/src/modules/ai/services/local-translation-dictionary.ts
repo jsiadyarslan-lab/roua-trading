@@ -352,39 +352,33 @@ export function localTranslateArabicToEnglish(text: string): string {
   
   let result = text;
   
-  // Phase 1: Replace long phrases first (longest first to avoid partial matches)
-  // These are multi-word phrases that are safe to replace anywhere.
-  const longPhrases: Array<[string, string]> = [];
-  const singleWords: Array<[string, string]> = [];
+  // Sort ALL entries by length descending (longest first)
+  // This ensures multi-word phrases are replaced before their constituent words
+  const sorted = [...ARABIC_TO_ENGLISH_PHRASES].sort((a, b) => b[0].length - a[0].length);
   
-  for (const [ar, en] of ARABIC_TO_ENGLISH_PHRASES) {
-    if (ar.includes(' ') || ar.length > 4) {
-      longPhrases.push([ar, en]);
+  // Replace phrases - use word boundary aware replacement
+  // For Arabic, word boundary = preceded/followed by: space, punctuation, start/end, or non-Arabic char
+  for (const [ar, en] of sorted) {
+    if (!result.includes(ar)) continue;
+    
+    // For short single-character words (و، في، من، إلى، مع، على، بـ، أن، أو، إن)
+    // we MUST use word boundaries to avoid breaking longer words
+    if (ar.length <= 3) {
+      // Build regex with Arabic-aware boundaries
+      // Preceded by: start, whitespace, or non-Arabic-letter char
+      // Followed by: end, whitespace, or non-Arabic-letter char
+      const escaped = ar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Boundary: chars that are NOT Arabic letters (so spaces, punctuation, Latin chars, numbers)
+      const boundary = '[\\s\\u0000-\\u05FF\\u0780-\\uFFFF,.!?;:()\\[\\]{}"\'`/\\\\|<>=+\\-*_@#$%^&~]';
+      const pattern = new RegExp(`(^|${boundary})${escaped}(${boundary}|$)`, 'gu');
+      // Use function to preserve boundaries
+      result = result.replace(pattern, (_m, before, after) => `${before}${en}${after}`);
     } else {
-      singleWords.push([ar, en]);
+      // For longer phrases (4+ chars), safe to replace directly
+      while (result.includes(ar)) {
+        result = result.replace(ar, en);
+      }
     }
-  }
-  
-  // Sort long phrases by length descending (longest first)
-  longPhrases.sort((a, b) => b[0].length - a[0].length);
-  
-  for (const [ar, en] of longPhrases) {
-    while (result.includes(ar)) {
-      result = result.replace(ar, en);
-    }
-  }
-  
-  // Phase 2: Replace single short words only when surrounded by spaces/punctuation
-  // This prevents breaking up longer words (e.g. "وقال" should not become "andقال")
-  for (const [ar, en] of singleWords) {
-    // Match only when the Arabic word is a standalone token
-    // Preceded by: start, space, punctuation, or non-Arabic char
-    // Followed by: end, space, punctuation, or non-Arabic char
-    const escaped = ar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    // Use regex with boundaries: (^|\s|[^\u0600-\u06FF]) + word + ($|\s|[^\u0600-\u06FF])
-    // But we need to preserve the boundary char, so use lookarounds
-    const pattern = new RegExp(`(?<=^|[\\s\\u0000-\\u05FF\\u0780-\\uFFFF])${escaped}(?=[\\s\\u0000-\\u05FF\\u0780-\\uFFFF]|$)`, 'gu');
-    result = result.replace(pattern, en);
   }
   
   // Clean up double spaces and trailing/leading whitespace
@@ -395,6 +389,7 @@ export function localTranslateArabicToEnglish(text: string): string {
   result = result.replace(/\s+\./g, '.');
   result = result.replace(/\s+\)/g, ')');
   result = result.replace(/\(\s+/g, '(');
+  result = result.replace(/\s+،/g, '،');
   
   return result;
 }

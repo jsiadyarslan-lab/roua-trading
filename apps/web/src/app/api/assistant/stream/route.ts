@@ -177,12 +177,25 @@ export async function POST(request: Request) {
   const { message, history, pageUrl, userId, reportId, reportType } = parsed.data;
   const locale: Locale = parsed.data.locale || 'ar';
 
-  // V589: اكتشاف اللغة الفعلية من السؤال — لو السؤال بالإنجليزية، استخدم en
-  // حتى لو locale=ar (الافتراضي)، لو المستخدم سأل بالإنجليزية يجب أن يرد بالإنجليزية
-  const userMessage = parsed.data.message.toLowerCase();
+  // V590: اكتشاف اللغة الفعلية من السؤال — يدعم كل اللغات المدعومة
+  // لو السؤال لا يحوي أحرف عربية و locale=ar (default)، حدد اللغة من المحتوى
   const isArabicText = /[\u0600-\u06FF]/.test(parsed.data.message);
-  const effectiveLocale: Locale = !isArabicText && locale === "ar" ? "en" : locale;
-  const sanitizedMessage = sanitizePromptInput(message);
+  let effectiveLocale: Locale = locale;
+  if (!isArabicText && locale === 'ar') {
+    const langPatterns: Array<{ lang: Locale; pattern: RegExp }> = [
+      { lang: 'fr', pattern: /[àâéèêëïîôùûüÿçÀÂÉÈÊËÏÎÔÙÛÜŸÇ]|\b(le|la|les|de|du|et|que|qui|dans|pour|sur|avec|sans)\b/i },
+      { lang: 'tr', pattern: /[güşıöçGÜŞİÖÇ]|\b(ve|bir|bu|şu|için|ile|ama|çünkü|nasıl|ne)\b/i },
+      { lang: 'es', pattern: /[ñ¿¡]|\b(el|la|los|las|de|y|que|en|para|con|sin|cómo|qué)\b/i },
+      { lang: 'en', pattern: /\b(the|is|are|what|how|why|when|where|analyze|analysis|market|price|trade|buy|sell|position|stock|gold|bitcoin)\b/i },
+    ];
+    for (const { lang, pattern } of langPatterns) {
+      if (pattern.test(parsed.data.message)) {
+        effectiveLocale = lang;
+        break;
+      }
+    }
+    if (effectiveLocale === 'ar') effectiveLocale = 'en';
+  }
 
   // V477: استخراج session cookie لتمريره لـ NestJS
   const sessionCookie = request.headers.get('cookie') || '';
@@ -538,7 +551,9 @@ export async function POST(request: Request) {
             .replace(/\s{2,}/g, ' ')
             .trim();
         } else {
-          // V586: تنظيف الردود الإنجليزية من الكلمات العربية المتسربة
+          // V590: تنظيف الردود غير العربية من الكلمات العربية المتسربة
+          // يدعم كل اللغات (ليس فقط الإنجليزية) — يستبدل الكلمات العربية بالترجمة الإنجليزية
+          // لأن الـ LLM يخلط العربية مع أي لغة أخرى
           const AR_TO_EN_TABLE_HEADERS: Record<string, string> = {
             'الأصل': 'Asset',
             'النوع': 'Type',
@@ -547,23 +562,32 @@ export async function POST(request: Request) {
             'السعر': 'Price',
             'الاتجاه': 'Trend',
             'التغير': 'Change',
+            '(24س)': '(24h)',
             'الأولوية': 'Priority',
             'الحالة': 'Status',
             'السيناريو': 'Scenario',
             'الشروط': 'Conditions',
             'نطاق السعر': 'Price Range',
+            'نطاق السعر أو الهدف': 'Price Target',
             'الاحتمال': 'Probability',
+            'الاحتمالية': 'Probability',
             'الإجراء': 'Action',
             'التوصية': 'Recommendation',
             'المستوى': 'Level',
             'الهدف': 'Target',
+            'المقترح': 'Proposed',
           };
           for (const [ar, en] of Object.entries(AR_TO_EN_TABLE_HEADERS)) {
+            // استبدل في كل النص (Markdown + HTML + نص عادي)
             finalResponse = finalResponse.replace(new RegExp(ar, 'g'), en);
           }
-          // إزالة أي كلمات عربية متبقية في الجداول الإنجليزية
-          finalResponse = finalResponse.replace(/\|[\s\u0600-\u06FF]+(?:\||$)/g, (match) => {
-            // لو الخلية كلها عربية، استبدلها بـ -
+          // إزالة أي نص عربي متبقي داخل HTML tags (<th>عربي</th> → <th>-</th>)
+          finalResponse = finalResponse.replace(/<([a-z]+)>([\s\u0600-\u06FF]+)<\/\1>/gi, (match, tag, content) => {
+            const cleaned = content.replace(/[\u0600-\u06FF]+/g, '').trim();
+            return `<${tag}>${cleaned || '-'}</${tag}>`;
+          });
+          // إزالة أي نص عربي متبقي في خلايا الجداول Markdown (| عربي | → | - |)
+          finalResponse = finalResponse.replace(/\|[\s\u0600-\u06FF]+\|/g, (match) => {
             const cleaned = match.replace(/[\u0600-\u06FF]+/g, '').trim();
             return cleaned || '| - |';
           });

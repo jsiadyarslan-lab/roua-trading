@@ -316,6 +316,27 @@ export const ARABIC_TO_ENGLISH_PHRASES: Array<[string, string]> = [
   ['متى', 'when'],
   ['كيف', 'how'],
   ['لماذا', 'why'],
+  
+  // Additional words from real brief output
+  ['يتضح أن', 'it is clear that'],
+  ['يتضح', 'it is clear'],
+  ['يظهر', 'shows'],
+  ['يميل نحو', 'leans toward'],
+  ['يميل', 'leans'],
+  ['نحو', 'toward'],
+  ['مدعومًا بـ', 'supported by'],
+  ['مدعوماً بـ', 'supported by'],
+  ['مدعوم بـ', 'supported by'],
+  ['بـ', 'by'],
+  ['تقلب', 'volatility'],
+  ['ومشاعر', 'and sentiment'],
+  ['سوق', 'market'],
+  ['وكلاء', 'agents'],
+  ['أن', 'that'],
+  ['أيضاً', 'also'],
+  
+  // Punctuation
+  ['،', ','],
 ];
 
 /**
@@ -331,20 +352,49 @@ export function localTranslateArabicToEnglish(text: string): string {
   
   let result = text;
   
-  // Replace phrases (longest first to avoid partial matches)
+  // Phase 1: Replace long phrases first (longest first to avoid partial matches)
+  // These are multi-word phrases that are safe to replace anywhere.
+  const longPhrases: Array<[string, string]> = [];
+  const singleWords: Array<[string, string]> = [];
+  
   for (const [ar, en] of ARABIC_TO_ENGLISH_PHRASES) {
-    // Use split/join to avoid regex special character issues
+    if (ar.includes(' ') || ar.length > 4) {
+      longPhrases.push([ar, en]);
+    } else {
+      singleWords.push([ar, en]);
+    }
+  }
+  
+  // Sort long phrases by length descending (longest first)
+  longPhrases.sort((a, b) => b[0].length - a[0].length);
+  
+  for (const [ar, en] of longPhrases) {
     while (result.includes(ar)) {
       result = result.replace(ar, en);
     }
   }
   
-  // Clean up: remove any remaining Arabic characters (they couldn't be translated)
-  // Replace with empty string but preserve structure
-  // result = result.replace(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]+/g, '');
+  // Phase 2: Replace single short words only when surrounded by spaces/punctuation
+  // This prevents breaking up longer words (e.g. "وقال" should not become "andقال")
+  for (const [ar, en] of singleWords) {
+    // Match only when the Arabic word is a standalone token
+    // Preceded by: start, space, punctuation, or non-Arabic char
+    // Followed by: end, space, punctuation, or non-Arabic char
+    const escaped = ar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Use regex with boundaries: (^|\s|[^\u0600-\u06FF]) + word + ($|\s|[^\u0600-\u06FF])
+    // But we need to preserve the boundary char, so use lookarounds
+    const pattern = new RegExp(`(?<=^|[\\s\\u0000-\\u05FF\\u0780-\\uFFFF])${escaped}(?=[\\s\\u0000-\\u05FF\\u0780-\\uFFFF]|$)`, 'gu');
+    result = result.replace(pattern, en);
+  }
   
-  // Clean up double spaces
+  // Clean up double spaces and trailing/leading whitespace
   result = result.replace(/\s+/g, ' ').trim();
+  
+  // Clean up common artifacts
+  result = result.replace(/\s+,/g, ',');
+  result = result.replace(/\s+\./g, '.');
+  result = result.replace(/\s+\)/g, ')');
+  result = result.replace(/\(\s+/g, '(');
   
   return result;
 }

@@ -176,6 +176,12 @@ export async function POST(request: Request) {
 
   const { message, history, pageUrl, userId, reportId, reportType } = parsed.data;
   const locale: Locale = parsed.data.locale || 'ar';
+
+  // V589: اكتشاف اللغة الفعلية من السؤال — لو السؤال بالإنجليزية، استخدم en
+  // حتى لو locale=ar (الافتراضي)، لو المستخدم سأل بالإنجليزية يجب أن يرد بالإنجليزية
+  const userMessage = parsed.data.message.toLowerCase();
+  const isArabicText = /[\u0600-\u06FF]/.test(parsed.data.message);
+  const effectiveLocale: Locale = !isArabicText && locale === "ar" ? "en" : locale;
   const sanitizedMessage = sanitizePromptInput(message);
 
   // V477: استخراج session cookie لتمريره لـ NestJS
@@ -207,7 +213,7 @@ export async function POST(request: Request) {
         try {
           context = await buildAssistantContext({
             message: sanitizedMessage,
-            locale,
+            effectiveLocale,
             pageUrl,
             userId,
             reportId,
@@ -228,7 +234,7 @@ export async function POST(request: Request) {
 
         // Build system prompt
         const promptContext: PromptContext = {
-          locale,
+          effectiveLocale,
           pageUrl: context.pageUrl,
           pageType: context.pageType,
           pageContent: context.pageContent,
@@ -294,7 +300,7 @@ export async function POST(request: Request) {
           }
           if (detectedAsset) {
             try {
-              const assetData = await fetchAssetData(sanitizedMessage, locale, userId, rouaSession) as any;
+              const assetData = await fetchAssetData(sanitizedMessage, effectiveLocale, userId, rouaSession) as any;
               if (assetData?.price) {
                 const currentPrice = assetData.price.current;
                 const tradeSetup = assetData.technical?.tradeSetup;
@@ -319,7 +325,7 @@ export async function POST(request: Request) {
                 }
                 const posResult = calculatePositionSize(detectedAsset.symbol, posSizingParams.accountSize || 1000, posSizingParams.riskPercent || 2, entryPrice, stopLossPrice, direction === 'wait' ? 'long' : direction, targetPrice);
                 if (posResult) {
-                  finalResponse = buildPositionSizeHTML(posResult, locale, assetData);
+                  finalResponse = buildPositionSizeHTML(posResult, effectiveLocale, assetData);
                   isHtmlResponse = true; positionSizingHandled = true;
                   toolCallsUsed.push(`position_calculator (${detectedAsset.symbol})`);
                   preFetchedDataBundle = assetData;
@@ -334,7 +340,7 @@ export async function POST(request: Request) {
               tr: 'Pozisyon boyutunu hesaplamak için hangi varlığı işlemdiğinizi bilmem gerekiyor.',
               es: 'Para calcular el tamaño de posición, necesito saber qué activo estás operando.',
             };
-            finalResponse = NO_ASSET_MSGS[locale]; positionSizingHandled = true;
+            finalResponse = NO_ASSET_MSGS[effectiveLocale]; positionSizingHandled = true;
           }
         }
 
@@ -380,7 +386,7 @@ export async function POST(request: Request) {
                 aiAnalysis = await buildAgenticAnalysis(
                   sanitizedMessage,
                   combinedContext,
-                  locale,
+                  effectiveLocale,
                   multiResult.primary!,
                   history,
                 );
@@ -394,7 +400,7 @@ export async function POST(request: Request) {
           // Single-asset path (original)
           if (!finalResponse) {
             try {
-              preFetchedDataBundle = await fetchAssetData(sanitizedMessage, locale, userId, rouaSession);
+              preFetchedDataBundle = await fetchAssetData(sanitizedMessage, effectiveLocale, userId, rouaSession);
             } catch { /* Continue without data */ }
           }
         }
@@ -423,7 +429,7 @@ export async function POST(request: Request) {
           let aiAnalysis = '';
           try {
             send('status', { message: STATUS_MESSAGES[locale][2] }); // "جاري تحضير الإجابة..."
-            aiAnalysis = await buildAgenticAnalysis(sanitizedMessage, preFetchedToolData, locale, preBundle, history);
+            aiAnalysis = await buildAgenticAnalysis(sanitizedMessage, preFetchedToolData, effectiveLocale, preBundle, history);
           } catch { /* Cards only */ }
 
           finalResponse = aiAnalysis ? htmlCards + '\n' + aiAnalysis : htmlCards;
@@ -433,7 +439,7 @@ export async function POST(request: Request) {
           for (let round = 0; round <= maxToolRounds; round++) {
             const result = await chatCompletion(
               currentMessages.map(m => ({ role: m.role, content: m.content })),
-              { temperature: 0.5, maxTokens: 4000, locale, allowFallback: true }
+              { temperature: 0.5, maxTokens: 4000, effectiveLocale, allowFallback: true }
             );
             const aiContent = result.content || '';
 
@@ -445,11 +451,11 @@ export async function POST(request: Request) {
                     && (!preParsed.params.pageUrl || preParsed.params.pageUrl.trim() === '')
                     && context.pageUrl) {
                   preParsed.params.pageUrl = context.pageUrl;
-                  const directResult = await executeTool(preParsed.tool, preParsed.params, locale, userId);
+                  const directResult = await executeTool(preParsed.tool, preParsed.params, effectiveLocale, userId);
                   const formattedResults = formatToolResults([directResult]);
                   toolResult = { results: [directResult], formattedResults };
                 } else {
-                  toolResult = await processToolCalls(aiContent, locale, userId);
+                  toolResult = await processToolCalls(aiContent, effectiveLocale, userId);
                 }
               } catch {
                 finalResponse = stripToolCallMarkup(aiContent);
@@ -462,7 +468,7 @@ export async function POST(request: Request) {
                 const strippedResponse = stripToolCallMarkup(aiContent);
                 if (strippedResponse) currentMessages.push({ role: 'assistant', content: strippedResponse });
                 const secondPassContext: PromptContext = {
-                  locale, pageUrl: context.pageUrl, pageType: context.pageType,
+                  effectiveLocale, pageUrl: context.pageUrl, pageType: context.pageType,
                   pageContent: context.pageContent, userContext: context.userContext,
                   marketContext: context.marketContext, relatedArticles: context.relatedArticles,
                   toolResults: toolResult.formattedResults,
@@ -485,7 +491,7 @@ export async function POST(request: Request) {
           } else if (aiFailed) {
             finalResponse = FALLBACK_RESPONSES[locale](sanitizedMessage);
           } else {
-            finalResponse = locale === 'ar' ? 'عذراً، لم أتمكن من معالجة طلبك. يرجى المحاولة مرة أخرى.' : 'Sorry, I could not process your request. Please try again.';
+            finalResponse = effectiveLocale === 'ar' ? 'عذراً، لم أتمكن من معالجة طلبك. يرجى المحاولة مرة أخرى.' : 'Sorry, I could not process your request. Please try again.';
           }
         }
 
@@ -520,7 +526,7 @@ export async function POST(request: Request) {
           .replace(/historically precedes/gi, 'may precede')
           .replace(/historically.*?reversed/gi, 'may reverse');
 
-        if (locale === 'ar') {
+        if (effectiveLocale === 'ar') {
           finalResponse = finalResponse
             .replace(/[\u0E00-\u0E7F]/g, '')
             .replace(/[\u4E00-\u9FFF]/g, '')
@@ -626,7 +632,7 @@ export async function POST(request: Request) {
         // NOTE: toolsUsed and sources are NOT sent to the client to keep UX clean
         send('done', {
           isHtml: isHtmlResponse || undefined,
-          locale,
+          effectiveLocale,
           timestamp: new Date().toISOString(),
         });
 

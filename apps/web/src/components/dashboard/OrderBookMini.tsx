@@ -240,7 +240,7 @@ export function OrderBookMini() {
             background: connected ? 'var(--success)' : (isCrypto ? 'var(--danger)' : 'var(--warning)'),
             boxShadow: connected ? '0 0 4px var(--success)' : 'none'
           }} />
-          <span style={{ fontSize: 8, color: 'var(--muted)', fontFamily: 'monospace' }}>
+          <span style={{ fontSize: 10, color: 'var(--foreground)', fontFamily: 'monospace' }}>
             {connected ? tob('live') : isCrypto ? tob('connecting') : tob('sim')}
           </span>
         </div>
@@ -249,7 +249,7 @@ export function OrderBookMini() {
       {/* Header Labels */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', padding: '8px 16px',
-        fontSize: 9, color: 'var(--muted)', fontWeight: 800, textTransform: 'uppercase',
+        fontSize: 11, color: 'var(--foreground)', fontWeight: 800, textTransform: 'uppercase',
         letterSpacing: '0.05em'
       }}>
         <span>{tc('price')}</span>
@@ -260,7 +260,7 @@ export function OrderBookMini() {
         {basePrice === 0 && asks.length === 0 ? (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
             <div style={{ width: 24, height: 24, border: '2px solid var(--accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-            <span style={{ color: 'var(--muted)', fontSize: 11 }}>{t('connecting')}</span>
+            <span style={{ color: 'var(--foreground)', fontSize: 11 }}>{t('connecting')}</span>
 
           </div>
         ) : (
@@ -298,7 +298,7 @@ export function OrderBookMini() {
                 <div className="number-data" style={{ fontSize: 11, color: isPositive ? 'var(--success)' : 'var(--danger)', fontWeight: 800 }}>
                   {isPositive ? '+' : ''}{(quote?.changePercent ?? 0).toFixed(2)}%
                 </div>
-                <div style={{ fontSize: 8, color: 'var(--muted)', fontWeight: 700 }}>
+                <div style={{ fontSize: 10, color: 'var(--foreground)', fontWeight: 700 }}>
                   {connected ? tob('liveDepth') : tob('lastPrice')}
                 </div>
               </div>

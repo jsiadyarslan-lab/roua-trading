@@ -158,7 +158,7 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp, onSelectSymb
                 background: isActive ? `${accent}15` : 'transparent',
                 border: 'none', borderRadius: 6, padding: '4px 8px',
                 color: isActive ? accent : 'var(--muted)',
-                fontSize: 10, fontWeight: isActive ? 800 : 500, cursor: 'pointer',
+                fontSize: 11, fontWeight: isActive ? 800 : 500, cursor: 'pointer',
                 fontFamily: "'Cairo', sans-serif", transition: '0.2s',
                 whiteSpace: 'nowrap', flexShrink: 0,
               }}>
@@ -177,8 +177,8 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp, onSelectSymb
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <Flame size={10} color="var(--warning)" />
-          <span style={{ fontSize: 10, fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--foreground)' }}>{hotMover?.sym ?? '—'}</span>
-          <span style={{ fontSize: 9, fontFamily: 'var(--mono)', color: (hotMover?.quote?.changePercent ?? 0) >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+          <span style={{ fontSize: 11, fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--foreground)' }}>{hotMover?.sym ?? '—'}</span>
+          <span style={{ fontSize: 11, fontFamily: 'var(--mono)', color: (hotMover?.quote?.changePercent ?? 0) >= 0 ? 'var(--success)' : 'var(--danger)' }}>
             {hotMover?.quote ? `${hotMover.quote.changePercent >= 0 ? '+' : ''}${hotMover.quote.changePercent.toFixed(2)}%` : '—'}
           </span>
         </div>
@@ -227,7 +227,7 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp, onSelectSymb
                     <div style={{
                       display: 'flex', alignItems: 'center', gap: 2, padding: '1px 5px',
                       borderRadius: 12, background: isUp ? 'rgba(0,255,163,0.1)' : 'rgba(255,71,87,0.1)',
-                      color, fontSize: 9, fontWeight: 800, fontFamily: 'var(--mono)', whiteSpace: 'nowrap',
+                      color, fontSize: 11, fontWeight: 800, fontFamily: 'var(--mono)', whiteSpace: 'nowrap',
                     }}>
                       {isUp ? '+' : ''}{changePct.toFixed(2)}%
                     </div>

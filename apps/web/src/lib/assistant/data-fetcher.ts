@@ -360,7 +360,8 @@ export async function fetchRelevantData(
 
 // ─── Individual Fetch Functions ───────────────────────────────────
 
-async function fetchPrices(symbols: string[]): Promise<PriceData[]> {
+// V597: Exported for assistant stream route to fetch major market prices
+export async function fetchPrices(symbols: string[]): Promise<PriceData[]> {
   if (symbols.length === 0) return [];
   try {
     const now = Date.now();

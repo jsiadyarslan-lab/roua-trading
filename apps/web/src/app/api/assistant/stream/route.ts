@@ -452,6 +452,39 @@ export async function POST(request: Request) {
 
           finalResponse = aiAnalysis ? htmlCards + '\n' + aiAnalysis : htmlCards;
         } else if (!finalResponse) {
+          // V597: For general questions (no specific asset detected), auto-fetch
+          // major market prices so the AI uses REAL data instead of hallucinating.
+          const MAJOR_SYMBOLS = [
+            'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT',
+            'EUR/USD', 'GBP/USD', 'USD/JPY', 'XAU/USD',
+            'SPX500', 'US30', 'NAS100'
+          ];
+          try {
+            const { fetchPrices } = await import('@/lib/assistant/data-fetcher');
+            const majorPrices = await fetchPrices(MAJOR_SYMBOLS);
+            if (majorPrices.length > 0) {
+              const isAr = effectiveLocale === 'ar';
+              let priceContext = isAr
+                ? '\n\n═══ أسعار السوق الحالية (من قاعدة بيانات رؤى) ═══\n'
+                : '\n\n═══ Current Market Prices (from Rouaa Database) ═══\n';
+              for (const p of majorPrices) {
+                const name = isAr && p.nameAr ? p.nameAr : p.name;
+                const change = p.changePercent >= 0
+                  ? `+${p.changePercent.toFixed(2)}%`
+                  : `${p.changePercent.toFixed(2)}%`;
+                const stale = p.isStale ? (isAr ? ' ⚠️ قد لا يكون محدثاً' : ' ⚠️ may be stale') : '';
+                priceContext += `- ${name} (${p.symbol}): ${p.value.toLocaleString()} ${change}${stale}\n`;
+              }
+              priceContext += isAr
+                ? '\n⚠️ استخدم هذه الأسعار الحقيقية فقط — لا تخترع أرقاماً.'
+                : '\n⚠️ Use ONLY these real prices — do NOT invent numbers.';
+              // Inject into the conversation
+              currentMessages.push({ role: 'system', content: priceContext });
+            }
+          } catch {
+            // Non-critical — continue without market prices
+          }
+
           // No asset detected — use AI with tool calling
           const maxToolRounds = 3;
           for (let round = 0; round <= maxToolRounds; round++) {

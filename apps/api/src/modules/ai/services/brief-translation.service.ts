@@ -92,111 +92,12 @@ export class BriefTranslationService {
     // If text doesn't contain Arabic, no translation needed
     if (!containsArabic(text)) return text;
 
-    // Build cache key: hash of (text + targetLanguage)
-    const cacheKey = this._buildCacheKey(text, targetLanguage);
-
-    // Check Redis cache
-    if (this.redis) {
-      try {
-        const cached = await this.redis.get(cacheKey);
-        if (cached) {
-          this.logger.debug(`🌐 Translation cache hit: ${contextLabel || 'text'} → ${targetLanguage}`);
-          return cached;
-        }
-      } catch {
-        // Redis error — continue to translation
-      }
-    }
-
-    // V592: For English + supported languages, try local dictionary first (instant, no AI cost).
-    // This handles common phrases like "صوتوا للشراء" → "voted BUY" (en) / "ont voté ACHAT" (fr).
-    const supportedLocalLangs = ['en', 'fr', 'de', 'es', 'tr'];
-    if (supportedLocalLangs.includes(targetLanguage)) {
-      const localResult = localTranslateArabicToLanguage(text, targetLanguage);
-      if (localResult !== text && !containsArabic(localResult)) {
-        // Local translation fully succeeded — cache and return
-        if (this.redis) {
-          try {
-            await this.redis.set(cacheKey, localResult, TRANSLATION_CACHE_TTL_MS);
-          } catch { /* non-critical */ }
-        }
-        this.logger.log(`🌐 Local-translated ${contextLabel || 'text'} → ${targetLanguage} (${localResult.length} chars)`);
-        return localResult;
-      }
-    }
-
-    // If orchestrator not available, return local fallback (even if partial)
-    if (!this.orchestrator) {
-      this.logger.debug('Orchestrator not available — returning local fallback');
-      return supportedLocalLangs.includes(targetLanguage)
-        ? localTranslateArabicToLanguage(text, targetLanguage)
-        : text;
-    }
-
-    // Build translation prompt
-    const targetLangName = LANGUAGE_NAMES[targetLanguage] || 'English';
-    const prompt = `You are a professional financial translator. Translate the following trading analysis to ${targetLangName}. 
-
-Rules:
-- Preserve ALL numbers, prices, percentages, and indicator values exactly as-is
-- Preserve the "DECISION: BUY/SELL/HOLD" line in English (universal format)
-- Preserve any ticker symbols (BTC/USDT, ETH/USDT, etc.) as-is
-- Translate only the prose/explanatory text
-- Do NOT add any commentary or explanation — output ONLY the translation
-- Keep the same formatting (paragraphs, bullet points, bold markers)
-
-Text to translate:
-${text}`;
-
-    // Try translation models (prefer NVIDIA — it's available and free)
-    const translationModels = ['nvidia', 'glm', 'bedrock', 'groq'];
-
-    for (const model of translationModels) {
-      if (!this.orchestrator.isModelKeyAvailable(model)) continue;
-
-      try {
-        const response = await this.orchestrator.callModel(model, {
-          prompt,
-          type: 'translation',
-          language: targetLanguage,
-        });
-
-        if (response.confidence > 0 && response.content && response.content.length > 10) {
-          const translated = response.content.trim();
-
-          // Cache the translation
-          if (this.redis) {
-            try {
-              await this.redis.set(cacheKey, translated, TRANSLATION_CACHE_TTL_MS);
-            } catch {
-              // Cache write failure — non-critical
-            }
-          }
-
-          this.logger.log(`🌐 Translated ${contextLabel || 'text'} → ${targetLanguage} (via ${model}, ${translated.length} chars)`);
-          return translated;
-        }
-      } catch (err: any) {
-        this.logger.debug(`Translation via ${model} failed: ${err?.message}`);
-        continue;
-      }
-    }
-
-    // All AI models failed — use local fallback for supported languages, otherwise return original
-    if (supportedLocalLangs.includes(targetLanguage)) {
-      const localResult = localTranslateArabicToLanguage(text, targetLanguage);
-      if (localResult !== text) {
-        // Cache the partial translation
-        if (this.redis) {
-          try {
-            await this.redis.set(cacheKey, localResult, TRANSLATION_CACHE_TTL_MS);
-          } catch { /* non-critical */ }
-        }
-        this.logger.log(`🌐 Local fallback applied for ${contextLabel || 'text'} → ${targetLanguage} (${localResult.length} chars, partial)`);
-        return localResult;
-      }
-    }
-    this.logger.warn(`🌐 All translation methods failed for ${contextLabel || 'text'} → ${targetLanguage}, returning original`);
+    // V593 EMERGENCY FIX: Disable ALL translation to prevent API timeouts.
+    // The AI model calls (nvidia/glm/bedrock/groq) were consuming all resources
+    // and causing 502/503 errors across the entire API.
+    // The local dictionary regex was also too heavy for production traffic.
+    // Return original Arabic text — app works exactly as before i18n changes.
+    // Translation can be re-enabled later with proper timeouts and rate limiting.
     return text;
   }
 

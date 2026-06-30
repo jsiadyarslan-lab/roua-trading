@@ -125,10 +125,9 @@ function cleanResponse(text: string, locale: Locale): string {
     .replace(/\s*\[(Strategic|Technical|Economy|Earnings|Daily|Weekly|Monthly)\]\s*/g, ' ')
     .replace(/\s*تأثير:\s*(low|medium|high|منخفض|متوسط|عالي)\s*/g, ' ')
     .replace(/\s*impact:\s*(low|medium|high)\s*/gi, ' ')
-    // V472: إزالة <br> و <br/> و <br /> من الجداول (تظهر كنص بدلًا من سطر جديد)
-    .replace(/<br\s*\/?>/gi, ' • ')
-    // V472: إزالة HTML tags الأخرى
-    .replace(/<\/?(strong|b|em|i|u|p|div|span|li|ul|ol|h[1-6])[^>]*>/gi, '')
+    // V597: Removed HTML tag stripping — we now convert Markdown→HTML after this.
+    // Previous: .replace(/<\/?(strong|b|em|i|u|p|div|span|li|ul|ol|h[1-6])[^>]*>/gi, '')
+    // This was destroying valid HTML that some AI models return.
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 
@@ -1759,6 +1758,14 @@ export async function POST(request: Request) {
 
     // ── Post-processing ──
     finalResponse = cleanResponse(finalResponse, locale);
+
+    // V597: Convert Markdown → HTML before streaming
+    // Previously, Markdown was sent raw to the client, causing tables and lists
+    // to appear as stacked text. Now markdown-it converts it to styled HTML
+    // that the MarkdownRenderer component can display properly.
+    if (finalResponse) {
+      finalResponse = md.render(preprocessMarkdown(finalResponse));
+    }
 
     // ── Streaming Response ──
     const metadata = {

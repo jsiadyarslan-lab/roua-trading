@@ -1395,7 +1395,8 @@ export default function PortfolioPage() {
 
       {/* ── Tabs ── */}
       <div className="portfolio-tabs-row" style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
-        <TabButton label={t('tabTrades')} icon={Activity} active={tab === 'positions'} onClick={() => setTab('positions')} count={positions.length + combinedHistory.length} /> // V331: Use combinedHistory to avoid double-counting
+        {/* V331: Use combinedHistory to avoid double-counting */}
+        <TabButton label={t('tabTrades')} icon={Activity} active={tab === 'positions'} onClick={() => setTab('positions')} count={positions.length + combinedHistory.length} />
         <TabButton label={t('tabPerformance')} icon={TrendingUp} active={tab === 'performance'} onClick={() => setTab('performance')} />
         <TabButton label={t('tabRisk')} icon={Shield} active={tab === 'risk'} onClick={() => setTab('risk')} />
         <TabButton label='سجل التداول' icon={FileText} active={tab === 'journal'} onClick={() => setTab('journal')} count={getJournalEntryCount()} />

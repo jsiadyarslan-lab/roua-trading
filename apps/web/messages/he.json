@@ -227,7 +227,7 @@
       "noDataForSymbol": "אין נתונים זמינים עבור הסמל שנבחר",
       "scanningDot": "סורק...",
       "selected": "נִבחָר",
-      "appearedBecause": "{סמל} הופיע בגלל: {סיבות}.",
+      "appearedBecause": "{symbol} הופיע בגלל: {reasons}.",
       "signalExplanationSell2": "אות מכירה מהסורק",
       "signalExplanationNeutral": "אות ניטרלי מהסורק",
       "pair": "זוּג",

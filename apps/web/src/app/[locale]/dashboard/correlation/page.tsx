@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { GitMerge, RefreshCw, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react'
 import { T } from '@/lib/theme-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
-import { useTranslations } from 'next-intl';
 
 function corrColor(v: number): string {
   if (isNaN(v)) return '#1A1D29' // default for NaN
@@ -18,8 +17,6 @@ function corrColor(v: number): string {
 }
 
 export default function CorrelationPage() {
-  const t = useTranslations('frontend')
-  const tf = useTranslations('frontend');
   useScopedStyle(`@keyframes spin { to { transform: rotate(360deg); } }`)
 
   const [data, setData] = useState<any>(null)
@@ -135,8 +132,8 @@ export default function CorrelationPage() {
           {/* Top pairs */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             {[
-              { title: t('msg_290131a819'), pairs: data.topCorrelated, icon: <TrendingUp size={14} color={T.green} />, color: T.green },
-              { title: t('msg_a153c4cda7'), pairs: data.topAntiCorrelated, icon: <TrendingDown size={14} color={T.red} />, color: T.red },
+              { title: 'أعلى ارتباط موجب', pairs: data.topCorrelated, icon: <TrendingUp size={14} color={T.green} />, color: T.green },
+              { title: 'أعلى ارتباط عكسي', pairs: data.topAntiCorrelated, icon: <TrendingDown size={14} color={T.red} />, color: T.red },
             ].map(section => (
               <div key={section.title} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>

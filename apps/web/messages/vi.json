@@ -227,7 +227,7 @@
       "noDataForSymbol": "Không có dữ liệu cho biểu tượng đã chọn",
       "scanningDot": "Đang quét...",
       "selected": "Đã chọn",
-      "appearedBecause": "{biểu tượng} xuất hiện vì: {reasons}.",
+      "appearedBecause": "{symbol} xuất hiện vì: {reasons}.",
       "signalExplanationSell2": "Bán tín hiệu từ máy quét",
       "signalExplanationNeutral": "Tín hiệu trung tính từ máy quét",
       "pair": "Đôi",

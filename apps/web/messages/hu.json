@@ -227,7 +227,7 @@
       "noDataForSymbol": "A kiválasztott szimbólumhoz nem állnak rendelkezésre adatok",
       "scanningDot": "Szkennelés...",
       "selected": "Kiválasztott",
-      "appearedBecause": "{symbol} azért jelent meg, mert: {oka}.",
+      "appearedBecause": "{symbol} azért jelent meg, mert: {reasons}.",
       "signalExplanationSell2": "Szkenner jelének eladása",
       "signalExplanationNeutral": "Semleges jel a szkennertől",
       "pair": "Pár",

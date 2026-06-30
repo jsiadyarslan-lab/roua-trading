@@ -227,7 +227,7 @@
       "noDataForSymbol": "منتخب کردہ علامت کے لیے کوئی ڈیٹا دستیاب نہیں ہے۔",
       "scanningDot": "سکین ہو رہا ہے...",
       "selected": "منتخب",
-      "appearedBecause": "{symbol} ظاہر ہوا کیونکہ: {وجوہ}۔",
+      "appearedBecause": "{symbol} ظاہر ہوا کیونکہ: {reasons}۔",
       "signalExplanationSell2": "سکینر سے سگنل فروخت کریں۔",
       "signalExplanationNeutral": "سکینر سے غیر جانبدار سگنل",
       "pair": "جوڑا",

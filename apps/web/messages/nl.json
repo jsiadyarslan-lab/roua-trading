@@ -227,7 +227,7 @@
       "noDataForSymbol": "Geen gegevens beschikbaar voor geselecteerd symbool",
       "scanningDot": "Scannen...",
       "selected": "Geselecteerd",
-      "appearedBecause": "XPH0X verscheen omdat:{reasons}.",
+      "appearedBecause": "{symbol} verscheen omdat:{reasons}.",
       "signalExplanationSell2": "Verkoopsignaal van scanner",
       "signalExplanationNeutral": "Neutraal signaal van scanner",
       "pair": "Paar",

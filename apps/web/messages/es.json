@@ -227,7 +227,7 @@
       "noDataForSymbol": "No hay datos disponibles para el símbolo seleccionado",
       "scanningDot": "Escaneando...",
       "selected": "Seleccionado",
-      "appearedBecause": "{symbol} apareció porque: {razones}.",
+      "appearedBecause": "{symbol} apareció porque: {reasons}.",
       "signalExplanationSell2": "Señal de venta del escáner",
       "signalExplanationNeutral": "Señal neutral del escáner",
       "pair": "Par",

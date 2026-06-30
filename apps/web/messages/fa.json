@@ -227,7 +227,7 @@
       "noDataForSymbol": "هیچ داده ای برای نماد انتخابی موجود نیست",
       "scanningDot": "در حال اسکن...",
       "selected": "انتخاب شده است",
-      "appearedBecause": "{symbol} ظاهر شد زیرا: {دلایل}.",
+      "appearedBecause": "{symbol} ظاهر شد زیرا: {reasons}.",
       "signalExplanationSell2": "فروش سیگنال از اسکنر",
       "signalExplanationNeutral": "سیگنال خنثی از اسکنر",
       "pair": "جفت کردن",

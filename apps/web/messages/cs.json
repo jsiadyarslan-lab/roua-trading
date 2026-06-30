@@ -2674,7 +2674,7 @@
     },
     "scanner": {
       "watch": "Sledovat",
-      "appearedBecause": "XPH0X se objevil, protože:{reasons}.",
+      "appearedBecause": "{symbol} se objevil, protože:{reasons}.",
       "title": "Skener trhu",
       "strongBullishAlignment": "Silné býčí zarovnání",
       "signalExplanationSell": "Prodat signál ze skeneru",

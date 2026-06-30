@@ -227,7 +227,7 @@
       "noDataForSymbol": "Tidak ada data tersedia untuk simbol yang dipilih",
       "scanningDot": "Memindai...",
       "selected": "Memindai...",
-      "appearedBecause": "{simbol} muncul karena: {alasan}.",
+      "appearedBecause": "{symbol} muncul karena: {reasons}.",
       "signalExplanationSell2": "Jual sinyal dari pemindai",
       "signalExplanationNeutral": "Sinyal netral dari pemindai",
       "pair": "Pasangan",

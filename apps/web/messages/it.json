@@ -227,7 +227,7 @@
       "noDataForSymbol": "Nessun dato disponibile per il simbolo selezionato",
       "scanningDot": "Scansione in corso...",
       "selected": "Selezionato",
-      "appearedBecause": "XPH0X è apparso perché:{reasons}.",
+      "appearedBecause": "{symbol} è apparso perché:{reasons}.",
       "signalExplanationSell2": "Segnale di vendita dallo scanner",
       "signalExplanationNeutral": "Segnale neutrale dallo scanner",
       "pair": "Coppia",

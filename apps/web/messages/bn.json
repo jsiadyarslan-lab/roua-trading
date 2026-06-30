@@ -2674,7 +2674,7 @@
     },
     "scanner": {
       "watch": "ঘড়ি",
-      "appearedBecause": "{symbol} উপস্থিত হয়েছে কারণ: {কারণ}।",
+      "appearedBecause": "{symbol} উপস্থিত হয়েছে কারণ: {reasons}।",
       "title": "মার্কেট স্ক্যানার",
       "strongBullishAlignment": "শক্তিশালী বুলিশ প্রান্তিককরণ",
       "signalExplanationSell": "স্ক্যানার থেকে সংকেত বিক্রি করুন",

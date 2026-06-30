@@ -227,7 +227,7 @@
       "noDataForSymbol": "ไม่มีข้อมูลสำหรับสัญลักษณ์ที่เลือก",
       "scanningDot": "กำลังสแกน...",
       "selected": "เลือกแล้ว",
-      "appearedBecause": "{สัญลักษณ์} ปรากฏขึ้นเนื่องจาก: {reasons}",
+      "appearedBecause": "{symbol} ปรากฏขึ้นเนื่องจาก: {reasons}",
       "signalExplanationSell2": "ขายสัญญาณจากเครื่องสแกน",
       "signalExplanationNeutral": "สัญญาณเป็นกลางจากเครื่องสแกน",
       "pair": "คู่",

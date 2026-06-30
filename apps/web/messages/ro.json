@@ -227,7 +227,7 @@
       "noDataForSymbol": "Nu există date disponibile pentru simbolul selectat",
       "scanningDot": "Scanare...",
       "selected": "Selectat",
-      "appearedBecause": "XPH0X a apărut deoarece:{reasons}.",
+      "appearedBecause": "{symbol} a apărut deoarece:{reasons}.",
       "signalExplanationSell2": "Semnal de vânzare de la scaner",
       "signalExplanationNeutral": "Cumpără semnal neutru de la scaner",
       "pair": "Pereche",

@@ -48,6 +48,23 @@ import { t } from '../../i18n/i18n.helper';
  */
 @Injectable()
 export class TradingService {
+  /**
+   * V426: Deterministic jitter so automated positions don't all hit their
+   * minimum-holding threshold at the exact same moment (which causes the
+   * "mass close" pattern seen in production — many positions closing within
+   * the same minute). Same position.id always yields the same jitter, so the
+   * threshold is stable across repeated checks but varies position-to-position.
+   *
+   * Returns an effective hour count using a multiplier in [0.85, 1.25] applied
+   * to a base hour count. E.g. base=24h → effective range is ~20.4h to 30h.
+   */
+  private _jitteredMinHours(positionId: string, baseHours: number): number {
+    const hash = crypto.createHash('md5').update(positionId).digest();
+    const bucket = hash.readUInt16BE(0) % 1000; // 0..999
+    const multiplier = 0.85 + (bucket / 1000) * 0.4; // 0.85..1.25
+    return baseHours * multiplier;
+  }
+
   private readonly logger = new Logger(TradingService.name);
   private readonly exchangeCache = new Map<string, any>(); // credentialId:exchangeName -> exchange instance
   private readonly exchangeCacheTimestamps = new Map<string, number>(); // TTL tracking
@@ -783,17 +800,15 @@ export class TradingService {
     // (which come from old code on Railway that sends closeReason='MANUAL' at 4h).
     const isUserInitiated = request.source === 'USER';
 
-    // V423 FIX: Block MANUAL closes of automated positions before 24h
-    // EVEN IF source='USER'. Root cause: self-healing-agent (Railway service)
-    // calls POST /api/trading/positions/close at exactly 4h — the Controller
-    // sets source='USER' automatically, bypassing V237/V290 guards.
-    // Result: positions close at 4h labeled "يدوي" despite no human action.
-    //
-    // This guard applies to ALL callers including source='USER' for
-    // agent/executor positions, since the human user confirmed they
-    // never manually close automated positions ("لا أغلق يدوياً أي صفقة آلية").
-    // Real human closes via the UI can still be done — they just need to wait
-    // 24h OR use force-close (SL/TP level).
+    // V423 (ORIGINAL, now corrected by V426 below): Was intended to block MANUAL
+    // closes of automated positions before ~24h, but the original version applied
+    // this EVEN to source='USER' — which incorrectly blocked real human closes too,
+    // since the controller (the only caller that sets source='USER') hardcodes
+    // closeReason='USER_MANUAL' on every request, indistinguishable from a spoofed one.
+    // V426 fixes this: real user closes (source='USER') now always pass immediately.
+    // This guard now only restricts the automated engine's OWN internal closes
+    // (position-monitor / smart-executor / autonomous-trader calling closePosition
+    // in-process, which never set source='USER').
     const isAutomatedPosition = (position.source === 'agent' ||
       position.source === 'smart_executor' ||
       position.source === 'autonomous_trader');
@@ -801,10 +816,21 @@ export class TradingService {
     const isManualOrEmptyReason = closeReasonStr === 'MANUAL' ||
       closeReasonStr === 'USER_MANUAL' || closeReasonStr === '';
 
-    if (isAutomatedPosition && isManualOrEmptyReason && !isSLTPClose) {
+
+    // V426 FIX: Real user-initiated closes (the authenticated POST /positions/close
+    // endpoint, which is the ONLY place in this codebase that sets source='USER' —
+    // verified by code search: no internal/automated caller ever sets this) must
+    // ALWAYS be allowed to close immediately. The previous version blocked these
+    // too, which is wrong: a logged-in user must be able to close their own
+    // position whenever they want. The "don't mass-close everything at once"
+    // protection belongs to the automated engine's own internal closes only,
+    // not to genuine user action — see !isUserInitiated below.
+    if (isAutomatedPosition && isManualOrEmptyReason && !isSLTPClose && !isUserInitiated) {
       const holdingMs = Date.now() - new Date(position.openedAt).getTime();
       const holdingHours = holdingMs / (60 * 60 * 1000);
-      const V423_MIN_HOURS = 24; // حد أدنى 24 ساعة لإغلاق الصفقات الآلية يدوياً
+      // V426: jittered 24h base (~20.4h–30h per position) so automated positions
+      // don't all become eligible to auto-close at the exact same moment.
+      const V423_MIN_HOURS = this._jitteredMinHours(position.id, 24);
 
       if (holdingHours < V423_MIN_HOURS) {
         this.logger.warn(
@@ -836,7 +862,7 @@ export class TradingService {
         ? Date.now() - new Date(position.openedAt).getTime()
         : 0;
       const holdingHours = holdingMs / (60 * 60 * 1000);
-      const AGENT_MIN_HOLDING_HOURS = 48;
+      const AGENT_MIN_HOLDING_HOURS = this._jitteredMinHours(position.id, 48);
 
       // V237: Also block MAX_HOLDING_TIME even if holdingHours >= 48h — this
       // closeReason should NEVER be used for Agent positions. The Position Monitor
@@ -882,7 +908,7 @@ export class TradingService {
         ? Date.now() - new Date(position.openedAt).getTime()
         : 0;
       const holdingHours = holdingMs / (60 * 60 * 1000);
-      const SMART_EXECUTOR_MIN_HOURS = 24; // V420: Raised from 6h to 24h
+      const SMART_EXECUTOR_MIN_HOURS = this._jitteredMinHours(position.id, 24); // V420: Raised from 6h to 24h; V426: jittered to avoid mass-close
 
       if (holdingHours < SMART_EXECUTOR_MIN_HOURS) {
         this.logger.error(

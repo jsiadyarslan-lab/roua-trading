@@ -79,7 +79,8 @@
   /* Text — aligned with unified-tokens.ts T.text=#F0F2F5, T.text2=#8B92A8 */
   --text-main: #F0F2F5;
   --text-secondary: #8B92A8;
-  --text-muted: #8B92A899;
+  /* V595: Removed alpha 99 (was making text semi-transparent, hard to read) */
+  --text-muted: #8B92A8;
 
   /* Accent Colors */
   --accent: #059669;
@@ -99,7 +100,9 @@
   --card-border: rgba(255,255,255,0.06);
   --mono: var(--font-mono), 'JetBrains Mono', monospace;
   --text3: #8B92A8;
-  --text-faint: #4B5263;
+  /* V595: Fixed --text-faint — was #4B5263 (contrast 2.47, too dark on dark bg) */
+  /* Now uses same value as --text3 for proper readability (contrast 6.94) */
+  --text-faint: #8B92A8;
   --purple: #B388FF;
   --purple-bg: #b388ff14;
   --purple-border: #b388ff40;
@@ -155,7 +158,9 @@
   --primary-foreground: #ffffff;
   --secondary: #1F2335;
   --secondary-foreground: #F0F2F5;
-  --muted: #111827;
+  /* V595: Fixed --muted — was #111827 (near-black, invisible on dark bg, contrast 1.09) */
+  /* Now uses same value as --muted-foreground for proper text readability (contrast 6.23) */
+  --muted: #8B92A8;
   --muted-foreground: #8B92A8;
   --accent: #059669;
   --accent-foreground: #ffffff;

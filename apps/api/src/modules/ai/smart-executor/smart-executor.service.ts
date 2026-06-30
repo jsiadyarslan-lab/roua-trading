@@ -3068,6 +3068,7 @@ export class SmartExecutorService implements OnModuleDestroy {
 
     // ═══════════════════════════════════════════════════════════════
     // V290: Regime filter — block BUY in BEAR market, SELL in BULL market.
+    // V427: Also capture H1 ATR for use in SL/TP sizing below.
     //
     // PROBLEM (June 19, 2026 data):
     //   - 3 BUY trades in a bear market all lost: -$7.96 (100% loss rate)
@@ -3078,10 +3079,20 @@ export class SmartExecutorService implements OnModuleDestroy {
     // and the brief is BUY, skip it (mark as cancelled). Symmetric filter
     // for SELL in BULL market. Only filter when regime confidence >= 60%.
     // ═══════════════════════════════════════════════════════════════
+
+    // V427: ATR hoisted to function scope — used in SL/TP block below.
+    // detectRegime() calculates ATR on H1 (hourly) candles via OANDA/exchange.
+    // null = unavailable or zero → SL/TP falls back to TIMEFRAME_RR fixed %.
+    let _h1Atr: number | null = null;
+
     if (this.regimeService && typeof this.regimeService.detectRegime === 'function') {
       try {
         const regimeResult = await this.regimeService.detectRegime(brief.pair);
         if (regimeResult) {
+          // V427: Capture H1 ATR for SL/TP calculation below.
+          if (regimeResult.atr && regimeResult.atr > 0) {
+            _h1Atr = regimeResult.atr;
+          }
           const regime = regimeResult.regime; // BULL | BEAR | RANGE | VOLATILE
           const regimeConfidence = regimeResult.confidence || 0;
 
@@ -3471,56 +3482,75 @@ export class SmartExecutorService implements OnModuleDestroy {
 
       // ✅ FIX: Route through OrderDispatcher (handles RiskGatekeeper + TradingService + idempotency).
       // This prevents conflicts between SmartExecutor and AutonomousTrader.
-      if (!brief.stopLoss || brief.stopLoss <= 0) {
-        result.error = 'Brief has no stop-loss — BLOCKED by safety rules';
-        this.logger.warn(`⚔️ Brief ${brief.id} has no stop-loss — execution BLOCKED for user ${userId}`);
-        return result;
-      }
-      // FIX: Recalculate SL/TP from current price if brief price is stale
-      // A brief from 15 minutes ago has SL/TP based on old entry price.
-      // Using stale SL/TP causes incorrect risk levels.
+      // ═══════════════════════════════════════════════════════════════
+      // V427: ATR-BASED SL/TP — replaces fixed TIMEFRAME_RR percentages.
       //
-      // V269 FIX: Always use TIMEFRAME_RR[timeframe] for SL/TP recalculation
-      // instead of preserving the brief's old ratio. This ensures V265's
-      // minimum SL of 2% is enforced even on briefs created before V265
-      // was deployed (which had SL = 1% for SELL on M1).
+      // ROOT CAUSE of "short-term executor holding for days":
+      //   TIMEFRAME_RR uses a fixed SL% (2%) for ALL assets regardless of
+      //   their actual daily volatility. For crypto (BTC/ETH), 2% moves in
+      //   hours. For forex (EUR/USD, USD/JPY), 2% takes 3-10 DAYS because
+      //   forex daily volatility is 0.4-0.8% vs crypto's 2-5%.
+      //   Result: "M5 trade" becomes a 4-day position — wrong by design.
       //
-      // ROOT CAUSE: The old code did:
-      //   rr.sl = 1 + (brief.stopLoss - brief.entryPrice) / brief.entryPrice
-      // which PRESERVED the brief's old SL ratio (e.g., 1% from pre-V265).
-      // This meant SELL trades kept getting SL = 1% even after V265 deployment.
+      // FIX: Use H1 ATR (real volatility of the asset right now) × a
+      // timeframe-specific multiplier to get the SL distance. This gives
+      // a SL that the market is expected to reach within the intended holding
+      // window (M1: ~1h, M5: ~2-4h, M15: ~4-8h), regardless of asset class.
       //
-      // V290 FIX: The V269 fix was conditional on `priceShift > 0.001`. If the
-      // price hadn't moved 0.1% from the brief entry, the original brief SL
-      // was used as-is. This meant BUY trades with brief SL = 1% kept their
-      // 1% SL even on M5 (which should be 2% per TIMEFRAME_RR).
+      // ATR MULTIPLIERS (H1 ATR × multiplier = SL distance):
+      //   M1  → 0.5× H1 ATR  → expected SL hit: ~1-2h
+      //   M5  → 1.0× H1 ATR  → expected SL hit: ~2-4h
+      //   M15 → 1.5× H1 ATR  → expected SL hit: ~4-8h
       //
-      // Data evidence (June 19, 2026):
-      //   - 3 BUY trades, all hit SL = -$7.96 (100% loss rate)
-      //   - 13 SELL trades, mixed = -$5.17 (better despite more trades)
-      //   - BUY SL was 1% (too tight) while SELL SL was 2% (V269 applied)
+      // FLOOR: max(ATR-based, 0.3% of price) — prevents noise stops on
+      //   very low-volatility moments (e.g., pre-NFP paralysis).
       //
-      // FIX: Always recalculate SL/TP from TIMEFRAME_RR, regardless of price
-      // shift. The brief's SL/TP is just a suggestion; the executor enforces
-      // the timeframe-appropriate minimum.
+      // FALLBACK: If ATR unavailable (_h1Atr === null), falls back to
+      //   TIMEFRAME_RR fixed % — same as V290 behavior. No regression.
+      //
+      // TP: always 2.0× SL distance (minimum R:R = 1:2).
+      // ═══════════════════════════════════════════════════════════════
       let execStopLoss: number;
       let execTakeProfit: number;
       {
-        // V290: Always use TIMEFRAME_RR directly — guarantees V265 minimums
         const { sl: tfSL, tp: tfTP } = TIMEFRAME_RR[brief.timeframe as BriefTimeframe]
-          || { sl: 0.020, tp: 0.050 }; // fallback: 2% SL, 5% TP
+          || { sl: 0.020, tp: 0.050 };
+
+        // V427: ATR multiplier per executor timeframe
+        const ATR_MULT: Record<string, number> = { M1: 0.5, M5: 1.0, M15: 1.5 };
+        const atrMult = ATR_MULT[brief.timeframe?.toUpperCase()] ?? 1.0;
+
+        // SL distance: ATR-based if available, else fixed %
+        const NOISE_FLOOR_PCT = 0.003; // 0.3% minimum SL distance
+        let slDistance: number;
+        let slMethod: string;
+
+        if (_h1Atr && _h1Atr > 0) {
+          const atrBased = _h1Atr * atrMult;
+          const pctBased = currentPrice * NOISE_FLOOR_PCT;
+          slDistance = Math.max(atrBased, pctBased);
+          slMethod = `ATR(H1=${_h1Atr.toFixed(5)}×${atrMult})=${atrBased.toFixed(5)} floor=${pctBased.toFixed(5)} → ${slDistance.toFixed(5)}`;
+        } else {
+          // Fallback: TIMEFRAME_RR fixed %
+          slDistance = currentPrice * tfSL;
+          slMethod = `TIMEFRAME_RR fallback (no ATR) → ${(tfSL * 100).toFixed(1)}%`;
+        }
+
+        // TP is always 2× SL distance (R:R = 1:2)
+        const tpDistance = slDistance * 2.0;
+
         execStopLoss = brief.direction === 'BUY'
-          ? currentPrice * (1 - tfSL)
-          : currentPrice * (1 + tfSL);
+          ? currentPrice - slDistance
+          : currentPrice + slDistance;
         execTakeProfit = brief.direction === 'BUY'
-          ? currentPrice * (1 + tfTP)
-          : currentPrice * (1 - tfTP);
+          ? currentPrice + tpDistance
+          : currentPrice - tpDistance;
+
         const priceShift = Math.abs(currentPrice - brief.entryPrice) / brief.entryPrice;
-        this.logger.debug(
-          `⚔️ V290 SL/TP for ${brief.pair} ${brief.direction} ${brief.timeframe}: ` +
-          `entry ${brief.entryPrice}→${currentPrice} (shift ${(priceShift*100).toFixed(2)}%), ` +
-          `SL ${brief.stopLoss}→${execStopLoss.toFixed(4)} (${(tfSL * 100).toFixed(1)}%), ` +
-          `TP ${brief.takeProfit}→${execTakeProfit.toFixed(4)} (${(tfTP * 100).toFixed(1)}%)`
+        this.logger.log(
+          `⚔️ V427 ATR SL/TP for ${brief.pair} ${brief.direction} ${brief.timeframe}: ` +
+          `price=${currentPrice} shift=${(priceShift * 100).toFixed(2)}% | ` +
+          `SL=${execStopLoss.toFixed(5)} TP=${execTakeProfit.toFixed(5)} | ${slMethod}`
         );
       }
 

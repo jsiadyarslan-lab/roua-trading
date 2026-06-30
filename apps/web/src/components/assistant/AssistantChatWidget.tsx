@@ -1166,9 +1166,9 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
       // AI round-trips, scenario generation, comparisons). Without an explicit
       // timeout the browser default (~5min) kicks in, leaving the user staring
       // at a spinning indicator with no useful error message.
-      //   - Normal queries: 90s timeout (generous; most finish in <15s)
+      //   - Normal queries: 120s timeout (position analysis needs more time)
       //   - Deep search:    180s timeout (3min; complex multi-step pipeline)
-      const REQUEST_TIMEOUT_MS = isDeep ? 180_000 : 90_000;
+      const REQUEST_TIMEOUT_MS = isDeep ? 180_000 : 120_000;
       const MAX_ATTEMPTS = isDeep ? 2 : 1; // Deep search gets one automatic retry
 
       const doFetch = async (attempt: number): Promise<Response> => {

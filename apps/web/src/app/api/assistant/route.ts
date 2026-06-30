@@ -34,6 +34,34 @@ const md = new MarkdownIt({ html: true, breaks: true, linkify: true });
 // V575.2: Preprocessor — يفصل Markdown elements على أسطر منفصلة قبل تحويلها لـ HTML
 function preprocessMarkdown(text: string): string {
   let out = text;
+
+  // V598: Convert tab-separated tables to Markdown pipe tables
+  // AI sometimes returns tables with tab characters instead of | pipes.
+  // Pattern: 2+ lines where each line has 2+ tab-separated values
+  out = out.replace(/((?:[^\n]*\t[^\n]*(?:\n|$)){2,})/g, (block) => {
+    const lines = block.trim().split('\n').filter(l => l.trim());
+    if (lines.length < 2) return block;
+
+    // Check if ALL lines have tabs (tab-separated table)
+    const allHaveTabs = lines.every(l => l.includes('\t'));
+    if (!allHaveTabs) return block;
+
+    // Convert each line to pipe format
+    const pipeLines = lines.map(line => {
+      const cells = line.split('\t').map(c => c.trim()).filter(Boolean);
+      if (cells.length < 2) return null;
+      return '| ' + cells.join(' | ') + ' |';
+    }).filter(Boolean);
+
+    if (pipeLines.length < 2) return block;
+
+    // Add separator after header (first line)
+    const headerCells = pipeLines[0]!.split('|').filter(c => c.trim()).length - 1;
+    const separator = '| ' + Array(headerCells).fill('---').join(' | ') + ' |';
+
+    return pipeLines[0] + '\n' + separator + '\n' + pipeLines.slice(1).join('\n');
+  });
+
   // فصل --- ### قبل أي شيء آخر (LLM يدمجها على نفس السطر)
   out = out.replace(/\|\s+---\s+###\s/g, '|\n---\n### ');
   out = out.replace(/\|\s+---\s+##\s/g, '|\n---\n## ');
@@ -1450,7 +1478,7 @@ export async function POST(request: Request) {
             content: h.content,
           })),
         }),
-        signal: AbortSignal.timeout(45_000),
+        signal: AbortSignal.timeout(30_000),  // V598: reduced from 45s to 30s — fail faster
       });
 
       if (nestjsResponse.ok) {
@@ -1601,11 +1629,11 @@ export async function POST(request: Request) {
     const DEEPER_EN = ['deeper', 'more detail', 'analyze deeper', 'in depth', 'elaborate'];
     const isDeepFollowUp = DEEPER_AR.some(k => msg.includes(k)) || DEEPER_EN.some(k => msg.includes(k));
     const isDeepSearch = parsed.data.deepSearch || false;
-    // V1001: Increased token limits — new mandatory template requires more space
-    // Normal: 3000→4000 (template has 5 mandatory sections)
-    // Deep follow-up: 4000→5000 (more scenarios + indicators)
-    // Deep search: 5000→6000 (7 mandatory sections including correlations + alternatives)
-    const maxResponseTokens = isDeepSearch ? 6000 : (isDeepFollowUp ? 5000 : 4000);
+    // V598: Increased token limits — position analysis with 5 trades needs more space
+    // Normal: 4000→5000 (template + position table + recommendations)
+    // Deep follow-up: 5000→6000 (more scenarios + indicators)
+    // Deep search: 6000→7000 (7 mandatory sections including correlations + alternatives)
+    const maxResponseTokens = isDeepSearch ? 7000 : (isDeepFollowUp ? 6000 : 5000);
 
     try {
       const aiMessages = buildAgentPrompt(

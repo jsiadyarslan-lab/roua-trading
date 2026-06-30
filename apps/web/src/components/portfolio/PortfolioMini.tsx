@@ -180,7 +180,19 @@ export function usePortfolioSummary() {
   return { data, loading }
 }
 
-/* ── Generate simulated sparkline data from current balance ── */
+/* ── Generate deterministic sparkline data from current balance ── */
+/* V594: Replaced Math.random() with seeded PRNG (mulberry32) to prevent
+   re-render instability and ensure consistent sparkline shape per balance. */
+function mulberry32(seed: number) {
+  return function () {
+    seed |= 0
+    seed = (seed + 0x6D2B79F5) | 0
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
 function useSparklineData(balance: number, pnl: number): number[] {
   const [data, setData] = useState<number[]>([])
 
@@ -190,11 +202,15 @@ function useSparklineData(balance: number, pnl: number): number[] {
     const points = 24
     const volatility = base * 0.003 // 0.3% volatility per point
     const trend = pnl > 0 ? 1 : pnl < 0 ? -1 : 0
+    // V594: deterministic seed from balance+pnl so the sparkline is stable
+    // across re-renders (same balance → same sparkline shape)
+    const seed = Math.floor(Math.abs(balance + pnl * 1000)) || 1
+    const rand = mulberry32(seed)
     const newData: number[] = []
     let current = base - (pnl * 0.5) // Start from half the P&L ago
 
     for (let i = 0; i < points; i++) {
-      const noise = (Math.random() - 0.45) * volatility
+      const noise = (rand() - 0.45) * volatility
       current += noise + (trend * volatility * 0.15)
       newData.push(Math.max(0, current))
     }
@@ -274,7 +290,7 @@ export function PortfolioMini({
         background: 'rgba(255,255,255,0.025)',
       }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 8.5, color: T.text3, marginBottom: 3 }}>{tp('accountStatus')}</div>
+          <div style={{ fontSize: 9, color: T.text2, marginBottom: 3 }}>{tp('accountStatus')}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
             <span style={{
               display: 'inline-flex',
@@ -302,22 +318,27 @@ export function PortfolioMini({
       </div>
 
       {/* V165: Exchange unavailable warning banner with IP whitelist fix */}
+      {/* V594: added role=button + tabIndex + onKeyDown for accessibility */}
       {exchangeUnavailable && (
-        <div style={{
-          display: 'flex', alignItems: 'flex-start', gap: 5,
-          padding: '5px 8px', borderRadius: 8,
-          background: 'rgba(255,184,0,0.12)',
-          border: '1px solid rgba(255,184,0,0.3)',
-          cursor: 'pointer',
-        }}
-        onClick={() => window.location.href = '/dashboard/settings/exchange'}
+        <div
+          role="button"
+          tabIndex={0}
+          style={{
+            display: 'flex', alignItems: 'flex-start', gap: 5,
+            padding: '5px 8px', borderRadius: 8,
+            background: 'rgba(255,184,0,0.12)',
+            border: '1px solid rgba(255,184,0,0.3)',
+            cursor: 'pointer',
+          }}
+          onClick={() => window.location.href = '/dashboard/settings/exchange'}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.href = '/dashboard/settings/exchange' } }}
         >
           <span style={{ fontSize: 11 }}>⚠️</span>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 8.5, fontWeight: 800, color: T.amber, fontFamily: "'Cairo', sans-serif" }}>
+            <div style={{ fontSize: 9, fontWeight: 800, color: T.amber, fontFamily: "'Cairo', sans-serif" }}>
               {tp('exchangeUnavailable')}
             </div>
-            <div style={{ fontSize: 7, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>
+            <div style={{ fontSize: 8.5, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>
               {tp('exchangeUnavailableHint')}
             </div>
           </div>
@@ -342,7 +363,7 @@ export function PortfolioMini({
             {/* V185: Show "مخزّن" indicator when balance is from cache */}
             {activeExchangeName && !exchangeUnavailable ? (
               <span style={{
-                fontSize: 6.5, padding: '1px 4px', borderRadius: 3,
+                fontSize: 8, padding: '1px 5px', borderRadius: 3,
                 background: isStaleBalance ? 'rgba(245,158,11,0.15)' : 'rgba(0,255,163,0.15)',
                 color: isStaleBalance ? T.amber : T.green,
                 fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
@@ -352,7 +373,7 @@ export function PortfolioMini({
               </span>
             ) : exchangeUnavailable ? (
               <span style={{
-                fontSize: 6.5, padding: '1px 4px', borderRadius: 3,
+                fontSize: 8, padding: '1px 5px', borderRadius: 3,
                 background: 'rgba(0,212,255,0.15)', color: T.cyan,
                 fontWeight: 800, fontFamily: "'Cairo', sans-serif",
                 border: '0.5px solid rgba(0,212,255,0.3)',
@@ -421,7 +442,7 @@ export function PortfolioMini({
           background: 'rgba(255,255,255,0.02)',
           border: '0.5px solid rgba(255,255,255,0.04)',
         }}>
-          <div style={{ fontSize: 7.5, color: T.text3, fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginBottom: 1 }}>
+          <div style={{ fontSize: 8.5, color: T.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginBottom: 1 }}>
             {tp('exchangeBalances')}
           </div>
           {exchangeBalances.map((ex) => {
@@ -450,14 +471,14 @@ export function PortfolioMini({
                   ${fmt((ex as any).balance ?? ex.equity, 2)}
                 </span>
                 {ex.error && (
-                  <span style={{ fontSize: 6.5, color: T.red, fontFamily: "'Cairo', sans-serif" }} title={(ex as any).errorDetail || ex.error}>
+                  <span style={{ fontSize: 8, color: T.red, fontFamily: "'Cairo', sans-serif" }} title={(ex as any).errorDetail || ex.error}>
                     ⚠ {(ex as any).errorDetail || ex.error?.length > 30 ? ex.error?.substring(0, 25) + '…' : ex.error}
                   </span>
                 )}
                 {!isPaper && !ex.isTestnet && (
                   <span style={{
-                    fontSize: 5.5, padding: '0px 3px', borderRadius: 2,
-                    background: 'rgba(0,255,163,0.1)', color: T.green,
+                    fontSize: 7.5, padding: '1px 4px', borderRadius: 2,
+                    background: 'rgba(0,255,163,0.12)', color: T.green,
                     fontWeight: 700,
                   }}>
                     {tp('real')}
@@ -465,8 +486,8 @@ export function PortfolioMini({
                 )}
                 {ex.isTestnet && !isPaper && (
                   <span style={{
-                    fontSize: 5.5, padding: '0px 3px', borderRadius: 2,
-                    background: 'rgba(255,184,0,0.1)', color: T.amber,
+                    fontSize: 7.5, padding: '1px 4px', borderRadius: 2,
+                    background: 'rgba(255,184,0,0.12)', color: T.amber,
                     fontWeight: 700,
                   }}>
                     {tp('testnet')}

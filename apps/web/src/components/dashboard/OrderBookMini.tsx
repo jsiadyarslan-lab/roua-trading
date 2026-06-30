@@ -58,6 +58,9 @@ export function OrderBookMini() {
   const [isCrypto, setIsCrypto] = useState(true)
 
   const wsRef = useRef<WebSocket | null>(null)
+  // V594: track pending setTimeout IDs so we can clean them up on unmount
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const connectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const connectDepth = useCallback((symbol: string) => {
     // Gracefully close any existing connection to prevent "Ping received after close"
@@ -85,8 +88,10 @@ export function OrderBookMini() {
     setIsCrypto(true)
     const wsUrl = `${BINANCE_URLS.ws}/ws/${streamId}@depth20@1000ms`
 
+    // V594: clear any pending connect timeout before setting a new one
+    if (connectTimeoutRef.current) clearTimeout(connectTimeoutRef.current)
     // Small delay to ensure old connection is fully closed before opening new one
-    setTimeout(() => {
+    connectTimeoutRef.current = setTimeout(() => {
       try {
         const ws = new WebSocket(wsUrl)
         wsRef.current = ws
@@ -96,7 +101,9 @@ export function OrderBookMini() {
           setConnected(false)
           // Auto-reconnect after delay if the component is still mounted
           if (wsRef.current === ws) {
-            setTimeout(() => {
+            // V594: track reconnect timeout for cleanup
+            if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
+            reconnectTimeoutRef.current = setTimeout(() => {
               if (wsRef.current === ws) {
                 connectDepth(symbol)
               }
@@ -131,6 +138,15 @@ export function OrderBookMini() {
     return () => {
       const ws = wsRef.current
       wsRef.current = null
+      // V594: clear pending timeouts to prevent leaks and re-connect after unmount
+      if (connectTimeoutRef.current) {
+        clearTimeout(connectTimeoutRef.current)
+        connectTimeoutRef.current = null
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+        reconnectTimeoutRef.current = null
+      }
       if (ws) {
         ws.onopen = null
         ws.onmessage = null
@@ -151,13 +167,22 @@ export function OrderBookMini() {
     const basePrice = selectedQuote.price
     const spread = basePrice * 0.0005
 
+    // V594: deterministic sizes based on price + level index
+    // (previously Math.random() caused flickering on every quote update)
+    const sizeForLevel = (level: number) => {
+      // pseudo-deterministic size: varies by level but stable for same price
+      const seed = Math.floor(basePrice * 1000) + level * 31
+      const normalized = ((seed * 9301 + 49297) % 233280) / 233280
+      return parseFloat((normalized * 0.5 + 0.01).toFixed(4))
+    }
+
     const simAsks: OrderRow[] = []
     const simBids: OrderRow[] = []
     let cumA = 0, cumB = 0
 
     for (let i = 0; i < 12; i++) {
-      const aSize = parseFloat((Math.random() * 0.5 + 0.01).toFixed(4))
-      const bSize = parseFloat((Math.random() * 0.5 + 0.01).toFixed(4))
+      const aSize = sizeForLevel(i)
+      const bSize = sizeForLevel(i + 12) // different seed for bids
       cumA += aSize
       cumB += bSize
       simAsks.push({ price: basePrice + spread * (i + 1), size: aSize, total: cumA })

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useId, useMemo } from 'react'
 import { ScopedStyle } from '@/components/ScopedStyle'
 
 function safeMax(arr: number[]): number {
@@ -84,8 +84,10 @@ export function PortfolioSparkline({
     )
   }
 
-  // Generate a unique gradient ID to avoid conflicts
-  const gradientId = `sparkline-grad-${Math.random().toString(36).slice(2, 8)}`
+  // V594: useId() generates a stable unique ID per component instance
+  // (previously Math.random() created a new ID on every render → SVG conflicts)
+  const reactId = useId()
+  const gradientId = `sparkline-grad-${reactId.replace(/:/g, '')}`
 
   const lastVal = data[data.length - 1]
   const firstVal = data[0]

@@ -11,6 +11,7 @@ import { Injectable, Logger, Optional } from '@nestjs/common';
 import { RedisService } from '../../../common/redis/redis.service';
 import { AIOrchestratorService } from './ai-orchestrator.service';
 import { localTranslateArabicToEnglish, containsArabic } from './local-translation-dictionary';
+import { localTranslateArabicToLanguage } from './multi-lang-dictionary';
 
 // Cache TTL: 30 minutes. Same as consensus cache (V289).
 // If the brief's original text changes, the cache key includes a hash
@@ -107,11 +108,11 @@ export class BriefTranslationService {
       }
     }
 
-    // V592: For English, try local dictionary first (instant, no AI cost).
-    // This handles common phrases like "صوتوا للشراء" → "voted BUY".
-    // For other languages, skip local dictionary (Arabic→English only).
-    if (targetLanguage === 'en') {
-      const localResult = localTranslateArabicToEnglish(text);
+    // V592: For English + supported languages, try local dictionary first (instant, no AI cost).
+    // This handles common phrases like "صوتوا للشراء" → "voted BUY" (en) / "ont voté ACHAT" (fr).
+    const supportedLocalLangs = ['en', 'fr', 'de', 'es', 'tr'];
+    if (supportedLocalLangs.includes(targetLanguage)) {
+      const localResult = localTranslateArabicToLanguage(text, targetLanguage);
       if (localResult !== text && !containsArabic(localResult)) {
         // Local translation fully succeeded — cache and return
         if (this.redis) {
@@ -119,7 +120,7 @@ export class BriefTranslationService {
             await this.redis.set(cacheKey, localResult, TRANSLATION_CACHE_TTL_MS);
           } catch { /* non-critical */ }
         }
-        this.logger.log(`🌐 Local-translated ${contextLabel || 'text'} → en (${localResult.length} chars)`);
+        this.logger.log(`🌐 Local-translated ${contextLabel || 'text'} → ${targetLanguage} (${localResult.length} chars)`);
         return localResult;
       }
     }
@@ -127,7 +128,9 @@ export class BriefTranslationService {
     // If orchestrator not available, return local fallback (even if partial)
     if (!this.orchestrator) {
       this.logger.debug('Orchestrator not available — returning local fallback');
-      return targetLanguage === 'en' ? localTranslateArabicToEnglish(text) : text;
+      return supportedLocalLangs.includes(targetLanguage)
+        ? localTranslateArabicToLanguage(text, targetLanguage)
+        : text;
     }
 
     // Build translation prompt
@@ -179,9 +182,9 @@ ${text}`;
       }
     }
 
-    // All AI models failed — use local fallback for English, otherwise return original
-    if (targetLanguage === 'en') {
-      const localResult = localTranslateArabicToEnglish(text);
+    // All AI models failed — use local fallback for supported languages, otherwise return original
+    if (supportedLocalLangs.includes(targetLanguage)) {
+      const localResult = localTranslateArabicToLanguage(text, targetLanguage);
       if (localResult !== text) {
         // Cache the partial translation
         if (this.redis) {
@@ -189,7 +192,7 @@ ${text}`;
             await this.redis.set(cacheKey, localResult, TRANSLATION_CACHE_TTL_MS);
           } catch { /* non-critical */ }
         }
-        this.logger.log(`🌐 Local fallback applied for ${contextLabel || 'text'} → en (${localResult.length} chars, partial)`);
+        this.logger.log(`🌐 Local fallback applied for ${contextLabel || 'text'} → ${targetLanguage} (${localResult.length} chars, partial)`);
         return localResult;
       }
     }

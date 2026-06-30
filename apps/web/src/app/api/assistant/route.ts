@@ -36,30 +36,80 @@ function preprocessMarkdown(text: string): string {
   let out = text;
 
   // V598: Convert tab-separated tables to Markdown pipe tables
-  // AI sometimes returns tables with tab characters instead of | pipes.
-  // Pattern: 2+ lines where each line has 2+ tab-separated values
   out = out.replace(/((?:[^\n]*\t[^\n]*(?:\n|$)){2,})/g, (block) => {
     const lines = block.trim().split('\n').filter(l => l.trim());
     if (lines.length < 2) return block;
-
-    // Check if ALL lines have tabs (tab-separated table)
     const allHaveTabs = lines.every(l => l.includes('\t'));
     if (!allHaveTabs) return block;
-
-    // Convert each line to pipe format
     const pipeLines = lines.map(line => {
       const cells = line.split('\t').map(c => c.trim()).filter(Boolean);
       if (cells.length < 2) return null;
       return '| ' + cells.join(' | ') + ' |';
     }).filter(Boolean);
-
     if (pipeLines.length < 2) return block;
-
-    // Add separator after header (first line)
     const headerCells = pipeLines[0]!.split('|').filter(c => c.trim()).length - 1;
     const separator = '| ' + Array(headerCells).fill('---').join(' | ') + ' |';
-
     return pipeLines[0] + '\n' + separator + '\n' + pipeLines.slice(1).join('\n');
+  });
+
+  // V599: Merge vertically-split table cells back into rows
+  // AI sometimes puts each cell on its own line:
+  //   | الأصل
+  //   | السعر
+  //   | التغير
+  //   | BTC
+  //   | $58,430
+  //   | -2.86%
+  // This merges them into proper rows:
+  //   | الأصل | السعر | التغير |
+  //   |---|---|---|
+  //   | BTC | $58,430 | -2.86% |
+  out = out.replace(/((?:\s*\|[^\n|]+(?:\n|$)){3,})/g, (block) => {
+    const cells = block.trim().split('\n').map(l => l.trim().replace(/^\|/, '').replace(/\|$/, '').trim()).filter(Boolean);
+    if (cells.length < 4) return block; // Need at least header + separator + 1 row
+
+    // Heuristic: detect column count from the first group of cells
+    // Usually 2-5 columns. Try to detect by looking for repeated patterns.
+    // For simplicity, try 2, 3, 4, 5 columns and pick the one that divides evenly
+    let bestCols = 0;
+    for (const cols of [2, 3, 4, 5, 6]) {
+      if (cells.length % cols === 0 && cells.length / cols >= 2) {
+        bestCols = cols;
+        break;
+      }
+    }
+    if (bestCols === 0) bestCols = 3; // fallback
+
+    const rows: string[] = [];
+    for (let i = 0; i < cells.length; i += bestCols) {
+      const rowCells = cells.slice(i, i + bestCols);
+      if (rowCells.length === bestCols) {
+        rows.push('| ' + rowCells.join(' | ') + ' |');
+      }
+    }
+    if (rows.length < 2) return block;
+
+    const separator = '| ' + Array(bestCols).fill('---').join(' | ') + ' |';
+    return rows[0] + '\n' + separator + '\n' + rows.slice(1).join('\n');
+  });
+
+  // V599: Split bullet lists that are joined on a single line
+  // AI sometimes puts all bullet points on one line with " - " separators:
+  //   • RSI: 29.73 - MACD: -2372 - EMA: 66389 - الدعم: 58075
+  // This splits them into proper lines:
+  //   • RSI: 29.73
+  //   - MACD: -2372
+  //   - EMA: 66389
+  //   - الدعم: 58075
+  out = out.replace(/^([•\-*])\s+(.+)$/gm, (match, bullet, rest) => {
+    // If the line contains " - " separators (not at the start), split them
+    if (rest.includes(' - ') && rest.length > 80) {
+      const parts = rest.split(/\s+-\s+/);
+      if (parts.length >= 3) {
+        return parts.map((p, i) => (i === 0 ? `${bullet} ${p}` : `- ${p}`)).join('\n');
+      }
+    }
+    return match;
   });
 
   // فصل --- ### قبل أي شيء آخر (LLM يدمجها على نفس السطر)

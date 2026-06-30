@@ -840,6 +840,27 @@ export class TradingService {
           `This blocks self-healing-agent 4h auto-close. ` +
           `User can force-close via SL/TP adjustment or wait ${(V423_MIN_HOURS - holdingHours).toFixed(1)}h more.`
         );
+        // V426: Persist to DB — this is the forensic evidence for identifying the
+        // unknown off-repo caller. logger.warn() alone is lost when Railway log
+        // retention rotates out; this AuditLog row is queryable days/weeks later.
+        this.auditService.log({
+          userId,
+          action: 'POSITION_CLOSE_BLOCKED',
+          resource: 'position',
+          details: JSON.stringify({
+            guard: 'V423',
+            positionId: position.id,
+            symbol: position.symbol,
+            positionSource: position.source,
+            requestSource: request.source || null,
+            requestCloseReason: request.closeReason || null,
+            holdingHours: Number(holdingHours.toFixed(2)),
+            minHours: Number(V423_MIN_HOURS.toFixed(2)),
+            callerStack: _v215Stack,
+          }),
+          ipAddress,
+          userAgent,
+        }).catch(() => {});
         return {
           success: false,
           error: t('trading_service.trade', { V423_MIN_HOURS: V423_MIN_HOURS }),
@@ -877,6 +898,26 @@ export class TradingService {
           `${isMaxHoldingClose ? 'MAX_HOLDING_TIME is FORBIDDEN for Agent positions (removed in V224).' : 'This close was likely triggered by OLD code (pre-V184) still running on Railway.'}`
         );
 
+        // V426: Persist to DB for durable forensic evidence (see V423 block above).
+        this.auditService.log({
+          userId,
+          action: 'POSITION_CLOSE_BLOCKED',
+          resource: 'position',
+          details: JSON.stringify({
+            guard: 'V237_AGENT',
+            positionId: position.id,
+            symbol: position.symbol,
+            positionSource: position.source,
+            requestSource: request.source || null,
+            requestCloseReason: request.closeReason || null,
+            holdingHours: Number(holdingHours.toFixed(2)),
+            minHours: Number(AGENT_MIN_HOLDING_HOURS.toFixed(2)),
+            isMaxHoldingClose,
+            callerStack: _v215Stack,
+          }),
+          ipAddress,
+          userAgent,
+        }).catch(() => {});
         // Instead of throwing (which would break things), just skip and return
         // the position as-is — don't close it
         return {
@@ -916,6 +957,25 @@ export class TradingService {
           `at ${holdingHours.toFixed(1)}h — minimum is ${SMART_EXECUTOR_MIN_HOURS}h. ` +
           `This was likely triggered by old _getMaxHoldingMs (pre-V223) returning 4h for M1/M5.`
         );
+        // V426: Persist to DB for durable forensic evidence (see V423 block above).
+        this.auditService.log({
+          userId,
+          action: 'POSITION_CLOSE_BLOCKED',
+          resource: 'position',
+          details: JSON.stringify({
+            guard: 'V237_SMART_EXECUTOR',
+            positionId: position.id,
+            symbol: position.symbol,
+            positionSource: position.source,
+            requestSource: request.source || null,
+            requestCloseReason: request.closeReason || null,
+            holdingHours: Number(holdingHours.toFixed(2)),
+            minHours: Number(SMART_EXECUTOR_MIN_HOURS.toFixed(2)),
+            callerStack: _v215Stack,
+          }),
+          ipAddress,
+          userAgent,
+        }).catch(() => {});
         return {
           order: null,
           pnl: 0,
@@ -1382,6 +1442,12 @@ export class TradingService {
         quantity: closeQuantity,
         pnl,
         partial: closeQuantity < Number(position.quantity),
+        // V426: same forensic fields as POSITION_CLOSE_BLOCKED, so successful
+        // and blocked attempts can be compared side-by-side in AuditLog later.
+        positionSource: position.source,
+        requestSource: request.source || null,
+        requestCloseReason: request.closeReason || null,
+        callerStack: _v215Stack,
       }),
       ipAddress,
       userAgent,

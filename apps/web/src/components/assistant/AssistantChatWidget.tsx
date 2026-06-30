@@ -1338,6 +1338,14 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
               // Nothing new to reveal yet — wait for next chunk
               return;
             }
+            // V598: If content contains HTML tags, skip character-by-character
+            // reveal — it breaks HTML tags (DOMPurify strips incomplete tags).
+            // Instead, show the full accumulated content immediately.
+            if (full.includes('<') && full.includes('>')) {
+              displayedLen = full.length;
+              updateLastMessage(full);
+              return;
+            }
             // Reveal CHARS_PER_TICK more chars, snapping to word boundary
             // so we don't cut a word in half (cleaner visual).
             let newLen = displayedLen + CHARS_PER_TICK;

@@ -60,6 +60,7 @@ const ALL_SYMBOLS = [
 let _socket: any = null;
 let _refCount = 0;
 let _subscribedSymbols = new Set<string>();
+let _reconnectTimer: any = null;
 
 function _getOrCreateSocket(onTick: (symbol: string, data: any) => void): any {
   if (_socket) return _socket;

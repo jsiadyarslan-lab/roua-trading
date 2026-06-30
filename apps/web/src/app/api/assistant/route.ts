@@ -27,7 +27,9 @@ import { filterResponse } from '@/lib/assistant/response-filter';
 import { searchRealTimePrices, type RealtimeSearchResult } from '@/lib/assistant/realtime-search';
 // V575: markdown-it لتحويل Markdown → HTML على الـ backend (Next.js route handler)
 import MarkdownIt from 'markdown-it';
-const md = new MarkdownIt({ html: false, breaks: true, linkify: true });
+// V597: html:true to pass through HTML tags that AI returns (h2, p, ul, li, table)
+// Previously html:false was escaping HTML tags → they showed as raw text
+const md = new MarkdownIt({ html: true, breaks: true, linkify: true });
 
 // V575.2: Preprocessor — يفصل Markdown elements على أسطر منفصلة قبل تحويلها لـ HTML
 function preprocessMarkdown(text: string): string {

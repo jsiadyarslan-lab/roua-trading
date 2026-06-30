@@ -29,6 +29,11 @@ export function PortfolioSparkline({
   width = 200,
   height = 40,
 }: PortfolioSparklineProps) {
+  // V594 FIX: all hooks must be called BEFORE any early return (React rules of hooks)
+  // Previously useId() was called after the early return → React error #310
+  const reactId = useId()
+  const gradientId = `sparkline-grad-${reactId.replace(/:/g, '')}`
+
   const pathData = useMemo(() => {
     if (!data || data.length < 2) return { line: '', fill: '' }
 
@@ -83,11 +88,6 @@ export function PortfolioSparkline({
       </div>
     )
   }
-
-  // V594: useId() generates a stable unique ID per component instance
-  // (previously Math.random() created a new ID on every render → SVG conflicts)
-  const reactId = useId()
-  const gradientId = `sparkline-grad-${reactId.replace(/:/g, '')}`
 
   const lastVal = data[data.length - 1]
   const firstVal = data[0]

@@ -1538,12 +1538,15 @@ export async function POST(request: Request) {
 
           // ابثّ الرد بنفس streaming format الذي يتوقعه الـ widget
           const reply: string = data.reply;
+          // V599: Convert Markdown → HTML before streaming (same as legacy path)
+          // Without this, NestJS replies are raw Markdown → stacked text in UI
+          const htmlReply = md.render(preprocessMarkdown(reply));
           const encoder = new TextEncoder();
           const stream = new ReadableStream({
             async start(controller) {
               try {
                 // ابثّ الرد كـ tokens (نفس منطق streaming القديم)
-                const tokens = reply.match(/\S+\s*|\s+/g) || [reply];
+                const tokens = htmlReply.match(/\S+\s*|\s+/g) || [htmlReply];
                 for (let i = 0; i < tokens.length; i++) {
                   controller.enqueue(encoder.encode(tokens[i]));
                   const token = tokens[i];

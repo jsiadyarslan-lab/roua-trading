@@ -512,14 +512,18 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
           }}>
             <span style={{
               fontFamily: "'JetBrains Mono', monospace",
-              fontSize: isMobile ? 9 : 10, color: '#E8ECF4',
+              fontSize: isMobile ? 9 : 10,
+              // V596: symbol name color matches price direction (green/red), bright + strong
+              color: isUp ? T.green : T.red,
               letterSpacing: '0.04em', lineHeight: 1.2,
               fontWeight: 800,
+              transition: 'color 0.3s',
             }}>{sym}</span>
             <span className="price" style={{
               fontSize: isMobile ? 10 : 11.5,
-              color: flash === 'up' ? T.green : flash === 'down' ? T.red : T.text,
+              color: isUp ? T.green : T.red,
               lineHeight: 1.15, transition: 'color 0.3s',
+              fontWeight: 700,
             }}>
               {formatHeaderPrice(q?.price)}
             </span>

@@ -53,32 +53,29 @@ function preprocessMarkdown(text: string): string {
   });
 
   // V599: Merge vertically-split table cells back into rows
-  // AI sometimes puts each cell on its own line:
-  //   | الأصل
-  //   | السعر
-  //   | التغير
-  //   | BTC
-  //   | $58,430
-  //   | -2.86%
-  // This merges them into proper rows:
-  //   | الأصل | السعر | التغير |
-  //   |---|---|---|
-  //   | BTC | $58,430 | -2.86% |
-  out = out.replace(/((?:\s*\|[^\n|]+(?:\n|$)){3,})/g, (block) => {
-    const cells = block.trim().split('\n').map(l => l.trim().replace(/^\|/, '').replace(/\|$/, '').trim()).filter(Boolean);
-    if (cells.length < 4) return block; // Need at least header + separator + 1 row
+  // AI puts each cell on its own line: | الأصل \n | النوع \n | الدخول
+  // Also handles empty lines between cell groups
+  // First: remove empty lines between consecutive | cells
+  out = out.replace(/(\|\s*[^\n|]+)\n\s*\n(\s*\|)/g, '$1\n$2');
+  // Then: merge consecutive single-| cells into rows
+  out = out.replace(/((?:\s*\|[^\n|]+(?:\n|$)){4,})/g, (block) => {
+    const cells = block.trim().split('\n')
+      .map(l => l.trim().replace(/^\|/, '').replace(/\|$/, '').trim())
+      .filter(Boolean);
+    if (cells.length < 4) return block;
 
-    // Heuristic: detect column count from the first group of cells
-    // Usually 2-5 columns. Try to detect by looking for repeated patterns.
-    // For simplicity, try 2, 3, 4, 5 columns and pick the one that divides evenly
+    // Detect column count: try larger column counts first (more likely for financial tables)
+    // 8 cols (common: symbol, type, entry, current, pnl, sl, tp, priority)
+    // 5 cols (common: symbol, price, change, rsi, trend)
+    // 3 cols (minimum viable table)
     let bestCols = 0;
-    for (const cols of [2, 3, 4, 5, 6]) {
+    for (const cols of [8, 7, 6, 5, 4, 3, 2]) {
       if (cells.length % cols === 0 && cells.length / cols >= 2) {
         bestCols = cols;
         break;
       }
     }
-    if (bestCols === 0) bestCols = 3; // fallback
+    if (bestCols === 0) bestCols = 3;
 
     const rows: string[] = [];
     for (let i = 0; i < cells.length; i += bestCols) {

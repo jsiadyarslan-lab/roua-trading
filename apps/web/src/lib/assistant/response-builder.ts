@@ -1740,9 +1740,7 @@ export async function buildAgenticAnalysis(
 ): Promise<string> {
   const isRtl = locale === 'ar';
   const dir = isRtl ? 'rtl' : 'ltr';
-  const fontFamily = locale === 'ar'
-    ? "'Readex Pro', 'Noto Sans Arabic', 'Segoe UI', sans-serif"
-    : "'Inter', 'Segoe UI', 'Noto Sans', sans-serif";
+  const fontFamily = "var(--font-ar)";
 
   // ── Build intelligent system prompt based on the question type ──
   const questionType = detectQuestionType(userQuestion, locale);
@@ -1761,51 +1759,17 @@ export async function buildAgenticAnalysis(
 - لا تستخدم قوالب جاهزة — اكتب بفهم حقيقي كمحلل محترف
 - كن محدداً: اذكر الأرقام والمستويات من البيانات الحقيقية
 
-🔴 تنسيق HTML المطلوب (إلزامي جداً — لا تستخدم Markdown أبداً):
+🔴 تنسيق Markdown المطلوب (إلزامي):
+- استخدم ### للعناوين الفرعية
+- استخدم **نص** للخط العريض
+- استخدم - للقوائم النقطية
+- استخدم 1. للقوائم المرقمة
+- استخدم | عمود | عمود | للجداول مع سطر فاصل |---|---|
+- استخدم --- للفواصل الأفقية
+- استخدم > للاقتباسات
+- افصل بين الفقرات بسطر فارغ
 
-للعناوين الفرعية:
-<h3 style="color: #C084FC; font-size: 14px; font-weight: 700; margin: 14px 0 8px 0; padding-bottom: 4px; border-bottom: 1px solid rgba(168,85,247,0.2);">عنوان فرعي</h3>
-
-للفقرات:
-<p style="margin: 8px 0; line-height: 1.9; color: #E2E8F0; font-size: 13px;">نص الفقرة هنا</p>
-
-للجداول:
-<table style="width:100%; border-collapse:collapse; margin:10px 0; font-size:12px;">
-  <tr>
-    <th style="padding:8px 12px; background:rgba(168,85,247,0.1); color:#C084FC; text-align:right; border-bottom:2px solid rgba(168,85,247,0.3);">العنوان</th>
-    <th style="padding:8px 12px; background:rgba(168,85,247,0.1); color:#C084FC; text-align:right; border-bottom:2px solid rgba(168,85,247,0.3);">القيمة</th>
-  </tr>
-  <tr>
-    <td style="padding:6px 12px; border-bottom:1px solid rgba(99,102,241,0.1); color:#94A3B8;">المفتاح</td>
-    <td style="padding:6px 12px; border-bottom:1px solid rgba(99,102,241,0.1); color:#E2E8F0; font-weight:600;">القيمة</td>
-  </tr>
-</table>
-
-للنقاط المهمة (مميزة بلون):
-<div style="background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.2); border-radius:8px; padding:10px 12px; margin:8px 0;">
-  <span style="color:#4ADE80; font-weight:700;">✅ نقطة إيجابية:</span> <span style="color:#E2E8F0;">النص هنا</span>
-</div>
-
-<div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); border-radius:8px; padding:10px 12px; margin:8px 0;">
-  <span style="color:#F87171; font-weight:700;">🔴 نقطة سلبية:</span> <span style="color:#E2E8F0;">النص هنا</span>
-</div>
-
-<div style="background:rgba(251,191,36,0.08); border:1px solid rgba(251,191,36,0.2); border-radius:8px; padding:10px 12px; margin:8px 0;">
-  <span style="color:#FBBF24; font-weight:700;">⚠️ تنبيه:</span> <span style="color:#E2E8F0;">النص هنا</span>
-</div>
-
-للقوائم:
-<ul style="margin:8px 0; padding-right:20px; color:#E2E8F0;">
-  <li style="margin:4px 0; line-height:1.8;">عنصر القائمة</li>
-</ul>
-
-🔴 ممنوع تماماً:
-- لا تستخدم ### أو ## أو # (استخدم h3 فقط)
-- لا تستخدم | جدول | (استخدم table فقط)
-- لا تستخدم --- أو *** (استخدم hr فقط)
-- لا تستخدم **نص** (استخدم strong فقط)
-- لا تستخدم - أو * للقوائم (استخدم ul/li فقط)
-- لا تستخدم 1. 2. 3. (استخدم ol/li فقط)`,
+❌ ممنوع: لا تستخدم HTML tags (<h3>, <table>, <div>, إلخ) — استخدم Markdown فقط`,
     en: `You are the Rouaa AI Trading Assistant — a true AI agent that searches, thinks, and analyzes.
 
 You have REAL, LIVE data about a financial asset. Your mission:
@@ -1819,51 +1783,17 @@ You have REAL, LIVE data about a financial asset. Your mission:
 - Do NOT use templates — write with genuine understanding as a professional analyst
 - Be specific: mention actual numbers and levels from the real data
 
-🔴 Required HTML format (MANDATORY — NEVER use Markdown):
+🔴 Required Markdown format (MANDATORY):
+- Use ### for subheadings
+- Use **text** for bold
+- Use - for bullet lists
+- Use 1. for numbered lists
+- Use | column | column | for tables with separator |---|---|
+- Use --- for horizontal rules
+- Use > for blockquotes
+- Separate paragraphs with blank lines
 
-For subheadings:
-<h3 style="color: #C084FC; font-size: 14px; font-weight: 700; margin: 14px 0 8px 0; padding-bottom: 4px; border-bottom: 1px solid rgba(168,85,247,0.2);">Subheading</h3>
-
-For paragraphs:
-<p style="margin: 8px 0; line-height: 1.9; color: #E2E8F0; font-size: 13px;">Paragraph text here</p>
-
-For tables:
-<table style="width:100%; border-collapse:collapse; margin:10px 0; font-size:12px;">
-  <tr>
-    <th style="padding:8px 12px; background:rgba(168,85,247,0.1); color:#C084FC; text-align:left; border-bottom:2px solid rgba(168,85,247,0.3);">Label</th>
-    <th style="padding:8px 12px; background:rgba(168,85,247,0.1); color:#C084FC; text-align:left; border-bottom:2px solid rgba(168,85,247,0.3);">Value</th>
-  </tr>
-  <tr>
-    <td style="padding:6px 12px; border-bottom:1px solid rgba(99,102,241,0.1); color:#94A3B8;">Key</td>
-    <td style="padding:6px 12px; border-bottom:1px solid rgba(99,102,241,0.1); color:#E2E8F0; font-weight:600;">Value</td>
-  </tr>
-</table>
-
-For key points (color-coded):
-<div style="background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.2); border-radius:8px; padding:10px 12px; margin:8px 0;">
-  <span style="color:#4ADE80; font-weight:700;">✅ Positive:</span> <span style="color:#E2E8F0;">Text here</span>
-</div>
-
-<div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); border-radius:8px; padding:10px 12px; margin:8px 0;">
-  <span style="color:#F87171; font-weight:700;">🔴 Negative:</span> <span style="color:#E2E8F0;">Text here</span>
-</div>
-
-<div style="background:rgba(251,191,36,0.08); border:1px solid rgba(251,191,36,0.2); border-radius:8px; padding:10px 12px; margin:8px 0;">
-  <span style="color:#FBBF24; font-weight:700;">⚠️ Warning:</span> <span style="color:#E2E8F0;">Text here</span>
-</div>
-
-For lists:
-<ul style="margin:8px 0; padding-left:20px; color:#E2E8F0;">
-  <li style="margin:4px 0; line-height:1.8;">List item</li>
-</ul>
-
-🔴 Absolutely forbidden:
-- Do NOT use ### or ## or # (use h3 only)
-- Do NOT use | table | (use table only)
-- Do NOT use --- or *** (use hr only)
-- Do NOT use **text** (use strong only)
-- Do NOT use - or * for lists (use ul/li only)
-- Do NOT use 1. 2. 3. (use ol/li only)`,
+❌ Forbidden: Do NOT use HTML tags (<h3>, <table>, <div>, etc.) — use Markdown only`,
     fr: `Vous êtes l'assistant IA Rouaa — un véritable agent IA qui recherche, réfléchit et analyse.
 
 Vous disposez de données RÉELLES sur un actif financier. Votre mission :
@@ -1877,31 +1807,15 @@ Vous disposez de données RÉELLES sur un actif financier. Votre mission :
 - N'utilisez PAS de modèles — écrivez avec une compréhension authentique
 - Soyez précis : mentionnez les chiffres et niveaux réels des données
 
-🔴 Format HTML requis (OBLIGATOIRE — JAMAIS de Markdown) :
+🔴 Format Markdown requis (OBLIGATOIRE) :
+- Utilisez ### pour les sous-titres
+- Utilisez **texte** pour le gras
+- Utilisez - pour les listes à puces
+- Utilisez | colonne | colonne | pour les tableaux avec séparateur |---|---|
+- Utilisez --- pour les séparateurs horizontaux
+- Séparez les paragraphes par une ligne vide
 
-Pour les sous-titres :
-<h3 style="color: #C084FC; font-size: 14px; font-weight: 700; margin: 14px 0 8px 0; padding-bottom: 4px; border-bottom: 1px solid rgba(168,85,247,0.2);">Sous-titre</h3>
-
-Pour les paragraphes :
-<p style="margin: 8px 0; line-height: 1.9; color: #E2E8F0; font-size: 13px;">Texte du paragraphe</p>
-
-Pour les tableaux :
-<table style="width:100%; border-collapse:collapse; margin:10px 0; font-size:12px;">
-  <tr>
-    <th style="padding:8px 12px; background:rgba(168,85,247,0.1); color:#C084FC; text-align:left; border-bottom:2px solid rgba(168,85,247,0.3);">Libellé</th>
-    <th style="padding:8px 12px; background:rgba(168,85,247,0.1); color:#C084FC; text-align:left; border-bottom:2px solid rgba(168,85,247,0.3);">Valeur</th>
-  </tr>
-  <tr>
-    <td style="padding:6px 12px; border-bottom:1px solid rgba(99,102,241,0.1); color:#94A3B8;">Clé</td>
-    <td style="padding:6px 12px; border-bottom:1px solid rgba(99,102,241,0.1); color:#E2E8F0; font-weight:600;">Valeur</td>
-  </tr>
-</table>
-
-🔴 Interdit absolument :
-- PAS de ### ou ## ou # (utilisez h3 uniquement)
-- PAS de | tableau | (utilisez table uniquement)
-- PAS de --- ou *** (utilisez hr uniquement)
-- PAS de **texte** (utilisez strong uniquement)`,
+❌ Interdit : N'utilisez PAS de balises HTML — utilisez Markdown uniquement`,
     tr: `Siz Rouaa AI Ticaret Asistanısınız — arayan, düşünen ve analiz eden gerçek bir AI ajanı.
 
 Bir finansal varlık hakkında GERÇEK, CANLI verileriniz var. Göreviniz:
@@ -1914,18 +1828,15 @@ Bir finansal varlık hakkında GERÇEK, CANLI verileriniz var. Göreviniz:
 - SADECE Türkçe yanıt verin
 - Şablon KULLANMAYIN — gerçek bir analist olarak gerçek anlayışla yazın
 
-🔴 Gerekli HTML formatı (ZORUNLU — ASLA Markdown kullanmayın):
+🔴 Gerekli Markdown formatı (ZORUNLU):
+- Alt başlıklar için ### kullanın
+- Kalın için **metin** kullanın
+- Madde işaretli listeler için - kullanın
+- Tablolar için | sütun | sütun | ve |---|---| ayırıcı kullanın
+- Yatay çizgiler için --- kullanın
+- Paragrafları boş satırla ayırın
 
-Alt başlıklar için:
-<h3 style="color: #C084FC; font-size: 14px; font-weight: 700; margin: 14px 0 8px 0; padding-bottom: 4px; border-bottom: 1px solid rgba(168,85,247,0.2);">Alt başlık</h3>
-
-Paragraflar için:
-<p style="margin: 8px 0; line-height: 1.9; color: #E2E8F0; font-size: 13px;">Paragraf metni</p>
-
-🔴 Kesinlikle yasak:
-- ### veya ## veya # kullanmayın (sadece h3 kullanın)
-- | tablo | kullanmayın (sadece table kullanın)
-- --- veya *** kullanmayın (sadece hr kullanın)`,
+❌ Yasak: HTML etiketleri KULLANMAYIN — sadece Markdown kullanın`,
     es: `Usted es el asistente de IA de Rouaa — un verdadero agente de IA que busca, piensa y analiza.
 
 Tiene datos REALES sobre un activo financiero. Su misión:
@@ -1938,18 +1849,15 @@ Tiene datos REALES sobre un activo financiero. Su misión:
 - Responda SOLO en español
 - NO use plantillas — escriba con comprensión genuina como analista profesional
 
-🔴 Formato HTML requerido (OBLIGATORIO — NUNCA use Markdown):
+🔴 Formato Markdown requerido (OBLIGATORIO):
+- Use ### para subtítulos
+- Use **texto** para negrita
+- Use - para listas con viñetas
+- Use | columna | columna | para tablas con separador |---|---|
+- Use --- para reglas horizontales
+- Separe párrafos con líneas en blanco
 
-Para subtítulos:
-<h3 style="color: #C084FC; font-size: 14px; font-weight: 700; margin: 14px 0 8px 0; padding-bottom: 4px; border-bottom: 1px solid rgba(168,85,247,0.2);">Subtítulo</h3>
-
-Para párrafos:
-<p style="margin: 8px 0; line-height: 1.9; color: #E2E8F0; font-size: 13px;">Texto del párrafo</p>
-
-🔴 Absolutamente prohibido:
-- NO use ### o ## o # (use solo h3)
-- NO use | tabla | (use solo table)
-- NO use --- o *** (use solo hr)`,
+❌ Prohibido: NO use etiquetas HTML — use solo Markdown`,
   };
 
   // ── Build conversation context from history ──
@@ -1968,7 +1876,7 @@ ${dataContext}
 
 سؤال المستخدم: ${userQuestion}
 
-أجب بفهم حقيقي واحترافية. استخدم HTML فقط (لا ماركداون). نظّم بفقرات واضحة وعناوين فرعية.`
+أجب بفهم حقيقي واحترافية. استخدم Markdown فقط (لا HTML). نظّم بفقرات واضحة وعناوين فرعية.`
     : `Previous conversation context:
 ${historyContext || 'No previous context'}
 
@@ -1977,7 +1885,7 @@ ${dataContext}
 
 User's question: ${userQuestion}
 
-Answer with genuine understanding and professionalism. Use HTML only (no markdown). Organize with clear paragraphs and subheadings.`;
+Answer with genuine understanding and professionalism. Use Markdown only (no HTML). Organize with clear paragraphs and subheadings.`;
 
   // ── Call AI ──
   const result = await chatCompletion(
@@ -2040,8 +1948,10 @@ Answer with genuine understanding and professionalism. Use HTML only (no markdow
       : 'Análisis IA',
   };
 
-  // Clean up AI content: robust markdown-to-HTML conversion
-  aiContent = cleanupAIContent(aiContent, isRtl);
+  // V597: Removed cleanupAIContent — was causing double conversion (Markdown→HTML→HTML).
+  // Now AI returns Markdown, and markdownToHtml() in stream route is the ONLY converter.
+  // CSS in assistant.css styles the HTML output from markdown-it.
+  const aiContentFinal = aiContent;
 
   return `
 <div style="
@@ -2068,7 +1978,7 @@ Answer with genuine understanding and professionalism. Use HTML only (no markdow
     </span>
   </div>
   <div style="padding: 14px 16px; color: #E2E8F0; font-size: 13px; line-height: 1.9;">
-    ${aiContent}
+    ${aiContentFinal}
   </div>
 </div>`;
 }

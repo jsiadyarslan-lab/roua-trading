@@ -34,10 +34,10 @@ export function IndicatorBadge({ label, value, status = 'neutral' }: IndicatorBa
       background: s.bg, color: s.color,
       border: `0.5px solid ${s.border}`,
       fontSize: 9, fontWeight: 700,
-      fontFamily: "'JetBrains Mono', monospace",
+      fontFamily: "var(--font-mono)",
       lineHeight: '16px', whiteSpace: 'nowrap',
     }}>
-      <span style={{ color: T.text2, fontWeight: 600, fontFamily: "'Cairo', sans-serif", fontSize: 8 }}>
+      <span style={{ color: T.text2, fontWeight: 600, fontFamily: "var(--font-ar)", fontSize: 8 }}>
         {label}
       </span>
       {displayValue}

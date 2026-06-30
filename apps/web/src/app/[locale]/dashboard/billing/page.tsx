@@ -112,7 +112,7 @@ function StatusBadge({ status, label }: { status: BillingRecord['status']; label
       padding: '2px 8px', borderRadius: 6,
       background: c.bg, color: c.text,
       fontSize: 10, fontWeight: 700,
-      fontFamily: "'Cairo', sans-serif",
+      fontFamily: "var(--font-ar)",
       border: `1px solid ${c.border}`,
       display: 'inline-flex', alignItems: 'center', gap: 4,
     }}>
@@ -212,7 +212,7 @@ export default function BillingPage() {
 
   return (
     <div className="custom-scrollbar" style={{
-      fontFamily: "'Cairo', sans-serif",
+      fontFamily: "var(--font-ar)",
       height: '100%', overflowY: 'auto', background: T.bg,
     }}>
       {/* Scoped styles via useScopedStyle */}{/* ═══════════════════════════════════════════════════
@@ -249,7 +249,7 @@ export default function BillingPage() {
             {['PREMIUM', 'INSTITUTIONAL', 'PLUS'].includes(userTier) ? <Sparkles size={13} color={roleInfo.color} /> :
              userTier === 'PRO' ? <Star size={13} color={roleInfo.color} /> :
              <Crown size={13} color={roleInfo.color} />}
-            <span style={{ fontSize: 11, fontWeight: 700, color: roleInfo.color, fontFamily: "'Cairo', sans-serif" }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: roleInfo.color, fontFamily: "var(--font-ar)" }}>
               {tc(roleInfo.labelKey)}
             </span>
           </div>
@@ -294,7 +294,7 @@ export default function BillingPage() {
                     <span style={{
                       fontSize: 9, padding: '2px 8px', borderRadius: 10,
                       background: `${T.cyan}12`, color: T.cyan,
-                      fontFamily: "'Cairo', sans-serif", fontWeight: 700,
+                      fontFamily: "var(--font-ar)", fontWeight: 700,
                     }}>{tc('upgradeAvailable')}</span>
                   )}
                 </div>
@@ -307,7 +307,7 @@ export default function BillingPage() {
               <div style={{ textAlign: 'center', flexShrink: 0 }}>
                 <div style={{
                   fontSize: 28, fontWeight: 900, color: roleInfo.color,
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontFamily: "var(--font-mono)",
                 }}>
                   {PLANS.find(p => p.id === userTier)?.price || 0}
                 </div>
@@ -328,7 +328,7 @@ export default function BillingPage() {
                 <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.5 }}>
                   <span style={{ fontWeight: 700, color: T.text }}>{t('nextPayment')}</span>
                   {' '}{t('nextPaymentDate')} — {t('autoRenewAt')}{' '}
-                  <span style={{ color: roleInfo.color, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
+                  <span style={{ color: roleInfo.color, fontFamily: "var(--font-mono)", fontWeight: 700 }}>
                     ${PLANS.find(p => p.id === userTier)?.price || 0}
                   </span>
                 </div>
@@ -378,7 +378,7 @@ export default function BillingPage() {
                       padding: '3px 10px', borderRadius: 10,
                       background: `linear-gradient(135deg, ${T.cyan}, #0A84FF)`,
                       color: '#000', fontSize: 9, fontWeight: 800,
-                      fontFamily: "'Cairo', sans-serif",
+                      fontFamily: "var(--font-ar)",
                       boxShadow: `0 0 12px ${T.cyan}30`,
                     }}>
                       {tc('mostPopular')}
@@ -392,7 +392,7 @@ export default function BillingPage() {
                       padding: '3px 10px', borderRadius: 10,
                       background: `linear-gradient(135deg, ${T.amber}, #FF8C00)`,
                       color: '#000', fontSize: 9, fontWeight: 800,
-                      fontFamily: "'Cairo', sans-serif",
+                      fontFamily: "var(--font-ar)",
                     }}>
                       {plan.badge}
                     </div>
@@ -410,7 +410,7 @@ export default function BillingPage() {
                         {plan.icon}
                       </div>
                       <div>
-                        <div style={{ fontSize: 15, fontWeight: 900, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
+                        <div style={{ fontSize: 15, fontWeight: 900, color: T.text, fontFamily: "var(--font-ar)" }}>
                           {plan.name}
                         </div>
                       </div>
@@ -420,7 +420,7 @@ export default function BillingPage() {
                     <div style={{ marginBottom: 12, display: 'flex', alignItems: 'baseline', gap: 4 }}>
                       <span style={{
                         fontSize: 30, fontWeight: 900, color: plan.color,
-                        fontFamily: "'JetBrains Mono', monospace", lineHeight: 1,
+                        fontFamily: "var(--font-mono)", lineHeight: 1,
                       }}>
                         ${plan.price}
                       </span>
@@ -462,7 +462,7 @@ export default function BillingPage() {
                         padding: '10px 14px', borderRadius: 10,
                         background: `${plan.color}10`, border: `1px solid ${plan.color}20`,
                         color: plan.color, fontSize: 12, fontWeight: 700,
-                        textAlign: 'center', fontFamily: "'Cairo', sans-serif",
+                        textAlign: 'center', fontFamily: "var(--font-ar)",
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                       }}>
                         <CheckCircle2 size={14} />
@@ -478,7 +478,7 @@ export default function BillingPage() {
                           border: isDowngrade ? `1px solid ${T.border2}` : 'none',
                           color: isDowngrade ? T.cyan : '#000',
                           fontSize: 12, fontWeight: 800, cursor: upgrading === plan.id ? 'wait' : 'pointer',
-                          fontFamily: "'Cairo', sans-serif",
+                          fontFamily: "var(--font-ar)",
                           transition: 'all 0.2s',
                           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                           boxShadow: !isDowngrade ? `0 0 16px ${plan.color}25` : 'none',
@@ -545,7 +545,7 @@ export default function BillingPage() {
                   <span style={{
                     marginRight: 'auto', fontSize: 9, padding: '2px 7px',
                     borderRadius: 10, background: `${T.green}12`, color: T.green,
-                    fontWeight: 600, fontFamily: "'JetBrains Mono', monospace",
+                    fontWeight: 600, fontFamily: "var(--font-mono)",
                   }}>
                     <Lock size={8} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: 3 }} />
                     {t('encryptedBadge')}
@@ -570,13 +570,13 @@ export default function BillingPage() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                       <div style={{
                         fontSize: 11, fontWeight: 700, color: T.cyan,
-                        fontFamily: "'JetBrains Mono', monospace",
+                        fontFamily: "var(--font-mono)",
                       }}>VISA</div>
                       <Lock size={12} color={T.text4} />
                     </div>
                     <div style={{
                       fontSize: 15, fontWeight: 600, color: T.text,
-                      fontFamily: "'JetBrains Mono', monospace",
+                      fontFamily: "var(--font-mono)",
                       letterSpacing: 2, marginBottom: 12,
                       direction: 'ltr', textAlign: 'left',
                     }}>
@@ -589,7 +589,7 @@ export default function BillingPage() {
                       </div>
                       <div>
                         <div style={{ fontSize: 8, color: T.text4, marginBottom: 2 }}>{t('expiry')}</div>
-                        <div style={{ fontSize: 11, color: T.text2, fontFamily: "'JetBrains Mono', monospace" }}>{cardExpiry}</div>
+                        <div style={{ fontSize: 11, color: T.text2, fontFamily: "var(--font-mono)" }}>{cardExpiry}</div>
                       </div>
                     </div>
                   </div>
@@ -610,7 +610,7 @@ export default function BillingPage() {
                           style={{
                             flex: 1, background: 'none', border: 'none',
                             color: T.text, fontSize: 12,
-                            fontFamily: "'JetBrains Mono', monospace",
+                            fontFamily: "var(--font-mono)",
                             outline: 'none', direction: 'ltr', textAlign: 'left',
                           }}
                           dir="ltr"
@@ -634,7 +634,7 @@ export default function BillingPage() {
                             width: '100%', background: T.surface,
                             border: `1px solid ${T.border}`, borderRadius: 8,
                             padding: '8px 12px', color: T.text, fontSize: 12,
-                            fontFamily: "'JetBrains Mono', monospace",
+                            fontFamily: "var(--font-mono)",
                             outline: 'none', direction: 'ltr', textAlign: 'left',
                           }}
                           dir="ltr"
@@ -650,7 +650,7 @@ export default function BillingPage() {
                             width: '100%', background: T.surface,
                             border: `1px solid ${T.border}`, borderRadius: 8,
                             padding: '8px 12px', color: T.text, fontSize: 12,
-                            fontFamily: "'JetBrains Mono', monospace",
+                            fontFamily: "var(--font-mono)",
                             outline: 'none', direction: 'ltr', textAlign: 'left',
                           }}
                           dir="ltr"
@@ -730,7 +730,7 @@ export default function BillingPage() {
                         </div>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 12, fontWeight: 700, color: T.text }}>{coin.name}</div>
-                          <div style={{ fontSize: 9, color: T.text4, fontFamily: "'JetBrains Mono', monospace" }}>{coin.symbol}</div>
+                          <div style={{ fontSize: 9, color: T.text4, fontFamily: "var(--font-mono)" }}>{coin.symbol}</div>
                         </div>
                         <ArrowUpRight size={14} color={T.text4} />
                       </div>
@@ -772,7 +772,7 @@ export default function BillingPage() {
                       <th key={h} style={{
                         padding: '12px 16px', textAlign: 'right',
                         fontSize: 10, fontWeight: 700, color: T.text4,
-                        fontFamily: "'Cairo', sans-serif",
+                        fontFamily: "var(--font-ar)",
                         letterSpacing: '0.05em',
                       }}>
                         {h}
@@ -790,20 +790,20 @@ export default function BillingPage() {
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
                       <td style={{ padding: '12px 16px' }}>
-                        <div style={{ fontSize: 11, color: T.text2, fontFamily: "'JetBrains Mono', monospace", direction: 'ltr', textAlign: 'right' }}>
+                        <div style={{ fontSize: 11, color: T.text2, fontFamily: "var(--font-mono)", direction: 'ltr', textAlign: 'right' }}>
                           {record.date}
                         </div>
                       </td>
                       <td style={{ padding: '12px 16px' }}>
                         <div style={{ fontSize: 11, color: T.text, fontWeight: 600 }}>{record.description}</div>
-                        <div style={{ fontSize: 9, color: T.text4, fontFamily: "'JetBrains Mono', monospace", direction: 'ltr', textAlign: 'right' }}>
+                        <div style={{ fontSize: 9, color: T.text4, fontFamily: "var(--font-mono)", direction: 'ltr', textAlign: 'right' }}>
                           {record.id}
                         </div>
                       </td>
                       <td style={{ padding: '12px 16px' }}>
                         <span style={{
                           fontSize: 12, fontWeight: 700, color: T.text,
-                          fontFamily: "'JetBrains Mono', monospace",
+                          fontFamily: "var(--font-mono)",
                         }}>
                           {record.amount}
                         </span>
@@ -819,7 +819,7 @@ export default function BillingPage() {
                               borderRadius: 6, padding: '4px 8px',
                               color: T.text3, fontSize: 10, cursor: 'pointer',
                               display: 'flex', alignItems: 'center', gap: 4,
-                              fontFamily: "'Cairo', sans-serif",
+                              fontFamily: "var(--font-ar)",
                               transition: 'all 0.2s',
                             }}
                             onMouseEnter={e => { e.currentTarget.style.borderColor = T.border2; e.currentTarget.style.color = T.cyan }}
@@ -848,7 +848,7 @@ export default function BillingPage() {
               </div>
               <div style={{ fontSize: 10, color: T.text3, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <FileText size={10} />
-                {t('totalPayments')}: <span style={{ color: T.text, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
+                {t('totalPayments')}: <span style={{ color: T.text, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
                   ${billingHistory.filter(r => r.status === 'paid').reduce((sum, r) => sum + parseFloat(r.amount.replace('$', '')), 0).toFixed(2)}
                 </span>
               </div>
@@ -898,7 +898,7 @@ export default function BillingPage() {
                   style={{
                     flex: 1, background: 'none', border: 'none',
                     color: T.text, fontSize: 13,
-                    fontFamily: "'JetBrains Mono', monospace",
+                    fontFamily: "var(--font-mono)",
                     outline: 'none', padding: '8px 0',
                     direction: 'ltr', textAlign: 'right',
                   }}
@@ -914,7 +914,7 @@ export default function BillingPage() {
                   background: `linear-gradient(135deg, ${T.pink}, ${T.purple})`,
                   border: 'none', color: '#fff',
                   fontSize: 12, fontWeight: 800, cursor: promoApplying ? 'wait' : 'pointer',
-                  fontFamily: "'Cairo', sans-serif",
+                  fontFamily: "var(--font-ar)",
                   transition: 'all 0.2s',
                   boxShadow: `0 0 16px ${T.pink}20`,
                   whiteSpace: 'nowrap',

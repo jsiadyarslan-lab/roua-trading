@@ -81,7 +81,7 @@ export function PortfolioSparkline({
           justifyContent: 'center',
           color: '#6F849C',
           fontSize: 12,
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "var(--font-mono)",
         }}
       >
         —

@@ -98,7 +98,7 @@ const ShareChart: React.FC<ShareChartProps> = ({
       >
         <span
           style={{
-            fontFamily: 'Cairo, sans-serif',
+            fontFamily: "var(--font-ar)",
             fontSize: 14,
             fontWeight: 600,
             color: '#e2e8f0',
@@ -161,7 +161,7 @@ const ShareChart: React.FC<ShareChartProps> = ({
             borderRadius: 6,
             padding: '8px 10px',
             color: '#94a3b8',
-            fontFamily: 'JetBrains Mono, monospace',
+            fontFamily: "var(--font-mono)",
             fontSize: 11,
             outline: 'none',
             width: '100%',
@@ -222,7 +222,7 @@ const ShareChart: React.FC<ShareChartProps> = ({
               border: 'none',
               borderRadius: 6,
               color: '#ffffff',
-              fontFamily: 'Cairo, sans-serif',
+              fontFamily: "var(--font-ar)",
               fontSize: 13,
               fontWeight: 600,
               padding: '8px 0',
@@ -249,7 +249,7 @@ const ShareChart: React.FC<ShareChartProps> = ({
             border: 'none',
             borderRadius: 6,
             color: copied ? '#ffffff' : '#000000',
-            fontFamily: 'Cairo, sans-serif',
+            fontFamily: "var(--font-ar)",
             fontSize: 13,
             fontWeight: 700,
             padding: '8px 0',

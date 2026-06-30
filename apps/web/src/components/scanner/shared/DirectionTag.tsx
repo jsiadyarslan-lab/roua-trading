@@ -82,7 +82,7 @@ export function DirectionTag({ direction, signalClass, size = 'md' }: DirectionT
         padding: `${sz.py}px ${sz.px}px`, borderRadius: 3,
         background: dirConf.bg, color: dirConf.color,
         fontSize: sz.fontSize, fontWeight: 700,
-        fontFamily: "'Cairo', sans-serif",
+        fontFamily: "var(--font-ar)",
         border: `0.5px solid ${dirConf.color}30`,
         lineHeight: 1.4,
       }}>
@@ -93,7 +93,7 @@ export function DirectionTag({ direction, signalClass, size = 'md' }: DirectionT
           padding: `${sz.py}px ${sz.px}px`, borderRadius: 3,
           background: `${sigConf.color}10`, color: sigConf.color,
           fontSize: sz.fontSize, fontWeight: 600,
-          fontFamily: "'Cairo', sans-serif",
+          fontFamily: "var(--font-ar)",
           lineHeight: 1.4,
         }}>
           {t(sigConf.key)}

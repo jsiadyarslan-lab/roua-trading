@@ -186,8 +186,8 @@ export default function AdminUsersPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif", margin: 0 }}>إدارة المستخدمين</h1>
-          <p style={{ fontSize: 12, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", margin: '4px 0 0' }}>{total} مستخدم مسجل</p>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", margin: 0 }}>إدارة المستخدمين</h1>
+          <p style={{ fontSize: 12, color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '4px 0 0' }}>{total} مستخدم مسجل</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button
@@ -198,7 +198,7 @@ export default function AdminUsersPage() {
               border: `1px solid ${hideGuests ? COLORS.success + '40' : COLORS.border}`,
               background: hideGuests ? 'rgba(0,230,118,0.08)' : 'rgba(255,255,255,0.03)',
               color: hideGuests ? COLORS.success : COLORS.muted,
-              fontSize: 11, fontWeight: 600, fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+              fontSize: 11, fontWeight: 600, fontFamily: "var(--font-ar)", cursor: 'pointer',
             }}
           >
             {hideGuests ? 'إخفاء الوهميين' : 'عرض الكل'}
@@ -211,7 +211,7 @@ export default function AdminUsersPage() {
               padding: '8px 14px', borderRadius: 8,
               border: `1px solid ${COLORS.danger}40`, background: 'rgba(255,82,82,0.08)',
               color: COLORS.danger, fontSize: 11, fontWeight: 600,
-              fontFamily: "'Cairo', sans-serif", cursor: cleanupLoading ? 'not-allowed' : 'pointer',
+              fontFamily: "var(--font-ar)", cursor: cleanupLoading ? 'not-allowed' : 'pointer',
               opacity: cleanupLoading ? 0.6 : 1,
             }}
           >
@@ -224,7 +224,7 @@ export default function AdminUsersPage() {
               padding: '8px 16px', borderRadius: 8,
               border: `1px solid ${COLORS.border}`, background: 'rgba(0,229,255,0.06)',
               color: COLORS.accent, fontSize: 12, fontWeight: 600,
-              fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+              fontFamily: "var(--font-ar)", cursor: 'pointer',
               transition: 'all 0.2s',
             }}
           >
@@ -243,7 +243,7 @@ export default function AdminUsersPage() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Trash2 size={16} color={cleanupResult.deletedCount > 0 ? COLORS.success : COLORS.amber} />
-            <span style={{ fontSize: 12, color: cleanupResult.deletedCount > 0 ? COLORS.success : COLORS.amber, fontFamily: "'Cairo', sans-serif" }}>
+            <span style={{ fontSize: 12, color: cleanupResult.deletedCount > 0 ? COLORS.success : COLORS.amber, fontFamily: "var(--font-ar)" }}>
               {cleanupResult.deletedCount > 0
                 ? `تم حذف ${cleanupResult.deletedCount} حساب وهمي`
                 : 'لا توجد حسابات وهمية للحذف'}
@@ -265,7 +265,7 @@ export default function AdminUsersPage() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <AlertCircle size={16} color={COLORS.danger} />
-            <span style={{ fontSize: 12, color: COLORS.danger, fontFamily: "'Cairo', sans-serif" }}>
+            <span style={{ fontSize: 12, color: COLORS.danger, fontFamily: "var(--font-ar)" }}>
               {error}
             </span>
           </div>
@@ -275,7 +275,7 @@ export default function AdminUsersPage() {
               padding: '4px 10px', borderRadius: 6,
               border: `1px solid ${COLORS.danger}40`, background: `${COLORS.danger}10`,
               color: COLORS.danger, fontSize: 10, fontWeight: 600,
-              fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+              fontFamily: "var(--font-ar)", cursor: 'pointer',
             }}
           >
             إعادة المحاولة
@@ -299,7 +299,7 @@ export default function AdminUsersPage() {
             onChange={e => setSearchInput(e.target.value)}
             style={{
               flex: 1, background: 'transparent', border: 'none', outline: 'none',
-              color: COLORS.text, fontSize: 12, fontFamily: "'Cairo', sans-serif",
+              color: COLORS.text, fontSize: 12, fontFamily: "var(--font-ar)",
             }}
             dir={dir}
           />
@@ -316,7 +316,7 @@ export default function AdminUsersPage() {
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '8px 14px', borderRadius: 8,
               border: `1px solid ${COLORS.border}`, background: 'rgba(255,255,255,0.03)',
-              color: COLORS.muted, fontSize: 12, fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+              color: COLORS.muted, fontSize: 12, fontFamily: "var(--font-ar)", cursor: 'pointer',
             }}
           >
             <Filter size={14} />
@@ -337,7 +337,7 @@ export default function AdminUsersPage() {
                     display: 'block', width: '100%', padding: '8px 12px', borderRadius: 6,
                     border: 'none', background: tierFilter === tier ? 'rgba(0,229,255,0.10)' : 'transparent',
                     color: tierFilter === tier ? COLORS.accent : COLORS.muted,
-                    fontSize: 12, fontFamily: "'Cairo', sans-serif", cursor: 'pointer', textAlign: 'right',
+                    fontSize: 12, fontFamily: "var(--font-ar)", cursor: 'pointer', textAlign: 'right',
                   }}
                 >
                   {tier === 'all' ? 'الكل' : getTierStyle(tier).label}
@@ -358,7 +358,7 @@ export default function AdminUsersPage() {
                   <th key={h} style={{
                     padding: '10px 14px', textAlign: 'right',
                     fontSize: 10, fontWeight: 700, color: COLORS.muted,
-                    fontFamily: "'Cairo', sans-serif", whiteSpace: 'nowrap',
+                    fontFamily: "var(--font-ar)", whiteSpace: 'nowrap',
                   }}>
                     {h}
                   </th>
@@ -368,13 +368,13 @@ export default function AdminUsersPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>
+                  <td colSpan={7} style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
                     جارٍ التحميل...
                   </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>
+                  <td colSpan={7} style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
                     لا يوجد مستخدمون مسجلون بعد
                   </td>
                 </tr>
@@ -402,28 +402,28 @@ export default function AdminUsersPage() {
                             border: `1px solid ${COLORS.accent}25`,
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             fontSize: 12, fontWeight: 700, color: COLORS.accent,
-                            fontFamily: "'Cairo', sans-serif",
+                            fontFamily: "var(--font-ar)",
                           }}>
                             {user.displayName.charAt(0)}
                           </div>
-                          <span style={{ fontWeight: 600, color: COLORS.text, fontFamily: "'Cairo', sans-serif" }}>{user.displayName}</span>
+                          <span style={{ fontWeight: 600, color: COLORS.text, fontFamily: "var(--font-ar)" }}>{user.displayName}</span>
                         </div>
                       </td>
-                      <td style={{ padding: '10px 14px', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: COLORS.muted }} dir="ltr">{user.email}</td>
+                      <td style={{ padding: '10px 14px', fontFamily: "var(--font-mono)", fontSize: 11, color: COLORS.muted }} dir="ltr">{user.email}</td>
                       <td style={{ padding: '10px 14px' }}>
                         <span style={{
                           padding: '2px 8px', borderRadius: 4,
                           background: tierStyle.bg, border: `1px solid ${tierStyle.border}`,
                           color: tierStyle.color, fontSize: 10, fontWeight: 700,
-                          fontFamily: "'Cairo', sans-serif",
+                          fontFamily: "var(--font-ar)",
                         }}>
                           {tierStyle.label}
                         </span>
                       </td>
-                      <td style={{ padding: '10px 14px', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: COLORS.text }}>{user.tradeCount}</td>
-                      <td style={{ padding: '10px 14px', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: COLORS.accent }}>{user.openPositions}</td>
-                      <td style={{ padding: '10px 14px', fontSize: 10, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>{formatDate(user.createdAt)}</td>
-                      <td style={{ padding: '10px 14px', fontSize: 10, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>{formatDate(user.lastActive)}</td>
+                      <td style={{ padding: '10px 14px', fontFamily: "var(--font-mono)", fontSize: 11, color: COLORS.text }}>{user.tradeCount}</td>
+                      <td style={{ padding: '10px 14px', fontFamily: "var(--font-mono)", fontSize: 11, color: COLORS.accent }}>{user.openPositions}</td>
+                      <td style={{ padding: '10px 14px', fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{formatDate(user.createdAt)}</td>
+                      <td style={{ padding: '10px 14px', fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{formatDate(user.lastActive)}</td>
                     </tr>
                   )
                 })
@@ -445,12 +445,12 @@ export default function AdminUsersPage() {
               background: page === 1 ? 'transparent' : 'rgba(0,229,255,0.06)',
               color: page === 1 ? COLORS.muted : COLORS.accent,
               cursor: page === 1 ? 'not-allowed' : 'pointer',
-              fontSize: 12, fontFamily: "'Cairo', sans-serif",
+              fontSize: 12, fontFamily: "var(--font-ar)",
             }}
           >
             <ChevronRight size={14} />
           </button>
-          <span style={{ fontSize: 11, color: COLORS.muted, fontFamily: "'JetBrains Mono', monospace" }}>
+          <span style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-mono)" }}>
             {page} / {totalPages}
           </span>
           <button
@@ -462,7 +462,7 @@ export default function AdminUsersPage() {
               background: page === totalPages ? 'transparent' : 'rgba(0,229,255,0.06)',
               color: page === totalPages ? COLORS.muted : COLORS.accent,
               cursor: page === totalPages ? 'not-allowed' : 'pointer',
-              fontSize: 12, fontFamily: "'Cairo', sans-serif",
+              fontSize: 12, fontFamily: "var(--font-ar)",
             }}
           >
             <ChevronLeft size={14} />
@@ -491,7 +491,7 @@ export default function AdminUsersPage() {
             onClick={e => e.stopPropagation()}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <span style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif" }}>تفاصيل المستخدم</span>
+              <span style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>تفاصيل المستخدم</span>
               <button onClick={() => setSelectedUser(null)} style={{ background: 'transparent', border: 'none', color: COLORS.muted, cursor: 'pointer' }}>
                 <XIcon size={18} />
               </button>
@@ -504,13 +504,13 @@ export default function AdminUsersPage() {
                 border: `1px solid ${COLORS.accent}25`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 20, fontWeight: 700, color: COLORS.accent,
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
               }}>
                 {selectedUser.displayName.charAt(0)}
               </div>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif" }}>{selectedUser.displayName}</div>
-                <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "'JetBrains Mono', monospace" }} dir="ltr">{selectedUser.email}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>{selectedUser.displayName}</div>
+                <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-mono)" }} dir="ltr">{selectedUser.email}</div>
               </div>
             </div>
 
@@ -530,9 +530,9 @@ export default function AdminUsersPage() {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
                       <ItemIcon size={10} color={item.color} />
-                      <span style={{ fontSize: 9, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>{item.label}</span>
+                      <span style={{ fontSize: 9, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{item.label}</span>
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: item.color, fontFamily: "'JetBrains Mono', monospace" }}>{item.value}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: item.color, fontFamily: "var(--font-mono)" }}>{item.value}</div>
                   </div>
                 )
               })}

@@ -110,7 +110,7 @@ export default function StrategyBuilderPage() {
   }
 
   return (
-    <div className="custom-scrollbar" style={{ padding: '32px 24px', direction: 'inherit', fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto' }}>
+    <div className="custom-scrollbar" style={{ padding: '32px 24px', direction: 'inherit', fontFamily: "var(--font-ar)", height: '100%', overflowY: 'auto' }}>
       {/* Scoped styles via useScopedStyle */}{/* Header */}
       <div style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
@@ -120,7 +120,7 @@ export default function StrategyBuilderPage() {
             <span style={{
               fontSize: 10, padding: '2px 8px', borderRadius: 20,
               background: `${T.cyan}18`, color: T.cyan,
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
             }}>NO-CODE BUILDER</span>
           </div>
           <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
@@ -160,18 +160,18 @@ export default function StrategyBuilderPage() {
               onChange={e => setStrategyName(e.target.value)}
               style={{
                 flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                color: T.text, fontSize: 15, fontWeight: 700, fontFamily: "'Cairo', sans-serif",
+                color: T.text, fontSize: 15, fontWeight: 700, fontFamily: "var(--font-ar)",
                 direction: 'inherit',
               }}
               placeholder={sb('strategyNamePlaceholder')}
             />
-            <span style={{ fontSize: 11, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
+            <span style={{ fontSize: 11, color: T.text3, fontFamily: "var(--font-mono)" }}>
               {sb('componentCount', { count: nodes.length })}
             </span>
             {nodes.length > 0 && (
               <button
                 onClick={handleClearAll}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.red, display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.red, display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, fontFamily: "var(--font-ar)" }}
               >
                 <Trash2 size={12} /> {sb('clearAll')}
               </button>
@@ -208,7 +208,7 @@ export default function StrategyBuilderPage() {
                 <div style={{
                   padding: '8px 24px', borderRadius: 20,
                   background: `${T.cyan}15`, border: `1px solid ${T.cyan}40`,
-                  color: T.cyan, fontSize: 12, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
+                  color: T.cyan, fontSize: 12, fontWeight: 800, fontFamily: "var(--font-mono)",
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}>
                   ▶ {sb('strategyStart')}
@@ -227,7 +227,7 @@ export default function StrategyBuilderPage() {
                       <span style={{
                         fontSize: 10, padding: '2px 8px', borderRadius: 10,
                         background: `${node.color}20`, color: node.color,
-                        fontWeight: 700, fontFamily: "'JetBrains Mono', monospace",
+                        fontWeight: 700, fontFamily: "var(--font-mono)",
                         whiteSpace: 'nowrap',
                       }}>
                         {node.type === 'indicator' ? 'IND' : node.type === 'condition' ? 'COND' : node.type === 'action' ? 'ACT' : 'RISK'}
@@ -239,7 +239,7 @@ export default function StrategyBuilderPage() {
                         <div style={{ fontSize: 10, color: T.text3 }}>{node.sublabel}</div>
                       </div>
                       {/* Step Number */}
-                      <span style={{ fontSize: 10, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
+                      <span style={{ fontSize: 10, color: T.text3, fontFamily: "var(--font-mono)" }}>
                         {sb('step', { n: idx + 1 })}
                       </span>
                       {/* Move & Delete Buttons */}
@@ -289,7 +289,7 @@ export default function StrategyBuilderPage() {
                 <div style={{
                   padding: '8px 24px', borderRadius: 20,
                   background: `${T.purple}15`, border: `1px solid ${T.purple}40`,
-                  color: T.purple, fontSize: 12, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
+                  color: T.purple, fontSize: 12, fontWeight: 800, fontFamily: "var(--font-mono)",
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}>
                   ◼ {sb('strategyEnd')}
@@ -337,7 +337,7 @@ export default function StrategyBuilderPage() {
                           color: T.text, fontSize: 12, fontWeight: 700, cursor: 'pointer',
                           display: 'flex', alignItems: 'center', gap: 8,
                           transition: 'all 0.2s', textAlign: 'right',
-                          fontFamily: "'Cairo', sans-serif",
+                          fontFamily: "var(--font-ar)",
                         }}
                         onMouseEnter={e => {
                           e.currentTarget.style.background = `${item.color}15`

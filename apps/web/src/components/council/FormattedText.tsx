@@ -30,7 +30,7 @@ function renderInline(text: string, keyBase: string): ReactNode[] {
         <code
           key={key}
           style={{
-            fontFamily: "monospace",
+            fontFamily: "var(--font-mono)",
             fontSize: "0.92em",
             padding: "1px 6px",
             borderRadius: 5,
@@ -292,7 +292,7 @@ function renderBlock(block: Block, idx: number, dir: "rtl" | "ltr"): ReactNode {
                   color: COLORS.council,
                   fontSize: 10,
                   fontWeight: 700,
-                  fontFamily: "monospace",
+                  fontFamily: "var(--font-mono)",
                 }}
               >
                 {i + 1}
@@ -576,7 +576,7 @@ export function LoadMoreButton({
             padding: "1px 7px",
             borderRadius: 5,
             background: hexToRgba(accent, 0.18),
-            fontFamily: "monospace",
+            fontFamily: "var(--font-mono)",
             fontWeight: 700,
           }}
         >

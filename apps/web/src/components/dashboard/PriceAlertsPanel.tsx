@@ -63,7 +63,7 @@ export function PriceAlertsPanel() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Bell size={14} color={T.amber} />
-          <span style={{ fontSize: 13, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>
             {tp('title')}
           </span>
           {active.length > 0 && (
@@ -108,7 +108,7 @@ export function PriceAlertsPanel() {
                 style={{
                   background: 'var(--surface)', border: `1px solid ${T.border}`,
                   borderRadius: 8, color: T.text, fontSize: 12, padding: '8px',
-                  fontFamily: 'monospace', outline: 'none', width: '100%', boxSizing: 'border-box',
+                  fontFamily: "var(--font-mono)", outline: 'none', width: '100%', boxSizing: 'border-box',
                 }}
               />
             </div>
@@ -129,7 +129,7 @@ export function PriceAlertsPanel() {
                 style={{
                   background: 'var(--surface)', border: `1px solid ${T.border}`,
                   borderRadius: 8, color: T.text, fontSize: 12, padding: '8px',
-                  fontFamily: 'monospace', outline: 'none', width: '100%', boxSizing: 'border-box',
+                  fontFamily: "var(--font-mono)", outline: 'none', width: '100%', boxSizing: 'border-box',
                 }}
               />
             </div>
@@ -143,7 +143,7 @@ export function PriceAlertsPanel() {
                 onClick={() => setCondition(c)}
                 style={{
                   fontSize: 9, padding: '4px 10px', borderRadius: 20, cursor: 'pointer',
-                  fontWeight: 800, fontFamily: "'Cairo', sans-serif",
+                  fontWeight: 800, fontFamily: "var(--font-ar)",
                   background: condition === c ? `${CONDITION_COLORS[c]}20` : 'transparent',
                   border: `1px solid ${condition === c ? CONDITION_COLORS[c] : T.border}`,
                   color: condition === c ? CONDITION_COLORS[c] : T.muted,
@@ -162,7 +162,7 @@ export function PriceAlertsPanel() {
             style={{
               padding: '8px', borderRadius: 8, border: 'none', cursor: 'pointer',
               background: T.blue, color: '#fff', fontWeight: 800, fontSize: 12,
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
             }}
           >
             {tp('addAlert')}
@@ -175,7 +175,7 @@ export function PriceAlertsPanel() {
         {alerts.length === 0 ? (
           <div style={{ padding: '40px 0', textAlign: 'center', color: T.muted }}>
             <Bell size={28} style={{ marginBottom: 8, opacity: 0.3 }} />
-            <div style={{ fontSize: 12, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
               {tp('noAlerts')}
             </div>
             <div style={{ fontSize: 10, marginTop: 4 }}>{tp('addAlertToStart')}</div>
@@ -238,7 +238,7 @@ function AlertRow({ alert, onRemove, currentPrice }: {
             {isTriggered
               ? <BellRing size={12} color={color} />
               : <Bell size={12} color={T.muted} />}
-            <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--foreground)', fontFamily: 'monospace' }}>
+            <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--foreground)', fontFamily: "var(--font-mono)" }}>
               {alert.symbol}
             </span>
             <span style={{
@@ -248,7 +248,7 @@ function AlertRow({ alert, onRemove, currentPrice }: {
               {isTriggered ? tp('activeOn') : conditionLabels[alert.condition]}
             </span>
           </div>
-          <div style={{ fontSize: 11, color, fontFamily: 'monospace', fontWeight: 800, marginTop: 2 }}>
+          <div style={{ fontSize: 11, color, fontFamily: "var(--font-mono)", fontWeight: 800, marginTop: 2 }}>
             {alert.condition.startsWith('change')
               ? `${alert.targetPrice}%`
               : `$${alert.targetPrice.toLocaleString('en', { maximumFractionDigits: 4 })}`}

@@ -80,7 +80,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 8,
-    fontFamily: "'Cairo', sans-serif",
+    fontFamily: "var(--font-ar)",
     fontWeight: 700,
   };
 
@@ -95,7 +95,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
   const settingLabel: React.CSSProperties = {
     fontSize: 11,
     color: COLORS.textSecondary,
-    fontFamily: "'Cairo', sans-serif",
+    fontFamily: "var(--font-ar)",
   };
 
   const colorInputStyle: React.CSSProperties = {
@@ -133,7 +133,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={COLORS.cyan} strokeWidth="2">
             <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
-          <span style={{ fontSize: 12, color: COLORS.text, fontWeight: 800, fontFamily: "'Cairo', sans-serif" }}>
+          <span style={{ fontSize: 12, color: COLORS.text, fontWeight: 800, fontFamily: "var(--font-ar)" }}>
             {t('chartSettings')}
           </span>
         </div>
@@ -162,7 +162,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
             }}
           >
             <span style={{ fontSize: 12 }}>{tab.icon}</span>
-            <span style={{ fontSize: 8, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>{tab.label}</span>
+            <span style={{ fontSize: 8, fontFamily: "var(--font-ar)", fontWeight: 700 }}>{tab.label}</span>
           </button>
         ))}
       </div>
@@ -196,7 +196,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: theme.up }} />
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: theme.down }} />
                   </div>
-                  <div style={{ fontSize: 7, color: COLORS.textSecondary, fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>{theme.name}</div>
+                  <div style={{ fontSize: 7, color: COLORS.textSecondary, fontFamily: "var(--font-ar)", fontWeight: 600 }}>{theme.name}</div>
                 </button>
               ))}
             </div>
@@ -327,7 +327,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
         {activeTab === 'behavior' && (
           <>
             <div style={sectionTitle}>{t('keyboardShortcuts')}</div>
-            <div style={{ fontSize: 9, color: COLORS.textMuted, lineHeight: 1.8, fontFamily: "'JetBrains Mono', monospace" }}>
+            <div style={{ fontSize: 9, color: COLORS.textMuted, lineHeight: 1.8, fontFamily: "var(--font-mono)" }}>
               <div><span style={{ color: COLORS.cyan }}>Space</span> {t('toggleUpdates')}</div>
               <div><span style={{ color: COLORS.cyan }}>+ / -</span> {t('zoomInOut')}</div>
               <div><span style={{ color: COLORS.cyan }}>R</span> {t('resetView')}</div>
@@ -348,7 +348,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
         justifyContent: 'space-between',
         alignItems: 'center',
       }}>
-        <span style={{ fontSize: 8, color: COLORS.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>
+        <span style={{ fontSize: 8, color: COLORS.textMuted, fontFamily: "var(--font-mono)" }}>
           ROUA Chart v5
         </span>
         <button
@@ -375,7 +375,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
             color: COLORS.danger,
             fontSize: 9,
             cursor: 'pointer',
-            fontFamily: "'Cairo', sans-serif",
+            fontFamily: "var(--font-ar)",
             fontWeight: 700,
           }}
         >

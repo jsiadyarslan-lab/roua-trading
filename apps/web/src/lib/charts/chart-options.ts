@@ -38,7 +38,7 @@ export function buildChartOptions(opts: {
       background: { color: isMobile ? '#000000' : bgColor },
       textColor,
       fontSize: isMobile ? 11 : 12,
-      fontFamily: "'JetBrains Mono', monospace",
+      fontFamily: "var(--font-mono)",
       attributionLogo: false,
     },
     grid: {

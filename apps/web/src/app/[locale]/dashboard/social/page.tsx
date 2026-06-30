@@ -54,7 +54,7 @@ export default function SocialPage() {
   }
 
   return (
-    <div className="custom-scrollbar" style={{ padding: '32px 24px', direction: 'inherit', fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto' }}>
+    <div className="custom-scrollbar" style={{ padding: '32px 24px', direction: 'inherit', fontFamily: "var(--font-ar)", height: '100%', overflowY: 'auto' }}>
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
@@ -63,7 +63,7 @@ export default function SocialPage() {
           <span style={{
             fontSize: 10, padding: '2px 8px', borderRadius: 20,
             background: `${T.cyan}18`, color: T.cyan,
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: "var(--font-mono)",
           }}>COMING SOON</span>
         </div>
         <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
@@ -197,7 +197,7 @@ export default function SocialPage() {
                 flex: 1, padding: '10px 14px', borderRadius: 10,
                 background: T.surface, border: `1px solid ${T.border}`,
                 color: T.text, fontSize: 13, outline: 'none',
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "var(--font-mono)",
               }}
             />
             <button
@@ -207,7 +207,7 @@ export default function SocialPage() {
                 background: `linear-gradient(135deg, ${T.cyan}, ${T.blue})`,
                 color: '#fff', fontSize: 13, fontWeight: 800, border: 'none',
                 cursor: 'pointer', whiteSpace: 'nowrap',
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
                 transition: 'all 0.2s',
               }}
             >

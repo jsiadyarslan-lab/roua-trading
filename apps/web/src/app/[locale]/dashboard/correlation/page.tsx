@@ -39,13 +39,13 @@ export default function CorrelationPage() {
   useEffect(() => { fetchCorr() }, [])
 
   return (
-    <div style={{ padding: '24px 28px', direction: 'inherit', fontFamily: "'Cairo', sans-serif", background: T.bg, minHeight: '100vh' }}>
+    <div style={{ padding: '24px 28px', direction: 'inherit', fontFamily: "var(--font-ar)", background: T.bg, minHeight: '100vh' }}>
       {/* Scoped styles via useScopedStyle */}<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <GitMerge size={22} color={T.cyan} />
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: T.text }}>مصفوفة الارتباط</h1>
-            <span style={{ fontSize: 10, padding: '2px 10px', borderRadius: 20, background: `${T.cyan}18`, color: T.cyan, fontFamily: 'monospace', fontWeight: 700 }}>CORRELATION MATRIX</span>
+            <span style={{ fontSize: 10, padding: '2px 10px', borderRadius: 20, background: `${T.cyan}18`, color: T.cyan, fontFamily: "var(--font-mono)", fontWeight: 700 }}>CORRELATION MATRIX</span>
           </div>
           <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>ارتباط بيرسون بين عوائد الأصول اليومية — يساعد على تنويع المحفظة وتجنب الارتباط الزائد</p>
         </div>
@@ -90,7 +90,7 @@ export default function CorrelationPage() {
             ].map(l => (
               <div key={l.range} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div style={{ width: 12, height: 12, borderRadius: 3, background: l.color }} />
-                <span style={{ fontSize: 10, color: T.text2 }}>{l.label} <span style={{ fontFamily: 'monospace', color: l.color }}>({l.range})</span></span>
+                <span style={{ fontSize: 10, color: T.text2 }}>{l.label} <span style={{ fontFamily: "var(--font-mono)", color: l.color }}>({l.range})</span></span>
               </div>
             ))}
             <span style={{ fontSize: 10, color: T.text2 }}>البيانات: {data.dataPoints} يوم</span>
@@ -103,21 +103,21 @@ export default function CorrelationPage() {
                 <tr>
                   <th style={{ padding: '10px 16px', borderBottom: `1px solid ${T.border}`, color: T.text2, fontWeight: 700, fontSize: 9 }}>الأصل</th>
                   {data.symbols.map((s: string) => (
-                    <th key={s} style={{ padding: '10px 14px', borderBottom: `1px solid ${T.border}`, color: T.text2, fontFamily: 'monospace', fontSize: 9, fontWeight: 800, whiteSpace: 'nowrap' }}>{s}</th>
+                    <th key={s} style={{ padding: '10px 14px', borderBottom: `1px solid ${T.border}`, color: T.text2, fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 800, whiteSpace: 'nowrap' }}>{s}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {data.symbols.map((s1: string) => (
                   <tr key={s1} style={{ borderTop: `1px solid ${T.border}` }}>
-                    <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontSize: 11, fontWeight: 800, color: T.text, whiteSpace: 'nowrap', background: T.bg }}>{s1}</td>
+                    <td style={{ padding: '10px 16px', fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 800, color: T.text, whiteSpace: 'nowrap', background: T.bg }}>{s1}</td>
                     {data.symbols.map((s2: string) => {
                       const v = data.matrix[s1]?.[s2] ?? 0
                       const isSelf = s1 === s2
                       const c = corrColor(v)
                       return (
                         <td key={s2} style={{ padding: '8px 14px', textAlign: 'center', background: isSelf ? `${T.blue}15` : `${c}${Math.abs(v) > 0.3 ? '18' : '08'}` }}>
-                          <span style={{ fontFamily: 'monospace', fontWeight: isSelf ? 900 : 700, fontSize: 12, color: isSelf ? T.blue : c }}>
+                          <span style={{ fontFamily: "var(--font-mono)", fontWeight: isSelf ? 900 : 700, fontSize: 12, color: isSelf ? T.blue : c }}>
                             {isSelf ? '▪' : v.toFixed(2)}
                           </span>
                         </td>
@@ -143,8 +143,8 @@ export default function CorrelationPage() {
                 {section.pairs?.length === 0 && <span style={{ fontSize: 11, color: T.text2 }}>لا توجد بيانات كافية</span>}
                 {section.pairs?.map((p: any, i: number) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderTop: i > 0 ? `1px solid ${T.border}` : 'none' }}>
-                    <span style={{ fontSize: 11, color: T.text, fontFamily: 'monospace' }}>{p.s1} ↔ {p.s2}</span>
-                    <span style={{ fontSize: 13, fontWeight: 900, color: section.color, fontFamily: 'monospace' }}>{p.corr.toFixed(3)}</span>
+                    <span style={{ fontSize: 11, color: T.text, fontFamily: "var(--font-mono)" }}>{p.s1} ↔ {p.s2}</span>
+                    <span style={{ fontSize: 13, fontWeight: 900, color: section.color, fontFamily: "var(--font-mono)" }}>{p.corr.toFixed(3)}</span>
                   </div>
                 ))}
               </div>

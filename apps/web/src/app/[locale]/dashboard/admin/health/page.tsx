@@ -146,8 +146,8 @@ export default function AdminHealthPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif", margin: 0 }}>صحة النظام</h1>
-          <p style={{ fontSize: 12, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", margin: '4px 0 0' }}>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", margin: 0 }}>صحة النظام</h1>
+          <p style={{ fontSize: 12, color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '4px 0 0' }}>
             مراقبة جميع نقاط النهاية في الوقت الفعلي
             {lastRefresh && ` • آخر تحديث: ${lastRefresh}`}
           </p>
@@ -161,7 +161,7 @@ export default function AdminHealthPage() {
               border: `1px solid ${autoRefresh ? COLORS.success + '25' : COLORS.border}`,
               background: autoRefresh ? `${COLORS.success}08` : 'rgba(255,255,255,0.03)',
               color: autoRefresh ? COLORS.success : COLORS.muted,
-              fontSize: 11, fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+              fontSize: 11, fontFamily: "var(--font-ar)", cursor: 'pointer',
               transition: 'all 0.2s',
             }}
           >
@@ -175,7 +175,7 @@ export default function AdminHealthPage() {
               padding: '8px 16px', borderRadius: 8,
               border: `1px solid ${COLORS.border}`, background: 'rgba(0,229,255,0.06)',
               color: COLORS.accent, fontSize: 12, fontWeight: 600,
-              fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+              fontFamily: "var(--font-ar)", cursor: 'pointer',
               transition: 'all 0.2s',
             }}
           >
@@ -204,8 +204,8 @@ export default function AdminHealthPage() {
                 <CardIcon size={16} color={card.color} />
               </div>
               <div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: card.color, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1 }}>{card.value}</div>
-                <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>{card.label}</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: card.color, fontFamily: "var(--font-mono)", lineHeight: 1 }}>{card.value}</div>
+                <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)", marginTop: 2 }}>{card.label}</div>
               </div>
             </div>
           )
@@ -220,13 +220,13 @@ export default function AdminHealthPage() {
           display: 'flex', alignItems: 'center', gap: 8,
         }}>
           <Activity size={14} color={COLORS.accent} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif" }}>نقاط النهاية المراقبة</span>
-          <span style={{ fontSize: 9, color: COLORS.muted, fontFamily: "'JetBrains Mono', monospace", marginRight: 8 }}>10 endpoints</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>نقاط النهاية المراقبة</span>
+          <span style={{ fontSize: 9, color: COLORS.muted, fontFamily: "var(--font-mono)", marginRight: 8 }}>10 endpoints</span>
         </div>
 
         <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
           {loading && endpoints.every(e => e.status === 'checking') ? (
-            <div style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "'Cairo', sans-serif", fontSize: 12 }}>
+            <div style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 12 }}>
               جارٍ فحص جميع نقاط النهاية...
             </div>
           ) : (
@@ -247,7 +247,7 @@ export default function AdminHealthPage() {
 
                 {/* Path + Info */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontFamily: "'JetBrains Mono', monospace", color: COLORS.text, marginBottom: 4 }} dir="ltr">
+                  <div style={{ fontSize: 12, fontFamily: "var(--font-mono)", color: COLORS.text, marginBottom: 4 }} dir="ltr">
                     {ep.path}
                   </div>
                   {/* Performance History Bar Chart */}
@@ -275,18 +275,18 @@ export default function AdminHealthPage() {
                     <>
                       <div style={{
                         fontSize: 13, fontWeight: 700,
-                        fontFamily: "'JetBrains Mono', monospace",
+                        fontFamily: "var(--font-mono)",
                         color: ep.responseTime < 500 ? COLORS.success : ep.responseTime < 2000 ? COLORS.amber : COLORS.danger,
                       }}>
                         {ep.responseTime}ms
                       </div>
-                      <div style={{ fontSize: 8, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>
+                      <div style={{ fontSize: 8, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
                         {ep.status === 'healthy' ? 'سليم' : ep.status === 'warning' ? 'بطيء' : ep.status === 'error' ? 'خطأ' : 'فحص...'}
                       </div>
                     </>
                   )}
                   {ep.status === 'checking' && (
-                    <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>جارٍ الفحص...</div>
+                    <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>جارٍ الفحص...</div>
                   )}
                 </div>
 

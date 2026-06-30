@@ -111,7 +111,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
           color: COLORS.textMuted,
           letterSpacing: 1,
           fontWeight: 700,
-          fontFamily: "'Cairo', sans-serif",
+          fontFamily: "var(--font-ar)",
         }}>
           {tc('drawingTools')} ({allTools.length})
         </span>
@@ -144,7 +144,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
           borderRadius: 6,
           color: COLORS.text,
           fontSize: 10,
-          fontFamily: "'Cairo', sans-serif",
+          fontFamily: "var(--font-ar)",
           outline: 'none',
           marginBottom: 8,
           direction: 'inherit',
@@ -173,7 +173,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
               cursor: 'pointer',
               fontSize: 9,
               fontWeight: 700,
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
               transition: 'all 0.12s',
             }}
           >
@@ -194,7 +194,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
                 cursor: 'pointer',
                 fontSize: 9,
                 fontWeight: activeCategory === cat.key ? 700 : 400,
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
                 transition: 'all 0.12s',
                 whiteSpace: 'nowrap',
               }}
@@ -230,7 +230,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
                   fontSize: 9,
                   color: COLORS.textMuted,
                   fontWeight: 700,
-                  fontFamily: "'Cairo', sans-serif",
+                  fontFamily: "var(--font-ar)",
                   marginBottom: 4,
                   paddingInlineStart: 2,
                 }}>
@@ -272,7 +272,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
           fontSize: 10,
           fontWeight: 600,
           cursor: 'pointer',
-          fontFamily: "'Cairo', sans-serif",
+          fontFamily: "var(--font-ar)",
           transition: 'all 0.12s',
           flexShrink: 0,
         }}
@@ -315,7 +315,7 @@ function renderToolButton(
         transition: 'all 0.12s',
         fontSize: 9,
         fontWeight: isActive ? 700 : 400,
-        fontFamily: "'Cairo', sans-serif",
+        fontFamily: "var(--font-ar)",
       }}
       onMouseEnter={e => {
         if (!isActive) e.currentTarget.style.background = COLORS.hoverBg;

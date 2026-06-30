@@ -514,7 +514,7 @@ export default function AIPage() {
       flexDirection: 'column',
       overflow: 'hidden',
       direction: 'inherit',
-      fontFamily: "'Cairo', sans-serif",
+      fontFamily: "var(--font-ar)",
       background: T.bg,
     }}>
       {/* Scoped styles via useScopedStyle */}{/* ── Top Bar: Asset Selector + AI Status + Quick Actions ── */}
@@ -568,7 +568,7 @@ export default function AIPage() {
             padding: '6px 12px', borderRadius: 8,
             background: `${dirColor}08`, border: `1px solid ${dirColor}25`,
             display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700,
-            color: dirColor, fontFamily: "'JetBrains Mono', monospace",
+            color: dirColor, fontFamily: "var(--font-mono)",
           }}>
             {techData.dir === 'buy' ? <ArrowUpRight size={14} /> : techData.dir === 'sell' ? <ArrowDownRight size={14} /> : <Minus size={14} />}
             {techData.price > 1000 ? (techData.price?.toFixed(2) ?? '—') : (techData.price?.toFixed(5) ?? '—')}
@@ -625,7 +625,7 @@ export default function AIPage() {
             cursor: isTyping ? 'not-allowed' : 'pointer',
             opacity: isTyping ? 0.6 : 1,
             display: 'flex', alignItems: 'center', gap: 5,
-            fontFamily: "'Cairo', sans-serif",
+            fontFamily: "var(--font-ar)",
           }}
         >
           <Zap size={13} fill="#000" />
@@ -642,7 +642,7 @@ export default function AIPage() {
             cursor: isTyping ? 'not-allowed' : 'pointer',
             opacity: isTyping ? 0.6 : 1,
             display: 'flex', alignItems: 'center', gap: 5,
-            fontFamily: "'Cairo', sans-serif",
+            fontFamily: "var(--font-ar)",
           }}
         >
           <Sparkles size={13} />
@@ -685,7 +685,7 @@ export default function AIPage() {
             }}>
               <div style={{
                 fontSize: 26, fontWeight: 900, color: sentimentColor,
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "var(--font-mono)",
                 textShadow: `0 0 20px ${sentimentColor}30`,
               }}>
                 {narratorData ? sentimentAr : '—'}
@@ -693,7 +693,7 @@ export default function AIPage() {
               {narratorData && (
                 <div style={{
                   fontSize: 10, color: T.text3, marginTop: 6,
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontFamily: "var(--font-mono)",
                 }}>
                   {t('confidence')}: {narratorData.confidence}% | {t('risk')}: {narratorData.risk === 'Low' ? t('riskLow') : narratorData.risk === 'Medium' ? t('riskMedium') : t('riskHigh')}
                 </div>
@@ -848,7 +848,7 @@ export default function AIPage() {
                   padding: '4px 10px', borderRadius: 6,
                   border: `1px solid ${T.border}`, background: T.bg,
                   color: T.text3, fontSize: 10, cursor: 'pointer',
-                  fontFamily: "'Cairo', sans-serif",
+                  fontFamily: "var(--font-ar)",
                 }}
               >
                 {t('clearChat')}
@@ -978,7 +978,7 @@ export default function AIPage() {
                     padding: '4px 10px', borderRadius: 6,
                     border: `1px solid ${T.border}`, background: T.bg,
                     color: T.text3, fontSize: 10, cursor: isTyping ? 'not-allowed' : 'pointer',
-                    fontFamily: "'Cairo', sans-serif",
+                    fontFamily: "var(--font-ar)",
                     opacity: isTyping ? 0.5 : 1,
                     transition: 'all 0.2s',
                   }}
@@ -1001,7 +1001,7 @@ export default function AIPage() {
                 style={{
                   flex: 1, background: T.bg, border: `1px solid ${T.border}`,
                   borderRadius: 10, padding: '12px 16px',
-                  color: T.text, fontFamily: "'Cairo', sans-serif", fontSize: 13,
+                  color: T.text, fontFamily: "var(--font-ar)", fontSize: 13,
                   outline: 'none', transition: 'border-color 0.2s',
                 }}
                 onFocus={e => e.target.style.borderColor = T.cyan}
@@ -1071,7 +1071,7 @@ export default function AIPage() {
                     padding: '5px 12px', borderRadius: 6,
                     border: 'none', background: T.cyan, color: '#000',
                     fontWeight: 800, fontSize: 10, cursor: councilLoading ? 'not-allowed' : 'pointer',
-                    fontFamily: "'Cairo', sans-serif",
+                    fontFamily: "var(--font-ar)",
                     opacity: councilLoading ? 0.6 : 1,
                     display: 'flex', alignItems: 'center', gap: 4,
                   }}
@@ -1101,14 +1101,14 @@ export default function AIPage() {
                   }}>
                     <div style={{
                       fontSize: 36, fontWeight: 900, color: recColor,
-                      fontFamily: "'JetBrains Mono', monospace",
+                      fontFamily: "var(--font-mono)",
                       textShadow: `0 0 20px ${recColor}30`,
                     }}>
                       {recAr}
                     </div>
                     <div style={{
                       fontSize: 12, color: T.text2, marginTop: 4,
-                      fontFamily: "'JetBrains Mono', monospace",
+                      fontFamily: "var(--font-mono)",
                     }}>
                       {t('consensus')} {councilResult.consensusScore}%
                       {councilResult.source === 'nestjs' && (
@@ -1161,7 +1161,7 @@ export default function AIPage() {
                           {safeStr(vote.reason)}
                         </div>
                         {vote.model && (
-                          <div style={{ fontSize: 8, color: T.text3, marginTop: 3, fontFamily: "'JetBrains Mono', monospace" }}>
+                          <div style={{ fontSize: 8, color: T.text3, marginTop: 3, fontFamily: "var(--font-mono)" }}>
                             {safeStr(vote.model)}
                           </div>
                         )}
@@ -1326,7 +1326,7 @@ function TabButton({ active, onClick, icon, label }: {
         color: active ? T.cyan : T.text3,
         fontSize: 11, fontWeight: 700, cursor: 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-        fontFamily: "'Cairo', sans-serif",
+        fontFamily: "var(--font-ar)",
         transition: 'all 0.2s',
       }}
     >
@@ -1344,7 +1344,7 @@ function NarratorBadge({ label, value, color }: { label: string; value: string; 
       textAlign: 'center',
     }}>
       <div style={{ fontSize: 8, color: T.text3, marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: 12, fontWeight: 800, color, fontFamily: "'JetBrains Mono', monospace" }}>{value}</div>
+      <div style={{ fontSize: 12, fontWeight: 800, color, fontFamily: "var(--font-mono)" }}>{value}</div>
     </div>
   )
 }

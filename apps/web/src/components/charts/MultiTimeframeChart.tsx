@@ -162,7 +162,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
 
       const chart = createChart(container, {
         width, height,
-        layout: { background: { color: C.bg }, textColor: C.textDim, fontSize: 9, fontFamily: "'JetBrains Mono', monospace", attributionLogo: false },
+        layout: { background: { color: C.bg }, textColor: C.textDim, fontSize: 9, fontFamily: "var(--font-mono)", attributionLogo: false },
         grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } },
         rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.15, bottom: 0.05 } },
         timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false, rightOffset: 3, barSpacing: 5, minBarSpacing: 2 },
@@ -389,10 +389,10 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
               </svg>
             </div>
             <div>
-              <div style={{ color: C.text, fontWeight: 700, fontSize: 14, fontFamily: "'Cairo', sans-serif", lineHeight: 1.2 }}>
+              <div style={{ color: C.text, fontWeight: 700, fontSize: 14, fontFamily: "var(--font-ar)", lineHeight: 1.2 }}>
                 {tc('multiTimeframeAnalysis')}
               </div>
-              <div style={{ color: C.cyan, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 600, letterSpacing: 0.5 }}>
+              <div style={{ color: C.cyan, fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, letterSpacing: 0.5 }}>
                 {symbol}
               </div>
             </div>
@@ -407,7 +407,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                 border: '1px solid rgba(0,212,255,0.25)',
                 borderRadius: 8, color: C.cyan,
                 padding: '6px 12px', fontSize: 11, fontWeight: 700,
-                cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
+                cursor: 'pointer', fontFamily: "var(--font-ar)",
                 display: 'flex', alignItems: 'center', gap: 4,
                 transition: 'all 0.15s ease',
               }}
@@ -493,7 +493,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                         background: 'rgba(0,212,255,0.08)',
                         border: '1px solid rgba(0,212,255,0.2)',
                         borderRadius: 4, color: C.cyan,
-                        fontFamily: "'JetBrains Mono', monospace",
+                        fontFamily: "var(--font-mono)",
                         fontSize: 10, fontWeight: 700,
                         padding: '2px 6px', cursor: 'pointer',
                         outline: 'none', maxWidth: 90,
@@ -513,7 +513,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                         background: 'rgba(255,255,255,0.04)',
                         border: '1px solid rgba(255,255,255,0.08)',
                         borderRadius: 4, color: C.textDim,
-                        fontFamily: "'JetBrains Mono', monospace",
+                        fontFamily: "var(--font-mono)",
                         fontSize: 9, padding: '2px 4px',
                         cursor: 'pointer', outline: 'none',
                       }}
@@ -531,14 +531,14 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
 
                     {state?.currentPrice != null && !state?.loading && (
                       <>
-                        <span style={{ color: C.text, fontSize: 10, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" }}>
+                        <span style={{ color: C.text, fontSize: 10, fontWeight: 600, fontFamily: "var(--font-mono)" }}>
                           {formatPrice(state.currentPrice)}
                         </span>
                         {changePercent !== null && (
                           <span style={{
                             color: isPositive ? C.success : C.danger,
                             fontSize: 9, fontWeight: 700,
-                            fontFamily: "'JetBrains Mono', monospace",
+                            fontFamily: "var(--font-mono)",
                             padding: '1px 4px', borderRadius: 3,
                             background: isPositive ? 'rgba(0,255,163,0.1)' : 'rgba(255,71,87,0.1)',
                           }}>
@@ -549,7 +549,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                     )}
 
                     {state?.error && (
-                      <span style={{ color: C.danger, fontSize: 9, fontFamily: "'Cairo', sans-serif" }}>
+                      <span style={{ color: C.danger, fontSize: 9, fontFamily: "var(--font-ar)" }}>
                         {state.error}
                       </span>
                     )}
@@ -609,7 +609,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontSize: 8,
-                        fontFamily: "'JetBrains Mono', monospace",
+                        fontFamily: "var(--font-mono)",
                         fontWeight: 600,
                         transition: 'all 0.15s ease',
                         gap: 3,
@@ -637,7 +637,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontSize: 8,
-                        fontFamily: "'JetBrains Mono', monospace",
+                        fontFamily: "var(--font-mono)",
                         fontWeight: 600,
                         transition: 'all 0.15s ease',
                         gap: 3,

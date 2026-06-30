@@ -133,7 +133,7 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp, onSelectSymb
   return (
     <div style={{
       width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
-      background: 'var(--bg)', overflow: 'hidden', fontFamily: "'Cairo', sans-serif"
+      background: 'var(--bg)', overflow: 'hidden', fontFamily: "var(--font-ar)"
     }}>
       {/* V329: Compact tabs — scrollable, per-tab accent colors */}
       <div style={{
@@ -159,7 +159,7 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp, onSelectSymb
                 border: 'none', borderRadius: 6, padding: '4px 8px',
                 color: isActive ? accent : 'var(--muted)',
                 fontSize: 11, fontWeight: isActive ? 800 : 500, cursor: 'pointer',
-                fontFamily: "'Cairo', sans-serif", transition: '0.2s',
+                fontFamily: "var(--font-ar)", transition: '0.2s',
                 whiteSpace: 'nowrap', flexShrink: 0,
               }}>
               {tabLabel[tab]}

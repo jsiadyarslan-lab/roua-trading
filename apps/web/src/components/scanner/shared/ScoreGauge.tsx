@@ -56,7 +56,7 @@ export function ScoreGauge({ score, size = 44, label, showValue = true }: ScoreG
         <div style={{
           position: 'relative', marginTop: -size * 0.6, marginBottom: size * 0.35,
           fontSize: size * 0.24, fontWeight: 800, color, textAlign: 'center',
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "var(--font-mono)",
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           height: size * 0.35,
         }}>
@@ -66,7 +66,7 @@ export function ScoreGauge({ score, size = 44, label, showValue = true }: ScoreG
       {label && (
         <span style={{
           fontSize: size * 0.17, color: T.text3, fontWeight: 600,
-          fontFamily: "'Cairo', sans-serif",
+          fontFamily: "var(--font-ar)",
         }}>
           {label}
         </span>

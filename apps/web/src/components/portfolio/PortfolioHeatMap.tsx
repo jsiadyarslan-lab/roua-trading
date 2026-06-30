@@ -76,7 +76,7 @@ export function PortfolioHeatMap({ positions }: PortfolioHeatMapProps) {
           height: 80,
           color: T.textMuted,
           fontSize: 10,
-          fontFamily: "'Cairo', sans-serif",
+          fontFamily: "var(--font-ar)",
           direction: 'inherit',
         }}
       >

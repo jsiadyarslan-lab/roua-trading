@@ -129,14 +129,14 @@ export default function AdminLoginPage() {
           }}>
             <Shield size={28} color="#000" strokeWidth={2.5} />
           </div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif", marginBottom: 4 }}>لوحة الإدارة</div>
-          <div style={{ fontSize: 11, color: COLORS.accent, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, letterSpacing: 2 }}>ADMIN PANEL</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", marginBottom: 4 }}>لوحة الإدارة</div>
+          <div style={{ fontSize: 11, color: COLORS.accent, fontFamily: "var(--font-mono)", fontWeight: 600, letterSpacing: 2 }}>ADMIN PANEL</div>
         </div>
 
         {/* Login Form */}
         <form onSubmit={handleLogin}>
           <div style={{ marginBottom: 20 }}>
-            <label style={{ fontSize: 12, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", display: 'block', marginBottom: 8 }}>
+            <label style={{ fontSize: 12, color: COLORS.muted, fontFamily: "var(--font-ar)", display: 'block', marginBottom: 8 }}>
               كلمة مرور الإدارة
             </label>
             <div style={{
@@ -156,7 +156,7 @@ export default function AdminLoginPage() {
                 autoFocus
                 style={{
                   flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                  color: COLORS.text, fontSize: 14, fontFamily: "'Cairo', sans-serif",
+                  color: COLORS.text, fontSize: 14, fontFamily: "var(--font-ar)",
                   direction: 'ltr', textAlign: 'right',
                 }}
               />
@@ -177,7 +177,7 @@ export default function AdminLoginPage() {
               background: `${COLORS.danger}10`,
               border: `1px solid ${COLORS.danger}25`,
               fontSize: 12, color: COLORS.danger,
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
               textAlign: 'center',
             }}>
               {error}
@@ -193,7 +193,7 @@ export default function AdminLoginPage() {
               background: loading || !password.trim() ? `${COLORS.accent}30` : 'linear-gradient(135deg, #00E5FF, #0A84FF)',
               color: loading || !password.trim() ? COLORS.muted : '#000',
               fontSize: 14, fontWeight: 700,
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
               cursor: loading || !password.trim() ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -215,7 +215,7 @@ export default function AdminLoginPage() {
             onClick={() => router.push('/dashboard')}
             style={{
               background: 'transparent', border: 'none',
-              color: COLORS.muted, fontSize: 11, fontFamily: "'Cairo', sans-serif",
+              color: COLORS.muted, fontSize: 11, fontFamily: "var(--font-ar)",
               cursor: 'pointer', textDecoration: 'underline',
             }}
           >

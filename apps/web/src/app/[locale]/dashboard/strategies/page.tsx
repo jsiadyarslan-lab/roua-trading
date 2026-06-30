@@ -26,7 +26,7 @@ const Gauge = ({ value, max, label, color }: { value: number, max: number, label
            <circle cx="22" cy="22" r={radius} fill="none" stroke={`${color}15`} strokeWidth="3" />
            <circle cx="22" cy="22" r={radius} fill="none" stroke={color} strokeWidth="3" strokeDasharray={strokeDasharray} strokeLinecap="round" style={{ transition: '1s ease-out' }} />
          </svg>
-         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', fontFamily: "'JetBrains Mono', monospace" }}>{value}</div>
+         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', fontFamily: "var(--font-mono)" }}>{value}</div>
       </div>
       <div style={{ fontSize: 9, color: T.text3, fontWeight: 600 }}>{label}</div>
     </div>
@@ -107,7 +107,7 @@ export default function StrategiesPage() {
         color: T.text,
         padding: 24,
         direction: 'inherit',
-        fontFamily: "'Cairo', sans-serif",
+        fontFamily: "var(--font-ar)",
       }}>
         <div style={{
           background: T.card,
@@ -130,7 +130,7 @@ export default function StrategiesPage() {
     <div className="strategies-page-root" style={{
       width: '100%', height: 'calc(100vh - 60px)',
       background: T.bg, padding: '12px 20px', boxSizing: 'border-box',
-      direction: 'inherit', fontFamily: "'Cairo', sans-serif",
+      direction: 'inherit', fontFamily: "var(--font-ar)",
       display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden'
     }}>
       {/* Scoped styles via useScopedStyle */}{/* ── 1. Top Bar: Macroeconomic Radar (Ultra-Micro) ── */}
@@ -142,10 +142,10 @@ export default function StrategiesPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Globe size={13} color={T.blue} />
           <span style={{ fontSize: 12, fontWeight: 700, color: T.text, marginRight: 2 }}>{t('macroRadar')}</span>
-          <span style={{ fontSize: 9, background: `${T.blue}10`, color: T.blue, padding: '2px 6px', borderRadius: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", border: `0.5px solid ${T.border}` }}>
+          <span style={{ fontSize: 9, background: `${T.blue}10`, color: T.blue, padding: '2px 6px', borderRadius: 12, fontWeight: 700, fontFamily: "var(--font-mono)", border: `0.5px solid ${T.border}` }}>
             {t('liveInstiFeed')}
           </span>
-          <span style={{ fontSize: 8, color: T.text3, fontFamily: "'JetBrains Mono', monospace", marginRight: 4 }}>{t('lastUpdate')} {new Date().toLocaleTimeString('ar-SA')}</span>
+          <span style={{ fontSize: 8, color: T.text3, fontFamily: "var(--font-mono)", marginRight: 4 }}>{t('lastUpdate')} {new Date().toLocaleTimeString('ar-SA')}</span>
         </div>
         
         <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
@@ -159,8 +159,8 @@ export default function StrategiesPage() {
               <div>
                 <div style={{ fontSize: 9, color: T.text3, marginBottom: 1, letterSpacing: 0.5 }}>{id.label}</div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{id.val}</span>
-                  <span style={{ fontSize: 9, color: id.color, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" }}>{id.chg}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "var(--font-mono)" }}>{id.val}</span>
+                  <span style={{ fontSize: 9, color: id.color, fontWeight: 600, fontFamily: "var(--font-mono)" }}>{id.chg}</span>
                 </div>
               </div>
             </div>
@@ -217,7 +217,7 @@ export default function StrategiesPage() {
 
             <div style={{ display: 'flex', alignItems: 'center', background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 6, padding: '0 8px', height: 30 }}>
               <Search size={12} color={T.text3} />
-              <input placeholder={t('searchReports')} aria-label={t('searchReports')} style={{ background: 'transparent', border: 'none', color: T.text, fontSize: 11, outline: 'none', padding: '0 8px', width: '100%', fontFamily: "'Cairo', sans-serif" }} />
+              <input placeholder={t('searchReports')} aria-label={t('searchReports')} style={{ background: 'transparent', border: 'none', color: T.text, fontSize: 11, outline: 'none', padding: '0 8px', width: '100%', fontFamily: "var(--font-ar)" }} />
             </div>
           </div>
           
@@ -235,7 +235,7 @@ export default function StrategiesPage() {
                 onMouseLeave={e => { if (activeIdx !== idx) e.currentTarget.style.background = 'transparent'; }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ fontSize: 9, background: T.bg, padding: '2px 6px', borderRadius: 4, color: T.blue, border: `0.5px solid ${T.border}`, fontFamily: "'JetBrains Mono', monospace" }}>{rep.type}</span>
+                  <span style={{ fontSize: 9, background: T.bg, padding: '2px 6px', borderRadius: 4, color: T.blue, border: `0.5px solid ${T.border}`, fontFamily: "var(--font-mono)" }}>{rep.type}</span>
                   <span style={{ fontSize: 9, color: T.text3 }}>{translateDate(rep.date)}</span>
                 </div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: activeIdx === idx ? T.text : T.text2, lineHeight: 1.5 }}>
@@ -265,7 +265,7 @@ export default function StrategiesPage() {
                </button>
 
                <div style={{ display: 'flex', alignItems: 'center', background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 6, padding: '0 10px', height: 30, width: 120 }}>
-                 <span style={{ color: T.text, fontSize: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", flex: 1, textAlign: 'center' }}>{active.symbol}</span>
+                 <span style={{ color: T.text, fontSize: 12, fontWeight: 700, fontFamily: "var(--font-mono)", flex: 1, textAlign: 'center' }}>{active.symbol}</span>
                  <Search size={12} color={T.cyan} />
                </div>
 
@@ -282,7 +282,7 @@ export default function StrategiesPage() {
             {/* Branding Title */}
             <div style={{ textAlign: 'left' }}>
               <h1 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: T.cyan, letterSpacing: 0.5, textShadow: `0 0 10px ${T.cyan}20` }}>{t('strategyReports')}</h1>
-              <div style={{ fontSize: 8, color: T.text3, letterSpacing: 1, fontFamily: "'JetBrains Mono', monospace", marginTop: 2, textTransform: 'uppercase' }}>
+              <div style={{ fontSize: 8, color: T.text3, letterSpacing: 1, fontFamily: "var(--font-mono)", marginTop: 2, textTransform: 'uppercase' }}>
                 {t('branding')}
               </div>
             </div>
@@ -306,8 +306,8 @@ export default function StrategiesPage() {
                    <div style={{ fontSize: 22, fontWeight: 800, color: active.decision.color, textShadow: `0 0 15px ${active.decision.color}20` }}>
                      {active.decision.title}
                    </div>
-                   <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>${active.price}</div>
-                   <div style={{ fontSize: 11, fontWeight: 600, color: active.isUp ? T.green : T.red, display: 'flex', alignItems: 'center', fontFamily: "'JetBrains Mono', monospace" }}>
+                   <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: "var(--font-mono)" }}>${active.price}</div>
+                   <div style={{ fontSize: 11, fontWeight: 600, color: active.isUp ? T.green : T.red, display: 'flex', alignItems: 'center', fontFamily: "var(--font-mono)" }}>
                      {active.isUp ? <TrendingUp size={12} style={{ marginRight: 4 }}/> : <TrendingDown size={12} style={{ marginRight: 4 }}/>} 
                      {active.change}%
                    </div>
@@ -351,7 +351,7 @@ export default function StrategiesPage() {
                   ].map((m, i) => (
                     <div key={i} style={{ background: T.bg2, border: `0.5px solid ${m.alert ? T.red : T.border}`, padding: 10, borderRadius: 6 }}>
                       <div style={{ fontSize: 9, color: T.text3, marginBottom: 2 }}>{m.label}</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: m.alert ? T.red : T.text, fontFamily: "'JetBrains Mono', monospace" }}>{m.val}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: m.alert ? T.red : T.text, fontFamily: "var(--font-mono)" }}>{m.val}</div>
                       <div style={{ fontSize: 8, color: m.alert ? T.red : T.text2, marginTop: 4 }}>{m.desc}</div>
                     </div>
                   ))}
@@ -362,13 +362,13 @@ export default function StrategiesPage() {
               <div style={{ flex: 1, background: T.bg2, border: `0.5px solid ${T.border}`, borderRadius: 8, padding: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
                   <span style={{ fontSize: 11, fontWeight: 600, color: T.text }}>{t('intelligenceValuation')}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: T.blue, fontFamily: "'JetBrains Mono', monospace" }}>${active.risk.fv}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: T.blue, fontFamily: "var(--font-mono)" }}>${active.risk.fv}</span>
                 </div>
                 <div style={{ height: 4, background: T.bg, borderRadius: 2, overflow: 'hidden', position: 'relative', marginTop: 10, border: `0.5px solid ${T.border}` }}>
                   <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${active.risk.ratio}%`, background: `linear-gradient(90deg, ${T.blue}, ${T.cyan})` }} />
                   <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${active.risk.ratio}%`, width: 2, background: '#fff', boxShadow: '0 0 6px #fff' }} />
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 9, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 9, color: T.text3, fontFamily: "var(--font-mono)" }}>
                   <span>{t('undervalued')}</span>
                   <span>{t('premium')}</span>
                 </div>
@@ -390,14 +390,14 @@ export default function StrategiesPage() {
                 <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {active.flow.map((block, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '6px 10px', background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 4 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: T.text3, width: 40, fontFamily: "'JetBrains Mono', monospace" }}>{block.time}</div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: T.text3, width: 40, fontFamily: "var(--font-mono)" }}>{block.time}</div>
                       <div style={{ flex: 1, margin: '0 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
                         <div style={{ flex: 1, height: 3, background: T.bg2, borderRadius: 2, overflow: 'hidden' }}>
                           <div style={{ height: '100%', width: `${block.heat}%`, background: `linear-gradient(90deg, ${block.color}22, ${block.color})` }} />
                         </div>
                         <span style={{ fontSize: 9, fontWeight: 600, color: block.color, width: 60 }}>{block.type}</span>
                       </div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: T.text, fontFamily: "'JetBrains Mono', monospace", width: 70, textAlign: 'left' }}>{block.size}</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: T.text, fontFamily: "var(--font-mono)", width: 70, textAlign: 'left' }}>{block.size}</div>
                     </div>
                   ))}
                 </div>

@@ -341,10 +341,10 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
             🔔
           </div>
           <div>
-            <div style={{ fontSize: 12, color: C.text, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
+            <div style={{ fontSize: 12, color: C.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
               Price Alerts
             </div>
-            <div style={{ fontSize: 9, color: C.textDim, fontFamily: "'JetBrains Mono', monospace" }}>
+            <div style={{ fontSize: 9, color: C.textDim, fontFamily: "var(--font-mono)" }}>
               {symbol} • {alerts.filter(a => a.active && !a.triggered).length} active
             </div>
           </div>
@@ -368,7 +368,7 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
             border: '1px solid rgba(0,212,255,0.25)',
             borderRadius: 6, color: C.cyan,
             fontSize: 10, fontWeight: 700, cursor: 'pointer',
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: "var(--font-mono)",
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
           }}
           title="Set alert at current price"
@@ -383,7 +383,7 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
             border: '1px solid rgba(0,255,163,0.25)',
             borderRadius: 6, color: C.success,
             fontSize: 10, fontWeight: 700, cursor: 'pointer',
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: "var(--font-mono)",
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
           }}
         >
@@ -414,7 +414,7 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
                     border: `1px solid ${newDirection === d ? `${color}40` : C.border}`,
                     borderRadius: 5, color: newDirection === d ? color : C.textDim,
                     fontSize: 9, cursor: 'pointer', fontWeight: 600,
-                    fontFamily: "'JetBrains Mono', monospace",
+                    fontFamily: "var(--font-mono)",
                   }}
                 >
                   {label}
@@ -434,7 +434,7 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
               width: '100%', padding: '7px 10px',
               background: 'rgba(0,0,0,0.3)', border: `1px solid ${C.border}`,
               borderRadius: 5, color: C.text,
-              fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 12, fontFamily: "var(--font-mono)",
               outline: 'none', direction: 'ltr',
             }}
             autoFocus
@@ -451,7 +451,7 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
                 border: '1px solid rgba(0,255,163,0.3)',
                 borderRadius: 6, color: C.success,
                 fontSize: 10, fontWeight: 700, cursor: 'pointer',
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
                 opacity: !newPrice || isNaN(parseFloat(newPrice)) ? 0.4 : 1,
               }}
             >
@@ -465,7 +465,7 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
                 border: `1px solid ${C.border}`,
                 borderRadius: 6, color: C.textDim,
                 fontSize: 10, cursor: 'pointer',
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
               }}
             >
               Cancel
@@ -510,7 +510,7 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
 
                   {/* Alert info */}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 11, color: C.text, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <div style={{ fontSize: 11, color: C.text, fontWeight: 700, fontFamily: "var(--font-mono)", display: 'flex', alignItems: 'center', gap: 4 }}>
                       <span style={{ color }}>{formatPrice(alert.price)}</span>
                       {alert.triggered && (
                         <span style={{ fontSize: 8, color: C.warning, background: 'rgba(251,191,36,0.15)', padding: '1px 4px', borderRadius: 3 }}>
@@ -518,7 +518,7 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: 8, color: C.textMuted, fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>
+                    <div style={{ fontSize: 8, color: C.textMuted, fontFamily: "var(--font-mono)", marginTop: 1 }}>
                       {formatTime(alert.createdAt)} • {alert.direction === 'above' ? 'Above' : 'Below'}
                     </div>
                   </div>
@@ -574,7 +574,7 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
         ) : (
           <div style={{
             textAlign: 'center', color: C.textMuted, fontSize: 10,
-            padding: '24px 0', fontFamily: "'Cairo', sans-serif",
+            padding: '24px 0', fontFamily: "var(--font-ar)",
           }}>
             No price alerts set
             <div style={{ fontSize: 9, marginTop: 4, color: C.textMuted }}>

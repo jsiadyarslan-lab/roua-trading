@@ -68,7 +68,7 @@ export default function AccountMonitoringPage() {
   }
 
   return (
-    <div className="custom-scrollbar" style={{ padding: '32px 24px', fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto' }}>
+    <div className="custom-scrollbar" style={{ padding: '32px 24px', fontFamily: "var(--font-ar)", height: '100%', overflowY: 'auto' }}>
       {/* Demo Disclaimer Banner */}
       <div style={{
         background: `${T.amber}12`, border: `1px solid ${T.amber}35`,
@@ -104,7 +104,7 @@ export default function AccountMonitoringPage() {
             <span style={{
               fontSize: 10, padding: '2px 8px', borderRadius: 20,
               background: `${T.amber}18`, color: T.amber,
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
             }}>DEMO</span>
           </div>
           <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
@@ -117,7 +117,7 @@ export default function AccountMonitoringPage() {
             padding: '8px 20px', borderRadius: 8, fontSize: 13, fontWeight: 800,
             display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
             background: T.surface, color: T.text, border: `1px solid ${T.border}`,
-            transition: 'all 0.2s', fontFamily: "'Cairo', sans-serif",
+            transition: 'all 0.2s', fontFamily: "var(--font-ar)",
           }}
           onMouseEnter={e => { e.currentTarget.style.borderColor = T.cyan; e.currentTarget.style.color = T.cyan }}
           onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.text }}
@@ -142,7 +142,7 @@ export default function AccountMonitoringPage() {
             </div>
             <div>
               <div style={{ fontSize: 11, color: T.text2, marginBottom: 4 }}>{f.label}</div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{f.val}</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)" }}>{f.val}</div>
             </div>
           </div>
         ))}
@@ -162,7 +162,7 @@ export default function AccountMonitoringPage() {
                 background: activeFilter === tab.key ? `${T.cyan}15` : T.surface,
                 border: `1px solid ${activeFilter === tab.key ? `${T.cyan}40` : T.border}`,
                 color: activeFilter === tab.key ? T.cyan : T.text2,
-                transition: 'all 0.2s', fontFamily: "'Cairo', sans-serif",
+                transition: 'all 0.2s', fontFamily: "var(--font-ar)",
               }}
             >
               <tab.icon size={13} /> {tab.label}
@@ -212,22 +212,22 @@ export default function AccountMonitoringPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
                 <div style={{ background: T.surface, padding: 10, borderRadius: 8, textAlign: 'center' }}>
                   <div style={{ fontSize: 9, color: T.text3, marginBottom: 4 }}>{ct('winRateLabel')}</div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: T.green, fontFamily: "'JetBrains Mono', monospace" }}>{trader.winRate}</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: T.green, fontFamily: "var(--font-mono)" }}>{trader.winRate}</div>
                 </div>
                 <div style={{ background: T.surface, padding: 10, borderRadius: 8, textAlign: 'center' }}>
                   <div style={{ fontSize: 9, color: T.text3, marginBottom: 4 }}>{ct('returnLabel')}</div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{trader.profit}</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)" }}>{trader.profit}</div>
                 </div>
                 <div style={{ background: T.surface, padding: 10, borderRadius: 8, textAlign: 'center' }}>
                   <div style={{ fontSize: 9, color: T.text3, marginBottom: 4 }}>{ct('drawdownLabel')}</div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: T.red, fontFamily: "'JetBrains Mono', monospace" }}>{trader.drawdown}</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: T.red, fontFamily: "var(--font-mono)" }}>{trader.drawdown}</div>
                 </div>
               </div>
 
               {/* Footer */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ fontSize: 11, color: T.text2 }}>
-                  {ct('assetsLabel')}: <span style={{ color: T.text, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>{trader.aum}</span>
+                  {ct('assetsLabel')}: <span style={{ color: T.text, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{trader.aum}</span>
                   <span style={{ margin: '0 6px', color: T.text3 }}>·</span>
                   <span>{ct('followersCount', { count: trader.followers })}</span>
                 </div>
@@ -239,7 +239,7 @@ export default function AccountMonitoringPage() {
                     background: isFollowing ? `${T.red}15` : `${T.green}15`,
                     border: `1px solid ${isFollowing ? `${T.red}40` : `${T.green}40`}`,
                     color: isFollowing ? T.red : T.green,
-                    transition: 'all 0.2s', fontFamily: "'Cairo', sans-serif",
+                    transition: 'all 0.2s', fontFamily: "var(--font-ar)",
                   }}
                 >
                   {isFollowing ? ct('unfollow') : ct('follow')} <Eye size={12} />

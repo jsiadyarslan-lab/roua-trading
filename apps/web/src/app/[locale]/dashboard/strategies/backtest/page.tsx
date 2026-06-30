@@ -54,12 +54,12 @@ export default function BacktestPage() {
   const s = result?.summary
 
   return (
-    <div style={{ padding: '24px 28px', direction: 'inherit', fontFamily: "'Cairo', sans-serif", background: T.bg, minHeight: '100vh' }}>
+    <div style={{ padding: '24px 28px', direction: 'inherit', fontFamily: "var(--font-ar)", background: T.bg, minHeight: '100vh' }}>
       {/* Scoped styles via useScopedStyle */}<div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
           <Activity size={22} color={T.purple} />
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: T.text }}>{bt('pageTitle')}</h1>
-          <span style={{ fontSize: 10, padding: '2px 10px', borderRadius: 20, background: `${T.purple}18`, color: T.purple, fontFamily: 'monospace', fontWeight: 700 }}>BACKTESTING ENGINE</span>
+          <span style={{ fontSize: 10, padding: '2px 10px', borderRadius: 20, background: `${T.purple}18`, color: T.purple, fontFamily: "var(--font-mono)", fontWeight: 700 }}>BACKTESTING ENGINE</span>
         </div>
         <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>{bt('pageSubtitle')}</p>
       </div>
@@ -88,7 +88,7 @@ export default function BacktestPage() {
           {/* Symbol + Interval */}
           <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{bt('assetAndTimeframe')}</div>
-            <select value={symbol} onChange={e => setSymbol(e.target.value)} style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 8, color: T.text, fontSize: 13, padding: '8px 10px', fontFamily: 'monospace', fontWeight: 700 }}>
+            <select value={symbol} onChange={e => setSymbol(e.target.value)} style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 8, color: T.text, fontSize: 13, padding: '8px 10px', fontFamily: "var(--font-mono)", fontWeight: 700 }}>
               {SYMBOLS.map(sym => <option key={sym} value={sym}>{sym}</option>)}
             </select>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -111,7 +111,7 @@ export default function BacktestPage() {
                   <div key={p.label} style={{ flex: 1 }}>
                     <label style={{ fontSize: 9, color: T.text2, fontWeight: 700, display: 'block', marginBottom: 4 }}>{p.label}</label>
                     <input type="number" value={p.val} min={2} max={200} onChange={e => p.set(+e.target.value)}
-                      style={{ width: '100%', background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 8, color: T.text, fontSize: 13, padding: '8px', fontFamily: 'monospace', boxSizing: 'border-box' }} />
+                      style={{ width: '100%', background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 8, color: T.text, fontSize: 13, padding: '8px', fontFamily: "var(--font-mono)", boxSizing: 'border-box' }} />
                   </div>
                 ))}
               </div>
@@ -121,7 +121,7 @@ export default function BacktestPage() {
                   <div key={p.label} style={{ flex: 1 }}>
                     <label style={{ fontSize: 9, color: T.text2, fontWeight: 700, display: 'block', marginBottom: 4 }}>{p.label}</label>
                     <input type="number" value={p.val} min={10} max={90} onChange={e => p.set(+e.target.value)}
-                      style={{ width: '100%', background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 8, color: T.text, fontSize: 13, padding: '8px', fontFamily: 'monospace', boxSizing: 'border-box' }} />
+                      style={{ width: '100%', background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 8, color: T.text, fontSize: 13, padding: '8px', fontFamily: "var(--font-mono)", boxSizing: 'border-box' }} />
                   </div>
                 ))}
               </div>
@@ -131,7 +131,7 @@ export default function BacktestPage() {
                 <div key={p.label} style={{ flex: 1 }}>
                   <label style={{ fontSize: 9, color: T.text2, fontWeight: 700, display: 'block', marginBottom: 4 }}>{p.label}</label>
                   <input type="number" value={p.val} min={p.min} step={p.min} onChange={e => p.set(+e.target.value)}
-                    style={{ width: '100%', background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 8, color: T.text, fontSize: 13, padding: '8px', fontFamily: 'monospace', boxSizing: 'border-box' }} />
+                    style={{ width: '100%', background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 8, color: T.text, fontSize: 13, padding: '8px', fontFamily: "var(--font-mono)", boxSizing: 'border-box' }} />
                 </div>
               ))}
             </div>
@@ -141,7 +141,7 @@ export default function BacktestPage() {
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             height: 48, borderRadius: 12, border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
             background: loading ? `${T.purple}40` : `linear-gradient(135deg, ${T.purple}, ${T.blue})`,
-            color: '#fff', fontSize: 14, fontWeight: 900, fontFamily: "'Cairo', sans-serif",
+            color: '#fff', fontSize: 14, fontWeight: 900, fontFamily: "var(--font-ar)",
           }}>
             {loading ? <><div style={{ width: 16, height: 16, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> {bt('testing')}</> : <><Play size={16} fill="white" /> {bt('runTest')}</>}
           </button>
@@ -175,7 +175,7 @@ export default function BacktestPage() {
                 ].map(kpi => (
                   <div key={kpi.label} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: '14px 16px', textAlign: 'center' }}>
                     <div style={{ fontSize: 20, marginBottom: 4 }}>{kpi.icon}</div>
-                    <div style={{ fontSize: 16, fontWeight: 900, color: kpi.color, fontFamily: 'monospace' }}>{kpi.value}</div>
+                    <div style={{ fontSize: 16, fontWeight: 900, color: kpi.color, fontFamily: "var(--font-mono)" }}>{kpi.value}</div>
                     <div style={{ fontSize: 9, color: T.text2, fontWeight: 700, marginTop: 4 }}>{kpi.label}</div>
                   </div>
                 ))}
@@ -198,7 +198,7 @@ export default function BacktestPage() {
                   <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: 16 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                       <span style={{ fontSize: 12, fontWeight: 800, color: T.text }}>{bt('equityCurveTitle')}</span>
-                      <span style={{ fontSize: 11, color: lineColor, fontFamily: 'monospace', fontWeight: 800 }}>
+                      <span style={{ fontSize: 11, color: lineColor, fontFamily: "var(--font-mono)", fontWeight: 800 }}>
                         ${s.finalEquity.toLocaleString('en', { maximumFractionDigits: 0 })}
                       </span>
                     </div>
@@ -235,12 +235,12 @@ export default function BacktestPage() {
                       <tbody>
                         {result.trades.slice().reverse().map((trade: any, i: number) => (
                           <tr key={`${trade.entry}-${trade.exit}-${i}`} style={{ borderTop: `1px solid ${T.border}` }}>
-                            <td style={{ padding: '8px 12px', color: T.text, fontFamily: 'monospace' }}>${trade.entry.toFixed(2)}</td>
-                            <td style={{ padding: '8px 12px', color: T.text, fontFamily: 'monospace' }}>${trade.exit.toFixed(2)}</td>
-                            <td style={{ padding: '8px 12px', color: trade.isWin ? T.green : T.red, fontFamily: 'monospace', fontWeight: 800 }}>
+                            <td style={{ padding: '8px 12px', color: T.text, fontFamily: "var(--font-mono)" }}>${trade.entry.toFixed(2)}</td>
+                            <td style={{ padding: '8px 12px', color: T.text, fontFamily: "var(--font-mono)" }}>${trade.exit.toFixed(2)}</td>
+                            <td style={{ padding: '8px 12px', color: trade.isWin ? T.green : T.red, fontFamily: "var(--font-mono)", fontWeight: 800 }}>
                               {trade.isWin ? '+' : ''}${trade.pnl.toFixed(2)}
                             </td>
-                            <td style={{ padding: '8px 12px', color: trade.isWin ? T.green : T.red, fontFamily: 'monospace' }}>
+                            <td style={{ padding: '8px 12px', color: trade.isWin ? T.green : T.red, fontFamily: "var(--font-mono)" }}>
                               {trade.pnlPct.toFixed(2)}%
                             </td>
                             <td style={{ padding: '8px 12px' }}>

@@ -85,7 +85,7 @@ export function ChartGridCellHeader({
         }}
         style={{
           background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)',
-          borderRadius: 3, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace",
+          borderRadius: 3, color: '#00D4FF', fontFamily: "var(--font-mono)",
           fontSize: 10, fontWeight: 700, padding: '1px 4px', cursor: 'pointer',
           outline: 'none', maxWidth: 95, flexShrink: 0,
         }}
@@ -108,7 +108,7 @@ export function ChartGridCellHeader({
                 background: active ? 'rgba(0,212,255,0.15)' : 'transparent',
                 border: active ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent',
                 borderRadius: 2, color: active ? '#00D4FF' : '#4B5563',
-                fontFamily: "'JetBrains Mono', monospace", fontSize: 8,
+                fontFamily: "var(--font-mono)", fontSize: 8,
                 fontWeight: active ? 700 : 500, padding: '0 3px', height: 18,
                 cursor: 'pointer', whiteSpace: 'nowrap',
               }}

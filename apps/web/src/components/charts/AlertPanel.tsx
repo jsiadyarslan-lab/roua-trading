@@ -109,10 +109,10 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
             🔔
           </div>
           <div>
-            <div style={{ fontSize: 12, color: C.text, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
+            <div style={{ fontSize: 12, color: C.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
               {tc('alerts')}
             </div>
-            <div style={{ fontSize: 9, color: C.textDim, fontFamily: "'JetBrains Mono', monospace" }}>
+            <div style={{ fontSize: 9, color: C.textDim, fontFamily: "var(--font-mono)" }}>
               {symbol} • {alerts.filter(a => a.active).length} {tc('active')}
             </div>
           </div>
@@ -137,7 +137,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
               border: '1px solid rgba(0,212,255,0.25)',
               borderRadius: 8, color: C.cyan,
               fontSize: 11, fontWeight: 700, cursor: 'pointer',
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
               transition: 'all 0.15s ease',
             }}
@@ -163,7 +163,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
                     border: `1px solid ${newType === t ? `${TYPE_COLORS[t]}40` : C.border}`,
                     borderRadius: 4, color: newType === t ? TYPE_COLORS[t] : C.textDim,
                     fontSize: 9, padding: '3px 6px', cursor: 'pointer',
-                    fontFamily: "'Cairo', sans-serif",
+                    fontFamily: "var(--font-ar)",
                   }}
                 >
                   {ALERT_TYPE_ICONS[t]} {tc(ALERT_TYPE_LABELS[t])}
@@ -181,7 +181,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
                     background: newDirection === d ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.03)',
                     border: `1px solid ${newDirection === d ? 'rgba(0,212,255,0.25)' : C.border}`,
                     borderRadius: 4, color: newDirection === d ? C.cyan : C.textDim,
-                    fontSize: 10, cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
+                    fontSize: 10, cursor: 'pointer', fontFamily: "var(--font-ar)",
                   }}>
                     {label}
                   </button>
@@ -199,7 +199,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
                 width: '100%', padding: '6px 8px',
                 background: 'rgba(0,0,0,0.3)', border: `1px solid ${C.border}`,
                 borderRadius: 5, color: C.text,
-                fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 11, fontFamily: "var(--font-mono)",
                 outline: 'none', direction: 'ltr',
               }}
             />
@@ -214,7 +214,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
                   border: '1px solid rgba(0,255,163,0.3)',
                   borderRadius: 6, color: C.success,
                   fontSize: 10, fontWeight: 700, cursor: 'pointer',
-                  fontFamily: "'Cairo', sans-serif",
+                  fontFamily: "var(--font-ar)",
                 }}
               >
                 {tc('create')}
@@ -227,7 +227,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
                   border: `1px solid ${C.border}`,
                   borderRadius: 6, color: C.textDim,
                   fontSize: 10, cursor: 'pointer',
-                  fontFamily: "'Cairo', sans-serif",
+                  fontFamily: "var(--font-ar)",
                 }}
               >
                 {tc('cancel')}
@@ -261,10 +261,10 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
                     {ALERT_TYPE_ICONS[alert.type]}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 10, color: C.text, fontWeight: 600, fontFamily: "'Cairo', sans-serif" }}>
+                    <div style={{ fontSize: 10, color: C.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>
                       {alert.labelAr}
                     </div>
-                    <div style={{ fontSize: 8, color: C.textMuted, fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>
+                    <div style={{ fontSize: 8, color: C.textMuted, fontFamily: "var(--font-mono)", marginTop: 1 }}>
                       {formatTime(alert.createdAt)} • {tc(ALERT_TYPE_LABELS[alert.type])}
                     </div>
                   </div>
@@ -302,7 +302,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
         ) : (
           <div style={{
             textAlign: 'center', color: C.textMuted, fontSize: 10,
-            padding: '24px 0', fontFamily: "'Cairo', sans-serif",
+            padding: '24px 0', fontFamily: "var(--font-ar)",
           }}>
             {tc('noAlerts')}
           </div>

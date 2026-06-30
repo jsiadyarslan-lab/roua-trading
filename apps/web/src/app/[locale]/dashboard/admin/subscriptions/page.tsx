@@ -174,10 +174,10 @@ export default function AdminSubscriptionsPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif", margin: 0 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", margin: 0 }}>
             إدارة الاشتراكات
           </h1>
-          <p style={{ fontSize: 12, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", margin: '4px 0 0' }}>
+          <p style={{ fontSize: 12, color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '4px 0 0' }}>
             إحصائيات المستويات والتسجيلات والاشتراكات
           </p>
         </div>
@@ -188,7 +188,7 @@ export default function AdminSubscriptionsPage() {
             padding: '8px 16px', borderRadius: 8,
             border: `1px solid ${COLORS.border}`, background: 'rgba(0,229,255,0.06)',
             color: COLORS.accent, fontSize: 12, fontWeight: 600,
-            fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+            fontFamily: "var(--font-ar)", cursor: 'pointer',
             transition: 'all 0.2s',
           }}
         >
@@ -205,7 +205,7 @@ export default function AdminSubscriptionsPage() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <AlertCircle size={16} color={COLORS.danger} />
-            <span style={{ fontSize: 12, color: COLORS.danger, fontFamily: "'Cairo', sans-serif" }}>
+            <span style={{ fontSize: 12, color: COLORS.danger, fontFamily: "var(--font-ar)" }}>
               {error}
             </span>
           </div>
@@ -215,7 +215,7 @@ export default function AdminSubscriptionsPage() {
               padding: '4px 10px', borderRadius: 6,
               border: `1px solid ${COLORS.danger}40`, background: `${COLORS.danger}10`,
               color: COLORS.danger, fontSize: 10, fontWeight: 600,
-              fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+              fontFamily: "var(--font-ar)", cursor: 'pointer',
             }}
           >
             إعادة المحاولة
@@ -254,17 +254,17 @@ export default function AdminSubscriptionsPage() {
                 </div>
                 <span style={{
                   fontSize: 9, fontWeight: 700, color: tier.color,
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontFamily: "var(--font-mono)",
                   padding: '2px 6px', borderRadius: 4,
                   background: `${tier.color}10`, border: `1px solid ${tier.color}20`,
                 }}>
                   {pct}%
                 </span>
               </div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: COLORS.text, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1 }}>
+              <div style={{ fontSize: 26, fontWeight: 800, color: COLORS.text, fontFamily: "var(--font-mono)", lineHeight: 1 }}>
                 {loading ? '—' : count}
               </div>
-              <div style={{ fontSize: 11, color: tier.color, fontFamily: "'Cairo', sans-serif", marginTop: 4, fontWeight: 600 }}>
+              <div style={{ fontSize: 11, color: tier.color, fontFamily: "var(--font-ar)", marginTop: 4, fontWeight: 600 }}>
                 {tier.label}
               </div>
             </div>
@@ -282,7 +282,7 @@ export default function AdminSubscriptionsPage() {
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
             <Users size={14} color={COLORS.accent} />
-            <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif" }}>التسجيلات الجديدة</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>التسجيلات الجديدة</span>
           </div>
           <div style={{ padding: 16 }}>
             {/* Tab selector */}
@@ -297,7 +297,7 @@ export default function AdminSubscriptionsPage() {
                     background: regPeriod === period ? `${COLORS.accent}10` : 'transparent',
                     color: regPeriod === period ? COLORS.accent : COLORS.muted,
                     fontSize: 11, fontWeight: 600,
-                    fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+                    fontFamily: "var(--font-ar)", cursor: 'pointer',
                     transition: 'all 0.2s',
                   }}
                 >
@@ -312,10 +312,10 @@ export default function AdminSubscriptionsPage() {
               border: `1px solid ${COLORS.accent}15`,
               textAlign: 'center',
             }}>
-              <div style={{ fontSize: 40, fontWeight: 800, color: COLORS.accent, fontFamily: "'JetBrains Mono', monospace" }}>
+              <div style={{ fontSize: 40, fontWeight: 800, color: COLORS.accent, fontFamily: "var(--font-mono)" }}>
                 {loading ? '—' : (data?.registrations[regPeriodMap[regPeriod]] ?? 0)}
               </div>
-              <div style={{ fontSize: 13, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", marginTop: 6 }}>
+              <div style={{ fontSize: 13, color: COLORS.muted, fontFamily: "var(--font-ar)", marginTop: 6 }}>
                 مستخدم جديد — {regPeriodLabelsAr[regPeriod]}
               </div>
             </div>
@@ -330,7 +330,7 @@ export default function AdminSubscriptionsPage() {
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
             <TrendingDown size={14} color={COLORS.danger} />
-            <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif" }}>معدل الانسحاب</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>معدل الانسحاب</span>
           </div>
           <div style={{ padding: 16 }}>
             {!hasSubscriptionData ? (
@@ -339,7 +339,7 @@ export default function AdminSubscriptionsPage() {
                 background: 'rgba(255,255,255,0.02)',
                 borderRadius: 8, border: `1px solid ${COLORS.border}`,
               }}>
-                <span style={{ fontSize: 12, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>
+                <span style={{ fontSize: 12, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
                   لا توجد بيانات اشتراك بعد
                 </span>
               </div>
@@ -356,11 +356,11 @@ export default function AdminSubscriptionsPage() {
                   <div style={{
                     fontSize: 40, fontWeight: 800,
                     color: (data?.subscriptions.churnRate ?? 0) > 5 ? COLORS.danger : COLORS.success,
-                    fontFamily: "'JetBrains Mono', monospace",
+                    fontFamily: "var(--font-mono)",
                   }}>
                     {loading ? '—' : `${data?.subscriptions.churnRate ?? 0}%`}
                   </div>
-                  <div style={{ fontSize: 13, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", marginTop: 6 }}>
+                  <div style={{ fontSize: 13, color: COLORS.muted, fontFamily: "var(--font-ar)", marginTop: 6 }}>
                     معدل إلغاء الاشتراكات
                   </div>
                 </div>
@@ -371,10 +371,10 @@ export default function AdminSubscriptionsPage() {
                     border: `1px solid ${COLORS.border}`,
                     textAlign: 'center',
                   }}>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.text, fontFamily: "'JetBrains Mono', monospace" }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.text, fontFamily: "var(--font-mono)" }}>
                       {data?.subscriptions.total ?? 0}
                     </div>
-                    <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>إجمالي الاشتراكات</div>
+                    <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>إجمالي الاشتراكات</div>
                   </div>
                   <div style={{
                     flex: 1, padding: 12, borderRadius: 8,
@@ -382,10 +382,10 @@ export default function AdminSubscriptionsPage() {
                     border: `1px solid ${COLORS.border}`,
                     textAlign: 'center',
                   }}>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.danger, fontFamily: "'JetBrains Mono', monospace" }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.danger, fontFamily: "var(--font-mono)" }}>
                       {data?.subscriptions.cancelled ?? 0}
                     </div>
-                    <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>ملغاة</div>
+                    <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>ملغاة</div>
                   </div>
                 </div>
               </>
@@ -402,15 +402,15 @@ export default function AdminSubscriptionsPage() {
           display: 'flex', alignItems: 'center', gap: 8,
         }}>
           <Clock size={14} color={COLORS.amber} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif" }}>نشاط الاشتراكات الأخير</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>نشاط الاشتراكات الأخير</span>
         </div>
         <div style={{ overflowX: 'auto' }}>
           {loading ? (
-            <div style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "'Cairo', sans-serif", fontSize: 12 }}>
+            <div style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 12 }}>
               جارٍ التحميل...
             </div>
           ) : isAllEmpty || !hasRecentChanges ? (
-            <div style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "'Cairo', sans-serif", fontSize: 12 }}>
+            <div style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 12 }}>
               لا توجد بيانات بعد
             </div>
           ) : (
@@ -421,7 +421,7 @@ export default function AdminSubscriptionsPage() {
                     <th key={h} style={{
                       padding: '10px 14px', textAlign: 'right',
                       fontSize: 10, fontWeight: 700, color: COLORS.muted,
-                      fontFamily: "'Cairo', sans-serif", whiteSpace: 'nowrap',
+                      fontFamily: "var(--font-ar)", whiteSpace: 'nowrap',
                     }}>
                       {h}
                     </th>
@@ -440,19 +440,19 @@ export default function AdminSubscriptionsPage() {
                         background: `${getTierColor(sub.tier)}10`,
                         border: `1px solid ${getTierColor(sub.tier)}25`,
                         color: getTierColor(sub.tier), fontSize: 10, fontWeight: 700,
-                        fontFamily: "'Cairo', sans-serif",
+                        fontFamily: "var(--font-ar)",
                       }}>
                         {getTierLabel(sub.tier)}
                       </span>
                     </td>
-                    <td style={{ padding: '10px 14px', color: COLORS.muted, fontFamily: "'Cairo', sans-serif", fontSize: 11 }}>
+                    <td style={{ padding: '10px 14px', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 11 }}>
                       {sub.previousTier ? (
                         <span style={{
                           padding: '2px 8px', borderRadius: 4,
                           background: `${getTierColor(sub.previousTier)}10`,
                           border: `1px solid ${getTierColor(sub.previousTier)}25`,
                           color: getTierColor(sub.previousTier), fontSize: 10, fontWeight: 700,
-                          fontFamily: "'Cairo', sans-serif",
+                          fontFamily: "var(--font-ar)",
                         }}>
                           {getTierLabel(sub.previousTier)}
                         </span>
@@ -462,15 +462,15 @@ export default function AdminSubscriptionsPage() {
                       <span style={{
                         fontSize: 10, fontWeight: 700,
                         color: sub.status === 'active' ? COLORS.success : sub.status === 'cancelled' ? COLORS.danger : COLORS.amber,
-                        fontFamily: "'Cairo', sans-serif",
+                        fontFamily: "var(--font-ar)",
                       }}>
                         {sub.status === 'active' ? 'نشط' : sub.status === 'cancelled' ? 'ملغي' : sub.status === 'expired' ? 'منتهي' : sub.status}
                       </span>
                     </td>
-                    <td style={{ padding: '10px 14px', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: COLORS.text }}>
+                    <td style={{ padding: '10px 14px', fontFamily: "var(--font-mono)", fontSize: 11, color: COLORS.text }}>
                       {sub.amount ? `$${sub.amount}` : '—'}
                     </td>
-                    <td style={{ padding: '10px 14px', fontSize: 10, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>
+                    <td style={{ padding: '10px 14px', fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
                       {formatDate(sub.createdAt)}
                     </td>
                   </tr>
@@ -488,7 +488,7 @@ export default function AdminSubscriptionsPage() {
           background: 'rgba(255,255,255,0.02)',
           borderRadius: 8, border: `1px solid ${COLORS.border}`,
         }}>
-          <span style={{ fontSize: 13, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>
+          <span style={{ fontSize: 13, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
             لا توجد بيانات بعد
           </span>
         </div>

@@ -119,7 +119,7 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
           fontSize: 11,
           color: COLORS.text,
           fontWeight: 700,
-          fontFamily: "'Cairo', sans-serif",
+          fontFamily: "var(--font-ar)",
         }}>
           {tc('settings')} {config?.label || indicator.key}
         </span>
@@ -141,7 +141,7 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
             fontSize: 9,
             color: COLORS.textMuted,
             marginBottom: 3,
-            fontFamily: "'Cairo', sans-serif",
+            fontFamily: "var(--font-ar)",
           }}>
             {paramLabels[key] || key}
             {constraint && <span style={{ fontSize: 8, color: COLORS.textMuted, marginRight: 4 }}>({constraint.min}–{constraint.max})</span>}
@@ -166,7 +166,7 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
               borderRadius: 4,
               color: COLORS.text,
               fontSize: 11,
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
               outline: 'none',
             }}
           />
@@ -181,7 +181,7 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
           fontSize: 9,
           color: COLORS.textMuted,
           marginBottom: 3,
-          fontFamily: "'Cairo', sans-serif",
+          fontFamily: "var(--font-ar)",
         }}>
           {tc('color')}
         </label>
@@ -192,7 +192,7 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
             onChange={e => setColor(e.target.value)}
             style={{ width: 28, height: 22, padding: 0, border: 'none', borderRadius: 4, cursor: 'pointer' }}
           />
-          <span style={{ fontSize: 10, color: COLORS.textSecondary, fontFamily: "'JetBrains Mono', monospace" }}>
+          <span style={{ fontSize: 10, color: COLORS.textSecondary, fontFamily: "var(--font-mono)" }}>
             {color}
           </span>
         </div>
@@ -205,7 +205,7 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
           fontSize: 9,
           color: COLORS.textMuted,
           marginBottom: 3,
-          fontFamily: "'Cairo', sans-serif",
+          fontFamily: "var(--font-ar)",
         }}>
           {tc('opacity')}: {Math.round(opacity * 100)}%
         </label>
@@ -233,7 +233,7 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
           fontSize: 11,
           fontWeight: 700,
           cursor: 'pointer',
-          fontFamily: "'Cairo', sans-serif",
+          fontFamily: "var(--font-ar)",
           transition: 'all 0.15s',
         }}
       >

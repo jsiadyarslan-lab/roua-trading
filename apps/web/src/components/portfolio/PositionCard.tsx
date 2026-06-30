@@ -138,7 +138,7 @@ export function PositionCard({
             fontSize: 10,
             fontWeight: 800,
             color: T.text,
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: "var(--font-mono)",
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
@@ -151,7 +151,7 @@ export function PositionCard({
             fontSize: 7,
             fontWeight: 700,
             color: sideColor,
-            fontFamily: "'Cairo', sans-serif",
+            fontFamily: "var(--font-ar)",
           }}
         >
           {sideLabel} × {qty}
@@ -173,7 +173,7 @@ export function PositionCard({
             style={{
               fontSize: 7.5,
               color: T.textMuted,
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
             }}
           >
             {tc('entry')}
@@ -182,7 +182,7 @@ export function PositionCard({
             style={{
               fontSize: 9,
               color: T.text2,
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
             }}
           >
             {formatPriceDisplay(avgEntryPrice)}
@@ -193,7 +193,7 @@ export function PositionCard({
             style={{
               fontSize: 7.5,
               color: T.textMuted,
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
             }}
           >
             {tPortfolio('current')}
@@ -203,7 +203,7 @@ export function PositionCard({
               fontSize: 9,
               color: T.text,
               fontWeight: 700,
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
             }}
           >
             {formatPriceDisplay(currentPrice)}
@@ -227,7 +227,7 @@ export function PositionCard({
               fontSize: 9,
               fontWeight: 800,
               color: pnlColor,
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
             }}
           >
             {unrealizedPnl > 0 ? '+' : ''}{Number(unrealizedPnl).toFixed(2)}
@@ -237,7 +237,7 @@ export function PositionCard({
               fontSize: 7,
               fontWeight: 700,
               color: pnlColor,
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
             }}
           >
             {pnlPct > 0 ? '+' : ''}{pnlPct.toFixed(1)}%
@@ -276,7 +276,7 @@ export function PositionCard({
                 border: '1px solid rgba(255,71,87,0.3)',
                 background: 'rgba(255,71,87,0.08)',
                 color: T.red,
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "var(--font-mono)",
                 outline: 'none',
               }}
               onBlur={() => setEditingSl(false)}
@@ -301,7 +301,7 @@ export function PositionCard({
               color: effectiveSl ? T.red : 'rgba(255,71,87,0.5)',
               fontSize: 7,
               fontWeight: 700,
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -341,7 +341,7 @@ export function PositionCard({
                 border: '1px solid rgba(0,255,163,0.3)',
                 background: 'rgba(0,255,163,0.08)',
                 color: T.green,
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "var(--font-mono)",
                 outline: 'none',
               }}
               onBlur={() => setEditingTp(false)}
@@ -366,7 +366,7 @@ export function PositionCard({
               color: effectiveTp ? T.green : 'rgba(0,255,163,0.5)',
               fontSize: 7,
               fontWeight: 700,
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -406,7 +406,7 @@ export function PositionCard({
                   fontSize: 7,
                   fontWeight: 800,
                   cursor: closing || loading ? 'not-allowed' : 'pointer',
-                  fontFamily: "'Cairo', sans-serif",
+                  fontFamily: "var(--font-ar)",
                   opacity: closing || loading ? 0.6 : 1,
                   display: 'flex',
                   alignItems: 'center',

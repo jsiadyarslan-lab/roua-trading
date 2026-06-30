@@ -183,7 +183,7 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
           border: '1px solid rgba(0,212,255,0.25)',
           borderRadius: 5, padding: '3px 8px',
           fontSize: 9, fontWeight: 700, color: C.cyan,
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "var(--font-mono)",
           flexShrink: 0,
         }}>
           ⏪ {t('replay')}
@@ -271,7 +271,7 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
                 border: `1px solid ${speed === s.value ? 'rgba(0,212,255,0.3)' : 'transparent'}`,
                 borderRadius: 3, color: speed === s.value ? C.cyan : C.textDim,
                 fontSize: 8, fontWeight: speed === s.value ? 700 : 500,
-                cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace",
+                cursor: 'pointer', fontFamily: "var(--font-mono)",
                 transition: 'all 0.1s ease',
               }}
             >
@@ -284,7 +284,7 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
         {currentCandle && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
-            fontSize: 9, fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 9, fontFamily: "var(--font-mono)",
             color: C.textDim, flexShrink: 0,
           }}>
             <span style={{ color: C.cyan }}>{formatDateTime(currentCandle.time)}</span>
@@ -301,7 +301,7 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
 
         {/* Bar counter */}
         <div style={{
-          fontSize: 9, fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 9, fontFamily: "var(--font-mono)",
           color: C.textMuted, flexShrink: 0,
         }}>
           {replayIndex}/{totalCandles}

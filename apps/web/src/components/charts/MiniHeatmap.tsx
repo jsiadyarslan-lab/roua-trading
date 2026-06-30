@@ -186,10 +186,10 @@ export function MiniHeatmap({ selectedSymbol, onSelectSymbol, onClose }: MiniHea
             🔲
           </div>
           <div>
-            <div style={{ fontSize: 12, color: C.text, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
+            <div style={{ fontSize: 12, color: C.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
               Heatmap
             </div>
-            <div style={{ fontSize: 9, color: C.textDim, fontFamily: "'JetBrains Mono', monospace" }}>
+            <div style={{ fontSize: 9, color: C.textDim, fontFamily: "var(--font-mono)" }}>
               {items.length} symbols • {activeAlertCount} hot
             </div>
           </div>
@@ -219,7 +219,7 @@ export function MiniHeatmap({ selectedSymbol, onSelectSymbol, onClose }: MiniHea
               border: `1px solid ${sortMode === s.mode ? 'rgba(0,212,255,0.25)' : C.border}`,
               borderRadius: 4, color: sortMode === s.mode ? C.cyan : C.textDim,
               fontSize: 8, fontWeight: sortMode === s.mode ? 700 : 500,
-              cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace",
+              cursor: 'pointer', fontFamily: "var(--font-mono)",
             }}
           >
             {s.label}
@@ -293,7 +293,7 @@ export function MiniHeatmap({ selectedSymbol, onSelectSymbol, onClose }: MiniHea
                 fontSize: 9,
                 fontWeight: 700,
                 color: isSelected ? C.cyan : C.text,
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "var(--font-mono)",
                 lineHeight: 1.2,
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
@@ -308,7 +308,7 @@ export function MiniHeatmap({ selectedSymbol, onSelectSymbol, onClose }: MiniHea
                 fontSize: 10,
                 fontWeight: 900,
                 color: textColor,
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "var(--font-mono)",
                 lineHeight: 1.3,
               }}>
                 {item.change >= 0 ? '+' : ''}{item.change.toFixed(2)}%
@@ -337,7 +337,7 @@ export function MiniHeatmap({ selectedSymbol, onSelectSymbol, onClose }: MiniHea
         justifyContent: 'center',
         gap: 12,
         fontSize: 8,
-        fontFamily: "'JetBrains Mono', monospace",
+        fontFamily: "var(--font-mono)",
         color: C.textMuted,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>

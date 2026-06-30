@@ -754,11 +754,11 @@ export function AIPatternPanel({
             🤖
           </div>
           <div>
-            <div style={{ fontSize: 12, color: C.text, fontWeight: 700, fontFamily: "'Cairo', sans-serif", lineHeight: 1.2 }}>
+            <div style={{ fontSize: 12, color: C.text, fontWeight: 700, fontFamily: "var(--font-ar)", lineHeight: 1.2 }}>
               {t('aiAnalysis')}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ fontSize: 9, color: C.cyan, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, letterSpacing: 0.4 }}>
+              <span style={{ fontSize: 9, color: C.cyan, fontFamily: "var(--font-mono)", fontWeight: 600, letterSpacing: 0.4 }}>
                 {symbol}
               </span>
               {/* FIX: Source badge — shows whether results are from AI or local detection */}
@@ -811,7 +811,7 @@ export function AIPatternPanel({
             fontSize: 11,
             fontWeight: 700,
             cursor: loading ? 'wait' : 'pointer',
-            fontFamily: "'Cairo', sans-serif",
+            fontFamily: "var(--font-ar)",
             transition: 'all 0.2s ease',
             display: 'flex',
             alignItems: 'center',
@@ -852,7 +852,7 @@ export function AIPatternPanel({
             fontSize: 11,
             fontWeight: 700,
             cursor: entryLoading ? 'wait' : 'pointer',
-            fontFamily: "'Cairo', sans-serif",
+            fontFamily: "var(--font-ar)",
             transition: 'all 0.2s ease',
             display: 'flex',
             alignItems: 'center',
@@ -888,7 +888,7 @@ export function AIPatternPanel({
           borderRadius: 7,
           color: C.danger,
           fontSize: 10,
-          fontFamily: "'Cairo', sans-serif",
+          fontFamily: "var(--font-ar)",
         }}>
           {error}
         </div>
@@ -915,7 +915,7 @@ export function AIPatternPanel({
                 fontSize: 9,
                 fontWeight: activeTab === tab.key ? 700 : 400,
                 cursor: 'pointer',
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
                 transition: 'all 0.15s ease',
                 display: 'flex',
                 alignItems: 'center',
@@ -927,7 +927,7 @@ export function AIPatternPanel({
               {tab.label}
               {tab.count > 0 && (
                 <span style={{
-                  fontSize: 8, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 8, fontWeight: 800, fontFamily: "var(--font-mono)",
                   color: activeTab === tab.key ? C.cyan : C.textMuted,
                   background: activeTab === tab.key ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.04)',
                   padding: '1px 4px', borderRadius: 3, minWidth: 14, textAlign: 'center',
@@ -988,7 +988,7 @@ export function AIPatternPanel({
                         border: `1px solid ${dirColor}25`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: 11, fontWeight: 900, color: dirColor,
-                        fontFamily: "'JetBrains Mono', monospace",
+                        fontFamily: "var(--font-mono)",
                         flexShrink: 0,
                       }}>
                         {PATTERN_ICONS[p.direction] || '◆'}
@@ -996,13 +996,13 @@ export function AIPatternPanel({
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{
                           fontSize: 11, color: C.text, fontWeight: 600,
-                          fontFamily: "'Cairo', sans-serif", lineHeight: 1.3,
+                          fontFamily: "var(--font-ar)", lineHeight: 1.3,
                           display: 'flex', alignItems: 'center', gap: 4,
                         }}>
                           {t(PATTERN_KEYS[p.type] || p.type)}
                           <span style={{
                             fontSize: 8, color: C.textMuted, fontWeight: 400,
-                            fontFamily: "'JetBrains Mono', monospace",
+                            fontFamily: "var(--font-mono)",
                           }}>
                             {p.type}
                           </span>
@@ -1019,7 +1019,7 @@ export function AIPatternPanel({
                         </div>
                         <div style={{
                           fontSize: 9, color: C.textDim, fontWeight: 400,
-                          fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.4,
+                          fontFamily: "var(--font-mono)", lineHeight: 1.4,
                           display: 'flex', alignItems: 'center', gap: 6, marginTop: 1,
                         }}>
                           <span>{new Date(p.time * 1000).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })}</span>
@@ -1047,7 +1047,7 @@ export function AIPatternPanel({
             ) : (
               <div style={{
                 textAlign: 'center', color: C.textMuted, fontSize: 10,
-                padding: '20px 0', fontFamily: "'Cairo', sans-serif",
+                padding: '20px 0', fontFamily: "var(--font-ar)",
               }}>
                 {t('pressAnalyzeToStart')}
               </div>
@@ -1100,7 +1100,7 @@ export function AIPatternPanel({
                         border: `1px solid ${color}25`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: 10, fontWeight: 900, color,
-                        fontFamily: "'JetBrains Mono', monospace",
+                        fontFamily: "var(--font-mono)",
                         flexShrink: 0,
                       }}>
                         {isSupport ? 'S' : 'R'}
@@ -1108,19 +1108,19 @@ export function AIPatternPanel({
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{
                           fontSize: 11, color: C.text, fontWeight: 600,
-                          fontFamily: "'Cairo', sans-serif", lineHeight: 1.3,
+                          fontFamily: "var(--font-ar)", lineHeight: 1.3,
                         }}>
                           {isSupport ? t('support') : t('resistance')}
                           <span style={{
                             fontSize: 8, color: C.textMuted, fontWeight: 400,
-                            fontFamily: "'JetBrains Mono', monospace", marginRight: 4,
+                            fontFamily: "var(--font-mono)", marginRight: 4,
                           }}>
                             ({strengthLabel})
                           </span>
                         </div>
                         <div style={{
                           fontSize: 10, color: C.textDim, fontWeight: 600,
-                          fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.4, marginTop: 1,
+                          fontFamily: "var(--font-mono)", lineHeight: 1.4, marginTop: 1,
                         }}>
                           {level.price.toFixed(level.price > 1000 ? 2 : 5)}
                         </div>
@@ -1140,7 +1140,7 @@ export function AIPatternPanel({
             ) : (
               <div style={{
                 textAlign: 'center', color: C.textMuted, fontSize: 10,
-                padding: '20px 0', fontFamily: "'Cairo', sans-serif",
+                padding: '20px 0', fontFamily: "var(--font-ar)",
               }}>
                 {t('pressAnalyzeToStart')}
               </div>
@@ -1194,9 +1194,9 @@ export function AIPatternPanel({
                         {isAsc ? '↗' : '↘'}
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11, color: C.text, fontWeight: 600, fontFamily: "'Cairo', sans-serif" }}>
+                        <div style={{ fontSize: 11, color: C.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>
                           {isAsc ? t('ascendingTrend') : t('descendingTrend')}
-                          <span style={{ fontSize: 8, color: C.textMuted, fontWeight: 400, fontFamily: "'JetBrains Mono', monospace", marginRight: 4 }}>
+                          <span style={{ fontSize: 8, color: C.textMuted, fontWeight: 400, fontFamily: "var(--font-mono)", marginRight: 4 }}>
                             ({strengthLabel})
                           </span>
                           <span style={{
@@ -1207,7 +1207,7 @@ export function AIPatternPanel({
                             ✓ {t('draw')}
                           </span>
                         </div>
-                        <div style={{ fontSize: 9, color: C.textDim, fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>
+                        <div style={{ fontSize: 9, color: C.textDim, fontFamily: "var(--font-mono)", marginTop: 1 }}>
                           {line.startPoint.price.toFixed(line.startPoint.price > 1000 ? 2 : 5)} → {line.endPoint.price.toFixed(line.endPoint.price > 1000 ? 2 : 5)}
                         </div>
                       </div>
@@ -1218,7 +1218,7 @@ export function AIPatternPanel({
             ) : (
               <div style={{
                 textAlign: 'center', color: C.textMuted, fontSize: 10,
-                padding: '20px 0', fontFamily: "'Cairo', sans-serif",
+                padding: '20px 0', fontFamily: "var(--font-ar)",
               }}>
                 {t('pressAnalyzeToStart')}
               </div>
@@ -1241,7 +1241,7 @@ export function AIPatternPanel({
                     background: entryExit.direction === 'long' ? 'rgba(0,255,163,0.12)' : 'rgba(255,71,87,0.12)',
                     border: `1px solid ${entryExit.direction === 'long' ? 'rgba(0,255,163,0.3)' : 'rgba(255,71,87,0.3)'}`,
                     color: entryExit.direction === 'long' ? C.success : C.danger,
-                    fontSize: 14, fontWeight: 900, fontFamily: "'Cairo', sans-serif",
+                    fontSize: 14, fontWeight: 900, fontFamily: "var(--font-ar)",
                     letterSpacing: 1,
                   }}>
                     {entryExit.direction === 'long' ? `▲ ${t('buyLong')}` : `▼ ${t('sellShort')}`}
@@ -1250,7 +1250,7 @@ export function AIPatternPanel({
                     padding: '3px 8px', borderRadius: 4,
                     background: 'rgba(0,212,255,0.1)',
                     color: C.cyan, fontSize: 10, fontWeight: 700,
-                    fontFamily: "'JetBrains Mono', monospace",
+                    fontFamily: "var(--font-mono)",
                   }}>
                     {Math.round(entryExit.confidence * 100)}%
                   </div>
@@ -1280,10 +1280,10 @@ export function AIPatternPanel({
                     <span style={{ color: item.color, fontSize: 12, fontWeight: 900, width: 16, textAlign: 'center' }}>
                       {item.icon}
                     </span>
-                    <span style={{ flex: 1, fontSize: 10, color: C.textDim, fontFamily: "'Cairo', sans-serif" }}>
+                    <span style={{ flex: 1, fontSize: 10, color: C.textDim, fontFamily: "var(--font-ar)" }}>
                       {item.label}
                     </span>
-                    <span style={{ fontSize: 11, color: item.color, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
+                    <span style={{ fontSize: 11, color: item.color, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
                       {item.value > 0 ? item.value.toFixed(item.value > 1000 ? 2 : 5) : '—'}
                     </span>
                   </div>
@@ -1298,15 +1298,15 @@ export function AIPatternPanel({
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                       padding: '6px 0',
                     }}>
-                      <span style={{ fontSize: 9, color: C.textMuted, fontFamily: "'Cairo', sans-serif" }}>{t('riskRewardRatio')}</span>
+                      <span style={{ fontSize: 9, color: C.textMuted, fontFamily: "var(--font-ar)" }}>{t('riskRewardRatio')}</span>
                       <span style={{
                         fontSize: 13, color: rrCalc.ratio >= 2 ? C.success : rrCalc.ratio >= 1 ? C.warning : C.danger,
-                        fontWeight: 900, fontFamily: "'JetBrains Mono', monospace",
+                        fontWeight: 900, fontFamily: "var(--font-mono)",
                       }}>
                         1:{rr}
                       </span>
                       {rrCalc.riskPct > 0 && (
-                        <span style={{ fontSize: 8, color: C.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>
+                        <span style={{ fontSize: 8, color: C.textMuted, fontFamily: "var(--font-mono)" }}>
                           ({rrCalc.riskPct.toFixed(1)}% / +{rrCalc.rewardPct.toFixed(1)}%)
                         </span>
                       )}
@@ -1321,7 +1321,7 @@ export function AIPatternPanel({
                     background: 'rgba(0,212,255,0.04)',
                     border: `1px solid rgba(0,212,255,0.1)`,
                     borderRadius: 6,
-                    fontSize: 10, color: C.textDim, fontFamily: "'Cairo', sans-serif",
+                    fontSize: 10, color: C.textDim, fontFamily: "var(--font-ar)",
                     lineHeight: 1.6,
                   }}>
                     {entryExit.reasonAr}
@@ -1331,7 +1331,7 @@ export function AIPatternPanel({
                 {/* Key levels */}
                 {entryExit.keyLevels && entryExit.keyLevels.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <div style={{ fontSize: 9, color: C.textMuted, fontFamily: "'Cairo', sans-serif", marginBottom: 2 }}>
+                    <div style={{ fontSize: 9, color: C.textMuted, fontFamily: "var(--font-ar)", marginBottom: 2 }}>
                       {t('keyLevels')}
                     </div>
                     {entryExit.keyLevels.map((kl, idx) => (
@@ -1341,11 +1341,11 @@ export function AIPatternPanel({
                         background: 'rgba(255,255,255,0.02)',
                         borderRadius: 4,
                       }}>
-                        <span style={{ fontSize: 8, color: C.textMuted, fontFamily: "'Cairo', sans-serif" }}>
+                        <span style={{ fontSize: 8, color: C.textMuted, fontFamily: "var(--font-ar)" }}>
                           {kl.label}
                         </span>
                         <span style={{ flex: 1 }} />
-                        <span style={{ fontSize: 9, color: C.textDim, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" }}>
+                        <span style={{ fontSize: 9, color: C.textDim, fontWeight: 600, fontFamily: "var(--font-mono)" }}>
                           {kl.price > 0 ? kl.price.toFixed(kl.price > 1000 ? 2 : 5) : '—'}
                         </span>
                       </div>
@@ -1398,7 +1398,7 @@ export function AIPatternPanel({
                       fontSize: 12,
                       fontWeight: 800,
                       cursor: 'pointer',
-                      fontFamily: "'Cairo', sans-serif",
+                      fontFamily: "var(--font-ar)",
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -1420,7 +1420,7 @@ export function AIPatternPanel({
                       {entryExit.direction === 'long' ? t('buy') : t('sell')} @ {entryExit.entryPrice.toFixed(2)}
                     </span>
                   </button>
-                  <div style={{ textAlign: 'center', fontSize: 9, color: C.textDim, marginTop: 6, fontFamily: "'Cairo', sans-serif" }}>
+                  <div style={{ textAlign: 'center', fontSize: 9, color: C.textDim, marginTop: 6, fontFamily: "var(--font-ar)" }}>
                     {t('paperTradeNote')}
                   </div>
                 </div>
@@ -1428,7 +1428,7 @@ export function AIPatternPanel({
             ) : (
               <div style={{
                 textAlign: 'center', color: C.textMuted, fontSize: 10,
-                padding: '20px 0', fontFamily: "'Cairo', sans-serif",
+                padding: '20px 0', fontFamily: "var(--font-ar)",
               }}>
                 {t('pressEntryAnalyzeToStart')}
               </div>
@@ -1444,7 +1444,7 @@ export function AIPatternPanel({
           borderTop: `1px solid ${C.border}`,
           fontSize: 8,
           color: C.textMuted,
-          fontFamily: "'Cairo', sans-serif",
+          fontFamily: "var(--font-ar)",
           textAlign: 'center',
         }}>
           {t('clickToDrawHint')}
@@ -1592,13 +1592,13 @@ export function AIPatternPanel({
               }}>
                 <span style={{ fontSize: 16 }}>{bayesianConsensus.direction === 'bullish' ? '▲' : bayesianConsensus.direction === 'bearish' ? '▼' : '◆'}</span>
                 <span style={{
-                  fontSize: 13, fontWeight: 900, fontFamily: "'Cairo', sans-serif",
+                  fontSize: 13, fontWeight: 900, fontFamily: "var(--font-ar)",
                   color: bayesianConsensus.direction === 'bullish' ? C.success : bayesianConsensus.direction === 'bearish' ? C.danger : C.warning,
                 }}>
                   {bayesianConsensus.direction === 'bullish' ? t('bullish') : bayesianConsensus.direction === 'bearish' ? t('bearish') : t('neutral')}
                 </span>
                 <span style={{
-                  fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 10, fontWeight: 700, fontFamily: "var(--font-mono)",
                   color: C.cyan, background: 'rgba(0,212,255,0.1)', padding: '2px 6px', borderRadius: 4,
                 }}>
                   {Math.round(bayesianConsensus.confidence * 100)}%
@@ -1611,14 +1611,14 @@ export function AIPatternPanel({
                 background: 'rgba(0,0,0,0.2)',
                 borderRadius: 6,
               }}>
-                <div style={{ fontSize: 9, color: C.textMuted, fontFamily: "'Cairo', sans-serif", marginBottom: 4 }}>
+                <div style={{ fontSize: 9, color: C.textMuted, fontFamily: "var(--font-ar)", marginBottom: 4 }}>
                   {t('posteriorDistribution')}
                 </div>
                 <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, marginBottom: 2 }}>
                       <span style={{ color: C.success }}>{t('up')}</span>
-                      <span style={{ color: C.success, fontFamily: "'JetBrains Mono', monospace" }}>{(bayesianConsensus.posteriorBullish * 100).toFixed(1)}%</span>
+                      <span style={{ color: C.success, fontFamily: "var(--font-mono)" }}>{(bayesianConsensus.posteriorBullish * 100).toFixed(1)}%</span>
                     </div>
                     <div style={{ height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
                       <div style={{ width: `${bayesianConsensus.posteriorBullish * 100}%`, height: '100%', background: C.success, borderRadius: 2 }} />
@@ -1629,7 +1629,7 @@ export function AIPatternPanel({
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, marginBottom: 2 }}>
                       <span style={{ color: C.danger }}>{t('down')}</span>
-                      <span style={{ color: C.danger, fontFamily: "'JetBrains Mono', monospace" }}>{(bayesianConsensus.posteriorBearish * 100).toFixed(1)}%</span>
+                      <span style={{ color: C.danger, fontFamily: "var(--font-mono)" }}>{(bayesianConsensus.posteriorBearish * 100).toFixed(1)}%</span>
                     </div>
                     <div style={{ height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
                       <div style={{ width: `${bayesianConsensus.posteriorBearish * 100}%`, height: '100%', background: C.danger, borderRadius: 2 }} />
@@ -1646,12 +1646,12 @@ export function AIPatternPanel({
                   border: '1px solid rgba(0,255,163,0.12)',
                   borderRadius: 6,
                 }}>
-                  <div style={{ fontSize: 9, color: C.success, fontWeight: 700, fontFamily: "'Cairo', sans-serif", marginBottom: 3 }}>
+                  <div style={{ fontSize: 9, color: C.success, fontWeight: 700, fontFamily: "var(--font-ar)", marginBottom: 3 }}>
                     {`🔗 ${t('enhancedSignals')}`}
                   </div>
                   {bayesianConsensus.likelihoods.filter(l => l.likelihoodBull > l.likelihoodBear).map((l, i) => (
-                    <div key={i} style={{ fontSize: 9, color: C.textDim, fontFamily: "'Cairo', sans-serif", marginBottom: 2, lineHeight: 1.4 }}>
-                      • {l.source} <span style={{ color: C.success, fontFamily: "'JetBrains Mono', monospace", fontSize: 8 }}>{(l.likelihoodBull * 100).toFixed(0)}%</span>
+                    <div key={i} style={{ fontSize: 9, color: C.textDim, fontFamily: "var(--font-ar)", marginBottom: 2, lineHeight: 1.4 }}>
+                      • {l.source} <span style={{ color: C.success, fontFamily: "var(--font-mono)", fontSize: 8 }}>{(l.likelihoodBull * 100).toFixed(0)}%</span>
                     </div>
                   ))}
                 </div>
@@ -1665,12 +1665,12 @@ export function AIPatternPanel({
                   border: '1px solid rgba(255,71,87,0.12)',
                   borderRadius: 6,
                 }}>
-                  <div style={{ fontSize: 9, color: C.danger, fontWeight: 700, fontFamily: "'Cairo', sans-serif", marginBottom: 3 }}>
+                  <div style={{ fontSize: 9, color: C.danger, fontWeight: 700, fontFamily: "var(--font-ar)", marginBottom: 3 }}>
                     {`⚠️ ${t('conflictingSignals')}`}
                   </div>
                   {bayesianConsensus.likelihoods.filter(l => l.likelihoodBear > l.likelihoodBull).map((l, i) => (
-                    <div key={i} style={{ fontSize: 9, color: C.textDim, fontFamily: "'Cairo', sans-serif", lineHeight: 1.4 }}>
-                      • {l.source} <span style={{ color: C.danger, fontFamily: "'JetBrains Mono', monospace", fontSize: 8 }}>{(l.likelihoodBear * 100).toFixed(0)}%</span>
+                    <div key={i} style={{ fontSize: 9, color: C.textDim, fontFamily: "var(--font-ar)", lineHeight: 1.4 }}>
+                      • {l.source} <span style={{ color: C.danger, fontFamily: "var(--font-mono)", fontSize: 8 }}>{(l.likelihoodBear * 100).toFixed(0)}%</span>
                     </div>
                   ))}
                 </div>
@@ -1683,13 +1683,13 @@ export function AIPatternPanel({
                   background: 'rgba(0,0,0,0.2)',
                   borderRadius: 6,
                 }}>
-                  <div style={{ fontSize: 9, color: C.textMuted, fontFamily: "'Cairo', sans-serif", marginBottom: 3 }}>
+                  <div style={{ fontSize: 9, color: C.textMuted, fontFamily: "var(--font-ar)", marginBottom: 3 }}>
                     {`📍 ${t('keyLevels')}`}
                   </div>
                   {bayesianConsensus.keyLevels.slice(0, 5).map((kl: any, i: number) => (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0' }}>
-                      <span style={{ fontSize: 9, color: C.textDim, fontFamily: "'Cairo', sans-serif" }}>{kl.label}</span>
-                      <span style={{ fontSize: 9, color: kl.type === 'support' ? C.success : kl.type === 'resistance' ? C.danger : C.cyan, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
+                      <span style={{ fontSize: 9, color: C.textDim, fontFamily: "var(--font-ar)" }}>{kl.label}</span>
+                      <span style={{ fontSize: 9, color: kl.type === 'support' ? C.success : kl.type === 'resistance' ? C.danger : C.cyan, fontFamily: "var(--font-mono)", fontWeight: 600 }}>
                         {kl.price.toFixed(kl.price > 1000 ? 2 : 5)}
                       </span>
                     </div>
@@ -1705,15 +1705,15 @@ export function AIPatternPanel({
                   border: `1px solid ${elliottSMCFusion.direction === 'bullish' ? 'rgba(0,255,163,0.12)' : elliottSMCFusion.direction === 'bearish' ? 'rgba(255,71,87,0.12)' : C.border}'`,
                   borderRadius: 6,
                 }}>
-                  <div style={{ fontSize: 9, color: C.gold, fontWeight: 700, fontFamily: "'Cairo', sans-serif", marginBottom: 3 }}>
+                  <div style={{ fontSize: 9, color: C.gold, fontWeight: 700, fontFamily: "var(--font-ar)", marginBottom: 3 }}>
                     {`⚡ ${t('elliottSmcConfluence')}`}
                   </div>
-                  <div style={{ fontSize: 9, color: C.textDim, fontFamily: "'Cairo', sans-serif", lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 9, color: C.textDim, fontFamily: "var(--font-ar)", lineHeight: 1.5 }}>
                     {elliottSMCFusion.interpretationAr}
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
                     <span style={{ fontSize: 8, color: C.textMuted }}>{t('confluencePoint')}</span>
-                    <span style={{ fontSize: 9, color: C.gold, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
+                    <span style={{ fontSize: 9, color: C.gold, fontFamily: "var(--font-mono)", fontWeight: 700 }}>
                       {elliottSMCFusion.confluenceScore}/100
                     </span>
                   </div>
@@ -1721,7 +1721,7 @@ export function AIPatternPanel({
                   {elliottSMCFusion.confluenceBreakdown.map((cb, i) => (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
                       <span style={{ fontSize: 8, color: C.textMuted }}>{cb.factorAr}</span>
-                      <span style={{ fontSize: 8, color: cb.score >= 15 ? C.success : C.textDim, fontFamily: "'JetBrains Mono', monospace" }}>{cb.score}/25</span>
+                      <span style={{ fontSize: 8, color: cb.score >= 15 ? C.success : C.textDim, fontFamily: "var(--font-mono)" }}>{cb.score}/25</span>
                     </div>
                   ))}
                 </div>
@@ -1735,31 +1735,31 @@ export function AIPatternPanel({
                   border: '1px solid rgba(212,175,55,0.15)',
                   borderRadius: 6,
                 }}>
-                  <div style={{ fontSize: 9, color: C.gold, fontWeight: 700, fontFamily: "'Cairo', sans-serif", marginBottom: 3 }}>
+                  <div style={{ fontSize: 9, color: C.gold, fontWeight: 700, fontFamily: "var(--font-ar)", marginBottom: 3 }}>
                     {`🎯 ${t('adaptiveTPSL')}`}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: 9, color: C.cyan }}>{t('entry')}</span>
-                      <span style={{ fontSize: 9, color: C.cyan, fontFamily: "'JetBrains Mono', monospace" }}>{adaptiveTPSL.entry.toFixed(adaptiveTPSL.entry > 1000 ? 2 : 5)}</span>
+                      <span style={{ fontSize: 9, color: C.cyan, fontFamily: "var(--font-mono)" }}>{adaptiveTPSL.entry.toFixed(adaptiveTPSL.entry > 1000 ? 2 : 5)}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: 9, color: C.danger }}>{t('stopLoss')}</span>
-                      <span style={{ fontSize: 9, color: C.danger, fontFamily: "'JetBrains Mono', monospace" }}>{adaptiveTPSL.stopLoss.toFixed(adaptiveTPSL.stopLoss > 1000 ? 2 : 5)}</span>
+                      <span style={{ fontSize: 9, color: C.danger, fontFamily: "var(--font-mono)" }}>{adaptiveTPSL.stopLoss.toFixed(adaptiveTPSL.stopLoss > 1000 ? 2 : 5)}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: 9, color: C.success }}>{t('takeProfit')}</span>
-                      <span style={{ fontSize: 9, color: C.success, fontFamily: "'JetBrains Mono', monospace" }}>{adaptiveTPSL.takeProfit.toFixed(adaptiveTPSL.takeProfit > 1000 ? 2 : 5)}</span>
+                      <span style={{ fontSize: 9, color: C.success, fontFamily: "var(--font-mono)" }}>{adaptiveTPSL.takeProfit.toFixed(adaptiveTPSL.takeProfit > 1000 ? 2 : 5)}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 3 }}>
                       <span style={{ fontSize: 8, color: C.textMuted }}>RR</span>
-                      <span style={{ fontSize: 9, color: adaptiveTPSL.riskRewardRatio >= 2 ? C.success : C.warning, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
+                      <span style={{ fontSize: 9, color: adaptiveTPSL.riskRewardRatio >= 2 ? C.success : C.warning, fontFamily: "var(--font-mono)", fontWeight: 700 }}>
                         1:{adaptiveTPSL.riskRewardRatio.toFixed(1)}
                       </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: 8, color: C.textMuted }}>{t('volatilityRegime')}</span>
-                      <span style={{ fontSize: 8, color: adaptiveTPSL.regime === 'low' ? C.success : adaptiveTPSL.regime === 'high' ? C.danger : C.warning, fontFamily: "'JetBrains Mono', monospace" }}>
+                      <span style={{ fontSize: 8, color: adaptiveTPSL.regime === 'low' ? C.success : adaptiveTPSL.regime === 'high' ? C.danger : C.warning, fontFamily: "var(--font-mono)" }}>
                         {adaptiveTPSL.regime === 'low' ? t('low') : adaptiveTPSL.regime === 'high' ? t('high') : adaptiveTPSL.regime === 'extreme' ? t('extreme') : t('normal')}
                       </span>
                     </div>
@@ -1774,7 +1774,7 @@ export function AIPatternPanel({
                   background: 'rgba(0,0,0,0.2)',
                   borderRadius: 6,
                 }}>
-                  <div style={{ fontSize: 9, color: C.cyan, fontWeight: 700, fontFamily: "'Cairo', sans-serif", marginBottom: 3 }}>
+                  <div style={{ fontSize: 9, color: C.cyan, fontWeight: 700, fontFamily: "var(--font-ar)", marginBottom: 3 }}>
                     {`🔄 ${t('patternStateMachine')}`}
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -1790,8 +1790,8 @@ export function AIPatternPanel({
                         padding: '2px 6px', background: `${s.color}10`,
                         border: `1px solid ${s.color}25`, borderRadius: 4,
                       }}>
-                        <span style={{ fontSize: 10, color: s.color, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>{s.count}</span>
-                        <span style={{ fontSize: 8, color: C.textDim, fontFamily: "'Cairo', sans-serif" }}>{s.label}</span>
+                        <span style={{ fontSize: 10, color: s.color, fontWeight: 800, fontFamily: "var(--font-mono)" }}>{s.count}</span>
+                        <span style={{ fontSize: 8, color: C.textDim, fontFamily: "var(--font-ar)" }}>{s.label}</span>
                       </div>
                     ))}
                   </div>
@@ -1799,7 +1799,7 @@ export function AIPatternPanel({
                   {stateMachineResult.alerts.filter(a => a.priority === 'critical').length > 0 && (
                     <div style={{ marginTop: 4 }}>
                       {stateMachineResult.alerts.filter(a => a.priority === 'critical').map((a, i) => (
-                        <div key={i} style={{ fontSize: 9, color: C.danger, fontFamily: "'Cairo', sans-serif", lineHeight: 1.4 }}>
+                        <div key={i} style={{ fontSize: 9, color: C.danger, fontFamily: "var(--font-ar)", lineHeight: 1.4 }}>
                           🚨 {a.messageAr}
                         </div>
                       ))}
@@ -1815,7 +1815,7 @@ export function AIPatternPanel({
                   background: 'rgba(0,0,0,0.2)',
                   borderRadius: 6,
                 }}>
-                  <div style={{ fontSize: 9, color: C.gold, fontWeight: 700, fontFamily: "'Cairo', sans-serif", marginBottom: 3 }}>
+                  <div style={{ fontSize: 9, color: C.gold, fontWeight: 700, fontFamily: "var(--font-ar)", marginBottom: 3 }}>
                     {`📈 ${t('historicalPatternPerformance')}`}
                   </div>
                   {patternPerformance.slice(0, 6).map((pp, i) => {
@@ -1825,11 +1825,11 @@ export function AIPatternPanel({
                     const count = typeof pp.totalOccurrences === 'number' ? pp.totalOccurrences : 0;
                     return (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                      <span style={{ fontSize: 9, color: C.textDim, fontFamily: "'Cairo', sans-serif" }}>{pp.patternType}</span>
+                      <span style={{ fontSize: 9, color: C.textDim, fontFamily: "var(--font-ar)" }}>{pp.patternType}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ fontSize: 8, color: C.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>{count} {t('trade')}</span>
+                        <span style={{ fontSize: 8, color: C.textMuted, fontFamily: "var(--font-mono)" }}>{count} {t('trade')}</span>
                         <span style={{
-                          fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace",
+                          fontSize: 9, fontWeight: 700, fontFamily: "var(--font-mono)",
                           color: rate >= 0.6 ? C.success : rate >= 0.4 ? C.warning : C.danger,
                         }}>
                           {(rate * 100).toFixed(0)}%
@@ -1848,18 +1848,18 @@ export function AIPatternPanel({
                   background: 'rgba(0,0,0,0.2)',
                   borderRadius: 6,
                 }}>
-                  <div style={{ fontSize: 9, color: C.textMuted, fontWeight: 700, fontFamily: "'Cairo', sans-serif", marginBottom: 3 }}>
+                  <div style={{ fontSize: 9, color: C.textMuted, fontWeight: 700, fontFamily: "var(--font-ar)", marginBottom: 3 }}>
                     {`🔥 ${t('confidenceMap')}`}
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 8, color: C.textMuted }}>{t('dominantTrend')}</span>
-                    <span style={{ fontSize: 9, color: heatmapData.dominantDirection === 'bullish' ? C.success : heatmapData.dominantDirection === 'bearish' ? C.danger : C.warning, fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>
+                    <span style={{ fontSize: 9, color: heatmapData.dominantDirection === 'bullish' ? C.success : heatmapData.dominantDirection === 'bearish' ? C.danger : C.warning, fontFamily: "var(--font-ar)", fontWeight: 600 }}>
                       {heatmapData.dominantDirection === 'bullish' ? t('bullish') : heatmapData.dominantDirection === 'bearish' ? t('bearish') : t('neutral')}
                     </span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
                     <span style={{ fontSize: 8, color: C.textMuted }}>{t('coverage')}</span>
-                    <span style={{ fontSize: 9, color: C.textDim, fontFamily: "'JetBrains Mono', monospace" }}>{(heatmapData.coverage * 100).toFixed(0)}%</span>
+                    <span style={{ fontSize: 9, color: C.textDim, fontFamily: "var(--font-mono)" }}>{(heatmapData.coverage * 100).toFixed(0)}%</span>
                   </div>
                 </div>
               )}

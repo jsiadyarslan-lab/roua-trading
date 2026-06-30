@@ -83,7 +83,7 @@ export default function CalendarPage() {
   const todayEvents = grouped[t('today')]?.length ?? 0
 
   return (
-    <div style={{ padding: '24px 28px', direction: 'inherit', fontFamily: "'Cairo', sans-serif", minHeight: '100vh', background: T.bg }}>
+    <div style={{ padding: '24px 28px', direction: 'inherit', fontFamily: "var(--font-ar)", minHeight: '100vh', background: T.bg }}>
 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
@@ -94,7 +94,7 @@ export default function CalendarPage() {
               <h1 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: T.text }}>{t('title')}</h1>
               <span style={{
                 fontSize: 10, padding: '2px 10px', borderRadius: 20,
-                background: `${T.amber}18`, color: T.amber, fontFamily: 'monospace', fontWeight: 700,
+                background: `${T.amber}18`, color: T.amber, fontFamily: "var(--font-mono)", fontWeight: 700,
               }}>ECONOMIC CALENDAR</span>
             </div>
             <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
@@ -123,7 +123,7 @@ export default function CalendarPage() {
               display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px',
               background: T.card, border: `1px solid ${T.border}`, borderRadius: 10,
             }}>
-              <span style={{ fontSize: 20, fontWeight: 900, color: s.color, fontFamily: 'monospace' }}>{s.value}</span>
+              <span style={{ fontSize: 20, fontWeight: 900, color: s.color, fontFamily: "var(--font-mono)" }}>{s.value}</span>
               <span style={{ fontSize: 11, color: T.text2, fontWeight: 700 }}>{s.label}</span>
             </div>
           ))}
@@ -147,7 +147,7 @@ export default function CalendarPage() {
               background: currency === c ? `${T.blue}20` : 'transparent',
               color: currency === c ? T.blue : T.text2,
               fontSize: 10, fontWeight: 800, cursor: 'pointer', transition: 'all 0.15s',
-              fontFamily: 'monospace',
+              fontFamily: "var(--font-mono)",
             }}>{c}</button>
           ))}
         </div>
@@ -212,7 +212,7 @@ export default function CalendarPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px' }}>
                     {/* Time */}
                     <div style={{ minWidth: 48, textAlign: 'center' }}>
-                      <div style={{ fontSize: 13, fontWeight: 900, color: T.text, fontFamily: 'monospace' }}>{event.time}</div>
+                      <div style={{ fontSize: 13, fontWeight: 900, color: T.text, fontFamily: "var(--font-mono)" }}>{event.time}</div>
                     </div>
 
                     {/* Impact bullets */}
@@ -220,7 +220,7 @@ export default function CalendarPage() {
 
                     {/* Currency badge */}
                     <span style={{
-                      fontSize: 10, padding: '3px 10px', borderRadius: 20, fontFamily: 'monospace', fontWeight: 900,
+                      fontSize: 10, padding: '3px 10px', borderRadius: 20, fontFamily: "var(--font-mono)", fontWeight: 900,
                       background: `${style.color}15`, color: style.color,
                       border: `1px solid ${style.color}30`, minWidth: 38, textAlign: 'center',
                     }}>{event.currency}</span>
@@ -232,13 +232,13 @@ export default function CalendarPage() {
                     <div style={{ display: 'flex', gap: 12, textAlign: 'center', fontSize: 10, color: T.text2 }}>
                       {event.forecast !== '—' && (
                         <div>
-                          <div style={{ fontWeight: 900, color: T.cyan, fontFamily: 'monospace' }}>{event.forecast}</div>
+                          <div style={{ fontWeight: 900, color: T.cyan, fontFamily: "var(--font-mono)" }}>{event.forecast}</div>
                           <div style={{ fontSize: 8 }}>{t('forecast')}</div>
                         </div>
                       )}
                       {event.previous !== '—' && (
                         <div>
-                          <div style={{ fontWeight: 700, fontFamily: 'monospace' }}>{event.previous}</div>
+                          <div style={{ fontWeight: 700, fontFamily: "var(--font-mono)" }}>{event.previous}</div>
                           <div style={{ fontSize: 8 }}>{t('previous')}</div>
                         </div>
                       )}
@@ -264,7 +264,7 @@ export default function CalendarPage() {
                         </div>
                         {/* Strength bar */}
                         <div style={{ marginRight: 'auto', textAlign: 'center', minWidth: 60 }}>
-                          <div style={{ fontSize: 16, fontWeight: 900, color: style.color, fontFamily: 'monospace' }}>{event.ai.strength}%</div>
+                          <div style={{ fontSize: 16, fontWeight: 900, color: style.color, fontFamily: "var(--font-mono)" }}>{event.ai.strength}%</div>
                           <div style={{ fontSize: 8, color: T.text2 }}>{t('impactStrength')}</div>
                           <div style={{ marginTop: 4, height: 4, background: `${style.color}20`, borderRadius: 2, overflow: 'hidden' }}>
                             <div style={{ height: '100%', width: `${event.ai.strength}%`, background: style.color, borderRadius: 2 }} />
@@ -279,7 +279,7 @@ export default function CalendarPage() {
                           {event.affectedPairs.map((pair: string) => (
                             <span key={pair} style={{
                               fontSize: 10, padding: '2px 8px', borderRadius: 20,
-                              background: `${T.cyan}10`, color: T.cyan, fontFamily: 'monospace', fontWeight: 800,
+                              background: `${T.cyan}10`, color: T.cyan, fontFamily: "var(--font-mono)", fontWeight: 800,
                               border: `1px solid ${T.cyan}25`,
                             }}>{pair}</span>
                           ))}

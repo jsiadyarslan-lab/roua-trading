@@ -243,7 +243,7 @@ export function AlNarratorMini({
             boxShadow: data ? `0 0 12px ${sentimentColor[data.sentiment]}` : 'none',
             animation: isHighConfidence ? 'orb-pulse 2s infinite' : 'none'
           }} />
-          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: 'var(--foreground)', fontWeight: 800 }}>
+          <span style={{ fontFamily: "var(--font-ar)", fontSize: 12, color: 'var(--foreground)', fontWeight: 800 }}>
             {selectedSymbol ? t('whatIsHappening', { symbol: selectedSymbol }) : t('aiInsights')}
           </span>
         </div>
@@ -285,7 +285,7 @@ export function AlNarratorMini({
                <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 700 }}>{t('overallTrend')}</span>
                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   {data.sentiment === 'bullish' ? <TrendingUp size={16} color="var(--success)" /> : <TrendingDown size={16} color="var(--danger)" />}
-                  <span style={{ fontSize: 13, fontWeight: 900, color: sentimentColor[data.sentiment], fontFamily: "'Cairo', sans-serif" }}>
+                  <span style={{ fontSize: 13, fontWeight: 900, color: sentimentColor[data.sentiment], fontFamily: "var(--font-ar)" }}>
                     {data.sentiment === 'bullish' ? t('institutionalBullish') : data.sentiment === 'bearish' ? t('sovereignBearish') : data.sentiment === 'volatile' ? t('sharpVolatility') : t('sidewaysVolatility')}
                   </span>
                </div>
@@ -300,7 +300,7 @@ export function AlNarratorMini({
                   <span style={{
                     fontSize: 13, fontWeight: 900,
                     color: data.risk === 'Low' ? 'var(--success)' : data.risk === 'Medium' ? '#FFB800' : 'var(--danger)',
-                    fontFamily: "'Cairo', sans-serif"
+                    fontFamily: "var(--font-ar)"
                   }}>
                     {data.risk === 'Low' ? t('veryLowRisk') : data.risk === 'Medium' ? t('mediumRisk') : t('highRiskLevel')}
                   </span>
@@ -340,7 +340,7 @@ export function AlNarratorMini({
              ].map((step, si) => (
                <div key={si} style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: step.status === 'checked' ? 1 : 0.4 }}>
                   {step.status === 'checked' ? <CheckCircle2 size={12} color="var(--success)" /> : <Activity size={12} className="spinning" />}
-                  <span style={{ fontSize: 10, color: 'var(--text2)', fontFamily: "'Cairo', sans-serif" }}>{step.label}</span>
+                  <span style={{ fontSize: 10, color: 'var(--text2)', fontFamily: "var(--font-ar)" }}>{step.label}</span>
                </div>
              ))}
           </div>}
@@ -379,7 +379,7 @@ export function AlNarratorMini({
             style={{
                flex: 1, cursor: 'pointer', overflow: 'hidden', padding: compact ? '10px' : '12px',
                background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--card-border)', borderRadius: 10,
-               fontSize: 11, color: 'var(--foreground)', lineHeight: 1.6, fontFamily: "'Cairo', sans-serif",
+               fontSize: 11, color: 'var(--foreground)', lineHeight: 1.6, fontFamily: "var(--font-ar)",
                position: 'relative', transition: 'max-height 0.3s'
             }}
           >
@@ -452,7 +452,7 @@ export function AlNarratorMini({
                   flex: 1.5, padding: '8px', borderRadius: 8, border: 'none',
                   fontSize: 11, fontWeight: 800, cursor: recLoading ? 'not-allowed' : 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  fontFamily: "'Cairo', sans-serif",
+                  fontFamily: "var(--font-ar)",
                   opacity: recLoading ? 0.6 : 1,
                }}
              >
@@ -465,7 +465,7 @@ export function AlNarratorMini({
                   background: 'rgba(255,255,255,0.05)',
                   color: 'var(--text)', fontSize: 10, fontWeight: 700, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-                  fontFamily: "'Cairo', sans-serif"
+                  fontFamily: "var(--font-ar)"
                }}
              >
                 <Bell size={12} /> {t('alert')}
@@ -494,7 +494,7 @@ export function AlNarratorMini({
           border: '1px solid rgba(0,229,255,0.3)',
           borderRadius: 10,
           fontSize: 10, color: 'var(--text2)',
-          fontFamily: "'Cairo', sans-serif",
+          fontFamily: "var(--font-ar)",
           direction: 'inherit', lineHeight: 1.6,
           zIndex: 10,
           animation: 'toast-slide-in 0.3s ease',

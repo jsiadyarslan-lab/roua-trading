@@ -47,5 +47,5 @@ export const EMPTY_STATE_STYLE: React.CSSProperties = {
   textAlign: 'center',
   color: COLORS.muted,
   fontSize: 12,
-  fontFamily: "'Cairo', sans-serif",
+  fontFamily: "var(--font-ar)",
 } as const

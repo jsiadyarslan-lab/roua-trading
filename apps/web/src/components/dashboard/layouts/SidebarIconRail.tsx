@@ -275,7 +275,7 @@ export function SidebarIconRail({
                       fontSize: 11,
                       fontWeight: 800,
                       color: tab.accent,
-                      fontFamily: "'Cairo', sans-serif",
+                      fontFamily: "var(--font-ar)",
                       letterSpacing: '0.3px',
                     }}
                   >

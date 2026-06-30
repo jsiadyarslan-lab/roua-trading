@@ -165,7 +165,7 @@ function MiniChartHeader({
         onChange={e => onSymbolChange(e.target.value)}
         style={{
           background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)',
-          borderRadius: 3, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace",
+          borderRadius: 3, color: '#00D4FF', fontFamily: "var(--font-mono)",
           fontSize: 10, fontWeight: 700, padding: '1px 4px', cursor: 'pointer',
           outline: 'none', maxWidth: 90, flexShrink: 0,
         }}
@@ -186,7 +186,7 @@ function MiniChartHeader({
                 background: active ? 'rgba(0,212,255,0.15)' : 'transparent',
                 border: active ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent',
                 borderRadius: 2, color: active ? '#00D4FF' : '#4B5563',
-                fontFamily: "'JetBrains Mono', monospace", fontSize: 8,
+                fontFamily: "var(--font-mono)", fontSize: 8,
                 fontWeight: active ? 700 : 500, padding: '0 3px', height: 18,
                 cursor: 'pointer', whiteSpace: 'nowrap',
               }}
@@ -207,7 +207,7 @@ function MiniChartHeader({
       {candleCountdown && !loading && (
         <span style={{
           color: '#00D4FF', fontSize: 9, fontWeight: 700,
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "var(--font-mono)",
           background: 'rgba(0,212,255,0.08)',
           border: '1px solid rgba(0,212,255,0.15)',
           borderRadius: 3, padding: '0 4px', lineHeight: '16px',
@@ -220,12 +220,12 @@ function MiniChartHeader({
       {currentPrice !== null && !loading && (
         <>
           <span style={{ color: '#F0F2F5', fontSize: 10, fontWeight: 600,
-            fontFamily: "'JetBrains Mono', monospace" }}>
+            fontFamily: "var(--font-mono)" }}>
             {fmtPrice(currentPrice)}
           </span>
           {changePercent !== null && (
             <span style={{ color: isPositive ? '#3fb950' : '#f85149', fontSize: 8, fontWeight: 700,
-              fontFamily: "'JetBrains Mono', monospace", padding: '0 3px', borderRadius: 2,
+              fontFamily: "var(--font-mono)", padding: '0 3px', borderRadius: 2,
               background: isPositive ? 'rgba(63,185,80,0.1)' : 'rgba(248,81,73,0.1)' }}>
               {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
             </span>
@@ -320,7 +320,7 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull, compact }: {
       <div style={{
         background: bgColor,
         color: '#fff',
-        fontFamily: "'JetBrains Mono', monospace",
+        fontFamily: "var(--font-mono)",
         fontSize: 10 * scale,
         fontWeight: 700,
         padding: compact ? '1px 5px' : '1px 7px',
@@ -2997,7 +2997,7 @@ export default function RouaChart({
             }}
             style={{
               background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)',
-              borderRadius: 3, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace",
+              borderRadius: 3, color: '#00D4FF', fontFamily: "var(--font-mono)",
               fontSize: 10, fontWeight: 700, padding: '1px 4px', cursor: 'pointer',
               outline: 'none', maxWidth: 95, flexShrink: 0,
             }}
@@ -3018,7 +3018,7 @@ export default function RouaChart({
                     background: active ? 'rgba(0,212,255,0.15)' : 'transparent',
                     border: active ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent',
                     borderRadius: 2, color: active ? '#00D4FF' : '#4B5563',
-                    fontFamily: "'JetBrains Mono', monospace", fontSize: 8,
+                    fontFamily: "var(--font-mono)", fontSize: 8,
                     fontWeight: active ? 700 : 500, padding: '0 3px', height: 18,
                     cursor: 'pointer', whiteSpace: 'nowrap',
                   }}
@@ -3185,7 +3185,7 @@ export default function RouaChart({
             zIndex: 99999,
             boxShadow: '0 20px 50px rgba(0,0,0,0.8)',
           }}>
-            <div style={{ fontSize: 9, color: '#4B5563', letterSpacing: 1, marginBottom: 8, textAlign: 'center', fontFamily: "'Cairo', sans-serif" }}>
+            <div style={{ fontSize: 9, color: '#4B5563', letterSpacing: 1, marginBottom: 8, textAlign: 'center', fontFamily: "var(--font-ar)" }}>
               تخطيط الشارت
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
@@ -3221,7 +3221,7 @@ export default function RouaChart({
                       color: isActive ? '#00D4FF' : '#8B92A8',
                       fontSize: 10,
                       fontWeight: isActive ? 700 : 500,
-                      fontFamily: "'JetBrains Mono', monospace",
+                      fontFamily: "var(--font-mono)",
                     }}>
                       {m.label}
                     </span>
@@ -3396,7 +3396,7 @@ export default function RouaChart({
                   }}>
                     <span style={{
                       color,
-                      fontFamily: "'JetBrains Mono', monospace",
+                      fontFamily: "var(--font-mono)",
                       fontSize: 10,
                       fontWeight: 800,
                       letterSpacing: 0.5,
@@ -3407,7 +3407,7 @@ export default function RouaChart({
                     {pnlText && (
                       <span style={{
                         color: ov.linePnl !== undefined && ov.linePnl >= 0 ? '#00FFA3' : '#FF4757',
-                        fontFamily: "'JetBrains Mono', monospace",
+                        fontFamily: "var(--font-mono)",
                         fontSize: 10,
                         fontWeight: 700,
                         whiteSpace: 'nowrap',
@@ -3498,7 +3498,7 @@ export default function RouaChart({
                     boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
                     pointerEvents: (chart.activeTool === 'cursor' && !mobile) ? 'auto' : 'none',
                     overflow: 'hidden',
-                    fontFamily: "'JetBrains Mono', monospace",
+                    fontFamily: "var(--font-mono)",
                     backdropFilter: 'blur(10px)',
                   }}
                 >
@@ -3640,7 +3640,7 @@ export default function RouaChart({
                   overflow: 'hidden',
                   pointerEvents: (chart.activeTool === 'cursor' && !mobile) ? 'auto' : 'none',
                   width: 220,
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontFamily: "var(--font-mono)",
                   backdropFilter: 'blur(12px)',
                 }}
               >
@@ -3767,7 +3767,7 @@ export default function RouaChart({
                           border: 'none',
                           fontSize: 11,
                           fontWeight: 700,
-                          fontFamily: "'JetBrains Mono', monospace",
+                          fontFamily: "var(--font-mono)",
                           color: '#FFF',
                           background: 'transparent',
                           outline: 'none',
@@ -3808,7 +3808,7 @@ export default function RouaChart({
                         borderRadius: 4,
                         color: '#FF5252',
                         fontSize: 10,
-                        fontFamily: "'JetBrains Mono', monospace",
+                        fontFamily: "var(--font-mono)",
                         outline: 'none',
                         direction: 'ltr' as const,
                         boxSizing: 'border-box' as const,
@@ -3832,7 +3832,7 @@ export default function RouaChart({
                         borderRadius: 4,
                         color: '#69F0AE',
                         fontSize: 10,
-                        fontFamily: "'JetBrains Mono', monospace",
+                        fontFamily: "var(--font-mono)",
                         outline: 'none',
                         direction: 'ltr' as const,
                         boxSizing: 'border-box' as const,
@@ -4395,7 +4395,7 @@ export default function RouaChart({
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF4757" strokeWidth="2">
             <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
           </svg>
-          <span style={{ fontSize: 12, color: '#FF4757', fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>
+          <span style={{ fontSize: 12, color: '#FF4757', fontFamily: "var(--font-ar)", fontWeight: 700 }}>
             {orderError}
           </span>
         </div>

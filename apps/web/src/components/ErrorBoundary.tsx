@@ -47,7 +47,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
           textAlign: 'center',
           minHeight: '300px',
           direction: 'inherit',
-          fontFamily: "'Cairo', sans-serif",
+          fontFamily: "var(--font-ar)",
         }}>
           <div style={{
             width: 56, height: 56, borderRadius: 14,
@@ -84,7 +84,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               background: 'rgba(10,132,255,0.1)',
               border: '1px solid rgba(10,132,255,0.2)',
               color: '#00C8FF', fontSize: 12, fontWeight: 700,
-              cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
+              cursor: 'pointer', fontFamily: "var(--font-ar)",
               transition: 'all 0.2s',
             }}
           >

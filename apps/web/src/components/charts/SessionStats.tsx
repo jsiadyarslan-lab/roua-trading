@@ -103,8 +103,8 @@ export function SessionStats({ symbol, onClose }: SessionStatsProps) {
 
   const StatItem = ({ label, value, color }: { label: string; value: string; color?: string }) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0' }}>
-      <span style={{ fontSize: 9, color: C.textMuted, fontFamily: "'Cairo', sans-serif" }}>{label}</span>
-      <span style={{ fontSize: 10, color: color || C.text, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>{value}</span>
+      <span style={{ fontSize: 9, color: C.textMuted, fontFamily: "var(--font-ar)" }}>{label}</span>
+      <span style={{ fontSize: 10, color: color || C.text, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{value}</span>
     </div>
   );
 
@@ -129,7 +129,7 @@ export function SessionStats({ symbol, onClose }: SessionStatsProps) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <span style={{ fontSize: 10 }}>⏱️</span>
-          <span style={{ fontSize: 10, color: C.text, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
+          <span style={{ fontSize: 10, color: C.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
             {tc('sessionStats')}
           </span>
         </div>
@@ -168,7 +168,7 @@ export function SessionStats({ symbol, onClose }: SessionStatsProps) {
       }}>
         <span style={{
           fontSize: 18, fontWeight: 900, color: pnlColor,
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "var(--font-mono)",
           textShadow: `0 0 12px ${stats.pnl >= 0 ? 'rgba(0,255,163,0.3)' : 'rgba(255,71,87,0.3)'}`,
         }}>
           {pnlSign}{stats.pnl.toFixed(2)}

@@ -158,7 +158,7 @@ export function PatternOverlay({ patterns, onPatternClick, onClose }: PatternOve
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
                 <span style={{ color: T.muted, fontSize: 8 }}>{tc('quality')}</span>
                 <span style={{
-                  fontFamily: 'monospace', fontSize: 8,
+                  fontFamily: "var(--font-mono)", fontSize: 8,
                   color: p.quality.overall >= 7 ? T.green : p.quality.overall >= 5 ? '#FFD700' : T.muted,
                 }}>
                   {QUALITY_BAR(p.quality.overall)}

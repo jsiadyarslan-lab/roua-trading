@@ -54,7 +54,7 @@ export function DecisionMatrix({ briefs, onSelect, selectedPair, selectedTf }: D
             Pair / TF
           </div>
           {TIMEFRAMES.map(tf => (
-            <div key={tf} style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: COLORS.textMuted, padding: '8px 4px', textAlign: 'center', fontFamily: 'monospace' }}>
+            <div key={tf} style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: COLORS.textMuted, padding: '8px 4px', textAlign: 'center', fontFamily: "var(--font-mono)" }}>
               {tf}
             </div>
           ))}
@@ -62,7 +62,7 @@ export function DecisionMatrix({ briefs, onSelect, selectedPair, selectedTf }: D
         {/* Data rows */}
         {pairs.map((pair, pi) => (
           <div key={pair} style={{ display: 'grid', gridTemplateColumns: `120px repeat(${TIMEFRAMES.length}, 1fr)`, gap: 4, marginBottom: 4 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.textPrimary, padding: '8px 10px', fontFamily: 'monospace', display: 'flex', alignItems: 'center' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.textPrimary, padding: '8px 10px', fontFamily: "var(--font-mono)", display: 'flex', alignItems: 'center' }}>
               {pair}
             </div>
             {TIMEFRAMES.map(tf => {
@@ -90,7 +90,7 @@ export function DecisionMatrix({ briefs, onSelect, selectedPair, selectedTf }: D
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                     {brief.direction === 'BUY' ? <TrendingUp size={10} color={dc} strokeWidth={2.5} /> : <TrendingDown size={10} color={dc} strokeWidth={2.5} />}
-                    <span style={{ fontSize: 11, fontWeight: 700, color: dc, fontFamily: 'monospace' }}>{brief.confidence}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: dc, fontFamily: "var(--font-mono)" }}>{brief.confidence}</span>
                   </div>
                 </motion.button>
               );

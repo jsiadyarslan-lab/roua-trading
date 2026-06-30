@@ -233,12 +233,12 @@ function LogoCircle({ state, size = 'desktop' }: { state: MarketState, size?: 'd
       {(isDesktop) && (
         <div style={{ textAlign: 'center' }}>
           <div style={{
-            fontFamily: "'Cairo', sans-serif",
+            fontFamily: "var(--font-ar)",
             fontWeight: 900, fontSize: 11.5,
             color: T.text, lineHeight: 1.1,
           }}>{t('common.brand')}</div>
           <div style={{
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: "var(--font-mono)",
             fontSize: 6, color: c.core,
             letterSpacing: '0.1em', opacity: 0.85,
           }}>{t('common.brandSub')}</div>
@@ -351,7 +351,7 @@ function NewsTicker() {
         background: 'rgba(0,212,255,0.04)',
       }}>
         <span style={{
-          fontFamily: "'JetBrains Mono', monospace", fontSize: 8, fontWeight: 800,
+          fontFamily: "var(--font-mono)", fontSize: 8, fontWeight: 800,
           color: '#00D4FF', letterSpacing: '0.12em',
         }}>NEWS</span>
         <span style={{
@@ -391,7 +391,7 @@ function NewsTicker() {
           </div>
         ) : (
           <span style={{
-            padding: '0 14px', fontFamily: "'Inter', sans-serif",
+            padding: '0 14px', fontFamily: "var(--font-en)",
             fontSize: 7, color: '#999999', fontWeight: 500,
           }}>{t('dashboard.news.loading')}</span>
         )}
@@ -511,7 +511,7 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
             transition: 'background 0.15s',
           }}>
             <span style={{
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
               fontSize: isMobile ? 9 : 10,
               // V596: symbol name color FLASHES with price changes (not static)
               // Green when price ticks up, Red when ticks down, white when stable
@@ -580,7 +580,7 @@ function MobileNewsTicker() {
     </div>
   ) : (
     <span style={{
-      padding: '0 10px', fontFamily: "'Inter', sans-serif",
+      padding: '0 10px', fontFamily: "var(--font-en)",
       fontSize: 9, color: 'rgba(255,255,255,0.5)', fontWeight: 500,
     }}>{t('dashboard.news.loading')}</span>
   )
@@ -773,7 +773,7 @@ function MoreDropdown({
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
-                fontFamily: "'Cairo', sans-serif", fontSize: 13,
+                fontFamily: "var(--font-ar)", fontSize: 13,
                 color: active ? 'var(--accent)' : T.text2,
                 background: active ? 'rgba(0,212,255,0.08)' : 'transparent',
                 fontWeight: active ? 700 : 500,
@@ -802,7 +802,7 @@ function MoreDropdown({
                       <div style={{
                         display: 'flex', alignItems: 'center', gap: 8,
                         padding: '8px 14px 8px 10px', borderRadius: 6, cursor: 'pointer',
-                        fontFamily: "'Cairo', sans-serif", fontSize: 12,
+                        fontFamily: "var(--font-ar)", fontSize: 12,
                         color: childActive ? 'var(--accent)' : T.text3,
                         background: childActive ? 'rgba(0,212,255,0.06)' : 'transparent',
                         fontWeight: childActive ? 600 : 400,
@@ -963,12 +963,12 @@ function AccountDropdown({
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{
-              fontFamily: "'Cairo', sans-serif", fontSize: 13, fontWeight: 700,
+              fontFamily: "var(--font-ar)", fontSize: 13, fontWeight: 700,
               color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
             }}>{authUser?.displayName || authUser?.email?.split('@')[0] || t('common.user')}</div>
             {authUser?.email && (
               <div style={{
-                fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
+                fontFamily: "var(--font-mono)", fontSize: 10,
                 color: T.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               }}>{authUser.email}</div>
             )}
@@ -979,7 +979,7 @@ function AccountDropdown({
             display: 'inline-block', fontSize: 9, fontWeight: 700,
             padding: '2px 8px', borderRadius: 4,
             background: 'rgba(0,212,255,0.10)', color: '#00d4ff',
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: "var(--font-mono)",
             letterSpacing: '0.05em',
           }}>{authUser.tier}</div>
         )}
@@ -990,7 +990,7 @@ function AccountDropdown({
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
-          fontFamily: "'Cairo', sans-serif", fontSize: 13,
+          fontFamily: "var(--font-ar)", fontSize: 13,
           color: T.text2, fontWeight: 500, transition: 'all 0.15s',
         }}
         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.06)'; e.currentTarget.style.color = T.text }}
@@ -1005,7 +1005,7 @@ function AccountDropdown({
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
-          fontFamily: "'Cairo', sans-serif", fontSize: 13,
+          fontFamily: "var(--font-ar)", fontSize: 13,
           color: T.text2, fontWeight: 500, transition: 'all 0.15s',
         }}
         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.06)'; e.currentTarget.style.color = T.text }}
@@ -1022,7 +1022,7 @@ function AccountDropdown({
         style={{
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
-          fontFamily: "'Cairo', sans-serif", fontSize: 13,
+          fontFamily: "var(--font-ar)", fontSize: 13,
           color: '#FF4757', fontWeight: 500, transition: 'all 0.15s',
           borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 4,
         }}
@@ -1127,7 +1127,7 @@ function SubNavDropdown({
             <div style={{
               display: 'flex', alignItems: 'center', gap: 10,
               padding: '9px 14px', borderRadius: 8, cursor: 'pointer',
-              fontFamily: "'Cairo', sans-serif", fontSize: 12.5,
+              fontFamily: "var(--font-ar)", fontSize: 12.5,
               color: childActive ? 'var(--accent)' : T.text2,
               background: childActive ? 'rgba(0,212,255,0.08)' : 'transparent',
               fontWeight: childActive ? 700 : 500,
@@ -1234,7 +1234,7 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
                   background: active ? 'rgba(0,212,255,0.12)' : 'transparent',
                   border: active ? '1px solid rgba(0,212,255,0.25)' : '1px solid transparent',
                   color: active ? 'var(--accent)' : T.text2,
-                  fontFamily: "'Cairo', sans-serif",
+                  fontFamily: "var(--font-ar)",
                   fontSize: 11, fontWeight: active ? 800 : 500,
                   whiteSpace: 'nowrap', transition: 'all 0.18s',
                 }}
@@ -1295,7 +1295,7 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
             border: moreOpen ? '1px solid rgba(0,212,255,0.25)' : '1px solid transparent',
             borderRadius: 6,
             color: moreOpen ? 'var(--accent)' : T.text2,
-            fontFamily: "'Cairo', sans-serif", fontSize: 11,
+            fontFamily: "var(--font-ar)", fontSize: 11,
             transition: 'all 0.18s',
           }}
         >
@@ -1370,7 +1370,7 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
           }}
         >
           <User size={14} color="var(--accent)" />
-          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: 'var(--foreground)', fontWeight: 800 }}>{t('common.myAccount')}</span>
+          <span style={{ fontFamily: "var(--font-ar)", fontSize: 11, color: 'var(--foreground)', fontWeight: 800 }}>{t('common.myAccount')}</span>
           <ChevronDown size={12} style={{
             transform: accountOpen ? 'rotate(180deg)' : 'rotate(0deg)',
             transition: 'transform 0.2s', color: T.text3,
@@ -1412,7 +1412,7 @@ function HeaderStatusLED() {
         flexShrink: 0,
         boxShadow: hasLive ? '0 0 6px var(--success)' : '0 0 6px ' + T.amber,
       }} />
-      <span style={{ fontSize: 9, color: T.text3, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>{label}</span>
+      <span style={{ fontSize: 9, color: T.text3, fontFamily: "var(--font-ar)", fontWeight: 700 }}>{label}</span>
     </div>
   )
 }
@@ -1474,7 +1474,7 @@ function MobileNavItem({ link, pathname, onClose }: { link: NavLink, pathname: s
             borderRadius: 10, background: active ? 'rgba(0,212,255,0.10)' : 'transparent',
             color: active ? 'var(--accent)' : T.text2,
             borderInlineStart: active ? '3px solid var(--accent)' : '3px solid transparent',
-            fontSize: 14, fontWeight: 600, fontFamily: "'Cairo', sans-serif",
+            fontSize: 14, fontWeight: 600, fontFamily: "var(--font-ar)",
             transition: 'all 0.15s',
           }}>
             <Icon size={18} />
@@ -1513,7 +1513,7 @@ function MobileNavItem({ link, pathname, onClose }: { link: NavLink, pathname: s
                   color: childActive ? 'var(--accent)' : T.text3,
                   borderInlineStart: childActive ? '2px solid var(--accent)' : '2px solid transparent',
                   fontSize: 12.5, fontWeight: childActive ? 600 : 400,
-                  fontFamily: "'Cairo', sans-serif", transition: 'all 0.15s',
+                  fontFamily: "var(--font-ar)", transition: 'all 0.15s',
                 }}>
                   <ChildIcon size={15} strokeWidth={childActive ? 2.5 : 1.5} />
                   {t('dashboard.nav.' + child.label)}
@@ -1594,7 +1594,7 @@ export function AppHeader() {
             animation: 'slideInLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           }} className="custom-scrollbar" onClick={e => e.stopPropagation()}>
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-                <span style={{ fontSize: 18, fontWeight: 900, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{t('common.menu')}</span>
+                <span style={{ fontSize: 18, fontWeight: 900, color: T.text, fontFamily: "var(--font-ar)" }}>{t('common.menu')}</span>
                 <XIcon size={24} color={T.text} onClick={() => setMenuOpen(false)} style={{ cursor: 'pointer' }} />
              </div>
              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -1618,7 +1618,7 @@ export function AppHeader() {
                         background: m === mode ? accentMap[m] : 'transparent',
                         color: m === mode ? '#000' : T.text2,
                         borderRadius: 6, border: 'none', cursor: 'pointer',
-                        fontFamily: "'Cairo', sans-serif", transition: '0.2s',
+                        fontFamily: "var(--font-ar)", transition: '0.2s',
                         boxShadow: m === mode ? `0 0 8px ${accentMap[m]}40` : 'none',
                       }}>
                         {label}
@@ -1633,7 +1633,7 @@ export function AppHeader() {
                     border: '1px solid rgba(0,212,255,0.10)', cursor: 'pointer',
                   }}>
                     <User size={18} color="var(--accent)" />
-                    <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 14, color: T.text, fontWeight: 700 }}>{t('common.myAccount')}</span>
+                    <span style={{ fontFamily: "var(--font-ar)", fontSize: 14, color: T.text, fontWeight: 700 }}>{t('common.myAccount')}</span>
                   </div>
                 </SafeLink>
                 <div
@@ -1646,7 +1646,7 @@ export function AppHeader() {
                   }}
                 >
                   <LogOut size={18} />
-                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 14, fontWeight: 700 }}>{t('common.logout')}</span>
+                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 14, fontWeight: 700 }}>{t('common.logout')}</span>
                 </div>
              </div>
           </div>
@@ -1691,8 +1691,8 @@ export function AppHeader() {
           <SafeLink href="/dashboard" style={{ textDecoration: "none" }} >
              <LogoCircle state={marketState} size="mobile" />
              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-               <span style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 900, fontSize: 15, color: T.text, whiteSpace: 'nowrap', lineHeight: 1.1 }}>{t('common.brand')}</span>
-               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 7, color: '#00C8FF', letterSpacing: '0.12em', opacity: 0.85, lineHeight: 1 }}>{t('common.brandSub')}</span>
+               <span style={{ fontFamily: "var(--font-ar)", fontWeight: 900, fontSize: 15, color: T.text, whiteSpace: 'nowrap', lineHeight: 1.1 }}>{t('common.brand')}</span>
+               <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: '#00C8FF', letterSpacing: '0.12em', opacity: 0.85, lineHeight: 1 }}>{t('common.brandSub')}</span>
              </div>
           </SafeLink>
           {/* Ticker مخفي — موجود في m2-ticker أسفل الهيدر */}

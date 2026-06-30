@@ -191,7 +191,7 @@ export function SmartExecutorPanel() {
       display: 'flex', flexDirection: 'column', height: '100%',
       background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))',
       borderRadius: 16, border: '1px solid rgba(0,212,255,0.08)',
-      overflow: 'hidden', fontFamily: "'Cairo', sans-serif",
+      overflow: 'hidden', fontFamily: "var(--font-ar)",
     }}>
       {/* Header */}
       <div style={{
@@ -221,7 +221,7 @@ export function SmartExecutorPanel() {
                 boxShadow: `0 0 5px ${T.success}`,
                 animation: 'agentCtrlPulse 1s ease-in-out infinite'
               }} />
-              <span style={{ fontSize: 7, color: T.success, fontWeight: 700, fontFamily: 'monospace' }}>
+              <span style={{ fontSize: 7, color: T.success, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
                 {t('monitoring')} {currentMonitoredSymbol}
               </span>
             </div>
@@ -230,7 +230,7 @@ export function SmartExecutorPanel() {
           <span style={{
             fontSize: 6.5, padding: '1px 5px', borderRadius: 4,
             background: isActive ? 'rgba(0,255,163,0.15)' : 'rgba(255,255,255,0.06)',
-            color: isActive ? T.success : T.text3, fontWeight: 700, fontFamily: 'monospace',
+            color: isActive ? T.success : T.text3, fontWeight: 700, fontFamily: "var(--font-mono)",
           }}>
             {isActive ? t('active') : t('inactive')}
           </span>
@@ -385,11 +385,11 @@ export function SmartExecutorPanel() {
                 <span style={{ color: pos.side === 'BUY' ? T.success : T.danger, fontWeight: 800, minWidth: 22 }}>
                   {pos.side === 'BUY' ? tc('buy') : tc('sell')}
                 </span>
-                <span style={{ color: T.text, fontWeight: 700, fontFamily: 'monospace' }}>{pos.symbol}</span>
+                <span style={{ color: T.text, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{pos.symbol}</span>
                 <div style={{ flex: 1 }} />
                 <span style={{
                   color: getPnlColor(Number(pos.unrealizedPnl ?? 0)),
-                  fontWeight: 800, fontFamily: 'monospace',
+                  fontWeight: 800, fontFamily: "var(--font-mono)",
                 }}>
                   ${Number(pos.unrealizedPnl ?? 0).toFixed(2)}
                 </span>

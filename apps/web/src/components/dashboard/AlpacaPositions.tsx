@@ -505,7 +505,7 @@ export function AlpacaPositions() {
               color: T.text3,
               fontSize: 6.5,
               fontWeight: 800,
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
             }}
           >
             <div>{t('contract')}</div>
@@ -585,7 +585,7 @@ export function AlpacaPositions() {
                     fontSize: 9.5,
                     fontWeight: 900,
                     color: T.text,
-                    fontFamily: "'JetBrains Mono', monospace",
+                    fontFamily: "var(--font-mono)",
                     whiteSpace: 'nowrap',
                   }}
                 >
@@ -633,7 +633,7 @@ export function AlpacaPositions() {
                   fontSize: 6.5,
                   fontWeight: 700,
                   color: T.text2,
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontFamily: "var(--font-mono)",
                   textAlign: 'center',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
@@ -643,27 +643,27 @@ export function AlpacaPositions() {
                 {openedAt}
               </div>
 
-              <div style={{ fontSize: 8, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace", textAlign: 'center', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 8, fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {position.qty}
               </div>
 
-              <div style={{ fontSize: 8, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace", textAlign: 'center', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 8, fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {fmtPrice(position.avgEntryPrice, position.symbol)}
               </div>
 
-              <div style={{ fontSize: 8, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace", textAlign: 'center', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 8, fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {fmtPrice(position.currentPrice, position.symbol)}
               </div>
 
-              <div style={{ fontSize: 7.5, fontWeight: 800, color: position.tp ? T.success : T.text3, fontFamily: "'JetBrains Mono', monospace", textAlign: 'center', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 7.5, fontWeight: 800, color: position.tp ? T.success : T.text3, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {position.tp ? fmtPrice(position.tp, position.symbol) : '—'}
               </div>
 
-              <div style={{ fontSize: 7.5, fontWeight: 800, color: position.sl ? T.danger : T.text3, fontFamily: "'JetBrains Mono', monospace", textAlign: 'center', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 7.5, fontWeight: 800, color: position.sl ? T.danger : T.text3, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {position.sl ? fmtPrice(position.sl, position.symbol) : '—'}
               </div>
 
-              <div style={{ fontSize: 8.5, fontWeight: 900, color: pnlUp ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace", textAlign: 'center', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 8.5, fontWeight: 900, color: pnlUp ? T.success : T.danger, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {fmtPnl(position.unrealizedPnl)}
               </div>
 
@@ -687,7 +687,7 @@ export function AlpacaPositions() {
                     cursor: 'pointer',
                     fontSize: 6,
                     fontWeight: 900,
-                    fontFamily: "'Cairo', sans-serif",
+                    fontFamily: "var(--font-ar)",
                     whiteSpace: 'nowrap',
                   }}
                 >
@@ -770,7 +770,7 @@ export function AlpacaPositions() {
               color: T.danger,
               fontSize: 7.5,
               fontWeight: 800,
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -797,7 +797,7 @@ export function AlpacaPositions() {
             style={{
               width: '100%', padding: '8px 10px', background: 'transparent', border: 'none',
               color: T.text2, cursor: 'pointer', display: 'flex', alignItems: 'center',
-              justifyContent: 'space-between', fontFamily: "'Cairo', sans-serif", fontSize: 10, fontWeight: 700,
+              justifyContent: 'space-between', fontFamily: "var(--font-ar)", fontSize: 10, fontWeight: 700,
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -834,10 +834,10 @@ export function AlpacaPositions() {
                     {/* Row 1: Symbol, Direction, Source, Close Reason, PnL */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <span style={{ fontSize: 9, fontWeight: 900, color: isLong ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace" }}>
+                        <span style={{ fontSize: 9, fontWeight: 900, color: isLong ? T.success : T.danger, fontFamily: "var(--font-mono)" }}>
                           {isLong ? '⬆' : '⬇'}
                         </span>
-                        <span style={{ fontSize: 9, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{cp.symbol}</span>
+                        <span style={{ fontSize: 9, fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)" }}>{cp.symbol}</span>
                         {sourceBadge && (
                           <span style={{ padding: '1px 4px', borderRadius: 999, background: sourceBadge.bg, border: `1px solid ${sourceBadge.border}`, color: sourceBadge.color, fontSize: 5.5, fontWeight: 800 }}>{sourceBadge.label}</span>
                         )}
@@ -846,12 +846,12 @@ export function AlpacaPositions() {
                           <span style={{ padding: '1px 4px', borderRadius: 999, background: `${closeReasonBadge.color}18`, border: `1px solid ${closeReasonBadge.color}30`, color: closeReasonBadge.color, fontSize: 5.5, fontWeight: 800 }}>{closeReasonBadge.label}</span>
                         )}
                       </div>
-                      <span style={{ fontSize: 9, fontWeight: 900, color: pnlUp ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace" }}>
+                      <span style={{ fontSize: 9, fontWeight: 900, color: pnlUp ? T.success : T.danger, fontFamily: "var(--font-mono)" }}>
                         {fmtPnl(realizedPnl)}
                       </span>
                     </div>
                     {/* Row 2: Entry → Exit, SL, TP, Qty, Duration */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 7, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 7, color: T.text3, fontFamily: "var(--font-mono)" }}>
                       <span>
                         {t('entry')} {fmtPricePlain(entryPrice, cp.symbol)} → {t('exit')} {exitPrice > 0 ? fmtPricePlain(exitPrice, cp.symbol) : '—'}
                       </span>
@@ -889,10 +889,10 @@ export function AlpacaPositions() {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <span style={{ fontSize: 9, fontWeight: 900, color: isLong ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace" }}>
+                        <span style={{ fontSize: 9, fontWeight: 900, color: isLong ? T.success : T.danger, fontFamily: "var(--font-mono)" }}>
                           {isLong ? '⬆' : '⬇'}
                         </span>
-                        <span style={{ fontSize: 9, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{ct.symbol}</span>
+                        <span style={{ fontSize: 9, fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)" }}>{ct.symbol}</span>
                         {closedSourceBadge && (
                           <span style={{ padding: '1px 4px', borderRadius: 999, background: closedSourceBadge.bg, border: `1px solid ${closedSourceBadge.border}`, color: closedSourceBadge.color, fontSize: 5.5, fontWeight: 800 }}>{closedSourceBadge.label}</span>
                         )}
@@ -901,11 +901,11 @@ export function AlpacaPositions() {
                           <span style={{ padding: '1px 4px', borderRadius: 999, background: `${paperCloseReasonBadge.color}18`, border: `1px solid ${paperCloseReasonBadge.color}30`, color: paperCloseReasonBadge.color, fontSize: 5.5, fontWeight: 800 }}>{paperCloseReasonBadge.label}</span>
                         )}
                       </div>
-                      <span style={{ fontSize: 9, fontWeight: 900, color: pnlUp ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace" }}>
+                      <span style={{ fontSize: 9, fontWeight: 900, color: pnlUp ? T.success : T.danger, fontFamily: "var(--font-mono)" }}>
                         {fmtPnl(ct.realizedPnl)}
                       </span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 7, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 7, color: T.text3, fontFamily: "var(--font-mono)" }}>
                       <span>
                         {t('entry')} {fmtPricePlain(ct.entryPrice, ct.symbol)} → {t('exit')} {fmtPricePlain(ct.exitPrice, ct.symbol)}
                       </span>
@@ -924,7 +924,7 @@ export function AlpacaPositions() {
                   style={{
                     padding: '4px 8px', background: 'transparent', border: `1px solid ${T.border}`,
                     color: T.text3, borderRadius: 6, cursor: closedLoading ? 'wait' : 'pointer', fontSize: 7,
-                    fontFamily: "'Cairo', sans-serif", fontWeight: 700,
+                    fontFamily: "var(--font-ar)", fontWeight: 700,
                   }}
                 >
                   {closedLoading ? t('updating') : t('update')}
@@ -934,7 +934,7 @@ export function AlpacaPositions() {
                   style={{
                     padding: '4px 8px', background: 'transparent', border: `1px solid ${T.border}`,
                     color: T.text3, borderRadius: 6, cursor: 'pointer', fontSize: 7,
-                    fontFamily: "'Cairo', sans-serif", fontWeight: 700,
+                    fontFamily: "var(--font-ar)", fontWeight: 700,
                   }}
                 >
                   {t('clearLocal')}

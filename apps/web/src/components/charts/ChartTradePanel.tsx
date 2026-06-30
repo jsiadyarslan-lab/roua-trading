@@ -108,7 +108,7 @@ export function ChartTradePanel({
               fontSize: 10,
               fontWeight: 800,
               cursor: 'pointer',
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
               letterSpacing: 0.5,
               outline: 'none',
               transition: 'opacity 0.15s',
@@ -126,7 +126,7 @@ export function ChartTradePanel({
               aria-label="Decrease lot size"
               style={{ background: 'none', border: 'none', color: '#888', fontSize: 12, cursor: 'pointer', padding: '0 2px', outline: 'none' }}
             >−</button>
-            <span style={{ color: '#ccc', fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", minWidth: 28, textAlign: 'center' }}>
+            <span style={{ color: '#ccc', fontSize: 9, fontWeight: 700, fontFamily: "var(--font-mono)", minWidth: 28, textAlign: 'center' }}>
               {lotSize.toFixed(2)}
             </span>
             <button
@@ -150,7 +150,7 @@ export function ChartTradePanel({
               fontSize: 10,
               fontWeight: 800,
               cursor: 'pointer',
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
               letterSpacing: 0.5,
               outline: 'none',
               transition: 'opacity 0.15s',

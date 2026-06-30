@@ -107,7 +107,7 @@ export function CrosshairOverlay({
             <span style={{
               fontSize: 8,
               color: COLORS.textMuted,
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
               display: 'flex',
               alignItems: 'center',
               gap: 4,
@@ -119,7 +119,7 @@ export function CrosshairOverlay({
             </span>
             <span style={{
               fontSize: 8,
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
               color: changeColor,
               fontWeight: 700,
               padding: '0px 3px',
@@ -131,7 +131,7 @@ export function CrosshairOverlay({
             <span style={{
               fontSize: 7,
               color: COLORS.textMuted,
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
             }}>
               Vol:{formatVolume(crosshairData.volume)}
             </span>
@@ -143,7 +143,7 @@ export function CrosshairOverlay({
             <span style={{
               fontSize: 7,
               color: COLORS.cyan,
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
               background: 'rgba(11,14,20,0.85)',
               backdropFilter: 'blur(8px)',
               borderRadius: 4,
@@ -154,7 +154,7 @@ export function CrosshairOverlay({
             </span>
           )}
           {feedState === 'fallback' && (
-            <span style={{ fontSize: 7, color: '#fbbf24', fontFamily: "'JetBrains Mono', monospace" }}>{t('fallbackData')}</span>
+            <span style={{ fontSize: 7, color: '#fbbf24', fontFamily: "var(--font-mono)" }}>{t('fallbackData')}</span>
           )}
         </div>
       </div>
@@ -180,7 +180,7 @@ export function CrosshairOverlay({
       <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
         {/* Symbol */}
         <span style={{
-          fontFamily: "'Cairo', sans-serif",
+          fontFamily: "var(--font-ar)",
           fontSize: `${overlayPairSize}px`,
           fontWeight: 700,
           color: COLORS.cyan,
@@ -191,7 +191,7 @@ export function CrosshairOverlay({
 
         {/* Price */}
         <span style={{
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "var(--font-mono)",
           fontSize: `${overlayPriceSize}px`,
           fontWeight: 700,
           lineHeight: 1,
@@ -207,7 +207,7 @@ export function CrosshairOverlay({
           <span style={{
             fontSize: 9,
             color: COLORS.textMuted,
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: "var(--font-mono)",
             display: 'flex',
             alignItems: 'center',
             gap: 6,
@@ -223,7 +223,7 @@ export function CrosshairOverlay({
         {displayData && (
           <span style={{
             fontSize: 9,
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: "var(--font-mono)",
             color: changeColor,
             fontWeight: 700,
             padding: '1px 5px',
@@ -239,7 +239,7 @@ export function CrosshairOverlay({
           <span style={{
             fontSize: 8,
             color: COLORS.textMuted,
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: "var(--font-mono)",
           }}>
             Vol: {formatVolume(displayData.volume)}
           </span>
@@ -252,7 +252,7 @@ export function CrosshairOverlay({
         alignItems: 'center',
         gap: 8,
         fontSize: 8,
-        fontFamily: "'JetBrains Mono', monospace",
+        fontFamily: "var(--font-mono)",
         color: COLORS.textSecondary,
       }}>
         {feedState === 'fallback' && (

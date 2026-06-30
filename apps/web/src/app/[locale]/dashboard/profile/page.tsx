@@ -62,16 +62,16 @@ function StatCard({ icon, label, value, color, subtext }: {
         }}>
           {icon}
         </div>
-        <span style={{ fontSize: 11, color: T.text3, fontWeight: 600, fontFamily: "'Cairo', sans-serif" }}>{label}</span>
+        <span style={{ fontSize: 11, color: T.text3, fontWeight: 600, fontFamily: "var(--font-ar)" }}>{label}</span>
       </div>
       <div style={{
         fontSize: 20, fontWeight: 900, color,
-        fontFamily: "'JetBrains Mono', monospace",
+        fontFamily: "var(--font-mono)",
         letterSpacing: '-0.02em',
       }}>
         {value}
       </div>
-      {subtext && <div style={{ fontSize: 9, color: T.text4, fontFamily: "'Cairo', sans-serif" }}>{subtext}</div>}
+      {subtext && <div style={{ fontSize: 9, color: T.text4, fontFamily: "var(--font-ar)" }}>{subtext}</div>}
     </div>
   )
 }
@@ -99,17 +99,17 @@ function SectionCard({ icon, iconColor, iconBg, title, subtitle, children, badge
           {icon}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: T.text, display: 'flex', alignItems: 'center', gap: 8, fontFamily: "'Cairo', sans-serif" }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: T.text, display: 'flex', alignItems: 'center', gap: 8, fontFamily: "var(--font-ar)" }}>
             {title}
             {badge && (
               <span style={{
                 fontSize: 9, padding: '2px 7px', borderRadius: 10,
                 background: 'rgba(255,255,255,0.04)', color: T.text3,
-                fontFamily: "'JetBrains Mono', monospace", fontWeight: 600,
+                fontFamily: "var(--font-mono)", fontWeight: 600,
               }}>{badge}</span>
             )}
           </div>
-          <div style={{ fontSize: 11, color: T.text3, marginTop: 2, fontFamily: "'Cairo', sans-serif" }}>{subtitle}</div>
+          <div style={{ fontSize: 11, color: T.text3, marginTop: 2, fontFamily: "var(--font-ar)" }}>{subtitle}</div>
         </div>
       </div>
       <div style={{ padding: '4px 20px 18px' }}>
@@ -126,7 +126,7 @@ function FormInput({ label, value, onChange, placeholder, readonly, type, icon }
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <label style={{ fontSize: 12, fontWeight: 700, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>
+      <label style={{ fontSize: 12, fontWeight: 700, color: T.text2, fontFamily: "var(--font-ar)" }}>
         {label}
       </label>
       <div style={{ position: 'relative' }}>
@@ -169,7 +169,7 @@ function FormSelect({ label, value, onChange, options, icon }: {
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <label style={{ fontSize: 12, fontWeight: 700, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>
+      <label style={{ fontSize: 12, fontWeight: 700, color: T.text2, fontFamily: "var(--font-ar)" }}>
         {label}
       </label>
       <div style={{ position: 'relative' }}>
@@ -189,7 +189,7 @@ function FormSelect({ label, value, onChange, options, icon }: {
             border: `1px solid ${T.border2}`, borderRadius: 10,
             padding: icon ? '10px 40px 10px 14px' : '10px 14px',
             color: T.text, fontSize: 13, fontWeight: 600,
-            fontFamily: "'Cairo', sans-serif", outline: 'none',
+            fontFamily: "var(--font-ar)", outline: 'none',
             direction: 'inherit', appearance: 'none', cursor: 'pointer',
           }}
           onFocus={e => { e.target.style.borderColor = T.cyan; e.target.style.boxShadow = `0 0 0 3px ${T.cyan}15` }}
@@ -303,7 +303,7 @@ export default function ProfilePage() {
   const avatarLetter = user?.displayName?.[0] || user?.email?.[0]?.toUpperCase() || 'R'
 
   return (
-    <div className="custom-scrollbar" style={{ direction: 'inherit', fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto', background: T.bg }}>
+    <div className="custom-scrollbar" style={{ direction: 'inherit', fontFamily: "var(--font-ar)", height: '100%', overflowY: 'auto', background: T.bg }}>
       {/* Scoped styles via useScopedStyle */}{/* ═══ Header ═══ */}
       <div style={{
         padding: '24px 24px 0', borderBottom: `1px solid ${T.border}`,
@@ -318,8 +318,8 @@ export default function ProfilePage() {
             <UserCircle size={18} color="#fff" />
           </div>
           <div>
-            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: T.text, fontFamily: "'Cairo', sans-serif" }}>الملف الشخصي</h1>
-            <p style={{ margin: 0, fontSize: 11, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>إدارة بياناتك الشخصية وإعدادات حسابك على منصة رؤى</p>
+            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: T.text, fontFamily: "var(--font-ar)" }}>الملف الشخصي</h1>
+            <p style={{ margin: 0, fontSize: 11, color: T.text3, fontFamily: "var(--font-ar)" }}>إدارة بياناتك الشخصية وإعدادات حسابك على منصة رؤى</p>
           </div>
         </div>
       </div>
@@ -350,7 +350,7 @@ export default function ProfilePage() {
               background: `linear-gradient(135deg, ${roleInfo.color}, ${roleInfo.color}88)`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 26, fontWeight: 900, color: '#fff',
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
               boxShadow: `0 0 24px ${roleInfo.color}30`,
               flexShrink: 0,
             }}>
@@ -359,10 +359,10 @@ export default function ProfilePage() {
 
             {/* Info */}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 18, fontWeight: 900, color: T.text, marginBottom: 4, fontFamily: "'Cairo', sans-serif" }}>
+              <div style={{ fontSize: 18, fontWeight: 900, color: T.text, marginBottom: 4, fontFamily: "var(--font-ar)" }}>
                 {user?.displayName || 'مستخدم رؤى'}
               </div>
-              <div style={{ fontSize: 12, color: T.text2, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontFamily: "'JetBrains Mono', monospace" }}>
+              <div style={{ fontSize: 12, color: T.text2, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontFamily: "var(--font-mono)" }}>
                 <Mail size={12} />
                 <span>{user?.email || 'user@roua.io'}</span>
               </div>
@@ -372,7 +372,7 @@ export default function ProfilePage() {
                   padding: '3px 10px', borderRadius: 10,
                   background: `${roleInfo.color}15`, color: roleInfo.color,
                   fontSize: 10, fontWeight: 700,
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontFamily: "var(--font-mono)",
                   border: `1px solid ${roleInfo.color}25`,
                   display: 'flex', alignItems: 'center', gap: 4,
                 }}>
@@ -380,7 +380,7 @@ export default function ProfilePage() {
                   {tc(roleInfo.labelKey)}
                 </span>
                 {/* Member Since */}
-                <span style={{ fontSize: 10, color: T.text4, display: 'flex', alignItems: 'center', gap: 4, fontFamily: "'Cairo', sans-serif" }}>
+                <span style={{ fontSize: 10, color: T.text4, display: 'flex', alignItems: 'center', gap: 4, fontFamily: "var(--font-ar)" }}>
                   <Calendar size={10} />
                   عضو منذ {MOCK_STATS.memberSince}
                 </span>
@@ -396,7 +396,7 @@ export default function ProfilePage() {
                     padding: '8px 16px', borderRadius: 10, border: `1px solid ${T.border2}`,
                     background: 'rgba(0,212,255,0.06)', color: T.cyan,
                     fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                    fontFamily: "'Cairo', sans-serif",
+                    fontFamily: "var(--font-ar)",
                     display: 'flex', alignItems: 'center', gap: 6,
                     transition: 'all 0.2s', flexShrink: 0,
                   }}
@@ -415,7 +415,7 @@ export default function ProfilePage() {
                       padding: '8px 16px', borderRadius: 10, border: 'none',
                       background: `linear-gradient(135deg, ${T.cyan}, #0A84FF)`,
                       color: '#000', fontSize: 11, fontWeight: 800, cursor: isSaving ? 'wait' : 'pointer',
-                      fontFamily: "'Cairo', sans-serif",
+                      fontFamily: "var(--font-ar)",
                       display: 'flex', alignItems: 'center', gap: 6,
                       transition: 'all 0.2s', opacity: isSaving ? 0.7 : 1,
                     }}
@@ -429,7 +429,7 @@ export default function ProfilePage() {
                       padding: '8px 14px', borderRadius: 10, border: `1px solid ${T.border}`,
                       background: T.surface, color: T.text3,
                       fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                      fontFamily: "'Cairo', sans-serif",
+                      fontFamily: "var(--font-ar)",
                       display: 'flex', alignItems: 'center', gap: 4,
                       transition: 'all 0.2s',
                     }}
@@ -465,7 +465,7 @@ export default function ProfilePage() {
 
               {/* Email (readonly) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: T.text2, fontFamily: "var(--font-ar)" }}>
                   البريد الإلكتروني
                 </label>
                 <div style={{ position: 'relative' }}>
@@ -484,7 +484,7 @@ export default function ProfilePage() {
                       border: `1px solid ${T.border}`, borderRadius: 10,
                       padding: '10px 40px 10px 14px',
                       color: T.text3, fontSize: 13,
-                      fontFamily: "'JetBrains Mono', monospace",
+                      fontFamily: "var(--font-mono)",
                       fontWeight: 500, outline: 'none', direction: 'inherit', cursor: 'default',
                     }}
                   />
@@ -495,7 +495,7 @@ export default function ProfilePage() {
                         position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)',
                         background: 'none', border: 'none', cursor: 'pointer',
                         color: T.cyan, fontSize: 10, fontWeight: 700,
-                        fontFamily: "'Cairo', sans-serif",
+                        fontFamily: "var(--font-ar)",
                         padding: '4px 8px', borderRadius: 6,
                         transition: 'background 0.2s',
                       }}
@@ -541,7 +541,7 @@ export default function ProfilePage() {
 
               {/* Bio / About */}
               <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: T.text2, fontFamily: "var(--font-ar)" }}>
                   نبذة عنك
                 </label>
                 <textarea
@@ -555,7 +555,7 @@ export default function ProfilePage() {
                     border: `1px solid ${isEditing ? T.border2 : T.border}`,
                     borderRadius: 10, padding: '10px 14px',
                     color: isEditing ? T.text : T.text3, fontSize: 13,
-                    fontFamily: "'Cairo', sans-serif", fontWeight: isEditing ? 600 : 500,
+                    fontFamily: "var(--font-ar)", fontWeight: isEditing ? 600 : 500,
                     outline: 'none', direction: 'inherit', resize: isEditing ? 'vertical' : 'none',
                     transition: 'border-color 0.2s', lineHeight: 1.8,
                   }}
@@ -617,7 +617,7 @@ export default function ProfilePage() {
                 subtext="من آخر 180 يوماً"
               />
             </div>
-            <div style={{ fontSize: 11, color: T.text4, fontFamily: "'Cairo', sans-serif", textAlign: 'center', padding: '6px 0 0' }}>
+            <div style={{ fontSize: 11, color: T.text4, fontFamily: "var(--font-ar)", textAlign: 'center', padding: '6px 0 0' }}>
               ستظهر إحصائياتك الحقيقية بعد ربط حساباتك وبدء المتابعة
             </div>
           </SectionCard>
@@ -648,17 +648,17 @@ export default function ProfilePage() {
                     {item.icon}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif", marginBottom: 2 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)", marginBottom: 2 }}>
                       {item.label}
                     </div>
-                    <div style={{ fontSize: 11, color: T.text3, fontFamily: "'Cairo', sans-serif", lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 11, color: T.text3, fontFamily: "var(--font-ar)", lineHeight: 1.6 }}>
                       {item.detail}
                     </div>
                   </div>
                   <div style={{ flexShrink: 0, marginTop: 2 }}>
                     <span style={{
                       fontSize: 10, color: T.text4,
-                      fontFamily: "'JetBrains Mono', monospace", fontWeight: 500,
+                      fontFamily: "var(--font-mono)", fontWeight: 500,
                       whiteSpace: 'nowrap',
                     }}>
                       {item.time}
@@ -699,12 +699,12 @@ export default function ProfilePage() {
                   <Mail size={16} color={T.red} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>Google</div>
-                  <div style={{ fontSize: 11, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>{user?.email || 'user@roua.io'}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>Google</div>
+                  <div style={{ fontSize: 11, color: T.text3, fontFamily: "var(--font-mono)" }}>{user?.email || 'user@roua.io'}</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <CheckCircle2 size={14} color={T.green} />
-                  <span style={{ fontSize: 11, color: T.green, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>متصل</span>
+                  <span style={{ fontSize: 11, color: T.green, fontWeight: 700, fontFamily: "var(--font-ar)" }}>متصل</span>
                 </div>
               </div>
 
@@ -722,17 +722,17 @@ export default function ProfilePage() {
                   <Cpu size={16} color={T.amber} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>حسابات البورصة</div>
-                  <div style={{ fontSize: 11, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>Binance, Alpaca</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>حسابات البورصة</div>
+                  <div style={{ fontSize: 11, color: T.text3, fontFamily: "var(--font-ar)" }}>Binance, Alpaca</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{
                     padding: '3px 10px', borderRadius: 8,
                     background: `${T.amber}15`, color: T.amber,
                     fontSize: 11, fontWeight: 700,
-                    fontFamily: "'JetBrains Mono', monospace",
+                    fontFamily: "var(--font-mono)",
                   }}>2</span>
-                  <span style={{ fontSize: 11, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>مرتبط</span>
+                  <span style={{ fontSize: 11, color: T.text3, fontFamily: "var(--font-ar)" }}>مرتبط</span>
                 </div>
               </div>
 
@@ -750,17 +750,17 @@ export default function ProfilePage() {
                   <Fingerprint size={16} color={T.green} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>مفاتيح المرور (WebAuthn)</div>
-                  <div style={{ fontSize: 11, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>مصادقة بيومترية سريعة وآمنة</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>مفاتيح المرور (WebAuthn)</div>
+                  <div style={{ fontSize: 11, color: T.text3, fontFamily: "var(--font-ar)" }}>مصادقة بيومترية سريعة وآمنة</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{
                     padding: '3px 10px', borderRadius: 8,
                     background: `${T.green}15`, color: T.green,
                     fontSize: 11, fontWeight: 700,
-                    fontFamily: "'JetBrains Mono', monospace",
+                    fontFamily: "var(--font-mono)",
                   }}>1</span>
-                  <span style={{ fontSize: 11, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>مفتاح</span>
+                  <span style={{ fontSize: 11, color: T.text3, fontFamily: "var(--font-ar)" }}>مفتاح</span>
                 </div>
               </div>
 
@@ -777,9 +777,9 @@ export default function ProfilePage() {
           <div style={{ padding: '16px 20px', borderBottom: `1px solid rgba(255,71,87,0.10)` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <AlertTriangle size={16} color={T.red} />
-              <span style={{ fontSize: 13, fontWeight: 700, color: T.red, fontFamily: "'Cairo', sans-serif" }}>منطقة الخطر</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: T.red, fontFamily: "var(--font-ar)" }}>منطقة الخطر</span>
             </div>
-            <div style={{ fontSize: 11, color: T.text4, marginTop: 4, fontFamily: "'Cairo', sans-serif" }}>
+            <div style={{ fontSize: 11, color: T.text4, marginTop: 4, fontFamily: "var(--font-ar)" }}>
               إجراءات لا يمكن التراجع عنها — يرجى التوخي الحذر
             </div>
           </div>
@@ -793,8 +793,8 @@ export default function ProfilePage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <LogOut size={14} color={T.red} />
                 <div>
-                  <div style={{ fontSize: 13, color: T.text, fontWeight: 600, fontFamily: "'Cairo', sans-serif" }}>تسجيل الخروج</div>
-                  <div style={{ fontSize: 10, color: T.text4, fontFamily: "'Cairo', sans-serif" }}>إنهاء الجلسة الحالية من جميع الأجهزة</div>
+                  <div style={{ fontSize: 13, color: T.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>تسجيل الخروج</div>
+                  <div style={{ fontSize: 10, color: T.text4, fontFamily: "var(--font-ar)" }}>إنهاء الجلسة الحالية من جميع الأجهزة</div>
                 </div>
               </div>
               <button
@@ -803,7 +803,7 @@ export default function ProfilePage() {
                   padding: '6px 14px', borderRadius: 8,
                   background: 'rgba(255,71,87,0.10)', border: `1px solid rgba(255,71,87,0.20)`,
                   color: T.red, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                  fontFamily: "'Cairo', sans-serif", transition: 'all 0.2s',
+                  fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.18)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.10)' }}
@@ -820,8 +820,8 @@ export default function ProfilePage() {
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                 <Trash2 size={14} color={T.red} style={{ marginTop: 2 }} />
                 <div>
-                  <div style={{ fontSize: 13, color: T.text, fontWeight: 600, fontFamily: "'Cairo', sans-serif" }}>حذف الحساب نهائياً</div>
-                  <div style={{ fontSize: 10, color: T.text4, fontFamily: "'Cairo', sans-serif", lineHeight: 1.7, maxWidth: 400 }}>
+                  <div style={{ fontSize: 13, color: T.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>حذف الحساب نهائياً</div>
+                  <div style={{ fontSize: 10, color: T.text4, fontFamily: "var(--font-ar)", lineHeight: 1.7, maxWidth: 400 }}>
                     سيتم حذف حسابك وجميع بياناتك نهائياً بعد 30 يوماً من الطلب. لا يمكن التراجع عن هذا الإجراء بعد تأكيده.
                   </div>
                 </div>
@@ -832,7 +832,7 @@ export default function ProfilePage() {
                   padding: '6px 14px', borderRadius: 8,
                   background: 'rgba(255,71,87,0.10)', border: `1px solid rgba(255,71,87,0.20)`,
                   color: T.red, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                  fontFamily: "'Cairo', sans-serif", transition: 'all 0.2s',
+                  fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                   flexShrink: 0,
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.18)' }}
@@ -851,9 +851,9 @@ export default function ProfilePage() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                   <XCircle size={16} color={T.red} />
-                  <span style={{ fontSize: 13, fontWeight: 800, color: T.red, fontFamily: "'Cairo', sans-serif" }}>تأكيد حذف الحساب</span>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: T.red, fontFamily: "var(--font-ar)" }}>تأكيد حذف الحساب</span>
                 </div>
-                <div style={{ fontSize: 12, color: T.text3, lineHeight: 1.8, marginBottom: 14, fontFamily: "'Cairo', sans-serif" }}>
+                <div style={{ fontSize: 12, color: T.text3, lineHeight: 1.8, marginBottom: 14, fontFamily: "var(--font-ar)" }}>
                   هذا الإجراء لا يمكن التراجع عنه. سيتم حذف جميع بياناتك بما في ذلك سجل التداول والإعدادات والمفاتيح المرتبطة.
                   اكتب <strong style={{ color: T.red }}>&quot;حذف&quot;</strong> للتأكيد.
                 </div>
@@ -867,7 +867,7 @@ export default function ProfilePage() {
                       flex: 1, background: T.surface, border: `1px solid rgba(255,71,87,0.20)`,
                       borderRadius: 8, padding: '8px 12px',
                       color: T.text, fontSize: 12, fontWeight: 600,
-                      fontFamily: "'Cairo', sans-serif", outline: 'none',
+                      fontFamily: "var(--font-ar)", outline: 'none',
                       direction: 'inherit',
                     }}
                   />
@@ -879,7 +879,7 @@ export default function ProfilePage() {
                       background: deleteConfirmText === 'حذف' ? T.red : 'rgba(255,71,87,0.2)',
                       color: deleteConfirmText === 'حذف' ? '#fff' : T.text4,
                       fontSize: 11, fontWeight: 800, cursor: deleteConfirmText === 'حذف' ? 'pointer' : 'not-allowed',
-                      fontFamily: "'Cairo', sans-serif", transition: 'all 0.2s',
+                      fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                     }}
                   >
                     تأكيد الحذف
@@ -890,7 +890,7 @@ export default function ProfilePage() {
                       padding: '8px 14px', borderRadius: 8, border: `1px solid ${T.border}`,
                       background: T.surface, color: T.text3,
                       fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                      fontFamily: "'Cairo', sans-serif",
+                      fontFamily: "var(--font-ar)",
                     }}
                   >
                     إلغاء

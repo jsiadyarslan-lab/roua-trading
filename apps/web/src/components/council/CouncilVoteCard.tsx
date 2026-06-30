@@ -108,7 +108,7 @@ function renderInline(text: string, keyBase: string): React.ReactNode[] {
     if (p.startsWith("`") && p.endsWith("`")) {
       return (
         <code key={key} style={{
-          fontFamily: "monospace",
+          fontFamily: "var(--font-mono)",
           fontSize: "0.9em",
           padding: "1px 4px",
           borderRadius: 3,
@@ -261,7 +261,7 @@ export function CouncilVoteCard({
         </div>
         <span style={{
           fontSize: compact ? 8 : 10,
-          fontFamily: "monospace",
+          fontFamily: "var(--font-mono)",
           fontWeight: 700,
           color: COLORS.textSecondary,
           minWidth: compact ? 22 : 28,
@@ -274,7 +274,7 @@ export function CouncilVoteCard({
           alignItems: "center",
           gap: 2,
           fontSize: compact ? 7 : 8,
-          fontFamily: "monospace",
+          fontFamily: "var(--font-mono)",
           fontWeight: 600,
           color: COLORS.textMuted,
           padding: "1px 4px",

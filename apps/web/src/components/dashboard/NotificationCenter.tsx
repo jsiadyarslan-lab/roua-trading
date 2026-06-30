@@ -338,7 +338,7 @@ function ToastCard({
               <span
                 style={{
                   fontSize: 9,
-                  fontFamily: 'monospace',
+                  fontFamily: "var(--font-mono)",
                   color: '#fff',
                   fontWeight: 700,
                 }}
@@ -382,7 +382,7 @@ function ToastCard({
                   fontSize: 9,
                   fontWeight: 800,
                   cursor: executed || executing ? 'default' : 'pointer',
-                  fontFamily: "'Cairo', sans-serif",
+                  fontFamily: "var(--font-ar)",
                   opacity: executing ? 0.7 : 1,
                   transition: 'all 0.2s',
                 }}
@@ -560,7 +560,7 @@ function NotificationItem({
         <p style={{ fontSize: 10, color: '#8B92A8', margin: 0, lineHeight: 1.5 }}>{localizedBody}</p>
         {notif.pair && (
           <div style={{ marginTop: 4, display: 'flex', gap: 6, alignItems: 'center' }}>
-            <span style={{ fontSize: 9, fontFamily: 'monospace', color: '#fff', fontWeight: 700 }}>{notif.pair}</span>
+            <span style={{ fontSize: 9, fontFamily: "var(--font-mono)", color: '#fff', fontWeight: 700 }}>{notif.pair}</span>
             {notif.price && <span style={{ fontSize: 9, color: '#8B92A8' }}>{notif.price}</span>}
             <span
               style={{
@@ -830,7 +830,7 @@ export function NotificationCenter() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontFamily: 'monospace',
+              fontFamily: "var(--font-mono)",
               fontWeight: 900,
               border: '1.5px solid #060b13',
             }}
@@ -864,7 +864,7 @@ export function NotificationCenter() {
               boxShadow:
                 '0 20px 60px rgba(0,0,0,0.8), 0 0 40px rgba(0,212,255,0.04)',
               overflow: 'hidden',
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
               
             }}
           >
@@ -928,7 +928,7 @@ export function NotificationCenter() {
                     color: tab === t ? '#00D4FF' : '#8B92A8',
                     cursor: 'pointer',
                     borderBottom: tab === t ? '2px solid #00D4FF' : 'none',
-                    fontFamily: "'Cairo', sans-serif",
+                    fontFamily: "var(--font-ar)",
                   }}
                 >
                   {t === 'all' ? tn('alerts') : tn('settings')}

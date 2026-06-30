@@ -53,11 +53,11 @@ export function ScannerSidebar() {
       <div style={{ padding: '16px 14px 12px', borderBottom: `1px solid ${T.border}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
           <ScanSearch size={20} color={T.cyan} />
-          <span style={{ fontSize: 13, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>
             {t('advancedScanner')}
           </span>
         </div>
-        <p style={{ fontSize: 9, color: T.text3, lineHeight: 1.5, fontFamily: "'Cairo', sans-serif", margin: 0 }}>
+        <p style={{ fontSize: 9, color: T.text3, lineHeight: 1.5, fontFamily: "var(--font-ar)", margin: 0 }}>
           {t('subtitle')}
         </p>
       </div>
@@ -81,7 +81,7 @@ export function ScannerSidebar() {
               <span style={{ display: 'flex', color: active ? T.cyan : T.text3 }}>{item.icon}</span>
               <span style={{
                 fontSize: 11, fontWeight: active ? 700 : 600,
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
               }}>
                 {item.label}
               </span>
@@ -102,13 +102,13 @@ export function ScannerSidebar() {
               width: 6, height: 6, borderRadius: '50%', background: T.green,
               boxShadow: `0 0 6px ${T.green}60`,
             }} />
-            <span style={{ fontSize: 9, fontWeight: 700, color: T.green, fontFamily: "'Cairo', sans-serif" }}>
+            <span style={{ fontSize: 9, fontWeight: 700, color: T.green, fontFamily: "var(--font-ar)" }}>
               {t('live')}
             </span>
           </div>
           <span style={{
             fontSize: 10, fontWeight: 700, color: T.text2,
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: "var(--font-mono)",
           }}>
             {mins}:{secs.toString().padStart(2, '0')}
           </span>
@@ -121,7 +121,7 @@ export function ScannerSidebar() {
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             padding: '6px 0', borderRadius: 6, border: `0.5px solid ${T.border}`,
             background: T.surface, color: T.text2, cursor: 'pointer', fontSize: 10,
-            fontFamily: "'Cairo', sans-serif", fontWeight: 700, transition: 'all 0.2s',
+            fontFamily: "var(--font-ar)", fontWeight: 700, transition: 'all 0.2s',
           }}
         >
           <RefreshCw size={12} /> {t('refreshNow')}
@@ -129,7 +129,7 @@ export function ScannerSidebar() {
 
         {/* Last update */}
         {lastUpdate && (
-          <span style={{ fontSize: 8, color: T.text3, fontFamily: "'Cairo', sans-serif", textAlign: 'center' }}>
+          <span style={{ fontSize: 8, color: T.text3, fontFamily: "var(--font-ar)", textAlign: 'center' }}>
             {t('lastUpdate')} {formatTime(lastUpdate)}
           </span>
         )}
@@ -138,7 +138,7 @@ export function ScannerSidebar() {
         <span style={{
           display: 'inline-block', textAlign: 'center', padding: '3px 8px',
           borderRadius: 4, fontSize: 8, fontWeight: 800,
-          fontFamily: "'Cairo', sans-serif", color: T.cyan,
+          fontFamily: "var(--font-ar)", color: T.cyan,
           background: `${T.cyan}10`, border: `0.5px solid ${T.border2}`,
         }}>
           {t('techIndicators')}

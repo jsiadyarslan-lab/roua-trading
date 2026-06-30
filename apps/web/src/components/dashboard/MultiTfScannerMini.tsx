@@ -112,16 +112,16 @@ export function MultiTfScannerMini() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, padding: '0 2px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Activity size={12} color={T.purple} className={loading ? 'animate-pulse' : ''} />
-          <span style={{ fontSize: 11, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{selectedSymbol}</span>
+          <span style={{ fontSize: 11, fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)" }}>{selectedSymbol}</span>
           {lastUpdate && (
-            <span style={{ fontSize: 7, color: T.text2, fontFamily: 'monospace' }}>· {lastUpdate}</span>
+            <span style={{ fontSize: 7, color: T.text2, fontFamily: "var(--font-mono)" }}>· {lastUpdate}</span>
           )}
-          <span style={{ fontSize: 7, color: T.text2, fontFamily: 'monospace', background: 'rgba(255,255,255,0.04)', padding: '1px 5px', borderRadius: 3 }}>
+          <span style={{ fontSize: 7, color: T.text2, fontFamily: "var(--font-mono)", background: 'rgba(255,255,255,0.04)', padding: '1px 5px', borderRadius: 3 }}>
             #{scanCount}
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 7, color: T.text2, fontFamily: 'monospace' }}>{countdown}s</span>
+          <span style={{ fontSize: 7, color: T.text2, fontFamily: "var(--font-mono)" }}>{countdown}s</span>
           <span style={{ fontSize: 6.5, background: `${T.purple}15`, border: `0.5px solid ${T.purple}30`, color: T.purple, padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>
             {loading ? tm('scanning') : tm('liveSync')}
           </span>
@@ -139,13 +139,13 @@ export function MultiTfScannerMini() {
             { tf: '1D',  state: '...', strength: 0, color: T.border }
           ]).map((t, i) => (
             <div key={i} className="card" style={{ borderRadius: 12, border: `0.5px solid ${T.border}`, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontSize: 10, fontWeight: 900, color: t.color, width: 24, fontFamily: "'JetBrains Mono', monospace" }}>{t.tf}</span>
+              <span style={{ fontSize: 10, fontWeight: 900, color: t.color, width: 24, fontFamily: "var(--font-mono)" }}>{t.tf}</span>
               <div style={{ flex: 1, height: 4, background: T.bg, borderRadius: 2, overflow: 'hidden', margin: '0 4px' }}>
                 <div style={{ height: '100%', width: `${t.strength}%`, background: t.color, boxShadow: `0 0 6px ${t.color}80`, transition: 'width 0.5s ease-out' }} />
               </div>
-              <span style={{ fontSize: 9, color: t.color, fontWeight: 800, width: 24, textAlign: 'right', fontFamily: "'JetBrains Mono', monospace" }}>{t.strength}%</span>
+              <span style={{ fontSize: 9, color: t.color, fontWeight: 800, width: 24, textAlign: 'right', fontFamily: "var(--font-mono)" }}>{t.strength}%</span>
               {t.state && t.state !== '...' && (
-                <span style={{ fontSize: 7, fontWeight: 700, color: t.color, fontFamily: 'monospace', minWidth: 42 }}>
+                <span style={{ fontSize: 7, fontWeight: 700, color: t.color, fontFamily: "var(--font-mono)", minWidth: 42 }}>
                   {t.state === 'Bullish' ? '⬆' : t.state === 'Bearish' ? '⬇' : '◆'} {t.state === 'Bullish' ? tm('bullish') : t.state === 'Bearish' ? tm('bearish') : tm('neutral')}
                 </span>
               )}

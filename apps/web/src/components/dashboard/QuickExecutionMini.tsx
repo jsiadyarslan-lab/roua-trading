@@ -327,7 +327,7 @@ export function QuickExecutionMini({
               color: statusTone,
               fontSize: 9,
               fontWeight: 800,
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
             }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusTone, boxShadow: `0 0 8px ${statusTone}` }} />
               {getStatusLabel(dataStatus, tc)}
@@ -348,10 +348,10 @@ export function QuickExecutionMini({
           borderRadius: 6, padding: '3px 8px',
         }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#00C853', boxShadow: '0 0 6px #00C853' }} />
-          <span style={{ fontSize: 9, fontWeight: 800, color: '#FFB800', fontFamily: "'JetBrains Mono', monospace" }}>{t('demoAccount')}</span>
+          <span style={{ fontSize: 9, fontWeight: 800, color: '#FFB800', fontFamily: "var(--font-mono)" }}>{t('demoAccount')}</span>
         </div>
         {account && (
-          <div style={{ fontSize: 9, color: 'var(--muted)', fontFamily: "'JetBrains Mono', monospace" }}>
+          <div style={{ fontSize: 9, color: 'var(--muted)', fontFamily: "var(--font-mono)" }}>
             {t('buyingPowerLabel')}: <span style={{ color: 'var(--success)', fontWeight: 700 }}>${formatCashValue(account.cash)}</span>
           </div>
         )}
@@ -439,7 +439,7 @@ export function QuickExecutionMini({
             cursor: 'pointer',
             color: 'var(--foreground)',
             padding: '0 12px',
-            fontFamily: "'Cairo', sans-serif",
+            fontFamily: "var(--font-ar)",
             fontSize: 10,
             fontWeight: 800,
           }}
@@ -515,7 +515,7 @@ export function QuickExecutionMini({
           style={{
             background: 'rgba(0, 229, 255, 0.1)', border: '1px solid rgba(0, 229, 255, 0.2)',
             color: 'var(--accent)', fontSize: 9, fontWeight: 700, padding: '12px 14px', minHeight: 48,
-            borderRadius: 10, cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
+            borderRadius: 10, cursor: 'pointer', fontFamily: "var(--font-ar)",
             display: 'flex', alignItems: 'center', gap: 4
           }}
         >
@@ -534,7 +534,7 @@ export function QuickExecutionMini({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Calculator size={12} color="var(--accent)" />
-            <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--accent)', fontFamily: "'Cairo', sans-serif" }}>{t('riskCalculator')}</span>
+            <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--accent)', fontFamily: "var(--font-ar)" }}>{t('riskCalculator')}</span>
           </div>
           {showRiskCalc ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
         </button>
@@ -550,7 +550,7 @@ export function QuickExecutionMini({
                 onChange={e => setRiskPct(e.target.value)}
                 style={{ flex: 1, accentColor: 'var(--accent)', cursor: 'pointer' }}
               />
-              <span style={{ fontSize: 11, fontWeight: 900, color: 'var(--accent)', fontFamily: 'monospace', minWidth: 36, textAlign: 'left' }}>
+              <span style={{ fontSize: 11, fontWeight: 900, color: 'var(--accent)', fontFamily: "var(--font-mono)", minWidth: 36, textAlign: 'left' }}>
                 {riskPct}%
               </span>
             </div>
@@ -566,7 +566,7 @@ export function QuickExecutionMini({
                   background: 'var(--surface)', borderRadius: 8, padding: '6px 8px',
                   border: '1px solid var(--card-border)', textAlign: 'center',
                 }}>
-                  <div style={{ fontSize: 11, fontWeight: 900, color, fontFamily: 'monospace' }}>{value}</div>
+                  <div style={{ fontSize: 11, fontWeight: 900, color, fontFamily: "var(--font-mono)" }}>{value}</div>
                   <div style={{ fontSize: 8, color: 'var(--muted)', fontWeight: 700, marginTop: 2 }}>{label}</div>
                 </div>
               ))}
@@ -577,13 +577,13 @@ export function QuickExecutionMini({
               <div style={{ display: 'flex', gap: 6 }}>
                 {potentialGain !== null && (
                   <div style={{ flex: 1, background: 'rgba(0,200,83,0.07)', borderRadius: 8, padding: '6px 8px', border: '1px solid rgba(0,200,83,0.2)', textAlign: 'center' }}>
-                    <div style={{ fontSize: 11, fontWeight: 900, color: 'var(--success)', fontFamily: 'monospace' }}>+${potentialGain.toFixed(2)}</div>
+                    <div style={{ fontSize: 11, fontWeight: 900, color: 'var(--success)', fontFamily: "var(--font-mono)" }}>+${potentialGain.toFixed(2)}</div>
                     <div style={{ fontSize: 8, color: 'var(--muted)', fontWeight: 700 }}>{t('estimatedTakeProfit')}</div>
                   </div>
                 )}
                 {potentialLoss !== null && (
                   <div style={{ flex: 1, background: 'rgba(255,59,48,0.07)', borderRadius: 8, padding: '6px 8px', border: '1px solid rgba(255,59,48,0.2)', textAlign: 'center' }}>
-                    <div style={{ fontSize: 11, fontWeight: 900, color: 'var(--danger)', fontFamily: 'monospace' }}>-${potentialLoss.toFixed(2)}</div>
+                    <div style={{ fontSize: 11, fontWeight: 900, color: 'var(--danger)', fontFamily: "var(--font-mono)" }}>-${potentialLoss.toFixed(2)}</div>
                     <div style={{ fontSize: 8, color: 'var(--muted)', fontWeight: 700 }}>{t('estimatedStopLoss')}</div>
                   </div>
                 )}
@@ -596,7 +596,7 @@ export function QuickExecutionMini({
                 style={{
                   fontSize: 10, padding: '5px', borderRadius: 6, border: '1px dashed var(--accent)',
                   background: 'rgba(0,229,255,0.06)', color: 'var(--accent)', cursor: 'pointer',
-                  fontWeight: 700, fontFamily: "'Cairo', sans-serif",
+                  fontWeight: 700, fontFamily: "var(--font-ar)",
                 }}
               >
                 {t('applyOptimalQty', { qty: autoQty })}
@@ -617,7 +617,7 @@ export function QuickExecutionMini({
               background: 'linear-gradient(135deg, #00FFC6, #10B981)',
               border: 'none', color: '#fff', fontSize: 12, fontWeight: 800,
               cursor: loading ? 'not-allowed' : 'pointer',
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               opacity: loading ? 0.7 : 1,
             }}
@@ -633,7 +633,7 @@ export function QuickExecutionMini({
               background: 'linear-gradient(135deg, #FF4757, #EF4444)',
               border: 'none', color: '#fff', fontSize: 12, fontWeight: 800,
               cursor: loading ? 'not-allowed' : 'pointer',
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               opacity: loading ? 0.7 : 1,
             }}
@@ -651,7 +651,7 @@ export function QuickExecutionMini({
             style={{
               flex: 1, minHeight: actionHeight, height: actionHeight, borderRadius: 'var(--radius)', 
               fontSize: 13, fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               transition: 'transform 0.1s', opacity: loading ? 0.7 : 1,
             }}
@@ -668,7 +668,7 @@ export function QuickExecutionMini({
             style={{
               flex: 1, minHeight: actionHeight, height: actionHeight, borderRadius: 'var(--radius)', 
               fontSize: 13, fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               transition: 'transform 0.1s', opacity: loading ? 0.7 : 1,
             }}
@@ -686,7 +686,7 @@ export function QuickExecutionMini({
         <div style={{
           position: 'absolute', inset: 0,
           background: `${T.bg}f0`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12,
-          fontSize: 13, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
+          fontSize: 13, fontWeight: 800, fontFamily: "var(--font-ar)",
           color: status.type === 'success' ? 'var(--success)' : status.type === 'error' ? 'var(--danger)' : 'var(--foreground)',
           backdropFilter: 'blur(8px)', zIndex: 20, borderRadius: 12,
           padding: 24, textAlign: 'center', lineHeight: 1.5
@@ -699,7 +699,7 @@ export function QuickExecutionMini({
                 onClick={() => executeOrderImmediate('buy')}
                 style={{
                   background: 'var(--success)', border: 'none', borderRadius: 4,
-                  padding: '6px 16px', color: '#fff', fontWeight: 800, cursor: 'pointer', fontFamily: "'Cairo', sans-serif"
+                  padding: '6px 16px', color: '#fff', fontWeight: 800, cursor: 'pointer', fontFamily: "var(--font-ar)"
                 }}
               >
                 {tc('confirm')}
@@ -708,7 +708,7 @@ export function QuickExecutionMini({
                 onClick={() => setStatus({ msg: '', type: '' })}
                 style={{
                   background: 'transparent', border: '1px solid var(--border)', borderRadius: 4,
-                  padding: '6px 16px', color: 'var(--foreground)', fontWeight: 800, cursor: 'pointer', fontFamily: "'Cairo', sans-serif"
+                  padding: '6px 16px', color: 'var(--foreground)', fontWeight: 800, cursor: 'pointer', fontFamily: "var(--font-ar)"
                 }}
               >
                 {tc('cancel')}

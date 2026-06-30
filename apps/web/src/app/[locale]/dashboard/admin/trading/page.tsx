@@ -138,8 +138,8 @@ export default function AdminTradingPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h1 style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif", margin: 0 }}>إدارة الحسابات المربوطة</h1>
-            <p style={{ fontSize: 12, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", margin: '4px 0 0' }}>جاري تحميل البيانات...</p>
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", margin: 0 }}>إدارة الحسابات المربوطة</h1>
+            <p style={{ fontSize: 12, color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '4px 0 0' }}>جاري تحميل البيانات...</p>
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
@@ -158,8 +158,8 @@ export default function AdminTradingPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif", margin: 0 }}>إدارة الحسابات المربوطة</h1>
-          <p style={{ fontSize: 12, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", margin: '4px 0 0' }}>المراكز النشطة والأوامر ومحرك البوت</p>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", margin: 0 }}>إدارة الحسابات المربوطة</h1>
+          <p style={{ fontSize: 12, color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '4px 0 0' }}>المراكز النشطة والأوامر ومحرك البوت</p>
         </div>
         <button
           onClick={() => load(true)}
@@ -169,7 +169,7 @@ export default function AdminTradingPage() {
             padding: '8px 16px', borderRadius: 8,
             border: `1px solid ${COLORS.border}`, background: 'rgba(0,229,255,0.06)',
             color: COLORS.accent, fontSize: 12, fontWeight: 600,
-            fontFamily: "'Cairo', sans-serif", cursor: refreshing ? 'wait' : 'pointer',
+            fontFamily: "var(--font-ar)", cursor: refreshing ? 'wait' : 'pointer',
             opacity: refreshing ? 0.6 : 1,
           }}
         >
@@ -184,7 +184,7 @@ export default function AdminTradingPage() {
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '10px 14px', borderRadius: 8,
           background: `${COLORS.danger}10`, border: `1px solid ${COLORS.danger}30`,
-          color: COLORS.danger, fontSize: 12, fontFamily: "'Cairo', sans-serif",
+          color: COLORS.danger, fontSize: 12, fontFamily: "var(--font-ar)",
         }}>
           <AlertCircle size={14} />
           {error}
@@ -211,11 +211,11 @@ export default function AdminTradingPage() {
                 <CardIcon size={16} color={card.color} />
               </div>
               <div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: card.color, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1 }}>
+                <div style={{ fontSize: 18, fontWeight: 800, color: card.color, fontFamily: "var(--font-mono)", lineHeight: 1 }}>
                   {card.trend && <span style={{ fontSize: 11, marginRight: 4 }}>{card.trend}</span>}
                   {card.value}
                 </div>
-                <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>{card.label}</div>
+                <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)", marginTop: 2 }}>{card.label}</div>
               </div>
             </div>
           )
@@ -227,7 +227,7 @@ export default function AdminTradingPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Bot size={16} color={COLORS.accent} />
-            <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif" }}>محرك البوت</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>محرك البوت</span>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 4,
               padding: '2px 8px', borderRadius: 4,
@@ -239,12 +239,12 @@ export default function AdminTradingPage() {
                 background: primaryBot?.isActive ? COLORS.success : COLORS.danger,
                 boxShadow: `0 0 4px ${primaryBot?.isActive ? COLORS.success : COLORS.danger}`,
               }} />
-              <span style={{ fontSize: 9, fontWeight: 700, color: primaryBot?.isActive ? COLORS.success : COLORS.danger, fontFamily: "'Cairo', sans-serif" }}>
+              <span style={{ fontSize: 9, fontWeight: 700, color: primaryBot?.isActive ? COLORS.success : COLORS.danger, fontFamily: "var(--font-ar)" }}>
                 {primaryBot?.isActive ? 'نشط' : 'متوقف'}
               </span>
             </div>
           </div>
-          <span style={{ fontSize: 10, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>{primaryBot?.statusMessage || 'لا يوجد بوت'}</span>
+          <span style={{ fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{primaryBot?.statusMessage || 'لا يوجد بوت'}</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
           {[
@@ -258,8 +258,8 @@ export default function AdminTradingPage() {
               background: 'rgba(255,255,255,0.02)',
               border: `1px solid ${COLORS.border}`,
             }}>
-              <div style={{ fontSize: 9, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", marginBottom: 2 }}>{item.label}</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: item.color, fontFamily: "'JetBrains Mono', monospace" }}>{item.value}</div>
+              <div style={{ fontSize: 9, color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 2 }}>{item.label}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: item.color, fontFamily: "var(--font-mono)" }}>{item.value}</div>
             </div>
           ))}
         </div>
@@ -274,12 +274,12 @@ export default function AdminTradingPage() {
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
             <Activity size={14} color={COLORS.accent} />
-            <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif" }}>المراكز النشطة</span>
-            <span style={{ fontSize: 10, color: COLORS.muted, fontFamily: "'JetBrains Mono', monospace" }}>({positions.length})</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>المراكز النشطة</span>
+            <span style={{ fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-mono)" }}>({positions.length})</span>
           </div>
           <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 320, overflowY: 'auto' }} className="custom-scrollbar">
             {positions.length === 0 ? (
-              <div style={{ padding: 24, textAlign: 'center', color: COLORS.muted, fontSize: 12, fontFamily: "'Cairo', sans-serif" }}>لا توجد مراكز نشطة</div>
+              <div style={{ padding: 24, textAlign: 'center', color: COLORS.muted, fontSize: 12, fontFamily: "var(--font-ar)" }}>لا توجد مراكز نشطة</div>
             ) : positions.map((pos) => {
               const pnl = Number(pos.unrealizedPnl || 0)
               const entryPrice = Number(pos.entryPrice || 0)
@@ -302,8 +302,8 @@ export default function AdminTradingPage() {
                       {pos.side === 'BUY' ? <ArrowUpRight size={12} color={COLORS.success} /> : <ArrowDownRight size={12} color={COLORS.danger} />}
                     </div>
                     <div>
-                      <div style={{ fontSize: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: COLORS.text }} dir="ltr">{pos.symbol}</div>
-                      <div style={{ fontSize: 9, color: COLORS.muted, fontFamily: "'JetBrains Mono', monospace" }} dir="ltr">
+                      <div style={{ fontSize: 12, fontWeight: 700, fontFamily: "var(--font-mono)", color: COLORS.text }} dir="ltr">{pos.symbol}</div>
+                      <div style={{ fontSize: 9, color: COLORS.muted, fontFamily: "var(--font-mono)" }} dir="ltr">
                         {Number(pos.quantity).toFixed(Number(pos.quantity) < 1 ? 4 : 2)} @ ${entryPrice.toLocaleString()}
                       </div>
                     </div>
@@ -311,13 +311,13 @@ export default function AdminTradingPage() {
                   <div style={{ textAlign: 'left' }}>
                     <div style={{
                       fontSize: 12, fontWeight: 700,
-                      fontFamily: "'JetBrains Mono', monospace",
+                      fontFamily: "var(--font-mono)",
                       color: pnl > 0 ? COLORS.success : pnl < 0 ? COLORS.danger : COLORS.muted,
                     }}>
                       {pnl > 0 ? '+' : ''}${pnl.toFixed(2)}
                     </div>
                     <div style={{
-                      fontSize: 9, fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: 9, fontFamily: "var(--font-mono)",
                       color: pnlPercent > 0 ? COLORS.success : pnlPercent < 0 ? COLORS.danger : COLORS.muted,
                     }}>
                       {pnlPercent > 0 ? '+' : ''}{pnlPercent.toFixed(2)}%
@@ -337,12 +337,12 @@ export default function AdminTradingPage() {
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
             <TrendingUp size={14} color={COLORS.amber} />
-            <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif" }}>الصفقات الأخيرة</span>
-            <span style={{ fontSize: 10, color: COLORS.muted, fontFamily: "'JetBrains Mono', monospace" }}>({recentTrades.length})</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>الصفقات الأخيرة</span>
+            <span style={{ fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-mono)" }}>({recentTrades.length})</span>
           </div>
           <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 320, overflowY: 'auto' }} className="custom-scrollbar">
             {recentTrades.length === 0 ? (
-              <div style={{ padding: 24, textAlign: 'center', color: COLORS.muted, fontSize: 12, fontFamily: "'Cairo', sans-serif" }}>لا توجد صفقات</div>
+              <div style={{ padding: 24, textAlign: 'center', color: COLORS.muted, fontSize: 12, fontFamily: "var(--font-ar)" }}>لا توجد صفقات</div>
             ) : recentTrades.map((trade) => {
               const pnl = trade.pnl ? Number(trade.pnl) : null
               return (
@@ -358,10 +358,10 @@ export default function AdminTradingPage() {
                       background: trade.side === 'BUY' ? COLORS.success : COLORS.danger,
                     }} />
                     <div>
-                      <div style={{ fontSize: 11, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: COLORS.text }} dir="ltr">
+                      <div style={{ fontSize: 11, fontWeight: 700, fontFamily: "var(--font-mono)", color: COLORS.text }} dir="ltr">
                         {trade.symbol} • {trade.side === 'BUY' ? 'شراء' : 'بيع'}
                       </div>
-                      <div style={{ fontSize: 9, color: COLORS.muted, fontFamily: "'JetBrains Mono', monospace" }} dir="ltr">
+                      <div style={{ fontSize: 9, color: COLORS.muted, fontFamily: "var(--font-mono)" }} dir="ltr">
                         {trade.type} • {Number(trade.quantity).toFixed(Number(trade.quantity) < 1 ? 4 : 2)} @ ${Number(trade.price).toLocaleString()}
                       </div>
                     </div>
@@ -369,12 +369,12 @@ export default function AdminTradingPage() {
                   <div style={{ textAlign: 'left' }}>
                     <div style={{
                       fontSize: 9, fontWeight: 700,
-                      fontFamily: "'JetBrains Mono', monospace",
+                      fontFamily: "var(--font-mono)",
                       color: pnl !== null ? (pnl > 0 ? COLORS.success : pnl < 0 ? COLORS.danger : COLORS.muted) : COLORS.muted,
                     }}>
                       {pnl !== null ? `${pnl > 0 ? '+' : ''}$${pnl.toFixed(2)}` : '—'}
                     </div>
-                    <div style={{ fontSize: 8, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>
+                    <div style={{ fontSize: 8, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
                       {new Date(trade.executedAt).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>

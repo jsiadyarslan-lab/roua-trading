@@ -266,7 +266,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
     flexShrink: 0,
     padding: mobile ? '0 8px' : '0 4px',
     fontSize: mobile ? 12 : 11,
-    fontFamily: "'JetBrains Mono', monospace",
+    fontFamily: "var(--font-mono)",
   };
 
   const toggleBtnStyle = (isActive: boolean): React.CSSProperties => ({
@@ -311,7 +311,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
     textAlign: 'start' as const,
     padding: '8px 10px',
     fontSize: 11,
-    fontFamily: "'JetBrains Mono', monospace",
+    fontFamily: "var(--font-mono)",
     background: 'none',
     border: 'none',
     color: COLORS.textSecondary,
@@ -339,7 +339,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
   // ── Portal dropdown panels ──
   const tfPanelPortal = showTimeframePanel && tfPanelPos ? createPortal(
     <div ref={tfPanelRef} style={{ ...panelBaseStyle, top: tfPanelPos.top, left: tfPanelPos.left, right: 'auto', minWidth: mobile ? 200 : 240 }}>
-      <div style={{ fontSize: 9, color: COLORS.textMuted, letterSpacing: 1, marginBottom: 6, fontFamily: "'Cairo', sans-serif" }}>{t('timeframe')}</div>
+      <div style={{ fontSize: 9, color: COLORS.textMuted, letterSpacing: 1, marginBottom: 6, fontFamily: "var(--font-ar)" }}>{t('timeframe')}</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 3 }}>
         {TIMEFRAMES.map(tf => {
           const isActive = timeframe === tf.value;
@@ -353,7 +353,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
                 borderRadius: 6,
                 padding: mobile ? '5px 0' : '6px 0',
                 fontSize: mobile ? 9 : 10,
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "var(--font-mono)",
                 fontWeight: isActive ? 700 : 600,
                 cursor: 'pointer',
                 textAlign: 'center',
@@ -374,7 +374,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
 
   const ctPanelPortal = showChartTypePanel && ctPanelPos ? createPortal(
     <div ref={ctPanelRef} style={{ ...panelBaseStyle, top: ctPanelPos.top, left: ctPanelPos.left, minWidth: mobile ? 130 : 150 }}>
-      <div style={{ fontSize: 9, color: COLORS.textMuted, letterSpacing: 1, marginBottom: 6, fontFamily: "'Cairo', sans-serif" }}>{t('chartType')}</div>
+      <div style={{ fontSize: 9, color: COLORS.textMuted, letterSpacing: 1, marginBottom: 6, fontFamily: "var(--font-ar)" }}>{t('chartType')}</div>
       {CHART_TYPE_KEYS.map(ctKey => (
         <button
           key={ctKey}
@@ -722,7 +722,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
                 border: '1px solid rgba(0,212,255,0.25)',
                 borderRadius: 4,
                 color: COLORS.cyan,
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "var(--font-mono)",
                 fontSize: 9,
                 fontWeight: 700,
                 padding: '0 2px',
@@ -812,7 +812,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/>
           </svg>
         </button>
-        <button style={{ ...btnStyle, fontWeight: 700, width: 'auto', padding: '0 5px', fontFamily: "'Cairo', sans-serif" }} onClick={onResetView} title={t('resetView')}>
+        <button style={{ ...btnStyle, fontWeight: 700, width: 'auto', padding: '0 5px', fontFamily: "var(--font-ar)" }} onClick={onResetView} title={t('resetView')}>
           ⊡
         </button>
 
@@ -1067,7 +1067,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
               zIndex: 1,
               boxShadow: '0 0 4px rgba(255,71,87,0.5)',
             }}>

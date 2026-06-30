@@ -88,7 +88,7 @@ function PatternPill({ pattern }: { pattern: DetectedPattern }) {
       display: 'inline-flex', alignItems: 'center', gap: 3,
       padding: '2px 8px', borderRadius: 4, fontSize: 8, fontWeight: 700,
       background: `${color}12`, color, border: `0.5px solid ${color}30`,
-      fontFamily: "'Cairo', sans-serif", whiteSpace: 'nowrap',
+      fontFamily: "var(--font-ar)", whiteSpace: 'nowrap',
     }}>
       {arName}
       <span style={{ fontSize: 7, opacity: 0.7 }}>{pattern.confidence}%</span>
@@ -372,16 +372,16 @@ export function PatternsView() {
       <div style={{ padding: '12px 16px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Brain size={18} color={T.cyan} />
-          <span style={{ fontSize: 13, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{t('patterns.detectedPatterns')}</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>{t('patterns.detectedPatterns')}</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, background: `${T.green}12`, color: T.green, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
+          <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, background: `${T.green}12`, color: T.green, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
             {stats.bullish} {t('bullish')}
           </span>
-          <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, background: `${T.red}12`, color: T.red, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
+          <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, background: `${T.red}12`, color: T.red, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
             {stats.bearish} {t('bearish')}
           </span>
-          <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, background: `${T.amber}12`, color: T.amber, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
+          <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, background: `${T.amber}12`, color: T.amber, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
             {stats.neutral} {t('neutral')}
           </span>
         </div>
@@ -394,7 +394,7 @@ export function PatternsView() {
           <button key={f.key} onClick={() => setFilter(f.key)}
             style={{
               padding: '4px 12px', borderRadius: 6, fontSize: 9, fontWeight: 700,
-              fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+              fontFamily: "var(--font-ar)", cursor: 'pointer',
               background: filter === f.key ? `${T.cyan}20` : T.surface,
               color: filter === f.key ? T.cyan : T.text3,
               border: `0.5px solid ${filter === f.key ? T.border2 : T.border}`,
@@ -410,7 +410,7 @@ export function PatternsView() {
           <button key={f.key} onClick={() => setConfidenceFilter(f.key)}
             style={{
               padding: '4px 12px', borderRadius: 6, fontSize: 9, fontWeight: 700,
-              fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+              fontFamily: "var(--font-ar)", cursor: 'pointer',
               background: confidenceFilter === f.key ? `${T.purple}20` : T.surface,
               color: confidenceFilter === f.key ? T.purple : T.text3,
               border: `0.5px solid ${confidenceFilter === f.key ? `${T.purple}30` : T.border}`,
@@ -425,7 +425,7 @@ export function PatternsView() {
           style={{
             display: 'flex', alignItems: 'center', gap: 4,
             padding: '4px 10px', borderRadius: 6, fontSize: 9, fontWeight: 700,
-            fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+            fontFamily: "var(--font-ar)", cursor: 'pointer',
             background: patternSearch !== 'ALL' ? `${T.amber}20` : T.surface,
             color: patternSearch !== 'ALL' ? T.amber : T.text3,
             border: `0.5px solid ${patternSearch !== 'ALL' ? `${T.amber}30` : T.border}`,
@@ -445,7 +445,7 @@ export function PatternsView() {
             <button key={opt.value} onClick={() => setPatternSearch(opt.value)}
               style={{
                 padding: '3px 10px', borderRadius: 4, fontSize: 8, fontWeight: 700,
-                fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+                fontFamily: "var(--font-ar)", cursor: 'pointer',
                 background: patternSearch === opt.value ? `${T.amber}15` : T.bg,
                 color: patternSearch === opt.value ? T.amber : T.text3,
                 border: `0.5px solid ${patternSearch === opt.value ? `${T.amber}30` : T.border}`,
@@ -460,7 +460,7 @@ export function PatternsView() {
       <div style={{ flex: 1, overflow: 'auto', padding: 12 }} className="pv-scroll">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {filteredItems.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 40, color: T.text3, fontSize: 12, fontFamily: "'Cairo', sans-serif" }}>
+            <div style={{ textAlign: 'center', padding: 40, color: T.text3, fontSize: 12, fontFamily: "var(--font-ar)" }}>
               {t('patterns.noMatchingPatterns')}
             </div>
           ) : filteredItems.map(({ item, patterns }, i) => {
@@ -486,19 +486,19 @@ export function PatternsView() {
                 {/* Symbol row */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 12, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{item.symbol}</span>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)" }}>{item.symbol}</span>
                     <DirectionTag direction={item.direction} signalClass={item.signalClass} size="sm" />
                     {/* Top pattern confidence indicator */}
                     <span style={{
                       fontSize: 7, fontWeight: 800, padding: '1px 5px', borderRadius: 3,
                       background: topPattern.confidence >= 70 ? `${T.green}15` : topPattern.confidence >= 50 ? `${T.amber}15` : `${T.text3}10`,
                       color: topPattern.confidence >= 70 ? T.green : topPattern.confidence >= 50 ? T.amber : T.text3,
-                      fontFamily: "'JetBrains Mono', monospace",
+                      fontFamily: "var(--font-mono)",
                     }}>
                       {topPattern.confidence}%
                     </span>
                   </div>
-                  <span style={{ fontSize: 10, fontWeight: 800, color: chgColor, fontFamily: "'JetBrains Mono', monospace" }}>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: chgColor, fontFamily: "var(--font-mono)" }}>
                     {item.changePercent >= 0 ? '+' : ''}{item.changePercent.toFixed(2)}%
                   </span>
                 </div>
@@ -511,7 +511,7 @@ export function PatternsView() {
                 {/* Top pattern description */}
                 {topPattern.descriptionKey && (
                   <div style={{
-                    fontSize: 8, color: T.text3, fontFamily: "'Cairo', sans-serif",
+                    fontSize: 8, color: T.text3, fontFamily: "var(--font-ar)",
                     lineHeight: 1.5, marginBottom: 6,
                     display: 'flex', alignItems: 'flex-start', gap: 4,
                   }}>
@@ -533,7 +533,7 @@ export function PatternsView() {
                       display: 'flex', alignItems: 'center', gap: 4,
                       padding: '3px 8px', borderRadius: 4, border: `0.5px solid ${T.purple}30`,
                       background: `${T.purple}10`, color: T.purple, fontSize: 8,
-                      fontWeight: 700, fontFamily: "'Cairo', sans-serif", cursor: 'pointer', transition: 'all 0.2s',
+                      fontWeight: 700, fontFamily: "var(--font-ar)", cursor: 'pointer', transition: 'all 0.2s',
                     }}
                   >
                     <Sparkles size={10} /> {t('patterns.deepAnalysis')}

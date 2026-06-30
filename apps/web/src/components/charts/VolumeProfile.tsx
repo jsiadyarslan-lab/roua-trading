@@ -222,7 +222,7 @@ export function VolumeProfile({
         left: 4,
         fontSize: 8,
         color: 'rgba(255,255,255,0.3)',
-        fontFamily: "'JetBrains Mono', monospace",
+        fontFamily: "var(--font-mono)",
         letterSpacing: 0.5,
         pointerEvents: 'none',
       }}>

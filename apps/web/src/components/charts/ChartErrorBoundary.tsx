@@ -62,7 +62,7 @@ export class ChartErrorBoundary extends React.Component<ChartErrorBoundaryProps,
           minHeight: 300,
           background: '#0d1117',
           color: '#8B92A8',
-          fontFamily: "'Inter', sans-serif",
+          fontFamily: "var(--font-en)",
           gap: 12,
           padding: 24,
         }}>

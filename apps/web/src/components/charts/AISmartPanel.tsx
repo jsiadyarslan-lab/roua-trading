@@ -1556,27 +1556,27 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const regimeLabelAr = volRegime === 'extreme' ? t('extreme') : volRegime === 'high' ? t('high') : volRegime === 'low' ? t('low') : t('normal');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 340, maxHeight: 560, background: C.bg, borderRadius: 10, border: `1px solid ${C.border}`, overflow: 'hidden', fontFamily: "'Cairo','IBM Plex Sans Arabic',sans-serif", boxShadow: '0 24px 64px rgba(0,0,0,0.7)', direction: 'inherit' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 340, maxHeight: 560, background: C.bg, borderRadius: 10, border: `1px solid ${C.border}`, overflow: 'hidden', fontFamily: "var(--font-ar)", boxShadow: '0 24px 64px rgba(0,0,0,0.7)', direction: 'inherit' }}>
       {/* Header */}
       <div data-drag-handle="true" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', borderBottom: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.025)', cursor: 'grab', userSelect: 'none', flexShrink: 0 }}>
         <div data-drag-handle="true" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span data-drag-handle="true" style={{ fontSize: 16 }}>🧠</span>
           <div data-drag-handle="true">
             <div style={{ color: C.text, fontSize: 11, fontWeight: 700 }}>{t('title')}</div>
-            <div style={{ color: C.mut, fontSize: 8.5, fontFamily: 'monospace' }}>{symbol}</div>
+            <div style={{ color: C.mut, fontSize: 8.5, fontFamily: "var(--font-mono)" }}>{symbol}</div>
           </div>
           {loading && <div style={{ width: 8, height: 8, border: `1.5px solid ${C.cyan}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />}
         </div>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           {/* SSE Stream indicator */}
           {streamMode && (
-            <div style={{ padding: '1px 5px', borderRadius: 3, fontSize: 7, fontWeight: 700, fontFamily: 'monospace', background: `${C.cyan}18`, color: C.cyan, border: `1px solid ${C.cyan}30`, display: 'flex', alignItems: 'center', gap: 3 }}>
+            <div style={{ padding: '1px 5px', borderRadius: 3, fontSize: 7, fontWeight: 700, fontFamily: "var(--font-mono)", background: `${C.cyan}18`, color: C.cyan, border: `1px solid ${C.cyan}30`, display: 'flex', alignItems: 'center', gap: 3 }}>
               <div style={{ width: 5, height: 5, borderRadius: '50%', background: C.cyan, animation: 'spin 1s linear infinite' }} />
               SSE
             </div>
           )}
           {/* Volatility regime badge */}
-          <div style={{ padding: '1px 5px', borderRadius: 3, fontSize: 7, fontWeight: 700, fontFamily: 'monospace', background: `${regimeColor}18`, color: regimeColor, border: `1px solid ${regimeColor}30` }}>
+          <div style={{ padding: '1px 5px', borderRadius: 3, fontSize: 7, fontWeight: 700, fontFamily: "var(--font-mono)", background: `${regimeColor}18`, color: regimeColor, border: `1px solid ${regimeColor}30` }}>
             ATR {regimeLabelAr}
           </div>
           {/* Engine verification badge — click to verify engines are real */}
@@ -1584,7 +1584,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             onClick={() => { const report = runFullVerification(); setVerificationReport(report); setShowVerification(true); }}
             title="تحقق من المحركات | Verify Engines"
             style={{
-              padding: '1px 5px', borderRadius: 3, fontSize: 7, fontWeight: 700, fontFamily: 'monospace',
+              padding: '1px 5px', borderRadius: 3, fontSize: 7, fontWeight: 700, fontFamily: "var(--font-mono)",
               background: verificationReport?.allReal ? `${C.green}18` : `${C.gold}18`,
               color: verificationReport?.allReal ? C.green : C.gold,
               border: `1px solid ${verificationReport?.allReal ? C.green : C.gold}30`,
@@ -1633,7 +1633,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
           {/* Overall Score */}
           <div style={{ textAlign: 'center', padding: '8px 0', marginBottom: 8, borderRadius: 6, background: verificationReport.allReal ? `${C.green}10` : `${C.gold}10`, border: `1px solid ${verificationReport.allReal ? C.green : C.gold}30` }}>
-            <div style={{ fontSize: 28, fontWeight: 800, color: verificationReport.allReal ? C.green : C.gold, fontFamily: 'monospace' }}>
+            <div style={{ fontSize: 28, fontWeight: 800, color: verificationReport.allReal ? C.green : C.gold, fontFamily: "var(--font-mono)" }}>
               {verificationReport.overallScore}%
             </div>
             <div style={{ fontSize: 9, color: C.dim, marginTop: 2 }}>
@@ -1646,7 +1646,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             <div key={eng.engine} style={{ marginBottom: 6, borderRadius: 5, border: `1px solid ${eng.isReal ? C.green : C.red}30`, background: `${eng.isReal ? C.green : C.red}08`, padding: '6px 8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                 <span style={{ fontSize: 9.5, fontWeight: 700, color: C.text }}>{eng.engine}</span>
-                <span style={{ fontSize: 9, fontFamily: 'monospace', color: eng.isReal ? C.green : C.red, fontWeight: 700 }}>
+                <span style={{ fontSize: 9, fontFamily: "var(--font-mono)", color: eng.isReal ? C.green : C.red, fontWeight: 700 }}>
                   {eng.score}% {eng.isReal ? '✓' : '✗'}
                 </span>
               </div>
@@ -1742,7 +1742,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                       {([[t('entry'), signal.entry, C.cyan], [t('stopLoss'), signal.sl, C.red], [t('target'), signal.tp, C.green]] as [string, number, string][]).map(([l, v, col]) => (
                         <div key={l} style={{ background: `${col}0a`, border: `1px solid ${col}25`, borderRadius: 6, padding: 5, textAlign: 'center' }}>
                           <div style={{ color: C.mut, fontSize: 7.5, marginBottom: 2 }}>{l}</div>
-                          <div style={{ color: col, fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }}>{fp(v)}</div>
+                          <div style={{ color: col, fontSize: 9, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{fp(v)}</div>
                         </div>
                       ))}
                     </div>
@@ -1764,7 +1764,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                             <span style={{ color: C.dim, fontSize: 9 }}>{t('riskReward')}</span>
                             <span style={{
                               color: isCritical ? C.red : isWeak ? '#f59e0b' : C.text,
-                              fontSize: 9, fontWeight: 700, fontFamily: 'monospace',
+                              fontSize: 9, fontWeight: 700, fontFamily: "var(--font-mono)",
                             }}>1:{safeToFixed(rr, 2, '—')}</span>
                           </div>
                           {(isWeak) && (
@@ -1861,7 +1861,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     {([[t('resistance'), resistance, C.red], [t('support'), support, C.green]] as [string, SupportResistanceLevel[], string][]).map(([lbl, arr, col]) => arr.length > 0 ? (
                       <div key={lbl} style={{ background: `${col}07`, border: `1px solid ${col}18`, borderRadius: 6, padding: '5px 7px' }}>
                         <div style={{ color: col, fontSize: 8.5, fontWeight: 700, marginBottom: 3 }}>{lbl}</div>
-                        {arr.slice(0, 2).map((l, i) => <div key={i} style={{ color: C.dim, fontSize: 8.5, fontFamily: 'monospace' }}>{fp(l.price)}</div>)}
+                        {arr.slice(0, 2).map((l, i) => <div key={i} style={{ color: C.dim, fontSize: 8.5, fontFamily: "var(--font-mono)" }}>{fp(l.price)}</div>)}
                       </div>
                     ) : null)}
                   </div>
@@ -1925,7 +1925,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 <div style={{ color: col, fontSize: 9, fontWeight: 700, marginBottom: 4, letterSpacing: 0.5 }}>{lbl} ({arr.length})</div>
                 {arr.map((l, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 8px', borderRadius: 5, background: C.card, marginBottom: 3, border: `1px solid ${col}15` }}>
-                    <span style={{ color: col, fontSize: 9.5, fontFamily: 'monospace', fontWeight: 700 }}>{fp(l.price)}</span>
+                    <span style={{ color: col, fontSize: 9.5, fontFamily: "var(--font-mono)", fontWeight: 700 }}>{fp(l.price)}</span>
                     <span style={{ color: l.strength === 'strong' ? col : C.mut, fontSize: 8 }}>{strengthLabel(l.strength)}</span>
                   </div>
                 ))}
@@ -1963,7 +1963,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 {([[t('poc'), volProfile.poc, C.yellow], [t('vah'), volProfile.vah, C.cyan], [t('val'), volProfile.val, C.red]] as [string,number,string][]).map(([l,v,col]) => (
                   <div key={l} style={{ display:'flex', justifyContent:'space-between', marginBottom:4, padding:'3px 0', borderBottom:`1px solid ${C.border}` }}>
                     <span style={{ color: col, fontSize: 8.5, fontWeight: 700 }}>{l}</span>
-                    <span style={{ color: C.text, fontSize: 9, fontFamily:'monospace' }}>{v>999?v.toFixed(2):v.toFixed(5)}</span>
+                    <span style={{ color: C.text, fontSize: 9, fontFamily: "var(--font-mono)" }}>{v>999?v.toFixed(2):v.toFixed(5)}</span>
                   </div>
                 ))}
               </div>
@@ -1996,10 +1996,10 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     <div style={{ height: '100%', borderRadius: 2, width: `${wyckoffAdvanced.confidence * 100}%`, background: wyckoffAdvanced.direction === 'bullish' ? C.green : C.red, transition: 'width 0.5s' }} />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 8, fontSize: 9 }}>
-                    <div><span style={{ color: C.dim }}>أعلى النطاق:</span> <span style={{ color: C.text, fontFamily: 'monospace' }}>{safeToFixed(wyckoffAdvanced.range?.high, 2)}</span></div>
-                    <div><span style={{ color: C.dim }}>أدنى النطاق:</span> <span style={{ color: C.text, fontFamily: 'monospace' }}>{safeToFixed(wyckoffAdvanced.range?.low, 2)}</span></div>
-                    <div><span style={{ color: C.dim }}>الدعم:</span> <span style={{ color: C.green, fontFamily: 'monospace' }}>{safeToFixed(wyckoffAdvanced.support, 2)}</span></div>
-                    <div><span style={{ color: C.dim }}>المقاومة:</span> <span style={{ color: C.red, fontFamily: 'monospace' }}>{safeToFixed(wyckoffAdvanced.resistance, 2)}</span></div>
+                    <div><span style={{ color: C.dim }}>أعلى النطاق:</span> <span style={{ color: C.text, fontFamily: "var(--font-mono)" }}>{safeToFixed(wyckoffAdvanced.range?.high, 2)}</span></div>
+                    <div><span style={{ color: C.dim }}>أدنى النطاق:</span> <span style={{ color: C.text, fontFamily: "var(--font-mono)" }}>{safeToFixed(wyckoffAdvanced.range?.low, 2)}</span></div>
+                    <div><span style={{ color: C.dim }}>الدعم:</span> <span style={{ color: C.green, fontFamily: "var(--font-mono)" }}>{safeToFixed(wyckoffAdvanced.support, 2)}</span></div>
+                    <div><span style={{ color: C.dim }}>المقاومة:</span> <span style={{ color: C.red, fontFamily: "var(--font-mono)" }}>{safeToFixed(wyckoffAdvanced.resistance, 2)}</span></div>
                   </div>
                 </div>
 
@@ -2011,17 +2011,17 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                   ) : (
                     wyckoffAdvanced.events.map((evt: WyckoffEvent, i: number) => (
                       <div key={i} style={{ display: 'flex', gap: 6, padding: '4px 6px', background: 'rgba(255,255,255,0.02)', borderRadius: 4, marginBottom: 3, alignItems: 'flex-start' }}>
-                        <div style={{ padding: '1px 5px', borderRadius: 3, fontSize: 8, fontWeight: 700, fontFamily: 'monospace', background: evt.phase === 'A' ? 'rgba(59,130,246,0.12)' : evt.phase === 'B' ? 'rgba(168,85,247,0.12)' : evt.phase === 'C' ? 'rgba(245,158,11,0.12)' : evt.phase === 'D' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: evt.phase === 'A' ? C.blue : evt.phase === 'B' ? C.purple : evt.phase === 'C' ? C.yellow : evt.phase === 'D' ? C.green : C.red, border: `1px solid ${evt.phase === 'A' ? 'rgba(59,130,246,0.2)' : evt.phase === 'B' ? 'rgba(168,85,247,0.2)' : evt.phase === 'C' ? 'rgba(245,158,11,0.2)' : evt.phase === 'D' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`, flexShrink: 0 }}>
+                        <div style={{ padding: '1px 5px', borderRadius: 3, fontSize: 8, fontWeight: 700, fontFamily: "var(--font-mono)", background: evt.phase === 'A' ? 'rgba(59,130,246,0.12)' : evt.phase === 'B' ? 'rgba(168,85,247,0.12)' : evt.phase === 'C' ? 'rgba(245,158,11,0.12)' : evt.phase === 'D' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: evt.phase === 'A' ? C.blue : evt.phase === 'B' ? C.purple : evt.phase === 'C' ? C.yellow : evt.phase === 'D' ? C.green : C.red, border: `1px solid ${evt.phase === 'A' ? 'rgba(59,130,246,0.2)' : evt.phase === 'B' ? 'rgba(168,85,247,0.2)' : evt.phase === 'C' ? 'rgba(245,158,11,0.2)' : evt.phase === 'D' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`, flexShrink: 0 }}>
                           {evt.type}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                             <span style={{ color: C.dim, fontSize: 8 }}>المرحلة {evt.phase}</span>
-                            <span style={{ color: C.text, fontFamily: 'monospace', fontSize: 9 }}>{evt.price.toFixed(2)}</span>
+                            <span style={{ color: C.text, fontFamily: "var(--font-mono)", fontSize: 9 }}>{evt.price.toFixed(2)}</span>
                           </div>
                           <div style={{ color: C.mut, fontSize: 8 }}>{evt.description}</div>
                         </div>
-                        <span style={{ color: C.mut, fontFamily: 'monospace', fontSize: 8 }}>V:{safeToFixed((evt.volume ?? 0) / 1000, 0)}K</span>
+                        <span style={{ color: C.mut, fontFamily: "var(--font-mono)", fontSize: 8 }}>V:{safeToFixed((evt.volume ?? 0) / 1000, 0)}K</span>
                       </div>
                     ))
                   )}
@@ -2035,7 +2035,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                       const isActive = phase === wyckoffAdvanced.currentPhase;
                       const isComplete = wyckoffAdvanced.events.some(e => e.phase === phase);
                       return (
-                        <div key={phase} style={{ flex: 1, height: 24, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: 'monospace', background: isActive ? 'rgba(245,158,11,0.12)' : isComplete ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)', color: isActive ? C.yellow : isComplete ? C.dim : C.mut, border: isActive ? '1px solid rgba(245,158,11,0.2)' : 'none' }}>
+                        <div key={phase} style={{ flex: 1, height: 24, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: "var(--font-mono)", background: isActive ? 'rgba(245,158,11,0.12)' : isComplete ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)', color: isActive ? C.yellow : isComplete ? C.dim : C.mut, border: isActive ? '1px solid rgba(245,158,11,0.2)' : 'none' }}>
                           {phase}
                         </div>
                       );
@@ -2073,7 +2073,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     </div>
                     <div style={{ color: C.dim, fontSize: 9, marginTop: 4 }}>{elliottAdvanced.dominantCount.label}</div>
                     {elliottAdvanced.dominantCount.targetPrice !== null && (
-                      <div style={{ color: C.dim, fontSize: 9, marginTop: 2 }}>الهدف: <span style={{ color: C.text, fontFamily: 'monospace' }}>{safeToFixed(elliottAdvanced.dominantCount.targetPrice, 2)}</span></div>
+                      <div style={{ color: C.dim, fontSize: 9, marginTop: 2 }}>الهدف: <span style={{ color: C.text, fontFamily: "var(--font-mono)" }}>{safeToFixed(elliottAdvanced.dominantCount.targetPrice, 2)}</span></div>
                     )}
                   </div>
                 )}
@@ -2090,7 +2090,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     ].map(({ label, val, target }) => (
                       <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 6px', background: 'rgba(255,255,255,0.02)', borderRadius: 4, marginBottom: 2 }}>
                         <span style={{ color: C.dim, fontSize: 9 }}>{label}</span>
-                        <span style={{ fontFamily: 'monospace', fontSize: 9, color: Number.isFinite(val) && target > 0 && Math.abs(val - target) / target < 0.08 ? C.green : C.yellow }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: Number.isFinite(val) && target > 0 && Math.abs(val - target) / target < 0.08 ? C.green : C.yellow }}>
                           {safeToFixed(val, 3)}{Number.isFinite(val) && target > 0 && Math.abs(val - target) / target < 0.08 ? ` ≈ ${target}` : ''}
                         </span>
                       </div>
@@ -2110,7 +2110,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                           <span style={{ color: C.mut, fontSize: 8 }}>{count.label}</span>
-                          <span style={{ padding: '1px 4px', borderRadius: 3, fontSize: 8, fontFamily: 'monospace', background: 'rgba(255,255,255,0.04)', color: C.dim }}>{safeToFixed((count.probability ?? 0) * 100, 0)}%</span>
+                          <span style={{ padding: '1px 4px', borderRadius: 3, fontSize: 8, fontFamily: "var(--font-mono)", background: 'rgba(255,255,255,0.04)', color: C.dim }}>{safeToFixed((count.probability ?? 0) * 100, 0)}%</span>
                         </div>
                       </div>
                     ))}
@@ -2149,7 +2149,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     <span key={w.waveNumber} style={{ background:`${elliottData.direction==='bullish'?C.green:C.red}20`, color:elliottData.direction==='bullish'?C.green:C.red, padding:'2px 5px', borderRadius:3, fontSize:8, fontWeight:700 }}>{w.waveNumber}</span>
                   ))}
                 </div>
-                {elliottData.nextTarget && <div style={{ color:C.dim, fontSize:8.5, marginTop:4 }}>{t('nextTarget')}: <span style={{ color:C.cyan, fontFamily:'monospace' }}>{elliottData.nextTarget.toFixed(2)}</span></div>}
+                {elliottData.nextTarget && <div style={{ color:C.dim, fontSize:8.5, marginTop:4 }}>{t('nextTarget')}: <span style={{ color:C.cyan, fontFamily: "var(--font-mono)" }}>{elliottData.nextTarget.toFixed(2)}</span></div>}
               </div>
             )}
             {/* REVOLUTIONARY: Performance Stats section */}
@@ -2193,27 +2193,27 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
                       <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
                         <div style={{ color: C.mut, fontSize: 7 }}>ATR</div>
-                        <div style={{ color: C.text, fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }}>{thresholds.atrValue.toFixed(2)}</div>
+                        <div style={{ color: C.text, fontSize: 9, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{thresholds.atrValue.toFixed(2)}</div>
                       </div>
                       <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
                         <div style={{ color: C.mut, fontSize: 7 }}>ATR %</div>
-                        <div style={{ color: regimeColor, fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }}>{atrPct.toFixed(2)}%</div>
+                        <div style={{ color: regimeColor, fontSize: 9, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{atrPct.toFixed(2)}%</div>
                       </div>
                       <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
                         <div style={{ color: C.mut, fontSize: 7 }}>{t('retracement')}</div>
-                        <div style={{ color: C.text, fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }}>{(thresholds.pullback * 100).toFixed(1)}%</div>
+                        <div style={{ color: C.text, fontSize: 9, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{(thresholds.pullback * 100).toFixed(1)}%</div>
                       </div>
                       <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
                         <div style={{ color: C.mut, fontSize: 7 }}>{t('peakSimilarity')}</div>
-                        <div style={{ color: C.text, fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }}>{(thresholds.peakSimilarity * 100).toFixed(1)}%</div>
+                        <div style={{ color: C.text, fontSize: 9, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{(thresholds.peakSimilarity * 100).toFixed(1)}%</div>
                       </div>
                       <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
                         <div style={{ color: C.mut, fontSize: 7 }}>{t('shoulderDivergence')}</div>
-                        <div style={{ color: C.text, fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }}>{(thresholds.shoulderTolerance * 100).toFixed(1)}%</div>
+                        <div style={{ color: C.text, fontSize: 9, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{(thresholds.shoulderTolerance * 100).toFixed(1)}%</div>
                       </div>
                       <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
                         <div style={{ color: C.mut, fontSize: 7 }}>{t('breakoutConfirmation')}</div>
-                        <div style={{ color: C.text, fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }}>{(thresholds.breakoutConfirm * 100).toFixed(1)}%</div>
+                        <div style={{ color: C.text, fontSize: 9, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{(thresholds.breakoutConfirm * 100).toFixed(1)}%</div>
                       </div>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5, padding: '3px 6px', background: C.card, borderRadius: 4 }}>
@@ -2251,7 +2251,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                       </div>
                     </div>
                     <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 22, fontWeight: 900, color: mtfResult.confluenceDirection === 'bullish' ? C.green : mtfResult.confluenceDirection === 'bearish' ? C.red : C.yellow, fontFamily: 'monospace' }}>{mtfResult.confluenceScore}%</div>
+                      <div style={{ fontSize: 22, fontWeight: 900, color: mtfResult.confluenceDirection === 'bullish' ? C.green : mtfResult.confluenceDirection === 'bearish' ? C.red : C.yellow, fontFamily: "var(--font-mono)" }}>{mtfResult.confluenceScore}%</div>
                       <div style={{ color: C.mut, fontSize: 7 }}>مجموع التقارب</div>
                     </div>
                   </div>
@@ -2297,7 +2297,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     {mtfResult.srConfluences.map((sr, i) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', borderRadius: 4, marginBottom: 2, background: C.card }}>
                         <span style={{ color: sr.type === 'support' ? C.green : C.red, fontSize: 8 }}>{sr.labelAr}</span>
-                        <span style={{ color: C.text, fontSize: 8, fontFamily: 'monospace' }}>{sr.price} ({sr.timeframes.length}TF)</span>
+                        <span style={{ color: C.text, fontSize: 8, fontFamily: "var(--font-mono)" }}>{sr.price} ({sr.timeframes.length}TF)</span>
                       </div>
                     ))}
                   </div>
@@ -2371,7 +2371,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     <span style={{ color: zone.sweepDirection === 'bullish' ? C.green : C.red, fontSize: 8.5, fontWeight: 600 }}>
                       {zone.sweepDirection === 'bullish' ? '▲' : '▼'} {zone.labelAr}
                     </span>
-                    <span style={{ color: C.mut, fontSize: 8, fontFamily: 'monospace' }}>{zone.price.toFixed(2)} {zone.swept ? '(مسحوبة)' : ''}</span>
+                    <span style={{ color: C.mut, fontSize: 8, fontFamily: "var(--font-mono)" }}>{zone.price.toFixed(2)} {zone.swept ? '(مسحوبة)' : ''}</span>
                   </div>
                 ))}
               </div>
@@ -2422,10 +2422,10 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                       </span>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 3, fontSize: 8 }}>
-                      <div><span style={{ color: C.mut }}>دخول:</span> <span style={{ color: C.text, fontFamily: 'monospace' }}>{safeToFixed(proposal.entryPrice, 2)}</span></div>
-                      <div><span style={{ color: C.mut }}>وقف:</span> <span style={{ color: C.red, fontFamily: 'monospace' }}>{safeToFixed(proposal.stopLoss, 2)}</span></div>
-                      <div><span style={{ color: C.mut }}>هدف:</span> <span style={{ color: C.green, fontFamily: 'monospace' }}>{safeToFixed(proposal.takeProfits?.[2], 2)}</span></div>
-                      <div><span style={{ color: C.mut }}>حجم:</span> <span style={{ color: C.text, fontFamily: 'monospace' }}>{safeToFixed(proposal.positionSize, 4)}</span></div>
+                      <div><span style={{ color: C.mut }}>دخول:</span> <span style={{ color: C.text, fontFamily: "var(--font-mono)" }}>{safeToFixed(proposal.entryPrice, 2)}</span></div>
+                      <div><span style={{ color: C.mut }}>وقف:</span> <span style={{ color: C.red, fontFamily: "var(--font-mono)" }}>{safeToFixed(proposal.stopLoss, 2)}</span></div>
+                      <div><span style={{ color: C.mut }}>هدف:</span> <span style={{ color: C.green, fontFamily: "var(--font-mono)" }}>{safeToFixed(proposal.takeProfits?.[2], 2)}</span></div>
+                      <div><span style={{ color: C.mut }}>حجم:</span> <span style={{ color: C.text, fontFamily: "var(--font-mono)" }}>{safeToFixed(proposal.positionSize, 4)}</span></div>
                     </div>
                     <div style={{ color: C.mut, fontSize: 7.5, marginTop: 3 }}>{proposal.descriptionAr}</div>
                     <div style={{ display: 'flex', gap: 3, marginTop: 3, flexWrap: 'wrap' }}>
@@ -2569,7 +2569,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
                   <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
                     <div style={{ color: C.mut, fontSize: 7 }}>الرصيد</div>
-                    <div style={{ color: C.text, fontSize: 10, fontWeight: 700, fontFamily: 'monospace' }}>${paperAccountState.currentBalance.toFixed(2)}</div>
+                    <div style={{ color: C.text, fontSize: 10, fontWeight: 700, fontFamily: "var(--font-mono)" }}>${paperAccountState.currentBalance.toFixed(2)}</div>
                   </div>
                   <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
                     <div style={{ color: C.mut, fontSize: 7 }}>معدل النجاح</div>
@@ -2624,7 +2624,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     <div key={i} style={{ background: C.card, borderRadius: 4, padding: '4px 8px', marginBottom: 3, border: `1px solid ${dirColor}10` }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: 8.5, color: dirColor, fontWeight: 600 }}>{trade.direction === 'long' ? '▲ شراء' : '▼ بيع'} {trade.symbol}</span>
-                        <span style={{ fontSize: 8.5, color: pnlColor, fontWeight: 600, fontFamily: 'monospace' }}>{trade.netPnl > 0 ? '+' : ''}{trade.netPnl.toFixed(2)}</span>
+                        <span style={{ fontSize: 8.5, color: pnlColor, fontWeight: 600, fontFamily: "var(--font-mono)" }}>{trade.netPnl > 0 ? '+' : ''}{trade.netPnl.toFixed(2)}</span>
                       </div>
                       <div style={{ fontSize: 7, color: C.mut, marginTop: 2 }}>{trade.entryReasonAr}</div>
                     </div>
@@ -2931,15 +2931,15 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4, marginBottom: 10 }}>
                 <div style={{ background: `${C.green}10`, border: `1px solid ${C.green}30`, borderRadius: 5, padding: '6px 8px', textAlign: 'center' }}>
                   <div style={{ color: C.mut, fontSize: 7 }}>نسبة النجاح</div>
-                  <div style={{ color: C.green, fontSize: 14, fontWeight: 800, fontFamily: 'monospace' }}>{Math.round(backtestStats.winRate * 100)}%</div>
+                  <div style={{ color: C.green, fontSize: 14, fontWeight: 800, fontFamily: "var(--font-mono)" }}>{Math.round(backtestStats.winRate * 100)}%</div>
                 </div>
                 <div style={{ background: `${C.cyan}10`, border: `1px solid ${C.cyan}30`, borderRadius: 5, padding: '6px 8px', textAlign: 'center' }}>
                   <div style={{ color: C.mut, fontSize: 7 }}>إجمالي الإشارات</div>
-                  <div style={{ color: C.cyan, fontSize: 14, fontWeight: 800, fontFamily: 'monospace' }}>{backtestStats.totalSignals}</div>
+                  <div style={{ color: C.cyan, fontSize: 14, fontWeight: 800, fontFamily: "var(--font-mono)" }}>{backtestStats.totalSignals}</div>
                 </div>
                 <div style={{ background: `${C.gold}10`, border: `1px solid ${C.gold}30`, borderRadius: 5, padding: '6px 8px', textAlign: 'center' }}>
                   <div style={{ color: C.mut, fontSize: 7 }}>متوسط الربح</div>
-                  <div style={{ color: C.gold, fontSize: 14, fontWeight: 800, fontFamily: 'monospace' }}>{backtestStats.avgPnLPct.toFixed(2)}%</div>
+                  <div style={{ color: C.gold, fontSize: 14, fontWeight: 800, fontFamily: "var(--font-mono)" }}>{backtestStats.avgPnLPct.toFixed(2)}%</div>
                 </div>
               </div>
             )}
@@ -2975,7 +2975,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     <div style={{ width: 50, height: 5, background: C.dim + '20', borderRadius: 3, overflow: 'hidden' }}>
                       <div style={{ width: `${stats.winRate * 100}%`, height: '100%', background: stats.winRate > 0.6 ? C.green : stats.winRate > 0.4 ? C.yellow : C.red, borderRadius: 3 }} />
                     </div>
-                    <span style={{ fontSize: 8, fontFamily: 'monospace', color: stats.winRate > 0.6 ? C.green : stats.winRate > 0.4 ? C.yellow : C.red, fontWeight: 700, width: 32, textAlign: 'right' }}>{Math.round(stats.winRate * 100)}%</span>
+                    <span style={{ fontSize: 8, fontFamily: "var(--font-mono)", color: stats.winRate > 0.6 ? C.green : stats.winRate > 0.4 ? C.yellow : C.red, fontWeight: 700, width: 32, textAlign: 'right' }}>{Math.round(stats.winRate * 100)}%</span>
                     <span style={{ fontSize: 7, color: C.mut, width: 20, textAlign: 'right' }}>({stats.total})</span>
                   </div>
                 ))}
@@ -3032,7 +3032,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                           </span>
                           <span style={{ fontSize: 8, color: strengthCol, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: strengthCol + '15' }}>{strengthAr}</span>
                         </div>
-                        <span style={{ fontSize: 9, fontFamily: 'monospace', color: C.text, fontWeight: 700 }}>{z.price.toFixed(2)}</span>
+                        <span style={{ fontSize: 9, fontFamily: "var(--font-mono)", color: C.text, fontWeight: 700 }}>{z.price.toFixed(2)}</span>
                       </div>
                       <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
                         <div style={{ flex: 1, background: `${C.gold}08`, borderRadius: 3, padding: '2px 4px', textAlign: 'center' }}>
@@ -3197,7 +3197,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                                 <span key={j} style={{ fontSize: 7, padding: '1px 4px', borderRadius: 2, background: `${C.cyan}15`, color: C.cyan }}>{s}</span>
                               ))}
                             </div>
-                            <span style={{ fontSize: 9, fontFamily: 'monospace', color: col, fontWeight: 800 }}>{Math.round(combo.winRate * 100)}%</span>
+                            <span style={{ fontSize: 9, fontFamily: "var(--font-mono)", color: col, fontWeight: 800 }}>{Math.round(combo.winRate * 100)}%</span>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <span style={{ fontSize: 7.5, color: C.dim }}>{combo.descriptionAr}</span>
@@ -3224,7 +3224,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                             <span style={{ fontSize: 7.5, color: C.text, fontWeight: 600 }}>{corr.sourceA}</span>
                             <span style={{ fontSize: 8, color: C.mut }}>×</span>
                             <span style={{ fontSize: 7.5, color: C.text, fontWeight: 600 }}>{corr.sourceB}</span>
-                            <span style={{ fontSize: 8, fontFamily: 'monospace', color: liftCol, fontWeight: 700 }}>×{corr.lift.toFixed(2)}</span>
+                            <span style={{ fontSize: 8, fontFamily: "var(--font-mono)", color: liftCol, fontWeight: 700 }}>×{corr.lift.toFixed(2)}</span>
                             <span style={{ fontSize: 7, color: C.mut }}>{Math.round(corr.combinedWinRate * 100)}%</span>
                           </div>
                         );
@@ -3277,15 +3277,15 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 3, marginBottom: 5 }}>
                         <div style={{ background: `${dirCol}08`, borderRadius: 3, padding: '3px 5px', textAlign: 'center' }}>
                           <div style={{ color: C.mut, fontSize: 6.5 }}>منطقة الاكتمال</div>
-                          <div style={{ color: dirCol, fontSize: 8.5, fontWeight: 700, fontFamily: 'monospace' }}>{pred.completionZone.center.toFixed(2)}</div>
+                          <div style={{ color: dirCol, fontSize: 8.5, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{pred.completionZone.center.toFixed(2)}</div>
                         </div>
                         <div style={{ background: `${C.cyan}08`, borderRadius: 3, padding: '3px 5px', textAlign: 'center' }}>
                           <div style={{ color: C.mut, fontSize: 6.5 }}>حد أعلى</div>
-                          <div style={{ color: C.cyan, fontSize: 8.5, fontWeight: 700, fontFamily: 'monospace' }}>{pred.completionZone.high.toFixed(2)}</div>
+                          <div style={{ color: C.cyan, fontSize: 8.5, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{pred.completionZone.high.toFixed(2)}</div>
                         </div>
                         <div style={{ background: `${C.purple}08`, borderRadius: 3, padding: '3px 5px', textAlign: 'center' }}>
                           <div style={{ color: C.mut, fontSize: 6.5 }}>حد أدنى</div>
-                          <div style={{ color: C.purple, fontSize: 8.5, fontWeight: 700, fontFamily: 'monospace' }}>{pred.completionZone.low.toFixed(2)}</div>
+                          <div style={{ color: C.purple, fontSize: 8.5, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{pred.completionZone.low.toFixed(2)}</div>
                         </div>
                       </div>
 
@@ -3297,7 +3297,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                             <div key={j} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 5px', background: C.dim + '05', borderRadius: 3, marginBottom: 1 }}>
                               <span style={{ fontSize: 7.5, color: dirCol, fontWeight: 600 }}>النقطة {pt.label}</span>
                               <div style={{ display: 'flex', gap: 6 }}>
-                                <span style={{ fontSize: 7.5, color: C.text, fontFamily: 'monospace' }}>{pt.price.toFixed(2)}</span>
+                                <span style={{ fontSize: 7.5, color: C.text, fontFamily: "var(--font-mono)" }}>{pt.price.toFixed(2)}</span>
                                 <span style={{ fontSize: 7, color: C.mut }}>ثقة {Math.round(pt.confidence * 100)}%</span>
                               </div>
                             </div>
@@ -3449,15 +3449,15 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 3 }}>
                         <div style={{ background: `${dirCol}08`, borderRadius: 3, padding: '3px 5px', textAlign: 'center' }}>
                           <div style={{ color: C.mut, fontSize: 6.5 }}>الهدف</div>
-                          <div style={{ color: dirCol, fontSize: 8, fontWeight: 700, fontFamily: 'monospace' }}>{sc.priceTarget}</div>
+                          <div style={{ color: dirCol, fontSize: 8, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{sc.priceTarget}</div>
                         </div>
                         <div style={{ background: `${C.red}08`, borderRadius: 3, padding: '3px 5px', textAlign: 'center' }}>
                           <div style={{ color: C.mut, fontSize: 6.5 }}>إبطال</div>
-                          <div style={{ color: C.red, fontSize: 8, fontWeight: 700, fontFamily: 'monospace' }}>{sc.invalidationLevel}</div>
+                          <div style={{ color: C.red, fontSize: 8, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{sc.invalidationLevel}</div>
                         </div>
                         <div style={{ background: `${C.cyan}08`, borderRadius: 3, padding: '3px 5px', textAlign: 'center' }}>
                           <div style={{ color: C.mut, fontSize: 6.5 }}>R:R</div>
-                          <div style={{ color: C.cyan, fontSize: 8, fontWeight: 700, fontFamily: 'monospace' }}>1:{sc.riskRewardRatio}</div>
+                          <div style={{ color: C.cyan, fontSize: 8, fontWeight: 700, fontFamily: "var(--font-mono)" }}>1:{sc.riskRewardRatio}</div>
                         </div>
                       </div>
                       {/* Confirming / Contradicting signals */}
@@ -3539,15 +3539,15 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 3 }}>
                       <div style={{ background: `${C.green}08`, borderRadius: 3, padding: '3px 5px', textAlign: 'center' }}>
                         <div style={{ color: C.mut, fontSize: 6.5 }}>دخول</div>
-                        <div style={{ color: C.green, fontSize: 8.5, fontWeight: 700, fontFamily: 'monospace' }}>{springResult.bestSetup.entryPrice}</div>
+                        <div style={{ color: C.green, fontSize: 8.5, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{springResult.bestSetup.entryPrice}</div>
                       </div>
                       <div style={{ background: `${C.red}08`, borderRadius: 3, padding: '3px 5px', textAlign: 'center' }}>
                         <div style={{ color: C.mut, fontSize: 6.5 }}>وقف خسارة</div>
-                        <div style={{ color: C.red, fontSize: 8.5, fontWeight: 700, fontFamily: 'monospace' }}>{springResult.bestSetup.stopLoss}</div>
+                        <div style={{ color: C.red, fontSize: 8.5, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{springResult.bestSetup.stopLoss}</div>
                       </div>
                       <div style={{ background: `${C.cyan}08`, borderRadius: 3, padding: '3px 5px', textAlign: 'center' }}>
                         <div style={{ color: C.mut, fontSize: 6.5 }}>هدف</div>
-                        <div style={{ color: C.cyan, fontSize: 8.5, fontWeight: 700, fontFamily: 'monospace' }}>{springResult.bestSetup.takeProfit}</div>
+                        <div style={{ color: C.cyan, fontSize: 8.5, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{springResult.bestSetup.takeProfit}</div>
                       </div>
                     </div>
                     {springResult.bestSetup.confirmations.length > 0 && (
@@ -3738,7 +3738,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                       </div>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         <span style={{ fontSize: 7.5, color: C.dim }}>{entry.date}</span>
-                        <span style={{ fontSize: 8, color: isWin ? C.green : isLoss ? C.red : C.dim, fontWeight: 700, fontFamily: 'monospace' }}>
+                        <span style={{ fontSize: 8, color: isWin ? C.green : isLoss ? C.red : C.dim, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
                           {entry.realizedPnL !== 0 ? `${entry.realizedPnL > 0 ? '+' : ''}${entry.realizedPnL.toFixed(2)}` : '—'}
                         </span>
                       </div>

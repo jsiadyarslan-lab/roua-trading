@@ -43,10 +43,10 @@ function IndCard({ label, value, interp, color, bar }: { label: string; value: s
   return (
     <div style={{ padding: 10, borderRadius: 6, background: T.bg, border: `0.5px solid ${T.border}` }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-        <span style={{ fontSize: 9, fontWeight: 700, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{label}</span>
-        <span style={{ fontSize: 11, fontWeight: 800, color, fontFamily: "'JetBrains Mono', monospace" }}>{value}</span>
+        <span style={{ fontSize: 9, fontWeight: 700, color: T.text3, fontFamily: "var(--font-ar)" }}>{label}</span>
+        <span style={{ fontSize: 11, fontWeight: 800, color, fontFamily: "var(--font-mono)" }}>{value}</span>
       </div>
-      {interp && <div style={{ fontSize: 8, color: T.text3, fontFamily: "'Cairo', sans-serif", marginBottom: 4 }}>{interp}</div>}
+      {interp && <div style={{ fontSize: 8, color: T.text3, fontFamily: "var(--font-ar)", marginBottom: 4 }}>{interp}</div>}
       {bar !== undefined && (
         <div style={{ height: 4, borderRadius: 2, background: T.surface, overflow: 'hidden' }}>
           <div style={{ width: `${Math.min(Math.max(bar, 2), 100)}%`, height: '100%', borderRadius: 2, background: color, transition: 'width 0.4s' }} />
@@ -61,9 +61,9 @@ function LevelPill({ price, type, strength, t }: { price: number; type: 'support
   const sColor = strength === 'STRONG' ? T.green : strength === 'MODERATE' ? T.amber : T.text3
   const strengthLabel = strength === 'STRONG' ? t('indicators.strong') : strength === 'MODERATE' ? t('indicators.moderate') : t('indicators.weak')
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 4, background: `${color}10`, border: `0.5px solid ${color}30`, fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 4, background: `${color}10`, border: `0.5px solid ${color}30`, fontSize: 9, fontFamily: "var(--font-mono)", color }}>
       {price.toLocaleString()}
-      <span style={{ fontSize: 7, color: sColor, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>({strengthLabel})</span>
+      <span style={{ fontSize: 7, color: sColor, fontFamily: "var(--font-ar)", fontWeight: 700 }}>({strengthLabel})</span>
     </span>
   )
 }
@@ -133,12 +133,12 @@ export function DeepAnalysisModal() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, padding: '8px 0', borderBottom: `1px solid ${T.border}` }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 22, fontWeight: 900, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{symbol}</span>
+                    <span style={{ fontSize: 22, fontWeight: 900, color: T.text, fontFamily: "var(--font-mono)" }}>{symbol}</span>
                     <DirectionTag direction={item?.direction || 'NEUTRAL'} signalClass={item?.signalClass} size="lg" />
-                    <span style={{ fontSize: 11, fontWeight: 700, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: T.text2, fontFamily: "var(--font-ar)" }}>
                       {getLocalizedAssetName(symbol, data?.name || item?.name || '', t, locale)}
                     </span>
-                    <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, background: `${T.purple}15`, color: T.purple, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
+                    <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, background: `${T.purple}15`, color: T.purple, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
                       {(() => {
                         const cat = item?.category || data?.category || ''
                         const catKey = cat === 'CRYPTO' ? 'categories.crypto' : cat === 'FOREX' ? 'categories.forex' : cat === 'STOCK' ? 'categories.stocks' : cat === 'COMMODITY' ? 'categories.commodity' : ''
@@ -147,10 +147,10 @@ export function DeepAnalysisModal() {
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
-                    <span style={{ fontSize: 16, fontWeight: 900, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>
+                    <span style={{ fontSize: 16, fontWeight: 900, color: T.text, fontFamily: "var(--font-mono)" }}>
                       ${(item?.price ?? data?.price ?? 0).toLocaleString()}
                     </span>
-                    <span style={{ fontSize: 12, fontWeight: 800, color: chgColor, fontFamily: "'JetBrains Mono', monospace" }}>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: chgColor, fontFamily: "var(--font-mono)" }}>
                       {(item?.changePercent ?? 0) >= 0 ? '+' : ''}{(item?.changePercent ?? 0).toFixed(2)}%
                     </span>
                     {item?.marketOpen && <span style={{ fontSize: 8, padding: '1px 6px', borderRadius: 3, background: `${T.green}15`, color: T.green, fontWeight: 700 }}>{t('deep.marketOpen')}</span>}
@@ -164,7 +164,7 @@ export function DeepAnalysisModal() {
               </div>
 
               {/* Technical Indicators Grid */}
-              <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "'Cairo', sans-serif", marginBottom: 8 }}>{t('deep.technicalIndicators')}</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "var(--font-ar)", marginBottom: 8 }}>{t('deep.technicalIndicators')}</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 14 }}>
                 <IndCard label={t('indicators.rsi')} value={item?.rsi?.toFixed(1) ?? '—'} interp={item?.rsi !== null ? (item!.rsi! <= 30 ? t('deep.oversold') : item!.rsi! >= 70 ? t('deep.overbought') : t('neutral')) : ''} color={item?.rsi !== null ? (item!.rsi! <= 30 ? T.cyan : item!.rsi! >= 70 ? T.purple : T.amber) : T.text3} bar={item?.rsi ?? 0} />
                 <IndCard label={t('indicators.macd')} value={item?.macdSignal === 'NONE' ? t('indicators.none') : (item?.macdSignal ?? '—')} interp={item?.macdHistogram !== null ? `${t('indicators.histogram')}: ${item?.macdHistogram?.toFixed(2)}` : ''} color={item?.macdSignal?.includes('BUY') ? T.green : item?.macdSignal?.includes('SELL') ? T.red : T.text3} />
@@ -180,7 +180,7 @@ export function DeepAnalysisModal() {
               {/* Ichimoku Cloud Section */}
               {data?.ichimoku && (
                 <>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "'Cairo', sans-serif", marginBottom: 8 }}>{t('deep.ichimokuCloud')}</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "var(--font-ar)", marginBottom: 8 }}>{t('deep.ichimokuCloud')}</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 14 }}>
                     <IndCard label={t('indicators.tenkan')} value={data.ichimoku.tenkanSen.toFixed(2)} color={T.cyan} />
                     <IndCard label={t('indicators.kijun')} value={data.ichimoku.kijunSen.toFixed(2)} color={T.amber} />
@@ -195,7 +195,7 @@ export function DeepAnalysisModal() {
               {/* OBV & Volume Profile */}
               {(data?.obv || data?.volumeProfile) && (
                 <>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "'Cairo', sans-serif", marginBottom: 8 }}>{t('deep.volumeAnalysis')}</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "var(--font-ar)", marginBottom: 8 }}>{t('deep.volumeAnalysis')}</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 14 }}>
                     {data.obv && (
                       <IndCard label={t('indicators.obv')} value={data.obv.trend === 'RISING' ? t('deep.rising') : data.obv.trend === 'FALLING' ? t('deep.falling') : t('deep.flat')} interp={data.obv.divergence === 'BULLISH_DIVERGENCE' ? t('deep.bullishDivergence') : data.obv.divergence === 'BEARISH_DIVERGENCE' ? t('deep.bearishDivergence') : t('deep.noDivergence')} color={data.obv.trend === 'RISING' ? T.green : data.obv.trend === 'FALLING' ? T.red : T.text3} />
@@ -208,30 +208,30 @@ export function DeepAnalysisModal() {
               )}
 
               {/* Support / Resistance */}
-              <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "'Cairo', sans-serif", marginBottom: 8 }}>{t('deep.supportResistance')}</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "var(--font-ar)", marginBottom: 8 }}>{t('deep.supportResistance')}</div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
                 {(data?.support || []).map((s, i) => <LevelPill key={`s-${s.price}-${i}`} price={s.price} type="support" strength={s.strength} t={t} />)}
                 {(data?.resistance || []).map((r, i) => <LevelPill key={`r-${r.price}-${i}`} price={r.price} type="resistance" strength={r.strength} t={t} />)}
-                {!data?.support?.length && !data?.resistance?.length && <span style={{ fontSize: 9, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{t('deep.noLevelData')}</span>}
+                {!data?.support?.length && !data?.resistance?.length && <span style={{ fontSize: 9, color: T.text3, fontFamily: "var(--font-ar)" }}>{t('deep.noLevelData')}</span>}
               </div>
 
               {/* Patterns */}
               {data?.patterns?.length ? (
                 <>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "'Cairo', sans-serif", marginBottom: 8 }}>{t('deep.detectedPatterns')}</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "var(--font-ar)", marginBottom: 8 }}>{t('deep.detectedPatterns')}</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
                     {data.patterns.map((p, i) => {
                       const pColor = p.type === 'bullish' ? T.green : p.type === 'bearish' ? T.red : T.amber
                       return (
                         <div key={p.nameAr + '-' + i} style={{ padding: 8, borderRadius: 6, background: T.bg, border: `0.5px solid ${T.border}` }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                            <span style={{ fontSize: 10, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{locale === 'ar' ? p.nameAr : (p.name || p.nameAr)}</span>
-                            <span style={{ fontSize: 8, padding: '1px 6px', borderRadius: 3, background: `${pColor}15`, color: pColor, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{p.type === 'bullish' ? t('deep.bullish') : p.type === 'bearish' ? t('deep.bearish') : t('neutral')}</span>
+                            <span style={{ fontSize: 10, fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>{locale === 'ar' ? p.nameAr : (p.name || p.nameAr)}</span>
+                            <span style={{ fontSize: 8, padding: '1px 6px', borderRadius: 3, background: `${pColor}15`, color: pColor, fontWeight: 700, fontFamily: "var(--font-ar)" }}>{p.type === 'bullish' ? t('deep.bullish') : p.type === 'bearish' ? t('deep.bearish') : t('neutral')}</span>
                           </div>
                           <div style={{ height: 3, borderRadius: 2, background: T.surface, overflow: 'hidden', marginBottom: 4 }}>
                             <div style={{ width: `${p.confidence}%`, height: '100%', borderRadius: 2, background: pColor, transition: 'width 0.4s' }} />
                           </div>
-                          <span style={{ fontSize: 8, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{locale === 'ar' ? (p.descriptionAr || p.description) : (p.description || p.descriptionAr)}</span>
+                          <span style={{ fontSize: 8, color: T.text3, fontFamily: "var(--font-ar)" }}>{locale === 'ar' ? (p.descriptionAr || p.description) : (p.description || p.descriptionAr)}</span>
                         </div>
                       )
                     })}
@@ -242,20 +242,20 @@ export function DeepAnalysisModal() {
               {/* Candle Patterns */}
               {data?.candlePatterns?.length ? (
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "'Cairo', sans-serif", marginBottom: 8 }}>{t('deep.candlePatterns')}</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "var(--font-ar)", marginBottom: 8 }}>{t('deep.candlePatterns')}</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {data.candlePatterns.map((cp, i) => {
                       const cpColor = cp.type === 'BULLISH' ? T.green : cp.type === 'BEARISH' ? T.red : T.amber
                       return (
                         <div key={cp.nameAr + '-' + i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 6, background: T.bg, border: `0.5px solid ${T.border}` }}>
-                          <span style={{ fontSize: 9, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{locale === 'ar' ? cp.nameAr : (cp.name || cp.nameAr)}</span>
-                          <span style={{ fontSize: 7, padding: '1px 5px', borderRadius: 3, background: `${cpColor}15`, color: cpColor, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
+                          <span style={{ fontSize: 9, fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>{locale === 'ar' ? cp.nameAr : (cp.name || cp.nameAr)}</span>
+                          <span style={{ fontSize: 7, padding: '1px 5px', borderRadius: 3, background: `${cpColor}15`, color: cpColor, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
                             {cp.type === 'BULLISH' ? t('deep.bullish') : cp.type === 'BEARISH' ? t('deep.bearish') : t('neutral')}
                           </span>
                           <div style={{ flex: 1, height: 3, borderRadius: 2, background: T.surface, overflow: 'hidden' }}>
                             <div style={{ width: `${cp.confidence}%`, height: '100%', borderRadius: 2, background: cpColor }} />
                           </div>
-                          <span style={{ fontSize: 7, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{locale === 'ar' ? (cp.descriptionAr || cp.description) : (cp.description || cp.descriptionAr)}</span>
+                          <span style={{ fontSize: 7, color: T.text3, fontFamily: "var(--font-ar)" }}>{locale === 'ar' ? (cp.descriptionAr || cp.description) : (cp.description || cp.descriptionAr)}</span>
                         </div>
                       )
                     })}
@@ -268,14 +268,14 @@ export function DeepAnalysisModal() {
                 <div style={{ borderRadius: 8, background: `${T.purple}06`, border: `0.5px solid ${T.purple}20`, padding: 12, marginBottom: 14 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                     <Sparkles size={14} color={T.purple} />
-                    <span style={{ fontSize: 11, fontWeight: 800, color: T.purple, fontFamily: "'Cairo', sans-serif" }}>{t('deep.aiAnalysis')}</span>
-                    <span style={{ fontSize: 8, padding: '1px 6px', borderRadius: 3, background: `${T.cyan}12`, color: T.cyan, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>{data.aiAnalysis.model}</span>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: T.purple, fontFamily: "var(--font-ar)" }}>{t('deep.aiAnalysis')}</span>
+                    <span style={{ fontSize: 8, padding: '1px 6px', borderRadius: 3, background: `${T.cyan}12`, color: T.cyan, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{data.aiAnalysis.model}</span>
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                     <IndicatorBadge label={t('deep.sentiment')} value={data.aiAnalysis.sentiment === 'POSITIVE' ? t('deep.positive') : data.aiAnalysis.sentiment === 'NEGATIVE' ? t('deep.negative') : t('neutral')} status={data.aiAnalysis.sentiment === 'POSITIVE' ? 'bullish' : data.aiAnalysis.sentiment === 'NEGATIVE' ? 'bearish' : 'neutral'} />
                     <IndicatorBadge label={t('deep.risk')} value={data.aiAnalysis.riskLevel === 'LOW' ? t('deep.low') : data.aiAnalysis.riskLevel === 'HIGH' ? t('deep.high') : t('deep.medium')} status={data.aiAnalysis.riskLevel === 'LOW' ? 'bullish' : data.aiAnalysis.riskLevel === 'HIGH' ? 'bearish' : 'warning'} />
                   </div>
-                  <p style={{ fontSize: 10, color: T.text2, fontFamily: "'Cairo', sans-serif", lineHeight: 1.7, margin: 0 }}>
+                  <p style={{ fontSize: 10, color: T.text2, fontFamily: "var(--font-ar)", lineHeight: 1.7, margin: 0 }}>
                     {locale === 'ar' ? data.aiAnalysis.analysisAr : ((data.aiAnalysis as any).analysisEn || data.aiAnalysis.analysisAr)}
                   </p>
                 </div>
@@ -286,24 +286,24 @@ export function DeepAnalysisModal() {
                 <div style={{ borderRadius: 8, background: `${dirColor}06`, border: `0.5px solid ${dirColor}20`, padding: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                     {data.signal.direction.includes('BUY') ? <TrendingUp size={16} color={T.green} /> : <TrendingDown size={16} color={T.red} />}
-                    <span style={{ fontSize: 16, fontWeight: 900, color: dirColor, fontFamily: "'Cairo', sans-serif" }}>
+                    <span style={{ fontSize: 16, fontWeight: 900, color: dirColor, fontFamily: "var(--font-ar)" }}>
                       {data.signal.direction.includes('BUY') ? t('buy') : data.signal.direction.includes('SELL') ? t('sell') : t('neutral')}
                     </span>
                   </div>
                   <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
-                    <div><span style={{ fontSize: 8, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{t('deep.entry')}</span><div style={{ fontSize: 12, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>${data.signal.entry.toLocaleString()}</div></div>
-                    <div><span style={{ fontSize: 8, color: T.green, fontFamily: "'Cairo', sans-serif" }}>{t('deep.target')}</span><div style={{ fontSize: 12, fontWeight: 800, color: T.green, fontFamily: "'JetBrains Mono', monospace" }}>${data.signal.tp.toLocaleString()}</div></div>
-                    <div><span style={{ fontSize: 8, color: T.red, fontFamily: "'Cairo', sans-serif" }}>{t('deep.stopLoss')}</span><div style={{ fontSize: 12, fontWeight: 800, color: T.red, fontFamily: "'JetBrains Mono', monospace" }}>${data.signal.sl.toLocaleString()}</div></div>
-                    <div><span style={{ fontSize: 8, color: T.amber, fontFamily: "'Cairo', sans-serif" }}>{t('indicators.riskReward')}</span><div style={{ fontSize: 12, fontWeight: 800, color: T.amber, fontFamily: "'JetBrains Mono', monospace" }}>{(Math.abs(data.signal.tp - data.signal.entry) / Math.abs(data.signal.entry - data.signal.sl)).toFixed(1)}</div></div>
+                    <div><span style={{ fontSize: 8, color: T.text3, fontFamily: "var(--font-ar)" }}>{t('deep.entry')}</span><div style={{ fontSize: 12, fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)" }}>${data.signal.entry.toLocaleString()}</div></div>
+                    <div><span style={{ fontSize: 8, color: T.green, fontFamily: "var(--font-ar)" }}>{t('deep.target')}</span><div style={{ fontSize: 12, fontWeight: 800, color: T.green, fontFamily: "var(--font-mono)" }}>${data.signal.tp.toLocaleString()}</div></div>
+                    <div><span style={{ fontSize: 8, color: T.red, fontFamily: "var(--font-ar)" }}>{t('deep.stopLoss')}</span><div style={{ fontSize: 12, fontWeight: 800, color: T.red, fontFamily: "var(--font-mono)" }}>${data.signal.sl.toLocaleString()}</div></div>
+                    <div><span style={{ fontSize: 8, color: T.amber, fontFamily: "var(--font-ar)" }}>{t('indicators.riskReward')}</span><div style={{ fontSize: 12, fontWeight: 800, color: T.amber, fontFamily: "var(--font-mono)" }}>{(Math.abs(data.signal.tp - data.signal.entry) / Math.abs(data.signal.entry - data.signal.sl)).toFixed(1)}</div></div>
                   </div>
                   {data.signal.reasons?.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 6 }}>
                       {(locale === 'ar' && data.signal.reasonsAr?.length ? data.signal.reasonsAr : data.signal.reasons).map((r, i) => (
-                        <span key={`reason-${i}`} style={{ fontSize: 9, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>• {r}</span>
+                        <span key={`reason-${i}`} style={{ fontSize: 9, color: T.text2, fontFamily: "var(--font-ar)" }}>• {r}</span>
                       ))}
                     </div>
                   )}
-                  <span style={{ fontSize: 8, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{t('deep.timeframe')} {data.signal.timeframe}</span>
+                  <span style={{ fontSize: 8, color: T.text3, fontFamily: "var(--font-ar)" }}>{t('deep.timeframe')} {data.signal.timeframe}</span>
                 </div>
               )}
             </>

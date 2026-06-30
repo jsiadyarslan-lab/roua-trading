@@ -240,7 +240,7 @@ export function OrderBookMini() {
             background: connected ? 'var(--success)' : (isCrypto ? 'var(--danger)' : 'var(--warning)'),
             boxShadow: connected ? '0 0 4px var(--success)' : 'none'
           }} />
-          <span style={{ fontSize: 10, color: 'var(--foreground)', fontFamily: 'monospace' }}>
+          <span style={{ fontSize: 10, color: 'var(--foreground)', fontFamily: "var(--font-mono)" }}>
             {connected ? tob('live') : isCrypto ? tob('connecting') : tob('sim')}
           </span>
         </div>

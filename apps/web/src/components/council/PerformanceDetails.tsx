@@ -72,8 +72,8 @@ export function PerformanceDetails({ briefs }: PerformanceDetailsProps) {
         <div style={{ flex: 1, height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.04)', overflow: 'hidden' }}>
           <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} style={{ height: '100%', background: `linear-gradient(90deg, ${color}, ${hexToRgba(color, 0.6)})`, borderRadius: 999 }} />
         </div>
-        <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.textPrimary, fontFamily: 'monospace', minWidth: 40, textAlign: 'right' }}>{value}</span>
-        <span style={{ fontSize: 11, color, fontFamily: 'monospace', minWidth: 36, textAlign: 'right' }}>{pct.toFixed(0)}%</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.textPrimary, fontFamily: "var(--font-mono)", minWidth: 40, textAlign: 'right' }}>{value}</span>
+        <span style={{ fontSize: 11, color, fontFamily: "var(--font-mono)", minWidth: 36, textAlign: 'right' }}>{pct.toFixed(0)}%</span>
       </div>
     );
   };
@@ -97,7 +97,7 @@ export function PerformanceDetails({ briefs }: PerformanceDetailsProps) {
         <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: hexToRgba(COLORS.council, 0.08), border: `1px solid ${hexToRgba(COLORS.council, 0.2)}` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 11, fontWeight: 600, color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Avg Confidence</span>
-            <span style={{ fontSize: 18, fontWeight: 600, color: COLORS.council, fontFamily: 'monospace' }}>{stats.avgConf.toFixed(0)}%</span>
+            <span style={{ fontSize: 18, fontWeight: 600, color: COLORS.council, fontFamily: "var(--font-mono)" }}>{stats.avgConf.toFixed(0)}%</span>
           </div>
         </div>
       </GlassCard>

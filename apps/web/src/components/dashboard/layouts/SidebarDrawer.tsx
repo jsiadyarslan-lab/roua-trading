@@ -126,7 +126,7 @@ export function SidebarDrawer({
                 fontSize: 10,
                 fontWeight: 800,
                 color: '#F0F2F5',
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
               }}
             >
               {ts('title')}

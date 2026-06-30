@@ -153,7 +153,7 @@ export function CompareOverlay({ chart, symbol, onClose }: CompareOverlayProps) 
         display: 'flex',
         alignItems: 'center',
         gap: 8,
-        fontFamily: "'JetBrains Mono', monospace",
+        fontFamily: "var(--font-mono)",
         fontSize: 10,
         color: '#d4af37',
       }}

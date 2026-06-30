@@ -255,10 +255,10 @@ export function PatternProgress({ symbol, candles, onClose }: PatternProgressPro
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <span style={{ fontSize: 10 }}>📈</span>
-          <span style={{ fontSize: 10, color: C.text, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
+          <span style={{ fontSize: 10, color: C.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
             {tc('patternProgress')}
           </span>
-          <span style={{ fontSize: 8, color: C.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>
+          <span style={{ fontSize: 8, color: C.textMuted, fontFamily: "var(--font-mono)" }}>
             {symbol}
           </span>
         </div>
@@ -288,10 +288,10 @@ export function PatternProgress({ symbol, candles, onClose }: PatternProgressPro
               <span style={{ fontSize: 10, flexShrink: 0 }}>{p.icon}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 9, color: C.text, fontWeight: 600, fontFamily: "'Cairo', sans-serif" }}>
+                  <span style={{ fontSize: 9, color: C.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>
                     {p.nameAr}
                   </span>
-                  <span style={{ fontSize: 8, color: getDirectionColor(p.direction), fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
+                  <span style={{ fontSize: 8, color: getDirectionColor(p.direction), fontWeight: 700, fontFamily: "var(--font-mono)" }}>
                     {p.expectedMove}
                   </span>
                 </div>
@@ -310,7 +310,7 @@ export function PatternProgress({ symbol, candles, onClose }: PatternProgressPro
               </div>
               <span style={{
                 fontSize: 8, color: progressColor, fontWeight: 800,
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "var(--font-mono)",
                 minWidth: 28, textAlign: 'left', flexShrink: 0,
               }}>
                 {Math.round(p.progress)}%

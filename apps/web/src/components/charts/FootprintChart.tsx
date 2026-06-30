@@ -338,10 +338,10 @@ export function FootprintChart({ symbol, onClose }: FootprintChartProps) {
         cursor: 'grab',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 11, color: C.cyan, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
+          <span style={{ fontSize: 11, color: C.cyan, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
             👣 {t('footprint')}
           </span>
-          <span style={{ fontSize: 9, color: C.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>
+          <span style={{ fontSize: 9, color: C.textMuted, fontFamily: "var(--font-mono)" }}>
             {symbol}
           </span>
         </div>
@@ -358,7 +358,7 @@ export function FootprintChart({ symbol, onClose }: FootprintChartProps) {
                 borderRadius: 4, color: mode === m ? C.cyan : C.textDim,
                 fontSize: 9, fontWeight: mode === m ? 700 : 400,
                 padding: '2px 6px', cursor: 'pointer',
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "var(--font-mono)",
                 transition: 'all 0.15s ease',
               }}
             >
@@ -379,7 +379,7 @@ export function FootprintChart({ symbol, onClose }: FootprintChartProps) {
                 borderRadius: 4, color: tf === t.value ? C.cyan : C.textDim,
                 fontSize: 9, fontWeight: tf === t.value ? 700 : 400,
                 padding: '2px 5px', cursor: 'pointer',
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "var(--font-mono)",
                 transition: 'all 0.15s ease',
               }}
             >
@@ -398,7 +398,7 @@ export function FootprintChart({ symbol, onClose }: FootprintChartProps) {
               borderRadius: 4, color: imbalances ? C.warning : C.textDim,
               fontSize: 9, fontWeight: 700,
               padding: '2px 6px', cursor: 'pointer',
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
             }}
           >
             {t('imbalance')}

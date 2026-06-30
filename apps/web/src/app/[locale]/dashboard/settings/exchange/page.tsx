@@ -921,12 +921,12 @@ export default function ExchangeSettingsPage() {
                           <div className="font-bold mb-2" style={{
                             color: (testResults[cred.id].restApiWorks || testResults[cred.id].rpcWorks)
                               ? '#22c55e' : '#ef4444',
-                            fontFamily: "'Cairo', sans-serif",
+                            fontFamily: "var(--font-ar)",
                           }}>
                             {(testResults[cred.id].restApiWorks || testResults[cred.id].rpcWorks)
                               ? 'الاتصال ناجح' : 'فشل الاتصال'}
                           </div>
-                          <div className="space-y-1" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                          <div className="space-y-1" style={{ fontFamily: "var(--font-ar)" }}>
                             {testResults[cred.id].steps?.map((step: any, i: number) => (
                               <div key={i} className="flex items-center gap-2">
                                 <span style={{ color: step.success ? '#22c55e' : '#ef4444' }}>
@@ -945,17 +945,17 @@ export default function ExchangeSettingsPage() {
                             ))}
                           </div>
                           {testResults[cred.id].error && (
-                            <div className="mt-2 text-red-400" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                            <div className="mt-2 text-red-400" style={{ fontFamily: "var(--font-ar)" }}>
                               {testResults[cred.id].error}
                             </div>
                           )}
                           {testResults[cred.id].fixSuggestion && (
-                            <div className="mt-1 text-amber-400" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                            <div className="mt-1 text-amber-400" style={{ fontFamily: "var(--font-ar)" }}>
                               💡 {testResults[cred.id].fixSuggestion}
                             </div>
                           )}
                           {testResults[cred.id].balance && (
-                            <div className="mt-2 text-green-400" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                            <div className="mt-2 text-green-400" style={{ fontFamily: "var(--font-ar)" }}>
                               الرصيد: ${testResults[cred.id].balance.balance} | Equity: ${testResults[cred.id].balance.equity} | الهامش: ${testResults[cred.id].balance.margin}
                             </div>
                           )}

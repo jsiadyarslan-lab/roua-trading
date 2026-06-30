@@ -47,10 +47,16 @@
 
 :root,
 [data-theme="dark"] {
-  --font-ar: var(--font-cairo, "Cairo"), var(--font-noto-naskh, "Noto Naskh Arabic"), "Segoe UI", Tahoma, Arial, sans-serif;
+  /* V597: Font CSS variables — single source of truth
+     --font-cairo/inter/jetbrains/orbitron are loaded via next/font in layout.tsx
+     Fallbacks ensure readability if Google Fonts fails to load */
+  --font-ar: var(--font-cairo, "Cairo"), "Segoe UI", Tahoma, Arial, sans-serif;
   --font-en: var(--font-inter, Inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: var(--font-jetbrains, "JetBrains Mono"), "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   --font-brand: var(--font-orbitron, Orbitron), var(--font-inter, Inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* Short alias for convenience (used by many components) */
+  --mono: var(--font-mono);
 
   /* ── Roua Trading Platform - Unified Dark Theme ──
    * CANONICAL values: aligned with unified-tokens.ts
@@ -98,7 +104,7 @@
   --danger: #FF4757;
   --surface: #1A1D29;
   --card-border: rgba(255,255,255,0.06);
-  --mono: var(--font-mono), 'JetBrains Mono', monospace;
+  /* --mono already defined above as alias for --font-mono */
   --text3: #8B92A8;
   /* V595: Fixed --text-faint — was #4B5263 (contrast 2.47, too dark on dark bg) */
   /* Now uses same value as --text3 for proper readability (contrast 6.94) */

@@ -32,7 +32,7 @@ export function ExecutionOverlay({ status, onConfirm, onCancel }: ExecutionOverl
       <div className="whitespace-pre-line text-[11px] font-extrabold leading-relaxed"
         style={{
           color: status.type === 'success' ? 'var(--success)' : status.type === 'error' ? 'var(--danger)' : 'var(--foreground)',
-          fontFamily: "'Cairo', sans-serif",
+          fontFamily: "var(--font-ar)",
         }}
       >
         {status.msg}
@@ -43,14 +43,14 @@ export function ExecutionOverlay({ status, onConfirm, onCancel }: ExecutionOverl
           <button
             onClick={onConfirm}
             className="rounded bg-[var(--success)] border-none px-3 py-1 text-white font-extrabold cursor-pointer text-[10px] hover:opacity-90 transition-opacity"
-            style={{ fontFamily: "'Cairo', sans-serif" }}
+            style={{ fontFamily: "var(--font-ar)" }}
           >
             {tc('confirm')}
           </button>
           <button
             onClick={onCancel}
             className="rounded bg-transparent border border-[var(--border)] px-3 py-1 text-[var(--foreground)] font-extrabold cursor-pointer text-[10px] hover:bg-[rgba(255,255,255,0.05)] transition-colors"
-            style={{ fontFamily: "'Cairo', sans-serif" }}
+            style={{ fontFamily: "var(--font-ar)" }}
           >
             {tc('cancel')}
           </button>

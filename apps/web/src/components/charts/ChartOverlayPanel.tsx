@@ -157,7 +157,7 @@ export function ChartOverlayPanel({
             }}>
               <span style={{
                 color,
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "var(--font-mono)",
                 fontSize: 10,
                 fontWeight: 800,
                 letterSpacing: 0.5,
@@ -168,7 +168,7 @@ export function ChartOverlayPanel({
               {pnlText && (
                 <span style={{
                   color: ov.linePnl !== undefined && ov.linePnl >= 0 ? '#00FFA3' : '#FF4757',
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontFamily: "var(--font-mono)",
                   fontSize: 10,
                   fontWeight: 700,
                   whiteSpace: 'nowrap',

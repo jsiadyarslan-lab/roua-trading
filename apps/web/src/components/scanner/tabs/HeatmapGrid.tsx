@@ -101,7 +101,7 @@ export function HeatmapGrid() {
           <button key={c.key} onClick={() => setCatFilter(c.key)}
             style={{
               padding: '4px 12px', borderRadius: 6, fontSize: 10, fontWeight: 700,
-              fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+              fontFamily: "var(--font-ar)", cursor: 'pointer',
               background: catFilter === c.key ? `${T.cyan}20` : T.surface,
               color: catFilter === c.key ? T.cyan : T.text3,
               border: `0.5px solid ${catFilter === c.key ? T.border2 : T.border}`,
@@ -114,7 +114,7 @@ export function HeatmapGrid() {
           <button key={s.key} onClick={() => setSortMode(s.key)}
             style={{
               padding: '4px 12px', borderRadius: 6, fontSize: 10, fontWeight: 700,
-              fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+              fontFamily: "var(--font-ar)", cursor: 'pointer',
               background: sortMode === s.key ? `${T.cyan}20` : T.surface,
               color: sortMode === s.key ? T.cyan : T.text3,
               border: `0.5px solid ${sortMode === s.key ? T.border2 : T.border}`,
@@ -155,13 +155,13 @@ export function HeatmapGrid() {
               <div>
                 <div style={{
                   fontSize: cell.colSpan > 1 ? 16 : 13, fontWeight: 800, color: T.text,
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontFamily: "var(--font-mono)",
                 }}>
                   {cell.symbol}
                 </div>
                 <div style={{
                   fontSize: 9, color: T.text3, fontWeight: 600,
-                  fontFamily: "'Cairo', sans-serif", marginTop: 2,
+                  fontFamily: "var(--font-ar)", marginTop: 2,
                 }}>
                   {getLocalizedAssetName(cell.symbol, safeStr(cell.name), t, locale)}
                 </div>
@@ -170,13 +170,13 @@ export function HeatmapGrid() {
                 <div>
                   <div style={{
                     fontSize: cell.colSpan > 1 ? 18 : 14, fontWeight: 900, color,
-                    fontFamily: "'JetBrains Mono', monospace",
+                    fontFamily: "var(--font-mono)",
                   }}>
                     {cell.changePercent >= 0 ? '+' : ''}{cell.changePercent.toFixed(2)}%
                   </div>
                   <div style={{
                     fontSize: 9, color: T.text2,
-                    fontFamily: "'JetBrains Mono', monospace",
+                    fontFamily: "var(--font-mono)",
                   }}>
                     ${cell.price.toLocaleString()}
                   </div>

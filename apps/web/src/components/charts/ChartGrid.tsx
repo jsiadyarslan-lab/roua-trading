@@ -272,7 +272,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
           background: { color: C.bg },
           textColor: C.textDim,
           fontSize: 9,
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "var(--font-mono)",
           attributionLogo: false,
         },
         grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } },
@@ -639,7 +639,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
                 border: '1px solid rgba(0,212,255,0.2)',
                 borderRadius: 3,
                 color: C.cyan,
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "var(--font-mono)",
                 fontSize: 10,
                 fontWeight: 700,
                 padding: '1px 4px',
@@ -667,7 +667,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
                       border: isActive ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent',
                       borderRadius: 2,
                       color: isActive ? C.cyan : C.textMuted,
-                      fontFamily: "'JetBrains Mono', monospace",
+                      fontFamily: "var(--font-mono)",
                       fontSize: 8,
                       fontWeight: isActive ? 700 : 500,
                       padding: '0 3px',
@@ -704,7 +704,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
                   color: C.text,
                   fontSize: 10,
                   fontWeight: 600,
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontFamily: "var(--font-mono)",
                 }}>
                   {formatPrice(state.currentPrice)}
                 </span>
@@ -713,7 +713,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
                     color: isPositive ? C.success : C.danger,
                     fontSize: 8,
                     fontWeight: 700,
-                    fontFamily: "'JetBrains Mono', monospace",
+                    fontFamily: "var(--font-mono)",
                     padding: '0 3px',
                     borderRadius: 2,
                     background: isPositive ? 'rgba(0,255,163,0.1)' : 'rgba(255,71,87,0.1)',
@@ -743,7 +743,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
                 height: 18,
                 cursor: 'pointer',
                 outline: 'none',
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "var(--font-mono)",
               }}
             >
               <option value="candle" style={{ background: C.card }}>🕯</option>
@@ -833,10 +833,10 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
             </svg>
           </div>
           <div>
-            <div style={{ color: C.text, fontWeight: 700, fontSize: 13, fontFamily: "'Cairo', sans-serif", lineHeight: 1.2 }}>
+            <div style={{ color: C.text, fontWeight: 700, fontSize: 13, fontFamily: "var(--font-ar)", lineHeight: 1.2 }}>
               {t('multiChartGrid')}
             </div>
-            <div style={{ color: C.cyan, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 600, letterSpacing: 0.5 }}>
+            <div style={{ color: C.cyan, fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 600, letterSpacing: 0.5 }}>
               {activeConfig.label} · {activeConfig.cols * activeConfig.rows} charts
             </div>
           </div>
@@ -858,7 +858,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
               fontSize: 10,
               fontWeight: 700,
               cursor: 'pointer',
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
               transition: 'all 0.15s ease',
             }}
           >
@@ -890,7 +890,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
                 color: C.textMuted,
                 letterSpacing: 1,
                 marginBottom: 8,
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
                 textAlign: 'center',
               }}>
                 {t('gridLayout')}
@@ -930,7 +930,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
                         color: isActive ? C.cyan : C.textDim,
                         fontSize: 8,
                         fontWeight: isActive ? 700 : 500,
-                        fontFamily: "'JetBrains Mono', monospace",
+                        fontFamily: "var(--font-mono)",
                       }}>
                         {cfg.label}
                       </span>
@@ -959,7 +959,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
               fontSize: 9,
               fontWeight: 700,
               cursor: 'pointer',
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
               transition: 'all 0.15s ease',
             }}
             title={syncMode ? t('syncOn') : t('syncOff')}
@@ -1045,13 +1045,13 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
         flexShrink: 0,
         direction: 'ltr',
       }}>
-        <span style={{ color: C.textMuted, fontSize: 9, fontFamily: "'JetBrains Mono', monospace" }}>
+        <span style={{ color: C.textMuted, fontSize: 9, fontFamily: "var(--font-mono)" }}>
           ESC {fullscreenCellId ? t('exitFullscreen') : t('close')}
         </span>
-        <span style={{ color: C.textMuted, fontSize: 9, fontFamily: "'JetBrains Mono', monospace" }}>
+        <span style={{ color: C.textMuted, fontSize: 9, fontFamily: "var(--font-mono)" }}>
           Double-click → {t('fullscreen')}
         </span>
-        <span style={{ color: C.textMuted, fontSize: 9, fontFamily: "'JetBrains Mono', monospace" }}>
+        <span style={{ color: C.textMuted, fontSize: 9, fontFamily: "var(--font-mono)" }}>
           {syncMode ? `🔄 ${t('syncOn')}` : `🔗 ${t('independent')}`}
         </span>
       </div>

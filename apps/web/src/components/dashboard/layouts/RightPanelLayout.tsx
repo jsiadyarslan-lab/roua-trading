@@ -208,11 +208,11 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
                   boxShadow: `0 0 10px ${activeTab.accent}66`,
                 }}
               />
-              <div style={{ fontSize: 10, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>
                 {tr('decisionCenter')}
               </div>
             </div>
-            <div style={{ marginTop: 2, fontSize: 7.5, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>
+            <div style={{ marginTop: 2, fontSize: 7.5, color: T.text3, fontFamily: "var(--font-ar)" }}>
               {headline}
             </div>
           </div>
@@ -226,13 +226,13 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
                 borderRadius: 999,
                 padding: '2px 6px',
                 fontWeight: 800,
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "var(--font-mono)",
                 whiteSpace: 'nowrap',
               }}
             >
               {activeTab.label}
             </div>
-            <div style={{ fontSize: 7, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
+            <div style={{ fontSize: 7, color: T.text3, fontFamily: "var(--font-mono)" }}>
               {selectedSymbol}
             </div>
           </div>
@@ -297,7 +297,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
                 borderRadius: 5,
                 color: isActive ? T.text : T.text3,
                 cursor: 'pointer',
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
                 transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
@@ -325,7 +325,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
                   color: '#000',
                   fontSize: 5,
                   fontWeight: 900,
-                  fontFamily: 'monospace',
+                  fontFamily: "var(--font-mono)",
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

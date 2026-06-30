@@ -339,10 +339,10 @@ function CellToolOverlay({
           borderBottom: `1px solid ${C.cardBorder}`,
           flexShrink: 0,
         }}>
-          <span style={{ fontSize: 8, fontWeight: 800, color: signalColor, fontFamily: "'JetBrains Mono',monospace" }}>
+          <span style={{ fontSize: 8, fontWeight: 800, color: signalColor, fontFamily: "var(--font-mono)" }}>
             AI
           </span>
-          <span style={{ fontSize: 7, color: C.textDim, fontFamily: "'JetBrains Mono',monospace" }}>
+          <span style={{ fontSize: 7, color: C.textDim, fontFamily: "var(--font-mono)" }}>
             {cell.symbol} {TIMEFRAME_OPTIONS.find(tf => tf.value === cell.timeframe)?.label}
           </span>
           <div style={{ flex: 1 }} />
@@ -380,14 +380,14 @@ function CellToolOverlay({
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                 <span style={{
                   padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 900,
-                  fontFamily: "'JetBrains Mono',monospace",
+                  fontFamily: "var(--font-mono)",
                   background: `${signalColor}20`, color: signalColor,
                   border: `1px solid ${signalColor}40`,
                 }}>
                   {aiData.signal}
                 </span>
                 {aiData.confidence != null && (
-                  <span style={{ fontSize: 8, color: C.textDim, fontFamily: "'JetBrains Mono',monospace" }}>
+                  <span style={{ fontSize: 8, color: C.textDim, fontFamily: "var(--font-mono)" }}>
                     {aiData.confidence.toFixed(0)}% conf
                   </span>
                 )}
@@ -399,7 +399,7 @@ function CellToolOverlay({
                   {aiData.entry && (
                     <div style={{ background: 'rgba(0,212,255,0.08)', borderRadius: 3, padding: '2px 5px' }}>
                       <span style={{ color: C.textMuted, fontSize: 6 }}>Entry </span>
-                      <span style={{ color: C.cyan, fontSize: 8, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace" }}>
+                      <span style={{ color: C.cyan, fontSize: 8, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
                         {aiData.entry.toFixed(aiData.entry > 100 ? 1 : 5)}
                       </span>
                     </div>
@@ -407,7 +407,7 @@ function CellToolOverlay({
                   {aiData.sl && (
                     <div style={{ background: 'rgba(255,71,87,0.08)', borderRadius: 3, padding: '2px 5px' }}>
                       <span style={{ color: C.textMuted, fontSize: 6 }}>SL </span>
-                      <span style={{ color: C.danger, fontSize: 8, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace" }}>
+                      <span style={{ color: C.danger, fontSize: 8, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
                         {aiData.sl.toFixed(aiData.sl > 100 ? 1 : 5)}
                       </span>
                     </div>
@@ -415,7 +415,7 @@ function CellToolOverlay({
                   {aiData.tp && (
                     <div style={{ background: 'rgba(0,255,163,0.08)', borderRadius: 3, padding: '2px 5px' }}>
                       <span style={{ color: C.textMuted, fontSize: 6 }}>TP </span>
-                      <span style={{ color: C.success, fontSize: 8, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace" }}>
+                      <span style={{ color: C.success, fontSize: 8, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
                         {aiData.tp.toFixed(aiData.tp > 100 ? 1 : 5)}
                       </span>
                     </div>
@@ -436,7 +436,7 @@ function CellToolOverlay({
                     width: '100%', padding: '3px 0', borderRadius: 4,
                     background: `${signalColor}20`, border: `1px solid ${signalColor}40`,
                     color: signalColor, fontSize: 8, fontWeight: 800, cursor: 'pointer',
-                    fontFamily: "'Cairo',sans-serif", marginBottom: 4,
+                    fontFamily: "var(--font-ar)", marginBottom: 4,
                   }}
                 >
                   تنفيذ {aiData.signal === 'BUY' ? 'شراء' : 'بيع'}
@@ -496,7 +496,7 @@ function CellToolOverlay({
           borderBottom: `1px solid ${C.cardBorder}`,
         }}>
           <span style={{ fontSize: 8, fontWeight: 800, color: C.gold }}>Trade</span>
-          <span style={{ fontSize: 7, color: C.textDim, fontFamily: "'JetBrains Mono',monospace" }}>{cell.symbol}</span>
+          <span style={{ fontSize: 7, color: C.textDim, fontFamily: "var(--font-mono)" }}>{cell.symbol}</span>
           <div style={{ flex: 1 }} />
           <button onClick={onFocus} style={{
             background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)',
@@ -516,7 +516,7 @@ function CellToolOverlay({
             flex: 1, padding: '6px 0', borderRadius: 5,
             background: `${C.upColor}20`, border: `1px solid ${C.upColor}40`,
             color: C.upColor, fontSize: 9, fontWeight: 800, cursor: 'pointer',
-            fontFamily: "'Cairo',sans-serif",
+            fontFamily: "var(--font-ar)",
           }}>
             شراء / Long
           </button>
@@ -529,7 +529,7 @@ function CellToolOverlay({
             flex: 1, padding: '6px 0', borderRadius: 5,
             background: `${C.downColor}20`, border: `1px solid ${C.downColor}40`,
             color: C.downColor, fontSize: 9, fontWeight: 800, cursor: 'pointer',
-            fontFamily: "'Cairo',sans-serif",
+            fontFamily: "var(--font-ar)",
           }}>
             بيع / Short
           </button>
@@ -537,7 +537,7 @@ function CellToolOverlay({
         {currentPrice && (
           <div style={{ padding: '0 8px 6px', textAlign: 'center' }}>
             <span style={{ color: C.textDim, fontSize: 7 }}>السعر الحالي: </span>
-            <span style={{ color: C.text, fontSize: 8, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace" }}>
+            <span style={{ color: C.text, fontSize: 8, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
               {currentPrice.toFixed(currentPrice > 100 ? 1 : 5)}
             </span>
           </div>
@@ -578,7 +578,7 @@ function CellToolOverlay({
           borderBottom: `1px solid ${C.cardBorder}`,
         }}>
           <span style={{ fontSize: 8, fontWeight: 800, color: C.cyan }}>Draw</span>
-          <span style={{ fontSize: 7, color: C.textDim, fontFamily: "'JetBrains Mono',monospace" }}>{cell.symbol}</span>
+          <span style={{ fontSize: 7, color: C.textDim, fontFamily: "var(--font-mono)" }}>{cell.symbol}</span>
           <div style={{ flex: 1 }} />
           <button onClick={onFocus} style={{
             background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)',
@@ -588,7 +588,7 @@ function CellToolOverlay({
             background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 10, padding: '0 2px',
           }}>x</button>
         </div>
-        <div style={{ padding: '4px 6px', fontSize: 7, color: C.textMuted, textAlign: 'center', fontFamily: "'Cairo',sans-serif", borderBottom: `1px solid ${C.cardBorder}` }}>
+        <div style={{ padding: '4px 6px', fontSize: 7, color: C.textMuted, textAlign: 'center', fontFamily: "var(--font-ar)", borderBottom: `1px solid ${C.cardBorder}` }}>
           اختر أداة ثم اضغط Focus للرسم على الشارت الرئيسي
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 3, padding: 4 }}>
@@ -598,7 +598,7 @@ function CellToolOverlay({
               padding: '4px 2px', borderRadius: 4, cursor: 'pointer',
               background: 'rgba(255,255,255,0.03)', border: `1px solid ${C.cardBorder}`,
               color: C.text, fontSize: 7, fontWeight: 600,
-              fontFamily: "'Cairo',sans-serif",
+              fontFamily: "var(--font-ar)",
             }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(0,212,255,0.1)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(0,212,255,0.3)'; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.03)'; (e.currentTarget as HTMLElement).style.borderColor = C.cardBorder; }}
@@ -639,8 +639,8 @@ function CellToolOverlay({
           borderBottom: `1px solid ${C.cardBorder}`,
           flexShrink: 0,
         }}>
-          <span style={{ fontSize: 8, fontWeight: 800, color: C.cyan, fontFamily: "'JetBrains Mono',monospace" }}>Ind</span>
-          <span style={{ fontSize: 7, color: C.textDim, fontFamily: "'JetBrains Mono',monospace" }}>
+          <span style={{ fontSize: 8, fontWeight: 800, color: C.cyan, fontFamily: "var(--font-mono)" }}>Ind</span>
+          <span style={{ fontSize: 7, color: C.textDim, fontFamily: "var(--font-mono)" }}>
             {cell.symbol} {TIMEFRAME_OPTIONS.find(tf => tf.value === cell.timeframe)?.label}
           </span>
           <div style={{ flex: 1 }} />
@@ -673,7 +673,7 @@ function CellToolOverlay({
                 }}>
                   {isOn && <span style={{ color: C.bg, fontSize: 7, fontWeight: 900, lineHeight: 1 }}>✓</span>}
                 </div>
-                <span style={{ fontSize: 8, fontWeight: 700, color: isOn ? C.cyan : C.text, fontFamily: "'JetBrains Mono',monospace", flex: 1 }}>
+                <span style={{ fontSize: 8, fontWeight: 700, color: isOn ? C.cyan : C.text, fontFamily: "var(--font-mono)", flex: 1 }}>
                   {config.labelEn}
                 </span>
                 <div style={{ width: 8, height: 3, borderRadius: 2, background: config.defaultColor, flexShrink: 0 }} />
@@ -682,7 +682,7 @@ function CellToolOverlay({
           })}
           {oscillatorIndicators.length > 0 && (
             <>
-              <div style={{ padding: '4px 6px 2px', fontSize: 7, fontWeight: 700, color: C.textMuted, fontFamily: "'JetBrains Mono',monospace", borderTop: `1px solid ${C.cardBorder}` }}>
+              <div style={{ padding: '4px 6px 2px', fontSize: 7, fontWeight: 700, color: C.textMuted, fontFamily: "var(--font-mono)", borderTop: `1px solid ${C.cardBorder}` }}>
                 OSCILLATOR
               </div>
               {oscillatorIndicators.map(config => {
@@ -704,7 +704,7 @@ function CellToolOverlay({
                     }}>
                       {isOn && <span style={{ color: C.bg, fontSize: 7, fontWeight: 900, lineHeight: 1 }}>✓</span>}
                     </div>
-                    <span style={{ fontSize: 8, fontWeight: 700, color: isOn ? C.cyan : C.text, fontFamily: "'JetBrains Mono',monospace", flex: 1 }}>
+                    <span style={{ fontSize: 8, fontWeight: 700, color: isOn ? C.cyan : C.text, fontFamily: "var(--font-mono)", flex: 1 }}>
                       {config.labelEn}
                     </span>
                     <div style={{ width: 8, height: 3, borderRadius: 2, background: config.defaultColor, flexShrink: 0 }} />
@@ -1136,7 +1136,7 @@ export function SmartGrid({
 
       const chart = createChart(container, {
         width: w, height: h,
-        layout: { background: { color: C.bg }, textColor: C.textDim, fontSize: 9, fontFamily: "'JetBrains Mono', monospace", attributionLogo: false },
+        layout: { background: { color: C.bg }, textColor: C.textDim, fontSize: 9, fontFamily: "var(--font-mono)", attributionLogo: false },
         grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } },
         rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.1, bottom: 0.2 } },
         timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false, rightOffset: 3, barSpacing: 6, minBarSpacing: 2 },
@@ -1965,7 +1965,7 @@ export function SmartGrid({
   const tbBtn: React.CSSProperties = {
     background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
     borderRadius: 5, color: C.textDim, padding: '4px 8px', fontSize: 9, fontWeight: 700,
-    cursor: 'pointer', fontFamily: "'Cairo','IBM Plex Sans Arabic',sans-serif",
+    cursor: 'pointer', fontFamily: "var(--font-ar)",
     display: 'flex', alignItems: 'center', gap: 3, transition: 'all 0.15s', whiteSpace: 'nowrap' as const,
   };
 
@@ -2007,9 +2007,9 @@ export function SmartGrid({
               <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
             </svg>
           </div>
-          <span style={{ color: C.text, fontSize: 11, fontWeight: 700, fontFamily: "'Cairo',sans-serif" }}>Smart Grid</span>
+          <span style={{ color: C.text, fontSize: 11, fontWeight: 700, fontFamily: "var(--font-ar)" }}>Smart Grid</span>
           {activeCell && (
-            <span style={{ color: C.cyan, fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 600 }}>
+            <span style={{ color: C.cyan, fontFamily: "var(--font-mono)", fontSize: 9.5, fontWeight: 600 }}>
               {activeCell.symbol} · {TIMEFRAME_OPTIONS.find(tf => tf.value === activeCell.timeframe)?.label}
             </span>
           )}
@@ -2068,7 +2068,7 @@ export function SmartGrid({
 
         {/* Trades count */}
         {activeTrades.length > 0 && (
-          <span style={{ padding: '0px 5px', borderRadius: 3, fontSize: 8, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", background: 'rgba(0,255,163,0.1)', color: C.success, border: '1px solid rgba(0,255,163,0.2)' }}>
+          <span style={{ padding: '0px 5px', borderRadius: 3, fontSize: 8, fontWeight: 700, fontFamily: "var(--font-mono)", background: 'rgba(0,255,163,0.1)', color: C.success, border: '1px solid rgba(0,255,163,0.2)' }}>
             {activeTrades.length} trades
           </span>
         )}
@@ -2143,7 +2143,7 @@ export function SmartGrid({
               {/* Cell Header */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '2px 5px', borderBottom: `1px solid ${C.cardBorder}`, background: isActive ? 'rgba(0,212,255,0.03)' : 'transparent', flexShrink: 0 }}>
                 <select value={cell.symbol} onClick={e => e.stopPropagation()} onChange={e => handleChangeSymbol(cell.id, e.target.value)}
-                  style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)', borderRadius: 3, color: C.cyan, fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, fontWeight: 700, padding: '1px 3px', cursor: 'pointer', outline: 'none', maxWidth: 70 }}>
+                  style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)', borderRadius: 3, color: C.cyan, fontFamily: "var(--font-mono)", fontSize: 8.5, fontWeight: 700, padding: '1px 3px', cursor: 'pointer', outline: 'none', maxWidth: 70 }}>
                   {POPULAR_PAIRS.map(p => <option key={p} value={p} style={{ background: C.card, color: C.text }}>{p}</option>)}
                 </select>
 
@@ -2164,7 +2164,7 @@ export function SmartGrid({
                 {state?.dataSource && state.dataSource !== 'loading' && (
                   <span style={{
                     padding: '0px 3px', borderRadius: 2, fontSize: 6, fontWeight: 700,
-                    fontFamily: "'JetBrains Mono',monospace",
+                    fontFamily: "var(--font-mono)",
                     background: `${sourceInfo.color}15`,
                     color: sourceInfo.color,
                     border: `1px solid ${sourceInfo.color}30`,
@@ -2175,7 +2175,7 @@ export function SmartGrid({
 
                 {/* Trade count badge */}
                 {tradesForCell.length > 0 && (
-                  <span style={{ padding: '0px 3px', borderRadius: 2, fontSize: 6.5, fontWeight: 700, fontFamily: 'monospace', background: 'rgba(0,255,163,0.12)', color: C.success, border: '1px solid rgba(0,255,163,0.2)' }}>
+                  <span style={{ padding: '0px 3px', borderRadius: 2, fontSize: 6.5, fontWeight: 700, fontFamily: "var(--font-mono)", background: 'rgba(0,255,163,0.12)', color: C.success, border: '1px solid rgba(0,255,163,0.2)' }}>
                     {tradesForCell.length} trade{tradesForCell.length > 1 ? 's' : ''}
                   </span>
                 )}
@@ -2200,9 +2200,9 @@ export function SmartGrid({
                 {/* Price overlay — positioned at top-right under chart type button */}
                 {state?.currentPrice != null && state.currentPrice > 0 && (
                   <div style={{ position: 'absolute', top: 2, right: 4, zIndex: 10, display: 'flex', alignItems: 'center', gap: 2, background: 'rgba(11,14,20,0.75)', borderRadius: 3, padding: '1px 4px', backdropFilter: 'blur(4px)' }}>
-                    <span style={{ color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 8, fontWeight: 600 }}>{formatPrice(state.currentPrice)}</span>
+                    <span style={{ color: C.text, fontFamily: "var(--font-mono)", fontSize: 8, fontWeight: 600 }}>{formatPrice(state.currentPrice)}</span>
                     {state?.changePercent != null && (
-                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 6.5, fontWeight: 700, color: isPositive ? C.upColor : C.downColor }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 6.5, fontWeight: 700, color: isPositive ? C.upColor : C.downColor }}>
                         {isPositive ? '+' : ''}{state.changePercent.toFixed(2)}%
                       </span>
                     )}
@@ -2218,7 +2218,7 @@ export function SmartGrid({
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={C.danger} strokeWidth="1.5" style={{ opacity: 0.6 }}>
                       <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
                     </svg>
-                    <span style={{ color: C.danger, fontSize: 9, fontWeight: 700, fontFamily: "'Cairo',sans-serif", textAlign: 'center', lineHeight: 1.4 }}>
+                    <span style={{ color: C.danger, fontSize: 9, fontWeight: 700, fontFamily: "var(--font-ar)", textAlign: 'center', lineHeight: 1.4 }}>
                       {state?.error || 'لا توجد بيانات'}
                     </span>
                     <button
@@ -2226,7 +2226,7 @@ export function SmartGrid({
                       style={{
                         background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.3)',
                         borderRadius: 4, color: C.cyan, padding: '4px 12px', fontSize: 8, fontWeight: 700,
-                        cursor: 'pointer', fontFamily: "'Cairo',sans-serif",
+                        cursor: 'pointer', fontFamily: "var(--font-ar)",
                       }}
                     >
                       إعادة المحاولة
@@ -2274,7 +2274,7 @@ export function SmartGrid({
                     const isLong = trade.side === 'long' || trade.side === 'BUY';
                     const srcIcon = trade.source === 'bot' ? ' B' : trade.source === 'agent' ? ' A' : trade.source === 'exchange' ? ' E' : ' P';
                     return (
-                      <span key={i} style={{ fontSize: 6.5, fontFamily: "'JetBrains Mono',monospace", color: isLong ? C.upColor : C.downColor, fontWeight: 700 }}>
+                      <span key={i} style={{ fontSize: 6.5, fontFamily: "var(--font-mono)", color: isLong ? C.upColor : C.downColor, fontWeight: 700 }}>
                         {isLong ? '^' : 'v'} {trade.entry.toFixed(trade.entry > 100 ? 1 : 4)}{srcIcon}
                         {trade.sl && <span style={{ color: C.danger }}> SL:{trade.sl.toFixed(trade.sl > 100 ? 1 : 4)}</span>}
                         {trade.tp && <span style={{ color: C.success }}> TP:{trade.tp.toFixed(trade.tp > 100 ? 1 : 4)}</span>}

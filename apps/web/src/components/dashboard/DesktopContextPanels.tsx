@@ -44,9 +44,9 @@ function PanelShell({
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Icon size={14} color={accent} />
-            <span style={{ fontSize: 12, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{title}</span>
+            <span style={{ fontSize: 12, fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>{title}</span>
           </div>
-          <div style={{ marginTop: 4, fontSize: 9, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{subtitle}</div>
+          <div style={{ marginTop: 4, fontSize: 9, color: T.text3, fontFamily: "var(--font-ar)" }}>{subtitle}</div>
         </div>
         {actions}
       </div>
@@ -94,7 +94,7 @@ export function DesktopNewsPanel() {
           <div key={`${safeStr(item.text)}-${index}`} className="card" style={{ padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 9, color: item.impact === 'high' ? T.danger : T.amber, fontWeight: 800 }}>{safeStr(locale === 'ar' ? (item.categoryAr || item.category) : locale === 'fr' ? (item.categoryFr || item.category) : locale === 'tr' ? (item.categoryTr || item.category) : locale === 'es' ? (item.categoryEs || item.category) : item.category)}</span>
-              <span style={{ fontSize: 9, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
+              <span style={{ fontSize: 9, color: T.text3, fontFamily: "var(--font-mono)" }}>
                 {item.publishedAt ? formatFreshness(item.publishedAt, tc) : safeStr(item.source)}
               </span>
             </div>
@@ -141,7 +141,7 @@ export function DesktopCalendarPanel() {
           <div key={`${event.event}-${index}`} className="card" style={{ padding: '10px 11px', display: 'grid', gap: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
               <span style={{ fontSize: 10, color: T.text, fontWeight: 800 }}>{event.currency}</span>
-              <span style={{ fontSize: 9, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>{event.dateLabel} • {event.time}</span>
+              <span style={{ fontSize: 9, color: T.text3, fontFamily: "var(--font-mono)" }}>{event.dateLabel} • {event.time}</span>
             </div>
             <div style={{ fontSize: 11, color: T.text, lineHeight: 1.7 }}>{event.event}</div>
             <div style={{ fontSize: 9, color: event.ai?.bias === 'bullish' ? T.success : event.ai?.bias === 'bearish' ? T.danger : T.amber }}>
@@ -276,7 +276,7 @@ export function DesktopBacktestPanel() {
             ].map(item => (
               <div key={item.label} className="card" style={{ padding: '10px 11px' }}>
                 <div style={{ fontSize: 9, color: T.text3 }}>{item.label}</div>
-                <div style={{ marginTop: 4, fontSize: 13, color: item.color, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>{item.value}</div>
+                <div style={{ marginTop: 4, fontSize: 13, color: item.color, fontWeight: 800, fontFamily: "var(--font-mono)" }}>{item.value}</div>
               </div>
             ))}
           </div>
@@ -338,8 +338,8 @@ export function DesktopCorrelationPanel() {
           return (
             <div key={symbol} className="card" style={{ padding: '10px 11px', display: 'grid', gap: 6 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <span style={{ fontSize: 11, color: T.text, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>{symbol}</span>
-                <span style={{ fontSize: 10, color: accent, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>{Number(value).toFixed(3)}</span>
+                <span style={{ fontSize: 11, color: T.text, fontWeight: 800, fontFamily: "var(--font-mono)" }}>{symbol}</span>
+                <span style={{ fontSize: 10, color: accent, fontWeight: 800, fontFamily: "var(--font-mono)" }}>{Number(value).toFixed(3)}</span>
               </div>
               <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.04)', overflow: 'hidden' }}>
                 <div

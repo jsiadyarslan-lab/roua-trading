@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { Cairo, Inter, JetBrains_Mono, Orbitron } from 'next/font/google';
 import { routing } from '@/i18n/routing';
 import { getDirection } from '@/lib/i18n-utils';
 import { Toaster } from "@/components/ui/toaster";
@@ -10,17 +11,39 @@ import PWARegistrar from "@/components/PWARegistrar";
 // V469: مساعد التداول الذكي — منقول بالكامل من مساعد رؤى المالي
 import AssistantChatWidgetClient from "@/components/assistant/AssistantChatWidgetClient";
 
-const cairo = { variable: "--font-cairo", className: "" };
-const notoNaskhArabic = { variable: "--font-noto-naskh", className: "" };
-const ibmPlexSansArabic = { variable: "--font-ibm-plex-ar", className: "" };
-const inter = { variable: "--font-inter", className: "" };
-const jetbrainsMono = { variable: "--font-jetbrains", className: "" };
-const orbitron = { variable: "--font-orbitron", className: "" };
+// V597: Load fonts properly via next/font/google (was empty objects before)
+// This makes --font-cairo, --font-inter, --font-jetbrains, --font-orbitron
+// actually defined, so CSS variables resolve to real font files.
+const cairo = Cairo({
+  subsets: ['arabic', 'latin'],
+  weight: ['400', '600', '700', '800', '900'],
+  variable: '--font-cairo',
+  display: 'swap',  // prevents FOIT (Flash of Invisible Text)
+});
+
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-jetbrains',
+  display: 'swap',
+});
+
+const orbitron = Orbitron({
+  subsets: ['latin'],
+  weight: ['400', '500', '700', '800', '900'],
+  variable: '--font-orbitron',
+  display: 'swap',
+});
 
 const fontVars = [
   cairo.variable,
-  notoNaskhArabic.variable,
-  ibmPlexSansArabic.variable,
   inter.variable,
   jetbrainsMono.variable,
   orbitron.variable,

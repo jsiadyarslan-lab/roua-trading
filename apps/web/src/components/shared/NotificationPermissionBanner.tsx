@@ -80,7 +80,7 @@ export default function NotificationPermissionBanner() {
           border: '0.5px solid rgba(0,212,255,0.2)',
           boxShadow: '0 8px 32px rgba(0,0,0,0.6), inset 0 0 0 0.5px rgba(0,212,255,0.1)',
           direction: 'inherit',
-          fontFamily: "'Cairo', sans-serif",
+          fontFamily: "var(--font-ar)",
         }}
       >
         {/* Accent line */}
@@ -134,7 +134,7 @@ export default function NotificationPermissionBanner() {
                 fontSize: 11,
                 fontWeight: 800,
                 cursor: 'pointer',
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
                 transition: 'all 0.2s',
               }}
             >

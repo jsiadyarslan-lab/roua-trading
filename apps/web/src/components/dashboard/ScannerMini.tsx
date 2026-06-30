@@ -164,20 +164,20 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <Activity size={10} color="var(--accent)" className={scanning ? 'animate-pulse' : ''} />
-          <span style={{ fontSize: 8, fontWeight: 800, color: 'var(--accent)', fontFamily: "'Cairo', sans-serif" }}>
+          <span style={{ fontSize: 8, fontWeight: 800, color: 'var(--accent)', fontFamily: "var(--font-ar)" }}>
             {ts('title')}
           </span>
-          <span style={{ fontSize: 6, background: 'rgba(255,184,0,0.10)', border: '0.5px solid rgba(255,184,0,0.20)', color: 'var(--amber)', padding: '0.5px 4px', borderRadius: 2, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
+          <span style={{ fontSize: 6, background: 'rgba(255,184,0,0.10)', border: '0.5px solid rgba(255,184,0,0.20)', color: 'var(--amber)', padding: '0.5px 4px', borderRadius: 2, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
             {signals.length > 0 ? `${signals.length} ${ts("pair")}` : ''}
           </span>
           {lastScan && (
-            <span style={{ fontSize: 6, color: 'var(--text3)', fontFamily: 'monospace' }}>
+            <span style={{ fontSize: 6, color: 'var(--text3)', fontFamily: "var(--font-mono)" }}>
               · {lastScan}
             </span>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ fontSize: 6, color: 'var(--text3)', fontFamily: 'monospace' }}>{countdown}s</span>
+          <span style={{ fontSize: 6, color: 'var(--text3)', fontFamily: "var(--font-mono)" }}>{countdown}s</span>
           <button
             onClick={doScan}
             disabled={scanning}
@@ -186,7 +186,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
               cursor: scanning ? 'not-allowed' : 'pointer', lineHeight: 1,
               display: 'flex', alignItems: 'center', gap: 2,
               background: 'rgba(0,229,255,0.08)', border: '1px solid rgba(0,229,255,0.2)',
-              color: 'var(--accent)', fontFamily: "'Cairo', sans-serif", fontWeight: 700,
+              color: 'var(--accent)', fontFamily: "var(--font-ar)", fontWeight: 700,
             }}
           >
             <RefreshCw size={6} className={scanning ? 'animate-spin' : ''} />
@@ -213,7 +213,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
             gap: 4,
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--foreground)', fontFamily: "'Cairo', sans-serif" }}>
+              <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--foreground)', fontFamily: "var(--font-ar)" }}>
                 {spotlight.pair === activeSymbol ? ts('selectedUnderMicroscope') : ts('topOpportunity')}
               </span>
               <span style={{
@@ -222,18 +222,18 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
                 borderRadius: 999,
                 background: spotlight.dir === 'buy' ? 'rgba(0,200,83,0.15)' : spotlight.dir === 'sell' ? 'rgba(255,59,48,0.15)' : 'rgba(255,184,0,0.15)',
                 color: spotlight.dir === 'buy' ? 'var(--success)' : spotlight.dir === 'sell' ? 'var(--danger)' : 'var(--amber)',
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
                 fontWeight: 800,
               }}>
                 {spotlight.dir === 'buy' ? tc('buy') : spotlight.dir === 'sell' ? tc('sell') : ts('watch')}
               </span>
             </div>
-            <div style={{ fontSize: 7.5, color: 'var(--text2)', lineHeight: 1.6, fontFamily: "'Cairo', sans-serif" }}>
+            <div style={{ fontSize: 7.5, color: 'var(--text2)', lineHeight: 1.6, fontFamily: "var(--font-ar)" }}>
               {Array.isArray(spotlight.reasons) && spotlight.reasons.length > 0
                 ? ts('appearedBecause', { symbol: spotlight.pair, reasons: spotlight.reasons.slice(0, 2).join(' · ') })
                 : ts('scannerWatching', { symbol: spotlight.pair })}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 6, color: 'var(--text3)', fontFamily: 'monospace' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 6, color: 'var(--text3)', fontFamily: "var(--font-mono)" }}>
               <span>{spotlight.source || ts('awaitingConnection')}</span>
               <span>{spotlight.timestamp ? formatFreshness(spotlight.timestamp, tc) : (lastScan || tc('justNow'))}</span>
             </div>
@@ -304,20 +304,20 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
                   {/* Row 1: Pair + Direction badge + Strength */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span style={{ fontSize: 10, fontWeight: 800, color: '#fff', fontFamily: "'JetBrains Mono', monospace" }}>{sig.pair}</span>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: '#fff', fontFamily: "var(--font-mono)" }}>{sig.pair}</span>
                       <span style={{
                         fontSize: 7, fontWeight: 800, color: dirColor, background: dirBg,
                         padding: '1px 5px', borderRadius: 3,
-                        fontFamily: "'Cairo', sans-serif",
+                        fontFamily: "var(--font-ar)",
                       }}>
                         {isBuy ? tc('buy') : isSell ? tc('sell') : ts('watch')}
                       </span>
                       {isActiveSig && (
-                        <span style={{ fontSize: 6, background: 'rgba(0,229,255,0.12)', padding: '1px 4px', borderRadius: 3, color: 'var(--accent)', fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>{ts('selected')}</span>
+                        <span style={{ fontSize: 6, background: 'rgba(0,229,255,0.12)', padding: '1px 4px', borderRadius: 3, color: 'var(--accent)', fontFamily: "var(--font-ar)", fontWeight: 700 }}>{ts('selected')}</span>
                       )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
-                      <span style={{ fontSize: 11, fontWeight: 800, color: dirColor, fontFamily: "'JetBrains Mono', monospace" }}>{sig.strength}</span>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: dirColor, fontFamily: "var(--font-mono)" }}>{sig.strength}</span>
                       <span style={{ fontSize: 6, fontWeight: 700, color: 'var(--text3)' }}>%</span>
                     </div>
                   </div>
@@ -336,10 +336,10 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
                   {/* Meta row */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
-                      {sig.rsi != null && <span style={{ fontSize: 6, color: 'var(--text3)', fontFamily: "'JetBrains Mono', monospace" }}>RSI {sig.rsi}</span>}
-                      {sig.macdSignal != null && <span style={{ fontSize: 6, color: 'var(--text3)', fontFamily: "'JetBrains Mono', monospace" }}>MACD {sig.macdSignal}</span>}
+                      {sig.rsi != null && <span style={{ fontSize: 6, color: 'var(--text3)', fontFamily: "var(--font-mono)" }}>RSI {sig.rsi}</span>}
+                      {sig.macdSignal != null && <span style={{ fontSize: 6, color: 'var(--text3)', fontFamily: "var(--font-mono)" }}>MACD {sig.macdSignal}</span>}
                     </div>
-                    <span style={{ fontSize: 6, color: 'var(--text3)', fontFamily: 'monospace' }}>{sig.timestamp ? formatFreshness(sig.timestamp, tc) : (lastScan || tc('justNow'))}</span>
+                    <span style={{ fontSize: 6, color: 'var(--text3)', fontFamily: "var(--font-mono)" }}>{sig.timestamp ? formatFreshness(sig.timestamp, tc) : (lastScan || tc('justNow'))}</span>
                   </div>
                 </div>
               )
@@ -372,11 +372,11 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
             boxShadow: `0 8px 24px rgba(0,0,0,0.5), 0 0 12px ${isBuy ? 'rgba(0,230,118,0.06)' : isSell ? 'rgba(255,82,82,0.06)' : 'rgba(255,184,0,0.06)'}`,
             backdropFilter: 'blur(12px)',
           }}>
-            <div style={{ fontSize: 8, fontWeight: 800, color: dirColor, fontFamily: "'Cairo', sans-serif", marginBottom: reasons ? 3 : 0 }}>
+            <div style={{ fontSize: 8, fontWeight: 800, color: dirColor, fontFamily: "var(--font-ar)", marginBottom: reasons ? 3 : 0 }}>
               {sig.pair} — {explanation}
             </div>
             {reasons && (
-              <div style={{ fontSize: 6.5, color: '#90A0B8', fontFamily: "'Cairo', sans-serif", lineHeight: 1.5 }}>
+              <div style={{ fontSize: 6.5, color: '#90A0B8', fontFamily: "var(--font-ar)", lineHeight: 1.5 }}>
                 {reasons}
               </div>
             )}

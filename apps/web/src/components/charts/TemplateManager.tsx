@@ -153,7 +153,7 @@ export function TemplateManager({
     }}>
       {/* Header */}
       <div data-drag-handle style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, cursor: 'grab' }}>
-        <span style={{ fontSize: 11, color: COLORS.text, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
+        <span style={{ fontSize: 11, color: COLORS.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
           💾 {tc('templateManager')}
         </span>
         <button onClick={onClose} style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', fontSize: 14 }}>✕</button>
@@ -166,7 +166,7 @@ export function TemplateManager({
             onClick={() => setActiveTab('grid')}
             style={{
               flex: 1, padding: '4px 6px', borderRadius: 3, cursor: 'pointer',
-              fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: 600,
+              fontFamily: "var(--font-ar)", fontSize: 9, fontWeight: 600,
               background: activeTab === 'grid' ? 'rgba(168,85,247,0.2)' : 'transparent',
               color: activeTab === 'grid' ? COLORS.purple : COLORS.textMuted,
               border: activeTab === 'grid' ? '1px solid rgba(168,85,247,0.3)' : '1px solid transparent',
@@ -178,7 +178,7 @@ export function TemplateManager({
             onClick={() => setActiveTab('single')}
             style={{
               flex: 1, padding: '4px 6px', borderRadius: 3, cursor: 'pointer',
-              fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: 600,
+              fontFamily: "var(--font-ar)", fontSize: 9, fontWeight: 600,
               background: activeTab === 'single' ? 'rgba(0,212,255,0.15)' : 'transparent',
               color: activeTab === 'single' ? COLORS.cyan : COLORS.textMuted,
               border: activeTab === 'single' ? '1px solid rgba(0,212,255,0.2)' : '1px solid transparent',
@@ -197,7 +197,7 @@ export function TemplateManager({
             background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.15)',
             borderRadius: 4, padding: '5px 8px', marginBottom: 8,
           }}>
-            <span style={{ fontSize: 8, color: COLORS.purple, fontFamily: "'Cairo', sans-serif" }}>
+            <span style={{ fontSize: 8, color: COLORS.purple, fontFamily: "var(--font-ar)" }}>
               {locale === 'ar'
                 ? '✨ يحفظ ويستعيد حالة جميع الشارتات في الشبكة (المؤشرات + الرسومات + الإعدادات)'
                 : '✨ Saves & restores ALL charts state (indicators + drawings + settings)'}
@@ -220,7 +220,7 @@ export function TemplateManager({
                 borderRadius: 4,
                 color: COLORS.text,
                 fontSize: 10,
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
                 outline: 'none',
               }}
             />
@@ -236,7 +236,7 @@ export function TemplateManager({
                 fontSize: 10,
                 fontWeight: 700,
                 cursor: newName.trim() && onSaveGridTemplate ? 'pointer' : 'default',
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
                 opacity: newName.trim() && onSaveGridTemplate ? 1 : 0.5,
               }}
             >
@@ -247,7 +247,7 @@ export function TemplateManager({
           {/* Grid Templates List */}
           <div style={{ maxHeight: 220, overflowY: 'auto', marginBottom: 8 }}>
             {gridTemplates.length === 0 ? (
-              <div style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 9, padding: '10px 0', fontFamily: "'Cairo', sans-serif" }}>
+              <div style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 9, padding: '10px 0', fontFamily: "var(--font-ar)" }}>
                 {locale === 'ar' ? 'لا توجد قوالب شبكة محفوظة' : 'No grid templates saved'}
               </div>
             ) : (
@@ -263,13 +263,13 @@ export function TemplateManager({
                   }}
                 >
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 10, color: COLORS.text, fontWeight: 600, fontFamily: "'Cairo', sans-serif" }}>
+                    <div style={{ fontSize: 10, color: COLORS.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>
                       🏗️ {tpl.name}
                     </div>
-                    <div style={{ fontSize: 8, color: COLORS.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>
+                    <div style={{ fontSize: 8, color: COLORS.textMuted, fontFamily: "var(--font-mono)" }}>
                       {tpl.layout} • {tpl.cells.length} {locale === 'ar' ? 'شارتات' : 'charts'} • {new Date(tpl.updatedAt).toLocaleDateString(dateLocale)}
                     </div>
-                    <div style={{ fontSize: 7, color: COLORS.purple, fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>
+                    <div style={{ fontSize: 7, color: COLORS.purple, fontFamily: "var(--font-mono)", marginTop: 1 }}>
                       {tpl.cells.map((c, i) => `${c.symbol}:${c.timeframe}${c.indicators.length > 0 ? ` (${c.indicators.length})` : ''}`).join(' • ')}
                     </div>
                   </div>
@@ -285,7 +285,7 @@ export function TemplateManager({
                       fontSize: 8,
                       padding: '3px 6px',
                       cursor: 'pointer',
-                      fontFamily: "'Cairo', sans-serif",
+                      fontFamily: "var(--font-ar)",
                     }}
                   >
                     {tc('load')}
@@ -332,7 +332,7 @@ export function TemplateManager({
                 borderRadius: 4,
                 color: COLORS.text,
                 fontSize: 10,
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
                 outline: 'none',
               }}
             />
@@ -348,7 +348,7 @@ export function TemplateManager({
                 fontSize: 10,
                 fontWeight: 700,
                 cursor: 'pointer',
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
                 opacity: newName.trim() ? 1 : 0.5,
               }}
             >
@@ -359,7 +359,7 @@ export function TemplateManager({
           {/* Templates List */}
           <div style={{ maxHeight: 200, overflowY: 'auto', marginBottom: 8 }}>
             {templates.length === 0 ? (
-              <div style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 9, padding: '10px 0', fontFamily: "'Cairo', sans-serif" }}>
+              <div style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 9, padding: '10px 0', fontFamily: "var(--font-ar)" }}>
                 {tc('noTemplates')}
               </div>
             ) : (
@@ -375,10 +375,10 @@ export function TemplateManager({
                   }}
                 >
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 10, color: COLORS.text, fontWeight: 600, fontFamily: "'Cairo', sans-serif" }}>
+                    <div style={{ fontSize: 10, color: COLORS.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>
                       {tpl.name}
                     </div>
-                    <div style={{ fontSize: 8, color: COLORS.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>
+                    <div style={{ fontSize: 8, color: COLORS.textMuted, fontFamily: "var(--font-mono)" }}>
                       {tpl.indicators.length} {tc('indicatorsCount')} • {new Date(tpl.updatedAt).toLocaleDateString(dateLocale)}
                     </div>
                   </div>
@@ -394,7 +394,7 @@ export function TemplateManager({
                       fontSize: 8,
                       padding: '3px 6px',
                       cursor: 'pointer',
-                      fontFamily: "'Cairo', sans-serif",
+                      fontFamily: "var(--font-ar)",
                     }}
                   >
                     {tc('load')}
@@ -437,7 +437,7 @@ export function TemplateManager({
             color: COLORS.textMuted,
             fontSize: 9,
             cursor: 'pointer',
-            fontFamily: "'Cairo', sans-serif",
+            fontFamily: "var(--font-ar)",
           }}
         >
           📥 {tc('importTemplate')}
@@ -457,7 +457,7 @@ export function TemplateManager({
               borderRadius: 4,
               color: COLORS.text,
               fontSize: 9,
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
               outline: 'none',
               resize: 'vertical',
             }}
@@ -475,7 +475,7 @@ export function TemplateManager({
                 fontSize: 9,
                 fontWeight: 600,
                 cursor: 'pointer',
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
               }}
             >
               {tc('import')}
@@ -491,7 +491,7 @@ export function TemplateManager({
                 color: COLORS.textMuted,
                 fontSize: 9,
                 cursor: 'pointer',
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
               }}
             >
               {tc('cancel')}

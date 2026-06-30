@@ -70,7 +70,7 @@ function ActionBadge({ action }: { action: string }) {
   return (
     <span style={{
       fontSize: 8, fontWeight: 800, padding: '2px 6px', borderRadius: 3,
-      background: cfg.bg, color: cfg.color, fontFamily: "'Cairo', sans-serif",
+      background: cfg.bg, color: cfg.color, fontFamily: "var(--font-ar)",
     }}>
       {t(cfg.key)}
     </span>
@@ -138,13 +138,13 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
           <div>
             <div style={{
               fontSize: 12, fontWeight: 800, color: T.text,
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
             }}>
               {item.symbol}
             </div>
             <div style={{
               fontSize: 8, color: T.text3, fontWeight: 600,
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
             }}>
               {getLocalizedAssetName(item.symbol, safeStr(item.name), t, locale)}
             </div>
@@ -160,10 +160,10 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
 
       {/* Change% */}
       <td style={{ padding: '8px 8px', borderBottom: `1px solid ${T.border}` }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: chgColor, fontFamily: "'JetBrains Mono', monospace" }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: chgColor, fontFamily: "var(--font-mono)" }}>
           {item.changePercent >= 0 ? '+' : ''}{item.changePercent.toFixed(2)}%
         </div>
-        <div style={{ fontSize: 9, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
+        <div style={{ fontSize: 9, color: T.text3, fontFamily: "var(--font-mono)" }}>
           ${item.price > 0 ? item.price.toLocaleString() : '—'}
         </div>
       </td>
@@ -189,7 +189,7 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
 
       {/* Stoch */}
       <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}`, textAlign: 'center' }}>
-        <div style={{ fontSize: 9, fontWeight: 700, color: T.text2, fontFamily: "'JetBrains Mono', monospace" }}>
+        <div style={{ fontSize: 9, fontWeight: 700, color: T.text2, fontFamily: "var(--font-mono)" }}>
           {item.stochK !== null ? `${item.stochK.toFixed(0)}/${item.stochD?.toFixed(0)}` : '—'}
         </div>
       </td>
@@ -199,7 +199,7 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
         <span style={{
           fontSize: 10, fontWeight: 800,
           color: (item.adx ?? 0) > 25 ? T.green : T.text3,
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "var(--font-mono)",
         }}>
           {item.adx !== null ? item.adx.toFixed(1) : '—'}
         </span>
@@ -218,7 +218,7 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
         {aiOpinionText ? (
           <div style={{
             fontSize: 8, fontWeight: 700, color: T.cyan,
-            fontFamily: "'Cairo', sans-serif",
+            fontFamily: "var(--font-ar)",
             lineHeight: 1.4,
           }}>
             {safeStr(aiOpinionText)}

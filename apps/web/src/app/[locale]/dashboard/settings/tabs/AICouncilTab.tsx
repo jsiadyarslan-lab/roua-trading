@@ -160,7 +160,7 @@ export function AICouncilTab({ settings, update }: AICouncilTabProps) {
               background: "rgba(255,255,255,0.03)",
               border: `1px solid ${COLORS.border}`,
               color: COLORS.textPrimary, fontSize: 11,
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
               outline: "none",
             }}
             dir="ltr"

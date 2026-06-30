@@ -156,7 +156,7 @@ export function CommandPalette({ commands, isOpen, onClose, onExecute }: Command
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          fontFamily: "'Cairo','IBM Plex Sans Arabic',sans-serif",
+          fontFamily: "var(--font-ar)",
           direction: isAr ? 'rtl' : 'ltr',
         }}
         onKeyDown={handleKeyDown}
@@ -251,7 +251,7 @@ export function CommandPalette({ commands, isOpen, onClose, onExecute }: Command
                         padding: '1px 6px',
                         borderRadius: 3,
                         border: `1px solid ${C.border}`,
-                        fontFamily: 'monospace',
+                        fontFamily: "var(--font-mono)",
                       }}>
                         {cmd.shortcut}
                       </span>

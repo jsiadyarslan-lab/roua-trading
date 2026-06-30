@@ -136,7 +136,7 @@ export function SectionHeader({ index, eyebrow, title, subtitle, right }: {
     <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, marginBottom: 18, flexWrap: "wrap" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
         {index ? (
-          <div style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 600, letterSpacing: "0.18em", color: COLORS.council, padding: "4px 8px", borderRadius: 6, background: hexToRgba(COLORS.council, 0.1), border: `1px solid ${hexToRgba(COLORS.council, 0.25)}` }}>{index}</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, letterSpacing: "0.18em", color: COLORS.council, padding: "4px 8px", borderRadius: 6, background: hexToRgba(COLORS.council, 0.1), border: `1px solid ${hexToRgba(COLORS.council, 0.25)}` }}>{index}</div>
         ) : null}
         <div style={{ minWidth: 0 }}>
           {eyebrow ? <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.textMuted, marginBottom: 4 }}>{eyebrow}</div> : null}
@@ -158,7 +158,7 @@ export function StatTile({ label, value, sub, accent, icon }: {
         <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.textMuted }}>{label}</div>
         {icon ? <div style={{ width: 28, height: 28, borderRadius: 8, background: accent ? hexToRgba(accent, 0.12) : "rgba(255,255,255,0.05)", color: accent ?? COLORS.textMuted, display: "flex", alignItems: "center", justifyContent: "center" }}>{icon}</div> : null}
       </div>
-      <div style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.025em", color: accent ?? COLORS.textPrimary, lineHeight: 1, fontFamily: "monospace" }}>{value}</div>
+      <div style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.025em", color: accent ?? COLORS.textPrimary, lineHeight: 1, fontFamily: "var(--font-mono)" }}>{value}</div>
       {sub ? <div style={{ marginTop: 6, fontSize: 12, color: COLORS.textMuted }}>{sub}</div> : null}
     </GlassCard>
   );

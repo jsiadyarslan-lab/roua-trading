@@ -129,7 +129,7 @@ export function SelectBox({
         border: `1px solid ${COLORS.border}`,
         color: COLORS.textPrimary,
         fontSize: small ? 11 : 12,
-        fontFamily: "'Cairo', sans-serif",
+        fontFamily: "var(--font-ar)",
         fontWeight: 600,
         cursor: "pointer",
         outline: "none",
@@ -170,7 +170,7 @@ export function NumberInput({
           background: "rgba(255,255,255,0.03)",
           border: `1px solid ${COLORS.border}`,
           color: COLORS.textPrimary, fontSize: 12,
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "var(--font-mono)",
           textAlign: "center", outline: "none",
         }}
         dir="ltr"

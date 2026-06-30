@@ -103,7 +103,7 @@ function SelectBox({ value, onChange, options, small }: {
           background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
           borderRadius: 10, padding: small ? '5px 28px 5px 10px' : '7px 30px 7px 12px',
           color: T.text, fontSize: small ? 11 : 12,
-          fontFamily: "'Cairo', sans-serif", fontWeight: 600,
+          fontFamily: "var(--font-ar)", fontWeight: 600,
           outline: 'none', cursor: 'pointer',
           appearance: 'none',
           minWidth: small ? 88 : 128,
@@ -160,7 +160,7 @@ function SectionCard({ icon, iconColor, iconBg, title, subtitle, children, badge
               <span style={{
                 fontSize: 9.5, padding: '2px 8px', borderRadius: 10,
                 background: `${iconColor}15`, color: iconColor,
-                fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
+                fontFamily: "var(--font-mono)", fontWeight: 700,
                 border: `1px solid ${iconColor}25`,
               }}>{badge}</span>
             )}
@@ -216,7 +216,7 @@ function PermissionTag({ label, active, color }: { label: string; active: boolea
       background: active ? `${color}12` : 'rgba(255,255,255,0.025)',
       color: active ? color : T.text4,
       fontSize: 10.5, fontWeight: 600,
-      fontFamily: "'Cairo', sans-serif",
+      fontFamily: "var(--font-ar)",
       border: `1px solid ${active ? `${color}30` : T.border}`,
       transition: 'all 0.25s',
       boxShadow: active ? `0 0 10px ${color}10` : 'none',
@@ -304,7 +304,7 @@ function ActiveAccountSelector() {
             background: `linear-gradient(135deg, ${T.council}18, ${T.cyan}12)`,
             border: `1px solid ${T.council}30`,
             color: T.council, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-            fontFamily: "'Cairo', sans-serif",
+            fontFamily: "var(--font-ar)",
             boxShadow: `0 4px 14px ${T.council}15`,
           }}
         >
@@ -366,7 +366,7 @@ function ActiveAccountSelector() {
                 boxShadow: isActive
                   ? `0 4px 16px ${typeColor}15, inset 0 1px 0 rgba(255,255,255,0.05)`
                   : 'inset 0 1px 0 rgba(255,255,255,0.02)',
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
               }}
             >
               {/* Account type indicator */}
@@ -379,7 +379,7 @@ function ActiveAccountSelector() {
                   <span style={{
                     fontSize: 9, padding: '2px 7px', borderRadius: 5,
                     background: `${typeColor}18`, color: typeColor,
-                    fontWeight: 700, fontFamily: "'JetBrains Mono', monospace",
+                    fontWeight: 700, fontFamily: "var(--font-mono)",
                     border: `1px solid ${typeColor}25`,
                   }}>
                     {typeLabel}
@@ -468,7 +468,7 @@ function SaveStatusBadge({ status, t }: {
         background: config.bg,
         border: `1px solid ${config.border}`,
         color: config.color, fontSize: 11, fontWeight: 700,
-        fontFamily: "'Cairo', sans-serif", flexShrink: 0,
+        fontFamily: "var(--font-ar)", flexShrink: 0,
         boxShadow: config.glow,
         backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
         letterSpacing: '-0.005em',
@@ -1152,7 +1152,7 @@ export default function SettingsPage() {
 
   return (
     <div className="custom-scrollbar" style={{
-      fontFamily: "'Cairo', sans-serif",
+      fontFamily: "var(--font-ar)",
       height: '100%', overflowY: 'auto',
       background: `radial-gradient(ellipse at top right, ${T.council}0a, transparent 50%), ${T.bg}`,
       display: 'flex', flexDirection: 'column',
@@ -1229,7 +1229,7 @@ export default function SettingsPage() {
             aria-label={t('searchSettingsAria')}
             style={{
               flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'transparent',
-              color: T.text, fontSize: 12.5, fontFamily: "'Cairo', sans-serif", fontWeight: 500,
+              color: T.text, fontSize: 12.5, fontFamily: "var(--font-ar)", fontWeight: 500,
             }}
           />
           {searchQuery ? (
@@ -1251,7 +1251,7 @@ export default function SettingsPage() {
             <kbd style={{
               fontSize: 9.5, padding: '2px 6px', borderRadius: 5,
               background: 'rgba(255,255,255,0.05)', color: T.text4,
-              fontFamily: "'JetBrains Mono', monospace", fontWeight: 600,
+              fontFamily: "var(--font-mono)", fontWeight: 600,
               border: `1px solid ${T.border}`,
             }}>⌘K</kbd>
           )}
@@ -1314,7 +1314,7 @@ export default function SettingsPage() {
                           : 'transparent',
                         color: isActive ? tab.color : T.text3,
                         fontSize: 13, fontWeight: isActive ? 800 : 600,
-                        fontFamily: "'Cairo', sans-serif",
+                        fontFamily: "var(--font-ar)",
                         transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                         borderInlineStart: isActive
                           ? `3px solid ${tab.color}`
@@ -1382,7 +1382,7 @@ export default function SettingsPage() {
                 <Sparkles size={11} color="#fff" />
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: T.text2, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.02em' }}>ROUA COUNCIL</div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: T.text2, fontFamily: "var(--font-mono)", letterSpacing: '0.02em' }}>ROUA COUNCIL</div>
                 <div style={{ fontSize: 8.5, color: T.text4 }}>AI Strategic Council</div>
               </div>
             </div>
@@ -1415,7 +1415,7 @@ export default function SettingsPage() {
                           : 'rgba(255,255,255,0.03)',
                         color: isActive ? tab.color : T.text3,
                         fontSize: 12, fontWeight: isActive ? 800 : 600,
-                        fontFamily: "'Cairo', sans-serif",
+                        fontFamily: "var(--font-ar)",
                         whiteSpace: 'nowrap', flexShrink: 0,
                         transition: 'all 0.25s',
                         boxShadow: isActive ? `0 2px 12px ${tab.color}15` : 'none',
@@ -1536,7 +1536,7 @@ export default function SettingsPage() {
                 background: `linear-gradient(135deg, ${roleInfo.color}, ${roleInfo.color}88)`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 28, fontWeight: 900, color: '#fff',
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "var(--font-mono)",
                 boxShadow: `0 8px 24px ${roleInfo.color}30, inset 0 1px 0 rgba(255,255,255,0.2)`,
                 flexShrink: 0,
                 position: 'relative',
@@ -1549,14 +1549,14 @@ export default function SettingsPage() {
                 </div>
                 <div style={{ fontSize: 12, color: T.text2, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                   <Mail size={12} />
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{user?.email || 'user@roua.io'}</span>
+                  <span style={{ fontFamily: "var(--font-mono)" }}>{user?.email || 'user@roua.io'}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <span style={{
                     padding: '4px 11px', borderRadius: 11,
                     background: `${roleInfo.color}15`, color: roleInfo.color,
                     fontSize: 10.5, fontWeight: 700,
-                    fontFamily: "'JetBrains Mono', monospace",
+                    fontFamily: "var(--font-mono)",
                     border: `1px solid ${roleInfo.color}30`,
                     display: 'flex', alignItems: 'center', gap: 5,
                   }}>
@@ -1573,7 +1573,7 @@ export default function SettingsPage() {
                   background: `linear-gradient(135deg, ${T.council}12, ${T.cyan}08)`,
                   color: T.council,
                   fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-                  fontFamily: "'Cairo', sans-serif",
+                  fontFamily: "var(--font-ar)",
                   display: 'flex', alignItems: 'center', gap: 7,
                   transition: 'all 0.25s', flexShrink: 0,
                   boxShadow: `0 4px 14px ${T.council}15`,
@@ -1613,7 +1613,7 @@ export default function SettingsPage() {
                     width: '100%', padding: '13px 18px', borderRadius: 12,
                     border: `1px dashed ${T.border2}`, background: 'transparent',
                     color: T.cyan, fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                    fontFamily: "'Cairo', sans-serif",
+                    fontFamily: "var(--font-ar)",
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                     transition: 'all 0.2s',
                   }}
@@ -1631,7 +1631,7 @@ export default function SettingsPage() {
                     width: '100%', padding: '13px 18px', borderRadius: 12,
                     border: `1px dashed ${T.border2}`, background: 'transparent',
                     color: T.council, fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                    fontFamily: "'Cairo', sans-serif",
+                    fontFamily: "var(--font-ar)",
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                     transition: 'all 0.2s', marginTop: 8,
                   }}
@@ -1658,7 +1658,7 @@ export default function SettingsPage() {
                 label={t("userId")}
                 description={user?.id || '—'}
               >
-                <span style={{ fontSize: 10, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
+                <span style={{ fontSize: 10, color: T.text3, fontFamily: "var(--font-mono)" }}>
                   {user?.id?.slice(0, 12) || '—'}...
                 </span>
               </SettingRow>
@@ -1670,7 +1670,7 @@ export default function SettingsPage() {
                   padding: '3px 9px', borderRadius: 7,
                   background: `${roleInfo.color}15`, color: roleInfo.color,
                   fontSize: 10, fontWeight: 700,
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontFamily: "var(--font-mono)",
                 }}>
                   {user?.tier?.toUpperCase() || 'FREE'}
                 </span>
@@ -1713,7 +1713,7 @@ export default function SettingsPage() {
                       padding: '7px 16px', borderRadius: 9,
                       background: 'rgba(255,71,87,0.10)', border: `1px solid rgba(255,71,87,0.22)`,
                       color: T.red, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                      fontFamily: "'Cairo', sans-serif", transition: 'all 0.2s',
+                      fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                     }}
                   >
                     {tc('logout')}
@@ -1730,7 +1730,7 @@ export default function SettingsPage() {
                       padding: '7px 16px', borderRadius: 9,
                       background: 'rgba(255,71,87,0.10)', border: '1px solid rgba(255,71,87,0.28)',
                       color: T.red, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                      fontFamily: "'Cairo', sans-serif", transition: 'all 0.2s',
+                      fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                     }}
                   >
                     {t('deleteAccount')}
@@ -1758,7 +1758,7 @@ export default function SettingsPage() {
                       style={{
                         width: '100%', padding: '8px 12px', borderRadius: 9,
                         background: T.surface, border: `1px solid rgba(255,71,87,0.22)`,
-                        color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                        color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
                         outline: 'none', direction: 'ltr',
                       }}
                     />
@@ -1770,7 +1770,7 @@ export default function SettingsPage() {
                         padding: '7px 16px', borderRadius: 9,
                         background: T.surface, border: `1px solid ${T.border}`,
                         color: T.text3, fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                        fontFamily: "'Cairo', sans-serif",
+                        fontFamily: "var(--font-ar)",
                       }}
                     >
                       {tc('cancel')}
@@ -1790,7 +1790,7 @@ export default function SettingsPage() {
                         border: '1px solid rgba(255,71,87,0.28)',
                         color: T.red, fontSize: 11, fontWeight: 700,
                         cursor: deleteConfirmText === 'DELETE' ? 'pointer' : 'not-allowed',
-                        fontFamily: "'Cairo', sans-serif",
+                        fontFamily: "var(--font-ar)",
                         opacity: deleteConfirmText === 'DELETE' ? 1 : 0.5,
                       }}
                     >
@@ -1843,7 +1843,7 @@ export default function SettingsPage() {
                         <span style={{
                           fontSize: 10, padding: '3px 10px', borderRadius: 11,
                           background: `${T.cyan}15`, color: T.cyan,
-                          fontFamily: "'Cairo', sans-serif", fontWeight: 700,
+                          fontFamily: "var(--font-ar)", fontWeight: 700,
                           border: `1px solid ${T.cyan}25`,
                         }}>{t('upgrade')}</span>
                       )}
@@ -1864,14 +1864,14 @@ export default function SettingsPage() {
                         transition: 'all 0.3s',
                         boxShadow: isActive ? `0 4px 18px ${info.color}12` : 'none',
                       }}>
-                        <div style={{ fontSize: 12, fontWeight: 800, color: isActive ? info.color : T.text3, fontFamily: "'Cairo', sans-serif" }}>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: isActive ? info.color : T.text3, fontFamily: "var(--font-ar)" }}>
                           {tc(info.labelKey)}
                         </div>
                         <div style={{ fontSize: 9, color: T.text4, marginTop: 3 }}>{tc(info.descriptionKey)}</div>
                         {isActive && (
                           <div style={{
                             marginTop: 8, fontSize: 8.5, fontWeight: 700,
-                            color: info.color, fontFamily: "'JetBrains Mono', monospace",
+                            color: info.color, fontFamily: "var(--font-mono)",
                           }}>{t('current')}</div>
                         )}
                       </div>
@@ -1932,7 +1932,7 @@ export default function SettingsPage() {
                   padding: '11px 32px', borderRadius: 12,
                   background: `linear-gradient(135deg, ${T.council}, ${T.cyan})`,
                   border: 'none', color: '#fff', fontSize: 13, fontWeight: 800,
-                  cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
+                  cursor: 'pointer', fontFamily: "var(--font-ar)",
                   boxShadow: `0 8px 24px ${T.council}35`,
                   position: 'relative',
                 }}>
@@ -1987,7 +1987,7 @@ export default function SettingsPage() {
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8, color: mode === m.id ? m.color : T.text3 }}>
                       {m.icon}
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: mode === m.id ? m.color : T.text2, fontFamily: "'Cairo', sans-serif" }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: mode === m.id ? m.color : T.text2, fontFamily: "var(--font-ar)" }}>
                       {m.label}
                     </div>
                     <div style={{ fontSize: 9.5, color: T.text4, marginTop: 3 }}>{m.desc}</div>
@@ -2016,7 +2016,7 @@ export default function SettingsPage() {
                     onChange={e => setOrderSize(e.target.value)}
                     style={{ width: 90, accentColor: T.council, height: 3 }}
                   />
-                  <span style={{ fontSize: 11, fontWeight: 700, color: T.council, fontFamily: "'JetBrains Mono', monospace", minWidth: 32, textAlign: 'center' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: T.council, fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
                     {orderSize}%
                   </span>
                 </div>
@@ -2074,7 +2074,7 @@ export default function SettingsPage() {
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 9,
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -2095,7 +2095,7 @@ export default function SettingsPage() {
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 9,
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -2116,7 +2116,7 @@ export default function SettingsPage() {
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 9,
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -2137,7 +2137,7 @@ export default function SettingsPage() {
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 9,
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -2158,7 +2158,7 @@ export default function SettingsPage() {
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 9,
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -2259,7 +2259,7 @@ export default function SettingsPage() {
                     style={{
                       width: '100%', padding: '10px 14px', borderRadius: 10,
                       background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                      color: T.text, fontSize: 11, fontFamily: "var(--font-mono)",
                       outline: 'none', direction: 'ltr', resize: 'vertical',
                       lineHeight: 1.6,
                     }}
@@ -2279,7 +2279,7 @@ export default function SettingsPage() {
                     style={{
                       width: '100%', padding: '10px 14px', borderRadius: 10,
                       background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                      color: T.text, fontSize: 11, fontFamily: "var(--font-mono)",
                       outline: 'none', direction: 'ltr', resize: 'vertical',
                       lineHeight: 1.6,
                     }}
@@ -2329,7 +2329,7 @@ export default function SettingsPage() {
                       style={{
                         padding: '5px 10px', borderRadius: 9,
                         background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                        color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                        color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
                         outline: 'none', direction: 'ltr',
                       }}
                     />
@@ -2346,7 +2346,7 @@ export default function SettingsPage() {
                       style={{
                         padding: '5px 10px', borderRadius: 9,
                         background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                        color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                        color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
                         outline: 'none', direction: 'ltr',
                       }}
                     />
@@ -2382,7 +2382,7 @@ export default function SettingsPage() {
                               background: isSelected ? `${T.amber}14` : 'rgba(255,255,255,0.025)',
                               color: isSelected ? T.amber : T.text3,
                               fontSize: 10.5, fontWeight: 700, cursor: 'pointer',
-                              fontFamily: "'Cairo', sans-serif",
+                              fontFamily: "var(--font-ar)",
                               transition: 'all 0.2s',
                             }}
                           >
@@ -2535,7 +2535,7 @@ export default function SettingsPage() {
                   </span>
                   <span style={{
                     fontSize: 12, fontWeight: 800, color: T.cyan,
-                    fontFamily: "'JetBrains Mono', monospace",
+                    fontFamily: "var(--font-mono)",
                     background: `${T.cyan}15`, padding: '3px 10px', borderRadius: 7,
                     border: `1px solid ${T.cyan}25`,
                   }}>
@@ -2600,7 +2600,7 @@ export default function SettingsPage() {
                   style={{
                     width: 180, padding: '5px 10px', borderRadius: 9,
                     background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                    color: T.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                    color: T.text, fontSize: 11, fontFamily: "var(--font-mono)",
                     outline: 'none', direction: 'ltr',
                   }}
                 />
@@ -2618,7 +2618,7 @@ export default function SettingsPage() {
                   style={{
                     width: 180, padding: '5px 10px', borderRadius: 9,
                     background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                    color: T.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                    color: T.text, fontSize: 11, fontFamily: "var(--font-mono)",
                     outline: 'none', direction: 'ltr',
                   }}
                 />
@@ -2636,7 +2636,7 @@ export default function SettingsPage() {
                   style={{
                     width: 180, padding: '5px 10px', borderRadius: 9,
                     background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                    color: T.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                    color: T.text, fontSize: 11, fontFamily: "var(--font-mono)",
                     outline: 'none', direction: 'ltr',
                   }}
                 />
@@ -2690,7 +2690,7 @@ export default function SettingsPage() {
                     onChange={e => setAiConfidence(e.target.value)}
                     style={{ width: 90, accentColor: T.council, height: 3 }}
                   />
-                  <span style={{ fontSize: 11, fontWeight: 700, color: T.council, fontFamily: "'JetBrains Mono', monospace", minWidth: 32, textAlign: 'center' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: T.council, fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
                     {aiConfidence}%
                   </span>
                 </div>
@@ -2750,7 +2750,7 @@ export default function SettingsPage() {
                       style={{
                         width: '100%', padding: '10px 14px', borderRadius: 10,
                         background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border2}`,
-                        color: T.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                        color: T.text, fontSize: 11, fontFamily: "var(--font-mono)",
                         outline: 'none', direction: 'ltr', resize: 'vertical',
                         lineHeight: 1.6,
                       }}
@@ -2800,7 +2800,7 @@ export default function SettingsPage() {
                         onChange={e => setSignalMinConfidence(e.target.value)}
                         style={{ width: 90, accentColor: T.green, height: 3 }}
                       />
-                      <span style={{ fontSize: 11, fontWeight: 700, color: T.green, fontFamily: "'JetBrains Mono', monospace", minWidth: 32, textAlign: 'center' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: T.green, fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
                         {signalMinConfidence}%
                       </span>
                     </div>
@@ -2865,7 +2865,7 @@ export default function SettingsPage() {
                         onChange={e => setVolatilityThreshold(e.target.value)}
                         style={{ width: 90, accentColor: T.amber, height: 3 }}
                       />
-                      <span style={{ fontSize: 11, fontWeight: 700, color: T.amber, fontFamily: "'JetBrains Mono', monospace", minWidth: 32, textAlign: 'center' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: T.amber, fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
                         {volatilityThreshold}%
                       </span>
                     </div>
@@ -3014,7 +3014,7 @@ export default function SettingsPage() {
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 9,
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -3034,7 +3034,7 @@ export default function SettingsPage() {
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 9,
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -3054,7 +3054,7 @@ export default function SettingsPage() {
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 9,
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -3074,7 +3074,7 @@ export default function SettingsPage() {
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 9,
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -3157,7 +3157,7 @@ export default function SettingsPage() {
                 <span style={{
                   fontSize: 10, padding: '3px 9px', borderRadius: 7,
                   background: 'rgba(255,255,255,0.04)', color: T.text3,
-                  fontFamily: "'JetBrains Mono', monospace", fontWeight: 600,
+                  fontFamily: "var(--font-mono)", fontWeight: 600,
                   border: `1px solid ${T.border2}`,
                 }}>RTL</span>
               </SettingRow>
@@ -3238,7 +3238,7 @@ export default function SettingsPage() {
                   padding: '6px 14px', borderRadius: 9,
                   background: `${T.green}12`, border: `1px solid ${T.green}28`,
                   color: T.green, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                  fontFamily: "'Cairo', sans-serif",
+                  fontFamily: "var(--font-ar)",
                 }}>{tc('activate')}</button>
               </SettingRow>
               <SettingRow
@@ -3294,7 +3294,7 @@ export default function SettingsPage() {
                     padding: '6px 14px', borderRadius: 9,
                     background: 'rgba(255,71,87,0.10)', border: '1px solid rgba(255,71,87,0.24)',
                     color: T.red, fontSize: 11, fontWeight: 700, cursor: killLoading ? 'wait' : 'pointer',
-                    fontFamily: "'Cairo', sans-serif",
+                    fontFamily: "var(--font-ar)",
                     opacity: killLoading ? 0.6 : 1,
                   }}
                 >{killLoading ? '...' : t('terminate')}</button>
@@ -3338,7 +3338,7 @@ export default function SettingsPage() {
                           <span style={{
                             fontSize: 8.5, padding: '2px 7px', borderRadius: 6,
                             background: `${T.cyan}15`, color: T.cyan,
-                            fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
+                            fontFamily: "var(--font-mono)", fontWeight: 700,
                             border: `1px solid ${T.cyan}25`,
                           }}>{t('current')}</span>
                         )}
@@ -3367,7 +3367,7 @@ export default function SettingsPage() {
                           padding: '4px 10px', borderRadius: 7,
                           background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.18)',
                           color: T.red, fontSize: 9.5, fontWeight: 700, cursor: 'pointer',
-                          fontFamily: "'Cairo', sans-serif",
+                          fontFamily: "var(--font-ar)",
                         }}
                       >{t('terminate')}</button>
                     )}
@@ -3404,7 +3404,7 @@ export default function SettingsPage() {
                     style={{
                       width: '100%', padding: '8px 12px', borderRadius: 10,
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
                       outline: 'none', direction: 'ltr',
                     }}
                   />
@@ -3439,7 +3439,7 @@ export default function SettingsPage() {
                     padding: '6px 14px', borderRadius: 9,
                     background: `${T.cyan}12`, border: `1px solid ${T.cyan}28`,
                     color: T.cyan, fontSize: 11, fontWeight: 700, cursor: dataExportLoading ? 'wait' : 'pointer',
-                    fontFamily: "'Cairo', sans-serif",
+                    fontFamily: "var(--font-ar)",
                     display: 'flex', alignItems: 'center', gap: 5,
                     opacity: dataExportLoading ? 0.6 : 1,
                   }}
@@ -3504,7 +3504,7 @@ export default function SettingsPage() {
                     background: `${T.council}12`, border: `1px solid ${T.council}28`,
                     color: T.council, fontSize: 11, fontWeight: 700,
                     cursor: importLoading ? 'wait' : 'pointer',
-                    fontFamily: "'Cairo', sans-serif",
+                    fontFamily: "var(--font-ar)",
                     display: 'flex', alignItems: 'center', gap: 5,
                     opacity: importLoading ? 0.6 : 1,
                   }}
@@ -3566,7 +3566,7 @@ export default function SettingsPage() {
                     padding: '6px 14px', borderRadius: 9,
                     background: 'rgba(255,71,87,0.10)', border: '1px solid rgba(255,71,87,0.24)',
                     color: T.red, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                    fontFamily: "'Cairo', sans-serif",
+                    fontFamily: "var(--font-ar)",
                   }}
                 >{tc('reset')}</button>
               </SettingRow>

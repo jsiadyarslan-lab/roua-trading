@@ -76,7 +76,7 @@ export function IndicatorPanel({
         <span style={{
           fontSize: 11,
           color: isActive ? COLORS.text : COLORS.textSecondary,
-          fontFamily: "'Cairo', sans-serif",
+          fontFamily: "var(--font-ar)",
           fontWeight: isActive ? 600 : 400,
           flex: 1,
         }}>
@@ -138,7 +138,7 @@ export function IndicatorPanel({
           color: COLORS.textMuted,
           letterSpacing: 1,
           fontWeight: 700,
-          fontFamily: "'Cairo', sans-serif",
+          fontFamily: "var(--font-ar)",
         }}>
           {tc('indicatorPanel')}
         </span>
@@ -164,7 +164,7 @@ export function IndicatorPanel({
           borderRadius: 6,
           color: COLORS.text,
           fontSize: 10,
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "var(--font-mono)",
           marginBottom: 8,
           outline: 'none',
         }}
@@ -181,7 +181,7 @@ export function IndicatorPanel({
             letterSpacing: 1,
             marginBottom: 4,
             fontWeight: 700,
-            fontFamily: "'Cairo', sans-serif",
+            fontFamily: "var(--font-ar)",
           }}>
             {tc('overlayIndicators')}
           </div>
@@ -199,7 +199,7 @@ export function IndicatorPanel({
             marginTop: 8,
             marginBottom: 4,
             fontWeight: 700,
-            fontFamily: "'Cairo', sans-serif",
+            fontFamily: "var(--font-ar)",
           }}>
             {tc('oscillatorIndicators')}
           </div>

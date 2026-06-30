@@ -218,7 +218,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
                 outline: 'none',
                 color: '#F0F2F5',
                 fontSize: 12,
-                fontFamily: "'Inter', 'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
               }}
             />
             {searchQuery && (
@@ -263,7 +263,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
                   color: '#8B92A8',
                   fontSize: 12,
                   textAlign: 'center',
-                  fontFamily: "'Inter', 'Cairo', sans-serif",
+                  fontFamily: "var(--font-ar)",
                 }}
               >
                 {isAr ? 'لا توجد نتائج' : 'No results'}
@@ -308,7 +308,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
                       fontSize: 10, 
                       fontWeight: 600,
                       width: 22,
-                      fontFamily: "'Inter', sans-serif",
+                      fontFamily: "var(--font-en)",
                     }}>
                       {opt.shortLabel}
                     </span>

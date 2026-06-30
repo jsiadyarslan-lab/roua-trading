@@ -69,7 +69,7 @@ function ScannerContent() {
     <div className="scanner-page-root" style={{
       width: '100%', height: 'calc(100dvh - 60px)',
       background: T.bg, padding: '8px 16px', boxSizing: 'border-box',
-      direction: 'inherit', fontFamily: "'Cairo', sans-serif",
+      direction: 'inherit', fontFamily: "var(--font-ar)",
       display: 'flex', gap: 12, overflow: 'hidden',
       paddingTop: isMobile ? '48px' : '8px',
     }}>

@@ -54,7 +54,7 @@ function RatingBadge({ rating }: { rating: string }) {
       background: c.bg, border: `0.5px solid ${c.border}`,
     }}>
       <Icon size={14} color={c.color} />
-      <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 13, fontWeight: 700, color: c.color }}>{c.label}</span>
+      <span style={{ fontFamily: "var(--font-ar)", fontSize: 13, fontWeight: 700, color: c.color }}>{c.label}</span>
     </div>
   )
 }
@@ -110,14 +110,14 @@ function AdviceCard({ item, index, onAskCoach }: { item: AdviceItem; index: numb
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
           <span style={{
-            fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: 700,
+            fontFamily: "var(--font-ar)", fontSize: 9, fontWeight: 700,
             color: c.color, padding: '1px 6px', borderRadius: 4,
             background: c.bg,
           }}>{c.label}</span>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text3 }}>#{index + 1}</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: T.text3 }}>#{index + 1}</span>
         </div>
         <p style={{
-          fontFamily: "'Cairo', sans-serif", fontSize: 11.5, lineHeight: 1.7,
+          fontFamily: "var(--font-ar)", fontSize: 11.5, lineHeight: 1.7,
           color: T.text, margin: 0,
           display: '-webkit-box',
           WebkitLineClamp: expanded ? 999 : 2,
@@ -135,7 +135,7 @@ function AdviceCard({ item, index, onAskCoach }: { item: AdviceItem; index: numb
               display: 'flex', alignItems: 'center', gap: 4,
               padding: '4px 10px', borderRadius: 6,
               background: `${T.purple}14`, border: `0.5px solid ${T.purple}44`,
-              color: T.purple, fontFamily: "'Cairo', sans-serif",
+              color: T.purple, fontFamily: "var(--font-ar)",
               fontSize: 10, fontWeight: 600, cursor: 'pointer',
               marginTop: 8, transition: 'all 0.2s',
             }}
@@ -171,16 +171,16 @@ function ChatBubble({ message }: { message: ChatMessage }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
           {isUser ? (
-            <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: 700, color: T.blue }}>{t('chatUser')}</span>
+            <span style={{ fontFamily: "var(--font-ar)", fontSize: 9, fontWeight: 700, color: T.blue }}>{t('chatUser')}</span>
           ) : (
             <>
               <Brain size={10} color={T.purple} />
-              <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: 700, color: T.purple }}>{t('chatCoach')}</span>
+              <span style={{ fontFamily: "var(--font-ar)", fontSize: 9, fontWeight: 700, color: T.purple }}>{t('chatCoach')}</span>
             </>
           )}
         </div>
         <p style={{
-          fontFamily: "'Cairo', sans-serif", fontSize: 11, lineHeight: 1.7,
+          fontFamily: "var(--font-ar)", fontSize: 11, lineHeight: 1.7,
           color: T.text, margin: 0, whiteSpace: 'pre-wrap',
         }}>{message.content}</p>
       </div>
@@ -314,7 +314,7 @@ export default function AICoachPanel() {
 
   return (
     <div style={{
-      width: '100%', direction: 'inherit', fontFamily: "'Cairo', sans-serif",
+      width: '100%', direction: 'inherit', fontFamily: "var(--font-ar)",
     }}>
       <ScopedStyle>{`
         .coach-advice-card:hover {
@@ -366,12 +366,12 @@ export default function AICoachPanel() {
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 14, fontWeight: 800, color: T.text }}>
+              <span style={{ fontFamily: "var(--font-ar)", fontSize: 14, fontWeight: 800, color: T.text }}>
                 {t('headerTitle')}
               </span>
               <Sparkles size={12} color={T.amber} />
             </div>
-            <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2 }}>
+            <span style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: T.text2 }}>
               {t('headerSubtitle')}
             </span>
           </div>
@@ -393,7 +393,7 @@ export default function AICoachPanel() {
         {coachData && (
           <div style={{ marginTop: 12, position: 'relative', zIndex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2 }}>
+              <span style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: T.text2 }}>
                 {t('performanceRating')}
               </span>
               <RatingBadge rating={coachData.rating} />
@@ -425,10 +425,10 @@ export default function AICoachPanel() {
           borderRadius: 12, padding: 32, textAlign: 'center',
         }}>
           <Brain size={32} color={T.purple} style={{ margin: '0 auto 12px' }} className="coach-pulse" />
-          <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: T.text, marginBottom: 4 }}>
+          <p style={{ fontFamily: "var(--font-ar)", fontSize: 12, color: T.text, marginBottom: 4 }}>
             {t('loadingAnalysis')}
           </p>
-          <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text3 }}>
+          <p style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: T.text3 }}>
             {t('loadingExamining')}
           </p>
         </div>
@@ -442,12 +442,12 @@ export default function AICoachPanel() {
           display: 'flex', alignItems: 'center', gap: 8,
         }}>
           <AlertTriangle size={14} color={T.red} />
-          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.red, flex: 1 }}>{error}</span>
+          <span style={{ fontFamily: "var(--font-ar)", fontSize: 11, color: T.red, flex: 1 }}>{error}</span>
           <button onClick={fetchAdvice} style={{
             padding: '3px 10px', borderRadius: 5,
             background: `${T.red}18`, color: T.red,
             border: `0.5px solid ${T.red}44`,
-            fontFamily: "'Cairo', sans-serif", fontSize: 9.5, cursor: 'pointer',
+            fontFamily: "var(--font-ar)", fontSize: 9.5, cursor: 'pointer',
           }}>{t('retry')}</button>
         </div>
       )}
@@ -459,10 +459,10 @@ export default function AICoachPanel() {
           borderRadius: 10, padding: '16px 18px', marginBottom: 12, textAlign: 'center',
         }}>
           <BookOpen size={24} color={T.amber} style={{ margin: '0 auto 8px' }} />
-          <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: T.text, fontWeight: 700 }}>
+          <p style={{ fontFamily: "var(--font-ar)", fontSize: 12, color: T.text, fontWeight: 700 }}>
             {t('insufficientDataTitle')}
           </p>
-          <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text3, marginTop: 4 }}>
+          <p style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: T.text3, marginTop: 4 }}>
             {t('insufficientDataDesc')}
           </p>
         </div>
@@ -473,10 +473,10 @@ export default function AICoachPanel() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
             <div style={{ width: 3, height: 14, borderRadius: 2, background: T.purple }} />
-            <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, fontWeight: 700, color: T.text }}>
+            <span style={{ fontFamily: "var(--font-ar)", fontSize: 12, fontWeight: 700, color: T.text }}>
               {t('coachTips')}
             </span>
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text3 }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: T.text3 }}>
               {coachData.adviceItems.length} {t('tipCount')}
             </span>
           </div>
@@ -507,12 +507,12 @@ export default function AICoachPanel() {
           >
             <div style={{ width: 3, height: 14, borderRadius: 2, background: T.purple }} />
             <MessageCircle size={13} color={T.purple} />
-            <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, fontWeight: 700, color: T.text, flex: 1 }}>
+            <span style={{ fontFamily: "var(--font-ar)", fontSize: 12, fontWeight: 700, color: T.text, flex: 1 }}>
               {t('chatHeader')}
             </span>
             {chatMessages.length > 0 && (
               <span style={{
-                fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text3,
+                fontFamily: "var(--font-mono)", fontSize: 9, color: T.text3,
                 padding: '1px 6px', borderRadius: 10, background: `${T.purple}14`,
               }}>
                 {chatMessages.length}
@@ -531,7 +531,7 @@ export default function AICoachPanel() {
                 {chatMessages.length === 0 && (
                   <div style={{ textAlign: 'center', padding: '16px 0' }}>
                     <Brain size={20} color={T.text3} style={{ margin: '0 auto 8px', opacity: 0.3 }} />
-                    <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text3 }}>
+                    <p style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: T.text3 }}>
                       {t('chatEmpty')}
                     </p>
                   </div>
@@ -548,7 +548,7 @@ export default function AICoachPanel() {
                       display: 'flex', alignItems: 'center', gap: 6,
                     }}>
                       <Loader2 size={10} className="animate-spin" color={T.purple} />
-                      <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.purple }}>
+                      <span style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: T.purple }}>
                         {t('coachThinking')}
                       </span>
                     </div>
@@ -573,7 +573,7 @@ export default function AICoachPanel() {
                     flex: 1, padding: '8px 12px',
                     background: `${T.bg}80`, border: `0.5px solid ${T.border}`,
                     borderRadius: 8, color: T.text,
-                    fontFamily: "'Cairo', sans-serif", fontSize: 11,
+                    fontFamily: "var(--font-ar)", fontSize: 11,
                     outline: 'none', direction: 'inherit',
                   }}
                   disabled={chatLoading}
@@ -607,8 +607,8 @@ export default function AICoachPanel() {
 function StatChip({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-      <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>{label}:</span>
-      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, color }}>{value}</span>
+      <span style={{ fontFamily: "var(--font-ar)", fontSize: 9, color: T.text3 }}>{label}:</span>
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, color }}>{value}</span>
     </div>
   )
 }

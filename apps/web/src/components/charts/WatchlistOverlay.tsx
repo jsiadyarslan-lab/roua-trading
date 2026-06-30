@@ -113,7 +113,7 @@ export function WatchlistOverlay({
               fontSize: 9,
               color: isSelected ? COLORS.cyan : COLORS.textSecondary,
               fontWeight: 700,
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
             }}>
               {spark.symbol.replace('/USD', '')}
             </span>
@@ -140,7 +140,7 @@ export function WatchlistOverlay({
                 fontSize: 8,
                 color: COLORS.text,
                 fontWeight: 600,
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "var(--font-mono)",
               }}>
                 {spark.price > 1000 ? spark.price.toFixed(0) : spark.price.toFixed(2)}
               </span>
@@ -148,7 +148,7 @@ export function WatchlistOverlay({
                 fontSize: 7,
                 color,
                 fontWeight: 700,
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "var(--font-mono)",
               }}>
                 {isPositive ? '+' : ''}{spark.changePercent.toFixed(1)}%
               </span>

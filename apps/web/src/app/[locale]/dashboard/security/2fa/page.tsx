@@ -141,14 +141,14 @@ function SecurityScoreRing({ score, t }: { score: number; t: (key: string) => st
       }}>
         <div style={{
           fontSize: 26, fontWeight: 900, color,
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "var(--font-mono)",
           lineHeight: 1,
         }}>
           {score}
         </div>
         <div style={{
           fontSize: 9, fontWeight: 700, color: T.text3,
-          fontFamily: "'Cairo', sans-serif", marginTop: 2,
+          fontFamily: "var(--font-ar)", marginTop: 2,
         }}>
           {getLabel(score)}
         </div>
@@ -199,7 +199,7 @@ function SectionCard({ icon, iconColor, iconBg, title, subtitle, children, badge
                 fontSize: 9, padding: '2px 7px', borderRadius: 10,
                 background: badgeColor ? `${badgeColor}15` : 'rgba(255,255,255,0.04)',
                 color: badgeColor || T.text3,
-                fontFamily: "'JetBrains Mono', monospace", fontWeight: 600,
+                fontFamily: "var(--font-mono)", fontWeight: 600,
               }}>{badge}</span>
             )}
           </div>
@@ -267,7 +267,7 @@ function OTPInput({ value, onChange, length = 6 }: {
             width: 44, height: 52, borderRadius: 10,
             background: T.surface, border: `1px solid ${value[i] ? T.cyan + '40' : T.border}`,
             color: T.text, fontSize: 20, fontWeight: 800, textAlign: 'center',
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: "var(--font-mono)",
             outline: 'none', transition: 'all 0.2s',
             boxShadow: value[i] ? `0 0 8px ${T.cyan}15` : 'none',
           }}
@@ -453,7 +453,7 @@ export default function TwoFactorAuthPage() {
   ══════════════════════════════════════════════════════ */
   return (
     <div className="custom-scrollbar" style={{
-      direction: 'inherit', fontFamily: "'Cairo', sans-serif",
+      direction: 'inherit', fontFamily: "var(--font-ar)",
       height: '100%', overflowY: 'auto', background: T.bg,
     }}>
       {/* Scoped styles via useScopedStyle */}{/* ═══ Header ═══ */}
@@ -490,7 +490,7 @@ export default function TwoFactorAuthPage() {
               <span style={{
                 fontSize: 12, fontWeight: 700,
                 color: securityScore >= 80 ? T.green : securityScore >= 50 ? T.amber : T.red,
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
               }}>
                 {securityScore >= 80 ? t('statusProtected') : securityScore >= 50 ? t('statusImprovable') : t('statusNeedsProtection')}
               </span>
@@ -513,7 +513,7 @@ export default function TwoFactorAuthPage() {
                 display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16,
               }}>
                 <ShieldCheck size={14} color={T.cyan} />
-                <span style={{ fontSize: 12, fontWeight: 700, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: T.text2, fontFamily: "var(--font-ar)" }}>
                   {t('securityOverview')}
                 </span>
               </div>
@@ -556,13 +556,13 @@ export default function TwoFactorAuthPage() {
                       <div style={{ flex: 1 }}>
                         <div style={{
                           fontSize: 12, fontWeight: 700, color: method.enabled ? T.text : T.text3,
-                          fontFamily: "'Cairo', sans-serif",
+                          fontFamily: "var(--font-ar)",
                         }}>
                           {method.label}
                         </div>
                         <div style={{
                           fontSize: 10, color: method.enabled ? config.color : T.text4,
-                          fontFamily: "'Cairo', sans-serif", marginTop: 1,
+                          fontFamily: "var(--font-ar)", marginTop: 1,
                         }}>
                           {method.enabled ? t('methodEnabled') : t('methodDisabled')}
                         </div>
@@ -651,7 +651,7 @@ export default function TwoFactorAuthPage() {
                         padding: '8px 16px', borderRadius: 8,
                         background: T.surface, border: `1px solid ${T.border}`,
                         color: T.text2, fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                        fontFamily: "'Cairo', sans-serif", display: 'flex',
+                        fontFamily: "var(--font-ar)", display: 'flex',
                         alignItems: 'center', gap: 6, transition: 'all 0.2s',
                       }}
                     >
@@ -683,7 +683,7 @@ export default function TwoFactorAuthPage() {
                         <div style={{
                           fontSize: 9, fontWeight: totpStep >= step.n ? 700 : 400,
                           color: totpStep >= step.n ? T.cyan : T.text4,
-                          fontFamily: "'Cairo', sans-serif", textAlign: 'center',
+                          fontFamily: "var(--font-ar)", textAlign: 'center',
                           whiteSpace: 'nowrap',
                         }}>
                           {step.label}
@@ -707,7 +707,7 @@ export default function TwoFactorAuthPage() {
                         }}>
                           <Smartphone size={24} color={T.cyan} />
                         </div>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: T.text, marginBottom: 8, fontFamily: "'Cairo', sans-serif" }}>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: T.text, marginBottom: 8, fontFamily: "var(--font-ar)" }}>
                           {t('totpInstallTitle')}
                         </div>
                         <div style={{ fontSize: 12, color: T.text3, lineHeight: 1.7, marginBottom: 16 }}>
@@ -723,7 +723,7 @@ export default function TwoFactorAuthPage() {
                               padding: '8px 14px', borderRadius: 8,
                               background: `${app.color}08`, border: `1px solid ${app.color}15`,
                               fontSize: 11, fontWeight: 600, color: app.color,
-                              fontFamily: "'Cairo', sans-serif",
+                              fontFamily: "var(--font-ar)",
                             }}>
                               {app.name}
                             </div>
@@ -737,7 +737,7 @@ export default function TwoFactorAuthPage() {
                             padding: '10px 24px', borderRadius: 10,
                             background: `linear-gradient(135deg, ${T.cyan}, #0A84FF)`,
                             border: 'none', color: '#000', fontSize: 12, fontWeight: 800,
-                            cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
+                            cursor: 'pointer', fontFamily: "var(--font-ar)",
                             boxShadow: `0 0 16px ${T.cyan}25`,
                             transition: 'all 0.2s',
                           }}
@@ -759,7 +759,7 @@ export default function TwoFactorAuthPage() {
                           display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14,
                         }}>
                           <QrCode size={14} color={T.cyan} />
-                          <span style={{ fontSize: 12, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>
                             {t('totpScanTitle')}
                           </span>
                         </div>
@@ -818,7 +818,7 @@ export default function TwoFactorAuthPage() {
                             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                             marginBottom: 6,
                           }}>
-                            <span style={{ fontSize: 10, fontWeight: 600, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>
+                            <span style={{ fontSize: 10, fontWeight: 600, color: T.text3, fontFamily: "var(--font-ar)" }}>
                               {t('totpManualKey')}
                             </span>
                             <div style={{ display: 'flex', gap: 4 }}>
@@ -848,7 +848,7 @@ export default function TwoFactorAuthPage() {
                           </div>
                           <div style={{
                             fontSize: 14, fontWeight: 700, color: T.text,
-                            fontFamily: "'JetBrains Mono', monospace",
+                            fontFamily: "var(--font-mono)",
                             letterSpacing: 2, direction: 'ltr', textAlign: 'center',
                             filter: showTotpKey ? 'none' : 'blur(4px)',
                             transition: 'filter 0.3s',
@@ -866,7 +866,7 @@ export default function TwoFactorAuthPage() {
                             padding: '10px 18px', borderRadius: 10,
                             background: T.surface, border: `1px solid ${T.border}`,
                             color: T.text3, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                            fontFamily: "'Cairo', sans-serif", transition: 'all 0.2s',
+                            fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                           }}
                         >
                           {t('totpPrevious')}
@@ -877,7 +877,7 @@ export default function TwoFactorAuthPage() {
                             padding: '10px 24px', borderRadius: 10,
                             background: `linear-gradient(135deg, ${T.cyan}, #0A84FF)`,
                             border: 'none', color: '#000', fontSize: 12, fontWeight: 800,
-                            cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
+                            cursor: 'pointer', fontFamily: "var(--font-ar)",
                             boxShadow: `0 0 16px ${T.cyan}25`,
                             transition: 'all 0.2s',
                           }}
@@ -903,7 +903,7 @@ export default function TwoFactorAuthPage() {
                         }}>
                           <Hash size={24} color={T.cyan} />
                         </div>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: T.text, marginBottom: 6, fontFamily: "'Cairo', sans-serif" }}>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: T.text, marginBottom: 6, fontFamily: "var(--font-ar)" }}>
                           {t('totpEnterTitle')}
                         </div>
                         <div style={{ fontSize: 12, color: T.text3, lineHeight: 1.6, marginBottom: 20 }}>
@@ -924,7 +924,7 @@ export default function TwoFactorAuthPage() {
                               border: 'none',
                               color: totpCode.length === 6 ? '#000' : T.text4,
                               fontSize: 12, fontWeight: 800, cursor: totpCode.length === 6 ? 'pointer' : 'default',
-                              fontFamily: "'Cairo', sans-serif",
+                              fontFamily: "var(--font-ar)",
                               boxShadow: totpCode.length === 6 ? `0 0 16px ${T.cyan}25` : 'none',
                               transition: 'all 0.2s',
                               display: 'flex', alignItems: 'center', gap: 6,
@@ -943,7 +943,7 @@ export default function TwoFactorAuthPage() {
                             padding: '10px 18px', borderRadius: 10,
                             background: T.surface, border: `1px solid ${T.border}`,
                             color: T.text3, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                            fontFamily: "'Cairo', sans-serif", transition: 'all 0.2s',
+                            fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                           }}
                         >
                           {t('totpPrevious')}
@@ -956,7 +956,7 @@ export default function TwoFactorAuthPage() {
                   {totpStep === 4 && !methods.find(m => m.id === 'totp')?.enabled && (
                     <div className="twofa-content" style={{ textAlign: 'center', padding: 20 }}>
                       <CheckCircle2 size={32} color={T.green} style={{ margin: '0 auto 12px' }} />
-                      <div style={{ fontSize: 14, fontWeight: 800, color: T.green, fontFamily: "'Cairo', sans-serif" }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: T.green, fontFamily: "var(--font-ar)" }}>
                         {t('totpActivated')}
                       </div>
                     </div>
@@ -1031,14 +1031,14 @@ export default function TwoFactorAuthPage() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{
                           fontSize: 12, fontWeight: 700, color: T.text,
-                          fontFamily: "'Cairo', sans-serif",
+                          fontFamily: "var(--font-ar)",
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                         }}>
                           {passkey.name}
                         </div>
                         <div style={{
                           fontSize: 10, color: T.text3,
-                          fontFamily: "'JetBrains Mono', monospace",
+                          fontFamily: "var(--font-mono)",
                           marginTop: 2, display: 'flex', gap: 10,
                         }}>
                           <span>{passkey.device}</span>
@@ -1068,7 +1068,7 @@ export default function TwoFactorAuthPage() {
                   border: `1px dashed ${T.border}`, textAlign: 'center', marginBottom: 16,
                 }}>
                   <Fingerprint size={28} color={T.text4} style={{ margin: '0 auto 10px' }} />
-                  <div style={{ fontSize: 12, color: T.text4, fontFamily: "'Cairo', sans-serif" }}>
+                  <div style={{ fontSize: 12, color: T.text4, fontFamily: "var(--font-ar)" }}>
                     {t('webauthnEmptyState')}
                   </div>
                 </div>
@@ -1082,7 +1082,7 @@ export default function TwoFactorAuthPage() {
                   width: '100%', padding: '12px 16px', borderRadius: 10,
                   border: `1px dashed ${T.purple}40`, background: `${T.purple}06`,
                   color: T.purple, fontSize: 13, fontWeight: 700, cursor: registeringPasskey ? 'wait' : 'pointer',
-                  fontFamily: "'Cairo', sans-serif",
+                  fontFamily: "var(--font-ar)",
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                   transition: 'all 0.2s',
                 }}
@@ -1137,7 +1137,7 @@ export default function TwoFactorAuthPage() {
                   }}>
                     <ShieldQuestion size={24} color={T.amber} />
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 6, fontFamily: "'Cairo', sans-serif" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 6, fontFamily: "var(--font-ar)" }}>
                     {t('recoveryNotGenerated')}
                   </div>
                   <div style={{ fontSize: 11, color: T.text3, lineHeight: 1.6, marginBottom: 16 }}>
@@ -1151,7 +1151,7 @@ export default function TwoFactorAuthPage() {
                       background: `linear-gradient(135deg, ${T.amber}, #FF8C00)`,
                       border: 'none', color: '#000', fontSize: 12, fontWeight: 800,
                       cursor: generatingCodes ? 'wait' : 'pointer',
-                      fontFamily: "'Cairo', sans-serif",
+                      fontFamily: "var(--font-ar)",
                       boxShadow: `0 0 16px ${T.amber}25`,
                       transition: 'all 0.2s',
                       display: 'inline-flex', alignItems: 'center', gap: 8,
@@ -1181,14 +1181,14 @@ export default function TwoFactorAuthPage() {
                       }}>
                         <span style={{
                           fontSize: 9, fontWeight: 700, color: T.text4,
-                          fontFamily: "'JetBrains Mono', monospace",
+                          fontFamily: "var(--font-mono)",
                           width: 18, textAlign: 'center', flexShrink: 0,
                         }}>
                           {i + 1}
                         </span>
                         <span style={{
                           fontSize: 13, fontWeight: 800, color: codesRevealed ? T.text : T.text4,
-                          fontFamily: "'JetBrains Mono', monospace",
+                          fontFamily: "var(--font-mono)",
                           letterSpacing: 1, direction: 'ltr',
                           filter: codesRevealed ? 'none' : 'blur(4px)',
                           transition: 'filter 0.3s',
@@ -1221,7 +1221,7 @@ export default function TwoFactorAuthPage() {
                         padding: '8px 14px', borderRadius: 8,
                         background: T.surface, border: `1px solid ${T.border}`,
                         color: T.text2, fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                        fontFamily: "'Cairo', sans-serif", display: 'flex',
+                        fontFamily: "var(--font-ar)", display: 'flex',
                         alignItems: 'center', gap: 6, transition: 'all 0.2s',
                       }}
                     >
@@ -1234,7 +1234,7 @@ export default function TwoFactorAuthPage() {
                         padding: '8px 14px', borderRadius: 8,
                         background: T.surface, border: `1px solid ${T.border}`,
                         color: T.text2, fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                        fontFamily: "'Cairo', sans-serif", display: 'flex',
+                        fontFamily: "var(--font-ar)", display: 'flex',
                         alignItems: 'center', gap: 6, transition: 'all 0.2s',
                       }}
                     >
@@ -1247,7 +1247,7 @@ export default function TwoFactorAuthPage() {
                         padding: '8px 14px', borderRadius: 8,
                         background: T.surface, border: `1px solid ${T.border}`,
                         color: T.text2, fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                        fontFamily: "'Cairo', sans-serif", display: 'flex',
+                        fontFamily: "var(--font-ar)", display: 'flex',
                         alignItems: 'center', gap: 6, transition: 'all 0.2s',
                       }}
                     >
@@ -1262,7 +1262,7 @@ export default function TwoFactorAuthPage() {
                         background: `${T.amber}08`, border: `1px solid ${T.amber}15`,
                         color: T.amber, fontSize: 11, fontWeight: 600,
                         cursor: generatingCodes ? 'wait' : 'pointer',
-                        fontFamily: "'Cairo', sans-serif", display: 'flex',
+                        fontFamily: "var(--font-ar)", display: 'flex',
                         alignItems: 'center', gap: 6, transition: 'all 0.2s',
                       }}
                     >
@@ -1310,13 +1310,13 @@ export default function TwoFactorAuthPage() {
                   <div style={{ minWidth: 0 }}>
                     <div style={{
                       fontSize: 11, fontWeight: 700, color: T.text,
-                      fontFamily: "'Cairo', sans-serif", marginBottom: 3,
+                      fontFamily: "var(--font-ar)", marginBottom: 3,
                     }}>
                       {tip.title}
                     </div>
                     <div style={{
                       fontSize: 10, color: T.text3, lineHeight: 1.6,
-                      fontFamily: "'Cairo', sans-serif",
+                      fontFamily: "var(--font-ar)",
                     }}>
                       {tip.desc}
                     </div>
@@ -1364,7 +1364,7 @@ export default function TwoFactorAuthPage() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{
                           fontSize: 12, fontWeight: 700, color: T.text,
-                          fontFamily: "'Cairo', sans-serif",
+                          fontFamily: "var(--font-ar)",
                           display: 'flex', alignItems: 'center', gap: 6,
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                         }}>
@@ -1373,7 +1373,7 @@ export default function TwoFactorAuthPage() {
                             <span style={{
                               fontSize: 8, padding: '2px 6px', borderRadius: 6,
                               background: `${T.green}15`, color: T.green,
-                              fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
+                              fontFamily: "var(--font-mono)", fontWeight: 700,
                               flexShrink: 0,
                             }}>
                               {t('sessionsThisDevice')}
@@ -1383,7 +1383,7 @@ export default function TwoFactorAuthPage() {
                         <div style={{
                           fontSize: 10, color: T.text3, marginTop: 2,
                           display: 'flex', gap: 8, flexWrap: 'wrap',
-                          fontFamily: "'Cairo', sans-serif",
+                          fontFamily: "var(--font-ar)",
                         }}>
                           <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                             <MapPin size={9} />
@@ -1394,7 +1394,7 @@ export default function TwoFactorAuthPage() {
                             {session.lastActive}
                           </span>
                           <span style={{
-                            fontFamily: "'JetBrains Mono', monospace",
+                            fontFamily: "var(--font-mono)",
                             fontSize: 9, color: T.text4,
                           }}>
                             {session.ip}
@@ -1408,7 +1408,7 @@ export default function TwoFactorAuthPage() {
                             padding: '6px 10px', borderRadius: 6,
                             background: `${T.red}08`, border: `1px solid ${T.red}15`,
                             color: T.red, fontSize: 10, fontWeight: 600, cursor: 'pointer',
-                            fontFamily: "'Cairo', sans-serif", flexShrink: 0,
+                            fontFamily: "var(--font-ar)", flexShrink: 0,
                             display: 'flex', alignItems: 'center', gap: 4,
                             transition: 'all 0.2s',
                           }}
@@ -1430,7 +1430,7 @@ export default function TwoFactorAuthPage() {
                   border: `1px solid rgba(255,71,87,0.20)`,
                   background: 'rgba(255,71,87,0.06)',
                   color: T.red, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                  fontFamily: "'Cairo', sans-serif",
+                  fontFamily: "var(--font-ar)",
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                   transition: 'all 0.2s',
                 }}

@@ -102,7 +102,7 @@ export function BotMini() {
         borderRadius: 16,
         border: '1px solid rgba(0,212,255,0.08)',
         overflow: 'hidden',
-        fontFamily: "'Cairo', sans-serif",
+        fontFamily: "var(--font-ar)",
         touchAction: 'manipulation',
       }}
     >
@@ -149,7 +149,7 @@ export function BotMini() {
               background: 'rgba(255,184,0,0.15)',
               color: '#FFB800',
               fontWeight: 700,
-              fontFamily: 'monospace',
+              fontFamily: "var(--font-mono)",
               flexShrink: 0,
             }}
           >
@@ -163,7 +163,7 @@ export function BotMini() {
               background: 'rgba(0,212,255,0.12)',
               color: 'var(--accent)',
               fontWeight: 700,
-              fontFamily: 'monospace',
+              fontFamily: "var(--font-mono)",
               flexShrink: 0,
             }}
           >

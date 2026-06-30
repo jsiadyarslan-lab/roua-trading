@@ -281,7 +281,7 @@ export function StrategicCouncilPanel() {
       display: 'flex', flexDirection: 'column', height: '100%',
       background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))',
       borderRadius: 16, border: '1px solid rgba(0,212,255,0.08)',
-      overflow: 'hidden', fontFamily: "'Cairo', sans-serif",
+      overflow: 'hidden', fontFamily: "var(--font-ar)",
     }}>
       {/* Header */}
       <div style={{
@@ -310,7 +310,7 @@ export function StrategicCouncilPanel() {
               boxShadow: `0 0 5px ${T.accent}`,
               animation: 'agentCtrlPulse 1s ease-in-out infinite'
             }} />
-            <span style={{ fontSize: 7, color: T.accent, fontWeight: 700, fontFamily: 'monospace' }}>
+            <span style={{ fontSize: 7, color: T.accent, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
               {ts('scanning')} {currentScanSymbol}
             </span>
           </div>
@@ -409,7 +409,7 @@ export function StrategicCouncilPanel() {
                   }}>
                     {brief.direction === 'BUY' ? tc('buy') : tc('sell')}
                   </span>
-                  <span style={{ color: T.text, fontWeight: 700, fontSize: 9, fontFamily: 'monospace' }}>
+                  <span style={{ color: T.text, fontWeight: 700, fontSize: 9, fontFamily: "var(--font-mono)" }}>
                     {brief.pair}
                   </span>
                   <span style={{
@@ -425,7 +425,7 @@ export function StrategicCouncilPanel() {
                   </span>
                 </div>
                 {/* Prices */}
-                <div style={{ display: 'flex', gap: 8, fontSize: 7, color: T.text3, fontFamily: 'monospace' }}>
+                <div style={{ display: 'flex', gap: 8, fontSize: 7, color: T.text3, fontFamily: "var(--font-mono)" }}>
                   <span>{ts('entryLabel')} <b style={{ color: T.text }}>{brief.entryPrice.toFixed(2)}</b></span>
                   <span>{ts('stopLossShort')}: <b style={{ color: T.danger }}>{brief.stopLoss.toFixed(2)}</b></span>
                   <span>{ts('takeProfitShort')}: <b style={{ color: T.success }}>{brief.takeProfit.toFixed(2)}</b></span>
@@ -440,7 +440,7 @@ export function StrategicCouncilPanel() {
                     }} />
                   </div>
                   <span style={{
-                    fontSize: 7, fontWeight: 800, fontFamily: 'monospace',
+                    fontSize: 7, fontWeight: 800, fontFamily: "var(--font-mono)",
                     color: brief.confidence >= 80 ? T.success : brief.confidence >= 60 ? T.amber : T.danger,
                   }}>
                     {brief.confidence}%

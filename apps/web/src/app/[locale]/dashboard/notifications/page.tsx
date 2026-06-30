@@ -353,7 +353,7 @@ function NotificationCard({
               fontSize: '13px',
               fontWeight: item.read ? 600 : 800,
               color: item.read ? T.text2 : T.text,
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
             }}>
               {item.title}
             </span>
@@ -370,7 +370,7 @@ function NotificationCard({
                   : 'rgba(255,71,87,0.12)',
                 border: `1px solid ${item.signalDirection === 'BUY' ? 'rgba(0,255,163,0.25)' : 'rgba(255,71,87,0.25)'}`,
                 color: item.signalDirection === 'BUY' ? T.success : T.danger,
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '3px',
@@ -389,7 +389,7 @@ function NotificationCard({
               background: config.bgColor,
               border: `1px solid ${config.borderColor}`,
               color: config.color,
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
             }}>
               {config.label}
             </span>
@@ -399,7 +399,7 @@ function NotificationCard({
               <span style={{
                 fontSize: '9px',
                 fontWeight: 700,
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "var(--font-mono)",
                 color: item.signalConfidence >= 80 ? T.success : item.signalConfidence >= 60 ? T.amber : T.danger,
               }} dir="ltr">
                 {item.signalConfidence}%
@@ -422,7 +422,7 @@ function NotificationCard({
               <span style={{
                 fontSize: '11px',
                 fontWeight: 700,
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "var(--font-mono)",
                 color: T.text,
               }} dir="ltr">
                 {item.signalSymbol || item.priceSymbol}
@@ -430,7 +430,7 @@ function NotificationCard({
               {item.priceCurrent && (
                 <span style={{
                   fontSize: '10px',
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontFamily: "var(--font-mono)",
                   color: T.text2,
                 }} dir="ltr">
                   ${item.priceCurrent.toLocaleString()}
@@ -445,7 +445,7 @@ function NotificationCard({
             color: T.text2,
             lineHeight: '1.65',
             margin: 0,
-            fontFamily: "'Cairo', sans-serif",
+            fontFamily: "var(--font-ar)",
           }}>
             {item.description}
           </p>
@@ -460,7 +460,7 @@ function NotificationCard({
             <span style={{
               fontSize: '10px',
               color: T.text2,
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
               opacity: 0.7,
             }}>
               {formatTimeAgo(item.timestamp, t)}
@@ -483,7 +483,7 @@ function NotificationCard({
                   color: config.color,
                   fontSize: '10px',
                   fontWeight: 700,
-                  fontFamily: "'Cairo', sans-serif",
+                  fontFamily: "var(--font-ar)",
                   cursor: 'pointer',
                   transition: 'all 0.15s',
                 }}
@@ -633,7 +633,7 @@ function EmptyState({ filterLabel, t }: { filterLabel: string; t: (key: string) 
         fontSize: '15px',
         fontWeight: 700,
         color: T.text,
-        fontFamily: "'Cairo', sans-serif",
+        fontFamily: "var(--font-ar)",
         margin: '0 0 6px',
       }}>
         {t('emptyTitleAll')}
@@ -641,7 +641,7 @@ function EmptyState({ filterLabel, t }: { filterLabel: string; t: (key: string) 
       <p style={{
         fontSize: '12px',
         color: T.text2,
-        fontFamily: "'Cairo', sans-serif",
+        fontFamily: "var(--font-ar)",
         lineHeight: '1.6',
         margin: 0,
       }}>
@@ -823,7 +823,7 @@ export default function NotificationsPage() {
               background: `${T.cyan}1F`,
               border: `1px solid ${T.cyan}40`,
               color: T.cyan,
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
             }}>
               {unreadCount} {t('new')}
             </span>
@@ -843,7 +843,7 @@ export default function NotificationsPage() {
                 color: T.success,
                 fontSize: '10px',
                 fontWeight: 700,
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
                 cursor: 'pointer',
                 transition: 'all 0.15s',
               }}
@@ -869,7 +869,7 @@ export default function NotificationsPage() {
               color: showPreferences ? T.purple : T.text2,
               fontSize: '10px',
               fontWeight: 700,
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
               cursor: 'pointer',
               transition: 'all 0.15s',
             }}
@@ -936,10 +936,10 @@ export default function NotificationsPage() {
               }}>
                 {cfg.icon}
               </div>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: cfg.color, fontFamily: "'JetBrains Mono', monospace" }}>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: cfg.color, fontFamily: "var(--font-mono)" }}>
                 {count}
               </div>
-              <div style={{ fontSize: '9px', color: T.text2, fontFamily: "'Cairo', sans-serif", marginTop: '2px' }}>
+              <div style={{ fontSize: '9px', color: T.text2, fontFamily: "var(--font-ar)", marginTop: '2px' }}>
                 {cfg.label}
               </div>
             </motion.button>
@@ -976,7 +976,7 @@ export default function NotificationsPage() {
                 cursor: 'pointer',
                 fontSize: '11px',
                 fontWeight: 600,
-                fontFamily: "'Cairo', sans-serif",
+                fontFamily: "var(--font-ar)",
                 background: activeFilter === tab.id ? T.cyan : 'transparent',
                 color: activeFilter === tab.id ? '#fff' : T.text2,
                 transition: 'all 0.15s',
@@ -1015,7 +1015,7 @@ export default function NotificationsPage() {
               color: T.text2,
               fontSize: '10px',
               fontWeight: 600,
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
               cursor: 'pointer',
               transition: 'all 0.15s',
             }}
@@ -1039,7 +1039,7 @@ export default function NotificationsPage() {
                   color: T.success,
                   fontSize: '10px',
                   fontWeight: 600,
-                  fontFamily: "'Cairo', sans-serif",
+                  fontFamily: "var(--font-ar)",
                   cursor: 'pointer',
                   transition: 'all 0.15s',
                 }}
@@ -1060,7 +1060,7 @@ export default function NotificationsPage() {
                   color: T.danger,
                   fontSize: '10px',
                   fontWeight: 600,
-                  fontFamily: "'Cairo', sans-serif",
+                  fontFamily: "var(--font-ar)",
                   cursor: 'pointer',
                   transition: 'all 0.15s',
                 }}
@@ -1157,7 +1157,7 @@ export default function NotificationsPage() {
                 }}>
                   <Settings2 size={13} color="#fff" />
                 </div>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>
                   {t('notificationPrefs')}
                 </span>
                 <span style={{
@@ -1168,7 +1168,7 @@ export default function NotificationsPage() {
                   background: 'rgba(179,136,255,0.10)',
                   border: '1px solid rgba(179,136,255,0.20)',
                   color: T.purple,
-                  fontFamily: "'Cairo', sans-serif",
+                  fontFamily: "var(--font-ar)",
                 }}>
                   {t('settingsTab')}
                 </span>
@@ -1219,7 +1219,7 @@ export default function NotificationsPage() {
                             fontSize: '11px',
                             fontWeight: 700,
                             color: T.text,
-                            fontFamily: "'Cairo', sans-serif",
+                            fontFamily: "var(--font-ar)",
                             marginBottom: '2px',
                           }}>
                             {pref.label}
@@ -1227,7 +1227,7 @@ export default function NotificationsPage() {
                           <div style={{
                             fontSize: '9px',
                             color: T.text2,
-                            fontFamily: "'Cairo', sans-serif",
+                            fontFamily: "var(--font-ar)",
                             lineHeight: '1.4',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
@@ -1260,7 +1260,7 @@ export default function NotificationsPage() {
                 <span style={{
                   fontSize: '9px',
                   color: T.text2,
-                  fontFamily: "'Cairo', sans-serif",
+                  fontFamily: "var(--font-ar)",
                   lineHeight: '1.5',
                 }}>
                   {t('disableNotice')}
@@ -1284,21 +1284,21 @@ export default function NotificationsPage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Activity size={12} style={{ color: T.text2 }} />
-          <span style={{ fontSize: '10px', color: T.text2, fontFamily: "'Cairo', sans-serif" }}>
+          <span style={{ fontSize: '10px', color: T.text2, fontFamily: "var(--font-ar)" }}>
             {notifications.length} {t('totalNotifications')}
           </span>
           <span style={{ width: '1px', height: '12px', background: 'rgba(255,255,255,0.08)' }} />
-          <span style={{ fontSize: '10px', color: T.cyan, fontFamily: "'Cairo', sans-serif" }}>
+          <span style={{ fontSize: '10px', color: T.cyan, fontFamily: "var(--font-ar)" }}>
             {unreadCount} {t('unread')}
           </span>
           <span style={{ width: '1px', height: '12px', background: 'rgba(255,255,255,0.08)' }} />
-          <span style={{ fontSize: '10px', color: T.success, fontFamily: "'Cairo', sans-serif" }}>
+          <span style={{ fontSize: '10px', color: T.success, fontFamily: "var(--font-ar)" }}>
             {notifications.length - unreadCount} {t('readStatus')}
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <Wifi size={10} style={{ color: T.success }} />
-          <span style={{ fontSize: '9px', color: T.text2, fontFamily: "'Cairo', sans-serif" }}>
+          <span style={{ fontSize: '9px', color: T.text2, fontFamily: "var(--font-ar)" }}>
             {t('liveConnection')}
           </span>
         </div>

@@ -147,7 +147,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
           fontSize: 10,
           color: C.cyan,
           fontWeight: 700,
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "var(--font-mono)",
           whiteSpace: 'nowrap',
         }}>
           {symbol}
@@ -158,7 +158,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
           fontSize: 13,
           color: C.text,
           fontWeight: 700,
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "var(--font-mono)",
           whiteSpace: 'nowrap',
         }}>
           {currentPrice.toFixed(priceDecimals)}
@@ -175,7 +175,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
             cursor: 'pointer',
             padding: '2px 6px',
             fontSize: 10,
-            fontFamily: "'Cairo', sans-serif",
+            fontFamily: "var(--font-ar)",
             lineHeight: 1,
           }}
         >
@@ -195,7 +195,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
               fontSize: 9,
               fontWeight: 800,
               cursor: 'pointer',
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
             }}
           >
             شراء
@@ -211,7 +211,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
               fontSize: 9,
               fontWeight: 800,
               cursor: 'pointer',
-              fontFamily: "'Cairo', sans-serif",
+              fontFamily: "var(--font-ar)",
             }}
           >
             بيع
@@ -232,7 +232,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
       overflow: 'hidden',
       boxShadow: `0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.03) inset`,
       userSelect: 'none',
-      fontFamily: "'Cairo', sans-serif",
+      fontFamily: "var(--font-ar)",
     }}>
       {/* ── Header ── */}
       <div
@@ -292,7 +292,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
         borderBottom: `1px solid ${C.border}`,
       }}>
         {/* Symbol */}
-        <div style={{ fontSize: 10, color: C.cyan, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", marginBottom: 2 }}>
+        <div style={{ fontSize: 10, color: C.cyan, fontWeight: 700, fontFamily: "var(--font-mono)", marginBottom: 2 }}>
           {symbol}
         </div>
 
@@ -301,7 +301,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
           fontSize: 22,
           color: isBuy ? C.buy : C.sell,
           fontWeight: 800,
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "var(--font-mono)",
           lineHeight: 1.2,
           letterSpacing: -0.5,
         }}>
@@ -315,7 +315,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
           marginTop: 4,
           fontSize: 9,
           color: C.text3,
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "var(--font-mono)",
         }}>
           <span>سبريد: <span style={{ color: C.text2 }}>{estimatedSpread.toFixed(priceDecimals)}</span></span>
           <span>({spreadPct}%)</span>
@@ -350,7 +350,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
                   fontSize: 11,
                   fontWeight: 800,
                   cursor: 'pointer',
-                  fontFamily: "'Cairo', sans-serif",
+                  fontFamily: "var(--font-ar)",
                   transition: 'all 0.15s ease',
                   letterSpacing: 0.5,
                 }}
@@ -382,7 +382,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
                   fontSize: 9,
                   fontWeight: 600,
                   cursor: 'pointer',
-                  fontFamily: "'Cairo', sans-serif",
+                  fontFamily: "var(--font-ar)",
                   transition: 'all 0.15s ease',
                 }}
               >
@@ -402,7 +402,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
           marginBottom: 4,
         }}>
           <label style={{ fontSize: 9, color: C.text2, fontWeight: 600 }}>حجم الصفقة</label>
-          <span style={{ fontSize: 8, color: C.text3, fontFamily: "'JetBrains Mono', monospace" }}>USDT</span>
+          <span style={{ fontSize: 8, color: C.text3, fontFamily: "var(--font-mono)" }}>USDT</span>
         </div>
         <div style={{
           display: 'flex',
@@ -427,7 +427,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
               color: C.text,
               fontSize: 13,
               fontWeight: 700,
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "var(--font-mono)",
               outline: 'none',
               minWidth: 0,
             }}
@@ -449,7 +449,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
                 fontSize: 8,
                 fontWeight: 600,
                 cursor: 'pointer',
-                fontFamily: "'JetBrains Mono', monospace",
+                fontFamily: "var(--font-mono)",
                 transition: 'all 0.12s',
               }}
             >
@@ -503,7 +503,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
                   border: 'none',
                   color: C.text,
                   fontSize: 11,
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontFamily: "var(--font-mono)",
                   outline: 'none',
                   minWidth: 0,
                 }}
@@ -552,7 +552,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
                   border: 'none',
                   color: C.text,
                   fontSize: 11,
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontFamily: "var(--font-mono)",
                   outline: 'none',
                   minWidth: 0,
                 }}
@@ -573,12 +573,12 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
           justifyContent: 'space-between',
         }}>
           {rr && (
-            <span style={{ fontSize: 9, color: C.text2, fontFamily: "'JetBrains Mono', monospace" }}>
+            <span style={{ fontSize: 9, color: C.text2, fontFamily: "var(--font-mono)" }}>
               R:R <b style={{ color: parseFloat(rr) >= 2 ? C.buy : C.gold }}>{rr}</b>
             </span>
           )}
           {pnl && (
-            <span style={{ fontSize: 9, color: C.text2, fontFamily: "'JetBrains Mono', monospace" }}>
+            <span style={{ fontSize: 9, color: C.text2, fontFamily: "var(--font-mono)" }}>
               P&L <b style={{ color: parseFloat(pnl) > 0 ? C.buy : parseFloat(pnl) < 0 ? C.sell : C.text2 }}>
                 {parseFloat(pnl) > 0 ? '+' : ''}{pnl}$
               </b>
@@ -605,7 +605,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
             fontWeight: 900,
             cursor: submitting ? 'wait' : 'pointer',
             opacity: submitting ? 0.6 : 1,
-            fontFamily: "'Cairo', sans-serif",
+            fontFamily: "var(--font-ar)",
             letterSpacing: 0.5,
             boxShadow: isBuy
               ? '0 4px 15px rgba(0,200,83,0.3), 0 0 30px rgba(0,200,83,0.1)'
@@ -630,7 +630,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
         justifyContent: 'space-between',
         fontSize: 8,
         color: C.text3,
-        fontFamily: "'JetBrains Mono', monospace",
+        fontFamily: "var(--font-mono)",
       }}>
         <span>رصيد: 10,000.00 USDT</span>
         <span>رسمة: ~0.05%</span>

@@ -1961,8 +1961,8 @@ export default function AutonomousTraderPage() {
 function InfoRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
-      <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: '#8B92A8' }}>{label}</span>
-      <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, fontWeight: 700, color: valueColor || '#F0F2F5' }}>{value}</span>
+      <span style={{ fontFamily: "var(--font-ar)", fontSize: 11, color: '#8B92A8' }}>{label}</span>
+      <span style={{ fontFamily: "var(--font-ar)", fontSize: 11, fontWeight: 700, color: valueColor || '#F0F2F5' }}>{value}</span>
     </div>
   )
 }
@@ -1973,7 +1973,7 @@ function SafetyBadge({ icon, label, color }: { icon: React.ReactNode; label: str
       display: 'flex', alignItems: 'center', gap: 4,
       padding: '4px 8px', borderRadius: 6,
       background: `${color}10`, border: `1px solid ${color}25`,
-      fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: 700, color,
+      fontFamily: "var(--font-ar)", fontSize: 9, fontWeight: 700, color,
     }}>
       {icon}
       {label}
@@ -1984,7 +1984,7 @@ function SafetyBadge({ icon, label, color }: { icon: React.ReactNode; label: str
 function StrategyTag({ label }: { label: string }) {
   return (
     <span style={{
-      fontFamily: "'JetBrains Mono', monospace", fontSize: 9,
+      fontFamily: "var(--font-mono)", fontSize: 9,
       padding: '3px 8px', borderRadius: 4,
       background: 'rgba(255,255,255,0.05)',
       border: '1px solid rgba(255,255,255,0.08)',
@@ -2006,8 +2006,8 @@ function MiniGauge({ value, max, color, label }: { value: number; max: number; c
           transition: 'width 0.3s ease',
         }} />
       </div>
-      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color, fontWeight: 700 }}>{value}</div>
-      <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 7, color: '#5A6178' }}>{label}</div>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color, fontWeight: 700 }}>{value}</div>
+      <div style={{ fontFamily: "var(--font-ar)", fontSize: 7, color: '#5A6178' }}>{label}</div>
     </div>
   )
 }
@@ -2015,8 +2015,8 @@ function MiniGauge({ value, max, color, label }: { value: number; max: number; c
 function DetailMetric({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div>
-      <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: '#8B92A8', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 800, color: color || '#F0F2F5', direction: 'ltr', textAlign: 'right' }}>{value}</div>
+      <div style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: '#8B92A8', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 800, color: color || '#F0F2F5', direction: 'ltr', textAlign: 'right' }}>{value}</div>
     </div>
   )
 }
@@ -2028,11 +2028,11 @@ function RiskSlider({ label, subLabel, value, min, max, step, unit, color, onCha
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
         <div>
-          <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, fontWeight: 700, color: '#F0F2F5' }}>{label}</div>
-          <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: '#5A6178' }}>{subLabel}</div>
+          <div style={{ fontFamily: "var(--font-ar)", fontSize: 12, fontWeight: 700, color: '#F0F2F5' }}>{label}</div>
+          <div style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: '#5A6178' }}>{subLabel}</div>
         </div>
         <div style={{
-          fontFamily: "'JetBrains Mono', monospace", fontSize: 16, fontWeight: 900, color,
+          fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 900, color,
           padding: '4px 12px', borderRadius: 8,
           background: `${color}12`, border: `1px solid ${color}30`,
           direction: 'ltr',
@@ -2054,7 +2054,7 @@ function RiskSlider({ label, subLabel, value, min, max, step, unit, color, onCha
           cursor: 'pointer',
         }}
       />
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#5A6178', direction: 'ltr' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "var(--font-mono)", fontSize: 9, color: '#5A6178', direction: 'ltr' }}>
         <span>{min}{unit}</span>
         <span>{max}{unit}</span>
       </div>
@@ -2073,7 +2073,7 @@ const btnStyle: React.CSSProperties = {
   borderRadius: 10,
   border: 'none',
   cursor: 'pointer',
-  fontFamily: "'Cairo', sans-serif",
+  fontFamily: "var(--font-ar)",
   fontSize: 12,
   fontWeight: 700,
   transition: 'all 0.2s',

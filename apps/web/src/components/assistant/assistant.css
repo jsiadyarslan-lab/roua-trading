@@ -2795,11 +2795,12 @@ table.asst-tbl .neu { color: var(--text2); }
   border-bottom: 1px solid rgba(0,229,255,0.08);
   color: #E8EDF5;
   font-weight: 500;
-  white-space: nowrap; /* V579: الخلايا لا تنكسر — التمرير الأفقي يتعامل مع العرض */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 200px; /* V579: حد أقصى لكل خلية */
+  white-space: normal; /* V600: allow wrapping for long text */
+  overflow: visible;
+  text-overflow: clip;
+  max-width: 250px;
   line-height: 1.5;
+  word-break: break-word;
 }
 
 .assistant-html-content tbody tr:nth-child(odd) {

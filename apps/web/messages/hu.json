@@ -2449,6 +2449,9 @@
       "headlineCouncilDefault": "AI Tanács",
       "subtitleCouncil": "AI Tanács",
       "tabExecutor": "Végrehajtó",
+      "tabLazic": "Lazic",
+      "subtitleLazic": "Másodperc alatti Scalper",
+      "headlineLazic": "Lazic — Szupergyors Ügynök",
       "headlineDefault": "Döntési központ"
     },
     "chartGrid": {

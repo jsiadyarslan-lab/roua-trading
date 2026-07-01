@@ -2449,6 +2449,9 @@
       "headlineCouncilDefault": "ИИ-совет",
       "subtitleCouncil": "ИИ-совет",
       "tabExecutor": "Исполнитель",
+      "tabLazic": "Лазик",
+      "subtitleLazic": "Субсекундный Скальпер",
+      "headlineLazic": "Лазик — Сверхбыстрый Агент",
       "headlineDefault": "Решение Центр"
     },
     "chartGrid": {

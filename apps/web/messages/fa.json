@@ -2449,6 +2449,9 @@
       "headlineCouncilDefault": "شورای هوش مصنوعی",
       "subtitleCouncil": "شورای هوش مصنوعی",
       "tabExecutor": "مجری",
+      "tabLazic": "لازیک",
+      "subtitleLazic": "اسکالپر زیر ثانیه",
+      "headlineLazic": "لازیک — عامل فوق سریع",
       "headlineDefault": "مرکز تصمیم گیری"
     },
     "chartGrid": {

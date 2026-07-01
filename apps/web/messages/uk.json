@@ -2449,6 +2449,9 @@
       "headlineCouncilDefault": "Рада АІ",
       "subtitleCouncil": "Рада АІ",
       "tabExecutor": "Виконавець",
+      "tabLazic": "Лазік",
+      "subtitleLazic": "Субсекундний Скальпер",
+      "headlineLazic": "Лазік — Надшвидкий Агент",
       "headlineDefault": "Центр прийняття рішень"
     },
     "chartGrid": {

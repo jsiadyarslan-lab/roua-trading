@@ -2449,6 +2449,9 @@
       "headlineCouncilDefault": "AI Raad",
       "subtitleCouncil": "AI-raad",
       "tabExecutor": "Uitvoerder",
+      "tabLazic": "Lazic",
+      "subtitleLazic": "Sub-seconde Scalper",
+      "headlineLazic": "Lazic — Ultra-snelle Agent",
       "headlineDefault": "Beslissingscentrum"
     },
     "chartGrid": {

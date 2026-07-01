@@ -2449,6 +2449,9 @@
       "headlineCouncilDefault": "Conselho de IA",
       "subtitleCouncil": "Conselho de IA",
       "tabExecutor": "Executor",
+      "tabLazic": "Lazic",
+      "subtitleLazic": "Scalper Sub-segundo",
+      "headlineLazic": "Lazic — Agente Ultra-rápido",
       "headlineDefault": "Centro de Decisão"
     },
     "chartGrid": {

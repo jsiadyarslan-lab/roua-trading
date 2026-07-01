@@ -2994,6 +2994,9 @@
       "headlineScannerDefault": "Erweiterter Scanner",
       "headlineSignals": "Trading Signale",
       "headlineTrader": "Autonomer Trader",
+      "tabLazic": "Lazic",
+      "subtitleLazic": "Sub-Sekunden Scalper",
+      "headlineLazic": "Lazic — Hochfrequenz-Agent",
       "headlineDefault": "Entscheidungszentrum"
     },
     "scannerSidebar": {

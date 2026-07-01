@@ -2449,6 +2449,9 @@
       "headlineCouncilDefault": "AI-rådet",
       "subtitleCouncil": "AI-rådet",
       "tabExecutor": "Eksekutør",
+      "tabLazic": "Lazic",
+      "subtitleLazic": "Sub-sekund Scalper",
+      "headlineLazic": "Lazic — Ultra-rask Agent",
       "headlineDefault": "Beslutningssenter"
     },
     "chartGrid": {

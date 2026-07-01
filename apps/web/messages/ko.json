@@ -2449,6 +2449,9 @@
       "headlineCouncilDefault": "AI 위원회",
       "subtitleCouncil": "AI 위원회",
       "tabExecutor": "실행자",
+      "tabLazic": "라직",
+      "subtitleLazic": "서브초 스캘퍼",
+      "headlineLazic": "라직 — 초고속 에이전트",
       "headlineDefault": "결정 중앙"
     },
     "chartGrid": {

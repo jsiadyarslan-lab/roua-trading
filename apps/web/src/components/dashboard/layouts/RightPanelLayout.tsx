@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Brain, ScanSearch, Sparkles, Swords, Landmark, Bot, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import { Brain, ScanSearch, Zap, Swords, Landmark, Bot, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { AgentControlMini } from '@/components/dashboard/AgentControlMini'
 import { ScannerMini } from '@/components/dashboard/ScannerMini'
-import { BotCommandCenter } from '@/components/dashboard/BotCommandCenter'
 import { AICouncilPanel } from '@/components/dashboard/AICouncilPanel'
 import { StrategicCouncilPanel } from '@/components/dashboard/StrategicCouncilPanel'
 import { SmartExecutorPanel } from '@/components/dashboard/SmartExecutorPanel'
@@ -14,6 +14,9 @@ import { useTabAlertStore, type TabId } from '@/hooks/useTabAlertStore'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useRightPanelState } from '@/hooks/useRightPanelState'
 import { useTranslations } from 'next-intl'
+
+// LazicPanel uses browser-only APIs (fetch + interval) → load on client only
+const LazicPanel = dynamic(() => import('@/components/dashboard/LazicPanel').then(m => ({ default: m.LazicPanel })), { ssr: false })
 
 const T = {
   bg: '#0B0E14',
@@ -65,20 +68,20 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
   }
 
   const TABS = [
+    { id: 'lazic', label: tr('tabLazic'), accent: '#FF6B35', icon: Zap, subtitle: tr('subtitleLazic') },
     { id: 'executor', label: tr('tabExecutor'), accent: T.cyan, icon: Swords, subtitle: tr('subtitleExecutor') },
     { id: 'strategic', label: tr('tabStrategic'), accent: T.purple, icon: Landmark, subtitle: tr('subtitleStrategic') },
     { id: 'trader', label: tr('tabTrader'), accent: '#FF8C42', icon: Bot, subtitle: tr('subtitleTrader') },
     { id: 'council', label: tr('tabCouncil'), accent: T.accent, icon: Brain, subtitle: tr('subtitleCouncil') },
     { id: 'scanner', label: tr('tabScanner'), accent: T.amber, icon: ScanSearch, subtitle: tr('subtitleScanner') },
-    { id: 'signals', label: tr('tabSignals'), accent: T.green, icon: Sparkles, subtitle: tr('subtitleSignals') },
   ]
   const activeTab = TABS.find((tab) => tab.id === active) || TABS[0]
   const headlineMap = {
+    lazic: tr('headlineLazic'),
     executor: tr('headlineExecutor'),
     strategic: tr('headlineStrategic'),
     council: council?.recommendation ? tr('headlineCouncil', { recommendation: council.recommendation }) : tr('headlineCouncilDefault'),
     scanner: scanner ? tr('headlineScanner', { symbol: scanner.pair }) : tr('headlineScannerDefault'),
-    signals: tr('headlineSignals'),
     trader: tr('headlineTrader'),
   } as const
 
@@ -370,11 +373,11 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
           }}
           className="custom-scrollbar"
         >
+        <div style={{ display: active === 'lazic' ? 'contents' : 'none' }}><LazicPanel /></div>
         <div style={{ display: active === 'executor' ? 'contents' : 'none' }}><SmartExecutorPanel /></div>
         <div style={{ display: active === 'strategic' ? 'contents' : 'none' }}><StrategicCouncilPanel /></div>
         <div style={{ display: active === 'council' ? 'contents' : 'none' }}><AICouncilPanel /></div>
         <div style={{ display: active === 'scanner' ? 'contents' : 'none' }}><ScannerMini /></div>
-        <div style={{ display: active === 'signals' ? 'contents' : 'none' }}><BotCommandCenter /></div>
         <div style={{ display: active === 'trader' ? 'contents' : 'none' }}><AgentControlMini /></div>
         </div>
       </div>

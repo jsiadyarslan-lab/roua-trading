@@ -2449,6 +2449,9 @@
       "headlineCouncilDefault": "สภาเอไอ",
       "subtitleCouncil": "สภาเอไอ",
       "tabExecutor": "ผู้ดำเนินการ",
+      "tabLazic": "ลาซิค",
+      "subtitleLazic": "สกาลเปอร์ใต้วินาที",
+      "headlineLazic": "ลาซิค — เอเจนต์เร็วระยับ",
       "headlineDefault": "ศูนย์การตัดสินใจ"
     },
     "chartGrid": {

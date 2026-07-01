@@ -2449,6 +2449,9 @@
       "headlineCouncilDefault": "AIカウンシル",
       "subtitleCouncil": "AIカウンシル",
       "tabExecutor": "エグゼキューター",
+      "tabLazic": "ラジック",
+      "subtitleLazic": "サブ秒スカルパー",
+      "headlineLazic": "ラジック — 超高速エージェント",
       "headlineDefault": "意思決定センター"
     },
     "chartGrid": {

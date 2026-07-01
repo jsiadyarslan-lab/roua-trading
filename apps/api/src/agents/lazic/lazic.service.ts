@@ -602,21 +602,23 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
   // Public API (للكنترولر والواجهة الأمامية)
   // ══════════════════════════════════════════
 
-  /** تفعيل اللاسع لمستخدم */
+  /** تفعيل اللاسع لمستخدم — upsert لتفادي "no record found" */
   async enableForUser(userId: string): Promise<void> {
-    await (this.prisma.agentSettings as any).update({
+    await (this.prisma.agentSettings as any).upsert({
       where: { userId },
-      data: { lazicEnabled: true },
+      update: { lazicEnabled: true },
+      create: { userId, lazicEnabled: true },
     });
     await this._syncActiveUsers();
     this.logger.log(`🐝 اللاسع مُفعَّل للمستخدم ${userId}`);
   }
 
-  /** إيقاف اللاسع لمستخدم */
+  /** إيقاف اللاسع لمستخدم — upsert لتفادي "no record found" */
   async disableForUser(userId: string): Promise<void> {
-    await (this.prisma.agentSettings as any).update({
+    await (this.prisma.agentSettings as any).upsert({
       where: { userId },
-      data: { lazicEnabled: false },
+      update: { lazicEnabled: false },
+      create: { userId, lazicEnabled: false },
     });
     this.activeUsers.delete(userId);
     this.logger.log(`🐝 اللاسع موقوف للمستخدم ${userId}`);
@@ -705,7 +707,7 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     return { success: true, data };
   }
 
-  /** Phase 2: حدّث الإعدادات (لـ PUT /settings) */
+  /** Phase 2: حدّث الإعدادات (لـ PUT /settings) — upsert لتفادي "no record found" */
   async updateSettings(
     userId: string,
     dto: {
@@ -738,9 +740,14 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
       updateData.lazicRiskPerTradePct = Math.max(0.1, Math.min(3.0, dto.riskPerTradePct));
     }
 
-    await (this.prisma.agentSettings as any).update({
+    // upsert بدل update — ينشئ سجل agentSettings لو غير موجود
+    await (this.prisma.agentSettings as any).upsert({
       where: { userId },
-      data: updateData,
+      update: updateData,
+      create: {
+        userId,
+        ...updateData,
+      },
     });
 
     // أعد مزامنة المستخدمين النشطين لتفعيل الإعدادات الجديدة فوراً

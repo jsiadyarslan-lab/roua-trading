@@ -2936,6 +2936,34 @@
     "signals": {
       "subtitle": "Obchodní signály poháněné umělou inteligencí",
       "title": "Signály"
+    },
+    "lasicPanel": {
+      "loading": "Načítání...",
+      "stinging": "Bodá teď",
+      "stopped": "Zastaveno",
+      "enable": "Aktivovat Lasic",
+      "disable": "Zastavit Lasic",
+      "settingsTitle": "Nastavení Lasic",
+      "saveSettings": "Uložit",
+      "settingsSaved": "✓ Uloženo",
+      "obiThresholdLabel": "Práh OBI (vstupní signál)",
+      "maxSpreadLabel": "Max. multiplikátor spreadu",
+      "riskPerTradeLabel": "Riziko na obchod",
+      "maxDailyTradesLabel": "Max. denních obchodů",
+      "maxOpenPositionsLabel": "Max. otevřených pozic",
+      "cooldownLabel": "Ochlazení (sekundy)",
+      "statDailyTrades": "Obchody dnes",
+      "statStrongSignals": "Silné signály",
+      "statActiveSymbols": "Aktivní symboly",
+      "metricSuccess": "Úspěch",
+      "metricFail": "Selhání",
+      "metricRate": "Míra",
+      "obiHeatbarTitle": "Nerovnováha knihy objednávek (OBI)",
+      "obiSellBuy": "Prodej ← → Nákup",
+      "waitingForSignal": "Čeká na silný OBI signál (>{threshold})...",
+      "errorConnection": "Spojení selhalo",
+      "errorToggle": "Přepnutí selhalo",
+      "errorSaveSettings": "Uložení selhalo"
     }
   },
   "landing": {

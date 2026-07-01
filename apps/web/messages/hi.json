@@ -2936,6 +2936,34 @@
     "signals": {
       "title": "Signals",
       "subtitle": "AI-संचालित ट्रेडिंग सिग्नल"
+    },
+    "lasicPanel": {
+      "loading": "लोड हो रहा है...",
+      "stinging": "अभी डंक मार रहा है",
+      "stopped": "रुका हुआ",
+      "enable": "लासिक सक्रिय करें",
+      "disable": "लासिक रोकें",
+      "settingsTitle": "लासिक सेटिंग्स",
+      "saveSettings": "सहेजें",
+      "settingsSaved": "✓ सहेजा गया",
+      "obiThresholdLabel": "OBI सीमा (प्रवेश संकेत)",
+      "maxSpreadLabel": "अधिकतम स्प्रेड गुणक",
+      "riskPerTradeLabel": "प्रति ट्रेड जोखिम",
+      "maxDailyTradesLabel": "अधिकतम दैनिक ट्रेड",
+      "maxOpenPositionsLabel": "अधिकतम खुले पद",
+      "cooldownLabel": "कूलडाउन (सेकंड)",
+      "statDailyTrades": "आज के ट्रेड",
+      "statStrongSignals": "मजबूत संकेत",
+      "statActiveSymbols": "सक्रिय प्रतीक",
+      "metricSuccess": "सफल",
+      "metricFail": "विफल",
+      "metricRate": "दर",
+      "obiHeatbarTitle": "ऑर्डर बुक असंतुलन (OBI)",
+      "obiSellBuy": "बेच ← → खरीद",
+      "waitingForSignal": "मजबूत OBI संकेत की प्रतीक्षा (>{threshold})...",
+      "errorConnection": "कनेक्शन विफल",
+      "errorToggle": "टॉगल विफल",
+      "errorSaveSettings": "सहेजना विफल"
     }
   },
   "aiPatternPanel": {

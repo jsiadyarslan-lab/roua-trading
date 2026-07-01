@@ -2936,6 +2936,34 @@
     "signals": {
       "title": "Signalen",
       "subtitle": "AI-aangedreven handelssignalen"
+    },
+    "lasicPanel": {
+      "loading": "Laden...",
+      "stinging": "Steekt nu",
+      "stopped": "Gestopt",
+      "enable": "Lasic activeren",
+      "disable": "Lasic stoppen",
+      "settingsTitle": "Lasic Instellingen",
+      "saveSettings": "Opslaan",
+      "settingsSaved": "✓ Opgeslagen",
+      "obiThresholdLabel": "OBI-drempel (entry-signaal)",
+      "maxSpreadLabel": "Max. spread-multiplier",
+      "riskPerTradeLabel": "Risico per trade",
+      "maxDailyTradesLabel": "Max. dagelijkse trades",
+      "maxOpenPositionsLabel": "Max. open posities",
+      "cooldownLabel": "Afkoelen (seconden)",
+      "statDailyTrades": "Dagelijkse trades",
+      "statStrongSignals": "Sterke signalen",
+      "statActiveSymbols": "Actieve symbolen",
+      "metricSuccess": "Succes",
+      "metricFail": "Mislukt",
+      "metricRate": "Ratio",
+      "obiHeatbarTitle": "Orderboek-onbalans (OBI)",
+      "obiSellBuy": "Verkoop ← → Koop",
+      "waitingForSignal": "Wacht op sterk OBI-signaal (>{threshold})...",
+      "errorConnection": "Verbinding mislukt",
+      "errorToggle": "Schakelen mislukt",
+      "errorSaveSettings": "Opslaan mislukt"
     }
   },
   "aiPatternPanel": {

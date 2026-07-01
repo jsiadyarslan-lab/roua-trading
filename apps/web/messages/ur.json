@@ -2936,6 +2936,34 @@
     "signals": {
       "title": "سگنلز",
       "subtitle": "AI سے چلنے والے تجارتی سگنل"
+    },
+    "lasicPanel": {
+      "loading": "لوڈ ہو رہا ہے...",
+      "stinging": "اب ڈنگ مار رہا ہے",
+      "stopped": "روکا ہوا",
+      "enable": "لاسک فعال کریں",
+      "disable": "لاسک روکیں",
+      "settingsTitle": "لاسک ترتیبات",
+      "saveSettings": "محفوظ کریں",
+      "settingsSaved": "✓ محفوظ ہو گیا",
+      "obiThresholdLabel": "OBI حد (داخلہ سگنل)",
+      "maxSpreadLabel": "زیادہ سے زیادہ اسپریڈ ضرب",
+      "riskPerTradeLabel": "ہر تجارت میں خطرہ",
+      "maxDailyTradesLabel": "زیادہ سے زیادہ روزانہ تجارتیں",
+      "maxOpenPositionsLabel": "زیادہ سے زیادہ کھلی پوزیشنیں",
+      "cooldownLabel": "ٹھنڈک (سیکنڈ)",
+      "statDailyTrades": "آج کی تجارتیں",
+      "statStrongSignals": "مضبوط سگنلز",
+      "statActiveSymbols": "فعال علامتیں",
+      "metricSuccess": "کامیاب",
+      "metricFail": "ناکام",
+      "metricRate": "شرح",
+      "obiHeatbarTitle": "آرڈر بک عدم توازن (OBI)",
+      "obiSellBuy": "فروخت ← → خرید",
+      "waitingForSignal": "مضبوط OBI سگنل کا انتظار (>{threshold})...",
+      "errorConnection": "کنکشن ناکام",
+      "errorToggle": "تبدیل کرنا ناکام",
+      "errorSaveSettings": "محفوظ کرنا ناکام"
     }
   },
   "aiPatternPanel": {

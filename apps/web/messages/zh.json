@@ -2936,6 +2936,34 @@
     "signals": {
       "title": "信号s",
       "subtitle": "AI驱动的交易信号"
+    },
+    "lasicPanel": {
+      "loading": "加载中...",
+      "stinging": "正在出击",
+      "stopped": "已停止",
+      "enable": "启用 Lasic",
+      "disable": "停用 Lasic",
+      "settingsTitle": "Lasic 设置",
+      "saveSettings": "保存设置",
+      "settingsSaved": "✓ 已保存",
+      "obiThresholdLabel": "OBI 阈值（入场信号）",
+      "maxSpreadLabel": "最大点差乘数",
+      "riskPerTradeLabel": "每笔交易风险",
+      "maxDailyTradesLabel": "最大每日交易",
+      "maxOpenPositionsLabel": "最大持仓数",
+      "cooldownLabel": "冷却时间（秒）",
+      "statDailyTrades": "今日交易",
+      "statStrongSignals": "强信号",
+      "statActiveSymbols": "活跃品种",
+      "metricSuccess": "成功",
+      "metricFail": "失败",
+      "metricRate": "比率",
+      "obiHeatbarTitle": "订单簿失衡（OBI）",
+      "obiSellBuy": "卖 ← → 买",
+      "waitingForSignal": "等待强 OBI 信号（>{threshold}）...",
+      "errorConnection": "连接失败",
+      "errorToggle": "切换失败",
+      "errorSaveSettings": "保存失败"
     }
   },
   "aiPatternPanel": {

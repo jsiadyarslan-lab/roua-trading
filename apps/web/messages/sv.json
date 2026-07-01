@@ -2936,6 +2936,34 @@
     "signals": {
       "title": "Signaler",
       "subtitle": "AI-drivna handelssignaler"
+    },
+    "lasicPanel": {
+      "loading": "Laddar...",
+      "stinging": "Sticker nu",
+      "stopped": "Stoppad",
+      "enable": "Aktivera Lasic",
+      "disable": "Stoppa Lasic",
+      "settingsTitle": "Lasic-inställningar",
+      "saveSettings": "Spara",
+      "settingsSaved": "✓ Sparat",
+      "obiThresholdLabel": "OBI-tröskel (inångssignal)",
+      "maxSpreadLabel": "Max. spread-multiplikator",
+      "riskPerTradeLabel": "Risk per affär",
+      "maxDailyTradesLabel": "Max. dagliga affärer",
+      "maxOpenPositionsLabel": "Max. öppna positioner",
+      "cooldownLabel": "Nedkylning (sekunder)",
+      "statDailyTrades": "Dagens affärer",
+      "statStrongSignals": "Starka signaler",
+      "statActiveSymbols": "Aktiva symboler",
+      "metricSuccess": "Framgång",
+      "metricFail": "Misslyckades",
+      "metricRate": "Frekvens",
+      "obiHeatbarTitle": "Orderboksobalans (OBI)",
+      "obiSellBuy": "Sälj ← → Köp",
+      "waitingForSignal": "Väntar på stark OBI-signal (>{threshold})...",
+      "errorConnection": "Anslutning misslyckades",
+      "errorToggle": "Växling misslyckades",
+      "errorSaveSettings": "Spara misslyckades"
     }
   },
   "aiPatternPanel": {

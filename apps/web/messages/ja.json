@@ -2936,6 +2936,34 @@
     "signals": {
       "title": "シグナル",
       "subtitle": "Email change"
+    },
+    "lasicPanel": {
+      "loading": "読み込み中...",
+      "stinging": "刺しています",
+      "stopped": "停止中",
+      "enable": "ラシックを有効化",
+      "disable": "ラシックを停止",
+      "settingsTitle": "ラシック設定",
+      "saveSettings": "保存",
+      "settingsSaved": "✓ 保存済み",
+      "obiThresholdLabel": "OBI閾値（エントリーシグナル）",
+      "maxSpreadLabel": "最大スプレッド倍率",
+      "riskPerTradeLabel": "取引あたりリスク",
+      "maxDailyTradesLabel": "最大日次取引",
+      "maxOpenPositionsLabel": "最大オープンポジション",
+      "cooldownLabel": "クールダウン（秒）",
+      "statDailyTrades": "本日取引",
+      "statStrongSignals": "強シグナル",
+      "statActiveSymbols": "活発シンボル",
+      "metricSuccess": "成功",
+      "metricFail": "失敗",
+      "metricRate": "率",
+      "obiHeatbarTitle": "注文簿不均衡（OBI）",
+      "obiSellBuy": "売 ← → 買",
+      "waitingForSignal": "強いOBIシグナルを待機中（>{threshold}）...",
+      "errorConnection": "接続失敗",
+      "errorToggle": "切替失敗",
+      "errorSaveSettings": "保存失敗"
     }
   },
   "aiPatternPanel": {

@@ -2936,6 +2936,34 @@
     "signals": {
       "title": "신호",
       "subtitle": "AI 기반 거래 신호"
+    },
+    "lasicPanel": {
+      "loading": "로딩 중...",
+      "stinging": "쏘는 중",
+      "stopped": "정지됨",
+      "enable": "라식 활성화",
+      "disable": "라식 중지",
+      "settingsTitle": "라식 설정",
+      "saveSettings": "저장",
+      "settingsSaved": "✓ 저장됨",
+      "obiThresholdLabel": "OBI 임계값 (진입 신호)",
+      "maxSpreadLabel": "최대 스프레드 배수",
+      "riskPerTradeLabel": "거래당 위험",
+      "maxDailyTradesLabel": "최대 일일 거래",
+      "maxOpenPositionsLabel": "최대 미결제 포지션",
+      "cooldownLabel": "쿨다운 (초)",
+      "statDailyTrades": "오늘 거래",
+      "statStrongSignals": "강한 신호",
+      "statActiveSymbols": "활성 심볼",
+      "metricSuccess": "성공",
+      "metricFail": "실패",
+      "metricRate": "비율",
+      "obiHeatbarTitle": "주문장 불균형 (OBI)",
+      "obiSellBuy": "매도 ← → 매수",
+      "waitingForSignal": "강한 OBI 신호 대기 중 (>{threshold})...",
+      "errorConnection": "연결 실패",
+      "errorToggle": "전환 실패",
+      "errorSaveSettings": "저장 실패"
     }
   },
   "aiPatternPanel": {

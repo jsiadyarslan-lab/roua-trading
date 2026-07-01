@@ -2936,6 +2936,34 @@
     "signals": {
       "title": "Tín hiệu",
       "subtitle": "Tín hiệu giao dịch được hỗ trợ bởi AI"
+    },
+    "lasicPanel": {
+      "loading": "Đang tải...",
+      "stinging": "Đang chích",
+      "stopped": "Đã dừng",
+      "enable": "Bật Lasic",
+      "disable": "Tắt Lasic",
+      "settingsTitle": "Cài đặt Lasic",
+      "saveSettings": "Lưu",
+      "settingsSaved": "✓ Đã lưu",
+      "obiThresholdLabel": "Ngưỡng OBI (tín hiệu vào)",
+      "maxSpreadLabel": "Hệ số spread tối đa",
+      "riskPerTradeLabel": "Rủi ro mỗi lệnh",
+      "maxDailyTradesLabel": "Lệnh mỗi ngày tối đa",
+      "maxOpenPositionsLabel": "Vị thế mở tối đa",
+      "cooldownLabel": "Nghỉ (giây)",
+      "statDailyTrades": "Lệnh hôm nay",
+      "statStrongSignals": "Tín hiệu mạnh",
+      "statActiveSymbols": "Cặp hoạt động",
+      "metricSuccess": "Thành công",
+      "metricFail": "Thất bại",
+      "metricRate": "Tỷ lệ",
+      "obiHeatbarTitle": "Mất cân bằng sổ lệnh (OBI)",
+      "obiSellBuy": "Bán ← → Mua",
+      "waitingForSignal": "Đợi tín hiệu OBI mạnh (>{threshold})...",
+      "errorConnection": "Kết nối thất bại",
+      "errorToggle": "Chuyển đổi thất bại",
+      "errorSaveSettings": "Lưu thất bại"
     }
   },
   "aiPatternPanel": {

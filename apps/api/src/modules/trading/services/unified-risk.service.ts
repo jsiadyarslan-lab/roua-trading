@@ -75,6 +75,7 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
   private maxOpenPositions: number;
   private executorMaxOpenPositions: number;
   private agentMaxOpenPositions: number;
+  private lasicMaxOpenPositions: number;  // اللاسع — مستقل عن المنفذ والوكيل
   // V219: Daily loss is ALWAYS combined from ALL sources (V-PHASE3)
   private maxDailyLossPercent: number;
   private minOrderSizeUSD: number;
@@ -123,6 +124,9 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
     );
     this.agentMaxOpenPositions = parseInt(
       this.configService.get('AGENT_MAX_OPEN_POSITIONS', '5'), 10,
+    );
+    this.lasicMaxOpenPositions = parseInt(
+      this.configService.get('LASIC_MAX_OPEN_POSITIONS', '2'), 10,
     );
     this.maxDailyLossPercent = parseFloat(
       this.configService.get('RISK_MAX_DAILY_LOSS_PERCENT', '5'),
@@ -724,19 +728,34 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
 
       if (isPaperByFlag || isSimulatedByCredential) {
         // Paper trading path — per-source counting
+        // كل أداة لها حدّها المستقل: اللاسع / المنفذ / الوكيل
         const orderSource = command.source || 'auto_paper';
         const isExecutor = ['smart_executor', 'auto_paper'].includes(orderSource);
-        const perSourceLimit = isExecutor ? this.executorMaxOpenPositions : this.agentMaxOpenPositions;
+        const isLasic = orderSource === 'lazic' || orderSource === 'lasic';
+        let perSourceLimit: number;
+        let sourceLabel: string;
+        if (isLasic) {
+          perSourceLimit = this.lasicMaxOpenPositions;
+          sourceLabel = 'اللاسع';
+        } else if (isExecutor) {
+          perSourceLimit = this.executorMaxOpenPositions;
+          sourceLabel = 'المنفذ';
+        } else {
+          perSourceLimit = this.agentMaxOpenPositions;
+          sourceLabel = 'الوكيل';
+        }
 
         const sourcePositions = await this.prisma.position.count({
           where: {
             userId: command.userId, status: 'OPEN',
-            source: isExecutor ? { in: ['smart_executor', 'auto_paper'] } : orderSource,
+            source: isExecutor ? { in: ['smart_executor', 'auto_paper'] }
+              : isLasic ? { in: ['lazic', 'lasic'] }
+              : orderSource,
           },
         });
 
         if (sourcePositions >= perSourceLimit) {
-          return { allowed: false, reason: `لديك ${sourcePositions} مركز مفتوح من ${isExecutor ? 'المنفذ' : 'الوكيل'} بالفعل (الحد: ${perSourceLimit}).`, failedCheck: 'POSITION_SIZE_LIMIT' };
+          return { allowed: false, reason: `لديك ${sourcePositions} مركز مفتوح من ${sourceLabel} بالفعل (الحد: ${perSourceLimit}).`, failedCheck: 'POSITION_SIZE_LIMIT' };
         }
 
         const totalOpenPositions = await this.prisma.position.count({
@@ -811,16 +830,30 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
       // Real trading path — same per-source counting
       const orderSource = command.source || 'user_manual';
       const isExecutor = ['smart_executor', 'auto_paper'].includes(orderSource);
-      const perSourceLimit = isExecutor ? this.executorMaxOpenPositions : this.agentMaxOpenPositions;
+      const isLasic = orderSource === 'lazic' || orderSource === 'lasic';
+      let perSourceLimit: number;
+      let sourceLabel: string;
+      if (isLasic) {
+        perSourceLimit = this.lasicMaxOpenPositions;
+        sourceLabel = 'اللاسع';
+      } else if (isExecutor) {
+        perSourceLimit = this.executorMaxOpenPositions;
+        sourceLabel = 'المنفذ';
+      } else {
+        perSourceLimit = this.agentMaxOpenPositions;
+        sourceLabel = 'الوكيل';
+      }
 
       const sourcePositions = await this.prisma.position.count({
         where: {
           userId: command.userId, status: 'OPEN',
-          source: isExecutor ? { in: ['smart_executor', 'auto_paper'] } : orderSource,
+          source: isExecutor ? { in: ['smart_executor', 'auto_paper'] }
+            : isLasic ? { in: ['lazic', 'lasic'] }
+            : orderSource,
         },
       });
       if (sourcePositions >= perSourceLimit) {
-        return { allowed: false, reason: `لديك ${sourcePositions} مركز مفتوح من ${isExecutor ? 'المنفذ' : 'الوكيل'} بالفعل (الحد: ${perSourceLimit}).`, failedCheck: 'POSITION_SIZE_LIMIT' };
+        return { allowed: false, reason: `لديك ${sourcePositions} مركز مفتوح من ${sourceLabel} بالفعل (الحد: ${perSourceLimit}).`, failedCheck: 'POSITION_SIZE_LIMIT' };
       }
 
       const openPositions = await this.prisma.position.count({

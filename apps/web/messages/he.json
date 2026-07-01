@@ -2936,6 +2936,34 @@
     "signals": {
       "title": "אותות",
       "subtitle": "אותות מסחר המופעלים על ידי בינה מלאכותית"
+    },
+    "lasicPanel": {
+      "loading": "טוען...",
+      "stinging": "עוקץ עכשיו",
+      "stopped": "מופסק",
+      "enable": "הפעל לסיק",
+      "disable": "עצור לסיק",
+      "settingsTitle": "הגדרות לסיק",
+      "saveSettings": "שמור",
+      "settingsSaved": "✓ נשמר",
+      "obiThresholdLabel": "סף OBI (אות כניסה)",
+      "maxSpreadLabel": "מכפיל ספרד מקסימלי",
+      "riskPerTradeLabel": "סיכון לעסקה",
+      "maxDailyTradesLabel": "מקסימום עסקאות יומיות",
+      "maxOpenPositionsLabel": "מקסימום עמדות פתוחות",
+      "cooldownLabel": "התאוששות (שניות)",
+      "statDailyTrades": "עסקאות היום",
+      "statStrongSignals": "אותות חזקים",
+      "statActiveSymbols": "סמלים פעילים",
+      "metricSuccess": "הצלחה",
+      "metricFail": "כישלון",
+      "metricRate": "שיעור",
+      "obiHeatbarTitle": "חוסר איזון ספר הזמנות (OBI)",
+      "obiSellBuy": "מכירה ← → קנייה",
+      "waitingForSignal": "ממתין לאות OBI חזק (>{threshold})...",
+      "errorConnection": "חיבור נכשל",
+      "errorToggle": "החלפה נכשלה",
+      "errorSaveSettings": "שמירה נכשלה"
     }
   },
   "aiPatternPanel": {

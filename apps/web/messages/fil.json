@@ -2936,6 +2936,34 @@
     "signals": {
       "title": "Mga signal",
       "subtitle": "Mga signal ng kalakalan na pinapagana ng AI"
+    },
+    "lasicPanel": {
+      "loading": "Naglo-load...",
+      "stinging": "Kumagat na",
+      "stopped": "Nakahinto",
+      "enable": "I-enable ang Lasic",
+      "disable": "I-disable ang Lasic",
+      "settingsTitle": "Mga Setting ng Lasic",
+      "saveSettings": "I-save",
+      "settingsSaved": "✓ Na-save",
+      "obiThresholdLabel": "OBI Threshold (entry signal)",
+      "maxSpreadLabel": "Max Spread Multiplier",
+      "riskPerTradeLabel": "Risk kada trade",
+      "maxDailyTradesLabel": "Max daily trades",
+      "maxOpenPositionsLabel": "Max open positions",
+      "cooldownLabel": "Cooldown (segundo)",
+      "statDailyTrades": "Trades ngayon",
+      "statStrongSignals": "Malakas na signals",
+      "statActiveSymbols": "Aktibong symbols",
+      "metricSuccess": "Tagumpay",
+      "metricFail": "Bigo",
+      "metricRate": "Rate",
+      "obiHeatbarTitle": "Order Book Imbalance (OBI)",
+      "obiSellBuy": "Benta ← → Bili",
+      "waitingForSignal": "Naghihintay ng malakas na OBI signal (>{threshold})...",
+      "errorConnection": "Koneksyon bigo",
+      "errorToggle": "Toggle bigo",
+      "errorSaveSettings": "Pag-save bigo"
     }
   },
   "aiPatternPanel": {

@@ -2936,6 +2936,34 @@
     "signals": {
       "title": "Sinyal",
       "subtitle": "Sinyal perdagangan bertenaga AI"
+    },
+    "lasicPanel": {
+      "loading": "Memuat...",
+      "stinging": "Menyengat sekarang",
+      "stopped": "Berhenti",
+      "enable": "Aktifkan Lasic",
+      "disable": "Nonaktifkan Lasic",
+      "settingsTitle": "Pengaturan Lasic",
+      "saveSettings": "Simpan",
+      "settingsSaved": "✓ Tersimpan",
+      "obiThresholdLabel": "Ambang OBI (sinyal masuk)",
+      "maxSpreadLabel": "Mult. spread maks",
+      "riskPerTradeLabel": "Risiko per trade",
+      "maxDailyTradesLabel": "Trade harian maks",
+      "maxOpenPositionsLabel": "Posisi terbuka maks",
+      "cooldownLabel": "Pendinginan (detik)",
+      "statDailyTrades": "Trade hari ini",
+      "statStrongSignals": "Sinyal kuat",
+      "statActiveSymbols": "Simbol aktif",
+      "metricSuccess": "Sukses",
+      "metricFail": "Gagal",
+      "metricRate": "Tingkat",
+      "obiHeatbarTitle": "Ketidakseimbangan buku pesanan (OBI)",
+      "obiSellBuy": "Jual ← → Beli",
+      "waitingForSignal": "Menunggu sinyal OBI kuat (>{threshold})...",
+      "errorConnection": "Koneksi gagal",
+      "errorToggle": "Gagal beralih",
+      "errorSaveSettings": "Gagal menyimpan"
     }
   },
   "aiPatternPanel": {

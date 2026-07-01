@@ -2936,6 +2936,34 @@
     "signals": {
       "title": "Sinyaller",
       "subtitle": "Yapay zeka destekli işlem sinyalleri"
+    },
+    "lasicPanel": {
+      "loading": "Yükleniyor...",
+      "stinging": "Şimdi sokuyor",
+      "stopped": "Durduruldu",
+      "enable": "Lasic'i etkinleştir",
+      "disable": "Lasic'i durdur",
+      "settingsTitle": "Lasic Ayarları",
+      "saveSettings": "Kaydet",
+      "settingsSaved": "✓ Kaydedildi",
+      "obiThresholdLabel": "OBI Eşiği (giriş sinyali)",
+      "maxSpreadLabel": "Maks. Spread Çarpanı",
+      "riskPerTradeLabel": "İşlem başına risk",
+      "maxDailyTradesLabel": "Maks. günlük işlem",
+      "maxOpenPositionsLabel": "Maks. açık pozisyon",
+      "cooldownLabel": "Bekleme süresi (saniye)",
+      "statDailyTrades": "Günlük işlemler",
+      "statStrongSignals": "Güçlü sinyaller",
+      "statActiveSymbols": "Aktif semboller",
+      "metricSuccess": "Başarılı",
+      "metricFail": "Başarısız",
+      "metricRate": "Oran",
+      "obiHeatbarTitle": "Emir Defteri Dengesizliği (OBI)",
+      "obiSellBuy": "Sat ← → Al",
+      "waitingForSignal": "Güçlü OBI sinyali bekleniyor (>{threshold})...",
+      "errorConnection": "Bağlantı başarısız",
+      "errorToggle": "Geçiş başarısız",
+      "errorSaveSettings": "Kaydetme başarısız"
     }
   },
   "aiPatternPanel": {

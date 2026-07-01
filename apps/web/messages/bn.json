@@ -2936,6 +2936,34 @@
     "signals": {
       "subtitle": "এআই-চালিত ট্রেডিং সংকেত",
       "title": "সিগন্যাল"
+    },
+    "lasicPanel": {
+      "loading": "Loading...",
+      "stinging": "Stinging now",
+      "stopped": "Stopped",
+      "enable": "Enable Lasic",
+      "disable": "Disable Lasic",
+      "settingsTitle": "Lasic Settings",
+      "saveSettings": "Save Settings",
+      "settingsSaved": "✓ Saved",
+      "obiThresholdLabel": "OBI Threshold (entry signal)",
+      "maxSpreadLabel": "Max Spread Multiplier",
+      "riskPerTradeLabel": "Risk per Trade",
+      "maxDailyTradesLabel": "Max Daily Trades",
+      "maxOpenPositionsLabel": "Max Open Positions",
+      "cooldownLabel": "Cooldown (seconds)",
+      "statDailyTrades": "Daily Trades",
+      "statStrongSignals": "Strong Signals",
+      "statActiveSymbols": "Active Symbols",
+      "metricSuccess": "Success",
+      "metricFail": "Fail",
+      "metricRate": "Rate",
+      "obiHeatbarTitle": "Order Book Imbalance (OBI)",
+      "obiSellBuy": "Sell ← → Buy",
+      "waitingForSignal": "Waiting for strong OBI signal (>{threshold})...",
+      "errorConnection": "Connection failed",
+      "errorToggle": "Failed to toggle",
+      "errorSaveSettings": "Failed to save settings"
     }
   },
   "landing": {

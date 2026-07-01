@@ -2936,6 +2936,34 @@
     "signals": {
       "title": "Semnale",
       "subtitle": "Semnale de tranzacționare alimentate de AI"
+    },
+    "lasicPanel": {
+      "loading": "Se încarcă...",
+      "stinging": "Înțeapă acum",
+      "stopped": "Oprit",
+      "enable": "Activează Lasic",
+      "disable": "Oprește Lasic",
+      "settingsTitle": "Setări Lasic",
+      "saveSettings": "Salvează",
+      "settingsSaved": "✓ Salvat",
+      "obiThresholdLabel": "Prag OBI (semnal intrare)",
+      "maxSpreadLabel": "Mult. spread max",
+      "riskPerTradeLabel": "Risc per tranzacție",
+      "maxDailyTradesLabel": "Tranzacții zilnice max",
+      "maxOpenPositionsLabel": "Poziții deschise max",
+      "cooldownLabel": "Răcire (secunde)",
+      "statDailyTrades": "Tranzacții azi",
+      "statStrongSignals": "Semnale puternice",
+      "statActiveSymbols": "Simboluri active",
+      "metricSuccess": "Succes",
+      "metricFail": "Eșec",
+      "metricRate": "Rată",
+      "obiHeatbarTitle": "Dezechilibru carte de ordine (OBI)",
+      "obiSellBuy": "Vânzare ← → Cumpărare",
+      "waitingForSignal": "Așteaptă semnal OBI puternic (>{threshold})...",
+      "errorConnection": "Conexiune eșuată",
+      "errorToggle": "Comutare eșuată",
+      "errorSaveSettings": "Salvare eșuată"
     }
   },
   "aiPatternPanel": {

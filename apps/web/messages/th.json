@@ -2936,6 +2936,34 @@
     "signals": {
       "title": "สัญญาณ",
       "subtitle": "สัญญาณการซื้อขายที่ขับเคลื่อนด้วย AI"
+    },
+    "lasicPanel": {
+      "loading": "กำลังโหลด...",
+      "stinging": "กำลังต่อย",
+      "stopped": "หยุดแล้ว",
+      "enable": "เปิด Lasic",
+      "disable": "ปิด Lasic",
+      "settingsTitle": "ตั้งค่า Lasic",
+      "saveSettings": "บันทึก",
+      "settingsSaved": "✓ บันทึกแล้ว",
+      "obiThresholdLabel": "ขีดจำกัด OBI (สัญญาณเข้า)",
+      "maxSpreadLabel": "ตัวคูณสเปรดสูงสุด",
+      "riskPerTradeLabel": "ความเสี่ยงต่อการเทรด",
+      "maxDailyTradesLabel": "การเทรดต่อวันสูงสุด",
+      "maxOpenPositionsLabel": "ตำแหน่งเปิดสูงสุด",
+      "cooldownLabel": "คูลดาวน์ (วินาที)",
+      "statDailyTrades": "การเทรดวันนี้",
+      "statStrongSignals": "สัญญาณแรง",
+      "statActiveSymbols": "สัญลักษณ์ที่ใช้งาน",
+      "metricSuccess": "สำเร็จ",
+      "metricFail": "ล้มเหลว",
+      "metricRate": "อัตรา",
+      "obiHeatbarTitle": "ความไม่สมดุลของสมุดคำสั่ง (OBI)",
+      "obiSellBuy": "ขาย ← → ซื้อ",
+      "waitingForSignal": "รอสัญญาณ OBI ที่แรง (>{threshold})...",
+      "errorConnection": "การเชื่อมต่อล้มเหลว",
+      "errorToggle": "สลับล้มเหลว",
+      "errorSaveSettings": "บันทึกล้มเหลว"
     }
   },
   "aiPatternPanel": {

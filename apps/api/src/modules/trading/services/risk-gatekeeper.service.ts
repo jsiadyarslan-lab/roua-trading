@@ -41,6 +41,7 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
   // V145: Per-source limits from agentExecutorConfig admin settings
   private executorMaxOpenPositions: number;
   private agentMaxOpenPositions: number;
+  private lasicMaxOpenPositions: number;  // اللاسع — مستقل عن المنفذ والوكيل
   private maxDailyLossPercent: number;
   private minOrderSizeUSD: number;
   private maxOrderSizeUSD: number;
@@ -93,6 +94,9 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
     );
     this.agentMaxOpenPositions = parseInt(
       this.configService.get('AGENT_MAX_OPEN_POSITIONS', '5'), 10,
+    );
+    this.lasicMaxOpenPositions = parseInt(
+      this.configService.get('LASIC_MAX_OPEN_POSITIONS', '2'), 10,
     );
     this.maxDailyLossPercent = parseFloat(
       this.configService.get('RISK_MAX_DAILY_LOSS_PERCENT', '5'),
@@ -787,26 +791,39 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
         // V145: SOURCE-AWARE position counting for paper/simulated trading.
         // Instead of counting ALL positions against the global limit,
         // count positions per-source against per-source limits.
-        // This prevents the Agent's positions from blocking the Executor
-        // and vice versa.
+        // Each tool (lasic, executor, agent) has its OWN limit.
         // ═══════════════════════════════════════════════════════════════════
         const orderSource = command.source || 'auto_paper';
         const isExecutor = ['smart_executor', 'auto_paper'].includes(orderSource);
-        const perSourceLimit = isExecutor ? this.executorMaxOpenPositions : this.agentMaxOpenPositions;
+        const isLasic = orderSource === 'lazic' || orderSource === 'lasic';
+        let perSourceLimit: number;
+        let sourceLabel: string;
+        if (isLasic) {
+          perSourceLimit = this.lasicMaxOpenPositions;
+          sourceLabel = 'اللاسع';
+        } else if (isExecutor) {
+          perSourceLimit = this.executorMaxOpenPositions;
+          sourceLabel = 'المنفذ';
+        } else {
+          perSourceLimit = this.agentMaxOpenPositions;
+          sourceLabel = 'الوكيل';
+        }
 
         // Count positions for THIS source only
         const sourcePositions = await this.prisma.position.count({
           where: {
             userId: command.userId,
             status: 'OPEN',
-            source: isExecutor ? { in: ['smart_executor', 'auto_paper'] } : orderSource,
+            source: isExecutor ? { in: ['smart_executor', 'auto_paper'] }
+              : isLasic ? { in: ['lazic', 'lasic'] }
+              : orderSource,
           },
         });
 
         if (sourcePositions >= perSourceLimit) {
           return {
             allowed: false,
-            reason: `لديك ${sourcePositions} مركز مفتوح من ${isExecutor ? 'المنفذ' : 'الوكيل'} بالفعل (الحد الأقصى: ${perSourceLimit}). أغلق بعض المراكز أولاً.`,
+            reason: `لديك ${sourcePositions} مركز مفتوح من ${sourceLabel} بالفعل (الحد الأقصى: ${perSourceLimit}). أغلق بعض المراكز أولاً.`,
             failedCheck: 'POSITION_SIZE_LIMIT',
           };
         }
@@ -891,24 +908,39 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
       // ═══════════════════════════════════════════════════════════════════
       // V145: SOURCE-AWARE position counting for REAL trading too.
       // Same logic as paper trading — count per-source first, then global.
+      // Each tool (lasic, executor, agent) has its OWN limit.
       // ═══════════════════════════════════════════════════════════════════
       const orderSource = command.source || 'user_manual';
       const isExecutor = ['smart_executor', 'auto_paper'].includes(orderSource);
-      const perSourceLimit = isExecutor ? this.executorMaxOpenPositions : this.agentMaxOpenPositions;
+      const isLasic = orderSource === 'lazic' || orderSource === 'lasic';
+      let perSourceLimit: number;
+      let sourceLabel: string;
+      if (isLasic) {
+        perSourceLimit = this.lasicMaxOpenPositions;
+        sourceLabel = 'اللاسع';
+      } else if (isExecutor) {
+        perSourceLimit = this.executorMaxOpenPositions;
+        sourceLabel = 'المنفذ';
+      } else {
+        perSourceLimit = this.agentMaxOpenPositions;
+        sourceLabel = 'الوكيل';
+      }
 
       // Count positions for THIS source only
       const sourcePositions = await this.prisma.position.count({
         where: {
           userId: command.userId,
           status: 'OPEN',
-          source: isExecutor ? { in: ['smart_executor', 'auto_paper'] } : orderSource,
+          source: isExecutor ? { in: ['smart_executor', 'auto_paper'] }
+            : isLasic ? { in: ['lazic', 'lasic'] }
+            : orderSource,
         },
       });
 
       if (sourcePositions >= perSourceLimit) {
         return {
           allowed: false,
-          reason: `لديك ${sourcePositions} مركز مفتوح من ${isExecutor ? 'المنفذ' : 'الوكيل'} بالفعل (الحد الأقصى: ${perSourceLimit}). أغلق بعض المراكز أولاً.`,
+          reason: `لديك ${sourcePositions} مركز مفتوح من ${sourceLabel} بالفعل (الحد الأقصى: ${perSourceLimit}). أغلق بعض المراكز أولاً.`,
           failedCheck: 'POSITION_SIZE_LIMIT',
         };
       }

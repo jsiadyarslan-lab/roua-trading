@@ -2936,6 +2936,34 @@
     "signals": {
       "title": "Sygnały",
       "subtitle": "Sygnały transakcyjne oparte na sztucznej inteligencji"
+    },
+    "lasicPanel": {
+      "loading": "Ładowanie...",
+      "stinging": "Żącli teraz",
+      "stopped": "Zatrzymany",
+      "enable": "Aktywuj Lasic",
+      "disable": "Zatrzymaj Lasic",
+      "settingsTitle": "Ustawienia Lasic",
+      "saveSettings": "Zapisz",
+      "settingsSaved": "✓ Zapisano",
+      "obiThresholdLabel": "Próg OBI (sygnał wejścia)",
+      "maxSpreadLabel": "Maks. mnożnik spreadu",
+      "riskPerTradeLabel": "Ryzyko na transakcję",
+      "maxDailyTradesLabel": "Maks. dziennych transakcji",
+      "maxOpenPositionsLabel": "Maks. otwartych pozycji",
+      "cooldownLabel": "Czas oczekiwania (sekundy)",
+      "statDailyTrades": "Transakcje dziś",
+      "statStrongSignals": "Silne sygnały",
+      "statActiveSymbols": "Aktywne symbole",
+      "metricSuccess": "Sukces",
+      "metricFail": "Porażka",
+      "metricRate": "Wskaźnik",
+      "obiHeatbarTitle": "Nierównowaga księgi zleceń (OBI)",
+      "obiSellBuy": "Sprzedaż ← → Zakup",
+      "waitingForSignal": "Oczekiwanie na silny sygnał OBI (>{threshold})...",
+      "errorConnection": "Połączenie nie powiodło się",
+      "errorToggle": "Przełączenie nie powiodło się",
+      "errorSaveSettings": "Zapis nie powiódł się"
     }
   },
   "aiPatternPanel": {

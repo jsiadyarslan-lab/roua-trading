@@ -2936,6 +2936,34 @@
     "signals": {
       "title": "Jelek",
       "subtitle": "AI-alapú kereskedési jelek"
+    },
+    "lasicPanel": {
+      "loading": "Betöltés...",
+      "stinging": "Most szúr",
+      "stopped": "Leállítva",
+      "enable": "Lasic indítása",
+      "disable": "Lasic leállítása",
+      "settingsTitle": "Lasic beállítások",
+      "saveSettings": "Mentés",
+      "settingsSaved": "✓ Mentve",
+      "obiThresholdLabel": "OBI küszöb (belépési jelzés)",
+      "maxSpreadLabel": "Max. spread szorzó",
+      "riskPerTradeLabel": "Kockázat trade-enként",
+      "maxDailyTradesLabel": "Max. napi trade",
+      "maxOpenPositionsLabel": "Max. nyitott pozíció",
+      "cooldownLabel": "Várakozás (másodperc)",
+      "statDailyTrades": "Mai trade-ek",
+      "statStrongSignals": "Erős szignálok",
+      "statActiveSymbols": "Aktív szimbólumok",
+      "metricSuccess": "Siker",
+      "metricFail": "Hiba",
+      "metricRate": "Arány",
+      "obiHeatbarTitle": "Rendeléskönyv egyensúlytalanság (OBI)",
+      "obiSellBuy": "Eladás ← → Vétel",
+      "waitingForSignal": "Erős OBI szignál várása (>{threshold})...",
+      "errorConnection": "Kapcsolat sikertelen",
+      "errorToggle": "Váltás sikertelen",
+      "errorSaveSettings": "Mentés sikertelen"
     }
   },
   "aiPatternPanel": {

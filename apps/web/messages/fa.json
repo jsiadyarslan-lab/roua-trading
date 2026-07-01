@@ -2936,6 +2936,34 @@
     "signals": {
       "title": "سیگنال ها",
       "subtitle": "سیگنال های معاملاتی مبتنی بر هوش مصنوعی"
+    },
+    "lasicPanel": {
+      "loading": "در حال بارگذاری...",
+      "stinging": "اکنون نیش می‌زند",
+      "stopped": "متوقف",
+      "enable": "فعال‌سازی لاسیک",
+      "disable": "توقف لاسیک",
+      "settingsTitle": "تنظیمات لاسیک",
+      "saveSettings": "ذخیره",
+      "settingsSaved": "✓ ذخیره شد",
+      "obiThresholdLabel": "آستانه OBI (سیگنال ورود)",
+      "maxSpreadLabel": "ضریب حداکثر اسپرد",
+      "riskPerTradeLabel": "ریسک هر معامله",
+      "maxDailyTradesLabel": "حداکثر معاملات روزانه",
+      "maxOpenPositionsLabel": "حداکثر پوزیشن‌های باز",
+      "cooldownLabel": "دوران خنک (ثانیه)",
+      "statDailyTrades": "معاملات امروز",
+      "statStrongSignals": "سیگنال‌های قوی",
+      "statActiveSymbols": "نمادهای فعال",
+      "metricSuccess": "موفق",
+      "metricFail": "ناموفق",
+      "metricRate": "نرخ",
+      "obiHeatbarTitle": "عدم تعادل دفتر سفارشات (OBI)",
+      "obiSellBuy": "فروش ← → خرید",
+      "waitingForSignal": "در انتظار سیگنال قوی OBI (>{threshold})...",
+      "errorConnection": "اتصال ناموفق",
+      "errorToggle": "تغییر ناموفق",
+      "errorSaveSettings": "ذخیره ناموفق"
     }
   },
   "aiPatternPanel": {

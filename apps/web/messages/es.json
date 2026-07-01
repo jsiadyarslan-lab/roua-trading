@@ -2936,6 +2936,34 @@
     "signals": {
       "title": "Señales",
       "subtitle": "Señales de trading con IA"
+    },
+    "lasicPanel": {
+      "loading": "Cargando...",
+      "stinging": "Picando ahora",
+      "stopped": "Detenido",
+      "enable": "Activar Lasic",
+      "disable": "Desactivar Lasic",
+      "settingsTitle": "Ajustes de Lasic",
+      "saveSettings": "Guardar",
+      "settingsSaved": "✓ Guardado",
+      "obiThresholdLabel": "Umbral OBI (señal de entrada)",
+      "maxSpreadLabel": "Multiplicador máx. spread",
+      "riskPerTradeLabel": "Riesgo por operación",
+      "maxDailyTradesLabel": "Operaciones diarias máx.",
+      "maxOpenPositionsLabel": "Posiciones abiertas máx.",
+      "cooldownLabel": "Enfriamiento (segundos)",
+      "statDailyTrades": "Operaciones hoy",
+      "statStrongSignals": "Señales fuertes",
+      "statActiveSymbols": "Símbolos activos",
+      "metricSuccess": "Éxito",
+      "metricFail": "Fallo",
+      "metricRate": "Tasa",
+      "obiHeatbarTitle": "Desequilibrio del libro (OBI)",
+      "obiSellBuy": "Venta ← → Compra",
+      "waitingForSignal": "Esperando señal OBI fuerte (>{threshold})...",
+      "errorConnection": "Conexión fallida",
+      "errorToggle": "Cambio fallido",
+      "errorSaveSettings": "Guardado fallido"
     }
   },
   "aiPatternPanel": {

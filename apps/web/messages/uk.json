@@ -2936,6 +2936,34 @@
     "signals": {
       "title": "Сигнали",
       "subtitle": "Торгові сигнали на основі AI"
+    },
+    "lasicPanel": {
+      "loading": "Завантаження...",
+      "stinging": "Жалить зараз",
+      "stopped": "Зупинено",
+      "enable": "Увімкнути Lasic",
+      "disable": "Зупинити Lasic",
+      "settingsTitle": "Налаштування Lasic",
+      "saveSettings": "Зберегти",
+      "settingsSaved": "✓ Збережено",
+      "obiThresholdLabel": "Поріг OBI (сигнал входу)",
+      "maxSpreadLabel": "Макс. множник спреду",
+      "riskPerTradeLabel": "Ризик на угоду",
+      "maxDailyTradesLabel": "Макс. угод на день",
+      "maxOpenPositionsLabel": "Макс. відкритих позицій",
+      "cooldownLabel": "Перезарядка (секунди)",
+      "statDailyTrades": "Угоди сьогодні",
+      "statStrongSignals": "Сильні сигнали",
+      "statActiveSymbols": "Активні символи",
+      "metricSuccess": "Успіх",
+      "metricFail": "Невдача",
+      "metricRate": "Ставка",
+      "obiHeatbarTitle": "Дисбаланс книги ордерів (OBI)",
+      "obiSellBuy": "Продаж ← → Купівля",
+      "waitingForSignal": "Очікування сильного сигналу OBI (>{threshold})...",
+      "errorConnection": "Збій підключення",
+      "errorToggle": "Збій перемикання",
+      "errorSaveSettings": "Збій збереження"
     }
   },
   "aiPatternPanel": {

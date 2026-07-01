@@ -473,6 +473,10 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
   //   - paper trading: paperBalance من AgentSettings
   //   - real trading: cached balance من Redis (fallback 1000 nominal)
   //   - cache 30s لتفادي DB/Redis lookup على كل tick
+  //
+  // Fix: الحد الأدنى للكمية = 0.01 وحدة (lot size) لكل الأزواج.
+  //   - كان: minNotional = $1 → ينتج qty = 0.0000167 BTC (تحت 0.01)
+  //   - الآن: minQuantity = 0.01 → جميع الصفقات تبدأ من 0.01 وحدة كحد أدنى
   private async _calcQuantity(
     price: number,
     slDistance: number,
@@ -512,23 +516,27 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     const riskAmount = balance * (state.riskPerTradePct / 100);
     let rawQty = riskAmount / slDistance;
 
-    // حدّ أدنى لتفادي صفقات microscopic
-    const minNotional = 1;  // $1 minimum
-    if (rawQty * price < minNotional) {
-      rawQty = minNotional / price;
-    }
-
-    // حدّ أقصى لتفادي صفقات خطرة (5% من balance)
+    // الحد الأقصى لتفادي صفقات خطرة (5% من balance)
     const maxNotional = balance * 0.05;
     if (rawQty * price > maxNotional) {
       rawQty = maxNotional / price;
     }
 
+    // Fix: الحد الأدنى للكمية = 0.01 وحدة لكل الأزواج
+    // هذا يضمن أن جميع الصفقات تبدأ من 0.01 على الأقل (lot size قياسي)
+    const MIN_QUANTITY = 0.01;
+    if (rawQty < MIN_QUANTITY) {
+      rawQty = MIN_QUANTITY;
+    }
+
     // تقريب حسب asset class
-    // Forex (price < 100): 2 decimal, Crypto (price > 1000): 6 decimal
+    // Crypto (price > 1000): 6 decimal, Mid-price (100-1000): 4 decimal, Forex (<100): 2 decimal
     const decimals = price > 1000 ? 6 : price > 100 ? 4 : 2;
 
-    return Math.round(rawQty * Math.pow(10, decimals)) / Math.pow(10, decimals);
+    const rounded = Math.round(rawQty * Math.pow(10, decimals)) / Math.pow(10, decimals);
+
+    // أعد التحقق من الحد الأدنى بعد التقريب (لتفادي تقريب 0.0099 إلى 0.01)
+    return Math.max(rounded, MIN_QUANTITY);
   }
 
   // ── Phase 3: سجّل metric في Redis (success/fail counts + last reason)

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
+import { useTranslations } from 'next-intl'
 
 const T = {
   bg: '#0B0E14',
@@ -139,6 +140,7 @@ function SliderRow({
 }
 
 export function LazicPanel() {
+  const t = useTranslations('dashboard.lasicPanel')
   const [status, setStatus] = useState<LazicStatus | null>(null)
   const [loading, setLoading] = useState(false)
   const [toggling, setToggling] = useState(false)
@@ -159,11 +161,11 @@ export function LazicPanel() {
       }
       setError(null)
     } catch {
-      setError('تعذّر الاتصال')
+      setError(t('errorConnection'))
     } finally {
       setLoading(false)
     }
-  }, [showSettings])
+  }, [showSettings, t])
 
   useEffect(() => {
     setLoading(true)
@@ -181,7 +183,7 @@ export function LazicPanel() {
       await fetch(endpoint, { method: 'POST', credentials: 'include' })
       await fetchStatus()
     } catch {
-      setError('فشل تغيير الحالة')
+      setError(t('errorToggle'))
     } finally {
       setToggling(false)
     }
@@ -201,10 +203,10 @@ export function LazicPanel() {
         setTimeout(() => setSettingsSaved(false), 2000)
         await fetchStatus()
       } else {
-        setError('فشل حفظ الإعدادات')
+        setError(t('errorSaveSettings'))
       }
     } catch {
-      setError('فشل حفظ الإعدادات')
+      setError(t('errorSaveSettings'))
     } finally {
       setSavingSettings(false)
     }
@@ -236,7 +238,7 @@ export function LazicPanel() {
             animation: status?.enabled ? 'pulse 1.5s infinite' : 'none',
           }} />
           <span style={{ fontSize: 11, color: status?.enabled ? T.green : T.text2, fontWeight: 600 }}>
-            {loading ? 'جاري التحميل...' : status?.enabled ? 'يلسع الآن' : 'متوقف'}
+            {loading ? t('loading') : status?.enabled ? t('stinging') : t('stopped')}
           </span>
         </div>
 
@@ -244,7 +246,7 @@ export function LazicPanel() {
           {/* زر الإعدادات */}
           <button
             onClick={() => setShowSettings(s => !s)}
-            title="إعدادات اللاسع"
+            title={t('settingsTitle')}
             style={{
               background: showSettings ? `rgba(255,107,53,0.15)` : 'rgba(255,255,255,0.04)',
               border: `1px solid ${showSettings ? T.accent : T.border}`,
@@ -279,7 +281,7 @@ export function LazicPanel() {
               transition: 'all 0.2s',
             }}
           >
-            {toggling ? '...' : status?.enabled ? 'إيقاف اللاسع' : 'تفعيل اللاسع'}
+            {toggling ? '...' : status?.enabled ? t('disable') : t('enable')}
           </button>
         </div>
       </div>
@@ -287,9 +289,9 @@ export function LazicPanel() {
       {/* إحصائيات سريعة */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5, marginBottom: 10 }}>
         {[
-          { label: 'الصفقات اليوم', value: status?.dailyTrades ?? 0, color: T.text },
-          { label: 'إشارات قوية', value: strongSignals, color: strongSignals > 0 ? T.amber : T.text3 },
-          { label: 'أزواج نشطة', value: status?.activeSymbols?.length ?? 0, color: T.text },
+          { label: t('statDailyTrades'), value: status?.dailyTrades ?? 0, color: T.text },
+          { label: t('statStrongSignals'), value: strongSignals, color: strongSignals > 0 ? T.amber : T.text3 },
+          { label: t('statActiveSymbols'), value: status?.activeSymbols?.length ?? 0, color: T.text },
         ].map(({ label, value, color }) => (
           <div key={label} style={{
             background: 'rgba(255,255,255,0.03)',
@@ -312,14 +314,14 @@ export function LazicPanel() {
           borderRadius: 6, padding: '5px 8px',
         }}>
           <span style={{ fontSize: 8, color: T.text3, fontFamily: "var(--font-ar)" }}>
-            نجاح: <span style={{ color: T.green, fontWeight: 700 }}>{metrics.success}</span>
+            {t('metricSuccess')}: <span style={{ color: T.green, fontWeight: 700 }}>{metrics.success}</span>
           </span>
           <span style={{ fontSize: 8, color: T.text3, fontFamily: "var(--font-ar)" }}>
-            فشل: <span style={{ color: T.red, fontWeight: 700 }}>{metrics.fail}</span>
+            {t('metricFail')}: <span style={{ color: T.red, fontWeight: 700 }}>{metrics.fail}</span>
           </span>
           {successRate !== null && (
             <span style={{ fontSize: 8, color: T.text3, fontFamily: "var(--font-ar)" }}>
-              معدل: <span style={{ color: successRate > 70 ? T.green : T.amber, fontWeight: 700 }}>{successRate}%</span>
+              {t('metricRate')}: <span style={{ color: successRate > 70 ? T.green : T.amber, fontWeight: 700 }}>{successRate}%</span>
             </span>
           )}
         </div>
@@ -335,11 +337,11 @@ export function LazicPanel() {
           marginBottom: 10,
         }}>
           <div style={{ fontSize: 9, fontWeight: 800, color: T.accent, marginBottom: 8, fontFamily: "var(--font-ar)" }}>
-            ⚙ إعدادات اللاسع
+            ⚙ {t('settingsTitle')}
           </div>
 
           <SliderRow
-            label="عتبة OBI (إشارة الدخول)"
+            label={t('obiThresholdLabel')}
             value={localSettings.obiThreshold}
             min={0.3}
             max={0.8}
@@ -349,7 +351,7 @@ export function LazicPanel() {
             onChange={(v) => setLocalSettings(s => ({ ...s, obiThreshold: v }))}
           />
           <SliderRow
-            label="مضاعف السبريد الأقصى"
+            label={t('maxSpreadLabel')}
             value={localSettings.maxSpreadMultiplier}
             min={1.0}
             max={3.0}
@@ -359,7 +361,7 @@ export function LazicPanel() {
             onChange={(v) => setLocalSettings(s => ({ ...s, maxSpreadMultiplier: v }))}
           />
           <SliderRow
-            label="نسبة المخاطرة لكل صفقة"
+            label={t('riskPerTradeLabel')}
             value={localSettings.riskPerTradePct}
             min={0.1}
             max={3.0}
@@ -369,7 +371,7 @@ export function LazicPanel() {
             onChange={(v) => setLocalSettings(s => ({ ...s, riskPerTradePct: v }))}
           />
           <SliderRow
-            label="الحد الأقصى اليومي للصفقات"
+            label={t('maxDailyTradesLabel')}
             value={localSettings.maxDailyTrades}
             min={5}
             max={100}
@@ -379,7 +381,7 @@ export function LazicPanel() {
             onChange={(v) => setLocalSettings(s => ({ ...s, maxDailyTrades: v }))}
           />
           <SliderRow
-            label="المراكز المفتوحة القصوى"
+            label={t('maxOpenPositionsLabel')}
             value={localSettings.maxOpenPositions}
             min={1}
             max={10}
@@ -389,7 +391,7 @@ export function LazicPanel() {
             onChange={(v) => setLocalSettings(s => ({ ...s, maxOpenPositions: v }))}
           />
           <SliderRow
-            label="فترة التهدئة (ثوانٍ)"
+            label={t('cooldownLabel')}
             value={localSettings.cooldownMs / 1000}
             min={10}
             max={300}
@@ -417,7 +419,7 @@ export function LazicPanel() {
               transition: 'all 0.2s',
             }}
           >
-            {savingSettings ? '...' : settingsSaved ? '✓ تم الحفظ' : 'حفظ الإعدادات'}
+            {savingSettings ? '...' : settingsSaved ? t('settingsSaved') : t('saveSettings')}
           </button>
         </div>
       )}
@@ -431,8 +433,8 @@ export function LazicPanel() {
           padding: '6px 8px',
         }}>
           <div style={{ fontSize: 8, color: T.text3, marginBottom: 5, display: 'flex', justifyContent: 'space-between' }}>
-            <span>توازن دفتر الأوامر (OBI)</span>
-            <span style={{ color: T.accent }}>بيع ← → شراء</span>
+            <span>{t('obiHeatbarTitle')}</span>
+            <span style={{ color: T.accent }}>{t('obiSellBuy')}</span>
           </div>
           {topOBIs.map(([sym, val]) => (
             <OBIBar key={sym} symbol={sym} value={val} threshold={threshold} />
@@ -442,7 +444,7 @@ export function LazicPanel() {
 
       {status?.enabled && strongSignals === 0 && (
         <div style={{ fontSize: 9, color: T.text3, textAlign: 'center', marginTop: 6 }}>
-          ينتظر إشارة OBI قوية (&gt;{threshold.toFixed(2)})...
+          {t('waitingForSignal', { threshold: threshold.toFixed(2) })}
         </div>
       )}
 

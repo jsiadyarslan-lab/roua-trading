@@ -2936,6 +2936,34 @@
     "signals": {
       "title": "Signaalit",
       "subtitle": "AI-käyttöiset kaupankäyntisignaalit"
+    },
+    "lasicPanel": {
+      "loading": "Ladataan...",
+      "stinging": "Pistää nyt",
+      "stopped": "Pysäytetty",
+      "enable": "Ota Lasic käyttöön",
+      "disable": "Pysäytä Lasic",
+      "settingsTitle": "Lasic-asetukset",
+      "saveSettings": "Tallenna",
+      "settingsSaved": "✓ Tallennettu",
+      "obiThresholdLabel": "OBI-kynnys (sisääntulossignaali)",
+      "maxSpreadLabel": "Max. spread-kerroin",
+      "riskPerTradeLabel": "Riski per kauppa",
+      "maxDailyTradesLabel": "Max. päivittäiset kaupat",
+      "maxOpenPositionsLabel": "Max. avoimet positiot",
+      "cooldownLabel": "Jäähdytys (sekuntia)",
+      "statDailyTrades": "Päivän kaupat",
+      "statStrongSignals": "Vahvat signaalit",
+      "statActiveSymbols": "Aktiiviset symbolit",
+      "metricSuccess": "Onnistui",
+      "metricFail": "Epäonnistui",
+      "metricRate": "Taso",
+      "obiHeatbarTitle": "Tilauskirjan epätasapaino (OBI)",
+      "obiSellBuy": "Myy ← → Osta",
+      "waitingForSignal": "Odottaa vahvaa OBI-signaalia (>{threshold})...",
+      "errorConnection": "Yhteys epäonnistui",
+      "errorToggle": "Vaihto epäonnistui",
+      "errorSaveSettings": "Tallennus epäonnistui"
     }
   },
   "aiPatternPanel": {

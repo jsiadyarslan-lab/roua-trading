@@ -2936,6 +2936,34 @@
     "signals": {
       "title": "Signaler",
       "subtitle": "AI-drevne handelssignaler"
+    },
+    "lasicPanel": {
+      "loading": "Laster...",
+      "stinging": "Stikker nå",
+      "stopped": "Stoppet",
+      "enable": "Aktiver Lasic",
+      "disable": "Stopp Lasic",
+      "settingsTitle": "Lasic-innstillinger",
+      "saveSettings": "Lagre",
+      "settingsSaved": "✓ Lagret",
+      "obiThresholdLabel": "OBI-terskel (inngangssignal)",
+      "maxSpreadLabel": "Maks. spread-multiplikator",
+      "riskPerTradeLabel": "Risiko per handel",
+      "maxDailyTradesLabel": "Maks. daglige handler",
+      "maxOpenPositionsLabel": "Maks. åpne posisjoner",
+      "cooldownLabel": "Nedkjøling (sekunder)",
+      "statDailyTrades": "Dagens handler",
+      "statStrongSignals": "Sterke signaler",
+      "statActiveSymbols": "Aktive symboler",
+      "metricSuccess": "Suksess",
+      "metricFail": "Feilet",
+      "metricRate": "Rate",
+      "obiHeatbarTitle": "Ordrebalanse (OBI)",
+      "obiSellBuy": "Selg ← → Kjøp",
+      "waitingForSignal": "Venter på sterkt OBI-signal (>{threshold})...",
+      "errorConnection": "Tilkobling feilet",
+      "errorToggle": "Bytte feilet",
+      "errorSaveSettings": "Lagring feilet"
     }
   },
   "aiPatternPanel": {

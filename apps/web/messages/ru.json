@@ -2936,6 +2936,34 @@
     "signals": {
       "title": "Сигналы",
       "subtitle": "Следите за лучшими привязанными аккаунтами на платформе Roua по эффективности, стабильности и качеству копирования"
+    },
+    "lasicPanel": {
+      "loading": "Загрузка...",
+      "stinging": "Жалит сейчас",
+      "stopped": "Остановлен",
+      "enable": "Включить Lasic",
+      "disable": "Остановить Lasic",
+      "settingsTitle": "Настройки Lasic",
+      "saveSettings": "Сохранить",
+      "settingsSaved": "✓ Сохранено",
+      "obiThresholdLabel": "Порог OBI (сигнал входа)",
+      "maxSpreadLabel": "Макс. множитель спреда",
+      "riskPerTradeLabel": "Риск на сделку",
+      "maxDailyTradesLabel": "Макс. сделок в день",
+      "maxOpenPositionsLabel": "Макс. открытых позиций",
+      "cooldownLabel": "Перезарядка (секунды)",
+      "statDailyTrades": "Сделки сегодня",
+      "statStrongSignals": "Сильные сигналы",
+      "statActiveSymbols": "Активные символы",
+      "metricSuccess": "Успех",
+      "metricFail": "Провал",
+      "metricRate": "Ставка",
+      "obiHeatbarTitle": "Дисбаланс книги ордеров (OBI)",
+      "obiSellBuy": "Продажа ← → Покупка",
+      "waitingForSignal": "Ожидание сильного сигнала OBI (>{threshold})...",
+      "errorConnection": "Сбой подключения",
+      "errorToggle": "Сбой переключения",
+      "errorSaveSettings": "Сбой сохранения"
     }
   },
   "aiPatternPanel": {

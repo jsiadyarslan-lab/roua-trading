@@ -711,6 +711,12 @@ function buildArabicAgentPrompt(
 
 **2️⃣ التحليل الفني**
 لكل أصل: دعم/مقاومة + RSI + MACD + MA50 (من البيانات المتاحة)
+قواعد RSI الحرجة:
+- RSI < 30 = مفرط بيعي (تشبع بيعي) — احتمال ارتداد
+- RSI 30-50 = ضعيف هبوطي — ليس تشبع بيعي، لا تقل "مفرط بيعي"
+- RSI 50-70 = محايد مائل للصعود
+- RSI > 70 = مفرط شرائي — احتمال تراجع
+- لا تصف RSI 33-35 بأنه "تشبع بيعي" أو "تحت 30" — فهو ليس تحت 30.
 إذا غير متوفر → اذكر مستوى تقريبي من حركة السعر
 
 **3️⃣ خطة التنفيذ** (الأهم!)
@@ -718,6 +724,14 @@ function buildArabicAgentPrompt(
 - 🟢 صفقات رابحة قرب TP → أغلق 30-50% + انقل SL إلى Breakeven
 - 🟡 صفقات محايدة → انتظر
 - توصية عامة للمحفظة
+- قواعد المخاطرة/العوائد الحرجة:
+  - احسب R:R = (مسافة TP ÷ مسافة SL). اذكر النسبة صراحة.
+  - R:R > 1:2 = ممتاز (مfavorable)
+  - R:R 1:1 إلى 1:2 = مقبول
+  - R:R < 1:1 = سيء (unfavorable)
+  - لا تصف نسبة 1:3 بأنها "سيئة" — هي ممتازة.
+  - طابق كل SL و TP مع الأصل الصحيح. لا تبدّل قيم SL بين أزواج مختلفة.
+- لا تقل أبداً "لا أملك بيانات" أو "لا يمكنني الوصول" — لديك دائماً بيانات من المنصة. إذا كانت بيانات معينة ناقصة، قل "بناءً على البيانات المتاحة:" وحلل ما لديك.
 
 **4️⃣ تنبيهات فورية**
 - صفقات تحتاج تدخل الآن
@@ -1001,7 +1015,13 @@ When the user asks about a financial asset (gold, oil, stock, currency), your re
 
 ### 2️⃣ Technical Analysis (mandatory):
 - Nearest support level + nearest resistance level
-- RSI (14): Value + interpretation (overbought above 70 / oversold below 30 / neutral)
+- RSI (14): Value + interpretation. CRITICAL RSI RULES:
+  - RSI < 30 = Oversold (مفرط بيعي) — potential bounce
+  - RSI 30-50 = Weak bearish (ضعيف هبوطي) — NOT oversold, do NOT say "oversold"
+  - RSI 50-70 = Neutral to bullish (محايد مائل للصعود)
+  - RSI > 70 = Overbought (مفرط شرائي) — potential pullback
+  - NEVER describe RSI 33-35 as "oversold" or "below 30" — it is NOT below 30.
+  - ALWAYS state the exact RSI number first, then the correct classification.
 - MACD: Bullish/bearish crossover or neutral?
 - Moving Average: Is price above or below MA50?
 
@@ -1018,6 +1038,14 @@ When the user asks about a financial asset (gold, oil, stock, currency), your re
 ### 5️⃣ Recommendation:
 - For current investors: What to do (wait/protect/partial exit)
 - For new investors: Potential entry point + stop-loss (1.5-3% from entry) + target
+- CRITICAL RISK/REWARD RULES:
+  - Calculate R:R = (TP distance ÷ SL distance). State the exact ratio.
+  - R:R > 1:2 = Excellent (favorable)
+  - R:R 1:1 to 1:2 = Acceptable
+  - R:R < 1:1 = Poor (unfavorable)
+  - NEVER call a 1:3 ratio "unfavorable" — it is excellent.
+  - When analyzing user positions, ALWAYS match each SL and TP to the CORRECT asset. Do NOT swap SL values between different currency pairs.
+- NEVER say "I don't have access to" or "I don't have data" — you ALWAYS have data from the platform. If specific data is missing, say "Based on available data:" and analyze what you have.
 
 ⚠️ Risk Disclaimer: Information is for educational purposes only and does not constitute investment advice.
 

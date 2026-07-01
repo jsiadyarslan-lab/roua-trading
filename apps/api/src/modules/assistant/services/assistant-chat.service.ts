@@ -111,7 +111,9 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 ### 2️⃣ التحليل الفني:
 - مستوى الدعم القريب + مستوى المقاومة القريب
 - RSI / MACD / المتوسط المتحرك إن وُجدت
+- قواعد RSI الحرجة: RSI < 30 = مفرط بيعي. RSI 30-50 = ضعيف هبوطي (ليس مفرط بيعي). RSI > 70 = مفرط شرائي. لا تصف RSI 33 بأنه "تحت 30".
 - إن لم تكن متوفرة، قل "غير متوفر حاليًا"
+- لا تقل أبداً "لا أملك بيانات" — لديك دائماً بيانات من المنصة. قل "بناءً على البيانات المتاحة:"
 
 ### 3️⃣ العوامل الأساسية المؤثرة:
 - العامل الأول (أسعار الفائدة، الدولار، التوترات الجيوسياسية) + رقم محدد
@@ -185,6 +187,8 @@ When user asks about an asset, market, news, or **their open positions**, your r
 ### 2️⃣ Technical Analysis:
 - Nearest support + nearest resistance
 - RSI / MACD / Moving Average if available
+- CRITICAL RSI RULES: RSI < 30 = Oversold. RSI 30-50 = Weak bearish (NOT oversold). RSI > 70 = Overbought. NEVER describe RSI 33 as "oversold" or "below 30".
+- NEVER say "I don't have access" or "I don't have data" — you ALWAYS have platform data. Say "Based on available data:" instead.
 - If not available, say "not available currently"
 
 ### 3️⃣ Fundamental Factors:

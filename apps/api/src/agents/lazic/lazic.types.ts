@@ -1,5 +1,5 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Roua Trading — اللاذع (Lazic Scalper Agent)
+// Roua Trading — اللاسع (Lasic Scalper Agent)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //
 // وكيل التداول فائق السرعة — يعمل على الثانية
@@ -37,7 +37,7 @@ export interface OBIResult {
   avgSpread: number;
 }
 
-/** إشارة جاهزة للتنفيذ من اللاذع */
+/** إشارة جاهزة للتنفيذ من اللاسع */
 export interface LazicSignal {
   userId: string;
   symbol: string;
@@ -52,7 +52,7 @@ export interface LazicSignal {
   reason: string;
 }
 
-/** حالة اللاذع لكل مستخدم */
+/** حالة اللاسع لكل مستخدم */
 export interface LazicUserState {
   userId: string;
   enabled: boolean;
@@ -85,7 +85,7 @@ export const DEFAULT_LAZIC_CONFIG: Omit<LazicSymbolConfig, 'symbol'> = {
   minSpreadAvgSamples: 60,
 };
 
-/** الأزواج التي يدعمها اللاذع (OANDA forex + Binance crypto) */
+/** الأزواج التي يدعمها اللاسع (OANDA forex + Binance crypto) */
 export const LAZIC_SUPPORTED_SYMBOLS = [
   // Forex (OANDA)
   'EUR/USD', 'GBP/USD', 'USD/JPY', 'USD/CHF', 'AUD/USD', 'NZD/USD', 'USD/CAD',

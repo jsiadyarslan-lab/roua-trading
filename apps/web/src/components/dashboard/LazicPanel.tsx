@@ -8,7 +8,7 @@ const T = {
   bg2: '#1A1D29',
   card: '#1A1D29',
   border: 'rgba(255,255,255,0.06)',
-  accent: '#FF6B35',   // لون اللاذع — برتقالي ناري كالدبور
+  accent: '#FF6B35',   // لون اللاسع — برتقالي ناري كالدبور
   green: '#00FFA3',
   red: '#FF4757',
   amber: '#FFB800',
@@ -80,7 +80,7 @@ export function LazicPanel() {
     fetchStatus()
   }, [fetchStatus])
 
-  // تحديث كل 3 ثوانٍ — اللاذع سريع جداً
+  // تحديث كل 3 ثوانٍ — اللاسع سريع جداً
   useVisibleInterval(fetchStatus, 3000)
 
   const toggle = async () => {
@@ -141,7 +141,7 @@ export function LazicPanel() {
             transition: 'all 0.2s',
           }}
         >
-          {toggling ? '...' : status?.enabled ? 'إيقاف اللاذع' : 'تفعيل اللاذع'}
+          {toggling ? '...' : status?.enabled ? 'إيقاف اللاسع' : 'تفعيل اللاسع'}
         </button>
       </div>
 

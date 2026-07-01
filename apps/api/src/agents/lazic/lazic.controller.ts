@@ -1,5 +1,5 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Roua Trading — اللاذع Controller
+// Roua Trading — اللاسع Controller
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Controller, Get, Post, UseGuards, Req } from '@nestjs/common';
@@ -11,23 +11,23 @@ import { LazicService } from './lazic.service';
 export class LazicController {
   constructor(private readonly lazic: LazicService) {}
 
-  /** GET /api/lazic/status — حالة اللاذع للمستخدم الحالي */
+  /** GET /api/lazic/status — حالة اللاسع للمستخدم الحالي */
   @Get('status')
   async getStatus(@Req() req: any) {
     return this.lazic.getStatus(req.user.id);
   }
 
-  /** POST /api/lazic/enable — تفعيل اللاذع */
+  /** POST /api/lazic/enable — تفعيل اللاسع */
   @Post('enable')
   async enable(@Req() req: any) {
     await this.lazic.enableForUser(req.user.id);
-    return { success: true, message: '🐝 اللاذع مُفعَّل' };
+    return { success: true, message: '🐝 اللاسع مُفعَّل' };
   }
 
-  /** POST /api/lazic/disable — إيقاف اللاذع */
+  /** POST /api/lazic/disable — إيقاف اللاسع */
   @Post('disable')
   async disable(@Req() req: any) {
     await this.lazic.disableForUser(req.user.id);
-    return { success: true, message: '🐝 اللاذع موقوف' };
+    return { success: true, message: '🐝 اللاسع موقوف' };
   }
 }

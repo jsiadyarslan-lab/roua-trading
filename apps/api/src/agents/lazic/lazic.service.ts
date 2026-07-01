@@ -1,5 +1,5 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Roua Trading — اللاذع (Lazic Scalper Agent)
+// Roua Trading — اللاسع (Lasic Scalper Agent)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //
 // وكيل التداول فائق السرعة.
@@ -49,7 +49,7 @@ const USER_SYNC_INTERVAL_MS = 30_000;
 
 @Injectable()
 export class LazicService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger('اللاذع');
+  private readonly logger = new Logger('اللاسع');
 
   // نافذة ticks لكل زوج { symbol → LazicTick[] }
   private readonly tickWindows = new Map<string, LazicTick[]>();
@@ -87,7 +87,7 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
   // ══════════════════════════════════════════
 
   async onModuleInit() {
-    this.logger.log('🐝 اللاذع يستيقظ — يستمع للأسواق...');
+    this.logger.log('🐝 اللاسع يستيقظ — يستمع للأسواق...');
 
     // تهيئة نوافذ البيانات لكل زوج مدعوم
     for (const sym of LAZIC_SUPPORTED_SYMBOLS) {
@@ -100,7 +100,7 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     this.oanda.onPrice(this.oandaCallback);
     this.binance.onPrice(this.binanceCallback);
 
-    // مزامنة المستخدمين الذين فعّلوا اللاذع
+    // مزامنة المستخدمين الذين فعّلوا اللاسع
     await this._syncActiveUsers();
     this.syncTimer = setInterval(
       () => this._syncActiveUsers(),
@@ -108,7 +108,7 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     );
 
     this.logger.log(
-      `🐝 اللاذع جاهز — يراقب ${LAZIC_SUPPORTED_SYMBOLS.length} زوجاً` +
+      `🐝 اللاسع جاهز — يراقب ${LAZIC_SUPPORTED_SYMBOLS.length} زوجاً` +
       ` | مستخدمون نشطون: ${this.activeUsers.size}`,
     );
   }
@@ -117,7 +117,7 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     if (this.syncTimer) clearInterval(this.syncTimer);
     this.oanda.offPrice(this.oandaCallback);
     this.binance.offPrice(this.binanceCallback);
-    this.logger.log('🐝 اللاذع توقف');
+    this.logger.log('🐝 اللاسع توقف');
   }
 
   // ══════════════════════════════════════════
@@ -228,7 +228,7 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     // 8. حاول التنفيذ لكل مستخدم نشط (بشكل غير متزامن — لا نُعيق الـ tick)
     if (this.activeUsers.size === 0) return;
     this._tryExecuteForAllUsers(obiResult, tick).catch((err) =>
-      this.logger.error(`خطأ في تنفيذ اللاذع: ${err?.message}`),
+      this.logger.error(`خطأ في تنفيذ اللاسع: ${err?.message}`),
     );
   }
 
@@ -344,7 +344,7 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
         `| SL=${sl.toFixed(5)} TP=${tp.toFixed(5)}`,
       );
     } catch (err: any) {
-      this.logger.error(`❌ فشل تنفيذ اللاذع (${userId}/${obi.symbol}): ${err?.message}`);
+      this.logger.error(`❌ فشل تنفيذ اللاسع (${userId}/${obi.symbol}): ${err?.message}`);
     }
   }
 
@@ -361,7 +361,7 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
       : tick.ask - tick.bid;
 
     // SL = 2× avgSpread, TP = 3× avgSpread → R:R ≈ 1:1.5 بعد العمولة
-    // صغير جداً لأن اللاذع يهدف لـ 10-30 ثانية فقط
+    // صغير جداً لأن اللاسع يهدف لـ 10-30 ثانية فقط
     const slDist = Math.max(avgSpread * 2, tick.price * 0.0003); // 0.03% min
     const tpDist = slDist * 1.5;
 
@@ -386,8 +386,8 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
 
   private async _syncActiveUsers(): Promise<void> {
     try {
-      // جلب كل المستخدمين الذين فعّلوا اللاذع
-      // الحقل lazicEnabled سيُضاف إلى AgentSettings في migration
+      // جلب كل المستخدمين الذين فعّلوا اللاسع
+      // الحقل lazicEnabled في AgentSettings — يُضاف عبر migration أو autoMigrate safety-net
       const settings = await this.prisma.agentSettings.findMany({
         where: { lazicEnabled: true } as any,
         include: { user: { select: { id: true } } },
@@ -414,10 +414,10 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
       this.activeUsers = newActiveUsers;
 
       if (settings.length > 0) {
-        this.logger.debug(`🐝 مزامنة: ${settings.length} مستخدم نشط`);
+        this.logger.debug(`🐝 مزامنة: ${settings.length} مستخدم نشط للاسع`);
       }
     } catch (err: any) {
-      this.logger.error(`خطأ في مزامنة مستخدمي اللاذع: ${err?.message}`);
+      this.logger.error(`خطأ في مزامنة مستخدمي اللاسع: ${err?.message}`);
     }
   }
 
@@ -425,27 +425,27 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
   // Public API (للكنترولر والواجهة الأمامية)
   // ══════════════════════════════════════════
 
-  /** تفعيل اللاذع لمستخدم */
+  /** تفعيل اللاسع لمستخدم */
   async enableForUser(userId: string): Promise<void> {
     await (this.prisma.agentSettings as any).update({
       where: { userId },
       data: { lazicEnabled: true },
     });
     await this._syncActiveUsers();
-    this.logger.log(`🐝 اللاذع مُفعَّل للمستخدم ${userId}`);
+    this.logger.log(`🐝 اللاسع مُفعَّل للمستخدم ${userId}`);
   }
 
-  /** إيقاف اللاذع لمستخدم */
+  /** إيقاف اللاسع لمستخدم */
   async disableForUser(userId: string): Promise<void> {
     await (this.prisma.agentSettings as any).update({
       where: { userId },
       data: { lazicEnabled: false },
     });
     this.activeUsers.delete(userId);
-    this.logger.log(`🐝 اللاذع موقوف للمستخدم ${userId}`);
+    this.logger.log(`🐝 اللاسع موقوف للمستخدم ${userId}`);
   }
 
-  /** حالة اللاذع (للواجهة الأمامية) */
+  /** حالة اللاسع (للواجهة الأمامية) */
   async getStatus(userId: string): Promise<{
     enabled: boolean;
     dailyTrades: number;

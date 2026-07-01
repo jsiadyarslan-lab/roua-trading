@@ -170,6 +170,16 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         column: 'credentialId',
         sql: `ALTER TABLE "Trade" ADD COLUMN IF NOT EXISTS "credentialId" TEXT`,
       },
+      // اللاسع (Lasic scalper) — lazicEnabled on AgentSettings.
+      // Migration 20260701000000_add_lazic_enabled may have failed silently on
+      // production (blocked by a stuck migration in _prisma_migrations table).
+      // Without this safety-net, EVERY agentSettings.findUnique() throws
+      // "column lazicEnabled does not exist" → 503 on /api/agent/trader/settings.
+      {
+        table: 'AgentSettings',
+        column: 'lazicEnabled',
+        sql: `ALTER TABLE "AgentSettings" ADD COLUMN IF NOT EXISTS "lazicEnabled" BOOLEAN NOT NULL DEFAULT false`,
+      },
     ];
 
     // V229: Auto-create tables that may be missing. If `prisma migrate deploy`

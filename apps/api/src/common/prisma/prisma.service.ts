@@ -180,6 +180,40 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         column: 'lazicEnabled',
         sql: `ALTER TABLE "AgentSettings" ADD COLUMN IF NOT EXISTS "lazicEnabled" BOOLEAN NOT NULL DEFAULT false`,
       },
+      // اللاسع — إعدادات قابلة للتخصيص (Phase 2)
+      // Migration 20260701210000_add_lasic_settings may also fail silently.
+      // These 6 columns MUST exist before LazicService._syncActiveUsers reads them,
+      // otherwise prisma.agentSettings.findMany() throws → 503 on /api/lazic/status.
+      {
+        table: 'AgentSettings',
+        column: 'lazicObiThreshold',
+        sql: `ALTER TABLE "AgentSettings" ADD COLUMN IF NOT EXISTS "lazicObiThreshold" DECIMAL(3,2) NOT NULL DEFAULT 0.4`,
+      },
+      {
+        table: 'AgentSettings',
+        column: 'lazicMaxSpreadMult',
+        sql: `ALTER TABLE "AgentSettings" ADD COLUMN IF NOT EXISTS "lazicMaxSpreadMult" DECIMAL(3,2) NOT NULL DEFAULT 1.5`,
+      },
+      {
+        table: 'AgentSettings',
+        column: 'lazicMaxDailyTrades',
+        sql: `ALTER TABLE "AgentSettings" ADD COLUMN IF NOT EXISTS "lazicMaxDailyTrades" INTEGER NOT NULL DEFAULT 20`,
+      },
+      {
+        table: 'AgentSettings',
+        column: 'lazicMaxOpenPositions',
+        sql: `ALTER TABLE "AgentSettings" ADD COLUMN IF NOT EXISTS "lazicMaxOpenPositions" INTEGER NOT NULL DEFAULT 2`,
+      },
+      {
+        table: 'AgentSettings',
+        column: 'lazicCooldownMs',
+        sql: `ALTER TABLE "AgentSettings" ADD COLUMN IF NOT EXISTS "lazicCooldownMs" INTEGER NOT NULL DEFAULT 30000`,
+      },
+      {
+        table: 'AgentSettings',
+        column: 'lazicRiskPerTradePct',
+        sql: `ALTER TABLE "AgentSettings" ADD COLUMN IF NOT EXISTS "lazicRiskPerTradePct" DECIMAL(5,2) NOT NULL DEFAULT 0.5`,
+      },
     ];
 
     // V229: Auto-create tables that may be missing. If `prisma migrate deploy`

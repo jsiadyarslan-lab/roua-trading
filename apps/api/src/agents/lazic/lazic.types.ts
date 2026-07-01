@@ -15,6 +15,7 @@ export interface LazicTick {
   price: number;         // mid price
   timestamp: number;     // Date.now()
   source: 'oanda' | 'binance';
+  volume?: number;       // Binance only — for volume-weighted OBI
 }
 
 /** نافذة من آخر N tick لحساب OBI */
@@ -58,13 +59,20 @@ export interface LazicUserState {
   enabled: boolean;
   credentialId: string;
   isPaperTrading: boolean;
-  // حدود الأمان
+  // حدود الأمان (قابلة للتخصيص من DB)
   maxOpenPositions: number;    // default: 2
   maxDailyTrades: number;      // default: 20
   dailyTrades: number;
   dailyPnL: number;
   lastTradeAt: number | null;
   cooldownMs: number;          // فترة انتظار بعد كل صفقة (default: 30,000ms = 30s)
+  // ── إعدادات الإشارة (Phase 2 — من DB) ──
+  obiThreshold: number;        // default: 0.4 (كان 0.6 — مرتفع جداً)
+  maxSpreadMultiplier: number; // default: 1.5×
+  riskPerTradePct: number;     // default: 0.5% من الرصيد
+  // ── cache للرصيد (يحدّث كل 30s) ──
+  cachedBalance: number | null;
+  balanceLastFetchedAt: number | null;
 }
 
 /** OBI Config لكل زوج */
@@ -78,11 +86,13 @@ export interface LazicSymbolConfig {
 }
 
 export const DEFAULT_LAZIC_CONFIG: Omit<LazicSymbolConfig, 'symbol'> = {
-  obiThreshold: 0.6,
+  // Phase 1 fix: lowered from 0.6 → 0.4 (0.6 was unreachable with tick-based OBI)
+  obiThreshold: 0.4,
   maxSpreadMultiplier: 1.5,
   slAtrMult: 0.3,
   tpAtrMult: 0.5,
-  minSpreadAvgSamples: 60,
+  // Phase 1 fix: lowered from 60 → 20 (60s warmup was too long after restart)
+  minSpreadAvgSamples: 20,
 };
 
 /** الأزواج التي يدعمها اللاسع (OANDA forex + Binance crypto) */

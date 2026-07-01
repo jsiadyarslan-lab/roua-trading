@@ -1197,6 +1197,15 @@ model AgentSettings {
   // اللاسع (Lasic Scalper Agent) — وكيل التداول فائق السرعة
   lazicEnabled Boolean @default(false)
 
+  // ── إعدادات اللاسع القابلة للتخصيص ──
+  // Phase 2: per-user settings (read by LazicService._syncActiveUsers)
+  lazicObiThreshold      Decimal @default(0.4)  @db.Decimal(3, 2)   // OBI threshold (0.3–0.8)
+  lazicMaxSpreadMult     Decimal @default(1.5)  @db.Decimal(3, 2)   // max spread × avg
+  lazicMaxDailyTrades    Int     @default(20)                        // daily trade limit
+  lazicMaxOpenPositions  Int     @default(2)                         // concurrent positions
+  lazicCooldownMs        Int     @default(30000)                     // ms between trades
+  lazicRiskPerTradePct   Decimal @default(0.5)  @db.Decimal(5, 2)   // % balance per trade
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -143,9 +143,13 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     const sym = update.symbol; // e.g. "BTC/USDT"
     if (!LAZIC_SUPPORTED_SYMBOLS.includes(sym as any)) return;
 
-    // Binance may not send bid/ask in all updates — derive from price
-    const bid = (update as any).bid ?? update.price * 0.9999;
-    const ask = (update as any).ask ?? update.price * 1.0001;
+    // Phase 1 fix: Binance doesn't provide bid/ask in BinancePriceUpdate.
+    // Use high/low from the candle as a realistic spread proxy instead of
+    // the previous synthetic price * 0.9999 / 1.0001 (which made spread constant).
+    // high - low represents actual intra-tick volatility.
+    const spread = (update.high - update.low) || update.price * 0.0002;
+    const bid = update.price - spread / 2;
+    const ask = update.price + spread / 2;
 
     const tick: LazicTick = {
       symbol: sym,
@@ -154,6 +158,7 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
       price: update.price,
       timestamp: Date.now(),
       source: 'binance',
+      volume: update.volume,  // Phase 1 fix: pass volume for weighted OBI
     };
     this._processTick(tick);
   }
@@ -190,15 +195,20 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     this.obiHistory.set(tick.symbol, history);
 
     // 5. بناء نتيجة OBI
+    //    Phase 2: استخدم default threshold هنا فقط للإشارة الأولية —
+    //    التحقق النهائي بعتبة المستخدم يتم في _tryExecuteForUser.
     const avgSpread = spreads.reduce((a, b) => a + b, 0) / spreads.length;
     const spreadRatio = currentSpread / avgSpread;
     const spreadOk = spreadRatio <= DEFAULT_LAZIC_CONFIG.maxSpreadMultiplier;
-    const signal = obi > DEFAULT_LAZIC_CONFIG.obiThreshold ? 'BUY'
-                 : obi < -DEFAULT_LAZIC_CONFIG.obiThreshold ? 'SELL'
+    // استخدم أقل عتبة من بين كل المستخدمين النشطين — لإنتاج إشارة candidate.
+    // كل مستخدم سيتحقق بعتبته الخاصة في _tryExecuteForUser.
+    const minThreshold = this._getMinUserThreshold();
+    const signal = obi > minThreshold ? 'BUY'
+                 : obi < -minThreshold ? 'SELL'
                  : 'NONE';
     const stableSignal = history.length === 3 && (
-      signal === 'BUY'  ? history.every(o => o > DEFAULT_LAZIC_CONFIG.obiThreshold)
-    : signal === 'SELL' ? history.every(o => o < -DEFAULT_LAZIC_CONFIG.obiThreshold)
+      signal === 'BUY'  ? history.every(o => o > minThreshold)
+    : signal === 'SELL' ? history.every(o => o < -minThreshold)
     : false
     );
 
@@ -232,6 +242,16 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     );
   }
 
+  /** Phase 2: أقل عتبة OBI بين المستخدمين النشطين (لإنتاج candidate signal) */
+  private _getMinUserThreshold(): number {
+    if (this.activeUsers.size === 0) return DEFAULT_LAZIC_CONFIG.obiThreshold;
+    let min = DEFAULT_LAZIC_CONFIG.obiThreshold;
+    for (const state of this.activeUsers.values()) {
+      if (state.obiThreshold < min) min = state.obiThreshold;
+    }
+    return min;
+  }
+
   // ══════════════════════════════════════════
   // OBI Calculation
   // ══════════════════════════════════════════
@@ -246,10 +266,20 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
       const prev = ticks[i - 1];
       const curr = ticks[i];
 
-      // ارتفاع السعر → ضغط شراء
-      if (curr.bid > prev.bid) bidPressure += (curr.bid - prev.bid);
-      // انخفاض السعر → ضغط بيع
-      if (curr.ask < prev.ask) askPressure += (prev.ask - curr.ask);
+      // Phase 1 fix: For Binance ticks (with volume), use volume-weighted price move.
+      // For OANDA ticks (with real bid/ask), use tick-rule on bid/ask.
+      // This produces a meaningful OBI for both data sources.
+      if (curr.source === 'binance' && typeof curr.volume === 'number') {
+        // Volume-weighted: price move × volume gives a proxy for order flow.
+        const priceMove = curr.price - prev.price;
+        const vol = curr.volume || 1;
+        if (priceMove > 0) bidPressure += priceMove * vol;
+        else if (priceMove < 0) askPressure += Math.abs(priceMove) * vol;
+      } else {
+        // Tick-rule on bid/ask (OANDA): works because OANDA sends real bid/ask.
+        if (curr.bid > prev.bid) bidPressure += (curr.bid - prev.bid);
+        if (curr.ask < prev.ask) askPressure += (prev.ask - curr.ask);
+      }
     }
 
     const total = bidPressure + askPressure;
@@ -281,6 +311,13 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
   ): Promise<void> {
     const now = Date.now();
 
+    // ── Phase 2: تحقق بعتبة المستخدم الخاصة (ليس الـ min المُستخدم للإشارة الأولية)
+    if (obi.signal === 'BUY'  && obi.obi <= state.obiThreshold) return;
+    if (obi.signal === 'SELL' && obi.obi >= -state.obiThreshold) return;
+
+    // ── Phase 2: تحقق بـ max spread multiplier الخاص بالمستخدم
+    if (obi.spreadRatio > state.maxSpreadMultiplier) return;
+
     // ── شرط أمان 1: cooldown بعد آخر صفقة
     if (state.lastTradeAt && now - state.lastTradeAt < state.cooldownMs) return;
 
@@ -300,7 +337,47 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
       if (openCount >= state.maxOpenPositions) return;
     }
 
-    // ── تحقق من توافق المجلس الاستراتيجي (اختياري — يضاعف الحجم)
+    // ── Phase 1 fix: تأكد من وجود credentialId صالح
+    //    كان يقرأ من (s as any).activeCredentialId الذي لا وجود له في AgentSettings.
+    //    الآن يُقرأ من جدول Setting (key: user:{userId}:activeCredentialId).
+    let credentialId = state.credentialId;
+    if (!credentialId || credentialId.trim() === '' || credentialId.startsWith('paper-')) {
+      try {
+        const activeSetting = await this.prisma.setting.findFirst({
+          where: { key: `user:${userId}:activeCredentialId` },
+        });
+        if (activeSetting?.value) {
+          credentialId = activeSetting.value;
+          state.credentialId = credentialId;  // cache for next tick
+          state.isPaperTrading = false;
+        }
+      } catch (err: any) {
+        this.logger.warn(`⚠️ اللاسع: تعذّر قراءة activeCredentialId للمستخدم ${userId}: ${err?.message}`);
+      }
+    }
+
+    // إذا لا يوجد credential حقيقي، ابحث عن paper-trading credential
+    if (!credentialId || credentialId.trim() === '') {
+      try {
+        const paperCred = await this.prisma.exchangeCredential.findFirst({
+          where: { userId, exchange: 'paper-trading', isValid: true },
+        });
+        if (paperCred) {
+          credentialId = paperCred.id;
+          state.credentialId = credentialId;
+          state.isPaperTrading = true;
+        } else {
+          this.logger.warn(`⚠️ اللاسع: لا يوجد credential للمستخدم ${userId} — تخطّي التنفيذ`);
+          await this._recordMetric(userId, 'fail', 'no_credential');
+          return;
+        }
+      } catch (err: any) {
+        this.logger.error(`❌ اللاسع: فشل جلب paper credential: ${err?.message}`);
+        return;
+      }
+    }
+
+    // ── تحقق من توافق المجلس الاستراتيجي (اختياري)
     const councilDir = await this.redis.get(
       LAZIC_REDIS_KEYS.councilDirection(obi.symbol),
     );
@@ -308,26 +385,36 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
       (councilDir === 'BUY' && obi.signal === 'BUY') ||
       (councilDir === 'SELL' && obi.signal === 'SELL');
 
-    // ── احسب SL/TP من ATR
-    const { sl, tp } = this._calcSLTP(tick, obi.signal === 'NONE' ? 'BUY' : obi.signal, state.isPaperTrading);
+    // ── احسب SL/TP
+    const direction: 'BUY' | 'SELL' = obi.signal === 'SELL' ? 'SELL' : 'BUY';
+    const { sl, tp } = this._calcSLTP(tick, direction, state.isPaperTrading);
+
+    // ── Phase 3: احسب الكمية الحقيقية (risk% × balance ÷ SL distance)
+    const slDistance = Math.abs(tick.price - sl);
+    const quantity = await this._calcQuantity(tick.price, slDistance, state);
+
+    if (quantity <= 0) {
+      this.logger.warn(`⚠️ اللاسع: quantity=0 للمستخدم ${userId} — تخطّي`);
+      await this._recordMetric(userId, 'fail', 'zero_quantity');
+      return;
+    }
 
     // ── أرسل للتنفيذ عبر TradingService
     try {
       const idempotencyKey = `lazic:${userId}:${obi.symbol}:${now}`;
-      const orderSide = obi.signal === 'SELL' ? 'SELL' : 'BUY';
 
       await this.tradingService.placeOrder(userId, {
         symbol: obi.symbol,
-        side: orderSide as any,
+        side: direction as any,
         type: 'MARKET' as any,
-        quantity: this._calcQuantity(tick.price, state),
+        quantity,
         stopLoss: sl,
         takeProfit: tp,
         idempotencyKey,
-        source: 'agent',
+        source: 'lazic' as any,  // Phase 1 fix: كان 'agent' — يطابق count query في الأعلى
         strategy: 'scalping',
-        credentialId: state.credentialId,
-      });
+        credentialId,
+      } as any);
 
       // ── سجّل مركزاً مفتوحاً في Redis (TTL = 10 دقائق max)
       await this.redis.set(posKey, '1', 600);
@@ -337,14 +424,20 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
       state.dailyTrades += 1;
       this.activeUsers.set(userId, state);
 
+      // ── Phase 3: سجّل metric في Redis
+      await this._recordMetric(userId, 'success', `${obi.signal}_${obi.symbol}`);
+
       this.logger.log(
         `🐝 لسعة! ${obi.symbol} ${obi.signal} | OBI=${obi.obi.toFixed(3)} ` +
         `| spread×${obi.spreadRatio.toFixed(2)} ` +
+        `| qty=${quantity} ` +
         `| Council: ${councilAligned ? '✅ متوافق' : '—'} ` +
-        `| SL=${sl.toFixed(5)} TP=${tp.toFixed(5)}`,
+        `| SL=${sl.toFixed(5)} TP=${tp.toFixed(5)} ` +
+        `| ${state.isPaperTrading ? '📄 paper' : '🔴 real'}`,
       );
     } catch (err: any) {
       this.logger.error(`❌ فشل تنفيذ اللاسع (${userId}/${obi.symbol}): ${err?.message}`);
+      await this._recordMetric(userId, 'fail', `order_error:${err?.message?.substring(0, 80)}`);
     }
   }
 
@@ -372,12 +465,90 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  // ── حجم الصفقة: 0.5% من رصيد الحساب ÷ مسافة SL
-  // نبسّط هنا — يمكن ربطه بـ balanceService لاحقاً
-  private _calcQuantity(price: number, _state: LazicUserState): number {
-    // حجم ثابت صغير جداً للبداية — جابر يعدّله لاحقاً بعد التحقق
-    // سيُربط بـ riskPerTradePercent × balance في الإصدار التالي
-    return price > 1000 ? 0.001 : price > 100 ? 0.01 : 1;
+  // ── Phase 3: حجم الصفقة الحقيقي = (balance × risk%) ÷ SL distance
+  //   - paper trading: paperBalance من AgentSettings
+  //   - real trading: cached balance من Redis (fallback 1000 nominal)
+  //   - cache 30s لتفادي DB/Redis lookup على كل tick
+  private async _calcQuantity(
+    price: number,
+    slDistance: number,
+    state: LazicUserState,
+  ): Promise<number> {
+    if (slDistance <= 0) return 0;
+
+    const now = Date.now();
+    const BALANCE_CACHE_MS = 30_000;  // 30s
+
+    // استخدم cached balance لو حديث
+    let balance = state.cachedBalance;
+    if (!balance || !state.balanceLastFetchedAt || now - state.balanceLastFetchedAt > BALANCE_CACHE_MS) {
+      try {
+        if (state.isPaperTrading) {
+          const settings = await this.prisma.agentSettings.findUnique({
+            where: { userId: state.userId },
+            select: { paperBalance: true },
+          });
+          balance = Number(settings?.paperBalance ?? 10000);
+        } else {
+          // حقيقي: جرب Redis cache أولاً (يكتبه fetchAccount كل 30s)
+          const cached = await this.redis.get(`user:${state.userId}:balance`);
+          balance = cached ? Number(cached) : 1000;
+        }
+        state.cachedBalance = balance;
+        state.balanceLastFetchedAt = now;
+      } catch (err: any) {
+        // fallback: nominal 1000
+        balance = 1000;
+        state.cachedBalance = balance;
+        state.balanceLastFetchedAt = now;
+      }
+    }
+
+    // quantity = (balance × risk%) ÷ SL distance
+    const riskAmount = balance * (state.riskPerTradePct / 100);
+    let rawQty = riskAmount / slDistance;
+
+    // حدّ أدنى لتفادي صفقات microscopic
+    const minNotional = 1;  // $1 minimum
+    if (rawQty * price < minNotional) {
+      rawQty = minNotional / price;
+    }
+
+    // حدّ أقصى لتفادي صفقات خطرة (5% من balance)
+    const maxNotional = balance * 0.05;
+    if (rawQty * price > maxNotional) {
+      rawQty = maxNotional / price;
+    }
+
+    // تقريب حسب asset class
+    // Forex (price < 100): 2 decimal, Crypto (price > 1000): 6 decimal
+    const decimals = price > 1000 ? 6 : price > 100 ? 4 : 2;
+
+    return Math.round(rawQty * Math.pow(10, decimals)) / Math.pow(10, decimals);
+  }
+
+  // ── Phase 3: سجّل metric في Redis (success/fail counts + last reason)
+  private async _recordMetric(
+    userId: string,
+    outcome: 'success' | 'fail',
+    reason: string,
+  ): Promise<void> {
+    try {
+      const key = `lazic:metrics:${userId}`;
+      const ttl = 86400;  // 24h
+      const raw = await this.redis.get(key);
+      const metrics = raw ? JSON.parse(raw) : { success: 0, fail: 0, lastReason: '', lastAt: 0 };
+
+      if (outcome === 'success') metrics.success += 1;
+      else metrics.fail += 1;
+
+      metrics.lastReason = reason;
+      metrics.lastAt = Date.now();
+
+      await this.redis.set(key, JSON.stringify(metrics), ttl);
+    } catch {
+      // لا تُعيق الـ tick لو فشل الـ metric
+    }
   }
 
   // ══════════════════════════════════════════
@@ -387,7 +558,7 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
   private async _syncActiveUsers(): Promise<void> {
     try {
       // جلب كل المستخدمين الذين فعّلوا اللاسع
-      // الحقل lazicEnabled في AgentSettings — يُضاف عبر migration أو autoMigrate safety-net
+      // Phase 2: اقرأ الإعدادات القابلة للتخصيص من DB
       const settings = await this.prisma.agentSettings.findMany({
         where: { lazicEnabled: true } as any,
         include: { user: { select: { id: true } } },
@@ -400,14 +571,20 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
         newActiveUsers.set(s.userId, {
           userId: s.userId,
           enabled: true,
-          credentialId: (s as any).activeCredentialId ?? '',
-          isPaperTrading: !(s as any).activeCredentialId,
-          maxOpenPositions: 2,
-          maxDailyTrades: 20,
+          credentialId: existing?.credentialId ?? '',  // سيُملأ لاحقاً من Setting table
+          isPaperTrading: existing?.isPaperTrading ?? true,
+          // ── Phase 2: اقرأ الإعدادات من DB مع fallback للقيم الافتراضية ──
+          maxOpenPositions: Number((s as any).lazicMaxOpenPositions ?? 2),
+          maxDailyTrades: Number((s as any).lazicMaxDailyTrades ?? 20),
           dailyTrades: existing?.dailyTrades ?? 0,
           dailyPnL: existing?.dailyPnL ?? 0,
           lastTradeAt: existing?.lastTradeAt ?? null,
-          cooldownMs: 30_000, // 30 ثانية بين كل صفقة
+          cooldownMs: Number((s as any).lazicCooldownMs ?? 30000),
+          obiThreshold: Number((s as any).lazicObiThreshold ?? 0.4),
+          maxSpreadMultiplier: Number((s as any).lazicMaxSpreadMult ?? 1.5),
+          riskPerTradePct: Number((s as any).lazicRiskPerTradePct ?? 0.5),
+          cachedBalance: existing?.cachedBalance ?? null,
+          balanceLastFetchedAt: existing?.balanceLastFetchedAt ?? null,
         });
       }
 
@@ -445,12 +622,14 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     this.logger.log(`🐝 اللاسع موقوف للمستخدم ${userId}`);
   }
 
-  /** حالة اللاسع (للواجهة الأمامية) */
+  /** حالة اللاسع (للواجهة الأمامية) — تشمل الإعدادات + metrics */
   async getStatus(userId: string): Promise<{
     enabled: boolean;
     dailyTrades: number;
     activeSymbols: string[];
     lastOBIs: Record<string, number>;
+    settings: LasicSettingsResponse;
+    metrics: { success: number; fail: number; lastReason: string; lastAt: number };
   }> {
     const state = this.activeUsers.get(userId);
     const lastOBIs: Record<string, number> = {};
@@ -462,6 +641,16 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
+    // Phase 2: اقرأ الإعدادات من DB (مع fallback)
+    const settings = await this._readSettingsFromDb(userId);
+
+    // Phase 3: اقرأ metrics من Redis
+    let metrics = { success: 0, fail: 0, lastReason: '', lastAt: 0 };
+    try {
+      const raw = await this.redis.get(`lazic:metrics:${userId}`);
+      if (raw) metrics = JSON.parse(raw);
+    } catch {}
+
     return {
       enabled: !!state?.enabled,
       dailyTrades: state?.dailyTrades ?? 0,
@@ -469,6 +658,107 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
         sym => (this.tickWindows.get(sym)?.length ?? 0) > 5,
       ),
       lastOBIs,
+      settings,
+      metrics,
     };
   }
+
+  /** Phase 2: اقرأ الإعدادات من DB مع fallback للقيم الافتراضية */
+  private async _readSettingsFromDb(userId: string): Promise<LasicSettingsResponse> {
+    try {
+      const s: any = await this.prisma.agentSettings.findUnique({
+        where: { userId },
+      });
+      if (!s) {
+        return {
+          obiThreshold: 0.4,
+          maxSpreadMultiplier: 1.5,
+          maxDailyTrades: 20,
+          maxOpenPositions: 2,
+          cooldownMs: 30000,
+          riskPerTradePct: 0.5,
+        };
+      }
+      return {
+        obiThreshold: Number(s.lazicObiThreshold ?? 0.4),
+        maxSpreadMultiplier: Number(s.lazicMaxSpreadMult ?? 1.5),
+        maxDailyTrades: Number(s.lazicMaxDailyTrades ?? 20),
+        maxOpenPositions: Number(s.lazicMaxOpenPositions ?? 2),
+        cooldownMs: Number(s.lazicCooldownMs ?? 30000),
+        riskPerTradePct: Number(s.lazicRiskPerTradePct ?? 0.5),
+      };
+    } catch {
+      return {
+        obiThreshold: 0.4,
+        maxSpreadMultiplier: 1.5,
+        maxDailyTrades: 20,
+        maxOpenPositions: 2,
+        cooldownMs: 30000,
+        riskPerTradePct: 0.5,
+      };
+    }
+  }
+
+  /** Phase 2: احصل على الإعدادات فقط (لـ GET /settings) */
+  async getSettings(userId: string): Promise<{ success: boolean; data: LasicSettingsResponse }> {
+    const data = await this._readSettingsFromDb(userId);
+    return { success: true, data };
+  }
+
+  /** Phase 2: حدّث الإعدادات (لـ PUT /settings) */
+  async updateSettings(
+    userId: string,
+    dto: {
+      obiThreshold?: number;
+      maxSpreadMultiplier?: number;
+      maxDailyTrades?: number;
+      maxOpenPositions?: number;
+      cooldownMs?: number;
+      riskPerTradePct?: number;
+    },
+  ): Promise<{ success: boolean; data: LasicSettingsResponse; message: string }> {
+    // بناء update data مع validation + clamping
+    const updateData: any = {};
+    if (dto.obiThreshold !== undefined) {
+      updateData.lazicObiThreshold = Math.max(0.3, Math.min(0.8, dto.obiThreshold));
+    }
+    if (dto.maxSpreadMultiplier !== undefined) {
+      updateData.lazicMaxSpreadMult = Math.max(1.0, Math.min(3.0, dto.maxSpreadMultiplier));
+    }
+    if (dto.maxDailyTrades !== undefined) {
+      updateData.lazicMaxDailyTrades = Math.max(5, Math.min(100, Math.round(dto.maxDailyTrades)));
+    }
+    if (dto.maxOpenPositions !== undefined) {
+      updateData.lazicMaxOpenPositions = Math.max(1, Math.min(10, Math.round(dto.maxOpenPositions)));
+    }
+    if (dto.cooldownMs !== undefined) {
+      updateData.lazicCooldownMs = Math.max(10000, Math.min(300000, Math.round(dto.cooldownMs)));
+    }
+    if (dto.riskPerTradePct !== undefined) {
+      updateData.lazicRiskPerTradePct = Math.max(0.1, Math.min(3.0, dto.riskPerTradePct));
+    }
+
+    await (this.prisma.agentSettings as any).update({
+      where: { userId },
+      data: updateData,
+    });
+
+    // أعد مزامنة المستخدمين النشطين لتفعيل الإعدادات الجديدة فوراً
+    await this._syncActiveUsers();
+
+    const data = await this._readSettingsFromDb(userId);
+    this.logger.log(`🐝 اللاسع: حُدّثت إعدادات المستخدم ${userId} → ${JSON.stringify(updateData)}`);
+
+    return { success: true, data, message: 'تم تحديث إعدادات اللاسع' };
+  }
+}
+
+/** Phase 2: response shape for settings */
+export interface LasicSettingsResponse {
+  obiThreshold: number;
+  maxSpreadMultiplier: number;
+  maxDailyTrades: number;
+  maxOpenPositions: number;
+  cooldownMs: number;
+  riskPerTradePct: number;
 }

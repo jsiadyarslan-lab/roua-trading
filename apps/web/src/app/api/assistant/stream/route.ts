@@ -22,6 +22,63 @@ const md = new MarkdownIt({ html: true, breaks: true, linkify: true });
 function preprocessMarkdown(text: string): string {
   let out = text;
 
+  // V598: Convert tab-separated tables to Markdown pipe tables
+  out = out.replace(/((?:[^\n]*\t[^\n]*(?:\n|$)){2,})/g, (block) => {
+    const lines = block.trim().split('\n').filter(l => l.trim());
+    if (lines.length < 2) return block;
+    const allHaveTabs = lines.every(l => l.includes('\t'));
+    if (!allHaveTabs) return block;
+    const pipeLines = lines.map(line => {
+      const cells = line.split('\t').map(c => c.trim()).filter(Boolean);
+      if (cells.length < 2) return null;
+      return '| ' + cells.join(' | ') + ' |';
+    }).filter(Boolean);
+    if (pipeLines.length < 2) return block;
+    const headerCells = pipeLines[0]!.split('|').filter(c => c.trim()).length - 1;
+    const separator = '| ' + Array(headerCells).fill('---').join(' | ') + ' |';
+    return pipeLines[0] + '\n' + separator + '\n' + pipeLines.slice(1).join('\n');
+  });
+
+  // V599: Merge vertically-split table cells back into rows
+  // First: remove empty lines between consecutive | cells
+  out = out.replace(/(\|\s*[^\n|]+)\n\s*\n(\s*\|)/g, '$1\n$2');
+  // Then: merge consecutive single-| cells into rows
+  out = out.replace(/((?:\s*\|[^\n|]+(?:\n|$)){4,})/g, (block) => {
+    const cells = block.trim().split('\n')
+      .map(l => l.trim().replace(/^\|/, '').replace(/\|$/, '').trim())
+      .filter(Boolean);
+    if (cells.length < 4) return block;
+    let bestCols = 0;
+    for (const cols of [8, 7, 6, 5, 4, 3, 2]) {
+      if (cells.length % cols === 0 && cells.length / cols >= 2) {
+        bestCols = cols;
+        break;
+      }
+    }
+    if (bestCols === 0) bestCols = 3;
+    const rows: string[] = [];
+    for (let i = 0; i < cells.length; i += bestCols) {
+      const rowCells = cells.slice(i, i + bestCols);
+      if (rowCells.length === bestCols) {
+        rows.push('| ' + rowCells.join(' | ') + ' |');
+      }
+    }
+    if (rows.length < 2) return block;
+    const separator = '| ' + Array(bestCols).fill('---').join(' | ') + ' |';
+    return rows[0] + '\n' + separator + '\n' + rows.slice(1).join('\n');
+  });
+
+  // V599: Split bullet lists that are joined on a single line
+  out = out.replace(/^([•\-*])\s+(.+)$/gm, (match, bullet, rest) => {
+    if (rest.includes(' - ') && rest.length > 80) {
+      const parts = rest.split(/\s+-\s+/);
+      if (parts.length >= 3) {
+        return parts.map((p, i) => (i === 0 ? `${bullet} ${p}` : `- ${p}`)).join('\n');
+      }
+    }
+    return match;
+  });
+
   // V580: دمج خلايا الجدول المبعثرة + إضافة separator تلقائياً
   out = out.replace(/(?:^[ \t]*\|[^\n]+\n?)+/gm, (block) => {
     const lines = block.trim().split('\n').map(l => l.trim()).filter(l => l.startsWith('|'));

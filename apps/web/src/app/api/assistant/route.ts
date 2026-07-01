@@ -146,6 +146,7 @@ export const dynamic = 'force-dynamic';
 const AssistantSchema = z.object({
   message: z.string().min(1, 'Message is required').max(2000, 'Message too long'),
   locale: z.enum(['ar', 'en', 'fr', 'tr', 'es']).optional(),
+  language: z.string().optional(), // V591: frontend sends "language" not "locale"
   history: z.array(z.object({
     role: z.enum(['user', 'assistant']),
     content: z.string(),
@@ -1451,7 +1452,8 @@ export async function POST(request: Request) {
     }
 
     const { message, history, pageUrl, userId, reportId, reportType } = parsed.data;
-    const locale: Locale = parsed.data.locale || 'ar';
+    // V600: FIX — frontend sends "language" not "locale". Was defaulting to 'ar' always.
+    const locale: Locale = parsed.data.locale || parsed.data.language || 'ar';
     const sanitizedMessage = sanitizePromptInput(message);
 
     // V477: استخراج session cookie من الـ request لتمريره لـ NestJS

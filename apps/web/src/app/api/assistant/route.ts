@@ -26,9 +26,11 @@ import { fetchBroadData, type FetchedData } from '@/lib/assistant/data-fetcher';
 import { filterResponse } from '@/lib/assistant/response-filter';
 import { searchRealTimePrices, type RealtimeSearchResult } from '@/lib/assistant/realtime-search';
 // V575: markdown-it لتحويل Markdown → HTML على الـ backend (Next.js route handler)
+// V601: استيراد الموحد — مصدر واحد لكل المسارات
+import { renderMarkdown } from '@/lib/assistant/shared/markdown-config';
+// V601: استيراد القواعد الموحدة
+import { ALL_RULES } from '@/lib/assistant/shared/assistant-rules';
 import MarkdownIt from 'markdown-it';
-// V597: html:true to pass through HTML tags that AI returns (h2, p, ul, li, table)
-// Previously html:false was escaping HTML tags → they showed as raw text
 const md = new MarkdownIt({ html: true, breaks: true, linkify: true });
 
 // V575.2: Preprocessor — يفصل Markdown elements على أسطر منفصلة قبل تحويلها لـ HTML
@@ -300,7 +302,7 @@ function cleanResponse(text: string, locale: Locale): string {
   }
 
   // V575: تحويل Markdown → HTML قبل الإرجاع
-  const html = md.render(preprocessMarkdown(cleaned));
+  const html = renderMarkdown(cleaned);
   return html;
 }
 
@@ -711,12 +713,7 @@ function buildArabicAgentPrompt(
 
 **2️⃣ التحليل الفني**
 لكل أصل: دعم/مقاومة + RSI + MACD + MA50 (من البيانات المتاحة)
-قواعد RSI الحرجة:
-- RSI < 30 = مفرط بيعي (تشبع بيعي) — احتمال ارتداد
-- RSI 30-50 = ضعيف هبوطي — ليس تشبع بيعي، لا تقل "مفرط بيعي"
-- RSI 50-70 = محايد مائل للصعود
-- RSI > 70 = مفرط شرائي — احتمال تراجع
-- لا تصف RSI 33-35 بأنه "تشبع بيعي" أو "تحت 30" — فهو ليس تحت 30.
+${ALL_RULES}
 إذا غير متوفر → اذكر مستوى تقريبي من حركة السعر
 
 **3️⃣ خطة التنفيذ** (الأهم!)
@@ -724,14 +721,7 @@ function buildArabicAgentPrompt(
 - 🟢 صفقات رابحة قرب TP → أغلق 30-50% + انقل SL إلى Breakeven
 - 🟡 صفقات محايدة → انتظر
 - توصية عامة للمحفظة
-- قواعد المخاطرة/العوائد الحرجة:
-  - احسب R:R = (مسافة TP ÷ مسافة SL). اذكر النسبة صراحة.
-  - R:R > 1:2 = ممتاز (مfavorable)
-  - R:R 1:1 إلى 1:2 = مقبول
-  - R:R < 1:1 = سيء (unfavorable)
-  - لا تصف نسبة 1:3 بأنها "سيئة" — هي ممتازة.
-  - طابق كل SL و TP مع الأصل الصحيح. لا تبدّل قيم SL بين أزواج مختلفة.
-- لا تقل أبداً "لا أملك بيانات" أو "لا يمكنني الوصول" — لديك دائماً بيانات من المنصة. إذا كانت بيانات معينة ناقصة، قل "بناءً على البيانات المتاحة:" وحلل ما لديك.
+${ALL_RULES}
 
 **4️⃣ تنبيهات فورية**
 - صفقات تحتاج تدخل الآن
@@ -1015,13 +1005,8 @@ When the user asks about a financial asset (gold, oil, stock, currency), your re
 
 ### 2️⃣ Technical Analysis (mandatory):
 - Nearest support level + nearest resistance level
-- RSI (14): Value + interpretation. CRITICAL RSI RULES:
-  - RSI < 30 = Oversold (مفرط بيعي) — potential bounce
-  - RSI 30-50 = Weak bearish (ضعيف هبوطي) — NOT oversold, do NOT say "oversold"
-  - RSI 50-70 = Neutral to bullish (محايد مائل للصعود)
-  - RSI > 70 = Overbought (مفرط شرائي) — potential pullback
-  - NEVER describe RSI 33-35 as "oversold" or "below 30" — it is NOT below 30.
-  - ALWAYS state the exact RSI number first, then the correct classification.
+- RSI (14): Value + interpretation
+${ALL_RULES}
 - MACD: Bullish/bearish crossover or neutral?
 - Moving Average: Is price above or below MA50?
 
@@ -1038,14 +1023,7 @@ When the user asks about a financial asset (gold, oil, stock, currency), your re
 ### 5️⃣ Recommendation:
 - For current investors: What to do (wait/protect/partial exit)
 - For new investors: Potential entry point + stop-loss (1.5-3% from entry) + target
-- CRITICAL RISK/REWARD RULES:
-  - Calculate R:R = (TP distance ÷ SL distance). State the exact ratio.
-  - R:R > 1:2 = Excellent (favorable)
-  - R:R 1:1 to 1:2 = Acceptable
-  - R:R < 1:1 = Poor (unfavorable)
-  - NEVER call a 1:3 ratio "unfavorable" — it is excellent.
-  - When analyzing user positions, ALWAYS match each SL and TP to the CORRECT asset. Do NOT swap SL values between different currency pairs.
-- NEVER say "I don't have access to" or "I don't have data" — you ALWAYS have data from the platform. If specific data is missing, say "Based on available data:" and analyze what you have.
+${ALL_RULES}
 
 ⚠️ Risk Disclaimer: Information is for educational purposes only and does not constitute investment advice.
 
@@ -1568,7 +1546,7 @@ export async function POST(request: Request) {
           const reply: string = data.reply;
           // V599: Convert Markdown → HTML before streaming (same as legacy path)
           // Without this, NestJS replies are raw Markdown → stacked text in UI
-          const htmlReply = md.render(preprocessMarkdown(reply));
+          const htmlReply = renderMarkdown(reply);
           const encoder = new TextEncoder();
           const stream = new ReadableStream({
             async start(controller) {
@@ -1875,7 +1853,7 @@ export async function POST(request: Request) {
     // to appear as stacked text. Now markdown-it converts it to styled HTML
     // that the MarkdownRenderer component can display properly.
     if (finalResponse) {
-      finalResponse = md.render(preprocessMarkdown(finalResponse));
+      finalResponse = renderMarkdown(finalResponse);
     }
 
     // ── Streaming Response ──

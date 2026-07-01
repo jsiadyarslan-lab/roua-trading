@@ -112,8 +112,9 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 - مستوى الدعم القريب + مستوى المقاومة القريب
 - RSI / MACD / المتوسط المتحرك إن وُجدت
 - قواعد RSI الحرجة: RSI < 30 = مفرط بيعي. RSI 30-50 = ضعيف هبوطي (ليس مفرط بيعي). RSI > 70 = مفرط شرائي. لا تصف RSI 33 بأنه "تحت 30".
-- إن لم تكن متوفرة، قل "غير متوفر حاليًا"
+- قواعد المخاطرة/العوائد: R:R > 1:2 = ممتاز. R:R < 1:1 = سيء. لا تصف 1:3 بأنها سيئة. لا تبدّل SL بين الأزواج.
 - لا تقل أبداً "لا أملك بيانات" — لديك دائماً بيانات من المنصة. قل "بناءً على البيانات المتاحة:"
+- إن لم تكن متوفرة، قل "غير متوفر حاليًا"
 
 ### 3️⃣ العوامل الأساسية المؤثرة:
 - العامل الأول (أسعار الفائدة، الدولار، التوترات الجيوسياسية) + رقم محدد
@@ -188,6 +189,7 @@ When user asks about an asset, market, news, or **their open positions**, your r
 - Nearest support + nearest resistance
 - RSI / MACD / Moving Average if available
 - CRITICAL RSI RULES: RSI < 30 = Oversold. RSI 30-50 = Weak bearish (NOT oversold). RSI > 70 = Overbought. NEVER describe RSI 33 as "oversold" or "below 30".
+- Risk/Reward rules: R:R > 1:2 = Excellent. R:R < 1:1 = Poor. NEVER call 1:3 "unfavorable". Do NOT swap SL values between pairs.
 - NEVER say "I don't have access" or "I don't have data" — you ALWAYS have platform data. Say "Based on available data:" instead.
 - If not available, say "not available currently"
 

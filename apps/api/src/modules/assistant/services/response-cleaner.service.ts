@@ -11,28 +11,82 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Injectable, Logger } from '@nestjs/common';
+// V601: استيراد الموحد — مصدر واحد لكل المسارات
+// نسخة محلية من preprocessor و markdown-config (NestJS لا يستورد من apps/web)
+// لكن الإعدادات مطابقة تماماً للموحد
+
 import MarkdownIt from 'markdown-it';
 
-// V575: markdown-it (CommonJS نقي) بدل marked (ESM فقط، يفشل على Railway)
+// V601: html:true (was html:false which escaped AI's HTML tags)
 const md = new MarkdownIt({
-  html: false,
+  html: true,
   breaks: true,
   linkify: true,
   typographer: false,
 });
 
 /**
- * V574: Preprocessor — يحمي عناصر Markdown قبل فصل الأسطر
- * المشكلة: الـ LLM يخرج --- ### | على نفس السطر، و |---|---| يحوي --- التي تُطابق كـ horizontal rule
- * الحل: نضع placeholders لـ table separators و table rows قبل أي معالجة، ثم نستعيدها
+ * V601: Unified Preprocessor — مطابق لـ apps/web/shared/markdown-preprocessor.ts
  */
 function preprocessMarkdown(text: string): string {
   let out = text;
 
-  // V575.2: فصل --- ### و --- ## قبل أي شيء آخر
-  // المشكلة: الـ LLM يدمج نهاية جدول مع --- وبداية جدول آخر على نفس السطر
-  // مثال: "| 🟢 | --- ### 2️⃣ جدول | الأصل |..."
-  // الحل: نفصل عند | --- ### ونضع | في نهاية سطر، ثم --- على سطر، ثم ### على سطر
+  // V598: تحويل Tab-separated tables → pipe tables
+  out = out.replace(/((?:[^\n]*\t[^\n]*(?:\n|$)){2,})/g, (block) => {
+    const lines = block.trim().split('\n').filter(l => l.trim());
+    if (lines.length < 2) return block;
+    const allHaveTabs = lines.every(l => l.includes('\t'));
+    if (!allHaveTabs) return block;
+    const pipeLines = lines.map(line => {
+      const cells = line.split('\t').map(c => c.trim()).filter(Boolean);
+      if (cells.length < 2) return null;
+      return '| ' + cells.join(' | ') + ' |';
+    }).filter(Boolean);
+    if (pipeLines.length < 2) return block;
+    const headerCells = pipeLines[0]!.split('|').filter(c => c.trim()).length - 1;
+    const separator = '| ' + Array(headerCells).fill('---').join(' | ') + ' |';
+    return pipeLines[0] + '\n' + separator + '\n' + pipeLines.slice(1).join('\n');
+  });
+
+  // V599: دمج الخلايا العمودية
+  out = out.replace(/(\|\s*[^\n|]+)\n\s*\n(\s*\|)/g, '$1\n$2');
+  out = out.replace(/((?:\s*\|[^\n|]+(?:\n|$)){4,})/g, (block) => {
+    const cells = block.trim().split('\n')
+      .map(l => l.trim().replace(/^\|/, '').replace(/\|$/, '').trim())
+      .filter(Boolean);
+    if (cells.length < 4) return block;
+    let bestCols = 0;
+    for (const cols of [8, 7, 6, 5, 4, 3, 2]) {
+      if (cells.length % cols === 0 && cells.length / cols >= 2) {
+        bestCols = cols;
+        break;
+      }
+    }
+    if (bestCols === 0) bestCols = 3;
+    const rows: string[] = [];
+    for (let i = 0; i < cells.length; i += bestCols) {
+      const rowCells = cells.slice(i, i + bestCols);
+      if (rowCells.length === bestCols) {
+        rows.push('| ' + rowCells.join(' | ') + ' |');
+      }
+    }
+    if (rows.length < 2) return block;
+    const separator = '| ' + Array(bestCols).fill('---').join(' | ') + ' |';
+    return rows[0] + '\n' + separator + '\n' + rows.slice(1).join('\n');
+  });
+
+  // V599: تقسيم القوائم النقطية المتصلة
+  out = out.replace(/^([•\-*])\s+(.+)$/gm, (match, bullet, rest) => {
+    if (rest.includes(' - ') && rest.length > 80) {
+      const parts = rest.split(/\s+-\s+/);
+      if (parts.length >= 3) {
+        return parts.map((p, i) => (i === 0 ? `${bullet} ${p}` : `- ${p}`)).join('\n');
+      }
+    }
+    return match;
+  });
+
+  // V580: فصل --- و ### + حماية الجداول
   out = out.replace(/\|\s+---\s+###\s/g, '|\n---\n### ');
   out = out.replace(/\|\s+---\s+##\s/g, '|\n---\n## ');
   out = out.replace(/\|\s+---\s+#\s/g, '|\n---\n# ');

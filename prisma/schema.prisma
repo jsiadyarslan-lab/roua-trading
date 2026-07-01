@@ -1194,6 +1194,9 @@ model AgentSettings {
   // Default Symbols (comma-separated)
   defaultSymbols String @default("BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT,XRP/USDT")
 
+  // اللاذع (Lazic Scalper Agent) — وكيل التداول فائق السرعة
+  lazicEnabled Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

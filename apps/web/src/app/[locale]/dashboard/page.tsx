@@ -43,6 +43,7 @@ const QuickExecutionMini = dynamic(() => import('@/components/dashboard/QuickExe
 const AgentControlMini   = dynamic(() => import('@/components/dashboard/AgentControlMini').then(m => ({ default: m.AgentControlMini })), { ssr: false })
 const StrategicCouncilPanel = dynamic(() => import('@/components/dashboard/StrategicCouncilPanel').then(m => ({ default: m.StrategicCouncilPanel })), { ssr: false })
 const SmartExecutorPanel = dynamic(() => import('@/components/dashboard/SmartExecutorPanel').then(m => ({ default: m.SmartExecutorPanel })), { ssr: false })
+const LazicPanel         = dynamic(() => import('@/components/dashboard/LazicPanel').then(m => ({ default: m.LazicPanel })), { ssr: false })
 
 const T = {
   bg: SharedT.bg,
@@ -1875,6 +1876,19 @@ export default function DashboardPage() {
                   <span style={{ fontSize:11, fontWeight:700, color:'#00D4FF', fontFamily: "var(--font-ar)" }}>المنفذ الذكي</span>
                 </div>
                 <SmartExecutorPanel />
+              </div>
+
+              {/* اللاذع — وكيل التداول فائق السرعة */}
+              <div style={{ margin:'10px 12px 0', borderRadius:12, overflow:'hidden', border:'1px solid rgba(255,107,53,0.2)' }}>
+                <div style={{ padding:'8px 12px', background:'rgba(255,107,53,0.06)', borderBottom:'1px solid rgba(255,107,53,0.12)', display:'flex', alignItems:'center', gap:6 }}>
+                  {/* أيقونة دبور/صاعقة */}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FF6B35" strokeWidth="2.5">
+                    <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                  </svg>
+                  <span style={{ fontSize:11, fontWeight:700, color:'#FF6B35', fontFamily: "var(--font-ar)" }}>اللاذع</span>
+                  <span style={{ fontSize:8, color:'rgba(255,107,53,0.6)', marginRight:'auto' }}>OBI · على الثانية</span>
+                </div>
+                <LazicPanel />
               </div>
 
               {/* الوكيل */}

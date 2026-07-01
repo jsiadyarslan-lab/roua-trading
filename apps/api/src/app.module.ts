@@ -30,6 +30,7 @@ import { ScannerModule } from './modules/scanner/scanner.module';
 import { PredictionMarketModule } from './modules/prediction-market/prediction-market.module';
 import { AutonomousTraderAgentModule } from './agents/autonomous-trader/agent.module';
 import { ContentAgentModule } from './agents/content/content-agent.module';
+import { LazicModule } from './agents/lazic/lazic.module';
 import { StrategicCouncilModule } from './modules/ai/strategic-council/strategic-council.module';
 import { SmartExecutorModule } from './modules/ai/smart-executor/smart-executor.module';
 import { NotificationModule } from './modules/notification/notification.module';
@@ -139,6 +140,7 @@ import { PrismaService } from './common/prisma/prisma.service';
     PredictionMarketModule,
     AutonomousTraderAgentModule,
     ContentAgentModule,
+    LazicModule,
     StrategicCouncilModule,
     SmartExecutorModule,
     NotificationModule,

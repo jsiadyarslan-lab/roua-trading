@@ -219,8 +219,10 @@ When user asks about an asset, market, news, or **their open positions**, your r
 - Never repeat a previous response. Each response adds new value.`,
 };
 
-// Fallback لجميع اللغات الأخرى (نستخدم العربية كأساس)
-const DEFAULT_SYSTEM_PROMPT = SYSTEM_PROMPTS.ar;
+// Fallback — use English (not Arabic) for unsupported languages
+// V600: Was SYSTEM_PROMPTS.ar which caused French/Turkish/Spanish users
+// to receive Arabic responses. English is a better universal fallback.
+const DEFAULT_SYSTEM_PROMPT = SYSTEM_PROMPTS.en;
 
 // ─── Service ─────────────────────────────────────────────────
 @Injectable()

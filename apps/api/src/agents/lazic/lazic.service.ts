@@ -143,9 +143,9 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     const sym = update.symbol; // e.g. "BTC/USDT"
     if (!LAZIC_SUPPORTED_SYMBOLS.includes(sym as any)) return;
 
-    // Binance يرسل bid/ask في bookTicker updates
-    const bid = update.bid ?? update.price * 0.9999;
-    const ask = update.ask ?? update.price * 1.0001;
+    // Binance may not send bid/ask in all updates — derive from price
+    const bid = (update as any).bid ?? update.price * 0.9999;
+    const ask = (update as any).ask ?? update.price * 1.0001;
 
     const tick: LazicTick = {
       symbol: sym,
@@ -309,21 +309,22 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
       (councilDir === 'SELL' && obi.signal === 'SELL');
 
     // ── احسب SL/TP من ATR
-    const { sl, tp } = this._calcSLTP(tick, obi.signal, state.isPaperTrading);
+    const { sl, tp } = this._calcSLTP(tick, obi.signal === 'NONE' ? 'BUY' : obi.signal, state.isPaperTrading);
 
     // ── أرسل للتنفيذ عبر TradingService
     try {
       const idempotencyKey = `lazic:${userId}:${obi.symbol}:${now}`;
+      const orderSide = obi.signal === 'SELL' ? 'SELL' : 'BUY';
 
       await this.tradingService.placeOrder(userId, {
         symbol: obi.symbol,
-        side: obi.signal as 'BUY' | 'SELL',
-        type: 'MARKET',
+        side: orderSide as any,
+        type: 'MARKET' as any,
         quantity: this._calcQuantity(tick.price, state),
         stopLoss: sl,
         takeProfit: tp,
         idempotencyKey,
-        source: 'lazic',
+        source: 'agent',
         strategy: 'scalping',
         credentialId: state.credentialId,
       });

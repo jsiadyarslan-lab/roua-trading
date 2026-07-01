@@ -42,7 +42,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             'strong', 'em', 'del', 'a',
             'span', 'div',
           ],
-          ALLOWED_ATTR: ['href', 'target', 'rel', 'dir', 'style'],
+          ALLOWED_ATTR: ['href', 'target', 'rel', 'dir', 'style', 'class'],
         });
       }
       return content; // SSR fallback

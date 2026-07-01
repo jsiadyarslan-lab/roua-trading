@@ -441,22 +441,26 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  // ── SL/TP بناءً على ATR من Redis (يكتبه MarketRegimeService)
-  // Fallback: spread × multiplier إذا ATR غير متوفر
+  // ── SL/TP لحسابات السكالبينج — نسبة % ثابتة من السعر حسب asset class
+  //
+  // السبب:avgSpread السابق كان يُحسب من (high - low) لمدة 24 ساعة من Binance،
+  // مما أعطى SL/TP بنسبة 8-17% من السعر (مستوى صفقات swing، ليس scalping).
+  //
+  // الحل: استخدام نسبة % ثابتة من السعر:
+  //   Crypto: 0.2% SL, 0.3% TP (R:R 1:1.5) — مناسب لتذبذب 1-5 دقائق
+  //   Forex:  0.05% SL, 0.075% TP — مناسب لـ 1-3 pips على EUR/USD
   private _calcSLTP(
     tick: LazicTick,
     direction: 'BUY' | 'SELL',
     _isPaper: boolean,
   ): { sl: number; tp: number } {
-    const spreads = this.spreadWindows.get(tick.symbol) ?? [];
-    const avgSpread = spreads.length > 0
-      ? spreads.reduce((a, b) => a + b, 0) / spreads.length
-      : tick.ask - tick.bid;
+    const isCrypto = tick.symbol.includes('/USDT') || tick.symbol.includes('/BTC');
+    // Crypto: 0.2% SL, 0.3% TP. Forex: 0.05% SL, 0.075% TP.
+    const slPct = isCrypto ? 0.002 : 0.0005;
+    const tpPct = slPct * 1.5;
 
-    // SL = 2× avgSpread, TP = 3× avgSpread → R:R ≈ 1:1.5 بعد العمولة
-    // صغير جداً لأن اللاسع يهدف لـ 10-30 ثانية فقط
-    const slDist = Math.max(avgSpread * 2, tick.price * 0.0003); // 0.03% min
-    const tpDist = slDist * 1.5;
+    const slDist = tick.price * slPct;
+    const tpDist = tick.price * tpPct;
 
     if (direction === 'BUY') {
       return { sl: tick.price - slDist, tp: tick.price + tpDist };

@@ -58,7 +58,7 @@ function normalizeSide(side: string | undefined): 'long' | 'short' {
 
 /**
  * Determine the trade source label for display.
- * Returns one of: 'ورقي' (paper), 'المنفذ' (executor), 'الوكيل' (agent), or null.
+ * Returns one of: 'اللاسع' (lasic), 'المنفّذ' (executor), 'الوكيل' (agent), 'ورقي' (paper), or null.
  */
 function getTradeSourceLabel(
   isPaper: boolean,
@@ -67,6 +67,15 @@ function getTradeSourceLabel(
   exchange?: string,
   t: (key: string) => string = () => '',
 ): { label: string; color: string; bg: string; border: string } | null {
+  // Priority 0: Lasic scalper (must be BEFORE paper check — Lasic often trades paper)
+  if (source === 'lazic' || source === 'lasic' || tradeSource === 'lazic' || tradeSource === 'lasic') {
+    return {
+      label: t('sourceLasic'),
+      color: '#FF6B35',  // Lasic brand orange
+      bg: 'rgba(255,107,53,0.12)',
+      border: 'rgba(255,107,53,0.25)',
+    }
+  }
   // Priority 1: Smart Executor source (check BEFORE agent to prevent mislabeling)
   if (source === 'bot' || source === 'executor' || source === 'smart_executor'
       || tradeSource === 'smart_executor' || tradeSource === 'auto_paper') {

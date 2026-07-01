@@ -6,7 +6,7 @@ import { Controller, Get, Post, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from '../../common/guards/auth.guard';
 import { LazicService } from './lazic.service';
 
-@Controller('api/lazic')
+@Controller('lazic')
 @UseGuards(AuthGuard)
 export class LazicController {
   constructor(private readonly lazic: LazicService) {}

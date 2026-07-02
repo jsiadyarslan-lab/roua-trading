@@ -446,18 +446,22 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
   // السبب:avgSpread السابق كان يُحسب من (high - low) لمدة 24 ساعة من Binance،
   // مما أعطى SL/TP بنسبة 8-17% من السعر (مستوى صفقات swing، ليس scalping).
   //
-  // الحل: استخدام نسبة % ثابتة من السعر:
-  //   Crypto: 0.2% SL, 0.3% TP (R:R 1:1.5) — مناسب لتذبذب 1-5 دقائق
-  //   Forex:  0.05% SL, 0.075% TP — مناسب لـ 1-3 pips على EUR/USD
+  // Fix: رفعنا TP% للكريبتو من 0.3% إلى 0.5% لتحسين نسبة الربح/العمولة:
+  //   - قبل: TP 0.3%، عمولة 0.2% → العمولة تأخذ 67% من الربح
+  //   - بعد: TP 0.5%، عمولة 0.2% → العمولة تأخذ 40% من الربح
+  //
+  // الحلول:
+  //   Crypto: 0.2% SL, 0.5% TP (R:R 1:2.5) — مناسب لتذبذب 1-5 دقائق
+  //   Forex:  0.05% SL, 0.1% TP (R:R 1:2) — مناسب لـ 1-3 pips على EUR/USD
   private _calcSLTP(
     tick: LazicTick,
     direction: 'BUY' | 'SELL',
     _isPaper: boolean,
   ): { sl: number; tp: number } {
     const isCrypto = tick.symbol.includes('/USDT') || tick.symbol.includes('/BTC');
-    // Crypto: 0.2% SL, 0.3% TP. Forex: 0.05% SL, 0.075% TP.
+    // Crypto: 0.2% SL, 0.5% TP (R:R 1:2.5). Forex: 0.05% SL, 0.1% TP (R:R 1:2).
     const slPct = isCrypto ? 0.002 : 0.0005;
-    const tpPct = slPct * 1.5;
+    const tpPct = isCrypto ? 0.005 : 0.001;
 
     const slDist = tick.price * slPct;
     const tpDist = tick.price * tpPct;

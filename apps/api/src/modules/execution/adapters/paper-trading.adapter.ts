@@ -33,8 +33,10 @@ import { t } from '../../../i18n/i18n.helper';
  * Simulation Features:
  * - Market orders: Instant execution at current market price
  * - Limit orders: Pending until price reaches limit (checked via Redis polling)
- * - Slippage: 0.1% default (configurable via PAPER_SLIPPAGE_PERCENT)
- * - Commission: 0.1% default (configurable via PAPER_COMMISSION_PERCENT)
+ * - Slippage: 0.05% default (configurable via PAPER_SLIPPAGE_PERCENT)
+ * - Commission: 0.04% default (configurable via PAPER_COMMISSION_PERCENT)
+ *   Matches Binance actual taker fee (was 0.1% — overestimated, ate 67% of
+ *   scalping profits. 0.04% × 2 sides = 0.08% round trip vs 0.2% before).
  * - Orders stored in PaperOrder table for persistence
  * - Unrealistic fills prevented with price validation
  */
@@ -67,10 +69,10 @@ export class PaperTradingAdapter implements IExchangeAdapter {
     private readonly userId: string,
   ) {
     this.slippagePercent = parseFloat(
-      process.env.PAPER_SLIPPAGE_PERCENT || '0.1',
+      process.env.PAPER_SLIPPAGE_PERCENT || '0.05',
     );
     this.commissionPercent = parseFloat(
-      process.env.PAPER_COMMISSION_PERCENT || '0.1',
+      process.env.PAPER_COMMISSION_PERCENT || '0.04',
     );
 
     this.logger.log(

@@ -629,18 +629,21 @@ export default function PortfolioPage() {
   const totalLossSize = Number(dateFilteredClosedPositions.filter(p => (Number(p.realizedPnl) || 0) < 0).reduce((sum, p) => sum + Math.abs(Number(p.realizedPnl) || 0), 0)
     + dateFilteredPaperTrades.filter(p => (Number(p.realizedPnl) || 0) < 0 && !dateFilteredClosedPositions.some(cp => cp.symbol === p.symbol && Math.abs((Number(cp.entryPrice) || 0) - p.entryPrice) < 0.01)).reduce((sum, p) => sum + Math.abs(Number(p.realizedPnl) || 0), 0)) || 0
 
-  // V169: P&L breakdown by source type (SMART/AGENT/PAPER/MANUAL)
+  // V169: P&L breakdown by source type (SMART/AGENT/LASIC/PAPER/MANUAL)
   const pnlByCategory = useMemo(() => {
     const categories: Record<string, { label: string; color: string; pnl: number; count: number; wins: number }> = {
       SMART: { label: t('categorySmart'), color: T.amber, pnl: 0, count: 0, wins: 0 },
       AGENT: { label: t('categoryAgent'), color: T.purple, pnl: 0, count: 0, wins: 0 },
+      LASIC: { label: t('categoryLasic'), color: '#FF6B35', pnl: 0, count: 0, wins: 0 },
       PAPER: { label: t('categoryPaper'), color: T.cyan, pnl: 0, count: 0, wins: 0 },
       MANUAL: { label: t('categoryManual'), color: T.text2, pnl: 0, count: 0, wins: 0 },
     }
     // From DB closed positions
     dateFilteredClosedPositions.forEach(p => {
+      // Fix: أضفنا 'lazic'/'lasic' كـ LASIC (كان يقع في MANUAL)
       const cat = p.source === 'smart_executor' ? 'SMART'
         : p.source === 'agent' ? 'AGENT'
+        : (p.source === 'lazic' || p.source === 'lasic') ? 'LASIC'
         : p.source === 'auto_paper' ? 'PAPER' : 'MANUAL'
       const pnl = Number(p.realizedPnl) || 0
       categories[cat].pnl += pnl
@@ -695,6 +698,7 @@ export default function PortfolioPage() {
       // V331: Translate source to Arabic label instead of raw English enum
       [t('csvSource')]: p.source === 'smart_executor' ? 'منفذ ذكي' :
                         p.source === 'agent' ? 'وكيل مستقل' :
+                        (p.source === 'lazic' || p.source === 'lasic') ? 'لاسع' :
                         p.source === 'auto_paper' ? 'ورقي' :
                         p.source === 'mt5_sync' || p.source === 'reconciliation' ? 'مزامنة MT5' :
                         p.source || 'يدوي',

@@ -183,6 +183,7 @@
       "totalProfit": "总盈亏",
       "fromTradeCount": "来自{count}笔交易",
       "categoryManual": "手动",
+      "categoryLasic": "拉斯克",
       "takeProfitLabel": "止盈",
       "csvType": "类型",
       "winning": "盈利中",

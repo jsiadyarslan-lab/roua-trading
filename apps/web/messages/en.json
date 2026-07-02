@@ -1991,6 +1991,7 @@
       "categoryAgent": "Agent",
       "categoryPaper": "Paper",
       "categoryManual": "Manual",
+      "categoryLasic": "Lasic",
       "csvPair": "Pair",
       "csvDirection": "Direction",
       "csvQuantity": "Quantity",

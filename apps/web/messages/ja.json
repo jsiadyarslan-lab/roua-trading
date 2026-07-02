@@ -183,6 +183,7 @@
       "totalProfit": "合計利益",
       "fromTradeCount": "{count}件の取引から",
       "categoryManual": "手動",
+      "categoryLasic": "ラシック",
       "takeProfitLabel": "利食い",
       "csvType": "タイプ",
       "winning": "Deactivated",

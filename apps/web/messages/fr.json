@@ -183,6 +183,7 @@
       "totalProfit": "Profit total",
       "fromTradeCount": "sur {count} trades",
       "categoryManual": "Manuel",
+      "categoryLasic": "Lasic",
       "takeProfitLabel": "Profiter",
       "csvType": "Taper",
       "winning": "Gagnant",

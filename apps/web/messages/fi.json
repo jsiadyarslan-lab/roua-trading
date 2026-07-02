@@ -183,6 +183,7 @@
       "totalProfit": "Kokonaisvoitto",
       "fromTradeCount": "{count} kaupasta",
       "categoryManual": "Manuaalinen",
+      "categoryLasic": "Lasic",
       "takeProfitLabel": "Ota voittoa",
       "csvType": "Tyyppi",
       "winning": "Voitto",

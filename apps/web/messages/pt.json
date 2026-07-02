@@ -183,6 +183,7 @@
       "totalProfit": "Lucro Total",
       "fromTradeCount": "de {count} Trades",
       "categoryManual": "Manual",
+      "categoryLasic": "Lasic",
       "takeProfitLabel": "Obtenha lucro",
       "csvType": "Tipo",
       "winning": "Lucrativo",

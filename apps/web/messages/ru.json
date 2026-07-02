@@ -183,6 +183,7 @@
       "totalProfit": "Общая прибыль",
       "fromTradeCount": "из {count} сделок",
       "categoryManual": "Ручной",
+      "categoryLasic": "Ласик",
       "takeProfitLabel": "Тейк-профит",
       "csvType": "Тип",
       "winning": "Прибыльные",

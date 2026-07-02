@@ -3344,6 +3344,12 @@ export default function RouaChart({
               const isSL   = ov.type === 'sl';
               const isTP   = ov.type === 'tp';
 
+              // Fix: أثناء السحب، استخدم currentY بدلاً من y الأصلي لتحريك الخط بصرياً
+              let displayY = ov.y;
+              if (dragState && dragState.key === ov.key && dragState.currentY !== dragState.startY) {
+                displayY = ov.y + (dragState.currentY - dragState.startY);
+              }
+
               const color = isEntry ? (ov.direction === 'long' ? '#00D4FF' : '#FF8C42')
                           : isSL   ? '#FF4757'
                           : '#00FFA3';
@@ -3366,8 +3372,9 @@ export default function RouaChart({
               const entryPnl = isEntry && ov.qty > 0 && currentPrice
                 ? (currentPrice - ov.price) * ov.qty * (ov.direction === 'long' ? 1 : -1)
                 : 0;
+              // Fix: اعرض إشارة + للربح و - للخسارة (كان Math.abs يحذف الإشارة)
               const entryPnlText = isEntry && ov.qty > 0
-                ? ` ${entryPnl >= 0 ? '+' : ''}$${Math.abs(entryPnl).toFixed(2)}`
+                ? ` ${entryPnl >= 0 ? '+' : '-'}$${Math.abs(entryPnl).toFixed(2)}`
                 : '';
 
               const isDraggable = (isSL || isTP);
@@ -3381,7 +3388,8 @@ export default function RouaChart({
                   pointerEvents: isDraggable ? 'auto' : 'none',
                   touchAction: isDraggable ? 'none' : 'auto',
                   // Position ABOVE the line (label height ~20px + 4px gap)
-                  transform: `translateY(${ov.y - 24}px)`,
+                  // Fix: استخدم displayY أثناء السحب لتحريك الخط بصرياً
+                  transform: `translateY(${displayY - 24}px)`,
                   willChange: 'transform',
                   cursor: isDraggable ? 'ns-resize' : 'default',
                   userSelect: 'none',

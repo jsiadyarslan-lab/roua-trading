@@ -324,10 +324,15 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     // ── شرط أمان 2: حد الصفقات اليومي
     if (state.dailyTrades >= state.maxDailyTrades) return;
 
-    // ── شرط أمان 3: هل يوجد مركز مفتوح على هذا الزوج؟ (Redis check ~1ms)
-    const posKey = LAZIC_REDIS_KEYS.openPosition(userId, obi.symbol);
-    const hasOpenPos = await this.redis.get(posKey);
-    if (hasOpenPos) return;
+    // ── شرط أمان 3: هل يوجد مركز لاسع مفتوح على هذا الزوج؟ (DB check)
+    // Fix: كان يستخدم Redis key بـ TTL 10 دقائق — يمنع فتح صفقات جديدة بعد
+    // إغلاق الصفقة السابقة بـ 10 دقائق. الآن نتحقق من DB مباشرة (صفقات OPEN فقط).
+    // ملاحظة: هذا يسمح للاسع بفتح صفقات على أزواج بها صفقات من المنفذ/الوكيل،
+    // لأن الـ count يفلتر بـ source: 'lazic' فقط.
+    const openOnSymbol = await this.prisma.position.count({
+      where: { userId, symbol: obi.symbol, status: 'OPEN', source: { in: ['lazic', 'lasic'] } },
+    });
+    if (openOnSymbol > 0) return;
 
     // ── شرط أمان 4: حد المراكز المفتوحة في DB (فحص أخف)
     if (state.maxOpenPositions > 0) {
@@ -416,8 +421,8 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
         credentialId,
       } as any);
 
-      // ── سجّل مركزاً مفتوحاً في Redis (TTL = 10 دقائق max)
-      await this.redis.set(posKey, '1', 600);
+      // Fix: Redis lock تم إزالته — كان بـ TTL 10 دقائق يمنع فتح صفقات جديدة
+      // بعد إغلاق الصفقة السابقة. الآن نعتمد على DB count (check في الأعلى).
 
       // ── حدّث حالة المستخدم
       state.lastTradeAt = now;
@@ -652,6 +657,31 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     });
     this.activeUsers.delete(userId);
     this.logger.log(`🐝 اللاسع موقوف للمستخدم ${userId}`);
+  }
+
+  /** صفقات اللاسع المفتوحة + المغلقة (للعرض في تاب اللاسع) */
+  async getPositions(userId: string, limit: number = 20): Promise<{
+    open: any[];
+    closed: any[];
+  }> {
+    try {
+      const [open, closed] = await Promise.all([
+        this.prisma.position.findMany({
+          where: { userId, status: 'OPEN', source: { in: ['lazic', 'lasic'] } },
+          orderBy: { openedAt: 'desc' },
+          take: limit,
+        }),
+        this.prisma.position.findMany({
+          where: { userId, status: 'CLOSED', source: { in: ['lazic', 'lasic'] } },
+          orderBy: { closedAt: 'desc' },
+          take: limit,
+        }),
+      ]);
+      return { open, closed };
+    } catch (err: any) {
+      this.logger.error(`خطأ في جلب صفقات اللاسع: ${err?.message}`);
+      return { open: [], closed: [] };
+    }
   }
 
   /** حالة اللاسع (للواجهة الأمامية) — تشمل الإعدادات + metrics */

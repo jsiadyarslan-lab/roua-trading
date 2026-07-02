@@ -1150,24 +1150,36 @@ export class PositionMonitorService {
           : currentPrice >= stopLossNum;
 
       if (slHit) {
-        this.logger.warn(
-          `🚨 STOP-LOSS TRIGGERED: ${position.symbol} @ ${stopLossNum} (currentPrice=${currentPrice}, SL: ${stopLossNum})`,
-        );
+        // Fix: تحقق من trailing flag — لو SL حُرّك بواسطة trailing stop،
+        // سجّل closeReason = 'TRAILING_STOP' بدل 'STOP_LOSS'
+        let slCloseReason: 'STOP_LOSS' | 'TRAILING_STOP' = 'STOP_LOSS';
+        try {
+          const trailingFlag = await this.redis.get(`position:${position.id}:sl_trailing`);
+          if (trailingFlag === '1') {
+            slCloseReason = 'TRAILING_STOP';
+            this.logger.log(
+              `🎯 TRAILING STOP TRIGGERED: ${position.symbol} @ ${stopLossNum} (SL was moved by trailing stop)`,
+            );
+          } else {
+            this.logger.warn(
+              `🚨 STOP-LOSS TRIGGERED: ${position.symbol} @ ${stopLossNum} (currentPrice=${currentPrice}, SL: ${stopLossNum})`,
+            );
+          }
+        } catch { /* non-critical */ }
 
         // V223 FIX: Close at the SL price (paper trading only), not at currentPrice.
-        // Previously: passed `currentPrice` → realized loss included 0.3–1% slippage
-        // from the 30s monitor interval + market order execution.
-        // For real exchanges, this needs a STOP_LIMIT order — handled separately.
-        // V228: Also include exchange === 'paper-trading' check (some positions only have exchange set, not isPaperTrading flag).
         const isPaper = position.isPaperTrading === true || position.source === 'auto_paper' || position.exchange === 'paper-trading';
         const closePrice = isPaper ? stopLossNum : currentPrice;
-        await this._closePosition(position, closePrice, 'STOP_LOSS');
+        await this._closePosition(position, closePrice, slCloseReason);
 
         // V176 FIX: Set cooldown after STOP_LOSS to prevent immediate re-open
         try {
           const cooldownKey = `cooldown:${position.userId}:${position.symbol}`;
-          await this.redis.set(cooldownKey, 'STOP_LOSS', this.COOLDOWN_TTL_MS);
+          await this.redis.set(cooldownKey, slCloseReason, this.COOLDOWN_TTL_MS);
         } catch { /* non-critical */ }
+
+        // نظّف الـ trailing flag
+        try { await this.redis.del(`position:${position.id}:sl_trailing`); } catch {}
 
         result.slTriggered = true;
         return result;
@@ -1360,6 +1372,11 @@ export class PositionMonitorService {
                 where: { id: position.id },
                 data: { stopLoss: trailingTpSL },
               });
+              // Fix: سجّل flag في Redis للتمييز بين SL العادي و trailing stop
+              // عند الإغلاق، لو هذا الـ flag موجود → closeReason = 'TRAILING_STOP' بدل 'STOP_LOSS'
+              try {
+                await this.redis.set(`position:${position.id}:sl_trailing`, '1', 86400);
+              } catch { /* non-critical */ }
               this.logger.log(
                 `🎯 V338 Trailing TP: ${position.symbol} progress=${(bestTpProgress * 100).toFixed(1)}% of TP — SL moved to ${trailingTpSL.toFixed(6)} (locks ${(this.TRAILING_TP_LOCK_PCT * 100).toFixed(0)}% of profit)`,
               );
@@ -1423,6 +1440,11 @@ export class PositionMonitorService {
             where: { id: position.id },
             data: { stopLoss: trailingStop },
           });
+
+          // Fix: سجّل flag في Redis للتمييز بين SL العادي و trailing stop
+          try {
+            await this.redis.set(`position:${position.id}:sl_trailing`, '1', 86400);
+          } catch { /* non-critical */ }
 
           this.logger.log(
             `📈 Trailing stop updated: ${position.symbol} SL → ${trailingStop}`,
@@ -1741,7 +1763,7 @@ export class PositionMonitorService {
   private async _closePosition(
     position: any,
     currentPrice: number,
-    reason: 'STOP_LOSS' | 'TAKE_PROFIT' | 'TIME_EXPIRED' | 'STALE_POSITION' | 'REGIME_REVERSAL',
+    reason: 'STOP_LOSS' | 'TAKE_PROFIT' | 'TIME_EXPIRED' | 'STALE_POSITION' | 'REGIME_REVERSAL' | 'TRAILING_STOP',
   ): Promise<void> {
     // V342: Clean up lastTickLogTime to prevent memory leak
     this.lastTickLogTime.delete(position.id);

@@ -95,12 +95,20 @@ export const DEFAULT_LAZIC_CONFIG: Omit<LazicSymbolConfig, 'symbol'> = {
   minSpreadAvgSamples: 20,
 };
 
-/** الأزواج التي يدعمها اللاسع (OANDA forex + Binance crypto) */
+/** الأزواج التي يدعمها اللاسع — كل الأزواج المتاحة في OANDA + Binance */
 export const LAZIC_SUPPORTED_SYMBOLS = [
-  // Forex (OANDA)
+  // Forex Majors (OANDA) — 7
   'EUR/USD', 'GBP/USD', 'USD/JPY', 'USD/CHF', 'AUD/USD', 'NZD/USD', 'USD/CAD',
-  // Crypto (Binance)
-  'BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT',
+  // Forex Crosses (OANDA) — 3
+  'EUR/GBP', 'EUR/JPY', 'GBP/JPY',
+  // Metals (OANDA) — 2
+  'XAU/USD', 'XAG/USD',
+  // Indices (OANDA) — 3
+  'US30/USD', 'NAS100/USD', 'SPX500/USD',
+  // Crypto (Binance) — 12
+  'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT',
+  'ADA/USDT', 'DOGE/USDT', 'DOT/USDT', 'MATIC/USDT', 'AVAX/USDT',
+  'LINK/USDT', 'UNI/USDT',
 ] as const;
 
 export type LazicSymbol = typeof LAZIC_SUPPORTED_SYMBOLS[number];

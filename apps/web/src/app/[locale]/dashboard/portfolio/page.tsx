@@ -810,13 +810,11 @@ export default function PortfolioPage() {
       const exitReason = (() => {
         const reason = (p as any).closeReason || ''
         const reasonUpper = reason.toUpperCase()
+        if (reasonUpper.includes('TRAILING_STOP') || reasonUpper === 'TS') return 'TS'
         if (reasonUpper.includes('STOP_LOSS') || reasonUpper === 'SL') {
           // Fix: تحقق منطقي — لو الصفقة رابحة، فالسبب لا يمكن أن يكون SL
-          // للـ BUY: SL يعني خسارة (exit < entry). لو PnL > 0 → ليس SL
-          // للـ SELL: SL يعني خسارة (exit > entry). لو PnL > 0 → ليس SL
           const pnl = Number(p.realizedPnl) || 0
           if (pnl > 0) {
-            // صفقة رابحة لكن سبب الإغلاق SL → هذا خطأ، ضع TP بدلاً منه
             return 'TP'
           }
           return 'SL'
@@ -1957,20 +1955,24 @@ export default function PortfolioPage() {
                       }}>
                         {(pt.pnl || 0) > 0 ? '+' : (pt.pnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pt.pnl || 0))}
                       </div>
-                      {/* V140F: Exit reason — SL / TP / Manual */}
+                      {/* V140F: Exit reason — SL / TP / TS / Manual */}
                       <div style={{ display: 'flex', justifyContent: 'center' }}>
                         <span style={{
                           padding: '1px 5px', borderRadius: 3,
                           fontFamily: "var(--font-mono)", fontSize: 8, fontWeight: 700,
                           background: (pt as any).exitReason === 'SL' ? `${T.red}18` :
-                                      (pt as any).exitReason === 'TP' ? `${T.green}18` : `${T.blue}12`,
+                                      (pt as any).exitReason === 'TP' ? `${T.green}18` :
+                                      (pt as any).exitReason === 'TS' ? `${T.cyan}18` : `${T.blue}12`,
                           color: (pt as any).exitReason === 'SL' ? T.red :
-                                  (pt as any).exitReason === 'TP' ? T.green : T.text3,
+                                  (pt as any).exitReason === 'TP' ? T.green :
+                                  (pt as any).exitReason === 'TS' ? T.cyan : T.text3,
                           border: `0.5px solid ${(pt as any).exitReason === 'SL' ? T.red :
-                                                  (pt as any).exitReason === 'TP' ? T.green : T.border}44`,
+                                                  (pt as any).exitReason === 'TP' ? T.green :
+                                                  (pt as any).exitReason === 'TS' ? T.cyan : T.border}44`,
                         }}>
                           {(pt as any).exitReason === 'SL' ? t('exitSLShort') :
-                            (pt as any).exitReason === 'TP' ? t('exitTPShort') : t('sourceManual')}
+                            (pt as any).exitReason === 'TP' ? t('exitTPShort') :
+                            (pt as any).exitReason === 'TS' ? 'TS' : t('sourceManual')}
                         </span>
                       </div>
                       <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 9, color: T.text3 }}>

@@ -142,10 +142,12 @@ function SliderRow({
 export function LazicPanel() {
   const t = useTranslations('dashboard.lasicPanel')
   const [status, setStatus] = useState<LazicStatus | null>(null)
+  const [positions, setPositions] = useState<{ open: any[]; closed: any[] }>({ open: [], closed: [] })
   const [loading, setLoading] = useState(false)
   const [toggling, setToggling] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [showClosed, setShowClosed] = useState(false)
   const [localSettings, setLocalSettings] = useState<LasicSettings>(DEFAULT_SETTINGS)
   const [savingSettings, setSavingSettings] = useState(false)
   const [settingsSaved, setSettingsSaved] = useState(false)
@@ -167,13 +169,29 @@ export function LazicPanel() {
     }
   }, [showSettings, t])
 
+  const fetchPositions = useCallback(async () => {
+    try {
+      const res = await fetch('/api/lazic/positions', { credentials: 'include' })
+      if (!res.ok) return
+      const data = await res.json()
+      if (data.success && data.data) {
+        setPositions(data.data)
+      }
+    } catch {
+      // silent fail — positions are supplementary
+    }
+  }, [])
+
   useEffect(() => {
     setLoading(true)
     fetchStatus()
-  }, [fetchStatus])
+    fetchPositions()
+  }, [fetchStatus, fetchPositions])
 
   // تحديث كل 3 ثوانٍ — اللاسع سريع جداً
   useVisibleInterval(fetchStatus, 3000)
+  // تحديث الصفقات كل 10 ثوانٍ (أقل تكراراً)
+  useVisibleInterval(fetchPositions, 10000)
 
   const toggle = async () => {
     if (!status || toggling) return
@@ -451,6 +469,89 @@ export function LazicPanel() {
       {error && (
         <div style={{ fontSize: 9, color: T.red, textAlign: 'center', marginTop: 4 }}>{error}</div>
       )}
+
+      {/* قائمة الصفقات — مفتوحة + مغلقة */}
+      <div style={{
+        marginTop: 10, borderRadius: 6, overflow: 'hidden',
+        border: `1px solid ${T.border}`,
+      }}>
+        {/* تبديل بين المفتوحة والمغلقة */}
+        <div style={{ display: 'flex', borderBottom: `1px solid ${T.border}` }}>
+          <button
+            onClick={() => setShowClosed(false)}
+            style={{
+              flex: 1, padding: '4px 6px', fontSize: 8, fontWeight: 700,
+              background: !showClosed ? 'rgba(255,107,53,0.08)' : 'transparent',
+              color: !showClosed ? T.accent : T.text3,
+              border: 'none', borderBottom: !showClosed ? `1.5px solid ${T.accent}` : 'none',
+              cursor: 'pointer', fontFamily: "var(--font-ar)",
+            }}
+          >
+            {t('statDailyTrades')} ({positions.open.length})
+          </button>
+          <button
+            onClick={() => setShowClosed(true)}
+            style={{
+              flex: 1, padding: '4px 6px', fontSize: 8, fontWeight: 700,
+              background: showClosed ? 'rgba(255,107,53,0.08)' : 'transparent',
+              color: showClosed ? T.accent : T.text3,
+              border: 'none', borderBottom: showClosed ? `1.5px solid ${T.accent}` : 'none',
+              cursor: 'pointer', fontFamily: "var(--font-ar)",
+            }}
+          >
+            مغلقة ({positions.closed.length})
+          </button>
+        </div>
+
+        {/* قائمة الصفقات */}
+        <div style={{ maxHeight: 180, overflowY: 'auto', padding: 3 }} className="custom-scrollbar">
+          {(showClosed ? positions.closed : positions.open).length === 0 ? (
+            <div style={{ padding: 10, textAlign: 'center', fontSize: 8, color: T.text3 }}>
+              {showClosed ? 'لا توجد صفقات مغلقة' : 'لا توجد صفقات مفتوحة'}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {(showClosed ? positions.closed : positions.open).slice(0, 15).map((pos: any) => {
+                const isBuy = pos.side === 'BUY' || pos.side === 'long'
+                const pnl = showClosed ? Number(pos.realizedPnl ?? 0) : Number(pos.unrealizedPnl ?? 0)
+                const pnlColor = pnl > 0 ? T.green : pnl < 0 ? T.red : T.text3
+                const reason = pos.closeReason || ''
+                const reasonLabel = reason.includes('TRAILING') ? 'TS' :
+                                    reason.includes('STOP_LOSS') ? 'SL' :
+                                    reason.includes('TAKE_PROFIT') ? 'TP' : ''
+                return (
+                  <div key={pos.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    padding: '4px 5px', borderRadius: 3,
+                    background: 'rgba(255,255,255,0.02)', fontSize: 8,
+                  }}>
+                    <span style={{ color: isBuy ? T.green : T.red, fontWeight: 800, minWidth: 18 }}>
+                      {isBuy ? 'BUY' : 'SEL'}
+                    </span>
+                    <span style={{ color: T.text, fontWeight: 700, fontFamily: 'monospace', flex: 1 }}>
+                      {pos.symbol}
+                    </span>
+                    {showClosed && reasonLabel && (
+                      <span style={{
+                        padding: '0 3px', borderRadius: 2, fontSize: 6, fontWeight: 700,
+                        background: reasonLabel === 'TP' ? `${T.green}18` :
+                                    reasonLabel === 'TS' ? `${T.amber}18` :
+                                    reasonLabel === 'SL' ? `${T.red}18` : 'transparent',
+                        color: reasonLabel === 'TP' ? T.green :
+                               reasonLabel === 'TS' ? T.amber :
+                               reasonLabel === 'SL' ? T.red : T.text3,
+                      }}>{reasonLabel}</span>
+                    )}
+                    <span style={{ color: pnlColor, fontWeight: 800, fontFamily: 'monospace', minWidth: 40, textAlign: 'right' }}>
+                      {pnl > 0 ? '+' : pnl < 0 ? '' : ''}{pnl.toFixed(2)}$
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
 
       <style>{`
         @keyframes pulse {

@@ -17,6 +17,13 @@ export class LazicController {
     return this.lazic.getStatus(req.user.id);
   }
 
+  /** GET /api/lazic/positions — صفقات اللاسع المفتوحة + المغلقة */
+  @Get('positions')
+  async getPositions(@Req() req: any) {
+    const result = await this.lazic.getPositions(req.user.id, 20);
+    return { success: true, data: result };
+  }
+
   /** GET /api/lazic/settings — إعدادات اللاسع القابلة للتخصيص */
   @Get('settings')
   async getSettings(@Req() req: any) {

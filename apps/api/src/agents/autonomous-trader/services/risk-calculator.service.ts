@@ -409,23 +409,26 @@ export class RiskCalculatorService {
 
     if (priceRisk === 0) return 0;
 
-    // V146: Use symbol-aware calculation when symbol is provided
+    // V429: العودة بـ lots مُقرَّبة لخطوة 0.01 بدلاً من وحدات خام
+    // السبب: المستخدم يرى الحجم كعقود (0.01، 0.02...) وليس كوحدات (1000، 2000...)
+    // الحد الأدنى: 0.01 lot | الخطوة: 0.01
     if (symbol) {
       const result = calculatePositionSizeFromRisk(riskAmount, entryPrice, stopLoss, symbol);
 
       // Cap to maxPositionSizePercent of portfolio
       const maxPositionValue = portfolioValue * (maxSizePercent / 100);
-      let quantityUnits = result.quantityUnits;
       let quantityLots = result.quantityLots;
 
       if (result.notional > maxPositionValue) {
-        // Reduce to fit within max position size limit
-        quantityUnits = maxPositionValue / entryPrice;
-        quantityLots = roundLotSize(unitsToLots(quantityUnits, symbol), symbol);
-        quantityUnits = lotsToUnits(quantityLots, symbol);
+        const cappedUnits = maxPositionValue / entryPrice;
+        quantityLots = roundLotSize(unitsToLots(cappedUnits, symbol), symbol);
       }
 
-      return parseFloat(quantityUnits.toFixed(8));
+      // V429: تقريب إلى أقرب 0.01 (خطوة العقد القياسية)
+      // Math.floor لمنع تجاوز الحد، ثم max(0.01) للحد الأدنى
+      const step = 0.01;
+      const rounded = Math.max(step, Math.floor(quantityLots / step) * step);
+      return parseFloat(rounded.toFixed(2));
     }
 
     // Legacy path: no symbol — raw unit calculation

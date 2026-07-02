@@ -326,6 +326,28 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
     signal: EvaluatedSignal,
     config: AgentConfig,
   ): Promise<RiskAssessment> {
+    // V428: حارس السعر المريب — قبل أي حساب
+    const isMeme = ['SHIB','PEPE','FLOKI','BONK'].some(m =>
+      signal.symbol?.toUpperCase().includes(m));
+    if (signal.entryPrice > 0 && signal.entryPrice < 0.0001 && !isMeme) {
+      this.logger.error(
+        `🚨 V428 SUSPICIOUS PRICE in assessRisk: ${signal.symbol} entryPrice=${signal.entryPrice} — BLOCKED`,
+      );
+      return {
+        canTrade: false,
+        reason: `V428: سعر ${signal.entryPrice} مريب جداً لـ ${signal.symbol}`,
+        positionSize: 0,
+        stopLoss: signal.stopLoss,
+        takeProfit: signal.takeProfit,
+        riskRewardRatio: 0,
+        riskScore: 100,
+        dailyPnL: 0,
+        dailyLossPercent: 0,
+        openPositionsCount: 0,
+        portfolioValue: 0,
+      };
+    }
+
     // Use UNIFIED portfolio valuation (not agent-only)
     const portfolioValue = await this._getPortfolioValue(userId);
     const dailyPnL = await this._getCombinedDailyPnL(userId);
@@ -1416,15 +1438,18 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
     if (symbol) {
       const result = calculatePositionSizeFromRisk(riskAmount, entryPrice, stopLoss, symbol);
       const maxPositionValue = portfolioValue * (maxSizePercent / 100);
-      let quantityUnits = result.quantityUnits;
       let quantityLots = result.quantityLots;
 
       if (result.notional > maxPositionValue) {
-        quantityUnits = maxPositionValue / entryPrice;
-        quantityLots = roundLotSize(unitsToLots(quantityUnits, symbol), symbol);
-        quantityUnits = lotsToUnits(quantityLots, symbol);
+        const cappedUnits = maxPositionValue / entryPrice;
+        quantityLots = roundLotSize(unitsToLots(cappedUnits, symbol), symbol);
       }
-      return parseFloat(quantityUnits.toFixed(8));
+
+      // V429: إعادة lots مُقرَّبة لـ 0.01 (حد أدنى 0.01، خطوة 0.01)
+      // الوكيل يفتح عقوداً وليس وحدات خام — 0.01, 0.02, 0.10, 0.11...
+      const step = 0.01;
+      const rounded = Math.max(step, Math.floor(quantityLots / step) * step);
+      return parseFloat(rounded.toFixed(2));
     }
 
     let quantity = riskAmount / priceRisk;

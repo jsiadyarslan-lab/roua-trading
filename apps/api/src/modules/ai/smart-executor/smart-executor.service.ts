@@ -3101,8 +3101,17 @@ export class SmartExecutorService implements OnModuleDestroy {
             const isBuyAgainstBear = brief.direction === 'BUY' && regime === 'BEAR';
             const isSellAgainstBull = brief.direction === 'SELL' && regime === 'BULL';
 
-            if (isBuyAgainstBear || isSellAgainstBull) {
-              const blockReason = `V290 Regime filter: ${brief.direction} blocked in ${regime} market (confidence ${regimeConfidence}%)`;
+            // V430: حجب التداول في السوق المتذبذب/العرضي
+            // درس 2-3 يوليو 2026: المنفذ خسر -$161 في 8 صفقات لأن السوق كان
+            // في وضع RANGE/VOLATILE — الأسعار تعود لنقطة البداية وتضرب SL
+            // قبل الوصول لـ TP. لا توجد قيمة في التداول الاتجاهي في هذا الوضع.
+            const isChoppyMarket = regime === 'RANGE' || regime === 'VOLATILE';
+
+            if (isBuyAgainstBear || isSellAgainstBull || isChoppyMarket) {
+              const blockReason = isChoppyMarket
+                ? `V430 Regime filter: ALL trades blocked in ${regime} market (confidence ${regimeConfidence}%) — choppy market, no directional edge`
+                : `V290 Regime filter: ${brief.direction} blocked in ${regime} market (confidence ${regimeConfidence}%)`;
+
               this.logger.warn(`🚫 ${blockReason} — pair ${brief.pair}, brief ${brief.id}`);
 
               // Mark brief as cancelled so it's not retried on next tick

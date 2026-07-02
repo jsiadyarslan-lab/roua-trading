@@ -4,6 +4,7 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { MarketAnalysis, EvaluatedSignal, StrategyType, StrategyParams } from '../types/agent.types';
+import { MarketRegime } from '../types/agent.types';
 import { BaseStrategy } from '../strategies/base-strategy';
 import { SwingStrategy } from '../strategies/swing.strategy';
 import { GridStrategy } from '../strategies/grid.strategy';
@@ -74,6 +75,19 @@ export class SignalEvaluatorService {
       // ── AUTO Strategy: Detect regime and select best strategy ──
       if (strategyType === StrategyType.AUTO) {
         const selection = await this.adaptiveSelector.selectBestStrategy(userId, market);
+
+        // V430: حجب التداول في السوق المتذبذب/العرضي
+        // درس 2-3 يوليو 2026: الوكيل خسر -$295 في 7 صفقات في سوق RANGE/VOLATILE
+        // الأسعار تعود لنقطة البداية وتضرب SL قبل TP — لا ميزة اتجاهية
+        const choppyRegimes = [MarketRegime.RANGING, MarketRegime.VOLATILE];
+        if (choppyRegimes.includes(selection.regime.regime) &&
+            (selection.regime.confidence || 0) >= 60) {
+          this.logger.warn(
+            `🚫 V430 Agent BLOCKED: ${market.symbol} regime=${selection.regime.regime} ` +
+            `(${selection.regime.confidence}% confidence) — no directional edge in choppy market`,
+          );
+          return null; // null = skip this signal entirely
+        }
 
         effectiveStrategy = selection.strategy;
         autoScores = selection.scores;

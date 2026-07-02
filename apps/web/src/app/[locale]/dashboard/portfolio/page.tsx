@@ -810,8 +810,25 @@ export default function PortfolioPage() {
       const exitReason = (() => {
         const reason = (p as any).closeReason || ''
         const reasonUpper = reason.toUpperCase()
-        if (reasonUpper.includes('STOP_LOSS') || reasonUpper === 'SL') return 'SL'
-        if (reasonUpper.includes('TAKE_PROFIT') || reasonUpper === 'TP') return 'TP'
+        if (reasonUpper.includes('STOP_LOSS') || reasonUpper === 'SL') {
+          // Fix: تحقق منطقي — لو الصفقة رابحة، فالسبب لا يمكن أن يكون SL
+          // للـ BUY: SL يعني خسارة (exit < entry). لو PnL > 0 → ليس SL
+          // للـ SELL: SL يعني خسارة (exit > entry). لو PnL > 0 → ليس SL
+          const pnl = Number(p.realizedPnl) || 0
+          if (pnl > 0) {
+            // صفقة رابحة لكن سبب الإغلاق SL → هذا خطأ، ضع TP بدلاً منه
+            return 'TP'
+          }
+          return 'SL'
+        }
+        if (reasonUpper.includes('TAKE_PROFIT') || reasonUpper === 'TP') {
+          // Fix: تحقق منطقي عكسي — لو الصفقة خاسرة، فالسبب لا يمكن أن يكون TP
+          const pnl = Number(p.realizedPnl) || 0
+          if (pnl < 0) {
+            return 'SL'
+          }
+          return 'TP'
+        }
         if (reasonUpper.includes('LIQUIDATED')) return 'LIQ'
         if (reasonUpper.includes('AUTO_STALE') || reasonUpper.includes('STALE')) return 'STALE'
         if (reasonUpper.includes('EXCHANGE_SYNC')) return 'SYNC'
@@ -838,11 +855,16 @@ export default function PortfolioPage() {
         return 'MANUAL'
       })()
 
+      // V140B: Source badge — shows لاسع/منفذ/وكيل/ورقي/يدوي
+      // Fix: أضفنا 'lazic'/'lasic' كـ type مستقل (كان يقع في MANUAL)
+      const ptType = p.source === 'lazic' || p.source === 'lasic' ? 'LASIC' :
+                     p.source === 'smart_executor' ? 'SMART' :
+                     p.source === 'agent' ? 'AGENT' :
+                     p.source === 'auto_paper' ? 'PAPER' : 'MANUAL'
+
       return {
         id: p.id, symbol: p.symbol, side: p.side,
-        type: p.source === 'smart_executor' ? 'SMART' :
-              p.source === 'agent' ? 'AGENT' :
-              p.source === 'auto_paper' ? 'PAPER' : 'MANUAL',
+        type: ptType,
         quantity: Number(p.quantity) || 0,
         price: Number(p.entryPrice) || 0,  // FIX V169: Ensure entryPrice is a valid number
         pnl: Number(p.realizedPnl) || 0,
@@ -1813,10 +1835,10 @@ export default function PortfolioPage() {
                               <span style={{
                                 padding: '0px 3px', borderRadius: 3,
                                 fontFamily: "var(--font-mono)", fontSize: 7, fontWeight: 700,
-                                background: pt.type === 'SMART' ? `${T.amber}14` : pt.type === 'AGENT' ? `${T.purple}14` : pt.type === 'PAPER' ? `${T.cyan}14` : `${T.border}`,
-                                color: pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : T.text3,
-                                border: `0.5px solid ${pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : T.border}`,
-                              }}>{pt.type === 'SMART' ? t('sourceSmart') : pt.type === 'AGENT' ? t('sourceAgent') : pt.type === 'PAPER' ? t('sourcePaper') : t('sourceManual')}</span>
+                                background: pt.type === 'SMART' ? `${T.amber}14` : pt.type === 'AGENT' ? `${T.purple}14` : pt.type === 'PAPER' ? `${T.cyan}14` : pt.type === 'LASIC' ? 'rgba(255,107,53,0.12)' : `${T.border}`,
+                                color: pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : pt.type === 'LASIC' ? '#FF6B35' : T.text3,
+                                border: `0.5px solid ${pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : pt.type === 'LASIC' ? '#FF6B35' : T.border}`,
+                              }}>{pt.type === 'SMART' ? t('sourceSmart') : pt.type === 'AGENT' ? t('sourceAgent') : pt.type === 'PAPER' ? t('sourcePaper') : pt.type === 'LASIC' ? t('sourceLasic') : t('sourceManual')}</span>
                               <span style={{
                                 padding: '1px 6px', borderRadius: 4,
                                 fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700,
@@ -1902,10 +1924,10 @@ export default function PortfolioPage() {
                         <span style={{
                           padding: '0px 3px', borderRadius: 3,
                           fontFamily: "var(--font-mono)", fontSize: 7, fontWeight: 700,
-                          background: pt.type === 'SMART' ? `${T.amber}14` : pt.type === 'AGENT' ? `${T.purple}14` : pt.type === 'PAPER' ? `${T.cyan}14` : `${T.border}`,
-                          color: pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : T.text3,
-                          border: `0.5px solid ${pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : T.border}`,
-                        }}>{pt.type === 'SMART' ? t('sourceSmart') : pt.type === 'AGENT' ? t('sourceAgent') : pt.type === 'PAPER' ? t('sourcePaper') : t('sourceManual')}</span>
+                          background: pt.type === 'SMART' ? `${T.amber}14` : pt.type === 'AGENT' ? `${T.purple}14` : pt.type === 'PAPER' ? `${T.cyan}14` : pt.type === 'LASIC' ? 'rgba(255,107,53,0.12)' : `${T.border}`,
+                          color: pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : pt.type === 'LASIC' ? '#FF6B35' : T.text3,
+                          border: `0.5px solid ${pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : pt.type === 'LASIC' ? '#FF6B35' : T.border}`,
+                        }}>{pt.type === 'SMART' ? t('sourceSmart') : pt.type === 'AGENT' ? t('sourceAgent') : pt.type === 'PAPER' ? t('sourcePaper') : pt.type === 'LASIC' ? t('sourceLasic') : t('sourceManual')}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'center' }}>
                         <span style={{

@@ -1647,6 +1647,9 @@ export default function RouaChart({
     pnl?: number;
     linePnl?: number;   // P&L if price hits this line (SL=loss, TP=profit)
     positionId?: string; // for drag updates
+    symbol?: string;     // for context menu
+    stopLoss?: number;   // for context menu
+    takeProfit?: number; // for context menu
   }
 
   const [tradeOverlays, setTradeOverlays] = useState<TradeOverlay[]>([]);
@@ -1662,6 +1665,21 @@ export default function RouaChart({
   } | null>(null);
   const dragStateRef = useRef<typeof dragState>(null);
   useEffect(() => { dragStateRef.current = dragState; }, [dragState]);
+
+  // ── Context Menu State (right-click on position) ──
+  const [contextMenu, setContextMenu] = useState<{
+    x: number; y: number;
+    positionId: string;
+    symbol: string;
+    side: 'long' | 'short';
+    entryPrice: number;
+    qty: number;
+    stopLoss?: number;
+    takeProfit?: number;
+    source: string;
+  } | null>(null);
+  const contextMenuRef = useRef<typeof contextMenu>(null);
+  useEffect(() => { contextMenuRef.current = contextMenu; }, [contextMenu]);
 
   const [fillZones, setFillZones] = useState<Array<{
     top: number; height: number; type: 'sl' | 'tp'; key: string;
@@ -1784,6 +1802,8 @@ export default function RouaChart({
           overlays.push({
             key: `${prefix}entry`, y: entryY, price: entryPrice,
             type: 'entry', direction, source, qty, pnl,
+            symbol: prefix.startsWith('pos-') ? undefined : undefined, // set by caller
+            stopLoss: sl, takeProfit: tp,
           });
         }
 
@@ -3386,13 +3406,13 @@ export default function RouaChart({
                   top: 0,
                   left: 6,
                   zIndex: 15,
-                  pointerEvents: isDraggable ? 'auto' : 'none',
+                  pointerEvents: isDraggable ? 'auto' : (isEntry ? 'auto' : 'none'),
                   touchAction: isDraggable ? 'none' : 'auto',
                   // Position ABOVE the line (label height ~20px + 4px gap)
                   // Fix: استخدم displayY أثناء السحب لتحريك الخط بصرياً
                   transform: `translateY(${displayY - 24}px)`,
                   willChange: 'transform',
-                  cursor: isDraggable ? 'ns-resize' : 'default',
+                  cursor: isDraggable ? 'ns-resize' : (isEntry ? 'context-menu' : 'default'),
                   userSelect: 'none',
                 }}
                   onMouseDown={isDraggable ? (e) => {
@@ -3402,6 +3422,24 @@ export default function RouaChart({
                     setDragState({ key: ov.key, type: ov.type as 'sl'|'tp',
                       startY: e.clientY, currentY: e.clientY,
                       originalPrice: ov.price, positionKey: posKey });
+                  } : undefined}
+                  onContextMenu={isEntry ? (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Extract position data from the overlay
+                    const positionId = ov.key.replace(/^pos-/, '').replace(/-entry$/, '');
+                    setContextMenu({
+                      x: e.clientX,
+                      y: e.clientY,
+                      positionId,
+                      symbol: (ov as any).symbol || '',
+                      side: ov.direction,
+                      entryPrice: ov.price,
+                      qty: ov.qty,
+                      stopLoss: (ov as any).stopLoss,
+                      takeProfit: (ov as any).takeProfit,
+                      source: ov.source,
+                    });
                   } : undefined}
                 >
                   {/* Main label badge */}
@@ -3509,6 +3547,190 @@ export default function RouaChart({
                 }}
                 onMouseLeave={() => setDragState(null)}
               />
+            )}
+
+            {/* ── Context Menu (right-click on position) ── */}
+            {contextMenu && (
+              <>
+                {/* Backdrop — closes menu on outside click */}
+                <div style={{
+                  position: 'fixed', inset: 0, zIndex: 9998,
+                  background: 'transparent',
+                }}
+                  onClick={() => setContextMenu(null)}
+                  onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
+                />
+                {/* Menu */}
+                <div style={{
+                  position: 'fixed',
+                  left: Math.min(contextMenu.x, window.innerWidth - 220),
+                  top: Math.min(contextMenu.y, window.innerHeight - 320),
+                  zIndex: 9999,
+                  minWidth: 200,
+                  background: 'rgba(11, 14, 20, 0.98)',
+                  border: '1px solid rgba(0, 212, 255, 0.25)',
+                  borderRadius: 8,
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 16px rgba(0,212,255,0.1)',
+                  backdropFilter: 'blur(12px)',
+                  padding: '4px 0',
+                  fontFamily: 'var(--font-ar)',
+                  overflow: 'hidden',
+                }}>
+                  {/* Header — position info */}
+                  <div style={{
+                    padding: '6px 12px',
+                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    display: 'flex', alignItems: 'center', gap: 6,
+                  }}>
+                    <span style={{
+                      fontSize: 9, fontWeight: 800,
+                      color: contextMenu.side === 'long' ? '#00FFA3' : '#FF4757',
+                      padding: '1px 5px', borderRadius: 3,
+                      background: contextMenu.side === 'long' ? 'rgba(0,255,163,0.12)' : 'rgba(255,71,87,0.12)',
+                    }}>
+                      {contextMenu.side === 'long' ? 'BUY' : 'SELL'}
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#E0ECF8', fontFamily: 'var(--font-mono)' }}>
+                      {contextMenu.symbol || '—'}
+                    </span>
+                    <span style={{ fontSize: 9, color: '#5A6A80', marginLeft: 'auto', fontFamily: 'var(--font-mono)' }}>
+                      {contextMenu.qty} @ {contextMenu.entryPrice.toFixed(contextMenu.entryPrice > 100 ? 2 : 5)}
+                    </span>
+                  </div>
+
+                  {/* Menu items */}
+                  {([
+                    { icon: '✎', label: 'تعديل SL/TP', color: '#00D4FF', action: 'modify_sltp' },
+                    { icon: '✕', label: 'إغلاق الصفقة', color: '#FF4757', action: 'close' },
+                    { icon: '⇄', label: 'عكس الصفقة', color: '#FFB800', action: 'reverse' },
+                    { divider: true },
+                    { icon: '📊', label: 'فتح الشارت', color: '#00FFA3', action: 'focus_chart' },
+                    { icon: '🔔', label: 'تنبيه على السعر', color: '#B388FF', action: 'alert' },
+                    { divider: true },
+                    { icon: 'ℹ', label: 'تفاصيل الصفقة', color: '#8B92A8', action: 'details' },
+                    { icon: '📋', label: 'نسخ معرف الصفقة', color: '#8B92A8', action: 'copy_id' },
+                  ] as Array<{ icon?: string; label?: string; color?: string; action?: string; divider?: boolean }>).map((item, i) => item.divider ? (
+                    <div key={`div-${i}`} style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+                  ) : (
+                    <div
+                      key={item.action}
+                      onClick={async () => {
+                        const cm = contextMenuRef.current;
+                        if (!cm) return;
+                        setContextMenu(null);
+
+                        switch (item.action) {
+                          case 'modify_sltp':
+                            // Trigger the drag mode by alerting — or open a prompt
+                            const slInput = prompt('أدخل سعر وقف الخسارة الجديد (أو اترك فارغاً للإبقاء):', cm.stopLoss?.toString() || '');
+                            const tpInput = prompt('أدخل سعر أخذ الربح الجديد (أو اترك فارغاً للإبقاء):', cm.takeProfit?.toString() || '');
+                            const body: any = {};
+                            if (slInput && slInput.trim()) body.stopLoss = parseFloat(slInput);
+                            if (tpInput && tpInput.trim()) body.takeProfit = parseFloat(tpInput);
+                            if (Object.keys(body).length > 0) {
+                              try {
+                                await fetch(`/api/trading/positions/${cm.positionId}/levels`, {
+                                  method: 'POST', credentials: 'include',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify(body),
+                                });
+                              } catch (err) { console.error('Modify SL/TP failed:', err); }
+                            }
+                            break;
+                          case 'close':
+                            if (confirm(`تأكيد إغلاق صفقة ${cm.symbol}؟`)) {
+                              try {
+                                await fetch(`/api/trading/positions/${cm.positionId}/close`, {
+                                  method: 'POST', credentials: 'include',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ closeReason: 'MANUAL' }),
+                                });
+                              } catch (err) { console.error('Close failed:', err); }
+                            }
+                            break;
+                          case 'reverse':
+                            if (confirm(`تأكيد عكس صفقة ${cm.symbol}؟ سيُغلق الحالي ويُفتح عكسي.`)) {
+                              try {
+                                await fetch(`/api/trading/positions/${cm.positionId}/close`, {
+                                  method: 'POST', credentials: 'include',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ closeReason: 'REVERSE' }),
+                                });
+                                // Open reverse position
+                                const reverseSide = cm.side === 'long' ? 'SELL' : 'BUY';
+                                await fetch('/api/trading/orders', {
+                                  method: 'POST', credentials: 'include',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    symbol: cm.symbol, side: reverseSide, type: 'MARKET',
+                                    quantity: cm.qty, source: 'user_manual',
+                                  }),
+                                });
+                              } catch (err) { console.error('Reverse failed:', err); }
+                            }
+                            break;
+                          case 'focus_chart':
+                            // Symbol already selected — just close menu
+                            break;
+                          case 'alert':
+                            const alertPrice = prompt('أدخل سعر التنبيه:', cm.entryPrice.toString());
+                            if (alertPrice) {
+                              try {
+                                await fetch('/api/price-alerts', {
+                                  method: 'POST', credentials: 'include',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    symbol: cm.symbol, price: parseFloat(alertPrice),
+                                    condition: 'above',
+                                  }),
+                                });
+                              } catch (err) { console.error('Alert failed:', err); }
+                            }
+                            break;
+                          case 'details':
+                            alert(
+                              `تفاصيل الصفقة\n\n` +
+                              `الزوج: ${cm.symbol}\n` +
+                              `الاتجاه: ${cm.side === 'long' ? 'شراء' : 'بيع'}\n` +
+                              `سعر الدخول: ${cm.entryPrice}\n` +
+                              `الحجم: ${cm.qty}\n` +
+                              `وقف الخسارة: ${cm.stopLoss || '—'}\n` +
+                              `أخذ الربح: ${cm.takeProfit || '—'}\n` +
+                              `المصدر: ${cm.source}\n` +
+                              `المعرف: ${cm.positionId}`
+                            );
+                            break;
+                          case 'copy_id':
+                            try {
+                              await navigator.clipboard.writeText(cm.positionId);
+                            } catch {}
+                            break;
+                        }
+                      }}
+                      style={{
+                        padding: '7px 12px',
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        cursor: 'pointer',
+                        color: '#C8D4E4',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = `${item.color || '#8B92A8'}15`;
+                        e.currentTarget.style.color = item.color || '#8B92A8';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = '#C8D4E4';
+                      }}
+                    >
+                      <span style={{ fontSize: 12, width: 16, textAlign: 'center' }}>{item.icon}</span>
+                      <span>{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
 
             {/* Volume Profile rendered as overlay below */}

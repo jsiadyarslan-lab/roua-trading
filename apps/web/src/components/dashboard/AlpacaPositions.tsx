@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslations, useLocale } from 'next-intl'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { RefreshCw, TrendingDown, TrendingUp, X as XIcon, History } from 'lucide-react'
@@ -985,7 +986,10 @@ export function AlpacaPositions() {
       {/* end */}
 
       {/* ── Context Menu (right-click on position card) ── */}
-      {contextMenu && (
+      {/* Fix: استخدم createPortal لرفع القائمة لـ document.body —
+          الـ container الأب لديه overflow: 'hidden' + maxHeight: 180
+          يقطع position: 'fixed' حتى مع z-index عالي */}
+      {contextMenu && typeof document !== 'undefined' && createPortal(
         <>
           {/* Backdrop */}
           <div
@@ -1170,7 +1174,8 @@ export function AlpacaPositions() {
               </div>
             ))}
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   )

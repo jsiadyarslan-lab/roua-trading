@@ -3550,13 +3550,14 @@ export default function RouaChart({
             )}
 
             {/* ── Context Menu (right-click on position) ── */}
-            {contextMenu && (
+            {/* Fix: استخدم createPortal لرفع القائمة لـ document.body —
+                الـ overlay layer لديه pointerEvents: 'none' و الـ container يقطع fixed positioning */}
+            {contextMenu && typeof document !== 'undefined' && createPortal(
               <>
                 {/* Backdrop — closes menu on outside click */}
                 <div style={{
                   position: 'fixed', inset: 0, zIndex: 9998,
                   background: 'transparent',
-                  pointerEvents: 'auto',  // Fix: ضروري لأن الـ parent overlay layer لديه pointerEvents: 'none'
                 }}
                   onClick={() => setContextMenu(null)}
                   onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
@@ -3576,7 +3577,6 @@ export default function RouaChart({
                   padding: '4px 0',
                   fontFamily: 'var(--font-ar)',
                   overflow: 'hidden',
-                  pointerEvents: 'auto',  // Fix: ضروري لتفعيل النقر على عناصر القائمة
                 }}>
                   {/* Header — position info + close button */}
                   <div style={{
@@ -3746,7 +3746,8 @@ export default function RouaChart({
                     </div>
                   ))}
                 </div>
-              </>
+              </>,
+              document.body
             )}
 
             {/* Volume Profile rendered as overlay below */}

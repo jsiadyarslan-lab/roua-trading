@@ -352,6 +352,7 @@ export default function RouaChart({
   onToggleChartFullscreen,
   chartActions,
   onCrosshairDataChange,
+  onSLTPDrag,
   // ── Per-instance props (for multi-chart) ──
   symbol: symbolProp,
   timeframe: timeframeProp,
@@ -1652,6 +1653,8 @@ export default function RouaChart({
   // Drag state for SL/TP lines
   // Ref for onSLTPDrag callback (prop may not be available in inner scope)
   const onSLTPDragRef = useRef<((key: string, type: 'sl'|'tp', price: number) => void) | undefined>(undefined);
+  // Sync the prop to the ref so the drag handler can access it
+  useEffect(() => { onSLTPDragRef.current = onSLTPDrag; }, [onSLTPDrag]);
 
   const [dragState, setDragState] = useState<{
     key: string; type: 'sl' | 'tp'; startY: number; currentY: number;
@@ -3358,6 +3361,15 @@ export default function RouaChart({
                 ? ` ${ov.linePnl >= 0 ? '+' : ''}$${Math.abs(ov.linePnl).toFixed(2)}`
                 : '';
 
+              // Entry P&L: unrealized profit/loss based on current price
+              // Calculate from current price vs entry price × qty × direction
+              const entryPnl = isEntry && ov.qty > 0 && currentPrice
+                ? (currentPrice - ov.price) * ov.qty * (ov.direction === 'long' ? 1 : -1)
+                : 0;
+              const entryPnlText = isEntry && ov.qty > 0
+                ? ` ${entryPnl >= 0 ? '+' : ''}$${Math.abs(entryPnl).toFixed(2)}`
+                : '';
+
               const isDraggable = (isSL || isTP);
 
               return (
@@ -3404,6 +3416,22 @@ export default function RouaChart({
                     }}>
                       {typeLabel}
                     </span>
+                    {/* Entry P&L — unrealized profit/loss next to "Entry" label */}
+                    {isEntry && entryPnlText && (
+                      <span style={{
+                        color: entryPnl >= 0 ? '#00FFA3' : '#FF4757',
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 10,
+                        fontWeight: 700,
+                        whiteSpace: 'nowrap',
+                        borderLeft: `1px solid ${color}44`,
+                        paddingLeft: 4,
+                        marginLeft: 1,
+                      }}>
+                        {entryPnlText}
+                      </span>
+                    )}
+                    {/* SL/TP P&L */}
                     {pnlText && (
                       <span style={{
                         color: ov.linePnl !== undefined && ov.linePnl >= 0 ? '#00FFA3' : '#FF4757',

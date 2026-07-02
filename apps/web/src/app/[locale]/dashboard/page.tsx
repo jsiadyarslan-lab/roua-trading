@@ -1415,6 +1415,24 @@ export default function DashboardPage() {
                   currentPrice={currentPrice}
                   isChartFullscreen={chartFullscreen}
                   onToggleChartFullscreen={toggleChartFullscreen}
+                  onSLTPDrag={async (key, type, newPrice) => {
+                    // Extract position ID from overlay key: "pos-{id}-sl" or "pos-{id}-tp"
+                    const match = key.match(/^pos-(.+)-(sl|tp)$/);
+                    if (!match) return;
+                    const positionId = match[1];
+                    try {
+                      await fetch(`/api/trading/positions/${positionId}/levels`, {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(type === 'sl' ? { stopLoss: newPrice } : { takeProfit: newPrice }),
+                      });
+                      // Refresh positions to reflect the update
+                      fetchPositions();
+                    } catch (err) {
+                      console.error('Failed to update SL/TP:', err);
+                    }
+                  }}
                 />
               </div>
             </div>
@@ -2212,6 +2230,22 @@ export default function DashboardPage() {
               hideToolbar
               isChartFullscreen={chartFullscreen}
               onToggleChartFullscreen={toggleChartFullscreen}
+              onSLTPDrag={async (key, type, newPrice) => {
+                const match = key.match(/^pos-(.+)-(sl|tp)$/);
+                if (!match) return;
+                const positionId = match[1];
+                try {
+                  await fetch(`/api/trading/positions/${positionId}/levels`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(type === 'sl' ? { stopLoss: newPrice } : { takeProfit: newPrice }),
+                  });
+                  fetchPositions();
+                } catch (err) {
+                  console.error('Failed to update SL/TP:', err);
+                }
+              }}
             />
 
 

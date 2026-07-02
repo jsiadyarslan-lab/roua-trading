@@ -391,7 +391,7 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
 
     // ── Phase 3: احسب الكمية الحقيقية (risk% × balance ÷ SL distance)
     const slDistance = Math.abs(tick.price - sl);
-    const quantity = await this._calcQuantity(tick.price, slDistance, state);
+    const quantity = await this._calcQuantity(tick.symbol, tick.price, slDistance, state);
 
     if (quantity <= 0) {
       this.logger.warn(`⚠️ اللاسع: quantity=0 للمستخدم ${userId} — تخطّي`);
@@ -469,19 +469,18 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  // ── Phase 3: حجم الصفقة الحقيقي = (balance × risk%) ÷ SL distance
-  //   - paper trading: paperBalance من AgentSettings
-  //   - real trading: cached balance من Redis (fallback 1000 nominal)
-  //   - cache 30s لتفادي DB/Redis lookup على كل tick
+  // ── حجم الصفقة — risk% ÷ SL distance، مع step sizes قياسية ──
   //
-  // Fix: maxNotional رُفع من 5% إلى 10% من balance (كان ينتج أحجام صغيرة جداً).
-  //   - 5%: BTC qty = 0.00833 (يُجبر على 0.01 لكن يتجاوز الـ cap)
-  //   - 10%: BTC qty = 0.0166 (يحترم الـ cap + أكبر من MIN_QTY)
+  // المستخدم طلب: "حجم العقد يبدأ من 0.01، الغي الكسور العشرية"
+  // يعني: أرقام نظيفة بدون كسور عشوائية (87.86, 0.000707, etc.)
   //
-  // Fix: حماية أخيرة — لو MIN_QTY > maxQtyByNotional → return 0 (لا صفقة)
-  //   - هذا يحدث لو الـ balance صغير جداً بالنسبة لسعر الزوج
-  //   - مثلاً: balance $100, BTC price $60000 → MIN_QTY 0.01 = $600 > 10% cap ($10)
+  // Step sizes قياسية حسب asset class:
+  //   Crypto: 0.01  → 0.01, 0.02, 0.03... (أصغر وحدة للـ BTC/ETH)
+  //   Forex:  100   → 100, 200, 300... (nano lots، أرقام صحيحة)
+  //
+  // maxNotional = 25% من balance (مرفوع من 10% لتمكين صفقات forex)
   private async _calcQuantity(
+    symbol: string,
     price: number,
     slDistance: number,
     state: LazicUserState,
@@ -502,14 +501,12 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
           });
           balance = Number(settings?.paperBalance ?? 10000);
         } else {
-          // حقيقي: جرب Redis cache أولاً (يكتبه fetchAccount كل 30s)
           const cached = await this.redis.get(`user:${state.userId}:balance`);
           balance = cached ? Number(cached) : 1000;
         }
         state.cachedBalance = balance;
         state.balanceLastFetchedAt = now;
       } catch (err: any) {
-        // fallback: nominal 1000
         balance = 1000;
         state.cachedBalance = balance;
         state.balanceLastFetchedAt = now;
@@ -520,34 +517,40 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     const riskAmount = balance * (state.riskPerTradePct / 100);
     let rawQty = riskAmount / slDistance;
 
-    // الحد الأقصى: 10% من balance (كان 5% — رُفع لإنتاج أحجام أكبر)
-    const maxNotional = balance * 0.10;
+    // الحد الأقصى: 25% من balance (مرفوع من 10% لتمكين صفقات forex)
+    const maxNotional = balance * 0.25;
     const maxQtyByNotional = maxNotional / price;
     if (rawQty > maxQtyByNotional) {
       rawQty = maxQtyByNotional;
     }
 
-    // الحد الأدنى للكمية = 0.01 وحدة لكل الأزواج (lot size قياسي)
-    const MIN_QUANTITY = 0.01;
-    if (rawQty < MIN_QUANTITY) {
-      rawQty = MIN_QUANTITY;
+    // ── Step sizes قياسية حسب asset class ──
+    // تحديد asset class من اسم الزوج (ليس من السعر — USD/JPY price=150 يُعامل كـ forex)
+    // crypto: ينتهي بـ /USDT أو /BTC أو /USD (للـ BTC, ETH, BNB, SOL)
+    // forex: أزواج العملات التقليدية (EUR/USD, GBP/USD, USD/JPY, USD/CHF, etc.)
+    const isCrypto = symbol.includes('/USDT') || symbol.includes('/BTC');
+    const stepSize = isCrypto ? 0.01 : 100;
+
+    // قرّب إلى step size (floor — لا يتجاوز الـ rawQty)
+    let quantity = Math.floor(rawQty / stepSize) * stepSize;
+
+    // لو النتيجة 0 (rawQty < stepSize)، استخدم stepSize كحد أدنى
+    if (quantity === 0) {
+      // تحقق لو stepSize يطابق الـ 25% cap
+      if (stepSize * price > maxNotional) {
+        this.logger.warn(
+          `⚠️ اللاسع: stepSize (${stepSize}) × price (${price}) = ${stepSize * price} ` +
+          `> cap (${maxNotional}) — balance=${balance}, symbol=${symbol}. تخطّي التنفيذ.`
+        );
+        return 0;
+      }
+      quantity = stepSize;
     }
 
-    // حماية أخيرة: لو MIN_QTY يتجاوز الـ 10% cap → لا تفتح صفقة
-    // (هذا يحمي المستخدمين بـ balance صغير من فتح صفقات كبيرة جداً)
-    if (rawQty > maxQtyByNotional) {
-      this.logger.warn(
-        `⚠️ اللاسع: MIN_QTY (${MIN_QUANTITY}) > maxQtyByNotional (${maxQtyByNotional.toFixed(6)}) ` +
-        `— balance=${balance}, price=${price}. تخطّي التنفيذ.`
-      );
-      return 0;
-    }
-
-    // تقريب حسب asset class
-    // Crypto (price > 1000): 6 decimal, Mid-price (100-1000): 4 decimal, Forex (<100): 2 decimal
-    const decimals = price > 1000 ? 6 : price > 100 ? 4 : 2;
-
-    return Math.round(rawQty * Math.pow(10, decimals)) / Math.pow(10, decimals);
+    // تقريب نهائي
+    // crypto: 2 decimals (0.01), forex: 0 decimals (100, 200, 300)
+    const decimals = isCrypto ? 2 : 0;
+    return Math.round(quantity * Math.pow(10, decimals)) / Math.pow(10, decimals);
   }
 
   // ── Phase 3: سجّل metric في Redis (success/fail counts + last reason)

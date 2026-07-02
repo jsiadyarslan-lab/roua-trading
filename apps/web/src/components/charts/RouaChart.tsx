@@ -3296,7 +3296,8 @@ export default function RouaChart({
           />
 
           {/* Overlay Layer — ABOVE canvas so trade labels and fill zones are visible.
-              pointerEvents: none so chart interactions (drawing, crosshair) still work. */}
+              pointerEvents: none on the container so chart interactions (drawing, crosshair) still work.
+              Draggable SL/TP labels set pointerEvents: 'auto' to receive mouse events. */}
           <div className="roua-overlay-layer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible', zIndex: 5 }}>
 
             {/* Symbol Watermark — REMOVED: name already shown in toolbar/CrosshairOverlay */}
@@ -3473,6 +3474,9 @@ export default function RouaChart({
               <div style={{
                 position: 'absolute', inset: 0, zIndex: 100,
                 cursor: 'ns-resize', background: 'transparent',
+                // Fix: pointerEvents: 'auto' ضروري لأن الـ parent overlay layer
+                // لديه pointerEvents: 'none'. بدون هذا، onMouseMove/onMouseUp لا يعملان.
+                pointerEvents: 'auto',
               }}
                 onMouseMove={(e) => {
                   if (!dragStateRef.current) return;
@@ -3483,7 +3487,9 @@ export default function RouaChart({
                   const ds = dragStateRef.current;
                   const deltaY = e.clientY - ds.startY;
                   if (Math.abs(deltaY) > 2) {
-                    const getPriceCoord = chart.getPriceCoordinate;
+                    // Fix: استخدم getPriceCoordinateRef بدلاً من chart.getPriceCoordinate
+                    // (chart قد يكون unstable reference)
+                    const getPriceCoord = getPriceCoordinateRef.current;
                     if (getPriceCoord) {
                       const baseCoord = getPriceCoord(ds.originalPrice);
                       // Use 0.1% price change to estimate pixels-per-unit

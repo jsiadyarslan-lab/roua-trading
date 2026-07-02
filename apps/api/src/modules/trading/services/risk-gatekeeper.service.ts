@@ -789,23 +789,29 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
       if (isPaperByFlag || isSimulatedByCredential) {
         // ═══════════════════════════════════════════════════════════════════
         // V145: SOURCE-AWARE position counting for paper/simulated trading.
-        // Instead of counting ALL positions against the global limit,
-        // count positions per-source against per-source limits.
         // Each tool (lasic, executor, agent) has its OWN limit.
+        // الحدود تُقرأ من DB (AgentSettings) أولاً، fallback إلى env vars.
         // ═══════════════════════════════════════════════════════════════════
         const orderSource = command.source || 'auto_paper';
         const isExecutor = ['smart_executor', 'auto_paper'].includes(orderSource);
         const isLasic = orderSource === 'lazic' || orderSource === 'lasic';
+
+        // اقرأ إعدادات المستخدم من DB (قابلة للتخصيص من الـ UI)
+        const userSettings = await this.prisma.agentSettings.findUnique({
+          where: { userId: command.userId },
+          select: { lazicMaxOpenPositions: true, maxOpenPositions: true },
+        }).catch(() => null);
+
         let perSourceLimit: number;
         let sourceLabel: string;
         if (isLasic) {
-          perSourceLimit = this.lasicMaxOpenPositions;
+          perSourceLimit = Number((userSettings as any)?.lazicMaxOpenPositions) || this.lasicMaxOpenPositions;
           sourceLabel = 'اللاسع';
         } else if (isExecutor) {
           perSourceLimit = this.executorMaxOpenPositions;
           sourceLabel = 'المنفذ';
         } else {
-          perSourceLimit = this.agentMaxOpenPositions;
+          perSourceLimit = Number((userSettings as any)?.maxOpenPositions) || this.agentMaxOpenPositions;
           sourceLabel = 'الوكيل';
         }
 
@@ -909,20 +915,28 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
       // V145: SOURCE-AWARE position counting for REAL trading too.
       // Same logic as paper trading — count per-source first, then global.
       // Each tool (lasic, executor, agent) has its OWN limit.
+      // الحدود تُقرأ من DB (AgentSettings) أولاً، fallback إلى env vars.
       // ═══════════════════════════════════════════════════════════════════
       const orderSource = command.source || 'user_manual';
       const isExecutor = ['smart_executor', 'auto_paper'].includes(orderSource);
       const isLasic = orderSource === 'lazic' || orderSource === 'lasic';
+
+      // اقرأ إعدادات المستخدم من DB (قابلة للتخصيص من الـ UI)
+      const userSettings = await this.prisma.agentSettings.findUnique({
+        where: { userId: command.userId },
+        select: { lazicMaxOpenPositions: true, maxOpenPositions: true },
+      }).catch(() => null);
+
       let perSourceLimit: number;
       let sourceLabel: string;
       if (isLasic) {
-        perSourceLimit = this.lasicMaxOpenPositions;
+        perSourceLimit = Number((userSettings as any)?.lazicMaxOpenPositions) || this.lasicMaxOpenPositions;
         sourceLabel = 'اللاسع';
       } else if (isExecutor) {
         perSourceLimit = this.executorMaxOpenPositions;
         sourceLabel = 'المنفذ';
       } else {
-        perSourceLimit = this.agentMaxOpenPositions;
+        perSourceLimit = Number((userSettings as any)?.maxOpenPositions) || this.agentMaxOpenPositions;
         sourceLabel = 'الوكيل';
       }
 

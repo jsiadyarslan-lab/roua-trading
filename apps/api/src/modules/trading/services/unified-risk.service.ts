@@ -729,19 +729,30 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
       if (isPaperByFlag || isSimulatedByCredential) {
         // Paper trading path — per-source counting
         // كل أداة لها حدّها المستقل: اللاسع / المنفذ / الوكيل
+        // الحدود تُقرأ من DB (AgentSettings) أولاً، fallback إلى env vars
         const orderSource = command.source || 'auto_paper';
         const isExecutor = ['smart_executor', 'auto_paper'].includes(orderSource);
         const isLasic = orderSource === 'lazic' || orderSource === 'lasic';
+
+        // اقرأ إعدادات المستخدم من DB (قابلة للتخصيص من الـ UI)
+        const userSettings = await this.prisma.agentSettings.findUnique({
+          where: { userId: command.userId },
+          select: { lazicMaxOpenPositions: true, maxOpenPositions: true },
+        }).catch(() => null);
+
         let perSourceLimit: number;
         let sourceLabel: string;
         if (isLasic) {
-          perSourceLimit = this.lasicMaxOpenPositions;
+          // اللاسع: lazicMaxOpenPositions من AgentSettings (مخصص من LazicPanel)
+          perSourceLimit = Number((userSettings as any)?.lazicMaxOpenPositions) || this.lasicMaxOpenPositions;
           sourceLabel = 'اللاسع';
         } else if (isExecutor) {
+          // المنفذ: env var fallback (الـ executor له نظام إدارة منفصل)
           perSourceLimit = this.executorMaxOpenPositions;
           sourceLabel = 'المنفذ';
         } else {
-          perSourceLimit = this.agentMaxOpenPositions;
+          // الوكيل: maxOpenPositions من AgentSettings (مخصص من autonomous-trader)
+          perSourceLimit = Number((userSettings as any)?.maxOpenPositions) || this.agentMaxOpenPositions;
           sourceLabel = 'الوكيل';
         }
 
@@ -828,19 +839,27 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
       }
 
       // Real trading path — same per-source counting
+      // الحدود تُقرأ من DB (AgentSettings) أولاً، fallback إلى env vars
       const orderSource = command.source || 'user_manual';
       const isExecutor = ['smart_executor', 'auto_paper'].includes(orderSource);
       const isLasic = orderSource === 'lazic' || orderSource === 'lasic';
+
+      // اقرأ إعدادات المستخدم من DB (قابلة للتخصيص من الـ UI)
+      const userSettings = await this.prisma.agentSettings.findUnique({
+        where: { userId: command.userId },
+        select: { lazicMaxOpenPositions: true, maxOpenPositions: true },
+      }).catch(() => null);
+
       let perSourceLimit: number;
       let sourceLabel: string;
       if (isLasic) {
-        perSourceLimit = this.lasicMaxOpenPositions;
+        perSourceLimit = Number((userSettings as any)?.lazicMaxOpenPositions) || this.lasicMaxOpenPositions;
         sourceLabel = 'اللاسع';
       } else if (isExecutor) {
         perSourceLimit = this.executorMaxOpenPositions;
         sourceLabel = 'المنفذ';
       } else {
-        perSourceLimit = this.agentMaxOpenPositions;
+        perSourceLimit = Number((userSettings as any)?.maxOpenPositions) || this.agentMaxOpenPositions;
         sourceLabel = 'الوكيل';
       }
 

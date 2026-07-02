@@ -474,9 +474,13 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
   //   - real trading: cached balance من Redis (fallback 1000 nominal)
   //   - cache 30s لتفادي DB/Redis lookup على كل tick
   //
-  // Fix: الحد الأدنى للكمية = 0.01 وحدة (lot size) لكل الأزواج.
-  //   - كان: minNotional = $1 → ينتج qty = 0.0000167 BTC (تحت 0.01)
-  //   - الآن: minQuantity = 0.01 → جميع الصفقات تبدأ من 0.01 وحدة كحد أدنى
+  // Fix: maxNotional رُفع من 5% إلى 10% من balance (كان ينتج أحجام صغيرة جداً).
+  //   - 5%: BTC qty = 0.00833 (يُجبر على 0.01 لكن يتجاوز الـ cap)
+  //   - 10%: BTC qty = 0.0166 (يحترم الـ cap + أكبر من MIN_QTY)
+  //
+  // Fix: حماية أخيرة — لو MIN_QTY > maxQtyByNotional → return 0 (لا صفقة)
+  //   - هذا يحدث لو الـ balance صغير جداً بالنسبة لسعر الزوج
+  //   - مثلاً: balance $100, BTC price $60000 → MIN_QTY 0.01 = $600 > 10% cap ($10)
   private async _calcQuantity(
     price: number,
     slDistance: number,
@@ -516,27 +520,34 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     const riskAmount = balance * (state.riskPerTradePct / 100);
     let rawQty = riskAmount / slDistance;
 
-    // الحد الأقصى لتفادي صفقات خطرة (5% من balance)
-    const maxNotional = balance * 0.05;
-    if (rawQty * price > maxNotional) {
-      rawQty = maxNotional / price;
+    // الحد الأقصى: 10% من balance (كان 5% — رُفع لإنتاج أحجام أكبر)
+    const maxNotional = balance * 0.10;
+    const maxQtyByNotional = maxNotional / price;
+    if (rawQty > maxQtyByNotional) {
+      rawQty = maxQtyByNotional;
     }
 
-    // Fix: الحد الأدنى للكمية = 0.01 وحدة لكل الأزواج
-    // هذا يضمن أن جميع الصفقات تبدأ من 0.01 على الأقل (lot size قياسي)
+    // الحد الأدنى للكمية = 0.01 وحدة لكل الأزواج (lot size قياسي)
     const MIN_QUANTITY = 0.01;
     if (rawQty < MIN_QUANTITY) {
       rawQty = MIN_QUANTITY;
+    }
+
+    // حماية أخيرة: لو MIN_QTY يتجاوز الـ 10% cap → لا تفتح صفقة
+    // (هذا يحمي المستخدمين بـ balance صغير من فتح صفقات كبيرة جداً)
+    if (rawQty > maxQtyByNotional) {
+      this.logger.warn(
+        `⚠️ اللاسع: MIN_QTY (${MIN_QUANTITY}) > maxQtyByNotional (${maxQtyByNotional.toFixed(6)}) ` +
+        `— balance=${balance}, price=${price}. تخطّي التنفيذ.`
+      );
+      return 0;
     }
 
     // تقريب حسب asset class
     // Crypto (price > 1000): 6 decimal, Mid-price (100-1000): 4 decimal, Forex (<100): 2 decimal
     const decimals = price > 1000 ? 6 : price > 100 ? 4 : 2;
 
-    const rounded = Math.round(rawQty * Math.pow(10, decimals)) / Math.pow(10, decimals);
-
-    // أعد التحقق من الحد الأدنى بعد التقريب (لتفادي تقريب 0.0099 إلى 0.01)
-    return Math.max(rounded, MIN_QUANTITY);
+    return Math.round(rawQty * Math.pow(10, decimals)) / Math.pow(10, decimals);
   }
 
   // ── Phase 3: سجّل metric في Redis (success/fail counts + last reason)

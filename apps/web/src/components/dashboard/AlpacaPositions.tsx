@@ -122,6 +122,19 @@ export function AlpacaPositions() {
   const agentPositions = useAgentStore(state => state.positions)
   const [closing, setClosing] = useState<string | null>(null)
   const [confirmClose, setConfirmClose] = useState<string | null>(null)
+
+  // ── Context Menu State (right-click on position card) ──
+  const [contextMenu, setContextMenu] = useState<{
+    x: number; y: number;
+    positionId: string;
+    symbol: string;
+    side: 'long' | 'short';
+    entryPrice: number;
+    qty: number;
+    stopLoss?: number;
+    takeProfit?: number;
+    source: string;
+  } | null>(null)
   const [showClosed, setShowClosed] = useState(false)
   // V141: Closed positions from the database API (not just localStorage paper trades)
   const [dbClosedPositions, setDbClosedPositions] = useState<any[]>([])
@@ -576,6 +589,21 @@ export function AlpacaPositions() {
           return (
             <div
               key={position.id}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                setContextMenu({
+                  x: e.clientX,
+                  y: e.clientY,
+                  positionId: position.id,
+                  symbol: position.symbol,
+                  side: (position.side === 'long' ? 'long' : 'short') as 'long' | 'short',
+                  entryPrice: Number(position.avgEntryPrice || (position as any).entryPrice) || 0,
+                  qty: Number((position as any).qty || (position as any).quantity) || 0,
+                  stopLoss: (position as any).stopLoss ? Number((position as any).stopLoss) : (position.sl ? Number(position.sl) : undefined),
+                  takeProfit: (position as any).takeProfit ? Number((position as any).takeProfit) : (position.tp ? Number(position.tp) : undefined),
+                  source: position.source || position.tradeSource || '',
+                })
+              }}
               style={{
                 borderRadius: 10,
                 border: `1px solid ${pnlUp ? 'rgba(0,255,163,0.16)' : 'rgba(255,71,87,0.16)'}`,
@@ -955,6 +983,195 @@ export function AlpacaPositions() {
       )}
 
       {/* end */}
+
+      {/* ── Context Menu (right-click on position card) ── */}
+      {contextMenu && (
+        <>
+          {/* Backdrop */}
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 9998, background: 'transparent' }}
+            onClick={() => setContextMenu(null)}
+            onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
+          />
+          {/* Menu */}
+          <div style={{
+            position: 'fixed',
+            left: Math.min(contextMenu.x, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 220),
+            top: Math.min(contextMenu.y, (typeof window !== 'undefined' ? window.innerHeight : 9999) - 320),
+            zIndex: 9999,
+            minWidth: 200,
+            background: 'rgba(11, 14, 20, 0.98)',
+            border: '1px solid rgba(0, 212, 255, 0.25)',
+            borderRadius: 8,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 16px rgba(0,212,255,0.1)',
+            backdropFilter: 'blur(12px)',
+            padding: '4px 0',
+            fontFamily: 'var(--font-ar)',
+            overflow: 'hidden',
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: '6px 12px',
+              borderBottom: '1px solid rgba(255,255,255,0.06)',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              <span style={{
+                fontSize: 9, fontWeight: 800,
+                color: contextMenu.side === 'long' ? '#00FFA3' : '#FF4757',
+                padding: '1px 5px', borderRadius: 3,
+                background: contextMenu.side === 'long' ? 'rgba(0,255,163,0.12)' : 'rgba(255,71,87,0.12)',
+              }}>
+                {contextMenu.side === 'long' ? 'BUY' : 'SELL'}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#E0ECF8', fontFamily: 'var(--font-mono)' }}>
+                {contextMenu.symbol || '—'}
+              </span>
+              <span style={{ fontSize: 9, color: '#5A6A80', marginLeft: 'auto', fontFamily: 'var(--font-mono)' }}>
+                {contextMenu.qty} @ {contextMenu.entryPrice.toFixed(contextMenu.entryPrice > 100 ? 2 : 5)}
+              </span>
+              <button
+                onClick={() => setContextMenu(null)}
+                style={{
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  color: '#5A6A80', fontSize: 14, lineHeight: 1, padding: '0 2px', marginLeft: 4,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = '#FF4757'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = '#5A6A80'; }}
+                title="إغلاق"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Menu items */}
+            {([
+              { icon: '✎', label: 'تعديل SL/TP', color: '#00D4FF', action: 'modify_sltp' },
+              { icon: '✕', label: 'إغلاق الصفقة', color: '#FF4757', action: 'close' },
+              { icon: '⇄', label: 'عكس الصفقة', color: '#FFB800', action: 'reverse' },
+              { divider: true },
+              { icon: '🔔', label: 'تنبيه على السعر', color: '#B388FF', action: 'alert' },
+              { divider: true },
+              { icon: 'ℹ', label: 'تفاصيل الصفقة', color: '#8B92A8', action: 'details' },
+              { icon: '📋', label: 'نسخ معرف الصفقة', color: '#8B92A8', action: 'copy_id' },
+            ] as Array<{ icon?: string; label?: string; color?: string; action?: string; divider?: boolean }>).map((item, i) => item.divider ? (
+              <div key={`div-${i}`} style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+            ) : (
+              <div
+                key={item.action}
+                onClick={async () => {
+                  const cm = contextMenu
+                  if (!cm) return
+                  setContextMenu(null)
+
+                  switch (item.action) {
+                    case 'modify_sltp':
+                      const slInput = prompt('أدخل سعر وقف الخسارة الجديد (أو اترك فارغاً للإبقاء):', cm.stopLoss?.toString() || '')
+                      const tpInput = prompt('أدخل سعر أخذ الربح الجديد (أو اترك فارغاً للإبقاء):', cm.takeProfit?.toString() || '')
+                      const body: any = {}
+                      if (slInput && slInput.trim()) body.stopLoss = parseFloat(slInput)
+                      if (tpInput && tpInput.trim()) body.takeProfit = parseFloat(tpInput)
+                      if (Object.keys(body).length > 0) {
+                        try {
+                          await fetch(`/api/trading/positions/${cm.positionId}/levels`, {
+                            method: 'POST', credentials: 'include',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(body),
+                          })
+                          fetchPositions()
+                        } catch (err) { console.error('Modify SL/TP failed:', err) }
+                      }
+                      break
+                    case 'close':
+                      if (confirm(`تأكيد إغلاق صفقة ${cm.symbol}؟`)) {
+                        try {
+                          await fetch(`/api/trading/positions/${cm.positionId}/close`, {
+                            method: 'POST', credentials: 'include',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ closeReason: 'MANUAL' }),
+                          })
+                          fetchPositions()
+                        } catch (err) { console.error('Close failed:', err) }
+                      }
+                      break
+                    case 'reverse':
+                      if (confirm(`تأكيد عكس صفقة ${cm.symbol}؟ سيُغلق الحالي ويُفتح عكسي.`)) {
+                        try {
+                          await fetch(`/api/trading/positions/${cm.positionId}/close`, {
+                            method: 'POST', credentials: 'include',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ closeReason: 'REVERSE' }),
+                          })
+                          const reverseSide = cm.side === 'long' ? 'SELL' : 'BUY'
+                          await fetch('/api/trading/orders', {
+                            method: 'POST', credentials: 'include',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              symbol: cm.symbol, side: reverseSide, type: 'MARKET',
+                              quantity: cm.qty, source: 'user_manual',
+                            }),
+                          })
+                          fetchPositions()
+                        } catch (err) { console.error('Reverse failed:', err) }
+                      }
+                      break
+                    case 'alert':
+                      const alertPrice = prompt('أدخل سعر التنبيه:', cm.entryPrice.toString())
+                      if (alertPrice) {
+                        try {
+                          await fetch('/api/price-alerts', {
+                            method: 'POST', credentials: 'include',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              symbol: cm.symbol, price: parseFloat(alertPrice),
+                              condition: 'above',
+                            }),
+                          })
+                        } catch (err) { console.error('Alert failed:', err) }
+                      }
+                      break
+                    case 'details':
+                      alert(
+                        `تفاصيل الصفقة\n\n` +
+                        `الزوج: ${cm.symbol}\n` +
+                        `الاتجاه: ${cm.side === 'long' ? 'شراء' : 'بيع'}\n` +
+                        `سعر الدخول: ${cm.entryPrice}\n` +
+                        `الحجم: ${cm.qty}\n` +
+                        `وقف الخسارة: ${cm.stopLoss || '—'}\n` +
+                        `أخذ الربح: ${cm.takeProfit || '—'}\n` +
+                        `المصدر: ${cm.source}\n` +
+                        `المعرف: ${cm.positionId}`
+                      )
+                      break
+                    case 'copy_id':
+                      try { await navigator.clipboard.writeText(cm.positionId) } catch {}
+                      break
+                  }
+                }}
+                style={{
+                  padding: '7px 12px',
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  cursor: 'pointer',
+                  color: '#C8D4E4',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = `${item.color || '#8B92A8'}15`
+                  e.currentTarget.style.color = item.color || '#8B92A8'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent'
+                  e.currentTarget.style.color = '#C8D4E4'
+                }}
+              >
+                <span style={{ fontSize: 12, width: 16, textAlign: 'center' }}>{item.icon}</span>
+                <span>{item.label}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }

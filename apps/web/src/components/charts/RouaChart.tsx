@@ -3556,6 +3556,7 @@ export default function RouaChart({
                 <div style={{
                   position: 'fixed', inset: 0, zIndex: 9998,
                   background: 'transparent',
+                  pointerEvents: 'auto',  // Fix: ضروري لأن الـ parent overlay layer لديه pointerEvents: 'none'
                 }}
                   onClick={() => setContextMenu(null)}
                   onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
@@ -3575,8 +3576,9 @@ export default function RouaChart({
                   padding: '4px 0',
                   fontFamily: 'var(--font-ar)',
                   overflow: 'hidden',
+                  pointerEvents: 'auto',  // Fix: ضروري لتفعيل النقر على عناصر القائمة
                 }}>
-                  {/* Header — position info */}
+                  {/* Header — position info + close button */}
                   <div style={{
                     padding: '6px 12px',
                     borderBottom: '1px solid rgba(255,255,255,0.06)',
@@ -3596,6 +3598,20 @@ export default function RouaChart({
                     <span style={{ fontSize: 9, color: '#5A6A80', marginLeft: 'auto', fontFamily: 'var(--font-mono)' }}>
                       {contextMenu.qty} @ {contextMenu.entryPrice.toFixed(contextMenu.entryPrice > 100 ? 2 : 5)}
                     </span>
+                    {/* Close button */}
+                    <button
+                      onClick={() => setContextMenu(null)}
+                      style={{
+                        background: 'transparent', border: 'none', cursor: 'pointer',
+                        color: '#5A6A80', fontSize: 14, lineHeight: 1, padding: '0 2px',
+                        marginLeft: 4,
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = '#FF4757'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = '#5A6A80'; }}
+                      title="إغلاق"
+                    >
+                      ✕
+                    </button>
                   </div>
 
                   {/* Menu items */}

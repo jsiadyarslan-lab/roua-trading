@@ -248,10 +248,62 @@ export class RiskCalculatorService {
       this.logger.warn(`🛡️ Trade rejected: ${reason}`);
     }
 
+    // ══════════════════════════════════════════════════════════════
+    // V428: حارسان أخيران قبل التنفيذ — درس 2 يوليو 2026
+    //
+    // المشكلة: BRENT/USD جاء بسعر 0.0003 (خاطئ تماماً، الصحيح ~$70-80)
+    // النتيجة: quantity = riskAmount / 0.0003 = ملايين الوحدات → خسارة -$704
+    // حتى مع وجود maxPositionSizePercent=2%، الحسابات الوسيطة تتجاوزه
+    // عند سعر شبه صفري.
+    //
+    // الحارس 1: سعر مريب → حجب كامل
+    // الحارس 2: حد مطلق بالدولار → تقليص إجباري
+    // ══════════════════════════════════════════════════════════════
+
+    // الحارس 1: سعر الدخول مريب (أصغر من 0.0001 لغير العملات الميمية المعروفة)
+    const isMemeWithTinyPrice = signal.symbol?.toUpperCase().includes('SHIB') ||
+      signal.symbol?.toUpperCase().includes('PEPE') ||
+      signal.symbol?.toUpperCase().includes('FLOKI');
+
+    if (signal.entryPrice > 0 && signal.entryPrice < 0.0001 && !isMemeWithTinyPrice) {
+      this.logger.error(
+        `🚨 V428 SUSPICIOUS PRICE BLOCKED: ${signal.symbol} entryPrice=${signal.entryPrice} ` +
+        `is unrealistically low — order BLOCKED to prevent catastrophic position sizing.`,
+      );
+      return {
+        canTrade: false,
+        reason: `V428: سعر الدخول ${signal.entryPrice} مريب جداً لـ ${signal.symbol} — تم الحجب`,
+        positionSize: 0,
+        stopLoss: signal.stopLoss,
+        takeProfit: signal.takeProfit,
+        riskRewardRatio: 0,
+        riskScore: 100,
+        dailyPnL,
+        dailyLossPercent,
+        openPositionsCount,
+        portfolioValue,
+      };
+    }
+
+    // الحارس 2: حد مطلق بالدولار = 3% من portfolio
+    // على $700k = $21,000 | على $1,000 = $30
+    const ABSOLUTE_MAX_NOTIONAL = portfolioValue * 0.03;
+    const currentNotional = positionSize * Math.abs(signal.entryPrice);
+    let safePositionSize = positionSize;
+
+    if (currentNotional > ABSOLUTE_MAX_NOTIONAL && signal.entryPrice > 0) {
+      safePositionSize = ABSOLUTE_MAX_NOTIONAL / signal.entryPrice;
+      this.logger.warn(
+        `🛡️ V428 ABSOLUTE CAP: notional $${currentNotional.toFixed(2)} > ` +
+        `3% cap ($${ABSOLUTE_MAX_NOTIONAL.toFixed(2)}) for ${signal.symbol} ` +
+        `— qty reduced: ${positionSize.toFixed(6)} → ${safePositionSize.toFixed(6)}`,
+      );
+    }
+
     return {
       canTrade,
       reason,
-      positionSize,
+      positionSize: parseFloat(safePositionSize.toFixed(8)),
       stopLoss: signal.stopLoss,
       takeProfit: signal.takeProfit,
       riskRewardRatio,

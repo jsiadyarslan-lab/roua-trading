@@ -1702,6 +1702,11 @@ export default function RouaChart({
   const modalRef = useRef<typeof modal>(null);
   useEffect(() => { modalRef.current = modal; }, [modal]);
 
+  // ── Chart Context Menu State (right-click on chart canvas) ──
+  const [chartContextMenu, setChartContextMenu] = useState<{
+    x: number; y: number;
+  } | null>(null);
+
   const [fillZones, setFillZones] = useState<Array<{
     top: number; height: number; type: 'sl' | 'tp'; key: string;
     topPrice: number; bottomPrice: number;
@@ -3324,6 +3329,13 @@ export default function RouaChart({
               No overlay canvas, no z-index switching, no CSS modifications. */}
           <div
             ref={chart.containerRef as any}
+            onContextMenu={(e) => {
+              // لا تفتح القائمة لو نقر المستخدم على label صفقة (لها قائمتها الخاصة)
+              const target = e.target as HTMLElement
+              if (target.closest('[data-trade-label]')) return
+              e.preventDefault()
+              setChartContextMenu({ x: e.clientX, y: e.clientY })
+            }}
             style={{
               width: '100%',
               flex: 1,
@@ -4130,6 +4142,170 @@ export default function RouaChart({
                   @keyframes modalSlideIn {
                     from { opacity: 0; transform: scale(0.95) translateY(-10px); }
                     to { opacity: 1; transform: scale(1) translateY(0); }
+                  }
+                `}</style>
+              </>
+              , document.body
+            )}
+
+            {/* ── Chart Context Menu (right-click on chart) ── */}
+            {chartContextMenu && typeof document !== 'undefined' && createPortal(
+              <>
+                {/* Backdrop */}
+                <div style={{
+                  position: 'fixed', inset: 0, zIndex: 9998,
+                  background: 'transparent',
+                }}
+                  onClick={() => setChartContextMenu(null)}
+                  onContextMenu={(e) => { e.preventDefault(); setChartContextMenu(null); }}
+                />
+                {/* Menu */}
+                <div style={{
+                  position: 'fixed',
+                  left: Math.min(chartContextMenu.x, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 240),
+                  top: Math.min(chartContextMenu.y, (typeof window !== 'undefined' ? window.innerHeight : 9999) - 420),
+                  zIndex: 9999,
+                  minWidth: 220,
+                  background: 'rgba(11, 14, 20, 0.98)',
+                  border: '1px solid rgba(0, 212, 255, 0.25)',
+                  borderRadius: 10,
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 16px rgba(0,212,255,0.1)',
+                  backdropFilter: 'blur(12px)',
+                  padding: '4px 0',
+                  fontFamily: 'var(--font-ar)',
+                  overflow: 'hidden',
+                  animation: 'panelSlideIn 0.15s ease-out',
+                }}>
+                  {/* Header */}
+                  <div style={{
+                    padding: '6px 12px',
+                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    display: 'flex', alignItems: 'center', gap: 6,
+                  }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: '#00D4FF' }}>
+                      📊 خيارات الشارت
+                    </span>
+                    <button
+                      onClick={() => setChartContextMenu(null)}
+                      style={{
+                        background: 'transparent', border: 'none', cursor: 'pointer',
+                        color: '#5A6A80', fontSize: 14, lineHeight: 1, padding: '0 2px', marginLeft: 'auto',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = '#FF4757'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = '#5A6A80'; }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {/* Menu items */}
+                  {([
+                    // ── Chart Type ──
+                    { icon: '🕯', label: 'شموع يابانية', color: '#00D4FF', action: 'chart_candle' },
+                    { icon: '⬜', label: 'شموع مجوفة', color: '#8B92A8', action: 'chart_hollow' },
+                    { icon: '▬', label: 'أعمدة (Bar)', color: '#8B92A8', action: 'chart_bar' },
+                    { icon: '／', label: 'خط (Line)', color: '#8B92A8', action: 'chart_line' },
+                    { icon: '◢', label: 'مساحة (Area)', color: '#8B92A8', action: 'chart_area' },
+                    { icon: '⬛', label: 'هايكين آشي', color: '#8B92A8', action: 'chart_heikin' },
+                    { divider: true },
+                    // ── Tools ──
+                    { icon: '📐', label: 'أدوات الرسم', color: '#00FFA3', action: 'drawing_tools' },
+                    { icon: '📈', label: 'المؤشرات الفنية', color: '#B388FF', action: 'indicators' },
+                    { icon: '⚙', label: 'إعدادات الشارت', color: '#8B92A8', action: 'settings' },
+                    { divider: true },
+                    // ── Zoom & View ──
+                    { icon: '🔍+', label: 'تكبير', color: '#00D4FF', action: 'zoom_in' },
+                    { icon: '🔍−', label: 'تصغير', color: '#00D4FF', action: 'zoom_out' },
+                    { icon: '⏸', label: chart.isPaused ? 'استئناف البث' : 'إيقاف البث مؤقتاً', color: chart.isPaused ? '#00FFA3' : '#FFB800', action: 'toggle_pause' },
+                    { divider: true },
+                    // ── Trading ──
+                    { icon: '⚡', label: 'لوحة التداول السريع', color: '#00FFA3', action: 'trading_panel' },
+                    { icon: '🔔', label: 'إضافة تنبيه سعر', color: '#B388FF', action: 'add_alert' },
+                    { divider: true },
+                    // ── Utilities ──
+                    { icon: '📸', label: 'لقطة شاشة', color: '#8B92A8', action: 'screenshot' },
+                    { icon: '🔄', label: 'إعادة ضبط الشارت', color: '#FF4757', action: 'reset_chart' },
+                  ] as Array<{ icon?: string; label?: string; color?: string; action?: string; divider?: boolean }>).map((item, i) => item.divider ? (
+                    <div key={`div-${i}`} style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+                  ) : (
+                    <div
+                      key={item.action}
+                      onClick={() => {
+                        setChartContextMenu(null);
+                        const a = item.action;
+                        // Chart Type
+                        if (a === 'chart_candle') chart.setChartType('candle');
+                        else if (a === 'chart_hollow') chart.setChartType('hollow');
+                        else if (a === 'chart_bar') chart.setChartType('bar');
+                        else if (a === 'chart_line') chart.setChartType('line');
+                        else if (a === 'chart_area') chart.setChartType('area');
+                        else if (a === 'chart_heikin') chart.setChartType('heikin-ashi');
+                        // Tools
+                        else if (a === 'drawing_tools') setShowDrawingPanel(prev => !prev);
+                        else if (a === 'indicators') setShowIndicatorPanel(prev => !prev);
+                        else if (a === 'settings') setShowSettingsPanel(prev => !prev);
+                        // Zoom & View
+                        else if (a === 'zoom_in') chart.zoomIn();
+                        else if (a === 'zoom_out') chart.zoomOut();
+                        else if (a === 'toggle_pause') chart.togglePause();
+                        // Trading
+                        else if (a === 'trading_panel') setShowChartTrading(prev => !prev);
+                        else if (a === 'add_alert') {
+                          const price = currentPrice || candlesRef.current[candlesRef.current.length - 1]?.close || 0;
+                          if (price > 0) {
+                            const alertPrice = prompt('أدخل سعر التنبيه:', price.toString());
+                            if (alertPrice) {
+                              fetch('/api/price-alerts', {
+                                method: 'POST', credentials: 'include',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ symbol: selectedSymbol_, price: parseFloat(alertPrice), condition: 'above' }),
+                              }).catch(() => {});
+                            }
+                          }
+                        }
+                        // Utilities
+                        else if (a === 'screenshot') {
+                          // Screenshot: find the canvas and download
+                          const canvas = chart.containerRef.current?.querySelector('canvas');
+                          if (canvas) {
+                            const link = document.createElement('a');
+                            link.download = `chart_${selectedSymbol_}_${Date.now()}.png`;
+                            link.href = canvas.toDataURL();
+                            link.click();
+                          }
+                        }
+                        else if (a === 'reset_chart') {
+                          chart.zoomOut();
+                          setTimeout(() => chart.zoomIn(), 50);
+                        }
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        cursor: 'pointer',
+                        color: '#C8D4E4',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = `${item.color || '#8B92A8'}15`;
+                        e.currentTarget.style.color = item.color || '#8B92A8';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = '#C8D4E4';
+                      }}
+                    >
+                      <span style={{ fontSize: 12, width: 18, textAlign: 'center' }}>{item.icon}</span>
+                      <span>{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+                <style>{`
+                  @keyframes panelSlideIn {
+                    from { opacity: 0; transform: scale(0.95); }
+                    to { opacity: 1; transform: scale(1); }
                   }
                 `}</style>
               </>

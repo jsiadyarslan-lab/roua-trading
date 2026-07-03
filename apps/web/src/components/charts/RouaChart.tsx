@@ -1707,6 +1707,26 @@ export default function RouaChart({
     x: number; y: number;
   } | null>(null);
 
+  // Fix: lightweight-charts canvas يستهلك contextmenu event قبل الـ div.
+  // الحل: attach event listener مع capture:true على الـ container.
+  useEffect(() => {
+    const container = chart.containerRef.current;
+    if (!container) return;
+
+    const handleContextMenu = (e: MouseEvent) => {
+      // لا تفتح القائمة لو نقر المستخدم على label صفقة (لها قائمتها الخاصة)
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-trade-label]')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setChartContextMenu({ x: e.clientX, y: e.clientY });
+    };
+
+    // capture:true يلتقط الحدث قبل أن يصل للـ canvas
+    container.addEventListener('contextmenu', handleContextMenu, true);
+    return () => container.removeEventListener('contextmenu', handleContextMenu, true);
+  }, [chart.containerRef]);
+
   const [fillZones, setFillZones] = useState<Array<{
     top: number; height: number; type: 'sl' | 'tp'; key: string;
     topPrice: number; bottomPrice: number;
@@ -3329,13 +3349,6 @@ export default function RouaChart({
               No overlay canvas, no z-index switching, no CSS modifications. */}
           <div
             ref={chart.containerRef as any}
-            onContextMenu={(e) => {
-              // لا تفتح القائمة لو نقر المستخدم على label صفقة (لها قائمتها الخاصة)
-              const target = e.target as HTMLElement
-              if (target.closest('[data-trade-label]')) return
-              e.preventDefault()
-              setChartContextMenu({ x: e.clientX, y: e.clientY })
-            }}
             style={{
               width: '100%',
               flex: 1,
@@ -3343,8 +3356,8 @@ export default function RouaChart({
               background: T.bg,
               position: 'relative',
               zIndex: 1,
-              touchAction: 'none',        // يتيح للشارت معالجة كل touch gestures
-              WebkitUserSelect: 'none',   // منع text selection عند اللمس
+              touchAction: 'none',
+              WebkitUserSelect: 'none',
             }}
           />
 

@@ -1950,12 +1950,14 @@ export default function RouaChart({
         if (entryPrice <= 0) return;
         const slVal = Number(pos.stopLoss || pos.sl || 0);
         const tpVal = Number(pos.takeProfit || pos.tp || 0);
+        // Fix: pos.qty قد يكون pos.quantity — نأخذ كلاهما
+        const posQty = Number((pos as any).qty ?? (pos as any).quantity ?? 0);
         processTrade(
           entryPrice,
           (pos.side || '').toLowerCase() === 'long' ? 'long' : 'short',
           slVal > 0 ? slVal : undefined,
           tpVal > 0 ? tpVal : undefined,
-          pos.qty || 0, undefined, 'exchange',
+          posQty, undefined, 'exchange',
           `pos-${pos.id}-`
         );
       });
@@ -3483,12 +3485,13 @@ export default function RouaChart({
                 : '';
 
               // Entry P&L: unrealized profit/loss based on current price
-              // Calculate from current price vs entry price × qty × direction
-              const entryPnl = isEntry && ov.qty > 0 && currentPrice
-                ? (currentPrice - ov.price) * ov.qty * (ov.direction === 'long' ? 1 : -1)
+              // Fix: currentPrice قد يكون null — استخدم آخر سعر إغلاق كـ fallback
+              const effectivePrice = currentPrice || candlesRef.current[candlesRef.current.length - 1]?.close || 0;
+              const entryPnl = isEntry && ov.qty > 0 && effectivePrice > 0
+                ? (effectivePrice - ov.price) * ov.qty * (ov.direction === 'long' ? 1 : -1)
                 : 0;
               // Fix: اعرض إشارة + للربح و - للخسارة (كان Math.abs يحذف الإشارة)
-              const entryPnlText = isEntry && ov.qty > 0
+              const entryPnlText = isEntry && ov.qty > 0 && effectivePrice > 0
                 ? ` ${entryPnl >= 0 ? '+' : '-'}$${Math.abs(entryPnl).toFixed(2)}`
                 : '';
 

@@ -284,7 +284,8 @@ export interface EvaluatedSignal {
 export interface RiskAssessment {
   canTrade: boolean;
   reason?: string;
-  positionSize: number;
+  positionSize: number; // RAW UNITS — for internal risk checks (margin, notional, % portfolio)
+  lots: number;         // LOTS — what gets sent to OrderDispatcher (DB stores this directly)
   stopLoss: number;
   takeProfit: number;
   riskRewardRatio: number;

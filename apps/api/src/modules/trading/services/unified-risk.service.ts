@@ -337,6 +337,7 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
         canTrade: false,
         reason: `V428: سعر ${signal.entryPrice} مريب جداً لـ ${signal.symbol}`,
         positionSize: 0,
+        lots: 0,
         stopLoss: signal.stopLoss,
         takeProfit: signal.takeProfit,
         riskRewardRatio: 0,
@@ -363,10 +364,13 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
     const riskPerTradePercent = config.riskPerTradePercent || this.defaultRiskPerTradePercent;
 
     // Position sizing
-    const positionSize = this._calculatePositionSize(
+    // V431: Returns { units, lots } — units for risk checks, lots for OrderDispatcher
+    const sizingResult = this._calculatePositionSize(
       portfolioValue, riskPerTradePercent, signal.entryPrice,
       signal.stopLoss, maxPositionSizePercent, signal.symbol,
     );
+    const positionSize = sizingResult.units;
+    const positionLots = sizingResult.lots;
 
     // R:R ratio
     const risk = Math.abs(signal.entryPrice - signal.stopLoss);
@@ -435,7 +439,7 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
     }
 
     return {
-      canTrade, reason, positionSize,
+      canTrade, reason, positionSize, lots: positionLots,
       stopLoss: signal.stopLoss, takeProfit: signal.takeProfit,
       riskRewardRatio, riskScore, dailyPnL, dailyLossPercent,
       openPositionsCount, portfolioValue,
@@ -1427,13 +1431,13 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
     portfolioValue: number, riskPerTradePercent: number,
     entryPrice: number, stopLoss: number,
     maxPositionSizePercent?: number, symbol?: string,
-  ): number {
-    if (portfolioValue <= 0 || entryPrice <= 0 || stopLoss <= 0) return 0;
+  ): { units: number; lots: number } {
+    if (portfolioValue <= 0 || entryPrice <= 0 || stopLoss <= 0) return { units: 0, lots: 0 };
 
     const maxSizePercent = maxPositionSizePercent || this.maxPositionSizePercent;
     const riskAmount = portfolioValue * (riskPerTradePercent / 100);
     const priceRisk = Math.abs(entryPrice - stopLoss);
-    if (priceRisk === 0) return 0;
+    if (priceRisk === 0) return { units: 0, lots: 0 };
 
     if (symbol) {
       const result = calculatePositionSizeFromRisk(riskAmount, entryPrice, stopLoss, symbol);
@@ -1445,13 +1449,14 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
         quantityLots = roundLotSize(unitsToLots(cappedUnits, symbol), symbol);
       }
 
-      // V429: إعادة lots مُقرَّبة لـ 0.01 (حد أدنى 0.01، خطوة 0.01)
-      // Fix: كان يرجع LOTS مباشرة (مثل 0.30) لكن النظام يتوقع UNITS.
-      // الآن نحوّل lots → units قبل الإرجاع.
+      // V431: Return both units (for risk checks) and lots (for OrderDispatcher)
       const step = 0.01;
       const roundedLots = Math.max(step, Math.floor(quantityLots / step) * step);
       const quantityUnits = lotsToUnits(roundedLots, symbol);
-      return parseFloat(quantityUnits.toFixed(8));
+      return {
+        units: parseFloat(quantityUnits.toFixed(8)),
+        lots: parseFloat(roundedLots.toFixed(8)),
+      };
     }
 
     let quantity = riskAmount / priceRisk;
@@ -1459,7 +1464,7 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
     if (quantity * entryPrice > maxPositionValue) {
       quantity = maxPositionValue / entryPrice;
     }
-    return parseFloat(quantity.toFixed(8));
+    return { units: parseFloat(quantity.toFixed(8)), lots: 0 };
   }
 
   // ═══════════════════════════════════════════════════════════════════

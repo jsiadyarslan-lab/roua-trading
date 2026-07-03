@@ -154,7 +154,59 @@ export class SmartExecutorService implements OnModuleDestroy {
       this._startupCleanup().catch((err: any) => {
         this.logger.warn(`⚔️ Startup cleanup failed: ${err.message}`);
       });
+      // V431: Auto-migrate old OPEN positions from UNITS → LOTS.
+      // Idempotent — safe to run on every startup. Already-migrated positions
+      // (qty < 1 for forex) are skipped. Uses Setting flag to avoid redundant work.
+      this._runUnitsToLotsMigrationIfNeeded().catch((err: any) => {
+        this.logger.warn(`🔧 V431 startup migration failed: ${err.message}`);
+      });
     }, 20000); // 20s — give DB more time to be ready on Railway cold starts
+  }
+
+  /**
+   * V431: Run UNITS → LOTS migration on startup, but only ONCE.
+   * Uses Setting table flag 'V431_UNITS_TO_LOTS_MIGRATED' to track.
+   * If the flag exists, skip migration (already done).
+   * If not, run migration and set the flag.
+   */
+  private async _runUnitsToLotsMigrationIfNeeded(): Promise<void> {
+    try {
+      if (!this.prisma?.isAvailable?.()) return;
+
+      // Check if migration already ran
+      const flag = await this.prisma.setting.findUnique({
+        where: { key: 'V431_UNITS_TO_LOTS_MIGRATED' },
+      });
+      if (flag) {
+        // Already migrated — skip silently
+        return;
+      }
+
+      this.logger.log('🔧 V431: Running one-time UNITS → LOTS migration for all OPEN positions...');
+
+      const result = await this.migrateUnitsToLots();
+
+      // Set the flag (regardless of result — we tried)
+      await this.prisma.setting.upsert({
+        where: { key: 'V431_UNITS_TO_LOTS_MIGRATED' },
+        update: { value: JSON.stringify({ migrated: result.migrated, skipped: result.skipped, ranAt: new Date().toISOString() }) },
+        create: {
+          key: 'V431_UNITS_TO_LOTS_MIGRATED',
+          value: JSON.stringify({ migrated: result.migrated, skipped: result.skipped, ranAt: new Date().toISOString() }),
+        },
+      });
+
+      if (result.migrated > 0) {
+        this.logger.log(
+          `🔧 V431 MIGRATION COMPLETE: ${result.migrated} positions converted UNITS → LOTS, ${result.skipped} skipped. ` +
+          `Migration will not run again (flag set).`
+        );
+      } else {
+        this.logger.log(`🔧 V431 MIGRATION: No positions needed migration (${result.skipped} already in LOTS). Flag set.`);
+      }
+    } catch (err: any) {
+      this.logger.warn(`🔧 V431 migration check failed (will retry on next startup): ${err.message}`);
+    }
   }
 
   /**
@@ -1133,6 +1185,159 @@ export class SmartExecutorService implements OnModuleDestroy {
     } catch (error: any) {
       this.logger.error(`⚔️ Failed to purge phantom positions: ${error.message}`);
       return { deleted: 0 };
+    }
+  }
+
+  /**
+   * V431 MIGRATION: Convert old OPEN positions from UNITS → LOTS.
+   *
+   * PROBLEM:
+   *   - Before commit 7b89269a4 (LOTS unification), all agents sent RAW UNITS
+   *     (e.g., 30,000 for NZD/USD = 0.30 lots × contractSize 100,000).
+   *   - The LOTS commit changed the P&L engine to multiply by contractSize,
+   *     expecting DB quantity to be in LOTS.
+   *   - Old positions still have quantity in UNITS, so P&L gets multiplied
+   *     by 100,000× too much (showing $207,711 instead of $2.08 for NZD/USD).
+   *
+   * FIX:
+   *   - For each OPEN position, check if quantity is suspiciously large
+   *     (heuristic: > 1 for forex, > 5 for silver, > 1 for gold).
+   *   - If so, divide by contractSize to convert UNITS → LOTS.
+   *   - Save back to DB. P&L engine will then compute correctly.
+   *
+   * IDEMPOTENT: Can be run multiple times safely. Already-migrated positions
+   * (with quantity < 1 for forex) are skipped.
+   *
+   * @returns Migration summary { migrated, skipped, details: [...] }
+   */
+  async migrateUnitsToLots(userId?: string): Promise<{
+    migrated: number;
+    skipped: number;
+    details: Array<{
+      id: string;
+      symbol: string;
+      side: string;
+      before: number;
+      after: number;
+      contractSize: number;
+      action: 'migrated' | 'skipped' | 'error';
+      reason?: string;
+    }>;
+  }> {
+    const details: any[] = [];
+    let migrated = 0;
+    let skipped = 0;
+
+    try {
+      const where: any = { status: 'OPEN' };
+      if (userId) where.userId = userId;
+
+      const positions = await this.prisma.position.findMany({
+        where,
+        select: {
+          id: true,
+          userId: true,
+          symbol: true,
+          side: true,
+          quantity: true,
+          entryPrice: true,
+          source: true,
+          openedAt: true,
+        },
+        orderBy: { openedAt: 'desc' },
+      });
+
+      this.logger.log(
+        `🔧 V431 MIGRATION: Scanning ${positions.length} OPEN positions${userId ? ` for user ${userId}` : ' (all users)'}...`
+      );
+
+      for (const pos of positions) {
+        try {
+          const qty = Number(pos.quantity);
+          const meta = getSymbolMetadata(pos.symbol);
+          const contractSize = meta.contractSize || 1;
+
+          // Heuristic: detect UNITS vs LOTS
+          // - For forex (contractSize=100000): LOTS are 0.01-0.50. Anything ≥ 1 is UNITS.
+          // - For gold (contractSize=100): LOTS are 0.01-0.50. Anything ≥ 1 is UNITS.
+          // - For silver (contractSize=5000): LOTS are 0.01-0.50. Anything ≥ 1 is UNITS.
+          // - For oil (contractSize=1000): LOTS are 0.01-0.50. Anything ≥ 1 is UNITS.
+          // - For crypto (contractSize=1): LOTS = UNITS (no migration needed).
+          // - For indices (contractSize=1): LOTS = UNITS (no migration needed).
+          const isCryptoOrIndex = contractSize === 1;
+          const looksLikeUnits = !isCryptoOrIndex && qty >= 1;
+
+          if (!looksLikeUnits) {
+            details.push({
+              id: pos.id,
+              symbol: pos.symbol,
+              side: pos.side,
+              before: qty,
+              after: qty,
+              contractSize,
+              action: 'skipped',
+              reason: isCryptoOrIndex
+                ? 'crypto/index — no migration needed (contractSize=1)'
+                : 'quantity already in LOTS (< 1)',
+            });
+            skipped++;
+            continue;
+          }
+
+          // Convert UNITS → LOTS
+          const newQty = qty / contractSize;
+          // Round to 0.01 step (standard lot step)
+          const step = 0.01;
+          const roundedLots = Math.max(step, Math.floor(newQty / step) * step);
+          const finalQty = parseFloat(roundedLots.toFixed(8));
+
+          await this.prisma.position.update({
+            where: { id: pos.id },
+            data: {
+              quantity: finalQty,
+              // Also reset P&L — position-monitor will recompute on next tick
+              unrealizedPnl: 0,
+            },
+          });
+
+          details.push({
+            id: pos.id,
+            symbol: pos.symbol,
+            side: pos.side,
+            before: qty,
+            after: finalQty,
+            contractSize,
+            action: 'migrated',
+            reason: `÷ ${contractSize} (UNITS → LOTS)`,
+          });
+          migrated++;
+
+          this.logger.log(
+            `🔧 V431 MIGRATED: ${pos.symbol} ${pos.side} ` +
+            `qty ${qty} → ${finalQty} (÷${contractSize}) | source=${pos.source} | opened=${pos.openedAt?.toISOString()}`
+          );
+        } catch (posErr: any) {
+          details.push({
+            id: pos.id,
+            symbol: pos.symbol,
+            side: pos.side,
+            before: Number(pos.quantity),
+            after: Number(pos.quantity),
+            contractSize: 0,
+            action: 'error',
+            reason: posErr.message,
+          });
+        }
+      }
+
+      this.logger.log(
+        `🔧 V431 MIGRATION COMPLETE: ${migrated} migrated, ${skipped} skipped, ${details.length - migrated - skipped} errors`
+      );
+
+      return { migrated, skipped, details };
+    } catch (error: any) {
+      this.logger.error(`🔧 V431 MIGRATION FAILED: ${error.message}`);
+      return { migrated, skipped, details };
     }
   }
 

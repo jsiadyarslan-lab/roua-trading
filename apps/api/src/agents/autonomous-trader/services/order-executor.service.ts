@@ -244,12 +244,16 @@ export class OrderExecutorService implements OnModuleDestroy {
 
         try {
           // Route through TradingService — creates Order + Position + Trade + Signal in one transaction
+          // V431: Send LOTS (not units) to OrderDispatcher. The DB stores lots directly,
+          // and the P&L engine computes (price - entry) × qty × contractSize.
+          // Risk checks above used risk.positionSize (units) for margin/notional validation.
+          const orderQuantity = risk.lots || risk.positionSize;  // fallback to units if lots missing
           const orderRequest = {
             credentialId,
             symbol: signal.symbol,
             side: signal.action as OrderSide,
             type: signal.type as OrderType,
-            quantity: risk.positionSize,
+            quantity: orderQuantity,  // LOTS — what gets stored in DB
             price: executionPrice,
             stopLoss: signal.stopLoss,
             takeProfit: signal.takeProfit,
@@ -284,6 +288,7 @@ export class OrderExecutorService implements OnModuleDestroy {
           this.recentOrders.set(`${userId}:${signal.symbol}:${signal.action}`, new Date());
 
           // Also record in AutonomousTrade table for agent-specific analytics
+          // V431: Store both units (positionSize) and lots for analytics
           try {
             await this.prisma.autonomousTrade.create({
               data: {
@@ -297,10 +302,10 @@ export class OrderExecutorService implements OnModuleDestroy {
                 entryPrice: executionPrice,
                 stopLoss: signal.stopLoss,
                 takeProfit: signal.takeProfit,
-                quantity: risk.positionSize,
-                filledQuantity: risk.positionSize,
+                quantity: orderQuantity,        // LOTS (matches Position.quantity)
+                filledQuantity: orderQuantity, // LOTS
                 pnl: null,
-                fee: executionPrice * risk.positionSize * 0.001,
+                fee: executionPrice * risk.positionSize * 0.001,  // fee uses UNITS (real notional)
                 feeCurrency: 'USD',
                 riskScore: risk.riskScore,
                 confidence: signal.confidence,
@@ -311,12 +316,14 @@ export class OrderExecutorService implements OnModuleDestroy {
                   paperTrading: true,
                   executionTimeMs,
                   orderId: order.id,
+                  lots: orderQuantity,
+                  units: risk.positionSize,
                 }),
                 execution: JSON.stringify({
                   success: true,
                   paperTrading: true,
                   orderId: order.id,
-                  filledQuantity: risk.positionSize,
+                  filledQuantity: orderQuantity,
                   averagePrice: executionPrice,
                   slippage: calculatedSlippage,
                   executionTimeMs,
@@ -334,6 +341,7 @@ export class OrderExecutorService implements OnModuleDestroy {
           this.recentOrders.set(`${userId}:${signal.symbol}:${signal.action}`, new Date());
 
           // Audit log
+          // V431: Log both units (positionSize) and lots (orderQuantity) for traceability
           await this.audit?.log({
             userId,
             action: 'AGENT_PAPER_TRADE_EXECUTED',
@@ -342,7 +350,9 @@ export class OrderExecutorService implements OnModuleDestroy {
               orderId: order.id,
               symbol: signal.symbol,
               side: signal.action,
-              quantity: risk.positionSize,
+              quantity: orderQuantity,        // LOTS — what was sent to dispatcher
+              units: risk.positionSize,      // UNITS — for risk audit
+              lots: orderQuantity,
               executionPrice,
               stopLoss: signal.stopLoss,
               takeProfit: signal.takeProfit,
@@ -352,7 +362,7 @@ export class OrderExecutorService implements OnModuleDestroy {
           });
 
           this.logger.log(
-            `✅ Paper order executed: ${signal.action} ${risk.positionSize} ${signal.symbol} ` +
+            `✅ Paper order executed: ${signal.action} ${orderQuantity} lots (${risk.positionSize.toFixed(2)} units) ${signal.symbol} ` +
             `@ ${executionPrice.toFixed(2)} via TradingService (order: ${order.id})`,
           );
 
@@ -360,9 +370,9 @@ export class OrderExecutorService implements OnModuleDestroy {
             success: true,
             orderId: order.id,
             exchangeOrderId: undefined,
-            filledQuantity: risk.positionSize,
+            filledQuantity: orderQuantity,  // LOTS — matches Position.quantity
             averagePrice: executionPrice,
-            fee: executionPrice * risk.positionSize * 0.001,
+            fee: executionPrice * risk.positionSize * 0.001,  // fee uses UNITS
             feeCurrency: 'USD',
             slippage: calculatedSlippage,
             executionTimeMs,
@@ -459,12 +469,14 @@ export class OrderExecutorService implements OnModuleDestroy {
       }
 
       // Construct the order request
+      // V431: Send LOTS (not units) — DB stores lots directly
+      const realOrderQuantity = risk.lots || risk.positionSize;
       const orderRequest: PlaceOrderRequest = {
         credentialId,
         symbol: signal.symbol,
         side: signal.action as OrderSide,
         type: signal.type as OrderType,
-        quantity: risk.positionSize,
+        quantity: realOrderQuantity,  // LOTS — what gets stored in DB
         price: signal.type === OrderType.LIMIT ? signal.entryPrice : undefined,
         stopLoss: signal.stopLoss, // MANDATORY
         takeProfit: signal.takeProfit,

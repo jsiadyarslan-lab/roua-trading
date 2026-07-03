@@ -114,7 +114,9 @@ export class RiskCalculatorService {
 
     // Step 5: Calculate position size (with maxPositionSizePercent cap)
     // V146: Pass symbol for lot-aware sizing
-    const positionSize = this._calculatePositionSize(
+    // V431: Now returns { units, lots } — units for internal risk checks,
+    // lots for what gets sent to OrderDispatcher (DB stores lots directly).
+    const sizingResult = this._calculatePositionSize(
       portfolioValue,
       riskPerTradePercent,
       signal.entryPrice,
@@ -122,6 +124,8 @@ export class RiskCalculatorService {
       maxPositionSizePercent,
       signal.symbol,
     );
+    const positionSize = sizingResult.units;  // units — for risk checks below
+    const positionLots = sizingResult.lots;   // lots — sent to OrderDispatcher
 
     // Step 6: Calculate risk-reward ratio
     const risk = Math.abs(signal.entryPrice - signal.stopLoss);
@@ -242,7 +246,7 @@ export class RiskCalculatorService {
     if (canTrade) {
       this.logger.debug(
         `🛡️ Trade allowed: ${signal.action} ${signal.symbol} ` +
-        `qty=${positionSize.toFixed(6)} risk=${riskScore}`,
+        `qty=${positionSize.toFixed(6)} units (${positionLots.toFixed(2)} lots) risk=${riskScore}`,
       );
     } else {
       this.logger.warn(`🛡️ Trade rejected: ${reason}`);
@@ -267,6 +271,7 @@ export class RiskCalculatorService {
       return {
         canTrade: false,
         positionSize: 0,
+        lots: 0,
         stopLoss: 0,
         takeProfit: 0,
         riskRewardRatio: 0,
@@ -305,6 +310,7 @@ export class RiskCalculatorService {
         canTrade: false,
         reason: `V428: سعر الدخول ${signal.entryPrice} مريب جداً لـ ${signal.symbol} — تم الحجب`,
         positionSize: 0,
+        lots: 0,
         stopLoss: signal.stopLoss,
         takeProfit: signal.takeProfit,
         riskRewardRatio: 0,
@@ -318,16 +324,27 @@ export class RiskCalculatorService {
 
     // الحارس 2: حد مطلق بالدولار = 3% من portfolio
     // على $700k = $21,000 | على $1,000 = $30
+    // V431: إذا تم تقليص الـ units، أعد حساب الـ lots لتطابق
     const ABSOLUTE_MAX_NOTIONAL = portfolioValue * 0.03;
     const currentNotional = positionSize * Math.abs(signal.entryPrice);
     let safePositionSize = positionSize;
+    let safePositionLots = positionLots;
 
     if (currentNotional > ABSOLUTE_MAX_NOTIONAL && signal.entryPrice > 0) {
       safePositionSize = ABSOLUTE_MAX_NOTIONAL / signal.entryPrice;
+      // أعد حساب الـ lots من الـ units الجديدة
+      if (signal.symbol) {
+        safePositionLots = roundLotSize(unitsToLots(safePositionSize, signal.symbol), signal.symbol);
+        // الحد الأدنى 0.01 lot
+        const step = 0.01;
+        safePositionLots = Math.max(step, Math.floor(safePositionLots / step) * step);
+        safePositionLots = parseFloat(safePositionLots.toFixed(8));
+      }
       this.logger.warn(
         `🛡️ V428 ABSOLUTE CAP: notional $${currentNotional.toFixed(2)} > ` +
         `3% cap ($${ABSOLUTE_MAX_NOTIONAL.toFixed(2)}) for ${signal.symbol} ` +
-        `— qty reduced: ${positionSize.toFixed(6)} → ${safePositionSize.toFixed(6)}`,
+        `— qty reduced: ${positionSize.toFixed(6)} → ${safePositionSize.toFixed(6)} units ` +
+        `(${safePositionLots.toFixed(2)} lots)`,
       );
     }
 
@@ -335,6 +352,7 @@ export class RiskCalculatorService {
       canTrade,
       reason,
       positionSize: parseFloat(safePositionSize.toFixed(8)),
+      lots: parseFloat(safePositionLots.toFixed(8)),
       stopLoss: signal.stopLoss,
       takeProfit: signal.takeProfit,
       riskRewardRatio,
@@ -426,8 +444,8 @@ export class RiskCalculatorService {
     stopLoss: number,
     maxPositionSizePercent?: number,
     symbol?: string,
-  ): number {
-    if (portfolioValue <= 0 || entryPrice <= 0 || stopLoss <= 0) return 0;
+  ): { units: number; lots: number } {
+    if (portfolioValue <= 0 || entryPrice <= 0 || stopLoss <= 0) return { units: 0, lots: 0 };
 
     // Use config maxPositionSizePercent or fallback to default
     const maxSizePercent = maxPositionSizePercent || this.defaultMaxPositionSizePercent;
@@ -438,11 +456,9 @@ export class RiskCalculatorService {
     // Price risk per unit = |entry - stopLoss|
     const priceRisk = Math.abs(entryPrice - stopLoss);
 
-    if (priceRisk === 0) return 0;
+    if (priceRisk === 0) return { units: 0, lots: 0 };
 
-    // V429: العودة بـ lots مُقرَّبة لخطوة 0.01 بدلاً من وحدات خام
-    // السبب: المستخدم يرى الحجم كعقود (0.01، 0.02...) وليس كوحدات (1000، 2000...)
-    // الحد الأدنى: 0.01 lot | الخطوة: 0.01
+    // V429: العودة بـ lots وunits — lots تُرسل للأوردر، units للحسابات الداخلية
     if (symbol) {
       const result = calculatePositionSizeFromRisk(riskAmount, entryPrice, stopLoss, symbol);
 
@@ -456,12 +472,13 @@ export class RiskCalculatorService {
       }
 
       // V429: تقريب إلى أقرب 0.01 (خطوة العقد القياسية)
-      // Fix: كان يرجع LOTS مباشرة لكن النظام يتوقع UNITS.
-      // الآن نحوّل lots → units قبل الإرجاع.
       const step = 0.01;
       const roundedLots = Math.max(step, Math.floor(quantityLots / step) * step);
       const quantityUnits = lotsToUnits(roundedLots, symbol);
-      return parseFloat(quantityUnits.toFixed(8));
+      return {
+        units: parseFloat(quantityUnits.toFixed(8)),
+        lots: parseFloat(roundedLots.toFixed(8)),
+      };
     }
 
     // Legacy path: no symbol — raw unit calculation
@@ -478,7 +495,7 @@ export class RiskCalculatorService {
       );
     }
 
-    return parseFloat(quantity.toFixed(8));
+    return { units: parseFloat(quantity.toFixed(8)), lots: 0 };
   }
 
   private _calculateRiskScore(params: {

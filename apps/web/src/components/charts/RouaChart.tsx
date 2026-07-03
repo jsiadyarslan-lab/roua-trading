@@ -65,6 +65,24 @@ import { fmtPrice as unifiedFmtPrice } from '@/lib/price-format';
 import { ScopedStyle } from '@/components/ScopedStyle';
 import { useTranslations, useLocale } from 'next-intl';
 
+// V431: Get correct contractSize per symbol (mirrors backend getSymbolMetadata)
+// - Crypto (BTC/USDT, ETH/USDT): contractSize=1 (1 lot = 1 unit)
+// - Forex (EUR/USD, GBP/USD): contractSize=100000 (1 lot = 100,000 units)
+// - Gold (XAU/USD): contractSize=100 (1 lot = 100 oz)
+// - Silver (XAG/USD): contractSize=5000 (1 lot = 5,000 oz)
+// - Oil (WTI/USD, BRENT/USD): contractSize=1000 (1 lot = 1,000 barrels)
+// - Indices (US30, NAS100, SPX500): contractSize=1
+function getContractSize(symbol: string): number {
+  const s = (symbol || '').toUpperCase();
+  if (s.includes('/USDT') || s.includes('/BTC') || s.endsWith('USDT')) return 1;       // crypto
+  if (s === 'XAU/USD' || s === 'XAUUSD') return 100;                                  // gold
+  if (s === 'XAG/USD' || s === 'XAGUSD') return 5000;                                 // silver
+  if (s === 'WTI/USD' || s === 'WTIUSD' || s === 'BRENT/USD' || s === 'BRENTUSD') return 1000; // oil
+  if (s.startsWith('US30') || s.startsWith('NAS100') || s.startsWith('SPX500') ||
+      s.startsWith('GER30') || s.startsWith('UK100')) return 1;                        // indices
+  return 100000;                                                                       // forex default
+}
+
 interface RouaChartProps {
   currentPrice?: number | null;
   mobile?: boolean;
@@ -1902,9 +1920,8 @@ export default function RouaChart({
         }
 
         // SL overlay — independent of entry visibility
-        // SL overlay — independent of entry visibility
-        // Fix: qty الآن باللوتات — نحتاج × contractSize
-        const slContractSize = (chartSymbol.includes('/USDT') || chartSymbol.includes('/BTC')) ? 1 : 100000;
+        // V431: استخدم contractSize الصحيح من getContractSize (يدعم XAG, XAU, oil)
+        const slContractSize = getContractSize(chartSymbol);
         const slQtyUnits = qty * slContractSize;
         if (slY !== null && sl) {
           const slPnl = (sl - entryPrice) * slQtyUnits * (direction === 'long' ? 1 : -1);
@@ -3490,12 +3507,10 @@ export default function RouaChart({
 
               // Entry P&L: unrealized profit/loss based on current price
               // Fix: currentPrice قد يكون null — استخدم آخر سعر إغلاق كـ fallback
-              // Fix: quantity الآن باللوتات — نحتاج × contractSize
+              // V431: استخدم contractSize الصحيح من getContractSize
               const effectivePrice = currentPrice || candlesRef.current[candlesRef.current.length - 1]?.close || 0;
-              // حدد contractSize: كريبتو=1, فوركس=100000
               const ovSymbol = (ov as any).symbol || '';
-              const ovIsCrypto = !ovSymbol || ovSymbol.includes('/USDT') || ovSymbol.includes('/BTC');
-              const ovContractSize = ovIsCrypto ? 1 : 100000;
+              const ovContractSize = getContractSize(ovSymbol || selectedSymbol_);
               const ovQtyUnits = ov.qty * ovContractSize;
               const entryPnl = isEntry && ov.qty > 0 && effectivePrice > 0
                 ? (effectivePrice - ov.price) * ovQtyUnits * (ov.direction === 'long' ? 1 : -1)

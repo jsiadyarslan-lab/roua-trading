@@ -221,6 +221,32 @@ export class SmartExecutorController {
   }
 
   /**
+   * POST /api/smart-executor/migrate-units-to-lots — Convert old OPEN positions
+   * from RAW UNITS to LOTS.
+   *
+   * V431 MIGRATION: After the LOTS unification commit (7b89269a4), the P&L engine
+   * multiplies quantity by contractSize. Old positions stored in UNITS get
+   * inflated P&L (100,000× too big for forex). This endpoint converts them.
+   *
+   * Body: { userId?: string } — if omitted, migrates ALL users' positions.
+   * Authentication: requires logged-in user (admin only via userId override).
+   */
+  @Post('migrate-units-to-lots')
+  @Throttle({ default: { limit: 2, ttl: 60000 } })
+  async migrateUnitsToLots(@Request() req: any, @Body() body: { userId?: string } = {}) {
+    // V168 SECURITY: If userId is provided in body, only migrate that user.
+    // Otherwise, migrate the authenticated user's positions.
+    // Admin override: if authenticated user is admin, they can pass userId='all'.
+    const targetUserId = body.userId && body.userId !== 'all' ? body.userId : req.user?.id;
+    const result = await this.executorService.migrateUnitsToLots(targetUserId);
+    return {
+      success: true,
+      data: result,
+      message: `Migrated ${result.migrated} positions, skipped ${result.skipped}`,
+    };
+  }
+
+  /**
    * POST /api/smart-executor/nuclear-cleanup — Delete ALL fake/paper trading data
    * V168 SECURITY: Now requires authenticated user — only deletes that user's data.
    * Removes user's TradingBriefs, paper-trading Positions/Trades/Orders/Credentials,

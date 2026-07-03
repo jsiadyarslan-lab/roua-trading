@@ -23,6 +23,7 @@ import { FeatureFlagService } from '../../../common/feature-flags/feature-flag.s
 import { TradeLifecycleLogger } from '../../../common/trade-lifecycle/trade-lifecycle.logger';
 // V341: Position State Machine — single decision point for position lifecycle
 import { PositionStateMachine } from '../../../common/state-machine/position-state-machine.service';
+import { getSymbolMetadata } from '../../trading/services/symbol-metadata';
 
 /** V270: RegimeType matching MarketRegimeService output */
 type RegimeType = 'BULL' | 'BEAR' | 'RANGE' | 'VOLATILE' | 'TRANSITIONAL';
@@ -736,10 +737,9 @@ export class PositionMonitorService {
       // Still update price/PnL for display, but DON'T make SL/TP decisions
       const staleEntryPrice = position.entryPrice?.toNumber?.() ?? Number(position.entryPrice);
       const staleQuantity = position.quantity?.toNumber?.() ?? Number(position.quantity);
-      // Fix: × contractSize للّوتات
+      // V431: استخدم contractSize الصحيح من symbol-metadata
       const staleSymbol = position.symbol || '';
-      const staleIsCrypto = staleSymbol.includes('/USDT') || staleSymbol.includes('/BTC');
-      const staleContractSize = staleIsCrypto ? 1 : 100000;
+      const staleContractSize = getSymbolMetadata(staleSymbol).contractSize || 100000;
       const staleQtyUnits = staleQuantity * staleContractSize;
       const unrealizedPnl =
         position.side === 'BUY'
@@ -797,11 +797,10 @@ export class PositionMonitorService {
     const stopLossNum = position.stopLoss?.toNumber?.() ?? (position.stopLoss ? Number(position.stopLoss) : null);
     const takeProfitNum = position.takeProfit?.toNumber?.() ?? (position.takeProfit ? Number(position.takeProfit) : null);
 
-    // Fix: quantity الآن باللوتات (lots) — نحتاج × contractSize لحساب P&L
-    // الكريبتو: contractSize=1, الفوركس: contractSize=100000
+    // V431: استخدم contractSize الصحيح من symbol-metadata (وليس hardcoded 100000)
+    // هذا مهم لأن XAG/USD contractSize=5000، XAU/USD=100، الفوركس=100000، الكريبتو=1
     const symbol = position.symbol || '';
-    const isCrypto = symbol.includes('/USDT') || symbol.includes('/BTC');
-    const contractSize = isCrypto ? 1 : 100000;
+    const contractSize = getSymbolMetadata(symbol).contractSize || 100000;
     const quantityUnits = quantity * contractSize;
 
     // Calculate unrealized P&L (باستخدام quantityUnits = lots × contractSize)
@@ -1964,10 +1963,9 @@ export class PositionMonitorService {
       try {
         const entryPrice = position.entryPrice?.toNumber?.() ?? Number(position.entryPrice);
         const quantity = position.quantity?.toNumber?.() ?? Number(position.quantity);
-        // Fix: × contractSize للّوتات
+        // V431: استخدم contractSize الصحيح من symbol-metadata
         const closeSymbol = position.symbol || '';
-        const closeIsCrypto = closeSymbol.includes('/USDT') || closeSymbol.includes('/BTC');
-        const closeContractSize = closeIsCrypto ? 1 : 100000;
+        const closeContractSize = getSymbolMetadata(closeSymbol).contractSize || 100000;
         const closeQtyUnits = quantity * closeContractSize;
         await this.performanceEvents.recordTradeClosed({
           userId: position.userId,
@@ -1994,10 +1992,9 @@ export class PositionMonitorService {
         if (this.journal) {
           const entryPrice = position.entryPrice?.toNumber?.() ?? Number(position.entryPrice);
           const quantity = position.quantity?.toNumber?.() ?? Number(position.quantity);
-          // Fix: × contractSize للّوتات
+          // V431: استخدم contractSize الصحيح من symbol-metadata
           const jSymbol = position.symbol || '';
-          const jIsCrypto = jSymbol.includes('/USDT') || jSymbol.includes('/BTC');
-          const jContractSize = jIsCrypto ? 1 : 100000;
+          const jContractSize = getSymbolMetadata(jSymbol).contractSize || 100000;
           const jQtyUnits = quantity * jContractSize;
           const pnl = position.side === 'BUY'
             ? (currentPrice - entryPrice) * jQtyUnits

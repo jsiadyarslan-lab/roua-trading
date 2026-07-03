@@ -644,3 +644,10 @@
     display: none !important;
   }
 }
+
+/* ── Desktop: إخفاء عناصر الموبايل فقط على الشاشات الكبيرة ── */
+@media (min-width: 768px) {
+  .show-on-mobile-only {
+    display: none !important;
+  }
+}

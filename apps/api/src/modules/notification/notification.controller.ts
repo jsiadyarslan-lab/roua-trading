@@ -152,9 +152,8 @@ export class NotificationController {
     const userId = req.user?.id;
     if (!userId) return { success: false, error: t('notification_controller.not', req) };
 
-    // Verify ownership
-    const { PrismaService } = await import('../../common/prisma/prisma.service');
-    // Use the service's prisma instance
-    return { success: true };
+    // Fix: كان no-op. الآن يحذف فعلياً عبر notificationService.
+    const result = await this.notificationService.deleteNotification(userId, id);
+    return { success: result.success, count: result.count };
   }
 }

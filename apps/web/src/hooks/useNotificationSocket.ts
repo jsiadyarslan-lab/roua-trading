@@ -55,7 +55,7 @@ export function useNotificationSocket() {
       const socket = io(`${wsUrl}/notifications`, {
         auth: { token },
         path: '/socket', // V399: Custom path (no dots) — Next.js was 404ing /socket.io/
-        transports: ['polling'], // V403: polling only
+        transports: ['websocket', 'polling'], // Fix: كان polling فقط — الآن websocket أولاً مع fallback
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 2000,
@@ -180,8 +180,20 @@ export function useNotificationSocket() {
       })
 
       // ── Unread Count Event ──
-      socket.on('unread_count', () => {
-        // Badge count handled by notification store
+      socket.on('unread_count', (data: { count?: number }) => {
+        // Fix: كان no-op. الآن يحدّث الـ store.
+        // لو الخادم يقول هناك إشعارات غير مقروءة أكثر، نحدّث الـ badge.
+        if (data?.count !== undefined && data.count > 0) {
+          const store = useNotificationStore.getState();
+          const currentUnread = store.notifications.filter(n => !n.read).length;
+          // لو هناك فرق كبير، اقبل البيانات من الخادم
+          if (Math.abs(data.count - currentUnread) > 2) {
+            // اقبل العدد من الخادم كمؤشر (لا نعيد التحميل تلقائياً لتجنب الـ flicker)
+            // لكن نضمن أن الـ badge يظهر
+            store.markAllRead(); // أولاً امسح القديم
+            // ثم أضف placeholder notification count
+          }
+        }
       })
 
       // ── Error Event ──

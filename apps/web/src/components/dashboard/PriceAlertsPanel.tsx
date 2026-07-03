@@ -118,7 +118,7 @@ export function PriceAlertsPanel() {
                 {tp('value')}
                 {currentPrice !== null && (
                   <span style={{ color: T.blue, marginInlineEnd: 4 }}>
-                    {tp('currentLabel')} {currentPrice > 100 ? currentPrice.toLocaleString('en', { maximumFractionDigits: 2 }) : currentPrice.toFixed(4)})
+                    {tp('currentLabel')} {currentPrice > 100 ? currentPrice.toLocaleString('en', { maximumFractionDigits: 2 }) : currentPrice.toFixed(4)}
                   </span>
                 )}
               </label>
@@ -256,7 +256,7 @@ function AlertRow({ alert, onRemove, currentPrice }: {
               <span style={{ color: 'var(--muted)', fontSize: 9, fontWeight: 400, marginInlineEnd: 6 }}>
                 {tp('currentLabel')} ${currentPrice > 100
                   ? currentPrice.toLocaleString('en', { maximumFractionDigits: 2 })
-                  : currentPrice.toFixed(4)})
+                  : currentPrice.toFixed(4)}
               </span>
             )}
           </div>

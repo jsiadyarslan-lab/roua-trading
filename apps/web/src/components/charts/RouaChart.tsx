@@ -47,7 +47,7 @@ import { useMultiChartStore, getActiveChartControl } from '@/hooks/useMultiChart
 import { useChartSync } from '@/hooks/useChartSync';
 import ShareChart from './ShareChart';
 import { FootprintChart } from './FootprintChart';
-import { AlertPanel } from './AlertPanel';
+// AlertPanel removed — dead code. PriceAlertLine replaces it.
 import { PatternProgress } from './PatternProgress';
 import { DraggablePanel } from './DraggablePanel';
 import { PriceAlertLine } from './PriceAlertLine';

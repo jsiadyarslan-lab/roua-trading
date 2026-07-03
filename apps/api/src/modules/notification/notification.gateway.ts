@@ -165,6 +165,7 @@ export class NotificationGateway
       'ticker:error',    // Price fetch errors
       'market_status',   // Market open/close status
       'system',          // System-wide announcements
+      'notification',    // Fix: system-wide notifications (was missing → broadcastNotification silently dropped)
     ]);
 
     if (!PUBLIC_EVENTS.has(event)) {

@@ -52,12 +52,24 @@ const C = {
 };
 
 // ── localStorage helpers ──────────────────────────────────
-const STORAGE_KEY = 'roua-price-alerts';
+// Fix: كان 'roua-price-alerts' بدون userId — بيانات تتسرب بين المستخدمين.
+// الآن نستخدم userId من auth store لإنشاء key منفصل لكل مستخدم.
+import { useAuthStore } from '@/lib/auth-store';
+
+function getStorageKey(): string {
+  if (typeof window === 'undefined') return 'roua-price-alerts:guest';
+  try {
+    const userId = useAuthStore.getState().user?.id;
+    return `roua-price-alerts:${userId || 'guest'}`;
+  } catch {
+    return 'roua-price-alerts:guest';
+  }
+}
 
 function loadAlerts(symbol: string): PriceAlert[] {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(getStorageKey());
     if (!raw) return [];
     const all: PriceAlert[] = JSON.parse(raw);
     return all.filter(a => a.symbol === symbol);
@@ -69,12 +81,13 @@ function loadAlerts(symbol: string): PriceAlert[] {
 function saveAlerts(alerts: PriceAlert[], symbol: string) {
   if (typeof window === 'undefined') return;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const key = getStorageKey();
+    const raw = localStorage.getItem(key);
     const all: PriceAlert[] = raw ? JSON.parse(raw) : [];
     // Remove alerts for this symbol, then add current ones
     const others = all.filter(a => a.symbol !== symbol);
     const merged = [...others, ...alerts];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    localStorage.setItem(key, JSON.stringify(merged));
   } catch { /* quota exceeded */ }
 }
 

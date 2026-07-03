@@ -309,6 +309,23 @@ export class NotificationService {
   }
 
   /**
+   * Delete a single notification (user-scoped)
+   */
+  async deleteNotification(userId: string, notificationId: string): Promise<{ success: boolean; count: number }> {
+    try {
+      const result = await this.prisma.userNotification.deleteMany({
+        where: { id: notificationId, userId },
+      });
+      return { success: true, count: result.count };
+    } catch (err: any) {
+      if (err?.message?.includes('does not exist')) {
+        NotificationService._tablesExist = false;
+      }
+      return { success: false, count: 0 };
+    }
+  }
+
+  /**
    * Get or create user notification preferences
    */
   async getPreferences(userId: string) {

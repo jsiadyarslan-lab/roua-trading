@@ -60,6 +60,7 @@ export function PriceAlertEngine() {
 
       if (shouldTrigger) {
         triggerAlert(alert.id)
+        // Fix i18n: استخدم notificationType + params بدل نصوص عربية hardcoded
         addNotification({
           source: 'system',
           priority: 'urgent',
@@ -75,6 +76,8 @@ export function PriceAlertEngine() {
           pair: alert.symbol,
           price: q.price,
           confidence: 100,
+          notificationType: 'priceAlert',
+          params: { symbol: alert.symbol, condition: alert.condition, price: q.price, target: alert.targetPrice },
         })
       }
     }

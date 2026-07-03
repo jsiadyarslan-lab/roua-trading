@@ -456,10 +456,12 @@ export class RiskCalculatorService {
       }
 
       // V429: تقريب إلى أقرب 0.01 (خطوة العقد القياسية)
-      // Math.floor لمنع تجاوز الحد، ثم max(0.01) للحد الأدنى
+      // Fix: كان يرجع LOTS مباشرة لكن النظام يتوقع UNITS.
+      // الآن نحوّل lots → units قبل الإرجاع.
       const step = 0.01;
-      const rounded = Math.max(step, Math.floor(quantityLots / step) * step);
-      return parseFloat(rounded.toFixed(2));
+      const roundedLots = Math.max(step, Math.floor(quantityLots / step) * step);
+      const quantityUnits = lotsToUnits(roundedLots, symbol);
+      return parseFloat(quantityUnits.toFixed(8));
     }
 
     // Legacy path: no symbol — raw unit calculation

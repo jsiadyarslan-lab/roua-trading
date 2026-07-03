@@ -1446,10 +1446,12 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
       }
 
       // V429: إعادة lots مُقرَّبة لـ 0.01 (حد أدنى 0.01، خطوة 0.01)
-      // الوكيل يفتح عقوداً وليس وحدات خام — 0.01, 0.02, 0.10, 0.11...
+      // Fix: كان يرجع LOTS مباشرة (مثل 0.30) لكن النظام يتوقع UNITS.
+      // الآن نحوّل lots → units قبل الإرجاع.
       const step = 0.01;
-      const rounded = Math.max(step, Math.floor(quantityLots / step) * step);
-      return parseFloat(rounded.toFixed(2));
+      const roundedLots = Math.max(step, Math.floor(quantityLots / step) * step);
+      const quantityUnits = lotsToUnits(roundedLots, symbol);
+      return parseFloat(quantityUnits.toFixed(8));
     }
 
     let quantity = riskAmount / priceRisk;

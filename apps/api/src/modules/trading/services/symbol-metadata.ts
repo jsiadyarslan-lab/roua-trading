@@ -81,10 +81,10 @@ const SYMBOL_REGISTRY: Record<string, Partial<SymbolMetadata>> = {
   'BRENT/USD': { assetClass: AssetClass.COMMODITY, contractSize: 1000, pipSize: 0.01, priceDecimals: 2, defaultLeverage: 10 },
 
   // ── Crypto ──
-  'BTC/USDT': { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.00001, minLot: 0.00001, maxLot: 1000, pipSize: 1, priceDecimals: 2, defaultLeverage: 1 },
-  'BTC/USD':  { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.00001, minLot: 0.00001, maxLot: 1000, pipSize: 1, priceDecimals: 2, defaultLeverage: 1 },
-  'ETH/USDT': { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.0001, minLot: 0.0001, maxLot: 10000, pipSize: 0.01, priceDecimals: 2, defaultLeverage: 1 },
-  'ETH/USD':  { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.0001, minLot: 0.0001, maxLot: 10000, pipSize: 0.01, priceDecimals: 2, defaultLeverage: 1 },
+  'BTC/USDT': { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.01, minLot: 0.01, maxLot: 1000, pipSize: 1, priceDecimals: 2, defaultLeverage: 1 },
+  'BTC/USD':  { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.01, minLot: 0.01, maxLot: 1000, pipSize: 1, priceDecimals: 2, defaultLeverage: 1 },
+  'ETH/USDT': { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.01, minLot: 0.01, maxLot: 10000, pipSize: 0.01, priceDecimals: 2, defaultLeverage: 1 },
+  'ETH/USD':  { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.01, minLot: 0.01, maxLot: 10000, pipSize: 0.01, priceDecimals: 2, defaultLeverage: 1 },
   'SOL/USDT': { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.01, minLot: 0.01, maxLot: 50000, pipSize: 0.01, priceDecimals: 2, defaultLeverage: 1 },
   'BNB/USDT': { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.001, minLot: 0.001, maxLot: 5000, pipSize: 0.01, priceDecimals: 2, defaultLeverage: 1 },
   'XRP/USDT': { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 1, minLot: 1, maxLot: 500000, pipSize: 0.0001, priceDecimals: 4, defaultLeverage: 1 },

@@ -17,6 +17,23 @@ import { fmtPriceLocale as fmtPrice, fmtPrice as fmtPricePlain, fmtPnl } from '@
 import { isNestJsId } from '@/lib/api-fetch'
 import { PositionModal, type PositionModalData } from './PositionModal'
 
+// Fix: تحويل الوحدات الخام إلى لوتات للعرض
+// للكريبتو: contractSize=1, فاللوتات = الوحدات (0.01 BTC = 0.01 لوت)
+// للفوركس: contractSize=100000, فاللوتات = وحدات ÷ 100000 (1000 وحدة = 0.01 لوت)
+function unitsToLotsDisplay(qty: number, symbol: string): string {
+  if (!qty || qty <= 0) return '—'
+  const isCrypto = symbol.includes('/USDT') || symbol.includes('/BTC') || symbol.includes('/USD')
+  // للكريبتو: اعرض كما هو (0.01 BTC)
+  if (isCrypto) {
+    return qty >= 1 ? qty.toFixed(2) : qty.toFixed(6).replace(/0+$/, '').replace(/\.$/, '')
+  }
+  // للفوركس: حوّل وحدات → لوتات (100,000 وحدة = 1 لوت)
+  const lots = qty / 100000
+  if (lots >= 0.01) return lots.toFixed(2)
+  // لو أقل من 0.01 لوت، اعرض بالوحدات
+  return qty >= 100 ? Math.round(qty).toString() : qty.toFixed(0)
+}
+
 interface Position {
   symbol: string
   rawSymbol?: string
@@ -796,7 +813,7 @@ export function AlpacaPositions() {
               </div>
 
               <div style={{ fontSize: 8, fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap' }}>
-                {position.qty}
+                {unitsToLotsDisplay(Number((position as any).qty ?? (position as any).quantity ?? 0), position.symbol)}
               </div>
 
               {/* Entry — Fix 2: overflow hidden + ellipsis */}

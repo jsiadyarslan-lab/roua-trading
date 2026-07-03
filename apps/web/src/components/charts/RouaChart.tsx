@@ -1710,6 +1710,27 @@ export default function RouaChart({
   const [chartMenuDrag, setChartMenuDrag] = useState<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
   const [chartSubMenu, setChartSubMenu] = useState<string | null>(null);
 
+  // Fix: معالجة السحب على مستوى document (وليس على الـ backdrop)
+  // حتى لا تتحرك القائمة مع كل حركة ماوس على الشارت
+  useEffect(() => {
+    if (!chartMenuDrag) return;
+    const handleMove = (e: MouseEvent) => {
+      const dx = e.clientX - chartMenuDrag.startX;
+      const dy = e.clientY - chartMenuDrag.startY;
+      setChartMenuPos({
+        x: Math.max(0, Math.min(window.innerWidth - 250, chartMenuDrag.origX + dx)),
+        y: Math.max(0, Math.min(window.innerHeight - 60, chartMenuDrag.origY + dy)),
+      });
+    };
+    const handleUp = () => setChartMenuDrag(null);
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleUp);
+    };
+  }, [chartMenuDrag]);
+
   // Fix: lightweight-charts canvas يستهلك contextmenu event قبل الـ div.
   // الحل: attach event listener مع capture:true على الـ container.
   useEffect(() => {
@@ -4179,16 +4200,6 @@ export default function RouaChart({
                 }}
                   onClick={() => { setChartContextMenu(null); setChartSubMenu(null); }}
                   onContextMenu={(e) => { e.preventDefault(); setChartContextMenu(null); setChartSubMenu(null); }}
-                  onMouseMove={(e) => {
-                    if (!chartMenuDrag) return;
-                    const dx = e.clientX - chartMenuDrag.startX;
-                    const dy = e.clientY - chartMenuDrag.startY;
-                    setChartMenuPos({
-                      x: Math.max(0, Math.min(window.innerWidth - 250, chartMenuDrag.origX + dx)),
-                      y: Math.max(0, Math.min(window.innerHeight - 60, chartMenuDrag.origY + dy)),
-                    });
-                  }}
-                  onMouseUp={() => setChartMenuDrag(null)}
                 />
                 {/* Menu — draggable from header only */}
                 <div style={{
@@ -4308,7 +4319,7 @@ export default function RouaChart({
                         borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.5)', padding: '4px 0',
                         maxHeight: 300, overflowY: 'auto',
                       }}>
-                        {TIMEFRAMES.map(tf => (
+                        {TIMEFRAMES.filter(tf => tf.category !== 'seconds').map(tf => (
                           <div key={tf.value} onClick={() => { setTimeframe(tf.value); setChartContextMenu(null); setChartSubMenu(null); }}
                             style={{
                               padding: '5px 12px', display: 'flex', alignItems: 'center', gap: 8,

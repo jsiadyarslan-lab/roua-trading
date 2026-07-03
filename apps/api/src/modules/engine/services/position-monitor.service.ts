@@ -736,10 +736,15 @@ export class PositionMonitorService {
       // Still update price/PnL for display, but DON'T make SL/TP decisions
       const staleEntryPrice = position.entryPrice?.toNumber?.() ?? Number(position.entryPrice);
       const staleQuantity = position.quantity?.toNumber?.() ?? Number(position.quantity);
+      // Fix: × contractSize للّوتات
+      const staleSymbol = position.symbol || '';
+      const staleIsCrypto = staleSymbol.includes('/USDT') || staleSymbol.includes('/BTC');
+      const staleContractSize = staleIsCrypto ? 1 : 100000;
+      const staleQtyUnits = staleQuantity * staleContractSize;
       const unrealizedPnl =
         position.side === 'BUY'
-          ? (currentPrice - staleEntryPrice) * staleQuantity
-          : (staleEntryPrice - currentPrice) * staleQuantity;
+          ? (currentPrice - staleEntryPrice) * staleQtyUnits
+          : (staleEntryPrice - currentPrice) * staleQtyUnits;
       priceUpdates.push(
         this.prisma.position.update({
           where: { id: position.id },
@@ -792,13 +797,20 @@ export class PositionMonitorService {
     const stopLossNum = position.stopLoss?.toNumber?.() ?? (position.stopLoss ? Number(position.stopLoss) : null);
     const takeProfitNum = position.takeProfit?.toNumber?.() ?? (position.takeProfit ? Number(position.takeProfit) : null);
 
-    // Calculate unrealized P&L
+    // Fix: quantity الآن باللوتات (lots) — نحتاج × contractSize لحساب P&L
+    // الكريبتو: contractSize=1, الفوركس: contractSize=100000
+    const symbol = position.symbol || '';
+    const isCrypto = symbol.includes('/USDT') || symbol.includes('/BTC');
+    const contractSize = isCrypto ? 1 : 100000;
+    const quantityUnits = quantity * contractSize;
+
+    // Calculate unrealized P&L (باستخدام quantityUnits = lots × contractSize)
     const unrealizedPnl =
       position.side === 'BUY'
-        ? (currentPrice - entryPrice) * quantity
-        : (entryPrice - currentPrice) * quantity;
+        ? (currentPrice - entryPrice) * quantityUnits
+        : (entryPrice - currentPrice) * quantityUnits;
 
-    const pnlPercent = (unrealizedPnl / (entryPrice * quantity)) * 100;
+    const pnlPercent = (unrealizedPnl / (entryPrice * quantityUnits)) * 100;
 
     // V512: MONITOR_TICK تم حذفه من DB — كان يولد 691,200 صف/يوم بلا فائدة
     // البيانات موجودة بالفعل في جدول Position (currentPrice, unrealizedPnl)
@@ -1952,14 +1964,19 @@ export class PositionMonitorService {
       try {
         const entryPrice = position.entryPrice?.toNumber?.() ?? Number(position.entryPrice);
         const quantity = position.quantity?.toNumber?.() ?? Number(position.quantity);
+        // Fix: × contractSize للّوتات
+        const closeSymbol = position.symbol || '';
+        const closeIsCrypto = closeSymbol.includes('/USDT') || closeSymbol.includes('/BTC');
+        const closeContractSize = closeIsCrypto ? 1 : 100000;
+        const closeQtyUnits = quantity * closeContractSize;
         await this.performanceEvents.recordTradeClosed({
           userId: position.userId,
           symbol: position.symbol,
           side: position.side,
           source: position.source || 'unknown',
           pnl: position.side === 'BUY'
-            ? (currentPrice - entryPrice) * quantity
-            : (entryPrice - currentPrice) * quantity,
+            ? (currentPrice - entryPrice) * closeQtyUnits
+            : (entryPrice - currentPrice) * closeQtyUnits,
           entryPrice,
           exitPrice: currentPrice,
           quantity,
@@ -1977,9 +1994,14 @@ export class PositionMonitorService {
         if (this.journal) {
           const entryPrice = position.entryPrice?.toNumber?.() ?? Number(position.entryPrice);
           const quantity = position.quantity?.toNumber?.() ?? Number(position.quantity);
+          // Fix: × contractSize للّوتات
+          const jSymbol = position.symbol || '';
+          const jIsCrypto = jSymbol.includes('/USDT') || jSymbol.includes('/BTC');
+          const jContractSize = jIsCrypto ? 1 : 100000;
+          const jQtyUnits = quantity * jContractSize;
           const pnl = position.side === 'BUY'
-            ? (currentPrice - entryPrice) * quantity
-            : (entryPrice - currentPrice) * quantity;
+            ? (currentPrice - entryPrice) * jQtyUnits
+            : (entryPrice - currentPrice) * jQtyUnits;
           const pnlPct = (pnl / (entryPrice * quantity)) * 100;
 
           await this.journal.recordTradeClose(

@@ -1902,8 +1902,12 @@ export default function RouaChart({
         }
 
         // SL overlay — independent of entry visibility
+        // SL overlay — independent of entry visibility
+        // Fix: qty الآن باللوتات — نحتاج × contractSize
+        const slContractSize = (chartSymbol.includes('/USDT') || chartSymbol.includes('/BTC')) ? 1 : 100000;
+        const slQtyUnits = qty * slContractSize;
         if (slY !== null && sl) {
-          const slPnl = (sl - entryPrice) * qty * (direction === 'long' ? 1 : -1);
+          const slPnl = (sl - entryPrice) * slQtyUnits * (direction === 'long' ? 1 : -1);
           overlays.push({
             key: `${prefix}sl`, y: slY, price: sl,
             type: 'sl', direction, source, qty,
@@ -1913,7 +1917,7 @@ export default function RouaChart({
 
         // TP overlay — independent of entry visibility
         if (tpY !== null && tp) {
-          const tpPnl = (tp - entryPrice) * qty * (direction === 'long' ? 1 : -1);
+          const tpPnl = (tp - entryPrice) * slQtyUnits * (direction === 'long' ? 1 : -1);
           overlays.push({
             key: `${prefix}tp`, y: tpY, price: tp,
             type: 'tp', direction, source, qty,
@@ -3486,11 +3490,17 @@ export default function RouaChart({
 
               // Entry P&L: unrealized profit/loss based on current price
               // Fix: currentPrice قد يكون null — استخدم آخر سعر إغلاق كـ fallback
+              // Fix: quantity الآن باللوتات — نحتاج × contractSize
               const effectivePrice = currentPrice || candlesRef.current[candlesRef.current.length - 1]?.close || 0;
+              // حدد contractSize: كريبتو=1, فوركس=100000
+              const ovSymbol = (ov as any).symbol || '';
+              const ovIsCrypto = !ovSymbol || ovSymbol.includes('/USDT') || ovSymbol.includes('/BTC');
+              const ovContractSize = ovIsCrypto ? 1 : 100000;
+              const ovQtyUnits = ov.qty * ovContractSize;
               const entryPnl = isEntry && ov.qty > 0 && effectivePrice > 0
-                ? (effectivePrice - ov.price) * ov.qty * (ov.direction === 'long' ? 1 : -1)
+                ? (effectivePrice - ov.price) * ovQtyUnits * (ov.direction === 'long' ? 1 : -1)
                 : 0;
-              // Fix: اعرض إشارة + للربح و - للخسارة (كان Math.abs يحذف الإشارة)
+              // Fix: اعرض إشارة + للربح و - للخسارة
               const entryPnlText = isEntry && ov.qty > 0 && effectivePrice > 0
                 ? ` ${entryPnl >= 0 ? '+' : '-'}$${Math.abs(entryPnl).toFixed(2)}`
                 : '';

@@ -813,7 +813,7 @@ export function AlpacaPositions() {
               </div>
 
               <div style={{ fontSize: 8, fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap' }}>
-                {unitsToLotsDisplay(Number((position as any).qty ?? (position as any).quantity ?? 0), position.symbol)}
+                {Number((position as any).qty ?? (position as any).quantity ?? 0).toFixed(2)}
               </div>
 
               {/* Entry — Fix 2: overflow hidden + ellipsis */}

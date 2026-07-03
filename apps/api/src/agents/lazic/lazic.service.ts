@@ -545,32 +545,37 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     }
 
     // ── Step sizes قياسية حسب asset class ──
-    // تحديد asset class من اسم الزوج (ليس من السعر — USD/JPY price=150 يُعامل كـ forex)
-    // crypto: ينتهي بـ /USDT أو /BTC أو /USD (للـ BTC, ETH, BNB, SOL)
-    // forex: أزواج العملات التقليدية (EUR/USD, GBP/USD, USD/JPY, USD/CHF, etc.)
+    // تحديد asset class من اسم الزوج
+    // Fix: نوحّد الكل إلى لوتات (lots) — المعيار العالمي للتداول
+    // الكريبتو: contractSize=1, فاللوتات = الوحدات (0.01 BTC = 0.01 لوت)
+    // الفوركس: contractSize=100000, فاللوتات = وحدات ÷ 100000
     const isCrypto = symbol.includes('/USDT') || symbol.includes('/BTC');
-    const stepSize = isCrypto ? 0.01 : 100;
+    const contractSize = isCrypto ? 1 : 100000;
 
-    // قرّب إلى step size (floor — لا يتجاوز الـ rawQty)
-    let quantity = Math.floor(rawQty / stepSize) * stepSize;
+    // حوّل rawQty من وحدات إلى لوتات
+    const rawLots = rawQty / contractSize;
 
-    // لو النتيجة 0 (rawQty < stepSize)، استخدم stepSize كحد أدنى
-    if (quantity === 0) {
-      // تحقق لو stepSize يطابق الـ 25% cap
-      if (stepSize * price > maxNotional) {
+    // step موحّد = 0.01 لوت (أصغر وحدة تداول)
+    const step = 0.01;
+
+    // قرّب إلى step (floor — لا يتجاوز)
+    let quantityLots = Math.floor(rawLots / step) * step;
+
+    // لو النتيجة 0، استخدم step كحد أدنى
+    if (quantityLots === 0) {
+      // تحقق لو 0.01 لوت يطابق الـ 25% cap
+      const minNotional = step * contractSize * price;
+      if (minNotional > maxNotional) {
         this.logger.warn(
-          `⚠️ اللاسع: stepSize (${stepSize}) × price (${price}) = ${stepSize * price} ` +
-          `> cap (${maxNotional}) — balance=${balance}, symbol=${symbol}. تخطّي التنفيذ.`
+          `⚠️ اللاسع: 0.01 لوت × ${price} = ${minNotional} > cap (${maxNotional}) — تخطّي.`
         );
         return 0;
       }
-      quantity = stepSize;
+      quantityLots = step;
     }
 
-    // تقريب نهائي
-    // crypto: 2 decimals (0.01), forex: 0 decimals (100, 200, 300)
-    const decimals = isCrypto ? 2 : 0;
-    return Math.round(quantity * Math.pow(10, decimals)) / Math.pow(10, decimals);
+    // تقريب نهائي: 2 decimals دائماً (لأن اللوتات دائماً 0.01, 0.02, 0.03...)
+    return Math.round(quantityLots * 100) / 100;
   }
 
   // ── Phase 3: سجّل metric في Redis (success/fail counts + last reason)

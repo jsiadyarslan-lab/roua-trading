@@ -3450,6 +3450,10 @@ export class SmartExecutorService implements OnModuleDestroy {
         );
       }
 
+      // Fix: نرسل lots (وليس units) — المعيار العالمي
+      // lots = quantityLots (0.01, 0.02, 0.30...)
+      const orderQuantity = lots;
+
       // Ensure minimum order value ($10) — skip if too small
       const orderValue = calculateNotionalValue(quantity, currentPrice);
       if (orderValue < 10) {
@@ -3604,7 +3608,7 @@ export class SmartExecutorService implements OnModuleDestroy {
           credentialId: credential.id,
           symbol: brief.pair,
           side: brief.direction as 'BUY' | 'SELL',
-          quantity,
+          quantity: orderQuantity,  // Fix: lots, not units
           price: currentPrice,
           stopLoss: execStopLoss,
           takeProfit: execTakeProfit,

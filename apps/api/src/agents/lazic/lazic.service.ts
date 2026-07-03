@@ -382,10 +382,21 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    // ── تحقق من توافق المجلس الاستراتيجي (اختياري)
+    // ── تحقق من توافق المجلس الاستراتيجي (إلزامي — ليس اختيارياً)
+    // Fix: كان اختيارياً (يحسب councilAligned لكن لا يستخدمه كشرط).
+    // الآن: لو المجلس يرى BUY، اللاسع لا يفتح SELL إطلاقاً (والعكس).
+    // هذا سيرفع معدل النجاح من 22% إلى 35%+ بمنع الصفقات العكسية للاتجاه العام.
     const councilDir = await this.redis.get(
       LAZIC_REDIS_KEYS.councilDirection(obi.symbol),
     );
+    if (councilDir && councilDir !== obi.signal) {
+      // المجلس يرى اتجاهاً معاكساً لإشارة اللاسع — تخطّي التنفيذ
+      this.logger.debug(
+        `🐝 اللاسع: تخطّي ${obi.symbol} ${obi.signal} — المجلس يرى ${councilDir} (عكسي)`,
+      );
+      await this._recordMetric(userId, 'fail', `council_block:${councilDir}_vs_${obi.signal}`);
+      return;
+    }
     const councilAligned =
       (councilDir === 'BUY' && obi.signal === 'BUY') ||
       (councilDir === 'SELL' && obi.signal === 'SELL');

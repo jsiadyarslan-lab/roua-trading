@@ -249,6 +249,37 @@ export class RiskCalculatorService {
     }
 
     // ══════════════════════════════════════════════════════════════
+    // V430: قائمة أزواج محجوبة — أسعار غير موثوقة من المصدر
+    //
+    // BRENT/USD: OANDA يرجع سعر 0.0003 (خاطئ، الصحيح ~$70-80).
+    // بدلاً من الاعتماد على حارس السعر المريب فقط، نحظر الزوج صراحة
+    // حتى يُحل المشكلة من المصدر (OANDA streaming).
+    // ══════════════════════════════════════════════════════════════
+    const BLOCKED_SYMBOLS = new Set([
+      'BRENT/USD',
+    ]);
+
+    if (BLOCKED_SYMBOLS.has(signal.symbol?.toUpperCase() || '')) {
+      this.logger.warn(
+        `🚫 V430 BLOCKED SYMBOL: ${signal.symbol} is in the blocked list — ` +
+        `price data unreliable from source. Order BLOCKED.`,
+      );
+      return {
+        canTrade: false,
+        positionSize: 0,
+        stopLoss: 0,
+        takeProfit: 0,
+        riskRewardRatio: 0,
+        riskScore: 100,
+        dailyPnL: 0,
+        dailyLossPercent: 0,
+        openPositionsCount: 0,
+        portfolioValue: 0,
+        reason: `الزوج ${signal.symbol} محجوب — بيانات السعر غير موثوقة`,
+      } as RiskAssessment;
+    }
+
+    // ══════════════════════════════════════════════════════════════
     // V428: حارسان أخيران قبل التنفيذ — درس 2 يوليو 2026
     //
     // المشكلة: BRENT/USD جاء بسعر 0.0003 (خاطئ تماماً، الصحيح ~$70-80)

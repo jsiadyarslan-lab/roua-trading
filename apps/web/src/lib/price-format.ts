@@ -95,5 +95,6 @@ export function fmtPriceLocale(price: number, symbol?: string): string {
  */
 export function fmtPnl(value: number): string {
   if (!Number.isFinite(value)) return '—';
-  return `${value >= 0 ? '+' : '-'}${Math.abs(value).toLocaleString('en-US', { maximumFractionDigits: 2 })}$`;
+  // Fix: $ before number (standard international format: +$64.26 not +64.26$)
+  return `${value >= 0 ? '+' : '-'}$${Math.abs(value).toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
 }

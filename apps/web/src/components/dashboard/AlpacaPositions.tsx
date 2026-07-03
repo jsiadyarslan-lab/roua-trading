@@ -629,14 +629,16 @@ export function AlpacaPositions() {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'minmax(120px,1.35fr) 88px 52px 76px 76px 68px 68px 88px 48px',
+              gridTemplateColumns: 'minmax(120px,1.35fr) 82px 48px minmax(72px,76px) minmax(72px,76px) minmax(64px,68px) minmax(64px,68px) minmax(80px,88px) 48px 24px',
               gap: 6,
               alignItems: 'center',
               padding: '0 6px 2px',
-              color: T.text3,
-              fontSize: 6.5,
+              color: '#8B92A8',
+              fontSize: 7,
               fontWeight: 800,
               fontFamily: "var(--font-ar)",
+              textTransform: 'uppercase',
+              letterSpacing: 0.3,
             }}
           >
             <div>{t('contract')}</div>
@@ -644,10 +646,11 @@ export function AlpacaPositions() {
             <div style={{ textAlign: 'center' }}>{t('qty')}</div>
             <div style={{ textAlign: 'center' }}>{t('entry')}</div>
             <div style={{ textAlign: 'center' }}>{t('current')}</div>
-            <div style={{ textAlign: 'center' }}>{t('tp')}</div>
-            <div style={{ textAlign: 'center' }}>{t('sl')}</div>
+            <div style={{ textAlign: 'center', color: 'rgba(0,255,163,0.7)' }}>{t('tp')}</div>
+            <div style={{ textAlign: 'center', color: 'rgba(255,71,87,0.7)' }}>{t('sl')}</div>
             <div style={{ textAlign: 'center' }}>{t('pnl')}</div>
             <div style={{ textAlign: 'center' }}>{t('closeBtn')}</div>
+            <div></div>
           </div>
         )}
 
@@ -720,11 +723,12 @@ export function AlpacaPositions() {
                 boxShadow: `inset 0 1px 0 rgba(255,255,255,0.02), 0 4px 10px rgba(0,0,0,0.12)`,
                 padding: '5px 6px',
                 display: 'grid',
-                gridTemplateColumns: 'minmax(120px,1.35fr) 88px 52px 76px 76px 68px 68px 88px 48px',
+                gridTemplateColumns: 'minmax(120px,1.35fr) 82px 48px minmax(72px,76px) minmax(72px,76px) minmax(64px,68px) minmax(64px,68px) minmax(80px,88px) 48px 24px',
                 gap: 6,
                 alignItems: 'center',
               }}
             >
+              {/* Contract + Buy/Sell badge */}
               <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
                 <span
                   style={{
@@ -737,25 +741,27 @@ export function AlpacaPositions() {
                 >
                   {position.symbol}
                 </span>
+                {/* Fix 5: Buy/Sell badge — أكبر وأوضح */}
                 <span
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 2,
-                    padding: '1px 4px',
-                    borderRadius: 999,
-                    background: isLong ? 'rgba(0,255,163,0.14)' : 'rgba(255,71,87,0.14)',
-                    border: `1px solid ${isLong ? 'rgba(0,255,163,0.28)' : 'rgba(255,71,87,0.28)'}`,
+                    padding: '1px 5px',
+                    borderRadius: 3,
+                    background: isLong ? 'rgba(0,255,163,0.18)' : 'rgba(255,71,87,0.18)',
+                    border: `1px solid ${isLong ? 'rgba(0,255,163,0.35)' : 'rgba(255,71,87,0.35)'}`,
                     color: isLong ? T.success : T.danger,
-                    fontSize: 6,
+                    fontSize: 7,
                     fontWeight: 900,
                     whiteSpace: 'nowrap',
+                    letterSpacing: 0.3,
                   }}
                 >
-                  {isLong ? <TrendingUp size={7} /> : <TrendingDown size={7} />}
-                  {isLong ? tc('buy') : tc('sell')}
+                  {isLong ? <TrendingUp size={8} /> : <TrendingDown size={8} />}
+                  {isLong ? 'BUY' : 'SELL'}
                 </span>
-                {/* FIX: Show source badge for EVERY trade */}
+                {/* Source badge */}
                 {sourceBadge && (
                   <span
                     style={{
@@ -793,23 +799,28 @@ export function AlpacaPositions() {
                 {position.qty}
               </div>
 
-              <div style={{ fontSize: 8, fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap' }}>
+              {/* Entry — Fix 2: overflow hidden + ellipsis */}
+              <div style={{ fontSize: 8, fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {fmtPrice(position.avgEntryPrice, position.symbol)}
               </div>
 
-              <div style={{ fontSize: 8, fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap' }}>
+              {/* Current */}
+              <div style={{ fontSize: 8, fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {fmtPrice(position.currentPrice, position.symbol)}
               </div>
 
-              <div style={{ fontSize: 7.5, fontWeight: 800, color: position.tp ? T.success : T.text3, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap' }}>
+              {/* TP */}
+              <div style={{ fontSize: 7.5, fontWeight: 800, color: position.tp ? T.success : T.text3, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {position.tp ? fmtPrice(position.tp, position.symbol) : '—'}
               </div>
 
-              <div style={{ fontSize: 7.5, fontWeight: 800, color: position.sl ? T.danger : T.text3, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap' }}>
+              {/* SL */}
+              <div style={{ fontSize: 7.5, fontWeight: 800, color: position.sl ? T.danger : T.text3, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {position.sl ? fmtPrice(position.sl, position.symbol) : '—'}
               </div>
 
-              <div style={{ fontSize: 8.5, fontWeight: 900, color: pnlUp ? T.success : T.danger, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap' }}>
+              {/* P&L — Fix 3: format is now +$X.XX (changed in fmtPnl) */}
+              <div style={{ fontSize: 8.5, fontWeight: 900, color: pnlUp ? T.success : T.danger, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {fmtPnl(position.unrealizedPnl)}
               </div>
 
@@ -847,6 +858,51 @@ export function AlpacaPositions() {
                       {t('closeBtn')}
                     </>
                   )}
+                </button>
+              </div>
+
+              {/* Fix 1: Kebab menu (⋮) — مرئي دائماً، يفتح قائمة السياق */}
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    setContextMenu({
+                      x: rect.left,
+                      y: rect.bottom + 4,
+                      positionId: position.id,
+                      symbol: position.symbol,
+                      side: (position.side === 'long' ? 'long' : 'short') as 'long' | 'short',
+                      entryPrice: Number(position.avgEntryPrice || (position as any).entryPrice) || 0,
+                      qty: Number((position as any).qty || (position as any).quantity) || 0,
+                      stopLoss: (position as any).stopLoss ? Number((position as any).stopLoss) : (position.sl ? Number(position.sl) : undefined),
+                      takeProfit: (position as any).takeProfit ? Number((position as any).takeProfit) : (position.tp ? Number(position.tp) : undefined),
+                      source: position.source || position.tradeSource || '',
+                    })
+                  }}
+                  title="المزيد"
+                  style={{
+                    width: 20, height: 20, borderRadius: 4,
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    background: 'rgba(255,255,255,0.03)',
+                    color: '#8B92A8',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', fontSize: 11, fontWeight: 900, lineHeight: 1, padding: 0,
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(0,212,255,0.12)'
+                    e.currentTarget.style.borderColor = 'rgba(0,212,255,0.3)'
+                    e.currentTarget.style.color = '#00D4FF'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.03)'
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
+                    e.currentTarget.style.color = '#8B92A8'
+                  }}
+                >
+                  ⋮
                 </button>
               </div>
             </div>

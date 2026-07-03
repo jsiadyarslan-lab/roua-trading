@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
@@ -144,6 +144,56 @@ export function AlpacaPositions() {
 
   // ── Modal State (professional dialog) ──
   const [modal, setModal] = useState<PositionModalData | null>(null)
+
+  // ── Resize State (drag to resize positions panel) ──
+  // الارتفاع الافتراضي 180px، محفوظ في localStorage
+  const DEFAULT_HEIGHT = 180
+  const MIN_HEIGHT = 80
+  const MAX_HEIGHT = 600
+  const [panelHeight, setPanelHeight] = useState<number>(() => {
+    if (typeof window === 'undefined') return DEFAULT_HEIGHT
+    const saved = localStorage.getItem('alpacaPositionsHeight')
+    return saved ? Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, parseInt(saved))) : DEFAULT_HEIGHT
+  })
+  const [isResizing, setIsResizing] = useState(false)
+  const resizeStartY = useRef(0)
+  const resizeStartHeight = useRef(0)
+
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsResizing(true)
+    resizeStartY.current = e.clientY
+    resizeStartHeight.current = panelHeight
+  }, [panelHeight])
+
+  useEffect(() => {
+    if (!isResizing) return
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaY = e.clientY - resizeStartY.current
+      // السحب لأسفل = زيادة الارتفاع، السحب لأعلى = تقليل
+      const newHeight = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, resizeStartHeight.current + deltaY))
+      setPanelHeight(newHeight)
+    }
+    const handleMouseUp = () => {
+      setIsResizing(false)
+      // احفظ الارتفاع في localStorage
+      try { localStorage.setItem('alpacaPositionsHeight', String(panelHeight)) } catch {}
+    }
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+    // cursor عام أثناء السحب
+    document.body.style.cursor = 'ns-resize'
+    document.body.style.userSelect = 'none'
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      // احفظ الارتفاع النهائي
+      try { localStorage.setItem('alpacaPositionsHeight', String(panelHeight)) } catch {}
+    }
+  }, [isResizing, panelHeight])
   const [showClosed, setShowClosed] = useState(false)
   // V141: Closed positions from the database API (not just localStorage paper trades)
   const [dbClosedPositions, setDbClosedPositions] = useState<any[]>([])
@@ -506,13 +556,41 @@ export function AlpacaPositions() {
         direction: 'inherit',
         display: 'flex',
         flexDirection: 'column',
-        height: 'auto',
-        maxHeight: 180,
-        minHeight: 0,
+        height: panelHeight,
+        minHeight: MIN_HEIGHT,
+        maxHeight: MAX_HEIGHT,
         overflow: 'hidden',
         background: T.panel,
+        position: 'relative',
+        transition: isResizing ? 'none' : 'height 0.15s ease',
       }}
     >
+      {/* ── Drag Handle — أسفل البطاقة لتمديدها/تقليلها ── */}
+      <div
+        onMouseDown={handleResizeStart}
+        style={{
+          position: 'absolute',
+          bottom: 0, left: 0, right: 0,
+          height: 6,
+          cursor: 'ns-resize',
+          background: isResizing ? 'rgba(0,212,255,0.2)' : 'transparent',
+          borderTop: '1px solid rgba(255,255,255,0.04)',
+          zIndex: 10,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'background 0.15s',
+        }}
+        onMouseEnter={(e) => { if (!isResizing) e.currentTarget.style.background = 'rgba(0,212,255,0.08)' }}
+        onMouseLeave={(e) => { if (!isResizing) e.currentTarget.style.background = 'transparent' }}
+      >
+        {/* علامة السحب — 3 خطوط أفقية */}
+        <div style={{
+          width: 36, height: 3, borderRadius: 2,
+          background: isResizing ? 'rgba(0,212,255,0.5)' : 'rgba(255,255,255,0.15)',
+          transition: 'background 0.15s',
+        }} />
+      </div>
       <div
         className="custom-scrollbar"
         style={{

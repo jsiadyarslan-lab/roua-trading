@@ -989,7 +989,147 @@ export function AlpacaPositions() {
 
       {/* end */}
 
-      {/* ── Professional Modal Dialog ── */}
+      {/* ── Context Menu (right-click on position card) ── */}
+      {contextMenu && typeof document !== 'undefined' && createPortal(
+        <>
+          {/* Backdrop */}
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 9998, background: 'transparent' }}
+            onClick={() => setContextMenu(null)}
+            onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
+          />
+          {/* Menu */}
+          <div style={{
+            position: 'fixed',
+            left: Math.min(contextMenu.x, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 220),
+            top: Math.min(contextMenu.y, (typeof window !== 'undefined' ? window.innerHeight : 9999) - 320),
+            zIndex: 9999,
+            minWidth: 200,
+            background: 'rgba(11, 14, 20, 0.98)',
+            border: '1px solid rgba(0, 212, 255, 0.25)',
+            borderRadius: 8,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 16px rgba(0,212,255,0.1)',
+            backdropFilter: 'blur(12px)',
+            padding: '4px 0',
+            fontFamily: 'var(--font-ar)',
+            overflow: 'hidden',
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: '6px 12px',
+              borderBottom: '1px solid rgba(255,255,255,0.06)',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              <span style={{
+                fontSize: 9, fontWeight: 800,
+                color: contextMenu.side === 'long' ? '#00FFA3' : '#FF4757',
+                padding: '1px 5px', borderRadius: 3,
+                background: contextMenu.side === 'long' ? 'rgba(0,255,163,0.12)' : 'rgba(255,71,87,0.12)',
+              }}>
+                {contextMenu.side === 'long' ? 'BUY' : 'SELL'}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#E0ECF8', fontFamily: 'var(--font-mono)' }}>
+                {contextMenu.symbol || '—'}
+              </span>
+              <span style={{ fontSize: 9, color: '#5A6A80', marginLeft: 'auto', fontFamily: 'var(--font-mono)' }}>
+                {contextMenu.qty} @ {contextMenu.entryPrice.toFixed(contextMenu.entryPrice > 100 ? 2 : 5)}
+              </span>
+              <button
+                onClick={() => setContextMenu(null)}
+                style={{
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  color: '#5A6A80', fontSize: 14, lineHeight: 1, padding: '0 2px', marginLeft: 4,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = '#FF4757'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = '#5A6A80'; }}
+                title="إغلاق"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Menu items */}
+            {([
+              { icon: '✎', label: 'تعديل SL/TP', color: '#00D4FF', action: 'modify_sltp' },
+              { icon: '✕', label: 'إغلاق الصفقة', color: '#FF4757', action: 'close' },
+              { icon: '⇄', label: 'عكس الصفقة', color: '#FFB800', action: 'reverse' },
+              { divider: true },
+              { icon: '🔔', label: 'تنبيه على السعر', color: '#B388FF', action: 'alert' },
+              { divider: true },
+              { icon: 'ℹ', label: 'تفاصيل الصفقة', color: '#8B92A8', action: 'details' },
+              { icon: '📋', label: 'نسخ معرف الصفقة', color: '#8B92A8', action: 'copy_id' },
+            ] as Array<{ icon?: string; label?: string; color?: string; action?: string; divider?: boolean }>).map((item, i) => item.divider ? (
+              <div key={`div-${i}`} style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+            ) : (
+              <div
+                key={item.action}
+                onClick={() => {
+                  const cm = contextMenu
+                  if (!cm) return
+                  setContextMenu(null)
+
+                  const posData = {
+                    positionId: cm.positionId,
+                    symbol: cm.symbol,
+                    side: cm.side,
+                    entryPrice: cm.entryPrice,
+                    qty: cm.qty,
+                    stopLoss: cm.stopLoss,
+                    takeProfit: cm.takeProfit,
+                    source: cm.source,
+                  }
+
+                  switch (item.action) {
+                    case 'modify_sltp':
+                      setModal({ type: 'modify_sltp', title: 'تعديل SL/TP', positionData: posData,
+                        inputValue: cm.stopLoss?.toString() || '', inputValue2: cm.takeProfit?.toString() || '' })
+                      break
+                    case 'close':
+                      setModal({ type: 'close', title: 'تأكيد الإغلاق', positionData: posData })
+                      break
+                    case 'reverse':
+                      setModal({ type: 'reverse', title: 'تأكيد العكس', positionData: posData })
+                      break
+                    case 'alert':
+                      setModal({ type: 'alert', title: 'تنبيه على السعر', positionData: posData,
+                        inputValue: cm.entryPrice.toString() })
+                      break
+                    case 'details':
+                      setModal({ type: 'details', title: 'تفاصيل الصفقة', positionData: posData })
+                      break
+                    case 'copy_id':
+                      try { navigator.clipboard.writeText(cm.positionId) } catch {}
+                      break
+                  }
+                }}
+                style={{
+                  padding: '7px 12px',
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  cursor: 'pointer',
+                  color: '#C8D4E4',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = `${item.color || '#8B92A8'}15`
+                  e.currentTarget.style.color = item.color || '#8B92A8'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent'
+                  e.currentTarget.style.color = '#C8D4E4'
+                }}
+              >
+                <span style={{ fontSize: 12, width: 16, textAlign: 'center' }}>{item.icon}</span>
+                <span>{item.label}</span>
+              </div>
+            ))}
+          </div>
+        </>,
+        document.body
+      )}
+
+      {/* ── Professional Side Panel Modal ── */}
       <PositionModal modal={modal} setModal={setModal} onRefresh={fetchPositions} />
     </div>
   )

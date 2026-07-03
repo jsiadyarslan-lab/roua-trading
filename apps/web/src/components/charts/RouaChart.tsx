@@ -1738,19 +1738,39 @@ export default function RouaChart({
     if (!container) return;
 
     const handleContextMenu = (e: MouseEvent) => {
-      // لا تفتح القائمة لو نقر المستخدم على label صفقة (لها قائمتها الخاصة)
+      // لا تفتح قائمة الشارت لو نقر المستخدم على:
+      // 1. label صفقة (لها قائمتها الخاصة)
       const target = e.target as HTMLElement;
       if (target.closest('[data-trade-label]')) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const x = Math.min(e.clientX, window.innerWidth - 260);
-      const y = Math.min(e.clientY, window.innerHeight - 400);
-      setChartMenuPos({ x, y });
-      setChartContextMenu({ x, y });
-      setChartSubMenu(null);
+
+      // 2. drawing menu (قائمة تعديل أداة الرسم — يديرها DrawingRenderer)
+      if (target.closest('.roua-drawing-menu')) return;
+
+      // 3. أداة رسم على الشارت — نترك الحدث يصل لـ DrawingRenderer
+      // DrawingRenderer يفحص إذا كان النقر على رسم موجود ويعرض قائمته الخاصة.
+      // لو لم يكن على رسم، DrawingRenderer يعود بدون فعل شيء، فنعرض قائمة الشارت.
+      // لكن capture:true يلتقط الحدث قبل DrawingRenderer. الحل: لا نوقف الحدث،
+      // نستخدم setTimeout لنرى ما إذا كان DrawingRenderer قد عرض قائمته.
+      const hadDrawingMenu = document.querySelector('.roua-drawing-menu');
+
+      // اسمح للحدث بالوصول لـ DrawingRenderer (لا stopPropagation)
+      // لكن لا preventDefault أيضاً — دع DrawingRenderer يقرر
+      // لو لم يعرض DrawingRenderer قائمته (no new .roua-drawing-menu after 50ms),
+      // نعرض قائمة الشارت
+      setTimeout(() => {
+        const nowHasDrawingMenu = document.querySelector('.roua-drawing-menu');
+        // لو لم تكن هناك قائمة رسم قبل ولا بعد → المستخدم نقر على فراغ → اعرض قائمة الشارت
+        if (!hadDrawingMenu && !nowHasDrawingMenu) {
+          const x = Math.min(e.clientX, window.innerWidth - 260);
+          const y = Math.min(e.clientY, window.innerHeight - 400);
+          setChartMenuPos({ x, y });
+          setChartContextMenu({ x, y });
+          setChartSubMenu(null);
+        }
+      }, 50);
     };
 
-    // capture:true يلتقط الحدث قبل أن يصل للـ canvas
+    // capture:true لكن بدون stopPropagation — يسمح لـ DrawingRenderer بالاستقبال
     container.addEventListener('contextmenu', handleContextMenu, true);
     return () => container.removeEventListener('contextmenu', handleContextMenu, true);
   }, [chart.containerRef]);

@@ -171,8 +171,9 @@ export function AlpacaPositions() {
     if (!isResizing) return
     const handleMouseMove = (e: MouseEvent) => {
       const deltaY = e.clientY - resizeStartY.current
-      // السحب لأسفل = زيادة الارتفاع، السحب لأعلى = تقليل
-      const newHeight = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, resizeStartHeight.current + deltaY))
+      // السحب لأعلى (deltaY سالب) = زيادة الارتفاع (البطاقة تتمدد لأعلى)
+      // السحب لأسفل (deltaY موجب) = تقليل الارتفاع (البطاقة تتقلص لأسفل)
+      const newHeight = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, resizeStartHeight.current - deltaY))
       setPanelHeight(newHeight)
     }
     const handleMouseUp = () => {
@@ -565,16 +566,18 @@ export function AlpacaPositions() {
         transition: isResizing ? 'none' : 'height 0.15s ease',
       }}
     >
-      {/* ── Drag Handle — أسفل البطاقة لتمديدها/تقليلها ── */}
+      {/* ── Drag Handle — أعلى البطاقة (الحد بين الشارت والبطاقة) ──
+          السحب لأعلى = تمدد البطاقة لأعلى (تأخذ مساحة من الشارت)
+          السحب لأسفل = تقلص البطاقة لأسفل (تعطي مساحة للشارت) */}
       <div
         onMouseDown={handleResizeStart}
         style={{
           position: 'absolute',
-          bottom: 0, left: 0, right: 0,
+          top: 0, left: 0, right: 0,
           height: 6,
           cursor: 'ns-resize',
           background: isResizing ? 'rgba(0,212,255,0.2)' : 'transparent',
-          borderTop: '1px solid rgba(255,255,255,0.04)',
+          borderBottom: '1px solid rgba(255,255,255,0.04)',
           zIndex: 10,
           display: 'flex',
           alignItems: 'center',
@@ -584,7 +587,6 @@ export function AlpacaPositions() {
         onMouseEnter={(e) => { if (!isResizing) e.currentTarget.style.background = 'rgba(0,212,255,0.08)' }}
         onMouseLeave={(e) => { if (!isResizing) e.currentTarget.style.background = 'transparent' }}
       >
-        {/* علامة السحب — 3 خطوط أفقية */}
         <div style={{
           width: 36, height: 3, borderRadius: 2,
           background: isResizing ? 'rgba(0,212,255,0.5)' : 'rgba(255,255,255,0.15)',

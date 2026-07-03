@@ -1808,7 +1808,28 @@
       "clearAllDrawings": "پاک کردن تمام نقشه ها",
       "breakout": "🚀 برک آوت",
       "slow": "کند",
-      "removeComparison": "حذف مقایسه"
+      "removeComparison": "حذف مقایسه",
+      "chartContextMenu": {
+        "title": "Chart Options",
+        "chartTypeCandle": "Candlestick",
+        "chartTypeHollow": "Hollow Candles",
+        "chartTypeBar": "Bar",
+        "chartTypeLine": "Line",
+        "chartTypeArea": "Area",
+        "chartTypeHeikin": "Heikin Ashi",
+        "drawingTools": "Drawing Tools",
+        "indicators": "Indicators",
+        "settings": "Chart Settings",
+        "zoomIn": "Zoom In",
+        "zoomOut": "Zoom Out",
+        "pause": "Pause Feed",
+        "resume": "Resume Feed",
+        "tradingPanel": "Quick Trading Panel",
+        "addAlert": "Add Price Alert",
+        "screenshot": "Screenshot",
+        "resetChart": "Reset Chart"
+      },
+      "chartType": "Chart Type"
     },
     "nav": {
       "portfolio": "نمونه کارها",
@@ -2965,26 +2986,6 @@
       "errorConnection": "اتصال ناموفق",
       "errorToggle": "تغییر ناموفق",
       "errorSaveSettings": "ذخیره ناموفق"
-    },
-    "chartContextMenu": {
-      "title": "Chart Options",
-      "chartTypeCandle": "Candlestick",
-      "chartTypeHollow": "Hollow Candles",
-      "chartTypeBar": "Bar",
-      "chartTypeLine": "Line",
-      "chartTypeArea": "Area",
-      "chartTypeHeikin": "Heikin Ashi",
-      "drawingTools": "Drawing Tools",
-      "indicators": "Indicators",
-      "settings": "Chart Settings",
-      "zoomIn": "Zoom In",
-      "zoomOut": "Zoom Out",
-      "pause": "Pause Feed",
-      "resume": "Resume Feed",
-      "tradingPanel": "Quick Trading Panel",
-      "addAlert": "Add Price Alert",
-      "screenshot": "Screenshot",
-      "resetChart": "Reset Chart"
     },
     "positionContextMenu": {
       "modifySlTp": "Modify SL/TP",

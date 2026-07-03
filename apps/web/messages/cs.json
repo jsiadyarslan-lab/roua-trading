@@ -1031,7 +1031,28 @@
       "sellArrow": "▼ Prodám",
       "copied": "✓ Zkopírováno",
       "alerts": "Upozornění",
-      "drawingTools": "Nástroje pro kreslení"
+      "drawingTools": "Nástroje pro kreslení",
+      "chartContextMenu": {
+        "title": "Chart Options",
+        "chartTypeCandle": "Candlestick",
+        "chartTypeHollow": "Hollow Candles",
+        "chartTypeBar": "Bar",
+        "chartTypeLine": "Line",
+        "chartTypeArea": "Area",
+        "chartTypeHeikin": "Heikin Ashi",
+        "drawingTools": "Drawing Tools",
+        "indicators": "Indicators",
+        "settings": "Chart Settings",
+        "zoomIn": "Zoom In",
+        "zoomOut": "Zoom Out",
+        "pause": "Pause Feed",
+        "resume": "Resume Feed",
+        "tradingPanel": "Quick Trading Panel",
+        "addAlert": "Add Price Alert",
+        "screenshot": "Screenshot",
+        "resetChart": "Reset Chart"
+      },
+      "chartType": "Chart Type"
     },
     "autonomousTrader": {
       "settingFromEnv": "Nastavení pochází z proměnných prostředí (env) — stisknutím tlačítka jej uložíte do databáze a aktivujete.",
@@ -2965,26 +2986,6 @@
       "errorConnection": "Spojení selhalo",
       "errorToggle": "Přepnutí selhalo",
       "errorSaveSettings": "Uložení selhalo"
-    },
-    "chartContextMenu": {
-      "title": "Chart Options",
-      "chartTypeCandle": "Candlestick",
-      "chartTypeHollow": "Hollow Candles",
-      "chartTypeBar": "Bar",
-      "chartTypeLine": "Line",
-      "chartTypeArea": "Area",
-      "chartTypeHeikin": "Heikin Ashi",
-      "drawingTools": "Drawing Tools",
-      "indicators": "Indicators",
-      "settings": "Chart Settings",
-      "zoomIn": "Zoom In",
-      "zoomOut": "Zoom Out",
-      "pause": "Pause Feed",
-      "resume": "Resume Feed",
-      "tradingPanel": "Quick Trading Panel",
-      "addAlert": "Add Price Alert",
-      "screenshot": "Screenshot",
-      "resetChart": "Reset Chart"
     },
     "positionContextMenu": {
       "modifySlTp": "Modify SL/TP",

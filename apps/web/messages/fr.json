@@ -1808,7 +1808,28 @@
       "clearAllDrawings": "Effacer tous les dessins",
       "breakout": "🚀 Cassure",
       "slow": "Lent",
-      "removeComparison": "Supprimer la comparaison"
+      "removeComparison": "Supprimer la comparaison",
+      "chartContextMenu": {
+        "title": "Chart Options",
+        "chartTypeCandle": "Candlestick",
+        "chartTypeHollow": "Hollow Candles",
+        "chartTypeBar": "Bar",
+        "chartTypeLine": "Line",
+        "chartTypeArea": "Area",
+        "chartTypeHeikin": "Heikin Ashi",
+        "drawingTools": "Drawing Tools",
+        "indicators": "Indicators",
+        "settings": "Chart Settings",
+        "zoomIn": "Zoom In",
+        "zoomOut": "Zoom Out",
+        "pause": "Pause Feed",
+        "resume": "Resume Feed",
+        "tradingPanel": "Quick Trading Panel",
+        "addAlert": "Add Price Alert",
+        "screenshot": "Screenshot",
+        "resetChart": "Reset Chart"
+      },
+      "chartType": "Chart Type"
     },
     "nav": {
       "portfolio": "Portefeuille",
@@ -2965,26 +2986,6 @@
       "errorConnection": "Connexion échouée",
       "errorToggle": "Basculement échoué",
       "errorSaveSettings": "Enregistrement échoué"
-    },
-    "chartContextMenu": {
-      "title": "Chart Options",
-      "chartTypeCandle": "Candlestick",
-      "chartTypeHollow": "Hollow Candles",
-      "chartTypeBar": "Bar",
-      "chartTypeLine": "Line",
-      "chartTypeArea": "Area",
-      "chartTypeHeikin": "Heikin Ashi",
-      "drawingTools": "Drawing Tools",
-      "indicators": "Indicators",
-      "settings": "Chart Settings",
-      "zoomIn": "Zoom In",
-      "zoomOut": "Zoom Out",
-      "pause": "Pause Feed",
-      "resume": "Resume Feed",
-      "tradingPanel": "Quick Trading Panel",
-      "addAlert": "Add Price Alert",
-      "screenshot": "Screenshot",
-      "resetChart": "Reset Chart"
     },
     "positionContextMenu": {
       "modifySlTp": "Modify SL/TP",

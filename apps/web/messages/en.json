@@ -3369,7 +3369,28 @@
       "tpMustBeBelowSellEntry": "Take profit must be below entry price for sell orders",
       "notificationTitle": "Roua — {symbol}",
       "bullishBreakout": "Bullish Breakout",
-      "bearishBreakout": "Bearish Breakout"
+      "bearishBreakout": "Bearish Breakout",
+      "chartContextMenu": {
+        "title": "Chart Options",
+        "chartTypeCandle": "Candlestick",
+        "chartTypeHollow": "Hollow Candles",
+        "chartTypeBar": "Bar",
+        "chartTypeLine": "Line",
+        "chartTypeArea": "Area",
+        "chartTypeHeikin": "Heikin Ashi",
+        "drawingTools": "Drawing Tools",
+        "indicators": "Indicators",
+        "settings": "Chart Settings",
+        "zoomIn": "Zoom In",
+        "zoomOut": "Zoom Out",
+        "pause": "Pause Feed",
+        "resume": "Resume Feed",
+        "tradingPanel": "Quick Trading Panel",
+        "addAlert": "Add Price Alert",
+        "screenshot": "Screenshot",
+        "resetChart": "Reset Chart"
+      },
+      "chartType": "Chart Type"
     },
     "chartSettings": {
       "appearance": "Appearance",
@@ -3468,26 +3489,6 @@
       "errorConnection": "Connection failed",
       "errorToggle": "Failed to toggle",
       "errorSaveSettings": "Failed to save settings"
-    },
-    "chartContextMenu": {
-      "title": "Chart Options",
-      "chartTypeCandle": "Candlestick",
-      "chartTypeHollow": "Hollow Candles",
-      "chartTypeBar": "Bar",
-      "chartTypeLine": "Line",
-      "chartTypeArea": "Area",
-      "chartTypeHeikin": "Heikin Ashi",
-      "drawingTools": "Drawing Tools",
-      "indicators": "Indicators",
-      "settings": "Chart Settings",
-      "zoomIn": "Zoom In",
-      "zoomOut": "Zoom Out",
-      "pause": "Pause Feed",
-      "resume": "Resume Feed",
-      "tradingPanel": "Quick Trading Panel",
-      "addAlert": "Add Price Alert",
-      "screenshot": "Screenshot",
-      "resetChart": "Reset Chart"
     },
     "positionContextMenu": {
       "modifySlTp": "Modify SL/TP",

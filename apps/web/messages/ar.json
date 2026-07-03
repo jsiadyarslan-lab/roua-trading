@@ -3369,7 +3369,28 @@
       "tpMustBeBelowSellEntry": "يجب أن يكون جني الأرباح أقل من سعر الدخول للبيع",
       "notificationTitle": "رؤى — {symbol}",
       "bullishBreakout": "كسر هيكلي صعودي",
-      "bearishBreakout": "كسر هيكلي هبوطي"
+      "bearishBreakout": "كسر هيكلي هبوطي",
+      "chartContextMenu": {
+        "title": "خيارات الشارت",
+        "chartTypeCandle": "شموع يابانية",
+        "chartTypeHollow": "شموع مجوفة",
+        "chartTypeBar": "أعمدة (Bar)",
+        "chartTypeLine": "خط (Line)",
+        "chartTypeArea": "مساحة (Area)",
+        "chartTypeHeikin": "هايكين آشي",
+        "drawingTools": "أدوات الرسم",
+        "indicators": "المؤشرات الفنية",
+        "settings": "إعدادات الشارت",
+        "zoomIn": "تكبير",
+        "zoomOut": "تصغير",
+        "pause": "إيقاف البث مؤقتاً",
+        "resume": "استئناف البث",
+        "tradingPanel": "لوحة التداول السريع",
+        "addAlert": "إضافة تنبيه سعر",
+        "screenshot": "لقطة شاشة",
+        "resetChart": "إعادة ضبط الشارت"
+      },
+      "chartType": "نوع الشارت"
     },
     "chartSettings": {
       "appearance": "المظهر",
@@ -3468,26 +3489,6 @@
       "errorConnection": "تعذّر الاتصال",
       "errorToggle": "فشل تغيير الحالة",
       "errorSaveSettings": "فشل حفظ الإعدادات"
-    },
-    "chartContextMenu": {
-      "title": "خيارات الشارت",
-      "chartTypeCandle": "شموع يابانية",
-      "chartTypeHollow": "شموع مجوفة",
-      "chartTypeBar": "أعمدة (Bar)",
-      "chartTypeLine": "خط (Line)",
-      "chartTypeArea": "مساحة (Area)",
-      "chartTypeHeikin": "هايكين آشي",
-      "drawingTools": "أدوات الرسم",
-      "indicators": "المؤشرات الفنية",
-      "settings": "إعدادات الشارت",
-      "zoomIn": "تكبير",
-      "zoomOut": "تصغير",
-      "pause": "إيقاف البث مؤقتاً",
-      "resume": "استئناف البث",
-      "tradingPanel": "لوحة التداول السريع",
-      "addAlert": "إضافة تنبيه سعر",
-      "screenshot": "لقطة شاشة",
-      "resetChart": "إعادة ضبط الشارت"
     },
     "positionContextMenu": {
       "modifySlTp": "تعديل SL/TP",

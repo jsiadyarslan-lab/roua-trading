@@ -566,32 +566,52 @@ export function AlpacaPositions() {
         transition: isResizing ? 'none' : 'height 0.15s ease',
       }}
     >
-      {/* ── Drag Handle — أعلى البطاقة (الحد بين الشارت والبطاقة) ──
-          السحب لأعلى = تمدد البطاقة لأعلى (تأخذ مساحة من الشارت)
-          السحب لأسفل = تقلص البطاقة لأسفل (تعطي مساحة للشارت) */}
+      {/* ── Resize Zone — الحافة العلوية بأكملها قابلة للسحب ──
+          المستخدم يضغط على أي مكان في الحافة العلوية ويسحب.
+          المؤشر البصري: شريط مضيء دائماً + grip dots + tooltip.
+          السحب لأعلى = تمدد، السحب لأسفل = تقلص. */}
       <div
         onMouseDown={handleResizeStart}
+        title="اسحب لتغيير الحجم"
         style={{
           position: 'absolute',
           top: 0, left: 0, right: 0,
-          height: 6,
+          height: 8,
           cursor: 'ns-resize',
-          background: isResizing ? 'rgba(0,212,255,0.2)' : 'transparent',
-          borderBottom: '1px solid rgba(255,255,255,0.04)',
+          background: isResizing
+            ? 'rgba(0,212,255,0.25)'
+            : 'rgba(0,212,255,0.04)',
+          borderBottom: isResizing
+            ? '1px solid rgba(0,212,255,0.4)'
+            : '1px solid rgba(0,212,255,0.15)',
           zIndex: 10,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          transition: 'background 0.15s',
+          gap: 3,
+          transition: 'background 0.15s, border-color 0.15s',
         }}
-        onMouseEnter={(e) => { if (!isResizing) e.currentTarget.style.background = 'rgba(0,212,255,0.08)' }}
-        onMouseLeave={(e) => { if (!isResizing) e.currentTarget.style.background = 'transparent' }}
+        onMouseEnter={(e) => {
+          if (!isResizing) {
+            e.currentTarget.style.background = 'rgba(0,212,255,0.12)'
+            e.currentTarget.style.borderBottomColor = 'rgba(0,212,255,0.3)'
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isResizing) {
+            e.currentTarget.style.background = 'rgba(0,212,255,0.04)'
+            e.currentTarget.style.borderBottomColor = 'rgba(0,212,255,0.15)'
+          }
+        }}
       >
-        <div style={{
-          width: 36, height: 3, borderRadius: 2,
-          background: isResizing ? 'rgba(0,212,255,0.5)' : 'rgba(255,255,255,0.15)',
-          transition: 'background 0.15s',
-        }} />
+        {/* grip dots — 4 نقاط للإشارة إلى قابلية السحب */}
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} style={{
+            width: 3, height: 3, borderRadius: '50%',
+            background: isResizing ? 'rgba(0,212,255,0.7)' : 'rgba(0,212,255,0.35)',
+            transition: 'background 0.15s',
+          }} />
+        ))}
       </div>
       <div
         className="custom-scrollbar"

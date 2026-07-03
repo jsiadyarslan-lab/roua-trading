@@ -1050,9 +1050,12 @@
         "tradingPanel": "Quick Trading Panel",
         "addAlert": "Add Price Alert",
         "screenshot": "Screenshot",
-        "resetChart": "Reset Chart"
+        "resetChart": "Reset Chart",
+        "aiAnalysis": "AI Analysis",
+        "saveTemplate": "Save Template"
       },
-      "chartType": "Chart Type"
+      "chartType": "Chart Type",
+      "timeframe": "Timeframe"
     },
     "autonomousTrader": {
       "settingFromEnv": "সেটিংটি এনভায়রনমেন্ট ভেরিয়েবল (env) থেকে আসে — ডাটাবেসে সংরক্ষণ করতে বোতাম টিপুন এবং এটি সক্রিয় করুন।",

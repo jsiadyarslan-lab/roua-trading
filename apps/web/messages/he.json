@@ -1827,9 +1827,12 @@
         "tradingPanel": "Quick Trading Panel",
         "addAlert": "Add Price Alert",
         "screenshot": "Screenshot",
-        "resetChart": "Reset Chart"
+        "resetChart": "Reset Chart",
+        "aiAnalysis": "AI Analysis",
+        "saveTemplate": "Save Template"
       },
-      "chartType": "Chart Type"
+      "chartType": "Chart Type",
+      "timeframe": "Timeframe"
     },
     "nav": {
       "portfolio": "ניתוח AI",

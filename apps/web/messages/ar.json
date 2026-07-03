@@ -3388,9 +3388,12 @@
         "tradingPanel": "لوحة التداول السريع",
         "addAlert": "إضافة تنبيه سعر",
         "screenshot": "لقطة شاشة",
-        "resetChart": "إعادة ضبط الشارت"
+        "resetChart": "إعادة ضبط الشارت",
+        "aiAnalysis": "لوحة التحليل الذكي",
+        "saveTemplate": "حفظ قالب الشارت"
       },
-      "chartType": "نوع الشارت"
+      "chartType": "نوع الشارت",
+      "timeframe": "الإطار الزمني"
     },
     "chartSettings": {
       "appearance": "المظهر",

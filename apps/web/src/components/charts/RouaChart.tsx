@@ -4317,8 +4317,11 @@ export default function RouaChart({
                         position: 'absolute', left: '100%', top: 32, marginLeft: 4, width: 140,
                         background: 'rgba(11, 14, 20, 0.98)', border: '1px solid rgba(0, 212, 255, 0.25)',
                         borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.5)', padding: '4px 0',
-                        maxHeight: 300, overflowY: 'auto',
-                      }}>
+                        maxHeight: 280, overflowY: 'auto',
+                        scrollbarWidth: 'thin',
+                        scrollbarColor: 'rgba(0,212,255,0.3) transparent',
+                      }}
+                      className="custom-scrollbar">
                         {TIMEFRAMES.filter(tf => tf.category !== 'seconds').map(tf => (
                           <div key={tf.value} onClick={() => { setTimeframe(tf.value); setChartContextMenu(null); setChartSubMenu(null); }}
                             style={{

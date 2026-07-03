@@ -36,10 +36,10 @@ export function IndicatorPanel({
   );
 
   const COLORS = {
-    card: '#151A22',
-    border: 'rgba(42,49,60,0.9)',
+    card: 'rgba(11, 14, 20, 0.98)',
+    border: 'rgba(0, 212, 255, 0.3)',
     cyan: '#00D4FF',
-    text: '#F0F2F5',
+    text: '#C8D4E4',
     textSecondary: '#8B92A8',
     textMuted: '#8B92A8',
     success: '#00FFA3',
@@ -117,40 +117,47 @@ export function IndicatorPanel({
   return (
     <div style={{
       background: COLORS.card,
-      border: '1px solid rgba(0,212,255,0.2)',
-      borderRadius: 10,
-      padding: 10,
+      border: `1px solid ${COLORS.border}`,
+      borderRadius: 12,
+      padding: 0,
       zIndex: 500,
-      boxShadow: '0 15px 45px rgba(0,0,0,0.85)',
-      backdropFilter: 'blur(10px)',
+      boxShadow: '0 12px 40px rgba(0,0,0,0.6), 0 0 24px rgba(0,212,255,0.12)',
+      backdropFilter: 'blur(20px)',
       width: 230,
+      fontFamily: 'var(--font-ar)',
     }}>
-      {/* Header */}
+      {/* Header — unified */}
       <div data-drag-handle style={{
+        padding: '8px 12px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 8,
         cursor: 'grab',
+        background: 'linear-gradient(180deg, rgba(0,212,255,0.06), transparent)',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        marginBottom: 0,
       }}>
-        <span style={{
-          fontSize: 10,
-          color: COLORS.textMuted,
-          letterSpacing: 1,
-          fontWeight: 700,
-          fontFamily: "var(--font-ar)",
-        }}>
-          {tc('indicatorPanel')}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 10, color: 'rgba(0,212,255,0.4)' }}>⠿</span>
+          <span style={{ fontSize: 11, fontWeight: 800, color: COLORS.cyan }}>
+            {tc('indicatorPanel')}
+          </span>
+        </div>
         <button
           onClick={onClose}
-          style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', fontSize: 14, lineHeight: 1 }}
+          style={{
+            background: 'transparent', border: 'none', cursor: 'pointer',
+            color: COLORS.textMuted, fontSize: 14, lineHeight: 1, padding: '0 2px',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = COLORS.danger; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = COLORS.textMuted; }}
         >
           ✕
         </button>
       </div>
 
       {/* Search */}
+      <div style={{ padding: '8px 10px 4px' }}>
       <input
         type="text"
         value={search}
@@ -159,19 +166,20 @@ export function IndicatorPanel({
         style={{
           width: '100%',
           padding: '5px 8px',
-          background: '#0B0E14',
-          border: '1px solid rgba(255,255,255,0.08)',
+          background: 'rgba(0, 0, 0, 0.4)',
+          border: '1px solid rgba(0,212,255,0.15)',
           borderRadius: 6,
           color: COLORS.text,
           fontSize: 10,
           fontFamily: "var(--font-mono)",
-          marginBottom: 8,
           outline: 'none',
         }}
       />
+      </div>
 
       {/* Scrollable list */}
-      <div style={{ overflowY: 'auto', maxHeight: 320 }}>
+      <div style={{ overflowY: 'auto', maxHeight: 320, padding: '4px 10px 10px' }}
+        className="custom-scrollbar">
       {/* Overlay Section */}
       {filteredOverlay.length > 0 && (
         <>

@@ -53,16 +53,16 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
       );
 
   const COLORS = {
-    card: '#151A22',
-    border: 'rgba(42,49,60,0.9)',
+    card: 'rgba(11, 14, 20, 0.98)',
+    border: 'rgba(0, 212, 255, 0.3)',
     cyan: '#00D4FF',
-    text: '#F0F2F5',
+    text: '#C8D4E4',
     textSecondary: '#8B92A8',
     textMuted: '#8B92A8',
     danger: '#FF4757',
-    hoverBg: 'rgba(0,212,255,0.08)',
+    hoverBg: 'rgba(0,212,255,0.12)',
     activeBg: '#00D4FF',
-    bg: '#0B0E14',
+    bg: 'rgba(0, 0, 0, 0.4)',
   };
 
   // Helper: select tool and close panel
@@ -84,53 +84,50 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
       onClick={(e) => e.stopPropagation()}
       style={{
       background: COLORS.card,
-      border: `1px solid rgba(0,212,255,0.2)`,
-      borderRadius: 10,
-      padding: 10,
+      border: `1px solid ${COLORS.border}`,
+      borderRadius: 12,
+      padding: 0,
       zIndex: 500,
-      boxShadow: '0 15px 45px rgba(0,0,0,0.85)',
-      backdropFilter: 'blur(10px)',
+      boxShadow: '0 12px 40px rgba(0,0,0,0.6), 0 0 24px rgba(0,212,255,0.12)',
+      backdropFilter: 'blur(20px)',
       width: 280,
-      maxHeight: '80vh',  // Use viewport height so panel isn't cut off
+      maxHeight: '80vh',
       overflow: 'hidden',
       display: 'flex',
       flexDirection: 'column',
+      fontFamily: 'var(--font-ar)',
     }}>
-      {/* Header */}
+      {/* Header — unified with chart context menu */}
       <div data-drag-handle style={{
+        padding: '8px 12px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 8,
-        paddingBottom: 6,
-        borderBottom: '1px solid rgba(0,212,255,0.1)',
         cursor: 'grab',
+        background: 'linear-gradient(180deg, rgba(0,212,255,0.06), transparent)',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
-        <span style={{
-          fontSize: 10,
-          color: COLORS.textMuted,
-          letterSpacing: 1,
-          fontWeight: 700,
-          fontFamily: "var(--font-ar)",
-        }}>
-          {tc('drawingTools')} ({allTools.length})
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 10, color: 'rgba(0,212,255,0.4)' }}>⠿</span>
+          <span style={{ fontSize: 11, fontWeight: 800, color: COLORS.cyan }}>
+            {tc('drawingTools')} ({allTools.length})
+          </span>
+        </div>
         <button
           onClick={onClose}
           style={{
-            background: 'none',
-            border: 'none',
-            color: COLORS.textMuted,
-            cursor: 'pointer',
-            fontSize: 14,
-            lineHeight: 1,
+            background: 'transparent', border: 'none', cursor: 'pointer',
+            color: COLORS.textMuted, fontSize: 14, lineHeight: 1, padding: '0 2px',
           }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = COLORS.danger; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = COLORS.textMuted; }}
         >
           ✕
         </button>
       </div>
 
       {/* Search */}
+      <div style={{ padding: '8px 10px 4px' }}>
       <input
         type="text"
         value={search}
@@ -146,19 +143,18 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
           fontSize: 10,
           fontFamily: "var(--font-ar)",
           outline: 'none',
-          marginBottom: 8,
           direction: 'inherit',
         }}
       />
+      </div>
 
       {/* Cursor + Category Tabs */}
       {!search && (
         <div style={{
+          padding: '4px 10px 6px',
           display: 'flex',
           flexWrap: 'wrap',
           gap: 3,
-          marginBottom: 8,
-          paddingBottom: 6,
           borderBottom: '1px solid rgba(255,255,255,0.04)',
         }}>
           {/* Cursor */}
@@ -210,7 +206,9 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
         flex: 1,
         overflowY: 'auto',
         overflowX: 'hidden',
-      }}>
+        padding: '6px 10px 10px',
+      }}
+      className="custom-scrollbar">
         {search ? (
           // Search results: flat grid
           <div style={{

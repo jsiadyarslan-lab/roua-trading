@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useRouter } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { RefreshCw, TrendingDown, TrendingUp, X as XIcon, History } from 'lucide-react'
@@ -11,6 +12,7 @@ import { usePaperTradesStore, type ClosedPaperTrade } from '@/hooks/usePaperTrad
 import { useAgentStore } from '@/hooks/useAgentStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
+import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { fmtPriceLocale as fmtPrice, fmtPrice as fmtPricePlain, fmtPnl } from '@/lib/price-format'
 import { isNestJsId } from '@/lib/api-fetch'
 import { PositionModal, type PositionModalData } from './PositionModal'
@@ -113,6 +115,8 @@ export function AlpacaPositions() {
   const t = useTranslations('dashboard.alpacaPositions')
   const tc = useTranslations('common')
   const locale = useLocale()
+  const router = useRouter()
+  const { setSelectedSymbol } = useSymbolStore()
   useScopedStyle(`
         @keyframes spin {
           from { transform: rotate(0deg); }
@@ -1054,6 +1058,7 @@ export function AlpacaPositions() {
               { icon: '✕', label: 'إغلاق الصفقة', color: '#FF4757', action: 'close' },
               { icon: '⇄', label: 'عكس الصفقة', color: '#FFB800', action: 'reverse' },
               { divider: true },
+              { icon: '📊', label: 'فتح الشارت', color: '#00FFA3', action: 'focus_chart' },
               { icon: '🔔', label: 'تنبيه على السعر', color: '#B388FF', action: 'alert' },
               { divider: true },
               { icon: 'ℹ', label: 'تفاصيل الصفقة', color: '#8B92A8', action: 'details' },
@@ -1089,6 +1094,11 @@ export function AlpacaPositions() {
                       break
                     case 'reverse':
                       setModal({ type: 'reverse', title: 'تأكيد العكس', positionData: posData })
+                      break
+                    case 'focus_chart':
+                      // انتقل لصفحة الـ dashboard وحدد الزوج
+                      setSelectedSymbol(cm.symbol)
+                      router.push('/dashboard')
                       break
                     case 'alert':
                       setModal({ type: 'alert', title: 'تنبيه على السعر', positionData: posData,

@@ -38,12 +38,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Need full history for git diff
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
       - name: Check if code changes are accompanied by BUGS.md updates
-        run: npx tsx scripts/check-registry.ts --base origin/${{ github.base_ref }} --head HEAD
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            npx tsx scripts/check-registry.ts --base origin/${{ github.base_ref }} --head HEAD
+          else
+            npx tsx scripts/check-registry.ts
+          fi
 
   verify-bugs:
     name: Verify Bug Registry (catch regressions)

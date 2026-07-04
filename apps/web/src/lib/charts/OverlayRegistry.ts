@@ -133,7 +133,20 @@ export class OverlayRegistry {
 
   /** Update the series reference (when chart is recreated) */
   setSeries(series: ISeriesApi<SeriesType>): void {
-    // Detach all existing primitives from old series, reattach to new
+    // BUG-004 FIX: Was detaching primitives from the NEW series (they were never
+    // attached there), leaving OLD series with orphaned primitives → memory leak.
+    // Fix: detach from OLD series BEFORE reassigning this.series.
+    if (this.series) {
+      this.groups.forEach((group) => {
+        for (const primitive of group.primitives) {
+          try {
+            this.series!.detachPrimitive(primitive);
+          } catch {
+            // Series may already be destroyed — safe to ignore
+          }
+        }
+      });
+    }
     this.series = series;
     // Primitives that were attached to the old series become stale.
     // We need to clear and let the caller re-add them.

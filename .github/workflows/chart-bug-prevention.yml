@@ -1,0 +1,57 @@
+# Roua Trading — Chart Bug Prevention Pipeline
+#
+# This workflow runs on every PR that touches chart-related code.
+# It does TWO things:
+#   1. verify-bugs.ts — checks BUGS.md against the codebase (catches regressions)
+#   2. run-regression-tests.ts — runs all BUG-NNN.spec.ts tests (catches new bugs)
+#
+# A PR is BLOCKED if:
+#   - Any bug marked FIXED in BUGS.md has REGRESSED (OPEN pattern matches again)
+#   - Any regression test fails
+#
+# A PR is NOT blocked by:
+#   - OPEN bugs (known issues being worked on)
+#   - UNKNOWN bugs (stale patterns — these need a BUGS.md update, not a code fix)
+
+name: Chart Bug Prevention
+
+on:
+  pull_request:
+    paths:
+      - 'apps/web/src/lib/charts/**'
+      - 'apps/web/src/components/charts/**'
+      - 'apps/web/src/hooks/useChart*.ts'
+      - 'apps/web/src/hooks/usePositionsStore.ts'
+      - 'apps/web/src/hooks/useMarketStore.ts'
+      - 'BUGS.md'
+      - 'scripts/verify-bugs.ts'
+      - 'scripts/run-regression-tests.ts'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/web/src/lib/charts/**'
+      - 'apps/web/src/components/charts/**'
+      - 'BUGS.md'
+
+jobs:
+  verify-bugs:
+    name: Verify Bug Registry (catch regressions)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run verify-bugs.ts
+        run: npx tsx scripts/verify-bugs.ts
+
+  regression-tests:
+    name: Run Regression Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run all BUG-NNN.spec.ts tests
+        run: npx tsx scripts/run-regression-tests.ts

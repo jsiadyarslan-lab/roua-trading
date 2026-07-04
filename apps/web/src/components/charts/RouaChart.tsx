@@ -5407,6 +5407,11 @@ export default function RouaChart({
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
+        /* BUG-005 FIX: mcSpin keyframes were missing — loading spinners were static. */
+        @keyframes mcSpin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
       `}</ScopedStyle>
 
       {/* ── Order Error Toast ── */}

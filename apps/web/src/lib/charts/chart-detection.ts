@@ -536,7 +536,13 @@ export function detectHarmonicPatterns(swings: SwingPoint[], tolerance: number =
     const cd_bc = CD / BC;
     const ad_xa = AD / XA;
 
-    const direction = X.price < A.price ? 'bullish' : 'bearish';
+    // BUG-001 FIX: Harmonic direction was INVERTED.
+    // Bullish harmonic: X is HIGH, A is LOW (X→A is DOWN) → price expected to reverse UP.
+    // Bearish harmonic: X is LOW, A is HIGH (X→A is UP) → price expected to reverse DOWN.
+    // Old (wrong): X.price < A.price ? 'bullish' : 'bearish'
+    //   → X lower, A higher (X→A UP) = bearish harmonic, but labeled bullish. INVERTED.
+    // New (correct): X.price < A.price ? 'bearish' : 'bullish'
+    const direction = X.price < A.price ? 'bearish' : 'bullish';
 
     for (const [patternName, ratios] of Object.entries(HARMONIC_PATTERNS)) {
       if (

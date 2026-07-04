@@ -2269,7 +2269,10 @@ export class DrawingRenderer {
     const allDrawings = this.drawingManager.getAll();
     const allTfCount = allDrawings.filter(d => d.scope === 'all-tf').length;
     const singleTfCount = allDrawings.filter(d => d.scope === 'single-tf').length;
-    console.log(`[DrawingRenderer] syncPrimitive: TF=${this.currentTimeframe}, total=${allDrawings.length} (all-tf=${allTfCount}, single-tf=${singleTfCount}), visible=${visibleDrawings.length}`);
+    // BUG-003 FIX: Removed verbose console.log that fired on every mousemove during drawing.
+    // Was flooding the console and degrading performance (console.log is synchronous).
+    // If debug info is needed, gate behind: if (process.env.NODE_ENV === 'development' && this._debug) { ... }
+    void allTfCount; void singleTfCount; // suppress unused-variable warnings while preserving the metrics for future use
     this.primitive.setDrawings(visibleDrawings);
     this.primitive.setPreview(
       this.isDrawing && this.clickedPoints.length > 0

@@ -153,6 +153,11 @@ COPY --from=builder --chown=webuser:roua /app/apps/web/next.config.ts ./apps/web
 # Web source files — needed by integrity check V49 to verify chart fixes.
 # Without these, the API cannot verify V225+ fixes in the production container.
 COPY --from=builder --chown=webuser:roua /app/apps/web/src ./apps/web/src
+# API source files — needed by chart-bugs verification (verify-bugs scans .ts files)
+COPY --from=builder --chown=webuser:roua /app/apps/api/src ./apps/api/src
+# BUGS.md + scripts — needed by /api/chart-bugs endpoint to verify bug fixes in production
+COPY --from=builder --chown=webuser:roua /app/BUGS.md ./BUGS.md
+COPY --from=builder --chown=webuser:roua /app/scripts ./scripts
 # Shared package
 COPY --from=builder --chown=webuser:roua /app/packages/shared ./packages/shared
 

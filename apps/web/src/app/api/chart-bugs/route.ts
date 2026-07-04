@@ -22,31 +22,21 @@ export const maxDuration = 60;
 const ROOT = process.cwd();
 // BUGS.md is at the repository root, but process.cwd() in production (Railway)
 // may return apps/web. Search multiple candidate locations.
-function findBugsMd(): string | null {
-  const candidates = [
-    path.join(ROOT, 'BUGS.md'),
-    path.join(ROOT, '..', 'BUGS.md'),
-    path.join(ROOT, '..', '..', 'BUGS.md'),
-    path.join(ROOT, 'apps', 'web', 'BUGS.md'), // in case cwd is repo root
-  ];
+function findRepoRoot(): string {
+  // Try cwd, parent, grandparent — return the first that contains BUGS.md
+  const candidates = [ROOT, path.join(ROOT, '..'), path.join(ROOT, '..', '..')];
   for (const c of candidates) {
-    try { if (fs.existsSync(c)) return c; } catch {}
+    try { if (fs.existsSync(path.join(c, 'BUGS.md'))) return c; } catch {}
   }
-  return null;
+  return ROOT; // fallback
 }
 
-function findScanDirs(): string[] {
-  const candidates = [
-    path.join(ROOT, 'apps/web/src'),
-    path.join(ROOT, '..', 'apps/web/src'),
-    path.join(ROOT, 'apps/api/src'),
-    path.join(ROOT, '..', 'apps/api/src'),
-  ];
-  return candidates.filter(p => { try { return fs.existsSync(p); } catch { return false; } });
-}
-
-const BUGS_MD = findBugsMd();
-let SCAN_DIRS = findScanDirs();
+const REPO_ROOT = findRepoRoot();
+const BUGS_MD = path.join(REPO_ROOT, 'BUGS.md');
+const SCAN_DIRS = [
+  path.join(REPO_ROOT, 'apps/web/src'),
+  path.join(REPO_ROOT, 'apps/api/src'),
+].filter(p => { try { return fs.existsSync(p); } catch { return false; } });
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -189,15 +179,18 @@ function checkBug(bug: Bug, allFiles: string[]): BugResult {
   let openMatchCount = 0;
   let fixedMatchCount = 0;
   let detail = '';
-  let pathNotFound = false;
 
   let targetFiles: string[];
+  let pathNotFound = false;
   if (bug.file) {
+    // bug.file paths in BUGS.md are relative to repo root (e.g., 'apps/web/src/...')
+    // Strip line numbers and backticks
     const cleanPath = bug.file.replace(/:\d+.*$/, '').replace(/^`|`$/g, '');
-    const absolute = path.isAbsolute(cleanPath) ? cleanPath : path.join(ROOT, cleanPath);
+    const absolute = path.isAbsolute(cleanPath) ? cleanPath : path.join(REPO_ROOT, cleanPath);
     if (fs.existsSync(absolute)) {
       targetFiles = [absolute];
     } else {
+      // Try to find by basename (handles cases where the file moved directories)
       const basename = path.basename(cleanPath);
       targetFiles = allFiles.filter(f => path.basename(f) === basename);
       if (targetFiles.length === 0) pathNotFound = true;
@@ -209,7 +202,7 @@ function checkBug(bug: Bug, allFiles: string[]): BugResult {
   for (const file of targetFiles) {
     const content = readFileCached(file);
     if (content === null) continue;
-    const relPath = path.relative(ROOT, file);
+    const relPath = path.relative(REPO_ROOT, file);
 
     if (bug.openPattern) {
       const lines = getMatchLines(content, bug.openPattern);
@@ -304,12 +297,13 @@ export async function GET(request: Request) {
 
   try {
     // 1. Parse BUGS.md
-    if (!BUGS_MD) {
+    if (!fs.existsSync(BUGS_MD)) {
       return NextResponse.json(
         {
           success: false,
-          error: 'BUGS.md not found. Searched: cwd=' + ROOT + ', and parent dirs. In production, BUGS.md may not be included in the build output.',
+          error: 'BUGS.md not found. Searched from cwd=' + ROOT + ' (repo root=' + REPO_ROOT + ')',
           cwd: ROOT,
+          repoRoot: REPO_ROOT,
         },
         { status: 500 }
       );

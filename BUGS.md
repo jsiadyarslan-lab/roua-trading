@@ -281,3 +281,89 @@
 | BUG-020 | HIGH | OPEN | overlay-renderer.ts | "EMA" is actually SMA |
 
 **Totals:** 20 bugs registered. 5 FIXED. 15 OPEN. 0 REGRESSED.
+
+---
+
+## Summary Table (Trading Engine Bugs — BUG-021 onwards)
+
+| ID | Severity | Status | File | One-line |
+|----|----------|--------|------|----------|
+| BUG-021 | CRITICAL | FIXED | trading.service.ts | V423 حجب إغلاق المستخدم الحقيقي |
+| BUG-022 | CRITICAL | FIXED | smart-executor.service.ts | TIMEFRAME_RR ثابت → صفقات M5 تدوم أيام |
+| BUG-023 | CRITICAL | FIXED | unified-risk + smart-executor | BRENT/USD سعر 0.0003 → حجم كارثي |
+| BUG-024 | HIGH | FIXED | unified-risk.service.ts | units خام بدل lots → أحجام ضخمة |
+| BUG-025 | HIGH | FIXED | smart-executor + signal-evaluator | تداول في RANGE/VOLATILE بدون حجب |
+| BUG-026 | HIGH | FIXED | lazic.service.ts | LASIC يفتح عكس اتجاه المجلس |
+
+**Totals (Chart):** 20 bugs. 5 FIXED. 15 OPEN. 0 REGRESSED.
+**Totals (Trading Engine):** 6 bugs. 6 FIXED. 0 OPEN. 0 REGRESSED.
+
+---
+
+## Trading Engine Bugs (تسببت في خسائر مالية فعلية)
+
+### BUG-021: حارس V423 يحجب إغلاق المستخدم الحقيقي
+- **Status:** FIXED
+- **Severity:** CRITICAL
+- **File:** `apps/api/src/modules/trading/trading.service.ts`
+- **Pattern (OPEN):** `if (isAutomatedPosition && isManualOrEmptyReason && !isSLTPClose) {`
+- **Pattern (FIXED):** `if (isAutomatedPosition && isManualOrEmptyReason && !isSLTPClose && !isUserInitiated) {`
+- **Description:** حارس V423 كان يحجب إغلاق صفقات حتى من المستخدم الحقيقي عبر الواجهة، لأنه لم يحتوِ على شرط `!isUserInitiated` الذي كان موجوداً في V237 فقط.
+- **Impact:** المستخدم لا يستطيع إغلاق صفقات آلية يدوياً قبل مرور 24 ساعة.
+- **Fix:** أُضيف `!isUserInitiated` لشرط V423. أُضيفت `_jitteredMinHours()` لمنع الإغلاق الجماعي.
+- **Commit:** V426
+
+### BUG-022: TIMEFRAME_RR ثابت يُسبب احتفاظ صفقات M1/M5 لأيام
+- **Status:** FIXED
+- **Severity:** CRITICAL
+- **File:** `apps/api/src/modules/ai/smart-executor/smart-executor.service.ts`
+- **Pattern (OPEN):** `const { sl: tfSL, tp: tfTP } = TIMEFRAME_RR\[brief\.timeframe`
+- **Pattern (FIXED):** `V427.*ATR.*H1.*atrMult`
+- **Description:** SL/TP محسوب كنسبة ثابتة (2%) من السعر بغض النظر عن الأصل. للفوركس تذبذبه 0.4% يومياً → 2% SL يستغرق 5 أيام للوصول. USD/JPY كان SL 7.1% = 14 يوماً.
+- **Impact:** صفقات M5 "قصيرة الأمد" تحتفظ لأيام بدل ساعات.
+- **Fix:** استبدال TIMEFRAME_RR بـ H1 ATR × مضاعف الإطار (M1=0.5×, M5=1.0×, M15=1.5×). TP=2×SL دائماً.
+- **Commit:** V427
+
+### BUG-023: BRENT/USD سعر خاطئ (~0.0003) يُنتج حجم مركز كارثياً
+- **Status:** FIXED
+- **Severity:** CRITICAL
+- **File:** `apps/api/src/modules/trading/services/unified-risk.service.ts`, `smart-executor.service.ts`
+- **Pattern (OPEN):** `BRENT` *(بدون hardblock بالاسم)*
+- **Pattern (FIXED):** `HARDBLOCKED.*BRENT`
+- **Description:** OANDA يُرسل سعر 0.0003 لـ BRENT/USD (الصحيح ~$73-85). المعادلة: qty = riskAmount / 0.0003 = ملايين الوحدات. V421 كان يفحص فقط `price < 20` لكنه لم يكن كافياً.
+- **Impact:** خسارة -$704 في صفقة واحدة (2 يوليو 2026). -$92 في اليوم التالي.
+- **Fix:** حجب BRENT/USD بالاسم في unified-risk + smart-executor + lazic.types.
+- **Commit:** V428 + V430
+
+### BUG-024: حجم العقد يُعاد كـ units خام بدل lots
+- **Status:** FIXED
+- **Severity:** HIGH
+- **File:** `apps/api/src/modules/trading/services/unified-risk.service.ts:1417`
+- **Pattern (OPEN):** `return parseFloat\(quantityUnits\.toFixed\(8\)\)`
+- **Pattern (FIXED):** `Math\.floor\(quantityLots \/ step\) \* step`
+- **Description:** `_calculatePositionSize` كانت تعيد `quantityUnits` (e.g. 1000 لـ EUR/USD) بدل lots (0.01). الوكيل يفتح بـ 420,000 ADA بدل 0.01 lot.
+- **Impact:** أحجام صفقات ضخمة جداً → خسائر كبيرة على حسابات ورقية كبيرة.
+- **Fix:** إعادة lots مُقرَّبة لـ 0.01 step، حد أدنى 0.01.
+- **Commit:** V429
+
+### BUG-025: المنفذ الذكي والوكيل يتداولان في سوق RANGE/VOLATILE
+- **Status:** FIXED
+- **Severity:** HIGH
+- **File:** `apps/api/src/modules/ai/smart-executor/smart-executor.service.ts`, `signal-evaluator.service.ts`
+- **Pattern (OPEN):** `const isBuyAgainstBear.*\n.*if \(isBuyAgainstBear \|\| isSellAgainstBull\)`
+- **Pattern (FIXED):** `isChoppyMarket.*RANGE.*VOLATILE`
+- **Description:** حارس V290 كان يحجب فقط BUY في BEAR وSELL في BULL، لكن لا يفعل شيئاً في RANGE/VOLATILE. السوق المتذبذب يُعيد الأسعار لنقطة البداية قبل وصول TP.
+- **Impact:** SMART: -$161 على 8 صفقات. AGENT: -$295 على 7 صفقات. كلها في يوم واحد.
+- **Fix:** أُضيف `isChoppyMarket = regime === RANGE || VOLATILE` → حجب كامل عند confidence ≥ 60%.
+- **Commit:** V430
+
+### BUG-026: LASIC يفتح إشارات عكسية لاتجاه المجلس
+- **Status:** FIXED
+- **Severity:** HIGH
+- **File:** `apps/api/src/agents/lazic/lazic.service.ts`
+- **Pattern (OPEN):** `councilAligned.*councilDir.*BUY.*obi\.signal.*BUY` *(اختياري فقط)*
+- **Pattern (FIXED):** `councilDir && councilDir !== obi\.signal`
+- **Description:** تحقق المجلس كان "اختيارياً" — يحسب `councilAligned` لكن لا يوقف التنفيذ. في سوق BULL، اللاسع يفتح SELL باستمرار لأن OBI يُنتج إشارات عكسية.
+- **Impact:** LASIC SELL: -$16 مقابل LASIC BUY: +$220 في نفس اليوم.
+- **Fix:** جُعل الفحص إلزامياً: إذا councilDir ≠ obi.signal → توقف تام.
+- **Commit:** (طبّقه جابر + موثّق هنا)

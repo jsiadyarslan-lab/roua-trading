@@ -3723,70 +3723,83 @@ export class SmartExecutorService implements OnModuleDestroy {
       // ═══════════════════════════════════════════════════════════════
       // V427: ATR-BASED SL/TP — replaces fixed TIMEFRAME_RR percentages.
       //
-      // ROOT CAUSE of "short-term executor holding for days":
-      //   TIMEFRAME_RR uses a fixed SL% (2%) for ALL assets regardless of
-      //   their actual daily volatility. For crypto (BTC/ETH), 2% moves in
-      //   hours. For forex (EUR/USD, USD/JPY), 2% takes 3-10 DAYS because
-      //   forex daily volatility is 0.4-0.8% vs crypto's 2-5%.
-      //   Result: "M5 trade" becomes a 4-day position — wrong by design.
+      // BUG-028 FIX: الآن نحاول أولاً حساب SL/TP من هيكل السوق (swing levels).
+      // إذا لم تتوفر بيانات الشموع، نستخدم ATR (V427). إذا لم يتوفر ATR،
+      // نستخدم TIMEFRAME_RR كـ fallback أخير.
       //
-      // FIX: Use H1 ATR (real volatility of the asset right now) × a
-      // timeframe-specific multiplier to get the SL distance. This gives
-      // a SL that the market is expected to reach within the intended holding
-      // window (M1: ~1h, M5: ~2-4h, M15: ~4-8h), regardless of asset class.
+      // الأولوية:
+      //   1. هيكل السوق (swing high/low + ATR buffer) ← الأفضل
+      //   2. ATR-based (V427) ← متوسط
+      //   3. TIMEFRAME_RR fixed % ← fallback أخير
       //
-      // ATR MULTIPLIERS (H1 ATR × multiplier = SL distance):
-      //   M1  → 0.5× H1 ATR  → expected SL hit: ~1-2h
-      //   M5  → 1.0× H1 ATR  → expected SL hit: ~2-4h
-      //   M15 → 1.5× H1 ATR  → expected SL hit: ~4-8h
-      //
-      // FLOOR: max(ATR-based, 0.3% of price) — prevents noise stops on
-      //   very low-volatility moments (e.g., pre-NFP paralysis).
-      //
-      // FALLBACK: If ATR unavailable (_h1Atr === null), falls back to
-      //   TIMEFRAME_RR fixed % — same as V290 behavior. No regression.
-      //
-      // TP: always 2.0× SL distance (minimum R:R = 1:2).
-      // ═══════════════════════════════════════════════════════════════
       let execStopLoss: number;
       let execTakeProfit: number;
       {
         const { sl: tfSL, tp: tfTP } = TIMEFRAME_RR[brief.timeframe as BriefTimeframe]
           || { sl: 0.020, tp: 0.050 };
 
-        // V427: ATR multiplier per executor timeframe
-        const ATR_MULT: Record<string, number> = { M1: 0.5, M5: 1.0, M15: 1.5 };
-        const atrMult = ATR_MULT[brief.timeframe?.toUpperCase()] ?? 1.0;
+        const NOISE_FLOOR_PCT = 0.003;
+        let slDistance: number = 0;
+        let slMethod: string = 'unknown';
 
-        // SL distance: ATR-based if available, else fixed %
-        const NOISE_FLOOR_PCT = 0.003; // 0.3% minimum SL distance
-        let slDistance: number;
-        let slMethod: string;
-
-        if (_h1Atr && _h1Atr > 0) {
-          const atrBased = _h1Atr * atrMult;
-          const pctBased = currentPrice * NOISE_FLOOR_PCT;
-          slDistance = Math.max(atrBased, pctBased);
-          slMethod = `ATR(H1=${_h1Atr.toFixed(5)}×${atrMult})=${atrBased.toFixed(5)} floor=${pctBased.toFixed(5)} → ${slDistance.toFixed(5)}`;
-        } else {
-          // Fallback: TIMEFRAME_RR fixed %
-          slDistance = currentPrice * tfSL;
-          slMethod = `TIMEFRAME_RR fallback (no ATR) → ${(tfSL * 100).toFixed(1)}%`;
+        // BUG-028: حاول جلب الشموع وحساب SL من هيكل السوق
+        let structureSL: number | null = null;
+        let structureTP: number | null = null;
+        try {
+          const histCandles = await this.exchangeService.getHistoricalData(brief.pair, '1h');
+          if (histCandles && histCandles.length >= 20) {
+            const candles = histCandles.map(c => ({
+              time: new Date(c.timestamp).getTime() / 1000,
+              open: Number(c.open), high: Number(c.high),
+              low: Number(c.low), close: Number(c.close),
+              volume: Number(c.volume || 0),
+            }));
+            const { calculateStructureBasedSLTP } = await import('./../../trading/services/sl-tp-calculator');
+            const result = calculateStructureBasedSLTP(
+              candles, currentPrice,
+              brief.direction === 'BUY' ? 'BUY' : 'SELL',
+              { minSLPercent: 0.005, maxSLPercent: 0.08, minRR: 1.5 },
+            );
+            structureSL = result.sl;
+            structureTP = result.tp;
+            slDistance = Math.abs(currentPrice - structureSL);
+            slMethod = `STRUCTURE(${result.slSource}) SL=${structureSL.toFixed(5)} TP=${structureTP.toFixed(5)} R:R=1:${result.rrRatio.toFixed(2)}`;
+          }
+        } catch (structErr: any) {
+          // Structure-based failed — fall through to ATR
         }
 
-        // TP is always 2× SL distance (R:R = 1:2)
-        const tpDistance = slDistance * 2.0;
+        if (structureSL !== null && structureTP !== null) {
+          // ✅ هيكل السوق نجح — استخدمه
+          execStopLoss = structureSL;
+          execTakeProfit = structureTP;
+        } else {
+          // V427: ATR-based fallback
+          const ATR_MULT: Record<string, number> = { M1: 0.5, M5: 1.0, M15: 1.5 };
+          const atrMult = ATR_MULT[brief.timeframe?.toUpperCase()] ?? 1.0;
 
-        execStopLoss = brief.direction === 'BUY'
-          ? currentPrice - slDistance
-          : currentPrice + slDistance;
-        execTakeProfit = brief.direction === 'BUY'
-          ? currentPrice + tpDistance
-          : currentPrice - tpDistance;
+          if (_h1Atr && _h1Atr > 0) {
+            const atrBased = _h1Atr * atrMult;
+            const pctBased = currentPrice * NOISE_FLOOR_PCT;
+            slDistance = Math.max(atrBased, pctBased);
+            slMethod = `ATR(H1=${_h1Atr.toFixed(5)}×${atrMult})=${atrBased.toFixed(5)} floor=${pctBased.toFixed(5)} → ${slDistance.toFixed(5)}`;
+          } else {
+            slDistance = currentPrice * tfSL;
+            slMethod = `TIMEFRAME_RR fallback (no ATR) → ${(tfSL * 100).toFixed(1)}%`;
+          }
+
+          const tpDistance = slDistance * 2.0;
+          execStopLoss = brief.direction === 'BUY'
+            ? currentPrice - slDistance
+            : currentPrice + slDistance;
+          execTakeProfit = brief.direction === 'BUY'
+            ? currentPrice + tpDistance
+            : currentPrice - tpDistance;
+        }
 
         const priceShift = Math.abs(currentPrice - brief.entryPrice) / brief.entryPrice;
         this.logger.log(
-          `⚔️ V427 ATR SL/TP for ${brief.pair} ${brief.direction} ${brief.timeframe}: ` +
+          `⚔️ BUG-028 SL/TP for ${brief.pair} ${brief.direction} ${brief.timeframe}: ` +
           `price=${currentPrice} shift=${(priceShift * 100).toFixed(2)}% | ` +
           `SL=${execStopLoss.toFixed(5)} TP=${execTakeProfit.toFixed(5)} | ${slMethod}`
         );

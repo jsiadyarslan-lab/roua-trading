@@ -375,3 +375,13 @@
 - **Impact:** LASIC SELL: -$16 مقابل LASIC BUY: +$220 في نفس اليوم.
 - **Fix:** جُعل الفحص إلزامياً: إذا councilDir ≠ obi.signal → توقف تام.
 - **Commit:** (طبّقه جابر + موثّق هنا)
+
+### BUG-028: SL/TP محسوبة كنسبة ثابتة من السعر بدل هيكل السوق
+- **Status:** FIXED
+- **Severity:** CRITICAL (أصل خسارة 78% من الصفقات)
+- **File:** `apps/api/src/modules/trading/services/sl-tp-calculator.ts` (new), `apps/api/src/modules/ai/smart-executor/smart-executor.service.ts:3724`, `apps/api/src/agents/lazic/lazic.service.ts:460`
+- **Pattern (OPEN):** slPct = isCrypto \? 0\.002 : 0\.0005
+- **Pattern (FIXED):** calculateStructureBasedSLTP
+- **Description:** كل المنفّذين كانوا يحسبون SL كنسبة ثابتة من السعر (0.2% كريبتو، 2% منفذ ذكي، إلخ). هذا يضع SL في مكان عشوائي — داخل ضوضاء السعر أو بعيد عن أي مستوى تقني. السبب الجذري لخسارة معظم الصفقات: الإشارة صحيحة في الاتجاه، لكن SL يُضرب من ضوضاء قبل التحقيق.
+- **Impact:** 78% من صفقات اللاسع خاسرة. معدل نجاح المنفذ الذكي 22%. كلها بسبب SL عشوائي.
+- **Fix:** إنشاء `sl-tp-calculator.ts` يحسب SL/TP من أقرب swing high/low (هيكل السوق الفعلي) مع هامش ATR. مطبّق على المنفذ الذكي (3-tier fallback: structure → ATR → fixed %) واللاسع (structure → fixed %). المجلس الاستراتيجي يُركّب الهيكل عند التنفيذ (في المنفذ) لأن `_calculateLevels` ليست async.

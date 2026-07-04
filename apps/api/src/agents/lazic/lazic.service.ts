@@ -403,7 +403,7 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
 
     // ── احسب SL/TP
     const direction: 'BUY' | 'SELL' = obi.signal === 'SELL' ? 'SELL' : 'BUY';
-    const { sl, tp } = this._calcSLTP(tick, direction, state.isPaperTrading);
+    const { sl, tp } = await this._calcSLTP(tick, direction, state.isPaperTrading);
 
     // ── Phase 3: احسب الكمية الحقيقية (risk% × balance ÷ SL distance)
     const slDistance = Math.abs(tick.price - sl);
@@ -457,28 +457,48 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  // ── SL/TP لحسابات السكالبينج — نسبة % ثابتة من السعر حسب asset class
+  // ── SL/TP — BUG-028 FIX: هيكل السوق بدل النسبة الثابتة ──
   //
-  // السبب:avgSpread السابق كان يُحسب من (high - low) لمدة 24 ساعة من Binance،
-  // مما أعطى SL/TP بنسبة 8-17% من السعر (مستوى صفقات swing، ليس scalping).
+  // المشكلة: النسبة الثابتة (0.2% كريبتو، 0.05% فوركس) تضع SL في مكان عشوائي.
+  // السبب الرئيسي لخسارة 78% من صفقات اللاسع: SL يُضرب من ضوضاء السعر
+  // قبل أن يتحقق التحليل.
   //
-  // Fix: رفعنا TP% للكريبتو من 0.3% إلى 0.5% لتحسين نسبة الربح/العمولة:
-  //   - قبل: TP 0.3%، عمولة 0.2% → العمولة تأخذ 67% من الربح
-  //   - بعد: TP 0.5%، عمولة 0.2% → العمولة تأخذ 40% من الربح
-  //
-  // الحلول:
-  //   Crypto: 0.2% SL, 0.5% TP (R:R 1:2.5) — مناسب لتذبذب 1-5 دقائق
-  //   Forex:  0.05% SL, 0.1% TP (R:R 1:2) — مناسب لـ 1-3 pips على EUR/USD
-  private _calcSLTP(
+  // الحل: نحاول جلب الشموع الأخيرة وحساب SL من أقرب قمة/قاع حقيقي.
+  // fallback إلى النسبة الثابتة إذا لم تتوفر بيانات.
+  private async _calcSLTP(
     tick: LazicTick,
     direction: 'BUY' | 'SELL',
     _isPaper: boolean,
-  ): { sl: number; tp: number } {
+  ): Promise<{ sl: number; tp: number }> {
+    // BUG-028: حاول هيكل السوق أولاً
+    try {
+      
+      // اللاسع يملك this.binance — نستخدمه لجلب الشموع
+      const isCrypto = tick.symbol.includes('/USDT') || tick.symbol.includes('/BTC');
+      if (isCrypto) {
+        // جلب آخر 50 شمعة 15min من Binance
+        const candles = await this._fetchRecentCandles(tick.symbol, '15m', 50);
+        if (candles && candles.length >= 20) {
+          const { calculateStructureBasedSLTP } = await import('./../../modules/trading/services/sl-tp-calculator');
+          const result = calculateStructureBasedSLTP(
+            candles, tick.price, direction,
+            { minSLPercent: 0.003, maxSLPercent: 0.05, minRR: 2.0 },
+          );
+          this.logger.debug(
+            `🐝 BUG-028 LASIC SL/TP from structure: ${tick.symbol} ${direction} ` +
+            `SL=${result.sl.toFixed(5)} (${result.slSource}) TP=${result.tp.toFixed(5)} (${result.tpSource}) R:R=1:${result.rrRatio.toFixed(2)}`
+          );
+          return { sl: result.sl, tp: result.tp };
+        }
+      }
+    } catch (structErr: any) {
+      // Structure-based failed — fall through to fixed %
+    }
+
+    // Fallback: النسبة الثابتة (السلوك القديم)
     const isCrypto = tick.symbol.includes('/USDT') || tick.symbol.includes('/BTC');
-    // Crypto: 0.2% SL, 0.5% TP (R:R 1:2.5). Forex: 0.05% SL, 0.1% TP (R:R 1:2).
     const slPct = isCrypto ? 0.002 : 0.0005;
     const tpPct = isCrypto ? 0.005 : 0.001;
-
     const slDist = tick.price * slPct;
     const tpDist = tick.price * tpPct;
 
@@ -486,6 +506,27 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
       return { sl: tick.price - slDist, tp: tick.price + tpDist };
     } else {
       return { sl: tick.price + slDist, tp: tick.price - tpDist };
+    }
+  }
+
+  // BUG-028: جلب الشموع الأخيرة من Binance للاستخدام في حساب هيكل السوق
+  private async _fetchRecentCandles(symbol: string, interval: string, limit: number): Promise<any[]> {
+    try {
+      // استخدم Binance REST API مباشرة (الأسرع)
+      const cleanSymbol = symbol.replace('/', '').toUpperCase();
+      // BinanceStreamingService يملك REST endpoints
+      const url = `https://api.binance.com/api/v3/klines?symbol=${cleanSymbol}&interval=${interval}&limit=${limit}`;
+      const response = await fetch(url);
+      if (!response.ok) return [];
+      const data = await response.json() as any[];
+      return data.map(k => ({
+        time: Math.floor(k[0] / 1000),
+        open: parseFloat(k[1]), high: parseFloat(k[2]),
+        low: parseFloat(k[3]), close: parseFloat(k[4]),
+        volume: parseFloat(k[5]),
+      }));
+    } catch {
+      return [];
     }
   }
 

@@ -87,6 +87,24 @@ export function calculateStructureBasedSLTP(
   direction: 'BUY' | 'SELL',
   options?: CalcOptions,
 ): SLTPResult {
+  // BUG-028 SAFETY: Guard against invalid price inputs
+  // If price is 0, negative, or NaN → return safe defaults
+  if (!currentPrice || currentPrice <= 0 || isNaN(currentPrice)) {
+    // Return a safe fallback that won't crash callers
+    // SL = 1, TP = 2 (arbitrary but valid numbers)
+    // The caller (Smart Executor / LASIC) should reject the trade
+    // because the price is invalid — this is just a safety net
+    return {
+      sl: 1,
+      tp: 2,
+      slSource: 'atr_fallback',
+      tpSource: 'atr_fallback',
+      slDistance: 1,
+      tpDistance: 1,
+      rrRatio: 1,
+    };
+  }
+
   const minSLPct = options?.minSLPercent ?? 0.005;
   const maxSLPct = options?.maxSLPercent ?? 0.08;
   const bufferMult = options?.bufferATRMultiplier ?? 0.3;

@@ -359,7 +359,7 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
       return {
         canTrade: false,
         reason: `HARDBLOCKED: ${signal.symbol} — سعر OANDA غير موثوق (~0.0003)`,
-        positionSize: 0, stopLoss: signal.stopLoss, takeProfit: signal.takeProfit,
+        positionSize: 0, lots: 0, stopLoss: signal.stopLoss, takeProfit: signal.takeProfit,
         riskRewardRatio: 0, riskScore: 100, dailyPnL: 0,
         dailyLossPercent: 0, openPositionsCount: 0, portfolioValue: 0,
       };

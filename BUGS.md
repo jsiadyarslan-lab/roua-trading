@@ -253,6 +253,17 @@
 - **Impact:** Direction signals differ significantly from a real EMA crossover. Entry/SL/TP based on "EMA" cross are wrong.
 - **Fix:** Implement proper EMA: `const k = 2 / (period + 1); let ema = values[0]; for (let i = 1; i < values.length; i++) ema = values[i] * k + ema * (1 - k); return ema;`
 
+### BUG-027: Missing 'lots' field in BRENT/USD HARDBLOCK return
+- **Status:** FIXED
+- **Severity:** CRITICAL (build failure)
+- **File:** `apps/api/src/modules/trading/services/unified-risk.service.ts:359`
+- **Pattern (OPEN):** HARDBLOCKED: \$\{signal\.symbol\}.* positionSize: 0, stopLoss
+- **Pattern (FIXED):** positionSize: 0, lots: 0, stopLoss: signal\.stopLoss, takeProfit: signal\.takeProfit
+- **Description:** A developer added a new BRENT/USD HARDBLOCK return at line 359 but forgot to include the `lots` field required by the `RiskAssessment` type. This caused the API TypeScript build to fail on Railway with: `error TS2741: Property 'lots' is missing in type`.
+- **Impact:** API build failure — Railway deployment blocked. No new code can be deployed until fixed.
+- **Fix:** Added `lots: 0` to the return object (same as the other early returns in the same function).
+- **Note:** This is the FIRST bug caught by the bug-registry system that was NOT pre-registered. A developer pushed new code (a new code path) that didn't follow the rules. The pre-commit hook would have caught it locally if the developer had installed it. This validates the system's design.
+
 ---
 
 ## Summary Table

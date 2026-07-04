@@ -92,10 +92,12 @@ const QUICK_DRAW_TOOLS: { key: DrawingTool; icon: string; i18nKey: string }[] = 
   { key: 'cursor',     icon: '↖', i18nKey: 'cursor' },
 ];
 
-// Symbol list for toolbar dropdown (same as grid cell header)
+// Symbol list for toolbar dropdown (V432: all 12 backend-supported crypto + key forex/metals)
 const TOOLBAR_SYMBOLS = [
   'BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'XRP/USDT', 'SOL/USDT',
-  'ADA/USDT', 'DOGE/USDT', 'EUR/USD', 'GBP/USD', 'XAU/USD',
+  'ADA/USDT', 'DOGE/USDT', 'DOT/USDT', 'MATIC/USDT', 'AVAX/USDT',
+  'LINK/USDT', 'UNI/USDT',
+  'EUR/USD', 'GBP/USD', 'XAU/USD',
 ];
 
 export function ChartToolbar(props: ChartToolbarProps) {

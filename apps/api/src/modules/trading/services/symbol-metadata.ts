@@ -89,6 +89,12 @@ const SYMBOL_REGISTRY: Record<string, Partial<SymbolMetadata>> = {
   'BNB/USDT': { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.001, minLot: 0.001, maxLot: 5000, pipSize: 0.01, priceDecimals: 2, defaultLeverage: 1 },
   'XRP/USDT': { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 1, minLot: 1, maxLot: 500000, pipSize: 0.0001, priceDecimals: 4, defaultLeverage: 1 },
   'ADA/USDT': { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 1, minLot: 1, maxLot: 500000, pipSize: 0.0001, priceDecimals: 4, defaultLeverage: 1 },
+  // V432: Added the 5 missing crypto pairs (matches LAZIC_SUPPORTED_SYMBOLS)
+  'DOT/USDT':  { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.01, minLot: 0.01, maxLot: 50000, pipSize: 0.001, priceDecimals: 3, defaultLeverage: 1 },
+  'MATIC/USDT':{ assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 1, minLot: 1, maxLot: 500000, pipSize: 0.0001, priceDecimals: 4, defaultLeverage: 1 },
+  'AVAX/USDT': { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.01, minLot: 0.01, maxLot: 50000, pipSize: 0.001, priceDecimals: 3, defaultLeverage: 1 },
+  'LINK/USDT': { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.01, minLot: 0.01, maxLot: 50000, pipSize: 0.001, priceDecimals: 3, defaultLeverage: 1 },
+  'UNI/USDT':  { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.01, minLot: 0.01, maxLot: 50000, pipSize: 0.001, priceDecimals: 3, defaultLeverage: 1 },
 };
 
 // Default metadata for unregistered symbols

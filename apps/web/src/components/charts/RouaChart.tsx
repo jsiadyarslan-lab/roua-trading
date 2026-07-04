@@ -138,9 +138,12 @@ interface RouaChartProps {
 // ── Mini Chart Header (for multi-chart compact mode) ──
 // Shows symbol, timeframe selector, current price, and close button.
 // Replaces the full toolbar when RouaChart is used as a mini chart cell.
+// V432: all 12 backend-supported crypto + key forex/metals
 const POPULAR_SYMBOLS_MINI = [
   'BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'XRP/USDT', 'SOL/USDT',
-  'ADA/USDT', 'DOGE/USDT', 'EUR/USD', 'GBP/USD', 'XAU/USD',
+  'ADA/USDT', 'DOGE/USDT', 'DOT/USDT', 'MATIC/USDT', 'AVAX/USDT',
+  'LINK/USDT', 'UNI/USDT',
+  'EUR/USD', 'GBP/USD', 'XAU/USD',
 ];
 const TIMEFRAME_MINI = [
   { value: '1min', label: '1m' }, { value: '5min', label: '5m' },

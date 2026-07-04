@@ -42,7 +42,11 @@ function PriceDisplay({ price, isUp }: { price: number | null, isUp: boolean }) 
 }
 
 const SYMBOLS_BY_TAB = {
-  Crypto: ['BTC/USD', 'ETH/USD', 'SOL/USD', 'XRP/USD', 'BNB/USD', 'ADA/USD', 'DOGE/USD'],
+  // V432: طابق الـ 12 زوج كريبتو المدعومة في backend (LAZIC_SUPPORTED_SYMBOLS)
+  Crypto: [
+    'BTC/USD', 'ETH/USD', 'SOL/USD', 'BNB/USD', 'XRP/USD', 'ADA/USD', 'DOGE/USD',
+    'DOT/USD', 'MATIC/USD', 'AVAX/USD', 'LINK/USD', 'UNI/USD',
+  ],
   Forex:  [
     // Majors
     'EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CHF', 'USD/CAD', 'NZD/USD',

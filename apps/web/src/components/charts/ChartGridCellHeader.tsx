@@ -9,8 +9,11 @@ import React from 'react';
 // ── Constants (duplicated from RouaChart to keep this component self-contained) ──
 
 const POPULAR_SYMBOLS_MINI = [
+  // V432: all 12 backend-supported crypto + key forex/metals
   'BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'XRP/USDT', 'SOL/USDT',
-  'ADA/USDT', 'DOGE/USDT', 'EUR/USD', 'GBP/USD', 'XAU/USD',
+  'ADA/USDT', 'DOGE/USDT', 'DOT/USDT', 'MATIC/USDT', 'AVAX/USDT',
+  'LINK/USDT', 'UNI/USDT',
+  'EUR/USD', 'GBP/USD', 'XAU/USD',
 ];
 
 const TIMEFRAME_MINI = [

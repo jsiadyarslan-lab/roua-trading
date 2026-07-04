@@ -69,7 +69,11 @@ export interface CouncilSessionResult {
  *  For future multi-exchange: Filter per-user based on their exchange
  */
 export const COUNCIL_PAIRS = {
-  CRYPTO: ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT', 'ADA/USDT', 'XRP/USDT', 'DOGE/USDT'],
+  // V432: All 12 backend-supported crypto pairs (matches LAZIC_SUPPORTED_SYMBOLS)
+  CRYPTO: [
+    'BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT', 'ADA/USDT', 'XRP/USDT', 'DOGE/USDT',
+    'DOT/USDT', 'MATIC/USDT', 'AVAX/USDT', 'LINK/USDT', 'UNI/USDT',
+  ],
   FOREX: ['EUR/USD', 'GBP/USD', 'USD/JPY', 'USD/CHF', 'AUD/USD', 'NZD/USD', 'USD/CAD'],
   STOCKS: ['AAPL', 'MSFT', 'GOOGL', 'TSLA'],
   COMMODITIES: ['XAU/USD', 'XAG/USD', 'WTI/USD', 'BRENT/USD'],

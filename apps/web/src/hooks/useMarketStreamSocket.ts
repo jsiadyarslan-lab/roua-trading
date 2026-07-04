@@ -40,9 +40,11 @@ import { useMarketStore, type QuoteData } from './useMarketStore';
 
 // All symbols this hook subscribes to.
 const ALL_SYMBOLS = [
-  // Crypto (Binance stream)
+  // Crypto (Binance stream) — V432: all 12 supported pairs (matches backend LAZIC_SUPPORTED_SYMBOLS)
   'BTC/USDT', 'ETH/USDT', 'BTC/USD', 'ETH/USD', 'SOL/USD', 'BNB/USD',
   'XRP/USD', 'ADA/USD', 'DOGE/USD',
+  'DOT/USDT', 'DOT/USD', 'MATIC/USDT', 'MATIC/USD', 'AVAX/USDT', 'AVAX/USD',
+  'LINK/USDT', 'LINK/USD', 'UNI/USDT', 'UNI/USD',
   // Forex (OANDA stream)
   'EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CHF', 'USD/CAD', 'NZD/USD',
   'EUR/GBP', 'EUR/JPY', 'GBP/JPY',

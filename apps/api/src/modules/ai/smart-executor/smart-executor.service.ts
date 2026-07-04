@@ -1128,14 +1128,22 @@ export class SmartExecutorService implements OnModuleDestroy {
       // PHANTOM TRADE FILTER: Remove positions with
       // unrealistic trade values. These are phantom trades
       // created from degraded/fallback data before the fix.
-      // A real position should have qty * entryPrice >= $1.
+      //
+      // V431: After LOTS migration, qty is in LOTS (e.g., 0.30).
+      // A real forex position: 0.30 lots × contractSize(100000) × 1.42 = $42,600.
+      // A real crypto position: 0.001 lots × contractSize(1) × 60000 = $60.
+      // Phantom: notional < $1 (dust from degraded data).
+      //
+      // OLD (broken): qty × entryPrice >= $1 — fails for LOTS (0.30 × 1.42 = $0.43)
+      // NEW (correct): qty × contractSize × entryPrice >= $1
       // ═══════════════════════════════════════════════════
       return positions.filter((pos) => {
         const qty = Number(pos.quantity);
         const entryPrice = Number(pos.entryPrice);
-        const tradeValue = qty * entryPrice;
+        const contractSize = getSymbolMetadata(pos.symbol || '').contractSize || 1;
+        const notionalValue = qty * contractSize * entryPrice;
         // Reject positions with zero/invalid prices or dust values
-        return entryPrice > 0 && tradeValue >= 1;
+        return entryPrice > 0 && notionalValue >= 1;
       });
     } catch {
       return [];
@@ -1167,9 +1175,12 @@ export class SmartExecutorService implements OnModuleDestroy {
       for (const pos of allPositions) {
         const qty = Number(pos.quantity);
         const entryPrice = Number(pos.entryPrice);
-        const tradeValue = qty * entryPrice;
-        // Phantom = trade value < $1 (dust trade from degraded data)
-        if (entryPrice <= 0 || tradeValue < 1) {
+        // V431: Use notional value (qty × contractSize × entryPrice), not raw qty × entryPrice
+        // After LOTS migration, qty is small (0.01-0.50) — needs × contractSize
+        const contractSize = getSymbolMetadata(pos.symbol || '').contractSize || 1;
+        const notionalValue = qty * contractSize * entryPrice;
+        // Phantom = notional value < $1 (dust trade from degraded data)
+        if (entryPrice <= 0 || notionalValue < 1) {
           phantomIds.push(pos.id);
         }
       }

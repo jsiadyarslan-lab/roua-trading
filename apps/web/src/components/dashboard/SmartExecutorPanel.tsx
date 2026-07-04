@@ -61,8 +61,16 @@ interface UserExecutorState {
 function isPhantomTrade(pos: any): boolean {
   const entryPrice = Number(pos.entryPrice ?? pos.price ?? pos.openPrice ?? 0)
   const qty = Number(pos.quantity ?? pos.qty ?? pos.size ?? 0)
-  const tradeValue = Math.abs(qty * entryPrice)
-  return entryPrice <= 0 || tradeValue < 1
+  // V431: After LOTS migration, qty is small (0.01-0.50). Use notional value
+  // (qty × contractSize × entryPrice) instead of raw qty × entryPrice.
+  // Forex: 0.30 lots × 100000 × 1.42 = $42,600 (real position, not phantom)
+  // Crypto: 0.001 lots × 1 × 60000 = $60 (real)
+  // Phantom: notional < $1 (dust from degraded data)
+  const symbol = pos.symbol || ''
+  const isCrypto = symbol.includes('/USDT') || symbol.includes('/BTC')
+  const contractSize = isCrypto ? 1 : 100000
+  const notionalValue = Math.abs(qty * contractSize * entryPrice)
+  return entryPrice <= 0 || notionalValue < 1
 }
 
 export function SmartExecutorPanel() {

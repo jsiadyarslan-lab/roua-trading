@@ -1031,6 +1031,7 @@ export default function RouaChart({
                 overlayMod.renderOverlays(series, {
                   candles: candlesRef.current,
                   overlays: currentOverlays,
+                  symbol: selectedSymbol_,  // BUG-007: required for fallback entry cache keying
                   supportLevels: cached?.supportLevels || [],
                   resistanceLevels: cached?.resistanceLevels || [],
                   smcData: (cached as any)?.smcData,
@@ -1189,6 +1190,7 @@ export default function RouaChart({
         overlayMod.renderOverlays(series, {
           candles: candlesRef.current,
           overlays: currentOverlays,
+          symbol: selectedSymbol_,  // BUG-007: required for fallback entry cache keying
           supportLevels: cached?.supportLevels || [],
           resistanceLevels: cached?.resistanceLevels || [],
           smcData: (cached as any)?.smcData,

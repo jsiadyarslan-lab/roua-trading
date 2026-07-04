@@ -37,13 +37,20 @@ interface MarketStore {
 // Now, all quotes received within the same event loop tick are batched
 // into a single state update, reducing re-renders to ~4/sec.
 let pendingQuotes: Record<string, QuoteData> = {}
-let batchTimer: ReturnType<typeof queueMicrotask> | null = null
+// BUG-015 FIX: queueMicrotask returns void (undefined), so `batchTimer = queueMicrotask(...)`
+// set batchTimer to undefined, and `if (!batchTimer)` was ALWAYS true → a new microtask
+// was scheduled on EVERY setQuote call. Batching didn't work for async-spaced ticks.
+// Fix: use a boolean flag instead of storing the (void) return value.
+let batchScheduled = false
 
 function flushBatch(set: (fn: (state: any) => any) => void) {
-  if (Object.keys(pendingQuotes).length === 0) return
+  if (Object.keys(pendingQuotes).length === 0) {
+    batchScheduled = false
+    return
+  }
   const batch = { ...pendingQuotes }
   pendingQuotes = {}
-  batchTimer = null
+  batchScheduled = false
   set((state: any) => ({
     quotes: { ...state.quotes, ...batch }
   }))
@@ -57,8 +64,9 @@ export const useMarketStore = create<MarketStore>((set) => ({
   // are coalesced into one state update.
   setQuote: (symbol, data) => {
     pendingQuotes[symbol] = data
-    if (!batchTimer) {
-      batchTimer = queueMicrotask(() => flushBatch(set))
+    if (!batchScheduled) {
+      batchScheduled = true
+      queueMicrotask(() => flushBatch(set))
     }
   },
   setQuotes: (data) => set((state) => ({

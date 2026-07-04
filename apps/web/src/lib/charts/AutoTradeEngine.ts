@@ -321,16 +321,28 @@ function calculateStopLoss(
 ): number {
   // Primary: use pattern invalidation level
   if (patternInvalidation && patternInvalidation > 0) {
-    const slDistance = Math.abs(entryPrice - patternInvalidation);
-    const slPct = slDistance / entryPrice;
+    // BUG-011 FIX: Validate that patternInvalidation is on the CORRECT side of entry.
+    // For bullish: SL must be BELOW entry (patternInvalidation < entryPrice).
+    // For bearish: SL must be ABOVE entry (patternInvalidation > entryPrice).
+    // Without this check, a distribution UTAD level ABOVE current price would be
+    // used as SL for a bullish trade → SL on wrong side → immediate loss guaranteed.
+    const isOnCorrectSide = direction === 'bullish'
+      ? patternInvalidation < entryPrice
+      : patternInvalidation > entryPrice;
 
-    // Don't use pattern SL if it's too far
-    if (slPct <= params.maxSLPct) {
-      // Add spread buffer
-      return direction === 'bullish'
-        ? patternInvalidation - entryPrice * (params.spreadBufferBps / 10000)
-        : patternInvalidation + entryPrice * (params.spreadBufferBps / 10000);
+    if (isOnCorrectSide) {
+      const slDistance = Math.abs(entryPrice - patternInvalidation);
+      const slPct = slDistance / entryPrice;
+
+      // Don't use pattern SL if it's too far
+      if (slPct <= params.maxSLPct) {
+        // Add spread buffer
+        return direction === 'bullish'
+          ? patternInvalidation - entryPrice * (params.spreadBufferBps / 10000)
+          : patternInvalidation + entryPrice * (params.spreadBufferBps / 10000);
+      }
     }
+    // If patternInvalidation is on wrong side OR too far, fall through to ATR-based SL
   }
 
   // Fallback: ATR-based stop loss
@@ -407,13 +419,19 @@ function calculateKellyFraction(): number {
   const wins = completed.filter(p => p.status !== 'hit_sl');
   const losses = completed.filter(p => p.status === 'hit_sl');
 
-  if (losses.length === 0) return 0.25; // All wins — cap at quarter-Kelly
+  // BUG-013 FIX: Don't bet 25% on lucky streaks.
+  // Old code: if (losses.length === 0) return 0.25; — bets 25% of account after 10 lucky wins.
+  // This is reckless — the true win rate is unknown with 0 losses.
+  // New code: require at least 30 trades AND 5 losses before computing Kelly.
+  // Without losses, the Kelly formula is undefined (division by zero in the odds ratio).
+  // Return 0 (no Kelly boost) — fall back to fixed riskPerTrade.
+  if (completed.length < 30 || losses.length < 5) return 0;
 
   const winRate = wins.length / completed.length;
   const avgWin = wins.length > 0 ? wins.reduce((s, p) => s + Math.abs(p.pnl.netPnL), 0) / wins.length : 0;
   const avgLoss = losses.reduce((s, p) => s + Math.abs(p.pnl.netPnL), 0) / losses.length;
 
-  if (avgLoss === 0) return 0.25;
+  if (avgLoss === 0) return 0; // BUG-013: was 0.25 — now 0 (can't compute Kelly without avgLoss)
 
   const rawKelly = winRate - (1 - winRate) / (avgWin / avgLoss);
   const kellyFraction = Math.min(0.25, Math.max(0, rawKelly));
@@ -837,7 +855,14 @@ export function autoEvaluateProposals(currentPrice: number, candles?: CandleData
       if (proposal.direction === 'bullish') {
         if (currentPrice >= proposal.takeProfits[2] && (proposal.status as string) !== 'hit_tp3') {
           newStatus = 'hit_tp3';
-          pnlChange = proposal.positionSize * Math.abs(proposal.takeProfits[2] - proposal.entryPrice);
+          // BUG-012 FIX: TP3 closes the REMAINING position (20%), not 100%.
+          // TP1 closed 50%, TP2 closed 30%, so only 20% remains at TP3.
+          // Old code: pnlChange = positionSize * |TP3 - entry| (100% — 5× overstated).
+          // New code: compute remaining fraction from executed partial closes.
+          const remainingFraction = 1 - proposal.partialCloses
+            .filter(pc => pc.executed)
+            .reduce((sum, pc) => sum + pc.fraction, 0);
+          pnlChange = proposal.positionSize * remainingFraction * Math.abs(proposal.takeProfits[2] - proposal.entryPrice);
         } else if (currentPrice >= proposal.takeProfits[1] && (proposal.status as string) !== 'hit_tp2') {
           newStatus = 'hit_tp2';
           // Partial close P&L
@@ -863,7 +888,11 @@ export function autoEvaluateProposals(currentPrice: number, candles?: CandleData
       } else {
         if (currentPrice <= proposal.takeProfits[2] && (proposal.status as string) !== 'hit_tp3') {
           newStatus = 'hit_tp3';
-          pnlChange = proposal.positionSize * Math.abs(proposal.takeProfits[2] - proposal.entryPrice);
+          // BUG-012 FIX: TP3 closes the REMAINING position (20%), not 100%.
+          const remainingFraction = 1 - proposal.partialCloses
+            .filter(pc => pc.executed)
+            .reduce((sum, pc) => sum + pc.fraction, 0);
+          pnlChange = proposal.positionSize * remainingFraction * Math.abs(proposal.takeProfits[2] - proposal.entryPrice);
         } else if (currentPrice <= proposal.takeProfits[1] && (proposal.status as string) !== 'hit_tp2') {
           newStatus = 'hit_tp2';
           if (proposal.partialCloses.length > 0 && !proposal.partialCloses[1].executed) {

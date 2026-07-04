@@ -95,10 +95,11 @@
 - **Test:** `apps/web/src/lib/charts/__tests__/BUG-005.mcSpin-keyframes.spec.ts`
 
 ### BUG-006: `updateAllViews()` is EMPTY in all 7 primitive classes — updateData is a no-op
-- **Status:** OPEN
+- **Status:** FIXED
 - **Severity:** CRITICAL
 - **File:** `apps/web/src/lib/charts/chart-primitives.ts:150, 317, 434, 558, 672, 772, 946`
 - **Pattern (OPEN):** updateAllViews\(\): void \{\s*\}` (7 occurrences)
+- **Pattern (FIXED):** BUG-006 FIX
 - **Description:** Every primitive class (`TrendLinePrimitive`, `HorizontalLinePrimitive`, `ShapePrimitive`, `FibonacciPrimitive`, `LabelPrimitive`, `ZonePrimitive`, `AlertMarkerPrimitive`) implements `updateAllViews(): void {}` with an empty body. The `updateData()` method calls `this.updateAllViews()` expecting it to trigger a redraw, but it does nothing. The primitive never calls `param.requestUpdate()`. Result: `updateData()` is a silent no-op — data is updated internally but the chart never redraws until an external event (scroll, zoom, candle tick).
 - **Impact:** Overlays never visually update on data change. The `smartRedraw` workaround in OverlayRegistry exists to paper over this — fixing this bug eliminates an entire class of "dancing lines" symptoms.
 - **Fix:** Store `requestUpdate` from `attached()` param, call it in `updateAllViews()`:
@@ -113,19 +114,21 @@
   ```
 
 ### BUG-007: `stableFallbackEntry` cache not cleared on symbol change
-- **Status:** OPEN
+- **Status:** FIXED
 - **Severity:** CRITICAL
 - **File:** `apps/web/src/lib/charts/overlay-renderer.ts:54, 69-71, 84`
 - **Pattern (OPEN):** let _cachedFallbackEntry` (module-level singleton keyed only by direction)
+- **Pattern (FIXED):** _cachedFallbackEntry\.symbol === currentSymbol
 - **Description:** `_cachedFallbackEntry` is a module-level variable cached ONLY by direction ('long'/'short'). When the user switches symbol (e.g., BTC → ETH), if both have the same EMA9>EMA20 direction, the OLD cached entry/SL/TP from BTC is used for ETH. `resetFallbackEntryCache()` exists (line 89) but is only called on timeframe change, not symbol change.
 - **Impact:** After switching symbols, BTC's entry/SL/TP lines appear on ETH's chart. Misleading trade signals.
 - **Fix:** Call `resetFallbackEntryCache()` on symbol change. Better: key the cache by `symbol+direction`.
 
 ### BUG-008: `renderAnalysisOverlays` has NO render lock (race with `renderOverlays`)
-- **Status:** OPEN
+- **Status:** FIXED
 - **Severity:** CRITICAL
 - **File:** `apps/web/src/lib/charts/overlay-renderer.ts:1644-1654`
 - **Pattern (OPEN):** renderAnalysisOverlays` does NOT call `acquireRenderLock
+- **Pattern (FIXED):** BUG-008 FIX
 - **Description:** `renderOverlays` acquires a mutex (`registry.acquireRenderLock()` at line 244). But `renderAnalysisOverlays` does NOT. Both functions mutate the same `OverlayRegistry`. If `handlePatternsDetected` fires `renderAnalysisOverlays` while `renderOverlays` is running (e.g., from a WebSocket tick), they concurrently modify `groups`, `lastRenderData`, and call `attachPrimitive`/`detachPrimitive` on the same series.
 - **Impact:** Corrupted group arrays, double-attachment, visual flicker, potential crashes.
 - **Fix:** `renderAnalysisOverlays` must also acquire the render lock, or use a separate registry.
@@ -140,100 +143,111 @@
 - **Fix:** Rewrite all harmonic drawing functions to operate in price/time space using `series.coordinateToPrice()` and `chart.timeScale().coordinateToTime()`.
 
 ### BUG-010: `onSLTPDrag` prop never destructured — SL/TP drag is dead code
-- **Status:** OPEN
+- **Status:** FIXED
 - **Severity:** CRITICAL
 - **File:** `apps/web/src/components/charts/RouaChart.tsx:117 (declaration), 345-365 (destructure), 1653 (ref), 3460 (call)`
 - **Pattern (OPEN):** onSLTPDragRef\.current\?\.\(` exists but `onSLTPDragRef\.current = onSLTPDrag` is ABSENT
+- **Pattern (FIXED):** onSLTPDragRef\.current = onSLTPDrag
 - **Description:** The prop `onSLTPDrag` is declared in `RouaChartProps` at line 117. The component's destructuring at lines 345-365 does NOT include `onSLTPDrag`. A ref `onSLTPDragRef` is declared at line 1653 but NEVER assigned. At line 3460, the drag-end handler calls `onSLTPDragRef.current?.(...)` — the optional chaining silently swallows the `undefined`, so no callback ever fires.
 - **Impact:** The entire SL/TP drag-to-adjust feature is visually functional (the line follows the mouse during drag) but FUNCTIONALLY BROKEN — the new price is computed and then discarded. The position's SL/TP is never updated in the store or backend.
 - **Fix:** (1) Add `onSLTPDrag` to the destructuring. (2) Add `useEffect(() => { onSLTPDragRef.current = onSLTPDrag; }, [onSLTPDrag]);`
 
 ### BUG-011: AutoTradeEngine `calculateStopLoss` may place SL on wrong side of entry
-- **Status:** OPEN
+- **Status:** FIXED
 - **Severity:** CRITICAL (financial)
-- **File:** `apps/web/src/agents/autonomous-trader/services/order-executor.service.ts` (via AutoTradeEngine `calculateStopLoss`)
+- **File:** `apps/web/src/lib/charts/AutoTradeEngine.ts:315`
 - **Pattern (OPEN):** patternInvalidation - entryPrice` without validating `patternInvalidation < entryPrice` for bullish
+- **Pattern (FIXED):** BUG-011 FIX
 - **Description:** For a bullish trade, SL should be BELOW entry. But `patternInvalidation` may be ABOVE entry (e.g., a distribution UTAD level above current price). The code does `slDistance = Math.abs(entryPrice - patternInvalidation)` (positive), `slPct` is positive, the check passes, and the returned SL is `patternInvalidation - spread` — which is ABOVE entry. The SL is on the wrong side, guaranteeing an immediate loss.
 - **Impact:** SL placed on the wrong side of entry → trade closes at a loss immediately.
 - **Fix:** Add `if (direction === 'bullish' && patternInvalidation >= entryPrice) return fallbackATRSL;` and vice versa.
 
 ### BUG-012: AutoTradeEngine TP3 P&L overstates 5× (counts full position instead of remaining 20%)
-- **Status:** OPEN
+- **Status:** FIXED
 - **Severity:** CRITICAL (financial)
 - **File:** `apps/web/src/lib/charts/AutoTradeEngine.ts:838-840`
 - **Pattern (OPEN):** pnlChange = proposal\.positionSize \* Math\.abs\(proposal\.takeProfits\[2\] - proposal\.entryPrice\)` (no remaining fraction)
+- **Pattern (FIXED):** BUG-012 FIX
 - **Description:** TP1 closes 50% of position, TP2 closes 30%. But TP3 P&L is calculated as `positionSize * |TP3 - entry|` — the FULL position, not the remaining 20%. So TP3 P&L is 5× overstated.
 - **Impact:** Daily P&L, win rate, Kelly fraction all computed from inflated TP3 profits. Risk management decisions based on wrong numbers.
 - **Fix:** `const remainingFraction = 1 - partialCloses.filter(pc => pc.executed).reduce((s, pc) => s + pc.fraction, 0); pnlChange = remainingFraction * positionSize * Math.abs(TP3 - entry);`
 
 ### BUG-013: Kelly fraction returns 0.25 (quarter-Kelly) when losses.length === 0
-- **Status:** OPEN
+- **Status:** FIXED
 - **Severity:** HIGH (financial)
 - **File:** `apps/web/src/lib/charts/AutoTradeEngine.ts:410`
-- **Pattern (OPEN):** if \(losses\.length === 0\) return 0\.25;
+- **Pattern (OPEN):** ^\s*if \(losses\.length === 0\) return 0\.25; // All wins
+- **Pattern (FIXED):** BUG-013 FIX
 - **Description:** If the first 10 trades are all wins, Kelly fraction = 0.25 (max). But this is purely luck; the true win rate is unknown. Betting 25% of account per trade based on 10 lucky wins is reckless.
 - **Impact:** Catastrophic risk on lucky streaks — one loss wipes 25% of the account.
 - **Fix:** `if (completed.length < 30 || losses.length < 5) return 0;`
 
 ### BUG-014: `usePositionsStore` static localStorage key → cross-user data leak
-- **Status:** OPEN
+- **Status:** FIXED
 - **Severity:** CRITICAL (security)
 - **File:** `apps/web/src/hooks/usePositionsStore.ts:1730`
 - **Pattern (OPEN):** name: getStorageKey\(\)` evaluated ONCE at module load
+- **Pattern (FIXED):** BUG-014 FIX
 - **Description:** `name: getStorageKey()` is called ONCE when the store is created (module load). At that point, `useAuthStore.getState().user` is `null` (auth not hydrated), so `getStorageKey()` returns the static `'roua-positions-store'`. ALL users share this key. The `onRehydrateStorage` callback validates `_ownerUserId` and clears if mismatched — but there's a ~100ms window between rehydration (showing user A's data) and the validation clearing it.
 - **Impact:** User B briefly sees user A's positions and balance on a shared browser.
 - **Fix:** Use the same `dynamicStorage` pattern as `useChartStateStore` (re-evaluate key on every access).
 
 ### BUG-015: `useMarketStore` batching broken (queueMicrotask returns void)
-- **Status:** OPEN
+- **Status:** FIXED
 - **Severity:** HIGH (performance)
 - **File:** `apps/web/src/hooks/useMarketStore.ts:39-63`
 - **Pattern (OPEN):** batchTimer = queueMicrotask\(` then `if \(!batchTimer\)
+- **Pattern (FIXED):** BUG-015 FIX
 - **Description:** `queueMicrotask(() => ...)` returns `void` (undefined). So `batchTimer = queueMicrotask(...)` sets `batchTimer = undefined`. The check `if (!batchTimer)` is ALWAYS TRUE (undefined is falsy). A new microtask is scheduled on EVERY `setQuote` call. The batching doesn't work for async-spaced ticks — 24 re-renders instead of 4.
 - **Impact:** 6× more re-renders than intended. UI jank on multi-symbol dashboards.
 - **Fix:** Use a boolean flag: `let batchScheduled = false;` instead of `batchTimer`.
 
 ### BUG-016: DrawingManager silent data loss on localStorage corruption
-- **Status:** OPEN
+- **Status:** FIXED
 - **Severity:** CRITICAL (data loss)
 - **File:** `apps/web/src/lib/charts/DrawingManager.ts:327-329`
 - **Pattern (OPEN):** catch \{ /\* Corrupted data — start fresh \*/ \}
+- **Pattern (FIXED):** BUG-016 FIX
 - **Description:** If `JSON.parse(raw)` throws (corrupted JSON), the entire drawings array is silently wiped. The `drawings` Map stays empty, and the next `saveToStorage` call OVERWRITES the corrupted data with an empty object — permanently destroying the user's drawings.
 - **Impact:** Permanent loss of all saved drawings without any notification.
 - **Fix:** On parse error, RENAME the corrupted key (e.g., `roua-chart-drawings:userId.corrupted-{timestamp}`) instead of overwriting. Show a toast: "Your saved drawings were corrupted and have been archived."
 
 ### BUG-017: Ichimoku Chikou Span has look-ahead bias (shows future close)
-- **Status:** OPEN
+- **Status:** FIXED
 - **Severity:** HIGH (backtesting invalid)
 - **File:** `apps/web/src/lib/charts/IndicatorCalculator.ts:348-355`
 - **Pattern (OPEN):** chikou = i \+ displacement < len \? candles\[i \+ displacement\]\.close : null
+- **Pattern (FIXED):** candles\[i - displacement\]\.close
 - **Description:** At chart position `i`, Chikou displays `candles[i + 26].close` — the close from 26 bars in the FUTURE. Standard Chikou Span shows the CURRENT close drawn 26 bars BACKWARD (at position `i - 26`). The current implementation has look-ahead bias — makes backtests look accurate but is invalid for live trading.
 - **Impact:** Backtests using Chikou show unrealistic accuracy. Live signals are meaningless.
 - **Fix:** `chikou[i] = candles[Math.max(0, i - displacement)].close`
 
 ### BUG-018: MTF Fibonacci retracement levels INVERTED
-- **Status:** OPEN
+- **Status:** FIXED
 - **Severity:** HIGH
 - **File:** `apps/web/src/lib/charts/MTFEngine.ts:431-435`
 - **Pattern (OPEN):** isUptrend \? high - range \* fib\.ratio : low \+ range \* fib\.ratio
+- **Pattern (FIXED):** low \+ range \* fib\.ratio.* Uptrend: 0% at low
 - **Description:** Standard Fibonacci retracement in uptrend: 0% = low, 100% = high, 38.2% retrace = `low + range * 0.382`. The code uses `high - range * ratio` (0% = high, 100% = low) — the EXTENSION convention, not retracement. Both uptrend and downtrend formulas are inverted vs. TradingView.
 - **Impact:** All MTF Fibonacci levels drawn at wrong prices. Confluence detection finds false confluences.
 - **Fix:** Swap: uptrend → `low + range * ratio`, downtrend → `high - range * ratio`.
 
 ### BUG-019: ATR formula uses current close instead of previous close
-- **Status:** OPEN
+- **Status:** FIXED
 - **Severity:** HIGH
 - **File:** `apps/web/src/lib/charts/overlay-renderer.ts:75-78, 195-199`
 - **Pattern (OPEN):** Math\.max\(c\.high - c\.close, Math\.abs\(c\.low - c\.close\), c\.high - c\.low\)
+- **Pattern (FIXED):** BUG-019 FIX.* prevClose
 - **Description:** Standard True Range: `max(high-low, |high - prevClose|, |low - prevClose|)`. The code uses CURRENT close instead of PREVIOUS close. Since `high >= close >= low`, `high - low >= both` always → TR reduces to `high - low`, **completely ignoring gaps**.
 - **Impact:** ATR underestimates volatility in gapping markets (weekend forex, news). SL/TP based on ATR are too tight.
 - **Fix:** `Math.max(c.high - c.low, Math.abs(c.high - sl[i-1].close), Math.abs(c.low - sl[i-1].close))`
 
 ### BUG-020: "EMA9" and "EMA20" are actually Simple Moving Averages
-- **Status:** OPEN
+- **Status:** FIXED
 - **Severity:** HIGH
 - **File:** `apps/web/src/lib/charts/overlay-renderer.ts:62-63`
-- **Pattern (OPEN):** last20\.slice\(-9\)\.reduce\(\(s, x\) => s \+ x\.close, 0\) / Math\.min\(9, last20\.length\)
+- **Pattern (OPEN):** ^\s*const ema9 = last20\.slice\(-9\)\.reduce
+- **Pattern (FIXED):** BUG-020 FIX
 - **Description:** The code computes `sum of last 9 closes / 9` — this is an SMA (Simple Moving Average), not an EMA (Exponential Moving Average). The comment and variable name say "EMA" but the formula is SMA. EMA gives more weight to recent prices; SMA treats all equally.
 - **Impact:** Direction signals differ significantly from a real EMA crossover. Entry/SL/TP based on "EMA" cross are wrong.
 - **Fix:** Implement proper EMA: `const k = 2 / (period + 1); let ema = values[0]; for (let i = 1; i < values.length; i++) ema = values[i] * k + ema * (1 - k); return ema;`

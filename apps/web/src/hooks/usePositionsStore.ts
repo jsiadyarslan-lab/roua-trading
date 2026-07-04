@@ -122,7 +122,45 @@ function getStorageKey(): string {
     const user = useAuthStore.getState().user
     if (user?.id && !user.isGuest) return `roua-positions-store:${user.id}`
   } catch { /* Auth store not yet initialized */ }
-  return 'roua-positions-store' // Fallback for rehydration before auth loads
+  // BUG-014 FIX: Try localStorage cache (available before Zustand hydrates)
+  // This prevents the cross-user leak window where User B sees User A's data.
+  try {
+    const cachedRaw = localStorage.getItem('roua_auth_user')
+    if (cachedRaw) {
+      const cached = JSON.parse(cachedRaw)
+      if (cached?.id) return `roua-positions-store:${cached.id}`
+    }
+  } catch { /* Cache unavailable */ }
+  return 'roua-positions-store:guest' // Guest fallback — NOT shared with authenticated users
+}
+
+// BUG-014 FIX: Dynamic storage that re-evaluates the key on EVERY access.
+// The old code used `name: getStorageKey()` which was evaluated ONCE at module load
+// (before auth hydrated) → all users shared the same static key.
+// Now: the storage layer re-checks the key on every getItem/setItem/removeItem call.
+const dynamicStorage = {
+  getItem: (name: string): string | null => {
+    try {
+      const key = getStorageKey()
+      return localStorage.getItem(key)
+    } catch {
+      return null
+    }
+  },
+  setItem: (name: string, value: string): void => {
+    try {
+      const key = getStorageKey()
+      localStorage.setItem(key, value)
+    } catch {
+      // localStorage full or unavailable
+    }
+  },
+  removeItem: (name: string): void => {
+    try {
+      const key = getStorageKey()
+      localStorage.removeItem(key)
+    } catch { /* ignore */ }
+  },
 }
 
 /**
@@ -1754,8 +1792,8 @@ export const usePositionsStore = create<PositionsState>()(
        * During Zustand rehydration (page refresh), if auth store hasn't loaded,
        * we fall back to the static key and validate ownership via _ownerUserId.
        */
-      name: getStorageKey(),
-      storage: createJSONStorage(() => localStorage),
+      name: 'roua-positions-store', // Base name — actual key is dynamic (see dynamicStorage)
+      storage: createJSONStorage(() => dynamicStorage),
       // Only persist account data and positions (not loading/error states)
       // V189 CRITICAL FIX: activeCredentialId MUST be persisted!
       // Without it, every page refresh loses the user's active account choice,

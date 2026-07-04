@@ -346,13 +346,15 @@ export function calcIchimoku(
     const senkouB = senkouBSourceIdx >= 0 ? rawSenkouB[senkouBSourceIdx] : null;
 
     // Chikou Span: displaced BACKWARD by `displacement` periods
-    // The close at index i is drawn at index i - displacement
-    // At the current candle, we show the close from displacement periods ago
-    // Actually, standard Ichimoku shows the CURRENT close shifted back.
-    // So at candle i, chikou = close[i] but drawn at position i - displacement.
-    // Since we're building results indexed by time, at time[i] we show the
-    // close from time[i + displacement] (looking ahead in the data).
-    const chikou = i + displacement < len ? candles[i + displacement].close : null;
+    // Standard Ichimoku: Chikou at position i shows the CURRENT close (candles[i].close)
+    // plotted 26 bars to the LEFT. Equivalently, when aligned to the price series,
+    // at chart position i, Chikou shows the close from `displacement` bars AGO.
+    //
+    // BUG-017 FIX: Old code used `candles[i + displacement].close` — looking INTO THE FUTURE.
+    // This is look-ahead bias — makes backtests look accurate but is invalid for live trading.
+    // New code: `candles[i - displacement].close` — shows the close from 26 bars ago.
+    // This is the correct standard Ichimoku Chikou Span.
+    const chikou = i - displacement >= 0 ? candles[i - displacement].close : null;
 
     results[i] = {
       time: sanitizeTime(candles[i].time),

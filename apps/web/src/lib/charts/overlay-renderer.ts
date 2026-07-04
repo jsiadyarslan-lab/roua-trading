@@ -51,22 +51,42 @@ interface CachedEntry {
   sl: number;
   tp: number;
 }
-let _cachedFallbackEntry: CachedEntry | null = null;
+// BUG-007 FIX: Cache was keyed only by direction. When user switched symbol (BTC → ETH),
+// if both had same direction, OLD entry/SL/TP from BTC was shown on ETH.
+// Fix: key the cache by symbol+direction.
+let _cachedFallbackEntry: CachedEntry & { symbol?: string } | null = null;
 
-function getStableFallbackEntry(candles: CandleData[]): { entry: number; sl: number; tp: number; dir: string } {
+function getStableFallbackEntry(candles: CandleData[], currentSymbol?: string): { entry: number; sl: number; tp: number; dir: string } {
   // Use CLOSED candles only (exclude the forming candle)
   const closedCandles = candles.length > 1 ? candles.slice(0, -1) : candles;
 
   // Calculate CURRENT direction from closed candles
-  const last20 = closedCandles.slice(-20);
-  const ema9 = last20.slice(-9).reduce((s, x) => s + x.close, 0) / Math.min(9, last20.length);
-  const ema20 = last20.reduce((s, x) => s + x.close, 0) / last20.length;
+  // BUG-020 FIX: "EMA9" and "EMA20" were actually SMA (Simple Moving Average).
+  // Old code: last20.slice(-9).reduce((s, x) => s + x.close, 0) / Math.min(9, last20.length)
+  //   — this is SMA (equal weight to all periods). EMA gives more weight to recent prices.
+  // New code: proper EMA with SMA seed + exponential smoothing.
+  const last30 = closedCandles.slice(-30); // Need more candles for proper EMA seeding
+  const calcEMA = (values: number[], period: number): number => {
+    if (values.length < period) return values.reduce((s, v) => s + v, 0) / Math.max(1, values.length);
+    // Seed with SMA of first `period` values
+    let ema = values.slice(0, period).reduce((s, v) => s + v, 0) / period;
+    const k = 2 / (period + 1);
+    for (let i = period; i < values.length; i++) {
+      ema = values[i] * k + ema * (1 - k);
+    }
+    return ema;
+  };
+  const closes30 = last30.map(c => c.close);
+  const ema9 = calcEMA(closes30.slice(-15), 9);   // 15 candles for EMA9
+  const ema20 = calcEMA(closes30, 20);              // 30 candles for EMA20
   const currentDir = ema9 > ema20 ? 'long' : 'short';
 
-  // If we have a cached entry and the direction hasn't changed → KEEP IT
-  // The lines should NOT move just because a candle closed. They only move
-  // when the market direction actually reverses (EMA crossover).
-  if (_cachedFallbackEntry && _cachedFallbackEntry.dir === currentDir) {
+  // If we have a cached entry AND both direction AND symbol match → KEEP IT
+  // BUG-007 FIX: also check symbol — otherwise BTC's entry shows on ETH chart
+  // when both have same direction.
+  if (_cachedFallbackEntry
+      && _cachedFallbackEntry.dir === currentDir
+      && _cachedFallbackEntry.symbol === currentSymbol) {
     return { entry: _cachedFallbackEntry.entry, sl: _cachedFallbackEntry.sl, tp: _cachedFallbackEntry.tp, dir: _cachedFallbackEntry.dir };
   }
 
@@ -74,14 +94,14 @@ function getStableFallbackEntry(candles: CandleData[]): { entry: number; sl: num
   const entry = closedCandles[closedCandles.length - 1].close;
   const atr = closedCandles.length >= 14 ? (() => {
     const sl2 = closedCandles.slice(-14);
-    const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
+    const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.low, Math.abs(c.high - sl2[i - 1].close), Math.abs(c.low - sl2[i - 1].close))); /* BUG-019 FIX: use prevClose not current close */
     return trs.reduce((s, v) => s + v, 0) / trs.length;
   })() : entry * 0.01;
 
   const sl = currentDir === 'long' ? entry - atr * 1.5 : entry + atr * 1.5;
   const tp = currentDir === 'long' ? entry + atr * 2.5 : entry - atr * 2.5;
 
-  _cachedFallbackEntry = { dir: currentDir, entry, sl, tp };
+  _cachedFallbackEntry = { dir: currentDir, entry, sl, tp, symbol: currentSymbol };
   return { entry, sl, tp, dir: currentDir };
 }
 
@@ -94,6 +114,9 @@ export function resetFallbackEntryCache(): void {
 export interface OverlayInput {
   candles: CandleData[];
   overlays: Record<string, boolean>;
+  /** BUG-007: Symbol is required to key the fallback entry cache correctly.
+   *  Without it, switching from BTC to ETH (same direction) shows BTC's entry on ETH chart. */
+  symbol?: string;
   // Optional data from AI panel
   supportLevels?: { price: number; type: string; strength: string }[];
   resistanceLevels?: { price: number; type: string; strength: string }[];
@@ -194,7 +217,7 @@ function prepareOverlayContext(candles: CandleData[]) {
     const sl = closedCandles.slice(-_atrPeriod);
     const trs = sl.map((c, i) => i === 0
       ? c.high - c.low
-      : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low)
+      : Math.max(c.high - c.low, Math.abs(c.high - (sl[i - 1]?.close ?? c.close)), Math.abs(c.low - (sl[i - 1]?.close ?? c.close))) /* BUG-019 FIX: use prevClose */
     );
     return trs.reduce((s, v) => s + v, 0) / trs.length;
   })() : (closedCandles.length > 0 ? closedCandles[closedCandles.length - 1].close * 0.01 : 1);
@@ -998,7 +1021,7 @@ export function renderOverlays(
       // Fallback: Use STABLE cached entry (recalculated only on candle close)
       // This is the FIX for "dancing lines" — old code used lastPrice which
       // changed on every tick, causing the signature to change every tick.
-      const stable = getStableFallbackEntry(candles);
+      const stable = getStableFallbackEntry(candles, input.symbol);
       entry = stable.entry;
       sl = stable.sl;
       tp = stable.tp;
@@ -1653,6 +1676,11 @@ export function renderAnalysisOverlays(
   const registry = getOverlayRegistry();
   registry.init(series, removePriceLine ?? undefined);
 
+  // BUG-008 FIX: Acquire render lock — same as renderOverlays.
+  // Without this, concurrent calls to renderOverlays + renderAnalysisOverlays
+  // would mutate the same registry simultaneously → corrupted groups, double-attachment.
+  if (!registry.acquireRenderLock()) return;
+
   // FIX: Use shared prepareOverlayContext helper instead of duplicating
   const { closedCandles, atr } = prepareOverlayContext(candles);
 
@@ -1703,7 +1731,7 @@ export function renderAnalysisOverlays(
       entry = signal.entry; sl = signal.sl; tp = signal.tp; dir = signal.dir === 'BUY' ? 'long' : 'short';
     } else {
       // Use STABLE cached entry (same as renderOverlays)
-      const stable = getStableFallbackEntry(candles);
+      const stable = getStableFallbackEntry(candles, input.symbol);
       entry = stable.entry; sl = stable.sl; tp = stable.tp; dir = stable.dir;
     }
     // ATR/10 grid rounding — snap entry/SL/TP to prevent micro-jitter
@@ -1889,6 +1917,10 @@ export function renderAnalysisOverlays(
   } else {
     registry.clearType('liq');
   }
+
+  // BUG-008 FIX: Release the render lock acquired at the start of this function.
+  // Without this, the lock would be held forever, blocking all future renderOverlays calls.
+  registry.releaseRenderLock();
 }
 
 // ═══════════════════════════════════════════════════════════════════════

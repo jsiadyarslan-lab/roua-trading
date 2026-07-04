@@ -324,8 +324,19 @@ export class DrawingManager {
       }
 
       console.log(`[DrawingManager] Loaded ${this.drawings.size} drawings for ${currentKey} (${crossTfCount} cross-TF from ${this.loadedBuckets.size} buckets)`);
-    } catch {
-      // Corrupted data — start fresh
+    } catch (err: any) {
+      // BUG-016 FIX: Don't silently wipe corrupted data — rename it so it can be recovered.
+      // Old code: empty catch → next saveToStorage overwrites with empty → permanent data loss.
+      // New code: rename the corrupted key to .corrupted-{timestamp} and log a warning.
+      try {
+        const corruptedKey = getStorageKey(this.userId);
+        const backupKey = `${corruptedKey}.corrupted-${Date.now()}`;
+        const rawData = localStorage.getItem(corruptedKey);
+        if (rawData) {
+          localStorage.setItem(backupKey, rawData);
+          console.warn(`[DrawingManager] Corrupted drawings detected in ${corruptedKey}. Backed up to ${backupKey}. Error: ${err?.message || err}`);
+        }
+      } catch { /* localStorage access failed — nothing we can do */ }
     }
   }
 

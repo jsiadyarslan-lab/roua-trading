@@ -147,7 +147,7 @@ export class TrendLinePrimitive implements ISeriesPrimitive {
 
   attached(param: SeriesAttachedParameter): void { this._param = param; }
   detached(): void { this._param = null; }
-  updateAllViews(): void {}
+  updateAllViews(): void { /* BUG-006 FIX: was empty — updateData() was a no-op. Now requests redraw. */ if (this._param?.requestUpdate) this._param.requestUpdate(); }
   paneViews(): readonly IPrimitivePaneView[] { return [this._paneView] as const; }
 
   /** Update data in-place without recreating the primitive — prevents flickering */
@@ -314,7 +314,7 @@ export class HorizontalLinePrimitive implements ISeriesPrimitive {
 
   attached(param: SeriesAttachedParameter): void { this._param = param; }
   detached(): void { this._param = null; }
-  updateAllViews(): void {}
+  updateAllViews(): void { /* BUG-006 FIX: was empty — updateData() was a no-op. Now requests redraw. */ if (this._param?.requestUpdate) this._param.requestUpdate(); }
   paneViews(): readonly IPrimitivePaneView[] { return [this._paneView] as const; }
 
   /** Update data in-place without recreating the primitive — prevents flickering */
@@ -431,7 +431,7 @@ export class ShapePrimitive implements ISeriesPrimitive {
 
   attached(param: SeriesAttachedParameter): void { this._param = param; }
   detached(): void { this._param = null; }
-  updateAllViews(): void {}
+  updateAllViews(): void { /* BUG-006 FIX: was empty — updateData() was a no-op. Now requests redraw. */ if (this._param?.requestUpdate) this._param.requestUpdate(); }
   paneViews(): readonly IPrimitivePaneView[] { return [this._paneView] as const; }
 
   /** Update data in-place without recreating the primitive — prevents flickering */
@@ -555,7 +555,7 @@ export class FibonacciPrimitive implements ISeriesPrimitive {
 
   attached(param: SeriesAttachedParameter): void { this._param = param; }
   detached(): void { this._param = null; }
-  updateAllViews(): void {}
+  updateAllViews(): void { /* BUG-006 FIX: was empty — updateData() was a no-op. Now requests redraw. */ if (this._param?.requestUpdate) this._param.requestUpdate(); }
   paneViews(): readonly IPrimitivePaneView[] { return [this._paneView] as const; }
 
   /** Update data in-place without recreating the primitive — prevents flickering */
@@ -669,7 +669,7 @@ export class LabelPrimitive implements ISeriesPrimitive {
 
   attached(param: SeriesAttachedParameter): void { this._param = param; }
   detached(): void { this._param = null; }
-  updateAllViews(): void {}
+  updateAllViews(): void { /* BUG-006 FIX: was empty — updateData() was a no-op. Now requests redraw. */ if (this._param?.requestUpdate) this._param.requestUpdate(); }
   paneViews(): readonly IPrimitivePaneView[] { return [this._paneView] as const; }
 
   /** Update data in-place without recreating the primitive — prevents flickering */
@@ -769,7 +769,7 @@ export class ZonePrimitive implements ISeriesPrimitive {
 
   attached(param: SeriesAttachedParameter): void { this._param = param; }
   detached(): void { this._param = null; }
-  updateAllViews(): void {}
+  updateAllViews(): void { /* BUG-006 FIX: was empty — updateData() was a no-op. Now requests redraw. */ if (this._param?.requestUpdate) this._param.requestUpdate(); }
   paneViews(): readonly IPrimitivePaneView[] { return [this._paneView] as const; }
 
   /** Update data in-place without recreating the primitive — prevents flickering */
@@ -943,7 +943,7 @@ export class AlertMarkerPrimitive implements ISeriesPrimitive {
 
   attached(param: SeriesAttachedParameter): void { this._param = param; }
   detached(): void { this._param = null; }
-  updateAllViews(): void {}
+  updateAllViews(): void { /* BUG-006 FIX: was empty — updateData() was a no-op. Now requests redraw. */ if (this._param?.requestUpdate) this._param.requestUpdate(); }
   paneViews(): readonly IPrimitivePaneView[] { return [this._paneView] as const; }
 
   /** Update data in-place without recreating the primitive — prevents flickering */

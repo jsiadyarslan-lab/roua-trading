@@ -429,9 +429,17 @@ function extractFibLevels(candles: CandleData[], timeframe: MTFTimeframe): FibLe
   ];
 
   for (const fib of fibRatios) {
+    // BUG-018 FIX: Fibonacci retracement levels were INVERTED.
+    // Standard retracement in an UPTREND: 0% = low (start of move), 100% = high (end of move).
+    //   38.2% retrace = low + range * 0.382 (price retraces UP from low by 38.2% of the move).
+    // Old code: high - range * ratio (0% = high, 100% = low) — this is EXTENSION, not retracement.
+    // Standard retracement in a DOWNTREND: 0% = high, 100% = low.
+    //   38.2% retrace = high - range * 0.382 (price retraces DOWN from high by 38.2%).
+    // Old code: low + range * ratio (0% = low, 100% = high) — inverted.
+    // Fix: swap the formulas to match TradingView's Fib retracement tool.
     const price = isUptrend
-      ? high - range * fib.ratio
-      : low + range * fib.ratio;
+      ? low + range * fib.ratio    // Uptrend: 0% at low, 100% at high
+      : high - range * fib.ratio;  // Downtrend: 0% at high, 100% at low
     fibs.push({
       ratio: fib.ratio,
       price: Math.round(price * 100) / 100,

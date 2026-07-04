@@ -317,8 +317,8 @@
 - **Status:** FIXED
 - **Severity:** CRITICAL
 - **File:** `apps/api/src/modules/trading/trading.service.ts`
-- **Pattern (OPEN):** `if (isAutomatedPosition && isManualOrEmptyReason && !isSLTPClose) {`
-- **Pattern (FIXED):** `if (isAutomatedPosition && isManualOrEmptyReason && !isSLTPClose && !isUserInitiated) {`
+- **Pattern (OPEN):** if (isAutomatedPosition && isManualOrEmptyReason && !isSLTPClose) {
+- **Pattern (FIXED):** !isUserInitiated
 - **Description:** حارس V423 كان يحجب إغلاق صفقات حتى من المستخدم الحقيقي عبر الواجهة، لأنه لم يحتوِ على شرط `!isUserInitiated` الذي كان موجوداً في V237 فقط.
 - **Impact:** المستخدم لا يستطيع إغلاق صفقات آلية يدوياً قبل مرور 24 ساعة.
 - **Fix:** أُضيف `!isUserInitiated` لشرط V423. أُضيفت `_jitteredMinHours()` لمنع الإغلاق الجماعي.
@@ -328,8 +328,7 @@
 - **Status:** FIXED
 - **Severity:** CRITICAL
 - **File:** `apps/api/src/modules/ai/smart-executor/smart-executor.service.ts`
-- **Pattern (OPEN):** `const { sl: tfSL, tp: tfTP } = TIMEFRAME_RR\[brief\.timeframe`
-- **Pattern (FIXED):** `V427.*ATR.*H1.*atrMult`
+- **Pattern (FIXED):** ATR_MULT\[brief\.timeframe
 - **Description:** SL/TP محسوب كنسبة ثابتة (2%) من السعر بغض النظر عن الأصل. للفوركس تذبذبه 0.4% يومياً → 2% SL يستغرق 5 أيام للوصول. USD/JPY كان SL 7.1% = 14 يوماً.
 - **Impact:** صفقات M5 "قصيرة الأمد" تحتفظ لأيام بدل ساعات.
 - **Fix:** استبدال TIMEFRAME_RR بـ H1 ATR × مضاعف الإطار (M1=0.5×, M5=1.0×, M15=1.5×). TP=2×SL دائماً.
@@ -339,8 +338,8 @@
 - **Status:** FIXED
 - **Severity:** CRITICAL
 - **File:** `apps/api/src/modules/trading/services/unified-risk.service.ts`, `smart-executor.service.ts`
-- **Pattern (OPEN):** `BRENT` *(بدون hardblock بالاسم)*
-- **Pattern (FIXED):** `HARDBLOCKED.*BRENT`
+- **Pattern (OPEN):** isCommodityPair && \(currentPrice < 20
+- **Pattern (FIXED):** HARDBLOCKED
 - **Description:** OANDA يُرسل سعر 0.0003 لـ BRENT/USD (الصحيح ~$73-85). المعادلة: qty = riskAmount / 0.0003 = ملايين الوحدات. V421 كان يفحص فقط `price < 20` لكنه لم يكن كافياً.
 - **Impact:** خسارة -$704 في صفقة واحدة (2 يوليو 2026). -$92 في اليوم التالي.
 - **Fix:** حجب BRENT/USD بالاسم في unified-risk + smart-executor + lazic.types.
@@ -350,8 +349,8 @@
 - **Status:** FIXED
 - **Severity:** HIGH
 - **File:** `apps/api/src/modules/trading/services/unified-risk.service.ts:1417`
-- **Pattern (OPEN):** `return parseFloat\(quantityUnits\.toFixed\(8\)\)`
-- **Pattern (FIXED):** `Math\.floor\(quantityLots \/ step\) \* step`
+- **Pattern (OPEN):** return parseFloat\(quantityUnits\.toFixed\(8\)\)
+- **Pattern (FIXED):** Math\.floor\(quantityLots / step\)
 - **Description:** `_calculatePositionSize` كانت تعيد `quantityUnits` (e.g. 1000 لـ EUR/USD) بدل lots (0.01). الوكيل يفتح بـ 420,000 ADA بدل 0.01 lot.
 - **Impact:** أحجام صفقات ضخمة جداً → خسائر كبيرة على حسابات ورقية كبيرة.
 - **Fix:** إعادة lots مُقرَّبة لـ 0.01 step، حد أدنى 0.01.
@@ -361,8 +360,7 @@
 - **Status:** FIXED
 - **Severity:** HIGH
 - **File:** `apps/api/src/modules/ai/smart-executor/smart-executor.service.ts`, `signal-evaluator.service.ts`
-- **Pattern (OPEN):** `const isBuyAgainstBear.*\n.*if \(isBuyAgainstBear \|\| isSellAgainstBull\)`
-- **Pattern (FIXED):** `isChoppyMarket.*RANGE.*VOLATILE`
+- **Pattern (FIXED):** isChoppyMarket
 - **Description:** حارس V290 كان يحجب فقط BUY في BEAR وSELL في BULL، لكن لا يفعل شيئاً في RANGE/VOLATILE. السوق المتذبذب يُعيد الأسعار لنقطة البداية قبل وصول TP.
 - **Impact:** SMART: -$161 على 8 صفقات. AGENT: -$295 على 7 صفقات. كلها في يوم واحد.
 - **Fix:** أُضيف `isChoppyMarket = regime === RANGE || VOLATILE` → حجب كامل عند confidence ≥ 60%.
@@ -372,8 +370,7 @@
 - **Status:** FIXED
 - **Severity:** HIGH
 - **File:** `apps/api/src/agents/lazic/lazic.service.ts`
-- **Pattern (OPEN):** `councilAligned.*councilDir.*BUY.*obi\.signal.*BUY` *(اختياري فقط)*
-- **Pattern (FIXED):** `councilDir && councilDir !== obi\.signal`
+- **Pattern (FIXED):** councilDir && councilDir !== obi\.signal
 - **Description:** تحقق المجلس كان "اختيارياً" — يحسب `councilAligned` لكن لا يوقف التنفيذ. في سوق BULL، اللاسع يفتح SELL باستمرار لأن OBI يُنتج إشارات عكسية.
 - **Impact:** LASIC SELL: -$16 مقابل LASIC BUY: +$220 في نفس اليوم.
 - **Fix:** جُعل الفحص إلزامياً: إذا councilDir ≠ obi.signal → توقف تام.

@@ -32,12 +32,15 @@ Dockerfile
 # Documentation
 *.md
 !README.md
+!BUGS.md
 
-# Test files
+# Test files (but keep BUG-NNN regression tests — needed by /api/chart-bugs endpoint)
 **/__tests__
+!apps/web/src/lib/charts/__tests__
 **/*.test.ts
 **/*.test.tsx
 **/*.spec.ts
+!apps/web/src/lib/charts/__tests__/BUG-*.spec.ts
 **/*.spec.tsx
 coverage
 

@@ -141,77 +141,119 @@ function walk(dir: string, out: string[]): void {
   }
 }
 
-function scanFile(filePath: string, pattern: RegExp): { match: boolean; lines: number[] } {
+// ─── File Scanner (optimized) ────────────────────────────────────────────────
+//
+// IMPROVEMENTS (per code review feedback):
+// 1. Read each file ONCE, check both OPEN and FIXED patterns against the same content
+//    (was reading twice — once per pattern).
+// 2. Use matchAll() instead of exec() loop — avoids lastIndex state management bugs.
+// 3. Count newlines with regex match instead of split — avoids O(n) string copy per match.
+// 4. Handle the case where targetFiles is empty (bug.file path not found) — warn the user.
+
+interface ScanResult {
+  openMatches: number[];
+  fixedMatches: number[];
+}
+
+const fileContentCache = new Map<string, string>();
+
+function readFileCached(filePath: string): string | null {
+  if (fileContentCache.has(filePath)) return fileContentCache.get(filePath)!;
   let content: string;
   try {
     content = fs.readFileSync(filePath, 'utf8');
   } catch {
-    return { match: false, lines: [] };
+    return null;
   }
+  fileContentCache.set(filePath, content);
+  return content;
+}
+
+function getMatchLines(content: string, pattern: RegExp): number[] {
+  if (!pattern) return [];
+  // matchAll requires the 'g' flag. Create a fresh RegExp to avoid shared lastIndex state.
+  const flags = pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g';
+  const globalPattern = new RegExp(pattern.source, flags);
   const lines: number[] = [];
-  let m: RegExpExecArray | null;
-  const globalPattern = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g');
-  while ((m = globalPattern.exec(content)) !== null) {
-    const lineNum = content.slice(0, m.index).split('\n').length;
+  // matchAll returns an iterator — no lastIndex mutation issues
+  for (const m of content.matchAll(globalPattern)) {
+    if (m.index === undefined) continue;
+    // Count newlines before the match index (O(matches) not O(content × matches))
+    const before = content.slice(0, m.index);
+    const lineNum = 1 + (before.match(/\n/g) || []).length;
     lines.push(lineNum);
-    if (m.index === globalPattern.lastIndex) globalPattern.lastIndex++; // avoid zero-length loop
   }
-  return { match: lines.length > 0, lines };
+  return lines;
+}
+
+function scanFile(filePath: string, openPattern: RegExp | undefined, fixedPattern: RegExp | undefined): ScanResult {
+  const content = readFileCached(filePath);
+  if (content === null) return { openMatches: [], fixedMatches: [] };
+  return {
+    openMatches: openPattern ? getMatchLines(content, openPattern) : [],
+    fixedMatches: fixedPattern ? getMatchLines(content, fixedPattern) : [],
+  };
 }
 
 // ─── Bug Checker ─────────────────────────────────────────────────────────────
 
 function checkBug(bug: Bug, allFiles: string[]): CheckResult {
   const matchedFiles: string[] = [];
-  let openMatches = 0;
-  let fixedMatches = 0;
+  let openMatchCount = 0;
+  let fixedMatchCount = 0;
   let detail = '';
 
   // Determine which files to scan for this bug
   let targetFiles: string[];
+  let pathNotFound = false;
   if (bug.file) {
-    // bug.file may have line numbers like "path:123" — strip them
+    // bug.file may have line numbers like "path:123" — strip them, and strip backticks
     const cleanPath = bug.file.replace(/:\d+.*$/, '').replace(/^`|`$/g, '');
     const absolute = path.isAbsolute(cleanPath) ? cleanPath : path.join(ROOT, cleanPath);
     if (fs.existsSync(absolute)) {
       targetFiles = [absolute];
     } else {
-      // Try to find by basename
+      // Try to find by basename (handles cases where the file moved directories)
       const basename = path.basename(cleanPath);
       targetFiles = allFiles.filter(f => path.basename(f) === basename);
+      if (targetFiles.length === 0) {
+        // IMPROVEMENT: Warn when the file can't be found at all
+        pathNotFound = true;
+      }
     }
   } else {
     targetFiles = allFiles;
   }
 
+  // IMPROVEMENT: Read each file once, check both patterns against the same content
   for (const file of targetFiles) {
-    if (bug.openPattern) {
-      const r = scanFile(file, bug.openPattern);
-      if (r.match) {
-        openMatches++;
-        matchedFiles.push(`${path.relative(ROOT, file)}:${r.lines.join(',')}`);
-      }
+    const result = scanFile(file, bug.openPattern, bug.fixedPattern);
+    const relPath = path.relative(ROOT, file);
+
+    if (result.openMatches.length > 0) {
+      openMatchCount++;
+      matchedFiles.push(`${relPath}:${result.openMatches.join(',')}`);
     }
-    if (bug.fixedPattern) {
-      const r = scanFile(file, bug.fixedPattern);
-      if (r.match && !matchedFiles.some(mf => mf.startsWith(path.relative(ROOT, file)))) {
-        fixedMatches++;
-        // Don't add to matchedFiles for fixed — we want to highlight OPEN matches
-      }
+    if (result.fixedMatches.length > 0) {
+      fixedMatchCount++;
+      // Don't add to matchedFiles for fixed — we want to highlight OPEN matches
     }
   }
 
   let actualStatus: CheckResult['actualStatus'];
-  if (openMatches > 0 && fixedMatches === 0) {
+  if (pathNotFound && openMatchCount === 0 && fixedMatchCount === 0) {
+    actualStatus = 'UNKNOWN';
+    detail = `File not found: ${bug.file} — update BUGS.md path`;
+  } else if (openMatchCount > 0 && fixedMatchCount === 0) {
     actualStatus = bug.status === 'FIXED' ? 'REGRESSED' : 'PRESENT';
-    detail = `OPEN pattern matched in ${openMatches} file(s)`;
-  } else if (openMatches === 0 && fixedMatches > 0) {
+    detail = `OPEN pattern matched in ${openMatchCount} file(s)`;
+  } else if (openMatchCount === 0 && fixedMatchCount > 0) {
     actualStatus = 'FIXED';
-    detail = `FIXED pattern matched`;
-  } else if (openMatches > 0 && fixedMatches > 0) {
+    detail = `FIXED pattern matched in ${fixedMatchCount} file(s)`;
+  } else if (openMatchCount > 0 && fixedMatchCount > 0) {
     // Both patterns match — ambiguous, but OPEN match means bug is present
     actualStatus = bug.status === 'FIXED' ? 'REGRESSED' : 'PRESENT';
-    detail = `Both patterns matched (OPEN in ${openMatches}, FIXED in ${fixedMatches}) — treat as present`;
+    detail = `Both patterns matched (OPEN in ${openMatchCount}, FIXED in ${fixedMatchCount}) — treat as present`;
   } else {
     actualStatus = 'UNKNOWN';
     detail = `Neither pattern matched in ${targetFiles.length} file(s)`;

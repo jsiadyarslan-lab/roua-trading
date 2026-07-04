@@ -1754,11 +1754,31 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
     this.drawDot(ctx, a); this.drawDot(ctx, b); this.drawDot(ctx, c);
   }
 
+  // ── BUG-009 FIX: Harmonic price helper ───────────────
+  // Harmonic ratios (0.382, 0.886, 1.272, 1.618, etc.) must be applied
+  // in PRICE space, not pixel space. When the chart's price scale changes
+  // (zoom, autoscale), pixel-space ratios distort the pattern.
+  // This helper converts pixel Y → price, applies the ratio, converts back.
+  private harmonicY(fromPx: PixelPoint, toPx: PixelPoint, priceRatio: number): number {
+    try {
+      const fromPrice = this._series.coordinateToPrice(fromPx.y);
+      const toPrice = this._series.coordinateToPrice(toPx.y);
+      if (fromPrice === null || toPrice === null) throw new Error('null price');
+      const priceDiff = toPrice - fromPrice;
+      const newPrice = fromPrice + priceDiff * priceRatio;
+      const newPx = this._series.priceToCoordinate(newPrice);
+      if (newPx !== null) return newPx;
+    } catch { /* fall through to pixel fallback */ }
+    // Fallback: old pixel-space calculation (distorts on zoom, but better than nothing)
+    return fromPx.y + (toPx.y - fromPx.y) * priceRatio;
+  }
+
   // ── Cypher Pattern (3-point) ──────────────────────────
   private drawCypher(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, c: PixelPoint, _d?: any): void {
     // X=A, A=B, B=C, C projected (0.786 retracement of XA, then 1.272 extension)
-    const dx = c.x - a.x, dy = c.y - a.y;
-    const dPt = { x: c.x + dx * 0.272, y: c.y + dy * 0.272 };
+    const dx = c.x - a.x;
+    // BUG-009 FIX: price ratio in price space, not pixel space
+    const dPt = { x: c.x + dx * 0.272, y: this.harmonicY(a, c, 0.272) };
     ctx.beginPath();
     ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
     ctx.lineTo(c.x, c.y); ctx.lineTo(dPt.x, dPt.y);
@@ -1768,9 +1788,10 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
 
   // ── Bat Pattern (3-point) ─────────────────────────────
   private drawBat(ctx: CanvasRenderingContext2D, x: PixelPoint, a: PixelPoint, b: PixelPoint, _d?: any): void {
-    const dx = a.x - x.x, dy = a.y - x.y;
-    const cPt = { x: a.x + dx * 0.382, y: a.y + dy * 0.886 };
-    const dPt = { x: a.x + dx * 0.886, y: a.y + dy * 0.886 };
+    const dx = a.x - x.x;
+    // BUG-009 FIX: price ratios in price space
+    const cPt = { x: a.x + dx * 0.382, y: this.harmonicY(x, a, 0.886) };
+    const dPt = { x: a.x + dx * 0.886, y: this.harmonicY(x, a, 0.886) };
     ctx.beginPath();
     ctx.moveTo(x.x, x.y); ctx.lineTo(a.x, a.y);
     ctx.lineTo(b.x, b.y); ctx.lineTo(cPt.x, cPt.y);
@@ -1782,9 +1803,10 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
 
   // ── Butterfly Pattern (3-point) ───────────────────────
   private drawButterfly(ctx: CanvasRenderingContext2D, x: PixelPoint, a: PixelPoint, b: PixelPoint, _d?: any): void {
-    const dx = a.x - x.x, dy = a.y - x.y;
-    const cPt = { x: a.x - dx * 0.786, y: a.y + dy * 0.786 };
-    const dPt = { x: a.x - dx * 1.272, y: a.y + dy * 1.272 };
+    const dx = a.x - x.x;
+    // BUG-009 FIX: price ratios in price space
+    const cPt = { x: a.x - dx * 0.786, y: this.harmonicY(x, a, -0.786) };
+    const dPt = { x: a.x - dx * 1.272, y: this.harmonicY(x, a, -1.272) };
     ctx.beginPath();
     ctx.moveTo(x.x, x.y); ctx.lineTo(a.x, a.y);
     ctx.lineTo(b.x, b.y); ctx.lineTo(cPt.x, cPt.y);
@@ -1795,9 +1817,10 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
 
   // ── Crab Pattern (3-point) ────────────────────────────
   private drawCrab(ctx: CanvasRenderingContext2D, x: PixelPoint, a: PixelPoint, b: PixelPoint, _d?: any): void {
-    const dx = a.x - x.x, dy = a.y - x.y;
-    const cPt = { x: a.x + dx * 0.382, y: a.y + dy * 0.618 };
-    const dPt = { x: a.x + dx * 1.618, y: a.y + dy * 1.618 };
+    const dx = a.x - x.x;
+    // BUG-009 FIX: price ratios in price space
+    const cPt = { x: a.x + dx * 0.382, y: this.harmonicY(x, a, 0.618) };
+    const dPt = { x: a.x + dx * 1.618, y: this.harmonicY(x, a, 1.618) };
     ctx.beginPath();
     ctx.moveTo(x.x, x.y); ctx.lineTo(a.x, a.y);
     ctx.lineTo(b.x, b.y); ctx.lineTo(cPt.x, cPt.y);
@@ -1808,9 +1831,10 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
 
   // ── Shark Pattern (3-point) ───────────────────────────
   private drawShark(ctx: CanvasRenderingContext2D, x: PixelPoint, a: PixelPoint, b: PixelPoint, _d?: any): void {
-    const dx = a.x - x.x, dy = a.y - x.y;
-    const cPt = { x: a.x + dx * 0.886, y: a.y + dy * 0.886 };
-    const dPt = { x: a.x + dx * 1.13, y: a.y + dy * 1.13 };
+    const dx = a.x - x.x;
+    // BUG-009 FIX: price ratios in price space
+    const cPt = { x: a.x + dx * 0.886, y: this.harmonicY(x, a, 0.886) };
+    const dPt = { x: a.x + dx * 1.13, y: this.harmonicY(x, a, 1.13) };
     ctx.beginPath();
     ctx.moveTo(x.x, x.y); ctx.lineTo(a.x, a.y);
     ctx.lineTo(b.x, b.y); ctx.lineTo(cPt.x, cPt.y);
@@ -1822,8 +1846,11 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
   // ── Three Drives (3-point) ────────────────────────────
   private drawThreeDrives(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, c: PixelPoint, _d?: any): void {
     // Three drives pattern: 3 peaks at 1.272 extension
-    const drive1 = { x: a.x + (b.x - a.x) * 0.618, y: a.y + (b.y - a.y) * 0.618 };
-    const drive2 = { x: b.x + (c.x - b.x) * 0.618, y: b.y + (c.y - b.y) * 0.618 };
+    const dx1 = b.x - a.x;
+    const dx2 = c.x - b.x;
+    // BUG-009 FIX: price ratios in price space
+    const drive1 = { x: a.x + dx1 * 0.618, y: this.harmonicY(a, b, 0.618) };
+    const drive2 = { x: b.x + dx2 * 0.618, y: this.harmonicY(b, c, 0.618) };
     ctx.beginPath();
     ctx.moveTo(a.x, a.y); ctx.lineTo(drive1.x, drive1.y);
     ctx.lineTo(b.x, b.y); ctx.lineTo(drive2.x, drive2.y);
@@ -1836,8 +1863,9 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
   private drawWolfWave(ctx: CanvasRenderingContext2D, p1: PixelPoint, p2: PixelPoint, p3: PixelPoint, _d?: any): void {
     // Wolf wave: 5-point pattern with target line
     const dx = p2.x - p1.x;
-    const p4 = { x: p3.x + dx * 0.5, y: p3.y + (p2.y - p1.y) * 0.5 };
-    const p5 = { x: p3.x + dx, y: p1.y };
+    // BUG-009 FIX: price ratios in price space
+    const p4 = { x: p3.x + dx * 0.5, y: this.harmonicY(p1, p2, 0.5) };
+    const p5 = { x: p3.x + dx, y: p1.y }; // p5 targets p1's price level
     ctx.beginPath();
     ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
     ctx.lineTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y);
@@ -1852,13 +1880,14 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
 
   // ── Elliott Impulse (2-point) ─────────────────────────
   private drawElliottImpulse(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
-    const dx = b.x - a.x, dy = b.y - a.y;
-    // 5-wave impulse
+    const dx = b.x - a.x;
+    // BUG-009 FIX: price ratios in price space (was dy = b.y - a.y in pixels)
+    // 5-wave impulse — each wave's Y is computed via harmonicY for price-space accuracy
     const waves = [
-      { x: a.x + dx * 0.236, y: a.y + dy * 0.382 },
-      { x: a.x + dx * 0.382, y: a.y + dy * 0.236 },
-      { x: a.x + dx * 0.618, y: a.y + dy * 0.786 },
-      { x: a.x + dx * 0.764, y: a.y + dy * 0.618 },
+      { x: a.x + dx * 0.236, y: this.harmonicY(a, b, 0.382) },
+      { x: a.x + dx * 0.382, y: this.harmonicY(a, b, 0.236) },
+      { x: a.x + dx * 0.618, y: this.harmonicY(a, b, 0.786) },
+      { x: a.x + dx * 0.764, y: this.harmonicY(a, b, 0.618) },
       { x: b.x, y: b.y },
     ];
     ctx.beginPath(); ctx.moveTo(a.x, a.y);

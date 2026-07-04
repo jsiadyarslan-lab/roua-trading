@@ -1,11 +1,13 @@
 # Roua Trading — Chart Bug Prevention Pipeline
 #
-# This workflow runs on every PR that touches chart-related code.
-# It does TWO things:
-#   1. verify-bugs.ts — checks BUGS.md against the codebase (catches regressions)
-#   2. run-regression-tests.ts — runs all BUG-NNN.spec.ts tests (catches new bugs)
+# This workflow runs on every PR that touches any code.
+# It does THREE things:
+#   1. check-registry.ts — FAILS if code changed but BUGS.md was NOT updated
+#   2. verify-bugs.ts — FAILS if any FIXED bug has REGRESSED
+#   3. run-regression-tests.ts — FAILS if any regression test fails
 #
 # A PR is BLOCKED if:
+#   - Code files (.ts/.tsx) changed but BUGS.md was not updated (CONTRIBUTING.md rule)
 #   - Any bug marked FIXED in BUGS.md has REGRESSED (OPEN pattern matches again)
 #   - Any regression test fails
 #
@@ -18,14 +20,10 @@ name: Chart Bug Prevention
 on:
   pull_request:
     paths:
-      - 'apps/web/src/lib/charts/**'
-      - 'apps/web/src/components/charts/**'
-      - 'apps/web/src/hooks/useChart*.ts'
-      - 'apps/web/src/hooks/usePositionsStore.ts'
-      - 'apps/web/src/hooks/useMarketStore.ts'
+      - '**/*.ts'
+      - '**/*.tsx'
       - 'BUGS.md'
-      - 'scripts/verify-bugs.ts'
-      - 'scripts/run-regression-tests.ts'
+      - 'scripts/**'
   push:
     branches: [main]
     paths:
@@ -34,6 +32,19 @@ on:
       - 'BUGS.md'
 
 jobs:
+  check-registry:
+    name: Check BUGS.md was updated
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Check if code changes are accompanied by BUGS.md updates
+        run: npx tsx scripts/check-registry.ts --base origin/${{ github.base_ref }} --head HEAD
+
   verify-bugs:
     name: Verify Bug Registry (catch regressions)
     runs-on: ubuntu-latest

@@ -134,10 +134,11 @@
 - **Fix:** `renderAnalysisOverlays` must also acquire the render lock, or use a separate registry.
 
 ### BUG-009: Harmonic patterns calculated in PIXEL space, not price/time space
-- **Status:** OPEN
+- **Status:** FIXED
 - **Severity:** CRITICAL
 - **File:** `apps/web/src/lib/charts/DrawingRenderer.ts:1756-1826`
-- **Pattern (OPEN):** drawBat|drawButterfly|drawCrab|drawShark` using `dx = a.x - x.x` (pixel coords)
+- **Pattern (OPEN):** const dx = a\.x - x\.x, dy = a\.y - x\.y;` using `dx = a.x - x.x` (pixel coords)
+- **Pattern (FIXED):** BUG-009 FIX
 - **Description:** Harmonic ratios (0.382, 0.886, etc.) are applied to PIXEL coordinates, not price/time. When the chart's price scale changes (zoom, autoscale), the pattern distorts. The ratios are meaningless in pixel space.
 - **Impact:** Drawn harmonic patterns distort on zoom. Ratios don't match the actual pattern definition.
 - **Fix:** Rewrite all harmonic drawing functions to operate in price/time space using `series.coordinateToPrice()` and `chart.timeScale().coordinateToTime()`.

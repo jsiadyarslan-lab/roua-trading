@@ -4,6 +4,24 @@ import { ensureAuth, isNestJsId } from '@/lib/api-fetch'
 import { useAuthStore } from '@/lib/auth-store'
 import { calculatePortfolioMargin } from '@/lib/margin-calculator'
 
+// V431: Get correct contractSize per symbol (mirrors backend getSymbolMetadata)
+// - Crypto (BTC/USDT, ETH/USDT): contractSize=1 (1 lot = 1 unit)
+// - Forex (EUR/USD, GBP/USD): contractSize=100000 (1 lot = 100,000 units)
+// - Gold (XAU/USD): contractSize=100 (1 lot = 100 oz)
+// - Silver (XAG/USD): contractSize=5000 (1 lot = 5,000 oz)
+// - Oil (WTI/USD, BRENT/USD): contractSize=1000 (1 lot = 1,000 barrels)
+// - Indices (US30, NAS100, SPX500): contractSize=1
+function getContractSize(symbol: string): number {
+  const s = (symbol || '').toUpperCase()
+  if (s.includes('/USDT') || s.includes('/BTC') || s.endsWith('USDT')) return 1       // crypto
+  if (s === 'XAU/USD' || s === 'XAUUSD') return 100                                  // gold
+  if (s === 'XAG/USD' || s === 'XAGUSD') return 5000                                 // silver
+  if (s === 'WTI/USD' || s === 'WTIUSD' || s === 'BRENT/USD' || s === 'BRENTUSD') return 1000 // oil
+  if (s.startsWith('US30') || s.startsWith('NAS100') || s.startsWith('SPX500') ||
+      s.startsWith('GER30') || s.startsWith('UK100')) return 1                        // indices
+  return 100000                                                                       // forex default
+}
+
 interface Position {
   id?: string
   /** DB UUID — used by close buttons to route through NestJS instead of Alpaca */
@@ -404,17 +422,20 @@ export const usePositionsStore = create<PositionsState>()(
       const isLong = p.side === 'long' || p.side === 'LONG' || p.side === 'BUY'
 
       // حساب P&L غير المحقق
+      // V431: p.qty باللوتات — نحتاج × contractSize للحصول على القيمة الحقيقية
       let unrealizedPnl = 0
       let unrealizedPnlPct = 0
+      const cs = getContractSize(p.symbol)  // contractSize لهذا الرمز
       if (p.avgEntryPrice > 0) {
         const diff = isLong
           ? currentPrice - p.avgEntryPrice
           : p.avgEntryPrice - currentPrice
-        unrealizedPnl = diff * p.qty
+        unrealizedPnl = diff * p.qty * cs
         unrealizedPnlPct = p.avgEntryPrice > 0 ? (diff / p.avgEntryPrice) * 100 : 0
       }
 
-      const marketValue = currentPrice * p.qty
+      // V431: marketValue = currentPrice × qty × contractSize (القيمة الإسمية الكاملة)
+      const marketValue = currentPrice * p.qty * cs
       changed = true
 
       return { ...p, currentPrice, unrealizedPnl, unrealizedPnlPct, marketValue }
@@ -1570,8 +1591,12 @@ export const usePositionsStore = create<PositionsState>()(
             // so removing them means NO positions are ever shown.
             // The source filter (smart_executor/agent/auto_paper) is also removed — these are
             // legitimate trade sources, not phantom trades.
-            // Skip positions with trade value < $1 (dust/phantom)
-            if (qty * entryPrice < 1) return false
+            // V431: استخدم notional value (qty × contractSize × entryPrice) بدل qty × entryPrice
+            // لأن qty الآن باللوتات (0.30 مثلاً)، فلتر qty × entryPrice سيرفض صفقات حقيقية
+            // مثال: 0.30 lots × 1.42 = $0.43 (يرفضها) لكن 0.30 × 100000 × 1.42 = $42,600 (يقبلها)
+            const cs = getContractSize(p.symbol)
+            const notionalValue = qty * cs * entryPrice
+            if (notionalValue < 1) return false
             // Skip positions where symbol is numeric or invalid
             if (/^\d+$/.test(p.symbol?.split('/')[0] || '')) return false
             return true
@@ -1664,8 +1689,10 @@ export const usePositionsStore = create<PositionsState>()(
           // Skip phantom positions with near-zero entry price
           const entryPrice = Number(p.avgEntryPrice ?? p.entryPrice ?? 0)
           if (entryPrice <= 0 && qty > 0) return false
-          // Skip dust positions (trade value < $1)
-          if (qty * entryPrice < 1) return false
+          // V431: استخدم notional value بدل qty × entryPrice (نفس إصلاح مسار NestJS)
+          const csAlpaca = getContractSize(p.symbol)
+          const notionalAlpaca = qty * csAlpaca * entryPrice
+          if (notionalAlpaca < 1) return false
           return true
         })
 

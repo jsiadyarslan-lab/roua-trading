@@ -3608,6 +3608,15 @@ export class SmartExecutorService implements OnModuleDestroy {
         return result;
       }
 
+      // V430 HARDBLOCK: BRENT/USD محجوب كلياً حتى إشعار آخر
+      // OANDA يُرسل ~0.0003 بدل السعر الحقيقي ~$73-85
+      // سبّب خسارة -$704 في صفقة واحدة (2 يوليو 2026)
+      if (brief.pair === 'BRENT/USD' || brief.pair === 'BRENT_USD') {
+        result.error = `HARDBLOCKED: ${brief.pair} — بيانات OANDA خاطئة، محجوب حتى إشعار آخر`;
+        this.logger.warn(`🚨 HARDBLOCK: ${brief.pair} — سعر OANDA غير موثوق`);
+        return result;
+      }
+
       // V421 FIX: Sanity check on commodity prices.
       // BRENT/USD and WTI/USD must be priced in $50-$200/barrel range.
       // If price source returns wrong values (e.g. $0.000257 instead of $85),

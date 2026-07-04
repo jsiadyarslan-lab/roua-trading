@@ -349,6 +349,22 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
       };
     }
 
+    // V430 HARDBLOCK: أزواج محجوبة بسبب بيانات خاطئة من المصدر
+    // BRENT/USD: OANDA يُرسل ~0.0003 بدل ~$73-85 → خسارة -$704 في يوم واحد
+    if (['BRENT/USD', 'BRENT_USD'].some(b =>
+      signal.symbol?.toUpperCase() === b.toUpperCase())) {
+      this.logger.error(
+        `🚨 HARDBLOCK in assessRisk: ${signal.symbol} — بيانات OANDA خاطئة، محجوب`,
+      );
+      return {
+        canTrade: false,
+        reason: `HARDBLOCKED: ${signal.symbol} — سعر OANDA غير موثوق (~0.0003)`,
+        positionSize: 0, stopLoss: signal.stopLoss, takeProfit: signal.takeProfit,
+        riskRewardRatio: 0, riskScore: 100, dailyPnL: 0,
+        dailyLossPercent: 0, openPositionsCount: 0, portfolioValue: 0,
+      };
+    }
+
     // Use UNIFIED portfolio valuation (not agent-only)
     const portfolioValue = await this._getPortfolioValue(userId);
     const dailyPnL = await this._getCombinedDailyPnL(userId);

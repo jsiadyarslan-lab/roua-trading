@@ -20,11 +20,33 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 const ROOT = process.cwd();
-const BUGS_MD = path.join(ROOT, 'BUGS.md');
-const SCAN_DIRS = [
-  path.join(ROOT, 'apps/web/src'),
-  path.join(ROOT, 'apps/api/src'),
-];
+// BUGS.md is at the repository root, but process.cwd() in production (Railway)
+// may return apps/web. Search multiple candidate locations.
+function findBugsMd(): string | null {
+  const candidates = [
+    path.join(ROOT, 'BUGS.md'),
+    path.join(ROOT, '..', 'BUGS.md'),
+    path.join(ROOT, '..', '..', 'BUGS.md'),
+    path.join(ROOT, 'apps', 'web', 'BUGS.md'), // in case cwd is repo root
+  ];
+  for (const c of candidates) {
+    try { if (fs.existsSync(c)) return c; } catch {}
+  }
+  return null;
+}
+
+function findScanDirs(): string[] {
+  const candidates = [
+    path.join(ROOT, 'apps/web/src'),
+    path.join(ROOT, '..', 'apps/web/src'),
+    path.join(ROOT, 'apps/api/src'),
+    path.join(ROOT, '..', 'apps/api/src'),
+  ];
+  return candidates.filter(p => { try { return fs.existsSync(p); } catch { return false; } });
+}
+
+const BUGS_MD = findBugsMd();
+let SCAN_DIRS = findScanDirs();
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -282,9 +304,13 @@ export async function GET(request: Request) {
 
   try {
     // 1. Parse BUGS.md
-    if (!fs.existsSync(BUGS_MD)) {
+    if (!BUGS_MD) {
       return NextResponse.json(
-        { success: false, error: 'BUGS.md not found at repository root' },
+        {
+          success: false,
+          error: 'BUGS.md not found. Searched: cwd=' + ROOT + ', and parent dirs. In production, BUGS.md may not be included in the build output.',
+          cwd: ROOT,
+        },
         { status: 500 }
       );
     }

@@ -36,6 +36,19 @@ npx tsx scripts/verify-bugs.ts
 ```
 Tells you which bugs are still present (so you don't "rediscover" them) and which have regressed (so you know your fixes are intact).
 
+Options:
+- `--verbose` — show all files scanned per bug
+- `--bug BUG-001` — check only one specific bug
+
+### Running regression tests
+```bash
+npx tsx scripts/run-regression-tests.ts
+```
+Runs all `BUG-NNN.spec.ts` files. Options:
+- `--verbose` — show full test output on success
+- `--bug BUG-001` — run only one test (by ID prefix)
+- `--timeout 30000` — set per-test timeout in ms (default: 10000)
+
 ### When you discover a new bug
 1. Add an entry to `BUGS.md` with the next available `BUG-NNN` ID
 2. Fill in: severity, file location, OPEN pattern (regex), description, impact

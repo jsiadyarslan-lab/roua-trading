@@ -30,6 +30,8 @@ import * as path from 'node:path';
 const ROOT = path.resolve(__dirname, '..');
 const TEST_DIRS = [
   path.join(ROOT, 'apps/web/src/lib/charts/__tests__'),
+  // BUG-038: Added API-side regression tests directory
+  path.join(ROOT, 'apps/api/src/modules/trading/services/__tests__'),
 ];
 
 const DEFAULT_TIMEOUT_MS = 10_000;

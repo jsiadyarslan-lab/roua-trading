@@ -581,3 +581,81 @@
 - **Pattern (FIXED):** BUG-C10 FIX.*hour-granularity
 - **Description:** Cache key used date-only (YYYY-MM-DD). Two requests on same day = same key, even if 12 hours apart. Chart "refresh" returned stale data.
 - **Fix:** Changed to hour-granularity bucketing: Math.floor(timestamp / 3_600_000).
+
+---
+
+## Position Sizing & Multi-Executor Consistency Bugs (BUG-038 to BUG-043)
+
+> Added in audit #5 after deep analysis of how the three executors (Smart Executor / Agent / Lazic) compute and send position size.
+
+### BUG-038: Lazic hardcoded contractSize breaks gold/silver/oil/indices sizing
+- **Status:** FIXED
+- **Severity:** CRITICAL
+- **File:** `apps/api/src/agents/lazic/lazic.service.ts:594`
+- **Pattern (OPEN):** `const contractSize = isCrypto \? 1 : 100000;`
+- **Pattern (FIXED):** BUG-038 FIX.*getSymbolMetadata
+- **Description:** Lazic computed `contractSize` as a binary hardcoded value: `1` for crypto, `100000` for everything else. This silently produced wrong sizes for every non-crypto, non-forex symbol: XAU/USD (correct=100, used=100,000 → rawLots 1000× too small → always fell to 0.01 floor), XAG/USD (correct=5,000, used=100,000 → 20× too small), WTI/USD (correct=1,000, used=100,000 → 100× too small), indices like US30/NAS100/SPX500 (correct=1, used=100,000 → 100,000× too small). Net effect: Lazic essentially opened minimum 0.01 lot for all metals/energy/indices regardless of `riskPerTradePct`. The P&L engine read back via `getSymbolMetadata` so the notional looked correct, but the lot count was capped at the floor.
+- **Impact:** Lazic risk-budget was effectively bypassed for XAU/XAG/WTI/indices. Even with `riskPerTradePct=3%` and a $10,000 balance ($300 risk budget), Lazic always opened 0.01 lot. On $1,000 real OANDA account this means a XAU/USD trade would be 0.01 × 100 oz × $2,000 = $20 notional — far below the intended $300 risk budget.
+- **Fix:** Replace hardcoded binary with `const contractSize = getSymbolMetadata(symbol).contractSize;` (imported from `../../modules/trading/services/symbol-metadata`). This routes through the same shared registry used by Smart Executor and Agent.
+- **Commit:** (filled after push)
+- **Test:** (regression test to be added)
+
+### BUG-039: Agent SL/TP re-snap used fixed % instead of structure-based (BUG-028)
+- **Status:** FIXED
+- **Severity:** HIGH
+- **File:** `apps/api/src/agents/autonomous-trader/agent.service.ts:1748-1767`
+- **Pattern (OPEN):** `const \{ sl, tp \} = TIMEFRAME_RR\[brief\.timeframe\]`
+- **Pattern (FIXED):** BUG-039 FIX.*استخدم هيكل السوق
+- **Description:** When the Agent detected stale SL/TP (TP or SL on the wrong side of live price), it recomputed via the fixed `TIMEFRAME_RR` percentages (M30=2.5%, H1=3%, H4=3%, D1=5%, W1=7%). This is the same fixed-% approach that BUG-028 fixed for Smart Executor and Lazic — it places SL at an arbitrary distance from price, not at a real market structure level. The Agent was the only executor that did NOT use `calculateStructureBasedSLTP`.
+- **Impact:** Agent positions had SL placed at fixed-% distances, making them vulnerable to price noise — same root cause as the 78% losing trades issue that BUG-028 addressed for Smart Executor.
+- **Fix:** Added structure-based SL/TP calculation as Tier 1, falling back to TIMEFRAME_RR fixed % as Tier 2 if structure calculation fails (e.g., insufficient candles, exchange API error). Fetches candles via `exchangeService.getHistoricalData()` with the appropriate interval for the brief's timeframe.
+- **Commit:** (filled after push)
+- **Test:** (regression test to be added)
+
+### BUG-040: Lazic structure-based SL gated to crypto only
+- **Status:** FIXED
+- **Severity:** HIGH
+- **File:** `apps/api/src/agents/lazic/lazic.service.ts:477`
+- **Pattern (OPEN):** `if \(isCrypto\) \{[\s\S]{0,200}calculateStructureBasedSLTP`
+- **Pattern (FIXED):** _fetchRecentOandaCandles
+- **Description:** BUG-028 added structure-based SL to Lazic, but the implementation gated it behind `if (isCrypto)` — meaning forex, metals, indices, and energy pairs always fell through to the fixed-% fallback (0.05% for forex). 0.05% SL on EUR/USD = 0.00005 price distance = 0.5 pip — narrower than typical OANDA spread (1-2 pips). Result: SL was hit immediately on most forex Lazic trades.
+- **Impact:** Lazic on forex/metals was effectively unusable — SL hit by spread noise on entry. Combined with BUG-038 (wrong contractSize), Lazic forex/metals trades were both mis-sized AND had unviable SL.
+- **Fix:** Removed the `isCrypto` gate. Added `_fetchRecentOandaCandles()` to fetch M15 candles from OANDA v3 REST API for forex/metals/indices/energy. The structure-based SL now runs for all asset classes with appropriate per-class parameters (crypto: 0.3%-5% SL, minRR=2.0; forex/metals: 0.1%-2% SL, minRR=1.5). Also raised the fixed-% fallback for forex from 0.05% to 0.15% to be wider than typical spread.
+- **Commit:** (filled after push)
+- **Test:** (regression test to be added)
+
+### BUG-041: Lazic bypassed UnifiedRiskService.validateOrder
+- **Status:** FIXED
+- **Severity:** HIGH
+- **File:** `apps/api/src/agents/lazic/lazic.service.ts:422`
+- **Pattern (OPEN):** `await this\.tradingService\.placeOrder\([^)]*\)` (without preceding validateOrder call)
+- **Pattern (FIXED):** this\.unifiedRisk\.validateOrder
+- **Description:** Lazic called `TradingService.placeOrder()` directly, bypassing `OrderDispatcherService.submitOrder()` (which Smart Executor and Agent use). This meant Lazic trades skipped `UnifiedRiskService.validateOrder()` — no SL/RR check, no balance check, no max position size check, no daily drawdown check, no open positions count check, no kill-switch check. Lazic had its own internal limits (maxDailyTrades, maxOpenPositions, cooldown) but these were Redis-based counters, not the same risk pipeline as the other executors.
+- **Impact:** A Lazic trade could open during a kill-switch state, exceed max position size, or push past daily drawdown limit — none of which the other executors would allow. Risk inconsistency between executors.
+- **Fix:** Injected `UnifiedRiskService` into `LazicService` constructor. Added explicit `validateOrder()` call before `placeOrder()`. The `placeOrder()` call now passes `skipRiskCheck: true` to avoid running the same check twice (TradingService would otherwise re-run validateOrder). If validateOrder rejects, Lazic records a `risk_rejected` metric and returns without placing the order.
+- **Commit:** (filled after push)
+- **Test:** (regression test to be added)
+
+### BUG-042: OANDA wire path expects UNITS but executors send LOTS
+- **Status:** FIXED
+- **Severity:** CRITICAL
+- **File:** `apps/api/src/modules/trading/trading.service.ts:2730` (around `_executeOnExchange`)
+- **Pattern (OPEN):** `result = await exchange\.createMarketOrder\([^,]+,\s*[^,]+,\s*request\.quantity`
+- **Pattern (FIXED):** _unitsForOanda
+- **Description:** All three executors (Smart Executor, Agent, Lazic) compute `quantity` in LOTS (0.01, 0.30, 1.50...). This works for MT5 (native lots), Binance (crypto contractSize=1, so lots=units), and paper-trading (no exchange call). But OANDA's v20 API (via CCXT) expects UNITS, with a 1-unit minimum for forex. Sending 0.01 lot to CCXT-OANDA on EUR/USD → 0.01 unit → REJECTED. This made real OANDA forex/metals/energy/indices trading effectively non-functional — the system would silently fail to place orders on OANDA for any non-crypto symbol.
+- **Impact:** Users with real OANDA accounts could not actually trade forex/metals/indices via the bot. Paper trading worked (no exchange call). Crypto worked via Binance. But OANDA real-money trades for EUR/USD, XAU/USD, etc., would silently fail at the exchange step.
+- **Fix:** Added a conversion block in `_executeOnExchange()` that runs ONLY when `exchangeName === 'oanda'`: converts `request.quantity` (LOTS) → UNITS via `lotsToUnits(quantity, symbol)`, then uses the converted value (`execQuantity`) in `createMarketOrder()` / `createLimitOrder()` / SL+TP orders. Rejects orders where converted units < 1 (OANDA minimum) with a clear error message. The original `request.quantity` (in LOTS) is preserved in the DB for consistency with the P&L engine, which multiplies lots × contractSize on read.
+- **Commit:** (filled after push)
+- **Test:** (regression test to be added)
+
+### BUG-043: Agent used fixed risk % regardless of signal confidence
+- **Status:** FIXED
+- **Severity:** MEDIUM
+- **File:** `apps/api/src/modules/trading/services/unified-risk.service.ts:380` (in `assessRisk`)
+- **Pattern (OPEN):** `const riskPerTradePercent = config\.riskPerTradePercent \|\| this\.defaultRiskPerTradePercent;`
+- **Pattern (FIXED):** confidenceMultiplier
+- **Description:** The Agent's risk percent was a flat 1.5% (config default) regardless of brief confidence. A 95% confidence brief got the same position size as a 70% confidence brief (after the 65% minConfidence gate). The Smart Executor already had a 5-tier confidence multiplier (0.5× to 1.5×) — the Agent was missing this entirely. Confidence was passed through to `AutonomousTrade.confidence` for audit only, never used for sizing.
+- **Impact:** Suboptimal capital allocation — high-conviction Agent trades were under-sized, low-conviction trades (just above the 65% gate) were over-sized relative to their expected value.
+- **Fix:** Added the same 5-tier confidence multiplier used by Smart Executor: 95%+ → 1.5×, 85-94% → 1.25×, 75-84% → 1.0×, 65-74% → 0.75×, <65% → 0.5×. Applied as `riskPerTradePercent × confidenceMultiplier` with a hard cap at 3% (matching V428 absolute notional cap). Logs the multiplier application at debug level for transparency.
+- **Commit:** (filled after push)
+- **Test:** (regression test to be added)

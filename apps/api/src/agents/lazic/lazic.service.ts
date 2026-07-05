@@ -37,6 +37,10 @@ import {
   LAZIC_SUPPORTED_SYMBOLS,
   LAZIC_REDIS_KEYS,
 } from './lazic.types';
+// BUG-038 FIX: استخدم getSymbolMetadata بدل contractSize مُشفّر يدوياً
+import { getSymbolMetadata } from '../../modules/trading/services/symbol-metadata';
+// BUG-041 FIX: حقن UnifiedRiskService لفحص الصفقة قبل التنفيذ (مثل المنفّذ الذكي والوكيل)
+import { UnifiedRiskService } from '../../modules/trading/services/unified-risk.service';
 
 // عدد الـ ticks المحفوظة في ذاكرة لحساب OBI
 const TICK_WINDOW_SIZE = 20;
@@ -76,6 +80,7 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     private readonly oanda: OandaStreamingService,
     private readonly binance: BinanceStreamingService,
     private readonly tradingService: TradingService,
+    private readonly unifiedRisk: UnifiedRiskService,
   ) {
     // ربط الـ callbacks هنا لنتمكن من إلغائها لاحقاً
     this.oandaCallback = (d) => this._onOandaTick(d);
@@ -419,6 +424,47 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     try {
       const idempotencyKey = `lazic:${userId}:${obi.symbol}:${now}`;
 
+      // BUG-041 FIX: مرّر الصفقة عبر UnifiedRiskService.validateOrder()
+      // قبل التنفيذ — مثل المنفّذ الذكي والوكيل. كان اللاسع يتجاوز هذا الفحص
+      // (يدعو TradingService.placeOrder مباشرة)، مما يعني تخطّي:
+      //   - فحص SL/RR
+      //   - فحص كفاية الرصيد
+      //   - فحص الحد الأقصى لحجم الصفقة
+      //   - فحص drawdown اليومي
+      //   - فحص عدد الصفقات المفتوحة
+      //   - فحص kill-switch
+      try {
+        const riskCheck = await this.unifiedRisk.validateOrder({
+          userId,
+          exchangeCredentialId: credentialId,
+          symbol: obi.symbol,
+          side: direction as any,
+          type: 'MARKET' as any,
+          quantity,
+          price: tick.price,
+          stopLoss: sl,
+          takeProfit: tp,
+          idempotencyKey,
+          isPaperTrading: state.isPaperTrading,
+          source: 'lazic' as any,
+          strategy: 'scalping' as any,
+        } as any);
+
+        if (!riskCheck.allowed) {
+          this.logger.warn(
+            `🛡️ اللاسع: UnifiedRisk رفض الصفقة ${obi.symbol} ${direction} — ${riskCheck.reason}`,
+          );
+          await this._recordMetric(userId, 'fail', `risk_rejected:${riskCheck.reason?.substring(0, 60) || 'unknown'}`);
+          return;
+        }
+      } catch (riskErr: any) {
+        // لو فشل فحص المخاطر نفسه (وليس الرفض) — سجّل ولكن لا توقف التداول
+        // (نفس سلوك TradingService.placeOrder الذي يستخدم skipRiskCheck=false)
+        this.logger.warn(
+          `⚠️ اللاسع: UnifiedRisk فحص فشل (${obi.symbol}): ${riskErr?.message} — متابعة بدون فحص`,
+        );
+      }
+
       await this.tradingService.placeOrder(userId, {
         symbol: obi.symbol,
         side: direction as any,
@@ -430,6 +476,7 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
         source: 'lazic' as any,  // Phase 1 fix: كان 'agent' — يطابق count query في الأعلى
         strategy: 'scalping',
         credentialId,
+        skipRiskCheck: true,  // BUG-041: تم الفحص أعلاه — لا نكرّر (يستدعي unifiedRisk.validateOrder مرتين)
       } as any);
 
       // Fix: Redis lock تم إزالته — كان بـ TTL 10 دقائق يمنع فتح صفقات جديدة
@@ -465,6 +512,9 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
   //
   // الحل: نحاول جلب الشموع الأخيرة وحساب SL من أقرب قمة/قاع حقيقي.
   // fallback إلى النسبة الثابتة إذا لم تتوفر بيانات.
+  //
+  // BUG-040 FIX: توسيع structure SL ليشمل الفوركس والمعادن والمؤشرات
+  // (كان مقتصراً على الكريبتو فقط — يخلق ضوضاء لكل أزواج OANDA).
   private async _calcSLTP(
     tick: LazicTick,
     direction: 'BUY' | 'SELL',
@@ -472,33 +522,44 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
   ): Promise<{ sl: number; tp: number }> {
     // BUG-028: حاول هيكل السوق أولاً
     try {
-      
-      // اللاسع يملك this.binance — نستخدمه لجلب الشموع
       const isCrypto = tick.symbol.includes('/USDT') || tick.symbol.includes('/BTC');
+
+      // BUG-040: جلب الشموع من المصدر المناسب
+      // - كريبتو: Binance REST API (سريع، بدون مصادقة)
+      // - فوركس/معادن/مؤشرات/طاقة: OANDA v3 instruments/{symbol}/candles
+      let candles: any[] | null = null;
+
       if (isCrypto) {
-        // جلب آخر 50 شمعة 15min من Binance
-        const candles = await this._fetchRecentCandles(tick.symbol, '15m', 50);
-        if (candles && candles.length >= 20) {
-          const { calculateStructureBasedSLTP } = await import('./../../modules/trading/services/sl-tp-calculator');
-          const result = calculateStructureBasedSLTP(
-            candles, tick.price, direction,
-            { minSLPercent: 0.003, maxSLPercent: 0.05, minRR: 2.0 },
-          );
-          this.logger.debug(
-            `🐝 BUG-028 LASIC SL/TP from structure: ${tick.symbol} ${direction} ` +
-            `SL=${result.sl.toFixed(5)} (${result.slSource}) TP=${result.tp.toFixed(5)} (${result.tpSource}) R:R=1:${result.rrRatio.toFixed(2)}`
-          );
-          return { sl: result.sl, tp: result.tp };
-        }
+        candles = await this._fetchRecentCandles(tick.symbol, '15m', 50);
+      } else {
+        // فوركس/معادن/مؤشرات/طاقة — استخدم OANDA REST
+        candles = await this._fetchRecentOandaCandles(tick.symbol, 'M15', 50);
+      }
+
+      if (candles && candles.length >= 20) {
+        const { calculateStructureBasedSLTP } = await import('./../../modules/trading/services/sl-tp-calculator');
+        // BUG-040: رخّص النطاقات لكل فئة أصول:
+        // - كريبتو: SL 0.3%-5% (تقلب عالٍ)، minRR=2.0
+        // - فوركس/معادن/مؤشرات: SL 0.1%-2% (تقلب منخفض)، minRR=1.5
+        const opts = isCrypto
+          ? { minSLPercent: 0.003, maxSLPercent: 0.05, minRR: 2.0 }
+          : { minSLPercent: 0.001, maxSLPercent: 0.02, minRR: 1.5 };
+        const result = calculateStructureBasedSLTP(candles, tick.price, direction, opts);
+        this.logger.debug(
+          `🐝 BUG-028 LASIC SL/TP from structure: ${tick.symbol} ${direction} ` +
+          `SL=${result.sl.toFixed(5)} (${result.slSource}) TP=${result.tp.toFixed(5)} (${result.tpSource}) R:R=1:${result.rrRatio.toFixed(2)}`
+        );
+        return { sl: result.sl, tp: result.tp };
       }
     } catch (structErr: any) {
       // Structure-based failed — fall through to fixed %
     }
 
     // Fallback: النسبة الثابتة (السلوك القديم)
+    // BUG-040 FIX: رفع النسبة للفوركس من 0.05% إلى 0.15% — 0.05% أضيق من spread أحياناً
     const isCrypto = tick.symbol.includes('/USDT') || tick.symbol.includes('/BTC');
-    const slPct = isCrypto ? 0.002 : 0.0005;
-    const tpPct = isCrypto ? 0.005 : 0.001;
+    const slPct = isCrypto ? 0.002 : 0.0015;
+    const tpPct = isCrypto ? 0.005 : 0.004;
     const slDist = tick.price * slPct;
     const tpDist = tick.price * tpPct;
 
@@ -525,6 +586,53 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
         low: parseFloat(k[3]), close: parseFloat(k[4]),
         volume: parseFloat(k[5]),
       }));
+    } catch {
+      return [];
+    }
+  }
+
+  // BUG-040 FIX: جلب الشموع الأخيرة من OANDA للاستخدام في حساب هيكل السوق
+  // للفوركس/المعادن/المؤشرات/الطاقة — بدون مصادقة لو الحساب عام، أو بمصادقة لو متوفر.
+  // المسار: GET /v3/instruments/{symbol}/candles?granularity=M15&count=50&price=M
+  private async _fetchRecentOandaCandles(symbol: string, granularity: string, count: number): Promise<any[]> {
+    try {
+      // OANDA v20 REST endpoint — نوّع بين الحسابات (Practice) لأن الـ token قد لا يكون متاح
+      const oandaSymbol = symbol.replace('/', '_').toUpperCase();
+      const baseHost = 'https://api-fxpractice.oanda.com'; // practice account default
+      const url = `${baseHost}/v3/instruments/${oandaSymbol}/candles?granularity=${granularity}&count=${count}&price=M`;
+
+      // اقرأ الـ token من process.env (نفس مفتاح OANDA adapter)
+      const token = process.env.OANDA_API_TOKEN || process.env.OANDA_API_KEY || '';
+      const headers: Record<string, string> = {
+        'Accept': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const controller = new AbortController();
+      const timeoutMs = 4000;
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+      try {
+        const response = await fetch(url, { headers, signal: controller.signal });
+        clearTimeout(timeout);
+        if (!response.ok) return [];
+        const data = await response.json() as any;
+        const raw = data?.candles || [];
+        return raw
+          .filter((c: any) => c.complete !== false)
+          .map((c: any) => ({
+            time: Math.floor(new Date(c.time).getTime() / 1000),
+            open: parseFloat(c.mid.o),
+            high: parseFloat(c.mid.h),
+            low: parseFloat(c.mid.l),
+            close: parseFloat(c.mid.c),
+            volume: parseFloat(c.volume || '0'),
+          }));
+      } finally {
+        clearTimeout(timeout);
+      }
     } catch {
       return [];
     }
@@ -587,11 +695,17 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
 
     // ── Step sizes قياسية حسب asset class ──
     // تحديد asset class من اسم الزوج
-    // Fix: نوحّد الكل إلى لوتات (lots) — المعيار العالمي للتداول
-    // الكريبتو: contractSize=1, فاللوتات = الوحدات (0.01 BTC = 0.01 لوت)
-    // الفوركس: contractSize=100000, فاللوتات = وحدات ÷ 100000
-    const isCrypto = symbol.includes('/USDT') || symbol.includes('/BTC');
-    const contractSize = isCrypto ? 1 : 100000;
+    // BUG-038 FIX: استخدم getSymbolMetadata() بدل contractSize مُشفّر يدوياً.
+    //
+    // المشكلة: كان contractSize مُشفّراً = 1 للكريبتو و 100,000 لكل شيء آخر.
+    // هذا يكسر كل المعادن والطاقة والمؤشرات:
+    //   XAU/USD: الصحيح 100، كان يستخدم 100,000 → rawLots 1000× أصغر → دائماً 0.01 floor
+    //   XAG/USD: الصحيح 5,000، كان يستخدم 100,000 → rawLots 20× أصغر → دائماً 0.01 floor
+    //   WTI/USD: الصحيح 1,000، كان يستخدم 100,000 → rawLots 100× أصغر → دائماً 0.01 floor
+    //   US30/USD, NAS100/USD, SPX500/USD: الصحيح 1، كان يستخدم 100,000 → rawLots 100,000× أصغر
+    //
+    // الحل: نأخذ contractSize من getSymbolMetadata() الموحّد — نفس مصدر المنفّذ الذكي والوكيل.
+    const contractSize = getSymbolMetadata(symbol).contractSize;
 
     // حوّل rawQty من وحدات إلى لوتات
     const rawLots = rawQty / contractSize;

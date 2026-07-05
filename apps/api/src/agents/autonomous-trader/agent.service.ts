@@ -1737,6 +1737,9 @@ export class AutonomousTraderAgentService implements OnModuleInit {
           // Brief levels were calculated at creation time. By execution time,
           // price may have moved significantly. If TP is on the wrong side
           // of the current entry price, recalculate from current price.
+          //
+          // BUG-039 FIX: استخدم هيكل السوق (BUG-028) عند الحاجة لإعادة احتساب SL/TP،
+          // بدلاً من النسبة الثابتة TIMEFRAME_RR فقط. هذا يقلّل ضوضاء SL عند الإغلاق.
           let execEntryPrice = brief.entryPrice;
           let execStopLoss = brief.stopLoss;
           let execTakeProfit = brief.takeProfit;
@@ -1756,14 +1759,57 @@ export class AutonomousTraderAgentService implements OnModuleInit {
               if (tpIsWrong || slIsWrong) {
                 this.logger.warn(
                   `🧠 SL/TP stale for ${brief.pair} ${brief.direction}: ` +
-                  `entry=${execEntryPrice} SL=${execStopLoss} TP=${execTakeProfit} — recalculating from live price`
+                  `entry=${execEntryPrice} SL=${execStopLoss} TP=${execTakeProfit} — recalculating from live price`,
                 );
-                execStopLoss = isBuy
-                  ? execEntryPrice * (1 - sl)
-                  : execEntryPrice * (1 + sl);
-                execTakeProfit = isBuy
-                  ? execEntryPrice * (1 + tp)
-                  : execEntryPrice * (1 - tp);
+
+                // BUG-039: حاول هيكل السوق أولاً (أكثر دقة من النسبة الثابتة)
+                let structApplied = false;
+                try {
+                  // حدّد الـ interval المناسب للـ timeframe
+                  const tfToInterval: Record<string, string> = {
+                    'M30': 'M30', 'H1': 'H1', 'H4': 'H4', 'D1': 'D1', 'W1': 'W1',
+                  };
+                  const interval = tfToInterval[brief.timeframe] || 'H1';
+                  const candles = await this.exchangeService.getHistoricalData(
+                    brief.pair, interval,
+                    new Date(Date.now() - 100 * 24 * 60 * 60 * 1000), // ~100 days
+                    new Date(),
+                  );
+                  if (candles && candles.length >= 20) {
+                    // BUG-039: حوّل UnifiedCandleDto → CandleData (الـ shapes متطابقة)
+                    const candleData = candles.map(c => ({
+                      time: Math.floor(new Date(c.timestamp as any).getTime() / 1000),
+                      open: c.open, high: c.high, low: c.low, close: c.close,
+                      volume: c.volume,
+                    }));
+                    const { calculateStructureBasedSLTP } = await import('../../modules/trading/services/sl-tp-calculator');
+                    const structResult = calculateStructureBasedSLTP(
+                      candleData, execEntryPrice,
+                      isBuy ? 'BUY' : 'SELL',
+                      { minSLPercent: 0.005, maxSLPercent: 0.08, minRR: 1.5 },
+                    );
+                    execStopLoss = structResult.sl;
+                    execTakeProfit = structResult.tp;
+                    structApplied = true;
+                    this.logger.debug(
+                      `🧠 BUG-039: Structure SL/TP applied for ${brief.pair} ${brief.direction}: ` +
+                      `SL=${execStopLoss.toFixed(5)} (${structResult.slSource}) TP=${execTakeProfit.toFixed(5)} R:R=1:${structResult.rrRatio.toFixed(2)}`,
+                    );
+                  }
+                } catch (structErr: any) {
+                  // فشل الهيكل — نكمل للنسبة الثابتة
+                  this.logger.debug(`🧠 BUG-039: Structure SL/TP failed for ${brief.pair}: ${structErr?.message} — using TIMEFRAME_RR fallback`);
+                }
+
+                if (!structApplied) {
+                  // Fallback: TIMEFRAME_RR الثابت (السلوك القديم)
+                  execStopLoss = isBuy
+                    ? execEntryPrice * (1 - sl)
+                    : execEntryPrice * (1 + sl);
+                  execTakeProfit = isBuy
+                    ? execEntryPrice * (1 + tp)
+                    : execEntryPrice * (1 - tp);
+                }
               }
             }
           } catch { /* use brief levels as fallback */ }

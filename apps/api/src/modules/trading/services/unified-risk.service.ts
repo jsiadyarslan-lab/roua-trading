@@ -377,7 +377,35 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
     const maxPositionSizePercent = config.maxPositionSizePercent || this.maxPositionSizePercent;
     const maxDailyLossPercent = config.maxDailyLossPercent || this.maxDailyLossPercent;
     const maxOpenPositions = config.maxOpenPositions || this.agentMaxOpenPositions;
-    const riskPerTradePercent = config.riskPerTradePercent || this.defaultRiskPerTradePercent;
+    let riskPerTradePercent = config.riskPerTradePercent || this.defaultRiskPerTradePercent;
+
+    // BUG-043 FIX: مضاعف الثقة للوكيل (مثل المنفّذ الذكي)
+    // كان الوكيل يستخدم 1.5% ثابت بغضّ النظر عن قوة الإشارة. الآن:
+    //   95%+  → 1.5× | 85-94% → 1.25× | 75-84% → 1.0× | 65-74% → 0.75× | <65% → 0.5×
+    // لكن لو الثقة <65% الـ Agent أصلاً يرفضها (gate في agent.service.ts:1694)，
+    // فعملياً النطاق الفعلي هو 65-100% → 0.75× إلى 1.5×.
+    const confidenceMultiplier = (() => {
+      const conf = signal.confidence ?? 70;
+      if (conf >= 95) return 1.50;
+      if (conf >= 85) return 1.25;
+      if (conf >= 75) return 1.00;
+      if (conf >= 65) return 0.75;
+      return 0.50;
+    })();
+    const originalRiskPercent = riskPerTradePercent;
+    riskPerTradePercent = riskPerTradePercent * confidenceMultiplier;
+    // Hard cap: لا تتجاوز 3% مطلقاً (V428 absolute notional cap)
+    const AGENT_RISK_HARD_CAP = 3.0;
+    if (riskPerTradePercent > AGENT_RISK_HARD_CAP) {
+      riskPerTradePercent = AGENT_RISK_HARD_CAP;
+    }
+    if (confidenceMultiplier !== 1.0) {
+      this.logger.debug(
+        `🛡️ BUG-043: Agent confidence multiplier applied — conf=${signal.confidence}% ` +
+        `× ${confidenceMultiplier} = risk% ${originalRiskPercent}% → ${riskPerTradePercent.toFixed(3)}% ` +
+        `(capped at ${AGENT_RISK_HARD_CAP}%)`,
+      );
+    }
 
     // Position sizing
     // V431: Returns { units, lots } — units for risk checks, lots for OrderDispatcher

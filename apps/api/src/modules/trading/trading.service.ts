@@ -16,7 +16,7 @@ import { ExchangeService } from '../exchange/exchange.service';
 // REMOVED: RiskManagerService — deprecated, replaced by UnifiedRiskService (V219)
 import { UnifiedRiskService } from './services/unified-risk.service';
 import { AuditService } from '../../audit/audit.service';
-import { getSymbolMetadata, AssetClass, calculateMargin } from './services/symbol-metadata';
+import { getSymbolMetadata, AssetClass, calculateMargin, lotsToUnits } from './services/symbol-metadata';
 import * as ccxt from 'ccxt';
 import * as crypto from 'crypto';
 import {
@@ -2735,6 +2735,45 @@ export class TradingService {
         };
       }
 
+      // ═══════════════════════════════════════════════════════════════
+      // BUG-042 FIX: OANDA expects UNITS, but all our executors send LOTS.
+      //
+      // PROBLEM: Smart Executor, Agent, and Lazic all compute quantity in LOTS
+      // (0.01, 0.30, 1.50...) because that's the universal convention for MT5
+      // and crypto exchanges (where contractSize=1, so LOTS=units).
+      // However, OANDA's v20 API expects UNITS (minimum 1 unit for forex).
+      // Sending 0.01 lot to CCXT-OANDA → 0.01 unit → REJECTED (below 1-unit min).
+      //
+      // FIX: For OANDA exchange only, convert LOTS → UNITS using the symbol's
+      // contractSize from getSymbolMetadata(). This makes the LOTS-based
+      // pipeline work with OANDA without touching every executor.
+      //
+      // MT5 path is already handled above (ExecutionGateway uses lots natively).
+      // Binance path uses contractSize=1 so LOTS=UNITS — no conversion needed.
+      // Paper-trading path doesn't go through CCXT — no conversion needed.
+      // ═══════════════════════════════════════════════════════════════
+      if (exchangeName.toLowerCase() === 'oanda') {
+        const meta = getSymbolMetadata(request.symbol);
+        const units = lotsToUnits(request.quantity, request.symbol);
+        // الحد الأدنى لـ OANDA = 1 وحدة. لو أقل → ارفض بدل إرسال طلب مرفوض.
+        if (units < 1) {
+          this.logger.warn(
+            `⚠️ BUG-042: OANDA order rejected — ${request.quantity} lots of ${request.symbol} = ${units} units < 1 (OANDA minimum).`,
+          );
+          return {
+            success: false,
+            error: `حجم الصفقة (${request.quantity} لوت = ${units} وحدة) أقل من الحد الأدنى لـ OANDA (1 وحدة). زِد حجم المخاطرة أو اختر زوجاً آخر.`,
+          };
+        }
+        this.logger.debug(
+          `🔄 BUG-042: OANDA conversion — ${request.quantity} lots × ${meta.contractSize} contractSize = ${units} units (${request.symbol})`,
+        );
+        // استبدل request.quantity محلياً — لا نعدّل الـ request الأصلي (لأن DB تخزن lots)
+        // ننشئ نسخة محلّية فقط لتمريرها للـ CCXT
+        (request as any)._originalLots = request.quantity;
+        (request as any)._unitsForOanda = units;
+      }
+
       // FIX: Check available balance before executing SELL orders.
       // This prevents "Insufficient balance" errors when closing positions.
       // The database may show a higher quantity than what's actually available
@@ -2868,6 +2907,9 @@ export class TradingService {
 
       let result: any;
 
+      // BUG-042: OANDA تتوقع UNITS بدل LOTS — استخدم القيمة المحوّلة لو متوفرة
+      const execQuantity = (request as any)._unitsForOanda ?? request.quantity;
+
       switch (request.type) {
         case 'MARKET':
           // Pass client_order_id to Alpaca if idempotencyKey is provided
@@ -2883,7 +2925,7 @@ export class TradingService {
           result = await exchange.createMarketOrder(
             request.symbol,
             request.side.toLowerCase(),
-            request.quantity,
+            execQuantity,
             undefined,
             params,
           );
@@ -2896,7 +2938,7 @@ export class TradingService {
               error: t('trading_service.limit_required'),
             };
           }
-          
+
           const limitParams: any = {};
           if (request.idempotencyKey) {
             if (exchangeName.toLowerCase() === 'alpaca') {
@@ -2909,7 +2951,7 @@ export class TradingService {
           result = await exchange.createLimitOrder(
             request.symbol,
             request.side.toLowerCase(),
-            request.quantity,
+            execQuantity,
             request.price,
             limitParams,
           );
@@ -2926,6 +2968,7 @@ export class TradingService {
       // Same logic as binance.adapter.ts — after market order fills, place
       // STOP_LOSS_LIMIT and TAKE_PROFIT_LIMIT as separate exchange orders.
       // Non-blocking: if placement fails, PositionMonitor (V228) is the fallback.
+      // BUG-042: استخدم execQuantity (UNITS لـ OANDA، LOTS لغيره)
       if (request.stopLoss && request.stopLoss > 0) {
         try {
           const closeSide = request.side === 'BUY' ? 'sell' : 'buy';
@@ -2933,7 +2976,7 @@ export class TradingService {
             request.symbol,
             'STOP_LOSS_LIMIT',
             closeSide,
-            request.quantity,
+            execQuantity,
             request.stopLoss,
             { stopPrice: request.stopLoss, type: 'STOP_LOSS_LIMIT' },
           );
@@ -2949,7 +2992,7 @@ export class TradingService {
             request.symbol,
             'TAKE_PROFIT_LIMIT',
             closeSide,
-            request.quantity,
+            execQuantity,
             request.takeProfit,
             { stopPrice: request.takeProfit, type: 'TAKE_PROFIT_LIMIT' },
           );

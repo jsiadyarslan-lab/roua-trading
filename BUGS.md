@@ -385,3 +385,110 @@
 - **Description:** كل المنفّذين كانوا يحسبون SL كنسبة ثابتة من السعر (0.2% كريبتو، 2% منفذ ذكي، إلخ). هذا يضع SL في مكان عشوائي — داخل ضوضاء السعر أو بعيد عن أي مستوى تقني. السبب الجذري لخسارة معظم الصفقات: الإشارة صحيحة في الاتجاه، لكن SL يُضرب من ضوضاء قبل التحقيق.
 - **Impact:** 78% من صفقات اللاسع خاسرة. معدل نجاح المنفذ الذكي 22%. كلها بسبب SL عشوائي.
 - **Fix:** إنشاء `sl-tp-calculator.ts` يحسب SL/TP من أقرب swing high/low (هيكل السوق الفعلي) مع هامش ATR. مطبّق على المنفذ الذكي (3-tier fallback: structure → ATR → fixed %) واللاسع (structure → fixed %). المجلس الاستراتيجي يُركّب الهيكل عند التنفيذ (في المنفذ) لأن `_calculateLevels` ليست async.
+
+### BUG-029: forceFresh=true bypasses 30-min Redis cache ($2,100/month waste)
+- **Status:** FIXED
+- **Severity:** CRITICAL (cost)
+- **File:** `apps/api/src/modules/ai/strategic-council/strategic-council.service.ts:1590`
+- **Pattern (OPEN):** forceFresh:\s*true
+- **Pattern (FIXED):** forceFresh:\s*false
+- **Description:** forceFresh=true was deleting the Redis cache before every call, making the V289 30-min cache useless. ~137,000 AI calls/day instead of ~34,000.
+- **Fix:** Changed to forceFresh: false. Cache is now effective.
+
+### BUG-030: V408 Confidence Calibration disabled (default 1.0)
+- **Status:** FIXED
+- **Severity:** CRITICAL (financial)
+- **File:** `apps/api/src/modules/ai/services/strategic-council.service.ts:775`
+- **Pattern (OPEN):** V408_CALIBRATION_FACTOR \|\| '1\.0'
+- **Pattern (FIXED):** V408_CALIBRATION_FACTOR \|\| '0\.5'
+- **Description:** AI claims 75% confidence but actual win rate is 36%. Calibration factor should be 0.5 to match reality. Was disabled (1.0).
+- **Fix:** Changed default to 0.5.
+
+### BUG-031: Agent uses getActiveBriefs instead of getConsolidatedBriefs
+- **Status:** FIXED
+- **Severity:** HIGH
+- **File:** `apps/api/src/agents/autonomous-trader/agent.service.ts:1578`
+- **Pattern (OPEN):** getActiveBriefs\(\)
+- **Pattern (FIXED):** getConsolidatedBriefs\(\)
+- **Description:** Agent was using raw briefs (no consolidation), causing flip-flop when M30=BUY and H1=SELL for same pair.
+- **Fix:** Changed to getConsolidatedBriefs().
+
+### BUG-032: _parseVote fails on Arabic negation ("لا أنصح بالشراء" = BUY!)
+- **Status:** FIXED
+- **Severity:** HIGH
+- **File:** `apps/api/src/modules/ai/services/ai-orchestrator.service.ts:799`
+- **Pattern (OPEN):** لا أنصح.*أنصح\s*(?:بـ)?(?:الشراء
+- **Pattern (FIXED):** BUG-032.*negation
+- **Description:** "لا أنصح بالشراء" was parsed as BUY because the regex matched "أنصح بالشراء" inside the negated phrase.
+- **Fix:** Added top-level negation check that inverts the parsed direction.
+
+### BUG-033: Vote accuracy feedback loop broken (no learning)
+- **Status:** FIXED
+- **Severity:** CRITICAL
+- **File:** `apps/api/src/modules/ai/council-intelligence/trade-journal.service.ts:340`
+- **Pattern (FIXED):** BUG-033 FIX.* pending-keys
+- **Description:** _triggerVoteAccuracyUpdate wrote to council-accuracy:update:{id} but never added the key to council-accuracy:pending-keys. processPendingUpdates read from pending-keys (which was always empty). The learning loop was broken.
+- **Fix:** Added the key to the pending-keys set after writing the data.
+
+### BUG-034: PRICE_SANITY only covers 10 of 23 pairs
+- **Status:** FIXED
+- **Severity:** MEDIUM
+- **File:** `apps/api/src/modules/ai/strategic-council/strategic-council.service.ts:1440`
+- **Pattern (FIXED):** BUG-034 FIX.* ALL 23 supported
+- **Description:** 13 pairs had no price sanity check. Hallucinated prices could produce broken SL/TP.
+- **Fix:** Extended to cover all 23 supported pairs.
+
+### BUG-035: Master strategy only tries 4 models (misses free ones)
+- **Status:** FIXED
+- **Severity:** MEDIUM
+- **File:** `apps/api/src/modules/ai/services/strategic-council.service.ts:878`
+- **Pattern (OPEN):** strategyModels = \['glm', 'ollama', 'bedrock', 'groq'\]
+- **Pattern (FIXED):** strategyModels = \['glm', 'ollama', 'bedrock', 'groq', 'gemini', 'mistral', 'nvidia', 'cloudflare'\]
+- **Description:** Gemini, Mistral, NVIDIA, Cloudflare were never tried for master strategy generation.
+- **Fix:** Added 4 more models (including free ones).
+
+### BUG-036: M1 briefs expire in 1 minute (before next 15-min session)
+- **Status:** FIXED
+- **Severity:** MEDIUM
+- **File:** `apps/api/src/modules/ai/strategic-council/strategic-council.types.ts:158`
+- **Pattern (OPEN):** M1: 1 \* 60 \* 1000
+- **Pattern (FIXED):** M1: 5 \* 60 \* 1000
+- **Description:** M1 briefs expired after 1 minute, but the council runs every 15 minutes. Most M1 briefs were wasted.
+- **Fix:** Increased M1 expiry to 5 minutes.
+
+### BUG-037: Debug endpoint uses threshold 15 (actual is 55)
+- **Status:** FIXED
+- **Severity:** LOW
+- **File:** `apps/api/src/modules/ai/strategic-council/strategic-council.controller.ts:269`
+- **Pattern (OPEN):** consensusScore >= 15
+- **Pattern (FIXED):** consensusScore >= 55
+- **Description:** Debug showed "would create brief" at 15% confidence, but actual threshold is 55%.
+- **Fix:** Changed to 55 to match actual council threshold.
+
+### REVOLUTIONARY: Veto Power for Risk Expert
+- **Status:** FIXED
+- **Severity:** FEATURE
+- **File:** `apps/api/src/modules/ai/services/strategic-council.service.ts:785`
+- **Pattern (FIXED):** REVOLUTIONARY Veto
+- **Description:** If risk expert votes opposite to consensus with confidence >80%, consensus score is halved to reduce position size.
+
+### REVOLUTIONARY: Adversarial Council Member (Devil's Advocate)
+- **Status:** FIXED
+- **Severity:** FEATURE
+- **File:** `apps/api/src/modules/ai/services/strategic-council.service.ts:268`
+- **Pattern (FIXED):** REVOLUTIONARY.*Adversarial
+- **Description:** 9th AI role that argues AGAINST the consensus. Challenges bullish/bearish cases, looks for hidden risks and false breakouts.
+
+### REVOLUTIONARY: Confidence Decomposition
+- **Status:** FIXED
+- **Severity:** FEATURE
+- **File:** `apps/api/src/modules/ai/services/strategic-council.service.ts:809`
+- **Pattern (FIXED):** REVOLUTIONARY Confidence Decomposition
+- **Description:** Breaks down confidence into components (base + technical agreement) for transparency.
+
+### REVOLUTIONARY: Regime-Conditional Prompts
+- **Status:** FIXED
+- **Severity:** FEATURE
+- **File:** `apps/api/src/modules/ai/services/strategic-council.service.ts:283`
+- **Pattern (FIXED):** REVOLUTIONARY.*Regime-Conditional
+- **Description:** Market regime info is now explicitly injected into the adversarial role's prompt to challenge consensus based on current market conditions.

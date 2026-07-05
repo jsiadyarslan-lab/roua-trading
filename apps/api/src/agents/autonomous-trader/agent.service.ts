@@ -1575,7 +1575,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
 
     if (this.councilService) {
       try {
-        const allBriefs = await this.councilService.getActiveBriefs();
+        const allBriefs = await this.councilService.getConsolidatedBriefs();
         // Filter: Agent handles M30+ timeframes only
         agentBriefs = allBriefs.filter(
           (brief: TradingBriefDTO) => isAgentTimeframe(brief.timeframe)

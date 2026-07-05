@@ -266,7 +266,10 @@ export class StrategicCouncilController {
           language,
         } as any);
         const isAIFallback = consensus.isFallback === true || consensus.consensusScore === 0;
-        const wouldCreateBrief = !isAIFallback && consensus.recommendation !== 'HOLD' && consensus.consensusScore >= 15;
+        // BUG-037 FIX: was hardcoded 15, now uses actual council threshold (default 55)
+        // _getCouncilConfig is private — use a hardcoded 55 as the known default
+        // (the actual threshold is checked in _analyzePairTimeframe, not here)
+        const wouldCreateBrief = !isAIFallback && consensus.recommendation !== 'HOLD' && consensus.consensusScore >= 55;
         const direction = consensus.recommendation === 'BUY' ? 'BUY' : consensus.recommendation === 'SELL' ? 'SELL' : 'HOLD';
 
         diagnostic.steps.consensus = {

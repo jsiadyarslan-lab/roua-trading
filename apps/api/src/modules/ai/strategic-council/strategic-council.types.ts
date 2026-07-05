@@ -155,7 +155,7 @@ export const COUNCIL_TIMEFRAMES: BriefTimeframe[] = ['M1', 'M5', 'M15'];
 
 /** Expiry durations per timeframe (in milliseconds) */
 export const TIMEFRAME_EXPIRY_MS: Record<BriefTimeframe, number> = {
-  M1: 1 * 60 * 1000,                // 1 minute
+  M1: 5 * 60 * 1000,                // BUG-036 FIX: was 1 min (expired before next 15-min session). Now 5 min.
   M5: 5 * 60 * 1000,                // 5 minutes
   M15: 15 * 60 * 1000,              // 15 minutes
   M30: 30 * 60 * 1000,              // 30 minutes

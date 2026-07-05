@@ -343,9 +343,10 @@ export class TradeJournalService {
     result: string,
   ): Promise<void> {
     try {
+      const updateKey = `council-accuracy:update:${journal.id}`;
       // Queue the accuracy update in Redis for async processing
       await this.redis.set(
-        `council-accuracy:update:${journal.id}`,
+        updateKey,
         JSON.stringify({
           userId: journal.userId,
           journalId: journal.id,
@@ -357,6 +358,16 @@ export class TradeJournalService {
         }),
         300 * 1000, // 5 min TTL for queue processing
       );
+      // BUG-033 FIX: Add the key to the pending-keys set so processPendingUpdates can find it.
+      // The old code wrote the data key but NEVER added it to the pending set,
+      // so processPendingUpdates never found any updates — the learning loop was broken.
+      const pendingKey = 'council-accuracy:pending-keys';
+      const existing = await this.redis.get(pendingKey);
+      const keys: string[] = existing ? JSON.parse(existing) : [];
+      if (!keys.includes(updateKey)) {
+        keys.push(updateKey);
+        await this.redis.set(pendingKey, JSON.stringify(keys), 3600 * 1000); // 1h TTL
+      }
     } catch {
       // Non-critical — accuracy update can be deferred
     }

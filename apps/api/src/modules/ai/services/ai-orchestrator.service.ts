@@ -807,7 +807,25 @@ export class AIOrchestratorService {
     //
     // New approach: Weighted keyword scoring + stronger directional
     // detection + final conclusion extraction.
+    //
+    // BUG-032 FIX: Added Arabic negation check at the TOP.
+    // "لا أنصح بالشراء" was parsed as BUY because "أنصح بالشراء" matched.
+    // Now: negation prefix INVERTS the parsed direction.
     // ═══════════════════════════════════════════════════════════════
+
+    // BUG-032: Check for Arabic/English negation FIRST
+    const hasNegation = /(?:لا أنصح|لا يُنصح|لا أنصح\s*بـ|غير مستحسن|لا أوصي|لا ننصح|لا نوصي|I don't recommend|not recommended|avoid|do not (?:buy|sell)|don't (?:buy|sell)| advise against)/i.test(content);
+    // Track if negation applies to buy or sell specifically
+    const negatesBuy = hasNegation && /(?:لا أنصح\s*(?:بـ)?(?:الشراء|بالشراء|بشراء|شراء)|don't (?:recommend\s+)?buy|not recommended.*buy|avoid.*buy|advise against.*buy)/i.test(content);
+    const negatesSell = hasNegation && /(?:لا أنصح\s*(?:بـ)?(?:البيع|بالبيع|ببيع|بيع)|don't (?:recommend\s+)?sell|not recommended.*sell|avoid.*sell|advise against.*sell)/i.test(content);
+    if (negatesBuy && !negatesSell) {
+      this.logger.debug(`📋 Negation detected: "don't recommend buying" → SELL`);
+      return 'SELL';
+    }
+    if (negatesSell && !negatesBuy) {
+      this.logger.debug(`📋 Negation detected: "don't recommend selling" → BUY`);
+      return 'BUY';
+    }
 
     // Priority 1: Explicit DECISION: BUY/SELL/HOLD format (strongest signal)
     const decisionMatch = content.match(/DECISION:\s*(BUY|SELL|HOLD)/i);

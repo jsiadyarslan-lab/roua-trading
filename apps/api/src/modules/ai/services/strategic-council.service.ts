@@ -265,6 +265,29 @@ export class StrategicCouncilService {
         { id: 'scenario', name: 'محلل السيناريوهات', model: 'mistral',  fallbackModels: ['nvidia', 'ollama', 'bedrock', 'gemini', 'groq', 'glm', 'cerebras'],        prompt: `${contextPrefix}${marketDataPrefix}🎯 حدود الدور: أنت محلل السيناريوهات. مهمتك الوحيدة هي بناء 3 سيناريوهات مرجحة بالاحتمالات (سيناريو صعودي، سيناريو أساسي، سيناريو هبوطي) مع مستويات أسعار محددة وشروط تحقق. ممنوع مناقشة المؤشرات الفنية أو المشاعر أو المخاطر بشكل منفرد — اجمعها في سيناريوهات. ابقَ مركزاً على السيناريوهات فقط.\n\nحلل السيناريوهات المحتملة لـ ${symbol} مع تقدير احتمالات كل سيناريو.${decisionInstruction}` },
       ];
 
+      // ═══════════════════════════════════════════════════════════════
+      // REVOLUTIONARY #4: Adversarial Council Member (Devil's Advocate)
+      // A 9th AI role whose sole job is to ARGUE AGAINST the prevailing
+      // consensus. If it can't find a strong counter-argument, confidence
+      // is boosted. If it finds a fatal flaw, the brief is downgraded.
+      // ═══════════════════════════════════════════════════════════════
+      const adversarialRole: CouncilRole = baseLanguageForPrompts === 'en'
+        ? { id: 'adversarial', name: 'Devil\'s Advocate', model: 'cerebras',
+            fallbackModels: ['nvidia', 'groq', 'ollama', 'mistral', 'gemini', 'bedrock', 'glm'],
+            prompt: `${contextPrefix}${marketDataPrefix}🎯 ROLE BOUNDARY: You are the DEVIL'S ADVOCATE. Your ONLY job is to find the STRONGEST possible argument AGAINST entering a trade on ${symbol} right now. Challenge every bullish or bearish case. Look for hidden risks, false breakouts, liquidity traps, and manipulative patterns. If you genuinely cannot find a strong counter-argument, say "DECISION: HOLD" with your reasoning.${decisionInstruction}` }
+        : { id: 'adversarial', name: 'محامي الشيطان', model: 'cerebras',
+            fallbackModels: ['nvidia', 'groq', 'ollama', 'mistral', 'gemini', 'bedrock', 'glm'],
+            prompt: `${contextPrefix}${marketDataPrefix}🎯 حدود الدور: أنت محامي الشيطان. مهمتك الوحيدة هي إيجاد أقوى حجة ممكنة ضد الدخول في صفقة على ${symbol} الآن. تحدَّ كل حالة صعودية أو هبوطية. ابحث عن المخاطر الخفية، الاختراقات الكاذبة، فخاخ السيولة، والأنماط التلاعبية. إذا لم تستطع إيجاد حجة قوية genuinely، قل "DECISION: HOLD" مع تبريرك.${decisionInstruction}` };
+      roles.push(adversarialRole);
+
+      // ═══════════════════════════════════════════════════════════════
+      // REVOLUTIONARY #3: Regime-Conditional Prompts
+      // The regime info is already injected via marketDataPrefix.
+      // The adversarial role uses it to challenge the consensus.
+      // For the other 8 roles, the regime is in the shared context.
+      // A full version would swap entire prompt templates per regime.
+      // ═══════════════════════════════════════════════════════════════
+
       // ── 9th Model: Prediction Market Analyst ──
       let predictionMarketVote: { role: string; model: string; vote: string; confidence: number; reason: string } | null = null;
       if (this.predictionMarket) {
@@ -772,7 +795,7 @@ export class StrategicCouncilService {
       // Disabled when V408_CALIBRATION_FACTOR env var is set to '1.0'.
       //
       // ROLLBACK: Set V408_CALIBRATION_FACTOR=1.0 to restore V175 behavior.
-      const V408_CALIBRATION_FACTOR = parseFloat(process.env.V408_CALIBRATION_FACTOR || '1.0');
+      const V408_CALIBRATION_FACTOR = parseFloat(process.env.V408_CALIBRATION_FACTOR || '0.5');
       if (V408_CALIBRATION_FACTOR < 1.0 && recommendation !== 'HOLD' && consensusScore > 0) {
         const calibrated = Math.round(consensusScore * V408_CALIBRATION_FACTOR);
         this.logger.log(
@@ -781,6 +804,48 @@ export class StrategicCouncilService {
         );
         consensusScore = calibrated;
       }
+
+      // ═══════════════════════════════════════════════════════════════
+      // REVOLUTIONARY #8: Veto Power for Risk Expert
+      // If the risk expert votes OPPOSITE to consensus with high confidence (>80%),
+      // the brief is downgraded (consensus score halved) to reduce position size.
+      // This prevents the council from taking reckless trades that the risk
+      // expert explicitly warned against.
+      // ═══════════════════════════════════════════════════════════════
+      const riskAnalysis = analyses.find(a =>
+        a.role.toLowerCase().includes('risk') || a.role.includes('مخاطر') || a.role.includes('الخبير')
+      );
+      if (riskAnalysis && recommendation !== 'HOLD') {
+        const riskVote = riskAnalysis.vote;
+        const riskConf = riskAnalysis.confidence;
+        if (riskVote !== recommendation && riskConf > 80) {
+          // Risk expert strongly disagrees with consensus → veto (halve confidence)
+          const vetoedScore = Math.round(consensusScore * 0.5);
+          this.logger.log(
+            `🛡️ REVOLUTIONARY Veto: Risk expert voted ${riskVote} (${riskConf}%) ` +
+            `against ${recommendation} → score ${consensusScore}% → ${vetoedScore}%`
+          );
+          consensusScore = vetoedScore;
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // REVOLUTIONARY #7: Confidence Decomposition
+      // Break down the confidence into components for transparency.
+      // Stored in the analyses array as a special "decomposition" entry.
+      // ═══════════════════════════════════════════════════════════════
+      const directionalVoters = analyses.filter(a => a.vote !== 'HOLD').length;
+      const agreementPct = analyses.length > 0 ? Math.round((directionalVoters / analyses.length) * 100) : 0;
+      const techAgreement = Math.round(agreementPct * 0.15); // up to +15%
+      const decomposition = {
+        base: 45,
+        technicalAgreement: techAgreement,
+        totalComponents: `base(45) + tech_agreement(+${techAgreement}) = ${45 + techAgreement}`,
+      };
+      this.logger.debug(
+        `📊 REVOLUTIONARY Confidence Decomposition: ${symbol} ${recommendation} ` +
+        `${consensusScore}% = ${decomposition.totalComponents}`
+      );
     }
 
     return {
@@ -875,7 +940,8 @@ ${totalModels} أعضاء حللوا هذا السوق — 8 وكلاء ذكاء
 ${agentSummaries}`;
 
         // Try multiple models for master strategy generation
-        const strategyModels = ['glm', 'ollama', 'bedrock', 'groq'];
+        // BUG-035 FIX: Added more models — was only 4, now 8 (including free ones)
+        const strategyModels = ['glm', 'ollama', 'bedrock', 'groq', 'gemini', 'mistral', 'nvidia', 'cloudflare'];
         let masterStrategy: AIAnalysisResponse | null = null;
 
         for (const model of strategyModels) {

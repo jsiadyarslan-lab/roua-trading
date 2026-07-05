@@ -1438,16 +1438,38 @@ export class StrategicCouncilService {
    * broken SL/TP (e.g., BTC at $35 instead of $81,000).
    */
   private readonly PRICE_SANITY: Record<string, { min: number; max: number }> = {
+    // BUG-034 FIX: Extended to cover ALL 23 supported pairs
+    // Crypto (Binance)
     'BTC/USDT': { min: 20000, max: 200000 },
     'ETH/USDT': { min: 500, max: 10000 },
     'SOL/USDT': { min: 5, max: 500 },
     'BNB/USDT': { min: 100, max: 2000 },
     'XRP/USDT': { min: 0.1, max: 10 },
+    'ADA/USDT': { min: 0.1, max: 10 },
+    'DOGE/USDT': { min: 0.01, max: 1 },
+    'DOT/USDT': { min: 1, max: 100 },
+    'MATIC/USDT': { min: 0.1, max: 10 },
+    'AVAX/USDT': { min: 1, max: 200 },
+    'LINK/USDT': { min: 1, max: 100 },
+    'UNI/USDT': { min: 1, max: 50 },
+    // Forex majors (OANDA)
     'EUR/USD': { min: 0.8, max: 1.5 },
     'GBP/USD': { min: 1.0, max: 1.8 },
     'USD/JPY': { min: 100, max: 200 },
+    'USD/CHF': { min: 0.7, max: 1.2 },
+    'AUD/USD': { min: 0.5, max: 0.9 },
+    'NZD/USD': { min: 0.4, max: 0.8 },
+    'USD/CAD': { min: 1.1, max: 1.6 },
+    // Metals (OANDA)
     'XAU/USD': { min: 1000, max: 5000 },
-    'AAPL': { min: 100, max: 400 },
+    'XAG/USD': { min: 10, max: 100 },
+    // Energy (OANDA)
+    'WTI/USD': { min: 20, max: 300 },
+    'BRENT/USD': { min: 20, max: 300 },
+    // Indices (OANDA)
+    'US30/USD': { min: 20000, max: 60000 },
+    'NAS100/USD': { min: 5000, max: 30000 },
+    'SPX500/USD': { min: 2000, max: 8000 },
   };
 
   /**
@@ -1578,16 +1600,11 @@ export class StrategicCouncilService {
     const newsRisk = await this.getNewsRiskScore(pair, language);
 
     // Get AI consensus analysis
-    // FIX: Pass forceFresh=true to bypass stale Redis cache from startup session.
-    // The startup session (30s after boot) produces fallback/HOLD results that
-    // get cached for 10 minutes, blocking all subsequent sessions from issuing briefs.
-    // By forcing fresh AI calls, each Council session gets the CURRENT model state.
-    // V143: News context is injected via Redis cache key — the orchestrator reads
-    // it as part of the prompt context when generating analysis.
-    // V267: `language` propagates to all 8 AI roles + master strategy so the
-    // brief's analysisSummary is emitted in the user's UI locale.
+    // BUG-029 FIX: Removed forceFresh=true — was bypassing 30-min Redis cache (V289),
+    // causing ~137,000 AI calls/day instead of ~34,000. The original justification
+    // (stale startup session) was removed at line 116-124. Cache is now effective.
     const consensus = await this.orchestrator.getConsensusAnalysis(pair, {
-      forceFresh: true,
+      forceFresh: false,
       newsContext: newsContext || undefined,
       language,
     } as any);

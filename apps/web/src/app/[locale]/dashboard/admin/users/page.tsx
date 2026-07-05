@@ -85,6 +85,11 @@ export default function AdminUsersPage() {
   const [cleanupLoading, setCleanupLoading] = useState(false)
   const [cleanupResult, setCleanupResult] = useState<{deletedCount: number; errorCount: number} | null>(null)
   const [hideGuests, setHideGuests] = useState(true)
+  // BUG-047: Delete user modal state
+  const [deleteModalUser, setDeleteModalUser] = useState<AdminUser | null>(null)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteResult, setDeleteResult] = useState<{ success: boolean; message: string } | null>(null)
 
   const fetchUsers = useCallback(async () => {
     setLoading(true)
@@ -179,6 +184,63 @@ export default function AdminUsersPage() {
     if (hours < 24) return `منذ ${hours} ساعة`
     const days = Math.floor(hours / 24)
     return `منذ ${days} يوم`
+  }
+
+  // BUG-047: Delete user handler — sends DELETE /api/admin/users/[userId]
+  // with confirmation token. The backend cascades deletion to all related data
+  // (orders, positions, trades, credentials, auditLogs, etc.) and blocks
+  // self-deletion. The audit trail is preserved by logging under admin's userId.
+  const handleDeleteUser = async () => {
+    if (!deleteModalUser) return
+    if (deleteConfirmText !== 'حذف') {
+      setDeleteResult({ success: false, message: 'اكتب "حذف" للتأكيد' })
+      return
+    }
+
+    setDeleteLoading(true)
+    setDeleteResult(null)
+    try {
+      const res = await fetch(`/api/admin/users/${deleteModalUser.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'DELETE' }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        setDeleteResult({
+          success: true,
+          message: data.message || `تم حذف المستخدم ${deleteModalUser.displayName || deleteModalUser.email} بنجاح`,
+        })
+        // Close modal after short delay so user sees the success message
+        setTimeout(() => {
+          setDeleteModalUser(null)
+          setDeleteConfirmText('')
+          setDeleteResult(null)
+          setSelectedUser(null)
+          fetchUsers()
+        }, 1800)
+      } else {
+        setDeleteResult({
+          success: false,
+          message: data.error || data.message || 'فشل في حذف المستخدم',
+        })
+      }
+    } catch (err: any) {
+      setDeleteResult({
+        success: false,
+        message: err?.message || 'خطأ في الاتصال بالخادم',
+      })
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
+  const closeDeleteModal = () => {
+    setDeleteModalUser(null)
+    setDeleteConfirmText('')
+    setDeleteResult(null)
   }
 
   return (
@@ -536,6 +598,193 @@ export default function AdminUsersPage() {
                   </div>
                 )
               })}
+            </div>
+
+            {/* BUG-047: Delete User Button */}
+            <div style={{
+              display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between',
+              padding: 12, borderRadius: 8,
+              background: `${COLORS.danger}08`,
+              border: `1px solid ${COLORS.danger}20`,
+              marginTop: 8,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Trash2 size={14} color={COLORS.danger} />
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.danger, fontFamily: "var(--font-ar)" }}>
+                    حذف الحساب نهائياً
+                  </div>
+                  <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
+                    سيتم حذف المستخدم وجميع بياناته (الصفقات، المراكز، الاعتمادات، سجلات التدقيق)
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setDeleteModalUser(selectedUser)
+                  setSelectedUser(null)
+                }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '8px 14px', borderRadius: 6,
+                  border: `1px solid ${COLORS.danger}40`,
+                  background: `${COLORS.danger}15`,
+                  color: COLORS.danger,
+                  fontSize: 11, fontWeight: 700,
+                  fontFamily: "var(--font-ar)", cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Trash2 size={12} /> حذف
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BUG-047: Delete User Confirmation Modal */}
+      {deleteModalUser && (
+        <div
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.7)', zIndex: 200,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 20,
+          }}
+          onClick={closeDeleteModal}
+        >
+          <div
+            style={{
+              ...CARD_STYLE,
+              padding: 24,
+              width: '100%',
+              maxWidth: 460,
+              background: '#161B22',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10,
+                  background: `${COLORS.danger}15`,
+                  border: `1px solid ${COLORS.danger}30`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Trash2 size={18} color={COLORS.danger} />
+                </div>
+                <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.danger, fontFamily: "var(--font-ar)" }}>
+                  تأكيد حذف الحساب
+                </span>
+              </div>
+              <button onClick={closeDeleteModal} style={{ background: 'transparent', border: 'none', color: COLORS.muted, cursor: 'pointer' }}>
+                <XIcon size={18} />
+              </button>
+            </div>
+
+            {/* Warning Box */}
+            <div style={{
+              padding: 12, borderRadius: 8, marginBottom: 16,
+              background: `${COLORS.danger}08`,
+              border: `1px solid ${COLORS.danger}20`,
+            }}>
+              <p style={{ fontSize: 11, color: COLORS.danger, fontFamily: "var(--font-ar)", margin: 0, lineHeight: 1.6 }}>
+                ⚠️ <strong>تحذير:</strong> هذا الإجراء <strong>لا يمكن التراجع عنه</strong>. سيتم حذف:
+              </p>
+              <ul style={{ fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '8px 0 0 0', paddingRight: 18, lineHeight: 1.7 }}>
+                <li>المستخدم: <span style={{ color: COLORS.text, fontWeight: 600 }}>{deleteModalUser.displayName || deleteModalUser.email}</span></li>
+                <li>{deleteModalUser.tradeCount} صفقة</li>
+                <li>{deleteModalUser.openPositions} مركز مفتوح</li>
+                <li>{deleteModalUser.orderCount} أمر</li>
+                <li>جميع الاعتمادات والمحافظ وسجلات التدقيق</li>
+              </ul>
+            </div>
+
+            {/* Confirmation Input */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, color: COLORS.text, fontFamily: "var(--font-ar)", display: 'block', marginBottom: 6 }}>
+                اكتب <span style={{ color: COLORS.danger, fontWeight: 700, fontFamily: "var(--font-mono)" }}>حذف</span> للتأكيد:
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={e => setDeleteConfirmText(e.target.value)}
+                placeholder="حذف"
+                dir="rtl"
+                autoFocus
+                style={{
+                  width: '100%', padding: '10px 12px', borderRadius: 6,
+                  background: 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${deleteConfirmText === 'حذف' ? COLORS.danger + '40' : COLORS.border}`,
+                  color: COLORS.text, fontSize: 13,
+                  fontFamily: "var(--font-ar)", outline: 'none',
+                }}
+              />
+            </div>
+
+            {/* Result Banner */}
+            {deleteResult && (
+              <div style={{
+                padding: '10px 12px', borderRadius: 6, marginBottom: 12,
+                background: deleteResult.success ? `${COLORS.success}10` : `${COLORS.danger}10`,
+                border: `1px solid ${deleteResult.success ? COLORS.success + '25' : COLORS.danger + '25'}`,
+                display: 'flex', alignItems: 'center', gap: 8,
+              }}>
+                {deleteResult.success ? (
+                  <RefreshCw size={12} color={COLORS.success} className="animate-spin" />
+                ) : (
+                  <AlertCircle size={12} color={COLORS.danger} />
+                )}
+                <span style={{ fontSize: 11, fontFamily: "var(--font-ar)", color: deleteResult.success ? COLORS.success : COLORS.danger }}>
+                  {deleteResult.message}
+                </span>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
+                onClick={closeDeleteModal}
+                disabled={deleteLoading}
+                style={{
+                  padding: '8px 16px', borderRadius: 6,
+                  border: `1px solid ${COLORS.border}`,
+                  background: 'rgba(255,255,255,0.03)',
+                  color: COLORS.muted, fontSize: 11, fontWeight: 600,
+                  fontFamily: "var(--font-ar)", cursor: deleteLoading ? 'not-allowed' : 'pointer',
+                  opacity: deleteLoading ? 0.6 : 1,
+                }}
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleDeleteUser}
+                disabled={deleteLoading || deleteConfirmText !== 'حذف'}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '8px 16px', borderRadius: 6,
+                  border: `1px solid ${COLORS.danger}40`,
+                  background: deleteConfirmText === 'حذف' && !deleteLoading ? `${COLORS.danger}20` : `${COLORS.danger}08`,
+                  color: COLORS.danger, fontSize: 11, fontWeight: 700,
+                  fontFamily: "var(--font-ar)",
+                  cursor: deleteLoading || deleteConfirmText !== 'حذف' ? 'not-allowed' : 'pointer',
+                  opacity: deleteLoading || deleteConfirmText !== 'حذف' ? 0.5 : 1,
+                  transition: 'all 0.2s',
+                }}
+              >
+                {deleteLoading ? (
+                  <>
+                    <RefreshCw size={12} className="animate-spin" />
+                    جارٍ الحذف...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={12} />
+                    حذف نهائي
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

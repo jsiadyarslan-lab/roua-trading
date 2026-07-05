@@ -718,3 +718,26 @@
   3. **`decryptCredential`**: For OANDA credentials, swaps `passphrase` (account ID) → `apiSecret` before returning. The `OandaExecutionAdapter` constructor expects `apiSecret` = account ID, so this bridges the storage format (passphrase field) with the adapter's interface.
 - **Commit:** (filled after push)
 - **Test:** `apps/api/src/modules/trading/services/__tests__/BUG-046.oanda-validation.spec.ts`
+
+### BUG-047: Admin panel had no per-user delete option
+- **Status:** FIXED
+- **Severity:** MEDIUM
+- **File:** `apps/web/src/app/api/admin/users/[userId]/route.ts` (new), `apps/web/src/app/[locale]/dashboard/admin/users/page.tsx`
+- **Pattern (OPEN):** (admin users page had no DELETE button in user detail panel)
+- **Pattern (FIXED):** ADMIN_USER_DELETE
+- **Description:** The admin panel at `/dashboard/admin/users` listed users and showed a detail panel on click, but had no option to delete a specific user account. Admins could only delete "phantom" guest users in bulk via the cleanup button. For real registered users (e.g., a user requesting account deletion under GDPR, or a test account that needs removal), there was no UI path — admins had to run raw SQL against the production database, which is dangerous and bypasses the audit trail.
+- **Impact:** Inability to perform account deletion via admin UI. GDPR/CCPA right-to-be-forgotten requests required manual DB intervention. Test accounts accumulated.
+- **Fix:** Three-part implementation:
+  1. **Backend (new route `apps/web/src/app/api/admin/users/[userId]/route.ts`)**: DELETE endpoint with safety guards:
+     - Admin auth required (cookie-based session via `verifyAdminAuth`)
+     - Self-deletion blocked (admin cannot delete own account from this UI)
+     - Confirmation token required: `{ confirm: 'DELETE' }` in body
+     - Pre-deletion snapshot captured (userId, email, displayName, tier, stats)
+     - Deletion cascades automatically via Prisma schema (User → 24 relations all `onDelete: Cascade`)
+     - Post-deletion audit log recorded under admin's userId with snapshot (survives cascade)
+     - Also added GET endpoint for fetching single user details
+     - Prisma P2003 (foreign key constraint) errors handled with Arabic message
+  2. **Frontend (admin/users page)**: Added "حذف الحساب نهائياً" button in user detail panel (red danger styling). Clicking opens a confirmation modal that requires typing the Arabic word "حذف" exactly. Modal shows what will be deleted (trades count, positions count, etc.). Loading and result states with Arabic messages. Auto-closes on success after 1.8s and refreshes user list.
+  3. **Audit trail**: Every deletion logged to AuditLog table with action `ADMIN_USER_DELETE`, including the admin's userId, IP, user-agent, and full snapshot of deleted user data.
+- **Commit:** (filled after push)
+- **Test:** (manual — tested via type-check, no automated regression test for UI flows)

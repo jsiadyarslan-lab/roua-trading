@@ -770,3 +770,27 @@
 - **Fix:** Changed the break condition from "short chunk" to "2 consecutive empty chunks". A single empty/short chunk (e.g., a weekend) no longer stops pagination — only truly missing data (2 empty chunks in a row) does. Added `emptyChunksInARow` counter to track consecutive empty responses.
 - **Commit:** (filled after push)
 - **Test:** (manual — verify historical data extends to current date after deploy)
+
+### BUG-050: Chart stuck after pair switch when AI panel was open (multi-layer cleanup gap)
+- **Status:** FIXED
+- **Severity:** CRITICAL
+- **File:** `apps/web/src/components/charts/AISmartPanel.tsx:1393`, `apps/web/src/components/charts/RouaChart.tsx:596`, `apps/web/src/components/charts/RouaChart.tsx:2532`, `apps/web/src/hooks/useChartWebSocket.ts:213`
+- **Pattern (OPEN):** `useEffect\(\(\) => \(\) => \{[^}]*\}, \[\]\);` (empty-deps cleanup in AISmartPanel)
+- **Pattern (FIXED):** BUG-050.*symbol change
+- **Description:** When the user switched symbols while the AISmartPanel was open and `analyze()` was running (up to 35 seconds), the OLD analyze() continued running with stale data. The cleanup useEffect had empty deps `[]` so it only ran on unmount — not on symbol change. This left:
+  1. The OLD `analyze()` running with `runRef.current = true` (blocking the NEW analyze)
+  2. The OLD SSE `EventSource` open (delivering stale data)
+  3. `aiPanelCandles` holding the OLD symbol's candles
+  4. AI overlays from the OLD symbol on the chart
+  5. `lastCandleCountRef`, `candleSignatureRef`, `firstCandleTimeRef`, `hasRunInitialRef`, `lastAnalysisResultRef` all holding stale values
+  
+  When the OLD `analyze()` completed (up to 35s after the switch), it called `onPatternsRef.current({...})` with OLD (e.g., BTC) analysis data against NEW (e.g., EUR/USD) candles. This caused "Value is null" crashes inside lightweight-charts primitives, corrupting the chart's internal series state — requiring a hard page reload.
+- **Impact:** Chart appeared "stuck" or "broken" after switching pairs, especially when the AI panel was open. Users had to hard-reload the page to recover. This was intermittent because it only manifested when `analyze()` was in its async wait phase (SSE or POST) at the moment of the switch.
+- **Fix:** Four-part fix:
+  1. **AISmartPanel symbol-change cleanup** (new `useEffect([symbol])`): aborts `analyze()`, closes `EventSource`, clears pending timers, force-unlocks `runRef`, resets all candle-tracking refs, clears `lastAnalysisResultRef`, clears `alertsDedupRef`, clears all displayed state (`signal`, `patterns`, `levels`, `chartAlerts`).
+  2. **AISmartPanel symbol guards in analyze()**: Added `if (symbolRef.current !== sym) return` checks before every `onPatternsRef.current()` and `setSignal()` call. If the symbol changed mid-analyze, the result is dropped. Also wrapped the `finally{}` block in a symbol check — only unlock `runRef` and clear `loading` if still on the same symbol.
+  3. **RouaChart clears `aiPanelCandles` and `lastAnalysisResultRef` on symbol change**: Added `setAiPanelCandles([])` and `lastAnalysisResultRef.current = null` to the existing `[timeframe_, selectedSymbol_]` effect.
+  4. **RouaChart calls `cleanupAIOverlays` on symbol change**: Changed the AI-overlay cleanup effect's deps from `[timeframe_]` to `[timeframe_, selectedSymbol_]`. Now overlays are cleaned up when only the symbol changes (not just when the timeframe changes).
+  5. **useChartWebSocket `AbortController` for `fetchLatestCandle`**: Added `pollAbortRef` that aborts in-flight polling fetches when (a) the next poll starts or (b) cleanup runs. This frees browser connection slots for the new symbol's history fetch. AbortError is silently swallowed (not treated as a real error).
+- **Commit:** (filled after push)
+- **Test:** (manual — switch pairs rapidly while AI panel is open, verify no stuck chart)

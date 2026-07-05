@@ -1049,6 +1049,18 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         tradeProposals: getActiveProposals(),
         liquidityResult: liquidityResult,
       } as AIAnalysisResult;
+
+      // BUG-050 FIX: Symbol guard — if the user switched symbols while analyze()
+      // was running, drop the result. Otherwise, the OLD symbol's analysis would
+      // be rendered against the NEW symbol's candles, causing chart corruption.
+      if (symbolRef.current !== sym) {
+        // Symbol changed mid-analyze — abort. The NEW symbol's analyze() (triggered
+        // by the symbol-change cleanup + candleSignatureRef effect) will run separately.
+        runRef.current = false;
+        setLoading(false);
+        return;
+      }
+
       lastAnalysisResultRef.current = analysisResult;
       onPatternsRef.current(analysisResult);
 
@@ -1214,19 +1226,22 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           const direction = mergedDir === 'BUY' ? 'long' : 'short';
           const adaptiveTPSL = calcAdaptiveTPSL(c, direction, mergedConf, price);
 
-          setSignal({
-            dir: mergedDir as 'BUY' | 'SELL' | 'WAIT',
-            conf: mergedConf,
-            entry: adaptiveTPSL.entry,
-            sl: adaptiveTPSL.stopLoss,
-            tp: adaptiveTPSL.takeProfit,
-            reason: t('councilModels', { count: models }),
-            ts: Date.now(),
-            regime,
-            bayesianDir: bayesianDir === 'bullish' ? 'BUY' : bayesianDir === 'bearish' ? 'SELL' : 'WAIT',
-            bayesianConf,
-            fusionScore,
-          });
+          // BUG-050: Don't update signal if symbol changed mid-analyze
+          if (symbolRef.current === sym) {
+            setSignal({
+              dir: mergedDir as 'BUY' | 'SELL' | 'WAIT',
+              conf: mergedConf,
+              entry: adaptiveTPSL.entry,
+              sl: adaptiveTPSL.stopLoss,
+              tp: adaptiveTPSL.takeProfit,
+              reason: t('councilModels', { count: models }),
+              ts: Date.now(),
+              regime,
+              bayesianDir: bayesianDir === 'bullish' ? 'BUY' : bayesianDir === 'bearish' ? 'SELL' : 'WAIT',
+              bayesianConf,
+              fusionScore,
+            });
+          }
 
           if ((sseResult.consensusScore || 0) >= 65 && mergedDir !== 'WAIT') {
             fetch('/api/ai/alert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: sym, signal: mergedDir, patterns: unique.slice(0,3).map((p:any)=>p.type), smcBreaks: smcData.structureBreaks.map((b:any)=>b.type+' '+(b.direction==='bullish'?'↑':'↓')), entry: adaptiveTPSL.entry, sl: adaptiveTPSL.stopLoss, tp: adaptiveTPSL.takeProfit, confidence: mergedConf }) }).catch(()=>{});
@@ -1276,19 +1291,22 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
               const direction = mergedDir === 'BUY' ? 'long' : 'short';
               const adaptiveTPSL = calcAdaptiveTPSL(c, direction, mergedConf, price);
 
-              setSignal({
-                dir: mergedDir as 'BUY' | 'SELL' | 'WAIT',
-                conf: mergedConf,
-                entry: adaptiveTPSL.entry,
-                sl: adaptiveTPSL.stopLoss,
-                tp: adaptiveTPSL.takeProfit,
-                reason: t('councilModels', { count: models }),
-                ts: Date.now(),
-                regime,
-                bayesianDir: bayesianDir === 'bullish' ? 'BUY' : bayesianDir === 'bearish' ? 'SELL' : 'WAIT',
-                bayesianConf,
-                fusionScore,
-              });
+              // BUG-050: Don't update signal if symbol changed mid-analyze
+              if (symbolRef.current === sym) {
+                setSignal({
+                  dir: mergedDir as 'BUY' | 'SELL' | 'WAIT',
+                  conf: mergedConf,
+                  entry: adaptiveTPSL.entry,
+                  sl: adaptiveTPSL.stopLoss,
+                  tp: adaptiveTPSL.takeProfit,
+                  reason: t('councilModels', { count: models }),
+                  ts: Date.now(),
+                  regime,
+                  bayesianDir: bayesianDir === 'bullish' ? 'BUY' : bayesianDir === 'bearish' ? 'SELL' : 'WAIT',
+                  bayesianConf,
+                  fusionScore,
+                });
+              }
 
               if ((d.data.consensusScore || 0) >= 65 && mergedDir !== 'WAIT') {
                 fetch('/api/ai/alert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: sym, signal: mergedDir, patterns: unique.slice(0,3).map((p:any)=>p.type), smcBreaks: smcData.structureBreaks.map((b:any)=>b.type+' '+(b.direction==='bullish'?'↑':'↓')), entry: adaptiveTPSL.entry, sl: adaptiveTPSL.stopLoss, tp: adaptiveTPSL.takeProfit, confidence: mergedConf }) }).catch(()=>{});
@@ -1332,22 +1350,35 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           ? Math.min(0.95, conf + (fusionScore / 100) * 0.15)
           : conf;
 
-        setSignal({
-          dir,
-          conf: adjustedConf,
-          entry: adaptiveTPSL.entry,
-          sl: adaptiveTPSL.stopLoss,
-          tp: adaptiveTPSL.takeProfit,
-          reason: emaTrend > 0 ? t('emaBullish', { bull, bear }) : t('emaBearish', { bull, bear }),
-          ts: Date.now(),
-          regime,
-          bayesianDir: bayesianDir === 'bullish' ? 'BUY' : bayesianDir === 'bearish' ? 'SELL' : 'WAIT',
-          bayesianConf,
-          fusionScore,
-        });
+        // BUG-050: Don't update signal if symbol changed mid-analyze
+        if (symbolRef.current === sym) {
+          setSignal({
+            dir,
+            conf: adjustedConf,
+            entry: adaptiveTPSL.entry,
+            sl: adaptiveTPSL.stopLoss,
+            tp: adaptiveTPSL.takeProfit,
+            reason: emaTrend > 0 ? t('emaBullish', { bull, bear }) : t('emaBearish', { bull, bear }),
+            ts: Date.now(),
+            regime,
+            bayesianDir: bayesianDir === 'bullish' ? 'BUY' : bayesianDir === 'bearish' ? 'SELL' : 'WAIT',
+            bayesianConf,
+            fusionScore,
+          });
+        }
       }
     } catch { /* silent */ }
-    finally { setLoading(false); runRef.current = false; }
+    finally {
+      // BUG-050 FIX: Only unlock if we're still on the same symbol.
+      // If the symbol changed, the cleanup useEffect already force-unlocked
+      // runRef and reset state — we don't want to overwrite that here.
+      if (symbolRef.current === sym) {
+        setLoading(false);
+        runRef.current = false;
+      }
+      // If symbol changed, leave runRef alone (cleanup already set it to false)
+      // and leave loading alone (cleanup already set it to false).
+    }
   };
 
   // ── Auto-analyze when candles arrive (debounced) ─────────
@@ -1397,6 +1428,75 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
     pendingTimersRef.current.forEach(id => clearTimeout(id));
     pendingTimersRef.current.clear();
   }, []);
+
+  // ─────────────────────────────────────────────────────────────
+  // BUG-050 FIX: Cleanup on SYMBOL CHANGE (not just unmount).
+  //
+  // PROBLEM: The previous cleanup useEffect has empty deps `[]` — it only runs
+  // on unmount. When the user switches symbols while analyze() is running:
+  //   1. The OLD analyze() continues for up to 35s (SSE 20s + POST 15s)
+  //   2. runRef.current stays true → blocks the NEW symbol's analyze()
+  //   3. The OLD SSE EventSource stays open → delivers stale data
+  //   4. lastCandleCountRef / candleSignatureRef / firstCandleTimeRef hold OLD values
+  //   5. hasRunInitialRef stays true → initial-analyze effect doesn't re-fire
+  //   6. lastAnalysisResultRef holds OLD analysis data → stale overlays rendered
+  //
+  // When the OLD analyze() completes, it calls onPatternsRef.current({...}) with
+  // OLD (BTC) analysis data against NEW (EUR/USD) candles. This causes
+  // "Value is null" crashes inside lightweight-charts primitives, corrupting
+  // the chart series — requiring a hard page reload.
+  //
+  // FIX: This effect runs on every symbol change. It:
+  //   - Aborts the in-flight analyze() via abortRef
+  //   - Closes the SSE EventSource
+  //   - Clears all pending timers
+  //   - Force-unlocks runRef (the OLD analyze()'s finally{} will still set it
+  //     to false, but we don't wait for that)
+  //   - Resets all candle-tracking refs to initial values
+  //   - Clears the analysis result cache
+  //   - Clears the alerts dedup set
+  //   - Clears all displayed state (signal, patterns, levels, chartAlerts)
+  //
+  // This ensures the NEW symbol starts with a clean slate and the OLD
+  // analyze()'s late completion is a no-op (its setSignal/setPatterns calls
+  // would still fire, but they're harmless — the next analyze() will overwrite
+  // them, and onPatternsRef is guarded by the candle-length check in
+  // handlePatternsDetected).
+  // ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    // Abort in-flight analyze()
+    abortRef.current?.abort();
+    abortRef.current = null;
+
+    // Close SSE EventSource
+    eventSourceRef.current?.close();
+    eventSourceRef.current = null;
+
+    // Clear all pending timers (safeTimeout-tracked)
+    pendingTimersRef.current.forEach(id => clearTimeout(id));
+    pendingTimersRef.current.clear();
+
+    // Force-unlock the analyze lock (don't wait for the OLD finally{})
+    runRef.current = false;
+
+    // Reset candle-tracking refs
+    lastCandleCountRef.current = 0;
+    candleSignatureRef.current = '';
+    firstCandleTimeRef.current = 0;
+    hasRunInitialRef.current = false;
+
+    // Clear analysis result cache + alerts dedup
+    lastAnalysisResultRef.current = null;
+    alertsDedupRef.current.clear();
+
+    // Clear displayed state — show a clean panel until the NEW analyze() runs
+    setSignal(null);
+    setPatterns([]);
+    setLevels([]);
+    setChartAlerts([]);
+    setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbol]);
 
   // ── Sustainable: Direct overlay change path ──
   // When the user toggles an overlay button, we call onOverlayChange directly.

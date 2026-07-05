@@ -193,12 +193,22 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
       clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
     }
+    // BUG-050: Abort any in-flight polling fetch so the new symbol's
+    // history fetch doesn't compete for browser connection slots.
+    pollAbortRef.current?.abort();
+    pollAbortRef.current = null;
   }, []);
 
   // FIX: Connection generation counter — prevents race conditions when
   // symbol/timeframe changes during reconnection. Old onclose handlers
   // check their generation and skip reconnect if stale.
   const connectionGenRef = useRef(0);
+
+  // BUG-050 FIX: AbortController for in-flight fetchLatestCandle requests.
+  // When the symbol changes, we abort all pending polling fetches to free up
+  // browser connection slots for the new symbol's history fetch.
+  // Declared BEFORE cleanup() so the cleanup function can access it via closure.
+  const pollAbortRef = useRef<AbortController | null>(null);
 
   // FIX: Timeframe seconds for correct candle time snapping in polling fallback.
   // Without this, polling always snaps to 1-minute boundaries even on 1H/1D charts.
@@ -213,6 +223,12 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   const fetchLatestCandle = useCallback(async () => {
     if (!symbol) return;
     const pollGen = connectionGenRef.current;
+
+    // BUG-050: Abort any previous in-flight poll request before starting a new one.
+    // This prevents fetch pile-up on rapid symbol switches.
+    pollAbortRef.current?.abort();
+    const ac = new AbortController();
+    pollAbortRef.current = ac;
 
     // V384: For OANDA pairs, fetch pre-built OHLC candle from backend
     if (!isCryptoPair(symbol)) {
@@ -230,6 +246,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
         const res = await fetch(`${apiBase}/api/exchange/candle/${encodeURIComponent(symbol)}?timeframe=${tfName}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
+          signal: ac.signal,
         });
 
         if (pollGen !== connectionGenRef.current) return; // Stale — symbol changed
@@ -249,7 +266,9 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
             return;
           }
         }
-      } catch {
+      } catch (err: any) {
+        // BUG-050: Don't treat AbortError as a real error — it's intentional
+        if (err?.name === 'AbortError') return;
         // Fall through to REST quote fallback
       }
 
@@ -259,6 +278,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
         const res = await fetch(`${apiBase}/api/exchange/quote/${encodeURIComponent(symbol)}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
+          signal: ac.signal,
         });
 
         if (pollGen !== connectionGenRef.current) return; // Stale — symbol changed
@@ -277,7 +297,9 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
             return;
           }
         }
-      } catch {
+      } catch (err: any) {
+        // BUG-050: Don't treat AbortError as a real error
+        if (err?.name === 'AbortError') return;
         // Silent fail — will retry
       }
       return;
@@ -290,7 +312,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
         const interval = BINANCE_INTERVALS[timeframe] || '1m';
         const url = `${BINANCE_URLS.rest}/klines?symbol=${binanceSymbol.toUpperCase()}&interval=${interval}&limit=2`;
 
-        const binanceRes = await fetch(url);
+        const binanceRes = await fetch(url, { signal: ac.signal });
         if (!binanceRes.ok) return;
 
         const data = await binanceRes.json();
@@ -310,7 +332,9 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           }
         }
       }
-    } catch {
+    } catch (err: any) {
+      // BUG-050: Don't treat AbortError as a real error
+      if (err?.name === 'AbortError') return;
       // Silent fail — will retry
     }
   }, [symbol, timeframe]);

@@ -604,6 +604,18 @@ export default function RouaChart({
     isLoadingOlderRef.current = false;
     hasMoreHistoryRef.current = true;
 
+    // BUG-050 FIX: Clear aiPanelCandles on symbol/timeframe change.
+    // Without this, AISmartPanel receives the OLD symbol's candles during
+    // the transition window (200-2000ms), causing it to analyze the wrong
+    // pair. Combined with the AISmartPanel's own cleanup, this ensures a
+    // clean slate on every pair switch.
+    setAiPanelCandles([]);
+
+    // BUG-050 FIX: Clear lastAnalysisResultRef on symbol/timeframe change.
+    // This prevents stale analysis data from being re-used by
+    // handleOverlayChange or handlePatternsDetected after the switch.
+    lastAnalysisResultRef.current = null;
+
     // FIX: Reset singleton module-level state from pattern-engine and
     // pattern-renderer. Without this, switching from BTC → ETH keeps
     // BTC's incremental state and drawn patterns, causing incorrect
@@ -2517,14 +2529,18 @@ export default function RouaChart({
     } catch {}
   }, []); // FIX: Empty deps — uses refs for all chart method access
 
-  // Clean up AI overlays when timeframe changes
+  // Clean up AI overlays when timeframe OR symbol changes
+  // BUG-050 FIX: Added selectedSymbol_ to deps. Previously, when only the symbol
+  // changed (timeframe unchanged), AI overlays from the OLD symbol persisted on
+  // the chart, causing visual corruption and potential "Value is null" crashes
+  // when stale overlay timestamps didn't match the new symbol's candle data.
   useEffect(() => {
     cleanupAIOverlays();
     // FIX: Clear lastAnalysisResultRef so stale overlay data from the
-    // previous timeframe doesn't get re-used by handlePatternsDetected.
+    // previous timeframe/symbol doesn't get re-used by handlePatternsDetected.
     // Without this, overlays from old timeframes accumulate on the chart.
     lastAnalysisResultRef.current = null;
-    // REVOLUTIONARY: Also clean up heatmap overlay on timeframe change
+    // REVOLUTIONARY: Also clean up heatmap overlay on timeframe/symbol change
     const chartApi = chartRef_.current?.current;
     if (chartApi) {
       heatmapSeriesRef.current.forEach(s => {
@@ -2537,12 +2553,12 @@ export default function RouaChart({
       });
       autoTrendSeriesRef.current = [];
     }
-    // Reset incremental state on timeframe change
+    // Reset incremental state on timeframe/symbol change
     incrementalInitializedRef.current = false;
     // Reset pattern throttle so it runs immediately on new timeframe data
     lastPatternRunRef.current = 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeframe_]);
+  }, [timeframe_, selectedSymbol_]);
 
   // Clean up AI overlays when AI panel is closed
   useEffect(() => {

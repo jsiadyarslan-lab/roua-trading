@@ -279,10 +279,15 @@ export class CouncilVoteAccuracyService {
           }
         }
       } catch { /* continue */ }
+      // BUG-033 FIX: Clean up the pending-keys list after processing
+      const remainingKeys: string[] = [];
       for (const key of keys) {
         try {
           const data = await this.redis.get(key);
-          if (!data) continue;
+          if (!data) {
+            // Key already expired or processed — don't add to remaining
+            continue;
+          }
 
           const { userId, wasRight, regimeAtEntry, symbol } = JSON.parse(data);
 
@@ -297,9 +302,14 @@ export class CouncilVoteAccuracyService {
           // Clean up the queue item
           await this.redis.del(key);
           processed++;
+          // Don't add to remainingKeys — it's been processed
         } catch {
-          // Skip malformed entries
+          // Skip malformed entries — also don't add to remaining
         }
+      }
+      // Update the pending-keys list with only unprocessed entries (empty if all processed)
+      if (keys.length > 0) {
+        await this.redis.set('council-accuracy:pending-keys', JSON.stringify(remainingKeys), 3600 * 1000);
       }
     } catch (error) {
       this.logger.error(`Failed to process pending updates: ${error.message}`);

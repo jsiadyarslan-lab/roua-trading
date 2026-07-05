@@ -808,9 +808,9 @@ export class StrategicCouncilService {
       // ═══════════════════════════════════════════════════════════════
       // REVOLUTIONARY #8: Veto Power for Risk Expert
       // If the risk expert votes OPPOSITE to consensus with high confidence (>80%),
-      // the brief is downgraded (consensus score halved) to reduce position size.
-      // This prevents the council from taking reckless trades that the risk
-      // expert explicitly warned against.
+      // reduce consensus score by 20% (NOT 50% — the risk expert's vote is already
+      // counted in the weighted consensus, so a full 50% veto would be double-counting).
+      // A 20% reduction is a gentle nudge, not a blanket veto.
       // ═══════════════════════════════════════════════════════════════
       const riskAnalysis = analyses.find(a =>
         a.role.toLowerCase().includes('risk') || a.role.includes('مخاطر') || a.role.includes('الخبير')
@@ -819,11 +819,11 @@ export class StrategicCouncilService {
         const riskVote = riskAnalysis.vote;
         const riskConf = riskAnalysis.confidence;
         if (riskVote !== recommendation && riskConf > 80) {
-          // Risk expert strongly disagrees with consensus → veto (halve confidence)
-          const vetoedScore = Math.round(consensusScore * 0.5);
+          // Risk expert strongly disagrees → gentle penalty (20%, not 50%)
+          const vetoedScore = Math.round(consensusScore * 0.8);
           this.logger.log(
-            `🛡️ REVOLUTIONARY Veto: Risk expert voted ${riskVote} (${riskConf}%) ` +
-            `against ${recommendation} → score ${consensusScore}% → ${vetoedScore}%`
+            `🛡️ Risk Expert Advisory: voted ${riskVote} (${riskConf}%) ` +
+            `against ${recommendation} → score ${consensusScore}% → ${vetoedScore}% (-20%)`
           );
           consensusScore = vetoedScore;
         }

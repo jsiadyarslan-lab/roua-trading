@@ -32,7 +32,7 @@ export const dynamic = 'force-dynamic'
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   // ── Step 1: Verify admin auth ──
   const authError = await verifyAdminAuth(req)
@@ -47,7 +47,8 @@ export async function DELETE(
       )
     }
 
-    const { userId } = params
+    // Next.js 15+: params is a Promise, must be awaited
+    const { userId } = await params
     if (!userId) {
       return NextResponse.json(
         { error: 'معرّف المستخدم مفقود' },
@@ -203,7 +204,7 @@ export async function DELETE(
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   const authError = await verifyAdminAuth(req)
   if (authError) return authError
@@ -217,8 +218,11 @@ export async function GET(
       )
     }
 
+    // Next.js 15+: params is a Promise, must be awaited
+    const { userId } = await params
+
     const user = await db.user.findUnique({
-      where: { id: params.userId },
+      where: { id: userId },
       select: {
         id: true,
         email: true,

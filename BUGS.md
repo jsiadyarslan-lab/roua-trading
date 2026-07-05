@@ -659,3 +659,24 @@
 - **Fix:** Added the same 5-tier confidence multiplier used by Smart Executor: 95%+ → 1.5×, 85-94% → 1.25×, 75-84% → 1.0×, 65-74% → 0.75×, <65% → 0.5×. Applied as `riskPerTradePercent × confidenceMultiplier` with a hard cap at 3% (matching V428 absolute notional cap). Logs the multiplier application at debug level for transparency.
 - **Commit:** (filled after push)
 - **Test:** (regression test to be added)
+
+### BUG-044: OANDA had no placeOrder adapter (ccxt['oanda'] = undefined)
+- **Status:** FIXED
+- **Severity:** CRITICAL
+- **File:** `apps/api/src/modules/execution/adapters/oanda-execution.adapter.ts` (new), `apps/api/src/modules/execution/gateways/execution-gateway.service.ts:305` (case), `apps/api/src/modules/trading/trading.service.ts:2744` (routing)
+- **Pattern (OPEN):** `default:.*\n.*BinanceAdapter\(apiKey, apiSecret, this\.auditService, userId\);` (OANDA falling through to default)
+- **Pattern (FIXED):** OandaExecutionAdapter
+- **Description:** All three executors (Smart Executor, Agent, Lazic) eventually reached `_executeOnExchange()` for OANDA credentials. But `ccxt['oanda'] = undefined` (verified by `Object.keys(ccxt).filter(k => /oanda/i.test(k)) === []`). The previous code:
+  1. `ExecutionGatewayService._createAdapter()` default case created a `BinanceAdapter` for OANDA (because no `case 'oanda'` existed).
+  2. `BinanceAdapter` internally did `new ccxt.binance({...})` — creating a Binance instance, not OANDA.
+  3. Calling `createMarketOrder('EUR/USD', ...)` on a Binance instance → rejected by Binance API ("symbol not found").
+  4. Even if it had reached `_getExchangeInstance('oanda', ...)` directly, that returns `null` because `ccxt['oanda']` is undefined → `_executeOnExchange` returned `"البورصة oanda غير مدعومة"`.
+  
+  Net effect: **real OANDA trading was 100% non-functional.** Only paper-trading worked (it doesn't touch the exchange). Users with OANDA Practice or Live accounts could not place any real orders.
+- **Impact:** Critical. The entire forex/metals/indices real-trading path was broken at the exchange layer. BUG-042 (LOTS→UNITS conversion) was necessary but insufficient — it never reached the wire because there was no adapter to send the request.
+- **Fix:** Three-part fix:
+  1. **New file `oanda-execution.adapter.ts`**: Full `IExchangeAdapter` implementation using OANDA v20 REST API. Methods: `placeOrder` (POST /v3/accounts/{id}/orders with `stopLossOnFill`/`takeProfitOnFill` natively attached), `cancelOrder`, `getOrderStatus`, `fetchOpenOrders`, `fetchBalance`, `modifyPosition`. Constructor takes `(apiKey, apiSecret, auditService, userId, isLive)` — same pattern as BinanceAdapter. `apiKey` = OANDA API token, `apiSecret` = OANDA account ID. Includes safety-net LOTS→UNITS conversion using an inline contractSize lookup (in case TradingService's BUG-042 conversion was skipped).
+  2. **`ExecutionGatewayService._createAdapter`**: Added `case 'oanda': case 'oanda_practice': case 'oanda_live':` that returns `new OandaExecutionAdapter(...)`. `oanda_live` is the only path to live trading; `oanda` and `oanda_practice` both default to practice (safer).
+  3. **`TradingService._executeOnExchange`**: Added `_isOandaExchange()` helper and a routing block before the CCXT fallback — same pattern as MT5 (V226). Routes OANDA orders through `executionGateway.placeOrder()` → `OandaExecutionAdapter`. Preserves the BUG-042 LOTS→UNITS conversion block as a safety net (in case `executionGateway` is unavailable, the conversion at least produces meaningful error messages).
+- **Commit:** (filled after push)
+- **Test:** `apps/api/src/modules/trading/services/__tests__/BUG-044.oanda-adapter.spec.ts`

@@ -2316,6 +2316,16 @@ export class TradingService {
     return ['mt5', 'mt5_demo', 'metatrader5', 'metatrader'].includes(lower);
   }
 
+  /**
+   * BUG-044 FIX: Detect OANDA exchange — must route through ExecutionGateway
+   * (OandaExecutionAdapter) instead of CCXT, because ccxt['oanda'] = undefined.
+   */
+  private _isOandaExchange(exchangeName: string): boolean {
+    if (!exchangeName) return false;
+    const lower = exchangeName.toLowerCase();
+    return ['oanda', 'oanda_practice', 'oanda_live'].includes(lower);
+  }
+
   private _priceDecimals(price: number, symbol?: string): number {
     if (!Number.isFinite(price) || price <= 0) return 2;
     // V147: Use symbol-metadata priceDecimals when available — this ensures
@@ -2715,6 +2725,66 @@ export class TradingService {
       // "البورصة mt5 غير مدعومة" — which is better than a silent crash.
       // This should NEVER happen if ExecutionModule is imported correctly.
 
+      // ═══════════════════════════════════════════════════════════════
+      // BUG-044 FIX: Route OANDA orders through ExecutionGateway → OandaExecutionAdapter
+      //
+      // PROBLEM: ccxt['oanda'] = undefined. Previously, OANDA orders fell through
+      // to the default CCXT path, which created a BinanceAdapter instance and
+      // tried to call createMarketOrder() — this failed with "exchange not supported"
+      // because CCXT has no OANDA class.
+      //
+      // FIX: Same pattern as MT5 — route OANDA orders through ExecutionGateway,
+      // which creates an OandaExecutionAdapter that talks to OANDA v20 REST API.
+      // The adapter handles:
+      //   - LOTS → UNITS conversion (safety net — adapter has its own logic)
+      //   - SL/TP via stopLossOnFill / takeProfitOnFill (native OANDA mechanism)
+      //   - Symbol format conversion (EUR/USD → EUR_USD)
+      //   - BUY = positive units, SELL = negative units
+      // ═══════════════════════════════════════════════════════════════
+      if (this._isOandaExchange(exchangeName) && userId && this.executionGateway) {
+        this.logger.log(
+          `📈 BUG-044: Routing OANDA order via ExecutionGateway — ${request.side} ${request.quantity} ${request.symbol}`,
+        );
+        try {
+          const result = await this.executionGateway.placeOrder(userId, {
+            userId,
+            exchangeCredentialId: credentialId,
+            symbol: request.symbol,
+            side: request.side as 'BUY' | 'SELL',
+            type: (request.type || 'MARKET') as 'MARKET' | 'LIMIT' | 'STOP' | 'STOP_LIMIT',
+            quantity: request.quantity, // LOTS — adapter will convert to UNITS
+            price: request.price,
+            stopLoss: request.stopLoss,
+            takeProfit: request.takeProfit,
+            idempotencyKey: request.idempotencyKey || `oanda-${Date.now()}`,
+            source: request.source || 'trading_service',
+          });
+
+          if (result.success) {
+            this.logger.log(
+              `✅ BUG-044: OANDA order executed via gateway: ${result.exchangeOrderId} — ` +
+              `${request.side} ${result.filledQuantity} ${request.symbol} @ ${result.averagePrice}`,
+            );
+          }
+
+          return {
+            success: result.success,
+            exchangeOrderId: result.exchangeOrderId,
+            filledQuantity: result.filledQuantity,
+            averagePrice: result.averagePrice,
+            fee: result.fee,
+            feeCurrency: result.feeCurrency,
+            error: result.error,
+          };
+        } catch (gatewayErr: any) {
+          this.logger.error(`❌ BUG-044: OANDA gateway execution failed: ${gatewayErr.message}`);
+          return {
+            success: false,
+            error: t('trading_service.failure_execute', { message: gatewayErr.message }),
+          };
+        }
+      }
+
       // SECURITY: Pass userId to verify credential ownership before decrypting
       const { apiKey, apiSecret } =
         await this.credentialsService.decryptCredential(credentialId, userId);
@@ -2751,8 +2821,13 @@ export class TradingService {
       // MT5 path is already handled above (ExecutionGateway uses lots natively).
       // Binance path uses contractSize=1 so LOTS=UNITS — no conversion needed.
       // Paper-trading path doesn't go through CCXT — no conversion needed.
+      // BUG-044: OANDA is normally routed via ExecutionGateway above (never
+      // reaches this code). This conversion block is a SAFETY NET — only
+      // triggers if ExecutionGateway is unavailable AND CCXT tries to handle
+      // OANDA directly (which will fail at _getExchangeInstance, but the
+      // conversion logic at least produces useful error messages).
       // ═══════════════════════════════════════════════════════════════
-      if (exchangeName.toLowerCase() === 'oanda') {
+      if (this._isOandaExchange(exchangeName)) {
         const meta = getSymbolMetadata(request.symbol);
         const units = lotsToUnits(request.quantity, request.symbol);
         // الحد الأدنى لـ OANDA = 1 وحدة. لو أقل → ارفض بدل إرسال طلب مرفوض.

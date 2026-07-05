@@ -12,6 +12,9 @@ import { BinanceAdapter } from '../adapters/binance.adapter';
 import { AlpacaAdapter } from '../adapters/alpaca.adapter';
 import { PaperTradingAdapter } from '../adapters/paper-trading.adapter';
 import { MT5Adapter } from '../adapters/mt5.adapter';
+// BUG-044 FIX: OANDA execution adapter — replaces the previous BinanceAdapter-as-fallback
+// which silently failed because ccxt['oanda'] = undefined.
+import { OandaExecutionAdapter } from '../adapters/oanda-execution.adapter';
 import { MarketDataAggregatorService } from '../../analytics/aggregator.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import { t } from '../../../i18n/i18n.helper';
@@ -40,6 +43,8 @@ import { t } from '../../../i18n/i18n.helper';
  * - "binance" exchange → BinanceAdapter (CCXT)
  * - "alpaca" exchange → AlpacaAdapter (REST API, paper first)
  * - "paper" exchange → PaperTradingAdapter (simulation)
+ * - "mt5" / "mt5_demo" → MT5Adapter (MetaAPI Cloud SDK)
+ * - "oanda" → OandaExecutionAdapter (BUG-044: native OANDA v20 REST)
  * - Any other CCXT-supported exchange → BinanceAdapter pattern (generic CCXT)
  *
  * Security:
@@ -295,6 +300,32 @@ export class ExecutionGatewayService {
             server: passphrase || '',     // MT5 server name from passphrase
             isDemo: isMT5Demo,
           },
+        );
+
+      case 'oanda':
+      case 'oanda_practice':
+      case 'oanda_live':
+        // BUG-044 FIX: Native OANDA v20 REST adapter — replaces the previous
+        // BinanceAdapter-as-fallback pattern that silently failed because
+        // ccxt['oanda'] = undefined.
+        //
+        // Credential mapping:
+        //   - apiKey    = OANDA API token (Bearer)
+        //   - apiSecret = OANDA account ID (e.g., "001-001-12345-001")
+        //
+        // isLive detection:
+        //   - 'oanda_live' → live
+        //   - 'oanda_practice' → practice
+        //   - 'oanda' → practice by default (safer); live must be explicit
+        //   - credential.testnet=false on 'oanda' → still practice (conservative)
+        //             To go live on production, use 'oanda_live' explicitly.
+        const isOandaLive = exchangeLower === 'oanda_live';
+        return new OandaExecutionAdapter(
+          apiKey,
+          apiSecret,
+          this.auditService,
+          userId,
+          isOandaLive,
         );
 
       default:

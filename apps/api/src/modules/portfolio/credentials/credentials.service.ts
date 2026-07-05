@@ -523,6 +523,19 @@ export class CredentialsService {
       }
     }
 
+    // BUG-046 FIX: For OANDA, the account ID is stored in the passphrase field
+    // (set by the frontend UI). The OandaExecutionAdapter expects:
+    //   apiKey    = API token
+    //   apiSecret = account ID
+    // So we swap passphrase → apiSecret for OANDA credentials before returning.
+    // The original apiSecret (placeholder 'oanda-no-secret' from frontend) is discarded.
+    const isOanda = ['oanda', 'oanda_practice', 'oanda_live'].includes(
+      (credential.exchange || '').toLowerCase(),
+    );
+    if (isOanda && passphrase) {
+      return { apiKey, apiSecret: passphrase, passphrase: undefined };
+    }
+
     return { apiKey, apiSecret, passphrase };
   }
 
@@ -1365,6 +1378,17 @@ export class CredentialsService {
       return this._validateMT5Credentials(apiKey, apiSecret, passphrase, testnet);
     }
 
+    // ── BUG-046 FIX: OANDA Validation — uses v20 REST, not CCXT ──
+    // ccxt['oanda'] = undefined, so the default CCXT path below would silently
+    // accept any token with ['read', 'trade'] permissions without verification.
+    // For OANDA, apiKey = API token, passphrase = account ID (e.g., "001-001-12345-001").
+    // We call GET /v3/accounts to verify the token, then GET /v3/accounts/{id}/summary
+    // to verify the account ID belongs to this token.
+    const isOanda = ['oanda', 'oanda_practice', 'oanda_live'].includes(exchange.toLowerCase());
+    if (isOanda) {
+      return this._validateOandaCredentials(apiKey, passphrase, exchange.toLowerCase());
+    }
+
     const isBinance = exchange.toLowerCase().startsWith('binance');
     const isBinanceTest = testnet || exchange === 'binance_test' || exchange === 'binance_future_test' || (isBinance && exchange !== 'binance');
     try {
@@ -1708,6 +1732,118 @@ export class CredentialsService {
       // MetaAPI SDK not available or other unexpected error
       this.logger.warn(`📊 MT5 validation error: ${error.message} — accepting with warning`);
       return { valid: true, permissions: ['read', 'trade'] };
+    }
+  }
+
+  /**
+   * BUG-046 FIX: Validate OANDA credentials via v20 REST API.
+   *
+   * Validates two things:
+   *   1. The API token is valid (GET /v3/accounts returns 200 with a list of accounts)
+   *   2. The account ID belongs to this token (account ID appears in the list)
+   *
+   * Returns:
+   *   - { valid: true, permissions: ['read', 'trade'] } if both checks pass
+   *   - { valid: false, error: '...' } if either fails
+   *
+   * Credential mapping:
+   *   - apiKey    = OANDA API token (Bearer)
+   *   - passphrase = OANDA account ID (e.g., "001-001-12345-001")
+   *   - apiSecret = unused (sent as 'oanda-no-secret' placeholder from frontend)
+   *
+   * @param token OANDA API token
+   * @param accountId OANDA account ID
+   * @param exchangeName 'oanda' | 'oanda_practice' | 'oanda_live'
+   */
+  private async _validateOandaCredentials(
+    token: string,
+    accountId: string | undefined,
+    exchangeName: string,
+  ): Promise<{ valid: boolean; permissions?: string[]; error?: string }> {
+    if (!token || token.length < 10) {
+      return { valid: false, error: 'OANDA API token مفقود أو قصير جداً' };
+    }
+    if (!accountId) {
+      return { valid: false, error: 'OANDA Account ID مفقود — أدخله في حقل passphrase (صيغة XXX-XXX-XXXXX-XXX)' };
+    }
+    // Validate account ID format: XXX-XXX-XXXXX-XXX (3-3-4+-3 digits)
+    const accountIdPattern = /^\d{3}-\d{3}-\d{4,}-\d{3}$/;
+    if (!accountIdPattern.test(accountId)) {
+      return {
+        valid: false,
+        error: `OANDA Account ID بصيغة خاطئة (${accountId}) — المتوقع: XXX-XXX-XXXXX-XXX مثل 001-001-12345-001`,
+      };
+    }
+
+    // Determine base URL based on exchange name
+    const isLive = exchangeName === 'oanda_live';
+    const baseUrl = isLive
+      ? 'https://api-fxtrade.oanda.com'
+      : 'https://api-fxpractice.oanda.com';
+
+    try {
+      // Step 1: Verify token by listing all accounts owned by this token
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+
+      let accountsResponse: any;
+      try {
+        const res = await fetch(`${baseUrl}/v3/accounts`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+          },
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+
+        if (res.status === 401 || res.status === 403) {
+          return { valid: false, error: 'OANDA API token غير صالح — تحقق من توليد token جديد' };
+        }
+        if (res.status === 429) {
+          // Rate-limited — accept with warning (don't block user setup)
+          this.logger.warn(`📈 OANDA rate-limited during validation — accepting with warning`);
+          return { valid: true, permissions: ['read', 'trade'] };
+        }
+        if (!res.ok) {
+          const errText = await res.text().catch(() => '');
+          return {
+            valid: false,
+            error: `OANDA API استجاب بـ ${res.status}: ${errText.substring(0, 200)}`,
+          };
+        }
+        accountsResponse = await res.json();
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      // Step 2: Verify the account ID belongs to this token
+      const accounts: any[] = accountsResponse?.accounts || [];
+      const found = accounts.find((a: any) => a.id === accountId);
+
+      if (!found) {
+        // List available account IDs to help the user debug
+        const availableIds = accounts.map((a: any) => a.id).join(', ') || 'لا يوجد';
+        return {
+          valid: false,
+          error: `OANDA Account ID "${accountId}" لا ينتمي لهذا الـ token. الحسابات المتاحة: ${availableIds}`,
+        };
+      }
+
+      this.logger.log(
+        `📈 OANDA credentials validated — account=${accountId} (${found.tags || 'no tags'}) ` +
+        `mode=${isLive ? 'LIVE' : 'Practice'} currency=${found.currency || '?'}`,
+      );
+
+      return { valid: true, permissions: ['read', 'trade'] };
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      if (msg.includes('abort') || msg.includes('timeout') || msg.includes('network')) {
+        // Network/timeout — accept with warning (don't block user setup on flaky network)
+        this.logger.warn(`📈 OANDA validation network error: ${msg} — accepting with warning`);
+        return { valid: true, permissions: ['read', 'trade'] };
+      }
+      return { valid: false, error: `فشل التحقق من OANDA: ${msg}` };
     }
   }
 

@@ -680,3 +680,41 @@
   3. **`TradingService._executeOnExchange`**: Added `_isOandaExchange()` helper and a routing block before the CCXT fallback — same pattern as MT5 (V226). Routes OANDA orders through `executionGateway.placeOrder()` → `OandaExecutionAdapter`. Preserves the BUG-042 LOTS→UNITS conversion block as a safety net (in case `executionGateway` is unavailable, the conversion at least produces meaningful error messages).
 - **Commit:** (filled after push)
 - **Test:** `apps/api/src/modules/trading/services/__tests__/BUG-044.oanda-adapter.spec.ts`
+
+### BUG-045: Frontend OANDA UI didn't collect account ID
+- **Status:** FIXED
+- **Severity:** CRITICAL
+- **File:** `apps/web/src/app/[locale]/dashboard/settings/exchange/page.tsx:127`
+- **Pattern (OPEN):** `const isOanda = exchange === 'oanda' \|\| exchange === 'oanda_practice'` (defined but never used)
+- **Pattern (FIXED):** OANDA API Token
+- **Description:** The frontend defined `isOanda` but never used it in the credential form. OANDA users saw the same generic API Key + API Secret form as Binance users. But OANDA v20 requires THREE values: API token + account ID + (live/practice flag). Without the account ID, the OandaExecutionAdapter from BUG-044 had no way to know which OANDA account to trade on — every order would fail with "404 account not found".
+- **Impact:** Even with BUG-044's adapter in place, OANDA real-money trading would still be impossible — users had no UI to input the account ID.
+- **Fix:** Added a dedicated OANDA credential block (parallel to the MT5 block) that collects:
+  1. API token (stored in `apiKey` field)
+  2. Account ID (stored in `passphrase` field, same pattern as MT5 stores server name there)
+  3. Hidden `apiSecret='oanda-no-secret'` placeholder (form requires non-empty)
+  
+  Account ID input uses `pattern="\d{3}-\d{3}-\d{4,}-\d{3}"` for client-side validation. Submit button logic updated to require `passphrase` for OANDA (same as MT5).
+- **Commit:** (filled after push)
+- **Test:** `apps/api/src/modules/trading/services/__tests__/BUG-045.oanda-ui.spec.ts`
+
+### BUG-046: Backend accepted any OANDA token without verification
+- **Status:** FIXED
+- **Severity:** CRITICAL
+- **File:** `apps/api/src/modules/portfolio/credentials/credentials.service.ts:1372`
+- **Pattern (OPEN):** `const ExchangeClass = ccxt\[normalizedExchange as keyof typeof ccxt\] as any;` followed by `if \(!ExchangeClass\) \{[^}]*return \{ valid: true, permissions: \['read', 'trade'\] \}`
+- **Pattern (FIXED):** _validateOandaCredentials
+- **Description:** `_doValidateApiKey` falls through to CCXT for non-MT5 exchanges. For OANDA, `ccxt['oanda']` = `undefined` (verified: `Object.keys(ccxt).filter(k => /oanda/i.test(k)) === []`). The existing code did `if (!ExchangeClass) return { valid: true, permissions: ['read', 'trade'] };` — silently accepting ANY string as a valid OANDA token without verification. Combined with BUG-045 (no account ID field), the entire OANDA credential setup was a security and correctness disaster: users could type "test123" as token and it would be accepted and encrypted, then fail at trade time.
+- **Impact:** Two failure modes:
+  1. **Security:** Fake tokens accepted without verification
+  2. **Functional:** Even legitimate OANDA tokens had no account ID associated, so `OandaExecutionAdapter` would fail at order placement with "404 account not found"
+- **Fix:** Three-part fix:
+  1. **`_doValidateApiKey`**: Added early-return branch for OANDA (parallel to MT5 branch) that calls `_validateOandaCredentials()`.
+  2. **`_validateOandaCredentials` (new method)**: Validates OANDA credentials by calling `GET /v3/accounts` on OANDA v20 REST API. Verifies:
+     - API token returns 200 (not 401/403 = invalid token)
+     - Account ID provided in `passphrase` field exists in the list of accounts owned by this token
+     - Account ID matches format `XXX-XXX-XXXXX-XXX` (3-3-4+-3 digits)
+     Returns clear Arabic error messages for each failure mode.
+  3. **`decryptCredential`**: For OANDA credentials, swaps `passphrase` (account ID) → `apiSecret` before returning. The `OandaExecutionAdapter` constructor expects `apiSecret` = account ID, so this bridges the storage format (passphrase field) with the adapter's interface.
+- **Commit:** (filled after push)
+- **Test:** `apps/api/src/modules/trading/services/__tests__/BUG-046.oanda-validation.spec.ts`

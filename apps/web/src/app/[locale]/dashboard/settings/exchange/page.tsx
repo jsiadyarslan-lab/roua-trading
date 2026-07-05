@@ -125,6 +125,11 @@ export default function ExchangeSettingsPage() {
   const isMT5 = exchange === 'mt5' || exchange === 'mt5_demo'
   const isMT5Demo = exchange === 'mt5_demo'
   const isOanda = exchange === 'oanda' || exchange === 'oanda_practice'
+  // BUG-045 FIX: OANDA account ID stored in passphrase field (same pattern as MT5 server name).
+  // apiKey = OANDA API token, apiSecret = unused (we send empty), passphrase = account ID.
+  // The backend OandaExecutionAdapter reads: apiKey=token, apiSecret=accountId.
+  // To bridge this, CredentialsService swaps passphrase → apiSecret for OANDA at decrypt time.
+  const isOandaPractice = exchange === 'oanda_practice'
 
   // Fetch server IP for Binance IP whitelist
   const fetchServerIp = useCallback(async () => {
@@ -619,6 +624,59 @@ export default function ExchangeSettingsPage() {
                           </p>
                         </div>
                       </>
+                    ) : isOanda ? (
+                      <>
+                        {/* BUG-045: OANDA Info Banner */}
+                        <div className="flex items-start gap-2 p-2.5 rounded-md bg-blue-500/5 border border-blue-500/10">
+                          <Info className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            ربط حساب OANDA يتطلب <span className="text-blue-300 font-medium">حساب Practice مجاني</span> من <a href="https://oanda.com" target="_blank" rel="noreferrer" className="underline text-blue-400">oanda.com</a>.
+                            ستحتاج إلى <span className="text-blue-300 font-medium">API token</span> و <span className="text-blue-300 font-medium">Account ID</span> من إعدادات حسابك.
+                            يدعم الفوركس (EUR/USD)، المعادن (XAU/USD)، المؤشرات (US30/USD)، والطاقة (WTI/USD).
+                          </p>
+                        </div>
+
+                        {/* OANDA API Token */}
+                        <div className="space-y-2">
+                          <Label htmlFor="apiKey">OANDA API Token</Label>
+                          <Input
+                            id="apiKey"
+                            type="password"
+                            placeholder="مثال: 1-abcdef23-..."
+                            value={apiKey}
+                            onChange={(e) => setApiKey(e.target.value)}
+                            dir="ltr"
+                            className="bg-background"
+                            required
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            من <span dir="ltr" className="font-mono">oanda.com → My Account → Manage API Access → Generate Personal Access Token</span>
+                          </p>
+                        </div>
+
+                        {/* OANDA Account ID (stored in passphrase field, same pattern as MT5 server name) */}
+                        <div className="space-y-2">
+                          <Label htmlFor="passphrase">OANDA Account ID</Label>
+                          <Input
+                            id="passphrase"
+                            type="text"
+                            placeholder="مثال: 001-001-12345-001"
+                            value={passphrase}
+                            onChange={(e) => setPassphrase(e.target.value)}
+                            dir="ltr"
+                            className="bg-background font-mono"
+                            required
+                            pattern="\d{3}-\d{3}-\d{4,}-\d{3}"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            من <span dir="ltr" className="font-mono">oanda.com → My Account → Accounts → Account ID</span> (صيغة: XXX-XXX-XXXXX-XXX)
+                          </p>
+                        </div>
+
+                        {/* Hidden apiSecret field — OANDA doesn't use it, but the form requires non-empty.
+                            The backend will use passphrase (account ID) as apiSecret for OANDA. */}
+                        <input type="hidden" value="oanda-no-secret" onChange={() => setApiSecret('oanda-no-secret')} />
+                      </>
                     ) : (
                     <>
                     {/* Non-MT5: API Key */}
@@ -735,18 +793,18 @@ export default function ExchangeSettingsPage() {
                     <div className="flex items-center gap-3">
                       <Button
                         type="submit"
-                        disabled={submitting || !apiKey || !apiSecret || (isMT5 && !passphrase)}
+                        disabled={submitting || !apiKey || (!isOanda && !apiSecret) || ((isMT5 || isOanda) && !passphrase)}
                         className="bg-teal-500 hover:bg-teal-600 text-background"
                       >
                         {submitting ? (
                           <>
                             <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                            {isMT5 ? 'جارٍ التحقق من حساب MT5...' : 'جارٍ التحقق والتشفير...'}
+                            {isMT5 ? 'جارٍ التحقق من حساب MT5...' : isOanda ? 'جارٍ التحقق من حساب OANDA...' : 'جارٍ التحقق والتشفير...'}
                           </>
                         ) : (
                           <>
                             <Shield className="w-4 h-4 ml-2" />
-                            {isMT5 ? 'ربط حساب MT5' : 'إضافة وتحقق'}
+                            {isMT5 ? 'ربط حساب MT5' : isOanda ? 'ربط حساب OANDA' : 'إضافة وتحقق'}
                           </>
                         )}
                       </Button>

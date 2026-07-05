@@ -386,9 +386,9 @@ export default function RouaChart({
   onToggleExpand,
 }: RouaChartProps) {
   // BUG-050 DIAGNOSTIC: Version marker — verify new code is deployed
-  // If this doesn't appear in console after hard-refresh, browser cache is stale
+  // Using console.warn because console.log is stripped in production
   useEffect(() => {
-    console.log('%c[BUG-050] RouaChart v50 deployed — if you see this, the new code IS running', 'color: #00E676; font-weight: bold');
+    console.warn('%c[BUG-050] RouaChart v51 deployed — if you see this, the new code IS running', 'color: #00E676; font-weight: bold');
   }, []);
 
   const tc = useTranslations('dashboard.chart');
@@ -586,6 +586,8 @@ export default function RouaChart({
   // candlesRef.current.length === 0 and all WebSocket updates were dropped.
   const candlesClearedAtRef = useRef(0);
   const CANDLES_CLEAR_TIMEOUT_MS = 10_000; // Allow WebSocket after 10s even if fetch failed
+  // BUG-050 DIAGNOSTIC: Throttle WS candle log to 1 per 2s
+  const _wsLogLastRef = useRef(0);
   // FIX: Pagination — track whether we're loading older data and whether
   // there's more data to load. When the user scrolls left past the initial
   // 1000 candles, we fetch older data using Binance's startTime parameter.
@@ -880,6 +882,13 @@ export default function RouaChart({
     symbol: selectedSymbol_,
     timeframe: timeframe_,
     onCandleUpdate: (candle) => {
+      // BUG-050 DIAGNOSTIC: Log WS candle updates with symbol context
+      // (throttled to 1 per 2s to avoid spam)
+      const _now = Date.now();
+      if (!_wsLogLastRef.current || _now - _wsLogLastRef.current > 2000) {
+        _wsLogLastRef.current = _now;
+        console.warn(`%c[BUG-050] WS candle: time=${candle.time} close=${candle.close} — selectedSymbol_=${selectedSymbol_} candlesRef=${candlesRef.current.length}`, 'color: #FFB800');
+      }
       // If candlesRef was just cleared (timeframe change in progress),
       // don't accept WebSocket candles until the fetch fills it again.
       // This prevents stale data from the old timeframe being pushed back.
@@ -1345,7 +1354,8 @@ export default function RouaChart({
     const controller = new AbortController();
 
     // BUG-050 DIAGNOSTIC: Log every fetch trigger with timestamp
-    console.log(`%c[BUG-050] Fetch effect FIRED at ${new Date().toISOString()} — symbol=${selectedSymbol_} tf=${timeframe_}`, 'color: #00E5FF; font-weight: bold');
+    // Using console.warn because console.log is stripped in production
+    console.warn(`%c[BUG-050] Fetch effect FIRED at ${new Date().toISOString()} — symbol=${selectedSymbol_} tf=${timeframe_}`, 'color: #00E5FF; font-weight: bold');
 
     // BUG-050: Safety timeout — if fetch doesn't complete in 15s, log diagnostic
     const safetyTimeout = setTimeout(() => {
@@ -1357,19 +1367,19 @@ export default function RouaChart({
     const fetchCandles = async () => {
       try {
         setFeedState('waiting');
-        console.log(`[RouaChart] Fetching candles: ${selectedSymbol_} ${timeframe_}...`);
+        console.warn(`[RouaChart] Fetching candles: ${selectedSymbol_} ${timeframe_}...`);
         const res = await fetch(`/api/exchange/history/${encodeURIComponent(selectedSymbol_)}?interval=${timeframe_}`, {
           signal: controller.signal,
         });
         const j = await res.json();
 
         if (cancelled) {
-          console.log(`[RouaChart] Fetch cancelled (symbol changed): ${selectedSymbol_} ${timeframe_}`);
+          console.warn(`[RouaChart] Fetch cancelled (symbol changed): ${selectedSymbol_} ${timeframe_}`);
           return; // Symbol/timeframe changed while fetching — discard
         }
 
         if (j.success && j.data && j.data.length > 0) {
-          console.log(`[RouaChart] Fetched ${j.data.length} candles for ${selectedSymbol_} ${timeframe_} (source: ${j.meta?.source || 'unknown'})`);
+          console.warn(`[RouaChart] Fetched ${j.data.length} candles for ${selectedSymbol_} ${timeframe_} (source: ${j.meta?.source || 'unknown'})`);
           setFeedState('live');
           const formatted: CandleData[] = j.data
             .map((c: any) => {
@@ -1406,10 +1416,10 @@ export default function RouaChart({
           // Pass clearExternal:true because this is a timeframe/symbol change —
           // old AI overlay series have timestamps from the previous timeframe
           // and would cause "Value is null" crash if left on the chart.
-          console.log(`[RouaChart] Setting ${unique.length} candles on chart for ${selectedSymbol_} ${timeframe_}`);
+          console.warn(`[RouaChart] Setting ${unique.length} candles on chart for ${selectedSymbol_} ${timeframe_}`);
           setCandlesRef.current(unique, { clearExternal: true });
           // BUG-050 DIAGNOSTIC: Verify candles were actually set
-          console.log(`%c[BUG-050] setCandles called — ${unique.length} candles, candlesRef now has ${candlesRef.current.length}`, 'color: #00E676');
+          console.warn(`%c[BUG-050] setCandles called — ${unique.length} candles, candlesRef now has ${candlesRef.current.length}`, 'color: #00E676');
           // Update AI panel candles if panel is open so overlays can redraw
           if (showAIPanelRef.current) {
             setAiPanelCandles([...unique]);

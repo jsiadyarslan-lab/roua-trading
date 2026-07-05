@@ -178,7 +178,7 @@ export async function DELETE(
       message: `تم حذف المستخدم ${user.displayName || user.email} وجميع بياناته المرتبطة بنجاح`,
     })
   } catch (error: any) {
-    console.error('[admin/users/delete] Error:', error?.message || error)
+    console.error('[admin/users/delete] Error:', error?.message || error, 'code:', error?.code, 'meta:', error?.meta)
 
     // Handle Prisma foreign key constraint errors specifically
     if (error?.code === 'P2003') {
@@ -186,13 +186,31 @@ export async function DELETE(
         {
           error: 'لا يمكن حذف المستخدم — توجد بيانات مرتبطة لا تُحذف تلقائياً. تواصل مع المطور.',
           details: error?.meta?.field_name || '',
+          prismaCode: 'P2003',
         },
         { status: 409 }
       )
     }
 
+    // Handle Prisma record not found (user was already deleted or never existed)
+    if (error?.code === 'P2025') {
+      return NextResponse.json(
+        { error: 'المستخدم غير موجود أو تم حذفه مسبقاً' },
+        { status: 404 }
+      )
+    }
+
+    // BUG-047: Return the actual error message so the admin UI can show it.
+    // The previous generic 'فشل في حذف المستخدم' hid the real cause (e.g.,
+    // 'Foreign key constraint failed on field: senderId' for a ChatMessage
+    // relation that doesn't cascade).
+    const errorMessage = error?.message || String(error) || 'خطأ غير معروف'
     return NextResponse.json(
-      { error: 'فشل في حذف المستخدم' },
+      {
+        error: `فشل في حذف المستخدم: ${errorMessage}`,
+        prismaCode: error?.code || null,
+        meta: error?.meta || null,
+      },
       { status: 500 }
     )
   }

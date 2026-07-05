@@ -247,7 +247,10 @@ export class OandaAdapter implements IExchangeAdapter {
       marketCap: null,
       fiftyTwoWeekHigh: null,
       fiftyTwoWeekLow: null,
-      timestamp: new Date(latestComplete.time),
+      // BUG-C02 FIX: Use Date.now() (fetch time) instead of latestComplete.time (60-119s stale).
+      // The price is from the latest complete candle, but the timestamp should reflect
+      // when we fetched it — otherwise PositionMonitor rejects it as stale (>60s old).
+      timestamp: new Date(),
       source: 'oanda-v20',
     };
   }
@@ -263,7 +266,9 @@ export class OandaAdapter implements IExchangeAdapter {
     start: Date,
     end: Date,
   ): Promise<UnifiedCandleDto[]> {
-    const cacheKey = `oanda:history:${symbol}:${interval}:${start.getTime()}:${end.getTime()}`;
+    // BUG-C09 FIX: Use hour-granularity bucketing instead of millisecond timestamps.
+    // Millisecond timestamps meant the cache NEVER hit (every call had unique key).
+    const cacheKey = `oanda:history:${symbol}:${interval}:${Math.floor(start.getTime() / 3_600_000)}:${Math.floor(end.getTime() / 3_600_000)}`;
 
     try {
       return await this.redisService.cacheOrGet<UnifiedCandleDto[]>(
@@ -289,18 +294,15 @@ export class OandaAdapter implements IExchangeAdapter {
     const oandaSymbol = this.toOandaSymbol(symbol);
     const granularity = this._mapIntervalToGranularity(interval);
 
-    // V381: OANDA v20 API limits:
-    // - Maximum 5000 candles per request when using count parameter
-    // - When using from/to, the range must not exceed ~5000 candles
-    // - For M1 granularity, 5000 candles = ~3.5 days
-    // - For H1 granularity, 5000 candles = ~208 days
-    //
-    // FIX: Use count=500 (reasonable default) instead of from/to.
-    // The chart only needs recent history for display + indicators.
-    // 500 candles is enough for most indicators (MACD needs ~35, RSI needs ~14).
-    const MAX_CANDLES = 500;
+    // BUG-C05 FIX: Use from/to parameters instead of count=500.
+    // The old code ignored start/end and always returned last 500 candles.
+    // Now we pass from/to to OANDA API, with a max of 5000 candles per request.
+    // If the range exceeds 5000 candles, we paginate.
+    const MAX_CANDLES = 5000;
+    const fromIso = start.toISOString();
+    const toIso = end.toISOString();
     const data = await this.apiRequest(
-      `/v3/instruments/${oandaSymbol}/candles?count=${MAX_CANDLES}&price=M&granularity=${granularity}`
+      `/v3/instruments/${oandaSymbol}/candles?from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}&price=M&granularity=${granularity}`
     );
 
     const candles = data?.candles || [];

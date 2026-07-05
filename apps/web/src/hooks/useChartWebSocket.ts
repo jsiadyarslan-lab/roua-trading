@@ -296,16 +296,18 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
         const data = await binanceRes.json();
         if (data.length > 0) {
           const k = data[data.length - 1];
-          const candle: CandleData = {
-            time: Math.floor(k[0] / 1000),
-            open: parseFloat(k[1]),
-            high: parseFloat(k[2]),
-            low: parseFloat(k[3]),
-            close: parseFloat(k[4]),
-            volume: parseFloat(k[5]),
-          };
-          onCandleUpdateRef.current(candle);
-          onPriceUpdateRef.current(candle.close);
+          // BUG-C04 FIX: Validate all OHLCV fields before using — NaN crashes the chart.
+          const o = parseFloat(k[1]), h = parseFloat(k[2]), l = parseFloat(k[3]),
+                c = parseFloat(k[4]), v = parseFloat(k[5]);
+          if (isFinite(o) && isFinite(h) && isFinite(l) && isFinite(c) && c > 0) {
+            const candle: CandleData = {
+              time: Math.floor(k[0] / 1000),
+              open: o, high: h, low: l, close: c,
+              volume: isFinite(v) ? v : 0,
+            };
+            onCandleUpdateRef.current(candle);
+            onPriceUpdateRef.current(candle.close);
+          }
         }
       }
     } catch {
@@ -378,7 +380,11 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           if (msg.stream?.includes('@ticker')) {
             const d = msg.data;
             if (d?.c) {
-              bufferUpdate(null, parseFloat(d.c), false);
+              // BUG-C04 FIX: Validate price before propagating — NaN/Infinity crashes the chart.
+              const price = parseFloat(d.c);
+              if (isFinite(price) && price > 0) {
+                bufferUpdate(null, price, false);
+              }
             }
           }
         } catch {

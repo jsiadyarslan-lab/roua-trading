@@ -178,14 +178,16 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
         if (candle) {
           this._saveCandleToRedis(symbol, tfSec, candle).catch(() => {});
         }
-        // Start new candle — V447: volume = 1 (tick count, not real volume)
+        // BUG-C03 FIX: Set volume=0 instead of tick count.
+        // Tick count is NOT real volume — it produces wrong values for VWAP/OBV/MFI.
+        // OANDA doesn't provide real volume for forex/metals. Setting 0 is honest.
         candle = {
           time: candleTime,
           open: price,
           high: price,
           low: price,
           close: price,
-          volume: 1,
+          volume: 0,
         };
         symbolBuilders.set(tfSec, candle);
       } else {
@@ -193,7 +195,7 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
         candle.high = Math.max(candle.high, price);
         candle.low = Math.min(candle.low, price);
         candle.close = price;
-        candle.volume = (candle.volume || 0) + 1; // V447: tick count as volume proxy
+        // BUG-C03: Don't increment volume — it's tick count, not real volume.
       }
 
       // V444: Throttle Redis writes — only write each (symbol, tf) once per 500ms

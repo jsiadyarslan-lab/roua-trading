@@ -72,7 +72,9 @@ export class BinanceAdapter implements IExchangeAdapter {
     start: Date,
     end: Date,
   ): Promise<UnifiedCandleDto[]> {
-    const cacheKey = `binance:history:${symbol}:${interval}:${start.toISOString().split('T')[0]}:${end.toISOString().split('T')[0]}`;
+    // BUG-C10 FIX: Use hour-granularity bucketing instead of date-only.
+    // Date-only caused same-day requests to return stale cached data.
+    const cacheKey = `binance:history:${symbol}:${interval}:${Math.floor(start.getTime() / 3_600_000)}:${Math.floor(end.getTime() / 3_600_000)}`;
 
     try {
       return await this.redisService.cacheOrGet<UnifiedCandleDto[]>(
@@ -142,37 +144,73 @@ export class BinanceAdapter implements IExchangeAdapter {
 
     this.logger.debug(`💱 Fetching Binance history: ${symbol} (${interval})`);
 
-    // Map interval to CCXT timeframe
     const timeframe = this._mapInterval(interval);
-
     const normalizedSymbol = this._normalizeSymbol(symbol);
-    let ohlcv;
+
+    // BUG-C01 FIX: Paginate fetchOHLCV — was passing limit=undefined (CCXT default=500).
+    // Now fetches in batches of 1000 until all data between start and end is retrieved.
+    const fetchBatch = async (sym: string, since: number): Promise<any[]> => {
+      return await this.exchange.fetchOHLCV(sym, timeframe, since, 1000, end.getTime());
+    };
+
+    let allOhlcv: any[] = [];
+    let cursor = start.getTime();
+    const actualSymbol = normalizedSymbol;
+
     try {
-      ohlcv = await this.exchange.fetchOHLCV(
-        normalizedSymbol,
-        timeframe,
-        start.getTime(),
-        undefined,
-        end.getTime(),
-      );
+      let batch = await fetchBatch(actualSymbol, cursor);
+      if (batch.length === 0) {
+        // Try /USDT fallback
+        if (actualSymbol.endsWith('/USD')) {
+          const usdtSymbol = actualSymbol.replace('/USD', '/USDT');
+          this.logger.warn(`💱 ${actualSymbol} not found, trying ${usdtSymbol}`);
+          batch = await fetchBatch(usdtSymbol, cursor);
+          if (batch.length > 0) {
+            // Continue pagination with the working symbol
+            allOhlcv = allOhlcv.concat(batch);
+            cursor = batch[batch.length - 1][0] + 1;
+            while (batch.length === 1000 && cursor < end.getTime()) {
+              batch = await fetchBatch(usdtSymbol, cursor);
+              if (batch.length === 0) break;
+              allOhlcv = allOhlcv.concat(batch);
+              cursor = batch[batch.length - 1][0] + 1;
+            }
+          }
+        }
+      } else {
+        allOhlcv = allOhlcv.concat(batch);
+        cursor = batch[batch.length - 1][0] + 1;
+        // Continue fetching until we get less than 1000 (end of range) or reach end time
+        while (batch.length === 1000 && cursor < end.getTime()) {
+          batch = await fetchBatch(actualSymbol, cursor);
+          if (batch.length === 0) break;
+          allOhlcv = allOhlcv.concat(batch);
+          cursor = batch[batch.length - 1][0] + 1;
+        }
+      }
     } catch (error: any) {
       // If /USD pair doesn't exist on Binance, try /USDT instead
-      if (normalizedSymbol.endsWith('/USD') && error?.message?.includes('does not have market symbol')) {
-        const usdtSymbol = normalizedSymbol.replace('/USD', '/USDT');
-        this.logger.warn(`💱 ${normalizedSymbol} not found on Binance history, trying ${usdtSymbol}`);
-        ohlcv = await this.exchange.fetchOHLCV(
-          usdtSymbol,
-          timeframe,
-          start.getTime(),
-          undefined,
-          end.getTime(),
-        );
+      if (actualSymbol.endsWith('/USD') && error?.message?.includes('does not have market symbol') && allOhlcv.length === 0) {
+        const usdtSymbol = actualSymbol.replace('/USD', '/USDT');
+        this.logger.warn(`💱 ${actualSymbol} not found on Binance history, trying ${usdtSymbol}`);
+        cursor = start.getTime();
+        let batch = await fetchBatch(usdtSymbol, cursor);
+        allOhlcv = allOhlcv.concat(batch);
+        cursor = batch.length > 0 ? batch[batch.length - 1][0] + 1 : cursor;
+        while (batch.length === 1000 && cursor < end.getTime()) {
+          batch = await fetchBatch(usdtSymbol, cursor);
+          if (batch.length === 0) break;
+          allOhlcv = allOhlcv.concat(batch);
+          cursor = batch[batch.length - 1][0] + 1;
+        }
       } else {
         throw error;
       }
     }
 
-    return ohlcv.map((candle) => ({
+    this.logger.debug(`💱 Binance history: fetched ${allOhlcv.length} candles for ${symbol} (${interval})`);
+
+    return allOhlcv.map((candle) => ({
       symbol,
       timestamp: new Date(candle[0]),
       open: candle[1],

@@ -128,6 +128,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const markersRef = useRef<any[]>([]);
   const markersPluginRef = useRef<any>(null);
   const onCrosshairMoveRef = useRef(onCrosshairMove);
+  // BUG-C07 FIX: Refs for Heikin-Ashi previous values (needed for correct HA calculation)
+  const lastHaOpenRef = useRef<number | null>(null);
+  const lastHaCloseRef = useRef<number | null>(null);
   // FIX: Moved visibleRangeCallbackRef and prevCallbackRef up from line ~1321 to here
   // to prevent TDZ (Temporal Dead Zone) error — initChart() at line ~136 references
   // visibleRangeCallbackRef.current, and it must be declared before initChart is defined.
@@ -1192,12 +1195,21 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         } as any);
       } catch { /* chart was destroyed between the null check and update */ }
     } else if (settings.type === 'heikin-ashi') {
-      // Only recalculate last candle for HA, not entire series
-      const prevCandle = candles.length > 1 ? candles[candles.length - 2] : sanitized;
+      // BUG-C07 FIX: Use previous HA values (not raw OHLC) for correct Heikin-Ashi.
+      // Standard formula: haOpen = (prevHAOpen + prevHAClose) / 2
+      // Old code used prevCandle.open (raw) — produced "pseudo-Heikin-Ashi".
       const haClose = (sanitized.open + sanitized.high + sanitized.low + sanitized.close) / 4;
-      const haOpen = prevCandle === sanitized ? (sanitized.open + haClose) / 2 : (prevCandle.open + prevCandle.close) / 2;
+      let haOpen: number;
+      if (lastHaOpenRef.current !== null && lastHaCloseRef.current !== null) {
+        haOpen = (lastHaOpenRef.current + lastHaCloseRef.current) / 2;
+      } else {
+        haOpen = (sanitized.open + haClose) / 2; // First candle seed
+      }
       const haHigh = Math.max(sanitized.high, haOpen, haClose);
       const haLow = Math.min(sanitized.low, haOpen, haClose);
+      // Store HA values for next tick
+      lastHaOpenRef.current = haOpen;
+      lastHaCloseRef.current = haClose;
       const lastDisplay = { ...sanitized, open: haOpen, high: haHigh, low: haLow, close: haClose };
       try { candleSeriesRef.current.update({
         time: lastTime as Time, open: lastDisplay.open, high: lastDisplay.high, low: lastDisplay.low, close: lastDisplay.close,
@@ -1672,6 +1684,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       // that was JUST set by the fetch (race condition on symbol switch).
       // استخدام ref بدل closure — دائماً يحوي الرمز الحالي وليس القديم
       lastLoadedDataKeyRef.current = `${currentSymbolRef.current}:${currentTimeframeRef.current}`;
+
+      // BUG-C07 FIX: Reset Heikin-Ashi refs when new candle data is loaded
+      // (symbol/timeframe switch) so HA calculation starts fresh.
+      lastHaOpenRef.current = null;
+      lastHaCloseRef.current = null;
 
       // V255 FIX: Force redraw drawings after candle data is loaded.
       // This is THE critical redraw point — the only place where we do a

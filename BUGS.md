@@ -492,3 +492,92 @@
 - **File:** `apps/api/src/modules/ai/services/strategic-council.service.ts:283`
 - **Pattern (FIXED):** REVOLUTIONARY.*Regime-Conditional
 - **Description:** Market regime info is now explicitly injected into the adversarial role's prompt to challenge consensus based on current market conditions.
+
+### BUG-C01: Binance OHLCV truncated to 500 candles (silent data loss)
+- **Status:** FIXED
+- **Severity:** CRITICAL
+- **File:** `apps/api/src/modules/exchange/adapters/binance.adapter.ts:151`
+- **Pattern (OPEN):** limit.*undefined
+- **Pattern (FIXED):** BUG-C01 FIX.*Paginate
+- **Description:** fetchOHLCV passed limit=undefined → CCXT default=500. For 1min over 60 days, only 500 candles returned (~8 hours). Indicators like EMA200 produced NaN.
+- **Fix:** Added pagination — fetch in batches of 1000 until all data between start and end is retrieved.
+
+### BUG-C02: OANDA REST quote timestamp always 60-119s stale
+- **Status:** FIXED
+- **Severity:** CRITICAL
+- **File:** `apps/api/src/modules/exchange/adapters/oanda.adapter.ts:250`
+- **Pattern (OPEN):** timestamp: new Date\(latestComplete\.time\)
+- **Pattern (FIXED):** BUG-C02 FIX.*Date\.now
+- **Description:** Quote timestamp used latestComplete.time (open of previous minute) → always 60-119s old. PositionMonitor rejects quotes >60s → SL/TP disabled when OANDA stream is down.
+- **Fix:** Changed to `new Date()` (fetch time). Price is from latest complete candle, but timestamp reflects when we fetched it.
+
+### BUG-C03: OANDA stream volume = tick count (misleading for indicators)
+- **Status:** FIXED
+- **Severity:** HIGH
+- **File:** `apps/api/src/modules/exchange/adapters/oanda-streaming.service.ts:188`
+- **Pattern (OPEN):** volume: 1.*tick count
+- **Pattern (FIXED):** BUG-C03 FIX.*volume.*0
+- **Description:** Volume was set to tick count (1 per tick), not real volume. M1 ≈ 600, D1 ≈ 864,000. VWAP/OBV/MFI/Volume Profile all produced wrong values.
+- **Fix:** Set volume=0. OANDA doesn't provide real volume for forex/metals. Zero is honest.
+
+### BUG-C04: NaN from Binance WS crashes chart permanently
+- **Status:** FIXED
+- **Severity:** CRITICAL
+- **File:** `apps/web/src/hooks/useChartWebSocket.ts:381`
+- **Pattern (OPEN):** bufferUpdate\(null, parseFloat\(d\.c\), false\)
+- **Pattern (FIXED):** BUG-C04 FIX.*isFinite
+- **Description:** parseFloat(d.c) could return NaN. Math.max(high, NaN) = NaN. All subsequent candles inherit NaN. One malformed Binance message = chart permanently broken.
+- **Fix:** Added isFinite(price) && price > 0 check before bufferUpdate. Also fixed REST fallback path with full OHLCV validation.
+
+### BUG-C05: OANDA history ignores start/end parameters
+- **Status:** FIXED
+- **Severity:** HIGH
+- **File:** `apps/api/src/modules/exchange/adapters/oanda.adapter.ts:301`
+- **Pattern (OPEN):** count=.*MAX_CANDLES.*500
+- **Pattern (FIXED):** BUG-C05 FIX.*from.*to
+- **Description:** _fetchHistoryFromOanda accepted start/end params but used count=500 instead. Request for "60 days of 1min" returned last 500 minutes (~8 hours).
+- **Fix:** Changed to use from/to parameters with OANDA API. Now returns full requested range.
+
+### BUG-C06: Simulated/fake data shown without clear warning
+- **Status:** FIXED
+- **Severity:** HIGH
+- **File:** `apps/web/src/components/charts/RouaChart.tsx:1418`
+- **Pattern (FIXED):** BUG-C06 FIX.*DEMO DATA
+- **Description:** When API fails, generateSimulatedData() creates 300 random-walk candles. Small "fallback" badge exists but no watermark on chart canvas.
+- **Fix:** Added large semi-transparent "⚠ DEMO DATA" watermark overlay on chart when feedState='fallback'.
+
+### BUG-C07: Heikin-Ashi calculation incorrect
+- **Status:** FIXED
+- **Severity:** HIGH
+- **File:** `apps/web/src/hooks/useChart.ts:1196`
+- **Pattern (OPEN):** prevCandle\.open.*prevCandle\.close
+- **Pattern (FIXED):** BUG-C07 FIX.*prevHA
+- **Description:** Used prevCandle.open (raw OHLC) instead of previous HA open/close. Standard formula: haOpen = (prevHAOpen + prevHAClose) / 2. Produced "pseudo-Heikin-Ashi" that doesn't match any standard.
+- **Fix:** Added lastHaOpenRef and lastHaCloseRef to track previous HA values. Reset on new candle data load.
+
+### BUG-C08: Candle countdown timer wrong for OANDA forex pairs
+- **Status:** FIXED
+- **Severity:** MEDIUM
+- **File:** `apps/web/src/components/charts/RouaChart.tsx:1604`
+- **Pattern (OPEN):** Date\.now\(\) % intervalMs
+- **Pattern (FIXED):** BUG-C08 FIX.*lastCandle.*time
+- **Description:** Used Date.now() % intervalMs which assumes epoch-aligned candle boundaries. OANDA daily candles close at 17:00 NY, not 00:00 UTC. Countdown was 5-7 hours wrong for forex.
+- **Fix:** Calculate remaining time from last candle's open time + interval, instead of epoch modulo.
+
+### BUG-C09: OANDA history cache key never hits (millisecond timestamps)
+- **Status:** FIXED
+- **Severity:** MEDIUM
+- **File:** `apps/api/src/modules/exchange/adapters/oanda.adapter.ts:266`
+- **Pattern (OPEN):** start\.getTime\(\).*end\.getTime\(\)
+- **Pattern (FIXED):** BUG-C09 FIX.*hour-granularity
+- **Description:** Cache key used millisecond timestamps → every call had unique key → cache NEVER hit. Every OANDA history request hit REST API directly.
+- **Fix:** Changed to hour-granularity bucketing: Math.floor(timestamp / 3_600_000).
+
+### BUG-C10: Binance history cache key uses date-only (stale same-day)
+- **Status:** FIXED
+- **Severity:** MEDIUM
+- **File:** `apps/api/src/modules/exchange/adapters/binance.adapter.ts:75`
+- **Pattern (OPEN):** toISOString\(\)\.split\('T'\)\[0\]
+- **Pattern (FIXED):** BUG-C10 FIX.*hour-granularity
+- **Description:** Cache key used date-only (YYYY-MM-DD). Two requests on same day = same key, even if 12 hours apart. Chart "refresh" returned stale data.
+- **Fix:** Changed to hour-granularity bucketing: Math.floor(timestamp / 3_600_000).

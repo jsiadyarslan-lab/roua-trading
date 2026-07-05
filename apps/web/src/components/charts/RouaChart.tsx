@@ -1601,11 +1601,26 @@ export default function RouaChart({
       const tf = TIMEFRAMES.find(t => t.value === timeframe_);
       const minutes = tf?.minutes || 15;
       const intervalMs = minutes * 60 * 1000;
-      const remaining = intervalMs - (Date.now() % intervalMs);
-      const totalSeconds = Math.max(0, Math.floor(remaining / 1000));
-      const mins = Math.floor(totalSeconds / 60);
-      const secs = totalSeconds % 60;
-      setCandleCountdown(`${mins}:${secs.toString().padStart(2, '0')}`);
+      // BUG-C08 FIX: Use last candle's time instead of Date.now() % intervalMs.
+      // The old formula assumed epoch-aligned candle boundaries (true for Binance,
+      // wrong for OANDA — daily candles close at 17:00 NY, not 00:00 UTC).
+      const lastCandle = candlesRef.current[candlesRef.current.length - 1];
+      if (lastCandle && lastCandle.time > 0) {
+        // Calculate next candle close time from last candle's open time
+        const nextCloseMs = (lastCandle.time + minutes * 60) * 1000;
+        const remaining = nextCloseMs - Date.now();
+        const totalSeconds = Math.max(0, Math.floor(remaining / 1000));
+        const mins = Math.floor(totalSeconds / 60);
+        const secs = totalSeconds % 60;
+        setCandleCountdown(`${mins}:${secs.toString().padStart(2, '0')}`);
+      } else {
+        // Fallback: epoch-aligned (for when no candles are loaded yet)
+        const remaining = intervalMs - (Date.now() % intervalMs);
+        const totalSeconds = Math.max(0, Math.floor(remaining / 1000));
+        const mins = Math.floor(totalSeconds / 60);
+        const secs = totalSeconds % 60;
+        setCandleCountdown(`${mins}:${secs.toString().padStart(2, '0')}`);
+      }
     };
 
     tick();
@@ -3114,6 +3129,17 @@ export default function RouaChart({
       }}
       className="roua-chart-root"
     >
+      {/* BUG-C06 FIX: Visible watermark when showing simulated/fallback data */}
+      {feedState === 'fallback' && (
+        <div style={{
+          position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+          fontSize: 36, fontWeight: 900, color: 'rgba(255,184,0,0.12)',
+          fontFamily: "var(--font-mono)", pointerEvents: 'none', zIndex: 1,
+          letterSpacing: 4, textTransform: 'uppercase', whiteSpace: 'nowrap',
+        }}>
+          ⚠ DEMO DATA
+        </div>
+      )}
       <ChartDiagOverlay connectionState={ws.connectionState} />
       {/* ── TOOLBAR ── */}
       {isGridCell ? (

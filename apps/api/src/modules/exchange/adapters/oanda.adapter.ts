@@ -292,20 +292,40 @@ export class OandaAdapter implements IExchangeAdapter {
     end: Date,
   ): Promise<UnifiedCandleDto[]> {
     const oandaSymbol = this.toOandaSymbol(symbol);
+
+    // BUG-C05 FIX: Use from/to parameters with pagination.
+    // OANDA API limits to ~5000 candles per request. For large date ranges
+    // (e.g., 60 days of 1min = 86,400 candles), we paginate by chunking
+    // the date range into segments that fit within the 5000-candle limit.
     const granularity = this._mapIntervalToGranularity(interval);
+    const granSeconds: Record<string, number> = {
+      'M1': 60, 'M5': 300, 'M15': 900, 'M30': 1800,
+      'H1': 3600, 'H4': 14400, 'D1': 86400, 'W1': 604800,
+    };
+    const secPerCandle = granSeconds[granularity] || 60;
+    const MAX_PER_REQUEST = 4000; // Safe margin below OANDA's 5000 limit
+    const maxRangeMs = MAX_PER_REQUEST * secPerCandle * 1000;
 
-    // BUG-C05 FIX: Use from/to parameters instead of count=500.
-    // The old code ignored start/end and always returned last 500 candles.
-    // Now we pass from/to to OANDA API, with a max of 5000 candles per request.
-    // If the range exceeds 5000 candles, we paginate.
-    const MAX_CANDLES = 5000;
-    const fromIso = start.toISOString();
-    const toIso = end.toISOString();
-    const data = await this.apiRequest(
-      `/v3/instruments/${oandaSymbol}/candles?from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}&price=M&granularity=${granularity}`
-    );
+    let allCandles: any[] = [];
+    let chunkStart = new Date(start);
 
-    const candles = data?.candles || [];
+    while (chunkStart < end) {
+      const chunkEnd = new Date(Math.min(chunkStart.getTime() + maxRangeMs, end.getTime()));
+      const fromIso = chunkStart.toISOString();
+      const toIso = chunkEnd.toISOString();
+
+      const data = await this.apiRequest(
+        `/v3/instruments/${oandaSymbol}/candles?from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}&price=M&granularity=${granularity}`
+      );
+
+      const chunkCandles = data?.candles || [];
+      allCandles = allCandles.concat(chunkCandles);
+
+      if (chunkCandles.length < MAX_PER_REQUEST) break; // No more data
+      chunkStart = chunkEnd;
+    }
+
+    const candles = allCandles;
 
     return candles
       .filter((c: any) => c.complete !== false) // Only complete candles

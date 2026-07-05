@@ -1363,11 +1363,18 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           } as any);
         } catch { /* chart destroyed */ }
       } else if (chartType === 'heikin-ashi') {
-        const prev = candles.length > 1 ? candles[candles.length - 2] : updated;
+        // BUG-C07 FIX: Use HA refs consistently in ALL update paths
         const haClose = (updated.open + updated.high + updated.low + updated.close) / 4;
-        const haOpen = prev === updated ? (updated.open + haClose) / 2 : (prev.open + prev.close) / 2;
+        let haOpen: number;
+        if (lastHaOpenRef.current !== null && lastHaCloseRef.current !== null) {
+          haOpen = (lastHaOpenRef.current + lastHaCloseRef.current) / 2;
+        } else {
+          haOpen = (updated.open + haClose) / 2;
+        }
         const haHigh = Math.max(updated.high, haOpen, haClose);
         const haLow = Math.min(updated.low, haOpen, haClose);
+        lastHaOpenRef.current = haOpen;
+        lastHaCloseRef.current = haClose;
         try {
           candleSeriesRef.current.update({
             time: time as Time, open: haOpen, high: haHigh, low: haLow, close: haClose,
@@ -1417,11 +1424,18 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         if (chartType === 'line' || chartType === 'area') {
           candleSeriesRef.current.update({ time: time as Time, value: newCandle.close } as any);
         } else if (chartType === 'heikin-ashi') {
-          const prev = candles[candles.length - 2] ?? newCandle;
+          // BUG-C07 FIX: Use HA refs for new candle path too
           const haClose = (newCandle.open + newCandle.high + newCandle.low + newCandle.close) / 4;
-          const haOpen = (prev.open + prev.close) / 2;
+          let haOpen: number;
+          if (lastHaOpenRef.current !== null && lastHaCloseRef.current !== null) {
+            haOpen = (lastHaOpenRef.current + lastHaCloseRef.current) / 2;
+          } else {
+            haOpen = (newCandle.open + haClose) / 2;
+          }
           const haHigh = Math.max(newCandle.high, haOpen, haClose);
           const haLow  = Math.min(newCandle.low,  haOpen, haClose);
+          lastHaOpenRef.current = haOpen;
+          lastHaCloseRef.current = haClose;
           candleSeriesRef.current.update({ time: time as Time, open: haOpen, high: haHigh, low: haLow, close: haClose } as any);
         } else {
           candleSeriesRef.current.update({ time: time as Time, open: newCandle.open, high: newCandle.high, low: newCandle.low, close: newCandle.close } as any);
@@ -1685,10 +1699,16 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       // استخدام ref بدل closure — دائماً يحوي الرمز الحالي وليس القديم
       lastLoadedDataKeyRef.current = `${currentSymbolRef.current}:${currentTimeframeRef.current}`;
 
-      // BUG-C07 FIX: Reset Heikin-Ashi refs when new candle data is loaded
-      // (symbol/timeframe switch) so HA calculation starts fresh.
-      lastHaOpenRef.current = null;
-      lastHaCloseRef.current = null;
+      // BUG-C07 FIX: Set HA refs from the LAST candle in the HA-converted data,
+      // so the first incremental update after setCandles uses correct previous HA values.
+      if (settings.type === 'heikin-ashi' && chartData.length > 0) {
+        const lastHA = chartData[chartData.length - 1];
+        lastHaOpenRef.current = lastHA.open;
+        lastHaCloseRef.current = lastHA.close;
+      } else {
+        lastHaOpenRef.current = null;
+        lastHaCloseRef.current = null;
+      }
 
       // V255 FIX: Force redraw drawings after candle data is loaded.
       // This is THE critical redraw point — the only place where we do a

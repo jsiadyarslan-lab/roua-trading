@@ -149,7 +149,9 @@ export class BinanceAdapter implements IExchangeAdapter {
 
     // BUG-C01 FIX: Paginate fetchOHLCV — was passing limit=undefined (CCXT default=500).
     // Now fetches in batches of 1000 until all data between start and end is retrieved.
+    // Rate limit safety: _checkRateLimit is called per batch (not just once).
     const fetchBatch = async (sym: string, since: number): Promise<any[]> => {
+      await this._checkRateLimit(); // Per-batch rate limit check
       return await this.exchange.fetchOHLCV(sym, timeframe, since, 1000, end.getTime());
     };
 

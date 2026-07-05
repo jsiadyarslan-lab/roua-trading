@@ -308,6 +308,7 @@ export class OandaAdapter implements IExchangeAdapter {
 
     let allCandles: any[] = [];
     let chunkStart = new Date(start);
+    let emptyChunksInARow = 0;
 
     while (chunkStart < end) {
       const chunkEnd = new Date(Math.min(chunkStart.getTime() + maxRangeMs, end.getTime()));
@@ -321,7 +322,26 @@ export class OandaAdapter implements IExchangeAdapter {
       const chunkCandles = data?.candles || [];
       allCandles = allCandles.concat(chunkCandles);
 
-      if (chunkCandles.length < MAX_PER_REQUEST) break; // No more data
+      // BUG-049 FIX: Don't break early on short chunks.
+      //
+      // PROBLEM: The previous condition `if (chunkCandles.length < MAX_PER_REQUEST) break;`
+      // assumed that a short chunk means "no more data". But OANDA returns fewer
+      // candles during weekends, holidays, and low-liquidity periods — even when
+      // there IS more data in the next chunk. This caused pagination to stop
+      // prematurely, leaving historical data incomplete (e.g., stopping at May 20
+      // when the user requested data up to July 5). The 6-week gap between the
+      // last historical candle and the live candle appeared as a single "flash
+      // spike" on the chart.
+      //
+      // FIX: Only break when we get 0 candles in 2 consecutive chunks (truly no
+      // more data). A single short chunk (e.g., a weekend) won't stop pagination.
+      if (chunkCandles.length === 0) {
+        emptyChunksInARow++;
+        if (emptyChunksInARow >= 2) break; // 2 empty chunks = truly no more data
+      } else {
+        emptyChunksInARow = 0;
+      }
+
       chunkStart = chunkEnd;
     }
 

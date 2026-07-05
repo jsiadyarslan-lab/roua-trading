@@ -758,3 +758,15 @@
   All rejected prices are logged at warn level with the reason (NaN, out-of-bounds, flash-spike) for debugging.
 - **Commit:** (filled after push)
 - **Test:** (manual — verify chart after next market reopen)
+
+### BUG-049: OANDA historical pagination broke on short chunks (weekends) — stale data
+- **Status:** FIXED
+- **Severity:** CRITICAL
+- **File:** `apps/api/src/modules/exchange/adapters/oanda.adapter.ts:324`
+- **Pattern (OPEN):** `^\s*if \(chunkCandles\.length < MAX_PER_REQUEST\) break;`
+- **Pattern (FIXED):** emptyChunksInARow
+- **Description:** The BUG-C05 pagination fix used `if (chunkCandles.length < MAX_PER_REQUEST) break;` as the "no more data" condition. This assumed that a short chunk (< 4000 candles) means OANDA has no more data. But OANDA returns fewer candles during weekends, holidays, and low-liquidity periods — even when there IS more data in subsequent chunks. When the pagination hit a weekend chunk (which returns ~0 forex candles), it stopped fetching, leaving the historical data incomplete. For example, a request for 60 days of 5-min EUR/USD data would stop at the first weekend (~May 20) instead of continuing to July 5, leaving a 6-week gap. The chart rendered this gap as a single giant "flash spike" candle connecting the last historical candle to the live candle.
+- **Impact:** Every OANDA symbol (forex, metals, indices, energy) showed stale historical data with a gap before the live candle. Users saw a "broken chart" with one tall flash candle at the right edge. This was especially visible after weekends or holidays.
+- **Fix:** Changed the break condition from "short chunk" to "2 consecutive empty chunks". A single empty/short chunk (e.g., a weekend) no longer stops pagination — only truly missing data (2 empty chunks in a row) does. Added `emptyChunksInARow` counter to track consecutive empty responses.
+- **Commit:** (filled after push)
+- **Test:** (manual — verify historical data extends to current date after deploy)

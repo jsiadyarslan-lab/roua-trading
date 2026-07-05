@@ -103,27 +103,19 @@ export async function DELETE(
       )
     }
 
-    // ── Step 4: Block self-deletion ──
-    // The admin's own userId is stored in the admin session — we can fetch it
-    // from the AdminSession table to compare.
-    const adminToken = req.cookies.get('roua_admin_session')?.value
-    let adminUserId: string | undefined
-    if (adminToken) {
-      const adminSession = await db.adminSession.findUnique({
-        where: { token: adminToken },
-        select: { userId: true },
-      })
-      adminUserId = adminSession?.userId
-
-      if (adminSession?.userId === userId) {
-        return NextResponse.json(
-          {
-            error: 'لا يمكن حذف حسابك الخاص من هذه الواجهة — استخدم حساب مسؤول آخر',
-          },
-          { status: 400 }
-        )
-      }
-    }
+    // ── Step 4: Self-deletion protection ──
+    // NOTE: AdminSession schema has NO userId field — admin auth is token-only,
+    // not tied to a User row. The admin cookie (roua_admin_session) is separate
+    // from user session cookies. So we CANNOT detect "admin deleting their own
+    // user account" via DB lookup — they're different auth systems.
+    // Safety is provided by:
+    //   1. The admin must already be authed via verifyAdminAuth() above
+    //   2. The user being deleted is identified by URL param (explicit intent)
+    //   3. The confirmation modal requires typing "حذف"
+    //   4. The audit log records the action with full snapshot (IP + UA)
+    // The previous code tried to look up adminSession.userId which doesn't exist
+    // — this caused the Prisma error "Unknown field `userId` for select statement
+    // on model `AdminSession`" which broke ALL deletion attempts.
 
     // ── Step 5: Capture pre-deletion snapshot for audit log ──
     const snapshot = {
@@ -140,7 +132,10 @@ export async function DELETE(
         portfolios: user._count.portfolios,
         auditLogs: user._count.auditLogs,
       },
-      deletedByAdmin: adminUserId || null,
+      // AdminSession has no userId field, so we record the admin's IP + UA
+      // for traceability instead of an admin userId.
+      deletedByAdminIp: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
+      deletedByAdminUserAgent: req.headers.get('user-agent') || 'unknown',
     }
 
     // ── Step 6: Delete the user (cascade will handle related rows) ──
@@ -151,13 +146,13 @@ export async function DELETE(
       where: { id: userId },
     })
 
-    // ── Step 7: Record the deletion in audit log (under admin's account) ──
+    // ── Step 7: Record the deletion in audit log ──
+    // AuditLog.userId is nullable (onDelete: SetNull). Since AdminSession has
+    // no userId, we leave it null — the snapshot in `details` carries the
+    // admin's IP and UA for traceability.
     try {
       await db.auditLog.create({
         data: {
-          // userId is nullable (onDelete: SetNull on User relation).
-          // Use admin's userId if available; otherwise omit to leave null.
-          ...(adminUserId ? { userId: adminUserId } : {}),
           action: 'ADMIN_USER_DELETE',
           resource: 'user',
           details: JSON.stringify(snapshot),

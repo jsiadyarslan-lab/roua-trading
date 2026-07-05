@@ -787,7 +787,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       shortcutsRef.current = new KeyboardShortcuts({
         togglePlayPause: () => setIsPaused(p => !p),
         zoomIn: () => chart.timeScale().applyOptions({ barSpacing: Math.min(50, (chart.timeScale().options().barSpacing || 12) + 2) }),
-        zoomOut: () => chart.timeScale().applyOptions({ barSpacing: Math.max(3, (chart.timeScale().options().barSpacing || 10) - 2) }),
+        zoomOut: () => chart.timeScale().applyOptions({ barSpacing: Math.max(1, (chart.timeScale().options().barSpacing || 10) - 2) }),
         setTool: (tool) => setActiveTool(tool),
         saveChart: () => ChartTemplateManager.save(
           'auto-save',
@@ -2022,11 +2022,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   }, []);
 
   const zoomOut = useCallback(() => {
-    // FIX: Minimum barSpacing of 3 (matches minBarSpacing in chart-options.ts).
-    // Allows zoom out to see many candles while keeping them visible.
-    // enableConflation: false ensures OHLC data is preserved at all zoom levels.
+    // FIX: Minimum barSpacing of 1 (matches minBarSpacing in chart-options.ts).
+    // Allows maximum zoom out to see many candles (1px per candle).
     chartInstanceRef.current?.timeScale().applyOptions({
-      barSpacing: Math.max(3, (chartInstanceRef.current?.timeScale().options().barSpacing || 10) - 2),
+      barSpacing: Math.max(1, (chartInstanceRef.current?.timeScale().options().barSpacing || 10) - 2),
     });
   }, []);
 

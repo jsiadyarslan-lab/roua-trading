@@ -73,7 +73,9 @@ export function buildChartOptions(opts: {
       secondsVisible: true,
       rightOffset: isMobile ? 3 : 5,
       barSpacing: isMobile ? 6 : 10,
-      minBarSpacing: 3,
+      // FIX: minBarSpacing=1 allows maximum zoom out (1px per candle).
+      // Was 3 which limited zoom out to ~3px/candle — couldn't see enough history.
+      minBarSpacing: 1,
       // FIX: Data conflation is DISABLED because it destroys candlestick
       // OHLC rendering. When enabled, LWC merges multiple candles into a
       // single data point (dot) when zoomed out, losing open/high/low/close.

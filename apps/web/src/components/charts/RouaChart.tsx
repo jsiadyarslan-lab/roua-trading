@@ -385,6 +385,12 @@ export default function RouaChart({
   isExpanded = false,
   onToggleExpand,
 }: RouaChartProps) {
+  // BUG-050 DIAGNOSTIC: Version marker — verify new code is deployed
+  // If this doesn't appear in console after hard-refresh, browser cache is stale
+  useEffect(() => {
+    console.log('%c[BUG-050] RouaChart v50 deployed — if you see this, the new code IS running', 'color: #00E676; font-weight: bold');
+  }, []);
+
   const tc = useTranslations('dashboard.chart');
   const chartLocale = useLocale();
   const { selectedSymbol, timeframe: storeTimeframe, setTimeframe, setSelectedSymbol } = useSymbolStore();
@@ -1338,6 +1344,16 @@ export default function RouaChart({
     // causing network congestion when switching symbols quickly
     const controller = new AbortController();
 
+    // BUG-050 DIAGNOSTIC: Log every fetch trigger with timestamp
+    console.log(`%c[BUG-050] Fetch effect FIRED at ${new Date().toISOString()} — symbol=${selectedSymbol_} tf=${timeframe_}`, 'color: #00E5FF; font-weight: bold');
+
+    // BUG-050: Safety timeout — if fetch doesn't complete in 15s, log diagnostic
+    const safetyTimeout = setTimeout(() => {
+      if (!cancelled) {
+        console.error(`%c[BUG-050] FETCH TIMEOUT — 15s elapsed, no candles for ${selectedSymbol_} ${timeframe_}. candlesRef=${candlesRef.current.length} candles, feedState=${feedStateRef.current}`, 'color: #FF5252; font-weight: bold; font-size: 14px');
+      }
+    }, 15000);
+
     const fetchCandles = async () => {
       try {
         setFeedState('waiting');
@@ -1392,6 +1408,8 @@ export default function RouaChart({
           // and would cause "Value is null" crash if left on the chart.
           console.log(`[RouaChart] Setting ${unique.length} candles on chart for ${selectedSymbol_} ${timeframe_}`);
           setCandlesRef.current(unique, { clearExternal: true });
+          // BUG-050 DIAGNOSTIC: Verify candles were actually set
+          console.log(`%c[BUG-050] setCandles called — ${unique.length} candles, candlesRef now has ${candlesRef.current.length}`, 'color: #00E676');
           // Update AI panel candles if panel is open so overlays can redraw
           if (showAIPanelRef.current) {
             setAiPanelCandles([...unique]);
@@ -1478,7 +1496,11 @@ export default function RouaChart({
 
     fetchCandles();
 
-    return () => { cancelled = true; controller.abort(); }; // Cancel network request
+    return () => {
+      cancelled = true;
+      controller.abort();
+      clearTimeout(safetyTimeout);
+    }; // Cancel network request
   }, [selectedSymbol_, timeframe_]);
 
   // ── Pagination: Load Older Data on Scroll ──────────────

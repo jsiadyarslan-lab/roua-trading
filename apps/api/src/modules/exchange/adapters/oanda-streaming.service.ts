@@ -483,6 +483,11 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
   private lastPriceSymbol: string | null = null;
   private lastPriceValue: number | null = null;
   private lastPriceTime: Date | null = null;
+  // BUG-048: Per-symbol last price for flash detection.
+  // The global lastPriceValue can't be used for flash detection because it
+  // mixes prices from different symbols (EUR/USD ~1.08, XAU/USD ~2000).
+  // A per-symbol map lets us detect flash spikes correctly per symbol.
+  private lastPricePerSymbol = new Map<string, number>();
 
   /**
    * Connect to OANDA streaming API
@@ -669,8 +674,88 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
       // Mid price = (bid + ask) / 2
       const price = bid !== null && ask !== null ? (bid + ask) / 2 : bid ?? ask ?? 0;
 
-      if (price <= 0) {
+      // BUG-048 FIX: Price sanity check — prevent flash spikes from bad ticks.
+      //
+      // PROBLEM: The previous check `if (price <= 0) return;` only caught zero/negative
+      // prices but NOT:
+      //   - NaN (parseFloat returns NaN for malformed JSON)
+      //   - Infinity (overflow)
+      //   - Gap prices when market reopens after weekend (e.g., EUR/USD gap from
+      //     1.0800 to 1.0850 is normal, but a glitch sending 0.1080 or 10.80
+      //     creates a flash spike that breaks the chart)
+      //   - OANDA occasionally sends "stub" quotes with incorrect prices during
+      //     maintenance windows or stream reconnection
+      //
+      // SYMPTOM: A single tall red/green "flash" candle appears on the chart,
+      //          10x-100x taller than normal candles. The chart looks broken
+      //          until the bad candle scrolls off-screen.
+      //
+      // FIX: Multi-layer validation:
+      //   1. Reject NaN / Infinity
+      //   2. Reject prices outside reasonable bounds per symbol
+      //   3. Reject prices that differ >50% from the last valid price (flash detection)
+      if (!Number.isFinite(price) || price <= 0) {
+        this.logger.warn(
+          `🌊 BUG-048: Rejected invalid OANDA price for ${symbol}: price=${price} (bid=${bid}, ask=${ask}) — NaN/Infinity/<=0`,
+        );
         return;
+      }
+
+      // Per-symbol reasonable price bounds (catches obvious glitches like
+      // EUR/USD = 10.80 or XAU/USD = 20000)
+      const REASONABLE_BOUNDS: Record<string, { min: number; max: number }> = {
+        // Forex majors (4-digit pairs, ~0.5–2.0)
+        'EUR/USD': { min: 0.5, max: 2.0 },
+        'GBP/USD': { min: 0.8, max: 2.5 },
+        'USD/CHF': { min: 0.5, max: 1.5 },
+        'AUD/USD': { min: 0.4, max: 1.5 },
+        'NZD/USD': { min: 0.4, max: 1.5 },
+        'USD/CAD': { min: 0.8, max: 1.8 },
+        // JPY pairs (2-digit, ~80–250)
+        'USD/JPY': { min: 50, max: 300 },
+        'EUR/JPY': { min: 80, max: 300 },
+        'GBP/JPY': { min: 100, max: 400 },
+        'AUD/JPY': { min: 50, max: 200 },
+        // Cross pairs
+        'EUR/GBP': { min: 0.5, max: 1.5 },
+        'EUR/CHF': { min: 0.5, max: 1.5 },
+        // Metals
+        'XAU/USD': { min: 500, max: 10000 },   // Gold $500–$10000/oz
+        'XAG/USD': { min: 5, max: 200 },        // Silver $5–$200/oz
+        // Energy
+        'WTI/USD': { min: 10, max: 500 },       // Oil $10–$500/barrel
+        'BRENT/USD': { min: 10, max: 500 },
+        // Indices
+        'US30/USD': { min: 10000, max: 100000 },
+        'NAS100/USD': { min: 5000, max: 50000 },
+        'SPX500/USD': { min: 1000, max: 10000 },
+        'GER30/USD': { min: 5000, max: 30000 },
+        'UK100/USD': { min: 3000, max: 20000 },
+      };
+      const bounds = REASONABLE_BOUNDS[symbol];
+      if (bounds && (price < bounds.min || price > bounds.max)) {
+        this.logger.warn(
+          `🌊 BUG-048: Rejected out-of-bounds OANDA price for ${symbol}: price=${price} outside [${bounds.min}, ${bounds.max}] — likely stream glitch`,
+        );
+        return;
+      }
+
+      // Flash detection: reject prices that differ >50% from the last valid price
+      // FOR THE SAME SYMBOL. A 50% move in a single tick is NEVER legitimate
+      // for forex/metals/indices. Even the largest historical flash crashes
+      // (e.g., EUR/USD 2015-01-15 SNB) were ~30% — and those are once-a-decade events.
+      // This catches reconnection glitches where OANDA sends a stale/wrong price.
+      // BUG-048: Must use per-symbol map, NOT the global lastPriceValue (which
+      // mixes prices across symbols — EUR/USD ~1.08 vs XAU/USD ~2000).
+      const lastSymPrice = this.lastPricePerSymbol.get(symbol);
+      if (lastSymPrice !== undefined && lastSymPrice > 0 && lastSymPrice !== price) {
+        const deviation = Math.abs(price - lastSymPrice) / lastSymPrice;
+        if (deviation > 0.5) {
+          this.logger.warn(
+            `🌊 BUG-048: Rejected flash-spike OANDA price for ${symbol}: price=${price} vs last=${lastSymPrice} (deviation=${(deviation * 100).toFixed(1)}% > 50%) — likely reconnection glitch`,
+          );
+          return;
+        }
       }
 
       const update: OandaPriceUpdate = {
@@ -688,6 +773,8 @@ export class OandaStreamingService implements OnModuleInit, OnModuleDestroy {
       this.lastPriceSymbol = symbol;
       this.lastPriceValue = price;
       this.lastPriceTime = new Date();
+      // BUG-048: Update per-symbol last price for flash detection
+      this.lastPricePerSymbol.set(symbol, price);
 
       // Emit to all registered callbacks
       this.emitter.emit('price', update);

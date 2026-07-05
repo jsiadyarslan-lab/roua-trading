@@ -31,7 +31,7 @@
         "terser-webpack-plugin": "^5.5.0",
         "ts-jest": "^29.4.11",
         "turbo": "^2.5.0",
-        "typescript": "^5",
+        "typescript": "^5.9.3",
       },
       "optionalDependencies": {
         "@tailwindcss/oxide-darwin-x64": "^4.2.4",

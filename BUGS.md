@@ -741,3 +741,20 @@
   3. **Audit trail**: Every deletion logged to AuditLog table with action `ADMIN_USER_DELETE`, including the admin's userId, IP, user-agent, and full snapshot of deleted user data.
 - **Commit:** (filled after push)
 - **Test:** (manual — tested via type-check, no automated regression test for UI flows)
+
+### BUG-048: OANDA stream accepted bad ticks causing flash spikes on chart
+- **Status:** FIXED
+- **Severity:** CRITICAL
+- **File:** `apps/api/src/modules/exchange/adapters/oanda-streaming.service.ts:672`
+- **Pattern (OPEN):** `if \(price <= 0\)\s*\{\s*return;?\s*\}`
+- **Pattern (FIXED):** BUG-048.*Rejected
+- **Description:** The OANDA streaming service's `_handleStreamEvent` only checked `if (price <= 0) return;` — this missed NaN, Infinity, out-of-bounds prices, and flash-spike prices from stream reconnection glitches. When the forex market reopened after the weekend, OANDA occasionally sent "stub" or stale prices during reconnection, which were accepted and built into a candle. This produced a single tall "flash spike" candle on the chart (10x-100x taller than normal), making the chart look broken.
+- **Impact:** After every market reopen (weekend → Monday) or stream reconnection, the chart would show a flash spike candle that didn't reflect real market data. Users saw a "broken chart" with one giant candle. This was especially visible on forex pairs (EUR/USD, GBP/USD) and metals (XAU/USD).
+- **Fix:** Three-layer price validation in `_handleStreamEvent`:
+  1. **NaN/Infinity check**: `if (!Number.isFinite(price) || price <= 0) return;`
+  2. **Per-symbol bounds check**: Hardcoded reasonable price ranges per symbol (e.g., EUR/USD 0.5–2.0, XAU/USD 500–10000, US30/USD 10000–100000). Rejects prices outside these bounds.
+  3. **Flash detection**: Per-symbol last-price tracking (`lastPricePerSymbol` Map). Rejects prices that differ >50% from the last valid price for the same symbol. Catches reconnection glitches where OANDA sends a stale/wrong price.
+  
+  All rejected prices are logged at warn level with the reason (NaN, out-of-bounds, flash-spike) for debugging.
+- **Commit:** (filled after push)
+- **Test:** (manual — verify chart after next market reopen)

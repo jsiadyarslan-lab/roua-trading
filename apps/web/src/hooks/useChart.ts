@@ -1551,9 +1551,6 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     chartDiag.setCandlesCalls++;
     chartDiag.lastSetReason = options?.clearExternal ? 'clearExternal' : options?.skipIndicatorRebuild ? 'skipIndicator' : 'plain';
 
-    // BUG-050 DIAGNOSTIC: Log entry to setCandles
-    console.warn(`%c[BUG-050 useChart] setCandles ENTRY — ${candles.length} candles, reason=${chartDiag.lastSetReason}, seriesReady=${!!candleSeriesRef.current}`, 'color: #FFB800');
-
     // FIX: Store SORTED candles — not raw data.
     // Previously, candlesRef.current stored unsorted data, but binarySearchByTime
     // and updateCandle both assume ascending time order. This caused wrong
@@ -1572,7 +1569,6 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // If chart isn't ready yet, store data as pending and return
     if (!candleSeriesRef.current || !volumeSeriesRef.current) {
       pendingCandlesRef.current = sorted;
-      console.warn(`%c[BUG-050 useChart] setCandles PENDING — chart not ready, stored ${sorted.length} candles in pendingCandlesRef`, 'color: #FF5252; font-weight: bold');
       return;
     }
 
@@ -1675,10 +1671,6 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         color: c.close >= c.open ? SHARED_COLORS.volumeUp : SHARED_COLORS.volumeDown,
       }));
 
-    // BUG-050 DIAGNOSTIC: Log chartData length after filtering
-    // If chartData is empty here, the filter is removing all candles
-    console.warn(`[BUG-050 useChart] chartData after filter: ${chartData.length} candles (from ${sorted.length} sorted), chartType=${settings.type}`);
-
     // FIX: Hide volume histogram when all values are zero (e.g. forex/commodity
     // sources don't provide volume). Showing an empty zero-height histogram
     // wastes chart space and confuses users.
@@ -1691,9 +1683,6 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       volumeSeriesRef.current.applyOptions({
         visible: hasVolume && (settings?.showVolume !== false),
       });
-
-      // BUG-050 DIAGNOSTIC: Confirm setData succeeded
-      console.warn(`%c[BUG-050 useChart] setData SUCCESS — ${chartData.length} candles rendered on chart (volume: ${volumeData.length})`, 'color: #00E676; font-weight: bold');
 
       // تطبيق دقة السعر المناسبة — يُصلح مشكلة 0.08 بدل 0.08151 لأصول كـ DOGE
       if (chartData.length > 0) {

@@ -229,10 +229,13 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     };
 
     // 6. اكتب آخر OBI في Redis (للواجهة الأمامية)
+    // BUG-053 FIX: TTL was 30 (milliseconds) instead of 30_000 (30 seconds).
+    // The OBI value expired in 30ms — by the time the frontend polled (every 3s),
+    // the value was already gone. This caused lastOBIs to always be empty.
     this.redis.set(
       LAZIC_REDIS_KEYS.lastOBI(tick.symbol),
       JSON.stringify({ obi, signal, spreadRatio, ts: tick.timestamp }),
-      30, // TTL 30 ثانية
+      30_000, // TTL 30 ثانية (30,000 milliseconds)
     ).catch(() => {});
 
     // 7. هل هناك إشارة قابلة للتنفيذ؟

@@ -19,6 +19,8 @@ import { CouncilVoteAccuracyService } from '../../ai/council-intelligence/counci
 import { StrategicCouncilService } from '../../ai/strategic-council/strategic-council.service';
 // V271: Feature flags
 import { FeatureFlagService } from '../../../common/feature-flags/feature-flag.service';
+// BUG-063: Partial TP Service — 3-stage profit taking
+import { PartialTPService } from './partial-tp.service';
 // V339: Trade Lifecycle Logger — for audit trail of every close decision
 import { TradeLifecycleLogger } from '../../../common/trade-lifecycle/trade-lifecycle.logger';
 // V341: Position State Machine — single decision point for position lifecycle
@@ -173,6 +175,8 @@ export class PositionMonitorService {
       @Optional() @Inject(TradeLifecycleLogger) private readonly lifecycle?: TradeLifecycleLogger,
     // V341: Position State Machine — single decision point for close decisions
       @Optional() @Inject(PositionStateMachine) private readonly stateMachine?: PositionStateMachine,
+    // BUG-063: Partial TP Service — for 3-stage profit taking
+    @Optional() private readonly partialTP?: PartialTPService,
   ) {
     // V347: Verify critical dependencies are injected
     if (!this.lifecycle) {
@@ -362,6 +366,25 @@ export class PositionMonitorService {
         });
 
         positions = [...nonAgentPositions, ...agentPositions];
+
+        // BUG-063: Register new positions for Partial TP (if not already registered)
+        if (this.partialTP) {
+          for (const pos of positions) {
+            const isRegistered = await this.partialTP.isRegistered(pos.id);
+            if (!isRegistered && pos.stopLoss && pos.takeProfit) {
+              await this.partialTP.registerPosition(
+                pos.id,
+                pos.userId,
+                pos.symbol,
+                pos.side as 'BUY' | 'SELL',
+                pos.entryPrice?.toNumber?.() ?? Number(pos.entryPrice),
+                pos.takeProfit?.toNumber?.() ?? Number(pos.takeProfit),
+                pos.stopLoss?.toNumber?.() ?? Number(pos.stopLoss),
+                pos.quantity?.toNumber?.() ?? Number(pos.quantity),
+              );
+            }
+          }
+        }
       } catch (dbError: any) {
         // Table may not exist yet (e.g., Prisma db:push hasn't run or Position model is new)
         if (dbError.message?.includes('does not exist')) {
@@ -870,6 +893,19 @@ export class PositionMonitorService {
           this._checkSanctuary(position.userId).catch(() => {});
           result.tpTriggered = true;
           return result;
+        }
+      }
+      // BUG-063: Partial TP check — قبل تحديث السعر، فحص أخذ الربح الجزئي
+      if (this.partialTP) {
+        try {
+          const partialAction = await this.partialTP.checkPosition(position.id, currentPrice);
+          if (partialAction) {
+            await this.partialTP.executeAction(partialAction, position, currentPrice);
+            // لا نُغلق المركز كلياً — Partial TP يُغلق جزء فقط
+            // المركز يبقى OPEN مع كمية أقل و SL محدّث
+          }
+        } catch (partialErr: any) {
+          this.logger.warn(`📊 Partial TP error for ${position.symbol}: ${partialErr?.message}`);
         }
       }
       // No SL/TP hit — update price/PnL and highest/lowest, then fall through to MAX_HOLDING check
@@ -1778,6 +1814,11 @@ export class PositionMonitorService {
   ): Promise<void> {
     // V342: Clean up lastTickLogTime to prevent memory leak
     this.lastTickLogTime.delete(position.id);
+
+    // BUG-063: Unregister from Partial TP when position closes fully
+    if (this.partialTP) {
+      this.partialTP.unregisterPosition(position.id).catch(() => {});
+    }
 
     // V341: State Machine — request close transition BEFORE executing
     // This is the SINGLE DECISION POINT. If state machine blocks it, we skip.

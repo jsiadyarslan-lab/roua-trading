@@ -29,6 +29,7 @@ import { CouncilIntelligenceModule } from '../ai/council-intelligence/council-in
 import { MarketScannerService } from './services/market-scanner.service';
 import { PositionMonitorService } from './services/position-monitor.service';
 import { MarketBroadcasterService } from './services/market-broadcaster.service';
+import { PartialTPService } from './services/partial-tp.service';
 import { EngineController } from './engine.controller';
 
 /**
@@ -73,11 +74,13 @@ import { EngineController } from './engine.controller';
     MarketScannerService,
     PositionMonitorService,
     MarketBroadcasterService,
+    PartialTPService,
   ],
   exports: [
     MarketScannerService,
     PositionMonitorService,
     MarketBroadcasterService,
+    PartialTPService,
   ],
 })
 export class EngineModule {}

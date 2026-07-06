@@ -3584,11 +3584,10 @@ export class SmartExecutorService implements OnModuleDestroy {
 
       // Apply V185 multiplier (clamped 0.3x–2.0x by the service itself)
       riskPercent = riskPercent * v185SizingMultiplier;
-      // BUG-066: Use configurable hard cap from DB (set by user from UI)
-      // Default: 5% (professional standard). User can change from Settings → Risk.
+      // BUG-066: Use configurable hard cap — per-user > global > default
       const HARD_RISK_CAP = this.unifiedRisk?.getHardRiskCap
-        ? this.unifiedRisk.getHardRiskCap() / 100
-        : 0.02; // fallback: 2%
+        ? this.unifiedRisk.getHardRiskCap(userId) / 100
+        : 0.05; // fallback: 5%
       if (riskPercent > HARD_RISK_CAP) {
         this.logger.warn(
           `⚔️ V420: riskPercent=${(riskPercent*100).toFixed(2)}% > ${HARD_RISK_CAP*100}% hard cap — clamped`
@@ -3650,9 +3649,9 @@ export class SmartExecutorService implements OnModuleDestroy {
       let quantity = posResult.quantityUnits;
       let lots = posResult.quantityLots;
 
-      // BUG-066: Use configurable maxNotionalPercent from DB
+      // BUG-066: Use configurable maxNotionalPercent — per-user > global > default
       const maxNotionalPct = this.unifiedRisk?.getMaxNotionalPercent
-        ? this.unifiedRisk.getMaxNotionalPercent() / 100
+        ? this.unifiedRisk.getMaxNotionalPercent(userId) / 100
         : 0.50; // fallback: 50%
       const maxOrderValue = portfolioValue * maxNotionalPct;
 

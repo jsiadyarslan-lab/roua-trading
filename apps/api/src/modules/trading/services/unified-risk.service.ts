@@ -202,12 +202,68 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
    *  9. checkPriceSanity         — Price deviation > 10%
    * 10. checkDuplicatePosition   — Same symbol+strategy block (from RiskCalculator)
    */
-  // BUG-066: Public getters for configurable caps (used by Smart Executor)
-  getHardRiskCap(): number { return this.configurableHardRiskCap; }
-  getMaxNotionalPercent(): number { return this.configurableMaxNotionalPercent; }
+  // BUG-066: Public getters for configurable caps
+  // Priority: per-user (from UI) > global admin (from riskConfig) > default
+  getHardRiskCap(userId?: string): number {
+    // Per-user override (checked at call time in assessRisk/validateOrder)
+    if (userId) {
+      const userCap = this.userHardRiskCaps.get(userId);
+      if (userCap !== undefined) return userCap;
+    }
+    return this.configurableHardRiskCap;
+  }
+  getMaxNotionalPercent(userId?: string): number {
+    if (userId) {
+      const userCap = this.userMaxNotionalPercents.get(userId);
+      if (userCap !== undefined) return userCap;
+    }
+    return this.configurableMaxNotionalPercent;
+  }
+
+  // BUG-066: Per-user cap storage (loaded from user settings)
+  private userHardRiskCaps = new Map<string, number>();
+  private userMaxNotionalPercents = new Map<string, number>();
+
+  /**
+   * BUG-066: Load per-user caps from DB (user:{userId}:hardRiskCap)
+   * Called lazily in assessRisk/validateOrder, cached for 60 seconds.
+   */
+  private userCapsLastSync = new Map<string, number>();
+  private readonly USER_CAPS_SYNC_INTERVAL = 60000; // 60 seconds
+  private async _loadUserCaps(userId: string): Promise<void> {
+    const now = Date.now();
+    const last = this.userCapsLastSync.get(userId) || 0;
+    if (now - last < this.USER_CAPS_SYNC_INTERVAL) return; // cached
+    this.userCapsLastSync.set(userId, now);
+
+    try {
+      const rows: any[] = await this.prisma.$queryRaw`
+        SELECT key, value FROM "Setting"
+        WHERE key IN (
+          ${`user:${userId}:hardRiskCap`},
+          ${`user:${userId}:maxNotionalPercent`}
+        )
+      `;
+      for (const row of rows) {
+        if (row.key.endsWith(':hardRiskCap')) {
+          const val = parseFloat(row.value);
+          if (val > 0) this.userHardRiskCaps.set(userId, val);
+        } else if (row.key.endsWith(':maxNotionalPercent')) {
+          const val = parseFloat(row.value);
+          if (val > 0) this.userMaxNotionalPercents.set(userId, val);
+        }
+      }
+    } catch {
+      // Use global defaults (already set)
+    }
+  }
 
   async validateOrder(command: OrderCommand): Promise<RiskCheckResult> {
     await this.syncSettingsFromDB();
+    // BUG-066: Load per-user caps (user:{userId}:hardRiskCap)
+    if (command.userId) {
+      await this._loadUserCaps(command.userId);
+    }
 
     this.logger.debug(
       `🛡️ [UNIFIED] Validating order: ${command.side} ${command.quantity} ${command.symbol} (source: ${command.source || 'unknown'})`,
@@ -333,6 +389,8 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
     signal: EvaluatedSignal,
     config: AgentConfig,
   ): Promise<RiskAssessment> {
+    // BUG-066: Load per-user caps (user:{userId}:hardRiskCap)
+    await this._loadUserCaps(userId);
     // V428: حارس السعر المريب — قبل أي حساب
     const isMeme = ['SHIB','PEPE','FLOKI','BONK'].some(m =>
       signal.symbol?.toUpperCase().includes(m));
@@ -1298,9 +1356,8 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
         }
         if (riskConfig.circuitBreakerThreshold) this.circuitBreakerThresholdPercent = parseFloat(riskConfig.circuitBreakerThreshold);
         if (riskConfig.takeProfitDefault) this.defaultTakeProfitPercent = parseFloat(riskConfig.takeProfitDefault);
-        // BUG-066: Read configurable hard caps from DB (set by user from UI)
+        // BUG-066: Read configurable hard caps from global riskConfig (admin-set)
         // Default: hardRiskCap = 5%, maxNotionalPercent = 50%
-        // These override the hardcoded values in Smart Executor and UnifiedRisk
         this.configurableHardRiskCap = parseFloat(riskConfig.hardRiskCap) || 5.0;
         this.configurableMaxNotionalPercent = parseFloat(riskConfig.maxNotionalPercent) || 50.0;
 

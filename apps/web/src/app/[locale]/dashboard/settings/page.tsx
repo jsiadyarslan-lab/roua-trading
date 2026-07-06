@@ -2154,6 +2154,14 @@ export default function SettingsPage() {
                 </div>
               </SettingRow>
               {/* BUG-066: Configurable hard caps */}
+              <div style={{
+                marginTop: 8, marginBottom: 4, padding: '8px 10px', borderRadius: 8,
+                background: `${T.danger}08`, border: `1px solid ${T.danger}20`,
+                fontSize: 10, color: T.text3, fontFamily: "var(--font-ar)", lineHeight: 1.5,
+              }}>
+                <b style={{ color: T.danger }}>⚠️ القيود الصارمة:</b> القيمتان التاليتان تتجاوزان القيم الافتراضية للأدمن (من لوحة تحكم المنصة).
+                الأولوية: قيمتك هنا &gt; قيمة الأدمن &gt; الافتراضي المضمن.
+              </div>
               <SettingRow
                 icon={<Shield size={13} color={T.danger} />}
                 label="الحد الأقصى للمخاطرة (Hard Cap)"

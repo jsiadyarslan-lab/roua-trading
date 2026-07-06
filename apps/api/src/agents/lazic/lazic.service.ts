@@ -541,28 +541,52 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
 
       if (candles && candles.length >= 20) {
         const { calculateStructureBasedSLTP } = await import('./../../modules/trading/services/sl-tp-calculator');
-        // BUG-040: رخّص النطاقات لكل فئة أصول:
-        // - كريبتو: SL 0.3%-5% (تقلب عالٍ)، minRR=2.0
-        // - فوركس/معادن/مؤشرات: SL 0.1%-2% (تقلب منخفض)، minRR=1.5
+        // BUG-056 FIX: widened SL ranges for Lazic (scalper needs room for noise).
+        //
+        // BEFORE: forex minSL=0.1% (8 pips on USD/CHF) — tighter than spread!
+        //         crypto minSL=0.3% — gets stopped out by normal volatility.
+        //         Result: SL hit immediately on entry, or within minutes.
+        //
+        // AFTER: forex minSL=0.3% (24 pips) — wider than spread + noise
+        //        crypto minSL=0.8% — absorbs 1-2 M15 candle ranges
+        //        minRR stays 1.5 (forex) / 2.0 (crypto) for good R:R
         const opts = isCrypto
-          ? { minSLPercent: 0.003, maxSLPercent: 0.05, minRR: 2.0 }
-          : { minSLPercent: 0.001, maxSLPercent: 0.02, minRR: 1.5 };
+          ? { minSLPercent: 0.008, maxSLPercent: 0.05, minRR: 2.0 }
+          : { minSLPercent: 0.003, maxSLPercent: 0.02, minRR: 1.5 };
         const result = calculateStructureBasedSLTP(candles, tick.price, direction, opts);
-        this.logger.debug(
-          `🐝 BUG-028 LASIC SL/TP from structure: ${tick.symbol} ${direction} ` +
-          `SL=${result.sl.toFixed(5)} (${result.slSource}) TP=${result.tp.toFixed(5)} (${result.tpSource}) R:R=1:${result.rrRatio.toFixed(2)}`
-        );
-        return { sl: result.sl, tp: result.tp };
+
+        // BUG-056 SAFETY: Verify SL is on the correct side of entry.
+        // If SL ended up on the WRONG side (e.g., BUY with SL above entry),
+        // the trade will immediately stop-loss. Reject the trade instead.
+        if (direction === 'BUY' && result.sl >= tick.price) {
+          this.logger.warn(
+            `🐝 BUG-056: SL ${result.sl.toFixed(5)} >= entry ${tick.price.toFixed(5)} for BUY ${tick.symbol} — skipping trade (SL on wrong side)`,
+          );
+          // Fall through to fixed % fallback
+        } else if (direction === 'SELL' && result.sl <= tick.price) {
+          this.logger.warn(
+            `🐝 BUG-056: SL ${result.sl.toFixed(5)} <= entry ${tick.price.toFixed(5)} for SELL ${tick.symbol} — skipping trade (SL on wrong side)`,
+          );
+          // Fall through to fixed % fallback
+        } else {
+          this.logger.debug(
+            `🐝 BUG-028 LASIC SL/TP from structure: ${tick.symbol} ${direction} ` +
+            `SL=${result.sl.toFixed(5)} (${result.slSource}) TP=${result.tp.toFixed(5)} (${result.tpSource}) R:R=1:${result.rrRatio.toFixed(2)}`,
+          );
+          return { sl: result.sl, tp: result.tp };
+        }
       }
     } catch (structErr: any) {
       // Structure-based failed — fall through to fixed %
     }
 
     // Fallback: النسبة الثابتة (السلوك القديم)
-    // BUG-040 FIX: رفع النسبة للفوركس من 0.05% إلى 0.15% — 0.05% أضيق من spread أحياناً
+    // BUG-056 FIX: widened fallback SL/TP to match structure-based ranges
+    // قبل: forex SL=0.15% (12 pips) — أضيق من spread أحياناً
+    // بعد: forex SL=0.3% (24 pips) — أوسع من spread + ضوضاء M15
     const isCrypto = tick.symbol.includes('/USDT') || tick.symbol.includes('/BTC');
-    const slPct = isCrypto ? 0.002 : 0.0015;
-    const tpPct = isCrypto ? 0.005 : 0.004;
+    const slPct = isCrypto ? 0.008 : 0.003;
+    const tpPct = isCrypto ? 0.016 : 0.006;
     const slDist = tick.price * slPct;
     const tpDist = tick.price * tpPct;
 

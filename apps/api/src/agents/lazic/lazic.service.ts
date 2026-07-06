@@ -887,8 +887,23 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
       if (raw) metrics = JSON.parse(raw);
     } catch {}
 
+    // BUG-054 FIX: Read lazicEnabled directly from DB instead of relying on
+    // the in-memory activeUsers Map. The Map is only synced every 30 seconds
+    // (USER_SYNC_INTERVAL_MS), so after enableForUser() the status endpoint
+    // would still return enabled=false for up to 30 seconds.
+    let dbEnabled = false;
+    try {
+      const dbSettings = await this.prisma.agentSettings.findUnique({
+        where: { userId },
+        select: { lazicEnabled: true } as any,
+      });
+      dbEnabled = !!(dbSettings as any)?.lazicEnabled;
+    } catch {
+      dbEnabled = !!state?.enabled;
+    }
+
     return {
-      enabled: !!state?.enabled,
+      enabled: dbEnabled,
       dailyTrades: state?.dailyTrades ?? 0,
       activeSymbols: Array.from(this.tickWindows.keys()).filter(
         sym => (this.tickWindows.get(sym)?.length ?? 0) > 5,

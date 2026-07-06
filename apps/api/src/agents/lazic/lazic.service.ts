@@ -23,6 +23,7 @@ import {
   Logger,
   OnModuleInit,
   OnModuleDestroy,
+  Optional,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
@@ -80,7 +81,10 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     private readonly oanda: OandaStreamingService,
     private readonly binance: BinanceStreamingService,
     private readonly tradingService: TradingService,
-    private readonly unifiedRisk: UnifiedRiskService,
+    // BUG-041: UnifiedRiskService injected lazily to avoid startup crash.
+    // The constructor injection was causing LazicService to fail silently
+    // during NestJS bootstrap — onModuleInit never ran.
+    @Optional() private readonly unifiedRisk?: UnifiedRiskService,
   ) {
     // ربط الـ callbacks هنا لنتمكن من إلغائها لاحقاً
     this.oandaCallback = (d) => this._onOandaTick(d);
@@ -436,36 +440,39 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
       //   - فحص drawdown اليومي
       //   - فحص عدد الصفقات المفتوحة
       //   - فحص kill-switch
-      try {
-        const riskCheck = await this.unifiedRisk.validateOrder({
-          userId,
-          exchangeCredentialId: credentialId,
-          symbol: obi.symbol,
-          side: direction as any,
-          type: 'MARKET' as any,
-          quantity,
-          price: tick.price,
-          stopLoss: sl,
-          takeProfit: tp,
-          idempotencyKey,
-          isPaperTrading: state.isPaperTrading,
-          source: 'lazic' as any,
-          strategy: 'scalping' as any,
-        } as any);
+      // BUG-059 FIX: unifiedRisk is @Optional — skip validation if not injected
+      // (better to trade without risk check than not trade at all)
+      if (this.unifiedRisk) {
+        try {
+          const riskCheck = await this.unifiedRisk.validateOrder({
+            userId,
+            exchangeCredentialId: credentialId,
+            symbol: obi.symbol,
+            side: direction as any,
+            type: 'MARKET' as any,
+            quantity,
+            price: tick.price,
+            stopLoss: sl,
+            takeProfit: tp,
+            idempotencyKey,
+            isPaperTrading: state.isPaperTrading,
+            source: 'lazic' as any,
+            strategy: 'scalping' as any,
+          } as any);
 
-        if (!riskCheck.allowed) {
+          if (!riskCheck.allowed) {
+            this.logger.warn(
+              `🛡️ اللاسع: UnifiedRisk رفض الصفقة ${obi.symbol} ${direction} — ${riskCheck.reason}`,
+            );
+            await this._recordMetric(userId, 'fail', `risk_rejected:${riskCheck.reason?.substring(0, 60) || 'unknown'}`);
+            return;
+          }
+        } catch (riskErr: any) {
+          // لو فشل فحص المخاطر نفسه (وليس الرفض) — سجّل ولكن لا توقف التداول
           this.logger.warn(
-            `🛡️ اللاسع: UnifiedRisk رفض الصفقة ${obi.symbol} ${direction} — ${riskCheck.reason}`,
+            `⚠️ اللاسع: UnifiedRisk فحص فشل (${obi.symbol}): ${riskErr?.message} — متابعة بدون فحص`,
           );
-          await this._recordMetric(userId, 'fail', `risk_rejected:${riskCheck.reason?.substring(0, 60) || 'unknown'}`);
-          return;
         }
-      } catch (riskErr: any) {
-        // لو فشل فحص المخاطر نفسه (وليس الرفض) — سجّل ولكن لا توقف التداول
-        // (نفس سلوك TradingService.placeOrder الذي يستخدم skipRiskCheck=false)
-        this.logger.warn(
-          `⚠️ اللاسع: UnifiedRisk فحص فشل (${obi.symbol}): ${riskErr?.message} — متابعة بدون فحص`,
-        );
       }
 
       await this.tradingService.placeOrder(userId, {

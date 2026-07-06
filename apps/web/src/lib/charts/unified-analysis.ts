@@ -634,8 +634,15 @@ export function runUnifiedAnalysis(candles: CandleData[]): UnifiedAnalysisResult
   ].sort((a, b) => b.confidence - a.confidence);
 
   // ── 15. Validate results ──
+  // BUG-061 FIX: Disabled validateAnalysis logWarn in production.
+  // The logWarn was firing on every analyze() call (which runs on every
+  // WebSocket tick), producing thousands of console.warn lines that
+  // flooded the main thread and prevented lightweight-charts from
+  // rendering. The validation itself still runs (to filter bad patterns),
+  // but the logging is suppressed.
   const validation = validateAnalysis(candles, mergedPatterns, srLevels);
-  if (validation.warningCount > 0) {
+  // Log only in development
+  if (process.env.NODE_ENV !== 'production' && validation.warningCount > 0) {
     logWarn('validator', 'validateAnalysis', `${validation.warningCount} patterns filtered, ${validation.errorCount} errors`);
   }
   const allPatterns = validation.filteredPatterns;

@@ -1564,7 +1564,11 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Right Panel — V554: always visible on desktop (above 768px) */}
+          {/* Right Panel — V554: always visible on desktop (above 1280px).
+              BUG-057: On tablet (768-1280px), this is hidden via CSS.
+              We conditionally render it to avoid leaving a black gap
+              in the grid where the column used to be. */}
+          {!isCompactDesktopViewport && (
           <div className="dash-col dash-col-right animate-in-3" style={{ height: '100%', width: rightPanelCollapsed ? '40px' : '100%', minWidth: 0, overflow: 'hidden' }}>
               {mode === 'trader' && <RightPanelLayout quotes={quotes} />}
               {mode === 'investor' && (
@@ -1588,6 +1592,7 @@ export default function DashboardPage() {
                 </div>
               )}
           </div>
+          )}
         </div>
       )}
 
@@ -2530,6 +2535,80 @@ export default function DashboardPage() {
         >
           <PanelRight size={22} />
         </button>
+      )}
+
+      {/* BUG-057 FIX: Right panel drawer for tablet (768-1280px).
+          On tablet, the right panel (dash-col-right) is hidden via CSS,
+          but there was no button to open it as a drawer. This left a
+          black empty space where the right panel used to be.
+          Now: a floating button appears on tablet to open the right
+          panel as a drawer (same pattern as mobile sidebar). */}
+      {isCompactDesktopViewport && (
+        <>
+          {/* Right panel drawer */}
+          {sidebarDrawerOpen && (
+            <SidebarDrawer
+              open={sidebarDrawerOpen}
+              onClose={() => setSidebarDrawerOpen(false)}
+            >
+              {mode === 'trader' && <RightPanelLayout quotes={quotes} />}
+              {mode === 'investor' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: '100%' }}>
+                  <div className="panel hover-glow" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <PortfolioMini dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} selectedSymbol={selectedSymbol} />
+                  </div>
+                  <div className="panel hover-glow" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <WatchlistMini selectedSymbol={selectedSymbol} onSelectSymbol={handleSelectSymbol} />
+                  </div>
+                </div>
+              )}
+              {mode === 'ai' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: '100%' }}>
+                  <div className="panel hover-glow" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <AlNarratorMini selectedSymbol={selectedSymbol} dataStatus={quoteStatus} />
+                  </div>
+                  <div className="panel hover-glow" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <ScannerMini selectedSymbol={selectedSymbol} />
+                  </div>
+                </div>
+              )}
+            </SidebarDrawer>
+          )}
+
+          {/* Floating button to open right panel drawer */}
+          {!sidebarDrawerOpen && (
+            <button
+              type="button"
+              onClick={() => setSidebarDrawerOpen(true)}
+              title={t('openSidebar')}
+              aria-label={t('openSidebar')}
+              style={{
+                position: 'fixed',
+                bottom: 16,
+                insetInlineEnd: 16,
+                width: 48,
+                height: 48,
+                borderRadius: 14,
+                border: '1px solid rgba(0,212,255,0.25)',
+                background: 'rgba(0,212,255,0.12)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                color: '#00D4FF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                zIndex: 40,
+                boxShadow: '0 4px 16px rgba(0,0,0,0.3), 0 0 12px rgba(0,212,255,0.15)',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.20)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.12)'; }}
+            >
+              <PanelRight size={22} />
+            </button>
+          )}
+        </>
       )}
 
       {/* FAB hidden — mobile uses bottom nav "More" tab instead */}

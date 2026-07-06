@@ -1518,19 +1518,15 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const signalRef = useRef(signal);
   signalRef.current = signal;
 
-  // BUG-062 FIX: Throttle the overlay re-emit effect to prevent infinite re-render loop.
-  // The effect had deps [overlays, chartAlerts]. Every call to onPatternsRef →
-  // setChartAlerts in RouaChart → re-render → chartAlerts changes → effect fires again.
-  // This caused 2000+ re-renders that froze the chart.
-  // Fix: Only re-emit when overlays actually change (not chartAlerts).
-  const _lastOverlayEmitRef = useRef(0);
+  // BUG-062 FIX: The infinite re-render loop was caused by `chartAlerts` in deps.
+  // Every call to onPatternsRef → setChartAlerts in RouaChart → re-render →
+  // chartAlerts changes → effect fires again → infinite loop.
+  // Fix: Remove `chartAlerts` from deps. The overlay effect only needs to fire
+  // when `overlays` changes (user toggles a button), NOT when chartAlerts change.
+  // NO throttle needed — removing chartAlerts from deps breaks the loop.
   useEffect(() => {
     // SUSTAINABLE PATH: If the chart supports onOverlayChange, use it.
     if (onOverlayChangeRef.current) {
-      // BUG-062: Throttle to max 1 emit per 5 seconds
-      const now = Date.now();
-      if (now - _lastOverlayEmitRef.current < 5000) return;
-      _lastOverlayEmitRef.current = now;
       onOverlayChangeRef.current(overlays);
       return;
     }
@@ -1584,23 +1580,15 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   //   3. Flicker as overlays are cleared and re-drawn
   const candleSignatureRef = useRef<string>('');
   const firstCandleTimeRef = useRef<number>(0);
-  // BUG-062 FIX: Throttle the candle signature effect to prevent re-render spam.
-  // Every WebSocket tick creates a new candles array reference, triggering this effect.
-  // The effect calls onOverlayChangeRef which triggers setState in RouaChart, which
-  // triggers setAiPanelCandles, which creates a new candles reference, which triggers
-  // this effect again → infinite loop.
-  // Fix: Skip if the signature is the same (already done) AND throttle to 5s minimum.
-  const _lastCandleSigEmitRef = useRef(0);
+  // BUG-062 FIX: No throttle needed — the candleSignatureRef check already prevents
+  // duplicate emits for the same candle data. The infinite loop was in the OTHER
+  // effect (overlays+chartAlerts), not here. Removing the throttle restores
+  // immediate overlay updates on symbol/timeframe change.
   useEffect(() => {
     if (!candles?.length || candles.length < 20) return;
     const sig = `${candles[0]?.time}_${candles[candles.length - 1]?.time}_${candles.length}`;
     if (sig === candleSignatureRef.current) return; // Same data, skip
     candleSignatureRef.current = sig;
-
-    // BUG-062: Throttle overlay re-emit to 5s
-    const now = Date.now();
-    if (now - _lastCandleSigEmitRef.current < 5000) return;
-    _lastCandleSigEmitRef.current = now;
 
     // Check if any overlay is currently active
     const anyActive = Object.values(overlaysRef.current).some(v => v === true);

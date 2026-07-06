@@ -913,20 +913,20 @@ export class PositionMonitorService {
         }
       }
       // BUG-064: Position Intelligence — تحليل ذكي للمركز المفتوح
+      // BUG-064 SAFETY: Run NON-BLOCKING. analyzePosition fetches candles via
+      // REST API (1-3s). If we await it, 10 positions = 30s delay in SL/TP.
+      // Instead: fire-and-forget. The analysis runs in background and updates
+      // SL/TP asynchronously. SL/TP detection (above) always runs first.
       if (this.positionIntel) {
-        try {
-          const intelAnalysis = await this.positionIntel.analyzePosition(position, currentPrice);
-          if (intelAnalysis && intelAnalysis.action !== 'HOLD') {
-            await this.positionIntel.executeDecision(intelAnalysis, position);
-            // لو كان EXIT_EARLY، المركز سيُغلق — لا نكمل المراقبة
-            if (intelAnalysis.action === 'EXIT_EARLY') {
-              result.alertSent = true;
-              return result;
-            }
+        this.positionIntel.analyzePosition(position, currentPrice).then((intelAnalysis) => {
+          if (intelAnalysis && intelAnalysis.action !== 'HOLD' && this.positionIntel) {
+            return this.positionIntel.executeDecision(intelAnalysis, position);
           }
-        } catch (intelErr: any) {
+          return null;
+        }).catch((intelErr: any) => {
           this.logger.warn(`🧠 Position Intel error for ${position.symbol}: ${intelErr?.message}`);
-        }
+        });
+        // NOTE: لا ننتظر النتيجة — SL/TP detection أهم
       }
       // No SL/TP hit — update price/PnL and highest/lowest, then fall through to MAX_HOLDING check
       // V228: Update highestPrice/lowestPrice using effectiveHigh/effectiveLow (not just currentPrice)

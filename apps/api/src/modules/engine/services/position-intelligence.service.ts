@@ -82,6 +82,11 @@ export class PositionIntelligenceService {
   /**
    * تحليل مركز مفتوح واتخاذ قرار.
    * يُستدعى من PositionMonitor كل دورة.
+   *
+   * BUG-064 SAFETY: Throttled to 1 analysis per 2 minutes per position.
+   * The throttle is CRITICAL because analyzePosition fetches candles via
+   * REST API (1-3 seconds). Without throttle, 10 open positions × 10s
+   * monitor cycle = 30+ seconds per cycle → SL/TP detection delays.
    */
   async analyzePosition(position: any, currentPrice: number): Promise<PositionAnalysis | null> {
     const positionId = position.id;
@@ -94,13 +99,23 @@ export class PositionIntelligenceService {
     // تخطي المراكز بدون SL/TP
     if (!stopLoss || !takeProfit) return null;
 
-    // Throttle: لا تحلّل نفس المركز أكثر من مرة كل 2 دقيقة
+    // BUG-064 CRITICAL: Throttle — لا تحلّل نفس المركز أكثر من مرة كل 2 دقيقة
+    // بدون هذا، كل دورة مراقبة (10 ثوان) ستجلب شموع من REST API لكل مركز
+    // → 10 مراكز × 2 ثانية = 20 ثانية تأخير في SL/TP detection
     const lastAnalysisKey = `${this.REDIS_KEY_PREFIX}last:${positionId}`;
     try {
       const lastRaw = await this.redis.get(lastAnalysisKey);
       if (lastRaw) {
         const last = JSON.parse(lastRaw);
-        if (Date.now() - last.analyzedAt < this.CHECK_INTERVAL_MS) return null;
+        if (Date.now() - last.analyzedAt < this.CHECK_INTERVAL_MS) {
+          // ليس وقت التحليل بعد — استخدم آخر قرار مسجّل
+          // لكن تحقق: هل تغير السعر بشكل كبير منذ آخر تحليل؟
+          const lastPrice = last.currentPrice || 0;
+          const priceChange = lastPrice > 0 ? Math.abs(currentPrice - lastPrice) / lastPrice : 0;
+          // لو السعر تحرك > 1% منذ آخر تحليل → حلّل فوراً (طوارئ)
+          if (priceChange < 0.01) return null;
+          this.logger.debug(`🧠 ${symbol}: Price moved ${(priceChange * 100).toFixed(2)}% since last analysis — emergency re-analysis`);
+        }
       }
     } catch {}
 
@@ -267,11 +282,11 @@ export class PositionIntelligenceService {
       analyzedAt: Date.now(),
     };
 
-    // سجّل التحليل في Redis
+    // سجّل التحليل في Redis (مع currentPrice للـ emergency re-analysis)
     try {
       await this.redis.set(
         lastAnalysisKey,
-        JSON.stringify(analysis),
+        JSON.stringify({ ...analysis, currentPrice }),
         this.ANALYSIS_TTL_MS,
       );
     } catch {}

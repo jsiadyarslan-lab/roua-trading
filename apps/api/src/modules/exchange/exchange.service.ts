@@ -147,8 +147,36 @@ export class ExchangeService {
   ): Promise<UnifiedCandleDto[]> {
     const adapter = this._selectAdapter(symbol, source);
     const endDate = end || new Date();
-    // 60 days default to ensure MACD (26+9=35 bars minimum) and other indicators have enough data
-    const startDate = start || new Date(endDate.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+    // BUG-051 FIX: Adaptive date range based on interval to prevent fetching
+    // too many candles (which caused 5-second delays on pair switch).
+    //
+    // BEFORE: 60 days hardcoded for ALL intervals
+    //   1min × 60 days = 86,400 candles → OANDA returns 57,000+ → 5s delay
+    //   5min × 60 days = 17,280 candles → still too many
+    //
+    // AFTER: Adaptive range targeting ~2000-3000 candles max
+    //   1min  → 2 days   (2,880 candles)
+    //   5min  → 7 days   (2,016 candles)
+    //   15min → 21 days  (2,016 candles)
+    //   30min → 42 days  (2,016 candles)
+    //   1h    → 83 days  (1,992 candles)
+    //   4h    → 166 days (996 candles)
+    //   1day  → 365 days (365 candles)
+    //   1week → 730 days (~104 candles)
+    const DAYS_BY_INTERVAL: Record<string, number> = {
+      '1min': 2, '1m': 2,
+      '5min': 7, '5m': 7,
+      '15min': 21, '15m': 21,
+      '30min': 42, '30m': 42,
+      '1h': 83, 'H1': 83,
+      '4h': 166, 'H4': 166,
+      '1day': 365, '1d': 365, 'D1': 365,
+      '1week': 730, '1w': 730, 'W1': 730,
+    };
+    const defaultDays = DAYS_BY_INTERVAL[interval] || 7; // Fallback: 7 days
+    const startDate = start || new Date(endDate.getTime() - defaultDays * 24 * 60 * 60 * 1000);
+
     try {
       const candles = await adapter.fetchHistoricalData(symbol, interval, startDate, endDate);
       if (candles.length > 0) return candles;

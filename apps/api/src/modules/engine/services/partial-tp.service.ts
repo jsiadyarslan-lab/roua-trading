@@ -143,6 +143,29 @@ export class PartialTPService {
         : currentPrice <= tp1Price;
 
       if (tp1Reached) {
+        // BUG-063 SAFETY: Check that partial quantity is > 0
+        const partialQty = this._roundQty(state.originalQty * this.TP1_QTY_RATIO);
+        if (partialQty <= 0) {
+          // Quantity too small to split — mark as hit (skip stage) and move SL only
+          state.tp1Hit = true;
+          await this.redis.set(
+            this.REDIS_KEY_PREFIX + positionId,
+            JSON.stringify(state),
+            this.REDIS_TTL_MS,
+          );
+          // Still move SL to break-even even without closing
+          const breakEvenSL = side === 'BUY'
+            ? entryPrice * 1.0001
+            : entryPrice * 0.9999;
+          this.logger.log(
+            `📊 Partial TP1: ${state.symbol} — qty too small to split (${state.originalQty}), moving SL to break-even only`,
+          );
+          return {
+            type: 'PARTIAL_CLOSE', stage: 1, quantity: 0,
+            newStopLoss: breakEvenSL, reason: 'PARTIAL_TP_1_SL_ONLY (qty too small)', state,
+          };
+        }
+
         const lockKey = `${this.REDIS_KEY_PREFIX}${positionId}:tp1_lock`;
         const locked = await this.redis.setIfNotExists(lockKey, '1', 300);
         if (!locked) return null;
@@ -154,7 +177,6 @@ export class PartialTPService {
           this.REDIS_TTL_MS,
         );
 
-        const partialQty = this._roundQty(state.originalQty * this.TP1_QTY_RATIO);
         const breakEvenSL = side === 'BUY'
           ? entryPrice * 1.0001
           : entryPrice * 0.9999;
@@ -176,6 +198,26 @@ export class PartialTPService {
         : currentPrice <= tp2Price;
 
       if (tp2Reached) {
+        const partialQty = this._roundQty(state.originalQty * this.TP2_QTY_RATIO);
+        if (partialQty <= 0) {
+          state.tp2Hit = true;
+          await this.redis.set(
+            this.REDIS_KEY_PREFIX + positionId,
+            JSON.stringify(state),
+            this.REDIS_TTL_MS,
+          );
+          const lockProfitSL = side === 'BUY'
+            ? entryPrice + tpDistance * 0.50
+            : entryPrice - tpDistance * 0.50;
+          this.logger.log(
+            `📊 Partial TP2: ${state.symbol} — qty too small, moving SL to lock profit only`,
+          );
+          return {
+            type: 'PARTIAL_CLOSE', stage: 2, quantity: 0,
+            newStopLoss: lockProfitSL, reason: 'PARTIAL_TP_2_SL_ONLY (qty too small)', state,
+          };
+        }
+
         const lockKey = `${this.REDIS_KEY_PREFIX}${positionId}:tp2_lock`;
         const locked = await this.redis.setIfNotExists(lockKey, '1', 300);
         if (!locked) return null;
@@ -187,7 +229,6 @@ export class PartialTPService {
           this.REDIS_TTL_MS,
         );
 
-        const partialQty = this._roundQty(state.originalQty * this.TP2_QTY_RATIO);
         const lockProfitSL = side === 'BUY'
           ? entryPrice + tpDistance * 0.50
           : entryPrice - tpDistance * 0.50;
@@ -211,24 +252,33 @@ export class PartialTPService {
     position: any,
     currentPrice: number,
   ): Promise<boolean> {
-    if (!this.tradingService) {
-      this.logger.warn(`📊 Partial TP: TradingService not available — cannot execute`);
-      return false;
+    // BUG-063 SAFETY: Skip close if quantity is 0 (SL-only mode for small positions)
+    if (action.quantity > 0 && this.tradingService) {
+      try {
+        await this.tradingService.closePosition(position.userId, {
+          positionId: position.id,
+          quantity: action.quantity,
+          closeReason: action.reason,
+          source: 'partial_tp_engine',
+        } as any);
+
+        this.logger.log(
+          `📊 Partial TP${action.stage} EXECUTED: ${position.symbol} — closed ${action.quantity}`,
+        );
+      } catch (err: any) {
+        this.logger.error(
+          `📊 Partial TP${action.stage} close FAILED: ${position.symbol} — ${err?.message}`,
+        );
+        // Release lock for retry
+        const lockKey = `${this.REDIS_KEY_PREFIX}${position.id}:tp${action.stage}_lock`;
+        try { await this.redis.del(lockKey); } catch {}
+        return false;
+      }
     }
 
-    try {
-      await this.tradingService.closePosition(position.userId, {
-        positionId: position.id,
-        quantity: action.quantity,
-        closeReason: action.reason,
-        source: 'partial_tp_engine',
-      } as any);
-
-      this.logger.log(
-        `📊 Partial TP${action.stage} EXECUTED: ${position.symbol} — closed ${action.quantity}`,
-      );
-
-      if (action.newStopLoss) {
+    // Update SL for remaining position (always, even if no partial close happened)
+    if (action.newStopLoss) {
+      try {
         const stillOpen = await this.prisma.position.findFirst({
           where: { id: position.id, status: 'OPEN' },
           select: { id: true, quantity: true, stopLoss: true },
@@ -251,17 +301,12 @@ export class PartialTPService {
             );
           }
         }
+      } catch (slErr: any) {
+        this.logger.warn(`📊 Partial TP${action.stage}: SL update failed: ${slErr?.message}`);
       }
-
-      return true;
-    } catch (err: any) {
-      this.logger.error(
-        `📊 Partial TP${action.stage} FAILED: ${position.symbol} — ${err?.message}`,
-      );
-      const lockKey = `${this.REDIS_KEY_PREFIX}${position.id}:tp${action.stage}_lock`;
-      try { await this.redis.del(lockKey); } catch {}
-      return false;
     }
+
+    return true;
   }
 
   async unregisterPosition(positionId: string): Promise<void> {

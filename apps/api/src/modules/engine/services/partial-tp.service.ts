@@ -82,12 +82,10 @@ export class PartialTPService {
     quantity: number,
   ): Promise<void> {
     if (!takeProfit || takeProfit <= 0 || !stopLoss || stopLoss <= 0) return;
-    if (quantity < 0.02) {
-      this.logger.debug(
-        `📊 Partial TP: Skipping ${symbol} — quantity ${quantity} too small for split`,
-      );
-      return;
-    }
+    // BUG-063: Skip positions too small to split — SILENTLY (no log spam)
+    // 0.01 lot × 0.33 = 0.0033 → rounds to 0.00 — can't close
+    // Position Intel still manages these via SL/TP adjustments
+    if (quantity < 0.02) return;
 
     const state: PartialTPState = {
       positionId, userId, symbol, side, entryPrice,

@@ -1398,9 +1398,16 @@ export default function DashboardPage() {
           className={`dash-grid dashboard-shell${chartFullscreen ? ' chart-fullscreen' : ''}`}
           style={{
             display: 'grid',
+            // BUG-057 FIX: On tablet (768-1280px), use 2 columns instead of 3.
+            // The inline style was ALWAYS setting 3 columns, overriding the CSS
+            // media query. When dash-col-right is hidden via CSS display:none,
+            // the grid still reserved 280-320px for the 3rd column → black gap.
+            // Now: isCompactDesktopViewport controls the column count dynamically.
             gridTemplateColumns: chartFullscreen
               ? '0px minmax(0, 1fr) 0px'
-              : `${sidebarCollapsed ? '40px' : 'minmax(220px, 260px)'} minmax(0, 1fr) ${rightPanelCollapsed ? '40px' : 'minmax(280px, 320px)'}`,
+              : isCompactDesktopViewport
+                ? `${sidebarCollapsed ? '40px' : 'minmax(220px, 260px)'} minmax(0, 1fr)`
+                : `${sidebarCollapsed ? '40px' : 'minmax(220px, 260px)'} minmax(0, 1fr) ${rightPanelCollapsed ? '40px' : 'minmax(280px, 320px)'}`,
             gap: 12,
             minHeight: `calc(100dvh - ${HEADER_H}px)`,
             height: `calc(100dvh - ${HEADER_H}px)`,

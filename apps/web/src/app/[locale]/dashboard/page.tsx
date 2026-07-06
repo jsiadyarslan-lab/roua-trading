@@ -613,6 +613,15 @@ export default function DashboardPage() {
           overflow: hidden;
         }
 
+        /* BUG-057 FIX: dash-col-left must not shrink below its grid column width.
+           On tablet (768-1280px), when sidebar is collapsed, the grid allocates
+           40px but dash-col could shrink to 0 due to min-width:0 above, leaving
+           a black gap. This override ensures the left column fills its grid track. */
+        .dash-col-left {
+          min-width: unset;
+          width: 100%;
+        }
+
         /* ── Glassmorphism Panel ── */
         .panel {
           background: rgba(26, 29, 41, 0.65);
@@ -1401,7 +1410,18 @@ export default function DashboardPage() {
           }}
         >
           {/* V554: Left Sidebar — always visible on desktop (above 768px), collapsible */}
-          <div className="dash-col dash-col-left animate-in-1" style={{ height: '100%' }}>
+          {/* BUG-057 FIX: width must match grid column to prevent black gap on tablet */}
+          <div
+            className="dash-col dash-col-left animate-in-1"
+            style={{
+              height: '100%',
+              width: sidebarCollapsed ? '40px' : '100%',
+              minWidth: sidebarCollapsed ? '40px' : '220px',
+              maxWidth: sidebarCollapsed ? '40px' : '260px',
+              transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.3s, max-width 0.3s',
+              overflow: 'hidden',
+            }}
+          >
             <PrimarySidebarLayout />
           </div>
 

@@ -21,6 +21,8 @@ import { StrategicCouncilService } from '../../ai/strategic-council/strategic-co
 import { FeatureFlagService } from '../../../common/feature-flags/feature-flag.service';
 // BUG-063: Partial TP Service — 3-stage profit taking
 import { PartialTPService } from './partial-tp.service';
+// BUG-064: Position Intelligence — active position management
+import { PositionIntelligenceService } from './position-intelligence.service';
 // V339: Trade Lifecycle Logger — for audit trail of every close decision
 import { TradeLifecycleLogger } from '../../../common/trade-lifecycle/trade-lifecycle.logger';
 // V341: Position State Machine — single decision point for position lifecycle
@@ -177,6 +179,8 @@ export class PositionMonitorService {
       @Optional() @Inject(PositionStateMachine) private readonly stateMachine?: PositionStateMachine,
     // BUG-063: Partial TP Service — for 3-stage profit taking
     @Optional() private readonly partialTP?: PartialTPService,
+    // BUG-064: Position Intelligence — active position management
+    @Optional() private readonly positionIntel?: PositionIntelligenceService,
   ) {
     // V347: Verify critical dependencies are injected
     if (!this.lifecycle) {
@@ -906,6 +910,22 @@ export class PositionMonitorService {
           }
         } catch (partialErr: any) {
           this.logger.warn(`📊 Partial TP error for ${position.symbol}: ${partialErr?.message}`);
+        }
+      }
+      // BUG-064: Position Intelligence — تحليل ذكي للمركز المفتوح
+      if (this.positionIntel) {
+        try {
+          const intelAnalysis = await this.positionIntel.analyzePosition(position, currentPrice);
+          if (intelAnalysis && intelAnalysis.action !== 'HOLD') {
+            await this.positionIntel.executeDecision(intelAnalysis, position);
+            // لو كان EXIT_EARLY، المركز سيُغلق — لا نكمل المراقبة
+            if (intelAnalysis.action === 'EXIT_EARLY') {
+              result.alertSent = true;
+              return result;
+            }
+          }
+        } catch (intelErr: any) {
+          this.logger.warn(`🧠 Position Intel error for ${position.symbol}: ${intelErr?.message}`);
         }
       }
       // No SL/TP hit — update price/PnL and highest/lowest, then fall through to MAX_HOLDING check

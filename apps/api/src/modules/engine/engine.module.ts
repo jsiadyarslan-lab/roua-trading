@@ -30,6 +30,7 @@ import { MarketScannerService } from './services/market-scanner.service';
 import { PositionMonitorService } from './services/position-monitor.service';
 import { MarketBroadcasterService } from './services/market-broadcaster.service';
 import { PartialTPService } from './services/partial-tp.service';
+import { PositionIntelligenceService } from './services/position-intelligence.service';
 import { EngineController } from './engine.controller';
 
 /**
@@ -75,12 +76,14 @@ import { EngineController } from './engine.controller';
     PositionMonitorService,
     MarketBroadcasterService,
     PartialTPService,
+    PositionIntelligenceService,
   ],
   exports: [
     MarketScannerService,
     PositionMonitorService,
     MarketBroadcasterService,
     PartialTPService,
+    PositionIntelligenceService,
   ],
 })
 export class EngineModule {}

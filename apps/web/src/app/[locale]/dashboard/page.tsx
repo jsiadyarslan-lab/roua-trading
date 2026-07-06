@@ -1102,6 +1102,8 @@ export default function DashboardPage() {
 
   const [isCompactDesktopViewport, setIsCompactDesktopViewport] = useState(false)
   const [sidebarDrawerOpen, setSidebarDrawerOpen] = useState(false)
+  // BUG-057: Separate state for tablet right panel drawer
+  const [rightPanelDrawerOpen, setRightPanelDrawerOpen] = useState(false)
   const [sidebarPinned, setSidebarPinned] = useState(false)
   const [tradeDialogOpen, setTradeDialogOpen] = useState(false)
   // Mobile V2 state
@@ -2545,18 +2547,15 @@ export default function DashboardPage() {
       )}
 
       {/* BUG-057 FIX: Right panel drawer for tablet (768-1280px).
-          On tablet, the right panel (dash-col-right) is hidden via CSS,
-          but there was no button to open it as a drawer. This left a
-          black empty space where the right panel used to be.
-          Now: a floating button appears on tablet to open the right
-          panel as a drawer (same pattern as mobile sidebar). */}
+          Uses separate state (rightPanelDrawerOpen) to avoid conflict
+          with mobile sidebar drawer state. */}
       {isCompactDesktopViewport && (
         <>
           {/* Right panel drawer */}
-          {sidebarDrawerOpen && (
+          {rightPanelDrawerOpen && (
             <SidebarDrawer
-              open={sidebarDrawerOpen}
-              onClose={() => setSidebarDrawerOpen(false)}
+              open={rightPanelDrawerOpen}
+              onClose={() => setRightPanelDrawerOpen(false)}
             >
               {mode === 'trader' && <RightPanelLayout quotes={quotes} />}
               {mode === 'investor' && (
@@ -2583,10 +2582,10 @@ export default function DashboardPage() {
           )}
 
           {/* Floating button to open right panel drawer */}
-          {!sidebarDrawerOpen && (
+          {!rightPanelDrawerOpen && (
             <button
               type="button"
-              onClick={() => setSidebarDrawerOpen(true)}
+              onClick={() => setRightPanelDrawerOpen(true)}
               title={t('openSidebar')}
               aria-label={t('openSidebar')}
               style={{

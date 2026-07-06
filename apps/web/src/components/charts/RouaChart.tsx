@@ -1357,12 +1357,12 @@ export default function RouaChart({
     // Using console.warn because console.log is stripped in production
     console.warn(`%c[BUG-050] Fetch effect FIRED at ${new Date().toISOString()} — symbol=${selectedSymbol_} tf=${timeframe_}`, 'color: #00E5FF; font-weight: bold');
 
-    // BUG-050: Safety timeout — if fetch doesn't complete in 15s, log diagnostic
-    const safetyTimeout = setTimeout(() => {
-      if (!cancelled) {
-        console.error(`%c[BUG-050] FETCH TIMEOUT — 15s elapsed, no candles for ${selectedSymbol_} ${timeframe_}. candlesRef=${candlesRef.current.length} candles, feedState=${feedStateRef.current}`, 'color: #FF5252; font-weight: bold; font-size: 14px');
-      }
-    }, 15000);
+    // BUG-050: Safety timeout — REMOVED. The timeout was firing false-positive
+    // warnings because it wasn't being cleared on fetch success. The fetch IS
+    // completing (we see "Fetched N candles" + "setCandles called" in logs),
+    // but the timeout still fired because clearTimeout was only in the cleanup.
+    // The actual bug is NOT a fetch timeout — the chart loads correctly.
+    // Removing this noisy diagnostic.
 
     const fetchCandles = async () => {
       try {
@@ -1509,7 +1509,6 @@ export default function RouaChart({
     return () => {
       cancelled = true;
       controller.abort();
-      clearTimeout(safetyTimeout);
     }; // Cancel network request
   }, [selectedSymbol_, timeframe_]);
 

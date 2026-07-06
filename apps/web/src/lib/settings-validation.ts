@@ -19,6 +19,9 @@ export const ALLOWED_USER_SETTINGS_KEYS = new Set([
   'userMaxDailyLoss',
   'userStopLoss',
   'userTakeProfit',
+  // BUG-066: Configurable hard caps for position sizing
+  'hardRiskCap',
+  'maxNotionalPercent',
   'riskWarningAcknowledged',
   'dailyLossHit',
   'orderSize',

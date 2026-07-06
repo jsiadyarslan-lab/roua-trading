@@ -3584,11 +3584,11 @@ export class SmartExecutorService implements OnModuleDestroy {
 
       // Apply V185 multiplier (clamped 0.3x–2.0x by the service itself)
       riskPercent = riskPercent * v185SizingMultiplier;
-      // V420 FIX: Cap riskPercent to 2% of portfolioValue (hard ceiling).
-      // V421 was removed (paperBalance no longer capped at $50,000).
-      // After resetting paperBalance to actual value ($10,000), the 2% cap
-      // gives: $10,000 × 2% = $200 max risk per trade — professional standard.
-      const HARD_RISK_CAP = 0.02; // 2% hard ceiling (was 0.5%)
+      // BUG-066: Use configurable hard cap from DB (set by user from UI)
+      // Default: 5% (professional standard). User can change from Settings → Risk.
+      const HARD_RISK_CAP = this.unifiedRisk?.getHardRiskCap
+        ? this.unifiedRisk.getHardRiskCap() / 100
+        : 0.02; // fallback: 2%
       if (riskPercent > HARD_RISK_CAP) {
         this.logger.warn(
           `⚔️ V420: riskPercent=${(riskPercent*100).toFixed(2)}% > ${HARD_RISK_CAP*100}% hard cap — clamped`
@@ -3650,12 +3650,11 @@ export class SmartExecutorService implements OnModuleDestroy {
       let quantity = posResult.quantityUnits;
       let lots = posResult.quantityLots;
 
-      // V420 FIX: maxOrderValue is now proportional to portfolio, not absolute.
-      // OLD: min(portfolio × 0.5%, $500) → on $10,000 = $50 → blocks everything
-      // NEW: portfolio × 50% → on $10,000 = $5,000 → allows 0.04+ lots EUR/USD
-      // This is NOTIONAL not RISK. With 50x leverage, $5,000 notional = $100 margin.
-      // The actual RISK is capped by riskAmount (above) at 2% = $200.
-      const maxOrderValue = portfolioValue * 0.50;  // 50% of portfolio (notional, leverage-aware)
+      // BUG-066: Use configurable maxNotionalPercent from DB
+      const maxNotionalPct = this.unifiedRisk?.getMaxNotionalPercent
+        ? this.unifiedRisk.getMaxNotionalPercent() / 100
+        : 0.50; // fallback: 50%
+      const maxOrderValue = portfolioValue * maxNotionalPct;
 
       if (posResult.notional > maxOrderValue) {
         // Reduce quantity to fit within max order value

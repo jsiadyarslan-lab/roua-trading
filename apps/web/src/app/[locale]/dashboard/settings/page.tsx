@@ -611,6 +611,9 @@ export default function SettingsPage() {
   const [userRiskPerTrade, setUserRiskPerTrade] = useState('1')
   const [userMaxDailyLoss, setUserMaxDailyLoss] = useState('5')
   const [userMaxOpenPositions, setUserMaxOpenPositions] = useState('15')  // V143: Changed from '5' to '15'
+  // BUG-066: Configurable hard caps for position sizing
+  const [hardRiskCap, setHardRiskCap] = useState('5')      // max risk % per trade
+  const [maxNotionalPct, setMaxNotionalPct] = useState('50') // max notional % of portfolio
   const [chartType, setChartType] = useState('candlestick')
   const [timeframe, setTimeframe] = useState('15m')
   const [confirmTrades, setConfirmTrades] = useState(true)
@@ -786,6 +789,9 @@ export default function SettingsPage() {
           if (s.userTakeProfit) setUserTakeProfit(s.userTakeProfit)
           if (s.userRiskPerTrade) setUserRiskPerTrade(s.userRiskPerTrade)
           if (s.userMaxDailyLoss) setUserMaxDailyLoss(s.userMaxDailyLoss)
+          // BUG-066: Read configurable hard caps
+          if (s.hardRiskCap) setHardRiskCap(s.hardRiskCap)
+          if (s.maxNotionalPercent) setMaxNotionalPct(s.maxNotionalPercent)
           if (s.userMaxOpenPositions) setUserMaxOpenPositions(s.userMaxOpenPositions)
           if (s.chartType) setChartType(s.chartType)
           if (s.timeframe) setTimeframe(s.timeframe)
@@ -885,6 +891,8 @@ export default function SettingsPage() {
               agentInterval, agentPairs, agentMaxHoldingHours, agentContractSize,
               analyticsEnabled, crashReports,
               userStopLoss, userTakeProfit, userRiskPerTrade, userMaxDailyLoss, userMaxOpenPositions,
+              // BUG-066: Configurable hard caps for position sizing
+              hardRiskCap, maxNotionalPercent: maxNotionalPct,
               // Feature 2: Advanced Strategy Settings
               scalpingTimeframe, scalpingTakeProfitPips, scalpingStopLossPips, scalpingMaxSpread, gridLevels,
               // Feature 3: Telegram/Discord
@@ -2134,6 +2142,49 @@ export default function SettingsPage() {
                     type="number" min={1} max={50} step={0.5}
                     value={userMaxDailyLoss}
                     onChange={e => setUserMaxDailyLoss(e.target.value)}
+                    style={{
+                      width: 60, padding: '5px 8px', borderRadius: 9,
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
+                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
+                      textAlign: 'center', outline: 'none',
+                    }}
+                    dir="ltr"
+                  />
+                  <span style={{ fontSize: 11, color: T.text3, fontWeight: 600 }}>%</span>
+                </div>
+              </SettingRow>
+              {/* BUG-066: Configurable hard caps */}
+              <SettingRow
+                icon={<Shield size={13} color={T.danger} />}
+                label="الحد الأقصى للمخاطرة (Hard Cap)"
+                description="أقصى نسبة مخاطرة مسموح بها لكل صفقة بغض النظر عن مضاعفات الإشارة"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="number" min={1} max={20} step={0.5}
+                    value={hardRiskCap}
+                    onChange={e => setHardRiskCap(e.target.value)}
+                    style={{
+                      width: 60, padding: '5px 8px', borderRadius: 9,
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
+                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
+                      textAlign: 'center', outline: 'none',
+                    }}
+                    dir="ltr"
+                  />
+                  <span style={{ fontSize: 11, color: T.text3, fontWeight: 600 }}>%</span>
+                </div>
+              </SettingRow>
+              <SettingRow
+                icon={<BarChart3 size={13} color={T.accent} />}
+                label="أقصى حجم صفقة (Notional)"
+                description="أقصى نسبة من الرصيد لقيمة الصفقة (مع الرافعة)"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="number" min={10} max={100} step={5}
+                    value={maxNotionalPct}
+                    onChange={e => setMaxNotionalPct(e.target.value)}
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 9,
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,

@@ -86,6 +86,9 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
   private defaultTakeProfitPercent: number;
   private defaultRiskPerTradePercent: number;
   private maxOverallDrawdownPercent: number;
+  // BUG-066: Configurable hard caps (read from DB riskConfig)
+  private configurableHardRiskCap: number = 5.0;       // max risk % per trade (default 5%)
+  private configurableMaxNotionalPercent: number = 50.0; // max notional % of portfolio (default 50%)
 
   // ── DB Settings Sync ──
   private lastSettingsSync = 0;
@@ -199,6 +202,10 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
    *  9. checkPriceSanity         — Price deviation > 10%
    * 10. checkDuplicatePosition   — Same symbol+strategy block (from RiskCalculator)
    */
+  // BUG-066: Public getters for configurable caps (used by Smart Executor)
+  getHardRiskCap(): number { return this.configurableHardRiskCap; }
+  getMaxNotionalPercent(): number { return this.configurableMaxNotionalPercent; }
+
   async validateOrder(command: OrderCommand): Promise<RiskCheckResult> {
     await this.syncSettingsFromDB();
 
@@ -1291,6 +1298,11 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
         }
         if (riskConfig.circuitBreakerThreshold) this.circuitBreakerThresholdPercent = parseFloat(riskConfig.circuitBreakerThreshold);
         if (riskConfig.takeProfitDefault) this.defaultTakeProfitPercent = parseFloat(riskConfig.takeProfitDefault);
+        // BUG-066: Read configurable hard caps from DB (set by user from UI)
+        // Default: hardRiskCap = 5%, maxNotionalPercent = 50%
+        // These override the hardcoded values in Smart Executor and UnifiedRisk
+        this.configurableHardRiskCap = parseFloat(riskConfig.hardRiskCap) || 5.0;
+        this.configurableMaxNotionalPercent = parseFloat(riskConfig.maxNotionalPercent) || 50.0;
 
         // V219: UNIFIED position size calculation
         // V241: Changed from riskPct * 3 (max 30%) to riskPct * 10 (max 100%).

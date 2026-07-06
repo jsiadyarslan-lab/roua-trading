@@ -113,7 +113,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
         <button
           type="button"
           onClick={toggleRightCollapse}
-          title={tr('expand') || 'Expand'}
+          title="Expand"
           aria-label="Expand right panel"
           style={{
             width: 28,

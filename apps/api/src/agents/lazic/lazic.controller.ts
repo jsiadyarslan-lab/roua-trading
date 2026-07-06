@@ -39,15 +39,31 @@ export class LazicController {
   /** POST /api/lazic/enable — تفعيل اللاسع */
   @Post('enable')
   async enable(@Req() req: any) {
-    await this.lazic.enableForUser(req.user.id);
-    return { success: true, message: '🐝 اللاسع مُفعَّل' };
+    const userId = req.user?.id;
+    if (!userId) {
+      return { success: false, error: 'User not authenticated', userId: null };
+    }
+    try {
+      await this.lazic.enableForUser(userId);
+      return { success: true, message: '🐝 اللاسع مُفعَّل', userId };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Failed to enable', userId };
+    }
   }
 
   /** POST /api/lazic/disable — إيقاف اللاسع */
   @Post('disable')
   async disable(@Req() req: any) {
-    await this.lazic.disableForUser(req.user.id);
-    return { success: true, message: '🐝 اللاسع موقوف' };
+    const userId = req.user?.id;
+    if (!userId) {
+      return { success: false, error: 'User not authenticated', userId: null };
+    }
+    try {
+      await this.lazic.disableForUser(userId);
+      return { success: true, message: '🐝 اللاسع موقوف', userId };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Failed to disable', userId };
+    }
   }
 }
 

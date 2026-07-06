@@ -813,22 +813,38 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
 
   /** تفعيل اللاسع لمستخدم — upsert لتفادي "no record found" */
   async enableForUser(userId: string): Promise<void> {
-    await (this.prisma.agentSettings as any).upsert({
-      where: { userId },
-      update: { lazicEnabled: true },
-      create: { userId, lazicEnabled: true },
-    });
+    if (!userId) {
+      throw new Error('enableForUser called with empty userId');
+    }
+    try {
+      await (this.prisma.agentSettings as any).upsert({
+        where: { userId },
+        update: { lazicEnabled: true },
+        create: { userId, lazicEnabled: true },
+      });
+    } catch (err: any) {
+      this.logger.error(`❌ enableForUser DB error for ${userId}: ${err?.message}`);
+      throw err;
+    }
     await this._syncActiveUsers();
     this.logger.log(`🐝 اللاسع مُفعَّل للمستخدم ${userId}`);
   }
 
   /** إيقاف اللاسع لمستخدم — upsert لتفادي "no record found" */
   async disableForUser(userId: string): Promise<void> {
-    await (this.prisma.agentSettings as any).upsert({
-      where: { userId },
-      update: { lazicEnabled: false },
-      create: { userId, lazicEnabled: false },
-    });
+    if (!userId) {
+      throw new Error('disableForUser called with empty userId');
+    }
+    try {
+      await (this.prisma.agentSettings as any).upsert({
+        where: { userId },
+        update: { lazicEnabled: false },
+        create: { userId, lazicEnabled: false },
+      });
+    } catch (err: any) {
+      this.logger.error(`❌ disableForUser DB error for ${userId}: ${err?.message}`);
+      throw err;
+    }
     this.activeUsers.delete(userId);
     this.logger.log(`🐝 اللاسع موقوف للمستخدم ${userId}`);
   }

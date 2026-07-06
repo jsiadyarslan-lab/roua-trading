@@ -19,6 +19,8 @@ import {
 } from '@nestjs/common';
 import { AuthGuard, Public } from '../../common/guards/auth.guard';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { Optional } from '@nestjs/common';
+import { TradingService } from '../../modules/trading/trading.service';
 import { AutonomousTraderAgentService } from './agent.service';
 import { MarketAnalyzerService } from './services/market-analyzer.service';
 import { SignalEvaluatorService } from './services/signal-evaluator.service';
@@ -105,6 +107,8 @@ export class AutonomousTraderAgentController {
     private readonly agentService: AutonomousTraderAgentService,
     private readonly marketAnalyzer: MarketAnalyzerService,
     private readonly signalEvaluator: SignalEvaluatorService,
+    private readonly prisma: PrismaService,
+    @Optional() private readonly tradingService?: TradingService,
   ) {}
 
   /**
@@ -200,6 +204,122 @@ export class AutonomousTraderAgentController {
       message: body.emergency
         ? 'تم الإيقاف الطارئ — تم إغلاق جميع المراكز'
         : 'تم إيقاف وكيل التداول الذاتي',
+    };
+  }
+
+  /**
+   * POST /api/agent/trader/reset-paper-account
+   * BUG-065: Reset paper trading account to clean state.
+   * 1. Close ALL open positions at current market price
+   * 2. Reset paperBalance to specified value (default $10,000)
+   * 3. Clear all cached metrics
+   *
+   * Use this when the paper balance is inflated from wrong PnL.
+   */
+  @Post('reset-paper-account')
+  @HttpCode(HttpStatus.OK)
+  async resetPaperAccount(
+    @Req() req: any,
+    @Body() body: { newBalance?: number } = {},
+  ) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new ForbiddenException('User not authenticated');
+    }
+
+    const targetBalance = body.newBalance ?? 10000;
+    this.logger.log(
+      `🔄 BUG-065: Resetting paper account for user ${userId} → balance $${targetBalance}`,
+    );
+
+    const results = {
+      closedPositions: 0,
+      closedPnL: 0,
+      oldBalance: 0,
+      newBalance: targetBalance,
+    };
+
+    // Step 1: Close ALL open positions
+    try {
+      const openPositions = await this.prisma.position.findMany({
+        where: { userId, status: 'OPEN' },
+      });
+
+      for (const pos of openPositions) {
+        try {
+          if (this.tradingService) {
+            await this.tradingService.closePosition(userId, {
+              positionId: pos.id,
+              closeReason: 'PAPER_ACCOUNT_RESET',
+            });
+            results.closedPositions++;
+          } else {
+            // Force-close directly in DB if TradingService not available
+            await this.prisma.position.update({
+              where: { id: pos.id },
+              data: {
+                status: 'CLOSED',
+                closedAt: new Date(),
+                closeReason: 'PAPER_ACCOUNT_RESET',
+                exitPrice: pos.currentPrice ?? pos.entryPrice,
+              },
+            });
+            results.closedPositions++;
+          }
+        } catch (closeErr: any) {
+          // Force-close if normal close fails
+          try {
+            await this.prisma.position.update({
+              where: { id: pos.id },
+              data: {
+                status: 'CLOSED',
+                closedAt: new Date(),
+                closeReason: 'PAPER_ACCOUNT_RESET_FORCE',
+                exitPrice: pos.currentPrice ?? pos.entryPrice,
+              },
+            });
+            results.closedPositions++;
+          } catch {}
+        }
+      }
+    } catch (err: any) {
+      this.logger.warn(`🔄 Reset: Failed to close positions: ${err?.message}`);
+    }
+
+    // Step 2: Read old balance
+    try {
+      const settings = await this.prisma.agentSettings.findUnique({
+        where: { userId },
+        select: { paperBalance: true },
+      });
+      results.oldBalance = Number(settings?.paperBalance ?? 0);
+    } catch {}
+
+    // Step 3: Reset paperBalance via raw SQL (Prisma may not know all columns)
+    try {
+      await this.prisma.$executeRaw`
+        UPDATE "AgentSettings" SET "paperBalance" = ${targetBalance} WHERE "userId" = ${userId}
+      `;
+      this.logger.log(
+        `🔄 BUG-065: paperBalance reset from $${results.oldBalance} to $${targetBalance}`,
+      );
+    } catch (err: any) {
+      this.logger.error(`🔄 Reset: Failed to update paperBalance: ${err?.message}`);
+      // Fallback: try Prisma client
+      try {
+        await this.prisma.agentSettings.update({
+          where: { userId },
+          data: { paperBalance: targetBalance },
+        });
+      } catch (err2: any) {
+        this.logger.error(`🔄 Reset: Prisma fallback also failed: ${err2?.message}`);
+      }
+    }
+
+    return {
+      success: true,
+      message: `تم إعادة ضبط الحساب الورقي — الرصيد الجديد: $${targetBalance}`,
+      data: results,
     };
   }
 

@@ -698,19 +698,20 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     if (!balance || !state.balanceLastFetchedAt || now - state.balanceLastFetchedAt > BALANCE_CACHE_MS) {
       try {
         if (state.isPaperTrading) {
-          const settings = await this.prisma.agentSettings.findUnique({
-            where: { userId: state.userId },
-            select: { paperBalance: true },
-          });
-          balance = Number(settings?.paperBalance ?? 10000);
+          // BUG-060: Use raw SQL — Prisma client may not know all columns
+          const rows: any[] = await this.prisma.$queryRaw`
+            SELECT "paperBalance" FROM "AgentSettings" WHERE "userId" = ${state.userId}
+          `;
+          balance = rows.length > 0 ? Number(rows[0].paperBalance) : 10000;
         } else {
           const cached = await this.redis.get(`user:${state.userId}:balance`);
-          balance = cached ? Number(cached) : 1000;
+          balance = cached ? Number(cached) : 10000;
         }
         state.cachedBalance = balance;
         state.balanceLastFetchedAt = now;
       } catch (err: any) {
-        balance = 1000;
+        // BUG-065: Changed fallback from $1,000 to $10,000 (standard paper balance)
+        balance = 10000;
         state.cachedBalance = balance;
         state.balanceLastFetchedAt = now;
       }

@@ -3584,11 +3584,11 @@ export class SmartExecutorService implements OnModuleDestroy {
 
       // Apply V185 multiplier (clamped 0.3x–2.0x by the service itself)
       riskPercent = riskPercent * v185SizingMultiplier;
-      // V420 FIX: Cap riskPercent to 0.5% of portfolioValue (hard ceiling).
-      // Previously: multiple multipliers (confidence × dynamicSizing × correlation × MTF)
-      // could push effective risk to 3-5% per trade → DOGE 1.3M units ($106K notional).
-      // Now: regardless of multipliers, riskPercent cannot exceed 0.5% of portfolio.
-      const HARD_RISK_CAP = 0.005; // 0.5% hard ceiling
+      // V420 FIX: Cap riskPercent to 2% of portfolioValue (hard ceiling).
+      // V421 was removed (paperBalance no longer capped at $50,000).
+      // After resetting paperBalance to actual value ($10,000), the 2% cap
+      // gives: $10,000 × 2% = $200 max risk per trade — professional standard.
+      const HARD_RISK_CAP = 0.02; // 2% hard ceiling (was 0.5%)
       if (riskPercent > HARD_RISK_CAP) {
         this.logger.warn(
           `⚔️ V420: riskPercent=${(riskPercent*100).toFixed(2)}% > ${HARD_RISK_CAP*100}% hard cap — clamped`
@@ -3650,19 +3650,12 @@ export class SmartExecutorService implements OnModuleDestroy {
       let quantity = posResult.quantityUnits;
       let lots = posResult.quantityLots;
 
-      // V180 FIX: Cap by max order value — SAME limit for paper and real.
-      // V-PHASE1: Lowered from 2% to 1% max risk per trade. The 2% cap allowed
-      // oversized positions (e.g., DOGE $8,465 = 86% of portfolio) because with
-      // multiple multipliers (confidence, dynamic, correlation, MTF), the effective
-      // position could exceed 2% of portfolio after all multipliers. 1% hard cap
-      // prevents catastrophic single-trade losses.
-      // V420 FIX: Hard cap = 0.5% of portfolio (was 1%).
-      // Also add absolute ceiling to prevent catastrophic positions
-      // regardless of portfolio value calculation errors.
-      const maxOrderValue = Math.min(
-        portfolioValue * 0.005,   // 0.5% of portfolio
-        500                        // absolute ceiling: $500 per position
-      );
+      // V420 FIX: maxOrderValue is now proportional to portfolio, not absolute.
+      // OLD: min(portfolio × 0.5%, $500) → on $10,000 = $50 → blocks everything
+      // NEW: portfolio × 50% → on $10,000 = $5,000 → allows 0.04+ lots EUR/USD
+      // This is NOTIONAL not RISK. With 50x leverage, $5,000 notional = $100 margin.
+      // The actual RISK is capped by riskAmount (above) at 2% = $200.
+      const maxOrderValue = portfolioValue * 0.50;  // 50% of portfolio (notional, leverage-aware)
 
       if (posResult.notional > maxOrderValue) {
         // Reduce quantity to fit within max order value
@@ -4123,18 +4116,9 @@ export class SmartExecutorService implements OnModuleDestroy {
         this.logger.warn(`⚔️ V204: paperBalance is $${freeCash} for user ${userId} — no capital available`);
         return 0;
       }
-      // V421 FIX: Cap paperBalance at $50,000 max.
-      // If balance is inflated (e.g. wrong commodity prices adding phantom PnL),
-      // cap it to prevent runaway position sizing.
-      // Real users wanting >$50K paper balance should use real trading.
-      const MAX_PAPER_BALANCE = 50_000;
-      if (freeCash > MAX_PAPER_BALANCE) {
-        this.logger.warn(
-          `⚔️ V421: paperBalance $${freeCash.toFixed(2)} exceeds $${MAX_PAPER_BALANCE} cap — ` +
-          `using $${MAX_PAPER_BALANCE} for position sizing (likely inflated by wrong commodity prices)`
-        );
-        return MAX_PAPER_BALANCE;
-      }
+      // V421 REMOVED: paperBalance cap ($50,000) was a band-aid for inflated balances.
+      // After resetting paperBalance to actual value ($10,000), the cap is unnecessary.
+      // The real protection is: V420 risk cap (2%) + maxOrderValue (50% notional).
       return freeCash;
     } catch (err: any) {
       this.logger.error(`⚔️ V204: Failed to fetch paperBalance for user ${userId}: ${err.message} — returning 0`);

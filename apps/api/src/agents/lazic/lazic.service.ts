@@ -790,12 +790,26 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
 
   private async _syncActiveUsers(): Promise<void> {
     try {
+      // BUG-058 FIX: Enable RLS bypass — Lazic is a background service that
+      // needs to see ALL users who enabled Lazic, not just the current user.
+      // Without bypass, RLS filters AgentSettings to only the current user's
+      // row, so _syncActiveUsers finds 0 users (or only 1) instead of all
+      // enabled users. This caused activeUsers Map to be empty → no trades.
+      try {
+        await (this.prisma as any).enableRlsBypass();
+      } catch {}
+
       // جلب كل المستخدمين الذين فعّلوا اللاسع
       // Phase 2: اقرأ الإعدادات القابلة للتخصيص من DB
       const settings = await this.prisma.agentSettings.findMany({
         where: { lazicEnabled: true } as any,
         include: { user: { select: { id: true } } },
       });
+
+      // Restore RLS context
+      try {
+        await (this.prisma as any).disableRlsBypass();
+      } catch {}
 
       const newActiveUsers = new Map<string, LazicUserState>();
 
@@ -931,14 +945,19 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     // the in-memory activeUsers Map. The Map is only synced every 30 seconds
     // (USER_SYNC_INTERVAL_MS), so after enableForUser() the status endpoint
     // would still return enabled=false for up to 30 seconds.
+    // BUG-058 FIX: Use RLS bypass — the request's RLS context may be for a
+    // different user than the one being queried (background sync scenarios).
     let dbEnabled = false;
     try {
+      await (this.prisma as any).enableRlsBypass();
       const dbSettings = await this.prisma.agentSettings.findUnique({
         where: { userId },
         select: { lazicEnabled: true } as any,
       });
       dbEnabled = !!(dbSettings as any)?.lazicEnabled;
+      await (this.prisma as any).disableRlsBypass();
     } catch {
+      try { await (this.prisma as any).disableRlsBypass(); } catch {}
       dbEnabled = !!state?.enabled;
     }
 

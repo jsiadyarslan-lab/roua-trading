@@ -794,3 +794,19 @@
   5. **useChartWebSocket `AbortController` for `fetchLatestCandle`**: Added `pollAbortRef` that aborts in-flight polling fetches when (a) the next poll starts or (b) cleanup runs. This frees browser connection slots for the new symbol's history fetch. AbortError is silently swallowed (not treated as a real error).
 - **Commit:** (filled after push)
 - **Test:** (manual — switch pairs rapidly while AI panel is open, verify no stuck chart)
+
+### BUG-066c: Risk management hard caps were missing from Admin panel
+- **Status:** FIXED
+- **Severity:** HIGH
+- **File:** `apps/web/src/app/[locale]/dashboard/admin/settings/page.tsx`, `apps/web/src/app/api/admin/settings/route.ts`, `apps/web/src/lib/settings-validation.ts`
+- **Pattern (OPEN):** `admin/settings/page.tsx` had `RiskConfig` interface with only 5 fields (maxDrawdown, stopLossDefault, takeProfitDefault, riskPerTrade, maxOpenPositions) — missing `hardRiskCap` and `maxNotionalPercent`. BUG-066 (first version) added these only to the user-side Settings page, leaving admin panel without the global cap controls. The commit message of BUG-066b falsely claimed "Admin panel: global riskConfig (already exists in admin settings)".
+- **Pattern (FIXED):** BUG-066c.*admin hard caps UI
+- **Description:** The user asked: "add them to both, for the user so they can adjust as they want, and from the platform control panel so I can be in control of everything." The previous fix (BUG-066/066b) added the dual-layer backend (per-user overrides > global admin defaults > hardcoded defaults) but only exposed the per-user UI controls in `/dashboard/settings`. The admin panel at `/dashboard/admin/settings` had no UI for setting the global defaults — the platform owner had no way to control the caps from the admin panel.
+- **Impact:** Admin (platform owner) could not configure hardRiskCap or maxNotionalPercent from the admin UI. The backend was reading them from `riskConfig` Setting, but the admin form was never sending them. So in practice the global cap was always the hardcoded 5%/50% default — defeating the purpose of the dual-layer system.
+- **Fix:** Three-part fix:
+  1. **`settings-validation.ts`**: Added `hardRiskCap` (1-20%) and `maxNotionalPercent` (10-100%) to `RISK_CONFIG_RANGES` so the validator sanitizes them properly when admin saves riskConfig.
+  2. **`api/admin/settings/route.ts`**: Added `hardRiskCap: '5'` and `maxNotionalPercent: '50'` to `DEFAULT_RISK_CONFIG` so the GET endpoint returns them even on a fresh install.
+  3. **`admin/settings/page.tsx`**: Added `hardRiskCap` and `maxNotionalPercent` to (a) `RiskConfig` interface, (b) `DEFAULT_RISK_CONFIG` constant, (c) the rendered Risk Management section. The new fields appear inside a visually distinct red-bordered sub-card titled "القيود الصارمة (Hard Caps) — افتراضي عام لكل المستخدمين" with explanatory text: "هذه القيم تُطبَّق على كل المستخدمين كقيم افتراضية. يمكن لأي مستخدم تجاوزها من صفحة إعداداته. الأولوية: إعداد المستخدم > إعداد الأدمن > القيمة الافتراضية المضمنة."
+- **Priority semantics:** Per-user override > Global admin default > Hardcoded default (5% / 50%). This is intentional for paper trading — admin sets a sensible default; users can experiment with their own caps. To enforce a hard ceiling (prevent users from exceeding admin cap), a future `enforceAdminCaps` flag can be added.
+- **Commit:** (filled after push)
+- **Test:** (manual — log in as admin, navigate to /dashboard/admin/settings, verify the "Hard Caps" sub-card appears in إدارة المخاطر section with two number inputs, save changes, verify they persist on reload and propagate to backend `riskConfig` Setting)

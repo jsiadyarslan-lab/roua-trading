@@ -49,6 +49,9 @@ interface RiskConfig {
   takeProfitDefault: string
   riskPerTrade: string
   maxOpenPositions: string
+  // BUG-066c: Global admin-level hard caps (default for all users)
+  hardRiskCap: string
+  maxNotionalPercent: string
 }
 
 interface AgentExecutorConfig {
@@ -93,6 +96,10 @@ const DEFAULT_RISK_CONFIG: RiskConfig = {
   takeProfitDefault: '4',
   riskPerTrade: '1',
   maxOpenPositions: '20',  // V144: Increased from 15 to 20 — this is the GLOBAL limit that RiskGatekeeper uses
+  // BUG-066c: Global admin-level hard caps (default for all users)
+  // Per-user overrides (set via /dashboard/settings) take priority when set
+  hardRiskCap: '5',
+  maxNotionalPercent: '50',
 }
 
 const DEFAULT_AGENT_EXECUTOR_CONFIG: AgentExecutorConfig = {
@@ -588,6 +595,69 @@ export default function AdminSettingsPage() {
                   />
                 </div>
               ))}
+            </div>
+
+            {/* BUG-066c: Global hard caps — admin-controlled defaults for ALL users */}
+            <div style={{
+              marginTop: 16, padding: '12px 14px', borderRadius: 10,
+              background: `${COLORS.danger}08`, border: `1px solid ${COLORS.danger}25`,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <AlertTriangle size={13} color={COLORS.danger} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.danger, fontFamily: "var(--font-ar)" }}>
+                  القيود الصارمة (Hard Caps) — افتراضي عام لكل المستخدمين
+                </span>
+              </div>
+              <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 12, lineHeight: 1.6 }}>
+                هذه القيم تُطبَّق على <b>كل المستخدمين</b> كقيم افتراضية. يمكن لأي مستخدم تجاوزها من صفحة إعداداته،
+                لكن القيم هنا تُحدد الأساس الذي يبدأ منه النظام. الأولوية: إعداد المستخدم &gt; إعداد الأدمن &gt; القيمة الافتراضية المضمنة.
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
+                    الحد الأقصى للمخاطرة لكل صفقة (Hard Cap %)
+                  </label>
+                  <input
+                    type="number" min={1} max={20} step={0.5}
+                    value={riskConfig.hardRiskCap}
+                    onChange={e => setRiskConfig(prev => ({ ...prev, hardRiskCap: e.target.value }))}
+                    style={{
+                      padding: '8px 12px', borderRadius: 8,
+                      background: 'rgba(255,255,255,0.03)',
+                      border: `1px solid ${COLORS.border}`,
+                      color: COLORS.text, fontSize: 11,
+                      fontFamily: "var(--font-mono)",
+                      outline: 'none',
+                    }}
+                    dir="ltr"
+                  />
+                  <span style={{ fontSize: 9, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
+                    النطاق: 1% — 20% — يتحكم بـ V420 cap في Smart Executor و AGENT_RISK_HARD_CAP
+                  </span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
+                    أقصى حجم صفقة (Notional % من الرصيد)
+                  </label>
+                  <input
+                    type="number" min={10} max={100} step={5}
+                    value={riskConfig.maxNotionalPercent}
+                    onChange={e => setRiskConfig(prev => ({ ...prev, maxNotionalPercent: e.target.value }))}
+                    style={{
+                      padding: '8px 12px', borderRadius: 8,
+                      background: 'rgba(255,255,255,0.03)',
+                      border: `1px solid ${COLORS.border}`,
+                      color: COLORS.text, fontSize: 11,
+                      fontFamily: "var(--font-mono)",
+                      outline: 'none',
+                    }}
+                    dir="ltr"
+                  />
+                  <span style={{ fontSize: 9, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
+                    النطاق: 10% — 100% — يتحكم بـ maxOrderValue في Smart Executor
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 

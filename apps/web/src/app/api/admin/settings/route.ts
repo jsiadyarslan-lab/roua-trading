@@ -32,6 +32,10 @@ const DEFAULT_RISK_CONFIG = {
   takeProfitDefault: '4',
   riskPerTrade: '1',
   maxOpenPositions: '20',  // V188: Unified default — same as SmartExecutor, RiskManager
+  // BUG-066c: Global admin-level hard caps (default for all users)
+  // Per-user overrides take priority when set via /dashboard/settings
+  hardRiskCap: '5',
+  maxNotionalPercent: '50',
 }
 
 const DEFAULT_AGENT_EXECUTOR_CONFIG = {

@@ -175,6 +175,9 @@ export const RISK_CONFIG_RANGES = {
   takeProfitDefault: { min: 0.1, max: 50, type: 'number' as const },
   riskPerTrade: { min: 0.1, max: 10, type: 'number' as const },
   maxOpenPositions: { min: 1, max: 50, type: 'integer' as const },
+  // BUG-066c: Global admin-level hard caps (apply to all users as default)
+  hardRiskCap: { min: 1, max: 20, type: 'number' as const },
+  maxNotionalPercent: { min: 10, max: 100, type: 'number' as const },
 }
 
 // ── Agent executor config field constraints ──

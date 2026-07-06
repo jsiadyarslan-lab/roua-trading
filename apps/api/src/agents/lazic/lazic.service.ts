@@ -797,14 +797,16 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
 
   private async _syncActiveUsers(): Promise<void> {
     try {
-      // جلب كل المستخدمين الذين فعّلوا اللاسع
-      // BUG-058: Removed RLS bypass — it was causing the error.
-      // The query runs as the system user (no RLS context set during
-      // background interval), so it should see all rows by default.
-      const settings = await this.prisma.agentSettings.findMany({
-        where: { lazicEnabled: true } as any,
-        include: { user: { select: { id: true } } },
-      });
+      // BUG-060 FIX: Use raw SQL instead of Prisma client.
+      // The Prisma client may not know about lazicEnabled column (if prisma generate
+      // wasn't run after schema change). Raw SQL bypasses Prisma's field validation.
+      const settings: any[] = await this.prisma.$queryRaw`
+        SELECT "userId", "lazicEnabled", "lazicObiThreshold", "lazicMaxSpreadMult",
+               "lazicMaxDailyTrades", "lazicMaxOpenPositions", "lazicCooldownMs",
+               "lazicRiskPerTradePct"
+        FROM "AgentSettings"
+        WHERE "lazicEnabled" = true
+      `;
 
       const newActiveUsers = new Map<string, LazicUserState>();
 
@@ -813,18 +815,17 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
         newActiveUsers.set(s.userId, {
           userId: s.userId,
           enabled: true,
-          credentialId: existing?.credentialId ?? '',  // سيُملأ لاحقاً من Setting table
+          credentialId: existing?.credentialId ?? '',
           isPaperTrading: existing?.isPaperTrading ?? true,
-          // ── Phase 2: اقرأ الإعدادات من DB مع fallback للقيم الافتراضية ──
-          maxOpenPositions: Number((s as any).lazicMaxOpenPositions ?? 2),
-          maxDailyTrades: Number((s as any).lazicMaxDailyTrades ?? 20),
+          maxOpenPositions: Number(s.lazicMaxOpenPositions ?? 2),
+          maxDailyTrades: Number(s.lazicMaxDailyTrades ?? 20),
           dailyTrades: existing?.dailyTrades ?? 0,
           dailyPnL: existing?.dailyPnL ?? 0,
           lastTradeAt: existing?.lastTradeAt ?? null,
-          cooldownMs: Number((s as any).lazicCooldownMs ?? 30000),
-          obiThreshold: Number((s as any).lazicObiThreshold ?? 0.4),
-          maxSpreadMultiplier: Number((s as any).lazicMaxSpreadMult ?? 1.5),
-          riskPerTradePct: Number((s as any).lazicRiskPerTradePct ?? 0.5),
+          cooldownMs: Number(s.lazicCooldownMs ?? 30000),
+          obiThreshold: Number(s.lazicObiThreshold ?? 0.4),
+          maxSpreadMultiplier: Number(s.lazicMaxSpreadMult ?? 1.5),
+          riskPerTradePct: Number(s.lazicRiskPerTradePct ?? 0.5),
           cachedBalance: existing?.cachedBalance ?? null,
           balanceLastFetchedAt: existing?.balanceLastFetchedAt ?? null,
         });
@@ -936,15 +937,13 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
       if (raw) metrics = JSON.parse(raw);
     } catch {}
 
-    // BUG-054 FIX: Read lazicEnabled directly from DB instead of relying on
-    // the in-memory activeUsers Map.
+    // BUG-054 FIX: Read lazicEnabled directly from DB via raw SQL.
     let dbEnabled = false;
     try {
-      const dbSettings = await this.prisma.agentSettings.findUnique({
-        where: { userId },
-        select: { lazicEnabled: true } as any,
-      });
-      dbEnabled = !!(dbSettings as any)?.lazicEnabled;
+      const rows: any[] = await this.prisma.$queryRaw`
+        SELECT "lazicEnabled" FROM "AgentSettings" WHERE "userId" = ${userId}
+      `;
+      dbEnabled = rows.length > 0 && !!rows[0].lazicEnabled;
     } catch {
       dbEnabled = !!state?.enabled;
     }

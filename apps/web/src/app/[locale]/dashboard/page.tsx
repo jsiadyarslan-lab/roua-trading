@@ -795,16 +795,9 @@ export default function DashboardPage() {
 
         @media (max-width: 1280px) {
           .dash-grid {
-            grid-template-columns: minmax(220px, 250px) minmax(0, 1fr);
+            grid-template-columns: minmax(180px, 220px) minmax(0, 1fr) minmax(220px, 260px);
           }
-
-          .dash-col-right {
-            display: none;
-          }
-
-          .dash-col-right-mobile {
-            display: block;
-          }
+          /* BUG-057: Right panel stays visible on tablet — just narrower */
         }
 
         @media (max-width: 767px) {
@@ -1102,8 +1095,6 @@ export default function DashboardPage() {
 
   const [isCompactDesktopViewport, setIsCompactDesktopViewport] = useState(false)
   const [sidebarDrawerOpen, setSidebarDrawerOpen] = useState(false)
-  // BUG-057: Separate state for tablet right panel drawer
-  const [rightPanelDrawerOpen, setRightPanelDrawerOpen] = useState(false)
   const [sidebarPinned, setSidebarPinned] = useState(false)
   const [tradeDialogOpen, setTradeDialogOpen] = useState(false)
   // Mobile V2 state
@@ -1400,17 +1391,16 @@ export default function DashboardPage() {
           className={`dash-grid dashboard-shell${chartFullscreen ? ' chart-fullscreen' : ''}`}
           style={{
             display: 'grid',
-            // BUG-057 FIX: On tablet (768-1280px), use 2 columns instead of 3.
-            // The inline style was ALWAYS setting 3 columns, overriding the CSS
-            // media query. When dash-col-right is hidden via CSS display:none,
-            // the grid still reserved 280-320px for the 3rd column → black gap.
-            // Now: isCompactDesktopViewport controls the column count dynamically.
+            // BUG-057 PROPER FIX: Always 3 columns — just narrower on tablet.
+            // The right panel should be VISIBLE on tablet, not hidden behind a button.
+            // On tablet: left=40px (collapsed), center=flexible, right=240px (narrower)
+            // On desktop: left=220-260px, center=flexible, right=280-320px
             gridTemplateColumns: chartFullscreen
               ? '0px minmax(0, 1fr) 0px'
               : isCompactDesktopViewport
-                ? `${sidebarCollapsed ? '40px' : 'minmax(220px, 260px)'} minmax(0, 1fr)`
+                ? `${sidebarCollapsed ? '40px' : 'minmax(180px, 220px)'} minmax(0, 1fr) ${rightPanelCollapsed ? '40px' : 'minmax(220px, 260px)'}`
                 : `${sidebarCollapsed ? '40px' : 'minmax(220px, 260px)'} minmax(0, 1fr) ${rightPanelCollapsed ? '40px' : 'minmax(280px, 320px)'}`,
-            gap: 12,
+            gap: isCompactDesktopViewport ? 8 : 12,
             minHeight: `calc(100dvh - ${HEADER_H}px)`,
             height: `calc(100dvh - ${HEADER_H}px)`,
             padding: 8,
@@ -1573,11 +1563,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Right Panel — V554: always visible on desktop (above 1280px).
-              BUG-057: On tablet (768-1280px), this is hidden via CSS.
-              We conditionally render it to avoid leaving a black gap
-              in the grid where the column used to be. */}
-          {!isCompactDesktopViewport && (
+          {/* Right Panel — visible on ALL non-mobile screens (above 768px) */}
           <div className="dash-col dash-col-right animate-in-3" style={{ height: '100%', width: rightPanelCollapsed ? '40px' : '100%', minWidth: 0, overflow: 'hidden' }}>
               {mode === 'trader' && <RightPanelLayout quotes={quotes} />}
               {mode === 'investor' && (
@@ -1601,7 +1587,6 @@ export default function DashboardPage() {
                 </div>
               )}
           </div>
-          )}
         </div>
       )}
 
@@ -2544,77 +2529,6 @@ export default function DashboardPage() {
         >
           <PanelRight size={22} />
         </button>
-      )}
-
-      {/* BUG-057 FIX: Right panel drawer for tablet (768-1280px).
-          Uses separate state (rightPanelDrawerOpen) to avoid conflict
-          with mobile sidebar drawer state. */}
-      {isCompactDesktopViewport && (
-        <>
-          {/* Right panel drawer */}
-          {rightPanelDrawerOpen && (
-            <SidebarDrawer
-              open={rightPanelDrawerOpen}
-              onClose={() => setRightPanelDrawerOpen(false)}
-            >
-              {mode === 'trader' && <RightPanelLayout quotes={quotes} />}
-              {mode === 'investor' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: '100%' }}>
-                  <div className="panel hover-glow" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    <PortfolioMini dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} selectedSymbol={selectedSymbol} />
-                  </div>
-                  <div className="panel hover-glow" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    <WatchlistMini selectedSymbol={selectedSymbol} onSelectSymbol={handleSelectSymbol} />
-                  </div>
-                </div>
-              )}
-              {mode === 'ai' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: '100%' }}>
-                  <div className="panel hover-glow" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    <AlNarratorMini selectedSymbol={selectedSymbol} dataStatus={quoteStatus} />
-                  </div>
-                  <div className="panel hover-glow" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    <ScannerMini selectedSymbol={selectedSymbol} />
-                  </div>
-                </div>
-              )}
-            </SidebarDrawer>
-          )}
-
-          {/* Floating button to open right panel drawer */}
-          {!rightPanelDrawerOpen && (
-            <button
-              type="button"
-              onClick={() => setRightPanelDrawerOpen(true)}
-              title={t('openSidebar')}
-              aria-label={t('openSidebar')}
-              style={{
-                position: 'fixed',
-                bottom: 16,
-                insetInlineEnd: 16,
-                width: 48,
-                height: 48,
-                borderRadius: 14,
-                border: '1px solid rgba(0,212,255,0.25)',
-                background: 'rgba(0,212,255,0.12)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-                color: '#00D4FF',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                zIndex: 40,
-                boxShadow: '0 4px 16px rgba(0,0,0,0.3), 0 0 12px rgba(0,212,255,0.15)',
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.20)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.12)'; }}
-            >
-              <PanelRight size={22} />
-            </button>
-          )}
-        </>
       )}
 
       {/* FAB hidden — mobile uses bottom nav "More" tab instead */}

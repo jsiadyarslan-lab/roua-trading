@@ -1603,6 +1603,19 @@ export default function RouaChart({
       // When the user scrolls near the left edge (from < 5 candles from start),
       // trigger loading older data. This prevents the user from ever reaching
       // the "no data" boundary.
+      //
+      // BUG-052 FIX: Don't auto-load older data right after a symbol/timeframe change.
+      // The resetView() after fetch shows all 300 candles from the beginning,
+      // which sets logicalRange.from = 0, which immediately triggers pagination.
+      // This caused 1300 candles to load on EVERY pair switch (300 initial +
+      // 1000 pagination), adding ~2-3 seconds delay.
+      //
+      // Fix: Wait at least 3 seconds after a symbol/timeframe change before
+      // allowing pagination. This gives the user time to scroll/zoom before
+      // we start fetching older data.
+      const timeSinceClear = Date.now() - candlesClearedAtRef.current;
+      if (timeSinceClear < 3000) return; // BUG-052: Grace period after symbol change
+
       if (logicalRange.from < 5 && hasMoreHistoryRef.current && !isLoadingOlderRef.current) {
         loadOlderCandles();
       }

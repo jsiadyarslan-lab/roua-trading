@@ -1330,7 +1330,13 @@
       "hardRiskCapDesc": "신호 승수에 관계없이 거래당 허용되는 최대 위험 비율",
       "maxNotionalLabel": "최대 주문 크기 (명목)",
       "maxNotionalDesc": "거래 가치에 대한 잔고의 최대 비율 (레버리지 포함)",
-      "hardCapsBanner": "⚠️ 하드 캡: 다음 두 값은 관리자 기본값(플랫폼 컨트롤 패널에서)을 재정의합니다. 우선순위: 여기의 내 값 > 관리자 값 > 하드코딩된 기본값."
+      "hardCapsBanner": "⚠️ 하드 캡: 다음 두 값은 관리자 기본값(플랫폼 컨트롤 패널에서)을 재정의합니다. 우선순위: 여기의 내 값 > 관리자 값 > 하드코딩된 기본값.",
+      "resetPaperAccountTitle": "페이퍼 트레이딩 계정 초기화",
+      "resetPaperAccountDesc": "모든 미결제 포지션을 진입 가격에서 청산하고(PnL 0) 잔액을 $10,000로 재설정합니다. 이전에 부풀려진 잔액으로 인해 포지션이 부풀려진 크기를 표시할 때 사용하세요. 이 작업은 취소할 수 없습니다.",
+      "resetPaperAccountButton": "계정을 $10,000로 초기화",
+      "resetPaperAccountConfirm": "⚠️ 이 작업은 모든 미결제 포지션을 진입 가격에서 청산하고(PnL 없음) 잔액을 $10,000로 재설정합니다. 취소할 수 없습니다. 계속하시겠습니까?",
+      "resetPaperAccountSuccess": "✅ 계정이 성공적으로 초기화되었습니다. {closed}개 포지션이 청산되었습니다. 페이지가 새로고침됩니다.",
+      "resetPaperAccountFailed": "❌ 계정 초기화 실패. 다시 시도하세요."
     },
     "profile": {
       "deleteAccount": "계정 영구 삭제",

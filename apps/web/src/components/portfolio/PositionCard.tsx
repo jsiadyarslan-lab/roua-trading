@@ -7,6 +7,37 @@ import { getPnlColor, isPnlPositive } from '@/lib/unified-tokens'
 import { fmtPrice, fmtPriceLocale } from '@/lib/price-format'
 import { useTranslations } from 'next-intl'
 
+// BUG-066f: Format qty in human-readable lots instead of raw units.
+// - Forex (EUR/USD): 100000 units → "1.00 lots" (contractSize=100000)
+// - Gold (XAU/USD): 100 units → "1.00 lots" (contractSize=100)
+// - Crypto (BTC/USDT): 0.5 units → "0.50 lots" (contractSize=1)
+// Falls back to raw number if symbol is unknown.
+function getContractSize(symbol: string): number {
+  const s = (symbol || '').toUpperCase();
+  if (s.includes('/USDT') || s.includes('/BTC') || s.endsWith('USDT')) return 1;       // crypto
+  if (s === 'XAU/USD' || s === 'XAUUSD') return 100;                                  // gold
+  if (s === 'XAG/USD' || s === 'XAGUSD') return 5000;                                 // silver
+  if (s === 'WTI/USD' || s === 'WTIUSD' || s === 'BRENT/USD' || s === 'BRENTUSD') return 1000; // oil
+  if (s.startsWith('US30') || s.startsWith('NAS100') || s.startsWith('SPX500') ||
+      s.startsWith('GER30') || s.startsWith('UK100')) return 1;                        // indices
+  return 100000;                                                                       // forex default
+}
+
+function formatQty(qty: number, symbol: string): string {
+  if (!qty || !isFinite(qty)) return '0';
+  const cs = getContractSize(symbol);
+  if (cs <= 1) {
+    // Crypto / indices — qty IS lots
+    return qty >= 100 ? qty.toFixed(0) : qty.toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
+  }
+  const lots = qty / cs;
+  if (lots >= 100) return `${lots.toFixed(0)} lots`;
+  if (lots >= 1) return `${lots.toFixed(2)} lots`;
+  if (lots >= 0.01) return `${lots.toFixed(2)} lots`;
+  // Very small — show raw units
+  return `${qty} units`;
+}
+
 interface PositionCardProps {
   symbol: string
   side: string
@@ -154,7 +185,7 @@ export function PositionCard({
             fontFamily: "var(--font-ar)",
           }}
         >
-          {sideLabel} × {qty}
+          {sideLabel} × {formatQty(qty, symbol)}
         </div>
       </div>
 

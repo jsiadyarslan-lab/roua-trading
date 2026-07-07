@@ -1330,7 +1330,13 @@
       "hardRiskCapDesc": "Phần trăm rủi ro tối đa mỗi giao dịch bất kể hệ số tín hiệu",
       "maxNotionalLabel": "Kích thước lệnh tối đa (Danh nghĩa)",
       "maxNotionalDesc": "Phần trăm tối đa số dư cho giá trị giao dịch (với đòn bẩy)",
-      "hardCapsBanner": "⚠️ Giới hạn cứng: Hai giá trị sau đây ghi đè mặc định của quản trị viên (từ bảng điều khiển nền tảng). Ưu tiên: giá trị của bạn ở đây > giá trị admin > mặc định hardcode."
+      "hardCapsBanner": "⚠️ Giới hạn cứng: Hai giá trị sau đây ghi đè mặc định của quản trị viên (từ bảng điều khiển nền tảng). Ưu tiên: giá trị của bạn ở đây > giá trị admin > mặc định hardcode.",
+      "resetPaperAccountTitle": "Đặt lại tài khoản paper trading",
+      "resetPaperAccountDesc": "Đóng TẤT CẢ các vị thế mở theo giá vào (PnL bằng không) và đặt lại số dư thành 10.000 $. Sử dụng điều này khi các vị thế hiển thị kích thước phình to từ số dư trước đó bị phình to. Hành động này không thể hoàn tác.",
+      "resetPaperAccountButton": "Đặt lại tài khoản thành 10.000 $",
+      "resetPaperAccountConfirm": "⚠️ Thao tác này sẽ đóng TẤT CẢ các vị thế mở theo giá vào (không PnL) và đặt lại số dư của bạn thành 10.000 $. Không thể hoàn tác. Tiếp tục?",
+      "resetPaperAccountSuccess": "✅ Tài khoản đặt lại thành công. Đã đóng {closed} vị thế. Trang sẽ tải lại.",
+      "resetPaperAccountFailed": "❌ Đặt lại tài khoản thất bại. Vui lòng thử lại."
     },
     "profile": {
       "deleteAccount": "Xóa tài khoản vĩnh viễn",

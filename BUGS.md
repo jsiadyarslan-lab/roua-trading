@@ -839,3 +839,39 @@
 - **Verification:** All 32 JSON files validated with `python3 -c "import json; json.load(open(f))"` — no syntax errors. TypeScript type-check passed with no errors in modified files. The script is idempotent — running it again will skip already-existing keys.
 - **Commit:** (filled after push)
 - **Test:** (manual — switch locale to en/de/fr/ja/zh and verify hard caps labels appear translated in both /dashboard/settings → Trading & Risk tab and /dashboard/admin/settings → Risk Management section)
+
+### BUG-066f: Inflated positions still showing on chart after balance reset
+- **Status:** FIXED
+- **Severity:** HIGH
+- **File:** `apps/api/src/agents/autonomous-trader/agent.controller.ts`, `apps/web/src/components/portfolio/PositionCard.tsx`, `apps/web/src/app/[locale]/dashboard/settings/page.tsx`, `apps/web/messages/*.json`
+- **Pattern (OPEN):** Reset endpoint called `tradingService.closePosition()` which returns `margin + PnL` to paperBalance (line 1551 in trading.service.ts). When existing open positions have inflated qty (e.g., 50 lots = 5,000,000 units of EUR/USD from a previously-inflated $700k balance), closing them returns the inflated margin BACK to paperBalance BEFORE the reset value ($10k) is written. The final SET to $10k overwrites this, but during the close loop the paperBalance briefly spikes to millions, and if the loop fails partway through, the balance stays inflated. Additionally, PositionCard displayed raw qty (e.g., "5000000") instead of human-readable lots (e.g., "5.00 lots"), making the chart visually alarming even when the actual position value was reasonable.
+- **Pattern (FIXED):** BUG-066f.*hard-reset + qty format
+- **Description:** User reported: "some trades still display inflated sizes on the chart". Root cause: open positions in DB have inflated `quantity` values from when `paperBalance` was inflated to ~$700k. The previous BUG-065 reset endpoint tried to close them via the normal close path, but that path returns `margin + PnL` to paperBalance, causing further inflation before the final reset write. Additionally, the chart's PositionCard showed raw unit counts (e.g., "5000000") instead of lot-equivalent values (e.g., "5.00 lots"), making the inflation visually alarming.
+- **Impact:** Existing inflated positions from a prior era remained on the chart with huge raw qty values. Reset endpoint could further inflate the balance before resetting. Users had no UI button to trigger the reset — they had to call the API manually.
+- **Fix:** Three-part fix:
+
+  **Part 1 — Backend: HARD-RESET mode in `reset-paper-account` endpoint**
+  - Bypasses `tradingService.closePosition()` entirely
+  - Directly marks each open position as `CLOSED` with `exitPrice = entryPrice` (zero PnL)
+  - Does NOT modify `paperBalance` during the close loop — only writes the target value ($10k) once at the end
+  - Creates a Trade record (EXIT) for audit trail with `pnl: 0`
+  - Returns diagnostics: `closedPositions`, `totalInflatedQty`, `oldBalance`, `newBalance`
+
+  **Part 2 — Frontend: Human-readable qty display in PositionCard**
+  - Added `formatQty(qty, symbol)` helper that converts raw units to lots using `getContractSize()`
+  - Forex (EUR/USD): 100000 units → "1.00 lots"
+  - Gold (XAU/USD): 100 units → "1.00 lots"
+  - Crypto (BTC/USDT): 0.5 units → "0.50"
+  - Falls back to raw number for unknown symbols
+  - Replaced `{qty}` with `{formatQty(qty, symbol)}` in PositionCard
+
+  **Part 3 — Frontend: Reset button in user Settings page**
+  - Added red-bordered "Reset Paper Trading Account" card inside the Risk Management section
+  - Button calls `POST /api/agent/trader/reset-paper-account` with `{ newBalance: 10000 }`
+  - Confirmation dialog requires explicit OK
+  - On success: shows alert with closed-positions count, then reloads page
+  - 6 i18n keys added to all 32 locales:
+    - `resetPaperAccountTitle`, `resetPaperAccountDesc`, `resetPaperAccountButton`,
+    - `resetPaperAccountConfirm`, `resetPaperAccountSuccess`, `resetPaperAccountFailed`
+- **Commit:** (filled after push)
+- **Test:** (manual — open /dashboard/settings → Trading & Risk tab → scroll to red "Reset Paper Trading Account" card → click "Reset Account to $10,000" → confirm → verify positions disappear and balance shows $10,000)

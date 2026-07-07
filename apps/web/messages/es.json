@@ -1330,7 +1330,13 @@
       "hardRiskCapDesc": "Porcentaje máximo de riesgo por operación sin importar los multiplicadores de señal",
       "maxNotionalLabel": "Tamaño máximo de orden (Nocional)",
       "maxNotionalDesc": "Porcentaje máximo del saldo para el valor de la operación (con apalancamiento)",
-      "hardCapsBanner": "⚠️ Límites duros: Los siguientes dos valores anulan los predeterminados del admin (del panel de control de la plataforma). Prioridad: tu valor aquí > valor del admin > predeterminado fijo."
+      "hardCapsBanner": "⚠️ Límites duros: Los siguientes dos valores anulan los predeterminados del admin (del panel de control de la plataforma). Prioridad: tu valor aquí > valor del admin > predeterminado fijo.",
+      "resetPaperAccountTitle": "Restablecer cuenta de paper trading",
+      "resetPaperAccountDesc": "Cierra TODAS las posiciones abiertas al precio de entrada (PnL cero) y restablece el saldo a $10,000. Úselo cuando las posiciones muestren tamaños inflados de un saldo previamente inflado. Esta acción no se puede deshacer.",
+      "resetPaperAccountButton": "Restablecer cuenta a $10,000",
+      "resetPaperAccountConfirm": "⚠️ Esto cerrará TODAS las posiciones abiertas al precio de entrada (sin PnL) y restablecerá su saldo a $10,000. No se puede deshacer. ¿Continuar?",
+      "resetPaperAccountSuccess": "✅ Cuenta restablecida con éxito. Se cerraron {closed} posiciones. La página se recargará.",
+      "resetPaperAccountFailed": "❌ No se pudo restablecer la cuenta. Inténtelo de nuevo."
     },
     "profile": {
       "deleteAccount": "Eliminar Permanente de la Cuenta",

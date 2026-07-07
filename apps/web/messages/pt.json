@@ -1330,7 +1330,13 @@
       "hardRiskCapDesc": "Porcentagem máxima de risco por trade independentemente dos multiplicadores de sinal",
       "maxNotionalLabel": "Tamanho máximo de ordem (Nominal)",
       "maxNotionalDesc": "Porcentagem máxima do saldo para o valor do trade (com alavancagem)",
-      "hardCapsBanner": "⚠️ Limites rígidos: Os dois valores a seguir substituem os padrões do admin (do painel de controle da plataforma). Prioridade: seu valor aqui > valor do admin > padrão fixo."
+      "hardCapsBanner": "⚠️ Limites rígidos: Os dois valores a seguir substituem os padrões do admin (do painel de controle da plataforma). Prioridade: seu valor aqui > valor do admin > padrão fixo.",
+      "resetPaperAccountTitle": "Redefinir conta de paper trading",
+      "resetPaperAccountDesc": "Fecha TODAS as posições abertas ao preço de entrada (PnL zero) e redefine o saldo para $10.000. Use isso quando as posições mostrarem tamanhos inflados de um saldo anteriormente inflado. Esta ação não pode ser desfeita.",
+      "resetPaperAccountButton": "Redefinir conta para $10.000",
+      "resetPaperAccountConfirm": "⚠️ Isso fechará TODAS as posições abertas ao preço de entrada (sem PnL) e redefinirá seu saldo para $10.000. Não pode ser desfeito. Continuar?",
+      "resetPaperAccountSuccess": "✅ Conta redefinida com sucesso. {closed} posições foram fechadas. A página será recarregada.",
+      "resetPaperAccountFailed": "❌ Falha ao redefinir conta. Tente novamente."
     },
     "profile": {
       "deleteAccount": "Excluir Conta Permanently",

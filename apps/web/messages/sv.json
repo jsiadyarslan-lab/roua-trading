@@ -1330,7 +1330,13 @@
       "hardRiskCapDesc": "Maximal riskprocent per affär oavsett signalmultiplikatorer",
       "maxNotionalLabel": "Maximal orderstorlek (Nominell)",
       "maxNotionalDesc": "Maximal procentandel av saldo för affärsvärde (med hävstång)",
-      "hardCapsBanner": "⚠️ Hårda gränser: Följande två värden åsidosätter admin-standarder (från plattformens kontrollpanel). Prioritet: ditt värde här > admin-värde > hårdkodad standard."
+      "hardCapsBanner": "⚠️ Hårda gränser: Följande två värden åsidosätter admin-standarder (från plattformens kontrollpanel). Prioritet: ditt värde här > admin-värde > hårdkodad standard.",
+      "resetPaperAccountTitle": "Återställ paper trading-konto",
+      "resetPaperAccountDesc": "Stänger ALLA öppna positioner till ingångspris (noll PnL) och återställer saldot till 10 000 $. Använd detta när positioner visar uppblåsta storlekar från ett tidigare uppblåst saldo. Denna åtgärd kan inte ångras.",
+      "resetPaperAccountButton": "Återställ konto till 10 000 $",
+      "resetPaperAccountConfirm": "⚠️ Detta stänger ALLA öppna positioner till ingångspris (ingen PnL) och återställer ditt saldo till 10 000 $. Kan inte ångras. Fortsätt?",
+      "resetPaperAccountSuccess": "✅ Konto återställt. {closed} positioner stängdes. Sidan laddas om.",
+      "resetPaperAccountFailed": "❌ Misslyckades att återställa konto. Försök igen."
     },
     "profile": {
       "deleteAccount": "Ta bort konto permanent",

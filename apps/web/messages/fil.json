@@ -1330,7 +1330,13 @@
       "hardRiskCapDesc": "Max na porsyento ng panganib bawat trade anuman ang signal multipliers",
       "maxNotionalLabel": "Max na Order Size (Notional)",
       "maxNotionalDesc": "Max na porsyento ng balanse para sa trade value (may leverage)",
-      "hardCapsBanner": "⚠️ Hard Caps: Ang sumusunod na dalawang value ay na-override ang admin defaults (mula sa platform control panel). Priyoridad: ang value mo dito > admin value > hardcoded default."
+      "hardCapsBanner": "⚠️ Hard Caps: Ang sumusunod na dalawang value ay na-override ang admin defaults (mula sa platform control panel). Priyoridad: ang value mo dito > admin value > hardcoded default.",
+      "resetPaperAccountTitle": "I-reset ang Paper Trading Account",
+      "resetPaperAccountDesc": "Magsasara ng LAHAT ng open positions sa entry price (zero PnL) at i-reset ang balanse sa $10,000. Gamitin ito kapag nagpapakita ang mga positions ng inflated sizes mula sa dati nang inflated na balanse. Hindi na maibabalik ang aksyong ito.",
+      "resetPaperAccountButton": "I-reset ang Account sa $10,000",
+      "resetPaperAccountConfirm": "⚠️ Isasara nito ang LAHAT ng open positions sa entry price (walang PnL) at i-reset ang iyong balanse sa $10,000. Hindi na maibabalik. Magpatuloy?",
+      "resetPaperAccountSuccess": "✅ Matagumpay na nai-reset ang account. {closed} na posisyon ang isinara. Magre-reload ang pahina.",
+      "resetPaperAccountFailed": "❌ Nabigo ang pag-reset ng account. Subukan muli."
     },
     "profile": {
       "deleteAccount": "Tanggalin ang Account nang Permanenteng",

@@ -2576,7 +2576,13 @@
       "hardRiskCapDesc": "Maximum risk percentage allowed per trade regardless of signal multipliers",
       "maxNotionalLabel": "Max Order Size (Notional)",
       "maxNotionalDesc": "Maximum percentage of balance for trade value (with leverage)",
-      "hardCapsBanner": "⚠️ Hard Caps: The following two values override the admin defaults (from the platform control panel). Priority: your value here > admin value > hardcoded default."
+      "hardCapsBanner": "⚠️ Hard Caps: The following two values override the admin defaults (from the platform control panel). Priority: your value here > admin value > hardcoded default.",
+      "resetPaperAccountTitle": "Reset Paper Trading Account",
+      "resetPaperAccountDesc": "Closes ALL open positions at entry price (zero PnL) and resets balance to $10,000. Use this when positions show inflated sizes from a previously-inflated balance. This action cannot be undone.",
+      "resetPaperAccountButton": "Reset Account to $10,000",
+      "resetPaperAccountConfirm": "⚠️ This will close ALL open positions at entry price (no PnL) and reset your balance to $10,000. This cannot be undone. Continue?",
+      "resetPaperAccountSuccess": "✅ Account reset successfully. {closed} positions were closed. Page will reload.",
+      "resetPaperAccountFailed": "❌ Failed to reset account. Please try again."
     },
     "predictionMarket": {
       "title": "Prediction Markets",

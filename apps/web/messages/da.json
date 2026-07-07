@@ -2575,7 +2575,13 @@
       "hardRiskCapDesc": "Maksimal risikoprocent pr. handel uanset signalmultiplikatorer",
       "maxNotionalLabel": "Maksimal ordrestørrelse (Nominel)",
       "maxNotionalDesc": "Maksimal procentdel af saldo til handelsværdi (med gearing)",
-      "hardCapsBanner": "⚠️ Hårde grænser: De følgende to værdier tilsidesætter admin-standarder (fra platformens kontrolpanel). Prioritet: din værdi her > admin-værdi > indbygget standard."
+      "hardCapsBanner": "⚠️ Hårde grænser: De følgende to værdier tilsidesætter admin-standarder (fra platformens kontrolpanel). Prioritet: din værdi her > admin-værdi > indbygget standard.",
+      "resetPaperAccountTitle": "Nulstil paper trading konto",
+      "resetPaperAccountDesc": "Lukker ALLE åbne positioner til indgangspris (nul PnL) og nulstiller saldo til 10.000 $. Brug dette, når positioner viser oppustede størrelser fra en tidligere oppustet saldo. Denne handling kan ikke fortrydes.",
+      "resetPaperAccountButton": "Nulstil konto til 10.000 $",
+      "resetPaperAccountConfirm": "⚠️ Dette vil lukke ALLE åbne positioner til indgangspris (ingen PnL) og nulstille din saldo til 10.000 $. Kan ikke fortrydes. Fortsæt?",
+      "resetPaperAccountSuccess": "✅ Konto nulstillet. {closed} positioner blev lukket. Siden genindlæses.",
+      "resetPaperAccountFailed": "❌ Kunne ikke nulstille konto. Prøv igen."
     },
     "predictionMarket": {
       "title": "Forudsigelsesmarkeder",

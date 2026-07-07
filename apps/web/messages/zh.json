@@ -1330,7 +1330,13 @@
       "hardRiskCapDesc": "每笔交易允许的最大风险百分比，不论信号乘数",
       "maxNotionalLabel": "最大订单大小（名义）",
       "maxNotionalDesc": "交易价值的余额最大百分比（含杠杆）",
-      "hardCapsBanner": "⚠️ 硬上限：以下两个值覆盖管理员的默认值（来自平台控制面板）。优先级：您此处的值 > 管理员值 > 硬编码默认值。"
+      "hardCapsBanner": "⚠️ 硬上限：以下两个值覆盖管理员的默认值（来自平台控制面板）。优先级：您此处的值 > 管理员值 > 硬编码默认值。",
+      "resetPaperAccountTitle": "重置模拟交易账户",
+      "resetPaperAccountDesc": "以入场价关闭所有未平仓头寸（零盈亏）并将余额重置为 10,000 美元。当头寸显示来自先前膨胀余额的膨胀大小时使用此选项。此操作无法撤销。",
+      "resetPaperAccountButton": "将账户重置为 10,000 美元",
+      "resetPaperAccountConfirm": "⚠️ 这将以入场价关闭所有未平仓头寸（无盈亏）并将您的余额重置为 10,000 美元。无法撤销。继续吗？",
+      "resetPaperAccountSuccess": "✅ 账户重置成功。已关闭 {closed} 个头寸。页面将重新加载。",
+      "resetPaperAccountFailed": "❌ 重置账户失败。请重试。"
     },
     "profile": {
       "deleteAccount": "永久删除账户",

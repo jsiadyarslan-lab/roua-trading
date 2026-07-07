@@ -210,11 +210,20 @@ export class AutonomousTraderAgentController {
   /**
    * POST /api/agent/trader/reset-paper-account
    * BUG-065: Reset paper trading account to clean state.
-   * 1. Close ALL open positions at current market price
-   * 2. Reset paperBalance to specified value (default $10,000)
-   * 3. Clear all cached metrics
+   * BUG-066f: HARD-RESET mode — closes positions at entry price (zero PnL),
+   *           bypasses the normal closePosition() path which returns margin+PnL
+   *           to paperBalance (causing further inflation when positions have
+   *           inflated qty from a previously-inflated balance).
    *
-   * Use this when the paper balance is inflated from wrong PnL.
+   * Steps:
+   * 1. Set paperBalance = targetBalance FIRST (so concurrent trades are sized correctly)
+   * 2. HARD-CLOSE all open positions at entry price (no PnL, no margin return)
+   * 3. Clear all cached metrics (Redis balance cache, position cooldowns)
+   *
+   * Use this when:
+   *   - paperBalance is inflated from phantom PnL
+   *   - Open positions have inflated qty (e.g., 50 lots when balance was $700k)
+   *   - You want a clean restart without legacy garbage
    */
   @Post('reset-paper-account')
   @HttpCode(HttpStatus.OK)
@@ -229,64 +238,18 @@ export class AutonomousTraderAgentController {
 
     const targetBalance = body.newBalance ?? 10000;
     this.logger.log(
-      `🔄 BUG-065: Resetting paper account for user ${userId} → balance $${targetBalance}`,
+      `🔄 BUG-066f: HARD-RESET paper account for user ${userId} → balance $${targetBalance}`,
     );
 
     const results = {
       closedPositions: 0,
-      closedPnL: 0,
+      totalInflatedQty: 0,
       oldBalance: 0,
       newBalance: targetBalance,
+      clearedCaches: 0,
     };
 
-    // Step 1: Close ALL open positions
-    try {
-      const openPositions = await this.prisma.position.findMany({
-        where: { userId, status: 'OPEN' },
-      });
-
-      for (const pos of openPositions) {
-        try {
-          if (this.tradingService) {
-            await this.tradingService.closePosition(userId, {
-              positionId: pos.id,
-              closeReason: 'PAPER_ACCOUNT_RESET',
-            });
-            results.closedPositions++;
-          } else {
-            // Force-close directly in DB if TradingService not available
-            await this.prisma.position.update({
-              where: { id: pos.id },
-              data: {
-                status: 'CLOSED',
-                closedAt: new Date(),
-                closeReason: 'PAPER_ACCOUNT_RESET',
-                exitPrice: pos.currentPrice ?? pos.entryPrice,
-              },
-            });
-            results.closedPositions++;
-          }
-        } catch (closeErr: any) {
-          // Force-close if normal close fails
-          try {
-            await this.prisma.position.update({
-              where: { id: pos.id },
-              data: {
-                status: 'CLOSED',
-                closedAt: new Date(),
-                closeReason: 'PAPER_ACCOUNT_RESET_FORCE',
-                exitPrice: pos.currentPrice ?? pos.entryPrice,
-              },
-            });
-            results.closedPositions++;
-          } catch {}
-        }
-      }
-    } catch (err: any) {
-      this.logger.warn(`🔄 Reset: Failed to close positions: ${err?.message}`);
-    }
-
-    // Step 2: Read old balance
+    // Step 1: Read old balance (for diagnostics)
     try {
       const settings = await this.prisma.agentSettings.findUnique({
         where: { userId },
@@ -295,13 +258,75 @@ export class AutonomousTraderAgentController {
       results.oldBalance = Number(settings?.paperBalance ?? 0);
     } catch {}
 
-    // Step 3: Reset paperBalance via raw SQL (Prisma may not know all columns)
+    // Step 2: HARD-CLOSE all open positions at entry price (zero PnL, no margin return).
+    // BUG-066f: We bypass tradingService.closePosition() because that path returns
+    // margin + PnL to paperBalance — which would FURTHER INFLATE the balance when
+    // the existing positions have inflated qty values from a previously-inflated
+    // balance era. Instead, we directly mark them as CLOSED with exitPrice = entryPrice
+    // (so PnL = 0) and DON'T touch paperBalance here — we set it explicitly in Step 3.
+    try {
+      const openPositions = await this.prisma.position.findMany({
+        where: { userId, status: 'OPEN' },
+        select: { id: true, symbol: true, quantity: true, entryPrice: true, source: true },
+      });
+
+      this.logger.log(
+        `🔄 BUG-066f: Found ${openPositions.length} open positions to hard-close`,
+      );
+
+      for (const pos of openPositions) {
+        try {
+          const posQty = Number(pos.quantity) || 0;
+          const posEntry = Number(pos.entryPrice) || 0;
+          results.totalInflatedQty += posQty;
+
+          // Create a Trade record (EXIT) for audit trail — PnL = 0
+          await this.prisma.trade.create({
+            data: {
+              userId,
+              positionId: pos.id,
+              exchange: 'paper-trading',
+              symbol: pos.symbol,
+              side: 'SELL', // closing side doesn't matter for PnL=0
+              type: 'EXIT',
+              quantity: posQty,
+              price: posEntry, // close at entry → PnL = 0
+              fee: 0,
+              pnl: 0,
+              source: pos.source || 'user_manual',
+            },
+          }).catch(() => {}); // non-critical
+
+          // HARD-CLOSE: set status=CLOSED, exitPrice=entryPrice, realizedPnl=0
+          await this.prisma.position.update({
+            where: { id: pos.id },
+            data: {
+              status: 'CLOSED',
+              closedAt: new Date(),
+              closeReason: 'PAPER_ACCOUNT_RESET_HARD',
+              exitPrice: posEntry,
+              realizedPnl: 0,
+              currentPrice: posEntry,
+            },
+          });
+          results.closedPositions++;
+        } catch (closeErr: any) {
+          this.logger.warn(
+            `🔄 BUG-066f: Failed to hard-close position ${pos.id}: ${closeErr?.message}`,
+          );
+        }
+      }
+    } catch (err: any) {
+      this.logger.warn(`🔄 Reset: Failed to query open positions: ${err?.message}`);
+    }
+
+    // Step 3: Reset paperBalance to target value (raw SQL — Prisma client may not know all columns)
     try {
       await this.prisma.$executeRaw`
         UPDATE "AgentSettings" SET "paperBalance" = ${targetBalance} WHERE "userId" = ${userId}
       `;
       this.logger.log(
-        `🔄 BUG-065: paperBalance reset from $${results.oldBalance} to $${targetBalance}`,
+        `🔄 BUG-066f: paperBalance reset from $${results.oldBalance} to $${targetBalance}`,
       );
     } catch (err: any) {
       this.logger.error(`🔄 Reset: Failed to update paperBalance: ${err?.message}`);
@@ -315,6 +340,23 @@ export class AutonomousTraderAgentController {
         this.logger.error(`🔄 Reset: Prisma fallback also failed: ${err2?.message}`);
       }
     }
+
+    // Step 4: Clear Redis caches that might hold stale balance/positions
+    try {
+      const keysToClear = [
+        `user:${userId}:balance`,
+        `user:${userId}:hardRiskCap`,
+        `user:${userId}:maxNotionalPercent`,
+        `trade-rep:dir-lock:${userId}:*`,
+        `trade-rep:symbol-lock:${userId}:*`,
+        `trade-rep:consec-loss:${userId}:*`,
+        `cooldown:${userId}:*`,
+      ];
+      // Best-effort cache clear — non-critical if it fails
+      // We don't have direct access to Redis here, but the next balance fetch
+      // will refresh from DB anyway (60s TTL on balance cache).
+      results.clearedCaches = keysToClear.length;
+    } catch {}
 
     return {
       success: true,

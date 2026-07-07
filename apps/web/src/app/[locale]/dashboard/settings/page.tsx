@@ -2237,6 +2237,52 @@ export default function SettingsPage() {
               >
                 <Toggle checked={trailingStop} onChange={() => setTrailingStop(!trailingStop)} color={T.amber} size="sm" />
               </SettingRow>
+
+              {/* BUG-066f: Reset paper account — closes inflated positions + resets balance */}
+              <div style={{
+                marginTop: 12, padding: '12px 14px', borderRadius: 10,
+                background: `${T.danger}08`, border: `1px solid ${T.danger}30`,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <AlertTriangle size={14} color={T.danger} />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: T.danger, fontFamily: "var(--font-ar)" }}>
+                    {t('resetPaperAccountTitle')}
+                  </span>
+                </div>
+                <div style={{ fontSize: 10, color: T.text3, fontFamily: "var(--font-ar)", marginBottom: 10, lineHeight: 1.5 }}>
+                  {t('resetPaperAccountDesc')}
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!confirm(t('resetPaperAccountConfirm'))) return;
+                    try {
+                      const res = await fetch('/api/agent/trader/reset-paper-account', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ newBalance: 10000 }),
+                      });
+                      if (res.ok) {
+                        const data = await res.json();
+                        alert(t('resetPaperAccountSuccess', { closed: data?.data?.closedPositions ?? 0 }));
+                        // Reload to refresh positions list
+                        window.location.reload();
+                      } else {
+                        alert(t('resetPaperAccountFailed'));
+                      }
+                    } catch (err) {
+                      alert(t('resetPaperAccountFailed'));
+                    }
+                  }}
+                  style={{
+                    padding: '8px 16px', borderRadius: 8,
+                    background: `${T.danger}15`, border: `1px solid ${T.danger}40`,
+                    color: T.danger, fontSize: 11, fontWeight: 700,
+                    fontFamily: "var(--font-ar)", cursor: 'pointer',
+                  }}
+                >
+                  {t('resetPaperAccountButton')}
+                </button>
+              </div>
             </SectionCard>
 
             {/* Chart Settings */}

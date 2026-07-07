@@ -2575,7 +2575,13 @@
       "hardRiskCapDesc": "Maximaler Risiko-Prozentsatz pro Trade unabhängig von Signal-Multiplikatoren",
       "maxNotionalLabel": "Max. Ordervolumen (Notional)",
       "maxNotionalDesc": "Maximaler Prozentsatz des Guthabens für Handelswert (mit Hebel)",
-      "hardCapsBanner": "⚠️ Hard Caps: Die folgenden zwei Werte überschreiben die Admin-Standardeinstellungen (aus dem Plattform-Kontrollpanel). Priorität: Ihr Wert hier > Admin-Wert > festcodierter Standard."
+      "hardCapsBanner": "⚠️ Hard Caps: Die folgenden zwei Werte überschreiben die Admin-Standardeinstellungen (aus dem Plattform-Kontrollpanel). Priorität: Ihr Wert hier > Admin-Wert > festcodierter Standard.",
+      "resetPaperAccountTitle": "Paper Trading Konto zurücksetzen",
+      "resetPaperAccountDesc": "Schließt ALLE offenen Positionen zum Einstiegspreis (PnL null) und setzt den Saldo auf 10.000 $ zurück. Verwenden Sie dies, wenn Positionen aufgeblähte Größen aus einem zuvor aufgeblähten Saldo zeigen. Diese Aktion kann nicht rückgängig gemacht werden.",
+      "resetPaperAccountButton": "Konto auf 10.000 $ zurücksetzen",
+      "resetPaperAccountConfirm": "⚠️ Dies schließt ALLE offenen Positionen zum Einstiegspreis (kein PnL) und setzt Ihren Saldo auf 10.000 $ zurück. Nicht rückgängig zu machen. Weiter?",
+      "resetPaperAccountSuccess": "✅ Konto erfolgreich zurückgesetzt. {closed} Positionen wurden geschlossen. Seite wird neu geladen.",
+      "resetPaperAccountFailed": "❌ Konto konnte nicht zurückgesetzt werden. Bitte erneut versuchen."
     },
     "predictionMarket": {
       "title": "Vorhersagemärkte",

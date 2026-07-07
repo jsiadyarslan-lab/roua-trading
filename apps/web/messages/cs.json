@@ -775,7 +775,13 @@
       "hardRiskCapDesc": "Maximální procento rizika na obchod bez ohledu na násobitele signálu",
       "maxNotionalLabel": "Maximální velikost objednávky (Nominální)",
       "maxNotionalDesc": "Maximální procento zůstatku pro hodnotu obchodu (s pákou)",
-      "hardCapsBanner": "⚠️ Pevné limity: Následující dvě hodnoty přepisují výchozí hodnoty admina (z ovládacího panelu platformy). Priorita: vaše hodnota > hodnota admina > vestavěná výchozí."
+      "hardCapsBanner": "⚠️ Pevné limity: Následující dvě hodnoty přepisují výchozí hodnoty admina (z ovládacího panelu platformy). Priorita: vaše hodnota > hodnota admina > vestavěná výchozí.",
+      "resetPaperAccountTitle": "Resetovat paper trading účet",
+      "resetPaperAccountDesc": "Zavře VŠECHNY otevřené pozice za vstupní cenu (nulový PnL) a resetuje zůstatek na 10 000 $. Použijte, když pozice vykazují nadmuté velikosti z dříve nadmutého zůstatku. Tuto akci nelze vrátit zpět.",
+      "resetPaperAccountButton": "Resetovat účet na 10 000 $",
+      "resetPaperAccountConfirm": "⚠️ Tím se ZAVŘOU všechny otevřené pozice za vstupní cenu (žádný PnL) a zůstatek se resetuje na 10 000 $. Nelze to vrátit zpět. Pokračovat?",
+      "resetPaperAccountSuccess": "✅ Účet byl úspěšně resetován. Bylo zavřeno {closed} pozic. Stránka se znovu načte.",
+      "resetPaperAccountFailed": "❌ Resetování účtu selhalo. Zkuste to znovu."
     },
     "security2fa": {
       "sessionLocation1": "Rijád, Saúdská Arábie",

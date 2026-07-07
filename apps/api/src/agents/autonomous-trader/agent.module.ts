@@ -10,6 +10,7 @@ import { TradingModule } from '../../modules/trading/trading.module';
 import { ExchangeModule } from '../../modules/exchange/exchange.module';
 import { AiModule } from '../../modules/ai/ai.module';
 import { StrategicCouncilModule } from '../../modules/ai/strategic-council/strategic-council.module';
+import { SmartExecutorModule } from '../../modules/ai/smart-executor/smart-executor.module'; // BUG-066k
 import { PortfolioModule } from '../../modules/portfolio/portfolio.module';
 
 // Agent Services
@@ -80,6 +81,7 @@ import { AutonomousTraderAgentController, AutonomousTraderPublicController } fro
     AiModule,
     StrategicCouncilModule,  // V145: Agent needs council briefs (M30+) to execute trades
     PortfolioModule,  // V150: Agent needs CredentialsService for pre-trade balance check
+    SmartExecutorModule,  // BUG-066k: For reset endpoint to re-enable Smart Executor
   ],
   controllers: [AutonomousTraderPublicController, AutonomousTraderAgentController],
   providers: [

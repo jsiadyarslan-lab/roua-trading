@@ -1093,3 +1093,63 @@
 - **Verification:** All changes are simple constant tweaks — no logic changes. TypeScript compiles. The R:R is now uniformly 1:1.2 across Smart Executor, Agent (all 5 strategies), and Lazic.
 - **Commit:** (filled after push)
 - **Test:** (manual — observe next 24h of trades: win rate should jump from ~30% to ~50%, PARTIAL_TP_1/2/3 should appear in closeReasons, overall P&L should improve)
+
+### BUG-066k: Reset endpoint didn't re-enable Smart Executor (stayed disabled after reset)
+- **Status:** FIXED
+- **Severity:** HIGH
+- **File:** `apps/api/src/agents/autonomous-trader/agent.controller.ts`, `apps/api/src/agents/autonomous-trader/agent.module.ts`
+- **Pattern (OPEN):** The `reset-paper-account` endpoint (BUG-065/066f) reset `paperBalance` and hard-closed open positions, but did NOT clear the `user:{userId}:dailyLossHit` Setting flag or re-enable the Smart Executor. When the Smart Executor hits its daily loss limit, it calls `disableUser()` which removes the user state from Redis + DB AND sets the `dailyLossHit` flag. After a paper account reset, the Smart Executor would remain disabled because: (1) the dailyLossHit flag persisted in DB, (2) `disableUser()` removed the user from the tick loop, (3) nothing in the reset flow called `enableUser()` to re-add them. The Lazic and Agent were unaffected because they don't use the `disableUser`/`enableUser` pattern — they have their own enable/disable mechanism.
+- **Pattern (FIXED):** BUG-066k.*reset re-enables smart executor
+- **Description:** User reported: "after I reset the account to $10k and closed all positions, the Smart Executor didn't open any trades — only Lazic and the Agent executed." Root cause analysis:
+
+  1. Before the reset, the Smart Executor had hit its daily loss limit (5% of portfolio = ~$500 loss on $10k)
+  2. `disableUser()` was called, which:
+     - Deleted user state from Redis (`smart-executor:user:{userId}`)
+     - Deleted user state from DB (`SMART_EXECUTOR_USER_STATE::{userId}`)
+     - Set `user:{userId}:dailyLossHit` = today's date string
+  3. The user then clicked "Reset Paper Account" (BUG-066f)
+  4. The reset endpoint:
+     - ✅ Closed all open positions (HARD-CLOSE at entry price)
+     - ✅ Reset paperBalance to $10,000
+     - ❌ Did NOT clear `dailyLossHit` flag
+     - ❌ Did NOT call `smartExecutor.enableUser(userId)` to re-add to tick loop
+  5. On the next tick (10s later), the Smart Executor:
+     - Saw `dailyLossHit` flag = today's date → called `disableUser()` again
+     - User was NOT in the enabled users list → no briefs processed
+     - Lazic and Agent continued working (independent enable/disable)
+
+  This is why the user saw Lazic + Agent trading but Smart Executor silent.
+
+- **Impact:** After any paper account reset, users had to manually re-enable the Smart Executor from the UI. Worse, if they reset on the same day they hit the loss limit, the `dailyLossHit` flag would keep re-disabling the executor on every tick until midnight. This created a confusing experience where the reset "worked" (balance was $10k, positions closed) but the executor remained dead.
+
+- **Fix:** Added Step 5 to the `reset-paper-account` endpoint in `agent.controller.ts`:
+
+  **Step 5a — Clear `dailyLossHit` flag from Setting table**
+  ```typescript
+  await this.prisma.setting.deleteMany({
+    where: { key: `user:${userId}:dailyLossHit` },
+  });
+  ```
+
+  **Step 5b — Re-enable Smart Executor if it was enabled before reset**
+  - Read `SMART_EXECUTOR_USER_STATE::{userId}` from Setting table
+  - Parse JSON, check if `enabled === true`
+  - If yes: call `this.smartExecutor.enableUser(userId)` to re-add to tick loop
+  - If no (user never had it enabled, or had it explicitly disabled): skip — respect user's choice
+
+  **Module wiring** — `agent.module.ts`:
+  - Added `SmartExecutorModule` to imports so `SmartExecutorService` is injectable
+  - Added `@Optional() private readonly smartExecutor?: SmartExecutorService` to controller constructor
+  - `@Optional()` ensures the reset endpoint still works even if SmartExecutorModule fails to load
+
+- **Behavior after fix:**
+  1. User clicks "Reset Account to $10,000"
+  2. All positions closed (HARD-CLOSE, PnL=0)
+  3. paperBalance set to $10,000
+  4. `dailyLossHit` flag deleted ← NEW
+  5. Smart Executor re-enabled (if it was enabled before) ← NEW
+  6. Within 10 seconds (next tick), Smart Executor starts processing briefs again
+  7. User sees trades from all three systems: Smart Executor + Lazic + Agent
+
+- **Commit:** (filled after push)
+- **Test:** (manual — hit daily loss limit, verify Smart Executor disables, click "Reset Account to $10,000", verify Smart Executor resumes trading within 10-15 seconds)

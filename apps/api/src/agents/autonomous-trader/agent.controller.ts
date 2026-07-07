@@ -21,6 +21,7 @@ import { AuthGuard, Public } from '../../common/guards/auth.guard';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { Optional } from '@nestjs/common';
 import { TradingService } from '../../modules/trading/trading.service';
+import { SmartExecutorService } from '../../modules/ai/smart-executor/smart-executor.service';
 import { AutonomousTraderAgentService } from './agent.service';
 import { MarketAnalyzerService } from './services/market-analyzer.service';
 import { SignalEvaluatorService } from './services/signal-evaluator.service';
@@ -109,6 +110,7 @@ export class AutonomousTraderAgentController {
     private readonly signalEvaluator: SignalEvaluatorService,
     private readonly prisma: PrismaService,
     @Optional() private readonly tradingService?: TradingService,
+    @Optional() private readonly smartExecutor?: SmartExecutorService,
   ) {}
 
   /**
@@ -357,6 +359,61 @@ export class AutonomousTraderAgentController {
       // will refresh from DB anyway (60s TTL on balance cache).
       results.clearedCaches = keysToClear.length;
     } catch {}
+
+    // Step 5: BUG-066k — Clear Smart Executor dailyLossHit flag + re-enable.
+    // المشكلة: لو المنفّذ الذكي كان قد ضُرب بـ "daily loss limit" قبل إعادة الضبط،
+    // يبقى معطّلاً لأن الـ flag `user:{userId}:dailyLossHit` محفوظ في DB Setting.
+    // إعادة ضبط الحساب الورقي لا تمحو هذا الـ flag — فالمنفّذ يبقى معطّلاً
+    // حتى بعد الغد. هذا يفسر: "بعد إعادة الضبط، اللاسع والوكيل نفذا لكن المنفّذ لا".
+    // الحل: امحو الـ flag + أعد تفعيل المنفّذ الذكي.
+    try {
+      await this.prisma.setting.deleteMany({
+        where: { key: `user:${userId}:dailyLossHit` },
+      });
+      this.logger.log(`🔄 BUG-066k: Cleared dailyLossHit flag for user ${userId}`);
+    } catch (err: any) {
+      this.logger.warn(`🔄 BUG-066k: Failed to clear dailyLossHit: ${err?.message}`);
+    }
+
+    // Re-enable Smart Executor if it was disabled
+    if (this.smartExecutor) {
+      try {
+        // Check current state first — only re-enable if user had it enabled before
+        // (we don't want to enable it for users who never used it)
+        // DB key format: SMART_EXECUTOR_USER_STATE::{userId}
+        const executorState = await this.prisma.setting.findFirst({
+          where: { key: `SMART_EXECUTOR_USER_STATE::${userId}` },
+        });
+
+        if (executorState?.value) {
+          try {
+            const parsed = JSON.parse(executorState.value);
+            if (parsed.enabled === true) {
+              // User had executor enabled — re-enable it
+              await this.smartExecutor.enableUser(userId);
+              this.logger.log(
+                `🔄 BUG-066k: Re-enabled Smart Executor for user ${userId} (was enabled before reset)`,
+              );
+              results.clearedCaches += 1; // count as a cleared item
+            } else {
+              this.logger.log(
+                `🔄 BUG-066k: Smart Executor was not enabled for user ${userId} — skipping re-enable`,
+              );
+            }
+          } catch (parseErr) {
+            this.logger.warn(`🔄 BUG-066k: Could not parse executor state: ${parseErr}`);
+          }
+        } else {
+          this.logger.debug(
+            `🔄 BUG-066k: No Smart Executor state in DB for user ${userId} — was never enabled, skipping`,
+          );
+        }
+      } catch (enableErr: any) {
+        this.logger.warn(
+          `🔄 BUG-066k: Failed to re-enable Smart Executor: ${enableErr?.message}`,
+        );
+      }
+    }
 
     return {
       success: true,

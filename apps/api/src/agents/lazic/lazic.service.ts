@@ -605,6 +605,18 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
   //
   // BUG-040 FIX: توسيع structure SL ليشمل الفوركس والمعادن والمؤشرات
   // (كان مقتصراً على الكريبتو فقط — يخلق ضوضاء لكل أزواج OANDA).
+  //
+  // BUG-066i FIX: اللاسع الحقيقي يلسع (scalper) — لا ينتظر أهداف swing.
+  // المشكلة: كان يستخدم minRR=1.5 (forex) و minRR=2.0 (crypto) من شموع 15m،
+  // مما يجعل TP على مسافة 0.3-0.5% في الفوركس = ساعات أو أيام للوصول.
+  // هذا ليس scalping، هذا swing trading باسم لاسع.
+  //
+  // الحل: أضف SCALPER_MODE حقيقي:
+  //   - شموع 1m (ليس 15m) لأقرب swing levels
+  //   - SL صغير: forex 0.08% (6-8 pips)، crypto 0.25%
+  //   - TP صغير: forex 0.10% (8-10 pips)، crypto 0.30%
+  //   - R:R 1:1.2 إلى 1:1.5 (ليس 1:2)
+  //   - الربح من تكرار الصفقات (50+/يوم) لا من حجم كل صفقة
   private async _calcSLTP(
     tick: LazicTick,
     direction: 'BUY' | 'SELL',
@@ -614,37 +626,34 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     try {
       const isCrypto = tick.symbol.includes('/USDT') || tick.symbol.includes('/BTC');
 
-      // BUG-040: جلب الشموع من المصدر المناسب
-      // - كريبتو: Binance REST API (سريع، بدون مصادقة)
-      // - فوركس/معادن/مؤشرات/طاقة: OANDA v3 instruments/{symbol}/candles
+      // BUG-066i: استخدم شموع 1m للـ scalper (ليس 15m)
+      // 1m = أقرب swing levels + رد فعل أسرع لتغيرات السعر
       let candles: any[] | null = null;
 
       if (isCrypto) {
-        candles = await this._fetchRecentCandles(tick.symbol, '15m', 50);
+        candles = await this._fetchRecentCandles(tick.symbol, '1m', 30);
       } else {
         // فوركس/معادن/مؤشرات/طاقة — استخدم OANDA REST
-        candles = await this._fetchRecentOandaCandles(tick.symbol, 'M15', 50);
+        candles = await this._fetchRecentOandaCandles(tick.symbol, 'M1', 30);
       }
 
-      if (candles && candles.length >= 20) {
+      if (candles && candles.length >= 15) {
         const { calculateStructureBasedSLTP } = await import('./../../modules/trading/services/sl-tp-calculator');
-        // BUG-056 FIX: widened SL ranges for Lazic (scalper needs room for noise).
+        // BUG-066i: SCALPER MODE — أهداف صغيرة جداً، R:R منخفض، تكرار عالي
         //
-        // BEFORE: forex minSL=0.1% (8 pips on USD/CHF) — tighter than spread!
-        //         crypto minSL=0.3% — gets stopped out by normal volatility.
-        //         Result: SL hit immediately on entry, or within minutes.
+        // قبل BUG-066i: minSL=0.3% (forex), minRR=1.5 → TP=0.45% → ساعات للوصول
+        // بعد BUG-066i: minSL=0.08% (forex), minRR=1.2 → TP=0.10% → دقائق للوصول
         //
-        // AFTER: forex minSL=0.3% (24 pips) — wider than spread + noise
-        //        crypto minSL=0.8% — absorbs 1-2 M15 candle ranges
-        //        minRR stays 1.5 (forex) / 2.0 (crypto) for good R:R
+        // scalper حقيقي:
+        //   - forex SL=6-8 pips (0.08%), TP=8-10 pips (0.10%), R:R=1:1.2
+        //   - crypto SL=0.25%, TP=0.30%, R:R=1:1.2
+        //   - الهدف: 50-100 صفقة/يوم × ربح صغير لكل صفقة
         const opts = isCrypto
-          ? { minSLPercent: 0.008, maxSLPercent: 0.05, minRR: 2.0 }
-          : { minSLPercent: 0.003, maxSLPercent: 0.02, minRR: 1.5 };
+          ? { minSLPercent: 0.0025, maxSLPercent: 0.015, minRR: 1.2 }
+          : { minSLPercent: 0.0008, maxSLPercent: 0.005, minRR: 1.2 };
         const result = calculateStructureBasedSLTP(candles, tick.price, direction, opts);
 
         // BUG-056 SAFETY: Verify SL is on the correct side of entry.
-        // If SL ended up on the WRONG side (e.g., BUY with SL above entry),
-        // the trade will immediately stop-loss. Reject the trade instead.
         if (direction === 'BUY' && result.sl >= tick.price) {
           this.logger.warn(
             `🐝 BUG-056: SL ${result.sl.toFixed(5)} >= entry ${tick.price.toFixed(5)} for BUY ${tick.symbol} — skipping trade (SL on wrong side)`,
@@ -657,8 +666,8 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
           // Fall through to fixed % fallback
         } else {
           this.logger.debug(
-            `🐝 BUG-028 LASIC SL/TP from structure: ${tick.symbol} ${direction} ` +
-            `SL=${result.sl.toFixed(5)} (${result.slSource}) TP=${result.tp.toFixed(5)} (${result.tpSource}) R:R=1:${result.rrRatio.toFixed(2)}`,
+            `🐝 BUG-066i LASIC SCALPER SL/TP: ${tick.symbol} ${direction} ` +
+            `SL=${result.sl.toFixed(5)} (${result.slSource}) TP=${result.tp.toFixed(5)} (${result.tpSource}) R:R=1:${result.rrRatio.toFixed(2)} [1m candles]`,
           );
           return { sl: result.sl, tp: result.tp };
         }
@@ -667,13 +676,11 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
       // Structure-based failed — fall through to fixed %
     }
 
-    // Fallback: النسبة الثابتة (السلوك القديم)
-    // BUG-056 FIX: widened fallback SL/TP to match structure-based ranges
-    // قبل: forex SL=0.15% (12 pips) — أضيق من spread أحياناً
-    // بعد: forex SL=0.3% (24 pips) — أوسع من spread + ضوضاء M15
+    // Fallback: النسبة الثابتة (scalper mode)
+    // BUG-066i: أهداف صغيرة جداً للـ fallback أيضاً
     const isCrypto = tick.symbol.includes('/USDT') || tick.symbol.includes('/BTC');
-    const slPct = isCrypto ? 0.008 : 0.003;
-    const tpPct = isCrypto ? 0.016 : 0.006;
+    const slPct = isCrypto ? 0.0025 : 0.0008;  // crypto 0.25%, forex 0.08%
+    const tpPct = isCrypto ? 0.0030 : 0.0010;  // crypto 0.30%, forex 0.10%
     const slDist = tick.price * slPct;
     const tpDist = tick.price * tpPct;
 

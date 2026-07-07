@@ -978,3 +978,63 @@
 
 - **Commit:** (filled after push)
 - **Test:** (manual — temporarily comment out UnifiedRiskService from LazicModule providers, verify Lazic logs `🚨 UnifiedRiskService غير متاح` and refuses to trade; restore and verify normal trading resumes)
+
+### BUG-066i: Lazic used swing-trading SL/TP instead of scalper-sized targets
+- **Status:** FIXED
+- **Severity:** HIGH
+- **File:** `apps/api/src/agents/lazic/lazic.service.ts:597-692`
+- **Pattern (OPEN):** `_calcSLTP` used 15-minute candles with `minSLPercent=0.003` (forex) / `0.008` (crypto) and `minRR=1.5` (forex) / `2.0` (crypto). This produced TP targets of 0.3-0.5% in forex (24-40 pips) and 1.5-2.5% in crypto — these are SWING trading targets, not scalper targets. A real scalper ("lasic" = bee sting) should close in seconds-to-minutes, not hours.
+- **Pattern (FIXED):** BUG-066i.*lazic scalper SL/TP
+- **Description:** User reported: "why do Lazic trades open with distant targets, like Smart Executor targets? Lazic stings, meaning very fast trades!" User provided real data:
+
+  | Symbol | Entry | SL% | TP% | R:R | Time to TP |
+  |--------|-------|-----|-----|-----|------------|
+  | EUR/USD | 1.14252 | 0.158% | 0.448% | 1:2.83 | hours |
+  | USD/CAD | 1.41941 | 0.300% | 0.450% | 1:1.50 | hours |
+  | AUD/USD | 0.69358 | 0.164% | 0.450% | 1:2.74 | hours |
+
+  These are NOT scalper targets — they are swing targets. The bee sting name is misleading because the trade duration is hours, not seconds.
+
+  Root cause analysis:
+  1. `_calcSLTP` fetched 50 candles of M15 data (15-minute timeframe)
+  2. Used `calculateStructureBasedSLTP` with `minSLPercent=0.003` (0.3% for forex)
+  3. With `minRR=1.5`, this forced TP to be at least 0.45% away from entry
+  4. Forex pairs move ~0.05-0.10% per hour during low-volatility periods
+  5. So TP at 0.45% takes 4-9 hours to hit (if it hits at all)
+  6. Meanwhile SL at 0.15-0.30% gets hit by normal M15 volatility within minutes
+
+  This is exactly OPPOSITE of scalping. A real scalper wants:
+  - Small SL (gets out fast if wrong)
+  - Small TP (takes profit quickly when right)
+  - High frequency (50-100 trades/day × small profit each)
+  - 1-minute timeframe (1m candles, not 15m)
+
+- **Impact:** Lazic was functioning as a slow swing trader with the branding of a scalper. Trades stayed open for hours, missing the entire point of the agent. Users expected "bee sting" fast trades but got swing positions that competed with Smart Executor's timeframe, increasing exposure time and fee burn without the scalping edge.
+
+- **Fix:** Rewrote `_calcSLTP` with TRUE scalper parameters:
+
+  **Before (BUG-028/040/056):**
+  - Candles: 50 × M15 (15-minute timeframe)
+  - Forex: minSL=0.3%, maxSL=2.0%, minRR=1.5 → TP=0.45% minimum
+  - Crypto: minSL=0.8%, maxSL=5.0%, minRR=2.0 → TP=1.6% minimum
+  - Fallback: SL=0.3% (forex) / 0.8% (crypto), TP=0.6% / 1.6%
+
+  **After (BUG-066i — SCALPER MODE):**
+  - Candles: 30 × M1 (1-minute timeframe) — closer swing levels, faster reaction
+  - Forex: minSL=0.08% (6-8 pips), maxSL=0.5%, minRR=1.2 → TP=0.10% minimum
+  - Crypto: minSL=0.25%, maxSL=1.5%, minRR=1.2 → TP=0.30% minimum
+  - Fallback: SL=0.08% (forex) / 0.25% (crypto), TP=0.10% / 0.30%
+
+  Expected behavior change:
+  - Trade duration: seconds-to-minutes (not hours)
+  - SL hit faster but TP also hit faster — net positive for high-frequency strategy
+  - More trades per day (50-100+) with smaller profit each
+  - Lower R:R (1:1.2) is acceptable for scalping because win rate is typically higher
+
+- **Verification:**
+  - `_fetchRecentCandles` already supports '1m' for Binance
+  - `_fetchRecentOandaCandles` already supports 'M1' (OANDA standard granularity)
+  - `calculateStructureBasedSLTP` accepts `minSLPercent`, `maxSLPercent`, `minRR` options — no changes needed to the calculator
+  - Code path verified: if 1m candles fetch fails (network/API error), fallback uses scalper-sized percentages (not old swing-sized)
+- **Commit:** (filled after push)
+- **Test:** (manual — enable Lazic, monitor trade duration in /dashboard/positions, verify most trades close within 1-5 minutes instead of 1-5 hours)

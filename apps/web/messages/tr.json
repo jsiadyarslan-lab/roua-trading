@@ -1108,7 +1108,7 @@
       "permWebhooks": "Webhook'lar",
       "antiPhishingCode": "Oltalama Önleme Kodu",
       "accountTypeTestnet": "Test ağı",
-      "tabTrading": "Hesap Bağlama",
+      "tabTrading": "Trading ve Risk",
       "accountInfoSubtitle": "Abonelik ve oturum verileri",
       "cacheStorageSubtitle": "Yerel olarak depolanan verileri yönetin",
       "permHistoricalData": "Geçmiş Veriler",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "Maks. risk (Sert sınır)",
+      "hardRiskCapDesc": "Sinyal çarpanlarına bakılmaksızın işlem başına izin verilen maksimum risk yüzdesi",
+      "maxNotionalLabel": "Maks. emir boyutu (Nominal)",
+      "maxNotionalDesc": "İşlem değeri için bakiyenin maksimum yüzdesi (kaldıraç ile)",
+      "hardCapsBanner": "⚠️ Sert sınırlar: Aşağıdaki iki değer admin varsayılanlarını (platform kontrol panelinden) geçersiz kılar. Öncelik: buradaki değeriniz > admin değeri > sabit kodlanmış varsayılan."
     },
     "profile": {
       "deleteAccount": "Hesabı Kalıcı Olarak Sil",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "Bağlantı hatası: {error}",
       "systemError": "Sistem hatası",
       "deleteErrors": "({count} hata)",
-      "defaultError": "Bir hata oluştu"
+      "defaultError": "Bir hata oluştu",
+      "hardCapsAdminTitle": "Sert sınırlar — Tüm kullanıcılar için global varsayılan",
+      "hardCapsAdminDesc": "Bu değerler TÜM kullanıcılar için varsayılan olarak uygulanır. Herhangi bir kullanıcı bunları ayarlar sayfasından geçersiz kılabilir, ancak buradaki değerler taban çizgisini belirler. Öncelik: kullanıcı ayarı > admin ayarı > sabit kodlanmış varsayılan.",
+      "hardRiskCapAdminLabel": "İşlem başına maks. risk (Sert sınır %)",
+      "hardRiskCapAdminHint": "Aralık: 1% — 20% — Smart Executor'da V420 sınırını ve AGENT_RISK_HARD_CAP'ı kontrol eder",
+      "maxNotionalAdminLabel": "Maks. emir boyutu (Bakiyenin Nominal %)",
+      "maxNotionalAdminHint": "Aralık: 10% — 100% — Smart Executor'da maxOrderValue'yu kontrol eder"
     },
     "profile": {
       "emailChangeTitle": "E-posta değişikliği",

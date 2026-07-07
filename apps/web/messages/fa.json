@@ -1108,7 +1108,7 @@
       "permWebhooks": "وب هوک ها",
       "antiPhishingCode": "کد ضد فیشینگ",
       "accountTypeTestnet": "شبکه آزمایشی",
-      "tabTrading": "پیوند حساب ها",
+      "tabTrading": "معاملات و ریسک",
       "accountInfoSubtitle": "داده های اشتراک و جلسه",
       "cacheStorageSubtitle": "داده های ذخیره شده محلی را مدیریت کنید",
       "permHistoricalData": "داده های تاریخی",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "حداکثر ریسک (سقف سخت)",
+      "hardRiskCapDesc": "حداکثر درصد ریسک مجاز برای هر معامله بدون در نظر گرفتن ضرایب سیگنال",
+      "maxNotionalLabel": "حداکثر اندازه سفارش (نامینال)",
+      "maxNotionalDesc": "حداکثر درصد موجودی برای ارزش معامله (با اهرم)",
+      "hardCapsBanner": "⚠️ سقف‌های سخت: دو مقدار زیر مقادیر پیش‌فرض ادمین (از پنل کنترل پلتفرم) را نادیده می‌گیرند. اولویت: مقدار شما در اینجا > مقدار ادمین > پیش‌فرض ثابت."
     },
     "profile": {
       "deleteAccount": "حذف اکانت برای همیشه",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "خطای اتصال: {خطا}",
       "systemError": "خطای سیستم",
       "deleteErrors": "({count} خطا)",
-      "defaultError": "خطایی رخ داد"
+      "defaultError": "خطایی رخ داد",
+      "hardCapsAdminTitle": "سقف‌های سخت — پیش‌فرض سراسری برای همه کاربران",
+      "hardCapsAdminDesc": "این مقادیر به عنوان پیش‌فرض برای همه کاربران اعمال می‌شوند. هر کاربر می‌تواند از صفحه تنظیمات خود آن‌ها را نادیده بگیرد، اما مقادیر اینجا خط پایه را تعیین می‌کنند. اولویت: تنظیمات کاربر > تنظیمات ادمین > پیش‌فرض ثابت.",
+      "hardRiskCapAdminLabel": "حداکثر ریسک برای هر معامله (سقف سخت %)",
+      "hardRiskCapAdminHint": "محدوده: ۱٪ — ۲۰٪ — V420 cap در Smart Executor و AGENT_RISK_HARD_CAP را کنترل می‌کند",
+      "maxNotionalAdminLabel": "حداکثر اندازه سفارش (نامینال % از موجودی)",
+      "maxNotionalAdminHint": "محدوده: ۱۰٪ — ۱۰۰٪ — maxOrderValue در Smart Executor را کنترل می‌کند"
     },
     "profile": {
       "emailChangeTitle": "تغییر ایمیل",

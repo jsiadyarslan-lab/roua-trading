@@ -605,17 +605,16 @@ export default function AdminSettingsPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <AlertTriangle size={13} color={COLORS.danger} />
                 <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.danger, fontFamily: "var(--font-ar)" }}>
-                  القيود الصارمة (Hard Caps) — افتراضي عام لكل المستخدمين
+                  {tn('hardCapsAdminTitle')}
                 </span>
               </div>
               <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 12, lineHeight: 1.6 }}>
-                هذه القيم تُطبَّق على <b>كل المستخدمين</b> كقيم افتراضية. يمكن لأي مستخدم تجاوزها من صفحة إعداداته،
-                لكن القيم هنا تُحدد الأساس الذي يبدأ منه النظام. الأولوية: إعداد المستخدم &gt; إعداد الأدمن &gt; القيمة الافتراضية المضمنة.
+                {tn('hardCapsAdminDesc')}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
-                    الحد الأقصى للمخاطرة لكل صفقة (Hard Cap %)
+                    {tn('hardRiskCapAdminLabel')}
                   </label>
                   <input
                     type="number" min={1} max={20} step={0.5}
@@ -632,12 +631,12 @@ export default function AdminSettingsPage() {
                     dir="ltr"
                   />
                   <span style={{ fontSize: 9, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
-                    النطاق: 1% — 20% — يتحكم بـ V420 cap في Smart Executor و AGENT_RISK_HARD_CAP
+                    {tn('hardRiskCapAdminHint')}
                   </span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
-                    أقصى حجم صفقة (Notional % من الرصيد)
+                    {tn('maxNotionalAdminLabel')}
                   </label>
                   <input
                     type="number" min={10} max={100} step={5}
@@ -654,7 +653,7 @@ export default function AdminSettingsPage() {
                     dir="ltr"
                   />
                   <span style={{ fontSize: 9, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
-                    النطاق: 10% — 100% — يتحكم بـ maxOrderValue في Smart Executor
+                    {tn('maxNotionalAdminHint')}
                   </span>
                 </div>
               </div>

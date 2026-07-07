@@ -2136,7 +2136,7 @@
       "subtitle": "Administrer din konto og tilpas Roua-platformen",
       "tabAccount": "Konto",
       "tabSubscription": "Abonnement",
-      "tabTrading": "Link konti",
+      "tabTrading": "Trading og risiko",
       "tabNotifications": "Meddelelser",
       "tabAI": "AI intelligens",
       "tabAppearance": "Udseende",
@@ -2570,7 +2570,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "Maksimal risiko (Hård grænse)",
+      "hardRiskCapDesc": "Maksimal risikoprocent pr. handel uanset signalmultiplikatorer",
+      "maxNotionalLabel": "Maksimal ordrestørrelse (Nominel)",
+      "maxNotionalDesc": "Maksimal procentdel af saldo til handelsværdi (med gearing)",
+      "hardCapsBanner": "⚠️ Hårde grænser: De følgende to værdier tilsidesætter admin-standarder (fra platformens kontrolpanel). Prioritet: din værdi her > admin-værdi > indbygget standard."
     },
     "predictionMarket": {
       "title": "Forudsigelsesmarkeder",
@@ -4871,7 +4876,13 @@
       "noDummyAccounts": "Ingen dummy-konti at slette",
       "deleteErrors": "({count} fejl)",
       "guestNotAllowed": "Binance-linking er ikke tilgængelig i gæstetilstand",
-      "mustLoginFirst": "Du skal logge ind med en rigtig konto, før du tilføjer udvekslingsnøgler for at holde saldoen isoleret pr. bruger."
+      "mustLoginFirst": "Du skal logge ind med en rigtig konto, før du tilføjer udvekslingsnøgler for at holde saldoen isoleret pr. bruger.",
+      "hardCapsAdminTitle": "Hårde grænser — Global standard for alle brugere",
+      "hardCapsAdminDesc": "Disse værdier gælder som standard for ALLE brugere. Enhver bruger kan tilsidesætte dem fra deres indstillingsside, men værdierne her sætter basislinjen. Prioritet: brugerindstilling > admin-indstilling > indbygget standard.",
+      "hardRiskCapAdminLabel": "Maksimal risiko pr. handel (Hård grænse %)",
+      "hardRiskCapAdminHint": "Område: 1% — 20% — styrer V420-grænsen i Smart Executor og AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "Maksimal ordrestørrelse (Nominel % af saldo)",
+      "maxNotionalAdminHint": "Område: 10% — 100% — styrer maxOrderValue i Smart Executor"
     },
     "push": {
       "appName": "Roua handel",

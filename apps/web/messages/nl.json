@@ -1108,7 +1108,7 @@
       "permWebhooks": "Webhaken",
       "antiPhishingCode": "Antiphishingcode",
       "accountTypeTestnet": "Testnet",
-      "tabTrading": "Accounts koppelen",
+      "tabTrading": "Trading & Risico",
       "accountInfoSubtitle": "Abonnement- en sessiegegevens",
       "cacheStorageSubtitle": "Beheer lokaal opgeslagen gegevens",
       "permHistoricalData": "Historische gegevens",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "Max. risico (Harde limiet)",
+      "hardRiskCapDesc": "Maximaal risicopercentage per trade ongeacht signaalmultiplicatoren",
+      "maxNotionalLabel": "Max. ordergrootte (Notioneel)",
+      "maxNotionalDesc": "Max. percentage van saldo voor handelswaarde (met hefboom)",
+      "hardCapsBanner": "⚠️ Harde limieten: De volgende twee waarden overschrijven de admin-standaarden (uit het platform controlepaneel). Prioriteit: jouw waarde hier > admin-waarde > vastgelegde standaard."
     },
     "profile": {
       "deleteAccount": "Account permanent verwijderen",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "Verbindingsfout: {fout}",
       "systemError": "Systeemfout",
       "deleteErrors": "({count} fouten)",
-      "defaultError": "Er is een fout opgetreden"
+      "defaultError": "Er is een fout opgetreden",
+      "hardCapsAdminTitle": "Harde limieten — Globale standaard voor alle gebruikers",
+      "hardCapsAdminDesc": "Deze waarden gelden als standaard voor ALLE gebruikers. Elke gebruiker kan ze overschrijven vanaf zijn instellingenpagina, maar de waarden hier bepalen de basislijn. Prioriteit: gebruikersinstelling > admin-instelling > vastgelegde standaard.",
+      "hardRiskCapAdminLabel": "Max. risico per trade (Harde limiet %)",
+      "hardRiskCapAdminHint": "Bereik: 1% — 20% — bestuurt de V420-limiet in Smart Executor en AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "Max. ordergrootte (Notioneel % van saldo)",
+      "maxNotionalAdminHint": "Bereik: 10% — 100% — bestuurt maxOrderValue in Smart Executor"
     },
     "profile": {
       "emailChangeTitle": "E-mailwijziging",

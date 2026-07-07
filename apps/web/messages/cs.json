@@ -578,7 +578,7 @@
       "analysis247": "24/7 analýza vzorů a příležitostí",
       "minute": "Minuta",
       "lastCheck": "Poslední kontrola:",
-      "tabTrading": "Propojit účty",
+      "tabTrading": "Trading a riziko",
       "fiveMinutes": "5 minut",
       "permHistoricalData": "Historická data",
       "tabAppearance": "Vzhled",
@@ -770,7 +770,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "Maximální riziko (Pevný limit)",
+      "hardRiskCapDesc": "Maximální procento rizika na obchod bez ohledu na násobitele signálu",
+      "maxNotionalLabel": "Maximální velikost objednávky (Nominální)",
+      "maxNotionalDesc": "Maximální procento zůstatku pro hodnotu obchodu (s pákou)",
+      "hardCapsBanner": "⚠️ Pevné limity: Následující dvě hodnoty přepisují výchozí hodnoty admina (z ovládacího panelu platformy). Priorita: vaše hodnota > hodnota admina > vestavěná výchozí."
     },
     "security2fa": {
       "sessionLocation1": "Rijád, Saúdská Arábie",
@@ -4337,7 +4342,13 @@
       "subUpgrade": "Upgrade předplatného",
       "defaultError": "Došlo k chybě",
       "sessionExpired": "Relace vypršela – přihlaste se prosím znovu",
-      "systemUpdate": "Aktualizace systému"
+      "systemUpdate": "Aktualizace systému",
+      "hardCapsAdminTitle": "Pevné limity — Globální výchozí pro všechny uživatele",
+      "hardCapsAdminDesc": "Tyto hodnoty platí jako výchozí pro VŠECHNY uživatele. Každý uživatel je může přepsat ze své stránky nastavení, ale hodnoty zde určují výchozí základnu. Priorita: uživatelské nastavení > nastavení admina > vestavěná výchozí.",
+      "hardRiskCapAdminLabel": "Maximální riziko na obchod (Pevný limit %)",
+      "hardRiskCapAdminHint": "Rozsah: 1 % — 20 % — řídí limit V420 v Smart Executor a AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "Maximální velikost objednávky (Nominální % ze zůstatku)",
+      "maxNotionalAdminHint": "Rozsah: 10 % — 100 % — řídí maxOrderValue v Smart Executor"
     },
     "kyc": {
       "accountLinkedSuccessDesc": "Váš účet {exchange} byl úspěšně propojen...",

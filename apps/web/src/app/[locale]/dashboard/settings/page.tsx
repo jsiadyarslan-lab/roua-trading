@@ -2159,13 +2159,12 @@ export default function SettingsPage() {
                 background: `${T.danger}08`, border: `1px solid ${T.danger}20`,
                 fontSize: 10, color: T.text3, fontFamily: "var(--font-ar)", lineHeight: 1.5,
               }}>
-                <b style={{ color: T.danger }}>⚠️ القيود الصارمة:</b> القيمتان التاليتان تتجاوزان القيم الافتراضية للأدمن (من لوحة تحكم المنصة).
-                الأولوية: قيمتك هنا &gt; قيمة الأدمن &gt; الافتراضي المضمن.
+                {t('hardCapsBanner')}
               </div>
               <SettingRow
                 icon={<Shield size={13} color={T.danger} />}
-                label="الحد الأقصى للمخاطرة (Hard Cap)"
-                description="أقصى نسبة مخاطرة مسموح بها لكل صفقة بغض النظر عن مضاعفات الإشارة"
+                label={t('hardRiskCapLabel')}
+                description={t('hardRiskCapDesc')}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input
@@ -2185,8 +2184,8 @@ export default function SettingsPage() {
               </SettingRow>
               <SettingRow
                 icon={<BarChart3 size={13} color={T.accent} />}
-                label="أقصى حجم صفقة (Notional)"
-                description="أقصى نسبة من الرصيد لقيمة الصفقة (مع الرافعة)"
+                label={t('maxNotionalLabel')}
+                description={t('maxNotionalDesc')}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input

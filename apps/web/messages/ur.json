@@ -1108,7 +1108,7 @@
       "permWebhooks": "ویب ہکس",
       "antiPhishingCode": "اینٹی فشنگ کوڈ",
       "accountTypeTestnet": "ٹیسٹ نیٹ",
-      "tabTrading": "اکاؤنٹس کو لنک کریں۔",
+      "tabTrading": "ٹریڈنگ اور خطرہ",
       "accountInfoSubtitle": "سبسکرپشن اور سیشن ڈیٹا",
       "cacheStorageSubtitle": "مقامی طور پر ذخیرہ شدہ ڈیٹا کا نظم کریں۔",
       "permHistoricalData": "تاریخی ڈیٹا",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "زیادہ سے زیادہ خطرہ (ہارڈ کیپ)",
+      "hardRiskCapDesc": "سگنل ملٹیپلائرز کی پرواہ کیے بغیر ہر تجارت میں زیادہ سے زیادہ خطرہ کی فیصد",
+      "maxNotionalLabel": "زیادہ سے زیادہ آرڈر سائز (نومینل)",
+      "maxNotionalDesc": "ٹریڈ ویلیو کے لیے بیلنس کا زیادہ سے زیادہ فیصد (لیوراج کے ساتھ)",
+      "hardCapsBanner": "⚠️ ہارڈ کیپس: درج ذیل دو اقدار ایڈمن کی ڈیفالٹ اقدار (پلیٹ فارم کنٹرول پینل سے) کو اوور رائڈ کرتی ہیں۔ ترجیح: آپ کی قدر یہاں > ایڈمن قدر > ہارڈ کوڈڈ ڈیفالٹ۔"
     },
     "profile": {
       "deleteAccount": "اکاؤنٹ کو مستقل طور پر حذف کریں۔",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "کنکشن کی خرابی: {error}",
       "systemError": "سسٹم کی خرابی۔",
       "deleteErrors": "({count} غلطیاں)",
-      "defaultError": "ایک خرابی پیش آ گئی۔"
+      "defaultError": "ایک خرابی پیش آ گئی۔",
+      "hardCapsAdminTitle": "ہارڈ کیپس — تمام صارفین کے لیے عالمی ڈیفالٹ",
+      "hardCapsAdminDesc": "یہ اقدار تمام صارفین کے لیے ڈیفالٹ کے طور پر لاگو ہوتی ہیں۔ کوئی بھی صارف انہیں اپنے سیٹنگز پیج سے اوور رائڈ کر سکتا ہے، لیکن یہاں کی اقدار بنیاد مقرر کرتی ہیں۔ ترجیح: صارف کی ترتیب > ایڈمن کی ترتیب > ہارڈ کوڈڈ ڈیفالٹ۔",
+      "hardRiskCapAdminLabel": "فی تجارت زیادہ سے زیادہ خطرہ (ہارڈ کیپ %)",
+      "hardRiskCapAdminHint": "حد: 1% — 20% — Smart Executor میں V420 کیپ اور AGENT_RISK_HARD_CAP کو کنٹرول کرتا ہے",
+      "maxNotionalAdminLabel": "زیادہ سے زیادہ آرڈر سائز (بیلنس کا نومینل %)",
+      "maxNotionalAdminHint": "حد: 10% — 100% — Smart Executor میں maxOrderValue کو کنٹرول کرتا ہے"
     },
     "profile": {
       "emailChangeTitle": "ای میل کی تبدیلی",

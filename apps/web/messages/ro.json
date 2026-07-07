@@ -1108,7 +1108,7 @@
       "permWebhooks": "Webhook-uri",
       "antiPhishingCode": "Cod anti-phishing",
       "accountTypeTestnet": "Testnet",
-      "tabTrading": "Conectați conturi",
+      "tabTrading": "Trading și Risc",
       "accountInfoSubtitle": "Datele abonamentului și sesiunii",
       "cacheStorageSubtitle": "Gestionați datele stocate local",
       "permHistoricalData": "Date istorice",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "Risc maxim (Limită dură)",
+      "hardRiskCapDesc": "Procent maxim de risc pe tranzacție indiferent de multiplicatorii de semnal",
+      "maxNotionalLabel": "Dimensiune max. ordin (Nominală)",
+      "maxNotionalDesc": "Procent maxim din sold pentru valoarea tranzacției (cu levieraj)",
+      "hardCapsBanner": "⚠️ Limite dure: Următoarele două valori suprascriu valorile implicite ale adminului (din panoul de control al platformei). Prioritate: valoarea ta aici > valoarea admin > implicit hardcodat."
     },
     "profile": {
       "deleteAccount": "Ștergeți permanent contul",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "Eroare de conectare: {eroare}",
       "systemError": "Eroare de sistem",
       "deleteErrors": "({count} erori)",
-      "defaultError": "A apărut o eroare"
+      "defaultError": "A apărut o eroare",
+      "hardCapsAdminTitle": "Limite dure — Implicit global pentru toți utilizatorii",
+      "hardCapsAdminDesc": "Aceste valori se aplică ca implicit pentru TOȚI utilizatorii. Orice utilizator le poate suprascrie din pagina sa de setări, dar valorile de aici stabilesc baseline-ul. Prioritate: setare utilizator > setare admin > implicit hardcodat.",
+      "hardRiskCapAdminLabel": "Risc max. per tranzacție (Limită dură %)",
+      "hardRiskCapAdminHint": "Interval: 1% — 20% — controlează limita V420 din Smart Executor și AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "Dimensiune max. ordin (Nominală % din sold)",
+      "maxNotionalAdminHint": "Interval: 10% — 100% — controlează maxOrderValue din Smart Executor"
     },
     "profile": {
       "emailChangeTitle": "Schimbarea e-mailului",

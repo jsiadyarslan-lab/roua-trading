@@ -2137,7 +2137,7 @@
       "tabAccount": "Account",
       "tabSubscription": "Subscription",
       "tabLinking": "Link Accounts",
-      "tabTrading": "Link Accounts",
+      "tabTrading": "Trading & Risk",
       "tabNotifications": "Notifications",
       "tabAI": "AI Intelligence",
       "tabAppearance": "Appearance",
@@ -2571,7 +2571,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "Max Risk (Hard Cap)",
+      "hardRiskCapDesc": "Maximum risk percentage allowed per trade regardless of signal multipliers",
+      "maxNotionalLabel": "Max Order Size (Notional)",
+      "maxNotionalDesc": "Maximum percentage of balance for trade value (with leverage)",
+      "hardCapsBanner": "⚠️ Hard Caps: The following two values override the admin defaults (from the platform control panel). Priority: your value here > admin value > hardcoded default."
     },
     "predictionMarket": {
       "title": "Prediction Markets",
@@ -4872,7 +4877,13 @@
       "noDummyAccounts": "No dummy accounts to delete",
       "deleteErrors": "({count} errors)",
       "guestNotAllowed": "Binance linking not available in guest mode",
-      "mustLoginFirst": "You must log in with a real account before adding exchange keys to keep balance isolated per user."
+      "mustLoginFirst": "You must log in with a real account before adding exchange keys to keep balance isolated per user.",
+      "hardCapsAdminTitle": "Hard Caps — Global Default for All Users",
+      "hardCapsAdminDesc": "These values apply to ALL users as defaults. Any user can override them from their settings page, but the values here set the baseline. Priority: user setting > admin setting > hardcoded default.",
+      "hardRiskCapAdminLabel": "Max Risk per Trade (Hard Cap %)",
+      "hardRiskCapAdminHint": "Range: 1% — 20% — controls V420 cap in Smart Executor and AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "Max Order Size (Notional % of balance)",
+      "maxNotionalAdminHint": "Range: 10% — 100% — controls maxOrderValue in Smart Executor"
     },
     "push": {
       "appName": "Roua Trading",

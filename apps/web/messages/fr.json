@@ -1108,7 +1108,7 @@
       "permWebhooks": "Webhooks",
       "antiPhishingCode": "Code anti-hameçonnage",
       "accountTypeTestnet": "Testnet",
-      "tabTrading": "Lier des comptes",
+      "tabTrading": "Trading et Risque",
       "accountInfoSubtitle": "Données d'abonnement et de session",
       "cacheStorageSubtitle": "Gérer les données stockées localement",
       "permHistoricalData": "Données historiques",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "Risque maximum (Plafond strict)",
+      "hardRiskCapDesc": "Pourcentage de risque maximum par trade sans tenir compte des multiplicateurs de signal",
+      "maxNotionalLabel": "Taille d'ordre max. (Notionnel)",
+      "maxNotionalDesc": "Pourcentage maximum du solde pour la valeur du trade (avec levier)",
+      "hardCapsBanner": "⚠️ Plafonds stricts : Les deux valeurs suivantes remplacent les valeurs par défaut de l'admin (depuis le panneau de contrôle). Priorité : votre valeur ici > valeur admin > défaut codé en dur."
     },
     "profile": {
       "deleteAccount": "Supprimer le compte définitivement",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "Erreur de connexion : {error}",
       "systemError": "Erreur système",
       "deleteErrors": "({count} erreurs)",
-      "defaultError": "Une erreur s'est produite"
+      "defaultError": "Une erreur s'est produite",
+      "hardCapsAdminTitle": "Plafonds stricts — Défaut global pour tous les utilisateurs",
+      "hardCapsAdminDesc": "Ces valeurs s'appliquent par défaut à TOUS les utilisateurs. N'importe quel utilisateur peut les remplacer depuis sa page de paramètres, mais les valeurs ici définissent la ligne de base. Priorité : paramètre utilisateur > paramètre admin > défaut codé en dur.",
+      "hardRiskCapAdminLabel": "Risque max. par trade (Plafond strict %)",
+      "hardRiskCapAdminHint": "Plage : 1 % — 20 % — contrôle le plafond V420 dans Smart Executor et AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "Taille d'ordre max. (Notionnel % du solde)",
+      "maxNotionalAdminHint": "Plage : 10 % — 100 % — contrôle maxOrderValue dans Smart Executor"
     },
     "profile": {
       "emailChangeTitle": "Changement d'e-mail",

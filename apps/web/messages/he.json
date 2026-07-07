@@ -1108,7 +1108,7 @@
       "permWebhooks": "Webhooks",
       "antiPhishingCode": "קוד אנטי-פישינג",
       "accountTypeTestnet": "רשת מבחן",
-      "tabTrading": "קישור חשבונות",
+      "tabTrading": "מסחר וסיכון",
       "accountInfoSubtitle": "נתוני מנוי והפעלה",
       "cacheStorageSubtitle": "נהל נתונים המאוחסנים באופן מקומי",
       "permHistoricalData": "נתונים היסטוריים",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "סיכון מקסימלי (מכסה קשיחה)",
+      "hardRiskCapDesc": "אחוז סיכון מקסימלי מותר לכל עסקה ללא תלות במכפילי אות",
+      "maxNotionalLabel": "גודל הזמנה מקסימלי (נומינלי)",
+      "maxNotionalDesc": "אחוז מקסימלי מהיתרה לערך עסקה (עם מינוף)",
+      "hardCapsBanner": "⚠️ מכסות קשיחות: שני הערכים הבאים עוקפים את ברירות המחדל של האדמין (מלוח הבקרה של הפלטפורמה). עדיפות: הערך שלך כאן > ערך האדמין > ברירת מחדל מובנית."
     },
     "profile": {
       "deleteAccount": "מחק חשבון לצמיתות",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "שגיאת חיבור: {שגיאה}",
       "systemError": "שגיאת מערכת",
       "deleteErrors": "({count} שגיאות)",
-      "defaultError": "אירעה שגיאה"
+      "defaultError": "אירעה שגיאה",
+      "hardCapsAdminTitle": "מכסות קשיחות — ברירת מחדל גלובלית לכל המשתמשים",
+      "hardCapsAdminDesc": "ערכים אלה חלים כברירת מחדל על כל המשתמשים. כל משתמש יכול לעקוף אותם מדף ההגדרות שלו, אך הערכים כאן קובעים את הבסיס. עדיפות: הגדרת משתמש > הגדרת אדמין > ברירת מחדל מובנית.",
+      "hardRiskCapAdminLabel": "סיכון מקסימלי לעסקה (מכסה קשיחה %)",
+      "hardRiskCapAdminHint": "טווח: 1% — 20% — שולט במכסת V420 ב-Smart Executor וב-AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "גודל הזמנה מקסימלי (נומינלי % מהיתרה)",
+      "maxNotionalAdminHint": "טווח: 10% — 100% — שולט ב-maxOrderValue ב-Smart Executor"
     },
     "profile": {
       "emailChangeTitle": "שינוי אימייל",

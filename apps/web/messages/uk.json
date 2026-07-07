@@ -1108,7 +1108,7 @@
       "permWebhooks": "Веб-хуки",
       "antiPhishingCode": "Антифішинговий код",
       "accountTypeTestnet": "Тестнет",
-      "tabTrading": "Пов’язати облікові записи",
+      "tabTrading": "Трейдинг і ризик",
       "accountInfoSubtitle": "Дані підписки та сесії",
       "cacheStorageSubtitle": "Керуйте локально збереженими даними",
       "permHistoricalData": "Історичні дані",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "Макс. ризик (Жорсткий ліміт)",
+      "hardRiskCapDesc": "Максимальний відсоток ризику на угоду незалежно від множників сигналу",
+      "maxNotionalLabel": "Макс. розмір ордера (Номінальний)",
+      "maxNotionalDesc": "Максимальний відсоток балансу для вартості угоди (з кредитним плечем)",
+      "hardCapsBanner": "⚠️ Жорсткі ліміти: Наступні два значення перевизначають значення адміністратора за замовчуванням (з панелі керування платформою). Пріоритет: ваше значення тут > значення адміна > жорстко задане значення за замовчуванням."
     },
     "profile": {
       "deleteAccount": "Видалити обліковий запис назавжди",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "Помилка підключення: XPH0X",
       "systemError": "Системна помилка",
       "deleteErrors": "(помилки XPH0X)",
-      "defaultError": "Сталася помилка"
+      "defaultError": "Сталася помилка",
+      "hardCapsAdminTitle": "Жорсткі ліміти — Глобальне значення за замовчуванням для всіх користувачів",
+      "hardCapsAdminDesc": "Ці значення застосовуються за замовчуванням для ВСІХ користувачів. Будь-який користувач може перевизначити їх на своїй сторінці налаштувань, але значення тут задають базову лінію. Пріоритет: налаштування користувача > налаштування адміна > жорстко задане значення за замовчуванням.",
+      "hardRiskCapAdminLabel": "Макс. ризик на угоду (Жорсткий ліміт %)",
+      "hardRiskCapAdminHint": "Діапазон: 1% — 20% — керує лімітом V420 у Smart Executor та AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "Макс. розмір ордера (Номінальний % від балансу)",
+      "maxNotionalAdminHint": "Діапазон: 10% — 100% — керує maxOrderValue у Smart Executor"
     },
     "profile": {
       "emailChangeTitle": "Електронна пошта змінити",

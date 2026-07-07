@@ -810,3 +810,32 @@
 - **Priority semantics:** Per-user override > Global admin default > Hardcoded default (5% / 50%). This is intentional for paper trading — admin sets a sensible default; users can experiment with their own caps. To enforce a hard ceiling (prevent users from exceeding admin cap), a future `enforceAdminCaps` flag can be added.
 - **Commit:** (filled after push)
 - **Test:** (manual — log in as admin, navigate to /dashboard/admin/settings, verify the "Hard Caps" sub-card appears in إدارة المخاطر section with two number inputs, save changes, verify they persist on reload and propagate to backend `riskConfig` Setting)
+
+### BUG-066e: Hard caps strings were hardcoded Arabic, not translated to 32 locales
+- **Status:** FIXED
+- **Severity:** MEDIUM
+- **File:** `apps/web/src/app/[locale]/dashboard/settings/page.tsx`, `apps/web/src/app/[locale]/dashboard/admin/settings/page.tsx`, `apps/web/messages/*.json` (32 locale files)
+- **Pattern (OPEN):** Arabic strings hardcoded directly in TSX JSX attributes (label="...", description="...", and inline text) instead of using `t()` / `tn()` translation calls. The previous fixes BUG-066/066b/066c/066d added the hard caps UI but with Arabic-only labels.
+- **Pattern (FIXED):** BUG-066e.*i18n all 32 locales
+- **Description:** The user complained: "you added it only in the Arabic version, and you won't translate it for the rest of the files." Investigation confirmed that all hard caps labels, descriptions, hints, and banner text were Arabic string literals hardcoded in two TSX files. The 32 locale JSON files had no corresponding translation keys. Additionally, `tabTrading` was misleadingly translated as "ربط الحسابات" (Link Accounts) / "Link Accounts" / equivalent in many locales — when the actual content under that tab is the Risk Management section with the hard caps.
+- **Impact:** Non-Arabic users (31 other locales) saw Arabic text in the middle of their localized UI, breaking the i18n consistency. The misleading `tabTrading` label sent users to the wrong tab when looking for risk settings.
+- **Fix:** Two-part fix:
+
+  **Part 1 — Added 352 translation keys across all 32 locale files** (script: `scripts/add_hardcaps_i18n.py`):
+    - 5 user-facing keys in `dashboard.settings` namespace (used by `/dashboard/settings` page):
+      - `hardRiskCapLabel`, `hardRiskCapDesc`, `maxNotionalLabel`, `maxNotionalDesc`, `hardCapsBanner`
+    - 6 admin-facing keys in `notifications.admin` namespace (used by `/dashboard/admin/settings` page):
+      - `hardCapsAdminTitle`, `hardCapsAdminDesc`, `hardRiskCapAdminLabel`, `hardRiskCapAdminHint`, `maxNotionalAdminLabel`, `maxNotionalAdminHint`
+    - All 32 locales received proper translations (ar, bn, cs, da, de, en, es, fa, fi, fil, fr, he, hi, hu, id, it, ja, ko, ms, nl, no, pl, pt, ro, ru, sv, th, tr, uk, ur, vi, zh).
+
+  **Part 2 — Fixed misleading `tabTrading` translation in all 32 locales:**
+    - Before: "ربط الحسابات" / "Link Accounts" / equivalent (misleading — sent users to wrong tab)
+    - After: "التداول والمخاطر" / "Trading & Risk" / equivalent (clear — points to the actual risk settings)
+
+  **Part 3 — Replaced hardcoded Arabic in TSX files with `t()` / `tn()` calls:**
+    - `dashboard/settings/page.tsx`: 5 hardcoded Arabic strings replaced with `t('hardRiskCapLabel')`, `t('hardRiskCapDesc')`, `t('maxNotionalLabel')`, `t('maxNotionalDesc')`, `t('hardCapsBanner')`.
+    - `admin/settings/page.tsx`: 6 hardcoded Arabic strings replaced with `tn('hardCapsAdminTitle')`, `tn('hardCapsAdminDesc')`, `tn('hardRiskCapAdminLabel')`, `tn('hardRiskCapAdminHint')`, `tn('maxNotionalAdminLabel')`, `tn('maxNotionalAdminHint')`.
+
+- **Verification:** All 32 JSON files validated with `python3 -c "import json; json.load(open(f))"` — no syntax errors. TypeScript type-check passed with no errors in modified files. The script is idempotent — running it again will skip already-existing keys.
+- **Commit:** (filled after push)
+- **Test:** (manual — switch locale to en/de/fr/ja/zh and verify hard caps labels appear translated in both /dashboard/settings → Trading & Risk tab and /dashboard/admin/settings → Risk Management section)

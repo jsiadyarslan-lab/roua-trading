@@ -1108,7 +1108,7 @@
       "permWebhooks": "เว็บฮุค",
       "antiPhishingCode": "รหัสป้องกันฟิชชิ่ง",
       "accountTypeTestnet": "เครือข่ายทดสอบ",
-      "tabTrading": "เชื่อมโยงบัญชี",
+      "tabTrading": "การเทรดและความเสี่ยง",
       "accountInfoSubtitle": "ข้อมูลการสมัครสมาชิกและเซสชั่น",
       "cacheStorageSubtitle": "จัดการข้อมูลที่จัดเก็บไว้ในเครื่อง",
       "permHistoricalData": "ข้อมูลทางประวัติศาสตร์",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "ความเสี่ยงสูงสุด (ขีดจำกัดแข็ง)",
+      "hardRiskCapDesc": "เปอร์เซ็นต์ความเสี่ยงสูงสุดต่อการเทรดโดยไม่คำนึงถึงตัวคูณสัญญาณ",
+      "maxNotionalLabel": "ขนาดคำสั่งสูงสุด (ตามราคาตลาด)",
+      "maxNotionalDesc": "เปอร์เซ็นต์สูงสุดของยอดเงินสำหรับมูลค่าการเทรด (พร้อมเลเวอเรจ)",
+      "hardCapsBanner": "⚠️ ขีดจำกัดแข็ง: ค่าสองค่าต่อไปนี้จะแทนที่ค่าเริ่มต้นของผู้ดูแล (จากแผงควบคุมแพลตฟอร์ม) ลำดับความสำคัญ: ค่าของคุณที่นี่ > ค่าผู้ดูแล > ค่าเริ่มต้นที่ฝังไว้"
     },
     "profile": {
       "deleteAccount": "ลบบัญชีอย่างถาวร",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "ข้อผิดพลาดการเชื่อมต่อ: XPH0X",
       "systemError": "ข้อผิดพลาดของระบบ",
       "deleteErrors": "(ข้อผิดพลาด XPH0X)",
-      "defaultError": "เกิดข้อผิดพลาด"
+      "defaultError": "เกิดข้อผิดพลาด",
+      "hardCapsAdminTitle": "ขีดจำกัดแข็ง — ค่าเริ่มต้นระดับโลกสำหรับผู้ใช้ทั้งหมด",
+      "hardCapsAdminDesc": "ค่าเหล่านี้ใช้เป็นค่าเริ่มต้นสำหรับผู้ใช้ทั้งหมด ผู้ใช้ใดก็ตามสามารถแทนที่ค่าเหล่านี้จากหน้าการตั้งค่าของตนได้ แต่ค่าที่นี่กำหนดเส้นฐาน ลำดับความสำคัญ: การตั้งค่าผู้ใช้ > การตั้งค่าผู้ดูแล > ค่าเริ่มต้นที่ฝังไว้",
+      "hardRiskCapAdminLabel": "ความเสี่ยงสูงสุดต่อการเทรด (ขีดจำกัดแข็ง %)",
+      "hardRiskCapAdminHint": "ช่วง: 1% — 20% — ควบคุมขีดจำกัด V420 ใน Smart Executor และ AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "ขนาดคำสั่งสูงสุด (ตามราคาตลาด % ของยอดเงิน)",
+      "maxNotionalAdminHint": "ช่วง: 10% — 100% — ควบคุม maxOrderValue ใน Smart Executor"
     },
     "profile": {
       "emailChangeTitle": "การเปลี่ยนแปลงอีเมล",

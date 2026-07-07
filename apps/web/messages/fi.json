@@ -1108,7 +1108,7 @@
       "permWebhooks": "Webhookit",
       "antiPhishingCode": "Tietojenkalastelun estokoodi",
       "accountTypeTestnet": "Testiverkko",
-      "tabTrading": "Linkitä tilit",
+      "tabTrading": "Kaupankäynti ja riski",
       "accountInfoSubtitle": "Tilaus- ja istuntotiedot",
       "cacheStorageSubtitle": "Hallitse paikallisesti tallennettuja tietoja",
       "permHistoricalData": "Historialliset tiedot",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "Maksimiriski (Kova katto)",
+      "hardRiskCapDesc": "Maksimiriskiprosentti per kauppa riippumatta signaalikertoimista",
+      "maxNotionalLabel": "Maksimitilauskoko (Nominaalinen)",
+      "maxNotionalDesc": "Maksimiprosentti saldosta kaupan arvolle (vipuvaikutuksella)",
+      "hardCapsBanner": "⚠️ Kovat katot: Seuraavat kaksi arvoa ohittavat adminin oletukset (alustan hallintapaneelista). Prioriteetti: arvosi täällä > adminin arvo > koodattu oletus."
     },
     "profile": {
       "deleteAccount": "Poista tili pysyvästi",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "Yhteysvirhe: {error}",
       "systemError": "Järjestelmävirhe",
       "deleteErrors": "({count} virhettä)",
-      "defaultError": "Tapahtui virhe"
+      "defaultError": "Tapahtui virhe",
+      "hardCapsAdminTitle": "Kovat katot — Yleinen oletus kaikille käyttäjille",
+      "hardCapsAdminDesc": "Nämä arvot koskevat OLETUKSINA KAIKKIA käyttäjiä. Kuka tahansa käyttäjä voi ohittaa ne omilta asetussivuiltaan, mutta täällä olevat arvot asettavat perustan. Prioriteetti: käyttäjän asetus > adminin asetus > koodattu oletus.",
+      "hardRiskCapAdminLabel": "Maksimiriski per kauppa (Kova katto %)",
+      "hardRiskCapAdminHint": "Alue: 1 % — 20 % — ohjaa V420-kattoa Smart Executorissa ja AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "Maksimitilauskoko (Nominaalinen % saldosta)",
+      "maxNotionalAdminHint": "Alue: 10 % — 100 % — ohjaa maxOrderValue-arvoa Smart Executorissa"
     },
     "profile": {
       "emailChangeTitle": "Sähköpostin muutos",

@@ -1108,7 +1108,7 @@
       "permWebhooks": "Webhooks",
       "antiPhishingCode": "Anti-phishing-kod",
       "accountTypeTestnet": "Testnät",
-      "tabTrading": "Länka konton",
+      "tabTrading": "Trading och risk",
       "accountInfoSubtitle": "Prenumerations- och sessionsdata",
       "cacheStorageSubtitle": "Hantera lokalt lagrad data",
       "permHistoricalData": "Historiska data",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "Maximal risk (Hård gräns)",
+      "hardRiskCapDesc": "Maximal riskprocent per affär oavsett signalmultiplikatorer",
+      "maxNotionalLabel": "Maximal orderstorlek (Nominell)",
+      "maxNotionalDesc": "Maximal procentandel av saldo för affärsvärde (med hävstång)",
+      "hardCapsBanner": "⚠️ Hårda gränser: Följande två värden åsidosätter admin-standarder (från plattformens kontrollpanel). Prioritet: ditt värde här > admin-värde > hårdkodad standard."
     },
     "profile": {
       "deleteAccount": "Ta bort konto permanent",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "Anslutningsfel: {error}",
       "systemError": "Systemfel",
       "deleteErrors": "({count} fel)",
-      "defaultError": "Ett fel uppstod"
+      "defaultError": "Ett fel uppstod",
+      "hardCapsAdminTitle": "Hårda gränser — Global standard för alla användare",
+      "hardCapsAdminDesc": "Dessa värden gäller som standard för ALLA användare. Valfri användare kan åsidosätta dem från sin inställningssida, men värdena här sätter baslinjen. Prioritet: användarinställning > admin-inställning > hårdkodad standard.",
+      "hardRiskCapAdminLabel": "Maximal risk per affär (Hård gräns %)",
+      "hardRiskCapAdminHint": "Område: 1% — 20% — styr V420-gränsen i Smart Executor och AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "Maximal orderstorlek (Nominell % av saldo)",
+      "maxNotionalAdminHint": "Område: 10% — 100% — styr maxOrderValue i Smart Executor"
     },
     "profile": {
       "emailChangeTitle": "E-poständring",

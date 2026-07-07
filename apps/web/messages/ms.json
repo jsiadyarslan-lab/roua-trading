@@ -1108,7 +1108,7 @@
       "permWebhooks": "Webhooks",
       "antiPhishingCode": "Kod Anti-Pancingan Data",
       "accountTypeTestnet": "Testnet",
-      "tabTrading": "Pautkan Akaun",
+      "tabTrading": "Trading & Risiko",
       "accountInfoSubtitle": "Data langganan dan sesi",
       "cacheStorageSubtitle": "Urus data yang disimpan secara setempat",
       "permHistoricalData": "Data Sejarah",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "Risiko Maks (Hard Cap)",
+      "hardRiskCapDesc": "Peratusan risiko maksimum setiap perdagangan tanpa mengira pengganda isyarat",
+      "maxNotionalLabel": "Saiz Pesanan Maks (Notional)",
+      "maxNotionalDesc": "Peratusan maksimum baki untuk nilai perdagangan (dengan leverage)",
+      "hardCapsBanner": "⚠️ Hard Caps: Dua nilai berikut mengatasi lalai admin (dari panel kawalan platform). Keutamaan: nilai anda di sini > nilai admin > lalai terbina."
     },
     "profile": {
       "deleteAccount": "Padam Akaun Secara Kekal",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "Ralat sambungan: {error}",
       "systemError": "Ralat sistem",
       "deleteErrors": "({count} ralat)",
-      "defaultError": "Ralat berlaku"
+      "defaultError": "Ralat berlaku",
+      "hardCapsAdminTitle": "Hard Caps — Lalai Global untuk Semua Pengguna",
+      "hardCapsAdminDesc": "Nilai-nilai ini digunakan sebagai lalai untuk SEMUA pengguna. Mana-mana pengguna boleh mengatasinya dari halaman tetapan mereka, tetapi nilai di sini menetapkan garis asas. Keutamaan: tetapan pengguna > tetapan admin > lalai terbina.",
+      "hardRiskCapAdminLabel": "Risiko Maks setiap Perdagangan (Hard Cap %)",
+      "hardRiskCapAdminHint": "Julat: 1% — 20% — mengawal cap V420 dalam Smart Executor dan AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "Saiz Pesanan Maks (Notional % dari baki)",
+      "maxNotionalAdminHint": "Julat: 10% — 100% — mengawal maxOrderValue dalam Smart Executor"
     },
     "profile": {
       "emailChangeTitle": "Perubahan e-mel",

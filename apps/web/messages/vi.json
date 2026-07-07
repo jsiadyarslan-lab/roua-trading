@@ -1108,7 +1108,7 @@
       "permWebhooks": "Webhook",
       "antiPhishingCode": "Mã chống lừa đảo",
       "accountTypeTestnet": "Mạng thử nghiệm",
-      "tabTrading": "Liên kết tài khoản",
+      "tabTrading": "Trading & Rủi ro",
       "accountInfoSubtitle": "Dữ liệu đăng ký và phiên",
       "cacheStorageSubtitle": "Quản lý dữ liệu được lưu trữ cục bộ",
       "permHistoricalData": "Dữ liệu lịch sử",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "Rủi ro tối đa (Giới hạn cứng)",
+      "hardRiskCapDesc": "Phần trăm rủi ro tối đa mỗi giao dịch bất kể hệ số tín hiệu",
+      "maxNotionalLabel": "Kích thước lệnh tối đa (Danh nghĩa)",
+      "maxNotionalDesc": "Phần trăm tối đa số dư cho giá trị giao dịch (với đòn bẩy)",
+      "hardCapsBanner": "⚠️ Giới hạn cứng: Hai giá trị sau đây ghi đè mặc định của quản trị viên (từ bảng điều khiển nền tảng). Ưu tiên: giá trị của bạn ở đây > giá trị admin > mặc định hardcode."
     },
     "profile": {
       "deleteAccount": "Xóa tài khoản vĩnh viễn",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "Lỗi kết nối: XPH0X",
       "systemError": "Lỗi hệ thống",
       "deleteErrors": "(Lỗi XPH0X)",
-      "defaultError": "Đã xảy ra lỗi"
+      "defaultError": "Đã xảy ra lỗi",
+      "hardCapsAdminTitle": "Giới hạn cứng — Mặc định toàn cục cho tất cả người dùng",
+      "hardCapsAdminDesc": "Các giá trị này được áp dụng làm mặc định cho TẤT CẢ người dùng. Bất kỳ người dùng nào cũng có thể ghi đè chúng từ trang cài đặt của họ, nhưng các giá trị ở đây đặt đường cơ sở. Ưu tiên: cài đặt người dùng > cài đặt admin > mặc định hardcode.",
+      "hardRiskCapAdminLabel": "Rủi ro tối đa mỗi giao dịch (Giới hạn cứng %)",
+      "hardRiskCapAdminHint": "Phạm vi: 1% — 20% — điều khiển giới hạn V420 trong Smart Executor và AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "Kích thước lệnh tối đa (Danh nghĩa % của số dư)",
+      "maxNotionalAdminHint": "Phạm vi: 10% — 100% — điều khiển maxOrderValue trong Smart Executor"
     },
     "profile": {
       "emailChangeTitle": "Thay đổi email",

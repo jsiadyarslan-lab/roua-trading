@@ -578,7 +578,7 @@
       "analysis247": "24/7 প্যাটার্ন এবং সুযোগ বিশ্লেষণ",
       "minute": "মিনিট",
       "lastCheck": "শেষ পরীক্ষা:",
-      "tabTrading": "লিঙ্ক অ্যাকাউন্ট",
+      "tabTrading": "ট্রেডিং ও ঝুঁকি",
       "fiveMinutes": "5 মিনিট",
       "permHistoricalData": "ঐতিহাসিক তথ্য",
       "tabAppearance": "উপস্থিতি",
@@ -770,7 +770,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "সর্বোচ্চ ঝুঁকি (হার্ড ক্যাপ)",
+      "hardRiskCapDesc": "সিগন্যাল গুণক নির্বিশেষে প্রতিটি ট্রেডে অনুমোদিত সর্বোচ্চ ঝুঁকি শতাংশ",
+      "maxNotionalLabel": "সর্বোচ্চ অর্ডার সাইজ (নোশনাল)",
+      "maxNotionalDesc": "ট্রেড মানের জন্য ব্যালেন্সের সর্বোচ্চ শতাংশ (লিভারেজ সহ)",
+      "hardCapsBanner": "⚠️ হার্ড ক্যাপ: নিচের দুটি মান অ্যাডমিনের ডিফল্ট মানকে (প্ল্যাটফর্ম কন্ট্রোল প্যানেল থেকে) ওভাররাইড করে। অগ্রাধিকার: আপনার মান এখানে > অ্যাডমিনের মান > হার্ডকোডেড ডিফল্ট।"
     },
     "security2fa": {
       "sessionLocation1": "রিয়াদ, সৌদি আরব",
@@ -4337,7 +4342,13 @@
       "subUpgrade": "সদস্যতা আপগ্রেড",
       "defaultError": "একটি ত্রুটি ঘটেছে",
       "sessionExpired": "সেশনের মেয়াদ শেষ হয়েছে — অনুগ্রহ করে আবার লগ ইন করুন",
-      "systemUpdate": "সিস্টেম আপডেট"
+      "systemUpdate": "সিস্টেম আপডেট",
+      "hardCapsAdminTitle": "হার্ড ক্যাপ — সকল ব্যবহারকারীর জন্য গ্লোবাল ডিফল্ট",
+      "hardCapsAdminDesc": "এই মানগুলি সব ব্যবহারকারীর জন্য ডিফল্ট হিসেবে প্রযোজ্য। যেকোনো ব্যবহারকারী তাদের সেটিংস পেজ থেকে এগুলো ওভাররাইড করতে পারে, কিন্তু এখানকার মানগুলি বেসলাইন নির্ধারণ করে। অগ্রাধিকার: ব্যবহারকারী সেটিং > অ্যাডমিন সেটিং > হার্ডকোডেড ডিফল্ট।",
+      "hardRiskCapAdminLabel": "প্রতি ট্রেডে সর্বোচ্চ ঝুঁকি (হার্ড ক্যাপ %)",
+      "hardRiskCapAdminHint": "পরিসর: ১% — ২০% — Smart Executor-এ V420 ক্যাপ এবং AGENT_RISK_HARD_CAP নিয়ন্ত্রণ করে",
+      "maxNotionalAdminLabel": "সর্বোচ্চ অর্ডার সাইজ (ব্যালেন্সের নোশনাল %)",
+      "maxNotionalAdminHint": "পরিসর: ১০% — ১০০% — Smart Executor-এ maxOrderValue নিয়ন্ত্রণ করে"
     },
     "kyc": {
       "accountLinkedSuccessDesc": "আপনার {exchange} অ্যাকাউন্ট সফলভাবে লিঙ্ক করা হয়েছে...",

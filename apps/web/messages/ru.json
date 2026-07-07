@@ -1108,7 +1108,7 @@
       "permWebhooks": "Вебхуки",
       "antiPhishingCode": "Антифишинговый код",
       "accountTypeTestnet": "Тестовая сеть",
-      "tabTrading": "Привязать счета",
+      "tabTrading": "Трейдинг и риск",
       "accountInfoSubtitle": "Данные подписки и сессии",
       "cacheStorageSubtitle": "Управление локально сохранёнными данными",
       "permHistoricalData": "Исторические данные",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "Макс. риск (Жёсткий лимит)",
+      "hardRiskCapDesc": "Максимальный процент риска на сделку независимо от множителей сигнала",
+      "maxNotionalLabel": "Макс. размер ордера (Номинальный)",
+      "maxNotionalDesc": "Максимальный процент баланса для стоимости сделки (с плечом)",
+      "hardCapsBanner": "⚠️ Жёсткие лимиты: Следующие два значения переопределяют значения администратора по умолчанию (из панели управления платформой). Приоритет: ваше значение здесь > значение администратора > жёстко заданное значение по умолчанию."
     },
     "profile": {
       "deleteAccount": "Удалить аккаунт навсегда",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "Ошибка подключения: {error}",
       "systemError": "Системная ошибка",
       "deleteErrors": "({count} ошибок)",
-      "defaultError": "Произошла ошибка"
+      "defaultError": "Произошла ошибка",
+      "hardCapsAdminTitle": "Жёсткие лимиты — Глобальное значение по умолчанию для всех пользователей",
+      "hardCapsAdminDesc": "Эти значения применяются по умолчанию для ВСЕХ пользователей. Любой пользователь может переопределить их на своей странице настроек, но значения здесь задают базовую линию. Приоритет: настройка пользователя > настройка администратора > жёстко заданное значение по умолчанию.",
+      "hardRiskCapAdminLabel": "Макс. риск на сделку (Жёсткий лимит %)",
+      "hardRiskCapAdminHint": "Диапазон: 1% — 20% — управляет лимитом V420 в Smart Executor и AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "Макс. размер ордера (Номинальный % от баланса)",
+      "maxNotionalAdminHint": "Диапазон: 10% — 100% — управляет maxOrderValue в Smart Executor"
     },
     "profile": {
       "emailChangeTitle": "Изменение почты",

@@ -1108,7 +1108,7 @@
       "permWebhooks": "Webhookok",
       "antiPhishingCode": "Adathalászat elleni kód",
       "accountTypeTestnet": "Teszthálózat",
-      "tabTrading": "Fiókok összekapcsolása",
+      "tabTrading": "Trading és kockázat",
       "accountInfoSubtitle": "Előfizetési és munkameneti adatok",
       "cacheStorageSubtitle": "Gyorsítótár időtartama",
       "permHistoricalData": "Történelmi adatok",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "Maximális kockázat (Kemény korlát)",
+      "hardRiskCapDesc": "Maximális kockázatszázalék kereskedésenként a szignálszorzóktól függetlenül",
+      "maxNotionalLabel": "Maximális rendelési méret (Névérték)",
+      "maxNotionalDesc": "Maximális százaléka az egyenlegnek a kereskedési értékhez (tőkeáttétellel)",
+      "hardCapsBanner": "⚠️ Kemény korlátok: A következő két érték felülírja az admin alapértelmezéseit (a platform vezérlőpultjából). Prioritás: az itteni értéked > admin értéke > beépített alapértelmezett."
     },
     "profile": {
       "deleteAccount": "Fiók végleges törlése",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "Csatlakozási hiba: {error}",
       "systemError": "Rendszerhiba",
       "deleteErrors": "({count} hiba)",
-      "defaultError": "Hiba történt"
+      "defaultError": "Hiba történt",
+      "hardCapsAdminTitle": "Kemény korlátok — Globális alapértelmezés minden felhasználónak",
+      "hardCapsAdminDesc": "Ezek az értékek ALAPÉRTELMEZETTKÉNT vonatkoznak MINDEN felhasználóra. Bármely felhasználó felülírhatja őket a beállítási oldaláról, de az itteni értékek határozzák meg az alapvonalat. Prioritás: felhasználói beállítás > admin beállítás > beépített alapértelmezett.",
+      "hardRiskCapAdminLabel": "Maximális kockázat kereskedésenként (Kemény korlát %)",
+      "hardRiskCapAdminHint": "Tartomány: 1% — 20% — a Smart Executor V420 korlátját és az AGENT_RISK_HARD_CAP-ot szabályozza",
+      "maxNotionalAdminLabel": "Maximális rendelési méret (Névérték % az egyenlegből)",
+      "maxNotionalAdminHint": "Tartomány: 10% — 100% — a Smart Executor maxOrderValue-ét szabályozza"
     },
     "profile": {
       "emailChangeTitle": "E-mail módosítás",

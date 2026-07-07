@@ -1108,7 +1108,7 @@
       "permWebhooks": "Ganchos web",
       "antiPhishingCode": "Código Anti-Phishing",
       "accountTypeTestnet": "Red de prueba",
-      "tabTrading": "Vincular Cuentas",
+      "tabTrading": "Trading y Riesgo",
       "accountInfoSubtitle": "Datos de suscripción y sesión",
       "cacheStorageSubtitle": "Gestionar datos almacenados localmente",
       "permHistoricalData": "Datos Históricos",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "Riesgo máximo (Límite duro)",
+      "hardRiskCapDesc": "Porcentaje máximo de riesgo por operación sin importar los multiplicadores de señal",
+      "maxNotionalLabel": "Tamaño máximo de orden (Nocional)",
+      "maxNotionalDesc": "Porcentaje máximo del saldo para el valor de la operación (con apalancamiento)",
+      "hardCapsBanner": "⚠️ Límites duros: Los siguientes dos valores anulan los predeterminados del admin (del panel de control de la plataforma). Prioridad: tu valor aquí > valor del admin > predeterminado fijo."
     },
     "profile": {
       "deleteAccount": "Eliminar Permanente de la Cuenta",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "Error de conexión: {error}",
       "systemError": "Error del sistema",
       "deleteErrors": "({count} errores)",
-      "defaultError": "Ocurrió un error"
+      "defaultError": "Ocurrió un error",
+      "hardCapsAdminTitle": "Límites duros — Predeterminado global para todos los usuarios",
+      "hardCapsAdminDesc": "Estos valores se aplican a TODOS los usuarios como predeterminados. Cualquier usuario puede anularlos desde su página de configuración, pero los valores aquí establecen la línea base. Prioridad: configuración de usuario > configuración de admin > predeterminado fijo.",
+      "hardRiskCapAdminLabel": "Riesgo máximo por operación (Límite duro %)",
+      "hardRiskCapAdminHint": "Rango: 1% — 20% — controla el límite V420 en Smart Executor y AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "Tamaño máximo de orden (Nocional % del saldo)",
+      "maxNotionalAdminHint": "Rango: 10% — 100% — controla maxOrderValue en Smart Executor"
     },
     "profile": {
       "emailChangeTitle": "cambio de correo electrónico",

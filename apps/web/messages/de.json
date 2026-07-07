@@ -2136,7 +2136,7 @@
       "subtitle": "Verwalten Sie Ihre Kontoeinstellungen und Präferenzen",
       "tabAccount": "Konto",
       "tabSubscription": "Abonnement",
-      "tabTrading": "Link Kontos",
+      "tabTrading": "Trading & Risiko",
       "tabNotifications": "Benachrichtigungen",
       "tabAI": "KI-Intelligenz",
       "tabAppearance": "Erscheinungsbild",
@@ -2570,7 +2570,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "Max. Risiko (Hard Cap)",
+      "hardRiskCapDesc": "Maximaler Risiko-Prozentsatz pro Trade unabhängig von Signal-Multiplikatoren",
+      "maxNotionalLabel": "Max. Ordervolumen (Notional)",
+      "maxNotionalDesc": "Maximaler Prozentsatz des Guthabens für Handelswert (mit Hebel)",
+      "hardCapsBanner": "⚠️ Hard Caps: Die folgenden zwei Werte überschreiben die Admin-Standardeinstellungen (aus dem Plattform-Kontrollpanel). Priorität: Ihr Wert hier > Admin-Wert > festcodierter Standard."
     },
     "predictionMarket": {
       "title": "Vorhersagemärkte",
@@ -4871,7 +4876,13 @@
       "noDummyAccounts": "Keine Dummy-Konten zu löschen",
       "deleteErrors": "({count} Fehler)",
       "guestNotAllowed": "Binance-Verknüpfung im Gast-Modus nicht verfügbar",
-      "mustLoginFirst": "Sie müssen sich mit einem echten Konto anmelden, bevor Sie Börsen-Schlüssel hinzufügen, um Guthaben zu schützen"
+      "mustLoginFirst": "Sie müssen sich mit einem echten Konto anmelden, bevor Sie Börsen-Schlüssel hinzufügen, um Guthaben zu schützen",
+      "hardCapsAdminTitle": "Hard Caps — Globale Voreinstellung für alle Benutzer",
+      "hardCapsAdminDesc": "Diese Werte gelten als Standard für ALLE Benutzer. Jeder Benutzer kann sie auf seiner Einstellungsseite überschreiben, aber die Werte hier setzen die Basislinie. Priorität: Benutzereinstellung > Admin-Einstellung > festcodierter Standard.",
+      "hardRiskCapAdminLabel": "Max. Risiko pro Trade (Hard Cap %)",
+      "hardRiskCapAdminHint": "Bereich: 1 % — 20 % — steuert die V420-Grenze im Smart Executor und AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "Max. Ordervolumen (Notional % des Guthabens)",
+      "maxNotionalAdminHint": "Bereich: 10 % — 100 % — steuert maxOrderValue im Smart Executor"
     },
     "push": {
       "appName": "Roua Handel",

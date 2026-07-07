@@ -1108,7 +1108,7 @@
       "permWebhooks": "Webhooks",
       "antiPhishingCode": "Anti-phishing-kode",
       "accountTypeTestnet": "Testnett",
-      "tabTrading": "Koble sammen kontoer",
+      "tabTrading": "Trading og risiko",
       "accountInfoSubtitle": "Abonnements- og øktdata",
       "cacheStorageSubtitle": "Administrer lokalt lagrede data",
       "permHistoricalData": "Historiske data",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "Maksimal risiko (Hard grense)",
+      "hardRiskCapDesc": "Maksimal risikoprosent per handel uavhengig av signalmultiplikatorer",
+      "maxNotionalLabel": "Maksimal ordrestørrelse (Nominell)",
+      "maxNotionalDesc": "Maksimal prosentandel av saldo for handelsverdi (med giring)",
+      "hardCapsBanner": "⚠️ Harde grenser: De to følgende verdiene overstyrer admin-standarder (fra plattformens kontrollpanel). Prioritet: din verdi her > admin-verdi > hardkodet standard."
     },
     "profile": {
       "deleteAccount": "Slett konto permanent",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "Tilkoblingsfeil: {error}",
       "systemError": "Systemfeil",
       "deleteErrors": "({count} feil)",
-      "defaultError": "Det oppstod en feil"
+      "defaultError": "Det oppstod en feil",
+      "hardCapsAdminTitle": "Harde grenser — Global standard for alle brukere",
+      "hardCapsAdminDesc": "Disse verdiene gjelder som standard for ALLE brukere. Enhver bruker kan overstyre dem fra innstillingssiden sin, men verdiene her setter baseline. Prioritet: brukerinnstilling > admin-innstilling > hardkodet standard.",
+      "hardRiskCapAdminLabel": "Maksimal risiko per handel (Hard grense %)",
+      "hardRiskCapAdminHint": "Område: 1% — 20% — styrer V420-grensen i Smart Executor og AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "Maksimal ordrestørrelse (Nominell % av saldo)",
+      "maxNotionalAdminHint": "Område: 10% — 100% — styrer maxOrderValue i Smart Executor"
     },
     "profile": {
       "emailChangeTitle": "E-postendring",

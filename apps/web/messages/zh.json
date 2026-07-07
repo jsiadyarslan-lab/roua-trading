@@ -1108,7 +1108,7 @@
       "permWebhooks": "网络钩子",
       "antiPhishingCode": "防钓鱼代码",
       "accountTypeTestnet": "测试网",
-      "tabTrading": "连接账户",
+      "tabTrading": "交易与风险",
       "accountInfoSubtitle": "订阅和会话数据",
       "cacheStorageSubtitle": "管理本地存储的数据",
       "permHistoricalData": "历史数据",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "最大风险（硬上限）",
+      "hardRiskCapDesc": "每笔交易允许的最大风险百分比，不论信号乘数",
+      "maxNotionalLabel": "最大订单大小（名义）",
+      "maxNotionalDesc": "交易价值的余额最大百分比（含杠杆）",
+      "hardCapsBanner": "⚠️ 硬上限：以下两个值覆盖管理员的默认值（来自平台控制面板）。优先级：您此处的值 > 管理员值 > 硬编码默认值。"
     },
     "profile": {
       "deleteAccount": "永久删除账户",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "连接错误：{error}",
       "systemError": "系统错误",
       "deleteErrors": "（{count} 个错误）",
-      "defaultError": "发生错误"
+      "defaultError": "发生错误",
+      "hardCapsAdminTitle": "硬上限 — 所有用户的全局默认值",
+      "hardCapsAdminDesc": "这些值作为所有用户的默认值应用。任何用户都可以从其设置页面覆盖它们，但这里的值设定了基线。优先级：用户设置 > 管理员设置 > 硬编码默认值。",
+      "hardRiskCapAdminLabel": "每笔交易最大风险（硬上限 %）",
+      "hardRiskCapAdminHint": "范围：1% — 20% — 控制 Smart Executor 中的 V420 上限和 AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "最大订单大小（余额的名义 %）",
+      "maxNotionalAdminHint": "范围：10% — 100% — 控制 Smart Executor 中的 maxOrderValue"
     },
     "profile": {
       "emailChangeTitle": "邮箱变更",

@@ -1108,7 +1108,7 @@
       "permWebhooks": "Webhook",
       "antiPhishingCode": "Kode Anti Phishing",
       "accountTypeTestnet": "jaringan uji",
-      "tabTrading": "Tautkan Akun",
+      "tabTrading": "Trading & Risiko",
       "accountInfoSubtitle": "Langganan dan data sesi",
       "cacheStorageSubtitle": "Kelola data yang disimpan secara lokal",
       "permHistoricalData": "Data Historis",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "Risiko Maks (Hard Cap)",
+      "hardRiskCapDesc": "Persentase risiko maksimum per trade terlepas dari pengganda sinyal",
+      "maxNotionalLabel": "Ukuran Order Maks (Notional)",
+      "maxNotionalDesc": "Persentase maksimum saldo untuk nilai trade (dengan leverage)",
+      "hardCapsBanner": "⚠️ Hard Caps: Dua nilai berikut meng-override default admin (dari panel kontrol platform). Prioritas: nilai Anda di sini > nilai admin > default hardcoded."
     },
     "profile": {
       "deleteAccount": "Hapus Akun Secara Permanen",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "Kesalahan koneksi: XPH0X",
       "systemError": "Kesalahan sistem",
       "deleteErrors": "(kesalahan XPH0X)",
-      "defaultError": "Terjadi kesalahan"
+      "defaultError": "Terjadi kesalahan",
+      "hardCapsAdminTitle": "Hard Caps — Default Global untuk Semua Pengguna",
+      "hardCapsAdminDesc": "Nilai-nilai ini berlaku sebagai default untuk SEMUA pengguna. Setiap pengguna dapat meng-override-nya dari halaman pengaturan mereka, tetapi nilai di sini menetapkan baseline. Prioritas: pengaturan pengguna > pengaturan admin > default hardcoded.",
+      "hardRiskCapAdminLabel": "Risiko Maks per Trade (Hard Cap %)",
+      "hardRiskCapAdminHint": "Rentang: 1% — 20% — mengontrol cap V420 di Smart Executor dan AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "Ukuran Order Maks (Notional % dari saldo)",
+      "maxNotionalAdminHint": "Rentang: 10% — 100% — mengontrol maxOrderValue di Smart Executor"
     },
     "profile": {
       "emailChangeTitle": "Perubahan email",

@@ -1108,7 +1108,7 @@
       "permWebhooks": "Price Alerts",
       "antiPhishingCode": "Piercing Line",
       "accountTypeTestnet": "Pivot Points",
-      "tabTrading": "アカウントをリンク",
+      "tabTrading": "取引とリスク",
       "accountInfoSubtitle": "サブスクリプションとセッションデータ",
       "cacheStorageSubtitle": "Save document",
       "permHistoricalData": "過去データ",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "最大リスク（ハードキャップ）",
+      "hardRiskCapDesc": "シグナル乗数に関係なく1取引あたりの最大リスク割合",
+      "maxNotionalLabel": "最大注文サイズ（名目）",
+      "maxNotionalDesc": "取引価値に対する残高の最大割合（レバレッジ含む）",
+      "hardCapsBanner": "⚠️ ハードキャップ：以下の2つの値は、管理者のデフォルト（プラットフォームコントロールパネルから）を上書きします。優先順位：ここでのあなたの値 > 管理者の値 > ハードコードされたデフォルト。"
     },
     "profile": {
       "deleteAccount": "アカウントを完全に削除",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "接続エラー: {error}",
       "systemError": "システムエラー",
       "deleteErrors": "({count}エラー)",
-      "defaultError": "エラーが発生しました"
+      "defaultError": "エラーが発生しました",
+      "hardCapsAdminTitle": "ハードキャップ — すべてのユーザーのグローバルデフォルト",
+      "hardCapsAdminDesc": "これらの値はすべてのユーザーのデフォルトとして適用されます。任意のユーザーが設定ページから上書きできますが、ここの値がベースラインを設定します。優先順位：ユーザー設定 > 管理者設定 > ハードコードされたデフォルト。",
+      "hardRiskCapAdminLabel": "取引あたり最大リスク（ハードキャップ %）",
+      "hardRiskCapAdminHint": "範囲：1% — 20% — Smart ExecutorのV420キャップとAGENT_RISK_HARD_CAPを制御",
+      "maxNotionalAdminLabel": "最大注文サイズ（残高の名目 %）",
+      "maxNotionalAdminHint": "範囲：10% — 100% — Smart ExecutorのmaxOrderValueを制御"
     },
     "profile": {
       "emailChangeTitle": "メール変更",

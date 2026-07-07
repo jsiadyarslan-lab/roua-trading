@@ -1108,7 +1108,7 @@
       "permWebhooks": "Webhooki",
       "antiPhishingCode": "Kod antyphishingowy",
       "accountTypeTestnet": "Sieć testowa",
-      "tabTrading": "Połącz konta",
+      "tabTrading": "Trading i ryzyko",
       "accountInfoSubtitle": "Dane subskrypcji i sesji",
       "cacheStorageSubtitle": "Zarządzaj danymi przechowywanymi lokalnie",
       "permHistoricalData": "Dane historyczne",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "Maks. ryzyko (Twardy limit)",
+      "hardRiskCapDesc": "Maksymalny procent ryzyka na transakcję niezależnie od mnożników sygnału",
+      "maxNotionalLabel": "Maks. rozmiar zlecenia (Nominalny)",
+      "maxNotionalDesc": "Maksymalny procent salda dla wartości transakcji (z dźwignią)",
+      "hardCapsBanner": "⚠️ Twarde limity: Dwie poniższe wartości zastępują ustawienia domyślne admina (z panelu sterowania platformy). Priorytet: twoja wartość tutaj > wartość admina > wbudowana wartość domyślna."
     },
     "profile": {
       "deleteAccount": "Usuń konto trwale",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "Błąd połączenia: XPH0X",
       "systemError": "Błąd systemu",
       "deleteErrors": "(błędy XPH0X)",
-      "defaultError": "Wystąpił błąd"
+      "defaultError": "Wystąpił błąd",
+      "hardCapsAdminTitle": "Twarde limity — Globalna wartość domyślna dla wszystkich użytkowników",
+      "hardCapsAdminDesc": "Te wartości mają zastosowanie jako domyślne dla WSZYSTKICH użytkowników. Każdy użytkownik może je zastąpić ze swojej strony ustawień, ale wartości tutaj wyznaczają linię bazową. Priorytet: ustawienie użytkownika > ustawienie admina > wbudowana wartość domyślna.",
+      "hardRiskCapAdminLabel": "Maks. ryzyko na transakcję (Twardy limit %)",
+      "hardRiskCapAdminHint": "Zakres: 1% — 20% — kontroluje limit V420 w Smart Executor i AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "Maks. rozmiar zlecenia (Nominalny % salda)",
+      "maxNotionalAdminHint": "Zakres: 10% — 100% — kontroluje maxOrderValue w Smart Executor"
     },
     "profile": {
       "emailChangeTitle": "Zmiana adresu e-mail",

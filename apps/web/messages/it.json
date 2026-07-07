@@ -1108,7 +1108,7 @@
       "permWebhooks": "Webhook",
       "antiPhishingCode": "Codice anti-phishing",
       "accountTypeTestnet": "Rete di prova",
-      "tabTrading": "Collega account",
+      "tabTrading": "Trading e Rischio",
       "accountInfoSubtitle": "Abbonamento e dati della sessione",
       "cacheStorageSubtitle": "Gestisci dati archiviati localmente",
       "permHistoricalData": "Dati storici",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "Rischio massimo (Limite rigido)",
+      "hardRiskCapDesc": "Percentuale massima di rischio per trade indipendentemente dai moltiplicatori di segnale",
+      "maxNotionalLabel": "Dimensione max. ordine (Nozionale)",
+      "maxNotionalDesc": "Percentuale massima del saldo per il valore del trade (con leva)",
+      "hardCapsBanner": "⚠️ Limiti rigidi: I due valori seguenti sovrascrivono i default dell'admin (dal pannello di controllo della piattaforma). Priorità: tuo valore qui > valore admin > default hardcoded."
     },
     "profile": {
       "deleteAccount": "Elimina account permanentemente",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "Errore di connessione: XPH0X",
       "systemError": "Errore di sistema",
       "deleteErrors": "(errori XPH0X)",
-      "defaultError": "Si è verificato un errore"
+      "defaultError": "Si è verificato un errore",
+      "hardCapsAdminTitle": "Limiti rigidi — Default globale per tutti gli utenti",
+      "hardCapsAdminDesc": "Questi valori si applicano come default a TUTTI gli utenti. Qualsiasi utente può sovrascriverli dalla sua pagina delle impostazioni, ma i valori qui stabiliscono la baseline. Priorità: impostazione utente > impostazione admin > default hardcoded.",
+      "hardRiskCapAdminLabel": "Rischio max. per trade (Limite rigido %)",
+      "hardRiskCapAdminHint": "Intervallo: 1% — 20% — controlla il limite V420 in Smart Executor e AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "Dimensione max. ordine (Nozionale % del saldo)",
+      "maxNotionalAdminHint": "Intervallo: 10% — 100% — controlla maxOrderValue in Smart Executor"
     },
     "profile": {
       "emailChangeTitle": "Modifica e-mail",

@@ -1108,7 +1108,7 @@
       "permWebhooks": "Webhooks",
       "antiPhishingCode": "Código Anti-Phishing",
       "accountTypeTestnet": "Rede de teste",
-      "tabTrading": "Vincular Contas",
+      "tabTrading": "Trading e Risco",
       "accountInfoSubtitle": "Assinatura e Sessão Dados",
       "cacheStorageSubtitle": "Gerenciar locally stored Dados",
       "permHistoricalData": "Dados Históricos",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "Risco máximo (Limite rígido)",
+      "hardRiskCapDesc": "Porcentagem máxima de risco por trade independentemente dos multiplicadores de sinal",
+      "maxNotionalLabel": "Tamanho máximo de ordem (Nominal)",
+      "maxNotionalDesc": "Porcentagem máxima do saldo para o valor do trade (com alavancagem)",
+      "hardCapsBanner": "⚠️ Limites rígidos: Os dois valores a seguir substituem os padrões do admin (do painel de controle da plataforma). Prioridade: seu valor aqui > valor do admin > padrão fixo."
     },
     "profile": {
       "deleteAccount": "Excluir Conta Permanently",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "Conexão error: {error}",
       "systemError": "Sistema Erro",
       "deleteErrors": "({count} erros)",
-      "defaultError": "Ocorreu um erro"
+      "defaultError": "Ocorreu um erro",
+      "hardCapsAdminTitle": "Limites rígidos — Padrão global para todos os usuários",
+      "hardCapsAdminDesc": "Estes valores se aplicam como padrão a TODOS os usuários. Qualquer usuário pode substituí-los da sua página de configurações, mas os valores aqui definem a linha de base. Prioridade: configuração do usuário > configuração do admin > padrão fixo.",
+      "hardRiskCapAdminLabel": "Risco máximo por trade (Limite rígido %)",
+      "hardRiskCapAdminHint": "Faixa: 1% — 20% — controla o limite V420 no Smart Executor e AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "Tamanho máximo de ordem (Nominal % do saldo)",
+      "maxNotionalAdminHint": "Faixa: 10% — 100% — controla maxOrderValue no Smart Executor"
     },
     "profile": {
       "emailChangeTitle": "E-mail mudar",

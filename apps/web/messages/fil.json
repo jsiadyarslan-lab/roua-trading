@@ -1108,7 +1108,7 @@
       "permWebhooks": "Mga Webhook",
       "antiPhishingCode": "Anti-Phishing Code",
       "accountTypeTestnet": "Testnet",
-      "tabTrading": "I-link ang Mga Account",
+      "tabTrading": "Trading at Panganib",
       "accountInfoSubtitle": "Data ng subscription at session",
       "cacheStorageSubtitle": "Pamahalaan ang lokal na nakaimbak na data",
       "permHistoricalData": "Makasaysayang Data",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "Max na Panganib (Hard Cap)",
+      "hardRiskCapDesc": "Max na porsyento ng panganib bawat trade anuman ang signal multipliers",
+      "maxNotionalLabel": "Max na Order Size (Notional)",
+      "maxNotionalDesc": "Max na porsyento ng balanse para sa trade value (may leverage)",
+      "hardCapsBanner": "⚠️ Hard Caps: Ang sumusunod na dalawang value ay na-override ang admin defaults (mula sa platform control panel). Priyoridad: ang value mo dito > admin value > hardcoded default."
     },
     "profile": {
       "deleteAccount": "Tanggalin ang Account nang Permanenteng",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "Error sa koneksyon: {error}",
       "systemError": "Error sa system",
       "deleteErrors": "({count} mga error)",
-      "defaultError": "May naganap na error"
+      "defaultError": "May naganap na error",
+      "hardCapsAdminTitle": "Hard Caps — Global Default para sa Lahat ng User",
+      "hardCapsAdminDesc": "Ang mga value na ito ay nalalapat sa LAHAT ng user bilang default. Kahit sinang user ay maaari i-override ang mga ito mula sa kanilang settings page, ngunit ang mga value dito ang nagtatakda ng baseline. Priyoridad: user setting > admin setting > hardcoded default.",
+      "hardRiskCapAdminLabel": "Max na Panganib bawat Trade (Hard Cap %)",
+      "hardRiskCapAdminHint": "Saklaw: 1% — 20% — kinokontrol ang V420 cap sa Smart Executor at AGENT_RISK_HARD_CAP",
+      "maxNotionalAdminLabel": "Max na Order Size (Notional % ng balanse)",
+      "maxNotionalAdminHint": "Saklaw: 10% — 100% — kinokontrol ang maxOrderValue sa Smart Executor"
     },
     "profile": {
       "emailChangeTitle": "Pagbabago ng email",

@@ -1108,7 +1108,7 @@
       "permWebhooks": "웹후크",
       "antiPhishingCode": "피싱 방지 코드",
       "accountTypeTestnet": "테스트넷",
-      "tabTrading": "계정 연결",
+      "tabTrading": "거래 및 리스크",
       "accountInfoSubtitle": "구독 및 세션 데이터",
       "cacheStorageSubtitle": "로컬에 저장된 데이터 관리",
       "permHistoricalData": "기록 데이터",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "최대 리스크 (하드 캡)",
+      "hardRiskCapDesc": "신호 승수에 관계없이 거래당 허용되는 최대 위험 비율",
+      "maxNotionalLabel": "최대 주문 크기 (명목)",
+      "maxNotionalDesc": "거래 가치에 대한 잔고의 최대 비율 (레버리지 포함)",
+      "hardCapsBanner": "⚠️ 하드 캡: 다음 두 값은 관리자 기본값(플랫폼 컨트롤 패널에서)을 재정의합니다. 우선순위: 여기의 내 값 > 관리자 값 > 하드코딩된 기본값."
     },
     "profile": {
       "deleteAccount": "계정 영구 삭제",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "연결 오류: {error}",
       "systemError": "시스템 오류",
       "deleteErrors": "({count} 오류)",
-      "defaultError": "오류가 발생함"
+      "defaultError": "오류가 발생함",
+      "hardCapsAdminTitle": "하드 캡 — 모든 사용자를 위한 글로벌 기본값",
+      "hardCapsAdminDesc": "이 값은 모든 사용자의 기본값으로 적용됩니다. 모든 사용자가 설정 페이지에서 이를 재정의할 수 있지만, 여기의 값이 기준선을 설정합니다. 우선순위: 사용자 설정 > 관리자 설정 > 하드코딩된 기본값.",
+      "hardRiskCapAdminLabel": "거래당 최대 리스크 (하드 캡 %)",
+      "hardRiskCapAdminHint": "범위: 1% — 20% — Smart Executor의 V420 캡과 AGENT_RISK_HARD_CAP 제어",
+      "maxNotionalAdminLabel": "최대 주문 크기 (잔고의 명목 %)",
+      "maxNotionalAdminHint": "범위: 10% — 100% — Smart Executor의 maxOrderValue 제어"
     },
     "profile": {
       "emailChangeTitle": "이메일 변경",

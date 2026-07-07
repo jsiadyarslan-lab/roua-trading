@@ -1108,7 +1108,7 @@
       "permWebhooks": "वेबहुक",
       "antiPhishingCode": "एंटी-फ़िशिंग कोड",
       "accountTypeTestnet": "टेस्टनेट",
-      "tabTrading": "Link Accounts",
+      "tabTrading": "ट्रेडिंग और जोखिम",
       "accountInfoSubtitle": "सब्सक्रिप्शन और सेशन डेटा",
       "cacheStorageSubtitle": "स्थानीय रूप से संग्रहीत डेटा प्रबंधित करें",
       "permHistoricalData": "ऐतिहासिक Dt",
@@ -1325,7 +1325,12 @@
       "agentMaxNewOpensPerCycle": "Max new opens per cycle",
       "agentMaxNewOpensPerCycleDesc": "Max new positions per 1-min cron cycle. Range 1-20, default 3. Prevents batch opening 11 positions in one second.",
       "monitorTickLogIntervalMs": "MONITOR_TICK interval (ms)",
-      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail."
+      "monitorTickLogIntervalMsDesc": "Log position ticks every N ms. Default 60000 (60s). Range 5000-600000. Lower = more DB writes but finer audit trail.",
+      "hardRiskCapLabel": "अधिकतम जोखिम (हार्ड कैप)",
+      "hardRiskCapDesc": "सिग्नल गुणक की परवाह किए बिना प्रति ट्रेड अनुमत अधिकतम जोखिम प्रतिशत",
+      "maxNotionalLabel": "अधिकतम ऑर्डर आकार (नामिनल)",
+      "maxNotionalDesc": "ट्रेड मूल्य के लिए बैलेंस का अधिकतम प्रतिशत (लाभ उठाने के साथ)",
+      "hardCapsBanner": "⚠️ हार्ड कैप: निम्न दो मान एडमिन डिफ़ॉल्ट (प्लेटफ़ॉर्म नियंत्रण पैनल से) को ओवरराइड करते हैं। प्राथमिकता: आपका मान यहां > एडमिन मान > हार्डकोडेड डिफ़ॉल्ट।"
     },
     "profile": {
       "deleteAccount": "खाता स्थायी रूप से हटाएं",
@@ -4292,7 +4297,13 @@
       "connectionErrorDetail": "कनेक्शन त्रुटि: {error}",
       "systemError": "सिस्टम त्रुटि",
       "deleteErrors": "({count} त्रुटियां)",
-      "defaultError": "एक त्रुटि हुई"
+      "defaultError": "एक त्रुटि हुई",
+      "hardCapsAdminTitle": "हार्ड कैप — सभी उपयोगकर्ताओं के लिए वैश्विक डिफ़ॉल्ट",
+      "hardCapsAdminDesc": "ये मान सभी उपयोगकर्ताओं के लिए डिफ़ॉल्ट के रूप में लागू होते हैं। कोई भी उपयोगकर्ता अपने सेटिंग्स पेज से उन्हें ओवरराइड कर सकता है, लेकिन यहाँ के मान आधार रेखा निर्धारित करते हैं। प्राथमिकता: उपयोगकर्ता सेटिंग > एडमिन सेटिंग > हार्डकोडेड डिफ़ॉल्ट।",
+      "hardRiskCapAdminLabel": "प्रति ट्रेड अधिकतम जोखिम (हार्ड कैप %)",
+      "hardRiskCapAdminHint": "श्रेणी: 1% — 20% — Smart Executor में V420 कैप और AGENT_RISK_HARD_CAP को नियंत्रित करता है",
+      "maxNotionalAdminLabel": "अधिकतम ऑर्डर आकार (बैलेंस का नामिनल %)",
+      "maxNotionalAdminHint": "श्रेणी: 10% — 100% — Smart Executor में maxOrderValue को नियंत्रित करता है"
     },
     "profile": {
       "emailChangeTitle": "ईमेल परिवर्तन",

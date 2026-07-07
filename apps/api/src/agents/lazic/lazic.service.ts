@@ -68,6 +68,13 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
   // حالة المستخدمين النشطين { userId → LazicUserState }
   private activeUsers = new Map<string, LazicUserState>();
 
+  // BUG-066m: rejection cache — { userId:symbol:direction → expiry timestamp }
+  // يمنع اللاسع من إغراق السجلات بنفس الرفع مراراً. عندما يرفض UnifiedRisk
+  // صفقة (مثلاً DUPLICATE_POSITION)، نُخزّن الرفض لمدة 60 ثانية. خلال هذه
+  // المدة، اللاسع يتخطّى نفس الزوج+الاتجاه بدون استدعاء validateOrder.
+  private readonly rejectionCache = new Map<string, number>();
+  private readonly REJECTION_CACHE_TTL_MS = 60 * 1000; // 60 seconds
+
   // معرّف مؤقت المزامنة
   private syncTimer: NodeJS.Timeout | null = null;
 
@@ -520,6 +527,16 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
+      // BUG-066m: Check rejection cache — skip if same symbol+direction was
+      // rejected recently. This prevents log spam when Smart Executor has an
+      // open position on the same symbol (CHECK 10 rejects every tick).
+      const rejectionKey = `${userId}:${obi.symbol}:${direction}`;
+      const cachedRejection = this.rejectionCache.get(rejectionKey);
+      if (cachedRejection && now < cachedRejection) {
+        // Still cached — skip silently (no log, no validateOrder call)
+        return;
+      }
+
       try {
         const riskCheck = await this.unifiedRisk.validateOrder({
           userId,
@@ -538,9 +555,29 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
         } as any);
 
         if (!riskCheck.allowed) {
-          this.logger.warn(
-            `🛡️ اللاسع: UnifiedRisk رفض الصفقة ${obi.symbol} ${direction} — ${riskCheck.reason}`,
-          );
+          // BUG-066m: Cache the rejection for 60 seconds to prevent spam.
+          // Only cache "soft" rejections (DUPLICATE_POSITION, POSITION_SIZE_LIMIT)
+          // that are likely to persist. Don't cache "hard" rejections (INSUFFICIENT_BALANCE)
+          // that might resolve quickly.
+          const failedCheck = (riskCheck as any).failedCheck || '';
+          const shouldCache = [
+            'DUPLICATE_POSITION',
+            'POSITION_SIZE_LIMIT',
+            'TRADE_REPETITION',
+          ].includes(failedCheck);
+
+          if (shouldCache) {
+            this.rejectionCache.set(rejectionKey, now + this.REJECTION_CACHE_TTL_MS);
+            // Log once (not every tick) — with cache note
+            this.logger.warn(
+              `🛡️ اللاسع: UnifiedRisk رفض ${obi.symbol} ${direction} — ${riskCheck.reason} ` +
+              `(مُخزَّن لـ 60 ثانية — لن يُعاد المحاولة حتى ينتهي الـ cache أو يُغلق المركز)`,
+            );
+          } else {
+            this.logger.warn(
+              `🛡️ اللاسع: UnifiedRisk رفض الصفقة ${obi.symbol} ${direction} — ${riskCheck.reason}`,
+            );
+          }
           await this._recordMetric(userId, 'fail', `risk_rejected:${riskCheck.reason?.substring(0, 60) || 'unknown'}`);
           return;
         }

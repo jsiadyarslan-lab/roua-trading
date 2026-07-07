@@ -1190,3 +1190,46 @@
 
 - **Commit:** (filled after push)
 - **Test:** (manual — monitor Railway logs after deploy, verify: (1) BNB/DOGE briefs no longer rejected for SL < 1%, (2) rejected orders show actual reason + failedCheck in console)
+
+### BUG-066m: EXECUTOR_MAX_OPEN_POSITIONS defaulted to 5 + Lazic log spam on rejected signals
+- **Status:** FIXED
+- **Severity:** HIGH
+- **File:** `apps/api/src/modules/trading/services/unified-risk.service.ts:125-130`, `apps/api/src/agents/lazic/lazic.service.ts:71-76,530-582`
+- **Pattern (OPEN):** (1) `EXECUTOR_MAX_OPEN_POSITIONS` env var defaulted to '5' in UnifiedRiskService constructor, and `agentExecutorConfig.executorMaxOpenPositions` fallback was also '5'. This meant that if the admin settings DB key didn't exist or hadn't been synced, the Smart Executor was limited to 5 concurrent positions — even though the Smart Executor's own config says 20 and the admin UI default is 20. (2) Lazic receives OBI ticks every 1-2 seconds. When CHECK 10 (Duplicate Position) rejects a signal (e.g., Smart Executor already has AUD/USD SELL open), Lazic logs the rejection on EVERY tick — producing 30+ identical log lines per minute, flooding Railway logs.
+- **Pattern (FIXED):** BUG-066m.*executor limit 20 + lazic rejection cache
+- **Description:** User shared Railway logs showing:
+  - `Order REJECTED: لديك 5 مركز مفتوح من المنفذ بالفعل (الحد: 5). (failedCheck: POSITION_SIZE_LIMIT)` — Smart Executor blocked at 5 positions
+  - `🛡️ اللاسع: UnifiedRisk رفض الصفقة AUD/USD SELL — يوجد مركز SELL مفتوح لـ AUD/USD من smart_executor` — repeated 30+ times in 1 minute
+
+  Issue A: The env var defaults for `EXECUTOR_MAX_OPEN_POSITIONS` and `AGENT_MAX_OPEN_POSITIONS` were both '5'. The admin UI shows '20' as the default, and the Smart Executor's own config is 20. But UnifiedRiskService (the actual gatekeeper) used 5 as the fallback. This created a situation where the Smart Executor thought it could open 20 positions but was blocked at 5 by UnifiedRiskService.
+
+  Issue B: Lazic receives streaming price updates every 1-2 seconds. When OBI generates a signal for AUD/USD SELL, Lazic calls `validateOrder()` which gets rejected by CHECK 10 (Smart Executor already has AUD/USD SELL open). But Lazic doesn't cache this rejection — on the next tick (1-2 seconds later), it tries again, gets rejected again, logs again. This produced 30+ identical warning lines per minute in Railway logs, making it impossible to see real issues.
+
+- **Fix:**
+
+  **Part 1 — Raise env var defaults from 5 to 20**
+  - `EXECUTOR_MAX_OPEN_POSITIONS` default: '5' → '20'
+  - `AGENT_MAX_OPEN_POSITIONS` default: '5' → '20'
+  - `agentExecutorConfig` fallback in syncSettingsFromDB: '5' → '20'
+  - Now all three layers (env var, admin DB, fallback) are aligned at 20
+
+  **Part 2 — Rejection cache in Lazic (60-second TTL)**
+  - Added `rejectionCache: Map<string, number>` keyed by `{userId}:{symbol}:{direction}`
+  - Before calling `validateOrder()`, check if the same symbol+direction was rejected recently
+  - If cached and still valid (within 60s): skip silently (no log, no validateOrder call, no DB query)
+  - On rejection: cache only "soft" rejections that are likely to persist:
+    - `DUPLICATE_POSITION` (another source has an open position on this symbol)
+    - `POSITION_SIZE_LIMIT` (per-source limit reached)
+    - `TRADE_REPETITION` (cooldown/symbol-lock active)
+  - Don't cache "hard" rejections that might resolve quickly:
+    - `INSUFFICIENT_BALANCE` (balance might change)
+    - `STOPLOSS_ENFORCEMENT` (SL might be recalculated)
+  - On cached rejection: log ONCE with note "(مُخزَّن لـ 60 ثانية — لن يُعاد المحاولة)"
+  - Cache entries expire naturally after 60 seconds — no cleanup needed
+
+- **Expected behavior after fix:**
+  1. Smart Executor can open up to 20 positions (not 5) — matching the admin UI setting
+  2. Lazic logs AUD/USD SELL rejection ONCE, then goes silent for 60 seconds (instead of 30+ logs per minute)
+  3. Railway logs are clean and readable — real issues are visible
+- **Commit:** (filled after push)
+- **Test:** (manual — monitor Railway logs for 5 minutes, verify: (1) Smart Executor opens more than 5 positions, (2) Lazic rejection logs appear at most once per 60 seconds per symbol+direction)

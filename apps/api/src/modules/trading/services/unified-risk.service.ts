@@ -123,10 +123,10 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
       this.configService.get('RISK_MAX_OPEN_POSITIONS', '20'), 10,
     );
     this.executorMaxOpenPositions = parseInt(
-      this.configService.get('EXECUTOR_MAX_OPEN_POSITIONS', '5'), 10,
+      this.configService.get('EXECUTOR_MAX_OPEN_POSITIONS', '20'), 10,
     );
     this.agentMaxOpenPositions = parseInt(
-      this.configService.get('AGENT_MAX_OPEN_POSITIONS', '5'), 10,
+      this.configService.get('AGENT_MAX_OPEN_POSITIONS', '20'), 10,
     );
     this.lasicMaxOpenPositions = parseInt(
       this.configService.get('LASIC_MAX_OPEN_POSITIONS', '2'), 10,
@@ -1383,8 +1383,8 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
 
       const agentExecConfig = settingsMap.agentExecutorConfig;
       if (agentExecConfig) {
-        const execMax = parseInt(agentExecConfig.executorMaxOpenPositions || '5', 10);
-        const agentMax = parseInt(agentExecConfig.agentMaxOpenPositions || '5', 10);
+        const execMax = parseInt(agentExecConfig.executorMaxOpenPositions || '20', 10);
+        const agentMax = parseInt(agentExecConfig.agentMaxOpenPositions || '20', 10);
         this.executorMaxOpenPositions = execMax;
         this.agentMaxOpenPositions = agentMax;
 

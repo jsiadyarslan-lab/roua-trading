@@ -184,6 +184,15 @@ export class OrderDispatcherService {
       // This is the SINGLE risk gate — no more double-check in TradingService
       const riskCheck = await this.unifiedRisk.validateOrder(command);
       if (!riskCheck.allowed) {
+        // BUG-066l: Log the ACTUAL rejection reason to console for debugging.
+        // Previously only logged to riskEventAudit (not visible in Railway logs),
+        // making it impossible to diagnose why orders were rejected.
+        this.logger.warn(
+          `🛡️ [DISPATCHER] Order REJECTED for user ${request.userId}: ` +
+          `${request.side} ${request.quantity} ${request.symbol} ` +
+          `(source: ${request.source}) — Reason: ${riskCheck.reason} ` +
+          `(failedCheck: ${(riskCheck as any).failedCheck || 'unknown'})`
+        );
         await this.idempotency.releaseLock(sourceIdempotencyKey);
         try { await this.idempotency.releaseLock(symbolSourceIdempotencyKey); } catch {}
         return { success: false, error: t('order_dispatcher_service.msg_c9f920c1', { reason: riskCheck.reason }) };

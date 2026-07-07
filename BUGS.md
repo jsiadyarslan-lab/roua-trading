@@ -1153,3 +1153,40 @@
 
 - **Commit:** (filled after push)
 - **Test:** (manual — hit daily loss limit, verify Smart Executor disables, click "Reset Account to $10,000", verify Smart Executor resumes trading within 10-15 seconds)
+
+### BUG-066l: MIN_SL_DISTANCE_PERCENT=1.0% blocked all trades after R:R reduction to 1.2
+- **Status:** FIXED
+- **Severity:** HIGH
+- **File:** `apps/api/src/modules/ai/smart-executor/smart-executor.service.ts:3637`, `apps/api/src/modules/trading/services/order-dispatcher.service.ts:186`
+- **Pattern (OPEN):** Two issues: (1) Smart Executor's `MIN_SL_DISTANCE_PERCENT = 1.0%` rejected briefs where structure-based SL was 0.5-0.8% from entry — after BUG-066j reduced R:R to 1.2, the structure calculator finds valid swing-low SLs at these distances, but the 1.0% minimum blocks them all. (2) OrderDispatcher's UnifiedRisk rejection only logged to `riskEventAudit` (not visible in Railway console logs), making it impossible to diagnose why orders fail with `order_dispatcher_service.msg_c9f920c1`.
+- **Pattern (FIXED):** BUG-066l.*SL distance + dispatcher logging
+- **Description:** User shared Railway logs showing:
+  - `V180: Brief SL distance 0.79% < 1% — skipping to prevent oversized position` (BNB/USDT)
+  - `V180: Brief SL distance 0.62% < 1% — skipping to prevent oversized position` (DOGE/USDT)
+  - `Brief execution FAILED: order_dispatcher_service.msg_c9f920c1` (NAS100/USD, SPX500/USD)
+
+  Issue A: V204 raised `MIN_SL_DISTANCE_PERCENT` from 0.5% to 1.0% to prevent oversized positions when SL was 0.1% away. That was valid when R:R was 2.0 (TP = 2% away, SL = 1% was proportionate). But after BUG-066j reduced R:R to 1.2, the structure calculator finds valid swing-low SLs at 0.5-0.8% — and the 1.0% minimum rejects them ALL. No trades can execute in ranging markets.
+
+  Issue B: When OrderDispatcher's `validateOrder()` fails, the error `msg_c9f920c1` is returned with `{reason: riskCheck.reason}`, but the reason is NOT logged to console — only to `riskEventAudit`. This makes it impossible to debug why NAS100/SPX500 orders are rejected. We need the actual `reason` and `failedCheck` in the console logs.
+
+- **Fix:**
+
+  **Part 1 — Lower MIN_SL_DISTANCE_PERCENT from 1.0% to 0.4%**
+  - 0.4% is still 10× tighter than the 0.1% oversized position bug that V204 fixed
+  - Allows 0.5-0.8% structure-based SLs (the valid range from swing lows)
+  - Compatible with R:R=1.2 (TP = 0.6-1.0%, reachable in minutes not hours)
+  - Matches the `minSLPercent=0.005` (0.5%) in the calculator options
+
+  **Part 2 — Add console logging for OrderDispatcher rejections**
+  ```typescript
+  this.logger.warn(
+    `🛡️ [DISPATCHER] Order REJECTED for user ${request.userId}: ` +
+    `${request.side} ${request.quantity} ${request.symbol} ` +
+    `(source: ${request.source}) — Reason: ${riskCheck.reason} ` +
+    `(failedCheck: ${riskCheck.failedCheck || 'unknown'})`
+  );
+  ```
+  This makes the rejection reason visible in Railway logs, enabling diagnosis of Issue B (whether it's CHECK 10 Duplicate Position, CHECK 8 Trade Repetition, CHECK 3 Max Position Size, etc.)
+
+- **Commit:** (filled after push)
+- **Test:** (manual — monitor Railway logs after deploy, verify: (1) BNB/DOGE briefs no longer rejected for SL < 1%, (2) rejected orders show actual reason + failedCheck in console)

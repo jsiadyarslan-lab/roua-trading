@@ -3628,13 +3628,22 @@ export class SmartExecutorService implements OnModuleDestroy {
         return result;
       }
 
-      // V204 FIX: Minimum SL distance check raised from 0.5% to 1.0%.
-      // Without this, a stop loss only 0.1% away from entry produces
-      // enormous quantities (e.g., DOGE: $150 risk / $0.0001 = 1.5M units).
-      // This was the ROOT CAUSE of positions reaching 86% of portfolio.
-      // V204: Raised from 0.5% to 1.0% because crypto moves 2-5% routinely
-      // and the old 0.5% minimum still produced 36% SL hit rate.
-      const MIN_SL_DISTANCE_PERCENT = 1.0; // V204: was 0.5
+      // BUG-066l FIX: Minimum SL distance lowered from 1.0% to 0.4%.
+      //
+      // V204 raised this from 0.5% to 1.0% to prevent oversized positions
+      // when SL was 0.1% away (e.g., DOGE: $150 risk / $0.0001 = 1.5M units).
+      // That was valid when R:R was 2.0 (TP = 2% away, SL = 1% was proportionate).
+      //
+      // But after BUG-066j reduced R:R to 1.2, the structure calculator now
+      // finds valid swing-low SLs at 0.5-0.8% — and the 1.0% minimum rejects
+      // them, blocking ALL trades in ranging markets.
+      //
+      // 0.4% is still safe:
+      //   - Prevents the 0.1% oversized position bug (10× tighter than 1.0%)
+      //   - Allows 0.5-0.8% structure-based SLs
+      //   - Compatible with R:R=1.2 (TP = 0.6-1.0%, reachable in minutes)
+      //   - Matches the minSLPercent=0.005 (0.5%) in the calculator options
+      const MIN_SL_DISTANCE_PERCENT = 0.4; // BUG-066l: was 1.0 (V204), was 0.5 (original)
       const slDistancePercent = (priceRisk / currentPrice) * 100;
       if (slDistancePercent < MIN_SL_DISTANCE_PERCENT) {
         result.error = `Stop loss too close (${slDistancePercent.toFixed(2)}% < ${MIN_SL_DISTANCE_PERCENT}%) — risk of oversized position`;

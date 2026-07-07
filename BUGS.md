@@ -912,3 +912,69 @@
   - Metric recording uses the existing `_recordMetric` helper for observability
 - **Commit:** (filled after push)
 - **Test:** (manual — enable both Lazic and Smart Executor for the same user, monitor logs for `⏳ DB-COOLDOWN` and `⏳ SYMBOL-LOCK` messages, verify trade frequency drops to expected levels)
+
+### BUG-066h: Lazic traded without UnifiedRisk when @Optional DI failed (CHECK 10 bypass)
+- **Status:** FIXED
+- **Severity:** CRITICAL
+- **File:** `apps/api/src/agents/lazic/lazic.service.ts:499-570`
+- **Pattern (OPEN):** `if (this.unifiedRisk) { ...validateOrder... } // else: trade anyway` — the `if` block was optional, meaning if `UnifiedRiskService` was not injected (DI failure), Lazic would proceed to `placeOrder(skipRiskCheck: true)` WITHOUT any risk check. This bypassed CHECK 10 (Duplicate Position) which is the LAST defense against same-symbol open positions from different sources.
+- **Pattern (FIXED):** BUG-066h.*lazic fail-closed on missing UnifiedRisk
+- **Description:** User asked "are you sure?" about BUG-066g. Honest review revealed a deeper gap I had missed: the previous BUG-059 fix made `unifiedRisk` `@Optional()` AND allowed trading without it ("better to trade without risk check than not trade at all"). This was insecure because:
+  1. If DI failed (rare but possible during deployment), Lazic traded with NO risk checks
+  2. CHECK 10 (Duplicate Position) is enforced INSIDE `validateOrder()` — so without it, Lazic could open a position on a symbol that Smart Executor already had open
+  3. The catch block at line 535-540 also said "متابعة بدون فحص" (continue without check) when `validateOrder()` itself threw — same problem
+  4. Combined with `skipRiskCheck: true` passed to `placeOrder()`, BOTH layers were skipped → zero risk enforcement
+
+  This was the deepest root cause of potential cross-source conflicts: not the missing cooldown checks (BUG-066g), but the fact that the entire risk framework could be silently bypassed.
+
+- **Impact:** If `UnifiedRiskService` was ever undefined (DI failure, module load order, partial outage), Lazic would:
+  - Open positions on symbols already occupied by Smart Executor (CHECK 10 bypass)
+  - Open positions exceeding `hardRiskCap` (V420 cap bypass)
+  - Open positions exceeding `maxNotionalPercent` (maxOrderValue bypass)
+  - Ignore daily drawdown limit
+  - Ignore kill-switch
+  - Ignore trade repetition lockout (CHECK 8)
+  - All silently, with no error in logs
+
+  This was a CRITICAL safety hole. Even though DI failures are rare, the consequences were severe enough to warrant fail-closed behavior.
+
+- **Fix:** Two changes to `_tryExecute` in `lazic.service.ts`:
+
+  **1. Missing service → fail-closed (was: trade anyway)**
+  ```typescript
+  // BEFORE (BUG-059):
+  if (this.unifiedRisk) {
+    try { ...validateOrder... } catch { /* continue anyway */ }
+  }
+  // if unifiedRisk is undefined → fall through to placeOrder(skipRiskCheck: true)
+  // → NO risk checks at all
+
+  // AFTER (BUG-066h):
+  if (!this.unifiedRisk) {
+    this.logger.error(`🚨 UnifiedRiskService غير متاح — تخطّي التنفيذ (FAIL-CLOSED)`);
+    await this._recordMetric(userId, 'fail', `no_unified_risk:${obi.symbol}`);
+    return;  // DON'T trade
+  }
+  ```
+
+  **2. validateOrder() exception → fail-closed (was: continue anyway)**
+  ```typescript
+  // BEFORE (BUG-059):
+  } catch (riskErr: any) {
+    this.logger.warn(`متابعة بدون فحص`);  // ← DANGEROUS
+  }
+
+  // AFTER (BUG-066h):
+  } catch (riskErr: any) {
+    this.logger.error(`🚨 UnifiedRisk فشل — تخطّي التنفيذ (FAIL-CLOSED)`);
+    await this._recordMetric(userId, 'fail', `risk_check_err:...`);
+    return;  // DON'T trade
+  }
+  ```
+
+  Both changes follow the same fail-closed philosophy as Smart Executor (V222) and the BUG-066g cooldown checks. The principle: **if we can't verify safety, don't trade**. Better to miss a trade than to trade with no risk enforcement.
+
+- **Note on @Optional:** `@Optional()` is kept in the constructor (line 87) to avoid breaking the NestJS module graph if `UnifiedRiskService` is genuinely unavailable. The runtime behavior is now fail-closed: the service starts up normally, but Lazic refuses to trade without it. This is the safest combination — no DI crash, but no silent bypass either.
+
+- **Commit:** (filled after push)
+- **Test:** (manual — temporarily comment out UnifiedRiskService from LazicModule providers, verify Lazic logs `🚨 UnifiedRiskService غير متاح` and refuses to trade; restore and verify normal trading resumes)

@@ -505,39 +505,54 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
       //   - فحص drawdown اليومي
       //   - فحص عدد الصفقات المفتوحة
       //   - فحص kill-switch
-      // BUG-059 FIX: unifiedRisk is @Optional — skip validation if not injected
-      // (better to trade without risk check than not trade at all)
-      if (this.unifiedRisk) {
-        try {
-          const riskCheck = await this.unifiedRisk.validateOrder({
-            userId,
-            exchangeCredentialId: credentialId,
-            symbol: obi.symbol,
-            side: direction as any,
-            type: 'MARKET' as any,
-            quantity,
-            price: tick.price,
-            stopLoss: sl,
-            takeProfit: tp,
-            idempotencyKey,
-            isPaperTrading: state.isPaperTrading,
-            source: 'lazic' as any,
-            strategy: 'scalping' as any,
-          } as any);
+      //   - فحص CHECK 10 — Duplicate Position (منع مركزين على نفس الزوج من مصادر مختلفة)
+      //
+      // BUG-066h FIX: unifiedRisk is @Optional — لكن لو لم يُحقن، لا تنفّذ (FAIL-CLOSED).
+      // السلوك السابق (BUG-059): "better to trade without risk check than not trade at all"
+      // — هذا خطير لأنه يسمح بالتداول بدون CHECK 10 (مركز مكرر على نفس الزوج من
+      // مصدرين مختلفين)، مما يسبب flip-flop وتضخم المراكز.
+      // السلوك الجديد: لو UnifiedRiskService غير متاح، اوقف التنفيذ وسجّل خطأً.
+      if (!this.unifiedRisk) {
+        this.logger.error(
+          `🚨 اللاسع: UnifiedRiskService غير متاح — تخطّي التنفيذ لـ ${obi.symbol} (BUG-066h FAIL-CLOSED)`,
+        );
+        await this._recordMetric(userId, 'fail', `no_unified_risk:${obi.symbol}`);
+        return;
+      }
 
-          if (!riskCheck.allowed) {
-            this.logger.warn(
-              `🛡️ اللاسع: UnifiedRisk رفض الصفقة ${obi.symbol} ${direction} — ${riskCheck.reason}`,
-            );
-            await this._recordMetric(userId, 'fail', `risk_rejected:${riskCheck.reason?.substring(0, 60) || 'unknown'}`);
-            return;
-          }
-        } catch (riskErr: any) {
-          // لو فشل فحص المخاطر نفسه (وليس الرفض) — سجّل ولكن لا توقف التداول
+      try {
+        const riskCheck = await this.unifiedRisk.validateOrder({
+          userId,
+          exchangeCredentialId: credentialId,
+          symbol: obi.symbol,
+          side: direction as any,
+          type: 'MARKET' as any,
+          quantity,
+          price: tick.price,
+          stopLoss: sl,
+          takeProfit: tp,
+          idempotencyKey,
+          isPaperTrading: state.isPaperTrading,
+          source: 'lazic' as any,
+          strategy: 'scalping' as any,
+        } as any);
+
+        if (!riskCheck.allowed) {
           this.logger.warn(
-            `⚠️ اللاسع: UnifiedRisk فحص فشل (${obi.symbol}): ${riskErr?.message} — متابعة بدون فحص`,
+            `🛡️ اللاسع: UnifiedRisk رفض الصفقة ${obi.symbol} ${direction} — ${riskCheck.reason}`,
           );
+          await this._recordMetric(userId, 'fail', `risk_rejected:${riskCheck.reason?.substring(0, 60) || 'unknown'}`);
+          return;
         }
+      } catch (riskErr: any) {
+        // BUG-066h FIX: FAIL-CLOSED — لو فشل فحص المخاطر نفسه، لا تتابع التنفيذ.
+        // السلوك السابق: "متابعة بدون فحص" — هذا يسمح بالتداول بدون CHECK 10.
+        // السلوك الجديد: اوقف التنفيذ (لا تأخذ مخاطرة بحالة غير معروفة).
+        this.logger.error(
+          `🚨 اللاسع: UnifiedRisk فشل (${obi.symbol}): ${riskErr?.message} — تخطّي التنفيذ (FAIL-CLOSED)`,
+        );
+        await this._recordMetric(userId, 'fail', `risk_check_err:${obi.symbol}:${riskErr?.message?.substring(0, 40) || 'unknown'}`);
+        return;
       }
 
       await this.tradingService.placeOrder(userId, {

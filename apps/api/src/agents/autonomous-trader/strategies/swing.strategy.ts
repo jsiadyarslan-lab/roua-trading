@@ -267,7 +267,7 @@ export class SwingStrategy extends BaseStrategy {
       side,
       market.atr,
       2.0, // Wider SL: 2x ATR
-      4.0, // Larger TP: 4x ATR (2:1 R:R)
+      2.4, // BUG-066j: was 4.0 (2:1 R:R) → 2.4 (1.2:1 R:R — closer TP for choppy market)
     );
 
     // V-PHASE3: Apply MTF confidence adjustment

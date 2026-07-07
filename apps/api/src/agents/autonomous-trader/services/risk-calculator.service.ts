@@ -76,13 +76,13 @@ export class RiskCalculatorService {
    * Mean Reversion raised from 0.8 to 1.0 (Phase 1 fixed its TP to 2.5x ATR).
    */
   private readonly STRATEGY_MIN_RR: Record<string, number> = {
-    [StrategyType.DCA]: 1.5,              // V-PHASE2: was 0.4 — dead code, DCA strategy enforces 1.5
-    [StrategyType.MEAN_REVERSION]: 1.0,   // V-PHASE2: was 0.8 — strategy now produces 1.25:1 minimum
-    [StrategyType.SCALPING]: 1.0,         // unchanged — 1.5x ATR TP / 1x ATR SL = 1.5:1
-    [StrategyType.GRID]: 1.2,             // V-PHASE2: was 0.8 — grid needs decent R:R
-    [StrategyType.VWAP_RSI]: 1.2,         // V-PHASE2: was 1.0 — strategy R:R is 1.67:1
-    [StrategyType.SWING]: 1.5,            // unchanged — swing uses 2:1 (4x ATR TP / 2x ATR SL)
-    [StrategyType.MOMENTUM_BREAKOUT]: 1.2, // unchanged — 2:1 R:R
+    [StrategyType.DCA]: 1.2,              // BUG-066j: was 1.5 → 1.2 (closer TP for choppy market)
+    [StrategyType.MEAN_REVERSION]: 1.0,   // unchanged — already low
+    [StrategyType.SCALPING]: 1.0,         // unchanged — already low
+    [StrategyType.GRID]: 1.2,             // unchanged
+    [StrategyType.VWAP_RSI]: 1.2,         // unchanged
+    [StrategyType.SWING]: 1.2,            // BUG-066j: was 1.5 → 1.2 (was 2:1, now 1.2:1)
+    [StrategyType.MOMENTUM_BREAKOUT]: 1.2, // unchanged
   };
 
   /**

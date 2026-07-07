@@ -169,7 +169,7 @@ export class VWAPRSIStrategy extends BaseStrategy {
       side,
       market.atr,
       1.5, // SL: 1.5x ATR
-      2.5, // TP: 2.5x ATR (1.67:1 R:R)
+      1.8, // BUG-066j: TP: 1.8x ATR (was 2.5 → R:R 1.2 instead of 1.67)
     );
 
     const confidence = this.calculateConfidence({

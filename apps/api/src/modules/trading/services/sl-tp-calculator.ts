@@ -108,7 +108,7 @@ export function calculateStructureBasedSLTP(
   const minSLPct = options?.minSLPercent ?? 0.005;
   const maxSLPct = options?.maxSLPercent ?? 0.08;
   const bufferMult = options?.bufferATRMultiplier ?? 0.3;
-  const minRR = options?.minRR ?? 1.5;
+  const minRR = options?.minRR ?? 1.2; // BUG-066j: was 1.5 → 1.2 (closer TP for choppy market)
   const swingLookback = options?.swingLookback ?? 2;
 
   const atr = calculateATR(candles, 14);
@@ -134,7 +134,7 @@ export function calculateStructureBasedSLTP(
       tpSource = 'swing_high';
     } else {
       const slDist = Math.abs(currentPrice - sl);
-      tp = currentPrice + (slDist * 2);
+      tp = currentPrice + (slDist * 1.2); // BUG-066j: was 2 → 1.2 (closer TP)
       tpSource = 'rr_ratio';
     }
   } else {
@@ -152,7 +152,7 @@ export function calculateStructureBasedSLTP(
       tpSource = 'swing_low';
     } else {
       const slDist = Math.abs(sl - currentPrice);
-      tp = currentPrice - (slDist * 2);
+      tp = currentPrice - (slDist * 1.2); // BUG-066j: was 2 → 1.2 (closer TP)
       tpSource = 'rr_ratio';
     }
   }

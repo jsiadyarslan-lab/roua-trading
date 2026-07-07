@@ -150,7 +150,7 @@ export class MomentumBreakoutStrategy extends BaseStrategy {
       side,
       market.atr,
       1.5, // SL: 1.5x ATR (tight — exit fast on false breakout)
-      3.0, // TP: 3x ATR (2:1 R:R)
+      1.8, // BUG-066j: TP: 1.8x ATR (was 3.0 → R:R 1.2 instead of 2.0)
     );
 
     const confidence = this.calculateConfidence({

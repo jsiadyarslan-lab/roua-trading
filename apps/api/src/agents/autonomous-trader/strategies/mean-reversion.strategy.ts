@@ -160,7 +160,7 @@ export class MeanReversionStrategy extends BaseStrategy {
       side as any,
       market.atr,
       2.0, // SL: 2x ATR (wider to survive continued deviation)
-      2.5, // TP: 2.5x ATR (gives R:R of 1.25 — above both strategy and risk calculator minimums)
+      2.4, // TP: 2.4x ATR (BUG-066j: was 2.5 → 2.4 for R:R=1.2 — was 1.25, now 1.2)
     );
 
     const confidence = this.calculateConfidence({

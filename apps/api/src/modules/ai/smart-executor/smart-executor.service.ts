@@ -3749,7 +3749,7 @@ export class SmartExecutorService implements OnModuleDestroy {
             const result = calculateStructureBasedSLTP(
               candles, currentPrice,
               brief.direction === 'BUY' ? 'BUY' : 'SELL',
-              { minSLPercent: 0.005, maxSLPercent: 0.08, minRR: 1.5 },
+              { minSLPercent: 0.005, maxSLPercent: 0.08, minRR: 1.2 },
             );
             structureSL = result.sl;
             structureTP = result.tp;
@@ -3779,7 +3779,7 @@ export class SmartExecutorService implements OnModuleDestroy {
             slMethod = `TIMEFRAME_RR fallback (no ATR) → ${(tfSL * 100).toFixed(1)}%`;
           }
 
-          const tpDistance = slDistance * 2.0;
+          const tpDistance = slDistance * 1.2; // BUG-066j: was 2.0 — too far for choppy market
           execStopLoss = brief.direction === 'BUY'
             ? currentPrice - slDistance
             : currentPrice + slDistance;

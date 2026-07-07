@@ -225,7 +225,7 @@ export class ScalpingStrategy extends BaseStrategy {
       side,
       market.atr,
       1.0, // Tight SL: 1x ATR
-      1.5, // Quick TP: 1.5x ATR
+      1.2, // BUG-066j: Quick TP: 1.2x ATR (was 1.5 → R:R 1.2 instead of 1.5)
     );
 
     // V-PHASE3: Apply MTF confidence adjustment

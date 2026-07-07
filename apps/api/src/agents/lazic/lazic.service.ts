@@ -346,6 +346,71 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     });
     if (openOnSymbol > 0) return;
 
+    // ── شرط أمان 3b: BUG-066g — فحص DB-level cooldown (مثل Smart Executor)
+    // يمنع اللاسع من فتح صفقة على زوج أغلق عليه (أو على المنفّذ/الوكيل) في آخر 15 دقيقة.
+    // المشكلة السابقة: لو أغلق المنفّذ الذكي صفقة BTC قبل دقيقة، يمكن للاسع أن يفتح BTC
+    // فوراً لأن اللاسع لا يفحص cooldown — فقط يفحص Open positions. هذا يحرق رسوماً
+    // ويسبب flip-flop pattern بين المصادر.
+    // الحل: نفس فحص Smart Executor (smart-executor.service.ts:2147) — DB cooldown 15 دقيقة.
+    try {
+      const LAZIC_COOLDOWN_MINUTES = 15;
+      const recentlyClosed = await this.prisma.position.findFirst({
+        where: {
+          userId,
+          symbol: obi.symbol,
+          status: { in: ['CLOSED', 'LIQUIDATED'] },
+          closedAt: { gte: new Date(Date.now() - LAZIC_COOLDOWN_MINUTES * 60 * 1000) },
+        },
+        orderBy: { closedAt: 'desc' },
+      });
+      if (recentlyClosed) {
+        this.logger.debug(
+          `🐝 اللاسع: ⏳ DB-COOLDOWN تخطّي ${obi.symbol} — مركز أُغلق قبل قليل (من ${recentlyClosed.source})`,
+        );
+        await this._recordMetric(userId, 'fail', `db_cooldown:${obi.symbol}`);
+        return;
+      }
+    } catch (dbErr: any) {
+      // FAIL-CLOSED: لو فشل الفحص، لا تنفّذ (مثل سلوك Smart Executor)
+      this.logger.warn(
+        `🐝 اللاسع: فشل فحص DB cooldown لـ ${obi.symbol}: ${dbErr?.message} — تخطّي التنفيذ`,
+      );
+      await this._recordMetric(userId, 'fail', `db_cooldown_err:${obi.symbol}`);
+      return;
+    }
+
+    // ── شرط أمان 3c: BUG-066g — فحص Redis symbol-lock و cooldown (مثل Smart Executor)
+    // symbol-lock: منع كلا الاتجاهين بعد أي إغلاق لمدة 15 دقيقة (يمنع flip-flop)
+    // cooldown: منع بعد SL/TP auto-close
+    try {
+      const symbolLockKey = `trade-rep:symbol-lock:${userId}:${obi.symbol}`;
+      const symbolLocked = await this.redis.get(symbolLockKey);
+      if (symbolLocked) {
+        this.logger.debug(
+          `🐝 اللاسع: ⏳ SYMBOL-LOCK تخطّي ${obi.symbol} — زوج مقفل (أُغلق مؤخراً)`,
+        );
+        await this._recordMetric(userId, 'fail', `symbol_lock:${obi.symbol}`);
+        return;
+      }
+
+      const cooldownKey = `cooldown:${userId}:${obi.symbol}`;
+      const cooldownReason = await this.redis.get(cooldownKey);
+      if (cooldownReason) {
+        this.logger.debug(
+          `🐝 اللاسع: ⏳ COOLDOWN تخطّي ${obi.symbol} — (${cooldownReason})`,
+        );
+        await this._recordMetric(userId, 'fail', `redis_cooldown:${obi.symbol}`);
+        return;
+      }
+    } catch (redisErr: any) {
+      // FAIL-CLOSED: لو Redis غير متاح، لا نأخذ مخاطرة
+      this.logger.warn(
+        `🐝 اللاسع: فشل فحص Redis cooldown لـ ${obi.symbol}: ${redisErr?.message} — تخطّي التنفيذ`,
+      );
+      await this._recordMetric(userId, 'fail', `redis_cooldown_err:${obi.symbol}`);
+      return;
+    }
+
     // ── شرط أمان 4: حد المراكز المفتوحة في DB (فحص أخف)
     if (state.maxOpenPositions > 0) {
       const openCount = await this.prisma.position.count({

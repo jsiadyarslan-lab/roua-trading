@@ -875,3 +875,40 @@
     - `resetPaperAccountConfirm`, `resetPaperAccountSuccess`, `resetPaperAccountFailed`
 - **Commit:** (filled after push)
 - **Test:** (manual — open /dashboard/settings → Trading & Risk tab → scroll to red "Reset Paper Trading Account" card → click "Reset Account to $10,000" → confirm → verify positions disappear and balance shows $10,000)
+
+### BUG-066g: Lazic bypassed DB cooldown + Redis symbol-lock (cross-source flip-flop)
+- **Status:** FIXED
+- **Severity:** HIGH
+- **File:** `apps/api/src/agents/lazic/lazic.service.ts:339-413`
+- **Pattern (OPEN):** Lazic performed only 3 safety checks before opening a position: (1) no open Lazic position on the same symbol, (2) daily trade limit, (3) max open positions. It did NOT check: DB-level cooldown (recently closed positions in the last 15 minutes from ANY source), Redis `trade-rep:symbol-lock:{userId}:{symbol}` (15-min both-direction lockout after any close), or Redis `cooldown:{userId}:{symbol}` (set after SL/TP auto-close). Smart Executor (`smart-executor.service.ts:2147-2210`) performs all three checks before any brief execution.
+- **Pattern (FIXED):** BUG-066g.*lazic cross-source cooldown parity
+- **Description:** User asked: "is there any conflict between Smart Executor and Lazic?". Analysis revealed that while UnifiedRiskService CHECK 10 (Duplicate Position) prevents same-symbol open positions from any source, there was a gap: if Smart Executor (or the Agent) closed a position on a symbol, Lazic could immediately open a NEW position on the same symbol within the 15-minute cooldown window. This caused:
+  1. **Cross-source flip-flop**: SmartExecutor closes BTC → Lazic opens BTC → Lazic closes → SmartExecutor opens → ...
+  2. **Fee burning**: Each open/close cycle costs ~0.2% in fees (0.1% entry + 0.1% exit), draining paperBalance
+  3. **P&L cancellation**: One source's loss cancels the other's gain on the same symbol
+  4. **Inconsistent behavior**: Smart Executor was blocked by its own cooldown checks, but Lazic was not — creating an asymmetry where Lazic kept trading when Smart Executor was correctly idle
+
+  The 15-minute cooldown is set by `trading.service.ts:1929-1935` (Redis keys) and the DB `closedAt` timestamp is the bulletproof fallback. Both are checked by Smart Executor but were missing from Lazic.
+
+- **Impact:** When both Lazic and Smart Executor were enabled for the same user, the system exhibited higher trade frequency than intended (Lazic filled the gaps during Smart Executor's cooldown periods), higher fee burn, and P&L that fluctuated wildly as the two systems traded the same symbols back-to-back. This was especially harmful on high-volatility symbols (BTC, ETH) where 15 minutes can see multiple swings.
+- **Fix:** Added two new safety checks to Lazic (`_tryExecute` function, after the existing "open position on symbol" check):
+
+  **Check 3b — DB-level cooldown (15 minutes, bulletproof — matches Smart Executor V222)**
+  - Query: `prisma.position.findFirst({ where: { userId, symbol, status: ['CLOSED','LIQUIDATED'], closedAt: { gte: now - 15min } }, orderBy: closedAt desc })`
+  - If found: skip execution, log `⏳ DB-COOLDOWN`, record metric `db_cooldown:{symbol}`
+  - FAIL-CLOSED: if the DB query itself fails, skip execution (don't take risk on unknown state)
+
+  **Check 3c — Redis symbol-lock + cooldown (matches Smart Executor V176/V221)**
+  - Key 1: `trade-rep:symbol-lock:{userId}:{symbol}` — blocks BOTH directions for 15 min after any close
+  - Key 2: `cooldown:{userId}:{symbol}` — blocks after SL/TP auto-close (set by PositionMonitor)
+  - If either is set: skip execution, log `⏳ SYMBOL-LOCK` or `⏳ COOLDOWN`, record metric
+  - FAIL-CLOSED: if Redis is unreachable, skip execution (matches Smart Executor V222 fail-closed behavior)
+
+  Both checks use the same 15-minute window and the same Redis keys as Smart Executor, ensuring behavioral parity between the two systems. Now when Smart Executor closes a position, Lazic respects the same cooldown period — no more cross-source flip-flop.
+
+- **Verification:**
+  - TypeScript type-check passed (no errors in `lazic.service.ts`)
+  - Both checks follow Smart Executor's exact pattern (DB-first, then Redis, fail-closed on error)
+  - Metric recording uses the existing `_recordMetric` helper for observability
+- **Commit:** (filled after push)
+- **Test:** (manual — enable both Lazic and Smart Executor for the same user, monitor logs for `⏳ DB-COOLDOWN` and `⏳ SYMBOL-LOCK` messages, verify trade frequency drops to expected levels)

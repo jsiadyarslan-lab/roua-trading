@@ -70,6 +70,7 @@ export interface LazicUserState {
   obiThreshold: number;        // default: 0.4 (كان 0.6 — مرتفع جداً)
   maxSpreadMultiplier: number; // default: 1.5×
   riskPerTradePct: number;     // default: 0.5% من الرصيد
+  maxNotionalPct: number;      // BUG-066q: default 7.5% من الرصيد (قابل للتعديل من UI)
   // ── cache للرصيد (يحدّث كل 30s) ──
   cachedBalance: number | null;
   balanceLastFetchedAt: number | null;

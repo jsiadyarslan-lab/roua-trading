@@ -845,10 +845,10 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     const riskAmount = balance * (state.riskPerTradePct / 100);
     let rawQty = riskAmount / slDistance;
 
-    // BUG-066q: الحد الأقصى 7.5% من balance (was 25% — too high for scalper).
+    // BUG-066q: maxNotionalPct قابل للتعديل من UI (default 7.5%).
     // Best practice for scalping: 5-10% notional per position.
-    // 7.5% allows forex scalping while keeping PnL$ small (scalper-appropriate).
-    const maxNotional = balance * 0.075;
+    const maxNotionalPct = (state.maxNotionalPct ?? 7.5) / 100;
+    const maxNotional = balance * maxNotionalPct;
     const maxQtyByNotional = maxNotional / price;
     if (rawQty > maxQtyByNotional) {
       rawQty = maxQtyByNotional;
@@ -945,6 +945,21 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
 
       for (const s of settings) {
         const existing = this.activeUsers.get(s.userId);
+        // BUG-066q: اقرأ maxNotionalPct من Setting table (key-value) بدل hardcoded.
+        // fallback إلى 7.5% إذا لم يكن محفوظاً.
+        let maxNotionalPct = existing?.maxNotionalPct ?? 7.5;
+        try {
+          const notionalSetting = await this.prisma.setting.findFirst({
+            where: { key: `user:${s.userId}:lazicMaxNotionalPct` },
+          });
+          if (notionalSetting?.value) {
+            const parsed = parseFloat(notionalSetting.value);
+            if (!isNaN(parsed) && parsed > 0 && parsed <= 100) {
+              maxNotionalPct = parsed;
+            }
+          }
+        } catch { /* use default */ }
+
         newActiveUsers.set(s.userId, {
           userId: s.userId,
           enabled: true,
@@ -959,6 +974,7 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
           obiThreshold: Number(s.lazicObiThreshold ?? 0.4),
           maxSpreadMultiplier: Number(s.lazicMaxSpreadMult ?? 1.5),
           riskPerTradePct: Number(s.lazicRiskPerTradePct ?? 0.5),
+          maxNotionalPct, // BUG-066q: من Setting table (قابل للتعديل من UI)
           cachedBalance: existing?.cachedBalance ?? null,
           balanceLastFetchedAt: existing?.balanceLastFetchedAt ?? null,
         });
@@ -1099,6 +1115,20 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
       const s: any = await this.prisma.agentSettings.findUnique({
         where: { userId },
       });
+      // BUG-066q: اقرأ maxNotionalPct من Setting table (key-value)
+      let maxNotionalPct = 7.5;
+      try {
+        const notionalSetting = await this.prisma.setting.findFirst({
+          where: { key: `user:${userId}:lazicMaxNotionalPct` },
+        });
+        if (notionalSetting?.value) {
+          const parsed = parseFloat(notionalSetting.value);
+          if (!isNaN(parsed) && parsed > 0 && parsed <= 100) {
+            maxNotionalPct = parsed;
+          }
+        }
+      } catch { /* use default */ }
+
       if (!s) {
         return {
           obiThreshold: 0.4,
@@ -1107,6 +1137,7 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
           maxOpenPositions: 2,
           cooldownMs: 30000,
           riskPerTradePct: 0.5,
+          maxNotionalPct,
         };
       }
       return {
@@ -1116,6 +1147,7 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
         maxOpenPositions: Number(s.lazicMaxOpenPositions ?? 2),
         cooldownMs: Number(s.lazicCooldownMs ?? 30000),
         riskPerTradePct: Number(s.lazicRiskPerTradePct ?? 0.5),
+        maxNotionalPct,
       };
     } catch {
       return {
@@ -1125,6 +1157,7 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
         maxOpenPositions: 2,
         cooldownMs: 30000,
         riskPerTradePct: 0.5,
+        maxNotionalPct: 7.5,
       };
     }
   }
@@ -1145,6 +1178,7 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
       maxOpenPositions?: number;
       cooldownMs?: number;
       riskPerTradePct?: number;
+      maxNotionalPct?: number; // BUG-066q: قابل للتعديل من UI
     },
   ): Promise<{ success: boolean; data: LasicSettingsResponse; message: string }> {
     // بناء update data مع validation + clamping
@@ -1166,6 +1200,17 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     }
     if (dto.riskPerTradePct !== undefined) {
       updateData.lazicRiskPerTradePct = Math.max(0.1, Math.min(3.0, dto.riskPerTradePct));
+    }
+    // BUG-066q: maxNotionalPct يُحفظ في Setting table (key-value) بدل column جديد
+    if (dto.maxNotionalPct !== undefined) {
+      const clampedPct = Math.max(1, Math.min(50, dto.maxNotionalPct));
+      try {
+        await this.prisma.setting.upsert({
+          where: { key: `user:${userId}:lazicMaxNotionalPct` },
+          update: { value: String(clampedPct) },
+          create: { key: `user:${userId}:lazicMaxNotionalPct`, value: String(clampedPct) },
+        });
+      } catch { /* non-critical */ }
     }
 
     // upsert بدل update — ينشئ سجل agentSettings لو غير موجود
@@ -1196,4 +1241,5 @@ export interface LasicSettingsResponse {
   maxOpenPositions: number;
   cooldownMs: number;
   riskPerTradePct: number;
+  maxNotionalPct?: number; // BUG-066q: قابل للتعديل من UI (default 7.5)
 }

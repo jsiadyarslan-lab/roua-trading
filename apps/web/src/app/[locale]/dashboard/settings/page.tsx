@@ -613,7 +613,7 @@ export default function SettingsPage() {
   const [userMaxOpenPositions, setUserMaxOpenPositions] = useState('15')  // V143: Changed from '5' to '15'
   // BUG-066: Configurable hard caps for position sizing
   const [hardRiskCap, setHardRiskCap] = useState('5')      // max risk % per trade
-  const [maxNotionalPct, setMaxNotionalPct] = useState('50') // max notional % of portfolio
+  const [maxNotionalPct, setMaxNotionalPct] = useState('15') // BUG-066q: was '50' → '15' (max notional % of portfolio)
   const [chartType, setChartType] = useState('candlestick')
   const [timeframe, setTimeframe] = useState('15m')
   const [confirmTrades, setConfirmTrades] = useState(true)

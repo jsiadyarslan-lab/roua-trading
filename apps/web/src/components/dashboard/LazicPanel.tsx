@@ -25,6 +25,7 @@ interface LasicSettings {
   maxOpenPositions: number
   cooldownMs: number
   riskPerTradePct: number
+  maxNotionalPct?: number // BUG-066q: قابل للتعديل من UI
 }
 
 interface LasicMetrics {
@@ -50,6 +51,7 @@ const DEFAULT_SETTINGS: LasicSettings = {
   maxOpenPositions: 2,
   cooldownMs: 30000,
   riskPerTradePct: 0.5,
+  maxNotionalPct: 7.5, // BUG-066q: default 7.5% (scalper-appropriate)
 }
 
 function OBIBar({ value, symbol, threshold }: { value: number; symbol: string; threshold: number }) {
@@ -417,6 +419,16 @@ export function LazicPanel() {
             unit="s"
             color={T.text2}
             onChange={(v) => setLocalSettings(s => ({ ...s, cooldownMs: v * 1000 }))}
+          />
+          <SliderRow
+            label={t('maxNotionalLabel') || 'Max Notional %'}
+            value={localSettings.maxNotionalPct ?? 7.5}
+            min={1}
+            max={25}
+            step={0.5}
+            unit="%"
+            color={T.accent}
+            onChange={(v) => setLocalSettings(s => ({ ...s, maxNotionalPct: v }))}
           />
 
           <button

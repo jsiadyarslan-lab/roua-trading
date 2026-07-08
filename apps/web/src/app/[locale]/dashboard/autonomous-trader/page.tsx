@@ -1443,7 +1443,7 @@ export default function AutonomousTraderPage() {
     const [localSettings, setLocalSettings] = useState({
       autoTradingEnabled: settings?.autoTradingEnabled ?? false, // safe default: off
       paperBalance: settings?.paperBalance ?? 10000,
-      maxPositionSizePercent: settings?.maxPositionSizePercent ?? config?.maxPositionSizePercent ?? 2,
+      maxPositionSizePercent: settings?.maxPositionSizePercent ?? config?.maxPositionSizePercent ?? 15, // BUG-066q: was 2 → 15
       maxDailyLossPercent: settings?.maxDailyLossPercent ?? config?.maxDailyLossPercent ?? 5,
       maxOpenPositions: settings?.maxOpenPositions ?? config?.maxOpenPositions ?? 20,  // V144: Changed from 15 to 20
       riskPerTradePercent: settings?.riskPerTradePercent ?? config?.riskPerTradePercent ?? 1.5,
@@ -1742,7 +1742,7 @@ export default function AutonomousTraderPage() {
                     label={t('maxPositionSize')}
                     subLabel={t('riskCapitalPercentDesc')}
                     value={localSettings.maxPositionSizePercent}
-                    min={0.5} max={10} step={0.5} unit="%" color={T.accent}
+                    min={1} max={30} step={0.5} unit="%" color={T.accent} // BUG-066q: was max=10 → max=30 (allow 15% swing)
                     onChange={(v) => handleSettingChange('maxPositionSizePercent', v)}
                   />
                   <RiskSlider

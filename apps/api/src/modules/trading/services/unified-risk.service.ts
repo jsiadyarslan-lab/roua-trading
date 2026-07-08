@@ -88,7 +88,7 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
   private maxOverallDrawdownPercent: number;
   // BUG-066: Configurable hard caps (read from DB riskConfig)
   private configurableHardRiskCap: number = 5.0;       // max risk % per trade (default 5%)
-  private configurableMaxNotionalPercent: number = 50.0; // max notional % of portfolio (default 50%)
+  private configurableMaxNotionalPercent: number = 15.0; // BUG-066q: was 50 → 15 (15% notional cap — best practice for day trading)
 
   // ── DB Settings Sync ──
   private lastSettingsSync = 0;
@@ -1370,9 +1370,9 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
         if (riskConfig.circuitBreakerThreshold) this.circuitBreakerThresholdPercent = parseFloat(riskConfig.circuitBreakerThreshold);
         if (riskConfig.takeProfitDefault) this.defaultTakeProfitPercent = parseFloat(riskConfig.takeProfitDefault);
         // BUG-066: Read configurable hard caps from global riskConfig (admin-set)
-        // Default: hardRiskCap = 5%, maxNotionalPercent = 50%
+        // Default: hardRiskCap = 5%, maxNotionalPercent = 15% (BUG-066q: was 50%)
         this.configurableHardRiskCap = parseFloat(riskConfig.hardRiskCap) || 5.0;
-        this.configurableMaxNotionalPercent = parseFloat(riskConfig.maxNotionalPercent) || 50.0;
+        this.configurableMaxNotionalPercent = parseFloat(riskConfig.maxNotionalPercent) || 15.0;
 
         // V219: UNIFIED position size calculation
         // BUG-066n: Removed the riskPct * 10 formula that was overriding the
@@ -1575,8 +1575,11 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
       }
 
       // V431: Return both units (for risk checks) and lots (for OrderDispatcher)
-      const step = 0.01;
-      const roundedLots = Math.max(step, Math.floor(quantityLots / step) * step);
+      // BUG-066q: Use meta.lotStep instead of hardcoded 0.01 (consistency with Smart Executor)
+      const meta = getSymbolMetadata(symbol);
+      const step = meta.lotStep;
+      const minLot = meta.minLot;
+      const roundedLots = Math.max(minLot, Math.floor(quantityLots / step) * step);
       const quantityUnits = lotsToUnits(roundedLots, symbol);
       return {
         units: parseFloat(quantityUnits.toFixed(8)),

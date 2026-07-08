@@ -845,8 +845,10 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     const riskAmount = balance * (state.riskPerTradePct / 100);
     let rawQty = riskAmount / slDistance;
 
-    // الحد الأقصى: 25% من balance (مرفوع من 10% لتمكين صفقات forex)
-    const maxNotional = balance * 0.25;
+    // BUG-066q: الحد الأقصى 7.5% من balance (was 25% — too high for scalper).
+    // Best practice for scalping: 5-10% notional per position.
+    // 7.5% allows forex scalping while keeping PnL$ small (scalper-appropriate).
+    const maxNotional = balance * 0.075;
     const maxQtyByNotional = maxNotional / price;
     if (rawQty > maxQtyByNotional) {
       rawQty = maxQtyByNotional;
@@ -864,32 +866,38 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
     //   US30/USD, NAS100/USD, SPX500/USD: الصحيح 1، كان يستخدم 100,000 → rawLots 100,000× أصغر
     //
     // الحل: نأخذ contractSize من getSymbolMetadata() الموحّد — نفس مصدر المنفّذ الذكي والوكيل.
-    const contractSize = getSymbolMetadata(symbol).contractSize;
+    // BUG-066q: نأخذ lotStep و minLot من meta أيضاً (بدل hardcoded 0.01)
+    const symbolMeta = getSymbolMetadata(symbol);
+    const contractSize = symbolMeta.contractSize;
 
     // حوّل rawQty من وحدات إلى لوتات
     const rawLots = rawQty / contractSize;
 
-    // step موحّد = 0.01 لوت (أصغر وحدة تداول)
-    const step = 0.01;
+    // BUG-066q: استخدم meta.lotStep (بدل hardcoded 0.01) — متناسق مع Smart Executor و UnifiedRisk
+    const step = symbolMeta.lotStep;
+    const minLot = symbolMeta.minLot;
 
     // قرّب إلى step (floor — لا يتجاوز)
     let quantityLots = Math.floor(rawLots / step) * step;
 
-    // لو النتيجة 0، استخدم step كحد أدنى
-    if (quantityLots === 0) {
-      // تحقق لو 0.01 لوت يطابق الـ 25% cap
-      const minNotional = step * contractSize * price;
+    // لو النتيجة 0، استخدم minLot كحد أدنى
+    if (quantityLots === 0 || quantityLots < minLot) {
+      // تحقق لو minLot يطابق الـ cap
+      const minNotional = minLot * contractSize * price;
       if (minNotional > maxNotional) {
         this.logger.warn(
-          `⚠️ اللاسع: 0.01 لوت × ${price} = ${minNotional} > cap (${maxNotional}) — تخطّي.`
+          `⚠️ اللاسع: ${minLot} لوت × ${price} = ${minNotional} > cap (${maxNotional}) — تخطّي.`
         );
         return 0;
       }
-      quantityLots = step;
+      quantityLots = minLot;
     }
 
-    // تقريب نهائي: 2 decimals دائماً (لأن اللوتات دائماً 0.01, 0.02, 0.03...)
-    return Math.round(quantityLots * 100) / 100;
+    // BUG-066q: تقريب نهائي متناسق مع lotStep (بدل hardcoded 2 decimals).
+    // لو lotStep=0.01 → 2 decimals. لو lotStep=1 → 0 decimals. لو lotStep=0.001 → 3 decimals.
+    const decimals = step < 1 ? Math.ceil(-Math.log10(step)) : 0;
+    const multiplier = Math.pow(10, decimals);
+    return Math.round(quantityLots * multiplier) / multiplier;
   }
 
   // ── Phase 3: سجّل metric في Redis (success/fail counts + last reason)

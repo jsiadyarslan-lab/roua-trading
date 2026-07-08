@@ -1167,7 +1167,7 @@ model AgentSettings {
   paperCryptoLeverage Int @default(1) // Default 1:1 (spot, no leverage)
 
   // Risk Parameters
-  maxPositionSizePercent Decimal @default(2) @db.Decimal(5, 2)
+  maxPositionSizePercent Decimal @default(15) @db.Decimal(5, 2) // BUG-066q: was 2 → 15 (15% notional cap for swing)
   maxDailyLossPercent    Decimal @default(5) @db.Decimal(5, 2)
   maxOpenPositions       Int     @default(5)
   riskPerTradePercent    Decimal @default(1.5) @db.Decimal(5, 2)

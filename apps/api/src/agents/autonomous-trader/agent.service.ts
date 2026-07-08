@@ -502,7 +502,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
             data: {
               userId,
               autoTradingEnabled: true,
-              maxPositionSizePercent: 2,
+              maxPositionSizePercent: 15, // BUG-066q: was 2 → 15 (15% notional cap for swing trading)
               maxDailyLossPercent: 5,
               maxOpenPositions: parseInt(this.configService.get('MAX_OPEN_POSITIONS', '20'), 10) || 20,  // V145: Was hardcoded 3 — now reads from env/admin settings
               riskPerTradePercent: 1,
@@ -1225,7 +1225,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         userId,
         autoTradingEnabled: true,
         paperBalance: parseFloat(this.configService.get('DEFAULT_PAPER_BALANCE', '10000')) || 10000,
-        maxPositionSizePercent: parseFloat(this.configService.get('MAX_POSITION_SIZE_PERCENT', '2')) || 2,
+        maxPositionSizePercent: parseFloat(this.configService.get('MAX_POSITION_SIZE_PERCENT', '15')) || 15, // BUG-066q: was 2 → 15
         maxDailyLossPercent: parseFloat(this.configService.get('MAX_DAILY_LOSS_PERCENT', '5')) || 5,
         maxOpenPositions: parseInt(this.configService.get('MAX_OPEN_POSITIONS', '20'), 10) || 20,  // V144: Increased from 15 to 20
         riskPerTradePercent: 1.5,
@@ -2035,7 +2035,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
             userId,
             strategy: session.strategy as StrategyType,
             enabled: true,
-            maxPositionSizePercent: 2,
+            maxPositionSizePercent: 15, // BUG-066q: was 2 → 15 (15% notional cap for swing trading)
             maxDailyLossPercent: 5,
             maxOpenPositions: 20, // V144: 15→20
             riskPerTradePercent: 1.5,
@@ -2199,7 +2199,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
                 userId: session.userId,
                 strategy: session.strategy as StrategyType,
                 enabled: true,
-                maxPositionSizePercent: 2,
+                maxPositionSizePercent: 15, // BUG-066q: was 2 → 15 (15% notional cap for swing trading)
                 maxDailyLossPercent: 5,
                 maxOpenPositions: 20, // V144: 15→20
                 riskPerTradePercent: 1.5,

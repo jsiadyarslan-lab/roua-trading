@@ -1369,3 +1369,59 @@
   - Win rate should jump from ~30% to ~50% (matching Lasic's behavior)
 - **Commit:** (filled after push)
 - **Test:** (manual — monitor next 24h of Agent trades: TP should be ~3.6% not ~7.5%, R:R should be 1.2 not 2.6)
+
+### BUG-066q: Notional caps were inverted — Agent too tight (2%), Lasic too loose (25%), Executor too loose (50%)
+- **Status:** FIXED
+- **Severity:** HIGH
+- **File:** `prisma/schema.prisma:1170`, `apps/api/src/agents/autonomous-trader/agent.service.ts:505,1228,2038,2202`, `apps/api/src/modules/trading/services/unified-risk.service.ts:91,1375`, `apps/api/src/agents/lazic/lazic.service.ts:849,875`, `apps/web/src/app/api/admin/settings/route.ts:38`, `apps/web/src/app/[locale]/dashboard/admin/settings/page.tsx:102`
+- **Pattern (OPEN):** All three trading systems had notional caps that were INVERTED relative to best practices. Agent (swing, should be 10-20% notional) had 2% cap — forcing positions to minimum lot floor ($180-1085 instead of $1500+). Smart Executor (day trading, should be 10-20%) had 50% cap — allowing oversized $5000 positions. Lasic (scalper, should be 5-10%) had 25% cap — allowing $2500 positions when scalper PnL should be $0.50-1. Additionally, Agent and Lasic hardcoded `step=0.01` for lot rounding, ignoring `meta.lotStep` from symbol-metadata — producing inconsistent quantities vs Smart Executor which used `meta.lotStep`.
+- **Pattern (FIXED):** BUG-066q.*unified notional caps + lotStep
+- **Description:** User identified that PnL$ was similar across Agent and Lasic despite very different SL% percentages. Deep audit revealed:
+  - Agent: 2% notional cap (binding) → $200 cap → 0.01 lot floor → $180-1085 notional → PnL ~$3
+  - Lasic: 25% notional cap (binding) → $2500 notional → PnL ~$0.44 (sometimes $3.79)
+  - Executor: 50% notional cap → $5000 notional → PnL ~$96 (theoretical)
+  
+  Best practices research confirmed:
+  - Scalping: 5-10% notional, 0.1-0.5% risk
+  - Day trading: 10-20% notional, 0.5-1% risk
+  - Swing trading: 10-20% notional, 1-2% risk
+  
+  All three systems had risk% correct, but notional caps inverted.
+
+- **Fix:** Four interdependent changes:
+
+  **1. Agent — notional cap 2% → 15%**
+  - `prisma/schema.prisma:1170`: maxPositionSizePercent default 2 → 15
+  - `agent.service.ts:505,2038,2202`: hardcoded 2 → 15
+  - `agent.service.ts:1228`: env default '2' → '15'
+  - Effect: Agent opens $1,500 positions (was $200) — swing-appropriate
+
+  **2. Smart Executor — notional cap 50% → 15%**
+  - `unified-risk.service.ts:91`: configurableMaxNotionalPercent default 50 → 15
+  - `unified-risk.service.ts:1375`: syncSettingsFromDB fallback 50 → 15
+  - `admin/settings/route.ts:38`: DEFAULT_RISK_CONFIG maxNotionalPercent '50' → '15'
+  - `admin/settings/page.tsx:102`: UI default '50' → '15'
+  - Effect: Executor opens $1,500 positions (was $5,000) — day-trading-appropriate
+
+  **3. Lasic — notional cap 25% → 7.5%**
+  - `lazic.service.ts:849`: `balance * 0.25` → `balance * 0.075`
+  - Effect: Lasic opens $750 positions (was $2,500) — scalper-appropriate
+
+  **4. Unify lotStep (remove hardcoded 0.01)**
+  - `unified-risk.service.ts:1578-1582`: use `meta.lotStep` and `meta.minLot` instead of hardcoded 0.01
+  - `lazic.service.ts:875-893`: use `symbolMeta.lotStep` and `symbolMeta.minLot` instead of hardcoded 0.01
+  - `lazic.service.ts:897`: dynamic rounding based on lotStep (was hardcoded `* 100 / 100`)
+  - Effect: All three systems now use the same lotStep source (symbol-metadata)
+
+- **Verification (simulation):**
+  | System | notional (before) | notional (after) | PnL at SL | PnL at TP |
+  |--------|-------------------|-----------------|-----------|-----------|
+  | Agent | $200-$1,085 | **$1,500** | $45 | $54 |
+  | Executor | $5,000 | **$1,500** | $24-30 | $28-36 |
+  | Lasic | $2,500 | **$750** | $2.25 | $2.70 |
+  
+  Clear differentiation: Agent > Executor > Lasic (matches the golden strategy).
+
+- **User can still override:** All caps remain configurable via admin panel and user settings. The new defaults match best practices, but users can adjust per their preferences.
+- **Commit:** (filled after push)
+- **Test:** (manual — monitor next 24h: Agent PnL should be $15-54, Executor $10-36, Lasic $1-3)

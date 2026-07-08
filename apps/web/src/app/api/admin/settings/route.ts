@@ -35,7 +35,7 @@ const DEFAULT_RISK_CONFIG = {
   // BUG-066c: Global admin-level hard caps (default for all users)
   // Per-user overrides take priority when set via /dashboard/settings
   hardRiskCap: '5',
-  maxNotionalPercent: '50',
+  maxNotionalPercent: '15', // BUG-066q: was '50' → '15' (15% notional cap — best practice)
 }
 
 const DEFAULT_AGENT_EXECUTOR_CONFIG = {

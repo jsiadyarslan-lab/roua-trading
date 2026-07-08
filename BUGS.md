@@ -1233,3 +1233,49 @@
   3. Railway logs are clean and readable — real issues are visible
 - **Commit:** (filled after push)
 - **Test:** (manual — monitor Railway logs for 5 minutes, verify: (1) Smart Executor opens more than 5 positions, (2) Lazic rejection logs appear at most once per 60 seconds per symbol+direction)
+
+### BUG-066n: Floating point R:R rejection (1.20 < 1.2 = true) + maxPositionSizePercent=2% blocked all trades
+- **Status:** FIXED
+- **Severity:** CRITICAL
+- **File:** `apps/api/src/modules/trading/services/unified-risk.service.ts:725,119-128,1377-1391`
+- **Pattern (OPEN):** (1) R:R comparison `riskRewardRatio < minRR` does `1.20 < 1.2` which evaluates as `true` due to IEEE 754 floating point representation (1.2 stored as 1.199999...). Smart Executor produces R:R=1.20 (slDist × 1.2), but CHECK 7 rejects it as "less than 1.2". (2) `RISK_MAX_POSITION_PERCENT` env var defaults to '2' (2%), and syncSettingsFromDB overrides it with `riskPerTrade × 10` (e.g., 0.2% risk → 2% max position). This 2% is NOTIONAL percent (qty × price), not margin percent — with 20:1 leverage, a $500 position on $10k = 5% notional > 2% limit → ALL automated trades rejected.
+- **Pattern (FIXED):** BUG-066n.*RR epsilon + maxPositionSize 50%
+- **Description:** User shared Railway logs showing two rejection patterns:
+
+  Pattern A (R:R floating point):
+  ```
+  Reason: نسبة المخاطرة/المكافأة (1.20:1) أقل من الحد الأدنى للاستراتيجية smart_executor (1.2:1).
+  (failedCheck: RISK_REWARD_RATIO)
+  ```
+  The R:R is 1.20:1 and the threshold is 1.2:1. Mathematically 1.20 ≥ 1.2, but JavaScript floating point: `1.20 < 1.2` = `true` (because 1.2 is stored as 1.19999999999999996). This rejected EVERY trade with R:R=1.2.
+
+  Pattern B (2% notional limit):
+  ```
+  Reason: حجم المركز (50.0% من المحفظة) يتجاوز الحد الأقصى (2%).
+  (failedCheck: POSITION_SIZE_LIMIT)
+  ```
+  `maxPositionSizePercent` defaulted to 2% (env var) and was overridden to `riskPerTrade × 10` (e.g., 0.2% × 10 = 2%) in syncSettingsFromDB. This is NOTIONAL percent — a $5000 NAS100 position on $10k balance = 50% notional > 2% → rejected. Every automated trade exceeded 2% notional.
+
+- **Fix:**
+
+  **Part 1 — R:R floating point epsilon**
+  ```typescript
+  // BEFORE:
+  if (riskRewardRatio < minRR) { reject }
+
+  // AFTER:
+  if (riskRewardRatio < (minRR - 0.01)) { reject }
+  // 1.20 < (1.2 - 0.01) = 1.20 < 1.19 = false → accepted ✅
+  ```
+
+  **Part 2 — Raise maxPositionSizePercent from 2% to 50%**
+  - Env var default: `'2'` → `'50'`
+  - syncSettingsFromDB: removed `riskPerTrade × 10` formula that was overriding the 50% default with 2% (when riskPerTrade=0.2%)
+  - The real protections remain:
+    - `hardRiskCap` (5% risk per trade — controls actual $ at risk)
+    - `maxNotionalPercent` (50% — controls max position size)
+    - `maxOrderValue` (50% in Smart Executor — same protection)
+  - `maxPositionSizePercent` is now 50% (notional), allowing $5000 positions on $10k balance
+
+- **Commit:** (filled after push)
+- **Test:** (manual — verify Smart Executor opens NAS100/SPX500/DOGE/BNB positions without R:R or POSITION_SIZE_LIMIT rejections)

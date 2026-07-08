@@ -116,8 +116,16 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
     @Optional() private readonly redis?: RedisService,
   ) {
     // ── UNIFIED defaults — NO MORE CONFLICTS ──
+    // BUG-066n: Raised default from 2% to 50%.
+    // V204 set this to 2% to prevent oversized positions, but this is the
+    // NOTIONAL percent (qty × price), not the MARGIN percent. With 20:1 leverage:
+    //   - 2% notional = $200 on $10k balance = $10 margin (way too small)
+    //   - 50% notional = $5000 on $10k balance = $250 margin (reasonable)
+    // The real protection is maxOrderValue (50% notional cap in Smart Executor)
+    // and hardRiskCap (2% risk per trade). This 2% notional was blocking ALL
+    // automated trades — every position was > 2% of balance in notional terms.
     this.maxPositionSizePercent = parseFloat(
-      this.configService.get('RISK_MAX_POSITION_PERCENT', '2'),
+      this.configService.get('RISK_MAX_POSITION_PERCENT', '50'),
     );
     this.maxOpenPositions = parseInt(
       this.configService.get('RISK_MAX_OPEN_POSITIONS', '20'), 10,
@@ -723,7 +731,12 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
         const riskRewardRatio = tpDistance / slDistance;
         const strategyKey = (command.strategy || command.source || '').toLowerCase();
         const minRR = STRATEGY_MIN_RR[strategyKey] || 1.2;
-        if (riskRewardRatio < minRR) {
+        // BUG-066n: Add epsilon (0.01) to prevent floating point false rejections.
+        // Smart Executor produces R:R = 1.20 (1.2 × SL distance), but 1.20 < 1.2
+        // evaluates as TRUE due to floating point representation (1.199999...).
+        // This caused every R:R=1.2 trade to be rejected.
+        // With epsilon: 1.20 < (1.2 - 0.01) = 1.20 < 1.19 = false → accepted.
+        if (riskRewardRatio < (minRR - 0.01)) {
           return {
             allowed: false,
             reason: `نسبة المخاطرة/المكافأة (${riskRewardRatio.toFixed(2)}:1) أقل من الحد الأدنى للاستراتيجية ${strategyKey || 'الافتراضية'} (${minRR}:1).`,
@@ -1362,19 +1375,18 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
         this.configurableMaxNotionalPercent = parseFloat(riskConfig.maxNotionalPercent) || 50.0;
 
         // V219: UNIFIED position size calculation
-        // V241: Changed from riskPct * 3 (max 30%) to riskPct * 10 (max 100%).
-        // The old formula: riskPerTrade=1% → maxPosition=3% → only $300 per trade
-        // on a $10,000 account. This blocked virtually ALL manual trades because
-        // even 0.01 BTC ($660) exceeded the 3% limit.
-        //
-        // New formula: riskPerTrade=1% → maxPosition=10% → $1000 per trade.
-        // riskPerTrade=2% → maxPosition=20% → $2000 per trade.
-        // riskPerTrade=5% → maxPosition=50% → $5000 per trade.
-        // Capped at 100% (full account) — paper trading allows this.
+        // BUG-066n: Removed the riskPct * 10 formula that was overriding the
+        // 50% default with riskPerTrade * 10 (e.g., 0.2% risk → 2% max position).
+        // This 2% notional limit blocked ALL automated trades because even a
+        // $500 position on $10k balance = 5% notional > 2% limit.
+        // The real protection is:
+        //   - hardRiskCap (5% risk per trade — controls actual $ at risk)
+        //   - maxNotionalPercent (50% — controls max position size)
+        //   - maxOrderValue (50% in Smart Executor — same protection)
+        // maxPositionSizePercent is now set to 50% default and NOT overridden
+        // by riskPerTrade (which controls risk $, not position size).
         if (riskConfig.riskPerTrade) {
-          const riskPct = parseFloat(riskConfig.riskPerTrade);
-          this.maxPositionSizePercent = Math.min(100, riskPct * 10);
-          this.defaultRiskPerTradePercent = riskPct;
+          this.defaultRiskPerTradePercent = parseFloat(riskConfig.riskPerTrade);
         }
       }
 

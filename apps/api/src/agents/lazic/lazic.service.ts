@@ -931,8 +931,6 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
   private async _syncActiveUsers(): Promise<void> {
     try {
       // BUG-060 FIX: Use raw SQL instead of Prisma client.
-      // The Prisma client may not know about lazicEnabled column (if prisma generate
-      // wasn't run after schema change). Raw SQL bypasses Prisma's field validation.
       const settings: any[] = await this.prisma.$queryRaw`
         SELECT "userId", "lazicEnabled", "lazicObiThreshold", "lazicMaxSpreadMult",
                "lazicMaxDailyTrades", "lazicMaxOpenPositions", "lazicCooldownMs",
@@ -941,24 +939,33 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
         WHERE "lazicEnabled" = true
       `;
 
+      // BUG-066q FIX: اقرأ كل إعدادات lazicMaxNotionalPct مرة واحدة (بدل N+1 queries).
+      // هذا يمنع تضخم عدد الـ queries مع نمو عدد المستخدمين.
+      const userIds = settings.map(s => s.userId);
+      const notionalMap = new Map<string, number>();
+      if (userIds.length > 0) {
+        const notionalSettings = await this.prisma.setting.findMany({
+          where: {
+            key: { in: userIds.map(uid => `user:${uid}:lazicMaxNotionalPct`) },
+          },
+          select: { key: true, value: true },
+        });
+        for (const ns of notionalSettings) {
+          const parsed = parseFloat(ns.value);
+          if (!isNaN(parsed) && parsed > 0 && parsed <= 100) {
+            // استخرج userId من المفتاح: "user:{userId}:lazicMaxNotionalPct"
+            const uid = ns.key.replace('user:', '').replace(':lazicMaxNotionalPct', '');
+            notionalMap.set(uid, parsed);
+          }
+        }
+      }
+
       const newActiveUsers = new Map<string, LazicUserState>();
 
       for (const s of settings) {
         const existing = this.activeUsers.get(s.userId);
-        // BUG-066q: اقرأ maxNotionalPct من Setting table (key-value) بدل hardcoded.
-        // fallback إلى 7.5% إذا لم يكن محفوظاً.
-        let maxNotionalPct = existing?.maxNotionalPct ?? 7.5;
-        try {
-          const notionalSetting = await this.prisma.setting.findFirst({
-            where: { key: `user:${s.userId}:lazicMaxNotionalPct` },
-          });
-          if (notionalSetting?.value) {
-            const parsed = parseFloat(notionalSetting.value);
-            if (!isNaN(parsed) && parsed > 0 && parsed <= 100) {
-              maxNotionalPct = parsed;
-            }
-          }
-        } catch { /* use default */ }
+        // BUG-066q: اقرأ من الـ map المُحمّل مسبقاً (لا query إضافي)
+        const maxNotionalPct = notionalMap.get(s.userId) ?? existing?.maxNotionalPct ?? 7.5;
 
         newActiveUsers.set(s.userId, {
           userId: s.userId,
@@ -974,7 +981,7 @@ export class LazicService implements OnModuleInit, OnModuleDestroy {
           obiThreshold: Number(s.lazicObiThreshold ?? 0.4),
           maxSpreadMultiplier: Number(s.lazicMaxSpreadMult ?? 1.5),
           riskPerTradePct: Number(s.lazicRiskPerTradePct ?? 0.5),
-          maxNotionalPct, // BUG-066q: من Setting table (قابل للتعديل من UI)
+          maxNotionalPct, // BUG-066q: من الـ map (قابل للتعديل من UI)
           cachedBalance: existing?.cachedBalance ?? null,
           balanceLastFetchedAt: existing?.balanceLastFetchedAt ?? null,
         });

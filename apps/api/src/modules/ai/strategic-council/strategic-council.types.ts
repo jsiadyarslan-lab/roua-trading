@@ -185,33 +185,37 @@ export const TIMEFRAME_EXPIRY_MS: Record<BriefTimeframe, number> = {
  *  This should reduce SL hit rate from 36% to below 20%.
  */
 export const TIMEFRAME_RR: Record<BriefTimeframe, { sl: number; tp: number; maxSlippage: number }> = {
-  // V338: Reduced TP targets based on V336 data analysis of 50 trades.
+  // BUG-066p: Unified R:R = 1.2 across ALL timeframes (was 1.75-2.67).
   //
-  // FINDINGS:
-  //   - Average ACTUAL TP distance was 3.69% (config was 5% for M1/M5)
-  //   - Only 8/50 trades (16%) hit TAKE_PROFIT
-  //   - 19 trades had TP gap < 1% but only 8 closed as TP
-  //   - 74% of trades were directionally correct but TP too far to reach
-  //   - Real R:R was 2.0, not 2.5 as configured
+  // PROBLEM (discovered via deep trace):
+  //   - BUG-066j reduced strategy calculateLevels() to R:R=1.2, but the 7 strategies
+  //     are DEAD CODE — never called by the Agent at runtime.
+  //   - The Agent's actual SL/TP comes from TIMEFRAME_RR (this constant).
+  //   - Old values produced R:R=2.33-2.67 for H1/H4 → SL=3%, TP=7%.
+  //   - Live data confirmed: Agent trades had avg SL=3.14%, TP=7.52%, R:R=2.60.
+  //   - This means BUG-066j had ZERO effect on live trades.
   //
-  // FIX: Reduce TP to match realistic market movement within holding window.
-  // Combined with V338 Trailing TP (locks 80% profit at 90% of TP),
-  // these reduced targets will be hit more often AND lock in profit when close.
+  // FIX: Reduce TP to sl × 1.2 for every timeframe.
+  //   - SL stays the same (represents valid volatility range per timeframe)
+  //   - TP reduced so R:R = 1.2 uniformly (matches BUG-066j intent)
+  //   - TP will be reached faster → higher win rate → positive expectancy
   //
-  // V265 kept SL at 2% minimum (good — prevents noise stops).
-  M1: { sl: 0.020, tp: 0.035, maxSlippage: 0.003 },   // V338: TP 5.0%→3.5% (1:1.75) — realistic for 1min
-  M5: { sl: 0.020, tp: 0.040, maxSlippage: 0.004 },   // V338: TP 5.0%→4.0% (1:2.0)
-  M15: { sl: 0.020, tp: 0.050, maxSlippage: 0.005 },  // V338: TP 6.0%→5.0% (1:2.5)
-  M30: { sl: 0.025, tp: 0.060, maxSlippage: 0.006 },  // V338: TP 7.5%→6.0% (1:2.4)
-  H1: { sl: 0.030, tp: 0.070, maxSlippage: 0.006 },   // V338: TP 9.0%→7.0% (1:2.33)
-  H4: { sl: 0.030, tp: 0.080, maxSlippage: 0.007 },   // V338: TP 9.0%→8.0% (1:2.67)
-  D1: { sl: 0.050, tp: 0.125, maxSlippage: 0.010 },   // unchanged (swing trades)
-  W1: { sl: 0.070, tp: 0.175, maxSlippage: 0.012 },   // unchanged (swing trades)
+  // SL values kept from V265 (2% min prevents noise stops).
+  // TP values recalculated as sl × 1.2.
+  M1: { sl: 0.020, tp: 0.024, maxSlippage: 0.003 },   // BUG-066p: R:R 1.75→1.2 (TP 3.5%→2.4%)
+  M5: { sl: 0.020, tp: 0.024, maxSlippage: 0.004 },   // BUG-066p: R:R 2.0→1.2 (TP 4.0%→2.4%)
+  M15: { sl: 0.020, tp: 0.024, maxSlippage: 0.005 },  // BUG-066p: R:R 2.5→1.2 (TP 5.0%→2.4%)
+  M30: { sl: 0.025, tp: 0.030, maxSlippage: 0.006 },  // BUG-066p: R:R 2.4→1.2 (TP 6.0%→3.0%)
+  H1: { sl: 0.030, tp: 0.036, maxSlippage: 0.006 },   // BUG-066p: R:R 2.33→1.2 (TP 7.0%→3.6%)
+  H4: { sl: 0.030, tp: 0.036, maxSlippage: 0.007 },   // BUG-066p: R:R 2.67→1.2 (TP 8.0%→3.6%)
+  D1: { sl: 0.050, tp: 0.060, maxSlippage: 0.010 },   // BUG-066p: R:R 2.5→1.2 (TP 12.5%→6.0%)
+  W1: { sl: 0.070, tp: 0.084, maxSlippage: 0.012 },   // BUG-066p: R:R 2.5→1.2 (TP 17.5%→8.4%)
 };
 
-/** V177 FIX #13: Minimum risk/reward ratio enforced by RiskGatekeeper.
- *  Any trade with R:R < 1.5:1 is rejected — ensures positive expected value. */
-export const MIN_RISK_REWARD_RATIO = 1.5;
+/** BUG-066p: Minimum risk/reward ratio enforced by RiskGatekeeper.
+ *  Reduced from 1.5 to 1.2 to match the unified R:R target.
+ *  Any trade with R:R < 1.2:1 is rejected. */
+export const MIN_RISK_REWARD_RATIO = 1.2;
 
 /** Timeframe classification: Smart Executor vs Agent
  *  Smart Executor: M1, M5, M15 (quick/scalping trades)

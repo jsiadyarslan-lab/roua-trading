@@ -1320,3 +1320,52 @@
   - The 40× size increase matches the 39× error ratio — confirming the root cause
 - **Commit:** (filled after push)
 - **Test:** (manual — monitor Railway logs for XAU/USD trades: lots should be 0.04+ not 0.001; `quantity_yet_order` errors should disappear; `Brief stale` warnings should appear for old briefs)
+
+### BUG-066p: Agent R:R was 2.6 not 1.2 — TIMEFRAME_RR was the real source, not strategies
+- **Status:** FIXED
+- **Severity:** CRITICAL
+- **File:** `apps/api/src/modules/ai/strategic-council/strategic-council.types.ts:187-218`, `apps/api/src/agents/autonomous-trader/agent.service.ts:1789`, `apps/api/src/modules/trading/services/unified-risk.service.ts:50-66`
+- **Pattern (OPEN):** BUG-066j reduced R:R to 1.2 in the 7 strategy files (scalping, swing, etc.), but a deep trace revealed these strategies are DEAD CODE — never called by the Agent at runtime. The Agent's actual SL/TP comes from `TIMEFRAME_RR` constant in `strategic-council.types.ts`, which still had R:R=2.33-2.67 for H1/H4 timeframes. Live data confirmed: Agent trades had avg SL=3.14%, TP=7.52%, R:R=2.60 — exactly matching TIMEFRAME_RR[H1] = (3.0%, 7.0%, R:R=2.33). Additionally, `MIN_RISK_REWARD_RATIO = 1.5` in the same file would reject any R:R < 1.5 trade, `agent.service.ts:1789` hardcoded `minRR: 1.5` for structure fallback, and `unified-risk.service.ts` STRATEGY_MIN_RR had `dca: 1.5` and `swing: 1.5` — all blocking R:R=1.2 from ever being accepted.
+- **Pattern (FIXED):** BUG-066p.*unified RR 1.2 via TIMEFRAME_RR
+- **Description:** User reported that Agent trade boundaries (SL/TP) were nearly identical to Lasic, but live data analysis showed Agent R:R=2.60 (SL=3.1%, TP=7.5%) while Lasic R:R=1.50 (SL=0.3%, TP=0.45%). The user correctly identified this as "failed trade management" — the root cause of system losses. Deep trace revealed:
+
+  1. The 7 strategy files modified in BUG-066j are DEAD CODE — `signalEvaluator.evaluate()` is never called by `agent.service.ts` (verified by grep: zero call sites).
+  2. The Agent's actual SL/TP comes from `brief.stopLoss`/`brief.takeProfit`, set by `StrategicCouncilService._calculateLevels()` which uses `TIMEFRAME_RR[timeframe]`.
+  3. `_tryStructureBasedLevels()` always returns `null` (line 2203) — structure-based SL/TP is non-functional, so TIMEFRAME_RR fallback is ALWAYS used.
+  4. `TIMEFRAME_RR` had R:R=2.33-2.67 for agent timeframes (H1/H4).
+  5. Three additional R:R gates (`MIN_RISK_REWARD_RATIO=1.5`, `agent.service.ts:1789 minRR:1.5`, `STRATEGY_MIN_RR dca/swing=1.5`) would all reject R:R=1.2 trades.
+
+- **Fix:** Four interdependent changes in one commit:
+
+  **1. TIMEFRAME_RR — reduce TP to sl × 1.2 for all 8 timeframes**
+  - M1: TP 3.5% → 2.4% (R:R 1.75 → 1.2)
+  - M5: TP 4.0% → 2.4% (R:R 2.0 → 1.2)
+  - M15: TP 5.0% → 2.4% (R:R 2.5 → 1.2)
+  - M30: TP 6.0% → 3.0% (R:R 2.4 → 1.2)
+  - H1: TP 7.0% → 3.6% (R:R 2.33 → 1.2)
+  - H4: TP 8.0% → 3.6% (R:R 2.67 → 1.2)
+  - D1: TP 12.5% → 6.0% (R:R 2.5 → 1.2)
+  - W1: TP 17.5% → 8.4% (R:R 2.5 → 1.2)
+  - SL values kept (they represent valid volatility ranges per timeframe)
+
+  **2. MIN_RISK_REWARD_RATIO — 1.5 → 1.2**
+  - Without this, RiskGatekeeper would reject all R:R=1.2 trades
+
+  **3. agent.service.ts:1789 — minRR: 1.5 → 1.2**
+  - The structure-based fallback path hardcoded minRR: 1.5
+  - Would override sl-tp-calculator's default of 1.2
+
+  **4. STRATEGY_MIN_RR in unified-risk.service.ts — dca/swing: 1.5 → 1.2**
+  - Both snake_case and camelCase variants updated
+  - Would reject R:R=1.2 trades for dca and swing strategies
+
+- **Verification:**
+  - All 8 TIMEFRAME_RR entries now produce R:R=1.20 (verified programmatically)
+  - All 4 R:R gates now allow 1.2 (TIMEFRAME_RR, MIN_RISK_REWARD_RATIO, agent minRR, STRATEGY_MIN_RR)
+  - Combined with BUG-066j (sl-tp-calculator default 1.2) and BUG-066i (Lazic 1.2), the entire system now uniformly targets R:R=1.2
+- **Expected outcome:**
+  - Agent trades: SL ≈ 3.0%, TP ≈ 3.6% (was 7.0%), R:R = 1.2 (was 2.6)
+  - TP hit rate should increase (TP is 49% closer to entry)
+  - Win rate should jump from ~30% to ~50% (matching Lasic's behavior)
+- **Commit:** (filled after push)
+- **Test:** (manual — monitor next 24h of Agent trades: TP should be ~3.6% not ~7.5%, R:R should be 1.2 not 2.6)

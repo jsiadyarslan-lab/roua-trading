@@ -1786,7 +1786,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
                     const structResult = calculateStructureBasedSLTP(
                       candleData, execEntryPrice,
                       isBuy ? 'BUY' : 'SELL',
-                      { minSLPercent: 0.005, maxSLPercent: 0.08, minRR: 1.5 },
+                      { minSLPercent: 0.005, maxSLPercent: 0.08, minRR: 1.2 }, // BUG-066p: was 1.5 → 1.2 (unified R:R)
                     );
                     execStopLoss = structResult.sl;
                     execTakeProfit = structResult.tp;

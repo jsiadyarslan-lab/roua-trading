@@ -48,20 +48,20 @@ import * as ccxt from 'ccxt';
  * V219: NOW THE ONLY COPY — Gatekeeper and RiskCalculator no longer have their own.
  */
 const STRATEGY_MIN_RR: Record<string, number> = {
-  dca: 1.5,              // V-PHASE2: was 0.4 — DCA strategy enforces minRiskRewardRatio=1.5
+  dca: 1.2,              // BUG-066p: was 1.5 → 1.2 (unified R:R)
   grid: 1.2,             // V-PHASE2: was 0.8 — grid needs decent R:R
   mean_reversion: 1.0,   // V-PHASE2: was 0.8 — strategy produces 1.25:1 minimum
   scalping: 1.0,         // unchanged — 1.5x ATR TP / 1x ATR SL = 1.5:1
   vwap_rsi: 1.2,         // V-PHASE2: was 1.0 — strategy R:R is 1.67:1
   momentum_breakout: 1.2, // unchanged — 2:1 R:R
-  swing: 1.5,            // unchanged — swing uses 2:1 (4x ATR TP / 2x ATR SL)
+  swing: 1.2,            // BUG-066p: was 1.5 → 1.2 (unified R:R)
   // Agent enum variants (camelCase)
-  [StrategyType.DCA]: 1.5,
+  [StrategyType.DCA]: 1.2,
   [StrategyType.MEAN_REVERSION]: 1.0,
   [StrategyType.SCALPING]: 1.0,
   [StrategyType.GRID]: 1.2,
   [StrategyType.VWAP_RSI]: 1.2,
-  [StrategyType.SWING]: 1.5,
+  [StrategyType.SWING]: 1.2,
   [StrategyType.MOMENTUM_BREAKOUT]: 1.2,
 };
 

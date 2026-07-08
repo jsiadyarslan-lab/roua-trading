@@ -1425,3 +1425,28 @@
 - **User can still override:** All caps remain configurable via admin panel and user settings. The new defaults match best practices, but users can adjust per their preferences.
 - **Commit:** (filled after push)
 - **Test:** (manual — monitor next 24h: Agent PnL should be $15-54, Executor $10-36, Lasic $1-3)
+
+### BUG-066r: 8 DB tables grew without cleanup — RiskEvent alone produced 31K rows/day
+- **Status:** FIXED
+- **Severity:** HIGH
+- **File:** `apps/api/src/modules/maintenance/db-cleanup.service.ts` (new), `apps/api/src/modules/maintenance/maintenance.module.ts`
+- **Pattern (OPEN):** 8 database tables had NO cleanup logic anywhere in the codebase: RiskEvent, AuditLog, OrderEvent, TradeLifecycleLog, PositionReconciliation, AiUsageLog, MarketRegimeSnapshot, SystemMemory. RiskEvent was the worst — written on every `validateOrder()` call (via `riskEventAudit.log`), rate-limited to 10s per unique event, but with 9 users × 4 briefs × 6 ticks/min = 216 events/min = ~31,000 rows/day = ~93,000 rows in 3 days. This caused DB bloat that slowed ALL queries including `validateOrder()` and `placeOrder()` in the execution path.
+- **Pattern (FIXED):** BUG-066r.*db cleanup cron
+- **Description:** User reported DB bloat during 3 days. Investigation revealed 8 tables growing without any cleanup. RiskEvent was the primary cause (~31K rows/day). No `deleteMany` or cleanup cron existed for any of these tables.
+- **Fix:** Created `DbCleanupService` in maintenance module:
+  - Runs on startup (30s delay) + every 6 hours via `@Cron(EVERY_6_HOURS)`
+  - Deletes old rows from 8 tables using raw SQL `DELETE FROM "Table" WHERE "createdAt" < cutoff`
+  - Retention periods based on growth rate + importance:
+    - RiskEvent: 3 days (very high growth, diagnostic only)
+    - AuditLog: 7 days (high growth, audit trail)
+    - AiUsageLog: 7 days (high growth, cost tracking)
+    - OrderEvent: 14 days (medium growth)
+    - TradeLifecycleLog: 14 days (medium growth)
+    - PositionReconciliation: 14 days (low growth)
+    - MarketRegimeSnapshot: 14 days (medium growth)
+    - SystemMemory: 14 days (low growth)
+  - Does NOT delete: Position, Trade, Order (financial data)
+  - Logs row count deleted per table + total elapsed time
+  - Fail-safe: if one table fails, continues to next
+- **Commit:** (filled after push)
+- **Test:** (manual — check logs for `🧹 BUG-066r: DB cleanup complete` after deploy)

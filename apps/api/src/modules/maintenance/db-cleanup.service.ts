@@ -43,6 +43,17 @@ export class DbCleanupService implements OnModuleInit {
     positionReconciliation: 14, // نمو منخفض
     marketRegimeSnapshot: 14,   // نمو متوسط
     systemMemory: 14,       // نمو منخفض
+    // BUG-066r+: جداول إضافية بلا cleanup
+    councilVoteAccuracy: 14,
+    tradeJournal: 30,       // بيانات أداء — احتفاظ أطول
+    crossPairCorrelation: 14,
+    adaptiveSchedule: 14,
+    newsArticle: 30,
+    contentArticle: 30,
+    contentSchedule: 14,
+    strategyReport: 30,
+    alert: 14,
+    userNotification: 14,
   };
 
   constructor(private readonly prisma: PrismaService) {}
@@ -126,10 +137,49 @@ export class DbCleanupService implements OnModuleInit {
       this.RETENTION_DAYS.systemMemory,
     );
 
+    // 9-18. جداول إضافية (BUG-066r+)
+    totalDeleted += await this.cleanupTable('councilVoteAccuracy', 'createdAt', this.RETENTION_DAYS.councilVoteAccuracy);
+    totalDeleted += await this.cleanupTable('tradeJournal', 'createdAt', this.RETENTION_DAYS.tradeJournal);
+    totalDeleted += await this.cleanupTable('crossPairCorrelation', 'createdAt', this.RETENTION_DAYS.crossPairCorrelation);
+    totalDeleted += await this.cleanupTable('adaptiveSchedule', 'createdAt', this.RETENTION_DAYS.adaptiveSchedule);
+    totalDeleted += await this.cleanupTable('newsArticle', 'createdAt', this.RETENTION_DAYS.newsArticle);
+    totalDeleted += await this.cleanupTable('contentArticle', 'createdAt', this.RETENTION_DAYS.contentArticle);
+    totalDeleted += await this.cleanupTable('contentSchedule', 'createdAt', this.RETENTION_DAYS.contentSchedule);
+    totalDeleted += await this.cleanupTable('strategyReport', 'createdAt', this.RETENTION_DAYS.strategyReport);
+    totalDeleted += await this.cleanupTable('alert', 'createdAt', this.RETENTION_DAYS.alert);
+    totalDeleted += await this.cleanupTable('userNotification', 'createdAt', this.RETENTION_DAYS.userNotification);
+
     const elapsedMs = Date.now() - startTime;
     this.logger.log(
       `🧹 BUG-066r: DB cleanup complete — ${totalDeleted} rows deleted in ${elapsedMs}ms`,
     );
+
+    // BUG-066r+: VACUUM FULL لإرجاع مساحة القرص فعلياً (يُصغّر الملفات)
+    await this.vacuumFull();
+  }
+
+  /**
+   * VACUUM FULL: يُصغّر الملفات الفعلية ويُرجع مساحة القرص للنظام.
+   * هذا ضروري لأن DELETE وحده لا يُصغّر القرص في PostgreSQL.
+   */
+  private async vacuumFull(): Promise<void> {
+    const tables = [
+      'RiskEvent', 'AuditLog', 'AiUsageLog', 'OrderEvent',
+      'TradeLifecycleLog', 'PositionReconciliation', 'MarketRegimeSnapshot',
+      'SystemMemory', 'CouncilVoteAccuracy', 'TradeJournal',
+      'CrossPairCorrelation', 'AdaptiveSchedule', 'NewsArticle',
+      'ContentArticle', 'ContentSchedule', 'StrategyReport',
+      'Alert', 'UserNotification',
+    ];
+
+    for (const table of tables) {
+      try {
+        await this.prisma.$executeRawUnsafe(`VACUUM FULL "${table}"`);
+        this.logger.log(`  📦 VACUUM FULL ${table}: done`);
+      } catch (err: any) {
+        this.logger.warn(`  ⚠️ VACUUM FULL ${table} failed: ${err?.message}`);
+      }
+    }
   }
 
   /**

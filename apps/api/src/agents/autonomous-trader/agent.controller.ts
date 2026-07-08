@@ -322,13 +322,17 @@ export class AutonomousTraderAgentController {
       this.logger.warn(`🔄 Reset: Failed to query open positions: ${err?.message}`);
     }
 
-    // Step 3: Reset paperBalance to target value (raw SQL — Prisma client may not know all columns)
+    // Step 3: Reset paperBalance + maxPositionSizePercent (raw SQL)
+    // BUG-066q: also update maxPositionSizePercent from old default (2) to new (15)
     try {
       await this.prisma.$executeRaw`
-        UPDATE "AgentSettings" SET "paperBalance" = ${targetBalance} WHERE "userId" = ${userId}
+        UPDATE "AgentSettings"
+        SET "paperBalance" = ${targetBalance},
+            "maxPositionSizePercent" = 15
+        WHERE "userId" = ${userId}
       `;
       this.logger.log(
-        `🔄 BUG-066f: paperBalance reset from $${results.oldBalance} to $${targetBalance}`,
+        `🔄 BUG-066f+066q: paperBalance reset to $${targetBalance}, maxPositionSizePercent updated to 15%`,
       );
     } catch (err: any) {
       this.logger.error(`🔄 Reset: Failed to update paperBalance: ${err?.message}`);
@@ -336,7 +340,10 @@ export class AutonomousTraderAgentController {
       try {
         await this.prisma.agentSettings.update({
           where: { userId },
-          data: { paperBalance: targetBalance },
+          data: {
+            paperBalance: targetBalance,
+            maxPositionSizePercent: 15,
+          },
         });
       } catch (err2: any) {
         this.logger.error(`🔄 Reset: Prisma fallback also failed: ${err2?.message}`);

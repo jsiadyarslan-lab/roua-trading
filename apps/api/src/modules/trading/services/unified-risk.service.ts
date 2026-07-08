@@ -447,7 +447,32 @@ export class UnifiedRiskService implements OnModuleInit, OnModuleDestroy {
     const openPositionsCount = await this._getOpenPositionsCount(userId);
 
     // Apply config overrides (from AgentConfig) or use unified defaults
-    const maxPositionSizePercent = config.maxPositionSizePercent || this.maxPositionSizePercent;
+    // BUG-066q: Auto-migrate maxPositionSizePercent from old default (2) to new (15).
+    // Old Prisma default was 2% — too tight for swing trading. New default is 15%.
+    // This migration runs on every assessRisk call and updates the DB once per user.
+    let maxPositionSizePercent = config.maxPositionSizePercent || this.maxPositionSizePercent;
+    if (maxPositionSizePercent === 2) {
+      try {
+        // Check if user explicitly set this value (per-user setting in Setting table)
+        const explicitSetting = await this.prisma.setting.findFirst({
+          where: { key: `user:${userId}:maxPositionSizePercent` },
+        });
+        if (!explicitSetting) {
+          // User never explicitly set it — upgrade from old default 2 to new default 15
+          maxPositionSizePercent = 15;
+          // Persist to DB so this migration runs only once
+          await this.prisma.agentSettings.update({
+            where: { userId },
+            data: { maxPositionSizePercent: 15 },
+          }).catch(() => {});
+          this.logger.log(
+            `🛡️ BUG-066q: Auto-upgraded user ${userId} maxPositionSizePercent from 2 to 15 (old Prisma default → new best-practice default)`,
+          );
+        }
+      } catch (err: any) {
+        this.logger.debug(`🛡️ BUG-066q: Could not migrate maxPositionSizePercent for ${userId}: ${err.message}`);
+      }
+    }
     const maxDailyLossPercent = config.maxDailyLossPercent || this.maxDailyLossPercent;
     const maxOpenPositions = config.maxOpenPositions || this.agentMaxOpenPositions;
     let riskPerTradePercent = config.riskPerTradePercent || this.defaultRiskPerTradePercent;

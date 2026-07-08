@@ -3599,13 +3599,6 @@ export class SmartExecutorService implements OnModuleDestroy {
       this.logger.log(
         `⚔️ Position sizing: confidence=${brief.confidence}% → multiplier=${confidenceMultiplier}x → risk=${(riskPercent*100).toFixed(2)}%`
       );
-      const priceRisk = Math.abs(currentPrice - brief.stopLoss);
-
-      if (priceRisk === 0) {
-        result.error = 'Invalid stop loss — price risk is 0';
-        this.logger.warn(`⚔️ Brief ${brief.id} has stopLoss=${brief.stopLoss} same as currentPrice=${currentPrice} — skipping`);
-        return result;
-      }
 
       // V430 HARDBLOCK: BRENT/USD محجوب كلياً حتى إشعار آخر
       // OANDA يُرسل ~0.0003 بدل السعر الحقيقي ~$73-85
@@ -3628,110 +3621,39 @@ export class SmartExecutorService implements OnModuleDestroy {
         return result;
       }
 
-      // BUG-066l FIX: Minimum SL distance lowered from 1.0% to 0.4%.
+      // ═══════════════════════════════════════════════════════════════
+      // BUG-066o FIX: فحص Brief staleness — رفض البريد القديم
       //
-      // V204 raised this from 0.5% to 1.0% to prevent oversized positions
-      // when SL was 0.1% away (e.g., DOGE: $150 risk / $0.0001 = 1.5M units).
-      // That was valid when R:R was 2.0 (TP = 2% away, SL = 1% was proportionate).
+      // المشكلة: brief.entryPrice قد يكون قديماً (السعر تغير 26% منذ إنشاء البريد).
+      // المنفّذ كان ينفّذ البريد بأي حال، مما يُنتج:
+      //   - أحجام صفقات خاطئة (الحساب بأسعار قديمة)
+      //   - صفقات تُفتح على أسعار لم تعد ذات معنى
       //
-      // But after BUG-066j reduced R:R to 1.2, the structure calculator now
-      // finds valid swing-low SLs at 0.5-0.8% — and the 1.0% minimum rejects
-      // them, blocking ALL trades in ranging markets.
-      //
-      // 0.4% is still safe:
-      //   - Prevents the 0.1% oversized position bug (10× tighter than 1.0%)
-      //   - Allows 0.5-0.8% structure-based SLs
-      //   - Compatible with R:R=1.2 (TP = 0.6-1.0%, reachable in minutes)
-      //   - Matches the minSLPercent=0.005 (0.5%) in the calculator options
-      const MIN_SL_DISTANCE_PERCENT = 0.4; // BUG-066l: was 1.0 (V204), was 0.5 (original)
-      const slDistancePercent = (priceRisk / currentPrice) * 100;
-      if (slDistancePercent < MIN_SL_DISTANCE_PERCENT) {
-        result.error = `Stop loss too close (${slDistancePercent.toFixed(2)}% < ${MIN_SL_DISTANCE_PERCENT}%) — risk of oversized position`;
-        this.logger.warn(`⚔️ V180: Brief ${brief.id} SL distance ${slDistancePercent.toFixed(2)}% < ${MIN_SL_DISTANCE_PERCENT}% — skipping to prevent oversized position`);
-        return result;
-      }
-
-      // V146: Use symbol-aware position sizing with lot normalization
-      const meta = getSymbolMetadata(brief.pair);
-      const posResult = calculatePositionSizeFromRisk(riskAmount, currentPrice, brief.stopLoss, brief.pair);
-
-      let quantity = posResult.quantityUnits;
-      let lots = posResult.quantityLots;
-
-      // BUG-066: Use configurable maxNotionalPercent — per-user > global > default
-      const maxNotionalPct = this.unifiedRisk?.getMaxNotionalPercent
-        ? this.unifiedRisk.getMaxNotionalPercent(userId) / 100
-        : 0.50; // fallback: 50%
-      const maxOrderValue = portfolioValue * maxNotionalPct;
-
-      if (posResult.notional > maxOrderValue) {
-        // Reduce quantity to fit within max order value
-        const cappedQty = maxOrderValue / currentPrice;
-        lots = roundLotSize(unitsToLots(cappedQty, brief.pair), brief.pair);
-        quantity = lotsToUnits(lots, brief.pair);
-
-        this.logger.debug(
-          `⚔️ Position capped by maxOrderValue: notional $${posResult.notional.toFixed(2)} > $${maxOrderValue} → reduced to ${lots} lots (${quantity.toFixed(2)} units)`
-        );
-      }
-
-      // Fix: نرسل lots (وليس units) — المعيار العالمي
-      // lots = quantityLots (0.01, 0.02, 0.30...)
-      const orderQuantity = lots;
-
-      // Ensure minimum order value ($10) — skip if too small
-      const orderValue = calculateNotionalValue(quantity, currentPrice);
-      if (orderValue < 10) {
-        result.error = `Order value too small: $${orderValue.toFixed(2)} < $10 minimum`;
-        this.logger.debug(`⚔️ Brief ${brief.id} order value $${orderValue.toFixed(2)} too small — skipping`);
-        return result;
-      }
-
-      if (quantity <= 0) {
-        result.error = 'Invalid quantity calculated';
-        return result;
-      }
-
-      const margin = calculateMargin(quantity, currentPrice, brief.pair);
-      this.logger.debug(
-        `⚔️ Position sizing for ${brief.pair}: lots=${lots}, units=${quantity.toFixed(2)}, ` +
-        `notional=$${orderValue.toFixed(2)}, margin=$${margin.toFixed(2)} (leverage ${meta.defaultLeverage}:1), ` +
-        `risk=$${(quantity * priceRisk).toFixed(2)} (${((quantity * priceRisk / portfolioValue) * 100).toFixed(2)}% of portfolio)`,
-      );
-
-      // ── MARGIN CHECK: Verify available balance before submitting order ──
-      // SmartExecutor previously skipped this check, causing orders to be placed
-      // even when available margin was $0. Now we fetch live balance and compare.
-      try {
-        const balanceData = await this.credentialsService.fetchAllExchangeBalances(userId);
-        const availableUsd = balanceData.totalAvailableUsd;
-        if (availableUsd !== undefined && availableUsd < margin) {
-          result.error = `رصيد غير كافي في ${credential.exchange} — يحتاج $${margin.toFixed(2)}، المتاح $${availableUsd.toFixed(2)}`;
+      // الحل: لو تحرك السعر > 5% منذ إنشاء البريد، ارفضه.
+      // المجلس سينشئ بريداً جديداً بسعر محدّث.
+      // ═══════════════════════════════════════════════════════════════
+      if (brief.entryPrice && brief.entryPrice > 0) {
+        const briefPriceShift = Math.abs(currentPrice - brief.entryPrice) / brief.entryPrice;
+        const STALE_BRIEF_THRESHOLD = 0.05; // 5%
+        if (briefPriceShift > STALE_BRIEF_THRESHOLD) {
+          result.error = `Brief stale — price shifted ${(briefPriceShift * 100).toFixed(1)}% since generation (threshold: ${(STALE_BRIEF_THRESHOLD * 100)}%)`;
           this.logger.warn(
-            `⚔️ MARGIN CHECK FAILED for ${userId} on ${brief.pair}: ` +
-            `needs $${margin.toFixed(2)}, available $${availableUsd.toFixed(2)} — skipping`
+            `⚔️ BUG-066o: Brief ${brief.id} for ${brief.pair} is stale — ` +
+            `entryPrice=$${brief.entryPrice} vs current=$${currentPrice} (shift=${(briefPriceShift * 100).toFixed(1)}%) — skipping`
           );
           return result;
         }
-      } catch (balErr: any) {
-        // Non-fatal — log and continue (exchange API may be temporarily unavailable)
-        this.logger.debug(`⚔️ Could not verify margin for ${userId}: ${balErr.message} — proceeding`);
       }
 
-      // ✅ FIX: Route through OrderDispatcher (handles RiskGatekeeper + TradingService + idempotency).
-      // This prevents conflicts between SmartExecutor and AutonomousTrader.
       // ═══════════════════════════════════════════════════════════════
-      // V427: ATR-BASED SL/TP — replaces fixed TIMEFRAME_RR percentages.
+      // BUG-066o FIX: حساب SL/TP النهائي BEFORE position sizing
       //
-      // BUG-028 FIX: الآن نحاول أولاً حساب SL/TP من هيكل السوق (swing levels).
-      // إذا لم تتوفر بيانات الشموع، نستخدم ATR (V427). إذا لم يتوفر ATR،
-      // نستخدم TIMEFRAME_RR كـ fallback أخير.
+      // المشكلة السابقة: position sizing استخدم brief.stopLoss (القديم)
+      // ثم SL/TP recalculation أنتج SL جديداً (execStopLoss)
+      // لكن الحجم ظل محسوباً بـ SL القديم → حجم خاطئ.
       //
-      // الأولوية:
-      //   1. هيكل السوق (swing high/low + ATR buffer) ← الأفضل
-      //   2. ATR-based (V427) ← متوسط
-      //   3. TIMEFRAME_RR fixed % ← fallback أخير
-      //
+      // الحل: نحسب SL/TP النهائي أولاً، ثم نستخدمه في position sizing.
+      // ═══════════════════════════════════════════════════════════════
       let execStopLoss: number;
       let execTakeProfit: number;
       {
@@ -3803,6 +3725,109 @@ export class SmartExecutorService implements OnModuleDestroy {
           `price=${currentPrice} shift=${(priceShift * 100).toFixed(2)}% | ` +
           `SL=${execStopLoss.toFixed(5)} TP=${execTakeProfit.toFixed(5)} | ${slMethod}`
         );
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // BUG-066o FIX: Position sizing باستخدام execStopLoss النهائي
+      // (وليس brief.stopLoss القديم)
+      // ═══════════════════════════════════════════════════════════════
+      const priceRisk = Math.abs(currentPrice - execStopLoss);
+
+      if (priceRisk === 0) {
+        result.error = 'Invalid stop loss — price risk is 0';
+        this.logger.warn(`⚔️ Brief ${brief.id} execStopLoss=${execStopLoss} same as currentPrice=${currentPrice} — skipping`);
+        return result;
+      }
+
+      // BUG-066l FIX: Minimum SL distance lowered from 1.0% to 0.4%.
+      //
+      // V204 raised this from 0.5% to 1.0% to prevent oversized positions
+      // when SL was 0.1% away (e.g., DOGE: $150 risk / $0.0001 = 1.5M units).
+      // That was valid when R:R was 2.0 (TP = 2% away, SL = 1% was proportionate).
+      //
+      // But after BUG-066j reduced R:R to 1.2, the structure calculator now
+      // finds valid swing-low SLs at 0.5-0.8% — and the 1.0% minimum rejects
+      // them, blocking ALL trades in ranging markets.
+      //
+      // 0.4% is still safe:
+      //   - Prevents the 0.1% oversized position bug (10× tighter than 1.0%)
+      //   - Allows 0.5-0.8% structure-based SLs
+      //   - Compatible with R:R=1.2 (TP = 0.6-1.0%, reachable in minutes)
+      //   - Matches the minSLPercent=0.005 (0.5%) in the calculator options
+      const MIN_SL_DISTANCE_PERCENT = 0.4; // BUG-066l: was 1.0 (V204), was 0.5 (original)
+      const slDistancePercent = (priceRisk / currentPrice) * 100;
+      if (slDistancePercent < MIN_SL_DISTANCE_PERCENT) {
+        result.error = `Stop loss too close (${slDistancePercent.toFixed(2)}% < ${MIN_SL_DISTANCE_PERCENT}%) — risk of oversized position`;
+        this.logger.warn(`⚔️ V180: Brief ${brief.id} SL distance ${slDistancePercent.toFixed(2)}% < ${MIN_SL_DISTANCE_PERCENT}% — skipping to prevent oversized position`);
+        return result;
+      }
+
+      // V146: Use symbol-aware position sizing with lot normalization
+      // BUG-066o: استخدم execStopLoss النهائي (وليس brief.stopLoss القديم)
+      const meta = getSymbolMetadata(brief.pair);
+      const posResult = calculatePositionSizeFromRisk(riskAmount, currentPrice, execStopLoss, brief.pair);
+
+      let quantity = posResult.quantityUnits;
+      let lots = posResult.quantityLots;
+
+      // BUG-066: Use configurable maxNotionalPercent — per-user > global > default
+      const maxNotionalPct = this.unifiedRisk?.getMaxNotionalPercent
+        ? this.unifiedRisk.getMaxNotionalPercent(userId) / 100
+        : 0.50; // fallback: 50%
+      const maxOrderValue = portfolioValue * maxNotionalPct;
+
+      if (posResult.notional > maxOrderValue) {
+        // Reduce quantity to fit within max order value
+        const cappedQty = maxOrderValue / currentPrice;
+        lots = roundLotSize(unitsToLots(cappedQty, brief.pair), brief.pair);
+        quantity = lotsToUnits(lots, brief.pair);
+
+        this.logger.debug(
+          `⚔️ Position capped by maxOrderValue: notional $${posResult.notional.toFixed(2)} > $${maxOrderValue} → reduced to ${lots} lots (${quantity.toFixed(2)} units)`
+        );
+      }
+
+      // Fix: نرسل lots (وليس units) — المعيار العالمي
+      // lots = quantityLots (0.01, 0.02, 0.30...)
+      const orderQuantity = lots;
+
+      // Ensure minimum order value ($10) — skip if too small
+      const orderValue = calculateNotionalValue(quantity, currentPrice);
+      if (orderValue < 10) {
+        result.error = `Order value too small: $${orderValue.toFixed(2)} < $10 minimum`;
+        this.logger.debug(`⚔️ Brief ${brief.id} order value $${orderValue.toFixed(2)} too small — skipping`);
+        return result;
+      }
+
+      if (quantity <= 0) {
+        result.error = 'Invalid quantity calculated';
+        return result;
+      }
+
+      const margin = calculateMargin(quantity, currentPrice, brief.pair);
+      this.logger.debug(
+        `⚔️ Position sizing for ${brief.pair}: lots=${lots}, units=${quantity.toFixed(2)}, ` +
+        `notional=$${orderValue.toFixed(2)}, margin=$${margin.toFixed(2)} (leverage ${meta.defaultLeverage}:1), ` +
+        `risk=$${(quantity * priceRisk).toFixed(2)} (${((quantity * priceRisk / portfolioValue) * 100).toFixed(2)}% of portfolio)`,
+      );
+
+      // ── MARGIN CHECK: Verify available balance before submitting order ──
+      // SmartExecutor previously skipped this check, causing orders to be placed
+      // even when available margin was $0. Now we fetch live balance and compare.
+      try {
+        const balanceData = await this.credentialsService.fetchAllExchangeBalances(userId);
+        const availableUsd = balanceData.totalAvailableUsd;
+        if (availableUsd !== undefined && availableUsd < margin) {
+          result.error = `رصيد غير كافي في ${credential.exchange} — يحتاج $${margin.toFixed(2)}، المتاح $${availableUsd.toFixed(2)}`;
+          this.logger.warn(
+            `⚔️ MARGIN CHECK FAILED for ${userId} on ${brief.pair}: ` +
+            `needs $${margin.toFixed(2)}, available $${availableUsd.toFixed(2)} — skipping`
+          );
+          return result;
+        }
+      } catch (balErr: any) {
+        // Non-fatal — log and continue (exchange API may be temporarily unavailable)
+        this.logger.debug(`⚔️ Could not verify margin for ${userId}: ${balErr.message} — proceeding`);
       }
 
       // V124: Pass isSimulatedExecution to OrderDispatcher.

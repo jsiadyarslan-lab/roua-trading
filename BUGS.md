@@ -1279,3 +1279,44 @@
 
 - **Commit:** (filled after push)
 - **Test:** (manual — verify Smart Executor opens NAS100/SPX500/DOGE/BNB positions without R:R or POSITION_SIZE_LIMIT rejections)
+
+### BUG-066o: Position sizing used stale brief.stopLoss instead of recalculated execStopLoss
+- **Status:** FIXED
+- **Severity:** CRITICAL
+- **File:** `apps/api/src/modules/ai/smart-executor/smart-executor.service.ts:3597-3831`, `apps/api/src/modules/trading/services/symbol-metadata.ts:64-87`
+- **Pattern (OPEN):** Three interconnected bugs in Smart Executor position sizing: (1) Position sizing used `brief.stopLoss` (stale — from brief generation time, price shifted 26%) instead of the freshly recalculated `execStopLoss`. The size was calculated BEFORE SL/TP recalculation, producing quantities 39× smaller than required. (2) XAU/USD, XAG/USD, and all indices/energy symbols had NO `minLot`/`maxLot`/`lotStep` in the registry — they inherited `minLot=0.00001` from DEFAULT_METADATA, allowing phantom sub-0.01 lot sizes that no real broker accepts. (3) No staleness check on briefs — a brief with `entryPrice` shifted 26% from current price was executed anyway, producing trades at meaningless price levels.
+- **Pattern (FIXED):** BUG-066o.*position sizing flow reorder + minLot + staleness
+- **Description:** User reported `trading_service.quantity_yet_order` errors for XAU/USD. Investigation revealed the position sizing calculation produced `lots=0.00101` (which rounds to 0.00 in TradingService's 2-decimal precision) instead of the correct `lots=0.04`.
+
+  Root cause analysis (verified with manual calculation):
+  - `priceRisk = |currentPrice - brief.stopLoss|` used the STALE brief SL (~$4904, 39× farther than structure SL)
+  - `quantityUnits = riskAmount / priceRisk` = $80 / $798 = 0.101 units (should be $80 / $20.5 = 3.92 units)
+  - `quantityLots = 0.101 / 100 = 0.00101` (should be 0.039)
+  - The 39× undersizing meant risk was $2 instead of $80, and the lot size was below 0.01 minimum
+
+  Three fixes applied together (they are interdependent):
+
+- **Fix A — Reorder flow: SL/TP recalculation BEFORE position sizing**
+  - Moved the SL/TP calculation block (structure/ATR/fallback) to run BEFORE position sizing
+  - Changed `priceRisk = |currentPrice - brief.stopLoss|` → `priceRisk = |currentPrice - execStopLoss|`
+  - Changed `calculatePositionSizeFromRisk(riskAmount, currentPrice, brief.stopLoss, ...)` → `calculatePositionSizeFromRisk(riskAmount, currentPrice, execStopLoss, ...)`
+  - Now position sizing uses the ACTUAL SL that will be sent to the broker, not the stale brief SL
+
+- **Fix B — Add minLot/maxLot/lotStep to all commodities/indices/energy**
+  - XAU/USD, XAG/USD: added `lotStep: 0.01, minLot: 0.01, maxLot: 100`
+  - US30/USD, NAS100/USD, SPX500/USD, GER30/USD, UK100/USD: same
+  - WTI/USD, BRENT/USD: same
+  - Previously these inherited `minLot=0.00001` from DEFAULT_METADATA, allowing phantom 0.001 lot sizes
+  - Now any quantity < 0.01 lot is automatically set to 0 (rejected by `calculatePositionSizeFromRisk`)
+
+- **Fix C — Brief staleness check (5% threshold)**
+  - Added check: if `|currentPrice - brief.entryPrice| / brief.entryPrice > 0.05` → reject the brief
+  - Prevents execution of stale briefs where the market has moved significantly since generation
+  - The Strategic Council will generate a fresh brief with updated entryPrice
+
+- **Verification (manual calculation):**
+  - Before fix: `lots=0.00101, units=0.10, notional=$414.71, risk=$2` (39× undersized)
+  - After fix: `lots=0.04, units=4.0, notional=$16,424, risk=$82` (correct)
+  - The 40× size increase matches the 39× error ratio — confirming the root cause
+- **Commit:** (filled after push)
+- **Test:** (manual — monitor Railway logs for XAU/USD trades: lots should be 0.04+ not 0.001; `quantity_yet_order` errors should disappear; `Brief stale` warnings should appear for old briefs)

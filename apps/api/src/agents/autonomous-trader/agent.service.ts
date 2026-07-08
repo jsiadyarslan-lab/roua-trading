@@ -692,7 +692,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       enabled: true,
       maxPositionSizePercent: dto.maxPositionSizePercent ??
         (userSettings ? Number(userSettings.maxPositionSizePercent) : undefined) ??
-        (parseFloat(this.configService.get('MAX_POSITION_SIZE_PERCENT', '2')) || 2),
+        (parseFloat(this.configService.get('MAX_POSITION_SIZE_PERCENT', '15')) || 15), // BUG-066q: was 2 → 15
       maxDailyLossPercent: dto.maxDailyLossPercent ??
         (userSettings ? Number(userSettings.maxDailyLossPercent) : undefined) ??
         (parseFloat(this.configService.get('MAX_DAILY_LOSS_PERCENT', '5')) || 5),

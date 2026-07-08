@@ -55,7 +55,7 @@ export class RiskCalculatorService {
   ) {
     // Load defaults from env
     this.defaultMaxPositionSizePercent = parseFloat(
-      this.configService.get('MAX_POSITION_SIZE_PERCENT', '2'),
+      this.configService.get('MAX_POSITION_SIZE_PERCENT', '15'), // BUG-066q: was 2 → 15
     );
     this.defaultMaxDailyLossPercent = parseFloat(
       this.configService.get('MAX_DAILY_LOSS_PERCENT', '5'),

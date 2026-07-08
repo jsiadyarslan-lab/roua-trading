@@ -20,7 +20,8 @@ export async function GET(req: NextRequest) {
   const results: any = { steps: [] };
 
   // Old DB connection string (internal)
-  const oldDbUrl = 'postgresql://postgres:ECwmddGzeOxVuViSsKmjZXKnZTNNqVtm@postgres-clean.railway.internal:5432/railway';
+  // BUG-066r: استخدم DB-Recovery service (التي تقرأ من volume القديم)
+  const oldDbUrl = 'postgresql://postgres:ECwmddGzeOxVuViSsKmjZXKnZTNNqVtm@db-recovery.railway.internal:5432/railway';
 
   try {
     // Dynamically import pg

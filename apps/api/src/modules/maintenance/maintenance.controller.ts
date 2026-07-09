@@ -2,6 +2,7 @@ import { Controller, Post, Get, Headers, UnauthorizedException, Logger, Query } 
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditService } from '../../audit/audit.service';
 import { ConfigService } from '@nestjs/config';
+import { Public } from '../../common/guards/auth.guard';
 
 @Controller('maintenance')
 export class MaintenanceController {
@@ -28,13 +29,15 @@ export class MaintenanceController {
    * Audit database for missing closed positions.
    * Requires X-Admin-Token header matching ADMIN_PASSWORD env var.
    */
+  @Public()
   @Get('db-audit')
   async dbAudit(
     @Headers('x-admin-token') adminToken: string,
   ) {
     const expectedToken = this.config.get('ADMIN_PASSWORD') || 'roua-admin-secret-2026';
+    // BUG-066s: Actually throw (old code had empty block — security bug)
     if (!adminToken || adminToken !== expectedToken) {
-      
+      throw new UnauthorizedException('Admin token required');
     }
 
     try {
@@ -162,6 +165,7 @@ export class MaintenanceController {
     }
   }
 
+  @Public()
   @Post('cleanup-guests')
   async cleanupGuests(
     @Headers('x-admin-token') adminToken: string,
@@ -173,7 +177,7 @@ export class MaintenanceController {
     const expectedToken = this.config.get('ADMIN_PASSWORD') || 'roua-admin-secret-2026';
     if (!adminToken || adminToken !== expectedToken) {
       this.logger.warn(`🚫 Unauthorized cleanup attempt with token: ${adminToken}`);
-      
+      throw new UnauthorizedException('Admin token required');
     }
 
     const limit = parseInt(batchSize, 10) || 500;
@@ -314,7 +318,17 @@ export class MaintenanceController {
    * Safe DB cleanup: deletes old rows from 18 non-essential tables.
    * Uses PrismaService (shared connection — no pool exhaustion).
    * Does NOT touch: User, Position, Trade, Order, AgentSettings, etc.
+   *
+   * BUG-066s: Marked @Public() so the AuthGuard doesn't reject when DB
+   * pool is exhausted (AuthGuard calls prisma.session.findUnique which
+   * fails when pool is full). Security is enforced by X-Admin-Token
+   * header check inside this handler.
+   *
+   * BUG-066s: Uses batched DELETE (5000 rows per batch) via raw SQL to
+   * avoid long-running transactions that hold locks and exhaust the
+   * connection pool. Each batch is a separate short transaction.
    */
+  @Public()
   @Post('cleanup-db')
   async cleanupDb(
     @Headers('x-admin-token') adminToken: string,
@@ -322,13 +336,16 @@ export class MaintenanceController {
   ) {
     const expectedToken = this.config.get('ADMIN_PASSWORD') || 'roua-admin-secret-2026';
     const hasAdminSession = cookieHeader?.includes('roua_admin_session');
+    // BUG-066s: Actually throw the exception (old code had empty block — security bug)
     if (adminToken !== expectedToken && !hasAdminSession) {
-      
+      this.logger.warn(`🚫 Unauthorized cleanup-db attempt`);
+      throw new UnauthorizedException('Admin token required');
     }
 
-    const results: any = { steps: [], deleted: 0, errors: [] };
+    const results: any = { steps: [], deleted: 0, errors: [], batchSize: 5000 };
 
-    const tables = [
+    // 18 tables with their retention periods
+    const tables: { name: string; dateField: string; days: number }[] = [
       { name: 'RiskEvent', dateField: 'createdAt', days: 3 },
       { name: 'AuditLog', dateField: 'createdAt', days: 7 },
       { name: 'AiUsageLog', dateField: 'createdAt', days: 7 },
@@ -349,39 +366,73 @@ export class MaintenanceController {
       { name: 'UserNotification', dateField: 'createdAt', days: 14 },
     ];
 
-    // Use prisma model deleteMany (reuses existing Prisma connection)
-    const cutoff3d = new Date(); cutoff3d.setDate(cutoff3d.getDate() - 3);
-    const cutoff7d = new Date(); cutoff7d.setDate(cutoff7d.getDate() - 7);
-    const cutoff14d = new Date(); cutoff14d.setDate(cutoff14d.getDate() - 14);
-    const cutoff30d = new Date(); cutoff30d.setDate(cutoff30d.getDate() - 30);
+    // Batched DELETE to avoid long transactions / lock contention
+    // Each batch is 5000 rows, separate short transaction
+    const BATCH_SIZE = 5000;
+    const MAX_BATCHES_PER_TABLE = 200; // Safety cap: 200 × 5000 = 1,000,000 rows max per table
 
-    const cleanupOps = [
-      { name: 'RiskEvent', fn: () => this.prisma.riskEvent.deleteMany({ where: { createdAt: { lt: cutoff3d } } }) },
-      { name: 'AuditLog', fn: () => this.prisma.auditLog.deleteMany({ where: { createdAt: { lt: cutoff7d } } }) },
-      { name: 'AiUsageLog', fn: () => this.prisma.aiUsageLog.deleteMany({ where: { createdAt: { lt: cutoff7d } } }) },
-      { name: 'OrderEvent', fn: () => this.prisma.orderEvent.deleteMany({ where: { timestamp: { lt: cutoff14d } } }) },
-      { name: 'TradeLifecycleLog', fn: () => this.prisma.tradeLifecycleLog.deleteMany({ where: { createdAt: { lt: cutoff14d } } }) },
-      { name: 'PositionReconciliation', fn: () => this.prisma.positionReconciliation.deleteMany({ where: { createdAt: { lt: cutoff14d } } }) },
-      { name: 'MarketRegimeSnapshot', fn: () => this.prisma.marketRegimeSnapshot.deleteMany({ where: { createdAt: { lt: cutoff14d } } }) },
-      { name: 'SystemMemory', fn: () => this.prisma.systemMemory.deleteMany({ where: { createdAt: { lt: cutoff14d } } }) },
-      { name: 'Alert', fn: () => this.prisma.alert.deleteMany({ where: { createdAt: { lt: cutoff14d } } }) },
-    ];
+    for (const { name, dateField, days } of tables) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
 
-    for (const { name, fn } of cleanupOps) {
-      try {
-        const result = await fn();
-        const deleted = result.count || 0;
-        results.deleted += deleted;
-        if (deleted > 0) {
-          results.steps.push(`🗑️ ${name}: ${deleted} rows deleted`);
-          this.logger.log(`🧹 ${name}: ${deleted} rows deleted`);
+      let tableDeleted = 0;
+      let batchCount = 0;
+      let consecutiveErrors = 0;
+
+      while (batchCount < MAX_BATCHES_PER_TABLE) {
+        try {
+          // Batched DELETE using ctid (PostgreSQL physical row id)
+          // This avoids the need for a primary key and is very fast
+          const result = await this.prisma.$executeRawUnsafe(`
+            DELETE FROM "${name}"
+            WHERE "ctid" IN (
+              SELECT "ctid" FROM "${name}"
+              WHERE "${dateField}" < $1
+              LIMIT ${BATCH_SIZE}
+            )
+          `, cutoff);
+
+          if (result === 0) break; // No more rows to delete
+          tableDeleted += result;
+          batchCount++;
+          consecutiveErrors = 0; // Reset on success
+        } catch (err: any) {
+          consecutiveErrors++;
+          // If table doesn't exist or column missing, skip after 1 error
+          if (err?.message?.includes('does not exist') || err?.message?.includes('column')) {
+            results.errors.push(`${name}: ${err.message.substring(0, 150)}`);
+            break;
+          }
+          // For other errors, retry up to 3 times
+          if (consecutiveErrors >= 3) {
+            results.errors.push(`${name}: ${err.message.substring(0, 150)} (after 3 retries)`);
+            break;
+          }
+          // Wait 500ms before retry
+          await new Promise(r => setTimeout(r, 500));
         }
-      } catch (err: any) {
-        results.errors.push(`${name}: ${err.message}`);
+      }
+
+      results.deleted += tableDeleted;
+      if (tableDeleted > 0) {
+        results.steps.push(`🗑️ ${name}: ${tableDeleted} rows deleted (${batchCount} batches)`);
+        this.logger.log(`🧹 ${name}: ${tableDeleted} rows deleted (${batchCount} batches)`);
       }
     }
-    results.steps.push('VACUUM done ✅');
+
+    // Run VACUUM (NOT VACUUM FULL — FULL locks the table and requires 2x space)
+    // Plain VACUUM reclaims space for reuse without locking
+    try {
+      // VACUUM cannot run inside a transaction — use $executeRawUnsafe without transaction
+      // Note: VACUUM is auto-run by autovacuum, but explicit VACUUM helps after large DELETEs
+      // Skip VACUUM here to avoid any transaction issues — autovacuum will handle it
+      results.steps.push('VACUUM skipped (autovacuum will reclaim space)');
+    } catch (err: any) {
+      results.errors.push(`VACUUM: ${err.message}`);
+    }
+
     results.steps.push(`Total deleted: ${results.deleted} rows`);
+    this.logger.log(`🧹 BUG-066s: DB cleanup complete — ${results.deleted} rows deleted`);
 
     return results;
   }

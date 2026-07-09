@@ -336,6 +336,32 @@ async function ensureSession(request: NextRequest): Promise<{
  * Now uses per-request retry with adaptive backoff instead.
  */
 export async function proxyToNestJS(request: NextRequest, method: string): Promise<NextResponse> {
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // BUG-066s: Admin bypass for /api/maintenance/* endpoints.
+  //
+  // PROBLEM: When DB connection pool is exhausted, ensureSession() fails
+  // because it needs DB access to create a guest session. This means the
+  // /api/maintenance/cleanup-db endpoint — which is the EMERGENCY RECOVERY
+  // tool — becomes unreachable. Death spiral: DB overloaded → can't trigger
+  // cleanup → DB gets more overloaded → can never recover.
+  //
+  // FIX: Maintenance endpoints with X-Admin-Token header bypass session
+  // creation entirely. The NestJS MaintenanceController already validates
+  // the admin token itself, so security is preserved.
+  //
+  // This is the ONLY endpoint family that gets this bypass — strictly
+  // limited to paths starting with /api/maintenance/.
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  const pathname = request.nextUrl.pathname
+  const isAdminMaintenancePath = pathname.startsWith('/api/maintenance/')
+  const adminToken = request.headers.get('x-admin-token')
+  const expectedAdminToken = process.env.ADMIN_PASSWORD || 'roua-admin-secret-2026'
+
+  if (isAdminMaintenancePath && adminToken && adminToken === expectedAdminToken) {
+    // Forward directly to NestJS without session creation
+    return proxyWithToken(request, method, '', false, 0, 1, 1000)
+  }
+
   const session = await ensureSession(request)
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

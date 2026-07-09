@@ -16,21 +16,23 @@ export async function GET(request: NextRequest) {
     tables: {},
   }
 
+  // Use SELECT * to avoid column name issues
   const tablesToExport = [
-    { name: 'users', query: 'User', fields: 'id, email, "displayName", "passkeyCounter", tier, "riskTolerance", "createdAt", "updatedAt"' },
-    { name: 'exchangeCredentials', query: 'ExchangeCredential', fields: 'id, "userId", exchange, label, "encryptedApiKey", "encryptedSecret", iv, "authTag", permissions, "isValid", "lastValidatedAt", "createdAt", "updatedAt", "secretAuthTag", "secretIv", "encryptedPassphrase", "passphraseIv", "passphraseAuthTag", testnet, "keyType"' },
-    { name: 'positions', query: 'Position', fields: 'id, "userId", symbol, side, exchange, "credentialId", quantity, "entryPrice", "currentPrice", "stopLoss", "takeProfit", status, "realizedPnl", "unrealizedPnl", "openedAt", "closedAt", "closeReason", timeframe, version, "exchangeSymbol", source' },
-    { name: 'trades', query: 'Trade', fields: 'id, "userId", "positionId", "orderId", symbol, side, exchange, "credentialId", quantity, price, "executedAt", type, "createdAt"' },
-    { name: 'orders', query: 'Order', fields: 'id, "userId", "exchangeCredentialId", exchange, symbol, side, type, quantity, price, status, "createdAt", "updatedAt"' },
-    { name: 'accounts', query: 'Account', fields: 'id, "userId", exchange, "accountType", balance, equity, "isActive", "createdAt"' },
+    'Position',
+    'Trade',
+    'Account',
+    'AgentSettings',
+    'Setting',
+    'Portfolio',
+    'ApiKey',
   ]
 
-  for (const { name, query, fields } of tablesToExport) {
+  for (const table of tablesToExport) {
     try {
-      const data = await db.$queryRawUnsafe(`SELECT ${fields} FROM "${query}" ORDER BY "createdAt" DESC`)
-      backup.tables[name] = { count: Array.isArray(data) ? data.length : 0, data }
+      const data = await db.$queryRawUnsafe(`SELECT * FROM "${table}"`)
+      backup.tables[table] = { count: Array.isArray(data) ? data.length : 0, data }
     } catch (err: any) {
-      backup.tables[name] = { error: err?.message?.substring(0, 200) }
+      backup.tables[table] = { error: err?.message?.substring(0, 200) }
     }
   }
 

@@ -12,15 +12,15 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // First, get the column names for ExchangeCredential
+    // Step 1: Get column names for ExchangeCredential
     const ecColumns = await db.$queryRawUnsafe(`
-      SELECT column_name, data_type
+      SELECT column_name, data_type, is_nullable, column_default
       FROM information_schema.columns
       WHERE table_name = 'ExchangeCredential'
       ORDER BY ordinal_position
     `)
 
-    // Get column names for Account
+    // Step 2: Get column names for Account
     const accColumns = await db.$queryRawUnsafe(`
       SELECT column_name, data_type
       FROM information_schema.columns
@@ -28,80 +28,27 @@ export async function GET(request: NextRequest) {
       ORDER BY ordinal_position
     `)
 
-    // Get all exchange credentials using SELECT *
-    const credentialsRaw = await db.$queryRawUnsafe(`
-      SELECT * FROM "ExchangeCredential" ORDER BY "createdAt" DESC
-    `)
+    // Step 3: Get ExchangeCredential count
+    const ecCount = await db.$queryRawUnsafe(`SELECT count(*)::int as count FROM "ExchangeCredential"`)
+    
+    // Step 4: Get Account count
+    const accCount = await db.$queryRawUnsafe(`SELECT count(*)::int as count FROM "Account"`)
 
-    // Get all accounts using SELECT *
-    const accountsRaw = await db.$queryRawUnsafe(`
-      SELECT * FROM "Account" ORDER BY "createdAt" DESC
+    // Step 5: Get all table names in the public schema
+    const allTables = await db.$queryRawUnsafe(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      ORDER BY table_name
     `)
-
-    // Get users that have credentials
-    const usersWithCreds = await db.$queryRawUnsafe(`
-      SELECT u.id, u.email, u."displayName", u.tier, u."createdAt"
-      FROM "User" u
-      WHERE u.id IN (SELECT DISTINCT "userId" FROM "ExchangeCredential")
-      ORDER BY u."createdAt" DESC
-    `)
-
-    // Get session info for users with credentials
-    const userSessions = await db.$queryRawUnsafe(`
-      SELECT
-        s."userId",
-        COUNT(s.id) as session_count,
-        MAX(s."createdAt") as last_session,
-        bool_or(s."isActive") as has_active
-      FROM "Session" s
-      WHERE s."userId" IN (SELECT DISTINCT "userId" FROM "ExchangeCredential")
-      GROUP BY s."userId"
-    `)
-
-    // Mask sensitive fields in credentials
-    const credentials = credentialsRaw.map((c: any) => {
-      const masked: any = {}
-      for (const [key, value] of Object.entries(c)) {
-        if (key.toLowerCase().includes('secret') || key.toLowerCase().includes('password') || key.toLowerCase().includes('apikey') || key.toLowerCase().includes('token')) {
-          masked[key] = '[MASKED]'
-        } else if (typeof value === 'string' && value.length > 50) {
-          masked[key] = value.substring(0, 50) + '...'
-        } else {
-          masked[key] = value
-        }
-      }
-      return masked
-    })
 
     return NextResponse.json({
       success: true,
-      ecColumns: ecColumns.map((c: any) => `${c.column_name} (${c.data_type})`),
-      accColumns: accColumns.map((c: any) => `${c.column_name} (${c.data_type})`),
-      credentialsCount: credentials.length,
-      credentials,
-      accountsCount: accountsRaw.length,
-      accounts: accountsRaw.map((a: any) => {
-        const masked: any = {}
-        for (const [key, value] of Object.entries(a)) {
-          if (typeof value === 'object' && value !== null) {
-            masked[key] = value.toString()
-          } else if (typeof value === 'string' && value.length > 50) {
-            masked[key] = value.substring(0, 50) + '...'
-          } else {
-            masked[key] = value
-          }
-        }
-        return masked
-      }),
-      usersWithCredentials: usersWithCreds.map((u: any) => ({
-        ...u,
-        id: u.id?.substring(0, 12) + '...',
-      })),
-      userSessions: userSessions.map((s: any) => ({
-        ...s,
-        userId: s.userId?.substring(0, 12) + '...',
-        has_active: s.has_active,
-      })),
+      ecColumns: ecColumns.map((c: any) => ({ name: c.column_name, type: c.data_type, nullable: c.is_nullable, default: c.column_default })),
+      accColumns: accColumns.map((c: any) => ({ name: c.column_name, type: c.data_type })),
+      exchangeCredentialCount: ecCount[0]?.count || 0,
+      accountCount: accCount[0]?.count || 0,
+      allTables: allTables.map((t: any) => t.table_name),
     })
   } catch (err: any) {
     return NextResponse.json(

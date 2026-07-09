@@ -349,31 +349,37 @@ export class MaintenanceController {
       { name: 'UserNotification', dateField: 'createdAt', days: 14 },
     ];
 
-    // Use prisma.$transaction to reuse single connection
-    await this.prisma.$transaction(async (tx) => {
-      for (const { name, dateField, days } of tables) {
-        try {
-          const cutoff = new Date();
-          cutoff.setDate(cutoff.getDate() - days);
+    // Use prisma model deleteMany (reuses existing Prisma connection)
+    const cutoff3d = new Date(); cutoff3d.setDate(cutoff3d.getDate() - 3);
+    const cutoff7d = new Date(); cutoff7d.setDate(cutoff7d.getDate() - 7);
+    const cutoff14d = new Date(); cutoff14d.setDate(cutoff14d.getDate() - 14);
+    const cutoff30d = new Date(); cutoff30d.setDate(cutoff30d.getDate() - 30);
 
-          const result = await tx.$executeRawUnsafe(
-            `DELETE FROM "${name}" WHERE "${dateField}" < $1`,
-            cutoff.toISOString()
-          );
+    const cleanupOps = [
+      { name: 'RiskEvent', fn: () => this.prisma.riskEvent.deleteMany({ where: { createdAt: { lt: cutoff3d } } }) },
+      { name: 'AuditLog', fn: () => this.prisma.auditLog.deleteMany({ where: { createdAt: { lt: cutoff7d } } }) },
+      { name: 'AiUsageLog', fn: () => this.prisma.aiUsageLog.deleteMany({ where: { createdAt: { lt: cutoff7d } } }) },
+      { name: 'OrderEvent', fn: () => this.prisma.orderEvent.deleteMany({ where: { timestamp: { lt: cutoff14d } } }) },
+      { name: 'TradeLifecycleLog', fn: () => this.prisma.tradeLifecycleLog.deleteMany({ where: { createdAt: { lt: cutoff14d } } }) },
+      { name: 'PositionReconciliation', fn: () => this.prisma.positionReconciliation.deleteMany({ where: { createdAt: { lt: cutoff14d } } }) },
+      { name: 'MarketRegimeSnapshot', fn: () => this.prisma.marketRegimeSnapshot.deleteMany({ where: { createdAt: { lt: cutoff14d } } }) },
+      { name: 'SystemMemory', fn: () => this.prisma.systemMemory.deleteMany({ where: { createdAt: { lt: cutoff14d } } }) },
+      { name: 'Alert', fn: () => this.prisma.alert.deleteMany({ where: { createdAt: { lt: cutoff14d } } }) },
+    ];
 
-          const deleted = result || 0;
-          results.deleted += deleted;
-          if (deleted > 0) {
-            results.steps.push(`🗑️ ${name}: ${deleted} rows deleted (older than ${days} days)`);
-            this.logger.log(`🧹 ${name}: ${deleted} rows deleted`);
-          }
-        } catch (err: any) {
-          results.errors.push(`${name}: ${err.message}`);
+    for (const { name, fn } of cleanupOps) {
+      try {
+        const result = await fn();
+        const deleted = result.count || 0;
+        results.deleted += deleted;
+        if (deleted > 0) {
+          results.steps.push(`🗑️ ${name}: ${deleted} rows deleted`);
+          this.logger.log(`🧹 ${name}: ${deleted} rows deleted`);
         }
+      } catch (err: any) {
+        results.errors.push(`${name}: ${err.message}`);
       }
-    }).catch(err => {
-      results.errors.push(`Transaction failed: ${err.message}`);
-    });
+    }
     results.steps.push('VACUUM done ✅');
     results.steps.push(`Total deleted: ${results.deleted} rows`);
 

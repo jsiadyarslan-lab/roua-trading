@@ -16,7 +16,7 @@ export class MaintenanceController {
   /**
    * POST /api/maintenance/cleanup-guests
    * Safely removes abandoned guest/phantom accounts in batches.
-   * Requires X-Admin-Token header matching ADMIN_TOKEN env var.
+   * Requires X-Admin-Token header matching ADMIN_PASSWORD env var.
    *
    * ANTI-PHANTOM-USER FIX: Expanded to also clean up:
    * - user-*@rouatrading.com (chart-preference phantom users)
@@ -26,13 +26,13 @@ export class MaintenanceController {
   /**
    * GET /api/maintenance/db-audit
    * Audit database for missing closed positions.
-   * Requires X-Admin-Token header matching ADMIN_TOKEN env var.
+   * Requires X-Admin-Token header matching ADMIN_PASSWORD env var.
    */
   @Get('db-audit')
   async dbAudit(
     @Headers('x-admin-token') adminToken: string,
   ) {
-    const expectedToken = this.config.get('ADMIN_TOKEN') || 'roua-admin-secret-2026';
+    const expectedToken = this.config.get('ADMIN_PASSWORD') || 'roua-admin-secret-2026';
     if (!adminToken || adminToken !== expectedToken) {
       throw new UnauthorizedException('Invalid admin token');
     }
@@ -170,7 +170,7 @@ export class MaintenanceController {
     @Query('includeUnverified') includeUnverified = 'true',
   ) {
     // 1. Security Check
-    const expectedToken = this.config.get('ADMIN_TOKEN') || 'roua-admin-secret-2026';
+    const expectedToken = this.config.get('ADMIN_PASSWORD') || 'roua-admin-secret-2026';
     if (!adminToken || adminToken !== expectedToken) {
       this.logger.warn(`🚫 Unauthorized cleanup attempt with token: ${adminToken}`);
       throw new UnauthorizedException('Invalid admin token');
@@ -319,7 +319,7 @@ export class MaintenanceController {
   async cleanupDb(
     @Headers('x-admin-token') adminToken: string,
   ) {
-    const expectedToken = this.config.get('ADMIN_TOKEN') || 'roua-admin-secret-2026';
+    const expectedToken = this.config.get('ADMIN_PASSWORD') || 'roua-admin-secret-2026';
     if (adminToken !== expectedToken) {
       throw new UnauthorizedException('Invalid admin token');
     }

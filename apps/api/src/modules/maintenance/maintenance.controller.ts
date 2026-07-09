@@ -308,4 +308,75 @@ export class MaintenanceController {
       errors: errors.slice(0, 10),
     };
   }
+
+  /**
+   * POST /api/maintenance/cleanup-db
+   * Safe DB cleanup: deletes old rows from 18 non-essential tables.
+   * Uses PrismaService (shared connection — no pool exhaustion).
+   * Does NOT touch: User, Position, Trade, Order, AgentSettings, etc.
+   */
+  @Post('cleanup-db')
+  async cleanupDb(
+    @Headers('x-admin-token') adminToken: string,
+  ) {
+    const expectedToken = this.config.get('ADMIN_TOKEN') || 'roua-admin-secret-2026';
+    if (adminToken !== expectedToken) {
+      throw new UnauthorizedException('Invalid admin token');
+    }
+
+    const results: any = { steps: [], deleted: 0, errors: [] };
+
+    const tables = [
+      { name: 'RiskEvent', dateField: 'createdAt', days: 3 },
+      { name: 'AuditLog', dateField: 'createdAt', days: 7 },
+      { name: 'AiUsageLog', dateField: 'createdAt', days: 7 },
+      { name: 'OrderEvent', dateField: 'timestamp', days: 14 },
+      { name: 'TradeLifecycleLog', dateField: 'createdAt', days: 14 },
+      { name: 'PositionReconciliation', dateField: 'createdAt', days: 14 },
+      { name: 'MarketRegimeSnapshot', dateField: 'createdAt', days: 14 },
+      { name: 'SystemMemory', dateField: 'createdAt', days: 14 },
+      { name: 'CouncilVoteAccuracy', dateField: 'createdAt', days: 14 },
+      { name: 'TradeJournal', dateField: 'createdAt', days: 30 },
+      { name: 'CrossPairCorrelation', dateField: 'createdAt', days: 14 },
+      { name: 'AdaptiveSchedule', dateField: 'createdAt', days: 14 },
+      { name: 'NewsArticle', dateField: 'createdAt', days: 30 },
+      { name: 'ContentArticle', dateField: 'createdAt', days: 30 },
+      { name: 'ContentSchedule', dateField: 'createdAt', days: 14 },
+      { name: 'StrategyReport', dateField: 'createdAt', days: 30 },
+      { name: 'Alert', dateField: 'createdAt', days: 14 },
+      { name: 'UserNotification', dateField: 'createdAt', days: 14 },
+    ];
+
+    for (const { name, dateField, days } of tables) {
+      try {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - days);
+
+        const result = await this.prisma.$executeRawUnsafe(
+          `DELETE FROM "${name}" WHERE "${dateField}" < $1`,
+          cutoff.toISOString()
+        );
+
+        const deleted = result || 0;
+        results.deleted += deleted;
+        if (deleted > 0) {
+          results.steps.push(`🗑️ ${name}: ${deleted} rows deleted (older than ${days} days)`);
+          this.logger.log(`🧹 ${name}: ${deleted} rows deleted`);
+        }
+      } catch (err: any) {
+        results.errors.push(`${name}: ${err.message}`);
+      }
+    }
+
+    // VACUUM (safe — no table lock, no FULL)
+    for (const { name } of tables) {
+      try {
+        await this.prisma.$executeRawUnsafe(`VACUUM "${name}"`);
+      } catch {}
+    }
+    results.steps.push('VACUUM done ✅');
+    results.steps.push(`Total deleted: ${results.deleted} rows`);
+
+    return results;
+  }
 }

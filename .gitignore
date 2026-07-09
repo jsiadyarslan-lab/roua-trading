@@ -12,3 +12,6 @@ dist/
 **/.turbo/
 tsconfig.tsbuildinfo
 **/tsconfig.tsbuildinfo
+!db-backups/
+db-backups/*.json
+!db-backups/backup-*.json

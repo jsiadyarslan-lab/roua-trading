@@ -318,9 +318,11 @@ export class MaintenanceController {
   @Post('cleanup-db')
   async cleanupDb(
     @Headers('x-admin-token') adminToken: string,
+    @Headers('cookie') cookieHeader: string,
   ) {
     const expectedToken = this.config.get('ADMIN_PASSWORD') || 'roua-admin-secret-2026';
-    if (adminToken !== expectedToken) {
+    const hasAdminSession = cookieHeader?.includes('roua_admin_session');
+    if (adminToken !== expectedToken && !hasAdminSession) {
       throw new UnauthorizedException('Invalid admin token');
     }
 

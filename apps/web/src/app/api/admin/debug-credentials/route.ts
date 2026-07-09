@@ -12,43 +12,98 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Step 1: Get column names for ExchangeCredential
-    const ecColumns = await db.$queryRawUnsafe(`
-      SELECT column_name, data_type, is_nullable, column_default
-      FROM information_schema.columns
-      WHERE table_name = 'ExchangeCredential'
-      ORDER BY ordinal_position
+    // Get all exchange credentials (masked)
+    const credentials = await db.$queryRawUnsafe(`
+      SELECT
+        ec.id,
+        ec."userId",
+        ec.exchange,
+        ec.label,
+        ec."isValid",
+        ec."testnet",
+        ec."keyType",
+        ec."permissions",
+        ec."lastValidatedAt",
+        ec."createdAt",
+        ec."updatedAt",
+        u.email as "userEmail",
+        u."displayName" as "userDisplayName"
+      FROM "ExchangeCredential" ec
+      LEFT JOIN "User" u ON ec."userId" = u.id
+      ORDER BY ec."createdAt" DESC
     `)
 
-    // Step 2: Get column names for Account
-    const accColumns = await db.$queryRawUnsafe(`
-      SELECT column_name, data_type
-      FROM information_schema.columns
-      WHERE table_name = 'Account'
-      ORDER BY ordinal_position
+    // Get users that have credentials
+    const usersWithCreds = await db.$queryRawUnsafe(`
+      SELECT
+        u.id,
+        u.email,
+        u."displayName",
+        u.tier,
+        u."createdAt"
+      FROM "User" u
+      WHERE u.id IN (SELECT DISTINCT "userId" FROM "ExchangeCredential")
+      ORDER BY u."createdAt" DESC
     `)
 
-    // Step 3: Get ExchangeCredential count
-    const ecCount = await db.$queryRawUnsafe(`SELECT count(*)::int as count FROM "ExchangeCredential"`)
-    
-    // Step 4: Get Account count
-    const accCount = await db.$queryRawUnsafe(`SELECT count(*)::int as count FROM "Account"`)
+    // Get session info for users with credentials
+    const userSessions = await db.$queryRawUnsafe(`
+      SELECT
+        s."userId",
+        COUNT(s.id)::int as session_count,
+        MAX(s."createdAt") as last_session,
+        bool_or(s."isActive") as has_active,
+        MAX(s."expiresAt") as max_expiry
+      FROM "Session" s
+      WHERE s."userId" IN (SELECT DISTINCT "userId" FROM "ExchangeCredential")
+      GROUP BY s."userId"
+    `)
 
-    // Step 5: Get all table names in the public schema
-    const allTables = await db.$queryRawUnsafe(`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public' 
-      ORDER BY table_name
+    // Check RLS status
+    const rlsStatus = await db.$queryRawUnsafe(`
+      SELECT 
+        relname as table_name,
+        relrowsecurity as rls_enabled
+      FROM pg_class
+      WHERE relname IN ('ExchangeCredential', 'Account', 'User', 'Position', 'Session')
+        AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+    `)
+
+    // Check active sessions count
+    const activeSessions = await db.$queryRawUnsafe(`
+      SELECT count(*)::int as count 
+      FROM "Session" 
+      WHERE "isActive" = true AND "expiresAt" > NOW()
+    `)
+
+    // Check total sessions
+    const totalSessions = await db.$queryRawUnsafe(`
+      SELECT count(*)::int as count FROM "Session"
     `)
 
     return NextResponse.json({
       success: true,
-      ecColumns: ecColumns.map((c: any) => ({ name: c.column_name, type: c.data_type, nullable: c.is_nullable, default: c.column_default })),
-      accColumns: accColumns.map((c: any) => ({ name: c.column_name, type: c.data_type })),
-      exchangeCredentialCount: ecCount[0]?.count || 0,
-      accountCount: accCount[0]?.count || 0,
-      allTables: allTables.map((t: any) => t.table_name),
+      credentials: credentials.map((c: any) => ({
+        ...c,
+        id: c.id?.substring(0, 12) + '...',
+        userId: c.userId?.substring(0, 12) + '...',
+      })),
+      credentialsCount: credentials.length,
+      usersWithCredentials: usersWithCreds.map((u: any) => ({
+        ...u,
+        id: u.id?.substring(0, 12) + '...',
+      })),
+      userSessions: userSessions.map((s: any) => ({
+        ...s,
+        userId: s.userId?.substring(0, 12) + '...',
+        has_active: s.has_active,
+      })),
+      rlsStatus: rlsStatus.map((r: any) => ({
+        table: r.table_name,
+        rls_enabled: r.rls_enabled,
+      })),
+      activeSessions: activeSessions[0]?.count || 0,
+      totalSessions: totalSessions[0]?.count || 0,
     })
   } catch (err: any) {
     return NextResponse.json(

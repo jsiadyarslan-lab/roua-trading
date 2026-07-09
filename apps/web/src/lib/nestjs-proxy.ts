@@ -436,7 +436,11 @@ async function proxyWithToken(
     // V170 FIX: Added 'x-platform' so NestJS knows if the request
     // comes from a mobile app (ios/android). This is needed for
     // endpoints that include tokens in the response body for mobile clients.
-    const forwardedHeaders = ['accept', 'user-agent', 'x-forwarded-for', 'x-real-ip', 'x-platform']
+    // BUG-066s: Added 'x-admin-token' for maintenance endpoint bypass.
+    //   Note: Do NOT forward 'cookie' — it would overwrite the proxy's
+    //   roua_session cookie. MaintenanceController checks x-admin-token
+    //   independently of the cookie, so admin auth works without it.
+    const forwardedHeaders = ['accept', 'user-agent', 'x-forwarded-for', 'x-real-ip', 'x-platform', 'x-admin-token']
     for (const h of forwardedHeaders) {
       const val = request.headers.get(h)
       if (val) headers[h] = val

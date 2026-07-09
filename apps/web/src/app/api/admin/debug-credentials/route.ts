@@ -12,55 +12,38 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get all exchange credentials (without sensitive data)
-    const credentials = await db.$queryRawUnsafe(`
-      SELECT
-        ec.id,
-        ec."userId",
-        ec.exchange,
-        ec."accountId",
-        ec."isTestnet",
-        ec.active,
-        ec."keyType",
-        ec."createdAt",
-        ec."lastSyncAt",
-        u.email as "userEmail"
-      FROM "ExchangeCredential" ec
-      LEFT JOIN "User" u ON ec."userId" = u.id
-      ORDER BY ec."createdAt" DESC
+    // First, get the column names for ExchangeCredential
+    const ecColumns = await db.$queryRawUnsafe(`
+      SELECT column_name, data_type
+      FROM information_schema.columns
+      WHERE table_name = 'ExchangeCredential'
+      ORDER BY ordinal_position
     `)
 
-    // Get accounts
-    const accounts = await db.$queryRawUnsafe(`
-      SELECT
-        a.id,
-        a."userId",
-        a.exchange,
-        a."accountType",
-        a.balance,
-        a."equity",
-        a."isActive",
-        u.email as "userEmail"
-      FROM "Account" a
-      LEFT JOIN "User" u ON a."userId" = u.id
-      ORDER BY a."createdAt" DESC
+    // Get column names for Account
+    const accColumns = await db.$queryRawUnsafe(`
+      SELECT column_name, data_type
+      FROM information_schema.columns
+      WHERE table_name = 'Account'
+      ORDER BY ordinal_position
     `)
 
-    // Get users with their credential counts
+    // Get all exchange credentials using SELECT *
+    const credentialsRaw = await db.$queryRawUnsafe(`
+      SELECT * FROM "ExchangeCredential" ORDER BY "createdAt" DESC
+    `)
+
+    // Get all accounts using SELECT *
+    const accountsRaw = await db.$queryRawUnsafe(`
+      SELECT * FROM "Account" ORDER BY "createdAt" DESC
+    `)
+
+    // Get users that have credentials
     const usersWithCreds = await db.$queryRawUnsafe(`
-      SELECT
-        u.id,
-        u.email,
-        u."displayName",
-        u.tier,
-        u."createdAt",
-        COUNT(ec.id) as cred_count
+      SELECT u.id, u.email, u."displayName", u.tier, u."createdAt"
       FROM "User" u
-      LEFT JOIN "ExchangeCredential" ec ON u.id = ec."userId"
-      WHERE ec.id IS NOT NULL
-      GROUP BY u.id, u.email, u."displayName", u.tier, u."createdAt"
+      WHERE u.id IN (SELECT DISTINCT "userId" FROM "ExchangeCredential")
       ORDER BY u."createdAt" DESC
-      LIMIT 20
     `)
 
     // Get session info for users with credentials
@@ -75,18 +58,41 @@ export async function GET(request: NextRequest) {
       GROUP BY s."userId"
     `)
 
+    // Mask sensitive fields in credentials
+    const credentials = credentialsRaw.map((c: any) => {
+      const masked: any = {}
+      for (const [key, value] of Object.entries(c)) {
+        if (key.toLowerCase().includes('secret') || key.toLowerCase().includes('password') || key.toLowerCase().includes('apikey') || key.toLowerCase().includes('token')) {
+          masked[key] = '[MASKED]'
+        } else if (typeof value === 'string' && value.length > 50) {
+          masked[key] = value.substring(0, 50) + '...'
+        } else {
+          masked[key] = value
+        }
+      }
+      return masked
+    })
+
     return NextResponse.json({
       success: true,
-      credentials: credentials.map((c: any) => ({
-        ...c,
-        id: c.id?.substring(0, 12) + '...',
-        userId: c.userId?.substring(0, 12) + '...',
-      })),
-      accounts: accounts.map((a: any) => ({
-        ...a,
-        id: a.id?.substring(0, 12) + '...',
-        userId: a.userId?.substring(0, 12) + '...' || 'null',
-      })),
+      ecColumns: ecColumns.map((c: any) => `${c.column_name} (${c.data_type})`),
+      accColumns: accColumns.map((c: any) => `${c.column_name} (${c.data_type})`),
+      credentialsCount: credentials.length,
+      credentials,
+      accountsCount: accountsRaw.length,
+      accounts: accountsRaw.map((a: any) => {
+        const masked: any = {}
+        for (const [key, value] of Object.entries(a)) {
+          if (typeof value === 'object' && value !== null) {
+            masked[key] = value.toString()
+          } else if (typeof value === 'string' && value.length > 50) {
+            masked[key] = value.substring(0, 50) + '...'
+          } else {
+            masked[key] = value
+          }
+        }
+        return masked
+      }),
       usersWithCredentials: usersWithCreds.map((u: any) => ({
         ...u,
         id: u.id?.substring(0, 12) + '...',
@@ -94,6 +100,7 @@ export async function GET(request: NextRequest) {
       userSessions: userSessions.map((s: any) => ({
         ...s,
         userId: s.userId?.substring(0, 12) + '...',
+        has_active: s.has_active,
       })),
     })
   } catch (err: any) {

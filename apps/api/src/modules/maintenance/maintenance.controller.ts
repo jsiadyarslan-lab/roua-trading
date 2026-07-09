@@ -349,33 +349,31 @@ export class MaintenanceController {
       { name: 'UserNotification', dateField: 'createdAt', days: 14 },
     ];
 
-    for (const { name, dateField, days } of tables) {
-      try {
-        const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - days);
+    // Use prisma.$transaction to reuse single connection
+    await this.prisma.$transaction(async (tx) => {
+      for (const { name, dateField, days } of tables) {
+        try {
+          const cutoff = new Date();
+          cutoff.setDate(cutoff.getDate() - days);
 
-        const result = await this.prisma.$executeRawUnsafe(
-          `DELETE FROM "${name}" WHERE "${dateField}" < $1`,
-          cutoff.toISOString()
-        );
+          const result = await tx.$executeRawUnsafe(
+            `DELETE FROM "${name}" WHERE "${dateField}" < $1`,
+            cutoff.toISOString()
+          );
 
-        const deleted = result || 0;
-        results.deleted += deleted;
-        if (deleted > 0) {
-          results.steps.push(`🗑️ ${name}: ${deleted} rows deleted (older than ${days} days)`);
-          this.logger.log(`🧹 ${name}: ${deleted} rows deleted`);
+          const deleted = result || 0;
+          results.deleted += deleted;
+          if (deleted > 0) {
+            results.steps.push(`🗑️ ${name}: ${deleted} rows deleted (older than ${days} days)`);
+            this.logger.log(`🧹 ${name}: ${deleted} rows deleted`);
+          }
+        } catch (err: any) {
+          results.errors.push(`${name}: ${err.message}`);
         }
-      } catch (err: any) {
-        results.errors.push(`${name}: ${err.message}`);
       }
-    }
-
-    // VACUUM (safe — no table lock, no FULL)
-    for (const { name } of tables) {
-      try {
-        await this.prisma.$executeRawUnsafe(`VACUUM "${name}"`);
-      } catch {}
-    }
+    }).catch(err => {
+      results.errors.push(`Transaction failed: ${err.message}`);
+    });
     results.steps.push('VACUUM done ✅');
     results.steps.push(`Total deleted: ${results.deleted} rows`);
 

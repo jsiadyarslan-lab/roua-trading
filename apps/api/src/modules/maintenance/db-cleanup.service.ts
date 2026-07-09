@@ -154,34 +154,9 @@ export class DbCleanupService implements OnModuleInit {
       `🧹 BUG-066r: DB cleanup complete — ${totalDeleted} rows deleted in ${elapsedMs}ms`,
     );
 
-    // BUG-066r+: VACUUM FULL لإرجاع مساحة القرص فعلياً (يُصغّر الملفات)
-    await this.vacuumFull();
   }
 
-  /**
-   * VACUUM FULL: يُصغّر الملفات الفعلية ويُرجع مساحة القرص للنظام.
-   * هذا ضروري لأن DELETE وحده لا يُصغّر القرص في PostgreSQL.
-   */
-  private async vacuumFull(): Promise<void> {
-    const tables = [
-      'RiskEvent', 'AuditLog', 'AiUsageLog', 'OrderEvent',
-      'TradeLifecycleLog', 'PositionReconciliation', 'MarketRegimeSnapshot',
-      'SystemMemory', 'CouncilVoteAccuracy', 'TradeJournal',
-      'CrossPairCorrelation', 'AdaptiveSchedule', 'NewsArticle',
-      'ContentArticle', 'ContentSchedule', 'StrategyReport',
-      'Alert', 'UserNotification',
-    ];
-
-    for (const table of tables) {
-      try {
-        await this.prisma.$executeRawUnsafe(`VACUUM FULL "${table}"`);
-        this.logger.log(`  📦 VACUUM FULL ${table}: done`);
-      } catch (err: any) {
-        this.logger.warn(`  ⚠️ VACUUM FULL ${table} failed: ${err?.message}`);
-      }
-    }
-  }
-
+  
   /**
    * يحذف الصفوف الأقدم من retentionDays من جدول واحد.
    * يستخدم deleteMany مع where على حقل التاريخ.
@@ -196,7 +171,7 @@ export class DbCleanupService implements OnModuleInit {
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() - retentionDays);
 
-      // استخدم raw SQL للحذف (أسرع من Prisma deleteMany للأعداد الكبيرة)
+      // استخدم raw SQL عبر $executeRaw (tagged template — يشارك Prisma connection)
       const result = await this.prisma.$executeRaw`
         DELETE FROM "${modelName}"
         WHERE "${dateField}" < ${cutoff}

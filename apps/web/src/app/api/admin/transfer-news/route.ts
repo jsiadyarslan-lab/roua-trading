@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
       const lastRow = batchResult.rows[batchResult.rows.length - 1]
       lastId = lastRow.id
 
-      // Batch INSERT into new DB
+      // Batch INSERT into new DB — with type casting
       try {
         const cols = Object.keys(batchResult.rows[0])
         const colList = cols.map(c => `"${c}"`).join(', ')
@@ -99,7 +99,18 @@ export async function POST(request: NextRequest) {
             let val = row[col]
             if (val !== null && typeof val === 'object') val = JSON.stringify(val)
             allValues.push(val)
-            rowPh.push(`$${rowIdx * cols.length + colIdx + 1}`)
+            const paramIdx = rowIdx * cols.length + colIdx + 1
+            // Cast jsonb columns — the new DB has jsonb type for some columns
+            // but pg returns them as strings when reading from old DB
+            const colInfo = colResult.rows.find((r: any) => r.column_name === col)
+            const dataType = colInfo?.data_type || 'text'
+            let cast = ''
+            if (dataType === 'jsonb' || dataType === 'json') cast = '::jsonb'
+            else if (dataType === 'timestamp without time zone') cast = '::timestamp'
+            else if (dataType === 'numeric') cast = '::numeric'
+            else if (dataType === 'boolean') cast = '::boolean'
+            else if (dataType === 'integer') cast = '::integer'
+            rowPh.push(`$${paramIdx}${cast}`)
           })
           allPlaceholders.push(`(${rowPh.join(', ')})`)
         })
@@ -110,7 +121,6 @@ export async function POST(request: NextRequest) {
         )
         imported += batchResult.rows.length
       } catch (batchErr: any) {
-        // Log the FIRST error so we know what's wrong
         if (imported === 0 && skipped === 0) {
           results.steps.push(`  FIRST INSERT ERROR: ${batchErr?.message?.substring(0, 250)}`)
         }

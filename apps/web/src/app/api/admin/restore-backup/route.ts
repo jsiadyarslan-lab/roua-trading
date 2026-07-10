@@ -81,6 +81,15 @@ export async function POST(request: NextRequest) {
     const backup = JSON.parse(jsonBuffer.toString('utf-8'))
     results.steps.push(`Tables in backup: ${Object.keys(backup.tables || {}).length}`)
 
+    // Disable FK constraints for bulk import
+    results.steps.push('Disabling FK constraints...')
+    try {
+      await db.$executeRawUnsafe('SET session_replication_role = \'replica\'')
+      results.steps.push('FK constraints disabled')
+    } catch (e: any) {
+      results.steps.push('Could not disable FK constraints (non-fatal)')
+    }
+
     for (const { name, jsonKey } of TABLES_TO_IMPORT) {
       const tableData = backup.tables?.[jsonKey] || backup.tables?.[name]
       if (!tableData?.data || !Array.isArray(tableData.data) || tableData.data.length === 0) {
@@ -147,6 +156,14 @@ export async function POST(request: NextRequest) {
         results.errors.push(`${name}: ${err?.message?.substring(0, 200)}`)
         results.steps.push(`  ${name}: ❌ ${err?.message?.substring(0, 100)}`)
       }
+    }
+
+    // Re-enable FK constraints
+    try {
+      await db.$executeRawUnsafe('SET session_replication_role = \'origin\'')
+      results.steps.push('FK constraints re-enabled')
+    } catch {
+      // Non-fatal
     }
 
     // Final counts

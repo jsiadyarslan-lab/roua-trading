@@ -152,6 +152,15 @@ export async function POST(request: NextRequest) {
       const isSampled = tableData.sampled || false
       results.steps.push(`${name}: importing ${rows.length} rows${isSampled ? ` (sampled from ${totalCount})` : ''}...`)
 
+      // BUG FIX: Add default values for NOT NULL columns missing from backup
+      // Order table: filledQuantity=0, idempotencyKey=<row id>
+      if (name === 'Order') {
+        for (const row of rows) {
+          if (row.filledQuantity === undefined) row.filledQuantity = row.quantity || 0
+          if (row.idempotencyKey === undefined) row.idempotencyKey = row.id || `import-${Date.now()}-${Math.random()}`
+        }
+      }
+
       try {
         const colTypes = await getColumnTypes(name)
         const dbColumns = Array.from(colTypes.keys())

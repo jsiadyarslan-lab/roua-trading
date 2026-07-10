@@ -7,35 +7,65 @@ export const maxDuration = 300
 
 const BACKUP_URL = 'https://raw.githubusercontent.com/jsiadyarslan-lab/roua-db-backup/main/comprehensive-backup.json.gz'
 
+// ALL tables to import — including rouatradingnews tables
 const TABLES_TO_IMPORT = [
+  // Core roua-trading tables
   { name: 'User', jsonKey: 'users' },
   { name: 'ExchangeCredential', jsonKey: 'exchangeCredentials' },
   { name: 'Setting', jsonKey: 'Setting' },
   { name: 'AgentSettings', jsonKey: 'AgentSettings' },
   { name: 'Account', jsonKey: 'Account' },
+  { name: 'Session', jsonKey: 'Session' },
   { name: 'Order', jsonKey: 'orders' },
   { name: 'Trade', jsonKey: 'Trade' },
-  { name: 'Session', jsonKey: 'Session' },
-  { name: 'ContentArticle', jsonKey: 'ContentArticle' },
   { name: 'AgentSession', jsonKey: 'AgentSession' },
   { name: 'AutonomousTrade', jsonKey: 'AutonomousTrade' },
   { name: 'EAToken', jsonKey: 'EAToken' },
   { name: 'VerificationToken', jsonKey: 'VerificationToken' },
   { name: 'AdminSession', jsonKey: 'AdminSession' },
   { name: 'NotificationConfig', jsonKey: 'NotificationConfig' },
+  { name: 'ContentArticle', jsonKey: 'ContentArticle' },
+  { name: 'NewsArticle', jsonKey: 'NewsArticle' },
+  { name: 'Signal', jsonKey: 'Signal' },
+  { name: 'TradingBrief', jsonKey: 'TradingBrief' },
+  { name: 'AuditLog', jsonKey: 'AuditLog' },
+  { name: 'TradeLifecycleLog', jsonKey: 'TradeLifecycleLog' },
+  // rouatradingnews tables (lowercase names)
+  { name: 'accounts', jsonKey: 'accounts' },
+  { name: 'agency_events', jsonKey: 'agency_events' },
+  { name: 'api_keys', jsonKey: 'api_keys' },
+  { name: 'chat_messages', jsonKey: 'chat_messages' },
+  { name: 'chat_sessions', jsonKey: 'chat_sessions' },
+  { name: 'company_profiles', jsonKey: 'company_profiles' },
+  { name: 'council_briefs', jsonKey: 'council_briefs' },
+  { name: 'economic_events', jsonKey: 'economic_events' },
+  { name: 'economic_reports', jsonKey: 'economic_reports' },
+  { name: 'geopolitical_risks', jsonKey: 'geopolitical_risks' },
+  { name: 'infographics', jsonKey: 'infographics' },
+  { name: 'market_analyses', jsonKey: 'market_analyses' },
+  { name: 'market_indicators', jsonKey: 'market_indicators' },
+  { name: 'news_item_archives', jsonKey: 'news_item_archives' },
+  { name: 'notifications', jsonKey: 'notifications' },
+  { name: 'personalized_recommendations', jsonKey: 'personalized_recommendations' },
+  { name: 'report_views', jsonKey: 'report_views' },
+  { name: 'site_settings', jsonKey: 'site_settings' },
+  { name: 'telegram_accounts', jsonKey: 'telegram_accounts' },
+  { name: 'trading_signals', jsonKey: 'trading_signals' },
+  { name: 'user_profiles', jsonKey: 'user_profiles' },
+  { name: 'video_reports', jsonKey: 'video_reports' },
 ]
 
 async function getColumnTypes(tableName: string): Promise<Map<string, string>> {
-  const result = await db.$queryRawUnsafe<{ column_name: string; data_type: string; udt_name: string }[]>(
-    `SELECT column_name, data_type, udt_name 
-     FROM information_schema.columns 
+  const result = await db.$queryRawUnsafe<{ column_name: string; data_type: string; udt_name: string; is_nullable: string }[]>(
+    `SELECT column_name, data_type, udt_name, is_nullable
+     FROM information_schema.columns
      WHERE table_name = $1 AND table_schema = 'public'
      ORDER BY ordinal_position`,
     tableName
   )
   const types = new Map<string, string>()
+  const nullable = new Map<string, boolean>()
   for (const row of result) {
-    // For enum types, use udt_name; for others, use data_type
     if (row.data_type === 'USER-DEFINED') {
       types.set(row.column_name, `"${row.udt_name}"`)
     } else if (row.data_type === 'timestamp without time zone') {
@@ -53,8 +83,21 @@ async function getColumnTypes(tableName: string): Promise<Map<string, string>> {
     } else {
       types.set(row.column_name, 'text')
     }
+    nullable.set(row.column_name, row.is_nullable === 'YES')
   }
   return types
+}
+
+async function tableExists(tableName: string): Promise<boolean> {
+  try {
+    const result = await db.$queryRawUnsafe<{ exists: boolean }[]>(
+      `SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = $1) as exists`,
+      tableName
+    )
+    return result[0]?.exists || false
+  } catch {
+    return false
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -67,7 +110,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const results: any = { steps: [], imported: 0, errors: [] }
+  const results: any = { steps: [], imported: 0, errors: [], skipped: 0 }
 
   try {
     results.steps.push('Downloading backup from GitHub...')
@@ -84,74 +127,111 @@ export async function POST(request: NextRequest) {
     // Disable FK constraints for bulk import
     results.steps.push('Disabling FK constraints...')
     try {
-      await db.$executeRawUnsafe('SET session_replication_role = \'replica\'')
+      await db.$executeRawUnsafe("SET session_replication_role = 'replica'")
       results.steps.push('FK constraints disabled')
-    } catch (e: any) {
+    } catch {
       results.steps.push('Could not disable FK constraints (non-fatal)')
     }
 
     for (const { name, jsonKey } of TABLES_TO_IMPORT) {
+      // Check if table exists in the new database
+      const exists = await tableExists(name)
+      if (!exists) {
+        results.steps.push(`  ${name}: table does not exist in new DB — skipping`)
+        results.skipped++
+        continue
+      }
+
       const tableData = backup.tables?.[jsonKey] || backup.tables?.[name]
       if (!tableData?.data || !Array.isArray(tableData.data) || tableData.data.length === 0) {
         continue
       }
 
       const rows = tableData.data
-      results.steps.push(`${name}: importing ${rows.length} rows...`)
+      const totalCount = tableData.count || rows.length
+      const isSampled = tableData.sampled || false
+      results.steps.push(`${name}: importing ${rows.length} rows${isSampled ? ` (sampled from ${totalCount})` : ''}...`)
 
       try {
-        // Get column types from DB
         const colTypes = await getColumnTypes(name)
-        
-        // Only import columns that exist in the DB
         const dbColumns = Array.from(colTypes.keys())
         const sampleRow = rows[0]
         const backupColumns = Object.keys(sampleRow)
-        // Use intersection of DB columns and backup columns
         const columns = dbColumns.filter(c => backupColumns.includes(c))
-        
+
         if (columns.length === 0) {
           results.steps.push(`  ${name}: ❌ no matching columns`)
           continue
         }
 
         let imported = 0
+        let failed = 0
         const batchSize = 25
 
         for (let i = 0; i < rows.length; i += batchSize) {
           const batch = rows.slice(i, i + batchSize)
-          const values: any[] = []
-          const placeholders: string[] = []
 
-          batch.forEach((row, batchIdx) => {
-            const rowPh: string[] = []
-            columns.forEach((col, colIdx) => {
-              const paramIdx = batchIdx * columns.length + colIdx + 1
-              let val = row[col]
-              // Convert objects to JSON strings for jsonb columns
-              const colType = colTypes.get(col) || 'text'
-              if (val !== null && typeof val === 'object') {
-                val = JSON.stringify(val)
-              }
-              // Convert booleans
-              if (colType === 'boolean' && typeof val === 'string') {
-                val = val === 'true'
-              }
-              values.push(val)
-              // Add cast: $N::type
-              rowPh.push(`$${paramIdx}::${colType}`)
+          try {
+            const values: any[] = []
+            const placeholders: string[] = []
+
+            batch.forEach((row, batchIdx) => {
+              const rowPh: string[] = []
+              columns.forEach((col, colIdx) => {
+                const paramIdx = batchIdx * columns.length + colIdx + 1
+                let val = row[col]
+                const colType = colTypes.get(col) || 'text'
+                if (val !== null && typeof val === 'object') {
+                  val = JSON.stringify(val)
+                }
+                if (colType === 'boolean' && typeof val === 'string') {
+                  val = val === 'true'
+                }
+                values.push(val)
+                rowPh.push(`$${paramIdx}::${colType}`)
+              })
+              placeholders.push(`(${rowPh.join(', ')})`)
             })
-            placeholders.push(`(${rowPh.join(', ')})`)
-          })
 
-          const colList = columns.map(c => `"${c}"`).join(', ')
-          const sql = `INSERT INTO "${name}" (${colList}) VALUES ${placeholders.join(', ')} ON CONFLICT DO NOTHING`
-          await db.$executeRawUnsafe(sql, ...values)
-          imported += batch.length
+            const colList = columns.map(c => `"${c}"`).join(', ')
+            const sql = `INSERT INTO "${name}" (${colList}) VALUES ${placeholders.join(', ')} ON CONFLICT DO NOTHING`
+            await db.$executeRawUnsafe(sql, ...values)
+            imported += batch.length
+          } catch {
+            // If batch fails, try row by row to salvage what we can
+            for (const row of batch) {
+              try {
+                const values: any[] = []
+                const rowPh: string[] = []
+                columns.forEach((col, colIdx) => {
+                  let val = row[col]
+                  const colType = colTypes.get(col) || 'text'
+                  if (val !== null && typeof val === 'object') {
+                    val = JSON.stringify(val)
+                  }
+                  if (colType === 'boolean' && typeof val === 'string') {
+                    val = val === 'true'
+                  }
+                  values.push(val)
+                  rowPh.push(`$${colIdx + 1}::${colType}`)
+                })
+                const colList = columns.map(c => `"${c}"`).join(', ')
+                const sql = `INSERT INTO "${name}" (${colList}) VALUES (${rowPh.join(', ')}) ON CONFLICT DO NOTHING`
+                await db.$executeRawUnsafe(sql, ...values)
+                imported++
+              } catch {
+                failed++
+              }
+            }
+          }
         }
 
         results.imported += imported
-        results.steps.push(`  ${name}: ✅ ${imported} rows`)
+        if (failed > 0) {
+          results.steps.push(`  ${name}: ✅ ${imported} imported, ⚠️ ${failed} skipped (constraint violations)`)
+        } else {
+          results.steps.push(`  ${name}: ✅ ${imported} rows`)
+        }
       } catch (err: any) {
         results.errors.push(`${name}: ${err?.message?.substring(0, 200)}`)
         results.steps.push(`  ${name}: ❌ ${err?.message?.substring(0, 100)}`)
@@ -160,7 +240,7 @@ export async function POST(request: NextRequest) {
 
     // Re-enable FK constraints
     try {
-      await db.$executeRawUnsafe('SET session_replication_role = \'origin\'')
+      await db.$executeRawUnsafe("SET session_replication_role = 'origin'")
       results.steps.push('FK constraints re-enabled')
     } catch {
       // Non-fatal
@@ -169,7 +249,14 @@ export async function POST(request: NextRequest) {
     // Final counts
     results.steps.push('--- Final counts ---')
     const counts: any = {}
-    for (const table of ['User', 'ExchangeCredential', 'Trade', 'Order', 'Account', 'AgentSettings', 'Setting']) {
+    const checkTables = [
+      'User', 'ExchangeCredential', 'Trade', 'Order', 'Account', 'AgentSettings', 'Setting',
+      'ContentArticle', 'NewsArticle', 'Session', 'AuditLog',
+      'economic_reports', 'market_analyses', 'geopolitical_risks',
+      'news_item_archives', 'infographics', 'video_reports',
+      'chat_messages', 'company_profiles',
+    ]
+    for (const table of checkTables) {
       try {
         const result = await db.$queryRawUnsafe<{ count: number }[]>(`SELECT count(*)::int as count FROM "${table}"`)
         counts[table] = result[0]?.count || 0

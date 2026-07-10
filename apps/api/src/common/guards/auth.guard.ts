@@ -52,9 +52,12 @@ export class AuthGuard implements CanActivate {
     // Extract session token from cookie, Authorization header, or x-roua-session custom header
     const cookieToken = request.cookies?.['roua_session'];
     const authHeader = request.headers.authorization;
+    // BUG-066s FIX (HIGH-4): Only accept Bearer tokens, not raw Authorization header.
+    // Previously, any Authorization header value (e.g., "Basic xxx") was treated
+    // as a session token, causing unnecessary DB lookups and potential confusion.
     const bearerToken = authHeader?.startsWith('Bearer ')
       ? authHeader.slice(7)
-      : authHeader;
+      : undefined;
     const headerToken = request.headers['x-roua-session'] as string | undefined;
 
     const sessionToken = cookieToken || bearerToken || headerToken;

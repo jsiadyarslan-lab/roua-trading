@@ -15,7 +15,8 @@
 //   4. فحص قاعدة البيانات (هل position sizes معقولة؟)
 //   5. التحقق من التكامل بين الملفات (cross-file checks)
 
-import { Controller, Get, Query, Res } from '@nestjs/common';
+import { Controller, Get, Query, Res, Headers, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -31,7 +32,7 @@ interface CheckResult {
 export class IntegrityCheckController {
   private readonly SRC_DIR: string;
 
-  constructor() {
+  constructor(private readonly config: ConfigService) {
     // Find src directory relative to dist
     this.SRC_DIR = path.resolve(__dirname, '..', '..');
   }
@@ -43,7 +44,18 @@ export class IntegrityCheckController {
    * فحص سلامة نظام التداول — يمكن فتحه من المتصفح
    */
   @Get()
-  async check(@Query('html') html: string, @Res() res: Response) {
+  async check(
+    @Query('html') html: string,
+    @Res() res: Response,
+    @Headers('x-admin-token') adminToken: string,
+  ) {
+    // BUG-066s FIX (HIGH-6): Require admin token to access integrity check.
+    // Previously, this endpoint was publicly accessible and exposed system internals.
+    const expectedToken = this.config.get<string>('ADMIN_PASSWORD');
+    if (!expectedToken || adminToken !== expectedToken) {
+      throw new UnauthorizedException('Admin token required');
+    }
+
     const results = await this.runAllChecks();
     const passed = results.filter(r => r.status === 'PASS').length;
     const failed = results.filter(r => r.status === 'FAIL').length;

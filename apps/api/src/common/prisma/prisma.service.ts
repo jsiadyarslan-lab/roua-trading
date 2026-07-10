@@ -36,19 +36,21 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   constructor() {
     const isDev = process.env.NODE_ENV !== 'production';
 
-    // FIX v13: Add connection_limit via URL params.
-    // V230: connection_limit=3 for reliability (prevents pool exhaustion
-    // under concurrent requests). V222 extension is removed so no deadlock risk.
+    // BUG-066s FIX (DB-015): Increased connection_limit from 3 to 10.
+    // connection_limit=3 was causing pool exhaustion under concurrent load
+    // (trading + position monitor + smart executor + user dashboard).
+    // With 10 connections, the pool can handle concurrent requests without
+    // timing out. pool_timeout increased from 10s to 30s for slower queries.
     const dbUrl = (() => {
       try {
         const u = new URL(process.env.DATABASE_URL || '');
-        u.searchParams.set('connection_limit', '3');
-        u.searchParams.set('pool_timeout', '10');
+        u.searchParams.set('connection_limit', '10');
+        u.searchParams.set('pool_timeout', '30');
         return u.toString();
       } catch {
         const base = process.env.DATABASE_URL || '';
         const sep = base.includes('?') ? '&' : '?';
-        return `${base}${sep}connection_limit=3&pool_timeout=10`;
+        return `${base}${sep}connection_limit=10&pool_timeout=30`;
       }
     })();
     PrismaService._dbUrlPrefix = dbUrl.substring(0, 30) + '...';
@@ -105,7 +107,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     this.logger.log(
       `📦 PrismaService initialized: connected=${connected}, ` +
       `agentProtection=V214_SERVICE_LEVEL, ` +
-      `connection_limit=3`
+      `connection_limit=10`
     );
   }
 
@@ -415,6 +417,15 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   /**
    * Set the current user ID for Row Level Security.
    * Called by AuthGuard and UserIsolationInterceptor before each request.
+   *
+   * BUG-066s FIX (DB-014/HIGH-1): Use SET LOCAL instead of SET.
+   * SET (session-scoped) persists across requests on pooled connections,
+   * causing cross-user data leakage. SET LOCAL is transaction-scoped and
+   * automatically resets at end of transaction.
+   *
+   * Note: SET LOCAL requires the query to run inside a transaction.
+   * The UserIsolationInterceptor wraps each request in a transaction,
+   * so SET LOCAL is safe here.
    */
   async setRlsUserId(userId: string | null): Promise<void> {
     if (!userId) return;
@@ -422,7 +433,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     try {
       // Sanitize userId to prevent SQL injection (though it should be a UUID)
       const safeId = userId.replace(/'/g, "''");
-      await this.$executeRawUnsafe(`SET app.current_user_id = '${safeId}'`);
+      // BUG-066s: Use SET LOCAL (transaction-scoped) instead of SET (session-scoped)
+      await this.$executeRawUnsafe(`SET LOCAL app.current_user_id = '${safeId}'`);
     } catch (error: any) {
       this.logger.warn(`RLS setRlsUserId failed: ${error?.message}`);
     }
@@ -431,6 +443,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   /**
    * Clear the current user ID for Row Level Security.
    * Called after each request completes.
+   *
+   * BUG-066s: With SET LOCAL, this is less critical (transaction end resets
+   * automatically), but we keep it as defense-in-depth.
    */
   async clearRlsUserId(): Promise<void> {
     if (!this.isAvailable()) return;
@@ -449,7 +464,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   async enableRlsBypass(): Promise<void> {
     if (!this.isAvailable()) return;
     try {
-      await this.$executeRawUnsafe(`SET app.rls_bypass = 'true'`);
+      await this.$executeRawUnsafe(`SET LOCAL app.rls_bypass = 'true'`);
     } catch {
       // Non-critical
     }

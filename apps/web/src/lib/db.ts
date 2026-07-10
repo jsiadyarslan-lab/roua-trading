@@ -20,19 +20,29 @@ export const db =
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
   })
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = db
-}
+// BUG-066s FIX (FRONTEND-005): Singleton PrismaClient in ALL environments.
+// Previously, production did NOT singleton the client, causing a new
+// PrismaClient (with its own connection pool) to be created on every
+// module re-evaluation. This caused connection pool exhaustion.
+globalForPrisma.prisma = db
 
 // V469: helper functions يتطلبها مساعد رؤى المالي
+// BUG-066s FIX (FRONTEND-004): TTL the dbReadyFlag so it re-checks
+// periodically instead of caching forever.
 let dbReadyFlag = false;
+let dbReadyCheckedAt = 0;
+const DB_READY_TTL_MS = 30_000; // Re-check every 30s
+
 export async function ensureDbReady(): Promise<boolean> {
-  if (dbReadyFlag) return true;
+  const now = Date.now();
+  if (dbReadyFlag && (now - dbReadyCheckedAt) < DB_READY_TTL_MS) return true;
   try {
     await db.$queryRaw`SELECT 1`;
     dbReadyFlag = true;
+    dbReadyCheckedAt = now;
     return true;
   } catch {
+    dbReadyFlag = false;
     return false;
   }
 }

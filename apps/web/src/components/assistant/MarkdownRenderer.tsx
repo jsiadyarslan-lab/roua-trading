@@ -28,9 +28,11 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   const dir = isRtl ? 'rtl' : 'ltr';
 
   // V574: sanitize HTML مرة واحدة فقط (memoized)
+  // BUG-066s FIX (HIGH-3): Sanitize on SSR too. Previously, SSR returned raw
+  // content via dangerouslySetInnerHTML — XSS risk if AI echoes user input.
+  // Also removed 'style' from ALLOWED_ATTR (clickjacking vector).
   const safeHtml = useMemo(() => {
     try {
-      // DOMPurify يعمل في browser فقط (يتطلب window)
       if (typeof window !== 'undefined') {
         return DOMPurify.sanitize(content, {
           ALLOWED_TAGS: [
@@ -42,12 +44,20 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             'strong', 'em', 'del', 'a',
             'span', 'div',
           ],
-          ALLOWED_ATTR: ['href', 'target', 'rel', 'dir', 'style', 'class'],
+          // BUG-066s: Removed 'style' — allows clickjacking via CSS overlays
+          ALLOWED_ATTR: ['href', 'target', 'rel', 'dir', 'class'],
         });
       }
-      return content; // SSR fallback
+      // SSR: escape HTML to prevent XSS. The content will be sanitized
+      // on the client after hydration.
+      return content
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
     } catch {
-      return content; // لو فشل DOMPurify، اعرض النص الخام (آمن لأنه من backend موثوق)
+      return '';
     }
   }, [content]);
 

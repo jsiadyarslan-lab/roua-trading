@@ -3818,13 +3818,20 @@ export class SmartExecutorService implements OnModuleDestroy {
       // ── MARGIN CHECK: Verify available balance before submitting order ──
       // SmartExecutor previously skipped this check, causing orders to be placed
       // even when available margin was $0. Now we fetch live balance and compare.
+      // BUG-066s FIX (TRADING-003): Use per-credential balance, not aggregate.
+      // Previously, totalAvailableUsd summed across ALL credentials, so a user
+      // with $100 on Binance and $10K on Alpaca would pass a $5K Binance order.
       try {
         const balanceData = await this.credentialsService.fetchAllExchangeBalances(userId);
-        const availableUsd = balanceData.totalAvailableUsd;
+        // BUG-066s: Find the balance for THIS credential's exchange specifically
+        const credBalance = balanceData.balances?.find(
+          (b: any) => b.credentialId === credential.id || b.exchange === credential.exchange
+        );
+        const availableUsd = credBalance?.availableUsd ?? balanceData.totalAvailableUsd;
         if (availableUsd !== undefined && availableUsd < margin) {
           result.error = `رصيد غير كافي في ${credential.exchange} — يحتاج $${margin.toFixed(2)}، المتاح $${availableUsd.toFixed(2)}`;
           this.logger.warn(
-            `⚔️ MARGIN CHECK FAILED for ${userId} on ${brief.pair}: ` +
+            `⚔️ MARGIN CHECK FAILED for ${userId} on ${brief.pair} (${credential.exchange}): ` +
             `needs $${margin.toFixed(2)}, available $${availableUsd.toFixed(2)} — skipping`
           );
           return result;

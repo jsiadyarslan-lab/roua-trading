@@ -171,35 +171,11 @@ timeout 30 npx --yes prisma generate --schema=./prisma/schema.prisma 2>&1 || ech
 if [ "$DB_REACHABLE" -eq 1 ]; then
   echo "📦 Applying database migrations (60s timeout)..."
   timeout 60 npx --yes prisma migrate deploy --schema=./prisma/schema.prisma 2>&1 && echo "✅ Migrations applied" || {
-    echo "⚠️ migrate deploy failed — checking if database is empty..."
-    # Check if the database has any tables (if empty, db push is safe)
-    TABLE_COUNT=$(DATABASE_URL_IN="$ORIG_DB_URL" timeout 15 node -e "
-      const { Client } = require('pg');
-      async function check() {
-        const client = new Client({
-          connectionString: process.env.DATABASE_URL_IN,
-          connectionTimeoutMillis: 5000,
-        });
-        try {
-          await client.connect();
-          const result = await client.query(\"SELECT count(*)::int as count FROM information_schema.tables WHERE table_schema = 'public'\");
-          console.log(result.rows[0].count);
-          await client.end();
-        } catch(e) {
-          console.log('0');
-          try { await client.end(); } catch {}
-        }
-      }
-      check();
-    " 2>&1)
-    
-    if [ "$TABLE_COUNT" = "0" ] || [ "$TABLE_COUNT" = "" ]; then
-      echo "📦 Database is empty — using 'db push' to create schema (safe on fresh database)..."
-      timeout 120 npx --yes prisma db push --schema=./prisma/schema.prisma 2>&1 && echo "✅ Schema created via db push" || echo "⚠️ db push also failed — will try direct SQL fallback"
-    else
-      echo "⚠️ Database has tables — skipping db push (would risk data loss)"
-      echo "⚠️ The app's auto-migrate will attempt to add missing columns on startup"
-    fi
+    echo "⚠️ migrate deploy failed — trying db push (safe: only adds tables, never drops)..."
+    # db push WITHOUT --accept-data-loss is safe:
+    # - On fresh database: creates all tables from schema
+    # - On existing database: adds missing tables/columns, never drops
+    timeout 120 npx --yes prisma db push --schema=./prisma/schema.prisma 2>&1 && echo "✅ Schema created via db push" || echo "⚠️ db push also failed — will try direct SQL fallback"
   }
 
   # ── V339: Ensure TradeLifecycleLog table exists (UNCONDITIONAL) ──

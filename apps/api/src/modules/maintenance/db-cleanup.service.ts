@@ -34,26 +34,28 @@ export class DbCleanupService implements OnModuleInit {
   private readonly logger = new Logger('DbCleanup');
 
   // فترات الاحتفاظ (بالأيام)
+  // BUG-066s FIX: استخدم PascalCase لمطابقة أسماء الجداول الفعلية في PostgreSQL
+  // (PostgreSQL quoted identifiers حساسة لحالة الأحرف)
   private readonly RETENTION_DAYS = {
-    riskEvent: 3,           // نمو عالي جداً
-    auditLog: 7,            // نمو عالي
-    aiUsageLog: 7,          // نمو عالي
-    orderEvent: 14,         // نمو متوسط
-    tradeLifecycleLog: 14,  // نمو متوسط
-    positionReconciliation: 14, // نمو منخفض
-    marketRegimeSnapshot: 14,   // نمو متوسط
-    systemMemory: 14,       // نمو منخفض
+    RiskEvent: 3,           // نمو عالي جداً
+    AuditLog: 7,            // نمو عالي
+    AiUsageLog: 7,          // نمو عالي
+    OrderEvent: 14,         // نمو متوسط
+    TradeLifecycleLog: 14,  // نمو متوسط
+    PositionReconciliation: 14, // نمو منخفض
+    MarketRegimeSnapshot: 14,   // نمو متوسط
+    SystemMemory: 14,       // نمو منخفض
     // BUG-066r+: جداول إضافية بلا cleanup
-    councilVoteAccuracy: 14,
-    tradeJournal: 30,       // بيانات أداء — احتفاظ أطول
-    crossPairCorrelation: 14,
-    adaptiveSchedule: 14,
-    newsArticle: 30,
-    contentArticle: 30,
-    contentSchedule: 14,
-    strategyReport: 30,
-    alert: 14,
-    userNotification: 14,
+    CouncilVoteAccuracy: 14,
+    TradeJournal: 30,       // بيانات أداء — احتفاظ أطول
+    CrossPairCorrelation: 14,
+    AdaptiveSchedule: 14,
+    NewsArticle: 30,
+    ContentArticle: 30,
+    ContentSchedule: 14,
+    StrategyReport: 30,
+    Alert: 14,
+    UserNotification: 14,
   };
 
   constructor(private readonly prisma: PrismaService) {}
@@ -83,71 +85,71 @@ export class DbCleanupService implements OnModuleInit {
 
     // 1. RiskEvent — 3 أيام
     totalDeleted += await this.cleanupTable(
-      'riskEvent',
+      'RiskEvent',
       'createdAt',
-      this.RETENTION_DAYS.riskEvent,
+      this.RETENTION_DAYS.RiskEvent,
     );
 
     // 2. AuditLog — 7 أيام
     totalDeleted += await this.cleanupTable(
-      'auditLog',
+      'AuditLog',
       'createdAt',
-      this.RETENTION_DAYS.auditLog,
+      this.RETENTION_DAYS.AuditLog,
     );
 
     // 3. AiUsageLog — 7 أيام
     totalDeleted += await this.cleanupTable(
-      'aiUsageLog',
+      'AiUsageLog',
       'createdAt',
-      this.RETENTION_DAYS.aiUsageLog,
+      this.RETENTION_DAYS.AiUsageLog,
     );
 
     // 4. OrderEvent — 14 يوم (حقل التاريخ = timestamp)
     totalDeleted += await this.cleanupTable(
-      'orderEvent',
+      'OrderEvent',
       'timestamp',
-      this.RETENTION_DAYS.orderEvent,
+      this.RETENTION_DAYS.OrderEvent,
     );
 
     // 5. TradeLifecycleLog — 14 يوم
     totalDeleted += await this.cleanupTable(
-      'tradeLifecycleLog',
+      'TradeLifecycleLog',
       'createdAt',
-      this.RETENTION_DAYS.tradeLifecycleLog,
+      this.RETENTION_DAYS.TradeLifecycleLog,
     );
 
     // 6. PositionReconciliation — 14 يوم
     totalDeleted += await this.cleanupTable(
-      'positionReconciliation',
+      'PositionReconciliation',
       'createdAt',
-      this.RETENTION_DAYS.positionReconciliation,
+      this.RETENTION_DAYS.PositionReconciliation,
     );
 
     // 7. MarketRegimeSnapshot — 14 يوم
     totalDeleted += await this.cleanupTable(
-      'marketRegimeSnapshot',
+      'MarketRegimeSnapshot',
       'createdAt',
-      this.RETENTION_DAYS.marketRegimeSnapshot,
+      this.RETENTION_DAYS.MarketRegimeSnapshot,
     );
 
     // 8. SystemMemory — 14 يوم
     totalDeleted += await this.cleanupTable(
-      'systemMemory',
+      'SystemMemory',
       'createdAt',
-      this.RETENTION_DAYS.systemMemory,
+      this.RETENTION_DAYS.SystemMemory,
     );
 
     // 9-18. جداول إضافية (BUG-066r+)
-    totalDeleted += await this.cleanupTable('councilVoteAccuracy', 'createdAt', this.RETENTION_DAYS.councilVoteAccuracy);
-    totalDeleted += await this.cleanupTable('tradeJournal', 'createdAt', this.RETENTION_DAYS.tradeJournal);
-    totalDeleted += await this.cleanupTable('crossPairCorrelation', 'createdAt', this.RETENTION_DAYS.crossPairCorrelation);
-    totalDeleted += await this.cleanupTable('adaptiveSchedule', 'createdAt', this.RETENTION_DAYS.adaptiveSchedule);
-    totalDeleted += await this.cleanupTable('newsArticle', 'createdAt', this.RETENTION_DAYS.newsArticle);
-    totalDeleted += await this.cleanupTable('contentArticle', 'createdAt', this.RETENTION_DAYS.contentArticle);
-    totalDeleted += await this.cleanupTable('contentSchedule', 'createdAt', this.RETENTION_DAYS.contentSchedule);
-    totalDeleted += await this.cleanupTable('strategyReport', 'createdAt', this.RETENTION_DAYS.strategyReport);
-    totalDeleted += await this.cleanupTable('alert', 'createdAt', this.RETENTION_DAYS.alert);
-    totalDeleted += await this.cleanupTable('userNotification', 'createdAt', this.RETENTION_DAYS.userNotification);
+    totalDeleted += await this.cleanupTable('CouncilVoteAccuracy', 'createdAt', this.RETENTION_DAYS.CouncilVoteAccuracy);
+    totalDeleted += await this.cleanupTable('TradeJournal', 'createdAt', this.RETENTION_DAYS.TradeJournal);
+    totalDeleted += await this.cleanupTable('CrossPairCorrelation', 'createdAt', this.RETENTION_DAYS.CrossPairCorrelation);
+    totalDeleted += await this.cleanupTable('AdaptiveSchedule', 'createdAt', this.RETENTION_DAYS.AdaptiveSchedule);
+    totalDeleted += await this.cleanupTable('NewsArticle', 'createdAt', this.RETENTION_DAYS.NewsArticle);
+    totalDeleted += await this.cleanupTable('ContentArticle', 'createdAt', this.RETENTION_DAYS.ContentArticle);
+    totalDeleted += await this.cleanupTable('ContentSchedule', 'createdAt', this.RETENTION_DAYS.ContentSchedule);
+    totalDeleted += await this.cleanupTable('StrategyReport', 'createdAt', this.RETENTION_DAYS.StrategyReport);
+    totalDeleted += await this.cleanupTable('Alert', 'createdAt', this.RETENTION_DAYS.Alert);
+    totalDeleted += await this.cleanupTable('UserNotification', 'createdAt', this.RETENTION_DAYS.UserNotification);
 
     const elapsedMs = Date.now() - startTime;
     this.logger.log(

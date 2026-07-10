@@ -6,7 +6,13 @@ export const maxDuration = 60
 
 export async function GET(request: NextRequest) {
   const adminToken = request.headers.get('x-admin-token')
-  const expectedToken = process.env.ADMIN_PASSWORD || 'roua-admin-secret-2026'
+  const expectedToken = process.env.ADMIN_PASSWORD
+  if (!expectedToken) {
+    return NextResponse.json(
+      { error: 'ADMIN_PASSWORD not configured — server misconfigured' },
+      { status: 503 },
+    )
+  }
   if (!adminToken || adminToken !== expectedToken) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

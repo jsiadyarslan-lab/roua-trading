@@ -355,7 +355,7 @@ export async function proxyToNestJS(request: NextRequest, method: string): Promi
   const pathname = request.nextUrl.pathname
   const isAdminMaintenancePath = pathname.startsWith('/api/maintenance/')
   const adminToken = request.headers.get('x-admin-token')
-  const expectedAdminToken = process.env.ADMIN_PASSWORD || 'roua-admin-secret-2026'
+  const expectedAdminToken = process.env.ADMIN_PASSWORD
 
   if (isAdminMaintenancePath && adminToken && adminToken === expectedAdminToken) {
     // Forward directly to NestJS without session creation

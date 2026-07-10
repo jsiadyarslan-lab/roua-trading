@@ -171,8 +171,11 @@ timeout 30 run_prisma generate --schema=./prisma/schema.prisma 2>&1 || echo "⚠
 if [ "$DB_REACHABLE" -eq 1 ]; then
   echo "📦 Applying database migrations (60s timeout)..."
   timeout 60 run_prisma migrate deploy --schema=./prisma/schema.prisma 2>&1 && echo "✅ Migrations applied" || {
-    echo "⚠️ migrate deploy failed — trying db push (60s timeout)..."
-    timeout 60 run_prisma db push --schema=./prisma/schema.prisma --accept-data-loss 2>&1 && echo "✅ DB push applied" || echo "⚠️ DB push also failed — will try direct SQL fallback"
+    # BUG-066s FIX: Removed 'db push --accept-data-loss' fallback — it can silently
+    # drop columns/tables with data. Instead, log the failure and continue.
+    # The app's auto-migrate safety net will handle missing columns.
+    echo "⚠️ migrate deploy failed — continuing without migrations"
+    echo "⚠️ The app's auto-migrate will attempt to add missing columns on startup"
   }
 
   # ── V339: Ensure TradeLifecycleLog table exists (UNCONDITIONAL) ──
@@ -306,11 +309,10 @@ if [ "$DB_REACHABLE" -eq 1 ]; then
   if echo "$TABLE_CHECK" | grep -q "MISSING:"; then
     MISSING_TABLES=$(echo "$TABLE_CHECK" | grep "MISSING:" | sed 's/MISSING://')
     echo "⚠️ Missing tables detected: $MISSING_TABLES"
-    echo "📦 Running db push to create missing tables..."
-    timeout 60 run_prisma db push --schema=./prisma/schema.prisma --accept-data-loss 2>&1 && echo "✅ Missing tables created via db push" || {
-      echo "⚠️ db push failed — running direct SQL fallback for missing tables..."
-      # Direct SQL fallback: create the most critical missing tables
-      DATABASE_URL_IN="$ORIG_DB_URL" timeout 30 node -e "
+    # BUG-066s FIX: Removed 'db push --accept-data-loss' — it can drop columns.
+    # Use direct SQL fallback only (safer — only creates tables, never drops).
+    echo "📦 Running direct SQL fallback for missing tables..."
+    DATABASE_URL_IN="$ORIG_DB_URL" timeout 30 node -e "
         const { Client } = require('pg');
         const fs = require('fs');
         const path = require('path');

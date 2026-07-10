@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * POST /api/admin/db-migrate
@@ -6,8 +6,25 @@ import { NextResponse } from 'next/server';
  * This bypasses Prisma migrations which may not have been applied yet.
  *
  * Security: Only adds columns IF NOT EXISTS — safe to run multiple times.
+ * BUG-066s FIX: Now requires X-Admin-Token header authentication.
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
+  // Security: require admin token
+  const adminToken = request.headers.get('x-admin-token')
+  const expectedToken = process.env.ADMIN_PASSWORD
+  if (!expectedToken) {
+    return NextResponse.json(
+      { success: false, error: 'ADMIN_PASSWORD not configured' },
+      { status: 503 },
+    )
+  }
+  if (!adminToken || adminToken !== expectedToken) {
+    return NextResponse.json(
+      { success: false, error: 'Unauthorized' },
+      { status: 401 },
+    )
+  }
+
   const results: { column: string; status: string; detail?: string }[] = [];
 
   // Get the production DATABASE_URL

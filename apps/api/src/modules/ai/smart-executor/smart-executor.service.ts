@@ -2356,8 +2356,12 @@ export class SmartExecutorService implements OnModuleDestroy {
             });
 
             // Calculate PnL for user daily tracking
+            // BUG-066s FIX (TRADING-001): Multiply by contractSize to convert LOTS → UNITS
             const closePrice = Number(oldestPosition.currentPrice) || Number(oldestPosition.entryPrice);
-            const pnl = (closePrice - Number(oldestPosition.entryPrice)) * Number(oldestPosition.quantity) * (oldestPosition.side === 'SELL' ? -1 : 1);
+            const staleCloseMeta = getSymbolMetadata(oldestPosition.symbol);
+            const staleCloseContractSize = staleCloseMeta.contractSize || 1;
+            const staleQtyUnits = Number(oldestPosition.quantity) * staleCloseContractSize;
+            const pnl = (closePrice - Number(oldestPosition.entryPrice)) * staleQtyUnits * (oldestPosition.side === 'SELL' ? -1 : 1);
             userState.dailyPnL += pnl;
 
             openPositionsCount--;

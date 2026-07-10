@@ -49,7 +49,13 @@ const MAX_BATCHES_PER_TABLE = 200
 export async function POST(request: NextRequest) {
   // Security: check admin token
   const adminToken = request.headers.get('x-admin-token')
-  const expectedToken = process.env.ADMIN_PASSWORD || 'roua-admin-secret-2026'
+  const expectedToken = process.env.ADMIN_PASSWORD
+  if (!expectedToken) {
+    return NextResponse.json(
+      { success: false, error: 'ADMIN_PASSWORD not configured' },
+      { status: 503 },
+    )
+  }
   if (!adminToken || adminToken !== expectedToken) {
     return NextResponse.json(
       { success: false, error: 'Unauthorized' },
@@ -200,7 +206,13 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   // GET returns DB stats without deleting anything
   const adminToken = request.headers.get('x-admin-token')
-  const expectedToken = process.env.ADMIN_PASSWORD || 'roua-admin-secret-2026'
+  const expectedToken = process.env.ADMIN_PASSWORD
+  if (!expectedToken) {
+    return NextResponse.json(
+      { success: false, error: 'ADMIN_PASSWORD not configured' },
+      { status: 503 },
+    )
+  }
   if (!adminToken || adminToken !== expectedToken) {
     return NextResponse.json(
       { success: false, error: 'Unauthorized' },

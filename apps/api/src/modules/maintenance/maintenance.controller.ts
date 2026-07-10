@@ -34,7 +34,7 @@ export class MaintenanceController {
   async dbAudit(
     @Headers('x-admin-token') adminToken: string,
   ) {
-    const expectedToken = this.config.get('ADMIN_PASSWORD') || 'roua-admin-secret-2026';
+    const expectedToken = this.config.get('ADMIN_PASSWORD');
     // BUG-066s: Actually throw (old code had empty block — security bug)
     if (!adminToken || adminToken !== expectedToken) {
       throw new UnauthorizedException('Admin token required');
@@ -174,7 +174,7 @@ export class MaintenanceController {
     @Query('includeUnverified') includeUnverified = 'true',
   ) {
     // 1. Security Check
-    const expectedToken = this.config.get('ADMIN_PASSWORD') || 'roua-admin-secret-2026';
+    const expectedToken = this.config.get('ADMIN_PASSWORD');
     if (!adminToken || adminToken !== expectedToken) {
       this.logger.warn(`🚫 Unauthorized cleanup attempt with token: ${adminToken}`);
       throw new UnauthorizedException('Admin token required');
@@ -334,7 +334,7 @@ export class MaintenanceController {
     @Headers('x-admin-token') adminToken: string,
     @Headers('cookie') cookieHeader: string,
   ) {
-    const expectedToken = this.config.get('ADMIN_PASSWORD') || 'roua-admin-secret-2026';
+    const expectedToken = this.config.get('ADMIN_PASSWORD');
     const hasAdminSession = cookieHeader?.includes('roua_admin_session');
     // BUG-066s: Actually throw the exception (old code had empty block — security bug)
     if (adminToken !== expectedToken && !hasAdminSession) {

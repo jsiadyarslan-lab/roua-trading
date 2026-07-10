@@ -440,7 +440,8 @@ export class TradingService {
         else if (meta.assetClass === AssetClass.COMMODITY) leverage = goldLev;
         else leverage = cryptoLev;
 
-        const notional = request.quantity * currentPrice;
+        // BUG-066s FIX (TRADING-001): Use contractSize for correct notional calculation
+        const notional = request.quantity * currentPrice * (meta.contractSize || 1);
         const marginToDeduct = leverage > 1 ? notional / leverage : notional;
 
         await tx.$executeRaw`
@@ -1330,16 +1331,25 @@ export class TradingService {
     // FIX: Deduct actual trading fees from PnL.
     // For real exchanges, execution.fee contains the actual fee charged.
     // For paper trading, fee is simulated at 0.1% per leg (entry + exit).
+    // BUG-066s FIX (TRADING-001): Multiply by contractSize to convert LOTS → UNITS.
+    // After V431 migration, Position.quantity is stored in LOTS. The PnL formula
+    // must multiply by contractSize to get the actual PnL in account currency.
+    // Example: EUR/USD 0.30 lots, contractSize=100,000
+    //   Without fix: (1.1050 - 1.1000) * 0.30 = $0.015 (WRONG — 100,000× too small)
+    //   With fix:    (1.1050 - 1.1000) * 0.30 * 100,000 = $1,500 (CORRECT)
+    const pnlMeta = getSymbolMetadata(position.symbol);
+    const pnlContractSize = pnlMeta.contractSize || 1;
+    const closeQuantityUnits = closeQuantity * pnlContractSize;
     const grossPnl =
       position.side === 'BUY'
-        ? (exitPrice - posEntryPrice) * closeQuantity
-        : (posEntryPrice - exitPrice) * closeQuantity;
+        ? (exitPrice - posEntryPrice) * closeQuantityUnits
+        : (posEntryPrice - exitPrice) * closeQuantityUnits;
     // FIX V174: Only deduct EXIT fee from PnL.
     // Entry fee was already paid when the position opened (_executePaperTrade
     // charges 0.1% at entry and records it in the ENTRY trade).
     // Adding entryFeeEstimate here caused double-counting — charging entry fee twice.
     // BTC example: exitFee=$3.90 + entryFeeEstimate=$3.89 = $7.79 extra deduction.
-    const exitFee = execution.fee ?? (exitPrice * closeQuantity * 0.001);
+    const exitFee = execution.fee ?? (exitPrice * closeQuantityUnits * 0.001);
     const totalFees = exitFee; // exit fee only — entry fee already charged at open
     const pnl = grossPnl - totalFees;
 
@@ -1539,7 +1549,8 @@ export class TradingService {
         else if (meta.assetClass === AssetClass.COMMODITY) leverage = goldLev;
         else leverage = cryptoLev;
 
-        const notional = posEntryPrice * closeQuantity;
+        // BUG-066s FIX (TRADING-001): Use contractSize for correct notional calculation
+        const notional = posEntryPrice * closeQuantity * (meta.contractSize || 1);
         const marginToReturn = leverage > 1 ? notional / leverage : notional;
 
         // V176 FIX: Return margin + PnL to paperBalance on close.
@@ -1827,12 +1838,16 @@ export class TradingService {
     }
 
     const closeSide = position.side === 'BUY' ? 'SELL' : 'BUY';
+    // BUG-066s FIX (TRADING-001): Multiply by contractSize to convert LOTS → UNITS
+    const forceCloseMeta = getSymbolMetadata(position.symbol);
+    const forceCloseContractSize = forceCloseMeta.contractSize || 1;
+    const posQuantityUnits = posQuantity * forceCloseContractSize;
     // FIX V174: Only deduct exit fee (0.1%). Entry fee was charged at open.
     const grossPnl2 =
       position.side === 'BUY'
-        ? (currentPrice - posEntryPrice) * posQuantity
-        : (posEntryPrice - currentPrice) * posQuantity;
-    const paperFees = currentPrice * posQuantity * 0.001; // exit fee only
+        ? (currentPrice - posEntryPrice) * posQuantityUnits
+        : (posEntryPrice - currentPrice) * posQuantityUnits;
+    const paperFees = currentPrice * posQuantityUnits * 0.001; // exit fee only
     const pnl = grossPnl2 - paperFees;
 
     // Create DB records without exchange execution
@@ -2609,7 +2624,10 @@ export class TradingService {
     const fillPrice = parseFloat(currentPrice.toFixed(priceDecimals));
 
     // Simulate fee: 0.1%
-    const fee = request.quantity * fillPrice * 0.001;
+    // BUG-066s FIX (TRADING-001): Use contractSize for correct fee calculation
+    const paperTradeMeta = getSymbolMetadata(request.symbol);
+    const paperTradeContractSize = paperTradeMeta.contractSize || 1;
+    const fee = request.quantity * fillPrice * paperTradeContractSize * 0.001;
     const feeCurrency = request.symbol.split('/').pop() || 'USDT';
 
     this.logger.log(

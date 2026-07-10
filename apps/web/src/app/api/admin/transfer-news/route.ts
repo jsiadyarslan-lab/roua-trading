@@ -18,14 +18,16 @@ export async function POST(request: NextRequest) {
 
   try {
     results.steps.push('Connecting to OLD database...')
-    oldClient = new Client({ connectionString: OLD_DB_URL, connectionTimeoutMillis: 10000, query_timeout: 240000 })
+    oldClient = new Client({ connectionString: OLD_DB_URL, connectionTimeoutMillis: 10000, query_timeout: 30000 })
     await oldClient.connect()
     results.steps.push('Connected ✅')
 
+    // Get count
     const countResult = await oldClient.query('SELECT count(*)::int as count FROM "news_items"')
     const totalCount = countResult.rows[0]?.count || 0
-    results.steps.push(`news_items: ${totalCount.toLocaleString()} rows in old DB`)
+    results.steps.push(`news_items: ${totalCount.toLocaleString()} rows`)
 
+    // Get columns
     const colResult = await oldClient.query(`SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'news_items' AND table_schema = 'public' ORDER BY ordinal_position`)
     const columns = colResult.rows.map((r: any) => r.column_name)
 
@@ -46,69 +48,74 @@ export async function POST(request: NextRequest) {
       results.steps.push('Table created ✅')
     }
 
-    const batchSize = 500
-    let offset = 0
+    // Use cursor-based pagination: WHERE id > last_id (much faster than OFFSET)
+    let lastId: string | null = null
     let imported = 0
     let skipped = 0
+    const batchSize = 200
 
     try { await db.$executeRawUnsafe("SET session_replication_role = 'replica'") } catch {}
 
-    while (offset < totalCount) {
+    let batchNum = 0
+    while (true) {
+      let batchResult
       try {
-        const batchResult = await oldClient.query(`SELECT * FROM "news_items" ORDER BY id OFFSET ${offset} LIMIT ${batchSize}`)
-        if (batchResult.rows.length === 0) break
-
-        // BATCH INSERT — all rows in one query (much faster than row-by-row)
+        if (lastId) {
+          batchResult = await oldClient.query(`SELECT * FROM "news_items" WHERE id > $1 ORDER BY id LIMIT ${batchSize}`, [lastId])
+        } else {
+          batchResult = await oldClient.query(`SELECT * FROM "news_items" ORDER BY id LIMIT ${batchSize}`)
+        }
+      } catch (err: any) {
+        results.steps.push(`  Read error at batch ${batchNum}: ${err?.message?.substring(0, 100)}`)
+        // Try without ORDER BY
         try {
-          const cols = Object.keys(batchResult.rows[0])
-          const colList = cols.map(c => `"${c}"`).join(', ')
-          const allValues: any[] = []
-          const allPlaceholders: string[] = []
-
-          batchResult.rows.forEach((row, rowIdx) => {
-            const rowPh: string[] = []
-            cols.forEach((col, colIdx) => {
-              let val = row[col]
-              if (val !== null && typeof val === 'object') val = JSON.stringify(val)
-              allValues.push(val)
-              rowPh.push(`$${rowIdx * cols.length + colIdx + 1}`)
-            })
-            allPlaceholders.push(`(${rowPh.join(', ')})`)
-          })
-
-          await db.$executeRawUnsafe(
-            `INSERT INTO "news_items" (${colList}) VALUES ${allPlaceholders.join(', ')} ON CONFLICT DO NOTHING`,
-            ...allValues
-          )
-          imported += batchResult.rows.length
-        } catch {
-          // If batch fails, try row by row
-          for (const row of batchResult.rows) {
-            try {
-              const cols = Object.keys(row)
-              const values: any[] = []
-              const placeholders: string[] = []
-              cols.forEach((col, idx) => {
-                let val = row[col]
-                if (val !== null && typeof val === 'object') val = JSON.stringify(val)
-                values.push(val)
-                placeholders.push(`$${idx + 1}`)
-              })
-              const colList = cols.map(c => `"${c}"`).join(', ')
-              await db.$executeRawUnsafe(`INSERT INTO "news_items" (${colList}) VALUES (${placeholders.join(', ')}) ON CONFLICT DO NOTHING`, ...values)
-              imported++
-            } catch { skipped++ }
+          if (lastId) {
+            batchResult = await oldClient.query(`SELECT * FROM "news_items" WHERE id > $1 LIMIT ${batchSize}`, [lastId])
+          } else {
+            batchResult = await oldClient.query(`SELECT * FROM "news_items" LIMIT ${batchSize}`)
           }
+        } catch {
+          results.steps.push(`  Fatal read error — stopping`)
+          break
         }
+      }
 
-        offset += batchResult.rows.length
-        if (offset % 10000 === 0 || offset >= totalCount) {
-          results.steps.push(`  ${offset.toLocaleString()}/${totalCount.toLocaleString()} (${imported.toLocaleString()} ok, ${skipped} skip)`)
-        }
+      if (!batchResult || batchResult.rows.length === 0) break
+
+      // Track last ID
+      const lastRow = batchResult.rows[batchResult.rows.length - 1]
+      lastId = lastRow.id
+
+      // Batch INSERT into new DB
+      try {
+        const cols = Object.keys(batchResult.rows[0])
+        const colList = cols.map(c => `"${c}"`).join(', ')
+        const allValues: any[] = []
+        const allPlaceholders: string[] = []
+
+        batchResult.rows.forEach((row, rowIdx) => {
+          const rowPh: string[] = []
+          cols.forEach((col, colIdx) => {
+            let val = row[col]
+            if (val !== null && typeof val === 'object') val = JSON.stringify(val)
+            allValues.push(val)
+            rowPh.push(`$${rowIdx * cols.length + colIdx + 1}`)
+          })
+          allPlaceholders.push(`(${rowPh.join(', ')})`)
+        })
+
+        await db.$executeRawUnsafe(
+          `INSERT INTO "news_items" (${colList}) VALUES ${allPlaceholders.join(', ')} ON CONFLICT DO NOTHING`,
+          ...allValues
+        )
+        imported += batchResult.rows.length
       } catch {
-        results.steps.push(`  Corruption at offset ${offset}, skipping`)
-        offset += batchSize
-        skipped += batchSize
+        skipped += batchResult.rows.length
+      }
+
+      batchNum++
+      if (batchNum % 20 === 0 || imported % 5000 < batchSize) {
+        results.steps.push(`  ${imported.toLocaleString()}/${totalCount.toLocaleString()} imported`)
       }
     }
 

@@ -258,7 +258,8 @@
       "sixAiModels": "Six Harmonious AI Models",
       "fullDescription": "The most advanced AI-powered account linking platform in the region. Where the financial universe meets a machine mind that predicts before it happens.",
       "setupSeconds": "Seconds to Setup",
-      "dailyMonitoring": "Hours Daily Monitoring"
+      "dailyMonitoring": "Hours Daily Monitoring",
+      "ctaSecondary": "Learn More"
     },
     "navbar": {
       "models": "Models",

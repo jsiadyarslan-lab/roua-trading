@@ -166,11 +166,11 @@ echo ""
 echo "━━━ Prisma Setup ━━━"
 
 echo "📦 Generating Prisma client..."
-timeout 30 run_prisma generate --schema=./prisma/schema.prisma 2>&1 || echo "⚠️ Prisma generate failed (non-fatal — client may already exist)"
+timeout 30 npx --yes prisma generate --schema=./prisma/schema.prisma 2>&1 || echo "⚠️ Prisma generate failed (non-fatal — client may already exist)"
 
 if [ "$DB_REACHABLE" -eq 1 ]; then
   echo "📦 Applying database migrations (60s timeout)..."
-  timeout 60 run_prisma migrate deploy --schema=./prisma/schema.prisma 2>&1 && echo "✅ Migrations applied" || {
+  timeout 60 npx --yes prisma migrate deploy --schema=./prisma/schema.prisma 2>&1 && echo "✅ Migrations applied" || {
     echo "⚠️ migrate deploy failed — checking if database is empty..."
     # Check if the database has any tables (if empty, db push is safe)
     TABLE_COUNT=$(DATABASE_URL_IN="$ORIG_DB_URL" timeout 15 node -e "
@@ -195,7 +195,7 @@ if [ "$DB_REACHABLE" -eq 1 ]; then
     
     if [ "$TABLE_COUNT" = "0" ] || [ "$TABLE_COUNT" = "" ]; then
       echo "📦 Database is empty — using 'db push' to create schema (safe on fresh database)..."
-      timeout 120 run_prisma db push --schema=./prisma/schema.prisma 2>&1 && echo "✅ Schema created via db push" || echo "⚠️ db push also failed — will try direct SQL fallback"
+      timeout 120 npx --yes prisma db push --schema=./prisma/schema.prisma 2>&1 && echo "✅ Schema created via db push" || echo "⚠️ db push also failed — will try direct SQL fallback"
     else
       echo "⚠️ Database has tables — skipping db push (would risk data loss)"
       echo "⚠️ The app's auto-migrate will attempt to add missing columns on startup"

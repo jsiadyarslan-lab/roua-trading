@@ -58,26 +58,52 @@ export async function POST(request: NextRequest) {
         const batchResult = await oldClient.query(`SELECT * FROM "news_items" ORDER BY id OFFSET ${offset} LIMIT ${batchSize}`)
         if (batchResult.rows.length === 0) break
 
-        for (const row of batchResult.rows) {
-          try {
-            const cols = Object.keys(row)
-            const values: any[] = []
-            const placeholders: string[] = []
-            cols.forEach((col, idx) => {
+        // BATCH INSERT — all rows in one query (much faster than row-by-row)
+        try {
+          const cols = Object.keys(batchResult.rows[0])
+          const colList = cols.map(c => `"${c}"`).join(', ')
+          const allValues: any[] = []
+          const allPlaceholders: string[] = []
+
+          batchResult.rows.forEach((row, rowIdx) => {
+            const rowPh: string[] = []
+            cols.forEach((col, colIdx) => {
               let val = row[col]
               if (val !== null && typeof val === 'object') val = JSON.stringify(val)
-              values.push(val)
-              placeholders.push(`$${idx + 1}`)
+              allValues.push(val)
+              rowPh.push(`$${rowIdx * cols.length + colIdx + 1}`)
             })
-            const colList = cols.map(c => `"${c}"`).join(', ')
-            await db.$executeRawUnsafe(`INSERT INTO "news_items" (${colList}) VALUES (${placeholders.join(', ')}) ON CONFLICT DO NOTHING`, ...values)
-            imported++
-          } catch { skipped++ }
+            allPlaceholders.push(`(${rowPh.join(', ')})`)
+          })
+
+          await db.$executeRawUnsafe(
+            `INSERT INTO "news_items" (${colList}) VALUES ${allPlaceholders.join(', ')} ON CONFLICT DO NOTHING`,
+            ...allValues
+          )
+          imported += batchResult.rows.length
+        } catch {
+          // If batch fails, try row by row
+          for (const row of batchResult.rows) {
+            try {
+              const cols = Object.keys(row)
+              const values: any[] = []
+              const placeholders: string[] = []
+              cols.forEach((col, idx) => {
+                let val = row[col]
+                if (val !== null && typeof val === 'object') val = JSON.stringify(val)
+                values.push(val)
+                placeholders.push(`$${idx + 1}`)
+              })
+              const colList = cols.map(c => `"${c}"`).join(', ')
+              await db.$executeRawUnsafe(`INSERT INTO "news_items" (${colList}) VALUES (${placeholders.join(', ')}) ON CONFLICT DO NOTHING`, ...values)
+              imported++
+            } catch { skipped++ }
+          }
         }
 
         offset += batchResult.rows.length
-        if (offset % 5000 === 0 || offset >= totalCount) {
-          results.steps.push(`  ${offset.toLocaleString()}/${totalCount.toLocaleString()} (${imported} ok, ${skipped} skip)`)
+        if (offset % 10000 === 0 || offset >= totalCount) {
+          results.steps.push(`  ${offset.toLocaleString()}/${totalCount.toLocaleString()} (${imported.toLocaleString()} ok, ${skipped} skip)`)
         }
       } catch {
         results.steps.push(`  Corruption at offset ${offset}, skipping`)

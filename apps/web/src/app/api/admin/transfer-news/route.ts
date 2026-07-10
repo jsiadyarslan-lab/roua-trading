@@ -109,7 +109,11 @@ export async function POST(request: NextRequest) {
           ...allValues
         )
         imported += batchResult.rows.length
-      } catch {
+      } catch (batchErr: any) {
+        // Log the FIRST error so we know what's wrong
+        if (imported === 0 && skipped === 0) {
+          results.steps.push(`  FIRST INSERT ERROR: ${batchErr?.message?.substring(0, 250)}`)
+        }
         skipped += batchResult.rows.length
       }
 

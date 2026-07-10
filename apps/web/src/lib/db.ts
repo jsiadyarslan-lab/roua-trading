@@ -14,9 +14,31 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
+// BUG-066s FIX: Set connection_limit and pool_timeout via DATABASE_URL
+// The web app's PrismaClient needs its own connection limit separate from NestJS.
+// Without this, Prisma defaults to connection_limit=1 which causes pool exhaustion.
+function getDbUrl(): string {
+  const base = process.env.DATABASE_URL || ''
+  if (!base) return base
+  try {
+    const u = new URL(base)
+    u.searchParams.set('connection_limit', '5')
+    u.searchParams.set('pool_timeout', '60')
+    return u.toString()
+  } catch {
+    const sep = base.includes('?') ? '&' : '?'
+    return `${base}${sep}connection_limit=5&pool_timeout=60`
+  }
+}
+
 export const db =
   globalForPrisma.prisma ??
   new PrismaClient({
+    datasources: {
+      db: {
+        url: getDbUrl(),
+      },
+    },
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
   })
 

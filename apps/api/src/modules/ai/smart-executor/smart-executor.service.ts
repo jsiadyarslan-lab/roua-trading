@@ -3824,10 +3824,11 @@ export class SmartExecutorService implements OnModuleDestroy {
       try {
         const balanceData = await this.credentialsService.fetchAllExchangeBalances(userId);
         // BUG-066s: Find the balance for THIS credential's exchange specifically
-        const credBalance = balanceData.balances?.find(
-          (b: any) => b.credentialId === credential.id || b.exchange === credential.exchange
+        // The return type has 'exchanges' array (not 'balances'), each with 'available' field
+        const credBalance = balanceData.exchanges.find(
+          (e: any) => e.credentialId === credential.id || e.exchange === credential.exchange
         );
-        const availableUsd = credBalance?.availableUsd ?? balanceData.totalAvailableUsd;
+        const availableUsd = credBalance?.available ?? balanceData.totalAvailableUsd;
         if (availableUsd !== undefined && availableUsd < margin) {
           result.error = `رصيد غير كافي في ${credential.exchange} — يحتاج $${margin.toFixed(2)}، المتاح $${availableUsd.toFixed(2)}`;
           this.logger.warn(

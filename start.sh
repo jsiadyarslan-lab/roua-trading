@@ -379,7 +379,6 @@ if [ "$DB_REACHABLE" -eq 1 ]; then
         }
         run();
       " 2>&1
-    }
   elif echo "$TABLE_CHECK" | grep -q "ALL_OK"; then
     echo "✅ All critical tables verified"
   else

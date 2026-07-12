@@ -1689,7 +1689,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           {/* Engine verification badge — click to verify engines are real */}
           <button
             onClick={() => { const report = runFullVerification(); setVerificationReport(report); setShowVerification(true); }}
-            title=t('asp_verifyEngines')
+            title={t('asp_verifyEngines')}
             style={{
               padding: '1px 5px', borderRadius: 'var(--radius-xs)', fontSize: 11, fontWeight: 700, fontFamily: "var(--font-mono)",
               background: verificationReport?.allReal ? `${C.green}18` : `${C.gold}18`,

@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next"
-import T from '@/lib/unified-tokens';
 import "./globals.css";
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -36,7 +35,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: T.bg,
+  themeColor: '#0B0E14',
 };
 
 export default function RootLayout({

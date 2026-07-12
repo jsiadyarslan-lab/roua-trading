@@ -13,7 +13,6 @@ import { Metadata, Viewport } from 'next'
 import { DashboardLayoutStyles } from '@/components/dashboard/DashboardLayoutStyles'
 import { setRequestLocale } from 'next-intl/server'
 import { getDirection } from '@/lib/i18n-utils'
-import T from '@/lib/unified-tokens'
 
 export async function generateMetadata({
   params,
@@ -55,7 +54,7 @@ export async function generateMetadata({
 }
 
 export const viewport: Viewport = {
-  themeColor: T.bg,
+  themeColor: '#0B0E14',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,

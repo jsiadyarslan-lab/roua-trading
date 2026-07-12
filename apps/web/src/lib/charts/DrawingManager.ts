@@ -15,657 +15,657 @@ import type { Drawing, DrawingTool, DrawingPoint } from './types';
 /**
  * Get a user-isolated localStorage key for chart drawings.
  * @param userId - Optional user ID from the React component layer.
- * If not provided, falls back to localStorage cache, then guest.
+ *   If not provided, falls back to localStorage cache, then guest.
  */
 function getStorageKey(userId?: string): string {
- // Priority 1: Explicit userId parameter (most reliable, from React layer)
- if (userId) return `roua-chart-drawings:${userId}`;
+  // Priority 1: Explicit userId parameter (most reliable, from React layer)
+  if (userId) return `roua-chart-drawings:${userId}`;
 
- // Priority 2: Read from localStorage cache (available before Zustand hydrates)
- try {
- const cachedRaw = localStorage.getItem('roua_auth_user')
- if (cachedRaw) {
- const cached = JSON.parse(cachedRaw)
- if (cached?.id) return `roua-chart-drawings:${cached.id}`
- }
- } catch { /* Cache unavailable */ }
+  // Priority 2: Read from localStorage cache (available before Zustand hydrates)
+  try {
+    const cachedRaw = localStorage.getItem('roua_auth_user')
+    if (cachedRaw) {
+      const cached = JSON.parse(cachedRaw)
+      if (cached?.id) return `roua-chart-drawings:${cached.id}`
+    }
+  } catch { /* Cache unavailable */ }
 
- // Priority 3: Guest/fallback
- return 'roua-chart-drawings:guest'
+  // Priority 3: Guest/fallback
+  return 'roua-chart-drawings:guest'
 }
 
 // Legacy static key — used ONLY for migration from old format
 const LEGACY_STORAGE_KEY = 'roua-chart-drawings'
 
 export class DrawingManager {
- private drawings: Map<string, Drawing> = new Map();
- private symbol: string = '';
- // H2+H15 FIX: Track timeframe so drawings are stored per-symbol:timeframe.
- // Previously, drawings were stored per-symbol only, meaning switching from
- // BTC/USDT 15min to BTC/USDT 1H would show 15min drawings at wrong positions.
- private timeframe: string = '';
- // M2 FIX: Store userId from React layer instead of using require().
- private userId: string | undefined;
+  private drawings: Map<string, Drawing> = new Map();
+  private symbol: string = '';
+  // H2+H15 FIX: Track timeframe so drawings are stored per-symbol:timeframe.
+  // Previously, drawings were stored per-symbol only, meaning switching from
+  // BTC/USDT 15min to BTC/USDT 1H would show 15min drawings at wrong positions.
+  private timeframe: string = '';
+  // M2 FIX: Store userId from React layer instead of using require().
+  private userId: string | undefined;
 
- // V253 FIX: Cross-timeframe drawing support.
- // Tracks which localStorage bucket each drawing came from, so we can:
- // 1. Load all-tf drawings from other timeframe buckets
- // 2. Save changes back to the correct bucket
- // 3. Move drawings between buckets when scope changes
- private drawingBucket: Map<string, string> = new Map();
- // Tracks all buckets we loaded from (so we can update them on save,
- // even if drawings were deleted or moved out)
- private loadedBuckets: Set<string> = new Set();
+  // V253 FIX: Cross-timeframe drawing support.
+  // Tracks which localStorage bucket each drawing came from, so we can:
+  // 1. Load all-tf drawings from other timeframe buckets
+  // 2. Save changes back to the correct bucket
+  // 3. Move drawings between buckets when scope changes
+  private drawingBucket: Map<string, string> = new Map();
+  // Tracks all buckets we loaded from (so we can update them on save,
+  // even if drawings were deleted or moved out)
+  private loadedBuckets: Set<string> = new Set();
 
- constructor(symbol: string, timeframe?: string, userId?: string) {
- this.symbol = symbol;
- this.timeframe = timeframe || '';
- this.userId = userId;
- this.loadFromStorage();
- }
+  constructor(symbol: string, timeframe?: string, userId?: string) {
+    this.symbol = symbol;
+    this.timeframe = timeframe || '';
+    this.userId = userId;
+    this.loadFromStorage();
+  }
 
- // ── CRUD Operations ────────────────────────────────────
+  // ── CRUD Operations ────────────────────────────────────
 
- create(type: DrawingTool, points: DrawingPoint[], color: string = '#FFB800', lineWidth: number = 1.5, opacity: number = 0.8, lineStyle: Drawing['lineStyle'] = 'solid', scope: Drawing['scope'] = 'all-tf'): Drawing {
- const drawing: Drawing = {
- id: `draw-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
- type,
- points,
- color,
- lineWidth,
- opacity,
- lineStyle,
- symbol: this.symbol,
- createdAt: Date.now(),
- scope,
- timeframe: this.timeframe || undefined,
- };
- this.drawings.set(drawing.id, drawing);
- // V253: New drawings belong to the current timeframe bucket
- this.drawingBucket.set(drawing.id, this.getStorageKey());
- this.saveToStorage();
- return drawing;
- }
+  create(type: DrawingTool, points: DrawingPoint[], color: string = '#FFB800', lineWidth: number = 1.5, opacity: number = 0.8, lineStyle: Drawing['lineStyle'] = 'solid', scope: Drawing['scope'] = 'all-tf'): Drawing {
+    const drawing: Drawing = {
+      id: `draw-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      type,
+      points,
+      color,
+      lineWidth,
+      opacity,
+      lineStyle,
+      symbol: this.symbol,
+      createdAt: Date.now(),
+      scope,
+      timeframe: this.timeframe || undefined,
+    };
+    this.drawings.set(drawing.id, drawing);
+    // V253: New drawings belong to the current timeframe bucket
+    this.drawingBucket.set(drawing.id, this.getStorageKey());
+    this.saveToStorage();
+    return drawing;
+  }
 
- update(id: string, updates: Partial<Pick<Drawing, 'points' | 'color' | 'lineWidth' | 'opacity' | 'lineStyle' | 'scope' | 'timeframe'>>): Drawing | null {
- const drawing = this.drawings.get(id);
- if (!drawing) return null;
+  update(id: string, updates: Partial<Pick<Drawing, 'points' | 'color' | 'lineWidth' | 'opacity' | 'lineStyle' | 'scope' | 'timeframe'>>): Drawing | null {
+    const drawing = this.drawings.get(id);
+    if (!drawing) return null;
 
- // V253: When scope changes to single-tf, update timeframe to current TF
- // and move the drawing to the current timeframe bucket. This ensures:
- // - The drawing is visible only on the current TF
- // - The drawing is stored in the current TF's bucket
- // - The old bucket is updated to remove this drawing
- if (updates.scope === 'single-tf' && drawing.scope !== 'single-tf') {
- updates.timeframe = this.timeframe || undefined;
- this.drawingBucket.set(id, this.getStorageKey());
- }
+    // V253: When scope changes to single-tf, update timeframe to current TF
+    // and move the drawing to the current timeframe bucket. This ensures:
+    // - The drawing is visible only on the current TF
+    // - The drawing is stored in the current TF's bucket
+    // - The old bucket is updated to remove this drawing
+    if (updates.scope === 'single-tf' && drawing.scope !== 'single-tf') {
+      updates.timeframe = this.timeframe || undefined;
+      this.drawingBucket.set(id, this.getStorageKey());
+    }
 
- Object.assign(drawing, updates);
- this.saveToStorage();
- return drawing;
- }
+    Object.assign(drawing, updates);
+    this.saveToStorage();
+    return drawing;
+  }
 
- delete(id: string): boolean {
- const deleted = this.drawings.delete(id);
- this.drawingBucket.delete(id);
- if (deleted) this.saveToStorage();
- return deleted;
- }
+  delete(id: string): boolean {
+    const deleted = this.drawings.delete(id);
+    this.drawingBucket.delete(id);
+    if (deleted) this.saveToStorage();
+    return deleted;
+  }
 
- get(id: string): Drawing | null {
- return this.drawings.get(id) ?? null;
- }
+  get(id: string): Drawing | null {
+    return this.drawings.get(id) ?? null;
+  }
 
- getAll(): Drawing[] {
- return Array.from(this.drawings.values());
- }
+  getAll(): Drawing[] {
+    return Array.from(this.drawings.values());
+  }
 
- /** Get only drawings that should be visible on the current timeframe */
- getVisibleOnTimeframe(tf: string): Drawing[] {
- return this.getAll().filter(d =>
- d.scope === 'all-tf' || d.timeframe === tf
- );
- }
+  /** Get only drawings that should be visible on the current timeframe */
+  getVisibleOnTimeframe(tf: string): Drawing[] {
+    return this.getAll().filter(d =>
+      d.scope === 'all-tf' || d.timeframe === tf
+    );
+  }
 
- clearAll(): void {
- // V253: Only clear drawings belonging to the current timeframe bucket.
- // Cross-timeframe all-tf drawings from other buckets should be preserved.
- const currentKey = this.getStorageKey();
- const toDelete: string[] = [];
- for (const [id, bucket] of this.drawingBucket) {
- if (bucket === currentKey) {
- toDelete.push(id);
- }
- }
- for (const id of toDelete) {
- this.drawings.delete(id);
- this.drawingBucket.delete(id);
- }
- this.saveToStorage();
- }
+  clearAll(): void {
+    // V253: Only clear drawings belonging to the current timeframe bucket.
+    // Cross-timeframe all-tf drawings from other buckets should be preserved.
+    const currentKey = this.getStorageKey();
+    const toDelete: string[] = [];
+    for (const [id, bucket] of this.drawingBucket) {
+      if (bucket === currentKey) {
+        toDelete.push(id);
+      }
+    }
+    for (const id of toDelete) {
+      this.drawings.delete(id);
+      this.drawingBucket.delete(id);
+    }
+    this.saveToStorage();
+  }
 
- // ── Symbol Management ──────────────────────────────────
+  // ── Symbol Management ──────────────────────────────────
 
- /** H2+H15 FIX: Set both symbol AND timeframe together.
- * Drawings are now keyed by `${symbol}:${timeframe}`, so changing
- * either one loads the correct set of drawings. */
- setSymbol(symbol: string, timeframe?: string): void {
- this.symbol = symbol;
- if (timeframe !== undefined) this.timeframe = timeframe;
- this.drawings.clear();
- this.drawingBucket.clear();
- this.loadedBuckets.clear();
- this.loadFromStorage();
- }
+  /** H2+H15 FIX: Set both symbol AND timeframe together.
+   * Drawings are now keyed by `${symbol}:${timeframe}`, so changing
+   * either one loads the correct set of drawings. */
+  setSymbol(symbol: string, timeframe?: string): void {
+    this.symbol = symbol;
+    if (timeframe !== undefined) this.timeframe = timeframe;
+    this.drawings.clear();
+    this.drawingBucket.clear();
+    this.loadedBuckets.clear();
+    this.loadFromStorage();
+  }
 
- /** Set only the timeframe (when symbol stays the same but timeframe changes).
- * V254 FIX: Always reload and log detailed info for debugging cross-TF issues. */
- setTimeframe(timeframe: string): void {
- const oldTf = this.timeframe;
- this.timeframe = timeframe;
- this.drawings.clear();
- this.drawingBucket.clear();
- this.loadedBuckets.clear();
- this.loadFromStorage();
- console.log(`[DrawingManager] setTimeframe: ${oldTf} → ${timeframe}, loaded ${this.drawings.size} drawings, buckets: [${Array.from(this.loadedBuckets).join(', ')}]`);
- }
+  /** Set only the timeframe (when symbol stays the same but timeframe changes).
+   * V254 FIX: Always reload and log detailed info for debugging cross-TF issues. */
+  setTimeframe(timeframe: string): void {
+    const oldTf = this.timeframe;
+    this.timeframe = timeframe;
+    this.drawings.clear();
+    this.drawingBucket.clear();
+    this.loadedBuckets.clear();
+    this.loadFromStorage();
+    console.log(`[DrawingManager] setTimeframe: ${oldTf} → ${timeframe}, loaded ${this.drawings.size} drawings, buckets: [${Array.from(this.loadedBuckets).join(', ')}]`);
+  }
 
- /** Get the composite storage key for the current symbol+timeframe */
- private getStorageKey(): string {
- return this.timeframe ? `${this.symbol}:${this.timeframe}` : this.symbol;
- }
+  /** Get the composite storage key for the current symbol+timeframe */
+  private getStorageKey(): string {
+    return this.timeframe ? `${this.symbol}:${this.timeframe}` : this.symbol;
+  }
 
- // ── Persistence ────────────────────────────────────────
+  // ── Persistence ────────────────────────────────────────
 
- private saveToStorage(): boolean {
- if (typeof window === 'undefined') return false;
- try {
- const allDrawings = this.getAllStoredDrawings();
- const currentKey = this.getStorageKey();
+  private saveToStorage(): boolean {
+    if (typeof window === 'undefined') return false;
+    try {
+      const allDrawings = this.getAllStoredDrawings();
+      const currentKey = this.getStorageKey();
 
- // V253: Save drawings grouped by their source bucket.
- // This correctly handles:
- // 1. Current TF drawings → saved to current bucket
- // 2. Cross-TF all-tf drawings → saved back to their original bucket
- // 3. Drawings moved between buckets (scope change) → saved to new bucket
+      // V253: Save drawings grouped by their source bucket.
+      // This correctly handles:
+      // 1. Current TF drawings → saved to current bucket
+      // 2. Cross-TF all-tf drawings → saved back to their original bucket
+      // 3. Drawings moved between buckets (scope change) → saved to new bucket
 
- // Step 1: Save ALL current-bucket drawings (we loaded all of them, so safe to overwrite)
- const currentBucketDrawings: Drawing[] = [];
- const otherBucketDrawings: Map<string, Drawing[]> = new Map();
+      // Step 1: Save ALL current-bucket drawings (we loaded all of them, so safe to overwrite)
+      const currentBucketDrawings: Drawing[] = [];
+      const otherBucketDrawings: Map<string, Drawing[]> = new Map();
 
- for (const [id, drawing] of this.drawings) {
- const bucket = this.drawingBucket.get(id) || currentKey;
- if (bucket === currentKey) {
- currentBucketDrawings.push(drawing);
- } else {
- if (!otherBucketDrawings.has(bucket)) otherBucketDrawings.set(bucket, []);
- otherBucketDrawings.get(bucket)!.push(drawing);
- }
- }
+      for (const [id, drawing] of this.drawings) {
+        const bucket = this.drawingBucket.get(id) || currentKey;
+        if (bucket === currentKey) {
+          currentBucketDrawings.push(drawing);
+        } else {
+          if (!otherBucketDrawings.has(bucket)) otherBucketDrawings.set(bucket, []);
+          otherBucketDrawings.get(bucket)!.push(drawing);
+        }
+      }
 
- // Overwrite current bucket completely (we loaded all its drawings)
- allDrawings[currentKey] = currentBucketDrawings;
+      // Overwrite current bucket completely (we loaded all its drawings)
+      allDrawings[currentKey] = currentBucketDrawings;
 
- // Step 2: For other loaded buckets, merge our all-tf drawings with
- // their existing single-tf drawings (which we didn't load into memory)
- for (const bucket of this.loadedBuckets) {
- if (bucket === currentKey) continue;
+      // Step 2: For other loaded buckets, merge our all-tf drawings with
+      // their existing single-tf drawings (which we didn't load into memory)
+      for (const bucket of this.loadedBuckets) {
+        if (bucket === currentKey) continue;
 
- // Get existing single-tf drawings from this bucket that we didn't load
- const existingInBucket = allDrawings[bucket] || [];
- const singleTfDrawings = existingInBucket.filter(d => d.scope !== 'all-tf');
+        // Get existing single-tf drawings from this bucket that we didn't load
+        const existingInBucket = allDrawings[bucket] || [];
+        const singleTfDrawings = existingInBucket.filter(d => d.scope !== 'all-tf');
 
- // Get our in-memory all-tf drawings for this bucket
- const ourAllTfDrawings = otherBucketDrawings.get(bucket) || [];
+        // Get our in-memory all-tf drawings for this bucket
+        const ourAllTfDrawings = otherBucketDrawings.get(bucket) || [];
 
- // Merge: single-tf (untouched) + our all-tf (possibly modified/moved)
- const merged = [...singleTfDrawings, ...ourAllTfDrawings];
- if (merged.length === 0) {
- delete allDrawings[bucket];
- } else {
- allDrawings[bucket] = merged;
- }
- }
+        // Merge: single-tf (untouched) + our all-tf (possibly modified/moved)
+        const merged = [...singleTfDrawings, ...ourAllTfDrawings];
+        if (merged.length === 0) {
+          delete allDrawings[bucket];
+        } else {
+          allDrawings[bucket] = merged;
+        }
+      }
 
- // M2: Pass userId to getStorageKey instead of using require()
- const json = JSON.stringify(allDrawings);
- localStorage.setItem(getStorageKey(this.userId), json);
- // FIX: Verify the write succeeded by reading back and comparing length
- const verify = localStorage.getItem(getStorageKey(this.userId));
- return verify !== null && verify.length === json.length;
- } catch {
- // localStorage might be full or unavailable
- return false;
- }
- }
+      // M2: Pass userId to getStorageKey instead of using require()
+      const json = JSON.stringify(allDrawings);
+      localStorage.setItem(getStorageKey(this.userId), json);
+      // FIX: Verify the write succeeded by reading back and comparing length
+      const verify = localStorage.getItem(getStorageKey(this.userId));
+      return verify !== null && verify.length === json.length;
+    } catch {
+      // localStorage might be full or unavailable
+      return false;
+    }
+  }
 
- private loadFromStorage(): void {
- if (typeof window === 'undefined') return;
- try {
- let allDrawings = this.getAllStoredDrawings();
+  private loadFromStorage(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      let allDrawings = this.getAllStoredDrawings();
 
- // MIGRATION: If user-isolated key is empty but legacy key has data,
- // migrate the data to the new key for this user.
- if (Object.keys(allDrawings).length === 0) {
- try {
- const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
- if (legacyRaw) {
- const legacyData = JSON.parse(legacyRaw);
- if (legacyData && Object.keys(legacyData).length > 0) {
- allDrawings = legacyData;
- // FIX: Save to user-isolated key FIRST, then verify before deleting legacy
- const json = JSON.stringify(legacyData);
- localStorage.setItem(getStorageKey(this.userId), json);
- // Only remove the legacy key after confirming the new key was written
- const verify = localStorage.getItem(getStorageKey(this.userId));
- if (verify !== null && verify.length === json.length) {
- localStorage.removeItem(LEGACY_STORAGE_KEY);
- }
- }
- }
- } catch { /* Legacy data corrupted — skip migration */ }
- }
+      // MIGRATION: If user-isolated key is empty but legacy key has data,
+      // migrate the data to the new key for this user.
+      if (Object.keys(allDrawings).length === 0) {
+        try {
+          const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
+          if (legacyRaw) {
+            const legacyData = JSON.parse(legacyRaw);
+            if (legacyData && Object.keys(legacyData).length > 0) {
+              allDrawings = legacyData;
+              // FIX: Save to user-isolated key FIRST, then verify before deleting legacy
+              const json = JSON.stringify(legacyData);
+              localStorage.setItem(getStorageKey(this.userId), json);
+              // Only remove the legacy key after confirming the new key was written
+              const verify = localStorage.getItem(getStorageKey(this.userId));
+              if (verify !== null && verify.length === json.length) {
+                localStorage.removeItem(LEGACY_STORAGE_KEY);
+              }
+            }
+          }
+        } catch { /* Legacy data corrupted — skip migration */ }
+      }
 
- // V253 FIX: Load drawings from BOTH the current timeframe bucket
- // AND all-tf drawings from other timeframe buckets for the same symbol.
- // Previously, only the current bucket was loaded, meaning all-tf drawings
- // created on other timeframes were invisible — making the "All TF" option
- // in the context menu non-functional.
+      // V253 FIX: Load drawings from BOTH the current timeframe bucket
+      // AND all-tf drawings from other timeframe buckets for the same symbol.
+      // Previously, only the current bucket was loaded, meaning all-tf drawings
+      // created on other timeframes were invisible — making the "All TF" option
+      // in the context menu non-functional.
 
- const currentKey = this.getStorageKey();
- this.drawings.clear();
- this.drawingBucket.clear();
- this.loadedBuckets.clear();
+      const currentKey = this.getStorageKey();
+      this.drawings.clear();
+      this.drawingBucket.clear();
+      this.loadedBuckets.clear();
 
- // V254 DEBUG: Log all bucket keys in localStorage for this symbol
- const allBucketKeys = Object.keys(allDrawings);
- console.log(`[DrawingManager] loadFromStorage: currentKey=${currentKey}, allBuckets=[${allBucketKeys.join(', ')}]`);
+      // V254 DEBUG: Log all bucket keys in localStorage for this symbol
+      const allBucketKeys = Object.keys(allDrawings);
+      console.log(`[DrawingManager] loadFromStorage: currentKey=${currentKey}, allBuckets=[${allBucketKeys.join(', ')}]`);
 
- // Load ALL drawings from the current timeframe bucket
- const currentDrawings = allDrawings[currentKey] || [];
- this.loadedBuckets.add(currentKey);
- currentDrawings.forEach(d => {
- // Backfill lineStyle for drawings saved before this feature existed
- if (!d.lineStyle) d.lineStyle = 'solid';
- // Backfill scope for drawings saved before this feature existed
- if (!d.scope) d.scope = 'all-tf';
- this.drawings.set(d.id, d);
- this.drawingBucket.set(d.id, currentKey);
- });
+      // Load ALL drawings from the current timeframe bucket
+      const currentDrawings = allDrawings[currentKey] || [];
+      this.loadedBuckets.add(currentKey);
+      currentDrawings.forEach(d => {
+        // Backfill lineStyle for drawings saved before this feature existed
+        if (!d.lineStyle) d.lineStyle = 'solid';
+        // Backfill scope for drawings saved before this feature existed
+        if (!d.scope) d.scope = 'all-tf';
+        this.drawings.set(d.id, d);
+        this.drawingBucket.set(d.id, currentKey);
+      });
 
- // Load all-tf drawings from OTHER timeframe buckets for the same symbol.
- // This is what makes the "All TF" visibility feature actually work.
- const symbolPrefix = `${this.symbol}:`;
- let crossTfCount = 0;
- for (const [key, drawings] of Object.entries(allDrawings)) {
- if (key === currentKey) continue;
- // Only scan buckets belonging to the same symbol
- if (!key.startsWith(symbolPrefix) && key !== this.symbol) continue;
- if (!drawings || drawings.length === 0) continue;
+      // Load all-tf drawings from OTHER timeframe buckets for the same symbol.
+      // This is what makes the "All TF" visibility feature actually work.
+      const symbolPrefix = `${this.symbol}:`;
+      let crossTfCount = 0;
+      for (const [key, drawings] of Object.entries(allDrawings)) {
+        if (key === currentKey) continue;
+        // Only scan buckets belonging to the same symbol
+        if (!key.startsWith(symbolPrefix) && key !== this.symbol) continue;
+        if (!drawings || drawings.length === 0) continue;
 
- this.loadedBuckets.add(key);
- const allTfInBucket = drawings.filter(d => !d.scope || d.scope === 'all-tf');
- console.log(`[DrawingManager] Cross-TF scan: bucket=${key}, total=${drawings.length}, all-tf=${allTfInBucket.length}`);
- for (const d of drawings) {
- // V253 FIX: Backfill scope BEFORE checking it!
- // Drawings saved before the scope feature was added have no scope property,
- // so d.scope would be undefined, which fails the 'all-tf' check.
- if (!d.scope) d.scope = 'all-tf';
- if (!d.lineStyle) d.lineStyle = 'solid';
+        this.loadedBuckets.add(key);
+        const allTfInBucket = drawings.filter(d => !d.scope || d.scope === 'all-tf');
+        console.log(`[DrawingManager] Cross-TF scan: bucket=${key}, total=${drawings.length}, all-tf=${allTfInBucket.length}`);
+        for (const d of drawings) {
+          // V253 FIX: Backfill scope BEFORE checking it!
+          // Drawings saved before the scope feature was added have no scope property,
+          // so d.scope would be undefined, which fails the 'all-tf' check.
+          if (!d.scope) d.scope = 'all-tf';
+          if (!d.lineStyle) d.lineStyle = 'solid';
 
- // Only load all-tf drawings (single-tf drawings belong to their own TF only)
- if (d.scope === 'all-tf' && !this.drawings.has(d.id)) {
- this.drawings.set(d.id, d);
- this.drawingBucket.set(d.id, key);
- crossTfCount++;
- }
- }
- }
+          // Only load all-tf drawings (single-tf drawings belong to their own TF only)
+          if (d.scope === 'all-tf' && !this.drawings.has(d.id)) {
+            this.drawings.set(d.id, d);
+            this.drawingBucket.set(d.id, key);
+            crossTfCount++;
+          }
+        }
+      }
 
- console.log(`[DrawingManager] Loaded ${this.drawings.size} drawings for ${currentKey} (${crossTfCount} cross-TF from ${this.loadedBuckets.size} buckets)`);
- } catch (err: any) {
- // BUG-016 FIX: Don't silently wipe corrupted data — rename it so it can be recovered.
- // Old code: empty catch → next saveToStorage overwrites with empty → permanent data loss.
- // New code: rename the corrupted key to .corrupted-{timestamp} and log a warning.
- try {
- const corruptedKey = getStorageKey(this.userId);
- const backupKey = `${corruptedKey}.corrupted-${Date.now()}`;
- const rawData = localStorage.getItem(corruptedKey);
- if (rawData) {
- localStorage.setItem(backupKey, rawData);
- console.warn(`[DrawingManager] Corrupted drawings detected in ${corruptedKey}. Backed up to ${backupKey}. Error: ${err?.message || err}`);
- }
- } catch { /* localStorage access failed — nothing we can do */ }
- }
- }
+      console.log(`[DrawingManager] Loaded ${this.drawings.size} drawings for ${currentKey} (${crossTfCount} cross-TF from ${this.loadedBuckets.size} buckets)`);
+    } catch (err: any) {
+      // BUG-016 FIX: Don't silently wipe corrupted data — rename it so it can be recovered.
+      // Old code: empty catch → next saveToStorage overwrites with empty → permanent data loss.
+      // New code: rename the corrupted key to .corrupted-{timestamp} and log a warning.
+      try {
+        const corruptedKey = getStorageKey(this.userId);
+        const backupKey = `${corruptedKey}.corrupted-${Date.now()}`;
+        const rawData = localStorage.getItem(corruptedKey);
+        if (rawData) {
+          localStorage.setItem(backupKey, rawData);
+          console.warn(`[DrawingManager] Corrupted drawings detected in ${corruptedKey}. Backed up to ${backupKey}. Error: ${err?.message || err}`);
+        }
+      } catch { /* localStorage access failed — nothing we can do */ }
+    }
+  }
 
- private getAllStoredDrawings(): Record<string, Drawing[]> {
- try {
- // M2: Pass userId to getStorageKey instead of using require()
- const raw = localStorage.getItem(getStorageKey(this.userId));
- return raw ? JSON.parse(raw) : {};
- } catch {
- return {};
- }
- }
+  private getAllStoredDrawings(): Record<string, Drawing[]> {
+    try {
+      // M2: Pass userId to getStorageKey instead of using require()
+      const raw = localStorage.getItem(getStorageKey(this.userId));
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  }
 
- // ── Export/Import ──────────────────────────────────────
+  // ── Export/Import ──────────────────────────────────────
 
- exportDrawings(): string {
- return JSON.stringify(this.getAll());
- }
+  exportDrawings(): string {
+    return JSON.stringify(this.getAll());
+  }
 
- importDrawings(json: string): boolean {
- try {
- const drawings: Drawing[] = JSON.parse(json);
- const currentKey = this.getStorageKey();
- drawings.forEach(d => {
- // Backfill scope for imported drawings
- if (!d.scope) d.scope = 'all-tf';
- if (!d.lineStyle) d.lineStyle = 'solid';
- this.drawings.set(d.id, d);
- // V253: Assign imported drawings to the appropriate bucket
- const bucket = d.timeframe ? `${d.symbol}:${d.timeframe}` : currentKey;
- this.drawingBucket.set(d.id, bucket);
- // Track loaded bucket
- this.loadedBuckets.add(bucket);
- });
- this.saveToStorage();
- return true;
- } catch {
- return false;
- }
- }
+  importDrawings(json: string): boolean {
+    try {
+      const drawings: Drawing[] = JSON.parse(json);
+      const currentKey = this.getStorageKey();
+      drawings.forEach(d => {
+        // Backfill scope for imported drawings
+        if (!d.scope) d.scope = 'all-tf';
+        if (!d.lineStyle) d.lineStyle = 'solid';
+        this.drawings.set(d.id, d);
+        // V253: Assign imported drawings to the appropriate bucket
+        const bucket = d.timeframe ? `${d.symbol}:${d.timeframe}` : currentKey;
+        this.drawingBucket.set(d.id, bucket);
+        // Track loaded bucket
+        this.loadedBuckets.add(bucket);
+      });
+      this.saveToStorage();
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
- // ── Point Validation ───────────────────────────────────
+  // ── Point Validation ───────────────────────────────────
 
- static requiredPoints(tool: DrawingTool): number {
- switch (tool) {
- case 'cursor': return 0;
- // ── 1-point tools ──
- case 'horizontal': return 1;
- case 'horizontal-ray': return 1;
- case 'vertical': return 1;
- case 'x-marker': return 1;
- case 'price-label': return 1;
- case 'note': return 1;
- case 'flag': return 1;
- case 'thumb-up': return 1;
- case 'thumb-down': return 1;
- case 'gann-fan': return 1;
- case 'gann-grid': return 1;
- case 'time-cycle': return 1;
- case 'callout': return 1;
- case 'balloon': return 1;
- // ── 2-point tools ──
- case 'trendline': return 2;
- case 'ray': return 2;
- case 'info-line': return 2;
- case 'extended-line': return 2;
- case 'trend-angle': return 2;
- case 'cross-line': return 2;
- case 'arrow-line': return 2;
- case 'double-arrow': return 2;
- case 'curved-line': return 2;
- case 'parallel-line': return 2;
- case 'stepped-line': return 2;
- case 'fibonacci': return 2;
- case 'fib-extension': return 2;
- case 'fib-fan': return 2;
- case 'fib-spiral': return 2;
- case 'fib-wedge': return 2;
- case 'fib-time-zone': return 2;
- case 'fib-circles': return 2;
- case 'fib-speed-resist': return 2;
- case 'fib-speed-fan': return 2;
- case 'fib-time-ext': return 2;
- case 'rectangle': return 2;
- case 'circle': return 2;
- case 'ellipse': return 2;
- case 'rounded-rect': return 2;
- case 'diamond': return 2;
- case 'parallelogram': return 2;
- case 'arrow': return 2;
- case 'price-range': return 2;
- case 'text-annotation': return 2;
- case 'disjoint-channel': return 2;
- case 'flat-top-bottom': return 2;
- case 'gann-box': return 2;
- case 'gann-square': return 2;
- case 'gann-diamond': return 2;
- case 'gann-hexagon': return 2;
- case 'measure': return 2;
- case 'risk-reward': return 2;
- case 'date-range': return 2;
- case 'inv-head-shoulders':return 2;
- case 'elliott-impulse': return 2;
- case 'elliott-corrective':return 2;
- case 'elliott-triangle': return 2;
- case 'elliott-combo': return 2;
- case 'elliott-diagonal': return 2;
- case 'std-dev-channel': return 2;
- case 'inside-channel': return 2;
- // ── 3-point tools ──
- case 'channel': return 3;
- case 'triangle': return 3;
- case 'regression-trend': return 3;
- case 'andrews-pitchfork': return 3;
- case 'schiff-pitchfork': return 3;
- case 'modified-schiff': return 3;
- case 'bezier-curve': return 3;
- case 'fib-channel': return 3;
- case 'pentagon': return 3;
- case 'hexagon': return 3;
- case 'star': return 3;
- case 'head-shoulders': return 3;
- case 'abcd': return 3;
- case 'cypher': return 3;
- case 'bat': return 3;
- case 'butterfly': return 3;
- case 'crab': return 3;
- case 'shark': return 3;
- case 'three-drives': return 3;
- case 'wolf-wave': return 3;
- default: return 0;
- }
- }
+  static requiredPoints(tool: DrawingTool): number {
+    switch (tool) {
+      case 'cursor':            return 0;
+      // ── 1-point tools ──
+      case 'horizontal':        return 1;
+      case 'horizontal-ray':    return 1;
+      case 'vertical':          return 1;
+      case 'x-marker':          return 1;
+      case 'price-label':       return 1;
+      case 'note':              return 1;
+      case 'flag':              return 1;
+      case 'thumb-up':          return 1;
+      case 'thumb-down':        return 1;
+      case 'gann-fan':          return 1;
+      case 'gann-grid':         return 1;
+      case 'time-cycle':        return 1;
+      case 'callout':           return 1;
+      case 'balloon':           return 1;
+      // ── 2-point tools ──
+      case 'trendline':         return 2;
+      case 'ray':               return 2;
+      case 'info-line':         return 2;
+      case 'extended-line':     return 2;
+      case 'trend-angle':       return 2;
+      case 'cross-line':        return 2;
+      case 'arrow-line':        return 2;
+      case 'double-arrow':      return 2;
+      case 'curved-line':       return 2;
+      case 'parallel-line':     return 2;
+      case 'stepped-line':      return 2;
+      case 'fibonacci':         return 2;
+      case 'fib-extension':     return 2;
+      case 'fib-fan':           return 2;
+      case 'fib-spiral':        return 2;
+      case 'fib-wedge':         return 2;
+      case 'fib-time-zone':     return 2;
+      case 'fib-circles':       return 2;
+      case 'fib-speed-resist':  return 2;
+      case 'fib-speed-fan':     return 2;
+      case 'fib-time-ext':      return 2;
+      case 'rectangle':         return 2;
+      case 'circle':            return 2;
+      case 'ellipse':           return 2;
+      case 'rounded-rect':      return 2;
+      case 'diamond':           return 2;
+      case 'parallelogram':     return 2;
+      case 'arrow':             return 2;
+      case 'price-range':       return 2;
+      case 'text-annotation':   return 2;
+      case 'disjoint-channel':  return 2;
+      case 'flat-top-bottom':   return 2;
+      case 'gann-box':          return 2;
+      case 'gann-square':       return 2;
+      case 'gann-diamond':      return 2;
+      case 'gann-hexagon':      return 2;
+      case 'measure':           return 2;
+      case 'risk-reward':       return 2;
+      case 'date-range':        return 2;
+      case 'inv-head-shoulders':return 2;
+      case 'elliott-impulse':   return 2;
+      case 'elliott-corrective':return 2;
+      case 'elliott-triangle':  return 2;
+      case 'elliott-combo':     return 2;
+      case 'elliott-diagonal':  return 2;
+      case 'std-dev-channel':   return 2;
+      case 'inside-channel':    return 2;
+      // ── 3-point tools ──
+      case 'channel':           return 3;
+      case 'triangle':          return 3;
+      case 'regression-trend':  return 3;
+      case 'andrews-pitchfork': return 3;
+      case 'schiff-pitchfork':  return 3;
+      case 'modified-schiff':   return 3;
+      case 'bezier-curve':      return 3;
+      case 'fib-channel':       return 3;
+      case 'pentagon':          return 3;
+      case 'hexagon':           return 3;
+      case 'star':              return 3;
+      case 'head-shoulders':    return 3;
+      case 'abcd':              return 3;
+      case 'cypher':            return 3;
+      case 'bat':               return 3;
+      case 'butterfly':         return 3;
+      case 'crab':              return 3;
+      case 'shark':             return 3;
+      case 'three-drives':      return 3;
+      case 'wolf-wave':         return 3;
+      default:                  return 0;
+    }
+  }
 
- static getToolLabel(tool: DrawingTool): { ar: string; en: string } {
- const labels: Record<DrawingTool, { ar: string; en: string }> = {
- 'cursor': { ar: 'indicator', en: 'Cursor' },
- // Lines
- 'trendline': { ar: 'font direction', en: 'Trend Line' },
- 'ray': { ar: 'ray', en: 'Ray' },
- 'info-line': { ar: 'font information', en: 'Info Line' },
- 'extended-line': { ar: 'extended line', en: 'Extended Line' },
- 'trend-angle': { ar: 'font direction angle', en: 'Trend Angle' },
- 'horizontal': { ar: 'horizontal line', en: 'Horizontal Line' },
- 'horizontal-ray': { ar: 'horizontal ray', en: 'Horizontal Ray' },
- 'vertical': { ar: 'vertical line', en: 'Vertical Line' },
- 'cross-line': { ar: 'cross line', en: 'Cross Line' },
- 'arrow-line': { ar: 'arrow line', en: 'Arrow Line' },
- 'double-arrow': { ar: 'arrow ', en: 'Double Arrow' },
- 'curved-line': { ar: 'font curved', en: 'Curved Line' },
- 'parallel-line': { ar: 'parallel line', en: 'Parallel Line' },
- 'stepped-line': { ar: 'gradient line', en: 'Stepped Line' },
- 'bezier-curve': { ar: 'whoBezier curve', en: 'Bezier Curve' },
- // Channels
- 'channel': { ar: ' parallel', en: 'Parallel Channel' },
- 'regression-trend': { ar: 'direction regression', en: 'Regression Trend' },
- 'flat-top-bottom': { ar: 'high/low flat', en: 'Flat Top/Bottom' },
- 'disjoint-channel': { ar: ' who', en: 'Disjoint Channel' },
- 'fib-channel': { ar: ' in', en: 'Fib Channel' },
- 'std-dev-channel': { ar: ' standard', en: 'Std Dev Channel' },
- 'inside-channel': { ar: ' cell', en: 'Inside Channel' },
- // Forks
- 'andrews-pitchfork': { ar: ' ', en: 'Andrews Pitchfork' },
- 'schiff-pitchfork': { ar: ' ', en: 'Schiff Pitchfork' },
- 'modified-schiff': { ar: ' with', en: 'Modified Schiff' },
- // Fibonacci
- 'fibonacci': { ar: 'in ', en: 'Fib Retracement' },
- 'fib-extension': { ar: 'in ', en: 'Fib Extension' },
- 'fib-fan': { ar: 'fan in', en: 'Fib Fan' },
- 'fib-spiral': { ar: 'spiral in', en: 'Fib Spiral' },
- 'fib-wedge': { ar: 'in in', en: 'Fib Wedge' },
- 'fib-time-zone': { ar: 'who time in', en: 'Fib Time Zone' },
- 'fib-circles': { ar: 'circles in', en: 'Fib Circles' },
- 'fib-speed-resist': { ar: 'resistance speed in', en: 'Fib Speed Resist' },
- 'fib-speed-fan': { ar: 'fan speed in', en: 'Fib Speed Fan' },
- 'fib-time-ext': { ar: ' time in', en: 'Fib Time Ext' },
- // Gann
- 'gann-box': { ar: 'Gann Box', en: 'Gann Box' },
- 'gann-square': { ar: 'Gann Square', en: 'Gann Square' },
- 'gann-fan': { ar: 'fan ', en: 'Gann Fan' },
- 'gann-grid': { ar: 'network ', en: 'Gann Grid' },
- 'gann-diamond': { ar: 'withGann Fan', en: 'Gann Diamond' },
- 'gann-hexagon': { ar: 'Gann Hexagon', en: 'Gann Hexagon' },
- // Shapes
- 'rectangle': { ar: 'rectangle', en: 'Rectangle' },
- 'triangle': { ar: 'triangle', en: 'Triangle' },
- 'circle': { ar: 'circle', en: 'Circle' },
- 'ellipse': { ar: 'ellipse', en: 'Ellipse' },
- 'rounded-rect': { ar: 'rounded rectangle', en: 'Rounded Rect' },
- 'diamond': { ar: 'with', en: 'Diamond' },
- 'parallelogram': { ar: 'parallelogram', en: 'Parallelogram' },
- 'pentagon': { ar: 'penta', en: 'Pentagon' },
- 'hexagon': { ar: 'hexa', en: 'Hexagon' },
- 'star': { ar: 'star', en: 'Star' },
- // Annotations
- 'text-annotation': { ar: 'text note', en: 'Text Annotation' },
- 'price-label': { ar: 'label price', en: 'Price Label' },
- 'note': { ar: 'note', en: 'Note' },
- 'callout': { ar: 'tagged note', en: 'Callout' },
- 'balloon': { ar: 'balloon', en: 'Balloon' },
- 'flag': { ar: 'flag', en: 'Flag' },
- 'thumb-up': { ar: 'like', en: 'Thumb Up' },
- 'thumb-down': { ar: 'dislike', en: 'Thumb Down' },
- // Markers
- 'x-marker': { ar: 'marker X', en: 'X Mark' },
- 'arrow': { ar: 'arrow', en: 'Arrow' },
- 'price-range': { ar: ' price', en: 'Price Range' },
- // Measurement
- 'measure': { ar: 'measurement', en: 'Measure' },
- 'risk-reward': { ar: 'risk/', en: 'Risk/Reward' },
- 'date-range': { ar: ' time', en: 'Date Range' },
- 'time-cycle': { ar: 'role time', en: 'Time Cycle' },
- // Patterns
- 'head-shoulders': { ar: ' in', en: 'Head & Shoulders' },
- 'inv-head-shoulders':{ ar: ' in with', en: 'Inv Head & Shoulders' },
- 'abcd': { ar: 'pattern ABCD', en: 'ABCD Pattern' },
- 'cypher': { ar: 'pattern Cypher', en: 'Cypher Pattern' },
- 'bat': { ar: 'pattern Bat', en: 'Bat Pattern' },
- 'butterfly': { ar: 'pattern ', en: 'Butterfly Pattern' },
- 'crab': { ar: 'pattern Crab', en: 'Crab Pattern' },
- 'shark': { ar: 'pattern Shark', en: 'Shark Pattern' },
- 'three-drives': { ar: 'three ', en: 'Three Drives' },
- 'wolf-wave': { ar: 'wave Wolf', en: 'Wolf Wave' },
- // Elliott
- 'elliott-impulse': { ar: 'wave ', en: 'Elliott Impulse' },
- 'elliott-corrective':{ ar: 'wave correct ', en: 'Elliott Corrective' },
- 'elliott-triangle': { ar: 'triangle ', en: 'Elliott Triangle' },
- 'elliott-combo': { ar: 'in order to ', en: 'Elliott Combo' },
- 'elliott-diagonal': { ar: 'diameter ', en: 'Elliott Diagonal' },
- };
- return labels[tool] || { ar: tool, en: tool };
- }
+  static getToolLabel(tool: DrawingTool): { ar: string; en: string } {
+    const labels: Record<DrawingTool, { ar: string; en: string }> = {
+      'cursor':            { ar: 'مؤشر',                en: 'Cursor' },
+      // Lines
+      'trendline':         { ar: 'خط اتجاه',             en: 'Trend Line' },
+      'ray':               { ar: 'شعاع',                en: 'Ray' },
+      'info-line':         { ar: 'خط معلوماتي',          en: 'Info Line' },
+      'extended-line':     { ar: 'خط ممتد',             en: 'Extended Line' },
+      'trend-angle':       { ar: 'خط اتجاه بزاوية',      en: 'Trend Angle' },
+      'horizontal':        { ar: 'خط أفقي',             en: 'Horizontal Line' },
+      'horizontal-ray':    { ar: 'شعاع أفقي',            en: 'Horizontal Ray' },
+      'vertical':          { ar: 'خط رأسي',             en: 'Vertical Line' },
+      'cross-line':        { ar: 'خط متقاطع',            en: 'Cross Line' },
+      'arrow-line':        { ar: 'خط بسهم',              en: 'Arrow Line' },
+      'double-arrow':      { ar: 'سهم مزدوج',            en: 'Double Arrow' },
+      'curved-line':       { ar: 'خط منحني',             en: 'Curved Line' },
+      'parallel-line':     { ar: 'خط متوازي',            en: 'Parallel Line' },
+      'stepped-line':      { ar: 'خط متدرج',             en: 'Stepped Line' },
+      'bezier-curve':      { ar: 'منحنى بيزيه',           en: 'Bezier Curve' },
+      // Channels
+      'channel':           { ar: 'قناة متوازية',          en: 'Parallel Channel' },
+      'regression-trend':  { ar: 'اتجاه انحدار',          en: 'Regression Trend' },
+      'flat-top-bottom':   { ar: 'قمة/قاع مسطحة',         en: 'Flat Top/Bottom' },
+      'disjoint-channel':  { ar: 'قناة منفصلة',           en: 'Disjoint Channel' },
+      'fib-channel':       { ar: 'قناة فيبوناتشي',         en: 'Fib Channel' },
+      'std-dev-channel':   { ar: 'قناة الانحراف المعياري',   en: 'Std Dev Channel' },
+      'inside-channel':    { ar: 'قناة داخلية',            en: 'Inside Channel' },
+      // Forks
+      'andrews-pitchfork': { ar: 'شوكة أندروز',           en: 'Andrews Pitchfork' },
+      'schiff-pitchfork':  { ar: 'شوكة شيف',             en: 'Schiff Pitchfork' },
+      'modified-schiff':   { ar: 'شوكة شيف معدلة',        en: 'Modified Schiff' },
+      // Fibonacci
+      'fibonacci':         { ar: 'فيبوناتشي ارتداد',      en: 'Fib Retracement' },
+      'fib-extension':     { ar: 'فيبوناتشي امتداد',      en: 'Fib Extension' },
+      'fib-fan':           { ar: 'مروحة فيبوناتشي',       en: 'Fib Fan' },
+      'fib-spiral':        { ar: 'حلزون فيبوناتشي',       en: 'Fib Spiral' },
+      'fib-wedge':         { ar: 'إسفين فيبوناتشي',       en: 'Fib Wedge' },
+      'fib-time-zone':     { ar: 'مناطق زمنية فيبوناتشي',   en: 'Fib Time Zone' },
+      'fib-circles':       { ar: 'دوائر فيبوناتشي',        en: 'Fib Circles' },
+      'fib-speed-resist':  { ar: 'مقاومة سرعة فيبوناتشي',   en: 'Fib Speed Resist' },
+      'fib-speed-fan':     { ar: 'مروحة سرعة فيبوناتشي',    en: 'Fib Speed Fan' },
+      'fib-time-ext':      { ar: 'امتداد زمني فيبوناتشي',   en: 'Fib Time Ext' },
+      // Gann
+      'gann-box':          { ar: 'صندوق جان',            en: 'Gann Box' },
+      'gann-square':       { ar: 'مربع جان',             en: 'Gann Square' },
+      'gann-fan':          { ar: 'مروحة جان',            en: 'Gann Fan' },
+      'gann-grid':         { ar: 'شبكة جان',              en: 'Gann Grid' },
+      'gann-diamond':      { ar: 'معين جان',              en: 'Gann Diamond' },
+      'gann-hexagon':      { ar: 'سداسي جان',             en: 'Gann Hexagon' },
+      // Shapes
+      'rectangle':         { ar: 'مستطيل',              en: 'Rectangle' },
+      'triangle':          { ar: 'مثلث',                en: 'Triangle' },
+      'circle':            { ar: 'دائرة',               en: 'Circle' },
+      'ellipse':           { ar: 'قطع ناقص',             en: 'Ellipse' },
+      'rounded-rect':      { ar: 'مستطيل مدور',           en: 'Rounded Rect' },
+      'diamond':           { ar: 'معين',                 en: 'Diamond' },
+      'parallelogram':     { ar: 'متوازي أضلاع',          en: 'Parallelogram' },
+      'pentagon':          { ar: 'خماسي',                en: 'Pentagon' },
+      'hexagon':           { ar: 'سداسي',                en: 'Hexagon' },
+      'star':              { ar: 'نجمة',                 en: 'Star' },
+      // Annotations
+      'text-annotation':   { ar: 'تعليق نصي',            en: 'Text Annotation' },
+      'price-label':       { ar: 'تسمية سعرية',           en: 'Price Label' },
+      'note':              { ar: 'ملاحظة',               en: 'Note' },
+      'callout':           { ar: 'تعليق مبوب',            en: 'Callout' },
+      'balloon':           { ar: 'بالون',                 en: 'Balloon' },
+      'flag':              { ar: 'علم',                  en: 'Flag' },
+      'thumb-up':          { ar: 'إعجاب',                en: 'Thumb Up' },
+      'thumb-down':        { ar: 'عدم إعجاب',             en: 'Thumb Down' },
+      // Markers
+      'x-marker':          { ar: 'علامة X',              en: 'X Mark' },
+      'arrow':             { ar: 'سهم',                  en: 'Arrow' },
+      'price-range':       { ar: 'نطاق سعري',            en: 'Price Range' },
+      // Measurement
+      'measure':           { ar: 'قياس',                  en: 'Measure' },
+      'risk-reward':       { ar: 'مخاطرة/عائد',           en: 'Risk/Reward' },
+      'date-range':        { ar: 'نطاق زمني',             en: 'Date Range' },
+      'time-cycle':        { ar: 'دورة زمنية',            en: 'Time Cycle' },
+      // Patterns
+      'head-shoulders':    { ar: 'رأس وكتفين',            en: 'Head & Shoulders' },
+      'inv-head-shoulders':{ ar: 'رأس وكتفين معكوس',       en: 'Inv Head & Shoulders' },
+      'abcd':              { ar: 'نمط ABCD',              en: 'ABCD Pattern' },
+      'cypher':            { ar: 'نمط سايفر',             en: 'Cypher Pattern' },
+      'bat':               { ar: 'نمط الخفاش',            en: 'Bat Pattern' },
+      'butterfly':         { ar: 'نمط الفراشة',           en: 'Butterfly Pattern' },
+      'crab':              { ar: 'نمط السرطان',           en: 'Crab Pattern' },
+      'shark':             { ar: 'نمط القرش',             en: 'Shark Pattern' },
+      'three-drives':      { ar: 'ثلاث دفعات',            en: 'Three Drives' },
+      'wolf-wave':         { ar: 'موجة الذئب',            en: 'Wolf Wave' },
+      // Elliott
+      'elliott-impulse':   { ar: 'موجة دافع إليوت',        en: 'Elliott Impulse' },
+      'elliott-corrective':{ ar: 'موجة تصحيحية إليوت',     en: 'Elliott Corrective' },
+      'elliott-triangle':  { ar: 'مثلث إليوت',             en: 'Elliott Triangle' },
+      'elliott-combo':     { ar: 'تركيب إليوت',            en: 'Elliott Combo' },
+      'elliott-diagonal':  { ar: 'قطر إليوت',             en: 'Elliott Diagonal' },
+    };
+    return labels[tool] || { ar: tool, en: tool };
+  }
 
- static getToolIcon(tool: DrawingTool): string {
- const icons: Record<DrawingTool, string> = {
- 'cursor': '↖',
- // Lines
- 'trendline': '╱',
- 'ray': '⟋',
- 'info-line': 'ℹ',
- 'extended-line': '⟶',
- 'trend-angle': '∡',
- 'horizontal': '━',
- 'horizontal-ray': '⟶',
- 'vertical': '┃',
- 'cross-line': '╋',
- 'arrow-line': '→',
- 'double-arrow': '⟷',
- 'curved-line': '〜',
- 'parallel-line': '║',
- 'stepped-line': '⌐',
- 'bezier-curve': '⌇',
- // Channels
- 'channel': '║',
- 'regression-trend': '📈',
- 'flat-top-bottom': '⬒',
- 'disjoint-channel': '║',
- 'fib-channel': '⟐',
- 'std-dev-channel': '⟊',
- 'inside-channel': '⊲',
- // Forks
- 'andrews-pitchfork': '🔱',
- 'schiff-pitchfork': '🔱',
- 'modified-schiff': '🔱',
- // Fibonacci
- 'fibonacci': '⬡',
- 'fib-extension': '⬡',
- 'fib-fan': '🎷',
- 'fib-spiral': '🌀',
- 'fib-wedge': '◭',
- 'fib-time-zone': '⏱',
- 'fib-circles': '◎',
- 'fib-speed-resist': '◠',
- 'fib-speed-fan': '⌔',
- 'fib-time-ext': '⏳',
- // Gann
- 'gann-box': '⬜',
- 'gann-square': '🔲',
- 'gann-fan': '🏮',
- 'gann-grid': '⊞',
- 'gann-diamond': '◇',
- 'gann-hexagon': '⬡',
- // Shapes
- 'rectangle': '▭',
- 'triangle': '△',
- 'circle': '○',
- 'ellipse': '⬭',
- 'rounded-rect': '▢',
- 'diamond': '◇',
- 'parallelogram': '▱',
- 'pentagon': '⬠',
- 'hexagon': '⬡',
- 'star': '☆',
- // Annotations
- 'text-annotation': '💬',
- 'price-label': '🏷',
- 'note': '📌',
- 'callout': '💬',
- 'balloon': '💭',
- 'flag': '🚩',
- 'thumb-up': '👍',
- 'thumb-down': '👎',
- // Markers
- 'x-marker': '✕',
- 'arrow': '→',
- 'price-range': '⇳',
- // Measurement
- 'measure': '📏',
- 'risk-reward': '⚖',
- 'date-range': '📅',
- 'time-cycle': '🔄',
- // Patterns
- 'head-shoulders': '🏔',
- 'inv-head-shoulders':'🏔',
- 'abcd': 'Z',
- 'cypher': 'ℂ',
- 'bat': '🦇',
- 'butterfly': '🦋',
- 'crab': '🦀',
- 'shark': '🦈',
- 'three-drives': '3⃣',
- 'wolf-wave': '🐺',
- // Elliott
- 'elliott-impulse': '🌊',
- 'elliott-corrective':'🔄',
- 'elliott-triangle': '🔺',
- 'elliott-combo': '🔀',
- 'elliott-diagonal': '⚡',
- };
- return icons[tool] || '?';
- }
+  static getToolIcon(tool: DrawingTool): string {
+    const icons: Record<DrawingTool, string> = {
+      'cursor':            '↖',
+      // Lines
+      'trendline':         '╱',
+      'ray':               '⟋',
+      'info-line':         'ℹ',
+      'extended-line':     '⟶',
+      'trend-angle':       '∡',
+      'horizontal':        '━',
+      'horizontal-ray':    '⟶',
+      'vertical':          '┃',
+      'cross-line':        '╋',
+      'arrow-line':        '→',
+      'double-arrow':      '⟷',
+      'curved-line':       '〜',
+      'parallel-line':     '║',
+      'stepped-line':      '⌐',
+      'bezier-curve':      '⌇',
+      // Channels
+      'channel':           '║',
+      'regression-trend':  '📈',
+      'flat-top-bottom':   '⬒',
+      'disjoint-channel':  '║',
+      'fib-channel':       '⟐',
+      'std-dev-channel':   '⟊',
+      'inside-channel':    '⊲',
+      // Forks
+      'andrews-pitchfork': '🔱',
+      'schiff-pitchfork':  '🔱',
+      'modified-schiff':   '🔱',
+      // Fibonacci
+      'fibonacci':         '⬡',
+      'fib-extension':     '⬡',
+      'fib-fan':           '🎷',
+      'fib-spiral':        '🌀',
+      'fib-wedge':         '◭',
+      'fib-time-zone':     '⏱',
+      'fib-circles':       '◎',
+      'fib-speed-resist':  '◠',
+      'fib-speed-fan':     '⌔',
+      'fib-time-ext':      '⏳',
+      // Gann
+      'gann-box':          '⬜',
+      'gann-square':       '🔲',
+      'gann-fan':          '🏮',
+      'gann-grid':         '⊞',
+      'gann-diamond':      '◇',
+      'gann-hexagon':      '⬡',
+      // Shapes
+      'rectangle':         '▭',
+      'triangle':          '△',
+      'circle':            '○',
+      'ellipse':           '⬭',
+      'rounded-rect':      '▢',
+      'diamond':           '◇',
+      'parallelogram':     '▱',
+      'pentagon':          '⬠',
+      'hexagon':           '⬡',
+      'star':              '☆',
+      // Annotations
+      'text-annotation':   '💬',
+      'price-label':       '🏷',
+      'note':              '📌',
+      'callout':           '💬',
+      'balloon':           '💭',
+      'flag':              '🚩',
+      'thumb-up':          '👍',
+      'thumb-down':        '👎',
+      // Markers
+      'x-marker':          '✕',
+      'arrow':             '→',
+      'price-range':       '⇳',
+      // Measurement
+      'measure':           '📏',
+      'risk-reward':       '⚖',
+      'date-range':        '📅',
+      'time-cycle':        '🔄',
+      // Patterns
+      'head-shoulders':    '🏔',
+      'inv-head-shoulders':'🏔',
+      'abcd':              'Z',
+      'cypher':            'ℂ',
+      'bat':               '🦇',
+      'butterfly':         '🦋',
+      'crab':              '🦀',
+      'shark':             '🦈',
+      'three-drives':      '3⃣',
+      'wolf-wave':         '🐺',
+      // Elliott
+      'elliott-impulse':   '🌊',
+      'elliott-corrective':'🔄',
+      'elliott-triangle':  '🔺',
+      'elliott-combo':     '🔀',
+      'elliott-diagonal':  '⚡',
+    };
+    return icons[tool] || '?';
+  }
 }

@@ -145,6 +145,10 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const t = useTranslations('aiSmartPanel');
   const locale = useLocale();
   const timeLocale = locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : locale === 'tr' ? 'tr-TR' : 'en-US';
+  // Locale-aware field selector: engine *Ar fields hold Arabic text.
+  // For non-Arabic locales, return English fallback so Arabic never leaks.
+  const isAr = locale === 'ar';
+  const ar = (arText: string, enText: string = ''): string => isAr ? arText : enText;
   const [tab, setTab] = useState<Tab>('signal');
   const [loading, setLoading] = useState(false);
   const [signal, setSignal] = useState<{ dir: 'BUY' | 'SELL' | 'WAIT'; conf: number; entry: number; sl: number; tp: number; reason: string; ts: number; regime?: string; bayesianDir?: string; bayesianConf?: number; fusionScore?: number } | null>(null);
@@ -1684,7 +1688,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           )}
           {/* Volatility regime badge */}
           <div style={{ padding: '1px 5px', borderRadius: 'var(--radius-xs)', fontSize: 11, fontWeight: 700, fontFamily: "var(--font-mono)", background: `${regimeColor}18`, color: regimeColor, border: `1px solid ${regimeColor}30` }}>
-            ATR {regimeLabelAr}
+            ATR {ar(regimeLabelAr, '')}
           </div>
           {/* Engine verification badge — click to verify engines are real */}
           <button
@@ -1760,13 +1764,13 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
               {eng.checks.map((chk, i) => (
                 <div key={i} style={{ display: 'flex', gap: 4, marginBottom: 2, fontSize: 11, color: chk.passed ? C.dim : C.red }}>
                   <span>{chk.passed ? '✓' : '✗'}</span>
-                  <span style={{ flex: 1 }}>{chk.nameAr}</span>
+                  <span style={{ flex: 1 }}>{ar(chk.nameAr, 'Signal')}</span>
                 </div>
               ))}
               {/* Market comparison */}
               <div style={{ marginTop: 4, padding: '3px 6px', borderRadius: 'var(--radius-xs)', background: 'rgba(0,212,255,0.06)', border: '1px solid rgba(0,212,255,0.1)' }}>
                 <div style={{ fontSize: 11, color: C.cyan, fontWeight: 700 }}>
-                  🏆 {eng.comparisonWithMarket.featureAr}: {eng.comparisonWithMarket.advantage === 'roua' ? t('asp_rouaSuperior') : t('asp_tie')}
+                  🏆 {ar(eng.comparisonWithMarket.featureAr, 'Feature')}: {eng.comparisonWithMarket.advantage === 'roua' ? t('asp_rouaSuperior') : t('asp_tie')}
                 </div>
                 <div style={{ fontSize: 11, color: C.dim, marginTop: 1 }}>
                   t('asp_roua'): {eng.comparisonWithMarket.rouaHas ? '✓' : '✗'} | TradingView: {eng.comparisonWithMarket.tradingViewHas ? '✓' : '✗'} | MultiCharts: {eng.comparisonWithMarket.multiChartsHas ? '✓' : '✗'}
@@ -1790,7 +1794,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 22, color: sigColor, fontWeight: 900 }}>{sigIcon}</span>
                       <div>
-                        <div style={{ color: sigColor, fontSize: 15, fontWeight: 800 }}>{sigAr}</div>
+                        <div style={{ color: sigColor, fontSize: 15, fontWeight: 800 }}>{ar(sigAr, '')}</div>
                         <div style={{ color: C.dim, fontSize: 11, marginTop: 1 }}>{signal.reason}</div>
                       </div>
                     </div>
@@ -1896,7 +1900,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     {signal.regime && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 8px', background: C.card, borderRadius: 'var(--radius-sm)', marginBottom: 8 }}>
                         <span style={{ color: C.dim, fontSize: 11 }}>{t('volatilityRegime')}</span>
-                        <span style={{ color: regimeColor, fontSize: 11, fontWeight: 700 }}>{regimeLabelAr} (ATR)</span>
+                        <span style={{ color: regimeColor, fontSize: 11, fontWeight: 700 }}>{ar(regimeLabelAr, '')} (ATR)</span>
                       </div>
                     )}
                     {onExecuteTrade && (
@@ -2325,7 +2329,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5, padding: '3px 6px', background: C.card, borderRadius: 'var(--radius-sm)' }}>
                       <span style={{ color: C.mut, fontSize: 11 }}>{t('volatilityRegime')}</span>
-                      <span style={{ color: regimeColor, fontSize: 11, fontWeight: 700 }}>{regimeLabelAr} ({thresholds.atrMultiplier}x)</span>
+                      <span style={{ color: regimeColor, fontSize: 11, fontWeight: 700 }}>{ar(regimeLabelAr, '')} ({thresholds.atrMultiplier}x)</span>
                     </div>
                   </div>
                 );
@@ -2393,7 +2397,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 {mtfResult.entryRecommendation && mtfResult.entryRecommendation.direction !== 'neutral' && (
                   <div style={{ background: `${C.cyan}08`, border: `1px solid ${C.cyan}20`, borderRadius: 'var(--radius-sm)', padding: '6px 8px', marginBottom: 8 }}>
                     <div style={{ color: C.cyan, fontSize: 11, fontWeight: 700, marginBottom: 3 }}>{t('asp_entryRecommendation')}</div>
-                    <div style={{ color: C.dim, fontSize: 11, lineHeight: 1.5 }}>{mtfResult.entryRecommendation.reasonAr}</div>
+                    <div style={{ color: C.dim, fontSize: 11, lineHeight: 1.5 }}>{ar(mtfResult.entryRecommendation.reasonAr, '')}</div>
                   </div>
                 )}
 
@@ -2403,7 +2407,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     <div style={{ color: C.gold, fontSize: 11, fontWeight: 700, marginBottom: 4 }}>{t('asp_mtfLevels')}</div>
                     {mtfResult.srConfluences.map((sr, i) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', borderRadius: 'var(--radius-sm)', marginBottom: 2, background: C.card }}>
-                        <span style={{ color: sr.type === 'support' ? C.green : C.red, fontSize: 11 }}>{sr.labelAr}</span>
+                        <span style={{ color: sr.type === 'support' ? C.green : C.red, fontSize: 11 }}>{ar(sr.labelAr, 'Label')}</span>
                         <span style={{ color: C.text, fontSize: 11, fontFamily: "var(--font-mono)" }}>{sr.price} ({sr.timeframes.length}TF)</span>
                       </div>
                     ))}
@@ -2415,14 +2419,14 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                   <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)', borderRadius: 'var(--radius-sm)', padding: '6px 8px', marginBottom: 8 }}>
                     <div style={{ color: '#FFB800', fontSize: 11, fontWeight: 700, marginBottom: 3 }}>{t('asp_tfDivergences')}</div>
                     {mtfResult.divergences.map((div, i) => (
-                      <div key={i} style={{ color: C.dim, fontSize: 11, marginBottom: 3, lineHeight: 1.4 }}>{div.descriptionAr}</div>
+                      <div key={i} style={{ color: C.dim, fontSize: 11, marginBottom: 3, lineHeight: 1.4 }}>{ar(div.descriptionAr, '')}</div>
                     ))}
                   </div>
                 )}
 
                 {/* Interpretation */}
                 <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '6px 8px', marginTop: 6 }}>
-                  <div style={{ color: C.dim, fontSize: 11, lineHeight: 1.6 }}>{mtfResult.interpretationAr}</div>
+                  <div style={{ color: C.dim, fontSize: 11, lineHeight: 1.6 }}>{ar(mtfResult.interpretationAr, '')}</div>
                 </div>
               </>
             )}
@@ -2452,7 +2456,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 8px', borderRadius: 'var(--radius-sm)', background: C.card, marginBottom: 3, border: `1px solid ${pColor}25` }}>
                       <div>
                         <span style={{ color: alert.direction === 'bullish' ? C.green : alert.direction === 'bearish' ? C.red : C.mut, fontSize: 11, fontWeight: 600 }}>
-                          {alert.direction === 'bullish' ? '▲' : '▼'} {alert.nameAr}
+                          {alert.direction === 'bullish' ? '▲' : '▼'} {ar(alert.nameAr, 'Signal')}
                         </span>
                         <div style={{ color: C.mut, fontSize: 11, marginTop: 2 }}>
                           Confidence: {Math.round(alert.confidence * 100)}% | Level: {alert.keyLevel.toFixed(2)}
@@ -2471,12 +2475,12 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
               <div style={{ marginBottom: 10 }}>
                 <div style={{ color: C.purple, fontSize: 11, fontWeight: 700, marginBottom: 5 }}>💧 Liquidity Zones ({liquidityResult.activeZones} active / {liquidityResult.sweptZones} مسحوبة)</div>
                 <div style={{ background: `${C.purple}08`, border: `1px solid ${C.purple}20`, borderRadius: 'var(--radius-sm)', padding: '8px 10px', marginBottom: 5 }}>
-                  <div style={{ color: C.dim, fontSize: 11, lineHeight: 1.6 }}>{liquidityResult.interpretationAr}</div>
+                  <div style={{ color: C.dim, fontSize: 11, lineHeight: 1.6 }}>{ar(liquidityResult.interpretationAr, '')}</div>
                 </div>
                 {liquidityResult.zones.slice(0, 8).map((zone, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', borderRadius: 'var(--radius-sm)', background: C.card, marginBottom: 2, border: `1px solid ${zone.sweepDirection === 'bullish' ? C.green : C.red}15`, opacity: zone.swept ? 0.5 : 1 }}>
                     <span style={{ color: zone.sweepDirection === 'bullish' ? C.green : C.red, fontSize: 11, fontWeight: 600 }}>
-                      {zone.sweepDirection === 'bullish' ? '▲' : '▼'} {zone.labelAr}
+                      {zone.sweepDirection === 'bullish' ? '▲' : '▼'} {ar(zone.labelAr, 'Label')}
                     </span>
                     <span style={{ color: C.mut, fontSize: 11, fontFamily: "var(--font-mono)" }}>{zone.price.toFixed(2)} {zone.swept ? '(swept)' : ''}</span>
                   </div>
@@ -2534,7 +2538,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                       <div><span style={{ color: C.mut }}>Target:</span> <span style={{ color: C.green, fontFamily: "var(--font-mono)" }}>{safeToFixed(proposal.takeProfits?.[2], 2)}</span></div>
                       <div><span style={{ color: C.mut }}>Size:</span> <span style={{ color: C.text, fontFamily: "var(--font-mono)" }}>{safeToFixed(proposal.positionSize, 4)}</span></div>
                     </div>
-                    <div style={{ color: C.mut, fontSize: 11, marginTop: 3 }}>{proposal.descriptionAr}</div>
+                    <div style={{ color: C.mut, fontSize: 11, marginTop: 3 }}>{ar(proposal.descriptionAr, '')}</div>
                     <div style={{ display: 'flex', gap: 3, marginTop: 3, flexWrap: 'wrap' }}>
                       {proposal.agreeingSignals.slice(0, 4).map((sig, j) => (
                         <span key={j} style={{ background: `${dirColor}10`, color: dirColor, fontSize: 11, padding: '1px 4px', borderRadius: 'var(--radius-xs)', fontWeight: 600 }}>{sig.source}</span>
@@ -2633,7 +2637,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                   return (
                     <div key={i} style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '6px 8px', marginBottom: 4, border: `1px solid ${dirColor}20` }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: dirColor }}>{rr.result.direction === 'bullish' ? '▲' : '▼'} {rr.rule.nameAr}</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: dirColor }}>{rr.result.direction === 'bullish' ? '▲' : '▼'} {ar(rr.rule.nameAr, 'Signal')}</span>
                         <span style={{ fontSize: 11, color: C.mut }}>Confidence {Math.round(rr.result.confidence * 100)}%</span>
                       </div>
                       <div style={{ display: 'flex', gap: 3, marginTop: 3, flexWrap: 'wrap' }}>
@@ -2657,7 +2661,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                   <div style={{ fontSize: 11, color: C.mut, fontWeight: 600, marginBottom: 2 }}>{CATEGORY_LABELS_AR[category]}</div>
                   <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
                     {SIGNAL_BLOCK_LIBRARY.filter(b => b.category === category).map(block => (
-                      <span key={block.signalType} style={{ background: `${block.color}15`, color: block.color, fontSize: 11, padding: '2px 5px', borderRadius: 'var(--radius-xs)', fontWeight: 500, border: `1px solid ${block.color}30` }}>{block.labelAr}</span>
+                      <span key={block.signalType} style={{ background: `${block.color}15`, color: block.color, fontSize: 11, padding: '2px 5px', borderRadius: 'var(--radius-xs)', fontWeight: 500, border: `1px solid ${block.color}30` }}>{ar(block.labelAr, 'Label')}</span>
                     ))}
                   </div>
                 </div>
@@ -2733,7 +2737,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                         <span style={{ fontSize: 11, color: dirColor, fontWeight: 600 }}>{trade.direction === 'long' ? '▲ Buy' : '▼ Sell'} {trade.symbol}</span>
                         <span style={{ fontSize: 11, color: pnlColor, fontWeight: 600, fontFamily: "var(--font-mono)" }}>{trade.netPnl > 0 ? '+' : ''}{trade.netPnl.toFixed(2)}</span>
                       </div>
-                      <div style={{ fontSize: 11, color: C.mut, marginTop: 2 }}>{trade.entryReasonAr}</div>
+                      <div style={{ fontSize: 11, color: C.mut, marginTop: 2 }}>{ar(trade.entryReasonAr, '')}</div>
                     </div>
                   );
                 })}
@@ -2862,7 +2866,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                           <span style={{ fontSize: 11, color: C.green, fontWeight: 700 }}>▲</span>
                           <span style={{ fontSize: 11, color: C.text, fontWeight: 600 }}>{asset.symbol.replace('USDT', '')}</span>
-                          <span style={{ fontSize: 11, color: C.mut }}>{asset.keyPatternAr}</span>
+                          <span style={{ fontSize: 11, color: C.mut }}>{ar(asset.keyPatternAr, '')}</span>
                         </div>
                         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                           <span style={{ fontSize: 11, color: C.green, fontWeight: 600 }}>{asset.strength}%</span>
@@ -2882,7 +2886,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                           <span style={{ fontSize: 11, color: C.red, fontWeight: 700 }}>▼</span>
                           <span style={{ fontSize: 11, color: C.text, fontWeight: 600 }}>{asset.symbol.replace('USDT', '')}</span>
-                          <span style={{ fontSize: 11, color: C.mut }}>{asset.keyPatternAr}</span>
+                          <span style={{ fontSize: 11, color: C.mut }}>{ar(asset.keyPatternAr, '')}</span>
                         </div>
                         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                           <span style={{ fontSize: 11, color: C.red, fontWeight: 600 }}>{asset.strength}%</span>
@@ -2936,7 +2940,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     <div key={i} style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '6px 8px', marginBottom: 4, borderLeft: `2px solid ${dirCol}` }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
                         <span style={{ fontSize: 11, color: C.text, fontWeight: 600 }}>{a.model}</span>
-                        <span style={{ fontSize: 11, color: dirCol, fontWeight: 700 }}>{dirIcon} {dirAr}</span>
+                        <span style={{ fontSize: 11, color: dirCol, fontWeight: 700 }}>{dirIcon} {ar(dirAr, '')}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: a.reasoning ? 3 : 0 }}>
                         <span style={{ fontSize: 11, color: C.mut }}>Confidence: {typeof a.confidence === 'number' ? Math.round(a.confidence) : a.confidence}%</span>
@@ -3009,7 +3013,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                       const col = p.direction === 'bullish' ? C.green : p.direction === 'bearish' ? C.red : C.dim;
                       return (
                         <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 6px', borderRadius: 'var(--radius-xs)', background: C.card, marginBottom: 1 }}>
-                          <span style={{ fontSize: 11, color: col }}>{p.direction === 'bullish' ? '▲' : '▼'} {p.labelAr}</span>
+                          <span style={{ fontSize: 11, color: col }}>{p.direction === 'bullish' ? '▲' : '▼'} {ar(p.labelAr, 'Label')}</span>
                           <span style={{ fontSize: 11, color: C.mut }}>{Math.round(p.confidence * 100)}%</span>
                         </div>
                       );
@@ -3103,7 +3107,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                       </div>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         <span style={{ fontSize: 11, color: C.mut }}>{s.pnlPct >= 0 ? '+' : ''}{s.pnlPct.toFixed(2)}%</span>
-                        <span style={{ fontSize: 11, color: outCol, fontWeight: 700 }}>{outAr}</span>
+                        <span style={{ fontSize: 11, color: outCol, fontWeight: 700 }}>{ar(outAr, '')}</span>
                       </div>
                     </div>
                   );
@@ -3136,7 +3140,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                           <span style={{ fontSize: 11, color: z.direction === 'bullish' ? C.green : z.direction === 'bearish' ? C.red : C.dim, fontWeight: 700 }}>
                             {z.direction === 'bullish' ? '▲ صاعد' : z.direction === 'bearish' ? '▼ هابط' : '◆ Neutral'}
                           </span>
-                          <span style={{ fontSize: 11, color: strengthCol, fontWeight: 700, padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: strengthCol + '15' }}>{strengthAr}</span>
+                          <span style={{ fontSize: 11, color: strengthCol, fontWeight: 700, padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: strengthCol + '15' }}>{ar(strengthAr, '')}</span>
                         </div>
                         <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: C.text, fontWeight: 700 }}>{z.price.toFixed(2)}</span>
                       </div>
@@ -3158,7 +3162,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                         {z.signals.map((sig, j) => (
                           <span key={j} style={{ fontSize: 11, padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: (sig.direction === 'bullish' ? C.green : sig.direction === 'bearish' ? C.red : C.dim) + '15', color: sig.direction === 'bullish' ? C.green : sig.direction === 'bearish' ? C.red : C.dim }}>
-                            {sig.labelAr}
+                            {ar(sig.labelAr, 'Label')}
                           </span>
                         ))}
                       </div>
@@ -3229,10 +3233,10 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     </span>
                     <span style={{ color: C.purple, fontSize: 11, fontWeight: 700 }}>{signalExplanation.signal.source}</span>
                   </div>
-                  <div style={{ fontSize: 11, color: C.text, lineHeight: 1.5, marginBottom: 6 }}>{signalExplanation.explanationAr}</div>
+                  <div style={{ fontSize: 11, color: C.text, lineHeight: 1.5, marginBottom: 6 }}>{ar(signalExplanation.explanationAr, '')}</div>
                   <div style={{ display: 'flex', gap: 4 }}>
-                    <span style={{ fontSize: 11, padding: '2px 5px', borderRadius: 'var(--radius-xs)', background: `${C.green}10`, color: C.green, border: `1px solid ${C.green}30` }}>✓ تأكيد: {signalExplanation.confirmationAr}</span>
-                    <span style={{ fontSize: 11, padding: '2px 5px', borderRadius: 'var(--radius-xs)', background: `${C.red}10`, color: C.red, border: `1px solid ${C.red}30` }}>✗ إبطال: {signalExplanation.invalidationAr}</span>
+                    <span style={{ fontSize: 11, padding: '2px 5px', borderRadius: 'var(--radius-xs)', background: `${C.green}10`, color: C.green, border: `1px solid ${C.green}30` }}>✓ تأكيد: {ar(signalExplanation.confirmationAr, 'Confirmed')}</span>
+                    <span style={{ fontSize: 11, padding: '2px 5px', borderRadius: 'var(--radius-xs)', background: `${C.red}10`, color: C.red, border: `1px solid ${C.red}30` }}>✗ إبطال: {ar(signalExplanation.invalidationAr, 'Invalidated')}</span>
                   </div>
                 </div>
 
@@ -3243,7 +3247,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     {signalExplanation.factors.map((f, i) => (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 6px', background: C.card, borderRadius: 'var(--radius-sm)', marginBottom: 2 }}>
                         <span style={{ fontSize: 11, color: f.supports ? C.green : C.red }}>{f.supports ? '✓' : '✗'}</span>
-                        <span style={{ fontSize: 11, color: C.text, flex: 1 }}>{f.nameAr}: {f.contributionAr}</span>
+                        <span style={{ fontSize: 11, color: C.text, flex: 1 }}>{ar(f.nameAr, 'Signal')}: {ar(f.contributionAr, '')}</span>
                         <div style={{ width: 30, height: 4, background: C.dim + '20', borderRadius: 'var(--radius-xs)', overflow: 'hidden' }}>
                           <div style={{ width: `${f.weight * 100}%`, height: '100%', background: f.supports ? C.green : C.red, borderRadius: 'var(--radius-xs)' }} />
                         </div>
@@ -3258,7 +3262,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     <div style={{ color: C.gold, fontSize: 11, fontWeight: 700, marginBottom: 4 }}>🔗 إشارات مرتبطة</div>
                     {signalExplanation.relatedSignals.map((rs, i) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 6px', background: C.card, borderRadius: 'var(--radius-xs)', marginBottom: 1 }}>
-                        <span style={{ fontSize: 11, color: rs.agrees ? C.green : C.red }}>{rs.agrees ? '✓' : '✗'} {rs.labelAr}</span>
+                        <span style={{ fontSize: 11, color: rs.agrees ? C.green : C.red }}>{rs.agrees ? '✓' : '✗'} {ar(rs.labelAr, 'Label')}</span>
                         <span style={{ fontSize: 11, color: C.mut }}>{rs.direction === 'bullish' ? t('asp_uptrend') : rs.direction === 'bearish' ? t('asp_downtrend') : t('asp_neutral')}</span>
                       </div>
                     ))}
@@ -3306,7 +3310,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                             <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: col, fontWeight: 800 }}>{Math.round(combo.winRate * 100)}%</span>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontSize: 11, color: C.dim }}>{combo.descriptionAr}</span>
+                            <span style={{ fontSize: 11, color: C.dim }}>{ar(combo.descriptionAr, '')}</span>
                             <span style={{ fontSize: 11, color: C.mut }}>({combo.sampleSize} عينة)</span>
                           </div>
                         </div>
@@ -3366,7 +3370,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     <div key={i} style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '8px 10px', marginBottom: 8, borderLeft: `3px solid ${dirCol}` }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
                         <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-                          <span style={{ fontSize: 11, color: dirCol, fontWeight: 800 }}>{pred.predictedDirection === 'bullish' ? '▲' : '▼'} {pred.patternTypeAr}</span>
+                          <span style={{ fontSize: 11, color: dirCol, fontWeight: 800 }}>{pred.predictedDirection === 'bullish' ? '▲' : '▼'} {ar(pred.patternTypeAr, 'Pattern')}</span>
                           <span style={{ fontSize: 11, color: C.mut }}>({pred.patternType})</span>
                         </div>
                         <span style={{ fontSize: 11, color: completionCol, fontWeight: 700, padding: '1px 5px', borderRadius: 'var(--radius-xs)', background: completionCol + '15' }}>{Math.round(pred.completionPct)}% Completed</span>
@@ -3377,7 +3381,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                         <div style={{ width: `${pred.completionPct}%`, height: '100%', background: `linear-gradient(90deg, ${C.cyan}, ${completionCol})`, borderRadius: 'var(--radius-xs)', transition: 'width 0.3s' }} />
                       </div>
 
-                      <div style={{ fontSize: 11, color: C.dim, lineHeight: 1.5, marginBottom: 5 }}>{pred.descriptionAr}</div>
+                      <div style={{ fontSize: 11, color: C.dim, lineHeight: 1.5, marginBottom: 5 }}>{ar(pred.descriptionAr, '')}</div>
 
                       {/* Completion Zone */}
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 3, marginBottom: 5 }}>
@@ -3479,7 +3483,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 {adaptiveIntelligence.regimeRecommendation && (
                   <div style={{ background: `${C.gold}08`, borderRadius: 'var(--radius-sm)', padding: '6px 8px', marginTop: 8, border: `1px solid ${C.gold}20` }}>
                     <div style={{ color: C.gold, fontSize: 11, fontWeight: 700, marginBottom: 3 }}>🎯 توصية حسب Market Regime</div>
-                    <div style={{ fontSize: 11, color: C.dim, lineHeight: 1.6 }}>{adaptiveIntelligence.regimeRecommendation.messageAr}</div>
+                    <div style={{ fontSize: 11, color: C.dim, lineHeight: 1.6 }}>{ar(adaptiveIntelligence.regimeRecommendation.messageAr, '')}</div>
                   </div>
                 )}
 
@@ -3489,7 +3493,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     <div style={{ color: C.cyan, fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Learning Insights</div>
                     {adaptiveIntelligence.insights.slice(-5).reverse().map((ins, i) => (
                       <div key={i} style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '4px 6px', marginBottom: 2, borderLeft: `2px solid ${ins.importance === 'critical' ? C.red : ins.importance === 'warning' ? C.yellow : C.cyan}` }}>
-                        <div style={{ fontSize: 11, color: C.dim, lineHeight: 1.5 }}>{ins.messageAr}</div>
+                        <div style={{ fontSize: 11, color: C.dim, lineHeight: 1.5 }}>{ar(ins.messageAr, '')}</div>
                       </div>
                     ))}
                   </div>
@@ -3542,7 +3546,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     <div key={i} style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '6px 8px', marginBottom: 5, borderLeft: `3px solid ${dirCol}`, border: isDominant ? `1px solid ${dirCol}40` : undefined }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                          <span style={{ fontSize: 11, color: dirCol, fontWeight: 800 }}>{isBull ? '▲' : '▼'} {sc.nameAr}</span>
+                          <span style={{ fontSize: 11, color: dirCol, fontWeight: 800 }}>{isBull ? '▲' : '▼'} {ar(sc.nameAr, 'Signal')}</span>
                           {isDominant && <span style={{ fontSize: 11, color: C.gold, fontWeight: 700, background: `${C.gold}15`, padding: '1px 4px', borderRadius: 'var(--radius-xs)' }}>{t('asp2_mostLikely')}</span>}
                         </div>
                         <span style={{ fontSize: 11, color: C.text, fontWeight: 700 }}>{Math.round(sc.probability * 100)}%</span>
@@ -3551,7 +3555,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                       <div style={{ width: '100%', height: 5, background: C.dim + '15', borderRadius: 'var(--radius-xs)', overflow: 'hidden', marginBottom: 4 }}>
                         <div style={{ width: `${sc.probability * 100}%`, height: '100%', background: dirCol, borderRadius: 'var(--radius-xs)' }} />
                       </div>
-                      <div style={{ fontSize: 11, color: C.dim, lineHeight: 1.5, marginBottom: 4 }}>{sc.descriptionAr}</div>
+                      <div style={{ fontSize: 11, color: C.dim, lineHeight: 1.5, marginBottom: 4 }}>{ar(sc.descriptionAr, '')}</div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 3 }}>
                         <div style={{ background: `${dirCol}08`, borderRadius: 'var(--radius-xs)', padding: '3px 5px', textAlign: 'center' }}>
                           <div style={{ color: C.mut, fontSize: 11 }}>{t('asp2_targetShort')}</div>
@@ -3608,7 +3612,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     <span style={{ fontSize: 11, color: C.mut }}>قوة Signal: </span>
                     <span style={{ fontSize: 11, color: springResult.signalStrength > 50 ? C.green : springResult.signalStrength > 25 ? C.yellow : C.mut, fontWeight: 800 }}>{springResult.signalStrength}%</span>
                   </div>
-                  <div style={{ fontSize: 11, color: C.dim }}>{springResult.summaryAr}</div>
+                  <div style={{ fontSize: 11, color: C.dim }}>{ar(springResult.summaryAr, '')}</div>
                 </div>
 
                 {/* Counts */}
@@ -3637,11 +3641,11 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     <div style={{ color: C.gold, fontSize: 11, fontWeight: 700, marginBottom: 4 }}>⭐ Best Current Setting</div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                       <span style={{ fontSize: 11, color: springResult.bestSetup.direction === 'bullish' ? C.green : C.red, fontWeight: 800 }}>
-                        {springResult.bestSetup.direction === 'bullish' ? '▲' : '▼'} {springResult.bestSetup.nameAr}
+                        {springResult.bestSetup.direction === 'bullish' ? '▲' : '▼'} {ar(springResult.bestSetup.nameAr, 'Signal')}
                       </span>
                       <span style={{ fontSize: 11, color: C.text, fontWeight: 700 }}>Confidence {Math.round(springResult.bestSetup.confidence * 100)}%</span>
                     </div>
-                    <div style={{ fontSize: 11, color: C.dim, lineHeight: 1.5, marginBottom: 4 }}>{springResult.bestSetup.descriptionAr}</div>
+                    <div style={{ fontSize: 11, color: C.dim, lineHeight: 1.5, marginBottom: 4 }}>{ar(springResult.bestSetup.descriptionAr, '')}</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 3 }}>
                       <div style={{ background: `${C.green}08`, borderRadius: 'var(--radius-xs)', padding: '3px 5px', textAlign: 'center' }}>
                         <div style={{ color: C.mut, fontSize: 11 }}>دخول</div>
@@ -3671,7 +3675,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                       return (
                         <div key={i} style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '5px 7px', marginBottom: 3, borderLeft: `2px solid ${dirCol}`, opacity: sp.isActionable ? 1 : 0.5 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: 11, color: dirCol, fontWeight: 700 }}>{sp.direction === 'bullish' ? '▲' : '▼'} {sp.nameAr}</span>
+                            <span style={{ fontSize: 11, color: dirCol, fontWeight: 700 }}>{sp.direction === 'bullish' ? '▲' : '▼'} {ar(sp.nameAr, 'Signal')}</span>
                             <div style={{ display: 'flex', gap: 6 }}>
                               <span style={{ fontSize: 11, color: C.text, fontWeight: 600 }}>Confidence {Math.round(sp.confidence * 100)}%</span>
                               <span style={{ fontSize: 11, color: C.cyan }}>R:R 1:{sp.rrRatio}</span>

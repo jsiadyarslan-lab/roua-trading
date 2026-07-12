@@ -1040,6 +1040,7 @@ export default function RouaChart({
 
                 const cached = lastAnalysisResultRef.current;
                 overlayMod.renderOverlays(series, {
+                  locale: chartLocale,
                   candles: candlesRef.current,
                   overlays: currentOverlays,
                   symbol: selectedSymbol_,  // BUG-007: required for fallback entry cache keying
@@ -1199,6 +1200,7 @@ export default function RouaChart({
 
         const cached = lastAnalysisResultRef.current;
         overlayMod.renderOverlays(series, {
+          locale: chartLocale,
           candles: candlesRef.current,
           overlays: currentOverlays,
           symbol: selectedSymbol_,  // BUG-007: required for fallback entry cache keying
@@ -2735,6 +2737,7 @@ export default function RouaChart({
     // Candle-only overlays (SR, Trend, Harmonic, FVG, BOS, Geo, EW, Wyckoff)
     // remain untouched on the chart.
     overlayMod.renderAnalysisOverlays(series, {
+    locale: chartLocale,
       candles: candlesRef.current,
       overlays: ov,
       supportLevels: result.supportLevels,
@@ -2823,6 +2826,7 @@ export default function RouaChart({
       const cached = lastAnalysisResultRef.current;
 
       overlayMod.renderOverlays(series, {
+        locale: chartLocale,
         candles: candlesRef.current,
         overlays,
         supportLevels: cached?.supportLevels || [],

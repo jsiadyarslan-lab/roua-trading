@@ -631,28 +631,28 @@ export function AlpacaPositions() {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'minmax(120px,1.35fr) 82px 48px minmax(72px,76px) minmax(72px,76px) minmax(64px,68px) minmax(64px,68px) minmax(80px,88px) 48px 24px',
-              gap: 6,
+              gridTemplateColumns: 'minmax(140px,1.4fr) 56px minmax(70px,80px) minmax(70px,80px) minmax(82px,92px) minmax(110px,120px) 76px 44px',
+              gap: 8,
               alignItems: 'center',
-              padding: '0 6px 2px',
-              color: '#9CA3B5',
-              fontSize: 11,
+              padding: '6px 8px 4px',
+              color: '#6B7280',
+              fontSize: 10,
               fontWeight: 800,
               fontFamily: "var(--font-ar)",
               textTransform: 'uppercase',
-              letterSpacing: 0.3,
+              letterSpacing: 0.4,
+              borderBottom: '1px solid rgba(255,255,255,0.04)',
+              marginBottom: 4,
             }}
           >
             <div>{t('contract')}</div>
-            <div style={{ textAlign: 'center' }}>{t('opening')}</div>
             <div style={{ textAlign: 'center' }}>{t('qty')}</div>
             <div style={{ textAlign: 'center' }}>{t('entry')}</div>
             <div style={{ textAlign: 'center' }}>{t('current')}</div>
-            <div style={{ textAlign: 'center', color: 'rgba(0,255,163,0.7)' }}>{t('tp')}</div>
-            <div style={{ textAlign: 'center', color: 'rgba(255,71,87,0.7)' }}>{t('sl')}</div>
             <div style={{ textAlign: 'center' }}>{t('pnl')}</div>
+            <div style={{ textAlign: 'center' }}>{t('sl')} / {t('tp')}</div>
+            <div style={{ textAlign: 'center' }}>{t('opening')}</div>
             <div style={{ textAlign: 'center' }}>{t('closeBtn')}</div>
-            <div></div>
           </div>
         )}
 
@@ -720,59 +720,61 @@ export function AlpacaPositions() {
               }}
               style={{
                 borderRadius: 'var(--radius-lg)',
-                border: `1px solid ${pnlUp ? 'rgba(0,255,163,0.16)' : 'rgba(255,71,87,0.16)'}`,
+                border: `1px solid ${pnlUp ? 'rgba(0,255,163,0.20)' : 'rgba(255,71,87,0.20)'}`,
                 background: `linear-gradient(180deg, ${'#151A22'}, ${'#1A1D29'})`,
-                boxShadow: `inset 0 1px 0 rgba(255,255,255,0.02), 0 4px 10px rgba(0,0,0,0.12)`,
-                padding: '5px 6px',
+                boxShadow: `inset 0 1px 0 rgba(255,255,255,0.03), 0 4px 12px rgba(0,0,0,0.18)`,
+                padding: '8px 8px',
                 display: 'grid',
-                gridTemplateColumns: 'minmax(120px,1.35fr) 82px 48px minmax(72px,76px) minmax(72px,76px) minmax(64px,68px) minmax(64px,68px) minmax(80px,88px) 48px 24px',
-                gap: 6,
+                gridTemplateColumns: 'minmax(140px,1.4fr) 56px minmax(70px,80px) minmax(70px,80px) minmax(82px,92px) minmax(110px,120px) 76px 44px',
+                gap: 8,
                 alignItems: 'center',
+                transition: 'border-color 0.15s',
               }}
             >
-              {/* Contract + Buy/Sell badge */}
-              <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+              {/* Contract + Buy/Sell badge — prominent */}
+              <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <span
                   style={{
-                    fontSize: 11,
+                    fontSize: 13,
                     fontWeight: 900,
                     color: '#F0F2F5',
                     fontFamily: "var(--font-mono)",
                     whiteSpace: 'nowrap',
+                    letterSpacing: 0.2,
                   }}
                 >
                   {position.symbol}
                 </span>
-                {/* Fix 5: Buy/Sell badge — أكبر وأوضح */}
+                {/* Buy/Sell badge — أكبر وأوضح */}
                 <span
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 2,
-                    padding: '1px 5px',
+                    padding: '2px 6px',
                     borderRadius: 'var(--radius-xs)',
-                    background: isLong ? 'rgba(0,255,163,0.18)' : 'rgba(255,71,87,0.18)',
-                    border: `1px solid ${isLong ? 'rgba(0,255,163,0.35)' : 'rgba(255,71,87,0.35)'}`,
+                    background: isLong ? 'rgba(0,255,163,0.20)' : 'rgba(255,71,87,0.20)',
+                    border: `1px solid ${isLong ? 'rgba(0,255,163,0.45)' : 'rgba(255,71,87,0.45)'}`,
                     color: isLong ? '#00FFA3' : '#FF4757',
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: 900,
                     whiteSpace: 'nowrap',
-                    letterSpacing: 0.3,
+                    letterSpacing: 0.4,
                   }}
                 >
-                  {isLong ? <TrendingUp size={8} /> : <TrendingDown size={8} />}
+                  {isLong ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
                   {isLong ? 'BUY' : 'SELL'}
                 </span>
                 {/* Source badge */}
                 {sourceBadge && (
                   <span
                     style={{
-                      padding: '1px 4px',
+                      padding: '1px 5px',
                       borderRadius: 'var(--radius-2xl)',
                       background: sourceBadge.bg,
                       border: `1px solid ${sourceBadge.border}`,
                       color: sourceBadge.color,
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: 800,
                       whiteSpace: 'nowrap',
                     }}
@@ -782,11 +784,48 @@ export function AlpacaPositions() {
                 )}
               </div>
 
+              {/* Qty */}
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3B5', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap' }}>
+                {Number((position as any).qty ?? (position as any).quantity ?? 0).toFixed(2)}
+              </div>
+
+              {/* Entry */}
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#E6EDF3', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {fmtPrice(position.avgEntryPrice, position.symbol)}
+              </div>
+
+              {/* Current */}
+              <div style={{ fontSize: 12, fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {fmtPrice(position.currentPrice, position.symbol)}
+              </div>
+
+              {/* P&L — bold, prominent */}
+              <div style={{ fontSize: 12, fontWeight: 900, color: pnlUp ? '#00FFA3' : '#FF4757', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {fmtPnl(position.unrealizedPnl)}
+              </div>
+
+              {/* SL / TP — combined column */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center', minWidth: 0 }}>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 11, fontFamily: "var(--font-mono)", whiteSpace: 'nowrap' }}>
+                  <span style={{ color: '#FF4757', fontWeight: 800, fontSize: 9 }}>SL</span>
+                  <span style={{ color: position.sl ? '#FF4757' : '#6B7280', fontWeight: 700 }}>
+                    {position.sl ? fmtPrice(position.sl, position.symbol) : '—'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 11, fontFamily: "var(--font-mono)", whiteSpace: 'nowrap' }}>
+                  <span style={{ color: '#00FFA3', fontWeight: 800, fontSize: 9 }}>TP</span>
+                  <span style={{ color: position.tp ? '#00FFA3' : '#6B7280', fontWeight: 700 }}>
+                    {position.tp ? fmtPrice(position.tp, position.symbol) : '—'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Time */}
               <div
                 style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: '#9CA3B5',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: '#6B7280',
                   fontFamily: "var(--font-mono)",
                   textAlign: 'center',
                   whiteSpace: 'nowrap',
@@ -797,47 +836,19 @@ export function AlpacaPositions() {
                 {openedAt}
               </div>
 
-              <div style={{ fontSize: 11, fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap' }}>
-                {Number((position as any).qty ?? (position as any).quantity ?? 0).toFixed(2)}
-              </div>
-
-              {/* Entry — Fix 2: overflow hidden + ellipsis */}
-              <div style={{ fontSize: 11, fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {fmtPrice(position.avgEntryPrice, position.symbol)}
-              </div>
-
-              {/* Current */}
-              <div style={{ fontSize: 11, fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {fmtPrice(position.currentPrice, position.symbol)}
-              </div>
-
-              {/* TP */}
-              <div style={{ fontSize: 11, fontWeight: 800, color: position.tp ? '#00FFA3' : '#6B7280', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {position.tp ? fmtPrice(position.tp, position.symbol) : '—'}
-              </div>
-
-              {/* SL */}
-              <div style={{ fontSize: 11, fontWeight: 800, color: position.sl ? '#FF4757' : '#6B7280', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {position.sl ? fmtPrice(position.sl, position.symbol) : '—'}
-              </div>
-
-              {/* P&L — Fix 3: format is now +$X.XX (changed in fmtPnl) */}
-              <div style={{ fontSize: 11, fontWeight: 900, color: pnlUp ? '#00FFA3' : '#FF4757', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {fmtPnl(position.unrealizedPnl)}
-              </div>
-
+              {/* Close button */}
               <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <button
                   type="button"
                   onClick={() => closePosition(position)}
                   disabled={closing === position.id}
                   style={{
-                    minWidth: 46,
-                    height: 20,
-                    padding: '0 5px',
+                    minWidth: 38,
+                    height: 24,
+                    padding: '0 6px',
                     borderRadius: 'var(--radius-sm)',
-                    border: `1px solid ${confirmClose === position.id ? 'rgba(255,71,87,0.42)' : 'rgba(255,71,87,0.22)'}`,
-                    background: confirmClose === position.id ? 'rgba(255,71,87,0.16)' : 'rgba(255,71,87,0.08)',
+                    border: `1px solid ${confirmClose === position.id ? 'rgba(255,71,87,0.50)' : 'rgba(255,71,87,0.28)'}`,
+                    background: confirmClose === position.id ? 'rgba(255,71,87,0.20)' : 'rgba(255,71,87,0.10)',
                     color: '#FF4757',
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -848,63 +859,16 @@ export function AlpacaPositions() {
                     fontWeight: 900,
                     fontFamily: "var(--font-ar)",
                     whiteSpace: 'nowrap',
+                    transition: 'all 0.15s',
                   }}
                 >
                   {closing === position.id ? (
-                    <RefreshCw size={8} style={{ animation: 'spin 1s linear infinite' }} />
+                    <RefreshCw size={10} style={{ animation: 'spin 1s linear infinite' }} />
                   ) : confirmClose === position.id ? (
                     tc('confirm')
                   ) : (
-                    <>
-                      <XIcon size={8} />
-                      {t('closeBtn')}
-                    </>
+                    <XIcon size={11} />
                   )}
-                </button>
-              </div>
-
-              {/* Fix 1: Kebab menu (⋮) — مرئي دائماً، يفتح قائمة السياق */}
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    const rect = e.currentTarget.getBoundingClientRect()
-                    setContextMenu({
-                      x: rect.left,
-                      y: rect.bottom + 4,
-                      positionId: position.id,
-                      symbol: position.symbol,
-                      side: (position.side === 'long' ? 'long' : 'short') as 'long' | 'short',
-                      entryPrice: Number(position.avgEntryPrice || (position as any).entryPrice) || 0,
-                      qty: Number((position as any).qty || (position as any).quantity) || 0,
-                      stopLoss: (position as any).stopLoss ? Number((position as any).stopLoss) : (position.sl ? Number(position.sl) : undefined),
-                      takeProfit: (position as any).takeProfit ? Number((position as any).takeProfit) : (position.tp ? Number(position.tp) : undefined),
-                      source: position.source || position.tradeSource || '',
-                    })
-                  }}
-                  title="المزيد"
-                  style={{
-                    width: 20, height: 20, borderRadius: 'var(--radius-sm)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    background: 'rgba(255,255,255,0.03)',
-                    color: '#9CA3B5',
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', fontSize: 11, fontWeight: 900, lineHeight: 1, padding: 0,
-                    transition: 'all 0.15s',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(0,212,255,0.12)'
-                    e.currentTarget.style.borderColor = 'rgba(0,212,255,0.3)'
-                    e.currentTarget.style.color = '#00D4FF'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.03)'
-                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
-                    e.currentTarget.style.color = '#9CA3B5'
-                  }}
-                >
-                  ⋮
                 </button>
               </div>
             </div>

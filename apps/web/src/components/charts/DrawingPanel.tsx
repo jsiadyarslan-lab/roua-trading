@@ -14,10 +14,10 @@ interface DrawingPanelProps {
   activeTool: DrawingTool;
   onSetTool: (tool: DrawingTool) => void;
   onClose: () => void;
-  onClearAll?: () => void;
+  onClearAll: () => void;
 }
 
-export function DrawingPanel({ activeTool, onSetTool, onClose }: DrawingPanelProps) {
+export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: DrawingPanelProps) {
   const tc = useTranslations('dashboard.chart');
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -255,6 +255,30 @@ export function DrawingPanel({ activeTool, onSetTool, onClose }: DrawingPanelPro
             ))
         )}
       </div>
+
+      {/* Clear All */}
+      <button
+        onClick={onClearAll}
+        style={{
+          width: '100%',
+          marginTop: 8,
+          padding: '6px 0',
+          background: 'rgba(248,81,73,0.1)',
+          border: '1px solid rgba(248,81,73,0.2)',
+          borderRadius: 'var(--radius-sm)',
+          color: COLORS.danger,
+          fontSize: 11,
+          fontWeight: 600,
+          cursor: 'pointer',
+          fontFamily: "var(--font-ar)",
+          transition: 'all 0.12s',
+          flexShrink: 0,
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(248,81,73,0.2)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'rgba(248,81,73,0.1)'}
+      >
+        {tc('clearAllDrawings')}
+      </button>
     </div>
   );
 }

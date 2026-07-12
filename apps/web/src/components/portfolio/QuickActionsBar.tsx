@@ -1,6 +1,6 @@
 'use client'
 
-import { XCircle, Shield, RefreshCw, Link2 } from 'lucide-react'
+import { Shield, RefreshCw, Link2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 interface QuickActionsBarProps {
@@ -8,7 +8,6 @@ interface QuickActionsBarProps {
 }
 
 const ACTION_CONFIG = [
-  { id: 'close-all', labelKey: 'closeAll', icon: XCircle, accent: '#FF4757' },
   { id: 'hedge', labelKey: 'hedge', icon: Shield, accent: '#FFB800' },
   { id: 'rebalance', labelKey: 'rebalance', icon: RefreshCw, accent: '#00D4FF' },
   { id: 'link-account', labelKey: 'linkAccount', icon: Link2, accent: '#00FFA3' },

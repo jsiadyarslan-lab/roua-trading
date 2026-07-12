@@ -13,6 +13,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { usePositionsStore } from '@/hooks/usePositionsStore';
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore';
 import { useChartStateStore, type SmartGridPersistConfig, type SmartGridCellConfig } from '@/hooks/useChartStateStore';
@@ -235,7 +236,7 @@ function detectDataSource(response: any): DataSource {
   if (lowerRespSource.includes('yahoo')) return 'yahoo';
   if (lowerRespSource.includes('twelvedata')) return 'twelvedata';
 
-  if (lowerRespSource === 'demo' || note.includes('غير متاحة') || note.includes('unavailable')) {
+  if (lowerRespSource === 'demo' || note.includes(t('unavailable')) || note.includes('unavailable')) {
     return 'unavailable';
   }
 
@@ -299,11 +300,11 @@ function CellToolOverlay({
         if (j.success && j.data) {
           setAiData(j.data);
         } else {
-          setAiError(j.error || 'لا توجد بيانات');
+          setAiError(j.error || t('noData'));
         }
       } catch (err: any) {
         if (cancelled) return;
-        setAiError(err.message || 'خطأ في الاتصال');
+        setAiError(err.message || t('connectionError'));
       } finally {
         if (!cancelled) setAiLoading(false);
       }
@@ -364,7 +365,7 @@ function CellToolOverlay({
           {aiLoading && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '8px 0' }}>
               <div style={{ width: 16, height: 16, border: `2px solid ${C.cyan}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-              <span style={{ color: C.textDim, fontSize: 11 }}>جاري التحليل...</span>
+              <span style={{ color: C.textDim, fontSize: 11 }}>{t("analyzing")}</span>
             </div>
           )}
 
@@ -439,7 +440,7 @@ function CellToolOverlay({
                     fontFamily: "var(--font-ar)", marginBottom: 4,
                   }}
                 >
-                  تنفيذ {aiData.signal === 'BUY' ? 'شراء' : 'بيع'}
+                  {t("execute")} {aiData.signal === 'BUY' ? t('buy') : t('sell')}
                 </button>
               )}
 
@@ -518,7 +519,7 @@ function CellToolOverlay({
             color: C.upColor, fontSize: 11, fontWeight: 800, cursor: 'pointer',
             fontFamily: "var(--font-ar)",
           }}>
-            شراء / Long
+            {t('buy')} / Long
           </button>
           <button onClick={() => {
             if (currentPrice && onExecuteTrade) {
@@ -531,12 +532,12 @@ function CellToolOverlay({
             color: C.downColor, fontSize: 11, fontWeight: 800, cursor: 'pointer',
             fontFamily: "var(--font-ar)",
           }}>
-            بيع / Short
+            {t('sell')} / Short
           </button>
         </div>
         {currentPrice && (
           <div style={{ padding: '0 8px 6px', textAlign: 'center' }}>
-            <span style={{ color: C.textDim, fontSize: 11 }}>السعر الحالي: </span>
+            <span style={{ color: C.textDim, fontSize: 11 }}>{t("currentPrice")}</span>
             <span style={{ color: C.text, fontSize: 11, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
               {currentPrice.toFixed(currentPrice > 100 ? 1 : 5)}
             </span>
@@ -549,12 +550,12 @@ function CellToolOverlay({
   // ── Drawing Panel (inline, with tool selection) ──
   if (toolType === 'drawing') {
     const DRAW_TOOLS = [
-      { key: 'trendline', icon: '/', label: 'خط اتجاه' },
-      { key: 'horizontal', icon: '—', label: 'خط أفقي' },
-      { key: 'fibonacci', icon: 'φ', label: 'فيبوناتشي' },
-      { key: 'rectangle', icon: '□', label: 'مستطيل' },
-      { key: 'ray', icon: '→', label: 'شعاع' },
-      { key: 'vertical', icon: '|', label: 'خط رأسي' },
+      { key: 'trendline', icon: '/', label: t('drawingTrendline') },
+      { key: 'horizontal', icon: '—', label: t('drawingHorizontal') },
+      { key: 'fibonacci', icon: 'φ', label: t('drawingFibonacci') },
+      { key: 'rectangle', icon: '□', label: t('drawingRectangle') },
+      { key: 'ray', icon: '→', label: t('drawingRay') },
+      { key: 'vertical', icon: '|', label: t('drawingVertical') },
     ];
 
     return (
@@ -589,7 +590,7 @@ function CellToolOverlay({
           }}>x</button>
         </div>
         <div style={{ padding: '4px 6px', fontSize: 11, color: C.textMuted, textAlign: 'center', fontFamily: "var(--font-ar)", borderBottom: `1px solid ${C.cardBorder}` }}>
-          اختر أداة ثم اضغط Focus للرسم على الشارت الرئيسي
+          t('selectToolHint')
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 3, padding: 4 }}>
           {DRAW_TOOLS.map(tool => (
@@ -725,6 +726,7 @@ export function SmartGrid({
   defaultTimeframe,
   onSwitchToChart,
 }: SmartGridProps) {
+  const t = useTranslations('dashboard.chart');
   const containerRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const chartInstancesRef = useRef<Map<string, any>>(new Map());
   const seriesRefs = useRef<Map<string, any>>(new Map());
@@ -981,8 +983,8 @@ export function SmartGrid({
         updateCellState(cell.id, {
           loading: false,
           error: detectedSource === 'unavailable'
-            ? 'لا توجد بيانات متاحة'
-            : 'فشل تحميل البيانات',
+            ? t('noDataAvailable')
+            : t('dataLoadFailed'),
           candleCount: 0,
           dataSource: 'unavailable',
           lastUpdated: Date.now(),
@@ -1198,7 +1200,7 @@ export function SmartGrid({
       console.error('[SmartGrid] loadDataForCell ERROR:', err);
       updateCellState(cell.id, {
         loading: false,
-        error: 'خطأ في الاتصال',
+        error: t('connectionError'),
         candleCount: 0,
         dataSource: 'unavailable',
         lastUpdated: Date.now(),
@@ -2219,7 +2221,7 @@ export function SmartGrid({
                       <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
                     </svg>
                     <span style={{ color: C.danger, fontSize: 11, fontWeight: 700, fontFamily: "var(--font-ar)", textAlign: 'center', lineHeight: 1.4 }}>
-                      {state?.error || 'لا توجد بيانات'}
+                      {state?.error || t('noData')}
                     </span>
                     <button
                       onClick={e => { e.stopPropagation(); handleRetry(cell); }}
@@ -2229,7 +2231,7 @@ export function SmartGrid({
                         cursor: 'pointer', fontFamily: "var(--font-ar)",
                       }}
                     >
-                      إعادة المحاولة
+                      {t("retry")}
                     </button>
                   </div>
                 )}

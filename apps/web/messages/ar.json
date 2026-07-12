@@ -3405,7 +3405,21 @@
         "saveTemplate": "حفظ قالب الشارت"
       },
       "chartType": "نوع الشارت",
-      "timeframe": "الإطار الزمني"
+      "timeframe": "الإطار الزمني",
+      "connectionError": "خطأ في الاتصال",
+      "analyzing": "جاري التحليل...",
+      "drawingTrendline": "خط اتجاه",
+      "drawingHorizontal": "خط أفقي",
+      "drawingFibonacci": "فيبوناتشي",
+      "drawingRectangle": "مستطيل",
+      "drawingRay": "شعاع",
+      "drawingVertical": "خط رأسي",
+      "noDataAvailable": "لا توجد بيانات متاحة",
+      "dataLoadFailed": "فشل تحميل البيانات",
+      "retry": "إعادة المحاولة",
+      "unavailable": "غير متاحة",
+      "selectToolHint": "اختر أداة ثم اضغط Focus للرسم على الشارت الرئيسي",
+      "execute": "تنفيذ"
     },
     "chartSettings": {
       "appearance": "المظهر",

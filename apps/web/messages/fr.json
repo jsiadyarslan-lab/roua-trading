@@ -1844,7 +1844,21 @@
         "saveTemplate": "Save Template"
       },
       "chartType": "Chart Type",
-      "timeframe": "Timeframe"
+      "timeframe": "Timeframe",
+      "connectionError": "Connection error",
+      "analyzing": "Analyzing...",
+      "drawingTrendline": "Trendline",
+      "drawingHorizontal": "Horizontal line",
+      "drawingFibonacci": "Fibonacci",
+      "drawingRectangle": "Rectangle",
+      "drawingRay": "Ray",
+      "drawingVertical": "Vertical line",
+      "noDataAvailable": "No data available",
+      "dataLoadFailed": "Failed to load data",
+      "retry": "Retry",
+      "unavailable": "unavailable",
+      "selectToolHint": "Select a tool then press Focus to draw on the main chart",
+      "execute": "Execute"
     },
     "nav": {
       "portfolio": "Portefeuille",

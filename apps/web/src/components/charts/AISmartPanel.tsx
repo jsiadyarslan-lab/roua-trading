@@ -39,7 +39,7 @@ import { runQuickMTFAnalysis, detectTradingStyle, type MTFResult, type MTFTimefr
 // Phase 5: Advanced Differentiating Features
 import { runAdaptiveBayesian, detectMarketRegime, recordAdaptiveOutcome, getSourcePerformances, getAdaptiveSummary, setUserWeightOverride, getUserWeightOverrides, type AdaptiveBayesianResult, type AdaptiveSignalSource, type MarketRegime } from '@/lib/charts/AdaptiveBayesianEngine';
 import { evaluateAllVisualRules, getVisualRules, type VisualRule, type RuleEvaluationResult, type RuleAnalysisData, SIGNAL_BLOCK_LIBRARY, CONNECTOR_LABELS_AR, CATEGORY_LABELS_AR } from '@/lib/charts/VisualRuleBuilder';
-import { getPaperAccount, openPaperTrade, closePaperTrade, autoEvaluatePaperTrades, getPaperTrades, getOpenPaperTrades, getPerformanceComparison, type PaperTrade, type PaperAccount } from '@/lib/charts/PaperTradingEngine';
+import { getPaperAccount, openPaperTrade, autoEvaluatePaperTrades, getPaperTrades, getOpenPaperTrades, getPerformanceComparison, type PaperTrade, type PaperAccount } from '@/lib/charts/PaperTradingEngine';
 import { runMarketScan, runSingleAssetScan, getScanUniverse, type MarketScanResult, type AssetScanResult, SECTOR_LABELS_AR } from '@/lib/charts/MarketScannerEngine';
 import { buildAICouncilPrompt, buildAIAnalysisPayload, queryAICouncil, compareAIWithAlgorithm, recordPrediction, verifyPredictions, getAIvsAlgoStats, getModelPerformances, type AIAnalysisPayload, type AICouncilBridgeResult, type AIModel } from '@/lib/charts/AICouncilBridge';
 import { createIncrementalState, initializeState, updateIncremental, needsFullRecalc, getQuickTrend, getQuickVolatilityRegime, type IncrementalState } from '@/lib/charts/IncrementalCalc';
@@ -2724,26 +2724,6 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
               </div>
             )}
 
-            {/* Recent Trades */}
-            {paperTradesList.length > 0 && (
-              <div>
-                <div style={{ color: C.cyan, fontSize: 11, fontWeight: 700, marginBottom: 5 }}>{t('asp2_recentTrades')}</div>
-                {paperTradesList.slice(0, 5).map((trade, i) => {
-                  const dirColor = trade.direction === 'long' ? C.green : C.red;
-                  const pnlColor = trade.netPnl > 0 ? C.green : trade.netPnl < 0 ? C.red : C.dim;
-                  return (
-                    <div key={i} style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '4px 8px', marginBottom: 3, border: `1px solid ${dirColor}10` }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: 11, color: dirColor, fontWeight: 600 }}>{trade.direction === 'long' ? '▲ Buy' : '▼ Sell'} {trade.symbol}</span>
-                        <span style={{ fontSize: 11, color: pnlColor, fontWeight: 600, fontFamily: "var(--font-mono)" }}>{trade.netPnl > 0 ? '+' : ''}{trade.netPnl.toFixed(2)}</span>
-                      </div>
-                      <div style={{ fontSize: 11, color: C.mut, marginTop: 2 }}>{ar(trade.entryReasonAr, '')}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
             {!paperAccountState && (
               <div style={{ color: C.mut, fontSize: 11, textAlign: 'center', padding: 20 }}>Paper trading not started. Trades will open automatically on high confluence.</div>
             )}
@@ -2802,26 +2782,6 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                   >
                     {signal.dir === 'BUY' ? '▲ Buy' : '▼ Sell'} @ {signal.entry?.toFixed(2) || priceRef.current?.toFixed(2) || '—'}
                   </button>
-                  <button
-                    onClick={() => {
-                      try {
-                        const curPrice = priceRef.current || 0;
-                        const openTrades = getOpenPaperTrades();
-                        for (const t of openTrades) {
-                          closePaperTrade(t.id, curPrice, 'Manual close');
-                        }
-                        setPaperAccountState(getPaperAccount());
-                        setPaperTradesList(getPaperTrades().slice(0, 10));
-                        setPaperComparison(getPerformanceComparison());
-                      } catch { /* Close failed */ }
-                    }}
-                    style={{
-                      padding: '6px 12px', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer',
-                      background: `${C.dim}15`, color: C.dim,
-                      fontSize: 11, fontWeight: 600,
-                    }}
-                  >{t('asp2_closeAll')}
-</button>
                 </div>
                 {getOpenPaperTrades().length > 0 && (
                   <div style={{ marginTop: 4, fontSize: 11, color: C.dim }}>

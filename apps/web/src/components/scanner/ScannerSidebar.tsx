@@ -3,7 +3,6 @@
 import { ScanSearch, LayoutGrid, Map, Brain, Clock, BarChart3, Filter, RefreshCw } from 'lucide-react'
 import { useScannerContext } from './ScannerProvider'
 import { useTranslations } from 'next-intl'
-import T from '@/lib/unified-tokens'
 
 const NAV_KEYS = ['scanner', 'heatmap', 'patterns', 'multitf', 'overview', 'screener'] as const
 const NAV_ICONS = [LayoutGrid, Map, Brain, Clock, BarChart3, Filter] as const
@@ -40,19 +39,19 @@ export function ScannerSidebar() {
 
   return (
     <div style={{
-      width: 200, minWidth: 200, height: '100%', background: T.card,
-      borderInlineStart: `1px solid ${T.border}`, direction: 'inherit',
+      width: 200, minWidth: 200, height: '100%', background: '#151A22',
+      borderInlineStart: `1px solid ${'#2A313C'}`, direction: 'inherit',
       display: 'flex', flexDirection: 'column',
     }}>
       {/* Header */}
-      <div style={{ padding: '16px 14px 12px', borderBottom: `1px solid ${T.border}` }}>
+      <div style={{ padding: '16px 14px 12px', borderBottom: `1px solid ${'#2A313C'}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-          <ScanSearch size={20} color={T.cyan} />
-          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>
+          <ScanSearch size={20} color={'#00D4FF'} />
+          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
             {t('advancedScanner')}
           </span>
         </div>
-        <p style={{ fontSize: 'var(--text-xs)', color: T.text3, lineHeight: 1.5, fontFamily: "var(--font-ar)", margin: 0 }}>
+        <p style={{ fontSize: 'var(--text-xs)', color: '#6B7280', lineHeight: 1.5, fontFamily: "var(--font-ar)", margin: 0 }}>
           {t('subtitle')}
         </p>
       </div>
@@ -67,13 +66,13 @@ export function ScannerSidebar() {
               style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 width: '100%', padding: '10px 14px', border: 'none', cursor: 'pointer',
-                background: active ? `${T.cyan}08` : 'transparent',
-                borderInlineEnd: active ? `2px solid ${T.cyan}` : '2px solid transparent',
-                color: active ? T.cyan : T.text3,
+                background: active ? `${'#00D4FF'}08` : 'transparent',
+                borderInlineEnd: active ? `2px solid ${'#00D4FF'}` : '2px solid transparent',
+                color: active ? '#00D4FF' : '#6B7280',
                 transition: 'all 0.2s', direction: 'inherit', textAlign: 'right',
               }}
             >
-              <span style={{ display: 'flex', color: active ? T.cyan : T.text3 }}>{item.icon}</span>
+              <span style={{ display: 'flex', color: active ? '#00D4FF' : '#6B7280' }}>{item.icon}</span>
               <span style={{
                 fontSize: 'var(--text-xs)', fontWeight: active ? 700 : 600,
                 fontFamily: "var(--font-ar)",
@@ -87,22 +86,22 @@ export function ScannerSidebar() {
 
       {/* Status */}
       <div style={{
-        padding: '12px 14px', borderTop: `1px solid ${T.border}`,
+        padding: '12px 14px', borderTop: `1px solid ${'#2A313C'}`,
         display: 'flex', flexDirection: 'column', gap: 8,
       }}>
         {/* Live indicator */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{
-              width: 6, height: 6, borderRadius: '50%', background: T.green,
-              boxShadow: `0 0 6px ${T.green}60`,
+              width: 6, height: 6, borderRadius: '50%', background: '#00FFA3',
+              boxShadow: `0 0 6px ${'#00FFA3'}60`,
             }} />
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.green, fontFamily: "var(--font-ar)" }}>
+            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#00FFA3', fontFamily: "var(--font-ar)" }}>
               {t('live')}
             </span>
           </div>
           <span style={{
-            fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text2,
+            fontSize: 'var(--text-xs)', fontWeight: 700, color: '#9CA3B5',
             fontFamily: "var(--font-mono)",
           }}>
             {mins}:{secs.toString().padStart(2, '0')}
@@ -114,8 +113,8 @@ export function ScannerSidebar() {
           onClick={refresh}
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            padding: '6px 0', borderRadius: 'var(--radius-sm)', border: `0.5px solid ${T.border}`,
-            background: T.surface, color: T.text2, cursor: 'pointer', fontSize: 'var(--text-xs)',
+            padding: '6px 0', borderRadius: 'var(--radius-sm)', border: `0.5px solid ${'#2A313C'}`,
+            background: '#151A22', color: '#9CA3B5', cursor: 'pointer', fontSize: 'var(--text-xs)',
             fontFamily: "var(--font-ar)", fontWeight: 700, transition: 'all 0.2s',
           }}
         >
@@ -124,7 +123,7 @@ export function ScannerSidebar() {
 
         {/* Last update */}
         {lastUpdate && (
-          <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)", textAlign: 'center' }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)", textAlign: 'center' }}>
             {t('lastUpdate')} {formatTime(lastUpdate)}
           </span>
         )}
@@ -133,8 +132,8 @@ export function ScannerSidebar() {
         <span style={{
           display: 'inline-block', textAlign: 'center', padding: '3px 8px',
           borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 800,
-          fontFamily: "var(--font-ar)", color: T.cyan,
-          background: `${T.cyan}10`, border: `0.5px solid ${T.border2}`,
+          fontFamily: "var(--font-ar)", color: '#00D4FF',
+          background: `${'#00D4FF'}10`, border: `0.5px solid ${'#3A4150'}`,
         }}>
           {t('techIndicators')}
         </span>

@@ -6,7 +6,6 @@ import { Globe2, Check, ChevronDown, Search } from 'lucide-react';
 import { isRtlLocale } from '@/lib/i18n-utils';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom'
-import T from '@/lib/unified-tokens';
 
 interface LocaleSwitcherProps {
   variant?: 'default' | 'navbar' | 'header';
@@ -205,7 +204,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
               gap: 6,
             }}
           >
-            <Search size={13} color={T.text2} style={{ flexShrink: 0 }} />
+            <Search size={13} color={'#9CA3B5'} style={{ flexShrink: 0 }} />
             <input
               ref={searchRef}
               type="text"
@@ -217,7 +216,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
                 background: 'transparent',
                 border: 'none',
                 outline: 'none',
-                color: T.text,
+                color: '#F0F2F5',
                 fontSize: 'var(--text-sm)',
                 fontFamily: "var(--font-ar)",
               }}
@@ -228,7 +227,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: T.text2,
+                  color: '#9CA3B5',
                   cursor: 'pointer',
                   padding: 0,
                   fontSize: 'var(--text-base)',
@@ -261,7 +260,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
               <div
                 style={{
                   padding: '16px 14px',
-                  color: T.text2,
+                  color: '#9CA3B5',
                   fontSize: 'var(--text-sm)',
                   textAlign: 'center',
                   fontFamily: "var(--font-ar)",
@@ -282,7 +281,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
                     padding: '8px 14px',
                     border: 'none',
                     background: opt.code === locale ? 'rgba(0,212,255,0.08)' : 'transparent',
-                    color: opt.code === locale ? T.info : T.text2,
+                    color: opt.code === locale ? '#00D4FF' : '#9CA3B5',
                     cursor: 'pointer',
                     fontSize: 'var(--text-sm)',
                     fontFamily: opt.code === 'ar' ? "'Cairo', sans-serif" : "'Inter', sans-serif",
@@ -293,13 +292,13 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
                   onMouseEnter={(e) => {
                     if (opt.code !== locale) {
                       e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
-                      e.currentTarget.style.color = T.text;
+                      e.currentTarget.style.color = '#F0F2F5';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (opt.code !== locale) {
                       e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = T.text2;
+                      e.currentTarget.style.color = '#9CA3B5';
                     }
                   }}
                 >
@@ -315,7 +314,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
                     </span>
                     <span>{opt.label}</span>
                   </span>
-                  {opt.code === locale && <Check size={14} color={T.info} />}
+                  {opt.code === locale && <Check size={14} color={'#00D4FF'} />}
                 </button>
               ))
             )}
@@ -370,7 +369,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
             borderRadius: 'var(--radius-sm)',
             border: '1px solid rgba(255,255,255,0.12)',
             background: 'rgba(255,255,255,0.04)',
-            color: T.text2,
+            color: '#9CA3B5',
             cursor: 'pointer',
             fontFamily: isAr ? "'Cairo', sans-serif" : "'Inter', sans-serif",
             fontSize: 'var(--text-xs)',
@@ -380,12 +379,12 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = 'rgba(0,212,255,0.08)';
-            e.currentTarget.style.color = T.text;
+            e.currentTarget.style.color = '#F0F2F5';
             e.currentTarget.style.borderColor = 'rgba(0,212,255,0.25)';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-            e.currentTarget.style.color = T.text2;
+            e.currentTarget.style.color = '#9CA3B5';
             e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
           }}
           aria-label="Switch language"
@@ -415,7 +414,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
           borderRadius: 'var(--radius-md)',
           border: '1px solid rgba(255,255,255,0.12)',
           background: 'rgba(255,255,255,0.04)',
-          color: T.text2,
+          color: '#9CA3B5',
           cursor: 'pointer',
           fontFamily: isAr ? "'Cairo', sans-serif" : "'Inter', sans-serif",
           fontSize: 'var(--text-sm)',

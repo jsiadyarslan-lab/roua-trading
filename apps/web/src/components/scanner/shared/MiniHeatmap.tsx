@@ -1,6 +1,5 @@
 'use client'
 
-import T from '@/lib/unified-tokens'
 function safeMax(arr: number[]): number {
   if (arr.length === 0) return -Infinity;
   let max = arr[0];
@@ -22,7 +21,7 @@ interface MiniHeatmapProps {
 }
 
 export function MiniHeatmap({
-  data, color = T.info, width = 72, height = 24,
+  data, color = '#00D4FF', width = 72, height = 24,
 }: MiniHeatmapProps) {
   if (!data || data.length < 2) return null
 
@@ -41,7 +40,7 @@ export function MiniHeatmap({
   const maxCount = Math.max(safeMax(binCounts), 1)
 
   const barWidth = width / bins
-  const colors = data[data.length - 1] >= data[0] ? [T.success, T.greenDim, '#00994D'] : [T.danger, '#FF3344', '#CC2233']
+  const colors = data[data.length - 1] >= data[0] ? ['#00FFA3', '#00CC82', '#00994D'] : ['#FF4757', '#FF3344', '#CC2233']
 
   return (
     <svg width={width} height={height} style={{ flexShrink: 0, direction: 'ltr' }}>

@@ -16,7 +16,6 @@ const MarketOverview = dynamic(() => import('@/components/scanner/tabs/MarketOve
 const ScreenerTab = dynamic(() => import('@/components/scanner/tabs/ScreenerTab').then(m => ({ default: m.ScreenerTab })), { ssr: false })
 const DeepAnalysisModal = dynamic(() => import('@/components/scanner/modals/DeepAnalysisModal').then(m => ({ default: m.DeepAnalysisModal })), { ssr: false })
 
-import T from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 // ── Design Tokens (canonical + local extensions) ──
@@ -66,7 +65,7 @@ function ScannerContent() {
   return (
     <div className="scanner-page-root" style={{
       width: '100%', height: 'calc(100dvh - 60px)',
-      background: T.bg, padding: '8px 16px', boxSizing: 'border-box',
+      background: '#0B0E14', padding: '8px 16px', boxSizing: 'border-box',
       direction: 'inherit', fontFamily: "var(--font-ar)",
       display: 'flex', gap: 12, overflow: 'hidden',
       paddingTop: isMobile ? '48px' : '8px',
@@ -78,8 +77,8 @@ function ScannerContent() {
           style={{
             position: 'fixed', top: 12, right: 12, zIndex: 60,
             width: 36, height: 36, borderRadius: 'var(--radius-md)',
-            background: T.card, border: `1px solid ${T.border}`,
-            color: T.text, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: '#151A22', border: `1px solid ${'#2A313C'}`,
+            color: '#F0F2F5', display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer', fontSize: 'var(--text-base)',
           }}
         >
@@ -100,7 +99,7 @@ function ScannerContent() {
 
       {/* ── Main Content ── */}
       <div style={{
-        flex: 1, background: T.card, border: `0.5px solid ${T.border}`,
+        flex: 1, background: '#151A22', border: `0.5px solid ${'#2A313C'}`,
         borderRadius: 'var(--radius-md)', overflow: 'hidden', display: 'flex', flexDirection: 'column'
       }}>
         {renderTab()}

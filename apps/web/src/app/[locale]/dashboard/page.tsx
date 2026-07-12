@@ -20,7 +20,6 @@ import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { getDataStatus, getSourceLabel, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
-import T from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { getSymbolLeverage } from '@/lib/margin-calculator'
 import { useSidebarState } from '@/hooks/useSidebarState'
@@ -52,17 +51,17 @@ const PANEL_H = 30
 // Mode configuration — determines UI accent and available features per mode
 const MODE_CONFIG: Record<TradingMode, { accent: string; glowBg: string; label: string }> = {
   trader: {
-    accent: T.info,
+    accent: '#00D4FF',
     glowBg: 'rgba(0,212,255,0.04)',
     label: 'Trader',
   },
   investor: {
-    accent: T.profit,
+    accent: '#10b981',
     glowBg: 'rgba(16,185,129,0.04)',
     label: 'Investor',
   },
   ai: {
-    accent: T.council,
+    accent: '#B388FF',
     glowBg: 'rgba(167,139,250,0.04)',
     label: 'AI',
   },
@@ -234,7 +233,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
     background: color ? `${color}08` : 'rgba(255,255,255,0.03)',
     border: `1px solid ${color ? `${color}25` : 'rgba(255,255,255,0.08)'}`,
     borderRadius: 'var(--radius-lg)',
-    color: color || T.text,
+    color: color || '#F0F2F5',
     fontSize: isMobile ? 14 : 13,
     padding: isMobile ? '12px 14px' : '10px 12px',
     fontFamily: "var(--font-mono)",
@@ -271,7 +270,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
             background: orderSide === 'buy'
               ? 'linear-gradient(135deg, #00FFA3, #10B981)'
               : 'rgba(0,255,163,0.06)',
-            color: orderSide === 'buy' ? '#fff' : T.text3,
+            color: orderSide === 'buy' ? '#fff' : '#6B7280',
             fontSize: 'var(--text-base)',
             fontWeight: 800,
             fontFamily: "var(--font-ar)",
@@ -295,7 +294,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
             background: orderSide === 'sell'
               ? 'linear-gradient(135deg, #FF4757, #EF4444)'
               : 'rgba(255,71,87,0.06)',
-            color: orderSide === 'sell' ? '#fff' : T.text3,
+            color: orderSide === 'sell' ? '#fff' : '#6B7280',
             fontSize: 'var(--text-base)',
             fontWeight: 800,
             fontFamily: "var(--font-ar)",
@@ -337,13 +336,13 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
               background: orderType === key
                 ? 'rgba(0,212,255,0.12)'
                 : 'transparent',
-              color: orderType === key ? T.cyan : T.text2,
+              color: orderType === key ? '#00D4FF' : '#9CA3B5',
               fontSize: 'var(--text-xs)',
               fontWeight: 700,
               fontFamily: "var(--font-ar)",
               cursor: 'pointer',
               transition: 'all 0.15s ease',
-              borderInlineStart: orderType === key ? `2px solid ${T.cyan}` : '2px solid transparent',
+              borderInlineStart: orderType === key ? `2px solid ${'#00D4FF'}` : '2px solid transparent',
             }}
           >
             {label}
@@ -354,14 +353,14 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
       {/* Limit Price (when limit/stop_limit) */}
       {(orderType === 'limit' || orderType === 'stop_limit') && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 'var(--text-xs)', color: T.text2, fontWeight: 700, fontFamily: "var(--font-ar)" }}>{t('limitPrice')}</label>
+          <label style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontWeight: 700, fontFamily: "var(--font-ar)" }}>{t('limitPrice')}</label>
           <input
             value={limitPrice}
             onChange={e => setLimitPrice(e.target.value)}
             placeholder={price > 0 ? price.toFixed(price > 100 ? 2 : 4) : '0.00'}
             type="number"
             step="0.01"
-            style={inputStyle(T.info)}
+            style={inputStyle('#00D4FF')}
             onFocus={e => e.currentTarget.style.borderColor = 'rgba(0,212,255,0.4)'}
             onBlur={e => e.currentTarget.style.borderColor = 'rgba(0,212,255,0.15)'}
           />
@@ -370,7 +369,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
 
       {/* Quantity */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <label style={{ fontSize: 'var(--text-xs)', color: T.text2, fontWeight: 700, fontFamily: "var(--font-ar)" }}>{tc('quantity')}</label>
+        <label style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontWeight: 700, fontFamily: "var(--font-ar)" }}>{tc('quantity')}</label>
         <input
           value={quantity}
           onChange={e => setQuantity(e.target.value)}
@@ -387,27 +386,27 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
       {/* SL / TP Row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 'var(--text-xs)', color: T.danger, fontWeight: 700, fontFamily: "var(--font-ar)" }}>{tc('stopLoss')}</label>
+          <label style={{ fontSize: 'var(--text-xs)', color: '#FF4757', fontWeight: 700, fontFamily: "var(--font-ar)" }}>{tc('stopLoss')}</label>
           <input
             value={stopLoss}
             onChange={e => setStopLoss(e.target.value)}
             placeholder="0.00"
             type="number"
             step="0.1"
-            style={inputStyle(T.danger)}
+            style={inputStyle('#FF4757')}
             onFocus={e => e.currentTarget.style.borderColor = 'rgba(255,71,87,0.5)'}
             onBlur={e => e.currentTarget.style.borderColor = 'rgba(255,71,87,0.15)'}
           />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 'var(--text-xs)', color: T.success, fontWeight: 700, fontFamily: "var(--font-ar)" }}>{tc('takeProfit')}</label>
+          <label style={{ fontSize: 'var(--text-xs)', color: '#00FFA3', fontWeight: 700, fontFamily: "var(--font-ar)" }}>{tc('takeProfit')}</label>
           <input
             value={takeProfit}
             onChange={e => setTakeProfit(e.target.value)}
             placeholder="0.00"
             type="number"
             step="0.1"
-            style={inputStyle(T.success)}
+            style={inputStyle('#00FFA3')}
             onFocus={e => e.currentTarget.style.borderColor = 'rgba(0,255,163,0.5)'}
             onBlur={e => e.currentTarget.style.borderColor = 'rgba(0,255,163,0.15)'}
           />
@@ -427,7 +426,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
             background: 'rgba(0,212,255,0.08)',
             border: '1px solid rgba(0,212,255,0.15)',
             borderRadius: 'var(--radius-lg)',
-            color: T.cyan,
+            color: '#00D4FF',
             fontSize: 'var(--text-xs)',
             fontWeight: 700,
             padding: '10px 14px',
@@ -454,7 +453,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
           borderRadius: 'var(--radius-lg)',
           background: 'rgba(255,184,0,0.1)',
           border: '1px solid rgba(255,184,0,0.25)',
-          color: T.warning,
+          color: '#FFB800',
           fontSize: 'var(--text-xs)',
           fontWeight: 700,
           fontFamily: "var(--font-ar)",
@@ -475,7 +474,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
           borderRadius: 'var(--radius-lg)',
           background: status.type === 'success' ? 'rgba(0,255,163,0.1)' : 'rgba(255,71,87,0.1)',
           border: `1px solid ${status.type === 'success' ? 'rgba(0,255,163,0.25)' : 'rgba(255,71,87,0.25)'}`,
-          color: status.type === 'success' ? T.success : T.danger,
+          color: status.type === 'success' ? '#00FFA3' : '#FF4757',
           fontSize: 'var(--text-sm)',
           fontWeight: 700,
           fontFamily: "var(--font-ar)",
@@ -531,11 +530,11 @@ export default function DashboardPage() {
   const { collapsed: rightPanelCollapsed } = useRightPanelState()
   useScopedStyle(`.dashboard-shell {
           min-height: calc(100dvh - ${HEADER_H}px);
-          background: ${T.bg};
+          background: ${'#0B0E14'};
           background-image:
             radial-gradient(ellipse at 20% 0%, rgba(0,212,255,0.04) 0%, transparent 50%),
             radial-gradient(ellipse at 80% 100%, rgba(0,255,163,0.02) 0%, transparent 50%);
-          color: ${T.text};
+          color: ${'#F0F2F5'};
           overflow: hidden;
         }
 
@@ -665,20 +664,20 @@ export default function DashboardPage() {
         }
 
         .summary-label {
-          color: ${T.text3};
+          color: ${'#6B7280'};
         }
 
         .summary-value {
-          color: ${T.text};
+          color: ${'#F0F2F5'};
           font-family: 'JetBrains Mono', monospace;
         }
 
         .summary-value--success {
-          color: ${T.success};
+          color: ${'#00FFA3'};
         }
 
         .summary-value--accent {
-          color: ${T.cyan};
+          color: ${'#00D4FF'};
         }
 
         /* ── Balance Card ── */
@@ -716,14 +715,14 @@ export default function DashboardPage() {
           width: 8px;
           height: 8px;
           border-radius: 50%;
-          background: ${T.success};
-          box-shadow: 0 0 6px ${T.success}, 0 0 12px rgba(0,255,163,0.3);
+          background: ${'#00FFA3'};
+          box-shadow: 0 0 6px ${'#00FFA3'}, 0 0 12px rgba(0,255,163,0.3);
           animation: ledPulse 2s ease-in-out infinite;
         }
 
         @keyframes ledPulse {
-          0%, 100% { opacity: 0.7; box-shadow: 0 0 4px ${T.success}; }
-          50% { opacity: 1; box-shadow: 0 0 8px ${T.success}, 0 0 16px rgba(0,255,163,0.4); }
+          0%, 100% { opacity: 0.7; box-shadow: 0 0 4px ${'#00FFA3'}; }
+          50% { opacity: 1; box-shadow: 0 0 8px ${'#00FFA3'}, 0 0 16px rgba(0,255,163,0.4); }
         }
 
         /* ── Striped Rows ── */
@@ -793,7 +792,7 @@ export default function DashboardPage() {
             display: flex !important;
             flex-direction: column;
             width: 100%;
-            background: #0A0D13;
+            background: '#0A0D13';
             overflow: hidden;
             position: fixed;
             top: 0; left: 0; right: 0;
@@ -910,8 +909,8 @@ export default function DashboardPage() {
             min-width: 0;
             border-radius: 14px;
             overflow: hidden;
-            background: ${T.card};
-            border: 1px solid ${T.border};
+            background: ${'#151A22'};
+            border: 1px solid ${'#2A313C'};
             box-sizing: border-box;
           }
 
@@ -922,7 +921,7 @@ export default function DashboardPage() {
             align-items: center;
             justify-content: space-between;
             gap: 10px;
-            border-bottom: 1px solid ${T.border};
+            border-bottom: 1px solid ${'#2A313C'};
             background: linear-gradient(90deg, rgba(0, 212, 255, 0.06), transparent);
             box-sizing: border-box;
           }
@@ -931,7 +930,7 @@ export default function DashboardPage() {
             font-family: 'Cairo', sans-serif;
             font-size: 12px;
             font-weight: 800;
-            color: ${T.text};
+            color: ${'#F0F2F5'};
           }
 
           .mobile-section__body {
@@ -1281,9 +1280,9 @@ export default function DashboardPage() {
   }, [globalQuotes, selectedSymbol])
 
   const mobileSummaryCards = [
-    { label: tc('balance'), value: formatMoney(account?.balance ?? account?.equity), tone: T.text },
-    { label: tc('buyingPower'), value: formatMoney(account?.buyingPower), tone: T.success },
-    { label: tc('positions'), value: `${positions.length}`, tone: T.cyan },
+    { label: tc('balance'), value: formatMoney(account?.balance ?? account?.equity), tone: '#F0F2F5' },
+    { label: tc('buyingPower'), value: formatMoney(account?.buyingPower), tone: '#00FFA3' },
+    { label: tc('positions'), value: `${positions.length}`, tone: '#00D4FF' },
   ]
 
   const quoteStatus = getDataStatus(activeQuote)
@@ -1456,23 +1455,23 @@ export default function DashboardPage() {
                   : `${t('balance')}: ${t('balanceTooltipReal')}`
                 } style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0, cursor: 'help' }}>
                   <div className="led-indicator" style={{ background: getStatusTone(accountDataStatus), boxShadow: `0 0 6px ${getStatusTone(accountDataStatus)}, 0 0 12px ${getStatusTone(accountDataStatus)}33` }} />
-                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 700, fontFamily: "var(--font-ar)" }}>{tc('balance')}</span>
-                  <span dir="ltr" style={{ fontSize: 'var(--text-sm)', fontWeight: 800, fontFamily: "var(--font-mono)", color: T.text }}>{formatMoney(cashValue)}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 700, fontFamily: "var(--font-ar)" }}>{tc('balance')}</span>
+                  <span dir="ltr" style={{ fontSize: 'var(--text-sm)', fontWeight: 800, fontFamily: "var(--font-mono)", color: '#F0F2F5' }}>{formatMoney(cashValue)}</span>
                 </div>
                 {/* الرصيد الحالي (Equity) — V183: Balance + unrealized P/L */}
                 <div title={`${t('equity')}: ${t('equityTooltip')}`} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0, cursor: 'help' }}>
-                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 700, fontFamily: "var(--font-ar)" }}>{tc('equity')}</span>
-                  <span dir="ltr" style={{ fontSize: 'var(--text-sm)', fontWeight: 800, fontFamily: "var(--font-mono)", color: T.cyan }}>{formatMoney(equityValue)}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 700, fontFamily: "var(--font-ar)" }}>{tc('equity')}</span>
+                  <span dir="ltr" style={{ fontSize: 'var(--text-sm)', fontWeight: 800, fontFamily: "var(--font-mono)", color: '#00D4FF' }}>{formatMoney(equityValue)}</span>
                 </div>
                 {/* الهامش المتاح — V183: Balance - Used Margin + unrealized P/L */}
                 <div title={`${t('freeMargin')}: ${t('freeMarginTooltip')}`} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0, cursor: 'help' }}>
-                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 700, fontFamily: "var(--font-ar)" }}>{t('freeMargin')}</span>
-                  <span dir="ltr" style={{ fontSize: 'var(--text-sm)', fontWeight: 700, fontFamily: "var(--font-mono)", color: T.success }}>{formatMoney(freeMargin)}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 700, fontFamily: "var(--font-ar)" }}>{t('freeMargin')}</span>
+                  <span dir="ltr" style={{ fontSize: 'var(--text-sm)', fontWeight: 700, fontFamily: "var(--font-mono)", color: '#00FFA3' }}>{formatMoney(freeMargin)}</span>
                 </div>
                 {/* الهامش المستخدم — V183: Margin locked in open positions */}
                 <div title={`${tc('margin')}: ${t('usedMarginTooltip')}`} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0, cursor: 'help' }}>
-                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 700, fontFamily: "var(--font-ar)" }}>{tc('margin')}</span>
-                  <span dir="ltr" style={{ fontSize: 'var(--text-sm)', fontWeight: 700, fontFamily: "var(--font-mono)", color: initialMargin > 0 ? T.amber : T.text }}>{formatMoney(initialMargin)}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 700, fontFamily: "var(--font-ar)" }}>{tc('margin')}</span>
+                  <span dir="ltr" style={{ fontSize: 'var(--text-sm)', fontWeight: 700, fontFamily: "var(--font-mono)", color: initialMargin > 0 ? '#FFB800' : '#F0F2F5' }}>{formatMoney(initialMargin)}</span>
                 </div>
                 {/* نسبة الهامش — تحذير صارخ عند المستوى المنخفض */}
                 {(() => {
@@ -1482,7 +1481,7 @@ export default function DashboardPage() {
                   // منخفض = آمن (استخدام محافظ)
                   const isCritical = mlPct < 120 && mlPct > 0;  // < 120% خطر فعلي (قريب من margin call)
                   const isWarning  = mlPct >= 120 && mlPct < 200;              // 120-200% تحذير
-                  const mlColor = isCritical ? T.danger : isWarning ? T.warning : T.cyan;
+                  const mlColor = isCritical ? '#FF4757' : isWarning ? '#FFB800' : '#00D4FF';
                   return (
                     <div style={{
                       display: 'flex', alignItems: 'center', gap: 5,
@@ -1495,13 +1494,13 @@ export default function DashboardPage() {
                       animation: isCritical ? 'marginPulse 1.2s ease-in-out infinite' : 'none',
                     }}>
                       {isCritical && (
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.danger} strokeWidth="2.5" style={{ flexShrink: 0 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={'#FF4757'} strokeWidth="2.5" style={{ flexShrink: 0 }}>
                           <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
                           <line x1="12" y1="9" x2="12" y2="13"/>
                           <line x1="12" y1="17" x2="12.01" y2="17"/>
                         </svg>
                       )}
-                      <span style={{ fontSize: 'var(--text-xs)', color: isCritical ? T.danger : isWarning ? T.warning : T.text3, fontWeight: 700, fontFamily: "var(--font-ar)" }}>{tc('marginLevel')}</span>
+                      <span style={{ fontSize: 'var(--text-xs)', color: isCritical ? '#FF4757' : isWarning ? '#FFB800' : '#6B7280', fontWeight: 700, fontFamily: "var(--font-ar)" }}>{tc('marginLevel')}</span>
                       <span dir="ltr" style={{
                         fontSize: isCritical ? 13 : 12, fontWeight: isCritical ? 900 : 700,
                         fontFamily: "var(--font-mono)",
@@ -1511,17 +1510,17 @@ export default function DashboardPage() {
                         {equityValue > 0 ? mlPct.toFixed(1) : '0.0'}%
                       </span>
                       {isCritical && (
-                        <span style={{ fontSize: 'var(--text-xs)', color: T.danger, fontWeight: 700, fontFamily: "var(--font-ar)" }}>⚠</span>
+                        <span style={{ fontSize: 'var(--text-xs)', color: '#FF4757', fontWeight: 700, fontFamily: "var(--font-ar)" }}>⚠</span>
                       )}
                     </div>
                   );
                 })()}
                 {/* P&L */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', flexShrink: 0 }}>
-                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 700, fontFamily: "var(--font-ar)" }}>P/L</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 700, fontFamily: "var(--font-ar)" }}>P/L</span>
                   <span dir="ltr" style={{
                     fontSize: 'var(--text-sm)', fontWeight: unrealizedPnl !== 0 ? 800 : 600, fontFamily: "var(--font-mono)",
-                    color: isProfitable ? T.success : unrealizedPnl < 0 ? T.danger : T.text3,
+                    color: isProfitable ? '#00FFA3' : unrealizedPnl < 0 ? '#FF4757' : '#6B7280',
                   }}>
                     {isProfitable ? '+' : unrealizedPnl < 0 ? '-' : ''}{formatMoney(Math.abs(unrealizedPnl))}
                   </span>
@@ -1531,9 +1530,9 @@ export default function DashboardPage() {
                   onClick={() => setPosOpen(prev => !prev)}
                   title={posOpen ? t('hidePositions') : t('showPositions')}
                   aria-label={posOpen ? t('hidePositions') : t('showPositions')}
-                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.text3, padding: 4, borderRadius: 'var(--radius-sm)', transition: 'all 0.2s' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = T.cyan)}
-                  onMouseLeave={e => (e.currentTarget.style.color = T.text3)}
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#6B7280', padding: 4, borderRadius: 'var(--radius-sm)', transition: 'all 0.2s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#00D4FF')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#6B7280')}
                 >
                   <ChevronDown size={14} style={{ transform: posOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.3s' }} />
                 </button>
@@ -1603,7 +1602,7 @@ export default function DashboardPage() {
               <div style={{ fontSize: 'var(--text-sm)', fontWeight:800, color:'#E8ECF4', fontFamily: "var(--font-mono)" }}>
                 ${(Number(account?.balance ?? account?.equity) || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}
               </div>
-              <div style={{ fontSize: 'var(--text-sm)', fontWeight:700, color: (Number(account?.unrealizedPnl)||0)>=0?T.success:T.danger, fontFamily: "var(--font-mono)" }}>
+              <div style={{ fontSize: 'var(--text-sm)', fontWeight:700, color: (Number(account?.unrealizedPnl)||0)>=0?'#00FFA3':'#FF4757', fontFamily: "var(--font-mono)" }}>
                 {(Number(account?.unrealizedPnl)||0)>=0?'+':''}{(Number(account?.unrealizedPnl)||0).toFixed(2)}$
               </div>
             </div>
@@ -1628,11 +1627,11 @@ export default function DashboardPage() {
                   borderRadius: 'var(--radius-sm)', cursor:'pointer', flexShrink:0,
                   touchAction:'manipulation', WebkitTapHighlightColor:'transparent',
                 }}>
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight:800, color: m2ShowTf?T.info:'rgba(0,212,255,0.7)', fontFamily: "var(--font-mono)", letterSpacing:'0.3px' }}>
+                <span style={{ fontSize: 'var(--text-xs)', fontWeight:800, color: m2ShowTf?'#00D4FF':'rgba(0,212,255,0.7)', fontFamily: "var(--font-mono)", letterSpacing:'0.3px' }}>
                   {timeframe}
                 </span>
                 <svg width="6" height="4" viewBox="0 0 6 4" style={{ opacity:0.5 }}>
-                  <path d="M0 0L3 4L6 0" fill={m2ShowTf?T.info:'rgba(0,212,255,0.7)'}/>
+                  <path d="M0 0L3 4L6 0" fill={m2ShowTf?'#00D4FF':'rgba(0,212,255,0.7)'}/>
                 </svg>
               </button>
               {m2ShowTf && (
@@ -1646,7 +1645,7 @@ export default function DashboardPage() {
                       {m2TFs.map(tf => (
                         <button key={tf} type="button"
                           onClick={() => { setTimeframe(tf); setM2ShowTf(false); }}
-                          style={{ padding:'7px 12px', borderRadius: 'var(--radius-sm)', cursor:'pointer', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)", fontWeight:700, background: tf===timeframe?'rgba(0,212,255,0.12)':'rgba(255,255,255,0.04)', border: tf===timeframe?'1px solid rgba(0,212,255,0.35)':'1px solid rgba(255,255,255,0.07)', color: tf===timeframe?T.info:T.text3 }}>
+                          style={{ padding:'7px 12px', borderRadius: 'var(--radius-sm)', cursor:'pointer', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)", fontWeight:700, background: tf===timeframe?'rgba(0,212,255,0.12)':'rgba(255,255,255,0.04)', border: tf===timeframe?'1px solid rgba(0,212,255,0.35)':'1px solid rgba(255,255,255,0.07)', color: tf===timeframe?'#00D4FF':'#6B7280' }}>
                           {tf}
                         </button>
                       ))}
@@ -1672,11 +1671,11 @@ export default function DashboardPage() {
                   touchAction:'manipulation', WebkitTapHighlightColor:'transparent',
                 }}>
                 <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
-                  <path d="M1 9L7 3L8 2M7 3L9 1M2 8L4 6" stroke={m2ShowDrawing?T.council:T.textMuted} strokeWidth="1.2" strokeLinecap="round"/>
+                  <path d="M1 9L7 3L8 2M7 3L9 1M2 8L4 6" stroke={m2ShowDrawing?'#B388FF':'#6B7280'} strokeWidth="1.2" strokeLinecap="round"/>
                 </svg>
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight:600, color: m2ShowDrawing?T.council:T.textMuted, fontFamily: "var(--font-ar)" }}>رسم</span>
+                <span style={{ fontSize: 'var(--text-xs)', fontWeight:600, color: m2ShowDrawing?'#B388FF':'#6B7280', fontFamily: "var(--font-ar)" }}>رسم</span>
                 <svg width="6" height="4" viewBox="0 0 6 4" style={{ opacity:0.4 }}>
-                  <path d="M0 0L3 4L6 0" fill={m2ShowDrawing?T.council:T.textMuted}/>
+                  <path d="M0 0L3 4L6 0" fill={m2ShowDrawing?'#B388FF':'#6B7280'}/>
                 </svg>
               </button>
               {m2ShowDrawing && (
@@ -1690,7 +1689,7 @@ export default function DashboardPage() {
                       {m2DrawTools.map(dt => (
                         <button key={dt.id} type="button"
                           onClick={() => { setM2ActiveTool(dt.id); setM2ShowDrawing(false); }}
-                          style={{ padding:'10px 0', borderRadius: 'var(--radius-md)', cursor:'pointer', fontSize: 'var(--text-lg)', display:'flex', flexDirection:'column', alignItems:'center', background: m2ActiveTool===dt.id?'rgba(139,92,246,0.1)':'rgba(255,255,255,0.03)', border: m2ActiveTool===dt.id?'1px solid rgba(139,92,246,0.3)':'1px solid rgba(255,255,255,0.05)', color: m2ActiveTool===dt.id?T.council:T.text3 }}>
+                          style={{ padding:'10px 0', borderRadius: 'var(--radius-md)', cursor:'pointer', fontSize: 'var(--text-lg)', display:'flex', flexDirection:'column', alignItems:'center', background: m2ActiveTool===dt.id?'rgba(139,92,246,0.1)':'rgba(255,255,255,0.03)', border: m2ActiveTool===dt.id?'1px solid rgba(139,92,246,0.3)':'1px solid rgba(255,255,255,0.05)', color: m2ActiveTool===dt.id?'#B388FF':'#6B7280' }}>
                           {dt.icon}
                         </button>
                       ))}
@@ -1715,11 +1714,11 @@ export default function DashboardPage() {
                 touchAction:'manipulation', WebkitTapHighlightColor:'transparent',
               }}>
               <svg width="10" height="9" viewBox="0 0 10 9" fill="none">
-                <path d="M0 7C2 7 2 2 4 2C6 2 6 7 8 7L10 7" stroke={m2ShowInd?T.profit:T.text3} strokeWidth="1.3" strokeLinecap="round"/>
+                <path d="M0 7C2 7 2 2 4 2C6 2 6 7 8 7L10 7" stroke={m2ShowInd?'#10b981':'#6B7280'} strokeWidth="1.3" strokeLinecap="round"/>
               </svg>
-              <span style={{ fontSize: 'var(--text-xs)', fontWeight:600, color: m2ShowInd?T.profit:T.text3, fontFamily: "var(--font-mono)", letterSpacing:'0.3px' }}>IND</span>
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight:600, color: m2ShowInd?'#10b981':'#6B7280', fontFamily: "var(--font-mono)", letterSpacing:'0.3px' }}>IND</span>
               <svg width="6" height="4" viewBox="0 0 6 4" style={{ opacity:0.4 }}>
-                <path d="M0 0L3 4L6 0" fill={m2ShowInd?T.profit:T.text3}/>
+                <path d="M0 0L3 4L6 0" fill={m2ShowInd?'#10b981':'#6B7280'}/>
               </svg>
             </button>
 
@@ -1738,12 +1737,12 @@ export default function DashboardPage() {
                 touchAction:'manipulation', WebkitTapHighlightColor:'transparent',
               }}>
               <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
-                <circle cx="4.5" cy="4.5" r="2" stroke={m2ShowAI?'#C084FC':T.text3} strokeWidth="1.2"/>
-                <path d="M4.5 1V0M4.5 9V8M1 4.5H0M9 4.5H8" stroke={m2ShowAI?'#C084FC':T.text3} strokeWidth="1" strokeLinecap="round"/>
+                <circle cx="4.5" cy="4.5" r="2" stroke={m2ShowAI?'#C084FC':'#6B7280'} strokeWidth="1.2"/>
+                <path d="M4.5 1V0M4.5 9V8M1 4.5H0M9 4.5H8" stroke={m2ShowAI?'#C084FC':'#6B7280'} strokeWidth="1" strokeLinecap="round"/>
               </svg>
-              <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color: m2ShowAI?'#C084FC':T.text3, fontFamily: "var(--font-mono)", letterSpacing:'0.5px' }}>AI</span>
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color: m2ShowAI?'#C084FC':'#6B7280', fontFamily: "var(--font-mono)", letterSpacing:'0.5px' }}>AI</span>
               <svg width="6" height="4" viewBox="0 0 6 4" style={{ opacity:0.4 }}>
-                <path d="M0 0L3 4L6 0" fill={m2ShowAI?'#C084FC':T.text3}/>
+                <path d="M0 0L3 4L6 0" fill={m2ShowAI?'#C084FC':'#6B7280'}/>
               </svg>
             </button>
 
@@ -1763,13 +1762,13 @@ export default function DashboardPage() {
                   touchAction:'manipulation', WebkitTapHighlightColor:'transparent',
                 }}>
                 <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
-                  <rect x="0" y="5" width="2" height="4" fill={m2ShowMarkets?T.warning:T.text3} rx="0.5"/>
-                  <rect x="3.5" y="2.5" width="2" height="6.5" fill={m2ShowMarkets?T.warning:T.text3} rx="0.5"/>
-                  <rect x="7" y="0" width="2" height="9" fill={m2ShowMarkets?T.warning:T.text3} rx="0.5"/>
+                  <rect x="0" y="5" width="2" height="4" fill={m2ShowMarkets?'#FFB800':'#6B7280'} rx="0.5"/>
+                  <rect x="3.5" y="2.5" width="2" height="6.5" fill={m2ShowMarkets?'#FFB800':'#6B7280'} rx="0.5"/>
+                  <rect x="7" y="0" width="2" height="9" fill={m2ShowMarkets?'#FFB800':'#6B7280'} rx="0.5"/>
                 </svg>
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight:600, color: m2ShowMarkets?T.warning:T.text3, fontFamily: "var(--font-ar)" }}>سوق</span>
+                <span style={{ fontSize: 'var(--text-xs)', fontWeight:600, color: m2ShowMarkets?'#FFB800':'#6B7280', fontFamily: "var(--font-ar)" }}>سوق</span>
                 <svg width="6" height="4" viewBox="0 0 6 4" style={{ opacity:0.4 }}>
-                  <path d="M0 0L3 4L6 0" fill={m2ShowMarkets?T.warning:T.text3}/>
+                  <path d="M0 0L3 4L6 0" fill={m2ShowMarkets?'#FFB800':'#6B7280'}/>
                 </svg>
               </button>
               {m2ShowMarkets && (
@@ -1790,7 +1789,7 @@ export default function DashboardPage() {
                           {g.syms.map(sym => (
                             <button key={sym} type="button"
                               onClick={() => { handleSelectSymbol(sym); setM2ShowMarkets(false); }}
-                              style={{ padding:'5px 10px', borderRadius: 'var(--radius-sm)', cursor:'pointer', fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)", fontWeight:700, background: sym===selectedSymbol?'rgba(245,158,11,0.1)':'rgba(255,255,255,0.03)', border: sym===selectedSymbol?'1px solid rgba(245,158,11,0.3)':'1px solid rgba(255,255,255,0.06)', color: sym===selectedSymbol?T.warning:T.textMuted }}>
+                              style={{ padding:'5px 10px', borderRadius: 'var(--radius-sm)', cursor:'pointer', fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)", fontWeight:700, background: sym===selectedSymbol?'rgba(245,158,11,0.1)':'rgba(255,255,255,0.03)', border: sym===selectedSymbol?'1px solid rgba(245,158,11,0.3)':'1px solid rgba(255,255,255,0.06)', color: sym===selectedSymbol?'#FFB800':'#6B7280' }}>
                               {sym.split('/')[0]}
                             </button>
                           ))}
@@ -1816,7 +1815,7 @@ export default function DashboardPage() {
                 boxShadow:'0 -20px 60px rgba(0,0,0,0.7)',
               }} onClick={e => e.stopPropagation()}>
                 <div style={{ width:32, height:3, background:'rgba(255,255,255,0.12)', borderRadius: 'var(--radius-xs)', margin:'0 auto 14px' }}/>
-                <div style={{ fontSize: 'var(--text-sm)', fontWeight:700, color:T.council, marginBottom:12 }}>المؤشرات الفنية</div>
+                <div style={{ fontSize: 'var(--text-sm)', fontWeight:700, color:'#B388FF', marginBottom:12 }}>المؤشرات الفنية</div>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
                   {m2Indicators.map(ind => (
                     <button key={ind} type="button"
@@ -1852,7 +1851,7 @@ export default function DashboardPage() {
                   <span style={{ fontSize: 'var(--text-sm)', color:'#6A7A90', fontFamily: "var(--font-mono)" }}>{selectedSymbol}</span>
                 </div>
                 <div style={{ display:'flex', gap:10, marginBottom:14 }}>
-                  {[{l:'شراء',v:'79%',c:T.success},{l:'حيادي',v:'11%',c:T.warning},{l:'بيع',v:'10%',c:T.danger}].map(b => (
+                  {[{l:'شراء',v:'79%',c:'#00FFA3'},{l:'حيادي',v:'11%',c:'#FFB800'},{l:'بيع',v:'10%',c:'#FF4757'}].map(b => (
                     <div key={b.l} style={{
                       flex:1, padding:'12px 0', textAlign:'center', borderRadius: 'var(--radius-lg)',
                       background:`${b.c}18`, border:`1px solid ${b.c}44`,
@@ -1862,7 +1861,7 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
-                <div style={{ fontSize: 'var(--text-xs)', color:T.text3, lineHeight:1.8, background:'rgba(255,255,255,0.03)', padding:'10px', borderRadius: 'var(--radius-md)' }}>
+                <div style={{ fontSize: 'var(--text-xs)', color:'#6B7280', lineHeight:1.8, background:'rgba(255,255,255,0.03)', padding:'10px', borderRadius: 'var(--radius-md)' }}>
                   📍 دعم قوي: {currentPrice ? (currentPrice*0.995).toFixed(currentPrice > 100 ? 2 : 5) : '—'}<br/>
                   🎯 مقاومة: {currentPrice ? (currentPrice*1.008).toFixed(currentPrice > 100 ? 2 : 5) : '—'}<br/>
                   ⚡ التوصية: استمرار الاتجاه الصاعد على المدى القصير
@@ -1879,10 +1878,10 @@ export default function DashboardPage() {
             }}>
               {/* Header */}
               <div style={{ padding:'12px 14px 8px', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ fontSize: 'var(--text-base)', fontWeight:800, color:T.text, fontFamily: "var(--font-ar)" }}>
+                <div style={{ fontSize: 'var(--text-base)', fontWeight:800, color:'#F0F2F5', fontFamily: "var(--font-ar)" }}>
                   مركز صنع القرار
                 </div>
-                <div style={{ fontSize: 'var(--text-xs)', color:T.text3, fontFamily: "var(--font-ar)", marginTop:2 }}>
+                <div style={{ fontSize: 'var(--text-xs)', color:'#6B7280', fontFamily: "var(--font-ar)", marginTop:2 }}>
                   المنفذ · الوكيل · المجلس · الإشارات
                 </div>
               </div>
@@ -1890,8 +1889,8 @@ export default function DashboardPage() {
               {/* المنفذ الذكي */}
               <div style={{ margin:'10px 12px 0', borderRadius: 'var(--radius-lg)', overflow:'hidden', border:'1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ padding:'8px 12px', background:'rgba(0,212,255,0.05)', borderBottom:'1px solid rgba(0,212,255,0.08)', display:'flex', alignItems:'center', gap:6 }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.info} strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                  <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color:T.info, fontFamily: "var(--font-ar)" }}>المنفذ الذكي</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={'#00D4FF'} strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color:'#00D4FF', fontFamily: "var(--font-ar)" }}>المنفذ الذكي</span>
                 </div>
                 <SmartExecutorPanel />
               </div>
@@ -1912,8 +1911,8 @@ export default function DashboardPage() {
               {/* الوكيل */}
               <div style={{ margin:'10px 12px 0', borderRadius: 'var(--radius-lg)', overflow:'hidden', border:'1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ padding:'8px 12px', background:'rgba(167,139,250,0.05)', borderBottom:'1px solid rgba(167,139,250,0.1)', display:'flex', alignItems:'center', gap:6 }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.council} strokeWidth="2.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-                  <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color:T.council, fontFamily: "var(--font-ar)" }}>الوكيل الآلي</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={'#B388FF'} strokeWidth="2.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                  <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color:'#B388FF', fontFamily: "var(--font-ar)" }}>الوكيل الآلي</span>
                 </div>
                 <AgentControlMini />
               </div>
@@ -1921,8 +1920,8 @@ export default function DashboardPage() {
               {/* المجلس الاستراتيجي */}
               <div style={{ margin:'10px 12px 0', borderRadius: 'var(--radius-lg)', overflow:'hidden', border:'1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ padding:'8px 12px', background:'rgba(245,158,11,0.05)', borderBottom:'1px solid rgba(245,158,11,0.1)', display:'flex', alignItems:'center', gap:6 }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.warning} strokeWidth="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                  <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color:T.warning, fontFamily: "var(--font-ar)" }}>المجلس الاستراتيجي</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={'#FFB800'} strokeWidth="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                  <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color:'#FFB800', fontFamily: "var(--font-ar)" }}>المجلس الاستراتيجي</span>
                 </div>
                 <StrategicCouncilPanel />
               </div>
@@ -1930,8 +1929,8 @@ export default function DashboardPage() {
               {/* إشارات السكانر */}
               <div style={{ margin:'10px 12px 0', borderRadius: 'var(--radius-lg)', overflow:'hidden', border:'1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ padding:'8px 12px', background:'rgba(0,255,163,0.04)', borderBottom:'1px solid rgba(0,255,163,0.08)', display:'flex', alignItems:'center', gap:6 }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.success} strokeWidth="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                  <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color:T.success, fontFamily: "var(--font-ar)" }}>إشارات السكانر</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={'#00FFA3'} strokeWidth="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                  <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color:'#00FFA3', fontFamily: "var(--font-ar)" }}>إشارات السكانر</span>
                 </div>
                 <ScannerMini mobile />
               </div>
@@ -1953,7 +1952,7 @@ export default function DashboardPage() {
                   return (
                     <div style={{ textAlign:'center', marginBottom:8, paddingBottom:8, borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
                       <div style={{ fontSize: 'var(--text-xs)', color:'#6A7A90', fontFamily: "var(--font-ar)", marginBottom:4 }}>الربح / الخسارة</div>
-                      <div style={{ fontSize: 'var(--text-xl)', fontWeight:900, color:isPos?T.success:T.danger, fontFamily: "var(--font-mono)", lineHeight:1 }}>
+                      <div style={{ fontSize: 'var(--text-xl)', fontWeight:900, color:isPos?'#00FFA3':'#FF4757', fontFamily: "var(--font-mono)", lineHeight:1 }}>
                         {isPos?'+':''}{pnl.toFixed(2)}$
                       </div>
                     </div>
@@ -1978,8 +1977,8 @@ export default function DashboardPage() {
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, paddingTop:8, borderTop:'1px solid rgba(255,255,255,0.05)' }}>
                   {[
                     { label:'الهامش', value:`$${(Number(account?.buyingPower)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`, color:'#34D399' },
-                    { label:'هامش مستخدم', value:`$${(Number(account?.initialMargin)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`, color:T.warning },
-                    { label:'نسبة الهامش', value: (Number(account?.initialMargin)||0) > 0 ? `${((Number(account?.equity)||0) / (Number(account?.initialMargin)||1) * 100).toFixed(0)}%` : '—', color:T.info },
+                    { label:'هامش مستخدم', value:`$${(Number(account?.initialMargin)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`, color:'#FFB800' },
+                    { label:'نسبة الهامش', value: (Number(account?.initialMargin)||0) > 0 ? `${((Number(account?.equity)||0) / (Number(account?.initialMargin)||1) * 100).toFixed(0)}%` : '—', color:'#00D4FF' },
                   ].map(item => (
                     <div key={item.label}>
                       <div style={{ fontSize: 'var(--text-xs)', color:'#8090A8', marginBottom:3, fontFamily: "var(--font-ar)" }}>{item.label}</div>
@@ -1993,7 +1992,7 @@ export default function DashboardPage() {
               <div style={{ display:'flex', margin:'0 12px 4px', background:'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-md)', padding:2, gap:2 }}>
                 {(['open','closed'] as const).map(tab => (
                   <button key={tab} type="button" onClick={() => { setM2PositionsTab(tab); if(tab==='closed') fetchClosedPositions(closedDateFilter); }}
-                    style={{ flex:1, padding:'5px 0', borderRadius: 'var(--radius-sm)', border:'none', cursor:'pointer', background: m2PositionsTab===tab?'rgba(0,212,255,0.1)':'transparent', color: m2PositionsTab===tab?T.info:'#7A8A9A', fontSize: 'var(--text-xs)', fontWeight:700, fontFamily: "var(--font-ar)", touchAction:'manipulation' }}>
+                    style={{ flex:1, padding:'5px 0', borderRadius: 'var(--radius-sm)', border:'none', cursor:'pointer', background: m2PositionsTab===tab?'rgba(0,212,255,0.1)':'transparent', color: m2PositionsTab===tab?'#00D4FF':'#7A8A9A', fontSize: 'var(--text-xs)', fontWeight:700, fontFamily: "var(--font-ar)", touchAction:'manipulation' }}>
                     {tab==='open' ? `مفتوحة (${positions.length})` : `مغلقة (${closedPositions.length})`}
                   </button>
                 ))}
@@ -2008,7 +2007,7 @@ export default function DashboardPage() {
                       return (
                         <button key={f} type="button"
                           onClick={() => { setClosedDateFilter(f); fetchClosedPositions(f); }}
-                          style={{ flex:1, padding:'3px 0', borderRadius: 'var(--radius-sm)', border:`1px solid ${closedDateFilter===f?'rgba(0,212,255,0.3)':'rgba(255,255,255,0.06)'}`, background: closedDateFilter===f?'rgba(0,212,255,0.08)':'transparent', color: closedDateFilter===f?T.info:'#7A8A9A', fontSize: 'var(--text-xs)', fontFamily: "var(--font-ar)", cursor:'pointer', touchAction:'manipulation' }}>
+                          style={{ flex:1, padding:'3px 0', borderRadius: 'var(--radius-sm)', border:`1px solid ${closedDateFilter===f?'rgba(0,212,255,0.3)':'rgba(255,255,255,0.06)'}`, background: closedDateFilter===f?'rgba(0,212,255,0.08)':'transparent', color: closedDateFilter===f?'#00D4FF':'#7A8A9A', fontSize: 'var(--text-xs)', fontFamily: "var(--font-ar)", cursor:'pointer', touchAction:'manipulation' }}>
                           {labels[f]}
                         </button>
                       )
@@ -2019,7 +2018,7 @@ export default function DashboardPage() {
                       <span style={{ fontSize: 'var(--text-xs)', color:'#6A7A90', fontFamily: "var(--font-ar)" }}>
                         إجمالي {closedPositions.length} صفقة
                       </span>
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight:800, fontFamily: "var(--font-mono)", color: closedPnlTotal >= 0 ? T.success : T.danger }}>
+                      <span style={{ fontSize: 'var(--text-sm)', fontWeight:800, fontFamily: "var(--font-mono)", color: closedPnlTotal >= 0 ? '#00FFA3' : '#FF4757' }}>
                         {closedPnlTotal >= 0 ? '+' : ''}{closedPnlTotal.toFixed(2)}$
                       </span>
                     </div>
@@ -2046,12 +2045,12 @@ export default function DashboardPage() {
                           style={{ background:isPos?'rgba(0,255,163,0.03)':'rgba(255,71,87,0.03)', border:`1px solid ${isPos?'rgba(0,255,163,0.1)':'rgba(255,71,87,0.1)'}`, borderRadius: 'var(--radius-lg)', padding:'10px 12px', marginBottom:7, cursor:'pointer', userSelect:'none' }}>
                           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                             <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                              <span style={{ fontSize: 'var(--text-sm)', fontWeight:800, color:T.text, fontFamily: "var(--font-mono)" }}>{pos.symbol}</span>
-                              <span style={{ fontSize: 'var(--text-xs)', padding:'2px 6px', borderRadius: 'var(--radius-sm)', fontWeight:700, background:pos.side==='BUY'?'rgba(0,255,163,0.08)':'rgba(255,71,87,0.08)', color:pos.side==='BUY'?T.success:T.danger, border:`1px solid ${pos.side==='BUY'?'rgba(0,255,163,0.15)':'rgba(255,71,87,0.15)'}` }}>{pos.side==='BUY'?'شراء':'بيع'}</span>
+                              <span style={{ fontSize: 'var(--text-sm)', fontWeight:800, color:'#F0F2F5', fontFamily: "var(--font-mono)" }}>{pos.symbol}</span>
+                              <span style={{ fontSize: 'var(--text-xs)', padding:'2px 6px', borderRadius: 'var(--radius-sm)', fontWeight:700, background:pos.side==='BUY'?'rgba(0,255,163,0.08)':'rgba(255,71,87,0.08)', color:pos.side==='BUY'?'#00FFA3':'#FF4757', border:`1px solid ${pos.side==='BUY'?'rgba(0,255,163,0.15)':'rgba(255,71,87,0.15)'}` }}>{pos.side==='BUY'?'شراء':'بيع'}</span>
                             </div>
                             <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                               <span style={{ fontSize: 'var(--text-xs)', color:'#A0B0C0', fontFamily: "var(--font-mono)" }}>{Number(pos.qty||pos.quantity||0).toFixed(3)}</span>
-                              <span style={{ fontSize: 'var(--text-base)', fontWeight:800, color:isPos?T.success:T.danger, fontFamily: "var(--font-mono)" }}>{isPos?'+':''}{pnl.toFixed(2)}$</span>
+                              <span style={{ fontSize: 'var(--text-base)', fontWeight:800, color:isPos?'#00FFA3':'#FF4757', fontFamily: "var(--font-mono)" }}>{isPos?'+':''}{pnl.toFixed(2)}$</span>
                             </div>
                           </div>
                           <div style={{ fontSize: 'var(--text-xs)', color:'#8090A8', fontFamily: "var(--font-mono)", marginTop:3 }}>@ {cp > 0 ? cp.toFixed(dec) : '—'}</div>
@@ -2077,7 +2076,7 @@ export default function DashboardPage() {
                         </div>
                       );
                     })                ) : loadingClosed ? (
-                  <div style={{ textAlign:'center', padding:'40px 0', color:T.textMuted, fontSize: 'var(--text-sm)' }}>جاري التحميل...</div>
+                  <div style={{ textAlign:'center', padding:'40px 0', color:'#6B7280', fontSize: 'var(--text-sm)' }}>جاري التحميل...</div>
                 ) : closedPositions.length === 0 ? (
                   <div style={{ textAlign:'center', padding:'40px 0', color:'#2A3548', fontSize: 'var(--text-sm)', fontFamily: "var(--font-ar)" }}>لا توجد صفقات مغلقة</div>
                 ) : (
@@ -2092,12 +2091,12 @@ export default function DashboardPage() {
                           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                             <span style={{ fontSize: 'var(--text-sm)', fontWeight:800, color:'#D0E0F0', fontFamily: "var(--font-mono)" }}>{pos.symbol}</span>
                             <span style={{ fontSize: 'var(--text-xs)', padding:'2px 6px', borderRadius: 'var(--radius-sm)', fontWeight:700, background:pos.side==='BUY'?'rgba(0,255,163,0.06)':'rgba(255,71,87,0.06)', color:pos.side==='BUY'?'rgba(0,255,163,0.6)':'rgba(255,71,87,0.6)', border:`1px solid ${pos.side==='BUY'?'rgba(0,255,163,0.1)':'rgba(255,71,87,0.1)'}` }}>{pos.side==='BUY'?'شراء':'بيع'}</span>
-                            <span style={{ fontSize: 'var(--text-xs)', color:T.text3, fontFamily: "var(--font-mono)" }}>
+                            <span style={{ fontSize: 'var(--text-xs)', color:'#6B7280', fontFamily: "var(--font-mono)" }}>
                               {({'STOP_LOSS':'SL وقف','STOP_LOSS_HIT':'SL وقف','TAKE_PROFIT':'TP هدف','TAKE_PROFIT_HIT':'TP هدف','TIME_EXPIRED':'منتهي الوقت','AUTO_CLOSE':'إغلاق تلقائي','AUTO_STALE':'تلقائي (قديم)','MANUAL':'يدوي','USER_MANUAL':'يدوي','STRATEGY_EXIT':'استراتيجية','EMERGENCY_STOP':'طوارئ','EXCHANGE_SYNC':'مزامنة','FORCE_CLOSE':'إغلاق إجباري','DISPUTED':'متنازع'}[pos.closeReason]||pos.closeReason||'')}</span>
                           </div>
                           <div style={{ textAlign:'right' }}>
                             <div style={{ fontSize: 'var(--text-base)', fontWeight:800, color:isPos?'rgba(0,255,163,0.7)':'rgba(255,71,87,0.7)', fontFamily: "var(--font-mono)" }}>{isPos?'+':''}{pnl.toFixed(2)}$</div>
-                            <div style={{ fontSize: 'var(--text-xs)', color:T.textMuted, fontFamily: "var(--font-mono)" }}>{pos.closedAt?new Date(pos.closedAt).toLocaleDateString('ar',{month:'short',day:'numeric'}):''}</div>
+                            <div style={{ fontSize: 'var(--text-xs)', color:'#6B7280', fontFamily: "var(--font-mono)" }}>{pos.closedAt?new Date(pos.closedAt).toLocaleDateString('ar',{month:'short',day:'numeric'}):''}</div>
                           </div>
                         </div>
                         <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:4 }}>
@@ -2129,7 +2128,7 @@ export default function DashboardPage() {
             }}>
               {/* السطر الأول: الزوج + OHLC مثل MT5 */}
               <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight:800, color:T.info, fontFamily: "var(--font-mono)", letterSpacing:'0.3px' }}>
+                <span style={{ fontSize: 'var(--text-xs)', fontWeight:800, color:'#00D4FF', fontFamily: "var(--font-mono)", letterSpacing:'0.3px' }}>
                   {selectedSymbol}
                 </span>
                 <span style={{ fontSize: 'var(--text-xs)', color:'rgba(140,160,185,0.6)', fontFamily: "var(--font-mono)" }}>
@@ -2140,10 +2139,10 @@ export default function DashboardPage() {
                     <span style={{ fontSize: 'var(--text-xs)', color:'rgba(140,160,185,0.7)', fontFamily: "var(--font-mono)" }}>
                       {activeQuote.open ? formatQuotePrice(activeQuote.open) : '—'}
                     </span>
-                    <span style={{ fontSize: 'var(--text-xs)', color:T.success, fontFamily: "var(--font-mono)" }}>
+                    <span style={{ fontSize: 'var(--text-xs)', color:'#00FFA3', fontFamily: "var(--font-mono)" }}>
                       {activeQuote.high ? formatQuotePrice(activeQuote.high) : '—'}
                     </span>
-                    <span style={{ fontSize: 'var(--text-xs)', color:T.danger, fontFamily: "var(--font-mono)" }}>
+                    <span style={{ fontSize: 'var(--text-xs)', color:'#FF4757', fontFamily: "var(--font-mono)" }}>
                       {activeQuote.low ? formatQuotePrice(activeQuote.low) : '—'}
                     </span>
                     <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color:'#E8ECF4', fontFamily: "var(--font-mono)" }}>
@@ -2152,7 +2151,7 @@ export default function DashboardPage() {
                     {(activeQuote.changePercent ?? 0) !== 0 && (
                       <span style={{
                         fontSize: 'var(--text-xs)', fontWeight:700,
-                        color: (activeQuote.changePercent ?? 0) >= 0 ? T.success : T.danger,
+                        color: (activeQuote.changePercent ?? 0) >= 0 ? '#00FFA3' : '#FF4757',
                       }}>
                         {(activeQuote.changePercent ?? 0) >= 0 ? '+' : ''}{(activeQuote.changePercent ?? 0).toFixed(2)}%
                       </span>
@@ -2179,7 +2178,7 @@ export default function DashboardPage() {
                   cursor:'pointer',
                 }}>
                 <span style={{ fontSize: 'var(--text-xs)', color:'rgba(248,113,113,0.55)', letterSpacing:'1px', fontFamily: "var(--font-ar)" }}>بيع</span>
-                <span style={{ fontSize: 'var(--text-sm)', fontWeight:800, color:T.danger, fontFamily: "var(--font-mono)", letterSpacing:'-0.3px' }}>
+                <span style={{ fontSize: 'var(--text-sm)', fontWeight:800, color:'#FF4757', fontFamily: "var(--font-mono)", letterSpacing:'-0.3px' }}>
                   {currentPrice ? (currentPrice * 0.99995).toFixed(currentPrice > 100 ? 2 : 5) : '—'}
                 </span>
               </button>
@@ -2196,14 +2195,14 @@ export default function DashboardPage() {
                   style={{ background:'none', border:'none', color:'#6A7A90', fontSize: 'var(--text-md)', cursor:'pointer', padding:'0 8px', lineHeight:1 }}>−</button>
                 <div style={{ display:'flex', flexDirection:'column', alignItems:'center', minWidth:42 }}>
                   <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color:'#E8ECF4', fontFamily: "var(--font-mono)" }}>{m2Qty}</span>
-                  <span style={{ fontSize: 'var(--text-xs)', color:T.textMuted }}>lot</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color:'#6B7280' }}>lot</span>
                 </div>
                 <button type="button"
                   onClick={() => setM2Qty(q => String((parseFloat(q)+0.01).toFixed(2)))}
                   style={{ background:'none', border:'none', color:'#6A7A90', fontSize: 'var(--text-md)', cursor:'pointer', padding:'0 8px', lineHeight:1 }}>+</button>
                 <button type="button"
                   onClick={() => setTradeDialogOpen(true)}
-                  style={{ background:'none', border:'none', color:T.textMuted, cursor:'pointer', padding:'0 6px', fontSize: 'var(--text-base)', borderLeft:'1px solid rgba(255,255,255,0.06)' }}>⚙</button>
+                  style={{ background:'none', border:'none', color:'#6B7280', cursor:'pointer', padding:'0 6px', fontSize: 'var(--text-base)', borderLeft:'1px solid rgba(255,255,255,0.06)' }}>⚙</button>
               </div>
 
               {/* BUY */}
@@ -2279,12 +2278,12 @@ export default function DashboardPage() {
                     }}/>
                   )}
                   {/* Nav icons */}
-                  {item.id === 'chart' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?T.info:T.text3} strokeWidth="2"><rect x="2" y="5" width="4" height="14" rx="1"/><line x1="4" y1="2" x2="4" y2="5"/><line x1="4" y1="19" x2="4" y2="22"/><rect x="10" y="8" width="4" height="9" rx="1"/><line x1="12" y1="4" x2="12" y2="8"/><line x1="12" y1="17" x2="12" y2="21"/><rect x="18" y="6" width="4" height="11" rx="1"/><line x1="20" y1="3" x2="20" y2="6"/><line x1="20" y1="17" x2="20" y2="20"/></svg>}
-                  {item.id === 'portfolio' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?T.info:T.text3} strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>}
-                  {item.id === 'scanner' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?T.info:T.text3} strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>}
-                  {item.id === 'ai' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?T.council:T.text3} strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>}
-                  {item.id === 'menu' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?T.info:T.text3} strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>}
-                  <span style={{ fontSize: 'var(--text-xs)', fontWeight:active?700:400, color:active?T.info:'#6A7A90', fontFamily: "var(--font-ar)" }}>
+                  {item.id === 'chart' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?'#00D4FF':'#6B7280'} strokeWidth="2"><rect x="2" y="5" width="4" height="14" rx="1"/><line x1="4" y1="2" x2="4" y2="5"/><line x1="4" y1="19" x2="4" y2="22"/><rect x="10" y="8" width="4" height="9" rx="1"/><line x1="12" y1="4" x2="12" y2="8"/><line x1="12" y1="17" x2="12" y2="21"/><rect x="18" y="6" width="4" height="11" rx="1"/><line x1="20" y1="3" x2="20" y2="6"/><line x1="20" y1="17" x2="20" y2="20"/></svg>}
+                  {item.id === 'portfolio' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?'#00D4FF':'#6B7280'} strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>}
+                  {item.id === 'scanner' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?'#00D4FF':'#6B7280'} strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>}
+                  {item.id === 'ai' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?'#B388FF':'#6B7280'} strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>}
+                  {item.id === 'menu' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?'#00D4FF':'#6B7280'} strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>}
+                  <span style={{ fontSize: 'var(--text-xs)', fontWeight:active?700:400, color:active?'#00D4FF':'#6A7A90', fontFamily: "var(--font-ar)" }}>
                     {item.label}
                   </span>
                 </button>
@@ -2332,7 +2331,7 @@ export default function DashboardPage() {
                   ]},
                 ].map(section => (
                   <div key={section.title} style={{ marginBottom:16 }}>
-                    <div style={{ fontSize: 'var(--text-xs)', color:T.textMuted, letterSpacing:'1px', textTransform:'uppercase', marginBottom:8, fontFamily: "var(--font-ar)" }}>{section.title}</div>
+                    <div style={{ fontSize: 'var(--text-xs)', color:'#6B7280', letterSpacing:'1px', textTransform:'uppercase', marginBottom:8, fontFamily: "var(--font-ar)" }}>{section.title}</div>
                     <div style={{ background:'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-lg)', border:'1px solid rgba(255,255,255,0.06)', overflow:'hidden' }}>
                       {section.items.map((item, ii) => (
                         <button key={item.href} type="button"
@@ -2344,8 +2343,8 @@ export default function DashboardPage() {
                             cursor:'pointer',
                           }}>
                           <span style={{ fontSize: 'var(--text-md)' }}>{item.icon}</span>
-                          <span style={{ flex:1, fontSize: 'var(--text-sm)', color:T.text2, fontFamily: "var(--font-ar)", fontWeight:500, textAlign:'right' }}>{item.label}</span>
-                          <span style={{ fontSize: 'var(--text-sm)', color:T.text3 }}>›</span>
+                          <span style={{ flex:1, fontSize: 'var(--text-sm)', color:'#9CA3B5', fontFamily: "var(--font-ar)", fontWeight:500, textAlign:'right' }}>{item.label}</span>
+                          <span style={{ fontSize: 'var(--text-sm)', color:'#6B7280' }}>›</span>
                         </button>
                       ))}
                     </div>
@@ -2376,7 +2375,7 @@ export default function DashboardPage() {
                   {l:'القيمة الكلية', v:currentPrice?`$${(parseFloat(m2Qty)*currentPrice).toFixed(2)}`:'—'},
                 ].map(row => (
                   <div key={row.l} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
-                    <span style={{ fontSize: 'var(--text-sm)', color:T.text3 }}>{row.l}</span>
+                    <span style={{ fontSize: 'var(--text-sm)', color:'#6B7280' }}>{row.l}</span>
                     <span style={{ fontSize: 'var(--text-sm)', fontWeight:700, color:'#C8D0DC', fontFamily: "var(--font-mono)" }}>{row.v}</span>
                   </div>
                 ))}
@@ -2450,11 +2449,11 @@ export default function DashboardPage() {
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   boxShadow: '0 0 12px rgba(0,212,255,0.15)',
                 }}>
-                  <Zap size={14} color={T.info} />
+                  <Zap size={14} color={'#00D4FF'} />
                 </div>
                 <div>
-                  <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-base)', fontWeight: 800, color: T.text }}>{t('executeOrders')}</div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-mono)" }}>{selectedSymbol} · {formatQuotePrice(currentPrice)}</div>
+                  <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5' }}>{t('executeOrders')}</div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontFamily: "var(--font-mono)" }}>{selectedSymbol} · {formatQuotePrice(currentPrice)}</div>
                 </div>
               </div>
               <button
@@ -2463,12 +2462,12 @@ export default function DashboardPage() {
                   width: 32, height: 32, borderRadius: 'var(--radius-lg)',
                   background: 'rgba(255,255,255,0.05)',
                   border: '1px solid rgba(255,255,255,0.08)',
-                  color: T.text2, cursor: 'pointer',
+                  color: '#9CA3B5', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   transition: 'all 0.2s',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = T.text }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = T.text2 }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#F0F2F5' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#9CA3B5' }}
               >
                 <X size={14} />
               </button>

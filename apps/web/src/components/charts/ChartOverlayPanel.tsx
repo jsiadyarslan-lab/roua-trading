@@ -5,7 +5,6 @@
 'use client';
 
 import React from 'react'
-import T from '@/lib/unified-tokens';
 
 // ── Types ──
 
@@ -105,9 +104,9 @@ export function ChartOverlayPanel({
         const isSL   = ov.type === 'sl';
         const isTP   = ov.type === 'tp';
 
-        const color = isEntry ? (ov.direction === 'long' ? T.info : T.warning)
-                    : isSL   ? T.danger
-                    : T.success;
+        const color = isEntry ? (ov.direction === 'long' ? '#00D4FF' : '#FFB800')
+                    : isSL   ? '#FF4757'
+                    : '#00FFA3';
         const bgSolid = isEntry ? (ov.direction === 'long' ? 'rgba(0,212,255,0.25)' : 'rgba(255,140,66,0.25)')
                       : isSL   ? 'rgba(248,81,73,0.30)'
                       : 'rgba(0,255,163,0.25)';
@@ -168,7 +167,7 @@ export function ChartOverlayPanel({
               </span>
               {pnlText && (
                 <span style={{
-                  color: ov.linePnl !== undefined && ov.linePnl >= 0 ? T.success : T.danger,
+                  color: ov.linePnl !== undefined && ov.linePnl >= 0 ? '#00FFA3' : '#FF4757',
                   fontFamily: "var(--font-mono)",
                   fontSize: 'var(--text-xs)',
                   fontWeight: 700,

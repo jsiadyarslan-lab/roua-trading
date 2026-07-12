@@ -9,7 +9,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { ScopedStyle } from '@/components/ScopedStyle'
-import T from '@/lib/unified-tokens';
 
 interface MultiTimeframeChartProps {
   symbol: string;
@@ -51,18 +50,18 @@ const POPULAR_PAIRS = [
 ];
 
 const C = {
-  bg: T.bg,
-  card: T.card,
-  cardBorder: T.card,
+  bg: '#0B0E14',
+  card: '#151A22',
+  cardBorder: '#151A22',
   grid: 'rgba(42,49,60,0.25)',
-  text: T.text,
-  textDim: T.text2,
-  textMuted: T.text3,
-  cyan: T.info,
-  success: T.success,
-  danger: T.danger,
-  upColor: T.success,
-  downColor: T.danger,
+  text: '#F0F2F5',
+  textDim: '#9CA3B5',
+  textMuted: '#6B7280',
+  cyan: '#00D4FF',
+  success: '#00FFA3',
+  danger: '#FF4757',
+  upColor: '#00FFA3',
+  downColor: '#FF4757',
 };
 
 let slotIdCounter = 0;

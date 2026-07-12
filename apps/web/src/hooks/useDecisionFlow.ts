@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocale } from 'next-intl'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useBotStore } from '@/hooks/useBotStore'
-import T from '@/lib/unified-tokens'
 
 export type ScannerSnapshot = {
   pair: string
@@ -111,7 +110,7 @@ export function useDecisionFlow() {
   const summary = useMemo(() => {
     if (loading) {
       return {
-        tone: T.info,
+        tone: '#00D4FF',
         title: 'محرك القرار يفحص السوق',
         detail: `جاري جمع قراءة ${selectedSymbol} من السكانر والمجلس والبوت`,
       }
@@ -119,7 +118,7 @@ export function useDecisionFlow() {
 
     if (council?.recommendation === 'BUY' && signalActive) {
       return {
-        tone: T.success,
+        tone: '#00FFA3',
         title: `${selectedSymbol} جاهز هجوميًا`,
         detail: council.conflictExplanation || scanner?.reasons?.[0] || 'الطبقات الأساسية متوافقة على الشراء',
       }
@@ -135,14 +134,14 @@ export function useDecisionFlow() {
 
     if (council?.conflictExplanation) {
       return {
-        tone: T.warning,
+        tone: '#FFB800',
         title: 'تعارض يمنع الاندفاع',
         detail: council.conflictExplanation,
       }
     }
 
     return {
-      tone: T.info,
+      tone: '#00D4FF',
       title: `${selectedSymbol} قيد المراقبة`,
       detail: narrator?.summary || scanner?.reasons?.[0] || 'لا توجد فرصة واضحة كفاية بعد',
     }

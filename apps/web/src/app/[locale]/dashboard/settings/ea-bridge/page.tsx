@@ -9,7 +9,6 @@ import {
   Cpu, Activity, Clock, Shield
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import T from '@/lib/unified-tokens'
 
 interface EATokenInfo {
   id: string
@@ -253,7 +252,7 @@ export default function EABridgePage() {
             </div>
 
             {error && (
-              <div style={{ fontSize: 'var(--text-sm)', color: T.loss, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ fontSize: 'var(--text-sm)', color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <AlertTriangle size={14} />
                 {error}
               </div>
@@ -329,8 +328,8 @@ export default function EABridgePage() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         {isOnline ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <Wifi size={14} color={T.profit} />
-                            <span style={{ fontSize: 'var(--text-xs)', color: T.profit, fontWeight: 700 }}>متصل</span>
+                            <Wifi size={14} color={'#10b981'} />
+                            <span style={{ fontSize: 'var(--text-xs)', color: '#10b981', fontWeight: 700 }}>متصل</span>
                           </div>
                         ) : (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -346,7 +345,7 @@ export default function EABridgePage() {
                         style={{
                           padding: '4px 10px', borderRadius: 'var(--radius-sm)',
                           background: 'rgba(239,68,68,0.1)', border: 'none',
-                          color: T.loss, cursor: 'pointer', fontSize: 'var(--text-xs)',
+                          color: '#ef4444', cursor: 'pointer', fontSize: 'var(--text-xs)',
                           fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4,
                           fontFamily: 'inherit',
                         }}
@@ -386,7 +385,7 @@ export default function EABridgePage() {
                         onClick={() => copyToken(token.token, token.id)}
                         style={{
                           padding: 4, borderRadius: 'var(--radius-sm)', background: 'none', border: 'none',
-                          color: copied === token.id ? T.profit : 'var(--text-muted)',
+                          color: copied === token.id ? '#10b981' : 'var(--text-muted)',
                           cursor: 'pointer', flexShrink: 0,
                         }}
                       >

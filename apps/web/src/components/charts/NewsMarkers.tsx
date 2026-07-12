@@ -7,7 +7,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { NewsMarker } from '@/lib/charts/types'
-import T from '@/lib/unified-tokens';
 
 interface NewsMarkersProps {
   symbol: string;
@@ -65,7 +64,7 @@ export function createNewsChartMarkers(newsMarkers: NewsMarker[]) {
   return newsMarkers.map(marker => ({
     time: marker.time as any,
     position: 'aboveBar' as const,
-    color: marker.sentiment === 'positive' ? T.success : marker.sentiment === 'negative' ? T.danger : T.warning,
+    color: marker.sentiment === 'positive' ? '#00FFA3' : marker.sentiment === 'negative' ? '#FF4757' : '#FFB800',
     shape: 'circle' as const,
     text: '🔔',
   }));

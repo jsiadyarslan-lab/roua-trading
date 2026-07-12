@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react'
-import T from '@/lib/unified-tokens';
 
 interface ChartErrorBoundaryProps {
   children: React.ReactNode;
@@ -62,7 +61,7 @@ export class ChartErrorBoundary extends React.Component<ChartErrorBoundaryProps,
           height: '100%',
           minHeight: 300,
           background: '#0d1117',
-          color: T.text2,
+          color: '#9CA3B5',
           fontFamily: "var(--font-en)",
           gap: 12,
           padding: 24,
@@ -79,7 +78,7 @@ export class ChartErrorBoundary extends React.Component<ChartErrorBoundaryProps,
           }}>
             ⚠
           </div>
-          <div style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: T.text }}>
+          <div style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: '#F0F2F5' }}>
             Chart Rendering Error
           </div>
           <div style={{ fontSize: 'var(--text-xs)', textAlign: 'center', maxWidth: 300, lineHeight: 1.5 }}>
@@ -93,7 +92,7 @@ export class ChartErrorBoundary extends React.Component<ChartErrorBoundaryProps,
               marginTop: 8,
               padding: '8px 20px',
               background: 'rgba(0,212,255,0.15)',
-              color: T.info,
+              color: '#00D4FF',
               border: '1px solid rgba(0,212,255,0.3)',
               borderRadius: 'var(--radius-sm)',
               cursor: 'pointer',

@@ -24,7 +24,6 @@ import {
   ShieldAlert,
 } from 'lucide-react'
 import { safeStr } from '@/lib/utils'
-import T from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 const FONT_AR = 'var(--font-ar)'
@@ -150,10 +149,10 @@ export default function NewsArticlePage() {
 
   if (loading) {
     return (
-      <div style={{ direction: 'inherit', fontFamily: FONT_AR, minHeight: '100dvh', background: T.bg, color: T.text, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ direction: 'inherit', fontFamily: FONT_AR, minHeight: '100dvh', background: '#0B0E14', color: '#F0F2F5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ width: 44, height: 44, border: `3px solid ${T.border}`, borderTopColor: T.cyan, borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
-          <p style={{ color: T.text2, fontSize: 'var(--text-base)' }}>{t('Loading article...', 'جارٍ تحميل الخبر...', 'Chargement de l\'article...', 'Makale yükleniyor...', lang)}</p>
+          <div style={{ width: 44, height: 44, border: `3px solid ${'#2A313C'}`, borderTopColor: '#00D4FF', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
+          <p style={{ color: '#9CA3B5', fontSize: 'var(--text-base)' }}>{t('Loading article...', 'جارٍ تحميل الخبر...', 'Chargement de l\'article...', 'Makale yükleniyor...', lang)}</p>
         </div>
       </div>
     )
@@ -161,11 +160,11 @@ export default function NewsArticlePage() {
 
   if (error || !article) {
     return (
-      <div style={{ direction: 'inherit', fontFamily: FONT_AR, minHeight: '100dvh', background: T.bg, color: T.text, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ direction: 'inherit', fontFamily: FONT_AR, minHeight: '100dvh', background: '#0B0E14', color: '#F0F2F5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center', maxWidth: 400, padding: 24 }}>
-          <AlertTriangle size={40} color={T.red} style={{ marginBottom: 16 }} />
+          <AlertTriangle size={40} color={'#FF4757'} style={{ marginBottom: 16 }} />
           <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 800, marginBottom: 8 }}>{error || (t('Article not found', 'خبر غير موجود', 'Article non trouvé', 'Makale bulunamadı', lang))}</h2>
-          <button onClick={() => router.back()} style={{ padding: '10px 24px', borderRadius: 'var(--radius-lg)', background: T.cyan, color: '#000', border: 'none', fontWeight: 800, fontFamily: FONT_AR, cursor: 'pointer' }}>{t('Back', 'العودة', 'Retour', 'Geri', lang)}</button>
+          <button onClick={() => router.back()} style={{ padding: '10px 24px', borderRadius: 'var(--radius-lg)', background: '#00D4FF', color: '#000', border: 'none', fontWeight: 800, fontFamily: FONT_AR, cursor: 'pointer' }}>{t('Back', 'العودة', 'Retour', 'Geri', lang)}</button>
         </div>
       </div>
     )
@@ -177,7 +176,7 @@ export default function NewsArticlePage() {
   const hasImage = article.imageUrl && !imageError
 
   return (
-    <div style={{ direction: 'inherit', fontFamily: FONT_AR, minHeight: '100dvh', background: T.bg, color: T.text }}>
+    <div style={{ direction: 'inherit', fontFamily: FONT_AR, minHeight: '100dvh', background: '#0B0E14', color: '#F0F2F5' }}>
 
       {/* ─── Hero Section with Image ─── */}
       {hasImage && (
@@ -212,7 +211,7 @@ export default function NewsArticlePage() {
           {/* Category badge on image */}
           <div style={{ position: 'absolute', bottom: 20, right: 24, display: 'flex', gap: 8, alignItems: 'center' }}>
             {(localizedCategory(article, lang)) && (
-              <span style={{ fontSize: 'var(--text-xs)', padding: '5px 14px', borderRadius: 'var(--radius-lg)', background: 'rgba(0,229,255,0.2)', backdropFilter: 'blur(8px)', color: T.info, fontWeight: 800, border: '0.5px solid rgba(0,229,255,0.3)' }}>
+              <span style={{ fontSize: 'var(--text-xs)', padding: '5px 14px', borderRadius: 'var(--radius-lg)', background: 'rgba(0,229,255,0.2)', backdropFilter: 'blur(8px)', color: '#00D4FF', fontWeight: 800, border: '0.5px solid rgba(0,229,255,0.3)' }}>
                 {localizedCategory(article, lang)}
               </span>
             )}
@@ -236,8 +235,8 @@ export default function NewsArticlePage() {
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '8px 16px', borderRadius: 'var(--radius-lg)',
-              background: T.card, border: `1px solid ${T.border}`,
-              color: T.text2, cursor: 'pointer', fontSize: 'var(--text-sm)',
+              background: '#151A22', border: `1px solid ${'#2A313C'}`,
+              color: '#9CA3B5', cursor: 'pointer', fontSize: 'var(--text-sm)',
               fontFamily: FONT_AR, fontWeight: 700, marginBottom: 20,
             }}
           >
@@ -251,7 +250,7 @@ export default function NewsArticlePage() {
           {/* Badges row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
             {!hasImage && (localizedCategory(article, lang)) && (
-              <span style={{ fontSize: 'var(--text-xs)', padding: '5px 14px', borderRadius: 'var(--radius-lg)', background: `${T.cyan}12`, color: T.cyan, fontWeight: 800, border: `0.5px solid ${T.cyan}22` }}>
+              <span style={{ fontSize: 'var(--text-xs)', padding: '5px 14px', borderRadius: 'var(--radius-lg)', background: `${'#00D4FF'}12`, color: '#00D4FF', fontWeight: 800, border: `0.5px solid ${'#00D4FF'}22` }}>
                 {localizedCategory(article, lang)}
               </span>
             )}
@@ -260,47 +259,47 @@ export default function NewsArticlePage() {
               {sentiment.text}
             </span>
             {article.impactLevel && (
-              <span style={{ fontSize: 'var(--text-xs)', padding: '5px 14px', borderRadius: 'var(--radius-lg)', background: `${T.amber}12`, color: T.amber, fontWeight: 800 }}>
+              <span style={{ fontSize: 'var(--text-xs)', padding: '5px 14px', borderRadius: 'var(--radius-lg)', background: `${'#FFB800'}12`, color: '#FFB800', fontWeight: 800 }}>
                 {t('Impact', 'تأثير', 'Impact', 'Etki', lang)} {article.impactLevel === 'high' ? t('High', 'عالي', 'Élevé', 'Yüksek', lang) : article.impactLevel === 'low' ? t('Low', 'منخفض', 'Faible', 'Düşük', lang) : t('Medium', 'متوسط', 'Moyen', 'Orta', lang)}
               </span>
             )}
           </div>
 
           {/* Title */}
-          <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 900, lineHeight: 1.65, marginBottom: 12, color: T.text, letterSpacing: '-0.01em' }}>
+          <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 900, lineHeight: 1.65, marginBottom: 12, color: '#F0F2F5', letterSpacing: '-0.01em' }}>
             {displayTitle}
           </h1>
 
           {/* English subtitle */}
           {article.translatedTitle && article.translatedTitle !== article.title && (
-            <p style={{ fontSize: 'var(--text-sm)', color: T.text3, direction: 'ltr', textAlign: 'left', fontFamily: FONT_MONO, marginBottom: 16, lineHeight: 1.6, opacity: 0.6 }}>
+            <p style={{ fontSize: 'var(--text-sm)', color: '#6B7280', direction: 'ltr', textAlign: 'left', fontFamily: FONT_MONO, marginBottom: 16, lineHeight: 1.6, opacity: 0.6 }}>
               {article.title}
             </p>
           )}
 
           {/* Meta row: Source + Time + Actions */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 16, borderTop: `1px solid ${'#2A313C'}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-lg)', background: 'linear-gradient(135deg, #00E5FF20, #00B0FF20)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '0.5px solid #00E5FF22' }}>
-                <Globe size={18} color={T.info} />
+                <Globe size={18} color={'#00D4FF'} />
               </div>
               <div>
-                <span style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: T.text, display: 'block' }}>{article.source || (t("Ru'aa News", 'رؤى للأخبار', "Actualités Ru'aa", "Ru'aa Haberler", lang))}</span>
-                <span style={{ fontSize: 'var(--text-xs)', color: T.text3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: '#F0F2F5', display: 'block' }}>{article.source || (t("Ru'aa News", 'رؤى للأخبار', "Actualités Ru'aa", "Ru'aa Haberler", lang))}</span>
+                <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', display: 'flex', alignItems: 'center', gap: 4 }}>
                   <Clock size={10} />
                   {formatTime(article.publishedAt, lang)}
                 </span>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button style={{ width: 38, height: 38, borderRadius: 'var(--radius-lg)', background: T.card, border: `1px solid ${T.border}`, color: T.text3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
+              <button style={{ width: 38, height: 38, borderRadius: 'var(--radius-lg)', background: '#151A22', border: `1px solid ${'#2A313C'}`, color: '#6B7280', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
                 <Bookmark size={16} />
               </button>
-              <button style={{ width: 38, height: 38, borderRadius: 'var(--radius-lg)', background: T.card, border: `1px solid ${T.border}`, color: T.text3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
+              <button style={{ width: 38, height: 38, borderRadius: 'var(--radius-lg)', background: '#151A22', border: `1px solid ${'#2A313C'}`, color: '#6B7280', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
                 <Share2 size={16} />
               </button>
               {article.url && (
-                <a href={article.url} target="_blank" rel="noreferrer" style={{ width: 38, height: 38, borderRadius: 'var(--radius-lg)', background: `${T.cyan}12`, border: `1px solid ${T.cyan}22`, color: T.cyan, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', transition: 'all 0.2s' }}>
+                <a href={article.url} target="_blank" rel="noreferrer" style={{ width: 38, height: 38, borderRadius: 'var(--radius-lg)', background: `${'#00D4FF'}12`, border: `1px solid ${'#00D4FF'}22`, color: '#00D4FF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', transition: 'all 0.2s' }}>
                   <ExternalLink size={16} />
                 </a>
               )}
@@ -313,23 +312,23 @@ export default function NewsArticlePage() {
           <div style={{
             animation: 'slide-up 0.5s ease-out 0.1s both',
             margin: '0 0 28px', borderRadius: 'var(--radius-xl)', overflow: 'hidden',
-            border: `1px solid ${T.green}20`,
-            background: `linear-gradient(135deg, ${T.green}06, ${T.green}02)`,
+            border: `1px solid ${'#00FFA3'}20`,
+            background: `linear-gradient(135deg, ${'#00FFA3'}06, ${'#00FFA3'}02)`,
           }}>
-            <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: `1px solid ${T.green}12` }}>
-              <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-lg)', background: `${T.green}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Zap size={16} color={T.green} />
+            <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: `1px solid ${'#00FFA3'}12` }}>
+              <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-lg)', background: `${'#00FFA3'}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Zap size={16} color={'#00FFA3'} />
               </div>
-              <span style={{ fontSize: 'var(--text-base)', fontWeight: 900, color: T.green }}>{t('Key Takeaways', 'النقاط الرئيسية', 'Points clés', 'Önemli Noktalar', lang)}</span>
-              <span style={{ fontSize: 'var(--text-xs)', color: `${T.green}80`, fontFamily: FONT_MONO, marginRight: 4 }}>({article.keyTakeaways.length})</span>
+              <span style={{ fontSize: 'var(--text-base)', fontWeight: 900, color: '#00FFA3' }}>{t('Key Takeaways', 'النقاط الرئيسية', 'Points clés', 'Önemli Noktalar', lang)}</span>
+              <span style={{ fontSize: 'var(--text-xs)', color: `${'#00FFA3'}80`, fontFamily: FONT_MONO, marginRight: 4 }}>({article.keyTakeaways.length})</span>
             </div>
             <div style={{ padding: '16px 20px' }}>
               {article.keyTakeaways.map((point, i) => (
                 <div key={i} style={{ display: 'flex', gap: 12, marginBottom: i < article.keyTakeaways!.length - 1 ? 12 : 0, alignItems: 'flex-start' }}>
-                  <div style={{ width: 24, height: 24, borderRadius: 'var(--radius-md)', background: `${T.green}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
-                    <span style={{ fontSize: 'var(--text-xs)', color: T.green, fontWeight: 900 }}>{i + 1}</span>
+                  <div style={{ width: 24, height: 24, borderRadius: 'var(--radius-md)', background: `${'#00FFA3'}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+                    <span style={{ fontSize: 'var(--text-xs)', color: '#00FFA3', fontWeight: 900 }}>{i + 1}</span>
                   </div>
-                  <span style={{ fontSize: 'var(--text-base)', color: T.text2, lineHeight: 1.75 }}>{point}</span>
+                  <span style={{ fontSize: 'var(--text-base)', color: '#9CA3B5', lineHeight: 1.75 }}>{point}</span>
                 </div>
               ))}
             </div>
@@ -351,7 +350,7 @@ export default function NewsArticlePage() {
               <SentimentIcon size={16} color={sentiment.color} />
               <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: sentiment.color }}>{t('Analysis Summary', 'ملخص التحليل', 'Résumé analytique', 'Analiz Özeti', lang)}</span>
             </div>
-            <p style={{ fontSize: 'var(--text-base)', color: T.text2, lineHeight: 1.9, margin: 0 }}>{article.summary}</p>
+            <p style={{ fontSize: 'var(--text-base)', color: '#9CA3B5', lineHeight: 1.9, margin: 0 }}>{article.summary}</p>
           </div>
         )}
 
@@ -370,21 +369,21 @@ export default function NewsArticlePage() {
           <div style={{
             animation: 'slide-up 0.5s ease-out 0.3s both',
             margin: '0 0 28px', padding: '18px 20px',
-            background: T.card, borderRadius: 'var(--radius-xl)',
-            border: `1px solid ${T.border}`,
+            background: '#151A22', borderRadius: 'var(--radius-xl)',
+            border: `1px solid ${'#2A313C'}`,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-lg)', background: `${T.amber}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <BarChart3 size={16} color={T.amber} />
+              <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-lg)', background: `${'#FFB800'}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <BarChart3 size={16} color={'#FFB800'} />
               </div>
-              <span style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.amber }}>{t('Affected Assets', 'الأصول المتأثرة', 'Actifs concernés', 'Etkilenen Varlıklar', lang)}</span>
+              <span style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#FFB800' }}>{t('Affected Assets', 'الأصول المتأثرة', 'Actifs concernés', 'Etkilenen Varlıklar', lang)}</span>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {article.affectedAssets.map((asset, i) => (
                 <span key={i} style={{
                   fontSize: 'var(--text-sm)', padding: '6px 16px', borderRadius: 'var(--radius-lg)',
-                  background: `${T.amber}10`, color: T.amber, fontWeight: 800,
-                  fontFamily: FONT_MONO, border: `1px solid ${T.amber}20`,
+                  background: `${'#FFB800'}10`, color: '#FFB800', fontWeight: 800,
+                  fontFamily: FONT_MONO, border: `1px solid ${'#FFB800'}20`,
                 }}>
                   {safeStr(asset)}
                 </span>
@@ -397,12 +396,12 @@ export default function NewsArticlePage() {
         <div style={{
           animation: 'slide-up 0.5s ease-out 0.35s both',
           margin: '0 0 28px', padding: '18px 20px',
-          background: T.card, borderRadius: 'var(--radius-xl)',
-          border: `1px solid ${T.border}`,
+          background: '#151A22', borderRadius: 'var(--radius-xl)',
+          border: `1px solid ${'#2A313C'}`,
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text2, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <ShieldAlert size={14} color={T.text3} />
+            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#9CA3B5', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <ShieldAlert size={14} color={'#6B7280'} />
               {t('Sentiment Analysis', 'تحليل المشاعر', 'Analyse de sentiment', 'Duygu Analizi', lang)}
             </span>
             <span style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: sentiment.color, display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -410,7 +409,7 @@ export default function NewsArticlePage() {
               {sentiment.text}
             </span>
           </div>
-          <div style={{ height: 6, borderRadius: 'var(--radius-xs)', background: T.bg2, overflow: 'hidden', direction: 'ltr' }}>
+          <div style={{ height: 6, borderRadius: 'var(--radius-xs)', background: '#0F1117', overflow: 'hidden', direction: 'ltr' }}>
             <div style={{
               height: '100%', borderRadius: 'var(--radius-xs)', width: `${Math.max(Math.abs(article.sentiment || 0) * 100, 8)}%`,
               background: `linear-gradient(90deg, ${sentiment.color}60, ${sentiment.color})`,
@@ -418,16 +417,16 @@ export default function NewsArticlePage() {
             }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-            <span style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{t('Negative', 'سلبي', 'Négatif', 'Olumsuz', lang)}</span>
-            <span style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{t('Neutral', 'محايد', 'Neutre', 'Nötr', lang)}</span>
-            <span style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{t('Positive', 'إيجابي', 'Positif', 'Olumlu', lang)}</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('Negative', 'سلبي', 'Négatif', 'Olumsuz', lang)}</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('Neutral', 'محايد', 'Neutre', 'Nötr', lang)}</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('Positive', 'إيجابي', 'Positif', 'Olumlu', lang)}</span>
           </div>
         </div>
 
         {/* ─── Disclaimer ─── */}
-        <div style={{ padding: '16px 18px', borderRadius: 'var(--radius-xl)', background: `${T.amber}04`, border: `1px solid ${T.amber}10`, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-          <AlertTriangle size={14} color={T.amber} style={{ flexShrink: 0, marginTop: 2 }} />
-          <p style={{ fontSize: 'var(--text-xs)', color: `${T.amber}88`, lineHeight: 1.7, margin: 0 }}>
+        <div style={{ padding: '16px 18px', borderRadius: 'var(--radius-xl)', background: `${'#FFB800'}04`, border: `1px solid ${'#FFB800'}10`, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+          <AlertTriangle size={14} color={'#FFB800'} style={{ flexShrink: 0, marginTop: 2 }} />
+          <p style={{ fontSize: 'var(--text-xs)', color: `${'#FFB800'}88`, lineHeight: 1.7, margin: 0 }}>
             {t('News and analysis are provided for educational purposes only and are not investment advice. Trade responsibly.', 'الأخبار والتحليلات مقدمة لأغراض تعليمية فقط وليست نصيحة استثمارية. تداول بمسؤولية.', 'Les actualités et analyses sont fournies à des fins éducatives uniquement et ne constituent pas des conseils en investissement. Tradez de manière responsable.', 'Haberler ve analizler yalnızca eğitim amaçlıdır ve yatırım tavsiyesi değildir. Sorumlu bir şekilde işlem yapın.', lang)}
           </p>
         </div>
@@ -439,9 +438,9 @@ export default function NewsArticlePage() {
 /* ─── Helpers ─── */
 function getSentimentConfig(label?: string, lang?: Lang) {
   switch (label) {
-    case 'positive': return { bg: `${T.green}14`, color: T.green, text: t('Positive', 'إيجابي', 'Positif', 'Olumlu', lang || 'en'), icon: TrendingUp }
-    case 'negative': return { bg: `${T.red}14`, color: T.red, text: t('Negative', 'سلبي', 'Négatif', 'Olumsuz', lang || 'en'), icon: TrendingDown }
-    default: return { bg: `${T.text3}14`, color: T.text3, text: t('Neutral', 'محايد', 'Neutre', 'Nötr', lang || 'en'), icon: Minus }
+    case 'positive': return { bg: `${'#00FFA3'}14`, color: '#00FFA3', text: t('Positive', 'إيجابي', 'Positif', 'Olumlu', lang || 'en'), icon: TrendingUp }
+    case 'negative': return { bg: `${'#FF4757'}14`, color: '#FF4757', text: t('Negative', 'سلبي', 'Négatif', 'Olumsuz', lang || 'en'), icon: TrendingDown }
+    default: return { bg: `${'#6B7280'}14`, color: '#6B7280', text: t('Neutral', 'محايد', 'Neutre', 'Nötr', lang || 'en'), icon: Minus }
   }
 }
 
@@ -523,7 +522,7 @@ function ArticleFullContent({ content }: { content: string }) {
 
             {/* Section Body */}
             <div style={{ padding: '18px 20px' }}>
-              <p style={{ fontSize: 'var(--text-base)', color: T.text2, lineHeight: 1.9, margin: 0, whiteSpace: 'pre-wrap' }}>
+              <p style={{ fontSize: 'var(--text-base)', color: '#9CA3B5', lineHeight: 1.9, margin: 0, whiteSpace: 'pre-wrap' }}>
                 {section.body}
               </p>
             </div>
@@ -590,10 +589,10 @@ function PlainArticleContent({ content }: { content: string }) {
 
   // Color cycle for sections
   const sectionColors = [
-    { border: '#00E5FF40', bg: '#00E5FF08', iconBg: '#00E5FF18', color: T.info },
-    { border: '#FFB80040', bg: '#FFB80008', iconBg: '#FFB80018', color: T.warning },
+    { border: '#00E5FF40', bg: '#00E5FF08', iconBg: '#00E5FF18', color: '#00D4FF' },
+    { border: '#FFB80040', bg: '#FFB80008', iconBg: '#FFB80018', color: '#FFB800' },
     { border: '#32D74B40', bg: '#32D74B08', iconBg: '#32D74B18', color: '#32D74B' },
-    { border: '#B388FF40', bg: '#B388FF08', iconBg: '#B388FF18', color: T.council },
+    { border: '#B388FF40', bg: '#B388FF08', iconBg: '#B388FF18', color: '#B388FF' },
     { border: '#FF453A40', bg: '#FF453A08', iconBg: '#FF453A18', color: '#FF453A' },
   ]
 
@@ -651,8 +650,8 @@ function PlainArticleContent({ content }: { content: string }) {
                 alignItems: 'flex-start',
               }}
             >
-              <AlertTriangle size={14} color={T.amber} style={{ flexShrink: 0, marginTop: 2 }} />
-              <p style={{ fontSize: 'var(--text-sm)', color: `${T.amber}cc`, lineHeight: 1.7, margin: 0 }}>
+              <AlertTriangle size={14} color={'#FFB800'} style={{ flexShrink: 0, marginTop: 2 }} />
+              <p style={{ fontSize: 'var(--text-sm)', color: `${'#FFB800'}cc`, lineHeight: 1.7, margin: 0 }}>
                 {section.body}
               </p>
             </div>
@@ -699,7 +698,7 @@ function PlainArticleContent({ content }: { content: string }) {
             <div style={{ padding: '18px 20px' }}>
               {section.body.split('\n\n').map((paragraph, pIdx) => (
                 <p key={pIdx} style={{
-                  fontSize: 'var(--text-base)', color: T.text2, lineHeight: 1.9, margin: pIdx > 0 ? '12px 0 0' : 0,
+                  fontSize: 'var(--text-base)', color: '#9CA3B5', lineHeight: 1.9, margin: pIdx > 0 ? '12px 0 0' : 0,
                   whiteSpace: 'pre-wrap',
                 }}>
                   {paragraph}

@@ -9,7 +9,6 @@ import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import type { ActiveIndicator } from '@/lib/charts/types';
 import { INDICATOR_CONFIGS } from '@/lib/charts/types'
-import T from '@/lib/unified-tokens';
 
 interface IndicatorSettingsProps {
   indicator: ActiveIndicator;
@@ -71,14 +70,14 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
   };
 
   const COLORS = {
-    card: T.card,
+    card: '#151A22',
     border: 'rgba(42,49,60,0.9)',
-    cyan: T.info,
-    text: T.text,
-    textSecondary: T.text2,
-    textMuted: T.text2,
-    success: T.success,
-    bg: T.bg,
+    cyan: '#00D4FF',
+    text: '#F0F2F5',
+    textSecondary: '#9CA3B5',
+    textMuted: '#9CA3B5',
+    success: '#00FFA3',
+    bg: '#0B0E14',
   };
 
   const paramLabels: Record<string, string> = {

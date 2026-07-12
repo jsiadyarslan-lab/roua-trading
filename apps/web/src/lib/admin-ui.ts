@@ -11,9 +11,9 @@
 export const COLORS = {
   bg: '#0B0E14',
   card: '#111318',
-  accent: T.info,
-  success: T.success,
-  danger: T.danger,
+  accent: '#00D4FF',
+  success: '#00FFA3',
+  danger: '#FF4757',
   amber: '#FFB800',
   text: '#F0F2F5',
   muted: '#9CA3B5',

@@ -20,7 +20,6 @@ import type { CandleData, ActiveIndicator } from '@/lib/charts/types';
 import { INDICATOR_CONFIGS } from '@/lib/charts/types';
 import { calculateIndicator } from '@/lib/charts/IndicatorCalculator';
 import { CRYPTO_BASES as CRYPTO_BASES_LOCAL } from '@/lib/charts/config'
-import T from '@/lib/unified-tokens';
 
 // ── Request Queue — limits concurrent fetches + deduplicates by URL ──
 // PERF (3.10): Added dedup — if the same URL is already in the queue or
@@ -150,26 +149,26 @@ const TIMEFRAME_OPTIONS = [
 const MTF_DEFAULT_TIMEFRAMES = ['15min', '1h', '4h', '1day', '5min', '1min'];
 
 const C = {
-  bg: T.bg,
-  card: T.card,
-  cardBorder: T.card,
+  bg: '#0B0E14',
+  card: '#151A22',
+  cardBorder: '#151A22',
   grid: 'rgba(42,49,60,0.25)',
-  text: T.text,
-  textDim: T.text2,
-  textMuted: T.text3,
-  cyan: T.info,
-  success: T.success,
-  danger: T.danger,
-  gold: T.gold,
-  upColor: T.success,
-  downColor: T.danger,
-  warning: T.warning,
+  text: '#F0F2F5',
+  textDim: '#9CA3B5',
+  textMuted: '#6B7280',
+  cyan: '#00D4FF',
+  success: '#00FFA3',
+  danger: '#FF4757',
+  gold: '#d4af37',
+  upColor: '#00FFA3',
+  downColor: '#FF4757',
+  warning: '#FFB800',
 };
 
 const SOURCE_LABELS: Record<DataSource, { label: string; color: string }> = {
   loading: { label: '...', color: C.textMuted },
   binance: { label: 'Binance', color: C.success },
-  coingecko: { label: 'CoinGecko', color: T.council },
+  coingecko: { label: 'CoinGecko', color: '#B388FF' },
   yahoo: { label: 'Yahoo', color: '#6366F1' },
   twelvedata: { label: '12Data', color: '#EC4899' },
   unavailable: { label: 'Unavailable', color: C.danger },

@@ -742,7 +742,7 @@ export function renderOverlays(
           startPrice: pat.neckline.start.price,
           endTime: pat.neckline.end.time as any,
           endPrice: pat.neckline.end.price,
-          color: T.warning,
+          color: '#FFB800',
           lineWidth: 1,
           lineStyle: 2,
           extendRight: true,
@@ -818,7 +818,7 @@ export function renderOverlays(
           startPrice: from.price,
           endTime: to.time as any,
           endPrice: to.price,
-          color: isImpulse ? col : T.warning,
+          color: isImpulse ? col : '#FFB800',
           lineWidth: isImpulse ? 2 : 1,
           lineStyle: isImpulse ? 0 : 2,
           label: `W${i + 1}`,
@@ -831,7 +831,7 @@ export function renderOverlays(
           time: w.time as any,
           price: w.price,
           text: `W${w.waveNumber}`,
-          color: i % 2 === 0 ? col : T.warning,
+          color: i % 2 === 0 ? col : '#FFB800',
           fontSize: 'var(--text-sm)',
           align: 'center',
           bg: 'rgba(11, 14, 20, 0.85)',
@@ -852,7 +852,7 @@ export function renderOverlays(
           startPrice: from.price,
           endTime: to.time as any,
           endPrice: to.price,
-          color: from.type === 'impulse' ? col : T.warning,
+          color: from.type === 'impulse' ? col : '#FFB800',
           lineWidth: from.type === 'impulse' ? 2 : 1,
           lineStyle: from.type === 'impulse' ? 0 : 2,
           label: `W${from.waveNumber || i + 1}`,
@@ -893,7 +893,7 @@ export function renderOverlays(
     const wyckoffSig = JSON.stringify({ phase, bias, events: events.map((e: any) => `${e.type}:${e.price}`).join('|') });
     if (registry.smartRedraw('wyckoff', wyckoffSig)) {
     if (phase !== 'Unknown') {
-      const col = bias === 'bullish' ? OVERLAY_COLORS.trendUp : bias === 'bearish' ? OVERLAY_COLORS.trendDown : T.warning;
+      const col = bias === 'bullish' ? OVERLAY_COLORS.trendUp : bias === 'bearish' ? OVERLAY_COLORS.trendDown : '#FFB800';
 
       // Phase label at latest candle
       registry.add('wyckoff', new LabelPrimitive({
@@ -1188,7 +1188,7 @@ export function renderOverlays(
 
     if (bayes.direction !== 'neutral') {
       const isBull = bayes.direction === 'bullish';
-      const bayesColor = isBull ? T.info : T.warning;
+      const bayesColor = isBull ? '#00D4FF' : '#FFB800';
       const confPct = Math.round(bayes.confidence * 100);
 
       // Bayesian direction label
@@ -1375,7 +1375,7 @@ export function renderOverlays(
       // Entry line
       registry.add('trade', new HorizontalLinePrimitive({
         price: proposal.entryPrice,
-        color: isBull ? T.info : T.warning,
+        color: isBull ? '#00D4FF' : '#FFB800',
         lineWidth: 2,
         lineStyle: 0,
         label: `Entry ${dirAr} (Q:${proposal.qualityScore})`,
@@ -1386,7 +1386,7 @@ export function renderOverlays(
       const effectiveSL = proposal.currentTrailSL ?? proposal.stopLoss;
       registry.add('trade', new HorizontalLinePrimitive({
         price: effectiveSL,
-        color: proposal.currentTrailSL ? T.warning : '#ef4444',
+        color: proposal.currentTrailSL ? '#FFB800' : '#ef4444',
         lineWidth: 2,
         lineStyle: proposal.currentTrailSL ? 0 : 2,
         label: proposal.currentTrailSL ? 'Trail SL' : 'SL',
@@ -1470,7 +1470,7 @@ export function renderOverlays(
         time: candles[candles.length - 1].time as any,
         price: proposal.entryPrice,
         text: isBull ? '▲ شراء' : '▼ بيع',
-        color: isBull ? T.info : T.warning,
+        color: isBull ? '#00D4FF' : '#FFB800',
         fontSize: 'var(--text-xs)',
         align: 'right',
         bg: isBull ? 'rgba(34, 211, 238, 0.1)' : 'rgba(249, 115, 22, 0.1)',
@@ -1790,7 +1790,7 @@ export function renderAnalysisOverlays(
     if (registry.smartRedraw('bayesian', bayesianSig)) {
     if (bayes.direction !== 'neutral') {
       const isBull = bayes.direction === 'bullish';
-      const bayesColor = isBull ? T.info : T.warning;
+      const bayesColor = isBull ? '#00D4FF' : '#FFB800';
       const confPct = Math.round(bayes.confidence * 100);
       registry.add('bayesian', new LabelPrimitive({ time: (lastTime - 3600) as any, price: lastPrice, text: `⬡ بايزي ${isBull ? 'صعودي' : 'هبوطي'} ${confPct}%`, color: bayesColor, fontSize: 'var(--text-xs)', align: 'right', bg: `${bayesColor}15`, position: isBull ? 'below' : 'above' }));
       const bullPct = Math.round(bayes.posteriorBullish * 100);
@@ -1867,9 +1867,9 @@ export function renderAnalysisOverlays(
     if (proposal) {
       const isBull = proposal.direction === 'bullish';
       const dirAr = isBull ? 'شراء' : 'بيع';
-      registry.add('trade', new HorizontalLinePrimitive({ price: proposal.entryPrice, color: isBull ? T.info : T.warning, lineWidth: 2, lineStyle: 0, label: `Entry ${dirAr} (Q:${proposal.qualityScore})`, showPrice: true }));
+      registry.add('trade', new HorizontalLinePrimitive({ price: proposal.entryPrice, color: isBull ? '#00D4FF' : '#FFB800', lineWidth: 2, lineStyle: 0, label: `Entry ${dirAr} (Q:${proposal.qualityScore})`, showPrice: true }));
       const effectiveSL = proposal.currentTrailSL ?? proposal.stopLoss;
-      registry.add('trade', new HorizontalLinePrimitive({ price: effectiveSL, color: proposal.currentTrailSL ? T.warning : '#ef4444', lineWidth: 2, lineStyle: proposal.currentTrailSL ? 0 : 2, label: proposal.currentTrailSL ? 'Trail SL' : 'SL', showPrice: true }));
+      registry.add('trade', new HorizontalLinePrimitive({ price: effectiveSL, color: proposal.currentTrailSL ? '#FFB800' : '#ef4444', lineWidth: 2, lineStyle: proposal.currentTrailSL ? 0 : 2, label: proposal.currentTrailSL ? 'Trail SL' : 'SL', showPrice: true }));
       const tpLabels = ['TP1 (50%)', 'TP2 (30%)', 'TP3 (20%)'];
       const tpColors = ['rgba(16, 185, 129, 0.8)', 'rgba(16, 185, 129, 0.6)', 'rgba(16, 185, 129, 0.4)'];
       for (let i = 0; i < proposal.takeProfits.length; i++) {

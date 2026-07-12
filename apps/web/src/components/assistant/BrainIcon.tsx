@@ -2,7 +2,7 @@
 
 // ─── Neural Brain — Clear Lines + CSS Glow (No SVG Blur) ──
 
-export default function BrainIcon({ size = 28, color = T.info, pulse = true }: { size?: number; color?: string; pulse?: boolean }) {
+export default function BrainIcon({ size = 28, color = '#00D4FF', pulse = true }: { size?: number; color?: string; pulse?: boolean }) {
   // When pulse=true (thinking), lines are bolder and brighter
   const base = pulse ? 2.4 : 1.5;  // primary line width
   const mid = pulse ? 1.8 : 1.1;   // secondary line width  

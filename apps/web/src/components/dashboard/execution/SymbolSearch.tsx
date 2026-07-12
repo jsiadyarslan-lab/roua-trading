@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Search, X as XIcon, Star, TrendingUp, TrendingDown } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
-import T from '@/lib/unified-tokens'
 import { useTranslations } from 'next-intl'
 
 import { CRYPTO_BASES } from '@/lib/charts/config'
@@ -20,9 +19,9 @@ const FOREX_SYMBOLS = ['EUR/USD', 'GBP/USD', 'USD/JPY', 'USD/CHF', 'AUD/USD', 'U
 const STOCK_SYMBOLS = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'NVDA', 'META']
 
 const TYPE_COLORS: Record<string, string> = {
-  crypto: T.amber,
-  forex: T.cyan,
-  stock: T.green,
+  crypto: '#FFB800',
+  forex: '#00D4FF',
+  stock: '#00FFA3',
 }
 
 function getRecentSymbols(): string[] {

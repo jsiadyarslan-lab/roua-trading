@@ -11,7 +11,6 @@ import type { ChartType, DrawingTool } from '@/lib/charts/types';
 import { TIMEFRAMES } from '@/lib/charts/types';
 import { ScopedStyle } from '@/components/ScopedStyle';
 import { useTranslations } from 'next-intl'
-import T from '@/lib/unified-tokens';
 
 interface ChartToolbarProps {
   symbol: string;
@@ -236,18 +235,18 @@ export function ChartToolbar(props: ChartToolbarProps) {
   const tfLabel = activeTF?.label || timeframe;
 
   const COLORS = {
-    bg: T.bg2,
+    bg: '#0F1117',
     border: 'rgba(42,49,60,0.9)',
-    cyan: T.info,
-    text: T.text,
-    textSecondary: T.text2,
-    textMuted: T.text2,
-    card: T.card,
+    cyan: '#00D4FF',
+    text: '#F0F2F5',
+    textSecondary: '#9CA3B5',
+    textMuted: '#9CA3B5',
+    card: '#151A22',
     hoverBg: 'rgba(0,212,255,0.08)',
-    activeBg: T.info,
-    danger: T.danger,
-    warning: T.warning,
-    success: T.success,
+    activeBg: '#00D4FF',
+    danger: '#FF4757',
+    warning: '#FFB800',
+    success: '#00FFA3',
   };
 
   // FIX: على الجوال الضيق جداً نُخفي الأزرار الثانوية
@@ -736,7 +735,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
               }}
             >
               {TOOLBAR_SYMBOLS.map(s => (
-                <option key={s} value={s} style={{ background: T.card, color: T.text }}>{s}</option>
+                <option key={s} value={s} style={{ background: '#151A22', color: '#F0F2F5' }}>{s}</option>
               ))}
             </select>
             <div style={sepStyle} />

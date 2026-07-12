@@ -9,7 +9,7 @@ import './landing.css';
 // Heavy canvas animation — load only on client, skip SSR
 const CosmicCanvas = dynamic(() => import('@/components/landing/CosmicCanvas'), {
   ssr: false,
-  loading: () => <div className="fixed inset-0" style={{ background: T.bg }} />,
+  loading: () => <div className="fixed inset-0" style={{ background: '#0B0E14' }} />,
 });
 
 import MarketPulse from '@/components/landing/MarketPulse';
@@ -24,7 +24,6 @@ import HowItWorks from '@/components/landing/HowItWorks';
 import TestimonialsSection from '@/components/landing/TestimonialsSection';
 import BlackholeCTA from '@/components/landing/BlackholeCTA';
 import CosmicFooter from '@/components/landing/CosmicFooter'
-import T from '@/lib/unified-tokens';
 
 export default function Home() {
   const router = useRouter()

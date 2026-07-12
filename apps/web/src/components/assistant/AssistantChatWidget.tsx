@@ -36,7 +36,6 @@ import ChatInput from './ChatInput';
 import WelcomeScreen from './WelcomeScreen';
 import { Locale, CHAT_TEXT, Message } from './chat-text';
 import MessageBubble from './MessageBubble'
-import T from '@/lib/unified-tokens';
 import './assistant.css';
 
 // Message interface is now exported from ./chat-text
@@ -1734,9 +1733,9 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
   // ─── Market pulse color helper ─────────────────────────────────
   const getPulseColor = () => {
     switch (marketPulse) {
-      case 'bullish': return T.success;
+      case 'bullish': return '#00FFA3';
       case 'bearish': return '#EF5350';
-      case 'neutral': return T.warning;
+      case 'neutral': return '#FFB800';
       default: return '#8A9DB2';
     }
   };

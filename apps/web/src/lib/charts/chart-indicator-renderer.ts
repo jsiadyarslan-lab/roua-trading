@@ -212,8 +212,8 @@ export function renderIndicatorSeries(
         downData.push({ time: r.time as Time, value: val });
       }
     });
-    addOverlayLine(chart, refs, LineSeries, 'supertrend-up', upData, T.success, 2);
-    addOverlayLine(chart, refs, LineSeries, 'supertrend-down', downData, T.danger, 2);
+    addOverlayLine(chart, refs, LineSeries, 'supertrend-up', upData, '#00FFA3', 2);
+    addOverlayLine(chart, refs, LineSeries, 'supertrend-down', downData, '#FF4757', 2);
   }
 
   else if (indicator.key === 'bb') {
@@ -274,15 +274,15 @@ export function renderIndicatorSeries(
         const candleIdx = candleTimeMap.get(r.time as number) ?? -1;
         const candle = candleIdx >= 0 ? candles[candleIdx] : null;
         const isBullish = candle ? val < candle.close : true;
-        psarData.push({ time: r.time as Time, value: val, color: isBullish ? T.success : T.danger });
+        psarData.push({ time: r.time as Time, value: val, color: isBullish ? '#00FFA3' : '#FF4757' });
       }
     });
 
-    const bullData = psarData.filter(d => d.color === T.success).map(d => ({ time: d.time, value: d.value }));
-    const bearData = psarData.filter(d => d.color === T.danger).map(d => ({ time: d.time, value: d.value }));
+    const bullData = psarData.filter(d => d.color === '#00FFA3').map(d => ({ time: d.time, value: d.value }));
+    const bearData = psarData.filter(d => d.color === '#FF4757').map(d => ({ time: d.time, value: d.value }));
 
     const bullSeries = chart.addSeries(LineSeries, {
-      color: T.success, lineWidth: 1 as any, lineStyle: 2,
+      color: '#00FFA3', lineWidth: 1 as any, lineStyle: 2,
       priceLineVisible: false, lastValueVisible: false,
       crosshairMarkerVisible: false, crosshairMarkerRadius: 2,
     });
@@ -290,7 +290,7 @@ export function renderIndicatorSeries(
     refs.overlaySeries.set('psar-bull', bullSeries);
 
     const bearSeries = chart.addSeries(LineSeries, {
-      color: T.danger, lineWidth: 1 as any, lineStyle: 2,
+      color: '#FF4757', lineWidth: 1 as any, lineStyle: 2,
       priceLineVisible: false, lastValueVisible: false,
       crosshairMarkerVisible: false, crosshairMarkerRadius: 2,
     });
@@ -314,7 +314,7 @@ export function renderIndicatorSeries(
     });
 
     addOverlayLine(chart, refs, LineSeries, 'ichimoku-tenkan', tenkanData, '#2dd4bf', 1);
-    addOverlayLine(chart, refs, LineSeries, 'ichimoku-kijun', kijunData, T.danger, 1);
+    addOverlayLine(chart, refs, LineSeries, 'ichimoku-kijun', kijunData, '#FF4757', 1);
     addOverlayLine(chart, refs, LineSeries, 'ichimoku-senkouA', senkouAData, 'rgba(45,212,191,0.4)', 1);
     addOverlayLine(chart, refs, LineSeries, 'ichimoku-senkouB', senkouBData, 'rgba(248,113,113,0.4)', 1);
     addOverlayLine(chart, refs, LineSeries, 'ichimoku-chikou', chikouData, 'rgba(255,255,255,0.3)', 1);
@@ -362,7 +362,7 @@ export function renderIndicatorSeries(
     if (!pivotResult || pivotResult.pp === null) return;
 
     const pivotLines: { key: string; price: number; color: string }[] = [
-      { key: 'pp', price: pivotResult.pp, color: T.council },
+      { key: 'pp', price: pivotResult.pp, color: '#B388FF' },
       { key: 'r1', price: pivotResult.r1, color: 'rgba(63,185,80,0.6)' },
       { key: 'r2', price: pivotResult.r2, color: 'rgba(63,185,80,0.4)' },
       { key: 'r3', price: pivotResult.r3, color: 'rgba(63,185,80,0.25)' },
@@ -475,7 +475,7 @@ export function renderIndicatorSeries(
     const filteredSignal = cleanData(signalData);
     if (filteredSignal.length > 0) {
       const sigSeries = chart.addSeries(LineSeries, {
-        color: T.warning, lineWidth: 1 as any,
+        color: '#FFB800', lineWidth: 1 as any,
         priceLineVisible: false, lastValueVisible: false,
         crosshairMarkerVisible: false, priceScaleId: 'macd-scale',
       });
@@ -512,12 +512,12 @@ export function renderIndicatorSeries(
 
     const stochK = indicator.params?.kPeriod || 14;
     const stochD = indicator.params?.dPeriod || 3;
-    addOscillatorLine(chart, refs, LineSeries, 'stoch-k', kData, T.council, 'stoch-scale', 1, `Stoch(${stochK},${stochD})`);
+    addOscillatorLine(chart, refs, LineSeries, 'stoch-k', kData, '#B388FF', 'stoch-scale', 1, `Stoch(${stochK},${stochD})`);
 
     const filteredD = cleanData(dData);
     if (filteredD.length > 0) {
       const dSeries = chart.addSeries(LineSeries, {
-        color: T.warning, lineWidth: 1 as any,
+        color: '#FFB800', lineWidth: 1 as any,
         priceLineVisible: false, lastValueVisible: false,
         crosshairMarkerVisible: false, priceScaleId: 'stoch-scale',
       });
@@ -557,12 +557,12 @@ export function renderIndicatorSeries(
       if (isValidNumber(r.values?.mdi) && isValidNumber(r.time)) mdiData.push({ time: r.time as Time, value: r.values.mdi });
     });
 
-    addOscillatorLine(chart, refs, LineSeries, 'adx-line', adxData, T.warning, 'adx-scale', 2, `ADX(${indicator.params?.period || 14})`);
+    addOscillatorLine(chart, refs, LineSeries, 'adx-line', adxData, '#FFB800', 'adx-scale', 2, `ADX(${indicator.params?.period || 14})`);
 
     const filteredPdi = cleanData(pdiData);
     if (filteredPdi.length > 0) {
       const pdiSeries = chart.addSeries(LineSeries, {
-        color: T.success, lineWidth: 1 as any,
+        color: '#00FFA3', lineWidth: 1 as any,
         priceLineVisible: false, lastValueVisible: false,
         crosshairMarkerVisible: false, priceScaleId: 'adx-scale',
       });
@@ -573,7 +573,7 @@ export function renderIndicatorSeries(
     const filteredMdi = cleanData(mdiData);
     if (filteredMdi.length > 0) {
       const mdiSeries = chart.addSeries(LineSeries, {
-        color: T.danger, lineWidth: 1 as any,
+        color: '#FF4757', lineWidth: 1 as any,
         priceLineVisible: false, lastValueVisible: false,
         crosshairMarkerVisible: false, priceScaleId: 'adx-scale',
       });

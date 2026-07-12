@@ -212,7 +212,7 @@ export const ROLE_INFO: Record<Role, { label: string; labelKey: string; color: s
   PLUS: {
     label: 'Plus',
     labelKey: 'rolePlus',
-    color: T.council,
+    color: '#B388FF',
     description: 'Advanced AI & API',
     descriptionKey: 'rolePlusDesc',
   },

@@ -3,7 +3,6 @@
 import { useEffect, type ReactNode } from 'react'
 import { X as XIcon, Pin } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import T from '@/lib/unified-tokens'
 
 interface SidebarDrawerProps {
   open: boolean
@@ -118,7 +117,7 @@ export function SidebarDrawer({
                 width: 6,
                 height: 6,
                 borderRadius: 'var(--radius-2xl)',
-                background: T.info,
+                background: '#00D4FF',
                 boxShadow: '0 0 8px rgba(0,212,255,0.4)',
               }}
             />
@@ -126,7 +125,7 @@ export function SidebarDrawer({
               style={{
                 fontSize: 'var(--text-xs)',
                 fontWeight: 800,
-                color: T.text,
+                color: '#F0F2F5',
                 fontFamily: "var(--font-ar)",
               }}
             >
@@ -156,7 +155,7 @@ export function SidebarDrawer({
               >
                 <Pin
                   size={12}
-                  color={pinned ? T.info : T.text2}
+                  color={pinned ? '#00D4FF' : '#9CA3B5'}
                   style={{
                     transform: pinned ? 'rotate(45deg)' : 'rotate(0deg)',
                     transition: 'transform 0.2s ease',
@@ -181,7 +180,7 @@ export function SidebarDrawer({
                   alignItems: 'center',
                 }}
               >
-                <XIcon size={12} color={T.text2} />
+                <XIcon size={12} color={'#9CA3B5'} />
               </button>
             )}
           </div>

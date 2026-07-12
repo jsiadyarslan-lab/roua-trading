@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { useTranslations, useLocale } from 'next-intl'
-import T from '@/lib/unified-tokens'
 
 interface NewsItem {
   category: string
@@ -126,7 +125,7 @@ export default function NewsTicker() {
             categoryFr: item.categoryFr || item.category || 'Général',
             categoryTr: item.categoryTr || item.category || 'Genel',
             categoryEs: item.categoryEs || item.category || 'General',
-            color: item.color || T.text2,
+            color: item.color || '#9CA3B5',
             bgColor: item.bgColor || '#8B92A812',
             text: item.text || item.headline || item.title || '',
             textAr: (item.textAr && /[\u0600-\u06FF]/.test(item.textAr)) ? item.textAr : (item.translatedTitle && /[\u0600-\u06FF]/.test(item.translatedTitle)) ? item.translatedTitle : '',
@@ -168,7 +167,7 @@ export default function NewsTicker() {
         <span className="text-[6px] font-bold px-1.5 py-0 rounded" style={{ color: item.color, background: item.bgColor }}>
           {getLocalizedCategory(item, locale)}
         </span>
-        <span className="text-[7px]" style={{ color: T.text3 }}>{displayText}</span>
+        <span className="text-[7px]" style={{ color: '#6B7280' }}>{displayText}</span>
         <span className="text-[7px]">
           {item.impact === 'high' ? (
             <span style={{ color: 'var(--loss)' }}>●</span>
@@ -195,11 +194,11 @@ export default function NewsTicker() {
       <div className="flex-1 overflow-hidden h-full flex items-center" style={{ background: 'var(--bg-ticker)' }}>
         {isLoading ? (
           <div className="flex items-center h-full px-4">
-            <span className="text-[7px]" style={{ color: T.text3 }}>{tn('loading')}</span>
+            <span className="text-[7px]" style={{ color: '#6B7280' }}>{tn('loading')}</span>
           </div>
         ) : newsItems.length === 0 ? (
           <div className="flex items-center h-full px-4">
-            <span className="text-[7px]" style={{ color: T.text3 }}>{tn('unavailable')}</span>
+            <span className="text-[7px]" style={{ color: '#6B7280' }}>{tn('unavailable')}</span>
           </div>
         ) : (
           <div ref={tickerRef} className="flex items-center h-full" style={{ animation: 'ql-news 60s linear infinite' }}>

@@ -8,7 +8,6 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { IndicatorKey } from '@/lib/charts/types';
 import { INDICATOR_CONFIGS } from '@/lib/charts/types'
-import T from '@/lib/unified-tokens';
 
 interface IndicatorPanelProps {
   activeIndicators: IndicatorKey[];
@@ -39,12 +38,12 @@ export function IndicatorPanel({
   const COLORS = {
     card: 'rgba(11, 14, 20, 0.98)',
     border: 'rgba(0, 212, 255, 0.3)',
-    cyan: T.info,
-    text: T.text2,
-    textSecondary: T.text2,
-    textMuted: T.text2,
-    success: T.success,
-    danger: T.danger,
+    cyan: '#00D4FF',
+    text: '#9CA3B5',
+    textSecondary: '#9CA3B5',
+    textMuted: '#9CA3B5',
+    success: '#00FFA3',
+    danger: '#FF4757',
   };
 
   const renderItem = (config: typeof INDICATOR_CONFIGS[0]) => {

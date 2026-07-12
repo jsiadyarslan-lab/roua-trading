@@ -8,7 +8,6 @@
 import { useState, useCallback } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Alert, AlertType, createAlert, ALERT_TYPE_LABELS, ALERT_TYPE_ICONS } from './AlertManager'
-import T from '@/lib/unified-tokens';
 
 interface AlertPanelProps {
   symbol: string;
@@ -18,23 +17,23 @@ interface AlertPanelProps {
 
 const C = {
   bg: 'rgba(11,14,20,0.97)',
-  card: T.card,
+  card: '#151A22',
   cardHover: '#151D2B',
-  border: T.card,
+  border: '#151A22',
   borderActive: 'rgba(0,212,255,0.35)',
-  cyan: T.info,
-  text: T.text,
-  textDim: T.text2,
-  textMuted: T.text3,
-  success: T.success,
-  danger: T.danger,
-  warning: T.warning,
-  gold: T.gold,
+  cyan: '#00D4FF',
+  text: '#F0F2F5',
+  textDim: '#9CA3B5',
+  textMuted: '#6B7280',
+  success: '#00FFA3',
+  danger: '#FF4757',
+  warning: '#FFB800',
+  gold: '#d4af37',
 };
 
 const TYPE_COLORS: Record<AlertType, string> = {
   price: C.cyan,
-  indicator: T.council,
+  indicator: '#B388FF',
   pattern: C.warning,
   whale: C.danger,
   prediction: C.success,

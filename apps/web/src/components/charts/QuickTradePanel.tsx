@@ -7,7 +7,6 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl'
-import T from '@/lib/unified-tokens';
 
 interface QuickTradePanelProps {
   symbol: string;
@@ -18,15 +17,15 @@ interface QuickTradePanelProps {
 
 const C = {
   bg: 'rgba(17,26,34,0.92)',
-  card: T.card,
-  border: T.card,
-  text: T.text,
-  textDim: T.text2,
-  textMuted: T.text3,
-  cyan: T.info,
-  success: T.success,
-  danger: T.danger,
-  warning: T.warning,
+  card: '#151A22',
+  border: '#151A22',
+  text: '#F0F2F5',
+  textDim: '#9CA3B5',
+  textMuted: '#6B7280',
+  cyan: '#00D4FF',
+  success: '#00FFA3',
+  danger: '#FF4757',
+  warning: '#FFB800',
 };
 
 const POPULAR_PAIRS = [

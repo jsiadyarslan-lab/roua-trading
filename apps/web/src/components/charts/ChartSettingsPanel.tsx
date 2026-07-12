@@ -8,7 +8,6 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { ChartSettings } from '@/lib/charts/types'
-import T from '@/lib/unified-tokens';
 
 interface ChartSettingsPanelProps {
   settings: ChartSettings;
@@ -31,26 +30,26 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
   ];
 
   const PRESET_THEMES = [
-    { name: 'ROUA Classic', bg: T.bg, up: T.success, down: T.danger },
-    { name: 'Ocean', bg: '#0a1628', up: T.info, down: T.danger },
-    { name: 'Neon', bg: '#0d0221', up: T.success, down: '#ff0055' },
-    { name: 'Sunset', bg: '#1a0a2e', up: T.gold, down: '#ff4500' },
+    { name: 'ROUA Classic', bg: '#0B0E14', up: '#00FFA3', down: '#FF4757' },
+    { name: 'Ocean', bg: '#0a1628', up: '#00D4FF', down: '#FF4757' },
+    { name: 'Neon', bg: '#0d0221', up: '#00FFA3', down: '#ff0055' },
+    { name: 'Sunset', bg: '#1a0a2e', up: '#d4af37', down: '#ff4500' },
     { name: 'Arctic', bg: '#0a192f', up: '#64ffda', down: '#ff5555' },
     { name: 'Forest', bg: '#0a1a0a', up: '#39ff14', down: '#ff3333' },
   ];
 
   const COLORS = {
-    bg: T.bg,
-    card: T.card,
+    bg: '#0B0E14',
+    card: '#151A22',
     cardHover: '#1a2030',
     border: 'rgba(42,49,60,0.9)',
-    cyan: T.info,
-    text: T.text,
-    textSecondary: T.text2,
-    textMuted: T.text2,
-    success: T.success,
-    danger: T.danger,
-    warning: T.warning,
+    cyan: '#00D4FF',
+    text: '#F0F2F5',
+    textSecondary: '#9CA3B5',
+    textMuted: '#9CA3B5',
+    success: '#00FFA3',
+    danger: '#FF4757',
+    warning: '#FFB800',
   };
 
   const switchStyle = (isOn: boolean): React.CSSProperties => ({
@@ -278,7 +277,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
               <span style={settingLabel}>{t('gridColor')}</span>
               <input
                 type="color"
-                value={settings.gridColor?.startsWith('rgba') ? T.border : settings.gridColor}
+                value={settings.gridColor?.startsWith('rgba') ? '#2A313C' : settings.gridColor}
                 onChange={e => {
                   // Convert hex to rgba with 50% alpha
                   const hex = e.target.value;
@@ -362,9 +361,9 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
               showSessions: true,
               showCandleTimer: true,
               crosshairType: 'cross',
-              upColor: T.success,
-              downColor: T.danger,
-              bgColor: T.bg,
+              upColor: '#00FFA3',
+              downColor: '#FF4757',
+              bgColor: '#0B0E14',
               gridColor: 'rgba(42,49,60,0.5)',
             });
           }}

@@ -9,7 +9,6 @@ import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useBotStore } from '@/hooks/useBotStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
 import { useTranslations, useLocale } from 'next-intl'
-import T from '@/lib/unified-tokens'
 
 interface SmartSignal {
   id?: string
@@ -69,7 +68,7 @@ export function BotCommandCenter() {
           useTabAlertStore.getState().pushAlert('signals', {
             action: sig.type,
             label: `${sig.type === 'BUY' ? '⬆' : '⬇'} ${sig.pair} ${sig.conf}%`,
-            color: sig.type === 'BUY' ? T.success : T.danger,
+            color: sig.type === 'BUY' ? '#00FFA3' : '#FF4757',
           })
         }
       }
@@ -129,7 +128,7 @@ export function BotCommandCenter() {
   }
 
   return (
-    <div className="custom-scrollbar no-scrollbar" style={{ direction: 'inherit', height: '100%', overflowY: 'auto', padding: '7px', display: 'flex', flexDirection: 'column', gap: 6, background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', borderRadius: 'var(--radius-lg)', border: `1px solid ${T.border}` }}>
+    <div className="custom-scrollbar no-scrollbar" style={{ direction: 'inherit', height: '100%', overflowY: 'auto', padding: '7px', display: 'flex', flexDirection: 'column', gap: 6, background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', borderRadius: 'var(--radius-lg)', border: `1px solid ${'#2A313C'}` }}>
 
       {/* Bot Master Switch */}
       <div style={{
@@ -139,15 +138,15 @@ export function BotCommandCenter() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <div style={{
-            width: 16, height: 16, borderRadius: 'var(--radius-sm)', background: isActive ? T.success : T.danger,
+            width: 16, height: 16, borderRadius: 'var(--radius-sm)', background: isActive ? '#00FFA3' : '#FF4757',
             display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
-            boxShadow: `0 0 8px ${isActive ? T.success : T.danger}40`
+            boxShadow: `0 0 8px ${isActive ? '#00FFA3' : '#FF4757'}40`
           }}>
             {isActive ? <Zap size={8} /> : <Pause size={8} />}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>{tb('smartFollowEngine')}</span>
-            <span style={{ fontSize: 'var(--text-xs)', color: isActive ? T.success : T.danger, fontFamily: "var(--font-mono)", fontWeight: 700 }}>
+            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>{tb('smartFollowEngine')}</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: isActive ? '#00FFA3' : '#FF4757', fontFamily: "var(--font-mono)", fontWeight: 700 }}>
               {isActive ? `${tc('online').toUpperCase()} · ${engineState.toUpperCase()}` : tb('pausedManualOnly')}
             </span>
           </div>
@@ -155,9 +154,9 @@ export function BotCommandCenter() {
         <button
           onClick={() => setBotActive(!isActive)}
           style={{
-            background: isActive ? 'transparent' : T.success,
-            border: `1px solid ${isActive ? T.danger : T.success}`,
-            color: isActive ? T.danger : '#fff',
+            background: isActive ? 'transparent' : '#00FFA3',
+            border: `1px solid ${isActive ? '#FF4757' : '#00FFA3'}`,
+            color: isActive ? '#FF4757' : '#fff',
             minHeight: 16,
             padding: '2px 5px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 800, cursor: 'pointer',
             fontFamily: "var(--font-ar)", transition: 'all 0.2s ease'
@@ -170,9 +169,9 @@ export function BotCommandCenter() {
       {/* Risk Management — compact row */}
       <div style={{ display: 'flex', gap: 3 }}>
         {[
-          { id: 'low', label: tb('low'), color: T.success, desc: '0.05' },
-          { id: 'med', label: tb('medium'), color: T.amber, desc: '0.15' },
-          { id: 'high', label: tb('high'), color: T.danger, desc: '0.30' }
+          { id: 'low', label: tb('low'), color: '#00FFA3', desc: '0.05' },
+          { id: 'med', label: tb('medium'), color: '#FFB800', desc: '0.15' },
+          { id: 'high', label: tb('high'), color: '#FF4757', desc: '0.30' }
         ].map(r => (
           <button
             key={r.id}
@@ -180,9 +179,9 @@ export function BotCommandCenter() {
             style={{
               flex: 1, minHeight: 18, padding: '2px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'all 0.2s ease',
               background: risk === r.id ? `${r.color}12` : 'transparent',
-              border: `1px solid ${risk === r.id ? r.color : T.border}`,
+              border: `1px solid ${risk === r.id ? r.color : '#2A313C'}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2,
-              color: risk === r.id ? r.color : T.text2,
+              color: risk === r.id ? r.color : '#9CA3B5',
               fontSize: 'var(--text-xs)', fontWeight: risk === r.id ? 800 : 600, fontFamily: "var(--font-ar)"
             }}
           >
@@ -193,30 +192,30 @@ export function BotCommandCenter() {
       </div>
 
       {/* Live Signals Stream */}
-      <div style={{ flex: 1, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-md)', padding: '5px', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-md)', padding: '5px', display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <ShieldAlert size={8} color={T.accent} />
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>{tb('signalStream')}</span>
-            <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>{countdown}s</span>
+            <ShieldAlert size={8} color={'#059669'} />
+            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>{tb('signalStream')}</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>{countdown}s</span>
           </div>
           <button onClick={fetchSignals} disabled={loading} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 1 }}>
-            <RefreshCw size={7} color={T.text2} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={7} color={'#9CA3B5'} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {loading && signals.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 40, gap: 4 }}>
-              <Layers size={12} color={T.accent} className="animate-pulse" />
-              <span style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-ar)" }}>{tb('scanningMarket')}</span>
+              <Layers size={12} color={'#059669'} className="animate-pulse" />
+              <span style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontFamily: "var(--font-ar)" }}>{tb('scanningMarket')}</span>
             </div>
           ) : signals.length === 0 ? (
-             <div style={{ textAlign: 'center', padding: '10px 0', fontSize: 'var(--text-xs)', color: T.text3 }}>{tb('noStrongSignals')}</div>
+             <div style={{ textAlign: 'center', padding: '10px 0', fontSize: 'var(--text-xs)', color: '#6B7280' }}>{tb('noStrongSignals')}</div>
           ) : (
             signals.map((sig, i) => {
               const isBuy = sig.type === 'BUY'
-              const c = isBuy ? T.success : T.danger
+              const c = isBuy ? '#00FFA3' : '#FF4757'
               const sigKey = sig.id || (sig.pair + sig.time)
               const executed = executedIds[sigKey]
               const isHovered = hoveredSignal === sigKey
@@ -229,7 +228,7 @@ export function BotCommandCenter() {
                   background: isHovered
                     ? `linear-gradient(180deg, ${c}08, rgba(255,255,255,0.02))`
                     : 'rgba(255,255,255,0.02)',
-                  border: `1px solid ${isHovered ? `${c}30` : T.border}`,
+                  border: `1px solid ${isHovered ? `${c}30` : '#2A313C'}`,
                   borderRadius: 'var(--radius-md)',
                   padding: '5px 6px',
                   display: 'flex',
@@ -249,12 +248,12 @@ export function BotCommandCenter() {
                         background: `${c}15`, padding: '1px 3px', borderRadius: 'var(--radius-xs)',
                         fontFamily: "var(--font-mono)"
                       }}>{sig.type}</span>
-                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)" }}>{sig.pair}</span>
-                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: isBuy ? T.success : T.danger, fontFamily: "var(--font-ar)" }}>
+                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)" }}>{sig.pair}</span>
+                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: isBuy ? '#00FFA3' : '#FF4757', fontFamily: "var(--font-ar)" }}>
                         {isBuy ? tb('buyArrow') : tb('sellArrow')}
                       </span>
                     </div>
-                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)" }}>{sig.conf}%</span>
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)" }}>{sig.conf}%</span>
                   </div>
 
                   {/* Confidence progress bar */}
@@ -270,15 +269,15 @@ export function BotCommandCenter() {
                   </div>
 
                   {/* Row 2: Reason */}
-                  <div style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-ar)", lineHeight: 1.4 }}>
+                  <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontFamily: "var(--font-ar)", lineHeight: 1.4 }}>
                     {sig.reason}
                   </div>
 
                   {/* Row 3: TP/SL + Execute */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', gap: 5, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)", color: T.text2 }}>
-                       <span>{tc('takeProfit')}: <span style={{ color: T.success }}>{sig.tp.toFixed(2)}</span></span>
-                       <span>{tc('stopLoss')}: <span style={{ color: T.danger }}>{sig.sl.toFixed(2)}</span></span>
+                    <div style={{ display: 'flex', gap: 5, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)", color: '#9CA3B5' }}>
+                       <span>{tc('takeProfit')}: <span style={{ color: '#00FFA3' }}>{sig.tp.toFixed(2)}</span></span>
+                       <span>{tc('stopLoss')}: <span style={{ color: '#FF4757' }}>{sig.sl.toFixed(2)}</span></span>
                     </div>
                     <button
                       onClick={(e) => !executed && handleExecute(sig, e)}
@@ -286,7 +285,7 @@ export function BotCommandCenter() {
                       style={{
                         background: executed ? 'rgba(255,255,255,0.05)' : `${c}12`,
                         border: `1px solid ${executed ? 'rgba(255,255,255,0.1)' : `${c}35`}`,
-                        color: executed ? T.text3 : c,
+                        color: executed ? '#6B7280' : c,
                         minHeight: 14,
                         padding: '1px 4px', borderRadius: 'var(--radius-xs)', fontSize: 'var(--text-xs)', fontWeight: 800,
                         cursor: executed ? 'default' : 'pointer', fontFamily: "var(--font-ar)",
@@ -299,7 +298,7 @@ export function BotCommandCenter() {
                   </div>
 
                   {/* Row 4: Meta */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>
                     <span>{sig.sourceEngine || 'scanner'} · {sig.timeframe || '1H'}</span>
                     <span>{sig.time}</span>
                   </div>

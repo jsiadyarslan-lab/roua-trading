@@ -6,7 +6,6 @@ import { ArrowLeft, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTranslations } from 'next-intl'
 import { usePrefersReducedMotion } from '@/hooks/use-reduced-motion'
-import T from '@/lib/unified-tokens'
 
 export default function CTASection() {
   const prefersReducedMotion = usePrefersReducedMotion()
@@ -38,7 +37,7 @@ export default function CTASection() {
       >
         <h2
           className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4"
-          style={{ color: T.text2, fontFamily: 'var(--font-ar)' }}
+          style={{ color: '#9CA3B5', fontFamily: 'var(--font-ar)' }}
         >
           {t('titlePart1')}{'\u00A0'}
           <span
@@ -55,7 +54,7 @@ export default function CTASection() {
 
         <p
           className="text-base mb-8 max-w-md mx-auto"
-          style={{ color: T.text2, fontFamily: 'var(--font-ar)' }}
+          style={{ color: '#9CA3B5', fontFamily: 'var(--font-ar)' }}
         >
           {t('joinCaption')}
         </p>
@@ -80,7 +79,7 @@ export default function CTASection() {
 
         <p
           className="mt-5 text-xs"
-          style={{ color: T.text3, fontFamily: 'var(--font-ar)' }}
+          style={{ color: '#6B7280', fontFamily: 'var(--font-ar)' }}
         >
           {t('noCreditCard')}
         </p>

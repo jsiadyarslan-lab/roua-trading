@@ -9,7 +9,6 @@ import { IndicatorBadge } from '../shared/IndicatorBadge'
 import { MiniHeatmap } from '../shared/MiniHeatmap'
 import type { ScannerItem } from '../hooks/useScannerData'
 import { safeStr, getLocalizedAssetName } from '@/lib/utils'
-import T from '@/lib/unified-tokens'
 
 interface ScannerTableRowProps {
   item: ScannerItem
@@ -39,7 +38,7 @@ function getMacdStatus(s: string | null): 'bullish' | 'bearish' | 'neutral' {
 function TinyBar({ value, maxVal, color }: { value: number; maxVal: number; color: string }) {
   const pct = Math.min(Math.max(Math.abs(value) / maxVal * 100, 2), 100)
   return (
-    <div style={{ width: 32, height: 3, borderRadius: 'var(--radius-xs)', background: T.surface, overflow: 'hidden' }}>
+    <div style={{ width: 32, height: 3, borderRadius: 'var(--radius-xs)', background: '#151A22', overflow: 'hidden' }}>
       <div style={{
         width: `${pct}%`, height: '100%', borderRadius: 'var(--radius-xs)',
         background: color, transition: 'width 0.3s',
@@ -53,11 +52,11 @@ function ActionBadge({ action }: { action: string }) {
   // Normalize action value: 'Strong Buy', 'strong_buy' → 'STRONG_BUY'
   const normAction = (action || '').toUpperCase().replace(/\s+/g, '_')
   const map: Record<string, { bg: string; color: string; key: string }> = {
-    'STRONG_BUY': { bg: `${T.green}15`, color: T.green, key: 'strongBuy' },
-    'BUY': { bg: `${T.green}10`, color: T.greenDim, key: 'buy' },
-    'HOLD': { bg: `${T.amber}10`, color: T.amber, key: 'hold' },
-    'SELL': { bg: `${T.red}10`, color: T.redDim, key: 'sell' },
-    'STRONG_SELL': { bg: `${T.red}15`, color: T.red, key: 'strongSell' },
+    'STRONG_BUY': { bg: `${'#00FFA3'}15`, color: '#00FFA3', key: 'strongBuy' },
+    'BUY': { bg: `${'#00FFA3'}10`, color: '#00CC82', key: 'buy' },
+    'HOLD': { bg: `${'#FFB800'}10`, color: '#FFB800', key: 'hold' },
+    'SELL': { bg: `${'#FF4757'}10`, color: '#CC3945', key: 'sell' },
+    'STRONG_SELL': { bg: `${'#FF4757'}15`, color: '#FF4757', key: 'strongSell' },
   }
   const cfg = map[normAction] ?? map['HOLD']
   return (
@@ -104,14 +103,14 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
     return null
   })()
   const dimmed = !item.marketOpen
-  const chgColor = item.changePercent >= 0 ? T.green : T.red
+  const chgColor = item.changePercent >= 0 ? '#00FFA3' : '#FF4757'
   const ss = item.smartScore
 
   const scores = [
-    { v: ss?.trendScore ?? Math.abs(item.technicalScore), max: 100, c: (ss?.trendScore ?? Math.abs(item.technicalScore)) >= 50 ? T.green : T.amber },
-    { v: ss?.momentumScore ?? item.confidence, max: 100, c: T.cyan },
-    { v: ss?.volumeScore ?? (item.rsi ?? 0), max: 100, c: T.blue },
-    { v: ss?.volatilityScore ?? (item.adx ?? 0), max: 100, c: T.purple },
+    { v: ss?.trendScore ?? Math.abs(item.technicalScore), max: 100, c: (ss?.trendScore ?? Math.abs(item.technicalScore)) >= 50 ? '#00FFA3' : '#FFB800' },
+    { v: ss?.momentumScore ?? item.confidence, max: 100, c: '#00D4FF' },
+    { v: ss?.volumeScore ?? (item.rsi ?? 0), max: 100, c: '#0A84FF' },
+    { v: ss?.volatilityScore ?? (item.adx ?? 0), max: 100, c: '#B388FF' },
   ]
 
   return (
@@ -119,24 +118,24 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
       onClick={() => onSelect(item.symbol)}
       onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
       style={{
-        background: isSelected ? `${T.cyan}08` : hovered ? T.cardHover : 'transparent',
+        background: isSelected ? `${'#00D4FF'}08` : hovered ? '#1F2335' : 'transparent',
         cursor: 'pointer', transition: 'background 0.2s',
         opacity: dimmed ? 0.45 : 1,
         animation: `fadeInRow 0.3s ease ${index * 30}ms both`,
       }}
     >
       {/* Symbol */}
-      <td style={{ padding: '8px 10px', borderBottom: `1px solid ${T.border}` }}>
+      <td style={{ padding: '8px 10px', borderBottom: `1px solid ${'#2A313C'}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <div>
             <div style={{
-              fontSize: 'var(--text-sm)', fontWeight: 800, color: T.text,
+              fontSize: 'var(--text-sm)', fontWeight: 800, color: '#F0F2F5',
               fontFamily: "var(--font-mono)",
             }}>
               {item.symbol}
             </div>
             <div style={{
-              fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 600,
+              fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 600,
               fontFamily: "var(--font-ar)",
             }}>
               {getLocalizedAssetName(item.symbol, safeStr(item.name), t, locale)}
@@ -147,22 +146,22 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
       </td>
 
       {/* Composite score */}
-      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}`, textAlign: 'center' }}>
+      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${'#2A313C'}`, textAlign: 'center' }}>
         <ScoreGauge score={item.technicalScore} size={32} showValue label="" />
       </td>
 
       {/* Change% */}
-      <td style={{ padding: '8px 8px', borderBottom: `1px solid ${T.border}` }}>
+      <td style={{ padding: '8px 8px', borderBottom: `1px solid ${'#2A313C'}` }}>
         <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: chgColor, fontFamily: "var(--font-mono)" }}>
           {item.changePercent >= 0 ? '+' : ''}{item.changePercent.toFixed(2)}%
         </div>
-        <div style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>
+        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>
           ${item.price > 0 ? item.price.toLocaleString() : '—'}
         </div>
       </td>
 
       {/* SmartScore mini bars */}
-      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}` }}>
+      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${'#2A313C'}` }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {scores.map((s, i) => (
             <TinyBar key={i} value={s.v} maxVal={s.max} color={s.c} />
@@ -171,27 +170,27 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
       </td>
 
       {/* RSI */}
-      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}` }}>
+      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${'#2A313C'}` }}>
         <IndicatorBadge label={t('indicators.rsi')} value={item.rsi ?? '—'} status={getRsiStatus(item.rsi)} />
       </td>
 
       {/* MACD */}
-      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}` }}>
+      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${'#2A313C'}` }}>
         <IndicatorBadge label={t('indicators.macd')} value={item.macdSignal === 'NONE' ? t('indicators.none') : (item.macdSignal ?? '—')} status={getMacdStatus(item.macdSignal)} />
       </td>
 
       {/* Stoch */}
-      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}`, textAlign: 'center' }}>
-        <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text2, fontFamily: "var(--font-mono)" }}>
+      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${'#2A313C'}`, textAlign: 'center' }}>
+        <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#9CA3B5', fontFamily: "var(--font-mono)" }}>
           {item.stochK !== null ? `${item.stochK.toFixed(0)}/${item.stochD?.toFixed(0)}` : '—'}
         </div>
       </td>
 
       {/* ADX */}
-      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}`, textAlign: 'center' }}>
+      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${'#2A313C'}`, textAlign: 'center' }}>
         <span style={{
           fontSize: 'var(--text-xs)', fontWeight: 800,
-          color: (item.adx ?? 0) > 25 ? T.green : T.text3,
+          color: (item.adx ?? 0) > 25 ? '#00FFA3' : '#6B7280',
           fontFamily: "var(--font-mono)",
         }}>
           {item.adx !== null ? item.adx.toFixed(1) : '—'}
@@ -199,7 +198,7 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
       </td>
 
       {/* MiniHeatmap */}
-      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}` }}>
+      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${'#2A313C'}` }}>
         <MiniHeatmap
           data={item.sparkline} color={chgColor}
           width={72} height={24}
@@ -207,22 +206,22 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
       </td>
 
       {/* AI Opinion */}
-      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}`, textAlign: 'center' }}>
+      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${'#2A313C'}`, textAlign: 'center' }}>
         {aiOpinionText ? (
           <div style={{
-            fontSize: 'var(--text-xs)', fontWeight: 700, color: T.cyan,
+            fontSize: 'var(--text-xs)', fontWeight: 700, color: '#00D4FF',
             fontFamily: "var(--font-ar)",
             lineHeight: 1.4,
           }}>
             {safeStr(aiOpinionText)}
           </div>
         ) : (
-          <span style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>—</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>—</span>
         )}
       </td>
 
       {/* SmartScore Action + Actions */}
-      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}` }}>
+      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${'#2A313C'}` }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
           {ss && <ActionBadge action={ss.action} />}
           <div style={{ display: 'flex', gap: 3 }}>
@@ -230,8 +229,8 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
               onClick={e => { e.stopPropagation(); onSelect(item.symbol) }}
               title={t('actions.deepAnalysis')}
               style={{
-                padding: 3, borderRadius: 'var(--radius-xs)', border: `0.5px solid ${T.border}`,
-                background: T.surface, color: T.text3, cursor: 'pointer', transition: 'all 0.2s',
+                padding: 3, borderRadius: 'var(--radius-xs)', border: `0.5px solid ${'#2A313C'}`,
+                background: '#151A22', color: '#6B7280', cursor: 'pointer', transition: 'all 0.2s',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
             >
@@ -241,8 +240,8 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
               onClick={e => { e.stopPropagation() }}
               title={t('actions.multiTimeframe')}
               style={{
-                padding: 3, borderRadius: 'var(--radius-xs)', border: `0.5px solid ${T.border}`,
-                background: T.surface, color: T.text3, cursor: 'pointer', transition: 'all 0.2s',
+                padding: 3, borderRadius: 'var(--radius-xs)', border: `0.5px solid ${'#2A313C'}`,
+                background: '#151A22', color: '#6B7280', cursor: 'pointer', transition: 'all 0.2s',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
             >
@@ -252,8 +251,8 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
               onClick={e => { e.stopPropagation(); onBellClick(item.symbol) }}
               title={t('actions.alerts')}
               style={{
-                padding: 3, borderRadius: 'var(--radius-xs)', border: `0.5px solid ${T.border}`,
-                background: T.surface, color: hasActiveAlert ? T.amber : T.text3,
+                padding: 3, borderRadius: 'var(--radius-xs)', border: `0.5px solid ${'#2A313C'}`,
+                background: '#151A22', color: hasActiveAlert ? '#FFB800' : '#6B7280',
                 cursor: 'pointer', transition: 'all 0.2s',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}

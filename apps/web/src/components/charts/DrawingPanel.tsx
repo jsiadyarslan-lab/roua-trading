@@ -9,7 +9,6 @@ import { useTranslations } from 'next-intl';
 import type { DrawingTool } from '@/lib/charts/types';
 import { DRAWING_CATEGORIES } from '@/lib/charts/types';
 import { DrawingManager } from '@/lib/charts/DrawingManager'
-import T from '@/lib/unified-tokens';
 
 interface DrawingPanelProps {
   activeTool: DrawingTool;
@@ -56,13 +55,13 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
   const COLORS = {
     card: 'rgba(11, 14, 20, 0.98)',
     border: 'rgba(0, 212, 255, 0.3)',
-    cyan: T.info,
-    text: T.text2,
-    textSecondary: T.text2,
-    textMuted: T.text2,
-    danger: T.danger,
+    cyan: '#00D4FF',
+    text: '#9CA3B5',
+    textSecondary: '#9CA3B5',
+    textMuted: '#9CA3B5',
+    danger: '#FF4757',
     hoverBg: 'rgba(0,212,255,0.12)',
-    activeBg: T.info,
+    activeBg: '#00D4FF',
     bg: 'rgba(0, 0, 0, 0.4)',
   };
 

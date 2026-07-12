@@ -19,7 +19,7 @@ import { useTranslations } from 'next-intl'
 /* ═══════════════════════════════════════════════════════
    Design Tokens (canonical + local extensions)
 ═══════════════════════════════════════════════════════ */
-const T = { ...SharedT, pink: T.pink, text4: T.text3 }
+const T = { ...SharedT, pink: '#F472B6', text4: '#6B7280' }
 
 /* ═══════════════════════════════════════════════════════
    Types
@@ -66,7 +66,7 @@ function Toggle({ checked, onChange, color, size = 'md', ariaLabel, disabled }: 
       style={{
         width: s.w, height: s.h, borderRadius: s.r, border: 'none',
         cursor: disabled ? 'not-allowed' : 'pointer',
-        background: checked ? `${color}25` : T.surface,
+        background: checked ? `${color}25` : '#151A22',
         position: 'relative', transition: 'all 0.3s',
         boxShadow: checked ? `0 0 8px ${color}25` : 'none',
         flexShrink: 0, opacity: disabled ? 0.5 : 1,
@@ -74,7 +74,7 @@ function Toggle({ checked, onChange, color, size = 'md', ariaLabel, disabled }: 
     >
       <div style={{
         width: s.dot, height: s.dot, borderRadius: s.dot / 2,
-        background: checked ? color : T.text3,
+        background: checked ? color : '#6B7280',
         position: 'absolute', top: (s.h - s.dot) / 2,
         insetInlineEnd: checked ? (s.h - s.dot) / 2 : 'auto',
         insetInlineStart: checked ? 'auto' : (s.h - s.dot) / 2,
@@ -96,9 +96,9 @@ function SecurityScoreRing({ score, t }: { score: number; t: (key: string) => st
   const strokeDashoffset = circumference - (score / 100) * circumference
 
   const getColor = (s: number) => {
-    if (s >= 80) return T.green
-    if (s >= 50) return T.amber
-    return T.red
+    if (s >= 80) return '#00FFA3'
+    if (s >= 50) return '#FFB800'
+    return '#FF4757'
   }
 
   const getLabel = (s: number) => {
@@ -114,7 +114,7 @@ function SecurityScoreRing({ score, t }: { score: number; t: (key: string) => st
       <svg height={radius * 2} width={radius * 2} style={{ transform: 'rotate(-90deg)' }}>
         {/* Background ring */}
         <circle
-          stroke={T.surface}
+          stroke={'#151A22'}
           fill="transparent"
           strokeWidth={stroke}
           r={normalizedRadius}
@@ -147,7 +147,7 @@ function SecurityScoreRing({ score, t }: { score: number; t: (key: string) => st
           {score}
         </div>
         <div style={{
-          fontSize: 9, fontWeight: 700, color: T.text3,
+          fontSize: 9, fontWeight: 700, color: '#6B7280',
           fontFamily: "var(--font-ar)", marginTop: 2,
         }}>
           {getLabel(score)}
@@ -168,7 +168,7 @@ function SectionCard({ icon, iconColor, iconBg, title, subtitle, children, badge
 }) {
   return (
     <div style={{
-      background: T.card, border: `1px solid ${T.border}`,
+      background: '#151A22', border: `1px solid ${'#2A313C'}`,
       borderRadius: 16, overflow: 'hidden',
       transition: 'border-color 0.3s',
     }}>
@@ -176,7 +176,7 @@ function SectionCard({ icon, iconColor, iconBg, title, subtitle, children, badge
         onClick={expandable ? onToggle : undefined}
         style={{
           display: 'flex', alignItems: 'center', gap: 14,
-          padding: '18px 20px', borderBottom: expanded ? `1px solid ${T.border}` : 'none',
+          padding: '18px 20px', borderBottom: expanded ? `1px solid ${'#2A313C'}` : 'none',
           cursor: expandable ? 'pointer' : 'default',
           transition: 'all 0.2s',
         }}
@@ -190,7 +190,7 @@ function SectionCard({ icon, iconColor, iconBg, title, subtitle, children, badge
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
-            fontSize: 14, fontWeight: 800, color: T.text,
+            fontSize: 14, fontWeight: 800, color: '#F0F2F5',
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
             {title}
@@ -198,22 +198,22 @@ function SectionCard({ icon, iconColor, iconBg, title, subtitle, children, badge
               <span style={{
                 fontSize: 9, padding: '2px 7px', borderRadius: 10,
                 background: badgeColor ? `${badgeColor}15` : 'rgba(255,255,255,0.04)',
-                color: badgeColor || T.text3,
+                color: badgeColor || '#6B7280',
                 fontFamily: "var(--font-mono)", fontWeight: 600,
               }}>{badge}</span>
             )}
           </div>
-          <div style={{ fontSize: 11, color: T.text3, marginTop: 2 }}>{subtitle}</div>
+          <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>{subtitle}</div>
         </div>
         {rightAction}
         {expandable && (
           <div style={{
             width: 28, height: 28, borderRadius: 8,
-            background: T.surface, display: 'flex',
+            background: '#151A22', display: 'flex',
             alignItems: 'center', justifyContent: 'center',
             flexShrink: 0, transition: 'all 0.3s',
           }}>
-            {expanded ? <ChevronUp size={14} color={T.text3} /> : <ChevronDown size={14} color={T.text3} />}
+            {expanded ? <ChevronUp size={14} color={'#6B7280'} /> : <ChevronDown size={14} color={'#6B7280'} />}
           </div>
         )}
       </div>
@@ -265,11 +265,11 @@ function OTPInput({ value, onChange, length = 6 }: {
           onKeyDown={e => handleKeyDown(i, e)}
           style={{
             width: 44, height: 52, borderRadius: 10,
-            background: T.surface, border: `1px solid ${value[i] ? T.cyan + '40' : T.border}`,
-            color: T.text, fontSize: 20, fontWeight: 800, textAlign: 'center',
+            background: '#151A22', border: `1px solid ${value[i] ? '#00D4FF' + '40' : '#2A313C'}`,
+            color: '#F0F2F5', fontSize: 20, fontWeight: 800, textAlign: 'center',
             fontFamily: "var(--font-mono)",
             outline: 'none', transition: 'all 0.2s',
-            boxShadow: value[i] ? `0 0 8px ${T.cyan}15` : 'none',
+            boxShadow: value[i] ? `0 0 8px ${'#00D4FF'}15` : 'none',
           }}
         />
       ))}
@@ -318,8 +318,8 @@ export default function TwoFactorAuthPage() {
   /* ─── WebAuthn State ─── */
   const [webauthnExpanded, setWebauthnExpanded] = useState(false)
   const [passkeys, setPasskeys] = useState<Passkey[]>([
-    { id: '1', name: 'MacBook Pro Touch ID', device: 'macOS', icon: <Laptop size={16} color={T.cyan} />, addedAt: '2025-11-15', lastUsed: t('toastTwoHoursAgo') },
-    { id: '2', name: 'iPhone Face ID', device: 'iOS', icon: <PhoneIcon size={16} color={T.purple} />, addedAt: '2025-12-20', lastUsed: t('toastOneDayAgo') },
+    { id: '1', name: 'MacBook Pro Touch ID', device: 'macOS', icon: <Laptop size={16} color={'#00D4FF'} />, addedAt: '2025-11-15', lastUsed: t('toastTwoHoursAgo') },
+    { id: '2', name: 'iPhone Face ID', device: 'iOS', icon: <PhoneIcon size={16} color={'#B388FF'} />, addedAt: '2025-12-20', lastUsed: t('toastOneDayAgo') },
   ])
   const [registeringPasskey, setRegisteringPasskey] = useState(false)
 
@@ -331,10 +331,10 @@ export default function TwoFactorAuthPage() {
 
   /* ─── Sessions State ─── */
   const [sessions] = useState<Session[]>([
-    { id: '1', device: 'MacBook Pro — Chrome', deviceIcon: <Laptop size={16} color={T.green} />, location: t('sessionLocation1'), lastActive: t('sessionLastActive1'), ip: '192.168.1.***', current: true },
-    { id: '2', device: 'iPhone 15 Pro — Safari', deviceIcon: <PhoneIcon size={16} color={T.cyan} />, location: t('sessionLocation2'), lastActive: t('sessionLastActive2'), ip: '192.168.1.***', current: false },
-    { id: '3', device: 'iPad Air — Safari', deviceIcon: <Tablet size={16} color={T.purple} />, location: t('sessionLocation3'), lastActive: t('sessionLastActive3'), ip: '10.0.0.***', current: false },
-    { id: '4', device: 'Windows PC — Edge', deviceIcon: <Monitor size={16} color={T.amber} />, location: t('sessionLocation4'), lastActive: t('sessionLastActive4'), ip: '172.16.0.***', current: false },
+    { id: '1', device: 'MacBook Pro — Chrome', deviceIcon: <Laptop size={16} color={'#00FFA3'} />, location: t('sessionLocation1'), lastActive: t('sessionLastActive1'), ip: '192.168.1.***', current: true },
+    { id: '2', device: 'iPhone 15 Pro — Safari', deviceIcon: <PhoneIcon size={16} color={'#00D4FF'} />, location: t('sessionLocation2'), lastActive: t('sessionLastActive2'), ip: '192.168.1.***', current: false },
+    { id: '3', device: 'iPad Air — Safari', deviceIcon: <Tablet size={16} color={'#B388FF'} />, location: t('sessionLocation3'), lastActive: t('sessionLastActive3'), ip: '10.0.0.***', current: false },
+    { id: '4', device: 'Windows PC — Edge', deviceIcon: <Monitor size={16} color={'#FFB800'} />, location: t('sessionLocation4'), lastActive: t('sessionLastActive4'), ip: '172.16.0.***', current: false },
   ])
 
   /* ─── Computed Values ─── */
@@ -385,7 +385,7 @@ export default function TwoFactorAuthPage() {
       id: String(Date.now()),
       name: t('toastNewPasskeyName'),
       device: t('toastNewPasskeyDevice'),
-      icon: <Fingerprint size={16} color={T.green} />,
+      icon: <Fingerprint size={16} color={'#00FFA3'} />,
       addedAt: new Date().toISOString().split('T')[0],
       lastUsed: t('toastNow'),
     }
@@ -440,12 +440,12 @@ export default function TwoFactorAuthPage() {
 
   /* ─── Best Practices Data ─── */
   const bestPractices = [
-    { icon: <ShieldCheck size={16} color={T.green} />, title: t('tipEnableTwoTitle'), desc: t('tipEnableTwoDesc'), color: T.green },
-    { icon: <KeyRound size={16} color={T.cyan} />, title: t('tipSaveCodesTitle'), desc: t('tipSaveCodesDesc'), color: T.cyan },
-    { icon: <AlertTriangle size={16} color={T.amber} />, title: t('tipNeverShareTitle'), desc: t('tipNeverShareDesc'), color: T.amber },
-    { icon: <RefreshCw size={16} color={T.purple} />, title: t('tipRotateCodesTitle'), desc: t('tipRotateCodesDesc'), color: T.purple },
-    { icon: <Monitor size={16} color={T.blue} />, title: t('tipMonitorSessionsTitle'), desc: t('tipMonitorSessionsDesc'), color: T.blue },
-    { icon: <Lock size={16} color={T.red} />, title: t('tipStrongPasswordTitle'), desc: t('tipStrongPasswordDesc'), color: T.red },
+    { icon: <ShieldCheck size={16} color={'#00FFA3'} />, title: t('tipEnableTwoTitle'), desc: t('tipEnableTwoDesc'), color: '#00FFA3' },
+    { icon: <KeyRound size={16} color={'#00D4FF'} />, title: t('tipSaveCodesTitle'), desc: t('tipSaveCodesDesc'), color: '#00D4FF' },
+    { icon: <AlertTriangle size={16} color={'#FFB800'} />, title: t('tipNeverShareTitle'), desc: t('tipNeverShareDesc'), color: '#FFB800' },
+    { icon: <RefreshCw size={16} color={'#B388FF'} />, title: t('tipRotateCodesTitle'), desc: t('tipRotateCodesDesc'), color: '#B388FF' },
+    { icon: <Monitor size={16} color={'#0A84FF'} />, title: t('tipMonitorSessionsTitle'), desc: t('tipMonitorSessionsDesc'), color: '#0A84FF' },
+    { icon: <Lock size={16} color={'#FF4757'} />, title: t('tipStrongPasswordTitle'), desc: t('tipStrongPasswordDesc'), color: '#FF4757' },
   ]
 
   /* ═══════════════════════════════════════════════════════
@@ -454,13 +454,13 @@ export default function TwoFactorAuthPage() {
   return (
     <div className="custom-scrollbar" style={{
       direction: 'inherit', fontFamily: "var(--font-ar)",
-      height: '100%', overflowY: 'auto', background: T.bg,
+      height: '100%', overflowY: 'auto', background: '#0B0E14',
     }}>
       {/* Scoped styles via useScopedStyle */}{/* ═══ Header ═══ */}
       <div style={{
         padding: '28px 24px 0',
-        background: `linear-gradient(180deg, ${T.bg2}, ${T.bg})`,
-        borderBottom: `1px solid ${T.border}`,
+        background: `linear-gradient(180deg, ${'#0F1117'}, ${'#0B0E14'})`,
+        borderBottom: `1px solid ${'#2A313C'}`,
       }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
@@ -468,28 +468,28 @@ export default function TwoFactorAuthPage() {
               width: 44, height: 44, borderRadius: 12,
               background: 'linear-gradient(135deg, #00D4FF, #0A84FF)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: `0 0 20px ${T.cyan}30`,
+              boxShadow: `0 0 20px ${'#00D4FF'}30`,
             }}>
               <Shield size={22} color="#fff" />
             </div>
             <div style={{ flex: 1 }}>
-              <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>
+              <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: '#F0F2F5' }}>
                 {t('title')}
               </h1>
-              <p style={{ margin: 0, fontSize: 12, color: T.text3, marginTop: 2 }}>
+              <p style={{ margin: 0, fontSize: 12, color: '#6B7280', marginTop: 2 }}>
                 {t('subtitle')}
               </p>
             </div>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
               padding: '6px 14px', borderRadius: 10,
-              background: securityScore >= 80 ? `${T.green}12` : securityScore >= 50 ? `${T.amber}12` : `${T.red}12`,
-              border: `1px solid ${securityScore >= 80 ? T.green + '20' : securityScore >= 50 ? T.amber + '20' : T.red + '20'}`,
+              background: securityScore >= 80 ? `${'#00FFA3'}12` : securityScore >= 50 ? `${'#FFB800'}12` : `${'#FF4757'}12`,
+              border: `1px solid ${securityScore >= 80 ? '#00FFA3' + '20' : securityScore >= 50 ? '#FFB800' + '20' : '#FF4757' + '20'}`,
             }}>
-              {securityScore >= 80 ? <ShieldCheck size={14} color={T.green} /> : securityScore >= 50 ? <Shield size={14} color={T.amber} /> : <ShieldAlert size={14} color={T.red} />}
+              {securityScore >= 80 ? <ShieldCheck size={14} color={'#00FFA3'} /> : securityScore >= 50 ? <Shield size={14} color={'#FFB800'} /> : <ShieldAlert size={14} color={'#FF4757'} />}
               <span style={{
                 fontSize: 12, fontWeight: 700,
-                color: securityScore >= 80 ? T.green : securityScore >= 50 ? T.amber : T.red,
+                color: securityScore >= 80 ? '#00FFA3' : securityScore >= 50 ? '#FFB800' : '#FF4757',
                 fontFamily: "var(--font-ar)",
               }}>
                 {securityScore >= 80 ? t('statusProtected') : securityScore >= 50 ? t('statusImprovable') : t('statusNeedsProtection')}
@@ -505,15 +505,15 @@ export default function TwoFactorAuthPage() {
 
           {/* ═══ Security Status Overview Card ═══ */}
           <div style={{
-            background: T.card, border: `1px solid ${T.border}`,
+            background: '#151A22', border: `1px solid ${'#2A313C'}`,
             borderRadius: 16, overflow: 'hidden',
           }}>
             <div style={{ padding: '20px 20px 0' }}>
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16,
               }}>
-                <ShieldCheck size={14} color={T.cyan} />
-                <span style={{ fontSize: 12, fontWeight: 700, color: T.text2, fontFamily: "var(--font-ar)" }}>
+                <ShieldCheck size={14} color={'#00D4FF'} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#9CA3B5', fontFamily: "var(--font-ar)" }}>
                   {t('securityOverview')}
                 </span>
               </div>
@@ -530,38 +530,38 @@ export default function TwoFactorAuthPage() {
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {methods.map(method => {
                   const methodConfig: Record<string, { icon: React.ReactNode; color: string }> = {
-                    email: { icon: <Smartphone size={16} />, color: T.amber },
-                    webauthn: { icon: <Fingerprint size={16} />, color: T.purple },
-                    totp: { icon: <Key size={16} />, color: T.cyan },
+                    email: { icon: <Smartphone size={16} />, color: '#FFB800' },
+                    webauthn: { icon: <Fingerprint size={16} />, color: '#B388FF' },
+                    totp: { icon: <Key size={16} />, color: '#00D4FF' },
                   }
-                  const config = methodConfig[method.id] || { icon: <Key size={16} />, color: T.text3 }
+                  const config = methodConfig[method.id] || { icon: <Key size={16} />, color: '#6B7280' }
 
                   return (
                     <div key={method.id} style={{
                       display: 'flex', alignItems: 'center', gap: 12,
                       padding: '10px 14px', borderRadius: 10,
-                      background: method.enabled ? `${config.color}08` : T.surface,
-                      border: `1px solid ${method.enabled ? `${config.color}15` : T.border}`,
+                      background: method.enabled ? `${config.color}08` : '#151A22',
+                      border: `1px solid ${method.enabled ? `${config.color}15` : '#2A313C'}`,
                       transition: 'all 0.3s',
                     }}>
                       <div style={{
                         width: 32, height: 32, borderRadius: 8,
-                        background: method.enabled ? `${config.color}14` : T.surface,
+                        background: method.enabled ? `${config.color}14` : '#151A22',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: method.enabled ? config.color : T.text4,
+                        color: method.enabled ? config.color : '#6B7280',
                         transition: 'all 0.3s',
                       }}>
                         {config.icon}
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{
-                          fontSize: 12, fontWeight: 700, color: method.enabled ? T.text : T.text3,
+                          fontSize: 12, fontWeight: 700, color: method.enabled ? '#F0F2F5' : '#6B7280',
                           fontFamily: "var(--font-ar)",
                         }}>
                           {method.label}
                         </div>
                         <div style={{
-                          fontSize: 10, color: method.enabled ? config.color : T.text4,
+                          fontSize: 10, color: method.enabled ? config.color : '#6B7280',
                           fontFamily: "var(--font-ar)", marginTop: 1,
                         }}>
                           {method.enabled ? t('methodEnabled') : t('methodDisabled')}
@@ -571,7 +571,7 @@ export default function TwoFactorAuthPage() {
                         {method.enabled ? (
                           <CircleCheck size={16} color={config.color} />
                         ) : (
-                          <CircleX size={16} color={T.text4} />
+                          <CircleX size={16} color={'#6B7280'} />
                         )}
                       </div>
                     </div>
@@ -582,11 +582,11 @@ export default function TwoFactorAuthPage() {
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '8px 12px', borderRadius: 8,
-                  background: `${T.cyan}06`, border: `1px solid ${T.cyan}10`,
+                  background: `${'#00D4FF'}06`, border: `1px solid ${'#00D4FF'}10`,
                   marginTop: 4,
                 }}>
-                  <Info size={13} color={T.cyan} />
-                  <span style={{ fontSize: 10, color: T.text2, lineHeight: 1.6 }}>
+                  <Info size={13} color={'#00D4FF'} />
+                  <span style={{ fontSize: 10, color: '#9CA3B5', lineHeight: 1.6 }}>
                     {enabledCount >= 2
                       ? t('enabledCountExcellent', { count: enabledCount })
                       : enabledCount === 1
@@ -602,13 +602,13 @@ export default function TwoFactorAuthPage() {
              TOTP Section
           ════════════════════════════════════════════════ */}
           <SectionCard
-            icon={<Key size={18} color={T.cyan} />}
-            iconColor={T.cyan}
-            iconBg={`${T.cyan}14`}
+            icon={<Key size={18} color={'#00D4FF'} />}
+            iconColor={'#00D4FF'}
+            iconBg={`${'#00D4FF'}14`}
             title={t('totpTitle')}
             subtitle={t('totpSubtitle')}
             badge={methods.find(m => m.id === 'totp')?.enabled ? t('totpBadgeEnabled') : t('totpBadgeDisabled')}
-            badgeColor={methods.find(m => m.id === 'totp')?.enabled ? T.green : T.text4}
+            badgeColor={methods.find(m => m.id === 'totp')?.enabled ? '#00FFA3' : '#6B7280'}
             expandable
             expanded={totpExpanded}
             onToggle={() => setTotpExpanded(!totpExpanded)}
@@ -623,7 +623,7 @@ export default function TwoFactorAuthPage() {
                     if (totpStep === 0) setTotpStep(1)
                   }
                 }}
-                color={T.cyan}
+                color={'#00D4FF'}
                 size="sm"
                 ariaLabel={t('totpToggleAria')}
               />
@@ -636,11 +636,11 @@ export default function TwoFactorAuthPage() {
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 10,
                     padding: '12px 14px', borderRadius: 10,
-                    background: `${T.green}08`, border: `1px solid ${T.green}15`,
+                    background: `${'#00FFA3'}08`, border: `1px solid ${'#00FFA3'}15`,
                     marginBottom: 14,
                   }}>
-                    <CheckCircle2 size={16} color={T.green} />
-                    <div style={{ fontSize: 12, color: T.text2, lineHeight: 1.6 }}>
+                    <CheckCircle2 size={16} color={'#00FFA3'} />
+                    <div style={{ fontSize: 12, color: '#9CA3B5', lineHeight: 1.6 }}>
                       {t('totpEnabledMessage')}
                     </div>
                   </div>
@@ -649,8 +649,8 @@ export default function TwoFactorAuthPage() {
                       onClick={() => { setTotpStep(1) }}
                       style={{
                         padding: '8px 16px', borderRadius: 8,
-                        background: T.surface, border: `1px solid ${T.border}`,
-                        color: T.text2, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                        background: '#151A22', border: `1px solid ${'#2A313C'}`,
+                        color: '#9CA3B5', fontSize: 11, fontWeight: 600, cursor: 'pointer',
                         fontFamily: "var(--font-ar)", display: 'flex',
                         alignItems: 'center', gap: 6, transition: 'all 0.2s',
                       }}
@@ -677,12 +677,12 @@ export default function TwoFactorAuthPage() {
                       <div key={step.n} style={{ flex: 1 }}>
                         <div style={{
                           height: 3, borderRadius: 2,
-                          background: totpStep >= step.n ? T.cyan : T.surface,
+                          background: totpStep >= step.n ? '#00D4FF' : '#151A22',
                           transition: 'all 0.3s', marginBottom: 6,
                         }} />
                         <div style={{
                           fontSize: 9, fontWeight: totpStep >= step.n ? 700 : 400,
-                          color: totpStep >= step.n ? T.cyan : T.text4,
+                          color: totpStep >= step.n ? '#00D4FF' : '#6B7280',
                           fontFamily: "var(--font-ar)", textAlign: 'center',
                           whiteSpace: 'nowrap',
                         }}>
@@ -697,27 +697,27 @@ export default function TwoFactorAuthPage() {
                     <div className="twofa-content">
                       <div style={{
                         padding: '20px', borderRadius: 12,
-                        background: T.surface, border: `1px solid ${T.border}`,
+                        background: '#151A22', border: `1px solid ${'#2A313C'}`,
                         textAlign: 'center',
                       }}>
                         <div style={{
                           width: 52, height: 52, borderRadius: 14,
-                          background: `${T.cyan}14`, margin: '0 auto 14px',
+                          background: `${'#00D4FF'}14`, margin: '0 auto 14px',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}>
-                          <Smartphone size={24} color={T.cyan} />
+                          <Smartphone size={24} color={'#00D4FF'} />
                         </div>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: T.text, marginBottom: 8, fontFamily: "var(--font-ar)" }}>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: '#F0F2F5', marginBottom: 8, fontFamily: "var(--font-ar)" }}>
                           {t('totpInstallTitle')}
                         </div>
-                        <div style={{ fontSize: 12, color: T.text3, lineHeight: 1.7, marginBottom: 16 }}>
+                        <div style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.7, marginBottom: 16 }}>
                           {t('totpInstallDesc')}
                         </div>
                         <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
                           {[
-                            { name: 'Google Authenticator', color: T.amber },
-                            { name: 'Authy', color: T.blue },
-                            { name: 'Microsoft Authenticator', color: T.purple },
+                            { name: 'Google Authenticator', color: '#FFB800' },
+                            { name: 'Authy', color: '#0A84FF' },
+                            { name: 'Microsoft Authenticator', color: '#B388FF' },
                           ].map(app => (
                             <div key={app.name} style={{
                               padding: '8px 14px', borderRadius: 8,
@@ -735,10 +735,10 @@ export default function TwoFactorAuthPage() {
                           onClick={() => setTotpStep(2)}
                           style={{
                             padding: '10px 24px', borderRadius: 10,
-                            background: `linear-gradient(135deg, ${T.cyan}, #0A84FF)`,
+                            background: `linear-gradient(135deg, ${'#00D4FF'}, #0A84FF)`,
                             border: 'none', color: '#000', fontSize: 12, fontWeight: 800,
                             cursor: 'pointer', fontFamily: "var(--font-ar)",
-                            boxShadow: `0 0 16px ${T.cyan}25`,
+                            boxShadow: `0 0 16px ${'#00D4FF'}25`,
                             transition: 'all 0.2s',
                           }}
                         >
@@ -753,13 +753,13 @@ export default function TwoFactorAuthPage() {
                     <div className="twofa-content">
                       <div style={{
                         padding: '20px', borderRadius: 12,
-                        background: T.surface, border: `1px solid ${T.border}`,
+                        background: '#151A22', border: `1px solid ${'#2A313C'}`,
                       }}>
                         <div style={{
                           display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14,
                         }}>
-                          <QrCode size={14} color={T.cyan} />
-                          <span style={{ fontSize: 12, fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>
+                          <QrCode size={14} color={'#00D4FF'} />
+                          <span style={{ fontSize: 12, fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
                             {t('totpScanTitle')}
                           </span>
                         </div>
@@ -796,15 +796,15 @@ export default function TwoFactorAuthPage() {
                             position: 'absolute', top: '50%', left: '50%',
                             transform: 'translate(-50%, -50%)',
                             width: 36, height: 36, borderRadius: 8,
-                            background: T.bg, border: '3px solid #fff',
+                            background: '#0B0E14', border: '3px solid #fff',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                           }}>
-                            <Shield size={16} color={T.cyan} />
+                            <Shield size={16} color={'#00D4FF'} />
                           </div>
                         </div>
 
                         <div style={{ textAlign: 'center', marginBottom: 14 }}>
-                          <div style={{ fontSize: 11, color: T.text3, lineHeight: 1.6 }}>
+                          <div style={{ fontSize: 11, color: '#6B7280', lineHeight: 1.6 }}>
                             {t('totpScanDesc')}
                           </div>
                         </div>
@@ -812,13 +812,13 @@ export default function TwoFactorAuthPage() {
                         {/* Manual Key */}
                         <div style={{
                           padding: '12px 14px', borderRadius: 10,
-                          background: `${T.purple}06`, border: `1px solid ${T.purple}12`,
+                          background: `${'#B388FF'}06`, border: `1px solid ${'#B388FF'}12`,
                         }}>
                           <div style={{
                             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                             marginBottom: 6,
                           }}>
-                            <span style={{ fontSize: 10, fontWeight: 600, color: T.text3, fontFamily: "var(--font-ar)" }}>
+                            <span style={{ fontSize: 10, fontWeight: 600, color: '#6B7280', fontFamily: "var(--font-ar)" }}>
                               {t('totpManualKey')}
                             </span>
                             <div style={{ display: 'flex', gap: 4 }}>
@@ -826,9 +826,9 @@ export default function TwoFactorAuthPage() {
                                 onClick={() => setShowTotpKey(!showTotpKey)}
                                 style={{
                                   width: 26, height: 26, borderRadius: 6,
-                                  background: T.surface, border: `1px solid ${T.border}`,
+                                  background: '#151A22', border: `1px solid ${'#2A313C'}`,
                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  cursor: 'pointer', color: T.text3,
+                                  cursor: 'pointer', color: '#6B7280',
                                 }}
                               >
                                 {showTotpKey ? <EyeOff size={12} /> : <Eye size={12} />}
@@ -837,9 +837,9 @@ export default function TwoFactorAuthPage() {
                                 onClick={() => handleCopyText(totpKey, t('totpManualKey').split('(')[0].trim())}
                                 style={{
                                   width: 26, height: 26, borderRadius: 6,
-                                  background: T.surface, border: `1px solid ${T.border}`,
+                                  background: '#151A22', border: `1px solid ${'#2A313C'}`,
                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  cursor: 'pointer', color: T.text3,
+                                  cursor: 'pointer', color: '#6B7280',
                                 }}
                               >
                                 <Copy size={12} />
@@ -847,7 +847,7 @@ export default function TwoFactorAuthPage() {
                             </div>
                           </div>
                           <div style={{
-                            fontSize: 14, fontWeight: 700, color: T.text,
+                            fontSize: 14, fontWeight: 700, color: '#F0F2F5',
                             fontFamily: "var(--font-mono)",
                             letterSpacing: 2, direction: 'ltr', textAlign: 'center',
                             filter: showTotpKey ? 'none' : 'blur(4px)',
@@ -864,8 +864,8 @@ export default function TwoFactorAuthPage() {
                           onClick={() => setTotpStep(1)}
                           style={{
                             padding: '10px 18px', borderRadius: 10,
-                            background: T.surface, border: `1px solid ${T.border}`,
-                            color: T.text3, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                            background: '#151A22', border: `1px solid ${'#2A313C'}`,
+                            color: '#6B7280', fontSize: 12, fontWeight: 600, cursor: 'pointer',
                             fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                           }}
                         >
@@ -875,10 +875,10 @@ export default function TwoFactorAuthPage() {
                           onClick={() => setTotpStep(3)}
                           style={{
                             padding: '10px 24px', borderRadius: 10,
-                            background: `linear-gradient(135deg, ${T.cyan}, #0A84FF)`,
+                            background: `linear-gradient(135deg, ${'#00D4FF'}, #0A84FF)`,
                             border: 'none', color: '#000', fontSize: 12, fontWeight: 800,
                             cursor: 'pointer', fontFamily: "var(--font-ar)",
-                            boxShadow: `0 0 16px ${T.cyan}25`,
+                            boxShadow: `0 0 16px ${'#00D4FF'}25`,
                             transition: 'all 0.2s',
                           }}
                         >
@@ -893,20 +893,20 @@ export default function TwoFactorAuthPage() {
                     <div className="twofa-content">
                       <div style={{
                         padding: '20px', borderRadius: 12,
-                        background: T.surface, border: `1px solid ${T.border}`,
+                        background: '#151A22', border: `1px solid ${'#2A313C'}`,
                         textAlign: 'center',
                       }}>
                         <div style={{
                           width: 52, height: 52, borderRadius: 14,
-                          background: `${T.cyan}14`, margin: '0 auto 14px',
+                          background: `${'#00D4FF'}14`, margin: '0 auto 14px',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}>
-                          <Hash size={24} color={T.cyan} />
+                          <Hash size={24} color={'#00D4FF'} />
                         </div>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: T.text, marginBottom: 6, fontFamily: "var(--font-ar)" }}>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: '#F0F2F5', marginBottom: 6, fontFamily: "var(--font-ar)" }}>
                           {t('totpEnterTitle')}
                         </div>
-                        <div style={{ fontSize: 12, color: T.text3, lineHeight: 1.6, marginBottom: 20 }}>
+                        <div style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.6, marginBottom: 20 }}>
                           {t('totpEnterDesc')}
                         </div>
 
@@ -919,13 +919,13 @@ export default function TwoFactorAuthPage() {
                             style={{
                               padding: '10px 32px', borderRadius: 10,
                               background: totpCode.length === 6
-                                ? `linear-gradient(135deg, ${T.cyan}, #0A84FF)`
-                                : T.surface,
+                                ? `linear-gradient(135deg, ${'#00D4FF'}, #0A84FF)`
+                                : '#151A22',
                               border: 'none',
-                              color: totpCode.length === 6 ? '#000' : T.text4,
+                              color: totpCode.length === 6 ? '#000' : '#6B7280',
                               fontSize: 12, fontWeight: 800, cursor: totpCode.length === 6 ? 'pointer' : 'default',
                               fontFamily: "var(--font-ar)",
-                              boxShadow: totpCode.length === 6 ? `0 0 16px ${T.cyan}25` : 'none',
+                              boxShadow: totpCode.length === 6 ? `0 0 16px ${'#00D4FF'}25` : 'none',
                               transition: 'all 0.2s',
                               display: 'flex', alignItems: 'center', gap: 6,
                             }}
@@ -941,8 +941,8 @@ export default function TwoFactorAuthPage() {
                           onClick={() => setTotpStep(2)}
                           style={{
                             padding: '10px 18px', borderRadius: 10,
-                            background: T.surface, border: `1px solid ${T.border}`,
-                            color: T.text3, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                            background: '#151A22', border: `1px solid ${'#2A313C'}`,
+                            color: '#6B7280', fontSize: 12, fontWeight: 600, cursor: 'pointer',
                             fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                           }}
                         >
@@ -955,8 +955,8 @@ export default function TwoFactorAuthPage() {
                   {/* Step 4: Confirmed (shown briefly then switches to enabled state) */}
                   {totpStep === 4 && !methods.find(m => m.id === 'totp')?.enabled && (
                     <div className="twofa-content" style={{ textAlign: 'center', padding: 20 }}>
-                      <CheckCircle2 size={32} color={T.green} style={{ margin: '0 auto 12px' }} />
-                      <div style={{ fontSize: 14, fontWeight: 800, color: T.green, fontFamily: "var(--font-ar)" }}>
+                      <CheckCircle2 size={32} color={'#00FFA3'} style={{ margin: '0 auto 12px' }} />
+                      <div style={{ fontSize: 14, fontWeight: 800, color: '#00FFA3', fontFamily: "var(--font-ar)" }}>
                         {t('totpActivated')}
                       </div>
                     </div>
@@ -970,13 +970,13 @@ export default function TwoFactorAuthPage() {
              WebAuthn / Passkeys Section
           ════════════════════════════════════════════════ */}
           <SectionCard
-            icon={<Fingerprint size={18} color={T.purple} />}
-            iconColor={T.purple}
-            iconBg={`${T.purple}14`}
+            icon={<Fingerprint size={18} color={'#B388FF'} />}
+            iconColor={'#B388FF'}
+            iconBg={`${'#B388FF'}14`}
             title={t('webauthnTitle')}
             subtitle={t('webauthnSubtitle')}
             badge={t('webauthnBadge', { count: passkeys.length })}
-            badgeColor={passkeys.length > 0 ? T.purple : T.text4}
+            badgeColor={passkeys.length > 0 ? '#B388FF' : '#6B7280'}
             expandable
             expanded={webauthnExpanded}
             onToggle={() => setWebauthnExpanded(!webauthnExpanded)}
@@ -990,7 +990,7 @@ export default function TwoFactorAuthPage() {
                     setWebauthnExpanded(true)
                   }
                 }}
-                color={T.purple}
+                color={'#B388FF'}
                 size="sm"
                 ariaLabel={t('webauthnToggleAria')}
               />
@@ -1001,11 +1001,11 @@ export default function TwoFactorAuthPage() {
               <div style={{
                 display: 'flex', alignItems: 'flex-start', gap: 10,
                 padding: '12px 14px', borderRadius: 10,
-                background: `${T.purple}06`, border: `1px solid ${T.purple}12`,
+                background: `${'#B388FF'}06`, border: `1px solid ${'#B388FF'}12`,
                 marginBottom: 16,
               }}>
-                <Info size={16} color={T.purple} style={{ flexShrink: 0, marginTop: 1 }} />
-                <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.7 }}>
+                <Info size={16} color={'#B388FF'} style={{ flexShrink: 0, marginTop: 1 }} />
+                <div style={{ fontSize: 11, color: '#9CA3B5', lineHeight: 1.7 }}>
                   {t('webauthnInfo')}
                 </div>
               </div>
@@ -1017,12 +1017,12 @@ export default function TwoFactorAuthPage() {
                     <div key={passkey.id} style={{
                       display: 'flex', alignItems: 'center', gap: 12,
                       padding: '12px 14px', borderRadius: 10,
-                      background: T.surface, border: `1px solid ${T.border}`,
+                      background: '#151A22', border: `1px solid ${'#2A313C'}`,
                       transition: 'all 0.2s',
                     }}>
                       <div style={{
                         width: 36, height: 36, borderRadius: 10,
-                        background: `${T.purple}14`,
+                        background: `${'#B388FF'}14`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         flexShrink: 0,
                       }}>
@@ -1030,14 +1030,14 @@ export default function TwoFactorAuthPage() {
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{
-                          fontSize: 12, fontWeight: 700, color: T.text,
+                          fontSize: 12, fontWeight: 700, color: '#F0F2F5',
                           fontFamily: "var(--font-ar)",
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                         }}>
                           {passkey.name}
                         </div>
                         <div style={{
-                          fontSize: 10, color: T.text3,
+                          fontSize: 10, color: '#6B7280',
                           fontFamily: "var(--font-mono)",
                           marginTop: 2, display: 'flex', gap: 10,
                         }}>
@@ -1050,9 +1050,9 @@ export default function TwoFactorAuthPage() {
                         onClick={() => handleDeletePasskey(passkey.id)}
                         style={{
                           width: 30, height: 30, borderRadius: 8,
-                          background: `${T.red}08`, border: `1px solid ${T.red}15`,
+                          background: `${'#FF4757'}08`, border: `1px solid ${'#FF4757'}15`,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          cursor: 'pointer', color: T.red, flexShrink: 0,
+                          cursor: 'pointer', color: '#FF4757', flexShrink: 0,
                           transition: 'all 0.2s',
                         }}
                         title={t('webauthnDeleteTitle')}
@@ -1064,11 +1064,11 @@ export default function TwoFactorAuthPage() {
                 </div>
               ) : (
                 <div style={{
-                  padding: 24, borderRadius: 12, background: T.surface,
-                  border: `1px dashed ${T.border}`, textAlign: 'center', marginBottom: 16,
+                  padding: 24, borderRadius: 12, background: '#151A22',
+                  border: `1px dashed ${'#2A313C'}`, textAlign: 'center', marginBottom: 16,
                 }}>
-                  <Fingerprint size={28} color={T.text4} style={{ margin: '0 auto 10px' }} />
-                  <div style={{ fontSize: 12, color: T.text4, fontFamily: "var(--font-ar)" }}>
+                  <Fingerprint size={28} color={'#6B7280'} style={{ margin: '0 auto 10px' }} />
+                  <div style={{ fontSize: 12, color: '#6B7280', fontFamily: "var(--font-ar)" }}>
                     {t('webauthnEmptyState')}
                   </div>
                 </div>
@@ -1080,8 +1080,8 @@ export default function TwoFactorAuthPage() {
                 disabled={registeringPasskey}
                 style={{
                   width: '100%', padding: '12px 16px', borderRadius: 10,
-                  border: `1px dashed ${T.purple}40`, background: `${T.purple}06`,
-                  color: T.purple, fontSize: 13, fontWeight: 700, cursor: registeringPasskey ? 'wait' : 'pointer',
+                  border: `1px dashed ${'#B388FF'}40`, background: `${'#B388FF'}06`,
+                  color: '#B388FF', fontSize: 13, fontWeight: 700, cursor: registeringPasskey ? 'wait' : 'pointer',
                   fontFamily: "var(--font-ar)",
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                   transition: 'all 0.2s',
@@ -1101,13 +1101,13 @@ export default function TwoFactorAuthPage() {
              Recovery Codes Section
           ════════════════════════════════════════════════ */}
           <SectionCard
-            icon={<KeyRound size={18} color={T.amber} />}
-            iconColor={T.amber}
-            iconBg={`${T.amber}14`}
+            icon={<KeyRound size={18} color={'#FFB800'} />}
+            iconColor={'#FFB800'}
+            iconBg={`${'#FFB800'}14`}
             title={t('recoveryTitle')}
             subtitle={t('recoverySubtitle')}
             badge={recoveryCodes.length > 0 ? t('recoveryBadge', { count: recoveryCodes.length }) : undefined}
-            badgeColor={T.amber}
+            badgeColor={'#FFB800'}
             expandable
             expanded={recoveryExpanded}
             onToggle={() => setRecoveryExpanded(!recoveryExpanded)}
@@ -1117,13 +1117,13 @@ export default function TwoFactorAuthPage() {
               <div style={{
                 display: 'flex', alignItems: 'flex-start', gap: 10,
                 padding: '12px 14px', borderRadius: 10,
-                background: `${T.amber}06`, border: `1px solid ${T.amber}12`,
+                background: `${'#FFB800'}06`, border: `1px solid ${'#FFB800'}12`,
                 marginBottom: 16,
               }}>
-                <AlertTriangle size={16} color={T.amber} style={{ flexShrink: 0, marginTop: 1 }} />
-                <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.7 }}>
+                <AlertTriangle size={16} color={'#FFB800'} style={{ flexShrink: 0, marginTop: 1 }} />
+                <div style={{ fontSize: 11, color: '#9CA3B5', lineHeight: 1.7 }}>
                   {t('recoveryWarning')}
-                  <span style={{ color: T.red, fontWeight: 600 }}>{t('recoveryWarningShare')}</span>
+                  <span style={{ color: '#FF4757', fontWeight: 600 }}>{t('recoveryWarningShare')}</span>
                 </div>
               </div>
 
@@ -1132,15 +1132,15 @@ export default function TwoFactorAuthPage() {
                 <div style={{ textAlign: 'center', padding: 12 }}>
                   <div style={{
                     width: 52, height: 52, borderRadius: 14,
-                    background: `${T.amber}14`, margin: '0 auto 14px',
+                    background: `${'#FFB800'}14`, margin: '0 auto 14px',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <ShieldQuestion size={24} color={T.amber} />
+                    <ShieldQuestion size={24} color={'#FFB800'} />
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 6, fontFamily: "var(--font-ar)" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#F0F2F5', marginBottom: 6, fontFamily: "var(--font-ar)" }}>
                     {t('recoveryNotGenerated')}
                   </div>
-                  <div style={{ fontSize: 11, color: T.text3, lineHeight: 1.6, marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, color: '#6B7280', lineHeight: 1.6, marginBottom: 16 }}>
                     {t('recoveryGenerateDesc')}
                   </div>
                   <button
@@ -1148,11 +1148,11 @@ export default function TwoFactorAuthPage() {
                     disabled={generatingCodes}
                     style={{
                       padding: '10px 28px', borderRadius: 10,
-                      background: `linear-gradient(135deg, ${T.amber}, #FF8C00)`,
+                      background: `linear-gradient(135deg, ${'#FFB800'}, #FF8C00)`,
                       border: 'none', color: '#000', fontSize: 12, fontWeight: 800,
                       cursor: generatingCodes ? 'wait' : 'pointer',
                       fontFamily: "var(--font-ar)",
-                      boxShadow: `0 0 16px ${T.amber}25`,
+                      boxShadow: `0 0 16px ${'#FFB800'}25`,
                       transition: 'all 0.2s',
                       display: 'inline-flex', alignItems: 'center', gap: 8,
                     }}
@@ -1175,19 +1175,19 @@ export default function TwoFactorAuthPage() {
                     {recoveryCodes.map((code, i) => (
                       <div key={i} style={{
                         padding: '10px 12px', borderRadius: 8,
-                        background: T.surface, border: `1px solid ${T.border}`,
+                        background: '#151A22', border: `1px solid ${'#2A313C'}`,
                         display: 'flex', alignItems: 'center', gap: 8,
                         transition: 'all 0.2s',
                       }}>
                         <span style={{
-                          fontSize: 9, fontWeight: 700, color: T.text4,
+                          fontSize: 9, fontWeight: 700, color: '#6B7280',
                           fontFamily: "var(--font-mono)",
                           width: 18, textAlign: 'center', flexShrink: 0,
                         }}>
                           {i + 1}
                         </span>
                         <span style={{
-                          fontSize: 13, fontWeight: 800, color: codesRevealed ? T.text : T.text4,
+                          fontSize: 13, fontWeight: 800, color: codesRevealed ? '#F0F2F5' : '#6B7280',
                           fontFamily: "var(--font-mono)",
                           letterSpacing: 1, direction: 'ltr',
                           filter: codesRevealed ? 'none' : 'blur(4px)',
@@ -1202,7 +1202,7 @@ export default function TwoFactorAuthPage() {
                             width: 24, height: 24, borderRadius: 6,
                             background: 'transparent', border: 'none',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            cursor: 'pointer', color: T.text4, flexShrink: 0,
+                            cursor: 'pointer', color: '#6B7280', flexShrink: 0,
                             transition: 'color 0.2s',
                           }}
                           title={t('recoveryCopyCodeTitle')}
@@ -1219,8 +1219,8 @@ export default function TwoFactorAuthPage() {
                       onClick={() => setCodesRevealed(!codesRevealed)}
                       style={{
                         padding: '8px 14px', borderRadius: 8,
-                        background: T.surface, border: `1px solid ${T.border}`,
-                        color: T.text2, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                        background: '#151A22', border: `1px solid ${'#2A313C'}`,
+                        color: '#9CA3B5', fontSize: 11, fontWeight: 600, cursor: 'pointer',
                         fontFamily: "var(--font-ar)", display: 'flex',
                         alignItems: 'center', gap: 6, transition: 'all 0.2s',
                       }}
@@ -1232,8 +1232,8 @@ export default function TwoFactorAuthPage() {
                       onClick={handleDownloadRecoveryCodes}
                       style={{
                         padding: '8px 14px', borderRadius: 8,
-                        background: T.surface, border: `1px solid ${T.border}`,
-                        color: T.text2, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                        background: '#151A22', border: `1px solid ${'#2A313C'}`,
+                        color: '#9CA3B5', fontSize: 11, fontWeight: 600, cursor: 'pointer',
                         fontFamily: "var(--font-ar)", display: 'flex',
                         alignItems: 'center', gap: 6, transition: 'all 0.2s',
                       }}
@@ -1245,8 +1245,8 @@ export default function TwoFactorAuthPage() {
                       onClick={handleCopyAllRecoveryCodes}
                       style={{
                         padding: '8px 14px', borderRadius: 8,
-                        background: T.surface, border: `1px solid ${T.border}`,
-                        color: T.text2, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                        background: '#151A22', border: `1px solid ${'#2A313C'}`,
+                        color: '#9CA3B5', fontSize: 11, fontWeight: 600, cursor: 'pointer',
                         fontFamily: "var(--font-ar)", display: 'flex',
                         alignItems: 'center', gap: 6, transition: 'all 0.2s',
                       }}
@@ -1259,8 +1259,8 @@ export default function TwoFactorAuthPage() {
                       disabled={generatingCodes}
                       style={{
                         padding: '8px 14px', borderRadius: 8,
-                        background: `${T.amber}08`, border: `1px solid ${T.amber}15`,
-                        color: T.amber, fontSize: 11, fontWeight: 600,
+                        background: `${'#FFB800'}08`, border: `1px solid ${'#FFB800'}15`,
+                        color: '#FFB800', fontSize: 11, fontWeight: 600,
                         cursor: generatingCodes ? 'wait' : 'pointer',
                         fontFamily: "var(--font-ar)", display: 'flex',
                         alignItems: 'center', gap: 6, transition: 'all 0.2s',
@@ -1283,9 +1283,9 @@ export default function TwoFactorAuthPage() {
              Security Best Practices
           ════════════════════════════════════════════════ */}
           <SectionCard
-            icon={<Lightbulb size={18} color={T.amber} />}
-            iconColor={T.amber}
-            iconBg={`${T.amber}14`}
+            icon={<Lightbulb size={18} color={'#FFB800'} />}
+            iconColor={'#FFB800'}
+            iconBg={`${'#FFB800'}14`}
             title={t('tipsTitle')}
             subtitle={t('tipsSubtitle')}
           >
@@ -1296,7 +1296,7 @@ export default function TwoFactorAuthPage() {
               {bestPractices.map((tip, i) => (
                 <div key={i} style={{
                   padding: 14, borderRadius: 10,
-                  background: T.surface, border: `1px solid ${T.border}`,
+                  background: '#151A22', border: `1px solid ${'#2A313C'}`,
                   display: 'flex', gap: 10, alignItems: 'flex-start',
                   transition: 'all 0.3s',
                 }}>
@@ -1309,13 +1309,13 @@ export default function TwoFactorAuthPage() {
                   </div>
                   <div style={{ minWidth: 0 }}>
                     <div style={{
-                      fontSize: 11, fontWeight: 700, color: T.text,
+                      fontSize: 11, fontWeight: 700, color: '#F0F2F5',
                       fontFamily: "var(--font-ar)", marginBottom: 3,
                     }}>
                       {tip.title}
                     </div>
                     <div style={{
-                      fontSize: 10, color: T.text3, lineHeight: 1.6,
+                      fontSize: 10, color: '#6B7280', lineHeight: 1.6,
                       fontFamily: "var(--font-ar)",
                     }}>
                       {tip.desc}
@@ -1330,13 +1330,13 @@ export default function TwoFactorAuthPage() {
              Session Management
           ════════════════════════════════════════════════ */}
           <SectionCard
-            icon={<Monitor size={18} color={T.cyan} />}
-            iconColor={T.cyan}
-            iconBg={`${T.cyan}14`}
+            icon={<Monitor size={18} color={'#00D4FF'} />}
+            iconColor={'#00D4FF'}
+            iconBg={`${'#00D4FF'}14`}
             title={t('sessionsTitle')}
             subtitle={t('sessionsSubtitle')}
             badge={t('sessionsBadge', { count: sessions.length })}
-            badgeColor={T.cyan}
+            badgeColor={'#00D4FF'}
           >
             <div style={{ padding: '8px 0' }}>
               {/* Active Sessions */}
@@ -1345,15 +1345,15 @@ export default function TwoFactorAuthPage() {
                   <div key={session.id} style={{
                     display: 'flex', alignItems: 'center', gap: 12,
                     padding: '12px 14px', borderRadius: 10,
-                    background: session.current ? `${T.green}06` : T.surface,
-                    border: `1px solid ${session.current ? `${T.green}15` : T.border}`,
+                    background: session.current ? `${'#00FFA3'}06` : '#151A22',
+                    border: `1px solid ${session.current ? `${'#00FFA3'}15` : '#2A313C'}`,
                     transition: 'all 0.2s',
                   }}>
                     <div style={{
                       width: 36, height: 36, borderRadius: 10,
-                      background: session.current ? `${T.green}14` : `${T.surface}`,
+                      background: session.current ? `${'#00FFA3'}14` : `${'#151A22'}`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0, border: `1px solid ${session.current ? `${T.green}20` : T.border}`,
+                      flexShrink: 0, border: `1px solid ${session.current ? `${'#00FFA3'}20` : '#2A313C'}`,
                     }}>
                       {session.deviceIcon}
                     </div>
@@ -1363,7 +1363,7 @@ export default function TwoFactorAuthPage() {
                     }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{
-                          fontSize: 12, fontWeight: 700, color: T.text,
+                          fontSize: 12, fontWeight: 700, color: '#F0F2F5',
                           fontFamily: "var(--font-ar)",
                           display: 'flex', alignItems: 'center', gap: 6,
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -1372,7 +1372,7 @@ export default function TwoFactorAuthPage() {
                           {session.current && (
                             <span style={{
                               fontSize: 8, padding: '2px 6px', borderRadius: 6,
-                              background: `${T.green}15`, color: T.green,
+                              background: `${'#00FFA3'}15`, color: '#00FFA3',
                               fontFamily: "var(--font-mono)", fontWeight: 700,
                               flexShrink: 0,
                             }}>
@@ -1381,7 +1381,7 @@ export default function TwoFactorAuthPage() {
                           )}
                         </div>
                         <div style={{
-                          fontSize: 10, color: T.text3, marginTop: 2,
+                          fontSize: 10, color: '#6B7280', marginTop: 2,
                           display: 'flex', gap: 8, flexWrap: 'wrap',
                           fontFamily: "var(--font-ar)",
                         }}>
@@ -1395,7 +1395,7 @@ export default function TwoFactorAuthPage() {
                           </span>
                           <span style={{
                             fontFamily: "var(--font-mono)",
-                            fontSize: 9, color: T.text4,
+                            fontSize: 9, color: '#6B7280',
                           }}>
                             {session.ip}
                           </span>
@@ -1406,8 +1406,8 @@ export default function TwoFactorAuthPage() {
                           onClick={() => toast({ title: t('toastSessionTerminated'), description: t('toastSessionTerminatedDesc', { device: session.device }) })}
                           style={{
                             padding: '6px 10px', borderRadius: 6,
-                            background: `${T.red}08`, border: `1px solid ${T.red}15`,
-                            color: T.red, fontSize: 10, fontWeight: 600, cursor: 'pointer',
+                            background: `${'#FF4757'}08`, border: `1px solid ${'#FF4757'}15`,
+                            color: '#FF4757', fontSize: 10, fontWeight: 600, cursor: 'pointer',
                             fontFamily: "var(--font-ar)", flexShrink: 0,
                             display: 'flex', alignItems: 'center', gap: 4,
                             transition: 'all 0.2s',
@@ -1429,7 +1429,7 @@ export default function TwoFactorAuthPage() {
                   width: '100%', padding: '12px 16px', borderRadius: 10,
                   border: `1px solid rgba(255,71,87,0.20)`,
                   background: 'rgba(255,71,87,0.06)',
-                  color: T.red, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  color: '#FF4757', fontSize: 12, fontWeight: 700, cursor: 'pointer',
                   fontFamily: "var(--font-ar)",
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                   transition: 'all 0.2s',

@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useTranslations, useLocale } from 'next-intl'
-import T from '@/lib/unified-tokens';
 import {
   LineChart,
   Line,
@@ -337,18 +336,18 @@ export default function BacktestPanel() {
                 <AreaChart data={result.equityCurve}>
                   <defs>
                     <linearGradient id="equityGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={T.council} stopOpacity={0.3} />
-                      <stop offset="95%" stopColor={T.council} stopOpacity={0} />
+                      <stop offset="5%" stopColor={'#B388FF'} stopOpacity={0.3} />
+                      <stop offset="95%" stopColor={'#B388FF'} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke={T.card} />
-                  <XAxis dataKey="date" stroke={T.text3} tick={{ fontSize: 'var(--text-xs)' }} />
-                  <YAxis stroke={T.text3} tick={{ fontSize: 'var(--text-xs)' }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={'#151A22'} />
+                  <XAxis dataKey="date" stroke={'#6B7280'} tick={{ fontSize: 'var(--text-xs)' }} />
+                  <YAxis stroke={'#6B7280'} tick={{ fontSize: 'var(--text-xs)' }} />
                   <Tooltip
-                    contentStyle={{ background: T.card, border: '1px solid #374151', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)' }}
-                    labelStyle={{ color: T.text2 }}
+                    contentStyle={{ background: '#151A22', border: '1px solid #374151', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)' }}
+                    labelStyle={{ color: '#9CA3B5' }}
                   />
-                  <Area type="monotone" dataKey="value" stroke={T.council} fill="url(#equityGrad)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="value" stroke={'#B388FF'} fill="url(#equityGrad)" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>

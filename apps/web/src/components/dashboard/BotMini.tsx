@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { useBotStore } from '@/hooks/useBotStore';
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations } from 'next-intl'
-import T from '@/lib/unified-tokens';
 
 type BotTab = 'log' | 'config';
 
@@ -148,7 +147,7 @@ export function BotMini() {
               padding: '1px 5px',
               borderRadius: 'var(--radius-sm)',
               background: 'rgba(255,184,0,0.15)',
-              color: T.warning,
+              color: '#FFB800',
               fontWeight: 700,
               fontFamily: "var(--font-mono)",
               flexShrink: 0,
@@ -193,7 +192,7 @@ export function BotMini() {
       </div>
 
       {/* Tabs */}
-      <div className="bot-mini-tabs" style={{ display: 'flex', background: T.bg, borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '3px 5px', gap: 3 }}>
+      <div className="bot-mini-tabs" style={{ display: 'flex', background: '#0B0E14', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '3px 5px', gap: 3 }}>
         <button
           type="button"
           onClick={() => setActiveTab('log')}

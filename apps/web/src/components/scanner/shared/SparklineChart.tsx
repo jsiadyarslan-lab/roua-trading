@@ -1,6 +1,5 @@
 'use client'
 
-import T from '@/lib/unified-tokens'
 function safeMax(arr: number[]): number {
   if (arr.length === 0) return -Infinity;
   let max = arr[0];
@@ -23,7 +22,7 @@ interface SparklineChartProps {
 }
 
 export function SparklineChart({
-  data, color = T.success, width = 80, height = 28, showArea = true,
+  data, color = '#00FFA3', width = 80, height = 28, showArea = true,
 }: SparklineChartProps) {
   if (!data || data.length < 2) return null
 

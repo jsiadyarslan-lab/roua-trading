@@ -6,10 +6,9 @@ import { useTranslations } from 'next-intl'
 import { usePriceAlertStore, AlertCondition } from '@/hooks/usePriceAlertStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
-import T from '@/lib/unified-tokens'
 
 const CONDITION_COLORS: Record<AlertCondition, string> = {
-  above: T.green, below: T.red, change_up: T.green, change_down: T.red,
+  above: '#00FFA3', below: '#FF4757', change_up: '#00FFA3', change_down: '#FF4757',
 }
 
 export function PriceAlertsPanel() {
@@ -50,26 +49,26 @@ export function PriceAlertsPanel() {
   const active    = alerts.filter(a => !a.triggered)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: T.bg, overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#0B0E14', overflow: 'hidden' }}>
       {/* Header */}
       <div style={{
         padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        background: 'var(--surface)', borderBottom: `1px solid ${T.border}`, flexShrink: 0,
+        background: 'var(--surface)', borderBottom: `1px solid ${'#2A313C'}`, flexShrink: 0,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Bell size={14} color={T.amber} />
-          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>
+          <Bell size={14} color={'#FFB800'} />
+          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
             {tp('title')}
           </span>
           {active.length > 0 && (
-            <span style={{ fontSize: 'var(--text-xs)', padding: '1px 6px', borderRadius: 'var(--radius-2xl)', background: `${T.amber}20`, color: T.amber, fontWeight: 800 }}>
+            <span style={{ fontSize: 'var(--text-xs)', padding: '1px 6px', borderRadius: 'var(--radius-2xl)', background: `${'#FFB800'}20`, color: '#FFB800', fontWeight: 800 }}>
               {tp('activeCount', { n: active.length })}
             </span>
           )}
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {triggered.length > 0 && (
-            <button onClick={clearTriggered} style={{ fontSize: 'var(--text-xs)', color: T.muted, background: 'transparent', border: 'none', cursor: 'pointer' }}>
+            <button onClick={clearTriggered} style={{ fontSize: 'var(--text-xs)', color: '#8B92A8', background: 'transparent', border: 'none', cursor: 'pointer' }}>
               {tp('clearActive')} ({triggered.length})
             </button>
           )}
@@ -77,8 +76,8 @@ export function PriceAlertsPanel() {
             onClick={() => setShowForm(v => !v)}
             style={{
               display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px',
-              background: `${T.blue}20`, border: `1px solid ${T.blue}40`,
-              borderRadius: 'var(--radius-sm)', color: T.blue, fontSize: 'var(--text-xs)', fontWeight: 800, cursor: 'pointer',
+              background: `${'#0A84FF'}20`, border: `1px solid ${'#0A84FF'}40`,
+              borderRadius: 'var(--radius-sm)', color: '#0A84FF', fontSize: 'var(--text-xs)', fontWeight: 800, cursor: 'pointer',
             }}
           >
             <Plus size={12} /> {tp('add')}
@@ -89,30 +88,30 @@ export function PriceAlertsPanel() {
       {/* Add Alert Form */}
       {showForm && (
         <div style={{
-          padding: '12px 14px', borderBottom: `1px solid ${T.border}`,
+          padding: '12px 14px', borderBottom: `1px solid ${'#2A313C'}`,
           background: 'rgba(10,132,255,0.04)', flexShrink: 0,
           display: 'flex', flexDirection: 'column', gap: 8,
         }}>
           <div style={{ display: 'flex', gap: 8 }}>
             {/* Symbol */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 'var(--text-xs)', color: T.muted, fontWeight: 700 }}>{tp('asset')}</label>
+              <label style={{ fontSize: 'var(--text-xs)', color: '#8B92A8', fontWeight: 700 }}>{tp('asset')}</label>
               <input
                 value={symbol}
                 onChange={e => setSymbol(e.target.value.toUpperCase())}
                 style={{
-                  background: 'var(--surface)', border: `1px solid ${T.border}`,
-                  borderRadius: 'var(--radius-md)', color: T.text, fontSize: 'var(--text-sm)', padding: '8px',
+                  background: 'var(--surface)', border: `1px solid ${'#2A313C'}`,
+                  borderRadius: 'var(--radius-md)', color: '#F0F2F5', fontSize: 'var(--text-sm)', padding: '8px',
                   fontFamily: "var(--font-mono)", outline: 'none', width: '100%', boxSizing: 'border-box',
                 }}
               />
             </div>
             {/* Target */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 'var(--text-xs)', color: T.muted, fontWeight: 700 }}>
+              <label style={{ fontSize: 'var(--text-xs)', color: '#8B92A8', fontWeight: 700 }}>
                 {tp('value')}
                 {currentPrice !== null && (
-                  <span style={{ color: T.blue, marginInlineEnd: 4 }}>
+                  <span style={{ color: '#0A84FF', marginInlineEnd: 4 }}>
                     {tp('currentLabel')} {currentPrice > 100 ? currentPrice.toLocaleString('en', { maximumFractionDigits: 2 }) : currentPrice.toFixed(4)}
                   </span>
                 )}
@@ -122,8 +121,8 @@ export function PriceAlertsPanel() {
                 onChange={e => setTargetPrice(e.target.value)}
                 type="number" step="any" placeholder="0.00"
                 style={{
-                  background: 'var(--surface)', border: `1px solid ${T.border}`,
-                  borderRadius: 'var(--radius-md)', color: T.text, fontSize: 'var(--text-sm)', padding: '8px',
+                  background: 'var(--surface)', border: `1px solid ${'#2A313C'}`,
+                  borderRadius: 'var(--radius-md)', color: '#F0F2F5', fontSize: 'var(--text-sm)', padding: '8px',
                   fontFamily: "var(--font-mono)", outline: 'none', width: '100%', boxSizing: 'border-box',
                 }}
               />
@@ -140,8 +139,8 @@ export function PriceAlertsPanel() {
                   fontSize: 'var(--text-xs)', padding: '4px 10px', borderRadius: 'var(--radius-2xl)', cursor: 'pointer',
                   fontWeight: 800, fontFamily: "var(--font-ar)",
                   background: condition === c ? `${CONDITION_COLORS[c]}20` : 'transparent',
-                  border: `1px solid ${condition === c ? CONDITION_COLORS[c] : T.border}`,
-                  color: condition === c ? CONDITION_COLORS[c] : T.muted,
+                  border: `1px solid ${condition === c ? CONDITION_COLORS[c] : '#2A313C'}`,
+                  color: condition === c ? CONDITION_COLORS[c] : '#8B92A8',
                   transition: 'all 0.15s',
                 }}
               >
@@ -150,13 +149,13 @@ export function PriceAlertsPanel() {
             ))}
           </div>
 
-          {error && <span style={{ fontSize: 'var(--text-xs)', color: T.red }}>{error}</span>}
+          {error && <span style={{ fontSize: 'var(--text-xs)', color: '#FF4757' }}>{error}</span>}
 
           <button
             onClick={handleAdd}
             style={{
               padding: '8px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer',
-              background: T.blue, color: '#fff', fontWeight: 800, fontSize: 'var(--text-sm)',
+              background: '#0A84FF', color: '#fff', fontWeight: 800, fontSize: 'var(--text-sm)',
               fontFamily: "var(--font-ar)",
             }}
           >
@@ -168,7 +167,7 @@ export function PriceAlertsPanel() {
       {/* Alert List */}
       <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '8px 14px' }}>
         {alerts.length === 0 ? (
-          <div style={{ padding: '40px 0', textAlign: 'center', color: T.muted }}>
+          <div style={{ padding: '40px 0', textAlign: 'center', color: '#8B92A8' }}>
             <Bell size={28} style={{ marginBottom: 8, opacity: 0.3 }} />
             <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, fontFamily: "var(--font-ar)" }}>
               {tp('noAlerts')}
@@ -232,7 +231,7 @@ function AlertRow({ alert, onRemove, currentPrice }: {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {isTriggered
               ? <BellRing size={12} color={color} />
-              : <Bell size={12} color={T.muted} />}
+              : <Bell size={12} color={'#8B92A8'} />}
             <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: 'var(--foreground)', fontFamily: "var(--font-mono)" }}>
               {alert.symbol}
             </span>
@@ -258,7 +257,7 @@ function AlertRow({ alert, onRemove, currentPrice }: {
         </div>
         <button
           onClick={onRemove}
-          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.muted, padding: 2 }}
+          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#8B92A8', padding: 2 }}
         >
           <Trash2 size={12} />
         </button>
@@ -275,7 +274,7 @@ function AlertRow({ alert, onRemove, currentPrice }: {
       )}
 
       {alert.note && (
-        <div style={{ fontSize: 'var(--text-xs)', color: T.muted, marginTop: 4 }}>{alert.note}</div>
+        <div style={{ fontSize: 'var(--text-xs)', color: '#8B92A8', marginTop: 4 }}>{alert.note}</div>
       )}
     </div>
   )

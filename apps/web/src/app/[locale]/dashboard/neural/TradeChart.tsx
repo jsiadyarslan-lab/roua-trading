@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl'
-import T from '@/lib/unified-tokens';
 
 interface TradePoint {
   entryDate: string;
@@ -92,23 +91,23 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
         height: 400,
         layout: {
           background: { color: '#0a0e17' },
-          textColor: T.text2,
+          textColor: '#9CA3B5',
           fontSize: 'var(--text-xs)',
           attributionLogo: false,
         },
         grid: {
-          vertLines: { color: T.card },
-          horzLines: { color: T.card },
+          vertLines: { color: '#151A22' },
+          horzLines: { color: '#151A22' },
         },
         crosshair: {
-          vertLine: { color: T.text3, width: 1, style: 2 },
-          horzLine: { color: T.text3, width: 1, style: 2 },
+          vertLine: { color: '#6B7280', width: 1, style: 2 },
+          horzLine: { color: '#6B7280', width: 1, style: 2 },
         },
         rightPriceScale: {
-          borderColor: T.text3,
+          borderColor: '#6B7280',
         },
         timeScale: {
-          borderColor: T.text3,
+          borderColor: '#6B7280',
           timeVisible: false,
         },
       });
@@ -117,12 +116,12 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
 
       // Add candlestick series using v5 API
       const candleSeries = chart.addSeries(CandlestickSeries, {
-        upColor: T.success,
-        downColor: T.loss,
-        borderUpColor: T.success,
-        borderDownColor: T.loss,
-        wickUpColor: T.success,
-        wickDownColor: T.loss,
+        upColor: '#00FFA3',
+        downColor: '#ef4444',
+        borderUpColor: '#00FFA3',
+        borderDownColor: '#ef4444',
+        wickUpColor: '#00FFA3',
+        wickDownColor: '#ef4444',
       });
 
       const candleData = generateCandleData(trades);
@@ -143,7 +142,7 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
           markers.push({
             time: trade.entryDate,
             position: trade.side === 'BUY' ? 'belowBar' : 'aboveBar',
-            color: trade.side === 'BUY' ? T.success : T.loss,
+            color: trade.side === 'BUY' ? '#00FFA3' : '#ef4444',
             shape: trade.side === 'BUY' ? 'arrowUp' : 'arrowDown',
             text: trade.side === 'BUY' ? t('tradeChartEntry') : t('tradeChartSellEntryShort'),
           });
@@ -154,7 +153,7 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
           markers.push({
             time: trade.exitDate,
             position: trade.side === 'BUY' ? 'aboveBar' : 'belowBar',
-            color: trade.side === 'BUY' ? T.loss : T.success,
+            color: trade.side === 'BUY' ? '#ef4444' : '#00FFA3',
             shape: trade.side === 'BUY' ? 'arrowDown' : 'arrowUp',
             text: t('tradeChartExit'),
           });

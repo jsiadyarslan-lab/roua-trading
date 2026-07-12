@@ -1,7 +1,6 @@
 'use client'
 
 import { XCircle, Shield, RefreshCw, Link2 } from 'lucide-react'
-import T from '@/lib/unified-tokens'
 import { useTranslations } from 'next-intl'
 
 interface QuickActionsBarProps {
@@ -9,10 +8,10 @@ interface QuickActionsBarProps {
 }
 
 const ACTION_CONFIG = [
-  { id: 'close-all', labelKey: 'closeAll', icon: XCircle, accent: T.red },
-  { id: 'hedge', labelKey: 'hedge', icon: Shield, accent: T.amber },
-  { id: 'rebalance', labelKey: 'rebalance', icon: RefreshCw, accent: T.cyan },
-  { id: 'link-account', labelKey: 'linkAccount', icon: Link2, accent: T.green },
+  { id: 'close-all', labelKey: 'closeAll', icon: XCircle, accent: '#FF4757' },
+  { id: 'hedge', labelKey: 'hedge', icon: Shield, accent: '#FFB800' },
+  { id: 'rebalance', labelKey: 'rebalance', icon: RefreshCw, accent: '#00D4FF' },
+  { id: 'link-account', labelKey: 'linkAccount', icon: Link2, accent: '#00FFA3' },
 ] as const
 
 export function QuickActionsBar({ onAction }: QuickActionsBarProps) {

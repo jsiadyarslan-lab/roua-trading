@@ -4,7 +4,6 @@ import { motion, type Variants } from 'framer-motion'
 import { UserPlus, Brain, TrendingUp, ShieldCheck } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import T from '@/lib/unified-tokens'
 
 interface Step {
   icon: LucideIcon
@@ -21,7 +20,7 @@ const steps: Step[] = [
     titleKey: 'step1Title',
     subtitleKey: 'step1Subtitle',
     descKey: 'step1Desc',
-    color: T.profit,
+    color: '#10b981',
     step: 1,
   },
   {
@@ -29,7 +28,7 @@ const steps: Step[] = [
     titleKey: 'step3Title',
     subtitleKey: 'step2Subtitle',
     descKey: 'step2Desc',
-    color: T.info,
+    color: '#00D4FF',
     step: 2,
   },
   {
@@ -37,7 +36,7 @@ const steps: Step[] = [
     titleKey: 'step2Title',
     subtitleKey: 'step3Subtitle',
     descKey: 'step3Desc',
-    color: T.council,
+    color: '#B388FF',
     step: 3,
   },
   {
@@ -45,7 +44,7 @@ const steps: Step[] = [
     titleKey: 'step4Title',
     subtitleKey: 'step4Subtitle',
     descKey: 'step4Desc',
-    color: T.warning,
+    color: '#FFB800',
     step: 4,
   },
 ]
@@ -91,7 +90,7 @@ export default function HowItWorksSection() {
             style={{
               background: 'rgba(139,92,246,0.06)',
               border: '1px solid rgba(139,92,246,0.12)',
-              color: T.council,
+              color: '#B388FF',
               fontFamily: 'var(--font-en)',
             }}
           >
@@ -115,7 +114,7 @@ export default function HowItWorksSection() {
           </h2>
           <p
             className="text-base max-w-lg mx-auto"
-            style={{ color: T.text2, fontFamily: 'var(--font-ar)' }}
+            style={{ color: '#9CA3B5', fontFamily: 'var(--font-ar)' }}
           >
             {t('subtitle')}
           </p>
@@ -186,7 +185,7 @@ export default function HowItWorksSection() {
                   </h3>
                   <p
                     className="text-[10px] font-medium tracking-wider mb-3"
-                    style={{ color: T.text3, fontFamily: 'var(--font-en)' }}
+                    style={{ color: '#6B7280', fontFamily: 'var(--font-en)' }}
                   >
                     {t(step.subtitleKey)}
                   </p>
@@ -194,7 +193,7 @@ export default function HowItWorksSection() {
                   {/* Description */}
                   <p
                     className="text-sm leading-relaxed"
-                    style={{ color: T.text2, fontFamily: 'var(--font-ar)' }}
+                    style={{ color: '#9CA3B5', fontFamily: 'var(--font-ar)' }}
                   >
                     {t(step.descKey)}
                   </p>

@@ -39,7 +39,6 @@ import {
   Activity,
 } from 'lucide-react'
 import { safeStr } from '@/lib/utils'
-import T from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 const FONT_AR = 'var(--font-ar)'
@@ -176,48 +175,48 @@ type ReportItem = {
 
 /* ─── Category Config ─── */
 const CATEGORIES_AR = [
-  { id: 'all', label: 'الكل', icon: '📋', color: T.cyan },
-  { id: 'أسهم', label: 'أسهم', icon: '📈', color: T.green },
-  { id: 'أرباح شركات', label: 'أرباح', icon: '💰', color: T.amber },
+  { id: 'all', label: 'الكل', icon: '📋', color: '#00D4FF' },
+  { id: 'أسهم', label: 'أسهم', icon: '📈', color: '#00FFA3' },
+  { id: 'أرباح شركات', label: 'أرباح', icon: '💰', color: '#FFB800' },
   { id: 'كريبتو', label: 'كريبتو', icon: '₿', color: '#F7931A' },
-  { id: 'اقتصاد كلي', label: 'اقتصاد', icon: '🏛️', color: T.purple },
-  { id: 'طاقة', label: 'طاقة', icon: '⛽', color: T.red },
+  { id: 'اقتصاد كلي', label: 'اقتصاد', icon: '🏛️', color: '#B388FF' },
+  { id: 'طاقة', label: 'طاقة', icon: '⛽', color: '#FF4757' },
   { id: 'بنوك مركزية', label: 'بنوك', icon: '🏦', color: '#64B5F6' },
-  { id: 'عملات', label: 'فوركس', icon: '💱', color: T.cyan },
-  { id: 'القطاع التكنولوجي', label: 'تكنولوجيا', icon: '💻', color: T.council },
-  { id: 'القطاع الصحي', label: 'صحة', icon: '🏥', color: T.green },
-  { id: 'قطاع التكنولوجيا', label: 'تقنية', icon: '🔌', color: T.council },
+  { id: 'عملات', label: 'فوركس', icon: '💱', color: '#00D4FF' },
+  { id: 'القطاع التكنولوجي', label: 'تكنولوجيا', icon: '💻', color: '#B388FF' },
+  { id: 'القطاع الصحي', label: 'صحة', icon: '🏥', color: '#00FFA3' },
+  { id: 'قطاع التكنولوجيا', label: 'تقنية', icon: '🔌', color: '#B388FF' },
 ] as const
 
 
 const CATEGORIES_EN = [
-  { id: 'all', label: 'All', icon: '📋', color: T.cyan },
-  { id: 'Economy', label: 'Economy', icon: '🏛️', color: T.purple },
+  { id: 'all', label: 'All', icon: '📋', color: '#00D4FF' },
+  { id: 'Economy', label: 'Economy', icon: '🏛️', color: '#B388FF' },
   { id: 'Crypto', label: 'Crypto', icon: '₿', color: '#F7931A' },
-  { id: 'Stocks', label: 'Stocks', icon: '📈', color: T.green },
-  { id: 'Forex', label: 'Forex', icon: '💱', color: T.cyan },
-  { id: 'Commodities', label: 'Commodities', icon: '🛢️', color: T.amber },
-  { id: 'Technology', label: 'Tech', icon: '💻', color: T.council },
+  { id: 'Stocks', label: 'Stocks', icon: '📈', color: '#00FFA3' },
+  { id: 'Forex', label: 'Forex', icon: '💱', color: '#00D4FF' },
+  { id: 'Commodities', label: 'Commodities', icon: '🛢️', color: '#FFB800' },
+  { id: 'Technology', label: 'Tech', icon: '💻', color: '#B388FF' },
 ] as const
 
 const CATEGORIES_FR = [
-  { id: 'all', label: 'Tout', icon: '📋', color: T.cyan },
-  { id: 'Économie', label: 'Économie', icon: '🏛️', color: T.purple },
+  { id: 'all', label: 'Tout', icon: '📋', color: '#00D4FF' },
+  { id: 'Économie', label: 'Économie', icon: '🏛️', color: '#B388FF' },
   { id: 'Crypto', label: 'Crypto', icon: '₿', color: '#F7931A' },
-  { id: 'Actions', label: 'Actions', icon: '📈', color: T.green },
-  { id: 'Forex', label: 'Forex', icon: '💱', color: T.cyan },
-  { id: 'Matières premières', label: 'Matières', icon: '🛢️', color: T.amber },
-  { id: 'Technologie', label: 'Tech', icon: '💻', color: T.council },
+  { id: 'Actions', label: 'Actions', icon: '📈', color: '#00FFA3' },
+  { id: 'Forex', label: 'Forex', icon: '💱', color: '#00D4FF' },
+  { id: 'Matières premières', label: 'Matières', icon: '🛢️', color: '#FFB800' },
+  { id: 'Technologie', label: 'Tech', icon: '💻', color: '#B388FF' },
 ] as const
 
 const CATEGORIES_TR = [
-  { id: 'all', label: 'Tümü', icon: '📋', color: T.cyan },
-  { id: 'Ekonomi', label: 'Ekonomi', icon: '🏛️', color: T.purple },
+  { id: 'all', label: 'Tümü', icon: '📋', color: '#00D4FF' },
+  { id: 'Ekonomi', label: 'Ekonomi', icon: '🏛️', color: '#B388FF' },
   { id: 'Kripto', label: 'Kripto', icon: '₿', color: '#F7931A' },
-  { id: 'Hisse Senetleri', label: 'Hisseler', icon: '📈', color: T.green },
-  { id: 'Forex', label: 'Forex', icon: '💱', color: T.cyan },
-  { id: 'Emtialar', label: 'Emtialar', icon: '🛢️', color: T.amber },
-  { id: 'Teknoloji', label: 'Teknoloji', icon: '💻', color: T.council },
+  { id: 'Hisse Senetleri', label: 'Hisseler', icon: '📈', color: '#00FFA3' },
+  { id: 'Forex', label: 'Forex', icon: '💱', color: '#00D4FF' },
+  { id: 'Emtialar', label: 'Emtialar', icon: '🛢️', color: '#FFB800' },
+  { id: 'Teknoloji', label: 'Teknoloji', icon: '💻', color: '#B388FF' },
 ] as const
 
 export default function NewsPage() {
@@ -237,7 +236,7 @@ export default function NewsPage() {
     .slider-dot { transition: all 0.3s; }
     ::-webkit-scrollbar { height: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: ${T.border}; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb { background: ${'#2A313C'}; border-radius: 4px; }
   `)
 
   const [items, setItems] = useState<NewsItem[]>([])
@@ -384,7 +383,7 @@ export default function NewsPage() {
   }, [items])
 
   return (
-    <div style={{ direction: 'inherit', fontFamily: FONT_AR, minHeight: '100dvh', background: T.bg, color: T.text }}>
+    <div style={{ direction: 'inherit', fontFamily: FONT_AR, minHeight: '100dvh', background: '#0B0E14', color: '#F0F2F5' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 16px' }}>
 
         {/* Header */}
@@ -400,25 +399,25 @@ export default function NewsPage() {
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <h1 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: T.text }}>{t('News Room', 'غرفة الأخبار', 'Salle de presse', 'Haber Odası', newsLang)}</h1>
+                <h1 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: '#F0F2F5' }}>{t('News Room', 'غرفة الأخبار', 'Salle de presse', 'Haber Odası', newsLang)}</h1>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 5,
                   padding: '3px 10px', borderRadius: 'var(--radius-2xl)',
-                  background: `${T.red}14`, border: `0.5px solid ${T.red}33`,
+                  background: `${'#FF4757'}14`, border: `0.5px solid ${'#FF4757'}33`,
                 }}>
-                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.red, animation: 'live-dot 1.8s ease-in-out infinite' }} />
-                  <span style={{ fontSize: 'var(--text-xs)', color: T.red, fontFamily: FONT_MONO, fontWeight: 800 }}>LIVE</span>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#FF4757', animation: 'live-dot 1.8s ease-in-out infinite' }} />
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#FF4757', fontFamily: FONT_MONO, fontWeight: 800 }}>LIVE</span>
                 </div>
               </div>
-              <p style={{ margin: '2px 0 0', fontSize: 'var(--text-sm)', color: T.text3 }}>
+              <p style={{ margin: '2px 0 0', fontSize: 'var(--text-sm)', color: '#6B7280' }}>
                 {t("Financial news & analysis from Ru'aa", 'أخبار وتحليلات مالية من رؤى', "Actualités et analyses financières de Ru'aa", "Ru'aa'dan finansal haberler ve analizler", newsLang)} — {stats.total} {t('articles', 'خبر', 'articles', 'makale', newsLang)}
               </p>
             </div>
             <button onClick={handleRefresh} disabled={refreshing} style={{
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '8px 16px', borderRadius: 'var(--radius-lg)',
-              border: `1px solid ${T.border}`, background: T.card,
-              color: T.text2, cursor: 'pointer', fontSize: 'var(--text-sm)',
+              border: `1px solid ${'#2A313C'}`, background: '#151A22',
+              color: '#9CA3B5', cursor: 'pointer', fontSize: 'var(--text-sm)',
               fontFamily: FONT_AR, fontWeight: 700,
             }}>
               <RefreshCw size={14} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
@@ -427,7 +426,7 @@ export default function NewsPage() {
             {/* Language Toggle */}
             <div style={{
               display: 'flex', borderRadius: 'var(--radius-lg)',
-              border: `1px solid ${T.border}`, overflow: 'hidden',
+              border: `1px solid ${'#2A313C'}`, overflow: 'hidden',
             }}>
               <button
                 onClick={() => setNewsLang('ar')}
@@ -435,8 +434,8 @@ export default function NewsPage() {
                   padding: '6px 14px', fontSize: 'var(--text-xs)', fontWeight: 800,
                   fontFamily: FONT_AR, cursor: 'pointer',
                   border: 'none',
-                  background: newsLang === 'ar' ? `${T.cyan}18` : T.card,
-                  color: newsLang === 'ar' ? T.cyan : T.text3,
+                  background: newsLang === 'ar' ? `${'#00D4FF'}18` : '#151A22',
+                  color: newsLang === 'ar' ? '#00D4FF' : '#6B7280',
                   transition: 'all 0.2s',
                 }}
               >
@@ -447,9 +446,9 @@ export default function NewsPage() {
                 style={{
                   padding: '6px 14px', fontSize: 'var(--text-xs)', fontWeight: 800,
                   fontFamily: FONT_AR, cursor: 'pointer',
-                  border: 'none', borderInlineStart: `1px solid ${T.border}`,
-                  background: newsLang === 'en' ? `${T.cyan}18` : T.card,
-                  color: newsLang === 'en' ? T.cyan : T.text3,
+                  border: 'none', borderInlineStart: `1px solid ${'#2A313C'}`,
+                  background: newsLang === 'en' ? `${'#00D4FF'}18` : '#151A22',
+                  color: newsLang === 'en' ? '#00D4FF' : '#6B7280',
                   transition: 'all 0.2s',
                 }}
               >
@@ -460,9 +459,9 @@ export default function NewsPage() {
                 style={{
                   padding: '6px 14px', fontSize: 'var(--text-xs)', fontWeight: 800,
                   fontFamily: FONT_AR, cursor: 'pointer',
-                  border: 'none', borderInlineStart: `1px solid ${T.border}`,
-                  background: newsLang === 'fr' ? `${T.cyan}18` : T.card,
-                  color: newsLang === 'fr' ? T.cyan : T.text3,
+                  border: 'none', borderInlineStart: `1px solid ${'#2A313C'}`,
+                  background: newsLang === 'fr' ? `${'#00D4FF'}18` : '#151A22',
+                  color: newsLang === 'fr' ? '#00D4FF' : '#6B7280',
                   transition: 'all 0.2s',
                 }}
               >
@@ -473,9 +472,9 @@ export default function NewsPage() {
                 style={{
                   padding: '6px 14px', fontSize: 'var(--text-xs)', fontWeight: 800,
                   fontFamily: FONT_AR, cursor: 'pointer',
-                  border: 'none', borderInlineStart: `1px solid ${T.border}`,
-                  background: newsLang === 'tr' ? `${T.cyan}18` : T.card,
-                  color: newsLang === 'tr' ? T.cyan : T.text3,
+                  border: 'none', borderInlineStart: `1px solid ${'#2A313C'}`,
+                  background: newsLang === 'tr' ? `${'#00D4FF'}18` : '#151A22',
+                  color: newsLang === 'tr' ? '#00D4FF' : '#6B7280',
                   transition: 'all 0.2s',
                 }}
               >
@@ -488,13 +487,13 @@ export default function NewsPage() {
         {/* Tab Bar */}
         <div style={{
           display: 'flex', gap: 0,
-          borderBottom: `0.5px solid ${T.border}`,
+          borderBottom: `0.5px solid ${'#2A313C'}`,
           marginBottom: 20,
         }}>
           {[
-            { id: 'news' as const, label: t('News', 'الأخبار', 'Actualités', 'Haberler', newsLang), icon: Newspaper, color: T.cyan },
-            { id: 'reports' as const, label: t('Reports', 'التقارير', 'Rapports', 'Raporlar', newsLang), icon: BarChart2, color: T.amber },
-            { id: 'analysis' as const, label: t('Technical Analysis', 'تحليلات فنية', 'Analyse technique', 'Teknik Analiz', newsLang), icon: LineChart, color: T.green },
+            { id: 'news' as const, label: t('News', 'الأخبار', 'Actualités', 'Haberler', newsLang), icon: Newspaper, color: '#00D4FF' },
+            { id: 'reports' as const, label: t('Reports', 'التقارير', 'Rapports', 'Raporlar', newsLang), icon: BarChart2, color: '#FFB800' },
+            { id: 'analysis' as const, label: t('Technical Analysis', 'تحليلات فنية', 'Analyse technique', 'Teknik Analiz', newsLang), icon: LineChart, color: '#00FFA3' },
           ].map(tab => (
             <button
               key={tab.id}
@@ -504,7 +503,7 @@ export default function NewsPage() {
                 padding: '12px 22px',
                 fontFamily: FONT_AR, fontSize: 'var(--text-sm)',
                 fontWeight: activeTab === tab.id ? 800 : 500,
-                color: activeTab === tab.id ? tab.color : T.text2,
+                color: activeTab === tab.id ? tab.color : '#9CA3B5',
                 background: 'transparent', border: 'none',
                 borderBottom: activeTab === tab.id ? `2.5px solid ${tab.color}` : '2.5px solid transparent',
                 cursor: 'pointer', transition: 'all 0.2s',
@@ -537,10 +536,10 @@ export default function NewsPage() {
             {/* Search Bar */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
-              background: T.card, border: `1px solid ${T.border}`,
+              background: '#151A22', border: `1px solid ${'#2A313C'}`,
               borderRadius: 'var(--radius-xl)', padding: '10px 16px', marginBottom: 16,
             }}>
-              <Search size={16} color={T.text3} />
+              <Search size={16} color={'#6B7280'} />
               <input
                 type="text"
                 placeholder={t('Search news...', 'بحث في الأخبار...', 'Rechercher des actualités...', 'Haber ara...', newsLang)}
@@ -548,7 +547,7 @@ export default function NewsPage() {
                 onChange={e => setSearchQuery(e.target.value)}
                 style={{
                   background: 'transparent', border: 'none', outline: 'none',
-                  color: T.text, fontSize: 'var(--text-sm)', width: '100%', fontFamily: FONT_AR,
+                  color: '#F0F2F5', fontSize: 'var(--text-sm)', width: '100%', fontFamily: FONT_AR,
                 }}
               />
             </div>
@@ -570,9 +569,9 @@ export default function NewsPage() {
                     style={{
                       display: 'flex', alignItems: 'center', gap: 6,
                       padding: '8px 16px', borderRadius: 'var(--radius-lg)',
-                      border: `1px solid ${isActive ? cat.color : T.border}`,
-                      background: isActive ? `${cat.color}14` : T.card,
-                      color: isActive ? cat.color : T.text2,
+                      border: `1px solid ${isActive ? cat.color : '#2A313C'}`,
+                      background: isActive ? `${cat.color}14` : '#151A22',
+                      color: isActive ? cat.color : '#9CA3B5',
                       fontSize: 'var(--text-sm)', fontWeight: isActive ? 800 : 600,
                       fontFamily: FONT_AR, whiteSpace: 'nowrap',
                       flexShrink: 0,
@@ -589,32 +588,32 @@ export default function NewsPage() {
             {/* Error */}
             {fetchError && (
               <div style={{
-                background: `${T.red}08`, border: `1px solid ${T.red}22`,
+                background: `${'#FF4757'}08`, border: `1px solid ${'#FF4757'}22`,
                 borderRadius: 'var(--radius-lg)', padding: '10px 14px', marginBottom: 16,
                 display: 'flex', alignItems: 'center', gap: 8,
               }}>
-                <AlertTriangle size={14} style={{ color: T.red, flexShrink: 0 }} />
-                <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.red, flex: 1 }}>{fetchError}</span>
+                <AlertTriangle size={14} style={{ color: '#FF4757', flexShrink: 0 }} />
+                <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: '#FF4757', flex: 1 }}>{fetchError}</span>
               </div>
             )}
 
             {/* Loading */}
             {loading ? (
               <div style={{
-                background: T.card, border: `1px solid ${T.border}`,
-                borderRadius: 'var(--radius-2xl)', padding: '32px', textAlign: 'center', color: T.text2,
+                background: '#151A22', border: `1px solid ${'#2A313C'}`,
+                borderRadius: 'var(--radius-2xl)', padding: '32px', textAlign: 'center', color: '#9CA3B5',
               }}>
-                <RefreshCw size={28} color={T.cyan} style={{ marginBottom: 14, animation: 'spin 1s linear infinite' }} />
+                <RefreshCw size={28} color={'#00D4FF'} style={{ marginBottom: 14, animation: 'spin 1s linear infinite' }} />
                 <p style={{ fontSize: 'var(--text-base)', fontFamily: FONT_AR }}>{t("Loading news from Ru'aa...", 'جارٍ تحميل الأخبار من رؤى...', "Chargement des actualités de Ru'aa...", "Ru'aa'dan haberler yükleniyor...", newsLang)}</p>
               </div>
             ) : filteredItems.length === 0 ? (
               <div style={{
-                background: T.card, border: `1px solid ${T.border}`,
+                background: '#151A22', border: `1px solid ${'#2A313C'}`,
                 borderRadius: 'var(--radius-2xl)', padding: '40px 32px', textAlign: 'center',
               }}>
-                <Newspaper size={34} color={T.cyan} style={{ marginBottom: 14 }} />
-                <h2 style={{ color: T.text, fontSize: 'var(--text-lg)', fontWeight: 800, margin: '0 0 8px' }}>{t('No matching news', 'لا توجد أخبار مطابقة', 'Aucune actualité correspondante', 'Eşleşen haber yok', newsLang)}</h2>
-                <p style={{ color: T.text2, fontSize: 'var(--text-sm)', margin: 0 }}>{t('Change the category or search', 'غيّر التصنيف أو البحث', 'Changez la catégorie ou la recherche', 'Kategoriyi veya aramayı değiştirin', newsLang)}</p>
+                <Newspaper size={34} color={'#00D4FF'} style={{ marginBottom: 14 }} />
+                <h2 style={{ color: '#F0F2F5', fontSize: 'var(--text-lg)', fontWeight: 800, margin: '0 0 8px' }}>{t('No matching news', 'لا توجد أخبار مطابقة', 'Aucune actualité correspondante', 'Eşleşen haber yok', newsLang)}</h2>
+                <p style={{ color: '#9CA3B5', fontSize: 'var(--text-sm)', margin: 0 }}>{t('Change the category or search', 'غيّر التصنيف أو البحث', 'Changez la catégorie ou la recherche', 'Kategoriyi veya aramayı değiştirin', newsLang)}</p>
               </div>
             ) : (
               /* News Grid */
@@ -669,7 +668,7 @@ function HeroSlider({
       {item.imageUrl ? (
         <img src={item.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }} />
       ) : (
-        <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, background: `linear-gradient(135deg, ${T.card}, ${T.bg2})` }} />
+        <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, background: `linear-gradient(135deg, ${'#151A22'}, ${'#0F1117'})` }} />
       )}
       {/* Gradient Overlay */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'linear-gradient(to top, rgba(11,14,20,0.95) 40%, rgba(11,14,20,0.3) 100%)' }} />
@@ -682,7 +681,7 @@ function HeroSlider({
         {/* Badges */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
           {(localizedCategory(item, newsLang)) && (
-            <span style={{ fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-md)', background: `${T.cyan}22`, color: T.cyan, fontWeight: 800, fontFamily: FONT_AR }}>
+            <span style={{ fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-md)', background: `${'#00D4FF'}22`, color: '#00D4FF', fontWeight: 800, fontFamily: FONT_AR }}>
               {localizedCategory(item, newsLang)}
             </span>
           )}
@@ -716,7 +715,7 @@ function HeroSlider({
               style={{
                 width: currentSlide === i ? 24 : 8, height: 8,
                 borderRadius: 'var(--radius-sm)', border: 'none',
-                background: currentSlide === i ? T.cyan : 'rgba(255,255,255,0.3)',
+                background: currentSlide === i ? '#00D4FF' : 'rgba(255,255,255,0.3)',
                 cursor: 'pointer', padding: 0,
               }}
             />
@@ -768,8 +767,8 @@ function NewsCard({ item, index, onClick, newsLang }: { item: NewsItem; index: n
       className="news-card"
       onClick={onClick}
       style={{
-        background: T.card,
-        border: `1px solid ${T.border}`,
+        background: '#151A22',
+        border: `1px solid ${'#2A313C'}`,
         borderRight: `3px solid ${sentiment.color}`,
         borderRadius: 'var(--radius-xl)',
         overflow: 'hidden',
@@ -787,26 +786,26 @@ function NewsCard({ item, index, onClick, newsLang }: { item: NewsItem; index: n
         {/* Badges */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 10, flexWrap: 'wrap' }}>
           {(localizedCategory(item, newsLang)) && (
-            <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${T.cyan}12`, color: T.cyan, fontWeight: 800, fontFamily: FONT_AR }}>
+            <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${'#00D4FF'}12`, color: '#00D4FF', fontWeight: 800, fontFamily: FONT_AR }}>
               {localizedCategory(item, newsLang)}
             </span>
           )}
           <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: sentiment.bg, color: sentiment.color, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 2, fontFamily: FONT_AR }}>
             <SentimentIcon size={9} /> {sentiment.text}
           </span>
-          <span style={{ fontSize: 'var(--text-xs)', color: T.text3, marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT_AR }}>
             <Clock size={9} /> {timeAgo(item.publishedAt, newsLang)}
           </span>
         </div>
 
         {/* Title */}
-        <h3 style={{ color: T.text, fontSize: 'var(--text-base)', fontWeight: 800, margin: '0 0 8px', lineHeight: 1.6, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+        <h3 style={{ color: '#F0F2F5', fontSize: 'var(--text-base)', fontWeight: 800, margin: '0 0 8px', lineHeight: 1.6, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {displayTitle}
         </h3>
 
         {/* Summary */}
         {item.summary && (
-          <p style={{ color: T.text2, fontSize: 'var(--text-sm)', margin: '0 0 10px', lineHeight: 1.7, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          <p style={{ color: '#9CA3B5', fontSize: 'var(--text-sm)', margin: '0 0 10px', lineHeight: 1.7, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
             {item.summary}
           </p>
         )}
@@ -814,17 +813,17 @@ function NewsCard({ item, index, onClick, newsLang }: { item: NewsItem; index: n
         {/* Key Takeaways mini */}
         {Array.isArray(item.keyTakeaways) && item.keyTakeaways.length > 0 && (
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
-            <Zap size={10} color={T.green} style={{ flexShrink: 0, marginTop: 2 }} />
-            <span style={{ fontSize: 'var(--text-xs)', color: T.green, fontWeight: 700, fontFamily: FONT_AR }}>{item.keyTakeaways.length} {t('key points', 'نقاط رئيسية', 'points clés', 'anahtar noktalar', newsLang)}</span>
+            <Zap size={10} color={'#00FFA3'} style={{ flexShrink: 0, marginTop: 2 }} />
+            <span style={{ fontSize: 'var(--text-xs)', color: '#00FFA3', fontWeight: 700, fontFamily: FONT_AR }}>{item.keyTakeaways.length} {t('key points', 'نقاط رئيسية', 'points clés', 'anahtar noktalar', newsLang)}</span>
           </div>
         )}
 
         {/* Source */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Globe size={11} color={T.text3} />
-          <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: FONT_AR }}>{item.source || (t("Ru'aa News", 'رؤى للأخبار', "Actualités Ru'aa", "Ru'aa Haberleri", newsLang))}</span>
+          <Globe size={11} color={'#6B7280'} />
+          <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: FONT_AR }}>{item.source || (t("Ru'aa News", 'رؤى للأخبار', "Actualités Ru'aa", "Ru'aa Haberleri", newsLang))}</span>
           {item.fullContent && item.fullContent.length > 10 && (
-            <span style={{ fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: `${T.cyan}10`, color: T.cyan, fontWeight: 700, fontFamily: FONT_AR, marginInlineStart: 'auto' }}>{t('Full Analysis', 'تحليل كامل', 'Analyse complète', 'Tam Analiz', newsLang)}</span>
+            <span style={{ fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: `${'#00D4FF'}10`, color: '#00D4FF', fontWeight: 700, fontFamily: FONT_AR, marginInlineStart: 'auto' }}>{t('Full Analysis', 'تحليل كامل', 'Analyse complète', 'Tam Analiz', newsLang)}</span>
           )}
         </div>
       </div>
@@ -840,8 +839,8 @@ function ReportsTab({ reports, loading, newsLang }: { reports: ReportItem[]; loa
 
   if (loading) {
     return (
-      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-2xl)', padding: '32px', textAlign: 'center', color: T.text2 }}>
-        <RefreshCw size={28} color={T.amber} style={{ marginBottom: 14, animation: 'spin 1s linear infinite' }} />
+      <div style={{ background: '#151A22', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-2xl)', padding: '32px', textAlign: 'center', color: '#9CA3B5' }}>
+        <RefreshCw size={28} color={'#FFB800'} style={{ marginBottom: 14, animation: 'spin 1s linear infinite' }} />
         <p style={{ fontSize: 'var(--text-base)', fontFamily: FONT_AR }}>{t('Loading reports...', 'جارٍ تحميل التقارير...', 'Chargement des rapports...', 'Raporlar yükleniyor...', newsLang)}</p>
       </div>
     )
@@ -849,10 +848,10 @@ function ReportsTab({ reports, loading, newsLang }: { reports: ReportItem[]; loa
 
   if (reports.length === 0) {
     return (
-      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-2xl)', padding: '40px 32px', textAlign: 'center' }}>
-        <BarChart2 size={34} color={T.amber} style={{ marginBottom: 14 }} />
-        <h2 style={{ color: T.text, fontSize: 'var(--text-lg)', fontWeight: 800, margin: '0 0 8px' }}>{t('No reports available', 'لا توجد تقارير حالياً', 'Aucun rapport disponible', 'Rapor mevcut değil', newsLang)}</h2>
-        <p style={{ color: T.text2, fontSize: 'var(--text-sm)', margin: 0 }}>{t('Analyzed reports will appear here when available', 'ستظهر التقارير المحللة هنا عند توفرها', 'Les rapports analysés apparaîtront ici', 'Analiz edilen raporlar mevcut olduğunda burada görünecek', newsLang)}</p>
+      <div style={{ background: '#151A22', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-2xl)', padding: '40px 32px', textAlign: 'center' }}>
+        <BarChart2 size={34} color={'#FFB800'} style={{ marginBottom: 14 }} />
+        <h2 style={{ color: '#F0F2F5', fontSize: 'var(--text-lg)', fontWeight: 800, margin: '0 0 8px' }}>{t('No reports available', 'لا توجد تقارير حالياً', 'Aucun rapport disponible', 'Rapor mevcut değil', newsLang)}</h2>
+        <p style={{ color: '#9CA3B5', fontSize: 'var(--text-sm)', margin: 0 }}>{t('Analyzed reports will appear here when available', 'ستظهر التقارير المحللة هنا عند توفرها', 'Les rapports analysés apparaîtront ici', 'Analiz edilen raporlar mevcut olduğunda burada görünecek', newsLang)}</p>
       </div>
     )
   }
@@ -867,11 +866,11 @@ function ReportsTab({ reports, loading, newsLang }: { reports: ReportItem[]; loa
       {economicReports.length > 0 && (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-lg)', background: `${T.amber}14`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <FileText size={16} color={T.amber} />
+            <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-lg)', background: `${'#FFB800'}14`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <FileText size={16} color={'#FFB800'} />
             </div>
-            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 800, color: T.text, margin: 0 }}>{t('Strategic Economic Reports', 'تقارير اقتصادية استراتيجية', 'Rapports économiques stratégiques', 'Stratejik Ekonomik Raporlar', newsLang)}</h2>
-            <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: FONT_AR }}>({economicReports.length})</span>
+            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 800, color: '#F0F2F5', margin: 0 }}>{t('Strategic Economic Reports', 'تقارير اقتصادية استراتيجية', 'Rapports économiques stratégiques', 'Stratejik Ekonomik Raporlar', newsLang)}</h2>
+            <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: FONT_AR }}>({economicReports.length})</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {economicReports.map((report, i) => (
@@ -885,11 +884,11 @@ function ReportsTab({ reports, loading, newsLang }: { reports: ReportItem[]; loa
       {analysisReports.length > 0 && (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-lg)', background: `${T.cyan}14`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <BarChart2 size={16} color={T.cyan} />
+            <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-lg)', background: `${'#00D4FF'}14`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <BarChart2 size={16} color={'#00D4FF'} />
             </div>
-            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 800, color: T.text, margin: 0 }}>{t('Market Analysis', 'تحليلات السوق', 'Analyse du marché', 'Piyasa Analizi', newsLang)}</h2>
-            <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: FONT_AR }}>({analysisReports.length})</span>
+            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 800, color: '#F0F2F5', margin: 0 }}>{t('Market Analysis', 'تحليلات السوق', 'Analyse du marché', 'Piyasa Analizi', newsLang)}</h2>
+            <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: FONT_AR }}>({analysisReports.length})</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
             {analysisReports.map((report, i) => (
@@ -905,28 +904,28 @@ function ReportsTab({ reports, loading, newsLang }: { reports: ReportItem[]; loa
 function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: ReportItem; index: number; expanded: boolean; onToggle: () => void; newsLang: 'ar' | 'en' | 'fr' | 'tr' }) {
   const [imgError, setImgError] = useState(false)
   const categoryMap: Record<string, { label: string; color: string; icon: string }> = {
-    'strategic': { label: t('Strategic', 'استراتيجي', 'Stratégique', 'Stratejik', newsLang), color: T.amber, icon: '🎯' },
-    'daily': { label: t('Daily', 'يومي', 'Quotidien', 'Günlük', newsLang), color: T.cyan, icon: '📅' },
-    'earnings': { label: t('Earnings', 'أرباح', 'Résultats', 'Kârlar', newsLang), color: T.green, icon: '💰' },
-    'technicalAnalysis': { label: t('Technical Analysis', 'تحليل فني', 'Analyse technique', 'Teknik Analiz', newsLang), color: T.council, icon: '📊' },
-    'energy': { label: t('Energy', 'طاقة', 'Énergie', 'Enerji', newsLang), color: T.red, icon: '⛽' },
+    'strategic': { label: t('Strategic', 'استراتيجي', 'Stratégique', 'Stratejik', newsLang), color: '#FFB800', icon: '🎯' },
+    'daily': { label: t('Daily', 'يومي', 'Quotidien', 'Günlük', newsLang), color: '#00D4FF', icon: '📅' },
+    'earnings': { label: t('Earnings', 'أرباح', 'Résultats', 'Kârlar', newsLang), color: '#00FFA3', icon: '💰' },
+    'technicalAnalysis': { label: t('Technical Analysis', 'تحليل فني', 'Analyse technique', 'Teknik Analiz', newsLang), color: '#B388FF', icon: '📊' },
+    'energy': { label: t('Energy', 'طاقة', 'Énergie', 'Enerji', newsLang), color: '#FF4757', icon: '⛽' },
     'bonds': { label: t('Bonds', 'سندات', 'Obligations', 'Tahviller', newsLang), color: '#64B5F6', icon: '🏦' },
     'crypto': { label: t('Crypto', 'كريبتو', 'Crypto', 'Kripto', newsLang), color: '#F7931A', icon: '₿' },
-    'forex': { label: t('Forex', 'فوركس', 'Forex', 'Forex', newsLang), color: T.cyan, icon: '💱' },
-    'commodities': { label: t('Commodities', 'سلع', 'Matières premières', 'Emtialar', newsLang), color: T.amber, icon: '🛢️' },
-    'stocks': { label: t('Stocks', 'أسهم', 'Actions', 'Hisse Senetleri', newsLang), color: T.green, icon: '📈' },
+    'forex': { label: t('Forex', 'فوركس', 'Forex', 'Forex', newsLang), color: '#00D4FF', icon: '💱' },
+    'commodities': { label: t('Commodities', 'سلع', 'Matières premières', 'Emtialar', newsLang), color: '#FFB800', icon: '🛢️' },
+    'stocks': { label: t('Stocks', 'أسهم', 'Actions', 'Hisse Senetleri', newsLang), color: '#00FFA3', icon: '📈' },
   }
-  const cat = categoryMap[report.category || ''] || { label: report.category || (t('Report', 'تقرير', 'Rapport', 'Rapor', newsLang)), color: T.cyan, icon: '📋' }
+  const cat = categoryMap[report.category || ''] || { label: report.category || (t('Report', 'تقرير', 'Rapport', 'Rapor', newsLang)), color: '#00D4FF', icon: '📋' }
   const riskMap: Record<string, { label: string; color: string }> = {
-    'high': { label: t('High Risk', 'عالي المخاطر', 'Risque élevé', 'Yüksek Risk', newsLang), color: T.red },
-    'medium': { label: t('Medium Risk', 'متوسط المخاطر', 'Risque moyen', 'Orta Risk', newsLang), color: T.amber },
-    'low': { label: t('Low Risk', 'منخفض المخاطر', 'Faible risque', 'Düşük Risk', newsLang), color: T.green },
+    'high': { label: t('High Risk', 'عالي المخاطر', 'Risque élevé', 'Yüksek Risk', newsLang), color: '#FF4757' },
+    'medium': { label: t('Medium Risk', 'متوسط المخاطر', 'Risque moyen', 'Orta Risk', newsLang), color: '#FFB800' },
+    'low': { label: t('Low Risk', 'منخفض المخاطر', 'Faible risque', 'Düşük Risk', newsLang), color: '#00FFA3' },
   }
   const risk = riskMap[report.riskLevel || ''] || riskMap['medium']
   const sentimentMap: Record<string, { label: string; color: string }> = {
-    'bullish': { label: t('Bullish', 'صعودي', 'Haussier', 'Yükseliş', newsLang), color: T.green },
-    'bearish': { label: t('Bearish', 'هبوطي', 'Baissier', 'Düşüş', newsLang), color: T.red },
-    'neutral': { label: t('Neutral', 'محايد', 'Neutre', 'Nötr', newsLang), color: T.text3 },
+    'bullish': { label: t('Bullish', 'صعودي', 'Haussier', 'Yükseliş', newsLang), color: '#00FFA3' },
+    'bearish': { label: t('Bearish', 'هبوطي', 'Baissier', 'Düşüş', newsLang), color: '#FF4757' },
+    'neutral': { label: t('Neutral', 'محايد', 'Neutre', 'Nötr', newsLang), color: '#6B7280' },
   }
   const sentimentConf = sentimentMap[report.sentiment || ''] || sentimentMap['neutral']
 
@@ -935,8 +934,8 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
       className="news-card"
       onClick={onToggle}
       style={{
-        background: T.card,
-        border: `1px solid ${expanded ? cat.color + '40' : T.border}`,
+        background: '#151A22',
+        border: `1px solid ${expanded ? cat.color + '40' : '#2A313C'}`,
         borderRight: `3px solid ${cat.color}`,
         borderRadius: 'var(--radius-xl)',
         overflow: 'hidden',
@@ -957,7 +956,7 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
             {cat.icon} {cat.label}
           </span>
           {report.confidenceScore != null && (
-            <span style={{ fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: `${T.green}12`, color: T.green, fontWeight: 700, fontFamily: FONT_AR }}>
+            <span style={{ fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: `${'#00FFA3'}12`, color: '#00FFA3', fontWeight: 700, fontFamily: FONT_AR }}>
               {t('Confidence', 'ثقة', 'Confiance', 'Güven', newsLang)} {report.confidenceScore}%
             </span>
           )}
@@ -967,13 +966,13 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
           <span style={{ fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: `${sentimentConf.color}10`, color: sentimentConf.color, fontWeight: 700, fontFamily: FONT_AR }}>
             {sentimentConf.label}
           </span>
-          <span style={{ fontSize: 'var(--text-xs)', color: T.text3, marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT_AR }}>
             <Clock size={9} /> {timeAgo(report.publishedAt, newsLang)}
           </span>
         </div>
 
         {/* Title */}
-        <h3 style={{ color: T.text, fontSize: 'var(--text-base)', fontWeight: 800, margin: '0 0 8px', lineHeight: 1.6, fontFamily: FONT_AR }}>
+        <h3 style={{ color: '#F0F2F5', fontSize: 'var(--text-base)', fontWeight: 800, margin: '0 0 8px', lineHeight: 1.6, fontFamily: FONT_AR }}>
           {report.titleAr || (t('Report', 'تقرير', 'Rapport', 'Rapor', newsLang))}
         </h3>
 
@@ -981,17 +980,17 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
         {Array.isArray(report.sectors) && report.sectors.length > 0 && !expanded && (
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {report.sectors.slice(0, 4).map((s, i) => (
-              <span key={i} style={{ fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: T.bg2, color: T.text3, fontWeight: 600, fontFamily: FONT_AR }}>
+              <span key={i} style={{ fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: '#0F1117', color: '#6B7280', fontWeight: 600, fontFamily: FONT_AR }}>
                 {safeStr(s)}
               </span>
             ))}
-            {report.sectors.length > 4 && <span style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>+{report.sectors.length - 4}</span>}
+            {report.sectors.length > 4 && <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>+{report.sectors.length - 4}</span>}
           </div>
         )}
 
         {/* Expand indicator */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 8 }}>
-          <span style={{ fontSize: 'var(--text-xs)', color: T.text3, display: 'flex', alignItems: 'center', gap: 4, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', display: 'flex', alignItems: 'center', gap: 4, fontFamily: FONT_AR }}>
             {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
             {expanded ? t('Close', 'إغلاق', 'Fermer', 'Kapat', newsLang) : t('View Details', 'عرض التفاصيل', 'Voir les détails', 'Detayları Gör', newsLang)}
           </span>
@@ -1000,24 +999,24 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
 
       {/* Expanded Detail */}
       {expanded && (
-        <div style={{ padding: '0 18px 18px', borderTop: `1px solid ${T.border}`, paddingTop: 14 }}>
+        <div style={{ padding: '0 18px 18px', borderTop: `1px solid ${'#2A313C'}`, paddingTop: 14 }}>
           {/* Key Indicators */}
           {report.keyIndicators && (
-            <div style={{ padding: 14, background: `${T.cyan}06`, borderRadius: 'var(--radius-lg)', border: `0.5px solid ${T.cyan}15`, marginBottom: 12 }}>
+            <div style={{ padding: 14, background: `${'#00D4FF'}06`, borderRadius: 'var(--radius-lg)', border: `0.5px solid ${'#00D4FF'}15`, marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                <Brain size={12} color={T.cyan} />
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.cyan, fontFamily: FONT_AR }}>{t('Key Indicators', 'المؤشرات الرئيسية', 'Indicateurs clés', 'Temel Göstergeler', newsLang)}</span>
+                <Brain size={12} color={'#00D4FF'} />
+                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#00D4FF', fontFamily: FONT_AR }}>{t('Key Indicators', 'المؤشرات الرئيسية', 'Indicateurs clés', 'Temel Göstergeler', newsLang)}</span>
               </div>
               {report.keyIndicators.topic && (
-                <p style={{ fontSize: 'var(--text-sm)', color: T.text2, lineHeight: 1.7, margin: '0 0 6px', fontFamily: FONT_AR }}>{report.keyIndicators.topic}</p>
+                <p style={{ fontSize: 'var(--text-sm)', color: '#9CA3B5', lineHeight: 1.7, margin: '0 0 6px', fontFamily: FONT_AR }}>{report.keyIndicators.topic}</p>
               )}
               {report.keyIndicators.region && (
-                <p style={{ fontSize: 'var(--text-xs)', color: T.text3, margin: '0 0 6px', fontFamily: FONT_AR }}>{t('Region:', 'المنطقة:', 'Région:', 'Bölge:', newsLang)} {report.keyIndicators.region}</p>
+                <p style={{ fontSize: 'var(--text-xs)', color: '#6B7280', margin: '0 0 6px', fontFamily: FONT_AR }}>{t('Region:', 'المنطقة:', 'Région:', 'Bölge:', newsLang)} {report.keyIndicators.region}</p>
               )}
               {Array.isArray(report.keyIndicators.scenarios) && report.keyIndicators.scenarios.length > 0 && (
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
                   {report.keyIndicators.scenarios.map((s, i) => (
-                    <span key={i} style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${T.amber}10`, color: T.amber, fontWeight: 600, fontFamily: FONT_AR }}>{safeStr(s)}</span>
+                    <span key={i} style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${'#FFB800'}10`, color: '#FFB800', fontWeight: 600, fontFamily: FONT_AR }}>{safeStr(s)}</span>
                   ))}
                 </div>
               )}
@@ -1026,23 +1025,23 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
 
           {/* Price Target */}
           {report.priceTarget && report.priceTarget.symbol && (
-            <div style={{ padding: 14, background: `${T.green}06`, borderRadius: 'var(--radius-lg)', border: `0.5px solid ${T.green}15`, marginBottom: 12 }}>
+            <div style={{ padding: 14, background: `${'#00FFA3'}06`, borderRadius: 'var(--radius-lg)', border: `0.5px solid ${'#00FFA3'}15`, marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                <TrendingUp size={12} color={T.green} />
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.green, fontFamily: FONT_AR }}>{t('Price Target', 'السعر المستهدف', 'Objectif de prix', 'Fiyat Hedefi', newsLang)}</span>
+                <TrendingUp size={12} color={'#00FFA3'} />
+                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#00FFA3', fontFamily: FONT_AR }}>{t('Price Target', 'السعر المستهدف', 'Objectif de prix', 'Fiyat Hedefi', newsLang)}</span>
               </div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 {report.priceTarget.symbol && (
-                  <span style={{ fontSize: 'var(--text-base)', fontWeight: 900, color: T.text, fontFamily: FONT_MONO }}>{report.priceTarget.symbol}</span>
+                  <span style={{ fontSize: 'var(--text-base)', fontWeight: 900, color: '#F0F2F5', fontFamily: FONT_MONO }}>{report.priceTarget.symbol}</span>
                 )}
                 {(report.priceTarget.current ?? 0) > 0 && (
-                  <span style={{ fontSize: 'var(--text-sm)', color: T.text2 }}>{t('Current:', 'الحالي:', 'Actuel:', 'Mevcut:', newsLang)} <strong style={{ color: T.text }}>{report.priceTarget.current}</strong></span>
+                  <span style={{ fontSize: 'var(--text-sm)', color: '#9CA3B5' }}>{t('Current:', 'الحالي:', 'Actuel:', 'Mevcut:', newsLang)} <strong style={{ color: '#F0F2F5' }}>{report.priceTarget.current}</strong></span>
                 )}
                 {report.priceTarget.target != null && (
-                  <span style={{ fontSize: 'var(--text-sm)', color: T.green }}>{t('Target:', 'المستهدف:', 'Objectif:', 'Hedef:', newsLang)} <strong>{report.priceTarget.target}</strong></span>
+                  <span style={{ fontSize: 'var(--text-sm)', color: '#00FFA3' }}>{t('Target:', 'المستهدف:', 'Objectif:', 'Hedef:', newsLang)} <strong>{report.priceTarget.target}</strong></span>
                 )}
                 {report.priceTarget.stopLoss != null && (
-                  <span style={{ fontSize: 'var(--text-sm)', color: T.red }}>{t('Stop Loss:', 'وقف الخسارة:', 'Stop Loss:', 'Zarar Durdurma:', newsLang)} <strong>{report.priceTarget.stopLoss}</strong></span>
+                  <span style={{ fontSize: 'var(--text-sm)', color: '#FF4757' }}>{t('Stop Loss:', 'وقف الخسارة:', 'Stop Loss:', 'Zarar Durdurma:', newsLang)} <strong>{report.priceTarget.stopLoss}</strong></span>
                 )}
               </div>
             </div>
@@ -1050,14 +1049,14 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
 
           {/* Scope & Countries */}
           {(report.scope || (Array.isArray(report.countries) && report.countries.length > 0)) && (
-            <div style={{ padding: 14, background: `${T.amber}06`, borderRadius: 'var(--radius-lg)', border: `0.5px solid ${T.amber}15`, marginBottom: 12 }}>
+            <div style={{ padding: 14, background: `${'#FFB800'}06`, borderRadius: 'var(--radius-lg)', border: `0.5px solid ${'#FFB800'}15`, marginBottom: 12 }}>
               {report.scope && (
-                <p style={{ fontSize: 'var(--text-sm)', color: T.text2, margin: '0 0 6px', fontFamily: FONT_AR }}>{t('Scope:', 'النطاق:', 'Portée:', 'Kapsam:', newsLang)} <strong style={{ color: T.text }}>{report.scope === 'arabic' ? (t('Arab World', 'العالم العربي', 'Monde arabe', 'Arap Dünyası', newsLang)) : report.scope === 'regional' ? (t('Regional', 'إقليمي', 'Régional', 'Bölgesel', newsLang)) : report.scope === 'global' ? (t('Global', 'عالمي', 'Mondial', 'Küresel', newsLang)) : report.scope}</strong></p>
+                <p style={{ fontSize: 'var(--text-sm)', color: '#9CA3B5', margin: '0 0 6px', fontFamily: FONT_AR }}>{t('Scope:', 'النطاق:', 'Portée:', 'Kapsam:', newsLang)} <strong style={{ color: '#F0F2F5' }}>{report.scope === 'arabic' ? (t('Arab World', 'العالم العربي', 'Monde arabe', 'Arap Dünyası', newsLang)) : report.scope === 'regional' ? (t('Regional', 'إقليمي', 'Régional', 'Bölgesel', newsLang)) : report.scope === 'global' ? (t('Global', 'عالمي', 'Mondial', 'Küresel', newsLang)) : report.scope}</strong></p>
               )}
               {Array.isArray(report.countries) && report.countries.length > 0 && (
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {report.countries.map((c, i) => (
-                    <span key={i} style={{ fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: T.bg2, color: T.text3, fontWeight: 600, fontFamily: FONT_AR }}>{safeStr(c)}</span>
+                    <span key={i} style={{ fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: '#0F1117', color: '#6B7280', fontWeight: 600, fontFamily: FONT_AR }}>{safeStr(c)}</span>
                   ))}
                 </div>
               )}
@@ -1077,11 +1076,11 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
           {report.confidenceScore != null && (
             <div style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: FONT_AR }}>{t('Confidence Level', 'مستوى الثقة', 'Niveau de confiance', 'Güven Seviyesi', newsLang)}</span>
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.green, fontFamily: FONT_MONO }}>{report.confidenceScore}%</span>
+                <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: FONT_AR }}>{t('Confidence Level', 'مستوى الثقة', 'Niveau de confiance', 'Güven Seviyesi', newsLang)}</span>
+                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#00FFA3', fontFamily: FONT_MONO }}>{report.confidenceScore}%</span>
               </div>
-              <div style={{ height: 4, borderRadius: 'var(--radius-xs)', background: T.bg2, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${report.confidenceScore}%`, borderRadius: 'var(--radius-xs)', background: `linear-gradient(90deg, ${T.green}60, ${T.green})`, transition: 'width 0.5s' }} />
+              <div style={{ height: 4, borderRadius: 'var(--radius-xs)', background: '#0F1117', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${report.confidenceScore}%`, borderRadius: 'var(--radius-xs)', background: `linear-gradient(90deg, ${'#00FFA3'}60, ${'#00FFA3'})`, transition: 'width 0.5s' }} />
               </div>
             </div>
           )}
@@ -1089,14 +1088,14 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
           {/* Market Impact */}
           {report.marketImpact && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-              <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: FONT_AR }}>{t('Market Impact:', 'تأثير السوق:', 'Impact marché:', 'Piyasa Etkisi:', newsLang)}</span>
+              <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: FONT_AR }}>{t('Market Impact:', 'تأثير السوق:', 'Impact marché:', 'Piyasa Etkisi:', newsLang)}</span>
               <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${sentimentConf.color}10`, color: sentimentConf.color, fontWeight: 700, fontFamily: FONT_AR }}>{report.marketImpact === 'neutral' ? t('Neutral', 'محايد', 'Neutre', 'Nötr', newsLang) : report.marketImpact === 'bullish' ? t('Bullish', 'صعودي', 'Haussier', 'Yükseliş', newsLang) : report.marketImpact === 'bearish' ? t('Bearish', 'هبوطي', 'Baissier', 'Düşüş', newsLang) : report.marketImpact}</span>
             </div>
           )}
 
           {/* Link to news site */}
           {report.siteUrl && (
-            <a href={report.siteUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-sm)', fontWeight: 700, color: T.cyan, fontFamily: FONT_AR, textDecoration: 'none', padding: '8px 16px', borderRadius: 'var(--radius-lg)', background: `${T.cyan}08`, border: `0.5px solid ${T.cyan}18` }}>
+            <a href={report.siteUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-sm)', fontWeight: 700, color: '#00D4FF', fontFamily: FONT_AR, textDecoration: 'none', padding: '8px 16px', borderRadius: 'var(--radius-lg)', background: `${'#00D4FF'}08`, border: `0.5px solid ${'#00D4FF'}18` }}>
               {t('Read Full Report', 'قراءة التقرير الكامل', 'Lire le rapport complet', 'Tam Raporu Oku', newsLang)} <ExternalLink size={12} />
             </a>
           )}
@@ -1114,29 +1113,29 @@ function TechnicalAnalysisTab({ analyses, loading, newsLang }: { analyses: any[]
   const [filterCat, setFilterCat] = useState('')
 
   const categoryMap: Record<string, { label: string; color: string }> = {
-    CRYPTO: { label: t('Crypto', 'كريبتو', 'Crypto', 'Kripto', newsLang), color: T.warning },
-    FOREX: { label: t('Forex', 'فوركس', 'Forex', 'Forex', newsLang), color: T.info },
-    STOCKS: { label: t('Stocks', 'أسهم', 'Actions', 'Hisse Senetleri', newsLang), color: T.success },
-    COMMODITIES: { label: t('Commodities', 'سلع', 'Matières premières', 'Emtialar', newsLang), color: T.warning },
-    ECONOMY: { label: t('Economy', 'اقتصاد', 'Économie', 'Ekonomi', newsLang), color: T.council },
-    TECHNOLOGY: { label: t('Technology', 'تقنية', 'Technologie', 'Teknoloji', newsLang), color: T.info },
-    DEFI: { label: t('DeFi', 'ديفاي', 'DeFi', 'DeFi', newsLang), color: T.council },
-    REGULATION: { label: t('Regulation', 'تشريعات', 'Réglementation', 'Düzenleme', newsLang), color: T.danger },
+    CRYPTO: { label: t('Crypto', 'كريبتو', 'Crypto', 'Kripto', newsLang), color: '#FFB800' },
+    FOREX: { label: t('Forex', 'فوركس', 'Forex', 'Forex', newsLang), color: '#00D4FF' },
+    STOCKS: { label: t('Stocks', 'أسهم', 'Actions', 'Hisse Senetleri', newsLang), color: '#00FFA3' },
+    COMMODITIES: { label: t('Commodities', 'سلع', 'Matières premières', 'Emtialar', newsLang), color: '#FFB800' },
+    ECONOMY: { label: t('Economy', 'اقتصاد', 'Économie', 'Ekonomi', newsLang), color: '#B388FF' },
+    TECHNOLOGY: { label: t('Technology', 'تقنية', 'Technologie', 'Teknoloji', newsLang), color: '#00D4FF' },
+    DEFI: { label: t('DeFi', 'ديفاي', 'DeFi', 'DeFi', newsLang), color: '#B388FF' },
+    REGULATION: { label: t('Regulation', 'تشريعات', 'Réglementation', 'Düzenleme', newsLang), color: '#FF4757' },
   }
   const typeMap: Record<string, { label: string; color: string }> = {
-    ANALYSIS: { label: t('Technical Analysis', 'تحليل فني', 'Analyse technique', 'Teknik Analiz', newsLang), color: T.accent },
-    MARKET_REPORT: { label: t('Market Report', 'تقرير سوق', 'Rapport de marché', 'Piyasa Raporu', newsLang), color: T.info },
-    ARTICLE: { label: t('Analytical Article', 'مقال تحليلي', 'Article analytique', 'Analitik Makale', newsLang), color: T.council },
-    NEWS_DIGEST: { label: t('Market Digest', 'ملخص سوقي', 'Résumé du marché', 'Piyasa Özeti', newsLang), color: T.warning },
-    BREAKING: { label: t('Breaking', 'عاجل', 'Flash', 'Son Dakika', newsLang), color: T.danger },
+    ANALYSIS: { label: t('Technical Analysis', 'تحليل فني', 'Analyse technique', 'Teknik Analiz', newsLang), color: '#059669' },
+    MARKET_REPORT: { label: t('Market Report', 'تقرير سوق', 'Rapport de marché', 'Piyasa Raporu', newsLang), color: '#00D4FF' },
+    ARTICLE: { label: t('Analytical Article', 'مقال تحليلي', 'Article analytique', 'Analitik Makale', newsLang), color: '#B388FF' },
+    NEWS_DIGEST: { label: t('Market Digest', 'ملخص سوقي', 'Résumé du marché', 'Piyasa Özeti', newsLang), color: '#FFB800' },
+    BREAKING: { label: t('Breaking', 'عاجل', 'Flash', 'Son Dakika', newsLang), color: '#FF4757' },
   }
 
   const filtered = filterCat ? analyses.filter(a => a.category === filterCat) : analyses
 
   if (loading) {
     return (
-      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-2xl)', padding: '32px', textAlign: 'center', color: T.text2 }}>
-        <RefreshCw size={28} color={T.green} style={{ marginBottom: 14, animation: 'spin 1s linear infinite' }} />
+      <div style={{ background: '#151A22', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-2xl)', padding: '32px', textAlign: 'center', color: '#9CA3B5' }}>
+        <RefreshCw size={28} color={'#00FFA3'} style={{ marginBottom: 14, animation: 'spin 1s linear infinite' }} />
         <p style={{ fontSize: 'var(--text-base)', fontFamily: FONT_AR }}>{t('Loading technical analysis...', 'جارٍ تحميل التحليلات الفنية...', 'Chargement des analyses techniques...', 'Teknik analizler yükleniyor...', newsLang)}</p>
       </div>
     )
@@ -1144,10 +1143,10 @@ function TechnicalAnalysisTab({ analyses, loading, newsLang }: { analyses: any[]
 
   if (analyses.length === 0) {
     return (
-      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-2xl)', padding: '48px 32px', textAlign: 'center' }}>
-        <LineChart size={40} color={T.green} style={{ marginBottom: 16, opacity: 0.5 }} />
-        <h2 style={{ color: T.text, fontSize: 'var(--text-lg)', fontWeight: 800, margin: '0 0 8px' }}>{t('No technical analysis available', 'لا توجد تحليلات فنية حالياً', 'Aucune analyse technique disponible', 'Teknik analiz mevcut değil', newsLang)}</h2>
-        <p style={{ color: T.text2, fontSize: 'var(--text-sm)', margin: 0, lineHeight: 1.8 }}>{t('Technical analysis will appear here when generated by the content agent', 'ستظهر التحليلات الفنية هنا عند توليدها من وكيل المحتوى', 'Les analyses techniques apparaîtront ici', 'İçerik aracısı tarafından üretildiğinde teknik analizler burada görünecek', newsLang)}</p>
+      <div style={{ background: '#151A22', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-2xl)', padding: '48px 32px', textAlign: 'center' }}>
+        <LineChart size={40} color={'#00FFA3'} style={{ marginBottom: 16, opacity: 0.5 }} />
+        <h2 style={{ color: '#F0F2F5', fontSize: 'var(--text-lg)', fontWeight: 800, margin: '0 0 8px' }}>{t('No technical analysis available', 'لا توجد تحليلات فنية حالياً', 'Aucune analyse technique disponible', 'Teknik analiz mevcut değil', newsLang)}</h2>
+        <p style={{ color: '#9CA3B5', fontSize: 'var(--text-sm)', margin: 0, lineHeight: 1.8 }}>{t('Technical analysis will appear here when generated by the content agent', 'ستظهر التحليلات الفنية هنا عند توليدها من وكيل المحتوى', 'Les analyses techniques apparaîtront ici', 'İçerik aracısı tarafından üretildiğinde teknik analizler burada görünecek', newsLang)}</p>
       </div>
     )
   }
@@ -1158,8 +1157,8 @@ function TechnicalAnalysisTab({ analyses, loading, newsLang }: { analyses: any[]
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         <button onClick={() => setFilterCat('')} style={{
           padding: '6px 14px', borderRadius: 'var(--radius-lg)', fontSize: 'var(--text-xs)', fontWeight: filterCat ? 600 : 800,
-          fontFamily: FONT_AR, border: `1px solid ${filterCat ? T.border : T.green}`,
-          background: filterCat ? T.card : `${T.green}14`, color: filterCat ? T.text2 : T.green, cursor: 'pointer',
+          fontFamily: FONT_AR, border: `1px solid ${filterCat ? '#2A313C' : '#00FFA3'}`,
+          background: filterCat ? '#151A22' : `${'#00FFA3'}14`, color: filterCat ? '#9CA3B5' : '#00FFA3', cursor: 'pointer',
         }}>
           {t('All', 'الكل', 'Tout', 'Tümü', newsLang)} ({analyses.length})
         </button>
@@ -1169,8 +1168,8 @@ function TechnicalAnalysisTab({ analyses, loading, newsLang }: { analyses: any[]
           return (
             <button key={key} onClick={() => setFilterCat(filterCat === key ? '' : key)} style={{
               padding: '6px 14px', borderRadius: 'var(--radius-lg)', fontSize: 'var(--text-xs)', fontWeight: filterCat === key ? 800 : 600,
-              fontFamily: FONT_AR, border: `1px solid ${filterCat === key ? val.color : T.border}`,
-              background: filterCat === key ? `${val.color}14` : T.card, color: filterCat === key ? val.color : T.text2, cursor: 'pointer',
+              fontFamily: FONT_AR, border: `1px solid ${filterCat === key ? val.color : '#2A313C'}`,
+              background: filterCat === key ? `${val.color}14` : '#151A22', color: filterCat === key ? val.color : '#9CA3B5', cursor: 'pointer',
             }}>
               {val.label} ({count})
             </button>
@@ -1217,19 +1216,19 @@ function AnalysisContentCard({
   typeMap: Record<string, { label: string; color: string }>
   newsLang: 'ar' | 'en' | 'fr' | 'tr'
 }) {
-  const cat = categoryMap[article.category] || { label: article.category || t('Other', 'أخرى', 'Autre', 'Diğer', newsLang), color: T.text3 }
-  const typ = typeMap[article.type] || { label: article.type || t('Analysis', 'تحليل', 'Analyse', 'Analiz', newsLang), color: T.green }
+  const cat = categoryMap[article.category] || { label: article.category || t('Other', 'أخرى', 'Autre', 'Diğer', newsLang), color: '#6B7280' }
+  const typ = typeMap[article.type] || { label: article.type || t('Analysis', 'تحليل', 'Analyse', 'Analiz', newsLang), color: '#00FFA3' }
   const sentimentScore = article.sentimentScore || 0
   const sentimentConf = sentimentScore > 0.3
-    ? { label: t('Bullish', 'صعودي', 'Haussier', 'Yükseliş', newsLang), color: T.green, icon: <ArrowUpRight size={12} /> }
+    ? { label: t('Bullish', 'صعودي', 'Haussier', 'Yükseliş', newsLang), color: '#00FFA3', icon: <ArrowUpRight size={12} /> }
     : sentimentScore < -0.3
-      ? { label: t('Bearish', 'هبوطي', 'Baissier', 'Düşüş', newsLang), color: T.red, icon: <ArrowDownRight size={12} /> }
-      : { label: t('Neutral', 'محايد', 'Neutre', 'Nötr', newsLang), color: T.amber, icon: <Minus size={12} /> }
+      ? { label: t('Bearish', 'هبوطي', 'Baissier', 'Düşüş', newsLang), color: '#FF4757', icon: <ArrowDownRight size={12} /> }
+      : { label: t('Neutral', 'محايد', 'Neutre', 'Nötr', newsLang), color: '#FFB800', icon: <Minus size={12} /> }
   const impactConf = article.impactLevel === 'HIGH'
-    ? { label: t('High Impact', 'تأثير عالي', 'Impact élevé', 'Yüksek Etki', newsLang), color: T.red }
+    ? { label: t('High Impact', 'تأثير عالي', 'Impact élevé', 'Yüksek Etki', newsLang), color: '#FF4757' }
     : article.impactLevel === 'LOW'
-      ? { label: t('Low Impact', 'تأثير منخفض', 'Faible impact', 'Düşük Etki', newsLang), color: T.green }
-      : { label: t('Medium Impact', 'تأثير متوسط', 'Impact moyen', 'Orta Etki', newsLang), color: T.amber }
+      ? { label: t('Low Impact', 'تأثير منخفض', 'Faible impact', 'Düşük Etki', newsLang), color: '#00FFA3' }
+      : { label: t('Medium Impact', 'تأثير متوسط', 'Impact moyen', 'Orta Etki', newsLang), color: '#FFB800' }
   const qualityScore = article.qualityScore || 0
 
   // Safely parse JSON arrays
@@ -1277,8 +1276,8 @@ function AnalysisContentCard({
     <article
       className="news-card"
       style={{
-        background: T.card,
-        border: `1px solid ${expanded ? cat.color + '30' : T.border}`,
+        background: '#151A22',
+        border: `1px solid ${expanded ? cat.color + '30' : '#2A313C'}`,
         borderRight: `3px solid ${cat.color}`,
         borderRadius: 'var(--radius-xl)',
         overflow: 'hidden',
@@ -1303,14 +1302,14 @@ function AnalysisContentCard({
               {impactConf.label}
             </span>
           )}
-          <span style={{ fontSize: 'var(--text-xs)', color: T.text3, marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT_AR }}>
             <Clock size={9} /> {timeAgo(article.publishedAt || article.createdAt, newsLang)}
           </span>
         </div>
 
         {/* Title */}
         <h3 style={{
-          color: T.text, fontSize: 'var(--text-lg)', fontWeight: 900, margin: '0 0 14px', lineHeight: 1.7, fontFamily: FONT_AR,
+          color: '#F0F2F5', fontSize: 'var(--text-lg)', fontWeight: 900, margin: '0 0 14px', lineHeight: 1.7, fontFamily: FONT_AR,
           background: 'linear-gradient(180deg, #F0F2F5 0%, #C8CCD4 100%)',
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
         }}>
@@ -1323,20 +1322,20 @@ function AnalysisContentCard({
             {symbols.slice(0, 6).map((sym, i) => (
               <span key={i} style={{
                 fontSize: 'var(--text-xs)', padding: '4px 12px', borderRadius: 'var(--radius-md)',
-                background: `linear-gradient(135deg, ${T.cyan}10, ${T.cyan}06)`,
-                color: T.cyan, fontWeight: 800,
-                fontFamily: FONT_MONO, border: `1px solid ${T.cyan}18`,
+                background: `linear-gradient(135deg, ${'#00D4FF'}10, ${'#00D4FF'}06)`,
+                color: '#00D4FF', fontWeight: 800,
+                fontFamily: FONT_MONO, border: `1px solid ${'#00D4FF'}18`,
               }}>
                 {sym}
               </span>
             ))}
-            {symbols.length > 6 && <span style={{ fontSize: 'var(--text-xs)', color: T.text3, padding: '4px 8px' }}>+{symbols.length - 6}</span>}
+            {symbols.length > 6 && <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', padding: '4px 8px' }}>+{symbols.length - 6}</span>}
           </div>
         )}
 
         {/* Summary */}
         {summaryText && !expanded && (
-          <p style={{ color: T.text2, fontSize: 'var(--text-sm)', margin: '0 0 14px', lineHeight: 1.9, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          <p style={{ color: '#9CA3B5', fontSize: 'var(--text-sm)', margin: '0 0 14px', lineHeight: 1.9, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
             {summaryText}
           </p>
         )}
@@ -1344,15 +1343,15 @@ function AnalysisContentCard({
         {/* Quality Score Bar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Target size={12} color={qualityScore >= 70 ? T.green : T.amber} />
-            <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: FONT_AR, fontWeight: 600 }}>{t('Analysis Quality', 'جودة التحليل', 'Qualité analytique', 'Analiz Kalitesi', newsLang)}</span>
-            <div style={{ flex: 1, height: 4, borderRadius: 'var(--radius-xs)', background: T.bg2, overflow: 'hidden', maxWidth: 120 }}>
-              <div style={{ height: '100%', width: `${Math.min(qualityScore, 100)}%`, borderRadius: 'var(--radius-xs)', background: qualityScore >= 70 ? `linear-gradient(90deg, ${T.green}60, ${T.green})` : `linear-gradient(90deg, ${T.amber}60, ${T.amber})`, transition: 'width 0.5s' }} />
+            <Target size={12} color={qualityScore >= 70 ? '#00FFA3' : '#FFB800'} />
+            <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: FONT_AR, fontWeight: 600 }}>{t('Analysis Quality', 'جودة التحليل', 'Qualité analytique', 'Analiz Kalitesi', newsLang)}</span>
+            <div style={{ flex: 1, height: 4, borderRadius: 'var(--radius-xs)', background: '#0F1117', overflow: 'hidden', maxWidth: 120 }}>
+              <div style={{ height: '100%', width: `${Math.min(qualityScore, 100)}%`, borderRadius: 'var(--radius-xs)', background: qualityScore >= 70 ? `linear-gradient(90deg, ${'#00FFA3'}60, ${'#00FFA3'})` : `linear-gradient(90deg, ${'#FFB800'}60, ${'#FFB800'})`, transition: 'width 0.5s' }} />
             </div>
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: qualityScore >= 70 ? T.green : T.amber, fontFamily: FONT_MONO }}>{qualityScore}%</span>
+            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: qualityScore >= 70 ? '#00FFA3' : '#FFB800', fontFamily: FONT_MONO }}>{qualityScore}%</span>
           </div>
           {article.readingTimeMinutes > 0 && (
-            <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 3 }}>
+            <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 3 }}>
               <BookOpen size={9} /> {article.readingTimeMinutes} {t('min read', 'دقائق قراءة', 'min de lecture', 'dk okuma', newsLang)}
             </span>
           )}
@@ -1365,17 +1364,17 @@ function AnalysisContentCard({
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           padding: '12px 22px', cursor: 'pointer',
-          borderTop: `1px solid ${T.border}`,
+          borderTop: `1px solid ${'#2A313C'}`,
           background: expanded ? `${cat.color}06` : 'transparent',
           transition: 'background 0.2s',
         }}
       >
         <span style={{
-          fontSize: 'var(--text-sm)', color: expanded ? cat.color : T.text2, fontWeight: 700,
+          fontSize: 'var(--text-sm)', color: expanded ? cat.color : '#9CA3B5', fontWeight: 700,
           fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 6,
           padding: '6px 18px', borderRadius: 'var(--radius-md)',
           background: expanded ? `${cat.color}10` : 'rgba(255,255,255,0.04)',
-          border: `1px solid ${expanded ? cat.color + '25' : T.border}`,
+          border: `1px solid ${expanded ? cat.color + '25' : '#2A313C'}`,
           transition: 'all 0.2s',
         }}>
           {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
@@ -1385,7 +1384,7 @@ function AnalysisContentCard({
 
       {/* Expanded Content */}
       {expanded && contentText && (
-        <div style={{ borderTop: `1px solid ${T.border}` }}>
+        <div style={{ borderTop: `1px solid ${'#2A313C'}` }}>
           {/* Rich Analysis Content */}
           <div style={{ padding: '0 22px 22px' }}>
             <RichAnalysisContent content={contentText} catColor={cat.color} newsLang={newsLang} />
@@ -1394,11 +1393,11 @@ function AnalysisContentCard({
           {/* Tags */}
           {tags.length > 0 && (
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', padding: '0 22px 14px' }}>
-              <Tag size={11} color={T.text3} style={{ flexShrink: 0, marginTop: 2 }} />
+              <Tag size={11} color={'#6B7280'} style={{ flexShrink: 0, marginTop: 2 }} />
               {tags.slice(0, 8).map((tag, i) => (
                 <span key={i} style={{
                   fontSize: 'var(--text-xs)', padding: '3px 9px', borderRadius: 'var(--radius-sm)',
-                  background: 'rgba(255,255,255,0.04)', color: T.text3, fontWeight: 600, fontFamily: FONT_AR,
+                  background: 'rgba(255,255,255,0.04)', color: '#6B7280', fontWeight: 600, fontFamily: FONT_AR,
                   border: '1px solid rgba(255,255,255,0.06)',
                 }}>
                   {tag}
@@ -1408,18 +1407,18 @@ function AnalysisContentCard({
           )}
 
           {/* Meta Footer */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 22px', borderTop: `1px solid ${T.border}`, flexWrap: 'wrap', background: `${T.bg2}40` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 22px', borderTop: `1px solid ${'#2A313C'}`, flexWrap: 'wrap', background: `${'#0F1117'}40` }}>
             {article.views > 0 && (
-              <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Eye size={10} /> {article.views} {t('views', 'مشاهدة', 'vues', 'görüntülenme', newsLang)}
               </span>
             )}
             {article.generationSource && (
-              <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Sparkles size={9} /> {article.generationSource === 'GLM' ? 'GLM AI' : article.generationSource}
               </span>
             )}
-            <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${T.green}10`, color: T.green, fontWeight: 700, fontFamily: FONT_AR }}>
+            <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${'#00FFA3'}10`, color: '#00FFA3', fontWeight: 700, fontFamily: FONT_AR }}>
               {t('Published', 'منشور', 'Publié', 'Yayınlandı', newsLang)}
             </span>
           </div>
@@ -1560,7 +1559,7 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
       parts.push(
         <span key={`b-${keyIdx++}`} style={{
           fontWeight: 800,
-          color: isPrice ? T.gold : isLevel ? T.cyan : T.text,
+          color: isPrice ? '#d4af37' : isLevel ? '#00D4FF' : '#F0F2F5',
           fontFamily: isPrice ? FONT_MONO : FONT_AR,
         }}>
           {boldContent}
@@ -1616,7 +1615,7 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
       parts.push(
         <span key={`s-${startKey}-${idx++}`} style={{
           fontWeight: 800,
-          color: m.type === 'price' ? T.gold : T.cyan,
+          color: m.type === 'price' ? '#d4af37' : '#00D4FF',
           fontFamily: FONT_MONO,
           fontSize: m.type === 'price' ? 12 : 11,
           padding: m.type === 'symbol' ? '0 3px' : 0,
@@ -1660,7 +1659,7 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
               borderRadius: '0 7px 7px 0',
             }}>
               <span style={{
-                fontSize: 'var(--text-base)', fontWeight: 800, color: T.text2,
+                fontSize: 'var(--text-base)', fontWeight: 800, color: '#9CA3B5',
                 fontFamily: FONT_AR, lineHeight: 1.6,
               }}>
                 {renderInline(block.text)}
@@ -1679,7 +1678,7 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
               borderRadius: '0 8px 8px 0',
             }}>
               <span style={{
-                fontSize: 'var(--text-base)', fontWeight: 900, color: T.text,
+                fontSize: 'var(--text-base)', fontWeight: 900, color: '#F0F2F5',
                 fontFamily: FONT_AR, lineHeight: 1.6,
               }}>
                 {renderInline(block.text)}
@@ -1693,12 +1692,12 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
           return (
             <div key={i} style={{
               margin: '28px 0 14px', padding: '12px 16px',
-              background: `linear-gradient(135deg, ${T.green}10, ${T.green}04)`,
-              borderRight: `4px solid ${T.green}`,
+              background: `linear-gradient(135deg, ${'#00FFA3'}10, ${'#00FFA3'}04)`,
+              borderRight: `4px solid ${'#00FFA3'}`,
               borderRadius: '0 10px 10px 0',
             }}>
               <span style={{
-                fontSize: 'var(--text-md)', fontWeight: 900, color: T.text,
+                fontSize: 'var(--text-md)', fontWeight: 900, color: '#F0F2F5',
                 fontFamily: FONT_AR, lineHeight: 1.5,
               }}>
                 {renderInline(block.text)}
@@ -1717,7 +1716,7 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
               borderRadius: '0 6px 6px 0',
             }}>
               <span style={{
-                fontSize: 'var(--text-base)', fontWeight: 800, color: T.text,
+                fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5',
                 fontFamily: FONT_AR, lineHeight: 1.6,
               }}>
                 {renderInline(block.text)}
@@ -1733,17 +1732,17 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
             <div key={i} style={{
               display: 'flex', gap: 8, margin: '4px 0',
               padding: isKeyData ? '6px 10px' : '3px 0',
-              background: isKeyData ? `${T.bg2}80` : 'transparent',
+              background: isKeyData ? `${'#0F1117'}80` : 'transparent',
               borderRadius: isKeyData ? 6 : 0,
-              border: isKeyData ? `0.5px solid ${T.border}` : 'none',
+              border: isKeyData ? `0.5px solid ${'#2A313C'}` : 'none',
             }}>
               <div style={{
                 width: 5, height: 5, borderRadius: '50%',
-                background: isKeyData ? T.gold : T.text3,
+                background: isKeyData ? '#d4af37' : '#6B7280',
                 marginTop: 9, flexShrink: 0,
               }} />
               <span style={{
-                color: T.text2, fontSize: 'var(--text-sm)', lineHeight: 2,
+                color: '#9CA3B5', fontSize: 'var(--text-sm)', lineHeight: 2,
                 fontFamily: FONT_AR,
               }}>
                 {renderInline(block.text)}
@@ -1769,11 +1768,11 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0,
               }}>
-                <ShieldAlert size={15} color={T.amber} />
+                <ShieldAlert size={15} color={'#FFB800'} />
               </div>
               <div style={{ flex: 1 }}>
                 <span style={{
-                  color: T.amber, fontSize: 'var(--text-sm)', fontWeight: 800,
+                  color: '#FFB800', fontSize: 'var(--text-sm)', fontWeight: 800,
                   fontFamily: FONT_AR, display: 'block', marginBottom: 4,
                 }}>
                   {block.text.replace(/^#{1,6}\s*/, '')}
@@ -1794,7 +1793,7 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
         const cleanParagraph = block.text.replace(/^#{1,6}\s*/, '')
         return (
           <p key={i} style={{
-            color: T.text2, fontSize: 'var(--text-sm)', lineHeight: 2.1,
+            color: '#9CA3B5', fontSize: 'var(--text-sm)', lineHeight: 2.1,
             margin: '0 0 12px', fontFamily: FONT_AR,
           }}>
             {renderInline(cleanParagraph)}
@@ -1810,9 +1809,9 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
    ═══════════════════════════════════════════ */
 function getSentimentBadge(label?: string, lang?: 'ar' | 'en' | 'fr' | 'tr') {
   switch (label) {
-    case 'positive': return { bg: `${T.green}14`, color: T.green, text: t('Positive', 'إيجابي', 'Positif', 'Olumlu', lang || 'en'), icon: TrendingUp }
-    case 'negative': return { bg: `${T.red}14`, color: T.red, text: t('Negative', 'سلبي', 'Négatif', 'Olumsuz', lang || 'en'), icon: TrendingDown }
-    default: return { bg: `${T.text3}14`, color: T.text3, text: t('Neutral', 'محايد', 'Neutre', 'Nötr', lang || 'en'), icon: Minus }
+    case 'positive': return { bg: `${'#00FFA3'}14`, color: '#00FFA3', text: t('Positive', 'إيجابي', 'Positif', 'Olumlu', lang || 'en'), icon: TrendingUp }
+    case 'negative': return { bg: `${'#FF4757'}14`, color: '#FF4757', text: t('Negative', 'سلبي', 'Négatif', 'Olumsuz', lang || 'en'), icon: TrendingDown }
+    default: return { bg: `${'#6B7280'}14`, color: '#6B7280', text: t('Neutral', 'محايد', 'Neutre', 'Nötr', lang || 'en'), icon: Minus }
   }
 }
 

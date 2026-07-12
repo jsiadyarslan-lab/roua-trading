@@ -6,7 +6,6 @@ import { useTranslations, useLocale } from 'next-intl'
 import { Activity, CalendarDays, GitMerge, Newspaper, RefreshCw } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { formatFreshness } from '@/lib/dashboard-live'
-import T from '@/lib/unified-tokens'
 import { getPnlColor } from '@/lib/pnl-utils'
 import { safeStr } from '@/lib/utils'
 
@@ -26,11 +25,11 @@ function PanelShell({
   children: ReactNode
 }) {
   return (
-    <div style={{  display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, background: T.card }}>
+    <div style={{  display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, background: '#151A22' }}>
       <div
         style={{
           padding: '10px 12px 8px',
-          borderBottom: `1px solid ${T.border}`,
+          borderBottom: `1px solid ${'#2A313C'}`,
           background: `linear-gradient(90deg, ${accent}12, transparent)`,
           display: 'flex',
           alignItems: 'center',
@@ -41,9 +40,9 @@ function PanelShell({
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Icon size={14} color={accent} />
-            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>{title}</span>
+            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>{title}</span>
           </div>
-          <div style={{ marginTop: 4, fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>{subtitle}</div>
+          <div style={{ marginTop: 4, fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>{subtitle}</div>
         </div>
         {actions}
       </div>
@@ -83,19 +82,19 @@ export function DesktopNewsPanel() {
   }, [locale])
 
   return (
-    <PanelShell title={t('title')} accent={T.cyan} icon={Newspaper} subtitle={t('newsSummary', { symbol: selectedSymbol })}>
+    <PanelShell title={t('title')} accent={'#00D4FF'} icon={Newspaper} subtitle={t('newsSummary', { symbol: selectedSymbol })}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {loading && <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{t('loadingFeed')}</div>}
-        {!loading && items.length === 0 && <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{t('unavailableBrief')}</div>}
+        {loading && <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('loadingFeed')}</div>}
+        {!loading && items.length === 0 && <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('unavailableBrief')}</div>}
         {items.map((item, index) => (
           <div key={`${safeStr(item.text)}-${index}`} className="card" style={{ padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 'var(--text-xs)', color: item.impact === 'high' ? T.danger : T.amber, fontWeight: 800 }}>{safeStr(locale === 'ar' ? (item.categoryAr || item.category) : locale === 'fr' ? (item.categoryFr || item.category) : locale === 'tr' ? (item.categoryTr || item.category) : locale === 'es' ? (item.categoryEs || item.category) : item.category)}</span>
-              <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>
+              <span style={{ fontSize: 'var(--text-xs)', color: item.impact === 'high' ? '#FF4757' : '#FFB800', fontWeight: 800 }}>{safeStr(locale === 'ar' ? (item.categoryAr || item.category) : locale === 'fr' ? (item.categoryFr || item.category) : locale === 'tr' ? (item.categoryTr || item.category) : locale === 'es' ? (item.categoryEs || item.category) : item.category)}</span>
+              <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>
                 {item.publishedAt ? formatFreshness(item.publishedAt, tc) : safeStr(item.source)}
               </span>
             </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: T.text, lineHeight: 1.8 }}>{safeStr(locale === 'ar' ? (item.textAr || item.text) : locale === 'fr' ? (item.textFr || item.text) : locale === 'tr' ? (item.textTr || item.text) : locale === 'es' ? (item.textEs || item.text) : item.text)}</div>
+            <div style={{ fontSize: 'var(--text-xs)', color: '#F0F2F5', lineHeight: 1.8 }}>{safeStr(locale === 'ar' ? (item.textAr || item.text) : locale === 'fr' ? (item.textFr || item.text) : locale === 'tr' ? (item.textTr || item.text) : locale === 'es' ? (item.textEs || item.text) : item.text)}</div>
           </div>
         ))}
       </div>
@@ -130,18 +129,18 @@ export function DesktopCalendarPanel() {
   }, [])
 
   return (
-    <PanelShell title={t('title')} accent={T.amber} icon={CalendarDays} subtitle={t('subtitle', { symbol: selectedSymbol })}>
+    <PanelShell title={t('title')} accent={'#FFB800'} icon={CalendarDays} subtitle={t('subtitle', { symbol: selectedSymbol })}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {loading && <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{t('loading')}</div>}
-        {!loading && events.length === 0 && <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{t('noEvents')}</div>}
+        {loading && <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('loading')}</div>}
+        {!loading && events.length === 0 && <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('noEvents')}</div>}
         {events.map((event, index) => (
           <div key={`${event.event}-${index}`} className="card" style={{ padding: '10px 11px', display: 'grid', gap: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-              <span style={{ fontSize: 'var(--text-xs)', color: T.text, fontWeight: 800 }}>{event.currency}</span>
-              <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>{event.dateLabel} • {event.time}</span>
+              <span style={{ fontSize: 'var(--text-xs)', color: '#F0F2F5', fontWeight: 800 }}>{event.currency}</span>
+              <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>{event.dateLabel} • {event.time}</span>
             </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: T.text, lineHeight: 1.7 }}>{event.event}</div>
-            <div style={{ fontSize: 'var(--text-xs)', color: event.ai?.bias === 'bullish' ? T.success : event.ai?.bias === 'bearish' ? T.danger : T.amber }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: '#F0F2F5', lineHeight: 1.7 }}>{event.event}</div>
+            <div style={{ fontSize: 'var(--text-xs)', color: event.ai?.bias === 'bullish' ? '#00FFA3' : event.ai?.bias === 'bearish' ? '#FF4757' : '#FFB800' }}>
               {event.ai?.summary || t('watchImpact')}
             </div>
           </div>
@@ -152,9 +151,9 @@ export function DesktopCalendarPanel() {
 }
 
 const BACKTEST_STRATEGIES = [
-  { id: 'EMA_CROSSOVER', labelKey: 'strategyEmaCross', color: T.cyan },
-  { id: 'RSI', labelKey: 'strategyRsiReversal', color: T.amber },
-  { id: 'SMA_CROSSOVER', labelKey: 'strategySmaCross', color: T.purple },
+  { id: 'EMA_CROSSOVER', labelKey: 'strategyEmaCross', color: '#00D4FF' },
+  { id: 'RSI', labelKey: 'strategyRsiReversal', color: '#FFB800' },
+  { id: 'SMA_CROSSOVER', labelKey: 'strategySmaCross', color: '#B388FF' },
 ]
 
 export function DesktopBacktestPanel() {
@@ -196,7 +195,7 @@ export function DesktopBacktestPanel() {
   return (
     <PanelShell
       title={t('title')}
-      accent={T.purple}
+      accent={'#B388FF'}
       icon={Activity}
       subtitle={t('subtitle', { symbol: selectedSymbol })}
       actions={
@@ -206,9 +205,9 @@ export function DesktopBacktestPanel() {
           disabled={loading}
           style={{
             borderRadius: 'var(--radius-2xl)',
-            border: `1px solid ${T.purple}33`,
-            background: `${T.purple}12`,
-            color: T.purple,
+            border: `1px solid ${'#B388FF'}33`,
+            background: `${'#B388FF'}12`,
+            color: '#B388FF',
             padding: '6px 8px',
             cursor: 'pointer',
           }}
@@ -225,9 +224,9 @@ export function DesktopBacktestPanel() {
             onClick={() => setStrategy(item.id)}
             style={{
               borderRadius: 'var(--radius-lg)',
-              border: `1px solid ${strategy === item.id ? `${item.color}44` : T.border}`,
+              border: `1px solid ${strategy === item.id ? `${item.color}44` : '#2A313C'}`,
               background: strategy === item.id ? `${item.color}12` : 'rgba(255,255,255,0.02)',
-              color: strategy === item.id ? item.color : T.text3,
+              color: strategy === item.id ? item.color : '#6B7280',
               padding: '7px 9px',
               fontSize: 'var(--text-xs)',
               fontWeight: 800,
@@ -244,9 +243,9 @@ export function DesktopBacktestPanel() {
             onClick={() => setInterval(item)}
             style={{
               borderRadius: 'var(--radius-lg)',
-              border: `1px solid ${interval === item ? `${T.cyan}44` : T.border}`,
-              background: interval === item ? `${T.cyan}12` : 'rgba(255,255,255,0.02)',
-              color: interval === item ? T.cyan : T.text3,
+              border: `1px solid ${interval === item ? `${'#00D4FF'}44` : '#2A313C'}`,
+              background: interval === item ? `${'#00D4FF'}12` : 'rgba(255,255,255,0.02)',
+              color: interval === item ? '#00D4FF' : '#6B7280',
               padding: '7px 9px',
               fontSize: 'var(--text-xs)',
               fontWeight: 800,
@@ -258,31 +257,31 @@ export function DesktopBacktestPanel() {
         ))}
       </div>
 
-      {loading && <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{t('loading')}</div>}
+      {loading && <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('loading')}</div>}
 
-      {!loading && !summary && <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{t('noResult')}</div>}
+      {!loading && !summary && <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('noResult')}</div>}
 
       {!loading && summary && (
         <div style={{ display: 'grid', gap: 8 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
             {[
               { label: t('returnLabel'), value: `${Number(summary.return || 0).toFixed(2)}%`, color: getPnlColor(Number(summary.return || 0)) },
-              { label: t('winRateLabel'), value: `${Number(summary.winRate || 0).toFixed(1)}%`, color: T.cyan },
-              { label: t('tradesLabel'), value: `${summary.totalTrades || 0}`, color: T.text },
-              { label: t('maxDrawdown'), value: `${Number(summary.maxDrawdown || 0).toFixed(2)}%`, color: T.amber },
+              { label: t('winRateLabel'), value: `${Number(summary.winRate || 0).toFixed(1)}%`, color: '#00D4FF' },
+              { label: t('tradesLabel'), value: `${summary.totalTrades || 0}`, color: '#F0F2F5' },
+              { label: t('maxDrawdown'), value: `${Number(summary.maxDrawdown || 0).toFixed(2)}%`, color: '#FFB800' },
             ].map(item => (
               <div key={item.label} className="card" style={{ padding: '10px 11px' }}>
-                <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{item.label}</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{item.label}</div>
                 <div style={{ marginTop: 4, fontSize: 'var(--text-sm)', color: item.color, fontWeight: 800, fontFamily: "var(--font-mono)" }}>{item.value}</div>
               </div>
             ))}
           </div>
           <div className="card" style={{ padding: '10px 11px' }}>
-            <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{t('quickRead')}</div>
-            <div style={{ marginTop: 6, fontSize: 'var(--text-xs)', color: T.text, lineHeight: 1.8 }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('quickRead')}</div>
+            <div style={{ marginTop: 6, fontSize: 'var(--text-xs)', color: '#F0F2F5', lineHeight: 1.8 }}>
               {Number(summary.return || 0) >= 0 ? t('positiveResult') : t('negativeResult')}
-              {' '}{t('profitFactor')}: <span style={{ color: T.cyan }}>{Number(summary.profitFactor || 0).toFixed(2)}</span>
-              {' '}| {t('sharpe')}: <span style={{ color: T.purple }}>{Number(summary.sharpe || 0).toFixed(2)}</span>
+              {' '}{t('profitFactor')}: <span style={{ color: '#00D4FF' }}>{Number(summary.profitFactor || 0).toFixed(2)}</span>
+              {' '}| {t('sharpe')}: <span style={{ color: '#B388FF' }}>{Number(summary.sharpe || 0).toFixed(2)}</span>
             </div>
           </div>
         </div>
@@ -325,17 +324,17 @@ export function DesktopCorrelationPanel() {
   }, [payload, selectedSymbol])
 
   return (
-    <PanelShell title={t('title')} accent={T.success} icon={GitMerge} subtitle={t('subtitle', { symbol: selectedSymbol })}>
+    <PanelShell title={t('title')} accent={'#00FFA3'} icon={GitMerge} subtitle={t('subtitle', { symbol: selectedSymbol })}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {loading && <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{t('loading')}</div>}
-        {!loading && relationships.length === 0 && <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{t('noData')}</div>}
+        {loading && <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('loading')}</div>}
+        {!loading && relationships.length === 0 && <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('noData')}</div>}
         {relationships.map(([symbol, value]: any) => {
           const positive = Number(value) >= 0
-          const accent = positive ? T.success : T.danger
+          const accent = positive ? '#00FFA3' : '#FF4757'
           return (
             <div key={symbol} className="card" style={{ padding: '10px 11px', display: 'grid', gap: 6 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <span style={{ fontSize: 'var(--text-xs)', color: T.text, fontWeight: 800, fontFamily: "var(--font-mono)" }}>{symbol}</span>
+                <span style={{ fontSize: 'var(--text-xs)', color: '#F0F2F5', fontWeight: 800, fontFamily: "var(--font-mono)" }}>{symbol}</span>
                 <span style={{ fontSize: 'var(--text-xs)', color: accent, fontWeight: 800, fontFamily: "var(--font-mono)" }}>{Number(value).toFixed(3)}</span>
               </div>
               <div style={{ height: 8, borderRadius: 'var(--radius-2xl)', background: 'rgba(255,255,255,0.04)', overflow: 'hidden' }}>
@@ -348,7 +347,7 @@ export function DesktopCorrelationPanel() {
                   }}
                 />
               </div>
-              <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>
+              <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>
                 {positive ? t('positiveCorrelation') : t('negativeCorrelation')}
               </div>
             </div>

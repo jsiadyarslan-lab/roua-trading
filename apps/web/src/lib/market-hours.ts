@@ -380,7 +380,7 @@ export function getSymbolMarketStatus(symbol: string): {
     return {
       isOpen: true,
       statusText: 'مفتوح 24/7',
-      statusColor: T.success,
+      statusColor: '#00FFA3',
       marketType,
     }
   }
@@ -388,7 +388,7 @@ export function getSymbolMarketStatus(symbol: string): {
   return {
     isOpen: open,
     statusText: open ? 'السوق مفتوح' : 'السوق مغلق',
-    statusColor: open ? T.success : T.danger,
+    statusColor: open ? '#00FFA3' : '#FF4757',
     marketType,
   }
 }

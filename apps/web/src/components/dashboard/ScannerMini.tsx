@@ -8,7 +8,6 @@ import { formatFreshness } from '@/lib/dashboard-live';
 import { RefreshCw, Activity } from 'lucide-react';
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations, useLocale } from 'next-intl'
-import T from '@/lib/unified-tokens';
 
 // Signal explanations map
 const SIGNAL_EXPLANATION_KEYS: Record<string, string> = {
@@ -109,7 +108,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
             useTabAlertStore.getState().pushAlert('scanner', {
               action: sig.dir === 'buy' ? 'BUY' : 'SELL',
               label: `${sig.dir === 'buy' ? '⬆' : '⬇'} ${sig.pair} ${sig.strength}%`,
-              color: sig.dir === 'buy' ? T.success : '#FF3B30',
+              color: sig.dir === 'buy' ? '#00FFA3' : '#FF3B30',
             })
           }
         }
@@ -263,7 +262,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
               const isHovered = hoveredPair === sig.pair
               const isBuy = sig.dir === 'buy'
               const isSell = sig.dir === 'sell'
-              const dirColor = isBuy ? T.success : isSell ? T.danger : T.warning
+              const dirColor = isBuy ? '#00FFA3' : isSell ? '#FF4757' : '#FFB800'
               const dirBg = isBuy ? 'rgba(0,230,118,0.10)' : isSell ? 'rgba(255,82,82,0.10)' : 'rgba(255,184,0,0.10)'
               const isActiveSig = sig.pair === activeSymbol
               const signalExplanation = ts(SIGNAL_EXPLANATION_KEYS[sig.dir] || SIGNAL_EXPLANATION_KEYS[sig.direction] || 'signalFromScanner')
@@ -355,7 +354,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
         if (!sig) return null
         const isBuy = sig.dir === 'buy'
         const isSell = sig.dir === 'sell'
-        const dirColor = isBuy ? T.success : isSell ? T.danger : T.warning
+        const dirColor = isBuy ? '#00FFA3' : isSell ? '#FF4757' : '#FFB800'
         const explanation = ts(SIGNAL_EXPLANATION_KEYS[sig.dir] || SIGNAL_EXPLANATION_KEYS[sig.direction] || 'signalFromScanner')
         const reasons = Array.isArray(sig.reasons) ? sig.reasons.slice(0, 3).join(' · ') : ''
         return (

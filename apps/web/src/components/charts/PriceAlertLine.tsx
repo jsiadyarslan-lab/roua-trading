@@ -37,25 +37,24 @@ interface PriceAlertLineProps {
 // ── Color Palette ─────────────────────────────────────────
 const C = {
   bg: 'rgba(11,14,20,0.97)',
-  card: T.card,
+  card: '#151A22',
   cardHover: '#151D2B',
-  border: T.card,
+  border: '#151A22',
   borderActive: 'rgba(0,212,255,0.35)',
-  cyan: T.info,
-  text: T.text,
-  textDim: T.text2,
-  textMuted: T.text3,
-  success: T.success,
-  danger: T.danger,
-  warning: T.warning,
-  gold: T.gold,
+  cyan: '#00D4FF',
+  text: '#F0F2F5',
+  textDim: '#9CA3B5',
+  textMuted: '#6B7280',
+  success: '#00FFA3',
+  danger: '#FF4757',
+  warning: '#FFB800',
+  gold: '#d4af37',
 };
 
 // ── localStorage helpers ──────────────────────────────────
 // Fix: كان 'roua-price-alerts' بدون userId — بيانات تتسرب بين المستخدمين.
 // الآن نستخدم userId من auth store لإنشاء key منفصل لكل مستخدم.
 import { useAuthStore } from '@/lib/auth-store'
-import T from '@/lib/unified-tokens';
 
 function getStorageKey(): string {
   if (typeof window === 'undefined') return 'roua-price-alerts:guest';

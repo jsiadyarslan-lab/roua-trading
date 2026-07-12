@@ -78,7 +78,6 @@ import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { useAuthStore } from '@/lib/auth-store'
 import { NotificationCenter } from '@/components/dashboard/NotificationCenter'
 import { LocaleSwitcher } from '@/components/shared/LocaleSwitcher'
-import T from '@/lib/unified-tokens'
 
 /* ─── Design tokens ─── */
 const H_NEWS  = 22
@@ -92,17 +91,17 @@ const ORB_GAP = 120
 type MarketState = 'bullish' | 'bearish' | 'volatile' | 'neutral'
 
 const STATE: Record<MarketState, { core: string; glow: string }> = {
-  bullish:  { core: T.greenAlt, glow: 'rgba(0,255,198,0.55)'  },
-  bearish:  { core: T.redAlt, glow: 'rgba(255,77,77,0.55)'  },
-  volatile: { core: T.warning, glow: 'rgba(255,184,0,0.55)'  },
-  neutral:  { core: T.info, glow: 'rgba(0,200,255,0.45)'  },
+  bullish:  { core: '#00FFC6', glow: 'rgba(0,255,198,0.55)'  },
+  bearish:  { core: '#FF4D4D', glow: 'rgba(255,77,77,0.55)'  },
+  volatile: { core: '#FFB800', glow: 'rgba(255,184,0,0.55)'  },
+  neutral:  { core: '#00D4FF', glow: 'rgba(0,200,255,0.45)'  },
 }
 
 const PLANETS = [
-  { inset: -5,  size: 6, color: T.warning, glow: '#FFB80088', dur: '5s',  dir: 'ring-cw'  },
-  { inset: -12, size: 8, color: T.council, glow: '#B388FF88', dur: '10s', dir: 'ring-ccw' },
-  { inset: -20, size: 5, color: T.redAlt, glow: '#FF4D4D88', dur: '16s', dir: 'ring-cw'  },
-  { inset: -28, size: 4, color: T.info, glow: '#00C8FF88', dur: '22s', dir: 'ring-ccw' },
+  { inset: -5,  size: 6, color: '#FFB800', glow: '#FFB80088', dur: '5s',  dir: 'ring-cw'  },
+  { inset: -12, size: 8, color: '#B388FF', glow: '#B388FF88', dur: '10s', dir: 'ring-ccw' },
+  { inset: -20, size: 5, color: '#FF4D4D', glow: '#FF4D4D88', dur: '16s', dir: 'ring-cw'  },
+  { inset: -28, size: 4, color: '#00D4FF', glow: '#00C8FF88', dur: '22s', dir: 'ring-ccw' },
 ]
 
 const STARS = [
@@ -214,7 +213,7 @@ function LogoCircle({ state, size = 'desktop' }: { state: MarketState, size?: 'd
           <div style={{
             fontFamily: "var(--font-ar)",
             fontWeight: 900, fontSize: 'var(--text-xs)',
-            color: T.text, lineHeight: 1.1,
+            color: '#F0F2F5', lineHeight: 1.1,
           }}>{t('common.brand')}</div>
           <div style={{
             fontFamily: "var(--font-mono)",
@@ -260,7 +259,7 @@ function fetchNewsData(locale: string): Promise<NewsItem[]> {
             categoryFr: item.categoryFr || item.category || 'Général',
             categoryTr: item.categoryTr || item.category || 'Genel',
             categoryEs: item.categoryEs || item.category || 'General',
-            color: item.color || T.text2,
+            color: item.color || '#9CA3B5',
             impact: item.impact || 'medium',
           })
         }
@@ -331,10 +330,10 @@ function NewsTicker() {
       }}>
         <span style={{
           fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 800,
-          color: T.info, letterSpacing: '0.12em',
+          color: '#00D4FF', letterSpacing: '0.12em',
         }}>NEWS</span>
         <span style={{
-          width: 5, height: 5, borderRadius: '50%', background: T.profit,
+          width: 5, height: 5, borderRadius: '50%', background: '#10b981',
           boxShadow: '0 0 6px #10B981',
           animation: 'star-blink 2s ease-in-out infinite',
         }} />
@@ -362,8 +361,8 @@ function NewsTicker() {
                     border: `1px solid ${item.color}40`,
                     textShadow: 'none',
                   }}>{displayCat || 'News'}</span>
-                  {item.impact === 'high' && <span style={{ color: T.danger, fontSize: 'var(--text-xs)', fontWeight: 900, textShadow: '0 0 4px rgba(255,71,87,0.5)' }}>●</span>}
-                  <span style={{ color: T.text3 }}>{displayText}</span>
+                  {item.impact === 'high' && <span style={{ color: '#FF4757', fontSize: 'var(--text-xs)', fontWeight: 900, textShadow: '0 0 4px rgba(255,71,87,0.5)' }}>●</span>}
+                  <span style={{ color: '#6B7280' }}>{displayText}</span>
                 </span>
               )
             })}
@@ -371,7 +370,7 @@ function NewsTicker() {
         ) : (
           <span style={{
             padding: '0 14px', fontFamily: "var(--font-en)",
-            fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 500,
+            fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 500,
           }}>{t('dashboard.news.loading')}</span>
         )}
         {/* Fade edges */}
@@ -455,7 +454,7 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
   return (
     <div style={{
       height: isMobile ? 'auto' : H_CURR, background: isMobile ? 'transparent' : '#030405',
-      borderBottom: isMobile ? 'none' : `0.5px solid ${T.border}`,
+      borderBottom: isMobile ? 'none' : `0.5px solid ${'#2A313C'}`,
       display: 'flex', alignItems: 'center',
       padding: isMobile ? 0 : '0 6px',
       flex: isMobile ? 1 : undefined,
@@ -482,7 +481,7 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
             flex: 1, display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',
             padding: isMobile ? '0 2px' : '2px 6px',
-            borderInlineStart: i < finalRows.length - 1 ? `0.5px solid ${T.border}` : 'none',
+            borderInlineStart: i < finalRows.length - 1 ? `0.5px solid ${'#2A313C'}` : 'none',
             borderRadius: 'var(--radius-sm)',
             background: sym === selectedSymbol ? 'rgba(0,212,255,0.08)' : flashBg,
             cursor: 'pointer',
@@ -494,14 +493,14 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
               fontSize: isMobile ? 9 : 10,
               // V596: symbol name color FLASHES with price changes (not static)
               // Green when price ticks up, Red when ticks down, white when stable
-              color: flash === 'up' ? T.green : flash === 'down' ? T.red : '#E8ECF4',
+              color: flash === 'up' ? '#00FFA3' : flash === 'down' ? '#FF4757' : '#E8ECF4',
               letterSpacing: '0.04em', lineHeight: 1.2,
               fontWeight: 800,
               transition: 'color 0.3s',
             }}>{sym}</span>
             <span className="price" style={{
               fontSize: isMobile ? 10 : 11.5,
-              color: flash === 'up' ? T.green : flash === 'down' ? T.red : T.text,
+              color: flash === 'up' ? '#00FFA3' : flash === 'down' ? '#FF4757' : '#F0F2F5',
               lineHeight: 1.15, transition: 'color 0.3s',
               fontWeight: 700,
             }}>
@@ -753,18 +752,18 @@ function MoreDropdown({
                 display: 'flex', alignItems: 'center', gap: 10,
                 padding: '10px 14px', borderRadius: 'var(--radius-md)', cursor: 'pointer',
                 fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)',
-                color: active ? 'var(--accent)' : T.text2,
+                color: active ? 'var(--accent)' : '#9CA3B5',
                 background: active ? 'rgba(0,212,255,0.08)' : 'transparent',
                 fontWeight: active ? 700 : 500,
                 transition: 'all 0.15s',
               }}
               onMouseEnter={e => {
                 const el = e.currentTarget as HTMLDivElement
-                if (!active) { el.style.background = 'rgba(0,212,255,0.06)'; el.style.color = T.text }
+                if (!active) { el.style.background = 'rgba(0,212,255,0.06)'; el.style.color = '#F0F2F5' }
               }}
               onMouseLeave={e => {
                 const el = e.currentTarget as HTMLDivElement
-                if (!active) { el.style.background = 'transparent'; el.style.color = T.text2 }
+                if (!active) { el.style.background = 'transparent'; el.style.color = '#9CA3B5' }
               }}
               >
                 <Icon size={15} strokeWidth={active ? 2.5 : 2} />
@@ -782,18 +781,18 @@ function MoreDropdown({
                         display: 'flex', alignItems: 'center', gap: 8,
                         padding: '8px 14px 8px 10px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                         fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)',
-                        color: childActive ? 'var(--accent)' : T.text3,
+                        color: childActive ? 'var(--accent)' : '#6B7280',
                         background: childActive ? 'rgba(0,212,255,0.06)' : 'transparent',
                         fontWeight: childActive ? 600 : 400,
                         transition: 'all 0.15s',
                       }}
                       onMouseEnter={e => {
                         const el = e.currentTarget as HTMLDivElement
-                        if (!childActive) { el.style.background = 'rgba(0,212,255,0.04)'; el.style.color = T.text2 }
+                        if (!childActive) { el.style.background = 'rgba(0,212,255,0.04)'; el.style.color = '#9CA3B5' }
                       }}
                       onMouseLeave={e => {
                         const el = e.currentTarget as HTMLDivElement
-                        if (!childActive) { el.style.background = 'transparent'; el.style.color = T.text3 }
+                        if (!childActive) { el.style.background = 'transparent'; el.style.color = '#6B7280' }
                       }}
                       >
                         <child.icon size={13} strokeWidth={childActive ? 2.5 : 1.5} />
@@ -943,12 +942,12 @@ function AccountDropdown({
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{
               fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)', fontWeight: 700,
-              color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              color: '#F0F2F5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
             }}>{authUser?.displayName || authUser?.email?.split('@')[0] || t('common.user')}</div>
             {authUser?.email && (
               <div style={{
                 fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)',
-                color: T.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                color: '#6B7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               }}>{authUser.email}</div>
             )}
           </div>
@@ -957,7 +956,7 @@ function AccountDropdown({
           <div style={{
             display: 'inline-block', fontSize: 'var(--text-xs)', fontWeight: 700,
             padding: '2px 8px', borderRadius: 'var(--radius-sm)',
-            background: 'rgba(0,212,255,0.10)', color: T.info,
+            background: 'rgba(0,212,255,0.10)', color: '#00D4FF',
             fontFamily: "var(--font-mono)",
             letterSpacing: '0.05em',
           }}>{authUser.tier}</div>
@@ -970,10 +969,10 @@ function AccountDropdown({
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '10px 14px', borderRadius: 'var(--radius-md)', cursor: 'pointer',
           fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)',
-          color: T.text2, fontWeight: 500, transition: 'all 0.15s',
+          color: '#9CA3B5', fontWeight: 500, transition: 'all 0.15s',
         }}
-        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.06)'; e.currentTarget.style.color = T.text }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.text2 }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.06)'; e.currentTarget.style.color = '#F0F2F5' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9CA3B5' }}
         >
           <Settings size={15} strokeWidth={2} />
           {t('common.settings')}
@@ -985,10 +984,10 @@ function AccountDropdown({
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '10px 14px', borderRadius: 'var(--radius-md)', cursor: 'pointer',
           fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)',
-          color: T.text2, fontWeight: 500, transition: 'all 0.15s',
+          color: '#9CA3B5', fontWeight: 500, transition: 'all 0.15s',
         }}
-        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.06)'; e.currentTarget.style.color = T.text }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.text2 }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.06)'; e.currentTarget.style.color = '#F0F2F5' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9CA3B5' }}
         >
           <UserCircle size={15} strokeWidth={2} />
           {t('common.accountInfo')}
@@ -1002,11 +1001,11 @@ function AccountDropdown({
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '10px 14px', borderRadius: 'var(--radius-md)', cursor: 'pointer',
           fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)',
-          color: T.danger, fontWeight: 500, transition: 'all 0.15s',
+          color: '#FF4757', fontWeight: 500, transition: 'all 0.15s',
           borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 4,
         }}
         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.08)'; e.currentTarget.style.color = '#FF6B7A' }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.danger }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#FF4757' }}
       >
         <LogOut size={15} strokeWidth={2} />
         {t('common.logout')}
@@ -1107,18 +1106,18 @@ function SubNavDropdown({
               display: 'flex', alignItems: 'center', gap: 10,
               padding: '9px 14px', borderRadius: 'var(--radius-md)', cursor: 'pointer',
               fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)',
-              color: childActive ? 'var(--accent)' : T.text2,
+              color: childActive ? 'var(--accent)' : '#9CA3B5',
               background: childActive ? 'rgba(0,212,255,0.08)' : 'transparent',
               fontWeight: childActive ? 700 : 500,
               transition: 'all 0.15s',
             }}
             onMouseEnter={e => {
               const el = e.currentTarget as HTMLDivElement
-              if (!childActive) { el.style.background = 'rgba(0,212,255,0.06)'; el.style.color = T.text }
+              if (!childActive) { el.style.background = 'rgba(0,212,255,0.06)'; el.style.color = '#F0F2F5' }
             }}
             onMouseLeave={e => {
               const el = e.currentTarget as HTMLDivElement
-              if (!childActive) { el.style.background = 'transparent'; el.style.color = T.text2 }
+              if (!childActive) { el.style.background = 'transparent'; el.style.color = '#9CA3B5' }
             }}
             >
               <ChildIcon size={14} strokeWidth={childActive ? 2.5 : 2} />
@@ -1161,9 +1160,9 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
 
   // Mode-specific styling
   const modeConfig: Record<TradingMode, { accent: string }> = {
-    trader:   { accent: T.info },
-    investor: { accent: T.profit },
-    ai:       { accent: T.council },
+    trader:   { accent: '#00D4FF' },
+    investor: { accent: '#10b981' },
+    ai:       { accent: '#B388FF' },
   }
 
   return (
@@ -1196,14 +1195,14 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
                   if (!active) {
                     e.currentTarget.style.background = 'rgba(0,212,255,0.08)'
                     e.currentTarget.style.border = '1px solid rgba(0,212,255,0.15)'
-                    e.currentTarget.style.color = T.text
+                    e.currentTarget.style.color = '#F0F2F5'
                   }
                 }}
                 onMouseLeave={e => {
                   if (!active) {
                     e.currentTarget.style.background = 'transparent'
                     e.currentTarget.style.border = '1px solid transparent'
-                    e.currentTarget.style.color = T.text2
+                    e.currentTarget.style.color = '#9CA3B5'
                   }
                 }}
                 style={{
@@ -1212,7 +1211,7 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
                   height: 32,
                   background: active ? 'rgba(0,212,255,0.12)' : 'transparent',
                   border: active ? '1px solid rgba(0,212,255,0.25)' : '1px solid transparent',
-                  color: active ? 'var(--accent)' : T.text2,
+                  color: active ? 'var(--accent)' : '#9CA3B5',
                   fontFamily: "var(--font-ar)",
                   fontSize: 'var(--text-xs)', fontWeight: active ? 800 : 500,
                   whiteSpace: 'nowrap', transition: 'all 0.18s',
@@ -1257,14 +1256,14 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
             if (!moreOpen) {
               e.currentTarget.style.background = 'rgba(0,212,255,0.08)'
               e.currentTarget.style.border = '1px solid rgba(0,212,255,0.15)'
-              e.currentTarget.style.color = T.text
+              e.currentTarget.style.color = '#F0F2F5'
             }
           }}
           onMouseLeave={e => {
             if (!moreOpen) {
               e.currentTarget.style.background = 'transparent'
               e.currentTarget.style.border = '1px solid transparent'
-              e.currentTarget.style.color = T.text2
+              e.currentTarget.style.color = '#9CA3B5'
             }
           }}
           style={{
@@ -1273,7 +1272,7 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
             background: moreOpen ? 'rgba(0,212,255,0.12)' : 'transparent',
             border: moreOpen ? '1px solid rgba(0,212,255,0.25)' : '1px solid transparent',
             borderRadius: 'var(--radius-sm)',
-            color: moreOpen ? 'var(--accent)' : T.text2,
+            color: moreOpen ? 'var(--accent)' : '#9CA3B5',
             fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)',
             transition: 'all 0.18s',
           }}
@@ -1352,7 +1351,7 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
           <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: 'var(--foreground)', fontWeight: 800 }}>{t('common.myAccount')}</span>
           <ChevronDown size={12} style={{
             transform: accountOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform 0.2s', color: T.text3,
+            transition: 'transform 0.2s', color: '#6B7280',
           }} />
         </div>
         <AccountDropdown
@@ -1377,7 +1376,7 @@ function HeaderStatusLED() {
     })
   })
   
-  const color = hasLive ? 'var(--success)' : T.amber
+  const color = hasLive ? 'var(--success)' : '#FFB800'
   const label = hasLive ? t('dashboard.header.connected') : t('dashboard.header.pending')
   
   return (
@@ -1389,9 +1388,9 @@ function HeaderStatusLED() {
         width: 6, height: 6, borderRadius: '50%',
         background: color,
         flexShrink: 0,
-        boxShadow: hasLive ? '0 0 6px var(--success)' : '0 0 6px ' + T.amber,
+        boxShadow: hasLive ? '0 0 6px var(--success)' : '0 0 6px ' + '#FFB800',
       }} />
-      <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)", fontWeight: 700 }}>{label}</span>
+      <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)", fontWeight: 700 }}>{label}</span>
     </div>
   )
 }
@@ -1451,7 +1450,7 @@ function MobileNavItem({ link, pathname, onClose }: { link: NavLink, pathname: s
           <div style={{
             display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', minHeight: 44,
             borderRadius: 'var(--radius-lg)', background: active ? 'rgba(0,212,255,0.10)' : 'transparent',
-            color: active ? 'var(--accent)' : T.text2,
+            color: active ? 'var(--accent)' : '#9CA3B5',
             borderInlineStart: active ? '3px solid var(--accent)' : '3px solid transparent',
             fontSize: 'var(--text-base)', fontWeight: 600, fontFamily: "var(--font-ar)",
             transition: 'all 0.15s',
@@ -1465,7 +1464,7 @@ function MobileNavItem({ link, pathname, onClose }: { link: NavLink, pathname: s
             onClick={() => setMobileExpanded(!mobileExpanded)}
             style={{
               background: 'transparent', border: 'none', cursor: 'pointer',
-              padding: '8px 12px', color: T.text2, display: 'flex', alignItems: 'center',
+              padding: '8px 12px', color: '#9CA3B5', display: 'flex', alignItems: 'center',
             }}
           >
             <ChevronDown size={16} style={{
@@ -1489,7 +1488,7 @@ function MobileNavItem({ link, pathname, onClose }: { link: NavLink, pathname: s
                   display: 'flex', alignItems: 'center', gap: 10,
                   padding: '10px 14px', minHeight: 40,
                   borderRadius: 'var(--radius-md)', background: childActive ? 'rgba(0,212,255,0.08)' : 'transparent',
-                  color: childActive ? 'var(--accent)' : T.text3,
+                  color: childActive ? 'var(--accent)' : '#6B7280',
                   borderInlineStart: childActive ? '2px solid var(--accent)' : '2px solid transparent',
                   fontSize: 'var(--text-sm)', fontWeight: childActive ? 600 : 400,
                   fontFamily: "var(--font-ar)", transition: 'all 0.15s',
@@ -1573,8 +1572,8 @@ export function AppHeader() {
             animation: 'slideInLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           }} className="custom-scrollbar" onClick={e => e.stopPropagation()}>
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-                <span style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: T.text, fontFamily: "var(--font-ar)" }}>{t('common.menu')}</span>
-                <XIcon size={24} color={T.text} onClick={() => setMenuOpen(false)} style={{ cursor: 'pointer' }} />
+                <span style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>{t('common.menu')}</span>
+                <XIcon size={24} color={'#F0F2F5'} onClick={() => setMenuOpen(false)} style={{ cursor: 'pointer' }} />
              </div>
              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {NAV_LINKS.map((link) => (
@@ -1588,14 +1587,14 @@ export function AppHeader() {
              </div>
              {/* Mode Switcher + Account (mobile) */}
              <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid rgba(0,212,255,0.10)`, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', padding: 2, borderRadius: 'var(--radius-md)', border: `1px solid ${T.border}` }}>
+                <div style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', padding: 2, borderRadius: 'var(--radius-md)', border: `1px solid ${'#2A313C'}` }}>
                   {([['trader', t('common.trader')], ['investor', t('common.investor')], ['ai', 'AI']] as [TradingMode, string][]).map(([m, label]) => {
-                    const accentMap: Record<TradingMode, string> = { trader: T.info, investor: T.profit, ai: T.council }
+                    const accentMap: Record<TradingMode, string> = { trader: '#00D4FF', investor: '#10b981', ai: '#B388FF' }
                     return (
                       <button key={m} onClick={() => handleModeChange(m)} style={{
                         flex: 1, padding: '8px 10px', fontSize: 'var(--text-xs)', fontWeight: m === mode ? 800 : 500,
                         background: m === mode ? accentMap[m] : 'transparent',
-                        color: m === mode ? '#000' : T.text2,
+                        color: m === mode ? '#000' : '#9CA3B5',
                         borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer',
                         fontFamily: "var(--font-ar)", transition: '0.2s',
                         boxShadow: m === mode ? `0 0 8px ${accentMap[m]}40` : 'none',
@@ -1612,7 +1611,7 @@ export function AppHeader() {
                     border: '1px solid rgba(0,212,255,0.10)', cursor: 'pointer',
                   }}>
                     <User size={18} color="var(--accent)" />
-                    <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-base)', color: T.text, fontWeight: 700 }}>{t('common.myAccount')}</span>
+                    <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-base)', color: '#F0F2F5', fontWeight: 700 }}>{t('common.myAccount')}</span>
                   </div>
                 </SafeLink>
                 <div
@@ -1621,7 +1620,7 @@ export function AppHeader() {
                     display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px',
                     borderRadius: 'var(--radius-lg)', background: 'rgba(255,71,87,0.06)',
                     border: '1px solid rgba(255,71,87,0.12)', cursor: 'pointer',
-                    color: T.danger,
+                    color: '#FF4757',
                   }}
                 >
                   <LogOut size={18} />
@@ -1663,15 +1662,15 @@ export function AppHeader() {
           display: 'flex', alignItems: 'center', height: MOBILE_HEADER_H,
           padding: '0 10px', justifyContent: 'space-between', gap: 6,
         }}>
-          <button onClick={() => setMenuOpen(true)} style={{ background: 'transparent', border: 'none', color: T.text, cursor: 'pointer', minWidth: 40, minHeight: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-md)', flexShrink: 0 }}>
+          <button onClick={() => setMenuOpen(true)} style={{ background: 'transparent', border: 'none', color: '#F0F2F5', cursor: 'pointer', minWidth: 40, minHeight: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-md)', flexShrink: 0 }}>
              <Menu size={22} />
           </button>
 
           <SafeLink href="/dashboard" style={{ textDecoration: "none" }} >
              <LogoCircle state={marketState} size="mobile" />
              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-               <span style={{ fontFamily: "var(--font-ar)", fontWeight: 900, fontSize: 'var(--text-base)', color: T.text, whiteSpace: 'nowrap', lineHeight: 1.1 }}>{t('common.brand')}</span>
-               <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.info, letterSpacing: '0.12em', opacity: 0.85, lineHeight: 1 }}>{t('common.brandSub')}</span>
+               <span style={{ fontFamily: "var(--font-ar)", fontWeight: 900, fontSize: 'var(--text-base)', color: '#F0F2F5', whiteSpace: 'nowrap', lineHeight: 1.1 }}>{t('common.brand')}</span>
+               <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#00D4FF', letterSpacing: '0.12em', opacity: 0.85, lineHeight: 1 }}>{t('common.brandSub')}</span>
              </div>
           </SafeLink>
           {/* Ticker مخفي — موجود في m2-ticker أسفل الهيدر */}

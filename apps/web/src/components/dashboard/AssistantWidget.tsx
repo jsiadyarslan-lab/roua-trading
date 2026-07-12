@@ -18,7 +18,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { useAssistant, type AssistantMessage } from '@/hooks/useAssistant'
-import T from '@/lib/unified-tokens'
 
 // ─── SVG Icons ──────────────────────────────────────────────
 
@@ -185,17 +184,17 @@ function SpinnerIcon({ size = 16, className }: IconProps) {
 // ─── Theme tokens ───────────────────────────────────────────
 
 const COLORS = {
-  bg: T.bg,
+  bg: '#0B0E14',
   surface: 'rgba(15, 22, 36, 0.72)',
   surfaceSolid: 'rgba(11, 14, 20, 0.6)',
-  accent: T.accent,
+  accent: '#059669',
   accentDark: '#047857',
-  online: T.profit,
-  warning: T.warning,
-  error: T.loss,
+  online: '#10b981',
+  warning: '#FFB800',
+  error: '#ef4444',
   textPrimary: '#E5E7EB',
   textSecondary: '#9CA3AF',
-  textMuted: T.text3,
+  textMuted: '#6B7280',
   border: 'rgba(5, 150, 105, 0.18)',
   borderHover: 'rgba(5, 150, 105, 0.45)',
 } as const
@@ -257,7 +256,7 @@ const ASSISTANT_CSS = `
 }
 
 .asst-fab {
-  background: linear-gradient(135deg, ${T.accent} 0%, #047857 45%, ${T.accent} 100%);
+  background: linear-gradient(135deg, ${'#059669'} 0%, #047857 45%, ${'#059669'} 100%);
   background-size: 220% 220%;
   animation: asst-glow-pulse 2.6s ease-in-out infinite, asst-gradient-shift 8s ease infinite;
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
@@ -536,7 +535,7 @@ export function AssistantWidget() {
           height: '56px',
           borderRadius: '50%',
           border: '1px solid rgba(5, 150, 105, 0.35)',
-          color: T.text,
+          color: '#F0F2F5',
           cursor: 'pointer',
           padding: 0,
           outline: 'none',
@@ -888,7 +887,7 @@ export function AssistantWidget() {
                     ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
                     : 'rgba(255,255,255,0.05)',
                 border: 'none',
-                color: T.text,
+                color: '#F0F2F5',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -1065,7 +1064,7 @@ function MessageBubble({
             : message.error
             ? 'rgba(239, 68, 68, 0.08)'
             : 'rgba(15, 22, 36, 0.7)',
-          color: isUser ? T.text : message.error ? '#FCA5A5' : COLORS.textPrimary,
+          color: isUser ? '#F0F2F5' : message.error ? '#FCA5A5' : COLORS.textPrimary,
           fontSize: '14px',
           lineHeight: 1.55,
           border: !isUser
@@ -1144,7 +1143,7 @@ function MessageBubble({
             {message.languageTier && (
               <Chip
                 style={{
-                  color: T.warning,
+                  color: '#FFB800',
                   borderColor: 'rgba(251, 191, 36, 0.3)',
                   background: 'rgba(251, 191, 36, 0.06)',
                 }}

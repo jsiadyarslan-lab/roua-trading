@@ -14,7 +14,6 @@ import { useTabAlertStore, type TabId } from '@/hooks/useTabAlertStore'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useRightPanelState } from '@/hooks/useRightPanelState'
 import { useTranslations } from 'next-intl'
-import T from '@/lib/unified-tokens'
 
 // LazicPanel uses browser-only APIs (fetch + interval) → load on client only
 const LazicPanel = dynamic(() => import('@/components/dashboard/LazicPanel').then(m => ({ default: m.LazicPanel })), { ssr: false })
@@ -49,11 +48,11 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
 
   const TABS = [
     { id: 'lazic', label: tr('tabLazic'), accent: '#FF6B35', icon: Zap, subtitle: tr('subtitleLazic') },
-    { id: 'executor', label: tr('tabExecutor'), accent: T.cyan, icon: Swords, subtitle: tr('subtitleExecutor') },
-    { id: 'strategic', label: tr('tabStrategic'), accent: T.purple, icon: Landmark, subtitle: tr('subtitleStrategic') },
-    { id: 'trader', label: tr('tabTrader'), accent: T.warning, icon: Bot, subtitle: tr('subtitleTrader') },
-    { id: 'council', label: tr('tabCouncil'), accent: T.accent, icon: Brain, subtitle: tr('subtitleCouncil') },
-    { id: 'scanner', label: tr('tabScanner'), accent: T.amber, icon: ScanSearch, subtitle: tr('subtitleScanner') },
+    { id: 'executor', label: tr('tabExecutor'), accent: '#00D4FF', icon: Swords, subtitle: tr('subtitleExecutor') },
+    { id: 'strategic', label: tr('tabStrategic'), accent: '#B388FF', icon: Landmark, subtitle: tr('subtitleStrategic') },
+    { id: 'trader', label: tr('tabTrader'), accent: '#FFB800', icon: Bot, subtitle: tr('subtitleTrader') },
+    { id: 'council', label: tr('tabCouncil'), accent: '#059669', icon: Brain, subtitle: tr('subtitleCouncil') },
+    { id: 'scanner', label: tr('tabScanner'), accent: '#FFB800', icon: ScanSearch, subtitle: tr('subtitleScanner') },
   ]
   const activeTab = TABS.find((tab) => tab.id === active) || TABS[0]
   const headlineMap = {
@@ -101,7 +100,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
             borderRadius: 'var(--radius-sm)',
             border: '1px solid rgba(0,212,255,0.18)',
             background: 'rgba(0, 0, 0, 0.9)',
-            color: T.text3,
+            color: '#6B7280',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -126,7 +125,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
                 borderRadius: 'var(--radius-sm)',
                 background: isActive ? `${t.accent}18` : 'rgba(255,255,255,0.035)',
                 border: `1px solid ${isActive ? `${t.accent}55` : 'rgba(255,255,255,0.08)'}`,
-                color: isActive ? t.accent : T.text3,
+                color: isActive ? t.accent : '#6B7280',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -191,11 +190,11 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
                   boxShadow: `0 0 10px ${activeTab.accent}66`,
                 }}
               />
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
                 {tr('decisionCenter')}
               </div>
             </div>
-            <div style={{ marginTop: 2, fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>
+            <div style={{ marginTop: 2, fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>
               {headline}
             </div>
           </div>
@@ -215,7 +214,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
             >
               {activeTab.label}
             </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>
               {selectedSymbol}
             </div>
           </div>
@@ -231,7 +230,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
               borderRadius: 'var(--radius-sm)',
               border: '1px solid rgba(0,212,255,0.18)',
               background: 'rgba(0, 0, 0, 0.9)',
-              color: T.text3,
+              color: '#6B7280',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -278,7 +277,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
                 background: isActive ? `${t.accent}18` : hasAlert ? `${alertColor}06` : 'rgba(255,255,255,0.035)',
                 border: `1px solid ${isActive ? `${t.accent}55` : hasAlert ? `${alertColor}35` : 'rgba(255,255,255,0.08)'}`,
                 borderRadius: 'var(--radius-sm)',
-                color: isActive ? T.text : T.text3,
+                color: isActive ? '#F0F2F5' : '#6B7280',
                 cursor: 'pointer',
                 fontFamily: "var(--font-ar)",
                 transition: 'all 0.2s ease',
@@ -321,7 +320,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
               )}
 
               <Icon size={8} color={isActive ? t.accent : hasAlert ? alertColor : '#93A7C3'} />
-              <span style={{ fontSize: 'var(--text-xs)', fontWeight: isActive ? 800 : 600, lineHeight: 1, color: isActive ? T.text : hasAlert ? alertColor : '#AEC0D6', whiteSpace: 'nowrap' }}>{t.label}</span>
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight: isActive ? 800 : 600, lineHeight: 1, color: isActive ? '#F0F2F5' : hasAlert ? alertColor : '#AEC0D6', whiteSpace: 'nowrap' }}>{t.label}</span>
             </button>
           )
         })}
@@ -335,7 +334,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
           padding: 4,
           display: 'flex',
           flexDirection: 'column',
-          background: T.bg,
+          background: '#0B0E14',
           position: 'relative',
           zIndex: 1,
         }}

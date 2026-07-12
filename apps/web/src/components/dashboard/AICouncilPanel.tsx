@@ -5,7 +5,6 @@ import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { Brain, Shield, Zap, TrendingUp, TrendingDown, Minus, Info, RefreshCw, Layers, AlertCircle, Cpu, Wifi, WifiOff, Heart, Activity } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
-import T from '@/lib/unified-tokens'
 import { safeStr, safeNum } from '@/lib/utils'
 import { useTranslations, useLocale } from 'next-intl'
 import { FormattedText } from '@/components/council/FormattedText'
@@ -52,14 +51,14 @@ function getModelShortName(model: string): string {
 
 /** Get a color for a model badge */
 function getModelColor(model: string): string {
-  if (model.includes('Groq')) return T.warning // orange
-  if (model.includes('Gemini')) return T.info // blue
-  if (model.includes('GLM')) return T.profit // green
-  if (model.includes('HuggingFace') || model.includes('HF')) return T.warning // yellow
-  if (model.includes('Ollama')) return T.council // purple
+  if (model.includes('Groq')) return '#FFB800' // orange
+  if (model.includes('Gemini')) return '#00D4FF' // blue
+  if (model.includes('GLM')) return '#10b981' // green
+  if (model.includes('HuggingFace') || model.includes('HF')) return '#FFB800' // yellow
+  if (model.includes('Ollama')) return '#B388FF' // purple
   if (model.includes('Bedrock') || model.includes('Claude')) return '#EC4899' // pink
   if (model.includes('DeepSeek')) return '#06B6D4' // cyan
-  return T.text2 // default
+  return '#9CA3B5' // default
 }
 
 /** Map Arabic role name from backend API to i18n translation key */
@@ -201,7 +200,7 @@ export function AICouncilPanel() {
           useTabAlertStore.getState().pushAlert('council', {
             action: j.data.recommendation,
             label: `${j.data.recommendation === 'BUY' ? `⬆ ${tc('buy')}` : `⬇ ${tc('sell')}`} ${j.data.consensusScore}%`,
-            color: j.source === 'real-ai' ? T.council : T.warning,
+            color: j.source === 'real-ai' ? '#B388FF' : '#FFB800',
           })
         }
       } else {
@@ -301,7 +300,7 @@ export function AICouncilPanel() {
   const isPartialAI = dataSource === 'partial-ai'
   const isCachedAI = isRealAI && data?.meta?.cached === true
   const connectionLayer = data?.meta?.connectionLayer || 'unknown'
-  const recColor = data?.recommendation === 'BUY' ? T.green : data?.recommendation === 'SELL' ? T.red : T.amber
+  const recColor = data?.recommendation === 'BUY' ? '#00FFA3' : data?.recommendation === 'SELL' ? '#FF4757' : '#FFB800'
   const formatCountdown = `${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}`
 
   // Compute unique models that responded
@@ -316,7 +315,7 @@ export function AICouncilPanel() {
       <div className="p-3 border-b border-white/5 flex items-center justify-between" style={{ background: isRealAI ? 'linear-gradient(90deg, rgba(0,212,255,0.18), rgba(179,136,255,0.08), transparent)' : 'linear-gradient(90deg, rgba(0,212,255,0.12), transparent)' }}>
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Brain size={16} color={isRealAI ? T.purple : T.accent} />
+            <Brain size={16} color={isRealAI ? '#B388FF' : '#059669'} />
             {!loading && data && (
               <div className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${isRealAI ? 'bg-purple-500' : 'bg-green-500'} animate-ping`} />
             )}
@@ -331,15 +330,15 @@ export function AICouncilPanel() {
               marginTop: 1, marginBottom: 1
             }}>
               <div style={{ 
-                width: 4, height: 4, borderRadius: '50%', background: T.purple,
-                boxShadow: `0 0 5px ${T.purple}`,
+                width: 4, height: 4, borderRadius: '50%', background: '#B388FF',
+                boxShadow: `0 0 5px ${'#B388FF'}`,
                 animation: 'agentCtrlPulse 1s ease-in-out infinite'
               }} />
-              <span style={{ fontSize: 'var(--text-xs)', color: T.purple, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
+              <span style={{ fontSize: 'var(--text-xs)', color: '#B388FF', fontWeight: 700, fontFamily: "var(--font-mono)" }}>
                 {tai('monitoringTrends')}: {currentTrendSymbol}
               </span>
             </div>
-            <p className="text-[8px] font-mono" style={{ color: isRealAI ? T.purple + 'cc' : T.accent + '80' }}>
+            <p className="text-[8px] font-mono" style={{ color: isRealAI ? '#B388FF' + 'cc' : '#059669' + '80' }}>
               {data?.meta ? (
                 <>
                   {data.meta.symbol} • RSI: {data.meta.rsi} • {data.meta.processingTimeMs}ms
@@ -357,8 +356,8 @@ export function AICouncilPanel() {
             background: keepAliveStatus?.nestJSUp ? 'rgba(0,255,163,0.12)' : 'rgba(255,184,0,0.12)',
             border: `1px solid ${keepAliveStatus?.nestJSUp ? 'rgba(0,255,163,0.25)' : 'rgba(255,184,0,0.2)'}`,
           }} title={`Keep-alive: NestJS ${keepAliveStatus?.nestJSUp ? 'UP' : 'DOWN'} | Last ping: ${keepAliveStatus?.lastPingAt || 'never'}`}>
-            <Heart size={7} color={keepAliveStatus?.nestJSUp ? T.green : T.amber} className={keepAliveStatus?.nestJSUp ? '' : 'animate-pulse'} />
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: keepAliveStatus?.nestJSUp ? T.green : T.amber, fontFamily: "var(--font-mono)" }}>
+            <Heart size={7} color={keepAliveStatus?.nestJSUp ? '#00FFA3' : '#FFB800'} className={keepAliveStatus?.nestJSUp ? '' : 'animate-pulse'} />
+            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: keepAliveStatus?.nestJSUp ? '#00FFA3' : '#FFB800', fontFamily: "var(--font-mono)" }}>
               {keepAliveStatus?.nestJSUp ? tai('up') : tai('ping')}
             </span>
           </div>
@@ -369,13 +368,13 @@ export function AICouncilPanel() {
             background: isRealAI ? 'rgba(179,136,255,0.15)' : 'rgba(255,184,0,0.12)',
             border: `1px solid ${isRealAI ? 'rgba(179,136,255,0.3)' : 'rgba(255,184,0,0.2)'}`,
           }}>
-            {isRealAI ? <Cpu size={8} color={T.purple} /> : <WifiOff size={8} color={T.amber} />}
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: isPartialAI ? T.accent : isRealAI ? T.purple : T.amber, fontFamily: "var(--font-mono)" }}>
+            {isRealAI ? <Cpu size={8} color={'#B388FF'} /> : <WifiOff size={8} color={'#FFB800'} />}
+            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: isPartialAI ? '#059669' : isRealAI ? '#B388FF' : '#FFB800', fontFamily: "var(--font-mono)" }}>
               {isPartialAI ? `${data?.meta?.modelsResponded || '?'}/${data?.meta?.modelsExpected || 7} AI` : isRealAI ? `${data?.meta?.modelsResponded || 7}/${data?.meta?.modelsExpected || 7} AI` : dataSource === 'scanner-rules' ? tai('technicalAnalysis') : 'FB'}
             </span>
           </div>
           {/* Countdown */}
-          <span style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-mono)", minWidth: 24, textAlign: 'center' }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontFamily: "var(--font-mono)", minWidth: 24, textAlign: 'center' }}>
             {formatCountdown}
           </span>
           <button
@@ -384,7 +383,7 @@ export function AICouncilPanel() {
             className="p-1.5 rounded-md transition-colors hover:bg-white/5"
             title={tai('refreshAnalysis')}
           >
-            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} color={T.text2} />
+            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} color={'#9CA3B5'} />
           </button>
         </div>
       </div>
@@ -394,10 +393,10 @@ export function AICouncilPanel() {
         {loading && (
           <div className="flex flex-col items-center justify-center h-40 gap-3">
             <div className="relative">
-              <Layers size={28} color={T.accent + '40'} className="animate-bounce" />
-              <div className="absolute inset-0 animate-ping" style={{ background: T.accent + '10', borderRadius: '50%' }} />
+              <Layers size={28} color={'#059669' + '40'} className="animate-bounce" />
+              <div className="absolute inset-0 animate-ping" style={{ background: '#059669' + '10', borderRadius: '50%' }} />
             </div>
-            <span className="text-[10px] animate-pulse" style={{ color: isRealAI ? T.purple + '90' : T.accent + '80', fontWeight: 'bold' }}>
+            <span className="text-[10px] animate-pulse" style={{ color: isRealAI ? '#B388FF' + '90' : '#059669' + '80', fontWeight: 'bold' }}>
               {isRealAI ? phases[loadingPhase] : tai('buildingTechnicalAnalysis')}
             </span>
             {isRealAI && (
@@ -411,7 +410,7 @@ export function AICouncilPanel() {
                       style={{ 
                         fontSize: 'var(--text-xs)', padding: '2px 5px', borderRadius: 'var(--radius-xs)', 
                         background: isActive ? 'rgba(179,136,255,0.4)' : 'rgba(179,136,255,0.1)', 
-                        color: isActive ? '#fff' : T.purple, 
+                        color: isActive ? '#fff' : '#B388FF', 
                         fontFamily: "var(--font-mono)",
                         transform: isActive ? 'scale(1.1)' : 'scale(1)',
                         boxShadow: isActive ? '0 0 8px rgba(179,136,255,0.6)' : 'none'
@@ -432,7 +431,7 @@ export function AICouncilPanel() {
         {/* Error State */}
         {error && !loading && (
           <div className="p-3 rounded-lg border border-red-500/20 bg-red-500/5 flex items-start gap-2">
-            <AlertCircle size={14} color={T.red} className="mt-0.5 flex-shrink-0" />
+            <AlertCircle size={14} color={'#FF4757'} className="mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-[10px] font-bold text-red-400 mb-1">{tai('analysisFailed')}</p>
               <p className="text-[9px] text-red-400/60">{error}</p>
@@ -447,8 +446,8 @@ export function AICouncilPanel() {
             {/* Data Source Indicator */}
             {!isRealAI && (
               <div className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'rgba(255,184,0,0.06)', border: '1px solid rgba(255,184,0,0.12)' }}>
-                <Wifi size={10} color={T.amber} />
-                <span className="text-[8px]" style={{ color: T.amber }}>
+                <Wifi size={10} color={'#FFB800'} />
+                <span className="text-[8px]" style={{ color: '#FFB800' }}>
                   {dataSource === 'scanner-rules'
                     ? tai('aiOfflineFallback')
                     : tai('limitedDataFallback')}
@@ -458,26 +457,26 @@ export function AICouncilPanel() {
 
             {isRealAI && !isPartialAI && (
               <div className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'rgba(179,136,255,0.06)', border: '1px solid rgba(179,136,255,0.15)' }}>
-                <Cpu size={10} color={T.purple} />
-                <span className="text-[8px]" style={{ color: T.purple }}>
+                <Cpu size={10} color={'#B388FF'} />
+                <span className="text-[8px]" style={{ color: '#B388FF' }}>
                   {isCachedAI ? tai('cachedAnalysis') : tai('realAnalysisFrom', { ms: data.meta?.processingTimeMs || 0 })}
                 </span>
                 {connectionLayer === 'direct' && (
-                  <span style={{ fontSize: 'var(--text-xs)', padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: 'rgba(0,212,255,0.15)', color: T.accent, fontFamily: "var(--font-mono)", fontWeight: 700 }}>{tc('live')}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: 'rgba(0,212,255,0.15)', color: '#059669', fontFamily: "var(--font-mono)", fontWeight: 700 }}>{tc('live')}</span>
                 )}
                 {connectionLayer === 'nestjs' && (
-                  <span style={{ fontSize: 'var(--text-xs)', padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: 'rgba(179,136,255,0.15)', color: T.purple, fontFamily: "var(--font-mono)", fontWeight: 700 }}>NestJS</span>
+                  <span style={{ fontSize: 'var(--text-xs)', padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: 'rgba(179,136,255,0.15)', color: '#B388FF', fontFamily: "var(--font-mono)", fontWeight: 700 }}>NestJS</span>
                 )}
               </div>
             )}
             {isPartialAI && (
               <div className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'rgba(0,212,255,0.06)', border: '1px solid rgba(0,212,255,0.15)' }}>
-                <Cpu size={10} color={T.accent} />
-                <span className="text-[8px]" style={{ color: T.accent }}>
+                <Cpu size={10} color={'#059669'} />
+                <span className="text-[8px]" style={{ color: '#059669' }}>
                   {tai('partialAnalysis', { count: data.meta?.modelsResponded || '?' })}
                 </span>
                 {connectionLayer === 'direct' && (
-                  <span style={{ fontSize: 'var(--text-xs)', padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: 'rgba(0,212,255,0.15)', color: T.accent, fontFamily: "var(--font-mono)", fontWeight: 700 }}>{tc('live')}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: 'rgba(0,212,255,0.15)', color: '#059669', fontFamily: "var(--font-mono)", fontWeight: 700 }}>{tc('live')}</span>
                 )}
               </div>
             )}
@@ -485,8 +484,8 @@ export function AICouncilPanel() {
             {/* Models That Responded — Visual Indicator */}
             {isRealAI && respondedModels.length > 0 && (
               <div className="flex items-center gap-1.5 flex-wrap p-2 rounded-lg" style={{ background: 'rgba(179,136,255,0.04)', border: '1px solid rgba(179,136,255,0.1)' }}>
-                <Activity size={8} color={T.purple} />
-                <span className="text-[7px] font-bold" style={{ color: T.purple + 'aa' }}>{tai('activeModelsLabel')}</span>
+                <Activity size={8} color={'#B388FF'} />
+                <span className="text-[7px] font-bold" style={{ color: '#B388FF' + 'aa' }}>{tai('activeModelsLabel')}</span>
                 {respondedModels.map((model, i) => {
                   const color = getModelColor(model)
                   const shortName = getModelShortName(model)
@@ -531,7 +530,7 @@ export function AICouncilPanel() {
 
             {/* Consensus Gauge */}
             <div className="relative p-3 rounded-xl text-center overflow-hidden" style={{ 
-              background: T.bg2, 
+              background: '#0F1117', 
               border: `1px solid ${recColor}20`,
               boxShadow: `inset 0 0 40px ${recColor}08`
             }}>
@@ -547,7 +546,7 @@ export function AICouncilPanel() {
                 </span>
               </div>
 
-              <div className="text-[9px] mb-1 uppercase tracking-widest relative z-10" style={{ color: T.text2 }}>{tai('consensusScore')}</div>
+              <div className="text-[9px] mb-1 uppercase tracking-widest relative z-10" style={{ color: '#9CA3B5' }}>{tai('consensusScore')}</div>
               <div className="text-4xl font-black font-mono mb-2 relative z-10" style={{ color: recColor, textShadow: `0 0 20px ${recColor}60` }}>
                 {data.consensusScore}%
               </div>
@@ -569,30 +568,30 @@ export function AICouncilPanel() {
             </div>
 
             {/* Master Strategy */}
-            <div className="card" style={{ padding: '10px 11px', border: `1px solid ${isRealAI ? T.purple + '20' : T.accent + '15'}` }}>
+            <div className="card" style={{ padding: '10px 11px', border: `1px solid ${isRealAI ? '#B388FF' + '20' : '#059669' + '15'}` }}>
               <div className="flex items-center gap-1.5 mb-1.5">
-                <Zap size={9} color={isRealAI ? T.purple : T.accent} />
-                <span className="text-[9px] font-bold" style={{ color: isRealAI ? T.purple : T.accent }}>{tai('unifiedStrategy')}</span>
+                <Zap size={9} color={isRealAI ? '#B388FF' : '#059669'} />
+                <span className="text-[9px] font-bold" style={{ color: isRealAI ? '#B388FF' : '#059669' }}>{tai('unifiedStrategy')}</span>
               </div>
-              <div style={{ color: T.text + 'cc' }}>
+              <div style={{ color: '#F0F2F5' + 'cc' }}>
                 <FormattedText
                   text={safeStr(data.masterStrategy)}
                   maxLength={400}
                   dir={locale === 'ar' ? 'rtl' : 'ltr'}
                   fontSize={10}
-                  accent={isRealAI ? T.purple : T.accent}
+                  accent={isRealAI ? '#B388FF' : '#059669'}
                   placeholder="—"
                 />
               </div>
             </div>
 
             {data.conflictExplanation && (
-              <div className="card" style={{ padding: '10px 11px', border: `1px solid ${T.amber}25`, background: 'linear-gradient(180deg, rgba(255,184,0,0.08), rgba(255,255,255,0.015))' }}>
+              <div className="card" style={{ padding: '10px 11px', border: `1px solid ${'#FFB800'}25`, background: 'linear-gradient(180deg, rgba(255,184,0,0.08), rgba(255,255,255,0.015))' }}>
                 <div className="flex items-center gap-1.5 mb-1.5">
-                  <AlertCircle size={9} color={T.amber} />
-                  <span className="text-[9px] font-bold" style={{ color: T.amber }}>{tai('conflictInterpretation')}</span>
+                  <AlertCircle size={9} color={'#FFB800'} />
+                  <span className="text-[9px] font-bold" style={{ color: '#FFB800' }}>{tai('conflictInterpretation')}</span>
                 </div>
-                <p className="text-[9px] leading-5" style={{ color: T.text2 }}>
+                <p className="text-[9px] leading-5" style={{ color: '#9CA3B5' }}>
                   {/* FIX React Error #31: AI may return objects instead of strings */}
                   {safeStr(data.conflictExplanation)}
                 </p>
@@ -601,7 +600,7 @@ export function AICouncilPanel() {
 
             {/* Vote Distribution */}
             <div className="space-y-1.5">
-              <div className="text-[8px] font-bold px-1 uppercase tracking-widest" style={{ color: T.text2 }}>{tai('voteDistribution')}</div>
+              <div className="text-[8px] font-bold px-1 uppercase tracking-widest" style={{ color: '#9CA3B5' }}>{tai('voteDistribution')}</div>
               {data.analyses.map((a, i) => {
                 const safeVote = safeStr(a.vote) as 'BUY' | 'SELL' | 'HOLD'
                 const safeConfidence = safeNum(a.confidence, 50)
@@ -623,13 +622,13 @@ export function AICouncilPanel() {
       </div>
 
       {/* Footer */}
-      <div className="p-2 flex items-center justify-between" style={{ borderTop: '1px solid rgba(255,255,255,0.04)', background: T.bg2 }}>
+      <div className="p-2 flex items-center justify-between" style={{ borderTop: '1px solid rgba(255,255,255,0.04)', background: '#0F1117' }}>
         <div className="flex items-center gap-1" style={{ opacity: 0.4 }}>
           <Shield size={9} />
           <span className="text-[7px] font-bold uppercase">{isRealAI ? tai('realAIEngine') : tai('quantumAIEngine')}</span>
         </div>
         <div className="flex items-center gap-1.5" style={{ opacity: 0.4 }}>
-          <Heart size={7} color={keepAliveStatus?.nestJSUp ? T.green : T.amber} />
+          <Heart size={7} color={keepAliveStatus?.nestJSUp ? '#00FFA3' : '#FFB800'} />
           <Info size={9} />
           <span className="text-[7px] font-bold">{tai('councilVersion')} — {isRealAI ? `${data?.meta?.modelsResponded || '?'}/${data?.meta?.modelsExpected || 8} AI` : tai('rolesCount', { count: 8 })}</span>
         </div>

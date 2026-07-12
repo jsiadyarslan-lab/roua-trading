@@ -6,7 +6,6 @@ import { useScannerContext } from '../ScannerProvider'
 import { ScannerTableRow } from './ScannerTableRow'
 import type { SortKey } from '../hooks/useScannerFilters'
 import { ScopedStyle } from '@/components/ScopedStyle'
-import T from '@/lib/unified-tokens'
 
 const COLUMN_KEYS: { key: SortKey | null; labelKey: string; width?: number }[] = [
   { key: null, labelKey: 'table.symbol', width: 160 },
@@ -23,10 +22,10 @@ const COLUMN_KEYS: { key: SortKey | null; labelKey: string; width?: number }[] =
 ]
 
 function SortIcon({ colKey, sortKey, sortDir }: { colKey: SortKey | null; sortKey: SortKey; sortDir: string }) {
-  if (!colKey || colKey !== sortKey) return <ArrowUpDown size={10} color={T.text3} style={{ opacity: 0.4 }} />
+  if (!colKey || colKey !== sortKey) return <ArrowUpDown size={10} color={'#6B7280'} style={{ opacity: 0.4 }} />
   return sortDir === 'desc'
-    ? <ArrowDown size={10} color={T.cyan} />
-    : <ArrowUp size={10} color={T.cyan} />
+    ? <ArrowDown size={10} color={'#00D4FF'} />
+    : <ArrowUp size={10} color={'#00D4FF'} />
 }
 
 export function ScannerTable() {
@@ -36,27 +35,27 @@ export function ScannerTable() {
   return (
     <div style={{
       flex: 1, overflow: 'auto', direction: 'inherit',
-      background: T.card,
+      background: '#151A22',
     }}>
       <ScopedStyle>{`
         @keyframes fadeInRow { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         .scanner-scroll::-webkit-scrollbar { width: 5px; }
-        .scanner-scroll::-webkit-scrollbar-track { background: ${T.bg2}; }
-        .scanner-scroll::-webkit-scrollbar-thumb { background: ${T.surface}; border-radius: 3px; }
-        .scanner-scroll::-webkit-scrollbar-thumb:hover { background: ${T.text3}40; }
+        .scanner-scroll::-webkit-scrollbar-track { background: ${'#0F1117'}; }
+        .scanner-scroll::-webkit-scrollbar-thumb { background: ${'#151A22'}; border-radius: 3px; }
+        .scanner-scroll::-webkit-scrollbar-thumb:hover { background: ${'#6B7280'}40; }
       `}</ScopedStyle>
 
       {ctx.loading && ctx.filteredData.length === 0 ? (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          height: 300, color: T.text3, fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)',
+          height: 300, color: '#6B7280', fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)',
         }}>
           {t('table.loading')}
         </div>
       ) : ctx.filteredData.length === 0 ? (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          height: 300, color: T.text3, fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)',
+          height: 300, color: '#6B7280', fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)',
         }}>
           {t('table.noData')}
         </div>
@@ -67,7 +66,7 @@ export function ScannerTable() {
         }}>
           {/* Header */}
           <thead>
-            <tr style={{ background: T.bg2, position: 'sticky', top: 0, zIndex: 2 }}>
+            <tr style={{ background: '#0F1117', position: 'sticky', top: 0, zIndex: 2 }}>
               {COLUMN_KEYS.map(col => {
                 // Only translate keys that start with "table." or "indicators." — others are universal
                 const colLabel = (col.labelKey.startsWith('table.') || col.labelKey.startsWith('indicators.')) ? t(col.labelKey) : col.labelKey
@@ -77,9 +76,9 @@ export function ScannerTable() {
                     onClick={col.key ? () => { ctx.toggleSort(col.key!) } : undefined}
                     style={{
                       padding: '10px 8px', fontSize: 'var(--text-xs)', fontWeight: 800,
-                      color: col.key === ctx.sortKey ? T.cyan : T.text3,
+                      color: col.key === ctx.sortKey ? '#00D4FF' : '#6B7280',
                       fontFamily: "var(--font-ar)",
-                      borderBottom: `1px solid ${T.border}`,
+                      borderBottom: `1px solid ${'#2A313C'}`,
                       cursor: col.key ? 'pointer' : 'default',
                       whiteSpace: 'nowrap', textAlign: 'center', direction: 'inherit',
                       width: col.width, minWidth: col.width,

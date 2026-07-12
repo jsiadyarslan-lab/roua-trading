@@ -17,7 +17,6 @@ import {
   PanelRightOpen,
   type LucideIcon,
 } from 'lucide-react'
-import T from '@/lib/unified-tokens'
 import { useTranslations, useLocale } from 'next-intl'
 import { isRtlLocale } from '@/lib/i18n-utils'
 
@@ -32,16 +31,16 @@ export interface TabConfig {
 }
 
 const TAB_CONFIG: TabConfig[] = [
-  { id: 'portfolio', label: '', helper: '', accent: T.blue, icon: Wallet },
-  { id: 'execute', label: '', helper: '', accent: T.success, icon: Zap },
-  { id: 'book', label: '', helper: '', accent: T.danger, icon: BookOpen },
-  { id: 'watch', label: '', helper: '', accent: T.info, icon: Eye },
-  { id: 'alerts', label: '', helper: '', accent: T.warning, icon: Bell },
-  { id: 'ai', label: '', helper: '', accent: T.council, icon: Brain },
-  { id: 'news', label: '', helper: '', accent: T.info, icon: Newspaper },
-  { id: 'calendar', label: '', helper: '', accent: T.warning, icon: CalendarDays },
-  { id: 'backtest', label: '', helper: '', accent: T.council, icon: FlaskConical },
-  { id: 'correlation', label: '', helper: '', accent: T.success, icon: GitBranch },
+  { id: 'portfolio', label: '', helper: '', accent: '#0A84FF', icon: Wallet },
+  { id: 'execute', label: '', helper: '', accent: '#00FFA3', icon: Zap },
+  { id: 'book', label: '', helper: '', accent: '#FF4757', icon: BookOpen },
+  { id: 'watch', label: '', helper: '', accent: '#00D4FF', icon: Eye },
+  { id: 'alerts', label: '', helper: '', accent: '#FFB800', icon: Bell },
+  { id: 'ai', label: '', helper: '', accent: '#B388FF', icon: Brain },
+  { id: 'news', label: '', helper: '', accent: '#00D4FF', icon: Newspaper },
+  { id: 'calendar', label: '', helper: '', accent: '#FFB800', icon: CalendarDays },
+  { id: 'backtest', label: '', helper: '', accent: '#B388FF', icon: FlaskConical },
+  { id: 'correlation', label: '', helper: '', accent: '#00FFA3', icon: GitBranch },
 ]
 
 interface SidebarIconRailProps {
@@ -108,7 +107,7 @@ export function SidebarIconRail({
               borderRadius: 'var(--radius-sm)',
               border: '1px solid rgba(0,212,255,0.18)',
               background: 'rgba(0, 0, 0, 0.9)',
-              color: T.text3,
+              color: '#6B7280',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -116,11 +115,11 @@ export function SidebarIconRail({
               transition: 'all 0.2s ease',
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.color = T.cyan
-              e.currentTarget.style.borderColor = T.cyan
+              e.currentTarget.style.color = '#00D4FF'
+              e.currentTarget.style.borderColor = '#00D4FF'
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.color = T.text3
+              e.currentTarget.style.color = '#6B7280'
               e.currentTarget.style.borderColor = 'rgba(0,212,255,0.18)'
             }}
           >

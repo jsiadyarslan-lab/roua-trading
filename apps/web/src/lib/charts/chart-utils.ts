@@ -154,10 +154,10 @@ export function invalidateStorageKeyCache(): void {
 
 export const CHART_COLORS = {
   // Candle colors
-  upColor: T.success,
-  downColor: T.danger,
-  upWick: T.success,
-  downWick: T.danger,
+  upColor: '#00FFA3',
+  downColor: '#FF4757',
+  upWick: '#00FFA3',
+  downWick: '#FF4757',
 
   // Volume histogram colors (used in useChart.ts setCandles and updateCandle)
   volumeUp: 'rgba(63,185,80,0.25)',
@@ -170,19 +170,19 @@ export const CHART_COLORS = {
   bbFillBottom: 'rgba(88,166,255,0.06)',
 
   macdLine: '#58a6ff',
-  macdSignal: T.warning,
+  macdSignal: '#FFB800',
   macdHistUp: 'rgba(63,185,80,0.5)',
   macdHistDown: 'rgba(248,81,73,0.5)',
 
-  stochK: T.council,
-  stochD: T.warning,
+  stochK: '#B388FF',
+  stochD: '#FFB800',
 
-  adxLine: T.warning,
-  adxPdi: T.success,
-  adxMdi: T.danger,
+  adxLine: '#FFB800',
+  adxPdi: '#00FFA3',
+  adxMdi: '#FF4757',
 
   ichimokuTenkan: '#2dd4bf',
-  ichimokuKijun: T.danger,
+  ichimokuKijun: '#FF4757',
   ichimokuSenkouA: 'rgba(45,212,191,0.4)',
   ichimokuSenkouB: 'rgba(248,113,113,0.4)',
   ichimokuChikou: 'rgba(255,255,255,0.3)',
@@ -193,10 +193,10 @@ export const CHART_COLORS = {
   donchianMiddle: 'rgba(249,115,22,0.3)',
   donchianFill: 'rgba(249,115,22,0.08)',
 
-  superTrendUp: T.success,
-  superTrendDown: T.danger,
+  superTrendUp: '#00FFA3',
+  superTrendDown: '#FF4757',
 
-  pivotPP: T.council,
+  pivotPP: '#B388FF',
 
   // Grid & crosshair
   grid: 'rgba(42,49,60,0.5)',

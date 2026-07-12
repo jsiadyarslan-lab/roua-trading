@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Activity } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import T from '@/lib/unified-tokens'
 
 /* ── Types ── */
 // FIX: Renamed from CandleData to DemoCandleData to avoid confusion with
@@ -75,7 +74,7 @@ function ChartInner() {
     const chart = createChart(container, {
       layout: {
         background: { type: ColorType.Solid, color: '#0a0f1a' },
-        textColor: T.text3,
+        textColor: '#6B7280',
         fontFamily: 'var(--font-mono)',
       },
       grid: {
@@ -102,10 +101,10 @@ function ChartInner() {
     chartRef.current = chart
 
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: T.profit,
-      downColor: T.loss,
-      borderUpColor: T.profit,
-      borderDownColor: T.loss,
+      upColor: '#10b981',
+      downColor: '#ef4444',
+      borderUpColor: '#10b981',
+      borderDownColor: '#ef4444',
       wickUpColor: '#10B98160',
       wickDownColor: '#EF444460',
     })
@@ -266,19 +265,19 @@ export default function LiveMarketChart() {
                 className="flex items-center gap-1.5 px-2 py-0.5 rounded-md"
                 style={{ background: 'rgba(245, 158, 11, 0.06)' }}
               >
-                <Activity className="w-2.5 h-2.5" style={{ color: T.warning }} />
+                <Activity className="w-2.5 h-2.5" style={{ color: '#FFB800' }} />
                 <span
                   className="text-[9px] font-bold tracking-wider"
-                  style={{ color: T.warning, fontFamily: 'var(--font-brand)' }}
+                  style={{ color: '#FFB800', fontFamily: 'var(--font-brand)' }}
                 >
                   DEMO
                 </span>
-                <span className="w-1 h-1 rounded-full animate-pulse" style={{ background: T.warning }} />
+                <span className="w-1 h-1 rounded-full animate-pulse" style={{ background: '#FFB800' }} />
               </div>
 
               <span
                 className="text-xs font-bold"
-                style={{ color: T.text2, fontFamily: 'var(--font-mono)' }}
+                style={{ color: '#9CA3B5', fontFamily: 'var(--font-mono)' }}
               >
                 BTC/USD
               </span>
@@ -288,7 +287,7 @@ export default function LiveMarketChart() {
               <span
                 className="text-sm font-bold"
                 style={{
-                  color: isPositive ? T.profit : T.loss,
+                  color: isPositive ? '#10b981' : '#ef4444',
                   fontFamily: 'var(--font-mono)',
                 }}
               >
@@ -298,7 +297,7 @@ export default function LiveMarketChart() {
                 variant="outline"
                 className="text-[10px] font-mono px-1.5 py-0"
                 style={{
-                  color: isPositive ? T.profit : T.loss,
+                  color: isPositive ? '#10b981' : '#ef4444',
                   borderColor: isPositive ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)',
                   background: isPositive ? 'rgba(16,185,129,0.05)' : 'rgba(239,68,68,0.05)',
                 }}

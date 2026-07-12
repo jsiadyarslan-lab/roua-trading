@@ -63,7 +63,7 @@ export default function WelcomeScreen({
             height: 64,
           }}
         >
-          <BrainIcon size={36} color={T.info} pulse={true} />
+          <BrainIcon size={36} color={'#00D4FF'} pulse={true} />
         </div>
       </div>
 

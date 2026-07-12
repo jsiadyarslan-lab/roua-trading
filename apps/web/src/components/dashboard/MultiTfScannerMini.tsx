@@ -6,7 +6,6 @@ import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
 import { RefreshCw, Layers, Activity } from 'lucide-react'
-import T from '@/lib/unified-tokens'
 
 export function MultiTfScannerMini() {
   const tm = useTranslations('dashboard.multiTf')
@@ -35,7 +34,7 @@ export function MultiTfScannerMini() {
           tf: tfLabels[tf.timeframe] || tf.timeframe.toUpperCase(),
           state: tf.direction === 'STRONG_BUY' || tf.direction === 'BUY' ? 'Bullish' : tf.direction === 'STRONG_SELL' || tf.direction === 'SELL' ? 'Bearish' : 'Neutral',
           strength: tf.confidence,
-          color: tf.direction === 'STRONG_BUY' || tf.direction === 'BUY' ? T.green : tf.direction === 'STRONG_SELL' || tf.direction === 'SELL' ? T.red : T.amber,
+          color: tf.direction === 'STRONG_BUY' || tf.direction === 'BUY' ? '#00FFA3' : tf.direction === 'STRONG_SELL' || tf.direction === 'SELL' ? '#FF4757' : '#FFB800',
           technicalScore: tf.technicalScore,
           rsi: tf.rsi,
           macdSignal: tf.macdSignal,
@@ -57,7 +56,7 @@ export function MultiTfScannerMini() {
           useTabAlertStore.getState().pushAlert('multi-tf', {
             action: direction,
             label: `${direction === 'BUY' ? '⬆' : '⬇'} ${mtData.alignment} ${selectedSymbol}`,
-            color: direction === 'BUY' ? T.success : T.danger,
+            color: direction === 'BUY' ? '#00FFA3' : '#FF4757',
           })
         }
       } else {
@@ -96,21 +95,21 @@ export function MultiTfScannerMini() {
   const strategy = overallStrength > 100 ? tm('trendFollowLong') : overallStrength < -100 ? tm('trendFollowShort') : tm('waitPullback')
 
   return (
-    <div className="custom-scrollbar" style={{  height: '100%', padding: '14px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', borderRadius: 'var(--radius-xl)', border: `1px solid ${T.border}` }}>
+    <div className="custom-scrollbar" style={{  height: '100%', padding: '14px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', borderRadius: 'var(--radius-xl)', border: `1px solid ${'#2A313C'}` }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, padding: '0 2px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Activity size={12} color={T.purple} className={loading ? 'animate-pulse' : ''} />
-          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)" }}>{selectedSymbol}</span>
+          <Activity size={12} color={'#B388FF'} className={loading ? 'animate-pulse' : ''} />
+          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)" }}>{selectedSymbol}</span>
           {lastUpdate && (
-            <span style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-mono)" }}>· {lastUpdate}</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontFamily: "var(--font-mono)" }}>· {lastUpdate}</span>
           )}
-          <span style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-mono)", background: 'rgba(255,255,255,0.04)', padding: '1px 5px', borderRadius: 'var(--radius-xs)' }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontFamily: "var(--font-mono)", background: 'rgba(255,255,255,0.04)', padding: '1px 5px', borderRadius: 'var(--radius-xs)' }}>
             #{scanCount}
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-mono)" }}>{countdown}s</span>
-          <span style={{ fontSize: 'var(--text-xs)', background: `${T.purple}15`, border: `0.5px solid ${T.purple}30`, color: T.purple, padding: '2px 6px', borderRadius: 'var(--radius-sm)', fontWeight: 700 }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontFamily: "var(--font-mono)" }}>{countdown}s</span>
+          <span style={{ fontSize: 'var(--text-xs)', background: `${'#B388FF'}15`, border: `0.5px solid ${'#B388FF'}30`, color: '#B388FF', padding: '2px 6px', borderRadius: 'var(--radius-sm)', fontWeight: 700 }}>
             {loading ? tm('scanning') : tm('liveSync')}
           </span>
         </div>
@@ -118,17 +117,17 @@ export function MultiTfScannerMini() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, justifyContent: 'center' }}>
         {data.length === 0 && !loading ? (
-           <div style={{ textAlign: 'center', color: T.text2, fontSize: 'var(--text-xs)' }}>{tm('noData')}</div>
+           <div style={{ textAlign: 'center', color: '#9CA3B5', fontSize: 'var(--text-xs)' }}>{tm('noData')}</div>
         ) : (
           (data.length > 0 ? data : [
-            { tf: '15M', state: '...', strength: 0, color: T.border },
-            { tf: '1H',  state: '...', strength: 0, color: T.border },
-            { tf: '4H',  state: '...', strength: 0, color: T.border },
-            { tf: '1D',  state: '...', strength: 0, color: T.border }
+            { tf: '15M', state: '...', strength: 0, color: '#2A313C' },
+            { tf: '1H',  state: '...', strength: 0, color: '#2A313C' },
+            { tf: '4H',  state: '...', strength: 0, color: '#2A313C' },
+            { tf: '1D',  state: '...', strength: 0, color: '#2A313C' }
           ]).map((t, i) => (
-            <div key={i} className="card" style={{ borderRadius: 'var(--radius-lg)', border: `0.5px solid ${T.border}`, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div key={i} className="card" style={{ borderRadius: 'var(--radius-lg)', border: `0.5px solid ${'#2A313C'}`, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ fontSize: 'var(--text-xs)', fontWeight: 900, color: t.color, width: 24, fontFamily: "var(--font-mono)" }}>{t.tf}</span>
-              <div style={{ flex: 1, height: 4, background: T.bg, borderRadius: 'var(--radius-xs)', overflow: 'hidden', margin: '0 4px' }}>
+              <div style={{ flex: 1, height: 4, background: '#0B0E14', borderRadius: 'var(--radius-xs)', overflow: 'hidden', margin: '0 4px' }}>
                 <div style={{ height: '100%', width: `${t.strength}%`, background: t.color, boxShadow: `0 0 6px ${t.color}80`, transition: 'width 0.5s ease-out' }} />
               </div>
               <span style={{ fontSize: 'var(--text-xs)', color: t.color, fontWeight: 800, width: 24, textAlign: 'right', fontFamily: "var(--font-mono)" }}>{t.strength}%</span>
@@ -142,16 +141,16 @@ export function MultiTfScannerMini() {
         )}
       </div>
 
-      <div className="card" style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 6, fontSize: 'var(--text-xs)', color: T.text2, padding: '10px 12px', border: `1px solid ${T.border}`, borderRadius: 'var(--radius-lg)', fontWeight: 600 }}>
+      <div className="card" style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 6, fontSize: 'var(--text-xs)', color: '#9CA3B5', padding: '10px 12px', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-lg)', fontWeight: 600 }}>
         <div style={{ textAlign: 'center' }}>
-          {tm('tfStrategy')} <span style={{color: T.purple}}>{strategy}</span>
+          {tm('tfStrategy')} <span style={{color: '#B388FF'}}>{strategy}</span>
         </div>
         {summary && (
           <>
-            <div style={{ textAlign: 'center', fontSize: 'var(--text-xs)', color: T.text }}>
+            <div style={{ textAlign: 'center', fontSize: 'var(--text-xs)', color: '#F0F2F5' }}>
               {summary.alignment}
             </div>
-            <div style={{ textAlign: 'center', fontSize: 'var(--text-xs)', color: T.accent }}>
+            <div style={{ textAlign: 'center', fontSize: 'var(--text-xs)', color: '#059669' }}>
               {summary.executionHint}
             </div>
           </>

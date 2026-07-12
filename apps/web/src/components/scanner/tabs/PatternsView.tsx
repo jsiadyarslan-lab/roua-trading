@@ -7,7 +7,6 @@ import { useScannerContext } from '../ScannerProvider'
 import { DirectionTag } from '../shared/DirectionTag'
 import { IndicatorBadge } from '../shared/IndicatorBadge'
 import { ScopedStyle } from '@/components/ScopedStyle'
-import T from '@/lib/unified-tokens'
 
 function safeMax(arr: number[]): number {
   if (arr.length === 0) return -Infinity;
@@ -73,7 +72,7 @@ function getPatternDirection(pType: string): 'bullish' | 'bearish' | 'neutral' {
 function PatternPill({ pattern }: { pattern: DetectedPattern }) {
   const t = useTranslations('scannerAdvanced')
   const dir = getPatternDirection(pattern.type)
-  const color = dir === 'bullish' ? T.green : dir === 'bearish' ? T.red : T.amber
+  const color = dir === 'bullish' ? '#00FFA3' : dir === 'bearish' ? '#FF4757' : '#FFB800'
   const arName = pattern.nameKey ? t(`patterns.${pattern.nameKey}`) : pattern.name
   return (
     <span style={{
@@ -90,17 +89,17 @@ function PatternPill({ pattern }: { pattern: DetectedPattern }) {
 
 function MiniScoreBar({ item }: { item: { technicalScore: number; rsi: number | null; adx: number | null; stochK: number | null } }) {
   const bars = [
-    { v: item.technicalScore, c: item.technicalScore >= 40 ? T.green : T.amber },
-    { v: item.rsi ?? 0, c: T.cyan },
-    { v: item.adx ?? 0, c: T.purple },
-    { v: item.stochK ?? 0, c: T.blue },
+    { v: item.technicalScore, c: item.technicalScore >= 40 ? '#00FFA3' : '#FFB800' },
+    { v: item.rsi ?? 0, c: '#00D4FF' },
+    { v: item.adx ?? 0, c: '#B388FF' },
+    { v: item.stochK ?? 0, c: '#0A84FF' },
   ]
   return (
     <div style={{ display: 'flex', gap: 2 }}>
       {bars.map((b, i) => {
         const pct = Math.min(Math.max(b.v / 100 * 100, 3), 100)
         return (
-          <div key={i} style={{ width: 14, height: 4, borderRadius: 'var(--radius-xs)', background: T.surface, overflow: 'hidden' }}>
+          <div key={i} style={{ width: 14, height: 4, borderRadius: 'var(--radius-xs)', background: '#151A22', overflow: 'hidden' }}>
             <div style={{ width: `${pct}%`, height: '100%', borderRadius: 'var(--radius-xs)', background: b.c, transition: 'width 0.3s' }} />
           </div>
         )
@@ -352,50 +351,50 @@ export function PatternsView() {
   }, [filteredItems])
 
   return (
-    <div style={{ flex: 1, overflow: 'auto', direction: 'inherit', background: T.card, display: 'flex', flexDirection: 'column' }}>
+    <div style={{ flex: 1, overflow: 'auto', direction: 'inherit', background: '#151A22', display: 'flex', flexDirection: 'column' }}>
       <ScopedStyle>{`
         @keyframes fadeInPV { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .pv-scroll::-webkit-scrollbar { width: 5px; }
-        .pv-scroll::-webkit-scrollbar-track { background: ${T.bg2}; }
-        .pv-scroll::-webkit-scrollbar-thumb { background: ${T.surface}; border-radius: 3px; }
+        .pv-scroll::-webkit-scrollbar-track { background: ${'#0F1117'}; }
+        .pv-scroll::-webkit-scrollbar-thumb { background: ${'#151A22'}; border-radius: 3px; }
       `}</ScopedStyle>
 
       {/* Header + Stats */}
-      <div style={{ padding: '12px 16px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ padding: '12px 16px', borderBottom: `1px solid ${'#2A313C'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Brain size={18} color={T.cyan} />
-          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>{t('patterns.detectedPatterns')}</span>
+          <Brain size={18} color={'#00D4FF'} />
+          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>{t('patterns.detectedPatterns')}</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${T.green}12`, color: T.green, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${'#00FFA3'}12`, color: '#00FFA3', fontWeight: 700, fontFamily: "var(--font-ar)" }}>
             {stats.bullish} {t('bullish')}
           </span>
-          <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${T.red}12`, color: T.red, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${'#FF4757'}12`, color: '#FF4757', fontWeight: 700, fontFamily: "var(--font-ar)" }}>
             {stats.bearish} {t('bearish')}
           </span>
-          <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${T.amber}12`, color: T.amber, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${'#FFB800'}12`, color: '#FFB800', fontWeight: 700, fontFamily: "var(--font-ar)" }}>
             {stats.neutral} {t('neutral')}
           </span>
         </div>
       </div>
 
       {/* Filter bar */}
-      <div style={{ padding: '8px 16px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+      <div style={{ padding: '8px 16px', borderBottom: `1px solid ${'#2A313C'}`, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         {/* Direction filters */}
         {FILTERS.map(f => (
           <button key={f.key} onClick={() => setFilter(f.key)}
             style={{
               padding: '4px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 700,
               fontFamily: "var(--font-ar)", cursor: 'pointer',
-              background: filter === f.key ? `${T.cyan}20` : T.surface,
-              color: filter === f.key ? T.cyan : T.text3,
-              border: `0.5px solid ${filter === f.key ? T.border2 : T.border}`,
+              background: filter === f.key ? `${'#00D4FF'}20` : '#151A22',
+              color: filter === f.key ? '#00D4FF' : '#6B7280',
+              border: `0.5px solid ${filter === f.key ? '#3A4150' : '#2A313C'}`,
               transition: 'all 0.2s',
             }}
           >{f.label}</button>
         ))}
 
-        <div style={{ width: 1, height: 20, background: T.border, margin: '0 4px' }} />
+        <div style={{ width: 1, height: 20, background: '#2A313C', margin: '0 4px' }} />
 
         {/* Confidence filters */}
         {CONFIDENCE_FILTERS.map(f => (
@@ -403,9 +402,9 @@ export function PatternsView() {
             style={{
               padding: '4px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 700,
               fontFamily: "var(--font-ar)", cursor: 'pointer',
-              background: confidenceFilter === f.key ? `${T.purple}20` : T.surface,
-              color: confidenceFilter === f.key ? T.purple : T.text3,
-              border: `0.5px solid ${confidenceFilter === f.key ? `${T.purple}30` : T.border}`,
+              background: confidenceFilter === f.key ? `${'#B388FF'}20` : '#151A22',
+              color: confidenceFilter === f.key ? '#B388FF' : '#6B7280',
+              border: `0.5px solid ${confidenceFilter === f.key ? `${'#B388FF'}30` : '#2A313C'}`,
               transition: 'all 0.2s',
             }}
           >{f.label}</button>
@@ -418,9 +417,9 @@ export function PatternsView() {
             display: 'flex', alignItems: 'center', gap: 4,
             padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 700,
             fontFamily: "var(--font-ar)", cursor: 'pointer',
-            background: patternSearch !== 'ALL' ? `${T.amber}20` : T.surface,
-            color: patternSearch !== 'ALL' ? T.amber : T.text3,
-            border: `0.5px solid ${patternSearch !== 'ALL' ? `${T.amber}30` : T.border}`,
+            background: patternSearch !== 'ALL' ? `${'#FFB800'}20` : '#151A22',
+            color: patternSearch !== 'ALL' ? '#FFB800' : '#6B7280',
+            border: `0.5px solid ${patternSearch !== 'ALL' ? `${'#FFB800'}30` : '#2A313C'}`,
             transition: 'all 0.2s',
           }}
         >
@@ -432,15 +431,15 @@ export function PatternsView() {
 
       {/* Expanded pattern search */}
       {expandedFilters && (
-        <div style={{ padding: '8px 16px', borderBottom: `1px solid ${T.border}`, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        <div style={{ padding: '8px 16px', borderBottom: `1px solid ${'#2A313C'}`, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {PATTERN_SEARCH_KEYS.map(opt => (
             <button key={opt.value} onClick={() => setPatternSearch(opt.value)}
               style={{
                 padding: '3px 10px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 700,
                 fontFamily: "var(--font-ar)", cursor: 'pointer',
-                background: patternSearch === opt.value ? `${T.amber}15` : T.bg,
-                color: patternSearch === opt.value ? T.amber : T.text3,
-                border: `0.5px solid ${patternSearch === opt.value ? `${T.amber}30` : T.border}`,
+                background: patternSearch === opt.value ? `${'#FFB800'}15` : '#0B0E14',
+                color: patternSearch === opt.value ? '#FFB800' : '#6B7280',
+                border: `0.5px solid ${patternSearch === opt.value ? `${'#FFB800'}30` : '#2A313C'}`,
                 transition: 'all 0.2s',
               }}
             >{t(opt.labelKey)}</button>
@@ -452,39 +451,39 @@ export function PatternsView() {
       <div style={{ flex: 1, overflow: 'auto', padding: 12 }} className="pv-scroll">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {filteredItems.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 40, color: T.text3, fontSize: 'var(--text-sm)', fontFamily: "var(--font-ar)" }}>
+            <div style={{ textAlign: 'center', padding: 40, color: '#6B7280', fontSize: 'var(--text-sm)', fontFamily: "var(--font-ar)" }}>
               {t('patterns.noMatchingPatterns')}
             </div>
           ) : filteredItems.map(({ item, patterns }, i) => {
-            const chgColor = item.changePercent >= 0 ? T.green : T.red
+            const chgColor = item.changePercent >= 0 ? '#00FFA3' : '#FF4757'
             const topPattern = patterns.reduce((a, b) => a.confidence > b.confidence ? a : b, patterns[0])
             return (
               <div key={item.symbol} onClick={() => ctx.setSelectedSymbol(item.symbol)}
                 style={{
-                  padding: '10px 12px', borderRadius: 'var(--radius-md)', background: T.bg2,
+                  padding: '10px 12px', borderRadius: 'var(--radius-md)', background: '#0F1117',
                   border: `0.5px solid ${
-                    topPattern.type === 'BULLISH' ? `${T.green}20` :
-                    topPattern.type === 'BEARISH' ? `${T.red}20` : T.border
+                    topPattern.type === 'BULLISH' ? `${'#00FFA3'}20` :
+                    topPattern.type === 'BEARISH' ? `${'#FF4757'}20` : '#2A313C'
                   }`,
                   cursor: 'pointer', transition: 'all 0.2s',
                   animation: `fadeInPV 0.35s ease ${i * 30}ms both`,
                 }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = T.border2)}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = '#3A4150')}
                 onMouseLeave={e => (e.currentTarget.style.borderColor =
-                  topPattern.type === 'BULLISH' ? `${T.green}20` :
-                  topPattern.type === 'BEARISH' ? `${T.red}20` : T.border
+                  topPattern.type === 'BULLISH' ? `${'#00FFA3'}20` :
+                  topPattern.type === 'BEARISH' ? `${'#FF4757'}20` : '#2A313C'
                 )}
               >
                 {/* Symbol row */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)" }}>{item.symbol}</span>
+                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)" }}>{item.symbol}</span>
                     <DirectionTag direction={item.direction} signalClass={item.signalClass} size="sm" />
                     {/* Top pattern confidence indicator */}
                     <span style={{
                       fontSize: 'var(--text-xs)', fontWeight: 800, padding: '1px 5px', borderRadius: 'var(--radius-xs)',
-                      background: topPattern.confidence >= 70 ? `${T.green}15` : topPattern.confidence >= 50 ? `${T.amber}15` : `${T.text3}10`,
-                      color: topPattern.confidence >= 70 ? T.green : topPattern.confidence >= 50 ? T.amber : T.text3,
+                      background: topPattern.confidence >= 70 ? `${'#00FFA3'}15` : topPattern.confidence >= 50 ? `${'#FFB800'}15` : `${'#6B7280'}10`,
+                      color: topPattern.confidence >= 70 ? '#00FFA3' : topPattern.confidence >= 50 ? '#FFB800' : '#6B7280',
                       fontFamily: "var(--font-mono)",
                     }}>
                       {topPattern.confidence}%
@@ -503,11 +502,11 @@ export function PatternsView() {
                 {/* Top pattern description */}
                 {topPattern.descriptionKey && (
                   <div style={{
-                    fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)",
+                    fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)",
                     lineHeight: 1.5, marginBottom: 6,
                     display: 'flex', alignItems: 'flex-start', gap: 4,
                   }}>
-                    <AlertTriangle size={9} color={T.amber} style={{ flexShrink: 0, marginTop: 1 }} />
+                    <AlertTriangle size={9} color={'#FFB800'} style={{ flexShrink: 0, marginTop: 1 }} />
                     {t(`patterns.${topPattern.descriptionKey}`, topPattern.descriptionParams)}
                   </div>
                 )}
@@ -523,8 +522,8 @@ export function PatternsView() {
                   <button onClick={e => { e.stopPropagation(); ctx.setSelectedSymbol(item.symbol) }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 4,
-                      padding: '3px 8px', borderRadius: 'var(--radius-sm)', border: `0.5px solid ${T.purple}30`,
-                      background: `${T.purple}10`, color: T.purple, fontSize: 'var(--text-xs)',
+                      padding: '3px 8px', borderRadius: 'var(--radius-sm)', border: `0.5px solid ${'#B388FF'}30`,
+                      background: `${'#B388FF'}10`, color: '#B388FF', fontSize: 'var(--text-xs)',
                       fontWeight: 700, fontFamily: "var(--font-ar)", cursor: 'pointer', transition: 'all 0.2s',
                     }}
                   >

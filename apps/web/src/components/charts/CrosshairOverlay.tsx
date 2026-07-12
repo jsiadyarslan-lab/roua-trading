@@ -8,7 +8,6 @@ import { useMemo } from 'react';
 import type { CrosshairData, CandleData } from '@/lib/charts/types';
 import { priceDecimals } from '@/lib/price-format';
 import { useLocale, useTranslations } from 'next-intl'
-import T from '@/lib/unified-tokens';
 
 interface CrosshairOverlayProps {
   symbol: string;
@@ -62,15 +61,15 @@ export function CrosshairOverlay({
   const decimals = useMemo(() => priceDecimals(price, symbol), [symbol, price]);
 
   const isBull = displayData ? displayData.close >= displayData.open : true;
-  const changeColor = displayData && displayData.change >= 0 ? T.success : T.danger;
+  const changeColor = displayData && displayData.change >= 0 ? '#00FFA3' : '#FF4757';
 
   const COLORS = {
-    text: T.text,
-    textSecondary: T.text2,
-    textMuted: T.text2,
-    cyan: T.info,
-    success: T.success,
-    danger: T.danger,
+    text: '#F0F2F5',
+    textSecondary: '#9CA3B5',
+    textMuted: '#9CA3B5',
+    cyan: '#00D4FF',
+    success: '#00FFA3',
+    danger: '#FF4757',
     bg: 'rgba(11,14,20,0.82)',
   };
 
@@ -155,7 +154,7 @@ export function CrosshairOverlay({
             </span>
           )}
           {feedState === 'fallback' && (
-            <span style={{ fontSize: 'var(--text-xs)', color: T.warning, fontFamily: "var(--font-mono)" }}>{t('fallbackData')}</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: '#FFB800', fontFamily: "var(--font-mono)" }}>{t('fallbackData')}</span>
           )}
         </div>
       </div>
@@ -257,7 +256,7 @@ export function CrosshairOverlay({
         color: COLORS.textSecondary,
       }}>
         {feedState === 'fallback' && (
-          <span style={{ color: T.warning }}>{t('usingFallbackData')}</span>
+          <span style={{ color: '#FFB800' }}>{t('usingFallbackData')}</span>
         )}
         {!mobile && (
           <>

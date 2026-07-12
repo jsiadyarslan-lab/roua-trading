@@ -6,7 +6,6 @@ import { useRouter, Link } from '@/i18n/navigation'
 import { Fingerprint, TrendingUp, ArrowRight, Mail, Shield, KeyRound, Timer } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { motion, AnimatePresence } from 'framer-motion'
-import T from '@/lib/unified-tokens'
 
 /**
  * Login Page — Roua Trading (رؤى)
@@ -441,7 +440,7 @@ function LoginForm() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.4 }}
             className="text-lg font-bold text-center mb-6"
-            style={{ color: T.text2, fontFamily: 'var(--font-ar)' }}
+            style={{ color: '#9CA3B5', fontFamily: 'var(--font-ar)' }}
           >
             {t('welcomeBack')}
           </motion.h2>
@@ -454,7 +453,7 @@ function LoginForm() {
             className="mb-3"
           >
             <div className="relative">
-              <Mail className="absolute end-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: T.text2 }} />
+              <Mail className="absolute end-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#9CA3B5' }} />
               <input
                 type="email"
                 value={email}
@@ -472,7 +471,7 @@ function LoginForm() {
                 style={{
                   background: 'rgba(255,255,255,0.05)',
                   border: '1px solid rgba(255,255,255,0.1)',
-                  color: T.text2,
+                  color: '#9CA3B5',
                   fontFamily: 'var(--font-en)',
                 }}
                 onFocus={(e) => {
@@ -549,7 +548,7 @@ function LoginForm() {
                           style={{
                             background: 'rgba(255,255,255,0.06)',
                             border: digit ? '1px solid rgba(0,212,255,0.5)' : '1px solid rgba(255,255,255,0.1)',
-                            color: T.info,
+                            color: '#00D4FF',
                             fontFamily: 'var(--font-en)',
                             boxShadow: digit ? '0 0 10px rgba(0,212,255,0.15)' : 'none',
                           }}
@@ -698,7 +697,7 @@ function LoginForm() {
                        disabled:opacity-40 disabled:cursor-not-allowed
                        transition-all duration-200 mb-4"
           >
-            <Fingerprint className="w-4 h-4" style={{ color: T.info }} />
+            <Fingerprint className="w-4 h-4" style={{ color: '#00D4FF' }} />
             <span style={{ fontFamily: 'var(--font-ar)' }}>{loading === 'passkey' ? t('passkeyVerifying') : 'Passkey'}</span>
           </motion.button>
 

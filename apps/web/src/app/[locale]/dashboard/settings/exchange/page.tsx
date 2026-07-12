@@ -29,7 +29,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import T from '@/lib/unified-tokens'
 
 interface Credential {
   id: string
@@ -979,7 +978,7 @@ export default function ExchangeSettingsPage() {
                         }}>
                           <div className="font-bold mb-2" style={{
                             color: (testResults[cred.id].restApiWorks || testResults[cred.id].rpcWorks)
-                              ? T.success : T.loss,
+                              ? '#00FFA3' : '#ef4444',
                             fontFamily: "var(--font-ar)",
                           }}>
                             {(testResults[cred.id].restApiWorks || testResults[cred.id].rpcWorks)
@@ -988,7 +987,7 @@ export default function ExchangeSettingsPage() {
                           <div className="space-y-1" style={{ fontFamily: "var(--font-ar)" }}>
                             {testResults[cred.id].steps?.map((step: any, i: number) => (
                               <div key={i} className="flex items-center gap-2">
-                                <span style={{ color: step.success ? T.success : T.loss }}>
+                                <span style={{ color: step.success ? '#00FFA3' : '#ef4444' }}>
                                   {step.success ? '✓' : '✗'}
                                 </span>
                                 <span className="text-muted-foreground">{step.step}</span>

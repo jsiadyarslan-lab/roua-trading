@@ -22,7 +22,6 @@ import {
   LineChart,
 } from 'lucide-react'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
-import T from '@/lib/unified-tokens'
 
 const NAV_ITEMS = [
   { id: 'overview', label: 'نظرة عامة', icon: LayoutDashboard, path: '/dashboard/admin' },
@@ -160,15 +159,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return (
       <div style={{
         minHeight: '100vh',
-        background: T.bg,
+        background: '#0B0E14',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         direction: 'inherit',
       }}>
         <div style={{ textAlign: 'center' }}>
-          <Loader2 size={32} color={T.info} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
-          <div style={{ fontSize: 'var(--text-base)', color: T.text2, fontFamily: "var(--font-ar)" }}>جارٍ التحقق من الهوية...</div>
+          <Loader2 size={32} color={'#00D4FF'} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
+          <div style={{ fontSize: 'var(--text-base)', color: '#9CA3B5', fontFamily: "var(--font-ar)" }}>جارٍ التحقق من الهوية...</div>
         </div>
       </div>
     )
@@ -186,12 +185,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   const sidebarWidth = collapsed ? 64 : 220
-  const SIDEBAR_BG = T.bg
+  const SIDEBAR_BG = '#0B0E14'
   const SIDEBAR_BORDER = 'rgba(0,229,255,0.08)'
-  const ACCENT = T.info
-  const TEXT = T.text
-  const TEXT_MUTED = T.text2
-  const BG = T.bg
+  const ACCENT = '#00D4FF'
+  const TEXT = '#F0F2F5'
+  const TEXT_MUTED = '#9CA3B5'
+  const BG = '#0B0E14'
 
   return (
     <div style={{ display: 'flex', minHeight: '100%', direction: 'inherit', background: BG }}>
@@ -315,7 +314,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               justifyContent: collapsed ? 'center' : 'flex-start',
               borderRadius: 'var(--radius-sm)',
               cursor: 'pointer',
-              color: T.danger,
+              color: '#FF4757',
             }}
           >
             <LogOut size={16} />

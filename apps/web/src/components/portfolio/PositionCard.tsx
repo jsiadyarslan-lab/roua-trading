@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { X as XIcon, TrendingUp, TrendingDown, Loader2 } from 'lucide-react'
-import T from '@/lib/unified-tokens'
 import { getPnlColor, isPnlPositive } from '@/lib/pnl-utils'
 import { fmtPrice, fmtPriceLocale } from '@/lib/price-format'
 import { useTranslations } from 'next-intl'
@@ -107,7 +106,7 @@ export function PositionCard({
       : 0)
   const isProfitable = isPnlPositive(unrealizedPnl)
   const pnlColor = getPnlColor(unrealizedPnl)
-  const sideColor = isLong ? T.green : T.red
+  const sideColor = isLong ? '#00FFA3' : '#FF4757'
   const sideLabel = isLong ? tc('buy') : tc('sell')
 
   const effectiveSl = sl ?? stopLoss
@@ -168,7 +167,7 @@ export function PositionCard({
           style={{
             fontSize: 'var(--text-xs)',
             fontWeight: 800,
-            color: T.text,
+            color: '#F0F2F5',
             fontFamily: "var(--font-mono)",
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -203,7 +202,7 @@ export function PositionCard({
           <div
             style={{
               fontSize: 'var(--text-xs)',
-              color: T.textMuted,
+              color: '#6B7280',
               fontFamily: "var(--font-ar)",
             }}
           >
@@ -212,7 +211,7 @@ export function PositionCard({
           <div
             style={{
               fontSize: 'var(--text-xs)',
-              color: T.text2,
+              color: '#9CA3B5',
               fontFamily: "var(--font-mono)",
             }}
           >
@@ -223,7 +222,7 @@ export function PositionCard({
           <div
             style={{
               fontSize: 'var(--text-xs)',
-              color: T.textMuted,
+              color: '#6B7280',
               fontFamily: "var(--font-ar)",
             }}
           >
@@ -232,7 +231,7 @@ export function PositionCard({
           <div
             style={{
               fontSize: 'var(--text-xs)',
-              color: T.text,
+              color: '#F0F2F5',
               fontWeight: 700,
               fontFamily: "var(--font-mono)",
             }}
@@ -306,7 +305,7 @@ export function PositionCard({
                 borderRadius: 'var(--radius-xs)',
                 border: '1px solid rgba(255,71,87,0.3)',
                 background: 'rgba(255,71,87,0.08)',
-                color: T.red,
+                color: '#FF4757',
                 fontFamily: "var(--font-mono)",
                 outline: 'none',
               }}
@@ -329,7 +328,7 @@ export function PositionCard({
                 ? '1px solid rgba(255,71,87,0.3)'
                 : '1px dashed rgba(255,71,87,0.2)',
               background: effectiveSl ? 'rgba(255,71,87,0.08)' : 'transparent',
-              color: effectiveSl ? T.red : 'rgba(255,71,87,0.5)',
+              color: effectiveSl ? '#FF4757' : 'rgba(255,71,87,0.5)',
               fontSize: 'var(--text-xs)',
               fontWeight: 700,
               fontFamily: "var(--font-mono)",
@@ -371,7 +370,7 @@ export function PositionCard({
                 borderRadius: 'var(--radius-xs)',
                 border: '1px solid rgba(0,255,163,0.3)',
                 background: 'rgba(0,255,163,0.08)',
-                color: T.green,
+                color: '#00FFA3',
                 fontFamily: "var(--font-mono)",
                 outline: 'none',
               }}
@@ -394,7 +393,7 @@ export function PositionCard({
                 ? '1px solid rgba(0,255,163,0.3)'
                 : '1px dashed rgba(0,255,163,0.2)',
               background: effectiveTp ? 'rgba(0,255,163,0.08)' : 'transparent',
-              color: effectiveTp ? T.green : 'rgba(0,255,163,0.5)',
+              color: effectiveTp ? '#00FFA3' : 'rgba(0,255,163,0.5)',
               fontSize: 'var(--text-xs)',
               fontWeight: 700,
               fontFamily: "var(--font-mono)",
@@ -433,7 +432,7 @@ export function PositionCard({
                   borderRadius: 'var(--radius-sm)',
                   border: '1px solid rgba(255,71,87,0.4)',
                   background: 'rgba(255,71,87,0.15)',
-                  color: T.red,
+                  color: '#FF4757',
                   fontSize: 'var(--text-xs)',
                   fontWeight: 800,
                   cursor: closing || loading ? 'not-allowed' : 'pointer',
@@ -456,7 +455,7 @@ export function PositionCard({
                   borderRadius: 'var(--radius-sm)',
                   border: '1px solid rgba(255,255,255,0.08)',
                   background: 'transparent',
-                  color: T.textMuted,
+                  color: '#6B7280',
                   fontSize: 'var(--text-xs)',
                   cursor: closing || loading ? 'not-allowed' : 'pointer',
                   opacity: closing || loading ? 0.5 : 1,

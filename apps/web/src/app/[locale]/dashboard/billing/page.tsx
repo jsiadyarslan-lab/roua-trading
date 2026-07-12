@@ -11,7 +11,6 @@ import {
 import { useAuthStore } from '@/lib/auth-store'
 import { ROLE_INFO, type Role } from '@/lib/permissions'
 import { toast } from '@/hooks/use-toast'
-import T from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations } from 'next-intl'
 
@@ -44,28 +43,28 @@ interface PlanData {
 // Plan data is built inside the component using translations — see getPlans() below
 const PLAN_CONFIGS: { id: Role; price: number; color: string; gradient: string; icon: React.ReactNode; popular?: boolean; badgeKey?: string; featureKeys: string[]; featureIncluded: boolean[]; descKey: string }[] = [
   {
-    id: 'FREE', price: 0, color: T.text2, gradient: 'linear-gradient(135deg, #8B92A8, #64748b)',
+    id: 'FREE', price: 0, color: '#9CA3B5', gradient: 'linear-gradient(135deg, #8B92A8, #64748b)',
     icon: <Crown size={22} />,
     descKey: 'planFreeDesc2',
     featureKeys: ['planFreeF1','planFreeF2','planFreeF3','planFreeF4','planFreeF5','planFreeF6','planFreeF7','planFreeF8'],
     featureIncluded: [true,true,true,true,false,false,false,false],
   },
   {
-    id: 'PRO', price: 29, color: T.cyan, gradient: 'linear-gradient(135deg, #00D4FF, #0A84FF)',
+    id: 'PRO', price: 29, color: '#00D4FF', gradient: 'linear-gradient(135deg, #00D4FF, #0A84FF)',
     icon: <Star size={22} />, popular: true,
     descKey: 'planProDesc2',
     featureKeys: ['planProF1','planProF2','planProF3','planProF4','planProF5','planProF6','planProF7','planProF8'],
     featureIncluded: [true,true,true,true,true,true,false,false],
   },
   {
-    id: 'PREMIUM', price: 79, color: T.amber, gradient: 'linear-gradient(135deg, #FFB800, #FF8C00)',
+    id: 'PREMIUM', price: 79, color: '#FFB800', gradient: 'linear-gradient(135deg, #FFB800, #FF8C00)',
     icon: <Sparkles size={22} />, badgeKey: 'bestValue',
     descKey: 'planPremiumDesc2',
     featureKeys: ['planPremiumF1','planPremiumF2','planPremiumF3','planPremiumF4','planPremiumF5','planPremiumF6','planPremiumF7','planPremiumF8'],
     featureIncluded: [true,true,true,true,true,true,true,true],
   },
   {
-    id: 'INSTITUTIONAL', price: 299, color: T.green, gradient: 'linear-gradient(135deg, #00FFA3, #00CC82)',
+    id: 'INSTITUTIONAL', price: 299, color: '#00FFA3', gradient: 'linear-gradient(135deg, #00FFA3, #00CC82)',
     icon: <Building2 size={22} />,
     descKey: 'planInstDesc2',
     featureKeys: ['planInstF1','planInstF2','planInstF3','planInstF4','planInstF5','planInstF6','planInstF7','planInstF8'],
@@ -99,10 +98,10 @@ interface BillingRecord {
 ═══════════════════════════════════════════════════════ */
 function StatusBadge({ status, label }: { status: BillingRecord['status']; label: string }) {
   const colors: Record<string, { bg: string; text: string; border: string }> = {
-    paid: { bg: `${T.green}12`, text: T.green, border: `${T.green}25` },
-    pending: { bg: `${T.amber}12`, text: T.amber, border: `${T.amber}25` },
-    failed: { bg: `${T.red}12`, text: T.red, border: `${T.red}25` },
-    refunded: { bg: `${T.purple}12`, text: T.purple, border: `${T.purple}25` },
+    paid: { bg: `${'#00FFA3'}12`, text: '#00FFA3', border: `${'#00FFA3'}25` },
+    pending: { bg: `${'#FFB800'}12`, text: '#FFB800', border: `${'#FFB800'}25` },
+    failed: { bg: `${'#FF4757'}12`, text: '#FF4757', border: `${'#FF4757'}25` },
+    refunded: { bg: `${'#B388FF'}12`, text: '#B388FF', border: `${'#B388FF'}25` },
   }
   const c = colors[status] || colors.pending
   return (
@@ -211,15 +210,15 @@ export default function BillingPage() {
   return (
     <div className="custom-scrollbar" style={{
       fontFamily: "var(--font-ar)",
-      height: '100%', overflowY: 'auto', background: T.bg,
+      height: '100%', overflowY: 'auto', background: '#0B0E14',
     }}>
       {/* Scoped styles via useScopedStyle */}{/* ═══════════════════════════════════════════════════
           Header
       ═══════════════════════════════════════════════════ */}
       <div style={{
         padding: '24px 24px 0',
-        borderBottom: `1px solid ${T.border}`,
-        background: `linear-gradient(180deg, ${T.bg2}, ${T.bg})`,
+        borderBottom: `1px solid ${'#2A313C'}`,
+        background: `linear-gradient(180deg, ${'#0F1117'}, ${'#0B0E14'})`,
       }}>
         <div className="billing-header-row" style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
           <div style={{
@@ -231,10 +230,10 @@ export default function BillingPage() {
             <CreditCard size={18} color="#fff" />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h1 style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 900, color: T.text }}>
+            <h1 style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 900, color: '#F0F2F5' }}>
               {t('title')}
             </h1>
-            <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: T.text3 }}>
+            <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: '#6B7280' }}>
               {t('subtitleFull')}
             </p>
           </div>
@@ -261,7 +260,7 @@ export default function BillingPage() {
 
         {/* ─── Current Plan Card ─── */}
         <div style={{
-          background: T.card, border: `1px solid ${roleInfo.color}25`,
+          background: '#151A22', border: `1px solid ${roleInfo.color}25`,
           borderRadius: 'var(--radius-xl)', overflow: 'hidden', position: 'relative',
         }}>
           {/* Glow Effect */}
@@ -286,17 +285,17 @@ export default function BillingPage() {
                  <Crown size={24} color="#fff" />}
               </div>
               <div style={{ flex: 1, minWidth: 120 }}>
-                <div style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: T.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: '#F0F2F5', display: 'flex', alignItems: 'center', gap: 8 }}>
                   {t('currentPlanLabel', { plan: tc(roleInfo.labelKey) })}
                   {userTier === 'FREE' && (
                     <span style={{
                       fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-lg)',
-                      background: `${T.cyan}12`, color: T.cyan,
+                      background: `${'#00D4FF'}12`, color: '#00D4FF',
                       fontFamily: "var(--font-ar)", fontWeight: 700,
                     }}>{tc('upgradeAvailable')}</span>
                   )}
                 </div>
-                <div style={{ fontSize: 'var(--text-sm)', color: T.text3, marginTop: 4, lineHeight: 1.6 }}>
+                <div style={{ fontSize: 'var(--text-sm)', color: '#6B7280', marginTop: 4, lineHeight: 1.6 }}>
                   {tc(roleInfo.descriptionKey)} — {t('currentlyOnPlan', { plan: tc(roleInfo.labelKey) })}
                   {userTier !== 'INSTITUTIONAL' && t('upgradeAnytime')}
                   {userTier === 'INSTITUTIONAL' && t('highestServiceLevel')}
@@ -309,7 +308,7 @@ export default function BillingPage() {
                 }}>
                   {PLANS.find(p => p.id === userTier)?.price || 0}
                 </div>
-                <div style={{ fontSize: 'var(--text-xs)', color: T.text4 }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>
                   {tc('perMonth')}
                 </div>
               </div>
@@ -323,8 +322,8 @@ export default function BillingPage() {
                 display: 'flex', alignItems: 'center', gap: 10,
               }}>
                 <Clock size={14} color={roleInfo.color} />
-                <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.5 }}>
-                  <span style={{ fontWeight: 700, color: T.text }}>{t('nextPayment')}</span>
+                <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.5 }}>
+                  <span style={{ fontWeight: 700, color: '#F0F2F5' }}>{t('nextPayment')}</span>
                   {' '}{t('nextPaymentDate')} — {t('autoRenewAt')}{' '}
                   <span style={{ color: roleInfo.color, fontFamily: "var(--font-mono)", fontWeight: 700 }}>
                     ${PLANS.find(p => p.id === userTier)?.price || 0}
@@ -340,14 +339,14 @@ export default function BillingPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <div style={{
               width: 30, height: 30, borderRadius: 'var(--radius-md)',
-              background: `${T.purple}14`, display: 'flex',
+              background: `${'#B388FF'}14`, display: 'flex',
               alignItems: 'center', justifyContent: 'center',
             }}>
-              <Sparkles size={14} color={T.purple} />
+              <Sparkles size={14} color={'#B388FF'} />
             </div>
             <div>
-              <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text }}>{t('plansTitle')}</div>
-              <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{t('plansSubtitleFull')}</div>
+              <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5' }}>{t('plansTitle')}</div>
+              <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('plansSubtitleFull')}</div>
             </div>
           </div>
 
@@ -362,8 +361,8 @@ export default function BillingPage() {
 
               return (
                 <div key={plan.id} style={{
-                  background: T.card,
-                  border: isCurrentPlan ? `1px solid ${plan.color}40` : `1px solid ${T.border}`,
+                  background: '#151A22',
+                  border: isCurrentPlan ? `1px solid ${plan.color}40` : `1px solid ${'#2A313C'}`,
                   borderRadius: 'var(--radius-xl)', overflow: 'hidden',
                   position: 'relative',
                   transition: 'all 0.3s',
@@ -374,10 +373,10 @@ export default function BillingPage() {
                     <div style={{
                       position: 'absolute', top: 12, left: 12,
                       padding: '3px 10px', borderRadius: 'var(--radius-lg)',
-                      background: `linear-gradient(135deg, ${T.cyan}, ${T.blue})`,
+                      background: `linear-gradient(135deg, ${'#00D4FF'}, ${'#0A84FF'})`,
                       color: '#000', fontSize: 'var(--text-xs)', fontWeight: 800,
                       fontFamily: "var(--font-ar)",
-                      boxShadow: `0 0 12px ${T.cyan}30`,
+                      boxShadow: `0 0 12px ${'#00D4FF'}30`,
                     }}>
                       {tc('mostPopular')}
                     </div>
@@ -388,7 +387,7 @@ export default function BillingPage() {
                     <div style={{
                       position: 'absolute', top: 12, left: 12,
                       padding: '3px 10px', borderRadius: 'var(--radius-lg)',
-                      background: `linear-gradient(135deg, ${T.amber}, #FF8C00)`,
+                      background: `linear-gradient(135deg, ${'#FFB800'}, #FF8C00)`,
                       color: '#000', fontSize: 'var(--text-xs)', fontWeight: 800,
                       fontFamily: "var(--font-ar)",
                     }}>
@@ -408,7 +407,7 @@ export default function BillingPage() {
                         {plan.icon}
                       </div>
                       <div>
-                        <div style={{ fontSize: 'var(--text-base)', fontWeight: 900, color: T.text, fontFamily: "var(--font-ar)" }}>
+                        <div style={{ fontSize: 'var(--text-base)', fontWeight: 900, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
                           {plan.name}
                         </div>
                       </div>
@@ -422,14 +421,14 @@ export default function BillingPage() {
                       }}>
                         ${plan.price}
                       </span>
-                      <span style={{ fontSize: 'var(--text-xs)', color: T.text4 }}>
+                      <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>
                         /{plan.period}
                       </span>
                     </div>
 
                     {/* Description */}
                     <div style={{
-                      fontSize: 'var(--text-xs)', color: T.text3, lineHeight: 1.7,
+                      fontSize: 'var(--text-xs)', color: '#6B7280', lineHeight: 1.7,
                       marginBottom: 14, minHeight: 55,
                     }}>
                       {plan.description.slice(0, 100)}...
@@ -440,7 +439,7 @@ export default function BillingPage() {
                       {plan.features.map((feat, fi) => (
                         <div key={fi} style={{
                           display: 'flex', alignItems: 'center', gap: 6,
-                          fontSize: 'var(--text-xs)', color: feat.included ? T.text2 : T.text4,
+                          fontSize: 'var(--text-xs)', color: feat.included ? '#9CA3B5' : '#6B7280',
                           textDecoration: feat.included ? 'none' : 'line-through',
                           opacity: feat.included ? 1 : 0.5,
                         }}>
@@ -472,9 +471,9 @@ export default function BillingPage() {
                         disabled={upgrading === plan.id}
                         style={{
                           width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-lg)',
-                          background: isDowngrade ? T.surface : `linear-gradient(135deg, ${plan.color}, ${plan.color}cc)`,
-                          border: isDowngrade ? `1px solid ${T.border2}` : 'none',
-                          color: isDowngrade ? T.cyan : '#000',
+                          background: isDowngrade ? '#151A22' : `linear-gradient(135deg, ${plan.color}, ${plan.color}cc)`,
+                          border: isDowngrade ? `1px solid ${'#3A4150'}` : 'none',
+                          color: isDowngrade ? '#00D4FF' : '#000',
                           fontSize: 'var(--text-sm)', fontWeight: 800, cursor: upgrading === plan.id ? 'wait' : 'pointer',
                           fontFamily: "var(--font-ar)",
                           transition: 'all 0.2s',
@@ -504,14 +503,14 @@ export default function BillingPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <div style={{
               width: 30, height: 30, borderRadius: 'var(--radius-md)',
-              background: `${T.green}14`, display: 'flex',
+              background: `${'#00FFA3'}14`, display: 'flex',
               alignItems: 'center', justifyContent: 'center',
             }}>
-              <Wallet size={14} color={T.green} />
+              <Wallet size={14} color={'#00FFA3'} />
             </div>
             <div>
-              <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text }}>{t('paymentMethods')}</div>
-              <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>
+              <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5' }}>{t('paymentMethods')}</div>
+              <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>
                 {t('paymentMethodsSubtitle')}
               </div>
             </div>
@@ -522,27 +521,27 @@ export default function BillingPage() {
           }}>
             {/* Credit Card */}
             <div style={{
-              background: T.card, border: `1px solid ${selectedPayment === 'card' ? T.border2 : T.border}`,
+              background: '#151A22', border: `1px solid ${selectedPayment === 'card' ? '#3A4150' : '#2A313C'}`,
               borderRadius: 'var(--radius-xl)', overflow: 'hidden',
               cursor: 'pointer', transition: 'all 0.3s',
             }}
               onClick={() => setSelectedPayment('card')}
             >
-              <div style={{ padding: '16px 18px', borderBottom: `1px solid ${T.border}` }}>
+              <div style={{ padding: '16px 18px', borderBottom: `1px solid ${'#2A313C'}` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{
                     width: 8, height: 8, borderRadius: 'var(--radius-sm)',
-                    background: selectedPayment === 'card' ? T.cyan : T.text4,
-                    boxShadow: selectedPayment === 'card' ? `0 0 8px ${T.cyan}50` : 'none',
+                    background: selectedPayment === 'card' ? '#00D4FF' : '#6B7280',
+                    boxShadow: selectedPayment === 'card' ? `0 0 8px ${'#00D4FF'}50` : 'none',
                     transition: 'all 0.3s',
                   }} />
-                  <CreditCard size={16} color={selectedPayment === 'card' ? T.cyan : T.text3} />
-                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: selectedPayment === 'card' ? T.text : T.text3 }}>
+                  <CreditCard size={16} color={selectedPayment === 'card' ? '#00D4FF' : '#6B7280'} />
+                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: selectedPayment === 'card' ? '#F0F2F5' : '#6B7280' }}>
                     {t('creditDebit')}
                   </span>
                   <span style={{
                     marginRight: 'auto', fontSize: 'var(--text-xs)', padding: '2px 7px',
-                    borderRadius: 'var(--radius-lg)', background: `${T.green}12`, color: T.green,
+                    borderRadius: 'var(--radius-lg)', background: `${'#00FFA3'}12`, color: '#00FFA3',
                     fontWeight: 600, fontFamily: "var(--font-mono)",
                   }}>
                     <Lock size={8} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: 3 }} />
@@ -555,25 +554,25 @@ export default function BillingPage() {
                 <div style={{ padding: '14px 18px' }}>
                   {/* Card Visual */}
                   <div style={{
-                    background: `linear-gradient(135deg, ${T.surface}, #242838)`,
+                    background: `linear-gradient(135deg, ${'#151A22'}, #242838)`,
                     borderRadius: 'var(--radius-lg)', padding: '16px 18px',
-                    border: `1px solid ${T.border2}`,
+                    border: `1px solid ${'#3A4150'}`,
                     marginBottom: 14, position: 'relative', overflow: 'hidden',
                   }}>
                     <div style={{
                       position: 'absolute', top: -20, left: -20,
                       width: 80, height: 80, borderRadius: '50%',
-                      background: `${T.cyan}06`, filter: 'blur(30px)',
+                      background: `${'#00D4FF'}06`, filter: 'blur(30px)',
                     }} />
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                       <div style={{
-                        fontSize: 'var(--text-xs)', fontWeight: 700, color: T.cyan,
+                        fontSize: 'var(--text-xs)', fontWeight: 700, color: '#00D4FF',
                         fontFamily: "var(--font-mono)",
                       }}>VISA</div>
-                      <Lock size={12} color={T.text4} />
+                      <Lock size={12} color={'#6B7280'} />
                     </div>
                     <div style={{
-                      fontSize: 'var(--text-base)', fontWeight: 600, color: T.text,
+                      fontSize: 'var(--text-base)', fontWeight: 600, color: '#F0F2F5',
                       fontFamily: "var(--font-mono)",
                       letterSpacing: 2, marginBottom: 12,
                       direction: 'ltr', textAlign: 'left',
@@ -582,12 +581,12 @@ export default function BillingPage() {
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                       <div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: T.text4, marginBottom: 2 }}>{t('cardHolder')}</div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: T.text2, fontWeight: 600 }}>{user?.displayName || 'ROUA USER'}</div>
+                        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 2 }}>{t('cardHolder')}</div>
+                        <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontWeight: 600 }}>{user?.displayName || 'ROUA USER'}</div>
                       </div>
                       <div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: T.text4, marginBottom: 2 }}>{t('expiry')}</div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-mono)" }}>{cardExpiry}</div>
+                        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 2 }}>{t('expiry')}</div>
+                        <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontFamily: "var(--font-mono)" }}>{cardExpiry}</div>
                       </div>
                     </div>
                   </div>
@@ -595,10 +594,10 @@ export default function BillingPage() {
                   {/* Card Form (visual only) */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     <div>
-                      <label style={{ fontSize: 'var(--text-xs)', color: T.text3, marginBottom: 4, display: 'block' }}>{t('cardNumber')}</label>
+                      <label style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 4, display: 'block' }}>{t('cardNumber')}</label>
                       <div style={{
                         display: 'flex', alignItems: 'center', gap: 8,
-                        background: T.surface, border: `1px solid ${T.border}`,
+                        background: '#151A22', border: `1px solid ${'#2A313C'}`,
                         borderRadius: 'var(--radius-md)', padding: '8px 12px',
                       }}>
                         <input
@@ -607,7 +606,7 @@ export default function BillingPage() {
                           onChange={e => setCardNumber(e.target.value)}
                           style={{
                             flex: 1, background: 'none', border: 'none',
-                            color: T.text, fontSize: 'var(--text-sm)',
+                            color: '#F0F2F5', fontSize: 'var(--text-sm)',
                             fontFamily: "var(--font-mono)",
                             outline: 'none', direction: 'ltr', textAlign: 'left',
                           }}
@@ -615,7 +614,7 @@ export default function BillingPage() {
                         />
                         <button
                           onClick={() => setShowCardNumber(!showCardNumber)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.text3, padding: 0 }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', padding: 0 }}
                         >
                           {showCardNumber ? <EyeOff size={14} /> : <Eye size={14} />}
                         </button>
@@ -623,15 +622,15 @@ export default function BillingPage() {
                     </div>
                     <div style={{ display: 'flex', gap: 10 }}>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: 'var(--text-xs)', color: T.text3, marginBottom: 4, display: 'block' }}>{t('expiryDate')}</label>
+                        <label style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 4, display: 'block' }}>{t('expiryDate')}</label>
                         <input
                           type="text"
                           value={cardExpiry}
                           onChange={e => setCardExpiry(e.target.value)}
                           style={{
-                            width: '100%', background: T.surface,
-                            border: `1px solid ${T.border}`, borderRadius: 'var(--radius-md)',
-                            padding: '8px 12px', color: T.text, fontSize: 'var(--text-sm)',
+                            width: '100%', background: '#151A22',
+                            border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-md)',
+                            padding: '8px 12px', color: '#F0F2F5', fontSize: 'var(--text-sm)',
                             fontFamily: "var(--font-mono)",
                             outline: 'none', direction: 'ltr', textAlign: 'left',
                           }}
@@ -639,15 +638,15 @@ export default function BillingPage() {
                         />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: 'var(--text-xs)', color: T.text3, marginBottom: 4, display: 'block' }}>CVC</label>
+                        <label style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 4, display: 'block' }}>CVC</label>
                         <input
                           type="text"
                           value={cardCvc}
                           onChange={e => setCardCvc(e.target.value)}
                           style={{
-                            width: '100%', background: T.surface,
-                            border: `1px solid ${T.border}`, borderRadius: 'var(--radius-md)',
-                            padding: '8px 12px', color: T.text, fontSize: 'var(--text-sm)',
+                            width: '100%', background: '#151A22',
+                            border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-md)',
+                            padding: '8px 12px', color: '#F0F2F5', fontSize: 'var(--text-sm)',
                             fontFamily: "var(--font-mono)",
                             outline: 'none', direction: 'ltr', textAlign: 'left',
                           }}
@@ -662,27 +661,27 @@ export default function BillingPage() {
 
             {/* Crypto Payment */}
             <div style={{
-              background: T.card, border: `1px solid ${selectedPayment === 'crypto' ? T.border2 : T.border}`,
+              background: '#151A22', border: `1px solid ${selectedPayment === 'crypto' ? '#3A4150' : '#2A313C'}`,
               borderRadius: 'var(--radius-xl)', overflow: 'hidden',
               cursor: 'pointer', transition: 'all 0.3s',
             }}
               onClick={() => setSelectedPayment('crypto')}
             >
-              <div style={{ padding: '16px 18px', borderBottom: `1px solid ${T.border}` }}>
+              <div style={{ padding: '16px 18px', borderBottom: `1px solid ${'#2A313C'}` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{
                     width: 8, height: 8, borderRadius: 'var(--radius-sm)',
-                    background: selectedPayment === 'crypto' ? T.amber : T.text4,
-                    boxShadow: selectedPayment === 'crypto' ? `0 0 8px ${T.amber}50` : 'none',
+                    background: selectedPayment === 'crypto' ? '#FFB800' : '#6B7280',
+                    boxShadow: selectedPayment === 'crypto' ? `0 0 8px ${'#FFB800'}50` : 'none',
                     transition: 'all 0.3s',
                   }} />
-                  <Bitcoin size={16} color={selectedPayment === 'crypto' ? T.amber : T.text3} />
-                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: selectedPayment === 'crypto' ? T.text : T.text3 }}>
+                  <Bitcoin size={16} color={selectedPayment === 'crypto' ? '#FFB800' : '#6B7280'} />
+                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: selectedPayment === 'crypto' ? '#F0F2F5' : '#6B7280' }}>
                     {t('cryptoPay')}
                   </span>
                   <span style={{
                     marginRight: 'auto', fontSize: 'var(--text-xs)', padding: '2px 7px',
-                    borderRadius: 'var(--radius-lg)', background: `${T.amber}12`, color: T.amber,
+                    borderRadius: 'var(--radius-lg)', background: `${'#FFB800'}12`, color: '#FFB800',
                     fontWeight: 600,
                   }}>
                     {t('decentralized')}
@@ -694,10 +693,10 @@ export default function BillingPage() {
                 <div style={{ padding: '14px 18px' }}>
                   <div style={{
                     padding: '12px 14px', borderRadius: 'var(--radius-lg)',
-                    background: `${T.amber}06`, border: `1px solid ${T.amber}12`,
+                    background: `${'#FFB800'}06`, border: `1px solid ${'#FFB800'}12`,
                     marginBottom: 14,
                   }}>
-                    <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.7 }}>
+                    <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.7 }}>
                       {t('cryptoPayDesc')}
                     </div>
                   </div>
@@ -712,11 +711,11 @@ export default function BillingPage() {
                       <div key={coin.symbol} style={{
                         display: 'flex', alignItems: 'center', gap: 10,
                         padding: '10px 12px', borderRadius: 'var(--radius-lg)',
-                        background: T.surface, border: `1px solid ${T.border}`,
+                        background: '#151A22', border: `1px solid ${'#2A313C'}`,
                         transition: 'all 0.2s', cursor: 'pointer',
                       }}
                         onMouseEnter={e => { e.currentTarget.style.borderColor = `${coin.color}30`; e.currentTarget.style.background = `${coin.color}06` }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = T.surface }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = '#2A313C'; e.currentTarget.style.background = '#151A22' }}
                       >
                         <div style={{
                           width: 30, height: 30, borderRadius: 'var(--radius-md)',
@@ -727,10 +726,10 @@ export default function BillingPage() {
                           {coin.icon}
                         </div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text }}>{coin.name}</div>
-                          <div style={{ fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-mono)" }}>{coin.symbol}</div>
+                          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5' }}>{coin.name}</div>
+                          <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>{coin.symbol}</div>
                         </div>
-                        <ArrowUpRight size={14} color={T.text4} />
+                        <ArrowUpRight size={14} color={'#6B7280'} />
                       </div>
                     ))}
                   </div>
@@ -745,31 +744,31 @@ export default function BillingPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <div style={{
               width: 30, height: 30, borderRadius: 'var(--radius-md)',
-              background: `${T.blue}14`, display: 'flex',
+              background: `${'#0A84FF'}14`, display: 'flex',
               alignItems: 'center', justifyContent: 'center',
             }}>
-              <Receipt size={14} color={T.blue} />
+              <Receipt size={14} color={'#0A84FF'} />
             </div>
             <div>
-              <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text }}>{t('invoiceHistory')}</div>
-              <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>
+              <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5' }}>{t('invoiceHistory')}</div>
+              <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>
                 {t('invoiceSubtitle')}
               </div>
             </div>
           </div>
 
           <div style={{
-            background: T.card, border: `1px solid ${T.border}`,
+            background: '#151A22', border: `1px solid ${'#2A313C'}`,
             borderRadius: 'var(--radius-xl)', overflow: 'hidden',
           }}>
             <div className="billing-table-wrap">
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
                 <thead>
-                  <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                  <tr style={{ borderBottom: `1px solid ${'#2A313C'}` }}>
                     {[t('tableDate'), t('tableDescription'), t('tableAmount'), t('tableStatus'), ''].map(h => (
                       <th key={h} style={{
                         padding: '12px 16px', textAlign: 'right',
-                        fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text4,
+                        fontSize: 'var(--text-xs)', fontWeight: 700, color: '#6B7280',
                         fontFamily: "var(--font-ar)",
                         letterSpacing: '0.05em',
                       }}>
@@ -781,26 +780,26 @@ export default function BillingPage() {
                 <tbody>
                   {billingHistory.map((record, idx) => (
                     <tr key={record.id} style={{
-                      borderBottom: idx < billingHistory.length - 1 ? `1px solid ${T.border}` : 'none',
+                      borderBottom: idx < billingHistory.length - 1 ? `1px solid ${'#2A313C'}` : 'none',
                       transition: 'background 0.2s',
                     }}
-                      onMouseEnter={e => e.currentTarget.style.background = `${T.surface}50`}
+                      onMouseEnter={e => e.currentTarget.style.background = `${'#151A22'}50`}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
                       <td style={{ padding: '12px 16px' }}>
-                        <div style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-mono)", direction: 'ltr', textAlign: 'right' }}>
+                        <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontFamily: "var(--font-mono)", direction: 'ltr', textAlign: 'right' }}>
                           {record.date}
                         </div>
                       </td>
                       <td style={{ padding: '12px 16px' }}>
-                        <div style={{ fontSize: 'var(--text-xs)', color: T.text, fontWeight: 600 }}>{record.description}</div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-mono)", direction: 'ltr', textAlign: 'right' }}>
+                        <div style={{ fontSize: 'var(--text-xs)', color: '#F0F2F5', fontWeight: 600 }}>{record.description}</div>
+                        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)", direction: 'ltr', textAlign: 'right' }}>
                           {record.id}
                         </div>
                       </td>
                       <td style={{ padding: '12px 16px' }}>
                         <span style={{
-                          fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text,
+                          fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5',
                           fontFamily: "var(--font-mono)",
                         }}>
                           {record.amount}
@@ -813,15 +812,15 @@ export default function BillingPage() {
                         {record.status === 'paid' && (
                           <button
                             style={{
-                              background: 'none', border: `1px solid ${T.border}`,
+                              background: 'none', border: `1px solid ${'#2A313C'}`,
                               borderRadius: 'var(--radius-sm)', padding: '4px 8px',
-                              color: T.text3, fontSize: 'var(--text-xs)', cursor: 'pointer',
+                              color: '#6B7280', fontSize: 'var(--text-xs)', cursor: 'pointer',
                               display: 'flex', alignItems: 'center', gap: 4,
                               fontFamily: "var(--font-ar)",
                               transition: 'all 0.2s',
                             }}
-                            onMouseEnter={e => { e.currentTarget.style.borderColor = T.border2; e.currentTarget.style.color = T.cyan }}
-                            onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.text3 }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = '#3A4150'; e.currentTarget.style.color = '#00D4FF' }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = '#2A313C'; e.currentTarget.style.color = '#6B7280' }}
                             onClick={() => toast({ title: t('downloadingInvoice'), description: t('downloadingInvoiceDesc', { id: record.id }) })}
                           >
                             <Download size={10} />
@@ -837,16 +836,16 @@ export default function BillingPage() {
 
             {/* Summary footer */}
             <div style={{
-              padding: '12px 16px', borderTop: `1px solid ${T.border}`,
+              padding: '12px 16px', borderTop: `1px solid ${'#2A313C'}`,
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: `${T.surface}30`,
+              background: `${'#151A22'}30`,
             }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: T.text4 }}>
+              <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>
                 {t('lastTransactions', { n: billingHistory.length })}
               </div>
-              <div style={{ fontSize: 'var(--text-xs)', color: T.text3, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <FileText size={10} />
-                {t('totalPayments')}: <span style={{ color: T.text, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
+                {t('totalPayments')}: <span style={{ color: '#F0F2F5', fontWeight: 700, fontFamily: "var(--font-mono)" }}>
                   ${billingHistory.filter(r => r.status === 'paid').reduce((sum, r) => sum + parseFloat(r.amount.replace('$', '')), 0).toFixed(2)}
                 </span>
               </div>
@@ -856,21 +855,21 @@ export default function BillingPage() {
 
         {/* ─── Promo Code Section ─── */}
         <div style={{
-          background: T.card, border: `1px solid ${T.border}`,
+          background: '#151A22', border: `1px solid ${'#2A313C'}`,
           borderRadius: 'var(--radius-xl)', overflow: 'hidden',
         }}>
-          <div style={{ padding: '18px 20px', borderBottom: `1px solid ${T.border}` }}>
+          <div style={{ padding: '18px 20px', borderBottom: `1px solid ${'#2A313C'}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{
                 width: 36, height: 36, borderRadius: 'var(--radius-lg)',
-                background: `${T.pink}14`,
+                background: `${'#F472B6'}14`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                <Gift size={18} color={T.pink} />
+                <Gift size={18} color={'#F472B6'} />
               </div>
               <div>
-                <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text }}>{t('promoCode')}</div>
-                <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>
+                <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5' }}>{t('promoCode')}</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>
                   {t('promoDesc')}
                 </div>
               </div>
@@ -883,10 +882,10 @@ export default function BillingPage() {
             }}>
               <div style={{
                 flex: 1, display: 'flex', alignItems: 'center',
-                background: T.surface, border: `1px solid ${T.border}`,
+                background: '#151A22', border: `1px solid ${'#2A313C'}`,
                 borderRadius: 'var(--radius-lg)', padding: '4px 12px',
               }}>
-                <Tag size={14} color={T.text4} style={{ flexShrink: 0, marginLeft: 8 }} />
+                <Tag size={14} color={'#6B7280'} style={{ flexShrink: 0, marginLeft: 8 }} />
                 <input
                   type="text"
                   value={promoCode}
@@ -895,7 +894,7 @@ export default function BillingPage() {
                   maxLength={20}
                   style={{
                     flex: 1, background: 'none', border: 'none',
-                    color: T.text, fontSize: 'var(--text-sm)',
+                    color: '#F0F2F5', fontSize: 'var(--text-sm)',
                     fontFamily: "var(--font-mono)",
                     outline: 'none', padding: '8px 0',
                     direction: 'ltr', textAlign: 'right',
@@ -909,12 +908,12 @@ export default function BillingPage() {
                 disabled={promoApplying}
                 style={{
                   padding: '10px 24px', borderRadius: 'var(--radius-lg)',
-                  background: `linear-gradient(135deg, ${T.pink}, ${T.purple})`,
+                  background: `linear-gradient(135deg, ${'#F472B6'}, ${'#B388FF'})`,
                   border: 'none', color: '#fff',
                   fontSize: 'var(--text-sm)', fontWeight: 800, cursor: promoApplying ? 'wait' : 'pointer',
                   fontFamily: "var(--font-ar)",
                   transition: 'all 0.2s',
-                  boxShadow: `0 0 16px ${T.pink}20`,
+                  boxShadow: `0 0 16px ${'#F472B6'}20`,
                   whiteSpace: 'nowrap',
                   opacity: promoApplying ? 0.7 : 1,
                 }}
@@ -924,8 +923,8 @@ export default function BillingPage() {
             </div>
 
             <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Shield size={12} color={T.text4} />
-              <span style={{ fontSize: 'var(--text-xs)', color: T.text4 }}>
+              <Shield size={12} color={'#6B7280'} />
+              <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>
                 {t('allEncrypted')}
               </span>
             </div>
@@ -938,14 +937,14 @@ export default function BillingPage() {
           gap: 10,
         }}>
           {[
-            { icon: <Shield size={14} />, color: T.green, label: t('refundGuarantee'), desc: t('refundGuaranteeDesc') },
-            { icon: <Zap size={14} />, color: T.cyan, label: t('instantActivation'), desc: t('instantActivationDesc') },
-            { icon: <Lock size={14} />, color: T.amber, label: t('securePayment'), desc: t('securePaymentDesc') },
-            { icon: <Users size={14} />, color: T.purple, label: t('continuousSupport'), desc: t('continuousSupportDesc') },
+            { icon: <Shield size={14} />, color: '#00FFA3', label: t('refundGuarantee'), desc: t('refundGuaranteeDesc') },
+            { icon: <Zap size={14} />, color: '#00D4FF', label: t('instantActivation'), desc: t('instantActivationDesc') },
+            { icon: <Lock size={14} />, color: '#FFB800', label: t('securePayment'), desc: t('securePaymentDesc') },
+            { icon: <Users size={14} />, color: '#B388FF', label: t('continuousSupport'), desc: t('continuousSupportDesc') },
           ].map((item, i) => (
             <div key={i} style={{
               padding: '12px 14px', borderRadius: 'var(--radius-lg)',
-              background: T.card, border: `1px solid ${T.border}`,
+              background: '#151A22', border: `1px solid ${'#2A313C'}`,
               display: 'flex', alignItems: 'flex-start', gap: 10,
             }}>
               <div style={{
@@ -957,8 +956,8 @@ export default function BillingPage() {
                 {item.icon}
               </div>
               <div>
-                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text, marginBottom: 2 }}>{item.label}</div>
-                <div style={{ fontSize: 'var(--text-xs)', color: T.text4, lineHeight: 1.5 }}>{item.desc}</div>
+                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#F0F2F5', marginBottom: 2 }}>{item.label}</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', lineHeight: 1.5 }}>{item.desc}</div>
               </div>
             </div>
           ))}

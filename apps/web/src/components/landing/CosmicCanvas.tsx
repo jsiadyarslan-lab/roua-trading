@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl'
-import T from '@/lib/unified-tokens';
 
 export default function CosmicCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -33,12 +32,12 @@ export default function CosmicCanvas() {
     }
 
     const satellites: Satellite[] = [
-      { nameKey: 'linguisticAnalyst', descKey: 'linguisticAnalystDesc', color: T.info, angle: 0, speed: 0.0045, radius: 320, tilt: 0.45, size: 9 },
+      { nameKey: 'linguisticAnalyst', descKey: 'linguisticAnalystDesc', color: '#00D4FF', angle: 0, speed: 0.0045, radius: 320, tilt: 0.45, size: 9 },
       { nameKey: 'chartAnalysis', descKey: 'chartAnalysisDesc', color: '#7dd3fc', angle: 1.0, speed: 0.0035, radius: 390, tilt: 0.35, size: 10 },
-      { nameKey: 'dataProcessing', descKey: 'dataProcessingDesc', color: T.success, angle: 2.1, speed: 0.0055, radius: 290, tilt: 0.55, size: 8 },
+      { nameKey: 'dataProcessing', descKey: 'dataProcessingDesc', color: '#00FFA3', angle: 2.1, speed: 0.0055, radius: 290, tilt: 0.55, size: 8 },
       { nameKey: 'secureInfra', descKey: 'secureInfraDesc', color: '#bae6fd', angle: 3.5, speed: 0.0028, radius: 430, tilt: 0.4, size: 9 },
-      { nameKey: 'localModels', descKey: 'localModelsDesc', color: T.council, angle: 4.2, speed: 0.0045, radius: 350, tilt: 0.5, size: 8 },
-      { nameKey: 'liveMarketData', descKey: 'liveMarketDataDesc', color: T.pink, angle: 5.0, speed: 0.0065, radius: 260, tilt: 0.3, size: 9 }
+      { nameKey: 'localModels', descKey: 'localModelsDesc', color: '#B388FF', angle: 4.2, speed: 0.0045, radius: 350, tilt: 0.5, size: 8 },
+      { nameKey: 'liveMarketData', descKey: 'liveMarketDataDesc', color: '#F472B6', angle: 5.0, speed: 0.0065, radius: 260, tilt: 0.3, size: 9 }
     ];
 
     const stars: { x: number; y: number; z: number; size: number; opacity: number; twinkleSpeed: number }[] = [];
@@ -77,7 +76,7 @@ export default function CosmicCanvas() {
           theta, phi,
           open: Math.random() * 28 + 18,
           close: Math.random() * 28 + 18,
-          color: Math.random() > 0.5 ? T.success : T.danger,
+          color: Math.random() > 0.5 ? '#00FFA3' : '#FF4757',
           life: Math.random(),
           speed: 0.003 + Math.random() * 0.007
         });
@@ -319,7 +318,7 @@ export default function CosmicCanvas() {
           const h = candle.close * scale;
           const w = 5 * scale;
           const opacity = Math.sin(candle.life * Math.PI) * 0.95;
-          ctx!.fillStyle = candle.color === T.success
+          ctx!.fillStyle = candle.color === '#00FFA3'
             ? `rgba(52, 211, 153, ${opacity})`
             : `rgba(248, 113, 113, ${opacity})`;
           ctx!.fillRect(x - w/2, y - h/2, w, h);

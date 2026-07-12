@@ -6,7 +6,6 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import T from '@/lib/unified-tokens';
 
 // ── Types ─────────────────────────────────────────────────
 interface HeatmapItem {
@@ -30,15 +29,15 @@ interface MiniHeatmapProps {
 // ── Color Palette ─────────────────────────────────────────
 const C = {
   bg: 'rgba(11,14,20,0.97)',
-  card: T.card,
-  border: T.card,
-  cyan: T.info,
-  text: T.text,
-  textDim: T.text2,
-  textMuted: T.text3,
-  success: T.success,
-  danger: T.danger,
-  warning: T.warning,
+  card: '#151A22',
+  border: '#151A22',
+  cyan: '#00D4FF',
+  text: '#F0F2F5',
+  textDim: '#9CA3B5',
+  textMuted: '#6B7280',
+  success: '#00FFA3',
+  danger: '#FF4757',
+  warning: '#FFB800',
 };
 
 // ── Simulated data (used when API fails) ──────────────────

@@ -24,7 +24,6 @@ import { usePositionsStore } from '@/hooks/usePositionsStore'
 
 import { getDirection } from '@/lib/i18n-utils';
 import { useLocale } from 'next-intl'
-import T from '@/lib/unified-tokens';
 // ── Types ──
 interface Position {
   id: string
@@ -65,28 +64,28 @@ function getSourceBadge(source?: string | null, tradeSource?: string | null) {
     smart_executor: {
       label: 'المنفذ',
       bg: 'rgba(0,212,255,0.12)',
-      color: T.info,
+      color: '#00D4FF',
       border: 'rgba(0,212,255,0.25)',
       icon: '\u2694\uFE0F',
     },
     agent: {
       label: 'الوكيل',
       bg: 'rgba(162,89,255,0.12)',
-      color: T.council,
+      color: '#B388FF',
       border: 'rgba(162,89,255,0.25)',
       icon: '\uD83E\uDD16',
     },
     auto_paper: {
       label: 'ورقي',
       bg: 'rgba(255,184,0,0.12)',
-      color: T.warning,
+      color: '#FFB800',
       border: 'rgba(255,184,0,0.25)',
       icon: '\uD83D\uDCDD',
     },
     mt5_sync: {
       label: 'MT5',
       bg: 'rgba(16,185,129,0.12)',
-      color: T.profit,
+      color: '#10b981',
       border: 'rgba(16,185,129,0.25)',
       icon: '\uD83D\uDCF1',
     },

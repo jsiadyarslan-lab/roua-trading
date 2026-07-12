@@ -9,7 +9,6 @@ import {
 import { useAgentStore, AgentStatus, StrategyType } from '@/hooks/useAgentStore'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
-import T from '@/lib/unified-tokens'
 import { getPnlColor, getPnlSign } from '@/lib/pnl-utils'
 
 /* ═══════════════════════════════════════════════
@@ -22,14 +21,14 @@ const FONT_MONO = "'JetBrains Mono', monospace"
    Helpers
    ═══════════════════════════════════════════════ */
 function getStatusColor(status: AgentStatus | null): string {
-  if (!status) return T.text3
+  if (!status) return '#6B7280'
   switch (status) {
-    case AgentStatus.RUNNING: return T.green
-    case AgentStatus.PAUSED: return T.amber
-    case AgentStatus.STOPPED: return T.text2
-    case AgentStatus.EMERGENCY_STOP: return T.red
-    case AgentStatus.DAILY_LIMIT_REACHED: return T.amber
-    default: return T.text3
+    case AgentStatus.RUNNING: return '#00FFA3'
+    case AgentStatus.PAUSED: return '#FFB800'
+    case AgentStatus.STOPPED: return '#9CA3B5'
+    case AgentStatus.EMERGENCY_STOP: return '#FF4757'
+    case AgentStatus.DAILY_LIMIT_REACHED: return '#FFB800'
+    default: return '#6B7280'
   }
 }
 
@@ -63,14 +62,14 @@ function getStrategyLabel(s: StrategyType, ta: any): string {
 function getStrategyAccent(s: StrategyType): string {
   switch (s) {
     case StrategyType.AUTO: return '#FF9F43'
-    case StrategyType.SCALPING: return T.accent
-    case StrategyType.SWING: return T.green
-    case StrategyType.GRID: return T.purple
-    case StrategyType.MEAN_REVERSION: return T.warning
+    case StrategyType.SCALPING: return '#059669'
+    case StrategyType.SWING: return '#00FFA3'
+    case StrategyType.GRID: return '#B388FF'
+    case StrategyType.MEAN_REVERSION: return '#FFB800'
     case StrategyType.MOMENTUM_BREAKOUT: return '#FF6B9D'
     case StrategyType.DCA: return '#00B894'
-    case StrategyType.VWAP_RSI: return T.brandLight
-    default: return T.accent
+    case StrategyType.VWAP_RSI: return '#A29BFE'
+    default: return '#059669'
   }
 }
 
@@ -232,14 +231,14 @@ export function AgentControlMini() {
           <div style={{
             width: 10, height: 10, borderRadius: '50%',
             background: statusColor,
-            boxShadow: isRunning ? `0 0 12px ${T.green}, 0 0 24px rgba(0,255,163,0.3)` : `0 0 8px ${statusColor}`,
+            boxShadow: isRunning ? `0 0 12px ${'#00FFA3'}, 0 0 24px rgba(0,255,163,0.3)` : `0 0 8px ${statusColor}`,
             animation: isRunning ? 'agentCtrlPulse 2s ease-in-out infinite' : 'none',
             flexShrink: 0,
           }} />
 
           {/* Title */}
           <span style={{
-            fontSize: 'var(--text-sm)', fontWeight: 800, color: T.text,
+            fontSize: 'var(--text-sm)', fontWeight: 800, color: '#F0F2F5',
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>
             {ta('title')}
@@ -253,11 +252,11 @@ export function AgentControlMini() {
               borderRadius: 'var(--radius-lg)', border: '1px solid rgba(0,255,163,0.15)'
             }}>
               <div style={{ 
-                width: 5, height: 5, borderRadius: '50%', background: T.green,
-                boxShadow: `0 0 6px ${T.green}`,
+                width: 5, height: 5, borderRadius: '50%', background: '#00FFA3',
+                boxShadow: `0 0 6px ${'#00FFA3'}`,
                 animation: 'agentCtrlPulse 1s ease-in-out infinite'
               }} />
-              <span style={{ fontSize: 'var(--text-xs)', color: T.green, fontWeight: 700, fontFamily: FONT_MONO }}>
+              <span style={{ fontSize: 'var(--text-xs)', color: '#00FFA3', fontWeight: 700, fontFamily: FONT_MONO }}>
                 {currentEvalSymbol}
               </span>
             </div>
@@ -291,10 +290,10 @@ export function AgentControlMini() {
                     ? 'rgba(255,184,0,0.10)'
                     : 'rgba(0,255,163,0.10)',
                 color: isPaperTrading && !isTestnet
-                  ? T.accent
+                  ? '#059669'
                   : isTestnet
-                    ? T.amber
-                    : T.green,
+                    ? '#FFB800'
+                    : '#00FFA3',
                 fontWeight: 700, fontFamily: FONT_AR, flexShrink: 0,
                 cursor: 'help',
               }}
@@ -343,7 +342,7 @@ export function AgentControlMini() {
               style={{
                 fontSize: 'var(--text-xs)', minHeight: 36, padding: '6px 12px',
                 borderRadius: 'var(--radius-lg)', border: '1px solid rgba(255,184,0,0.3)',
-                background: 'rgba(255,184,0,0.15)', color: T.amber,
+                background: 'rgba(255,184,0,0.15)', color: '#FFB800',
                 fontWeight: 800, cursor: 'pointer', touchAction: 'manipulation',
                 display: 'flex', alignItems: 'center', gap: 4,
               }}
@@ -357,7 +356,7 @@ export function AgentControlMini() {
               style={{
                 fontSize: 'var(--text-xs)', minHeight: 36, padding: '6px 12px',
                 borderRadius: 'var(--radius-lg)', border: '1px solid rgba(255,71,87,0.3)',
-                background: 'rgba(255,71,87,0.2)', color: T.red,
+                background: 'rgba(255,71,87,0.2)', color: '#FF4757',
                 fontWeight: 800, cursor: 'pointer', touchAction: 'manipulation',
                 display: 'flex', alignItems: 'center', gap: 4,
                 animation: 'agentCtrlPulse 1s ease-in-out infinite',
@@ -380,7 +379,7 @@ export function AgentControlMini() {
         {/* Strategy */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <Zap size={11} color={strategyAccent} style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 600 }}>{ta('strategyLabel')}</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 600 }}>{ta('strategyLabel')}</span>
           <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: strategyAccent }}>
             {config ? getStrategyLabel(config.strategy as StrategyType, ta) : '—'}
           </span>
@@ -390,9 +389,9 @@ export function AgentControlMini() {
 
         {/* Last Signal */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <Clock size={11} color={T.text3} style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 600 }}>{ta('lastSignalLabel')}</span>
-          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: lastSignalAt ? T.text2 : T.text3 }}>
+          <Clock size={11} color={'#6B7280'} style={{ flexShrink: 0 }} />
+          <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 600 }}>{ta('lastSignalLabel')}</span>
+          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: lastSignalAt ? '#9CA3B5' : '#6B7280' }}>
             {formatTimeAgo(lastSignalAt || lastCycleAt, tc)}
           </span>
         </div>
@@ -408,10 +407,10 @@ export function AgentControlMini() {
           padding: 8, textAlign: 'center', minHeight: 44,
           background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-lg)',
         }}>
-          <div style={{ fontSize: 'var(--text-xs)', color: T.text3, marginBottom: 2 }}>{ta('dailyPnL')}</div>
+          <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 2 }}>{ta('dailyPnL')}</div>
           <div style={{
             fontSize: 'var(--text-sm)', fontWeight: 800,
-            color: dailyPnL > 0 ? T.green : dailyPnL < 0 ? T.red : T.text2,
+            color: dailyPnL > 0 ? '#00FFA3' : dailyPnL < 0 ? '#FF4757' : '#9CA3B5',
             fontFamily: FONT_MONO, direction: 'ltr', textAlign: 'center',
           }}>
             {getPnlSign(Number(dailyPnL))}{Number(dailyPnL).toFixed(2)}
@@ -423,10 +422,10 @@ export function AgentControlMini() {
           padding: 8, textAlign: 'center', minHeight: 44,
           background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-lg)',
         }}>
-          <div style={{ fontSize: 'var(--text-xs)', color: T.text3, marginBottom: 2 }}>{ta('winRate')}</div>
+          <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 2 }}>{ta('winRate')}</div>
           <div style={{
             fontSize: 'var(--text-sm)', fontWeight: 800,
-            color: (performance?.winRate ?? 0) >= 50 ? T.green : T.amber,
+            color: (performance?.winRate ?? 0) >= 50 ? '#00FFA3' : '#FFB800',
             fontFamily: FONT_MONO,
           }}>
             {(performance?.winRate ?? 0).toFixed(1)}%
@@ -438,9 +437,9 @@ export function AgentControlMini() {
           padding: 8, textAlign: 'center', minHeight: 44,
           background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-lg)',
         }}>
-          <div style={{ fontSize: 'var(--text-xs)', color: T.text3, marginBottom: 2 }}>{ta('openPositions')}</div>
+          <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 2 }}>{ta('openPositions')}</div>
           <div style={{
-            fontSize: 'var(--text-sm)', fontWeight: 800, color: positions.length > 0 ? T.accent : T.text3,
+            fontSize: 'var(--text-sm)', fontWeight: 800, color: positions.length > 0 ? '#059669' : '#6B7280',
             fontFamily: FONT_MONO,
           }}>
             {positions.length}
@@ -462,10 +461,10 @@ export function AgentControlMini() {
               fontSize: 'var(--text-xs)',
             }}>
               {pos.side === 'BUY'
-                ? <TrendingUp size={11} color={T.green} />
-                : <TrendingUp size={11} color={T.red} style={{ transform: 'scaleY(-1)' }} />}
-              <span style={{ color: T.text, fontWeight: 700, fontFamily: FONT_MONO }}>{pos.symbol}</span>
-              <span style={{ color: pos.side === 'BUY' ? T.green : T.red, fontWeight: 800, fontSize: 'var(--text-xs)' }}>
+                ? <TrendingUp size={11} color={'#00FFA3'} />
+                : <TrendingUp size={11} color={'#FF4757'} style={{ transform: 'scaleY(-1)' }} />}
+              <span style={{ color: '#F0F2F5', fontWeight: 700, fontFamily: FONT_MONO }}>{pos.symbol}</span>
+              <span style={{ color: pos.side === 'BUY' ? '#00FFA3' : '#FF4757', fontWeight: 800, fontSize: 'var(--text-xs)' }}>
                 {pos.side === 'BUY' ? tc('buy') : tc('sell')}
               </span>
               <div style={{ flex: 1 }} />
@@ -478,7 +477,7 @@ export function AgentControlMini() {
             </div>
           ))}
           {positions.length > 5 && (
-            <div style={{ fontSize: 'var(--text-xs)', color: T.text3, textAlign: 'center', padding: '4px 0' }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', textAlign: 'center', padding: '4px 0' }}>
               {ta('morePositions', { count: positions.length - 5 })}
             </div>
           )}
@@ -502,7 +501,7 @@ export function AgentControlMini() {
             ? 'rgba(0,255,163,0.06)'
             : 'rgba(0,212,255,0.06)',
           borderTop: `1px solid ${isRunning ? 'rgba(0,255,163,0.15)' : 'rgba(0,212,255,0.15)'}`,
-          color: isRunning ? T.green : T.accent, fontSize: 'var(--text-sm)', fontWeight: 800,
+          color: isRunning ? '#00FFA3' : '#059669', fontSize: 'var(--text-sm)', fontWeight: 800,
           fontFamily: FONT_AR, cursor: 'pointer', transition: 'all 0.15s',
           textDecoration: 'none',
         }}
@@ -517,7 +516,7 @@ export function AgentControlMini() {
         <div style={{
           padding: '4px 8px', background: 'rgba(255,71,87,0.06)',
           borderTop: '1px solid rgba(255,71,87,0.15)',
-          fontSize: 'var(--text-xs)', color: T.red, fontFamily: FONT_AR,
+          fontSize: 'var(--text-xs)', color: '#FF4757', fontFamily: FONT_AR,
           display: 'flex', alignItems: 'center', gap: 4,
         }}>
           <AlertTriangle size={8} />
@@ -530,14 +529,14 @@ export function AgentControlMini() {
         <div style={{
           padding: '6px 8px', background: 'rgba(0,212,255,0.04)',
           borderTop: `1px solid rgba(0,212,255,0.12)`,
-          fontSize: 'var(--text-xs)', color: T.accent, fontFamily: FONT_AR,
+          fontSize: 'var(--text-xs)', color: '#059669', fontFamily: FONT_AR,
           display: 'flex', flexDirection: 'column', gap: 3,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <Play size={8} />
             <span style={{ fontWeight: 700 }}>{ta('agentReady')}</span>
           </div>
-          <span style={{ color: T.text3, fontSize: 'var(--text-xs)' }}>
+          <span style={{ color: '#6B7280', fontSize: 'var(--text-xs)' }}>
             {ta('agentReadyDesc')}
           </span>
         </div>

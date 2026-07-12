@@ -13,7 +13,7 @@
 import { T as _T } from './unified-tokens';
 
 export const COLORS = {
-  // Backgrounds (aligned with CSS --bg-app: #0B0E14, --bg-card: #1A1D29)
+  // Backgrounds (aligned with CSS --bg-app: '#0B0E14', --bg-card: '#1A1D29')
   bgApp:    _T.bg,
   bgCard:   _T.card,
   bgCard2:  _T.bg2,
@@ -31,7 +31,7 @@ export const COLORS = {
   profit:   _T.profit,
   loss:     _T.loss,
 
-  // Text (aligned with CSS --text-main: #F0F2F5, --text-secondary: #8B92A8)
+  // Text (aligned with CSS --text-main: '#F0F2F5', --text-secondary: '#8B92A8')
   textMain: _T.text,
   textSub:  _T.text2,
   textMuted:'rgba(139,146,168,0.6)',

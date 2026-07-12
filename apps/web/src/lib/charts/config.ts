@@ -14,7 +14,7 @@ import { CHART_COLORS } from './chart-utils'
 // Inlined hex values to avoid importing T from unified-tokens in server context
 // (causes 'Cannot access d before initialization' SSR error)
 export const UI_COLORS = {
-  background: '#0B0E14',  // T.bg
+  background: '#0B0E14',  // '#0B0E14'
   gridText: '#64748b',
   borderColor: '#64748b',
 } as const;

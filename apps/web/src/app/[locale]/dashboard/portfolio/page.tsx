@@ -27,7 +27,6 @@ import {
 // as intended.
 
 /* ── Theme (MUST be imported BEFORE any usage in dynamic() loading/fallback arrows) ── */
-import T from '@/lib/unified-tokens'
 
 // Lazy-load AICoachPanel to avoid blocking initial render
 // Uses error-safe dynamic import to prevent ReferenceError
@@ -35,14 +34,14 @@ import T from '@/lib/unified-tokens'
 // are evaluated at module scope where hooks are unavailable. These are rarely shown.
 // FIX V332: Move ALL imports (including T) BEFORE the dynamic() call.
 // Previously, `import { T }` was at line 49 — AFTER the dynamic() call at line 12.
-// The dynamic() loading/fallback arrows reference T.card/T.red/T.text3, and
+// The dynamic() loading/fallback arrows reference '#151A22'/'#FF4757'/'#6B7280', and
 // when the bundler didn't properly hoist the late import, V8 threw
 // "Cannot access uninitialized variable" (TDZ error) on portfolio page open.
 const AICoachPanel = dynamic(
   () => import('@/components/portfolio/AICoachPanel').catch(() => ({
     default: () => (
-      <div style={{ padding: 24, textAlign: 'center', background: T.card, borderRadius: 'var(--radius-lg)' }}>
-        <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)', color: T.red }}>
+      <div style={{ padding: 24, textAlign: 'center', background: '#151A22', borderRadius: 'var(--radius-lg)' }}>
+        <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)', color: '#FF4757' }}>
           {/* i18n: dashboard.portfolio.coachLoadError */}
           تعذر تحميل المُدرّب الذكي. يرجى تحديث الصفحة.
         </div>
@@ -53,7 +52,7 @@ const AICoachPanel = dynamic(
     ssr: false,
     loading: () => (
       <div style={{ padding: 24, textAlign: 'center' }}>
-        <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{/* i18n: dashboard.portfolio.coachLoading */}جاري تحميل المُدرّب الذكي...</div>
+        <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>{/* i18n: dashboard.portfolio.coachLoading */}جاري تحميل المُدرّب الذكي...</div>
       </div>
     ),
   },
@@ -142,7 +141,7 @@ function StatCard({ label, value, sub, color, icon: Icon, note }: {
   return (
     <div style={{
       flex: 1, padding: '12px 14px',
-      background: T.card,
+      background: '#151A22',
       border: `0.5px solid ${color}22`,
       borderRadius: 'var(--radius-lg)',
       display: 'flex', flexDirection: 'column', gap: 4,
@@ -153,7 +152,7 @@ function StatCard({ label, value, sub, color, icon: Icon, note }: {
         background: `linear-gradient(90deg, transparent, ${color}66, transparent)`,
       }} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text2 }}>{label}</span>
+        <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#9CA3B5' }}>{label}</span>
         <Icon size={13} color={color} strokeWidth={2} />
       </div>
       <div style={{
@@ -162,7 +161,7 @@ function StatCard({ label, value, sub, color, icon: Icon, note }: {
         letterSpacing: '-0.02em',
       }}>{value}</div>
       {sub && (
-        <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{sub}</div>
+        <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>{sub}</div>
       )}
       {note && (
         <div style={{
@@ -187,9 +186,9 @@ function TabButton({ label, active, onClick, icon: Icon, count }: {
       style={{
         display: 'flex', alignItems: 'center', gap: 6,
         padding: '8px 16px', borderRadius: 'var(--radius-md)',
-        background: active ? `${T.blue}18` : 'transparent',
-        border: `0.5px solid ${active ? T.blue : T.border}`,
-        color: active ? T.cyan : T.text2,
+        background: active ? `${'#0A84FF'}18` : 'transparent',
+        border: `0.5px solid ${active ? '#0A84FF' : '#2A313C'}`,
+        color: active ? '#00D4FF' : '#9CA3B5',
         fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)', fontWeight: active ? 700 : 500,
         cursor: 'pointer', transition: 'all 0.2s',
       }}
@@ -199,8 +198,8 @@ function TabButton({ label, active, onClick, icon: Icon, count }: {
       {count !== undefined && (
         <span style={{
           padding: '1px 6px', borderRadius: 'var(--radius-lg)',
-          background: active ? T.blue : T.border,
-          fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: active ? T.text : T.text3,
+          background: active ? '#0A84FF' : '#2A313C',
+          fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: active ? '#F0F2F5' : '#6B7280',
         }}>{count}</span>
       )}
     </button>
@@ -212,12 +211,12 @@ function ChartTooltip({ active, payload, label, prefix = '$' }: any) {
   if (!active || !payload?.length) return null
   return (
     <div style={{
-      background: T.bg2, border: `0.5px solid ${T.blue}44`,
+      background: '#0F1117', border: `0.5px solid ${'#0A84FF'}44`,
       borderRadius: 'var(--radius-md)', padding: '6px 12px',
       fontFamily: "var(--font-mono)",
     }}>
-      <div style={{ fontSize: 'var(--text-xs)', color: T.text2, marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.cyan }}>
+      <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#00D4FF' }}>
         {prefix}{payload[0].value.toLocaleString()}
       </div>
     </div>
@@ -228,16 +227,16 @@ function ChartTooltip({ active, payload, label, prefix = '$' }: any) {
 function ApiErrorBanner({ error, onRetry, retryLabel }: { error: string; onRetry: () => void; retryLabel: string }) {
   return (
     <div style={{
-      background: `${T.red}08`, border: `0.5px solid ${T.red}22`,
+      background: `${'#FF4757'}08`, border: `0.5px solid ${'#FF4757'}22`,
       borderRadius: 'var(--radius-lg)', padding: '10px 14px', marginBottom: 12,
       display: 'flex', alignItems: 'center', gap: 8,
     }}>
-      <AlertTriangle size={14} style={{ color: T.red, flexShrink: 0 }} />
-      <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.red, flex: 1 }}>{error}</span>
+      <AlertTriangle size={14} style={{ color: '#FF4757', flexShrink: 0 }} />
+      <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#FF4757', flex: 1 }}>{error}</span>
       <button onClick={onRetry} style={{
         padding: '3px 10px', borderRadius: 'var(--radius-sm)',
-        background: `${T.red}18`, color: T.red,
-        border: `0.5px solid ${T.red}44`,
+        background: `${'#FF4757'}18`, color: '#FF4757',
+        border: `0.5px solid ${'#FF4757'}44`,
         fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', cursor: 'pointer',
       }}>{retryLabel}</button>
     </div>
@@ -310,7 +309,7 @@ export default function PortfolioPage() {
       .portfolio-page-root { min-height: 100% !important; height: 100% !important; }
     }
     ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-track { background: ${T.bg}; }
+    ::-webkit-scrollbar-track { background: ${'#0B0E14'}; }
     ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
     .portfolio-charts-row { display: flex; gap: 10px; margin-bottom: 12px; }
     .portfolio-distribution { flex: 0 0 300px; }
@@ -632,11 +631,11 @@ export default function PortfolioPage() {
   // V169: P&L breakdown by source type (SMART/AGENT/LASIC/PAPER/MANUAL)
   const pnlByCategory = useMemo(() => {
     const categories: Record<string, { label: string; color: string; pnl: number; count: number; wins: number }> = {
-      SMART: { label: t('categorySmart'), color: T.amber, pnl: 0, count: 0, wins: 0 },
-      AGENT: { label: t('categoryAgent'), color: T.purple, pnl: 0, count: 0, wins: 0 },
+      SMART: { label: t('categorySmart'), color: '#FFB800', pnl: 0, count: 0, wins: 0 },
+      AGENT: { label: t('categoryAgent'), color: '#B388FF', pnl: 0, count: 0, wins: 0 },
       LASIC: { label: t('categoryLasic'), color: '#FF6B35', pnl: 0, count: 0, wins: 0 },
-      PAPER: { label: t('categoryPaper'), color: T.cyan, pnl: 0, count: 0, wins: 0 },
-      MANUAL: { label: t('categoryManual'), color: T.text2, pnl: 0, count: 0, wins: 0 },
+      PAPER: { label: t('categoryPaper'), color: '#00D4FF', pnl: 0, count: 0, wins: 0 },
+      MANUAL: { label: t('categoryManual'), color: '#9CA3B5', pnl: 0, count: 0, wins: 0 },
     }
     // From DB closed positions
     dateFilteredClosedPositions.forEach(p => {
@@ -761,7 +760,7 @@ export default function PortfolioPage() {
     const symMap: Record<string, number> = {}
     positions.forEach(p => { symMap[p.symbol] = (symMap[p.symbol] || 0) + Math.abs(p.unrealizedPnl || 0) })
     const total = Object.values(symMap).reduce((s, v) => s + v, 0) || 1
-    const colors = [T.blue, T.warning, '#F7931A', T.success, T.council, T.danger, T.info]
+    const colors = ['#0A84FF', '#FFB800', '#F7931A', '#00FFA3', '#B388FF', '#FF4757', '#00D4FF']
     return Object.entries(symMap).map(([name, value], i) => ({
       name, value: Math.round((value / total) * 100), color: colors[i % colors.length],
     }))
@@ -989,29 +988,29 @@ export default function PortfolioPage() {
 <title>تقرير أداء — رؤى للتداول</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Cairo', 'Arial', sans-serif; background: ${T.bg}; color: #F1F5F9; padding: 40px; }
+  body { font-family: 'Cairo', 'Arial', sans-serif; background: ${'#0B0E14'}; color: '#F1F5F9'; padding: 40px; }
   .header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #A855F7; }
-  .header h1 { font-size: 24px; color: #A855F7; margin-bottom: 8px; }
-  .header .date { font-size: 12px; color: #94A3B8; }
+  .header h1 { font-size: 24px; color: '#A855F7'; margin-bottom: 8px; }
+  .header .date { font-size: 12px; color: '#94A3B8'; }
   .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 30px; }
   .stat-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; text-align: center; }
-  .stat-label { font-size: 10px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+  .stat-label { font-size: 10px; color: '#94A3B8'; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
   .stat-value { font-size: 22px; font-weight: 700; font-family: monospace; }
-  .stat-value.green { color: ${T.profit}; }
-  .stat-value.red { color: ${T.loss}; }
-  .stat-value.purple { color: #A855F7; }
-  .stat-value.cyan { color: #06B6D4; }
+  .stat-value.green { color: ${'#10b981'}; }
+  .stat-value.red { color: ${'#ef4444'}; }
+  .stat-value.purple { color: '#A855F7'; }
+  .stat-value.cyan { color: '#06B6D4'; }
   .section { margin-bottom: 25px; }
-  .section h2 { font-size: 14px; color: #A855F7; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid rgba(168,85,247,0.2); }
+  .section h2 { font-size: 14px; color: '#A855F7'; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid rgba(168,85,247,0.2); }
   table { width: 100%; border-collapse: collapse; font-size: 11px; }
-  th { text-align: right; padding: 8px 10px; background: rgba(168,85,247,0.08); color: #A855F7; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid rgba(168,85,247,0.15); }
-  td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); color: #CBD5E1; }
-  td.pnl-pos { color: ${T.profit}; font-weight: 600; }
-  td.pnl-neg { color: ${T.loss}; font-weight: 600; }
+  th { text-align: right; padding: 8px 10px; background: rgba(168,85,247,0.08); color: '#A855F7'; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid rgba(168,85,247,0.15); }
+  td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); color: '#CBD5E1'; }
+  td.pnl-pos { color: ${'#10b981'}; font-weight: 600; }
+  td.pnl-neg { color: ${'#ef4444'}; font-weight: 600; }
   .direction-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .dir-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; }
   .dir-card h3 { font-size: 12px; margin-bottom: 8px; }
-  .footer { margin-top: 30px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.06); text-align: center; font-size: 10px; color: #64748B; }
+  .footer { margin-top: 30px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.06); text-align: center; font-size: 10px; color: '#64748B'; }
   @media print { body { padding: 20px; } .stats-grid { grid-template-columns: repeat(4, 1fr); } }
 </style>
 </head>
@@ -1063,12 +1062,12 @@ export default function PortfolioPage() {
     <h2>الأداء حسب الاتجاه</h2>
     <div class="direction-grid">
       <div class="dir-card">
-        <h3 style="color:${T.profit};">شراء (BUY)</h3>
-        <p style="font-size:11px;color:#CBD5E1;">${buyTrades.length} صفقة | P&L: <span style="color:${buyPnl >= 0 ? T.profit : T.loss};font-weight:600;">$${buyPnl.toFixed(2)}</span></p>
+        <h3 style="color:${'#10b981'};">شراء (BUY)</h3>
+        <p style="font-size:11px;color:#CBD5E1;">${buyTrades.length} صفقة | P&L: <span style="color:${buyPnl >= 0 ? '#10b981' : '#ef4444'};font-weight:600;">$${buyPnl.toFixed(2)}</span></p>
       </div>
       <div class="dir-card">
-        <h3 style="color:${T.loss};">بيع (SELL)</h3>
-        <p style="font-size:11px;color:#CBD5E1;">${sellTrades.length} صفقة | P&L: <span style="color:${sellPnl >= 0 ? T.profit : T.loss};font-weight:600;">$${sellPnl.toFixed(2)}</span></p>
+        <h3 style="color:${'#ef4444'};">بيع (SELL)</h3>
+        <p style="font-size:11px;color:#CBD5E1;">${sellTrades.length} صفقة | P&L: <span style="color:${sellPnl >= 0 ? '#10b981' : '#ef4444'};font-weight:600;">$${sellPnl.toFixed(2)}</span></p>
       </div>
     </div>
   </div>
@@ -1099,7 +1098,7 @@ export default function PortfolioPage() {
         ${trades.slice(0, 30).map(t => `
           <tr>
             <td style="font-weight:600;">${t.symbol || ''}</td>
-            <td style="color:${t.side === 'BUY' ? T.profit : T.loss};">${t.side === 'BUY' ? 'شراء' : 'بيع'}</td>
+            <td style="color:${t.side === 'BUY' ? '#10b981' : '#ef4444'};">${t.side === 'BUY' ? 'شراء' : 'بيع'}</td>
             <td>${t.entryPrice ? Number(t.entryPrice).toFixed(4) : '—'}</td>
             <td>${t.exitPrice ? Number(t.exitPrice).toFixed(4) : '—'}</td>
             <td>${t.exitReason || '—'}</td>
@@ -1187,7 +1186,7 @@ export default function PortfolioPage() {
   return (
     <div className="portfolio-page-root" style={{
       width: '100%', minHeight: 'calc(100vh - 100px)',
-      background: T.bg, overflow: 'auto',
+      background: '#0B0E14', overflow: 'auto',
       padding: '12px 14px', boxSizing: 'border-box',
       direction: 'inherit',
       fontFamily: "var(--font-ar)",
@@ -1196,10 +1195,10 @@ export default function PortfolioPage() {
 
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-        <div style={{ width: 3, height: 20, borderRadius: 'var(--radius-xs)', background: T.blue }} />
+        <div style={{ width: 3, height: 20, borderRadius: 'var(--radius-xs)', background: '#0A84FF' }} />
         <h1 style={{
           fontFamily: "var(--font-ar)", fontWeight: 900,
-          fontSize: 'var(--text-lg)', color: T.text, margin: 0,
+          fontSize: 'var(--text-lg)', color: '#F0F2F5', margin: 0,
         }}>{t('title')}</h1>
         <div style={{ flex: 1 }} />
         {/* V168: Export buttons */}
@@ -1211,8 +1210,8 @@ export default function PortfolioPage() {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 4,
                   padding: '5px 10px', borderRadius: 'var(--radius-md)',
-                  border: `0.5px solid ${T.green}44`, background: `${T.green}0d`,
-                  color: T.green, fontFamily: "var(--font-ar)",
+                  border: `0.5px solid ${'#00FFA3'}44`, background: `${'#00FFA3'}0d`,
+                  color: '#00FFA3', fontFamily: "var(--font-ar)",
                   fontSize: 'var(--text-xs)', cursor: 'pointer', transition: 'all 0.2s',
                 }}
                 title={t('exportOpenCSV')}
@@ -1227,8 +1226,8 @@ export default function PortfolioPage() {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 4,
                   padding: '5px 10px', borderRadius: 'var(--radius-md)',
-                  border: `0.5px solid ${T.blue}44`, background: `${T.blue}0d`,
-                  color: T.cyan, fontFamily: "var(--font-ar)",
+                  border: `0.5px solid ${'#0A84FF'}44`, background: `${'#0A84FF'}0d`,
+                  color: '#00D4FF', fontFamily: "var(--font-ar)",
                   fontSize: 'var(--text-xs)', cursor: 'pointer', transition: 'all 0.2s',
                 }}
                 title={t('exportClosedCSV')}
@@ -1245,8 +1244,8 @@ export default function PortfolioPage() {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 4,
                     padding: '5px 10px', borderRadius: 'var(--radius-md)',
-                    border: `0.5px solid ${T.amber}66`, background: `${T.amber}1a`,
-                    color: T.amber, fontFamily: "var(--font-ar)",
+                    border: `0.5px solid ${'#FFB800'}66`, background: `${'#FFB800'}1a`,
+                    color: '#FFB800', fontFamily: "var(--font-ar)",
                     fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
                   }}
                   title={`${t('exportPDF')} — ${periodLabel}`}
@@ -1259,8 +1258,8 @@ export default function PortfolioPage() {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 4,
                     padding: '5px 10px', borderRadius: 'var(--radius-md)',
-                    border: `0.5px solid ${T.purple}55`, background: `${T.purple}14`,
-                    color: T.purple, fontFamily: "var(--font-ar)",
+                    border: `0.5px solid ${'#B388FF'}55`, background: `${'#B388FF'}14`,
+                    color: '#B388FF', fontFamily: "var(--font-ar)",
                     fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
                   }}
                   title={`${t('exportJSON')} — ${periodLabel}`}
@@ -1278,8 +1277,8 @@ export default function PortfolioPage() {
           style={{
             display: 'flex', alignItems: 'center', gap: 5,
             padding: '5px 12px', borderRadius: 'var(--radius-md)',
-            border: `0.5px solid ${T.border}`, background: T.card,
-            color: T.text2, fontFamily: "var(--font-ar)",
+            border: `0.5px solid ${'#2A313C'}`, background: '#151A22',
+            color: '#9CA3B5', fontFamily: "var(--font-ar)",
             fontSize: 'var(--text-xs)', cursor: loading ? 'wait' : 'pointer',
             opacity: loading ? 0.5 : 1,
           }}
@@ -1299,17 +1298,17 @@ export default function PortfolioPage() {
           background: 'rgba(239,68,68,0.1)',
           border: '1px solid rgba(239,68,68,0.3)',
         }}>
-          <AlertTriangle size={14} color={T.danger} />
+          <AlertTriangle size={14} color={'#FF4757'} />
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.danger, fontFamily: "var(--font-ar)" }}>
+            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#FF4757', fontFamily: "var(--font-ar)" }}>
               MetaAPI غير متصل — حساب MT5 لا يمكنه جلب البيانات الحقيقية
             </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-ar)", marginTop: 2 }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontFamily: "var(--font-ar)", marginTop: 2 }}>
               {usePositionsStore(s => s.account?.metaapiError)
                 ? `${usePositionsStore(s => s.account?.metaapiError)}`
                 : 'مفتاح METAAPI_TOKEN غير مضبوط أو غير صالح. يجب إضافته في متغيرات البيئة ليعمل حساب MT5 الحقيقي.'}
             </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-ar)", marginTop: 2, opacity: 0.7 }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontFamily: "var(--font-ar)", marginTop: 2, opacity: 0.7 }}>
               💡 اذهب إلى الإعدادات → مفاتيح البورصات → اضغط زر فحص الاتصال للحصول على تفاصيل أكثر
             </div>
           </div>
@@ -1322,15 +1321,15 @@ export default function PortfolioPage() {
           background: 'rgba(245,158,11,0.1)',
           border: '1px solid rgba(245,158,11,0.3)',
         }}>
-          <AlertTriangle size={14} color={T.amber} />
+          <AlertTriangle size={14} color={'#FFB800'} />
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.amber, fontFamily: "var(--font-ar)" }}>
+            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#FFB800', fontFamily: "var(--font-ar)" }}>
               بيانات مؤقتة — الرصيد من ذاكرة التخزين المؤقت
             </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-ar)", marginTop: 2 }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontFamily: "var(--font-ar)", marginTop: 2 }}>
               فشل الاتصال بـ MetaAPI مؤقتاً. البيانات المعروضة قد لا تكون محدثة.
             </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-ar)", marginTop: 2, opacity: 0.7 }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontFamily: "var(--font-ar)", marginTop: 2, opacity: 0.7 }}>
               💡 اذهب إلى الإعدادات → مفاتيح البورصات → اضغط زر فحص الاتصال للحصول على تفاصيل أكثر
             </div>
           </div>
@@ -1341,39 +1340,39 @@ export default function PortfolioPage() {
       <div className="portfolio-stats-row" style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
         <StatCard
           label={t('openPositions')} value={String(positions.length)}
-          color={T.cyan} icon={BarChart2}
+          color={'#00D4FF'} icon={BarChart2}
           sub={`${t('value')}: $${fmt(summary?.totalValue || 0, 0)}`}
         />
         <StatCard
           label={t('unrealizedPnl')} value={`${totalUnrealizedPnl > 0 ? '+' : totalUnrealizedPnl < 0 ? '-' : ''}$${fmt(Math.abs(totalUnrealizedPnl), 2)}`}
-          color={totalUnrealizedPnl > 0 ? T.green : totalUnrealizedPnl < 0 ? T.red : T.text2}
+          color={totalUnrealizedPnl > 0 ? '#00FFA3' : totalUnrealizedPnl < 0 ? '#FF4757' : '#9CA3B5'}
           icon={totalUnrealizedPnl > 0 ? TrendingUp : totalUnrealizedPnl < 0 ? TrendingDown : BarChart2}
         />
         <StatCard
           label={t('realizedProfit')} value={`${totalRealizedPnl > 0 ? '+' : totalRealizedPnl < 0 ? '-' : ''}$${fmt(Math.abs(totalRealizedPnl), 2)}`}
-          color={totalRealizedPnl > 0 ? T.green : totalRealizedPnl < 0 ? T.red : T.text2}
+          color={totalRealizedPnl > 0 ? '#00FFA3' : totalRealizedPnl < 0 ? '#FF4757' : '#9CA3B5'}
           icon={TrendingUp}
           sub={`${closedPositions.length} ${t('closedTradeCount')}`}
         />
         <StatCard
           label={t('totalProfit')} value={`+$${fmt(totalProfitSize, 2)}`}
-          color={T.green} icon={TrendingUp}
+          color={'#00FFA3'} icon={TrendingUp}
           sub={`${winningCount} ${t('winningTradeCount')}`}
         />
         <StatCard
           label={t('totalLoss')} value={`-$${fmt(totalLossSize, 2)}`}
-          color={T.red} icon={TrendingDown}
+          color={'#FF4757'} icon={TrendingDown}
           sub={`${losingCount} ${t('losingTradeCount')}`}
         />
         <StatCard
           label={t('winRate')} value={`${winRate.toFixed(1)}%`}
           sub={t('fromTradeCount', { count: totalTradeCount })}
-          color={T.amber} icon={Target}
+          color={'#FFB800'} icon={Target}
           note={winRate >= 60 ? t('excellent') : winRate >= 40 ? t('good') : undefined}
         />
         <StatCard
           label="Sharpe Ratio" value={sharpeRatio !== null ? sharpeRatio.toFixed(2) : '—'}
-          color={T.purple} icon={Award}
+          color={'#B388FF'} icon={Award}
         />
       </div>
 
@@ -1386,7 +1385,7 @@ export default function PortfolioPage() {
             return (
               <div key={key} style={{
                 flex: '1 1 140px', padding: '10px 12px',
-                background: T.card,
+                background: '#151A22',
                 border: `0.5px solid ${cat.color}22`,
                 borderRadius: 'var(--radius-lg)',
                 display: 'flex', flexDirection: 'column', gap: 3,
@@ -1398,17 +1397,17 @@ export default function PortfolioPage() {
                 }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: cat.color, fontWeight: 700 }}>{cat.label}</span>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text3 }}>{cat.count} {t('tradeCount')}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>{cat.count} {t('tradeCount')}</span>
                 </div>
                 <div style={{
                   fontFamily: "var(--font-mono)",
                   fontSize: 'var(--text-md)', fontWeight: 800,
-                  color: catPnl > 0 ? T.green : catPnl < 0 ? T.red : T.text2,
+                  color: catPnl > 0 ? '#00FFA3' : catPnl < 0 ? '#FF4757' : '#9CA3B5',
                   letterSpacing: '-0.02em',
                 }}>
                   {catPnl > 0 ? '+' : catPnl < 0 ? '-' : ''}${fmt(Math.abs(catPnl), 2)}
                 </div>
-                <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>
+                <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>
                   {t('winRateLabel')}: {catWinRate.toFixed(0)}% ({cat.wins}/{cat.count})
                 </div>
               </div>
@@ -1437,12 +1436,12 @@ export default function PortfolioPage() {
             {/* Distribution donut */}
             <div className="portfolio-distribution" style={{
               flex: '0 0 300px',
-              background: T.card, border: `0.5px solid ${T.border}`,
+              background: '#151A22', border: `0.5px solid ${'#2A313C'}`,
               borderRadius: 'var(--radius-lg)', padding: '12px 14px',
             }}>
               <div style={{
                 fontFamily: "var(--font-ar)", fontWeight: 700,
-                fontSize: 'var(--text-sm)', color: T.text, marginBottom: 8,
+                fontSize: 'var(--text-sm)', color: '#F0F2F5', marginBottom: 8,
               }}>{t('positionDistribution')}</div>
               {distribution.length > 0 ? (
                 <ResponsiveContainer width="100%" height={200}>
@@ -1457,16 +1456,16 @@ export default function PortfolioPage() {
                         <Cell key={entry.name + '-' + i} fill={entry.color} opacity={0.85} />
                       ))}
                     </Pie>
-                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text2 }} />
+                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#9CA3B5' }} />
                     <Tooltip
                       formatter={(val: any) => [`${val}%`, '']}
-                      contentStyle={{ background: T.bg2, border: `0.5px solid ${T.border2}`, borderRadius: 'var(--radius-md)', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)' }}
+                      contentStyle={{ background: '#0F1117', border: `0.5px solid ${'#3A4150'}`, borderRadius: 'var(--radius-md)', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
                 <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{t('noOpenPositions')}</span>
+                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('noOpenPositions')}</span>
                 </div>
               )}
             </div>
@@ -1474,31 +1473,31 @@ export default function PortfolioPage() {
             {/* Equity curve */}
             <div style={{
               flex: 1,
-              background: T.card, border: `0.5px solid ${T.border}`,
+              background: '#151A22', border: `0.5px solid ${'#2A313C'}`,
               borderRadius: 'var(--radius-lg)', padding: '12px 14px',
             }}>
               <div style={{
                 fontFamily: "var(--font-ar)", fontWeight: 700,
-                fontSize: 'var(--text-sm)', color: T.text, marginBottom: 8,
+                fontSize: 'var(--text-sm)', color: '#F0F2F5', marginBottom: 8,
               }}>{t('realizedProfitCurve')}</div>
               {equityCurve.length > 0 ? (
                 <ResponsiveContainer width="100%" height={200}>
                   <AreaChart data={equityCurve}>
                     <defs>
                       <linearGradient id="eqGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={T.cyan} stopOpacity={0.3} />
-                        <stop offset="95%" stopColor={T.cyan} stopOpacity={0} />
+                        <stop offset="5%" stopColor={'#00D4FF'} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={'#00D4FF'} stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <XAxis dataKey="date" tick={{ fontSize: 'var(--text-xs)', fill: T.text2 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 'var(--text-xs)', fill: T.text2 }} axisLine={false} tickLine={false} width={50} />
+                    <XAxis dataKey="date" tick={{ fontSize: 'var(--text-xs)', fill: '#9CA3B5' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 'var(--text-xs)', fill: '#9CA3B5' }} axisLine={false} tickLine={false} width={50} />
                     <Tooltip content={<ChartTooltip />} />
-                    <Area type="monotone" dataKey="value" stroke={T.cyan} fill="url(#eqGrad)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="value" stroke={'#00D4FF'} fill="url(#eqGrad)" strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
                 <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{t('noPerformanceData')}</span>
+                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('noPerformanceData')}</span>
                 </div>
               )}
             </div>
@@ -1507,27 +1506,27 @@ export default function PortfolioPage() {
           <div className="portfolio-table-wrap">
           {/* ── Open Positions table ── */}
           <div className={isMobile ? 'mobile-cards-enabled' : ''} style={{
-            background: T.card, border: `0.5px solid ${T.border}`,
+            background: '#151A22', border: `0.5px solid ${'#2A313C'}`,
             borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginBottom: 12,
           }}>
             <div style={{
               display: 'flex', alignItems: 'center',
               padding: '8px 14px', gap: 8,
-              borderBottom: `0.5px solid ${T.border}`,
-              background: `linear-gradient(90deg, ${T.green}0a, transparent)`,
+              borderBottom: `0.5px solid ${'#2A313C'}`,
+              background: `linear-gradient(90deg, ${'#00FFA3'}0a, transparent)`,
             }}>
-              <div style={{ width: 3, height: 14, borderRadius: 'var(--radius-xs)', background: T.green }} />
+              <div style={{ width: 3, height: 14, borderRadius: 'var(--radius-xs)', background: '#00FFA3' }} />
               <span style={{
                 fontFamily: "var(--font-ar)", fontWeight: 700,
-                fontSize: 'var(--text-sm)', color: T.text, flex: 1,
+                fontSize: 'var(--text-sm)', color: '#F0F2F5', flex: 1,
               }}>{t('openTrades')}</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text3 }}>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>
                 {positions.length} {t('position')}
               </span>
               {positions.length > 0 && (
                 <span style={{
                   fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)',
-                  color: totalUnrealizedPnl > 0 ? T.green : totalUnrealizedPnl < 0 ? T.red : T.text2, fontWeight: 700,
+                  color: totalUnrealizedPnl > 0 ? '#00FFA3' : totalUnrealizedPnl < 0 ? '#FF4757' : '#9CA3B5', fontWeight: 700,
                   marginInlineStart: 8,
                 }}>
                   P&L: {totalUnrealizedPnl > 0 ? '+' : totalUnrealizedPnl < 0 ? '-' : ''}${fmt(Math.abs(totalUnrealizedPnl), 2)}
@@ -1537,46 +1536,46 @@ export default function PortfolioPage() {
 
             {loading ? (
               <div style={{ padding: 32, textAlign: 'center' }}>
-                <Loader2 className="animate-spin" style={{ color: T.blue, margin: '0 auto' }} size={24} />
-                <p style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3, marginTop: 8 }}>{tc('loading')}</p>
+                <Loader2 className="animate-spin" style={{ color: '#0A84FF', margin: '0 auto' }} size={24} />
+                <p style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 8 }}>{tc('loading')}</p>
               </div>
             ) : positions.length === 0 ? (
               <div style={{ padding: 24, textAlign: 'center' }}>
-                <Activity size={28} style={{ color: T.text3, opacity: 0.3, margin: '0 auto 8px' }} />
-                <p style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)', color: T.text3 }}>{t('noOpenTrades')}</p>
+                <Activity size={28} style={{ color: '#6B7280', opacity: 0.3, margin: '0 auto 8px' }} />
+                <p style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)', color: '#6B7280' }}>{t('noOpenTrades')}</p>
               </div>
             ) : isMobile ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 10 }}>
                 {positions.map((pos) => (
                   <div key={pos.id} style={{
                     background: 'rgba(255,255,255,0.02)',
-                    border: `0.5px solid ${T.border}`,
+                    border: `0.5px solid ${'#2A313C'}`,
                     borderRadius: 'var(--radius-lg)', padding: '10px 12px',
                     display: 'flex', flexDirection: 'column', gap: 6,
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text }}>{pos.symbol}</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5' }}>{pos.symbol}</span>
                         <span style={{
                           padding: '1px 6px', borderRadius: 'var(--radius-sm)',
                           fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
-                          background: pos.side === 'BUY' ? `${T.green}18` : `${T.red}18`,
-                          color: pos.side === 'BUY' ? T.green : T.red,
-                          border: `0.5px solid ${pos.side === 'BUY' ? T.green : T.red}44`,
+                          background: pos.side === 'BUY' ? `${'#00FFA3'}18` : `${'#FF4757'}18`,
+                          color: pos.side === 'BUY' ? '#00FFA3' : '#FF4757',
+                          border: `0.5px solid ${pos.side === 'BUY' ? '#00FFA3' : '#FF4757'}44`,
                         }}>{pos.side === 'BUY' ? t('buyArrow') : t('sellArrow')}</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{
                           fontFamily: "var(--font-mono)",
                           fontSize: 'var(--text-sm)', fontWeight: 700,
-                          color: (pos.unrealizedPnl || 0) > 0 ? T.green : (pos.unrealizedPnl || 0) < 0 ? T.red : T.text2,
+                          color: (pos.unrealizedPnl || 0) > 0 ? '#00FFA3' : (pos.unrealizedPnl || 0) < 0 ? '#FF4757' : '#9CA3B5',
                         }}>
                           {(pos.unrealizedPnl || 0) > 0 ? '+' : (pos.unrealizedPnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pos.unrealizedPnl || 0))}
                         </span>
                         <button onClick={() => handleClosePosition(pos)} disabled={closing === pos.id} style={{
                           padding: '4px 8px', borderRadius: 'var(--radius-sm)',
-                          background: `${T.red}18`, color: T.red,
-                          border: `0.5px solid ${T.red}44`,
+                          background: `${'#FF4757'}18`, color: '#FF4757',
+                          border: `0.5px solid ${'#FF4757'}44`,
                           cursor: closing === pos.id ? 'wait' : 'pointer',
                           fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)',
                           opacity: closing === pos.id ? 0.5 : 1,
@@ -1590,20 +1589,20 @@ export default function PortfolioPage() {
                       <div
                         title={pos.id}
                         onClick={() => { try { navigator.clipboard?.writeText(pos.id) } catch {} }}
-                        style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.cyan, cursor: 'pointer', opacity: 0.7 }}
+                        style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#00D4FF', cursor: 'pointer', opacity: 0.7 }}
                       >
                         ID: {formatTradeId(pos.id)}
                       </div>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text3 }}>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>
                         {formatEntryDate(pos.openedAt)}
                       </div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, fontSize: 'var(--text-xs)' }}>
-                      <div><span style={{ color: T.text3 }}>{t('quantityLabel')}: </span><span style={{ color: T.text2 }}>{pos.quantity}</span></div>
-                      <div><span style={{ color: T.text3 }}>{t('entryLabel')}: </span><span style={{ color: T.text2 }}>{formatPrice(pos.entryPrice, pos.symbol)}</span></div>
-                      <div><span style={{ color: T.text3 }}>{t('currentLabel')}: </span><span style={{ color: T.text, fontWeight: 700 }}>{pos.currentPrice ? formatPrice(pos.currentPrice, pos.symbol) : '—'}</span></div>
-                      <div><span style={{ color: T.text3 }}>SL: </span><span style={{ color: T.red }}>{pos.stopLoss ? formatPrice(pos.stopLoss, pos.symbol) : '—'}</span></div>
-                      <div><span style={{ color: T.text3 }}>TP: </span><span style={{ color: T.green }}>{pos.takeProfit ? formatPrice(pos.takeProfit, pos.symbol) : '—'}</span></div>
+                      <div><span style={{ color: '#6B7280' }}>{t('quantityLabel')}: </span><span style={{ color: '#9CA3B5' }}>{pos.quantity}</span></div>
+                      <div><span style={{ color: '#6B7280' }}>{t('entryLabel')}: </span><span style={{ color: '#9CA3B5' }}>{formatPrice(pos.entryPrice, pos.symbol)}</span></div>
+                      <div><span style={{ color: '#6B7280' }}>{t('currentLabel')}: </span><span style={{ color: '#F0F2F5', fontWeight: 700 }}>{pos.currentPrice ? formatPrice(pos.currentPrice, pos.symbol) : '—'}</span></div>
+                      <div><span style={{ color: '#6B7280' }}>SL: </span><span style={{ color: '#FF4757' }}>{pos.stopLoss ? formatPrice(pos.stopLoss, pos.symbol) : '—'}</span></div>
+                      <div><span style={{ color: '#6B7280' }}>TP: </span><span style={{ color: '#00FFA3' }}>{pos.takeProfit ? formatPrice(pos.takeProfit, pos.symbol) : '—'}</span></div>
                     </div>
                   </div>
                 ))}
@@ -1617,12 +1616,12 @@ export default function PortfolioPage() {
                   display: 'grid',
                   gridTemplateColumns: '110px 100px 80px 65px 65px 85px 85px 75px 75px 75px 75px',
                   padding: '5px 14px', gap: 0,
-                  borderBottom: `0.5px solid ${T.border}`,
+                  borderBottom: `0.5px solid ${'#2A313C'}`,
                 }}>
                   {['ID',t('headerPair'),t('headerDirection'),t('headerSize'),t('headerEntryPrice'),t('headerCurrentPrice'),'SL','TP','P&L','دخول',t('headerAction')].map((h) => (
                     <div key={h} style={{
                       fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)',
-                      color: T.text3, textAlign: 'center',
+                      color: '#6B7280', textAlign: 'center',
                     }}>{h}</div>
                   ))}
                 </div>
@@ -1634,7 +1633,7 @@ export default function PortfolioPage() {
                       display: 'grid',
                       gridTemplateColumns: '110px 100px 80px 65px 65px 85px 85px 75px 75px 75px 75px',
                       padding: '7px 14px', gap: 0,
-                      borderBottom: i < positions.length - 1 ? `0.5px solid ${T.border}` : 'none',
+                      borderBottom: i < positions.length - 1 ? `0.5px solid ${'#2A313C'}` : 'none',
                       alignItems: 'center',
                       background: i % 2 === 0 ? 'rgba(255,255,255,0.005)' : 'transparent',
                       transition: 'background 0.2s',
@@ -1647,35 +1646,35 @@ export default function PortfolioPage() {
                     <div
                       title={pos.id}
                       onClick={() => { try { navigator.clipboard?.writeText(pos.id) } catch {} }}
-                      style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.cyan, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.8 }}
+                      style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#00D4FF', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.8 }}
                     >
                       {formatTradeId(pos.id)}
                     </div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.symbol}</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700, color: '#F0F2F5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.symbol}</div>
                     <div style={{ display: 'flex', justifyContent: 'center' }}>
                       <span style={{
                         padding: '2px 8px', borderRadius: 'var(--radius-sm)',
                         fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
-                        background: pos.side === 'BUY' ? `${T.green}18` : `${T.red}18`,
-                        color: pos.side === 'BUY' ? T.green : T.red,
-                        border: `0.5px solid ${pos.side === 'BUY' ? T.green : T.red}44`,
+                        background: pos.side === 'BUY' ? `${'#00FFA3'}18` : `${'#FF4757'}18`,
+                        color: pos.side === 'BUY' ? '#00FFA3' : '#FF4757',
+                        border: `0.5px solid ${pos.side === 'BUY' ? '#00FFA3' : '#FF4757'}44`,
                       }}>{pos.side === 'BUY' ? t('buyArrow') : t('sellArrow')}</span>
                     </div>
-                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.quantity}</div>
-                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatPrice(pos.entryPrice, pos.symbol)}</div>
-                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.currentPrice ? formatPrice(pos.currentPrice, pos.symbol) : '—'}</div>
-                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.red, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.stopLoss ? formatPrice(pos.stopLoss, pos.symbol) : '—'}</div>
-                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.green, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.takeProfit ? formatPrice(pos.takeProfit, pos.symbol) : '—'}</div>
+                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#9CA3B5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.quantity}</div>
+                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#9CA3B5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatPrice(pos.entryPrice, pos.symbol)}</div>
+                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700, color: '#F0F2F5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.currentPrice ? formatPrice(pos.currentPrice, pos.symbol) : '—'}</div>
+                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#FF4757', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.stopLoss ? formatPrice(pos.stopLoss, pos.symbol) : '—'}</div>
+                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#00FFA3', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.takeProfit ? formatPrice(pos.takeProfit, pos.symbol) : '—'}</div>
                     <div style={{
                       textAlign: 'center', fontFamily: "var(--font-mono)",
                       fontSize: 'var(--text-xs)', fontWeight: 700,
-                      color: (pos.unrealizedPnl || 0) > 0 ? T.green : (pos.unrealizedPnl || 0) < 0 ? T.red : T.text2,
+                      color: (pos.unrealizedPnl || 0) > 0 ? '#00FFA3' : (pos.unrealizedPnl || 0) < 0 ? '#FF4757' : '#9CA3B5',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     }}>
                       {(pos.unrealizedPnl || 0) > 0 ? '+' : (pos.unrealizedPnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pos.unrealizedPnl || 0))}
                     </div>
                     {/* V340: Entry date — openedAt formatted as YYYY-MM-DD HH:MM */}
-                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={pos.openedAt}>
+                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={pos.openedAt}>
                       {formatEntryDate(pos.openedAt)}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'center' }}>
@@ -1685,8 +1684,8 @@ export default function PortfolioPage() {
                         style={{
                           display: 'flex', alignItems: 'center', gap: 3,
                           padding: '3px 10px', borderRadius: 'var(--radius-sm)',
-                          background: `${T.red}18`, color: T.red,
-                          border: `0.5px solid ${T.red}44`,
+                          background: `${'#FF4757'}18`, color: '#FF4757',
+                          border: `0.5px solid ${'#FF4757'}44`,
                           cursor: closing === pos.id ? 'wait' : 'pointer',
                           fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)',
                           opacity: closing === pos.id ? 0.5 : 1,
@@ -1706,7 +1705,7 @@ export default function PortfolioPage() {
 
           {/* ── Closed Positions ── */}
           <div className={isMobile ? 'mobile-cards-enabled' : ''} style={{
-            background: T.card, border: `0.5px solid ${T.border}`,
+            background: '#151A22', border: `0.5px solid ${'#2A313C'}`,
             borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginBottom: 12,
           }}>
             <div
@@ -1714,45 +1713,45 @@ export default function PortfolioPage() {
               style={{
                 display: 'flex', alignItems: 'center',
                 padding: '8px 14px', gap: 8,
-                borderBottom: showClosed ? `0.5px solid ${T.border}` : 'none',
-                background: `linear-gradient(90deg, ${T.blue}0a, transparent)`,
+                borderBottom: showClosed ? `0.5px solid ${'#2A313C'}` : 'none',
+                background: `linear-gradient(90deg, ${'#0A84FF'}0a, transparent)`,
                 cursor: 'pointer',
               }}
             >
-              <div style={{ width: 3, height: 14, borderRadius: 'var(--radius-xs)', background: T.blue }} />
-              <History size={13} style={{ color: T.text3 }} />
+              <div style={{ width: 3, height: 14, borderRadius: 'var(--radius-xs)', background: '#0A84FF' }} />
+              <History size={13} style={{ color: '#6B7280' }} />
               <span style={{
                 fontFamily: "var(--font-ar)", fontWeight: 700,
-                fontSize: 'var(--text-sm)', color: T.text, flex: 1,
+                fontSize: 'var(--text-sm)', color: '#F0F2F5', flex: 1,
               }}>{t('closedTrades')}</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text3 }}>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>
                 {closedPositions.length + closedPaperTrades.length} {t('tradeCount')}
               </span>
               {totalRealizedPnl !== 0 && (
                 <span style={{
                   fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)',
-                  color: totalRealizedPnl > 0 ? T.green : totalRealizedPnl < 0 ? T.red : T.text2, fontWeight: 700,
+                  color: totalRealizedPnl > 0 ? '#00FFA3' : totalRealizedPnl < 0 ? '#FF4757' : '#9CA3B5', fontWeight: 700,
                   marginInlineStart: 8,
                 }}>
                   P&L: {totalRealizedPnl > 0 ? '+' : totalRealizedPnl < 0 ? '-' : ''}${fmt(Math.abs(totalRealizedPnl), 2)}
                 </span>
               )}
-              <ChevronRight size={14} style={{ color: T.text3, transform: showClosed ? 'rotate(-90deg)' : 'rotate(90deg)', transition: 'transform 0.2s' }} />
+              <ChevronRight size={14} style={{ color: '#6B7280', transform: showClosed ? 'rotate(-90deg)' : 'rotate(90deg)', transition: 'transform 0.2s' }} />
             </div>
 
             {showClosed && (
               filteredHistory.length === 0 ? (
                 <div style={{ padding: 24, textAlign: 'center' }}>
-                  <History size={28} style={{ color: T.text3, opacity: 0.3, margin: '0 auto 8px' }} />
-                  <p style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)', color: T.text3 }}>{t('noMatchingClosedTrades')}</p>
-                  <p style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text2, marginTop: 4 }}>{t('tryChangingFilters')}</p>
+                  <History size={28} style={{ color: '#6B7280', opacity: 0.3, margin: '0 auto 8px' }} />
+                  <p style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)', color: '#6B7280' }}>{t('noMatchingClosedTrades')}</p>
+                  <p style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#9CA3B5', marginTop: 4 }}>{t('tryChangingFilters')}</p>
                 </div>
               ) : (
                 <>
                   {/* Filters Bar */}
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 12, padding: '10px 14px',
-                    borderBottom: `0.5px solid ${T.border}`, background: 'rgba(0,0,0,0.2)',
+                    borderBottom: `0.5px solid ${'#2A313C'}`, background: 'rgba(0,0,0,0.2)',
                     flexWrap: isMobile ? 'wrap' : 'nowrap',
                   }}>
                     {/* V140: Period filter — يومي/أسبوعي/شهري/سنوي/محدد */}
@@ -1760,9 +1759,9 @@ export default function PortfolioPage() {
                       {(['ALL','DAY','WEEK','MONTH','YEAR','CUSTOM'] as const).map(period => (
                         <button key={period} onClick={() => setPeriodFilter(period)} style={{
                           padding: '3px 8px', borderRadius: 'var(--radius-sm)',
-                          border: `0.5px solid ${periodFilter === period ? T.blue : T.border}`,
-                          background: periodFilter === period ? `${T.blue}22` : T.bg,
-                          color: periodFilter === period ? T.blue : T.text2,
+                          border: `0.5px solid ${periodFilter === period ? '#0A84FF' : '#2A313C'}`,
+                          background: periodFilter === period ? `${'#0A84FF'}22` : '#0B0E14',
+                          color: periodFilter === period ? '#0A84FF' : '#9CA3B5',
                           fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 600,
                           cursor: 'pointer', transition: 'all 0.15s',
                         }}>
@@ -1774,13 +1773,13 @@ export default function PortfolioPage() {
                     {periodFilter === 'CUSTOM' && (
                       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                         <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={{
-                          background: T.bg, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-sm)',
-                          padding: '2px 6px', color: T.text, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
+                          background: '#0B0E14', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-sm)',
+                          padding: '2px 6px', color: '#F0F2F5', fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
                         }} />
-                        <span style={{ color: T.text3, fontSize: 'var(--text-xs)' }}>→</span>
+                        <span style={{ color: '#6B7280', fontSize: 'var(--text-xs)' }}>→</span>
                         <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)} style={{
-                          background: T.bg, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-sm)',
-                          padding: '2px 6px', color: T.text, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
+                          background: '#0B0E14', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-sm)',
+                          padding: '2px 6px', color: '#F0F2F5', fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
                         }} />
                       </div>
                     )}
@@ -1790,8 +1789,8 @@ export default function PortfolioPage() {
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
                       style={{
-                        background: T.bg, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-sm)',
-                        padding: '4px 10px', color: T.text, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
+                        background: '#0B0E14', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-sm)',
+                        padding: '4px 10px', color: '#F0F2F5', fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
                         width: isMobile ? '100%' : 120, outline: 'none'
                       }}
                     />
@@ -1799,8 +1798,8 @@ export default function PortfolioPage() {
                       value={sideFilter}
                       onChange={e => setSideFilter(e.target.value as any)}
                       style={{
-                        background: T.bg, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-sm)',
-                        padding: '4px 8px', color: T.text, fontSize: 'var(--text-xs)', fontFamily: "var(--font-ar)", outline: 'none'
+                        background: '#0B0E14', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-sm)',
+                        padding: '4px 8px', color: '#F0F2F5', fontSize: 'var(--text-xs)', fontFamily: "var(--font-ar)", outline: 'none'
                       }}
                     >
                       <option value="ALL">{t('allDirections')}</option>
@@ -1811,8 +1810,8 @@ export default function PortfolioPage() {
                       value={statusFilter}
                       onChange={e => setStatusFilter(e.target.value as any)}
                       style={{
-                        background: T.bg, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-sm)',
-                        padding: '4px 8px', color: T.text, fontSize: 'var(--text-xs)', fontFamily: "var(--font-ar)", outline: 'none'
+                        background: '#0B0E14', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-sm)',
+                        padding: '4px 8px', color: '#F0F2F5', fontSize: 'var(--text-xs)', fontFamily: "var(--font-ar)", outline: 'none'
                       }}
                     >
                       <option value="ALL">{t('allResults')}</option>
@@ -1826,54 +1825,54 @@ export default function PortfolioPage() {
                       {filteredHistory.map((pt) => (
                         <div key={pt.id} style={{
                           background: 'rgba(255,255,255,0.02)',
-                          border: `0.5px solid ${T.border}`,
+                          border: `0.5px solid ${'#2A313C'}`,
                           borderRadius: 'var(--radius-lg)', padding: '10px 12px',
                           display: 'flex', flexDirection: 'column', gap: 6,
                         }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text }}>{pt.symbol}</span>
+                              <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5' }}>{pt.symbol}</span>
                               {/* V140B: Source badge — shows منفذ/وكيل/ورقي/يدوي */}
                               <span style={{
                                 padding: '0px 3px', borderRadius: 'var(--radius-xs)',
                                 fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
-                                background: pt.type === 'SMART' ? `${T.amber}14` : pt.type === 'AGENT' ? `${T.purple}14` : pt.type === 'PAPER' ? `${T.cyan}14` : pt.type === 'LASIC' ? 'rgba(255,107,53,0.12)' : `${T.border}`,
-                                color: pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : pt.type === 'LASIC' ? '#FF6B35' : T.text3,
-                                border: `0.5px solid ${pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : pt.type === 'LASIC' ? '#FF6B35' : T.border}`,
+                                background: pt.type === 'SMART' ? `${'#FFB800'}14` : pt.type === 'AGENT' ? `${'#B388FF'}14` : pt.type === 'PAPER' ? `${'#00D4FF'}14` : pt.type === 'LASIC' ? 'rgba(255,107,53,0.12)' : `${'#2A313C'}`,
+                                color: pt.type === 'SMART' ? '#FFB800' : pt.type === 'AGENT' ? '#B388FF' : pt.type === 'PAPER' ? '#00D4FF' : pt.type === 'LASIC' ? '#FF6B35' : '#6B7280',
+                                border: `0.5px solid ${pt.type === 'SMART' ? '#FFB800' : pt.type === 'AGENT' ? '#B388FF' : pt.type === 'PAPER' ? '#00D4FF' : pt.type === 'LASIC' ? '#FF6B35' : '#2A313C'}`,
                               }}>{pt.type === 'SMART' ? t('sourceSmart') : pt.type === 'AGENT' ? t('sourceAgent') : pt.type === 'PAPER' ? t('sourcePaper') : pt.type === 'LASIC' ? t('sourceLasic') : t('sourceManual')}</span>
                               <span style={{
                                 padding: '1px 6px', borderRadius: 'var(--radius-sm)',
                                 fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
-                                background: pt.side === 'BUY' ? `${T.green}18` : `${T.red}18`,
-                                color: pt.side === 'BUY' ? T.green : T.red,
-                                border: `0.5px solid ${pt.side === 'BUY' ? T.green : T.red}44`,
+                                background: pt.side === 'BUY' ? `${'#00FFA3'}18` : `${'#FF4757'}18`,
+                                color: pt.side === 'BUY' ? '#00FFA3' : '#FF4757',
+                                border: `0.5px solid ${pt.side === 'BUY' ? '#00FFA3' : '#FF4757'}44`,
                               }}>{pt.side === 'BUY' ? tc('buy') : tc('sell')}</span>
                             </div>
                             <span style={{
                               fontFamily: "var(--font-mono)",
                               fontSize: 'var(--text-sm)', fontWeight: 700,
-                              color: (pt.pnl || 0) > 0 ? T.green : (pt.pnl || 0) < 0 ? T.red : T.text2,
+                              color: (pt.pnl || 0) > 0 ? '#00FFA3' : (pt.pnl || 0) < 0 ? '#FF4757' : '#9CA3B5',
                             }}>
                               {(pt.pnl || 0) > 0 ? '+' : (pt.pnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pt.pnl || 0))}
                             </span>
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 'var(--text-xs)' }}>
-                            <div><span style={{ color: T.text3 }}>{t('sizeLabel')}: </span><span style={{ color: T.text2 }}>{pt.quantity}</span></div>
-                            <div><span style={{ color: T.text3 }}>{t('entryLabel')}: </span><span style={{ color: T.text2 }}>{formatPrice(pt.price, pt.symbol)}</span></div>
-                            <div><span style={{ color: T.text3 }}>{t('closeLabel')}: </span><span style={{ color: T.text2 }}>{(pt as any).exitPrice ? formatPrice((pt as any).exitPrice, pt.symbol) : '—'}</span></div>
-                            <div><span style={{ color: T.text3 }}>{t('stopLossLabel')}: </span><span style={{ color: T.red }}>{(pt as any).stopLoss ? formatPrice((pt as any).stopLoss, pt.symbol) : '—'}</span></div>
-                            <div><span style={{ color: T.text3 }}>{t('takeProfitLabel')}: </span><span style={{ color: T.green }}>{(pt as any).takeProfit ? formatPrice((pt as any).takeProfit, pt.symbol) : '—'}</span></div>
-                            <div><span style={{ color: T.text3 }}>{t('reasonLabel')}: </span><span style={{
-                              color: (pt as any).exitReason === 'SL' ? T.red : (pt as any).exitReason === 'TP' ? T.green : T.text3,
+                            <div><span style={{ color: '#6B7280' }}>{t('sizeLabel')}: </span><span style={{ color: '#9CA3B5' }}>{pt.quantity}</span></div>
+                            <div><span style={{ color: '#6B7280' }}>{t('entryLabel')}: </span><span style={{ color: '#9CA3B5' }}>{formatPrice(pt.price, pt.symbol)}</span></div>
+                            <div><span style={{ color: '#6B7280' }}>{t('closeLabel')}: </span><span style={{ color: '#9CA3B5' }}>{(pt as any).exitPrice ? formatPrice((pt as any).exitPrice, pt.symbol) : '—'}</span></div>
+                            <div><span style={{ color: '#6B7280' }}>{t('stopLossLabel')}: </span><span style={{ color: '#FF4757' }}>{(pt as any).stopLoss ? formatPrice((pt as any).stopLoss, pt.symbol) : '—'}</span></div>
+                            <div><span style={{ color: '#6B7280' }}>{t('takeProfitLabel')}: </span><span style={{ color: '#00FFA3' }}>{(pt as any).takeProfit ? formatPrice((pt as any).takeProfit, pt.symbol) : '—'}</span></div>
+                            <div><span style={{ color: '#6B7280' }}>{t('reasonLabel')}: </span><span style={{
+                              color: (pt as any).exitReason === 'SL' ? '#FF4757' : (pt as any).exitReason === 'TP' ? '#00FFA3' : '#6B7280',
                             }}>{(pt as any).exitReason === 'SL' ? t('exitSL') : (pt as any).exitReason === 'TP' ? t('exitTP') : t('exitManual')}</span></div>
-                            <div><span style={{ color: T.text3 }}>{t('durationLabel')}: </span><span style={{ color: T.text2 }}>{formatDuration(pt.openedAt, pt.executedAt)}</span></div>
-                            <div><span style={{ color: T.text3 }}>{t('timeLabel')}: </span><span style={{ color: T.text2 }}>{pt.executedAt ? new Date(pt.executedAt).toLocaleDateString('ar', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</span></div>
+                            <div><span style={{ color: '#6B7280' }}>{t('durationLabel')}: </span><span style={{ color: '#9CA3B5' }}>{formatDuration(pt.openedAt, pt.executedAt)}</span></div>
+                            <div><span style={{ color: '#6B7280' }}>{t('timeLabel')}: </span><span style={{ color: '#9CA3B5' }}>{pt.executedAt ? new Date(pt.executedAt).toLocaleDateString('ar', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</span></div>
                           </div>
                           {/* V340: Trade ID on mobile — clickable to copy */}
                           <div
                             title={pt.id}
                             onClick={() => { try { navigator.clipboard?.writeText(pt.id) } catch {} }}
-                            style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.cyan, cursor: 'pointer', opacity: 0.6 }}
+                            style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#00D4FF', cursor: 'pointer', opacity: 0.6 }}
                           >
                             ID: {formatTradeId(pt.id)}
                           </div>
@@ -1886,12 +1885,12 @@ export default function PortfolioPage() {
                     display: 'grid',
                     gridTemplateColumns: '110px 90px 50px 55px 70px 70px 65px 65px 70px 55px 55px 70px 90px',
                     padding: '5px 14px', gap: 0,
-                    borderBottom: `0.5px solid ${T.border}`,
+                    borderBottom: `0.5px solid ${'#2A313C'}`,
                   }}>
                     {['ID',t('headerPair'),t('headerDirection'),t('headerSize'),t('entryLabel'),t('headerClose'),t('headerStopLoss'),t('headerTakeProfit'),t('headerRealizedPnl'),t('headerReason'),t('headerDuration'),t('headerStatus'),t('headerCloseTime')].map((h) => (
                       <div key={h} style={{
                         fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)',
-                        color: T.text3, textAlign: 'center',
+                        color: '#6B7280', textAlign: 'center',
                       }}>{h}</div>
                     ))}
                   </div>
@@ -1903,7 +1902,7 @@ export default function PortfolioPage() {
                         display: 'grid',
                         gridTemplateColumns: '110px 90px 50px 55px 70px 70px 65px 65px 70px 55px 55px 70px 90px',
                         padding: '6px 14px', gap: 0,
-                        borderBottom: i < filteredHistory.length - 1 ? `0.5px solid ${T.border}` : 'none',
+                        borderBottom: i < filteredHistory.length - 1 ? `0.5px solid ${'#2A313C'}` : 'none',
                         alignItems: 'center',
                         background: i % 2 === 0 ? 'rgba(255,255,255,0.005)' : 'transparent',
                         transition: 'background 0.2s',
@@ -1916,46 +1915,46 @@ export default function PortfolioPage() {
                       <div
                         title={pt.id}
                         onClick={() => { try { navigator.clipboard?.writeText(pt.id) } catch {} }}
-                        style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.cyan, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.8, textAlign: 'center' }}
+                        style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#00D4FF', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.8, textAlign: 'center' }}
                       >
                         {formatTradeId(pt.id)}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 600, color: T.text }}>{pt.symbol}</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 600, color: '#F0F2F5' }}>{pt.symbol}</span>
                         {/* V140B: Source badge — shows منفذ/وكيل/ورقي/يدوي */}
                         <span style={{
                           padding: '0px 3px', borderRadius: 'var(--radius-xs)',
                           fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
-                          background: pt.type === 'SMART' ? `${T.amber}14` : pt.type === 'AGENT' ? `${T.purple}14` : pt.type === 'PAPER' ? `${T.cyan}14` : pt.type === 'LASIC' ? 'rgba(255,107,53,0.12)' : `${T.border}`,
-                          color: pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : pt.type === 'LASIC' ? '#FF6B35' : T.text3,
-                          border: `0.5px solid ${pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : pt.type === 'LASIC' ? '#FF6B35' : T.border}`,
+                          background: pt.type === 'SMART' ? `${'#FFB800'}14` : pt.type === 'AGENT' ? `${'#B388FF'}14` : pt.type === 'PAPER' ? `${'#00D4FF'}14` : pt.type === 'LASIC' ? 'rgba(255,107,53,0.12)' : `${'#2A313C'}`,
+                          color: pt.type === 'SMART' ? '#FFB800' : pt.type === 'AGENT' ? '#B388FF' : pt.type === 'PAPER' ? '#00D4FF' : pt.type === 'LASIC' ? '#FF6B35' : '#6B7280',
+                          border: `0.5px solid ${pt.type === 'SMART' ? '#FFB800' : pt.type === 'AGENT' ? '#B388FF' : pt.type === 'PAPER' ? '#00D4FF' : pt.type === 'LASIC' ? '#FF6B35' : '#2A313C'}`,
                         }}>{pt.type === 'SMART' ? t('sourceSmart') : pt.type === 'AGENT' ? t('sourceAgent') : pt.type === 'PAPER' ? t('sourcePaper') : pt.type === 'LASIC' ? t('sourceLasic') : t('sourceManual')}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'center' }}>
                         <span style={{
                           padding: '1px 6px', borderRadius: 'var(--radius-xs)',
                           fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
-                          background: pt.side === 'BUY' ? `${T.green}18` : `${T.red}18`,
-                          color: pt.side === 'BUY' ? T.green : T.red,
+                          background: pt.side === 'BUY' ? `${'#00FFA3'}18` : `${'#FF4757'}18`,
+                          color: pt.side === 'BUY' ? '#00FFA3' : '#FF4757',
                         }}>{pt.side === 'BUY' ? tc('buy') : tc('sell')}</span>
                       </div>
-                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text2 }}>{pt.quantity}</div>
-                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text2 }}>{formatPrice(pt.price, pt.symbol)}</div>
-                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text2 }}>
+                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#9CA3B5' }}>{pt.quantity}</div>
+                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#9CA3B5' }}>{formatPrice(pt.price, pt.symbol)}</div>
+                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#9CA3B5' }}>
                         {(pt as any).exitPrice ? formatPrice((pt as any).exitPrice, pt.symbol) : '—'}
                       </div>
                       {/* V140F: Stop Loss column */}
-                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.red }}>
+                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#FF4757' }}>
                         {(pt as any).stopLoss ? formatPrice((pt as any).stopLoss, pt.symbol) : '—'}
                       </div>
                       {/* V140F: Take Profit column */}
-                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.green }}>
+                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#00FFA3' }}>
                         {(pt as any).takeProfit ? formatPrice((pt as any).takeProfit, pt.symbol) : '—'}
                       </div>
                       <div style={{
                         textAlign: 'center', fontFamily: "var(--font-mono)",
                         fontSize: 'var(--text-xs)', fontWeight: 700,
-                        color: (pt.pnl || 0) > 0 ? T.green : (pt.pnl || 0) < 0 ? T.red : T.text2,
+                        color: (pt.pnl || 0) > 0 ? '#00FFA3' : (pt.pnl || 0) < 0 ? '#FF4757' : '#9CA3B5',
                       }}>
                         {(pt.pnl || 0) > 0 ? '+' : (pt.pnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pt.pnl || 0))}
                       </div>
@@ -1964,32 +1963,32 @@ export default function PortfolioPage() {
                         <span style={{
                           padding: '1px 5px', borderRadius: 'var(--radius-xs)',
                           fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
-                          background: (pt as any).exitReason === 'SL' ? `${T.red}18` :
-                                      (pt as any).exitReason === 'TP' ? `${T.green}18` :
-                                      (pt as any).exitReason === 'TS' ? `${T.cyan}18` : `${T.blue}12`,
-                          color: (pt as any).exitReason === 'SL' ? T.red :
-                                  (pt as any).exitReason === 'TP' ? T.green :
-                                  (pt as any).exitReason === 'TS' ? T.cyan : T.text3,
-                          border: `0.5px solid ${(pt as any).exitReason === 'SL' ? T.red :
-                                                  (pt as any).exitReason === 'TP' ? T.green :
-                                                  (pt as any).exitReason === 'TS' ? T.cyan : T.border}44`,
+                          background: (pt as any).exitReason === 'SL' ? `${'#FF4757'}18` :
+                                      (pt as any).exitReason === 'TP' ? `${'#00FFA3'}18` :
+                                      (pt as any).exitReason === 'TS' ? `${'#00D4FF'}18` : `${'#0A84FF'}12`,
+                          color: (pt as any).exitReason === 'SL' ? '#FF4757' :
+                                  (pt as any).exitReason === 'TP' ? '#00FFA3' :
+                                  (pt as any).exitReason === 'TS' ? '#00D4FF' : '#6B7280',
+                          border: `0.5px solid ${(pt as any).exitReason === 'SL' ? '#FF4757' :
+                                                  (pt as any).exitReason === 'TP' ? '#00FFA3' :
+                                                  (pt as any).exitReason === 'TS' ? '#00D4FF' : '#2A313C'}44`,
                         }}>
                           {(pt as any).exitReason === 'SL' ? t('exitSLShort') :
                             (pt as any).exitReason === 'TP' ? t('exitTPShort') :
                             (pt as any).exitReason === 'TS' ? 'TS' : t('sourceManual')}
                         </span>
                       </div>
-                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text3 }}>
+                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>
                         {formatDuration(pt.openedAt, pt.executedAt)}
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'center' }}>
                         <span style={{
                           padding: '1px 6px', borderRadius: 'var(--radius-xs)',
                           fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 700,
-                          background: `${T.blue}18`, color: T.blue,
+                          background: `${'#0A84FF'}18`, color: '#0A84FF',
                         }}>{t('closed')}</span>
                       </div>
-                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text3 }}>
+                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>
                         {pt.executedAt ? new Date(pt.executedAt).toLocaleDateString('ar', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
                       </div>
                     </div>
@@ -2016,72 +2015,72 @@ export default function PortfolioPage() {
         <>
           {/* Performance Stats */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-            <StatCard label={t('totalTrades')} value={String(trades.length)} color={T.blue} icon={Activity} />
-            <StatCard label={t('winningTrades')} value={String(winningCount)} color={T.green} icon={TrendingUp} sub={`${winRate.toFixed(1)}%`} />
-            <StatCard label={t('losingTrades')} value={String(losingCount)} color={T.red} icon={TrendingDown} />
-            <StatCard label={t('avgProfit')} value={`$${fmt(avgWin, 2)}`} color={T.green} icon={TrendingUp} />
-            <StatCard label={t('avgLoss')} value={`$${fmt(avgLoss, 2)}`} color={T.red} icon={TrendingDown} />
+            <StatCard label={t('totalTrades')} value={String(trades.length)} color={'#0A84FF'} icon={Activity} />
+            <StatCard label={t('winningTrades')} value={String(winningCount)} color={'#00FFA3'} icon={TrendingUp} sub={`${winRate.toFixed(1)}%`} />
+            <StatCard label={t('losingTrades')} value={String(losingCount)} color={'#FF4757'} icon={TrendingDown} />
+            <StatCard label={t('avgProfit')} value={`$${fmt(avgWin, 2)}`} color={'#00FFA3'} icon={TrendingUp} />
+            <StatCard label={t('avgLoss')} value={`$${fmt(avgLoss, 2)}`} color={'#FF4757'} icon={TrendingDown} />
           </div>
 
           {/* Daily P&L Bar Chart */}
           <div style={{
-            background: T.card, border: `0.5px solid ${T.border}`,
+            background: '#151A22', border: `0.5px solid ${'#2A313C'}`,
             borderRadius: 'var(--radius-lg)', padding: '12px 14px', marginBottom: 12,
           }}>
             <div style={{
               fontFamily: "var(--font-ar)", fontWeight: 700,
-              fontSize: 'var(--text-sm)', color: T.text, marginBottom: 8,
+              fontSize: 'var(--text-sm)', color: '#F0F2F5', marginBottom: 8,
             }}>{t('dailyPnl')}</div>
             {performanceData.length > 0 ? (
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={performanceData}>
-                  <XAxis dataKey="date" tick={{ fontSize: 'var(--text-xs)', fill: T.text2 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 'var(--text-xs)', fill: T.text2 }} axisLine={false} tickLine={false} width={50} />
+                  <XAxis dataKey="date" tick={{ fontSize: 'var(--text-xs)', fill: '#9CA3B5' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 'var(--text-xs)', fill: '#9CA3B5' }} axisLine={false} tickLine={false} width={50} />
                   <Tooltip
-                    contentStyle={{ background: T.bg2, border: `0.5px solid ${T.border2}`, borderRadius: 'var(--radius-md)', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)' }}
+                    contentStyle={{ background: '#0F1117', border: `0.5px solid ${'#3A4150'}`, borderRadius: 'var(--radius-md)', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)' }}
                     formatter={(val: any) => [`$${Number(val).toFixed(2)}`, 'P&L']}
                   />
                   <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
                     {performanceData.map((entry, i) => (
-                      <Cell key={entry.date + '-' + i} fill={entry.pnl > 0 ? T.green : entry.pnl < 0 ? T.red : T.text2} opacity={0.8} />
+                      <Cell key={entry.date + '-' + i} fill={entry.pnl > 0 ? '#00FFA3' : entry.pnl < 0 ? '#FF4757' : '#9CA3B5'} opacity={0.8} />
                     ))}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             ) : (
               <div style={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{t('noPerformanceDataAction')}</span>
+                <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('noPerformanceDataAction')}</span>
               </div>
             )}
           </div>
 
           {/* Equity Curve */}
           <div style={{
-            background: T.card, border: `0.5px solid ${T.border}`,
+            background: '#151A22', border: `0.5px solid ${'#2A313C'}`,
             borderRadius: 'var(--radius-lg)', padding: '12px 14px',
           }}>
             <div style={{
               fontFamily: "var(--font-ar)", fontWeight: 700,
-              fontSize: 'var(--text-sm)', color: T.text, marginBottom: 8,
+              fontSize: 'var(--text-sm)', color: '#F0F2F5', marginBottom: 8,
             }}>{t('cumulativeEquityCurve')}</div>
             {equityCurve.length > 0 ? (
               <ResponsiveContainer width="100%" height={250}>
                 <AreaChart data={equityCurve}>
                   <defs>
                     <linearGradient id="perfGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={T.cyan} stopOpacity={0.3} />
-                      <stop offset="95%" stopColor={T.cyan} stopOpacity={0} />
+                      <stop offset="5%" stopColor={'#00D4FF'} stopOpacity={0.3} />
+                      <stop offset="95%" stopColor={'#00D4FF'} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="date" tick={{ fontSize: 'var(--text-xs)', fill: T.text2 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 'var(--text-xs)', fill: T.text2 }} axisLine={false} tickLine={false} width={50} />
+                  <XAxis dataKey="date" tick={{ fontSize: 'var(--text-xs)', fill: '#9CA3B5' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 'var(--text-xs)', fill: '#9CA3B5' }} axisLine={false} tickLine={false} width={50} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Area type="monotone" dataKey="value" stroke={T.cyan} fill="url(#perfGrad)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="value" stroke={'#00D4FF'} fill="url(#perfGrad)" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
               <div style={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{t('noPerformanceData')}</span>
+                <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('noPerformanceData')}</span>
               </div>
             )}
           </div>
@@ -2095,99 +2094,99 @@ export default function PortfolioPage() {
         <>
           {/* Risk Stats */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-            <StatCard label={t('profitFactor')} value={profitFactor >= 999 ? '999+' : profitFactor.toFixed(2)} color={T.green} icon={TrendingUp}
+            <StatCard label={t('profitFactor')} value={profitFactor >= 999 ? '999+' : profitFactor.toFixed(2)} color={'#00FFA3'} icon={TrendingUp}
               note={profitFactor >= 2 ? t('excellent') : profitFactor >= 1.5 ? t('good') : profitFactor >= 1 ? t('acceptable') : t('danger')} />
-            <StatCard label={t('maxDrawdown')} value={`$${fmt(maxDrawdown, 2)}`} color={T.red} icon={TrendingDown}
+            <StatCard label={t('maxDrawdown')} value={`$${fmt(maxDrawdown, 2)}`} color={'#FF4757'} icon={TrendingDown}
               note={maxDrawdown === 0 ? t('noDrawdown') : undefined} />
-            <StatCard label="Sharpe Ratio" value={sharpeRatio !== null ? sharpeRatio.toFixed(2) : '—'} color={T.purple} icon={Award}
+            <StatCard label="Sharpe Ratio" value={sharpeRatio !== null ? sharpeRatio.toFixed(2) : '—'} color={'#B388FF'} icon={Award}
               note={sharpeRatio !== null ? (sharpeRatio >= 2 ? t('excellent') : sharpeRatio >= 1 ? t('good') : t('weak')) : undefined} />
-            <StatCard label={t('openRisk')} value={String(positions.length)} color={T.amber} icon={Shield}
+            <StatCard label={t('openRisk')} value={String(positions.length)} color={'#FFB800'} icon={Shield}
               sub={`${positions.filter(p => !p.stopLoss).length} ${t('withoutStopLoss')}`} />
           </div>
 
           {/* Risk Breakdown */}
           <div style={{
-            background: T.card, border: `0.5px solid ${T.border}`,
+            background: '#151A22', border: `0.5px solid ${'#2A313C'}`,
             borderRadius: 'var(--radius-lg)', padding: '16px', marginBottom: 12,
           }}>
             <div style={{
               fontFamily: "var(--font-ar)", fontWeight: 700,
-              fontSize: 'var(--text-sm)', color: T.text, marginBottom: 12,
+              fontSize: 'var(--text-sm)', color: '#F0F2F5', marginBottom: 12,
             }}>{t('riskAnalysisTitle')}</div>
 
             {/* Risk metrics grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {/* Win/Loss ratio */}
-              <div style={{ padding: '12px', background: T.bg, borderRadius: 'var(--radius-md)', border: `0.5px solid ${T.border}` }}>
-                <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text2, marginBottom: 6 }}>{t('winLossRatio')}</div>
+              <div style={{ padding: '12px', background: '#0B0E14', borderRadius: 'var(--radius-md)', border: `0.5px solid ${'#2A313C'}` }}>
+                <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#9CA3B5', marginBottom: 6 }}>{t('winLossRatio')}</div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ height: 6, borderRadius: 'var(--radius-xs)', background: `${T.red}22`, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 'var(--radius-xs)', background: T.green, width: `${winRate}%`, transition: 'width 0.3s' }} />
+                    <div style={{ height: 6, borderRadius: 'var(--radius-xs)', background: `${'#FF4757'}22`, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', borderRadius: 'var(--radius-xs)', background: '#00FFA3', width: `${winRate}%`, transition: 'width 0.3s' }} />
                     </div>
                   </div>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)', fontWeight: 700, color: winRate >= 50 ? T.green : T.red }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)', fontWeight: 700, color: winRate >= 50 ? '#00FFA3' : '#FF4757' }}>
                     {winRate.toFixed(1)}%
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.green }}>{winningCount} {t('wins')}</span>
-                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.red }}>{losingCount} {t('losses')}</span>
+                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#00FFA3' }}>{winningCount} {t('wins')}</span>
+                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#FF4757' }}>{losingCount} {t('losses')}</span>
                 </div>
               </div>
 
               {/* Avg win vs avg loss */}
-              <div style={{ padding: '12px', background: T.bg, borderRadius: 'var(--radius-md)', border: `0.5px solid ${T.border}` }}>
-                <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text2, marginBottom: 6 }}>{t('avgProfitVsLoss')}</div>
+              <div style={{ padding: '12px', background: '#0B0E14', borderRadius: 'var(--radius-md)', border: `0.5px solid ${'#2A313C'}` }}>
+                <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#9CA3B5', marginBottom: 6 }}>{t('avgProfitVsLoss')}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <div>
-                    <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{t('avgProfit')}</span>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-base)', fontWeight: 700, color: T.green }}>+${fmt(avgWin, 2)}</div>
+                    <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('avgProfit')}</span>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-base)', fontWeight: 700, color: '#00FFA3' }}>+${fmt(avgWin, 2)}</div>
                   </div>
                   <div style={{ textAlign: 'start' }}>
-                    <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{t('avgLoss')}</span>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-base)', fontWeight: 700, color: T.red }}>-${fmt(avgLoss, 2)}</div>
+                    <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('avgLoss')}</span>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-base)', fontWeight: 700, color: '#FF4757' }}>-${fmt(avgLoss, 2)}</div>
                   </div>
                 </div>
               </div>
 
               {/* Open exposure */}
-              <div style={{ padding: '12px', background: T.bg, borderRadius: 'var(--radius-md)', border: `0.5px solid ${T.border}` }}>
-                <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text2, marginBottom: 6 }}>{t('openExposure')}</div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: totalUnrealizedPnl > 0 ? T.green : totalUnrealizedPnl < 0 ? T.red : T.text2 }}>
+              <div style={{ padding: '12px', background: '#0B0E14', borderRadius: 'var(--radius-md)', border: `0.5px solid ${'#2A313C'}` }}>
+                <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#9CA3B5', marginBottom: 6 }}>{t('openExposure')}</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: totalUnrealizedPnl > 0 ? '#00FFA3' : totalUnrealizedPnl < 0 ? '#FF4757' : '#9CA3B5' }}>
                   {totalUnrealizedPnl > 0 ? '+' : totalUnrealizedPnl < 0 ? '-' : ''}${fmt(Math.abs(totalUnrealizedPnl), 2)}
                 </div>
-                <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{t('openPositionCount', { count: positions.length })}</span>
+                <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('openPositionCount', { count: positions.length })}</span>
               </div>
 
               {/* SL coverage */}
-              <div style={{ padding: '12px', background: T.bg, borderRadius: 'var(--radius-md)', border: `0.5px solid ${positions.some(p => !p.stopLoss) ? T.red + '44' : T.border}` }}>
-                <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text2, marginBottom: 6 }}>{t('stopLossCoverage')}</div>
+              <div style={{ padding: '12px', background: '#0B0E14', borderRadius: 'var(--radius-md)', border: `0.5px solid ${positions.some(p => !p.stopLoss) ? '#FF4757' + '44' : '#2A313C'}` }}>
+                <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#9CA3B5', marginBottom: 6 }}>{t('stopLossCoverage')}</div>
                 {positions.length > 0 ? (
                   <>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ height: 6, borderRadius: 'var(--radius-xs)', background: `${T.red}22`, overflow: 'hidden' }}>
+                        <div style={{ height: 6, borderRadius: 'var(--radius-xs)', background: `${'#FF4757'}22`, overflow: 'hidden' }}>
                           <div style={{
                             height: '100%', borderRadius: 'var(--radius-xs)',
-                            background: positions.every(p => p.stopLoss) ? T.green : T.red,
+                            background: positions.every(p => p.stopLoss) ? '#00FFA3' : '#FF4757',
                             width: `${(positions.filter(p => p.stopLoss).length / positions.length) * 100}%`,
                             transition: 'width 0.3s',
                           }} />
                         </div>
                       </div>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)', fontWeight: 700, color: positions.every(p => p.stopLoss) ? T.green : T.red }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)', fontWeight: 700, color: positions.every(p => p.stopLoss) ? '#00FFA3' : '#FF4757' }}>
                         {positions.filter(p => p.stopLoss).length}/{positions.length}
                       </span>
                     </div>
                     {!positions.every(p => p.stopLoss) && (
-                      <span className="animate-pulse" style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.red, marginTop: 4, display: 'block', fontWeight: 700 }}>
+                      <span className="animate-pulse" style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#FF4757', marginTop: 4, display: 'block', fontWeight: 700 }}>
                         ⚠️ {t('warning')}: {positions.filter(p => !p.stopLoss).length} {t('warningNoStopLoss')}
                       </span>
                     )}
                   </>
                 ) : (
-                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{t('noOpenPositions')}</span>
+                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('noOpenPositions')}</span>
                 )}
               </div>
             </div>
@@ -2195,14 +2194,14 @@ export default function PortfolioPage() {
 
           {/* Risk Warning */}
           <div style={{
-            background: `${T.amber}08`, border: `0.5px solid ${T.amber}22`,
+            background: `${'#FFB800'}08`, border: `0.5px solid ${'#FFB800'}22`,
             borderRadius: 'var(--radius-lg)', padding: '12px 16px',
             display: 'flex', gap: 8, alignItems: 'flex-start',
           }}>
-            <AlertTriangle size={14} style={{ color: T.amber, marginTop: 2, flexShrink: 0 }} />
+            <AlertTriangle size={14} style={{ color: '#FFB800', marginTop: 2, flexShrink: 0 }} />
             <div>
-              <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 700, color: T.amber, marginBottom: 2 }}>{t('riskManagementAlert')}</div>
-              <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3, lineHeight: 1.6 }}>
+              <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 700, color: '#FFB800', marginBottom: 2 }}>{t('riskManagementAlert')}</div>
+              <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280', lineHeight: 1.6 }}>
                 {t('riskDisclaimer')}
                 {t('riskDisclaimerLine2')}
                 {t('riskDisclaimerLine3')}
@@ -2219,8 +2218,8 @@ export default function PortfolioPage() {
         <>
           {/* Journal Header with Export Buttons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-            <div style={{ width: 3, height: 20, borderRadius: 'var(--radius-xs)', background: T.amber }} />
-            <span style={{ fontFamily: "var(--font-ar)", fontWeight: 900, fontSize: 'var(--text-base)', color: T.text }}>
+            <div style={{ width: 3, height: 20, borderRadius: 'var(--radius-xs)', background: '#FFB800' }} />
+            <span style={{ fontFamily: "var(--font-ar)", fontWeight: 900, fontSize: 'var(--text-base)', color: '#F0F2F5' }}>
               سجل التداول الذكي
             </span>
             <div style={{ flex: 1 }} />
@@ -2231,8 +2230,8 @@ export default function PortfolioPage() {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 5,
                     padding: '6px 14px', borderRadius: 'var(--radius-md)',
-                    border: `0.5px solid ${T.amber}44`, background: `${T.amber}14`,
-                    color: T.amber, fontFamily: "var(--font-ar)",
+                    border: `0.5px solid ${'#FFB800'}44`, background: `${'#FFB800'}14`,
+                    color: '#FFB800', fontFamily: "var(--font-ar)",
                     fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
                   }}
                 >
@@ -2244,8 +2243,8 @@ export default function PortfolioPage() {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 5,
                     padding: '5px 10px', borderRadius: 'var(--radius-md)',
-                    border: `0.5px solid ${T.border}`, background: T.card,
-                    color: T.text2, fontFamily: "var(--font-ar)",
+                    border: `0.5px solid ${'#2A313C'}`, background: '#151A22',
+                    color: '#9CA3B5', fontFamily: "var(--font-ar)",
                     fontSize: 'var(--text-xs)', cursor: 'pointer', transition: 'all 0.2s',
                   }}
                 >
@@ -2258,19 +2257,19 @@ export default function PortfolioPage() {
 
           {journalEntries.length === 0 ? (
             <div style={{
-              background: T.card, border: `0.5px solid ${T.border}`,
+              background: '#151A22', border: `0.5px solid ${'#2A313C'}`,
               borderRadius: 'var(--radius-lg)', padding: 40, textAlign: 'center',
             }}>
-              <FileText size={40} style={{ color: T.text3, opacity: 0.3, margin: '0 auto 12px' }} />
-              <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-base)', fontWeight: 700, color: T.text, marginBottom: 6 }}>
+              <FileText size={40} style={{ color: '#6B7280', opacity: 0.3, margin: '0 auto 12px' }} />
+              <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-base)', fontWeight: 700, color: '#F0F2F5', marginBottom: 6 }}>
                 لا توجد بيانات تداول بعد
               </div>
-              <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3, lineHeight: 1.7 }}>
+              <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280', lineHeight: 1.7 }}>
                 سيتم تسجيل كل اقتراح تداول تلقائياً عند استخدامه.
                 <br />
                 استخدم نظام التداول الآلي على الشارت لبدء تجميع البيانات.
                 <br />
-                <span style={{ color: T.amber, fontSize: 'var(--text-xs)' }}>
+                <span style={{ color: '#FFB800', fontSize: 'var(--text-xs)' }}>
                   كل يوم استخدام = دليل إضافي لأداء النظام
                 </span>
               </div>
@@ -2281,13 +2280,13 @@ export default function PortfolioPage() {
               <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
                 <StatCard
                   label='إجمالي الاقتراحات' value={String(journalStats.totalTrades)}
-                  color={T.blue} icon={Activity}
+                  color={'#0A84FF'} icon={Activity}
                   sub={`${journalStats.closedTrades} مغلق · ${journalStats.pendingTrades} معلق`}
                 />
                 <StatCard
                   label='نسبة النجاح'
                   value={`${Math.round(journalStats.winRate * 100)}%`}
-                  color={journalStats.winRate >= 0.5 ? T.green : T.red}
+                  color={journalStats.winRate >= 0.5 ? '#00FFA3' : '#FF4757'}
                   icon={Target}
                   note={journalStats.winRate >= 0.6 ? 'ممتاز' : journalStats.winRate >= 0.45 ? 'جيد' : journalStats.closedTrades > 0 ? 'يحتاج تحسين' : undefined}
                   sub={`${journalStats.wins} رابح · ${journalStats.losses} خاسر`}
@@ -2295,35 +2294,35 @@ export default function PortfolioPage() {
                 <StatCard
                   label='صافي الربح'
                   value={`${journalStats.totalPnL >= 0 ? '+' : ''}${journalStats.totalPnL}`}
-                  color={journalStats.totalPnL >= 0 ? T.green : T.red}
+                  color={journalStats.totalPnL >= 0 ? '#00FFA3' : '#FF4757'}
                   icon={TrendingUp}
                 />
                 <StatCard
                   label='معامل الربح'
                   value={journalStats.profitFactor >= 999 ? '999+' : String(journalStats.profitFactor)}
-                  color={T.green} icon={Award}
+                  color={'#00FFA3'} icon={Award}
                   note={journalStats.profitFactor >= 2 ? 'ممتاز' : journalStats.profitFactor >= 1.5 ? 'جيد' : undefined}
                 />
                 <StatCard
                   label='متوسط R'
                   value={String(journalStats.avgRMultiple)}
-                  color={journalStats.avgRMultiple > 0 ? T.green : T.red}
+                  color={journalStats.avgRMultiple > 0 ? '#00FFA3' : '#FF4757'}
                   icon={BarChart2}
                 />
                 <StatCard
                   label='شارب المقدر'
                   value={String(journalStats.sharpeEstimate)}
-                  color={T.purple} icon={Award}
+                  color={'#B388FF'} icon={Award}
                 />
                 <StatCard
                   label='أقصى تراجع'
                   value={String(journalStats.maxDrawdown)}
-                  color={T.red} icon={TrendingDown}
+                  color={'#FF4757'} icon={TrendingDown}
                 />
                 <StatCard
                   label='متوسط R:R'
                   value={`1:${journalStats.avgRR.toFixed(1)}`}
-                  color={T.cyan} icon={Target}
+                  color={'#00D4FF'} icon={Target}
                 />
               </div>
 
@@ -2332,37 +2331,37 @@ export default function PortfolioPage() {
                 {/* Cumulative P&L Curve from Journal */}
                 <div style={{
                   flex: '1 1 400px',
-                  background: T.card, border: `0.5px solid ${T.border}`,
+                  background: '#151A22', border: `0.5px solid ${'#2A313C'}`,
                   borderRadius: 'var(--radius-lg)', padding: '12px 14px',
                 }}>
                   <div style={{
                     fontFamily: "var(--font-ar)", fontWeight: 700,
-                    fontSize: 'var(--text-sm)', color: T.text, marginBottom: 8,
+                    fontSize: 'var(--text-sm)', color: '#F0F2F5', marginBottom: 8,
                   }}>منحنى الربح التراكمي (سجل التداول)</div>
                   {journalStats.weeklyBreakdown.length > 0 ? (
                     <ResponsiveContainer width="100%" height={220}>
                       <AreaChart data={journalStats.weeklyBreakdown}>
                         <defs>
                           <linearGradient id="jPnlGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor={T.green} stopOpacity={0.3} />
-                            <stop offset="95%" stopColor={T.green} stopOpacity={0} />
+                            <stop offset="5%" stopColor={'#00FFA3'} stopOpacity={0.3} />
+                            <stop offset="95%" stopColor={'#00FFA3'} stopOpacity={0} />
                           </linearGradient>
                         </defs>
-                        <XAxis dataKey="week" tick={{ fontSize: 'var(--text-xs)', fill: T.text2 }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 'var(--text-xs)', fill: T.text2 }} axisLine={false} tickLine={false} width={50} />
+                        <XAxis dataKey="week" tick={{ fontSize: 'var(--text-xs)', fill: '#9CA3B5' }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 'var(--text-xs)', fill: '#9CA3B5' }} axisLine={false} tickLine={false} width={50} />
                         <Tooltip
-                          contentStyle={{ background: T.bg2, border: `0.5px solid ${T.border2}`, borderRadius: 'var(--radius-md)', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)' }}
+                          contentStyle={{ background: '#0F1117', border: `0.5px solid ${'#3A4150'}`, borderRadius: 'var(--radius-md)', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)' }}
                           formatter={(val: any, name: string) => {
                             if (name === 'cumulativePnL') return [`$${Number(val).toFixed(2)}`, 'الربح التراكمي']
                             return [val, name]
                           }}
                         />
-                        <Area type="monotone" dataKey="cumulativePnL" stroke={T.green} fill="url(#jPnlGrad)" strokeWidth={2} />
+                        <Area type="monotone" dataKey="cumulativePnL" stroke={'#00FFA3'} fill="url(#jPnlGrad)" strokeWidth={2} />
                       </AreaChart>
                     </ResponsiveContainer>
                   ) : (
                     <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>لا توجد بيانات أسبوعية بعد</span>
+                      <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>لا توجد بيانات أسبوعية بعد</span>
                     </div>
                   )}
                 </div>
@@ -2370,32 +2369,32 @@ export default function PortfolioPage() {
                 {/* Weekly Win Rate Bar Chart */}
                 <div style={{
                   flex: '1 1 400px',
-                  background: T.card, border: `0.5px solid ${T.border}`,
+                  background: '#151A22', border: `0.5px solid ${'#2A313C'}`,
                   borderRadius: 'var(--radius-lg)', padding: '12px 14px',
                 }}>
                   <div style={{
                     fontFamily: "var(--font-ar)", fontWeight: 700,
-                    fontSize: 'var(--text-sm)', color: T.text, marginBottom: 8,
+                    fontSize: 'var(--text-sm)', color: '#F0F2F5', marginBottom: 8,
                   }}>نسبة النجاح الأسبوعية</div>
                   {journalStats.weeklyBreakdown.length > 0 ? (
                     <ResponsiveContainer width="100%" height={220}>
                       <BarChart data={journalStats.weeklyBreakdown}>
-                        <XAxis dataKey="week" tick={{ fontSize: 'var(--text-xs)', fill: T.text2 }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 'var(--text-xs)', fill: T.text2 }} axisLine={false} tickLine={false} width={40} domain={[0, 100]} />
+                        <XAxis dataKey="week" tick={{ fontSize: 'var(--text-xs)', fill: '#9CA3B5' }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 'var(--text-xs)', fill: '#9CA3B5' }} axisLine={false} tickLine={false} width={40} domain={[0, 100]} />
                         <Tooltip
-                          contentStyle={{ background: T.bg2, border: `0.5px solid ${T.border2}`, borderRadius: 'var(--radius-md)', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)' }}
+                          contentStyle={{ background: '#0F1117', border: `0.5px solid ${'#3A4150'}`, borderRadius: 'var(--radius-md)', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)' }}
                           formatter={(val: any) => [`${Number(val).toFixed(1)}%`, 'نسبة النجاح']}
                         />
                         <Bar dataKey={(d: any) => Math.round(d.winRate * 100)} radius={[4, 4, 0, 0]}>
                           {journalStats.weeklyBreakdown.map((w, i) => (
-                            <Cell key={w.week + '-' + i} fill={w.winRate >= 0.5 ? T.green : T.red} opacity={0.8} />
+                            <Cell key={w.week + '-' + i} fill={w.winRate >= 0.5 ? '#00FFA3' : '#FF4757'} opacity={0.8} />
                           ))}
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
                     <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>لا توجد بيانات أسبوعية بعد</span>
+                      <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>لا توجد بيانات أسبوعية بعد</span>
                     </div>
                   )}
                 </div>
@@ -2406,44 +2405,44 @@ export default function PortfolioPage() {
                 {/* Direction Breakdown */}
                 <div style={{
                   flex: '1 1 300px',
-                  background: T.card, border: `0.5px solid ${T.border}`,
+                  background: '#151A22', border: `0.5px solid ${'#2A313C'}`,
                   borderRadius: 'var(--radius-lg)', padding: '14px',
                 }}>
                   <div style={{
                     fontFamily: "var(--font-ar)", fontWeight: 700,
-                    fontSize: 'var(--text-sm)', color: T.text, marginBottom: 10,
+                    fontSize: 'var(--text-sm)', color: '#F0F2F5', marginBottom: 10,
                   }}>الأداء حسب الاتجاه</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {/* Bullish */}
-                    <div style={{ padding: '10px', background: T.bg, borderRadius: 'var(--radius-md)', border: `0.5px solid ${T.green}22` }}>
+                    <div style={{ padding: '10px', background: '#0B0E14', borderRadius: 'var(--radius-md)', border: `0.5px solid ${'#00FFA3'}22` }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                        <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 700, color: T.green }}>▲ شراء (صاعد)</span>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)', fontWeight: 800, color: journalStats.byDirection.bullish.winRate >= 0.5 ? T.green : T.red }}>
+                        <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 700, color: '#00FFA3' }}>▲ شراء (صاعد)</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)', fontWeight: 800, color: journalStats.byDirection.bullish.winRate >= 0.5 ? '#00FFA3' : '#FF4757' }}>
                           {Math.round(journalStats.byDirection.bullish.winRate * 100)}%
                         </span>
                       </div>
-                      <div style={{ height: 5, borderRadius: 'var(--radius-xs)', background: `${T.green}15`, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', borderRadius: 'var(--radius-xs)', background: T.green, width: `${journalStats.byDirection.bullish.winRate * 100}%`, transition: 'width 0.3s' }} />
+                      <div style={{ height: 5, borderRadius: 'var(--radius-xs)', background: `${'#00FFA3'}15`, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', borderRadius: 'var(--radius-xs)', background: '#00FFA3', width: `${journalStats.byDirection.bullish.winRate * 100}%`, transition: 'width 0.3s' }} />
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 'var(--text-xs)' }}>
-                        <span style={{ fontFamily: "var(--font-ar)", color: T.text3 }}>{journalStats.byDirection.bullish.trades} صفقة</span>
-                        <span style={{ fontFamily: "var(--font-mono)", color: journalStats.byDirection.bullish.pnl >= 0 ? T.green : T.red }}>{journalStats.byDirection.bullish.pnl >= 0 ? '+' : ''}{journalStats.byDirection.bullish.pnl}</span>
+                        <span style={{ fontFamily: "var(--font-ar)", color: '#6B7280' }}>{journalStats.byDirection.bullish.trades} صفقة</span>
+                        <span style={{ fontFamily: "var(--font-mono)", color: journalStats.byDirection.bullish.pnl >= 0 ? '#00FFA3' : '#FF4757' }}>{journalStats.byDirection.bullish.pnl >= 0 ? '+' : ''}{journalStats.byDirection.bullish.pnl}</span>
                       </div>
                     </div>
                     {/* Bearish */}
-                    <div style={{ padding: '10px', background: T.bg, borderRadius: 'var(--radius-md)', border: `0.5px solid ${T.red}22` }}>
+                    <div style={{ padding: '10px', background: '#0B0E14', borderRadius: 'var(--radius-md)', border: `0.5px solid ${'#FF4757'}22` }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                        <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 700, color: T.red }}>▼ بيع (هابط)</span>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)', fontWeight: 800, color: journalStats.byDirection.bearish.winRate >= 0.5 ? T.green : T.red }}>
+                        <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 700, color: '#FF4757' }}>▼ بيع (هابط)</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)', fontWeight: 800, color: journalStats.byDirection.bearish.winRate >= 0.5 ? '#00FFA3' : '#FF4757' }}>
                           {Math.round(journalStats.byDirection.bearish.winRate * 100)}%
                         </span>
                       </div>
-                      <div style={{ height: 5, borderRadius: 'var(--radius-xs)', background: `${T.red}15`, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', borderRadius: 'var(--radius-xs)', background: T.red, width: `${journalStats.byDirection.bearish.winRate * 100}%`, transition: 'width 0.3s' }} />
+                      <div style={{ height: 5, borderRadius: 'var(--radius-xs)', background: `${'#FF4757'}15`, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', borderRadius: 'var(--radius-xs)', background: '#FF4757', width: `${journalStats.byDirection.bearish.winRate * 100}%`, transition: 'width 0.3s' }} />
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 'var(--text-xs)' }}>
-                        <span style={{ fontFamily: "var(--font-ar)", color: T.text3 }}>{journalStats.byDirection.bearish.trades} صفقة</span>
-                        <span style={{ fontFamily: "var(--font-mono)", color: journalStats.byDirection.bearish.pnl >= 0 ? T.green : T.red }}>{journalStats.byDirection.bearish.pnl >= 0 ? '+' : ''}{journalStats.byDirection.bearish.pnl}</span>
+                        <span style={{ fontFamily: "var(--font-ar)", color: '#6B7280' }}>{journalStats.byDirection.bearish.trades} صفقة</span>
+                        <span style={{ fontFamily: "var(--font-mono)", color: journalStats.byDirection.bearish.pnl >= 0 ? '#00FFA3' : '#FF4757' }}>{journalStats.byDirection.bearish.pnl >= 0 ? '+' : ''}{journalStats.byDirection.bearish.pnl}</span>
                       </div>
                     </div>
                   </div>
@@ -2452,12 +2451,12 @@ export default function PortfolioPage() {
                 {/* Signal Source Breakdown */}
                 <div style={{
                   flex: '1 1 300px',
-                  background: T.card, border: `0.5px solid ${T.border}`,
+                  background: '#151A22', border: `0.5px solid ${'#2A313C'}`,
                   borderRadius: 'var(--radius-lg)', padding: '14px',
                 }}>
                   <div style={{
                     fontFamily: "var(--font-ar)", fontWeight: 700,
-                    fontSize: 'var(--text-sm)', color: T.text, marginBottom: 10,
+                    fontSize: 'var(--text-sm)', color: '#F0F2F5', marginBottom: 10,
                   }}>أفضل مصادر الإشارة</div>
                   {Object.entries(journalStats.bySource).length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -2468,24 +2467,24 @@ export default function PortfolioPage() {
                           <div key={source} style={{
                             display: 'flex', alignItems: 'center', gap: 8,
                             padding: '6px 8px', borderRadius: 'var(--radius-sm)',
-                            background: T.bg, border: `0.5px solid ${data.winRate >= 0.5 ? T.green : T.red}18`,
+                            background: '#0B0E14', border: `0.5px solid ${data.winRate >= 0.5 ? '#00FFA3' : '#FF4757'}18`,
                           }}>
                             <span style={{
                               fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
-                              color: data.winRate >= 0.5 ? T.green : T.red, minWidth: 40,
+                              color: data.winRate >= 0.5 ? '#00FFA3' : '#FF4757', minWidth: 40,
                             }}>{Math.round(data.winRate * 100)}%</span>
-                            <span style={{ flex: 1, fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{source}</span>
-                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text3 }}>{data.trades}</span>
+                            <span style={{ flex: 1, fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#F0F2F5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{source}</span>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>{data.trades}</span>
                             <span style={{
                               fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)',
-                              color: data.pnl >= 0 ? T.green : T.red,
+                              color: data.pnl >= 0 ? '#00FFA3' : '#FF4757',
                             }}>{data.pnl >= 0 ? '+' : ''}{Math.round(data.pnl * 100) / 100}</span>
                           </div>
                         ))}
                     </div>
                   ) : (
                     <div style={{ padding: 20, textAlign: 'center' }}>
-                      <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>لا توجد بيانات مصادر بعد</span>
+                      <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>لا توجد بيانات مصادر بعد</span>
                     </div>
                   )}
                 </div>
@@ -2494,36 +2493,36 @@ export default function PortfolioPage() {
               {/* ── Boost Impact Section ── */}
               {journalStats.boostTradesCount > 0 && (
                 <div style={{
-                  background: T.card, border: `0.5px solid ${T.amber}22`,
+                  background: '#151A22', border: `0.5px solid ${'#FFB800'}22`,
                   borderRadius: 'var(--radius-lg)', padding: '14px', marginBottom: 12,
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                    <div style={{ width: 3, height: 16, borderRadius: 'var(--radius-xs)', background: T.amber }} />
-                    <span style={{ fontFamily: "var(--font-ar)", fontWeight: 700, fontSize: 'var(--text-sm)', color: T.text }}>
+                    <div style={{ width: 3, height: 16, borderRadius: 'var(--radius-xs)', background: '#FFB800' }} />
+                    <span style={{ fontFamily: "var(--font-ar)", fontWeight: 700, fontSize: 'var(--text-sm)', color: '#F0F2F5' }}>
                       تأثير المحركات الثورية
                     </span>
                   </div>
                   <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                    <div style={{ flex: '1 1 140px', padding: '10px', background: T.bg, borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.amber, marginBottom: 4 }}>مع التعزيز الثوري</div>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: journalStats.boostTradesWinRate >= 0.5 ? T.green : T.red }}>
+                    <div style={{ flex: '1 1 140px', padding: '10px', background: '#0B0E14', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
+                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#FFB800', marginBottom: 4 }}>مع التعزيز الثوري</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: journalStats.boostTradesWinRate >= 0.5 ? '#00FFA3' : '#FF4757' }}>
                         {Math.round(journalStats.boostTradesWinRate * 100)}%
                       </div>
-                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{journalStats.boostTradesCount} صفقة</div>
+                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>{journalStats.boostTradesCount} صفقة</div>
                     </div>
-                    <div style={{ flex: '1 1 140px', padding: '10px', background: T.bg, borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text2, marginBottom: 4 }}>بدون تعزيز</div>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: journalStats.noBoostTradesWinRate >= 0.5 ? T.green : T.red }}>
+                    <div style={{ flex: '1 1 140px', padding: '10px', background: '#0B0E14', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
+                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#9CA3B5', marginBottom: 4 }}>بدون تعزيز</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: journalStats.noBoostTradesWinRate >= 0.5 ? '#00FFA3' : '#FF4757' }}>
                         {Math.round(journalStats.noBoostTradesWinRate * 100)}%
                       </div>
-                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{journalStats.noBoostTradesCount} صفقة</div>
+                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>{journalStats.noBoostTradesCount} صفقة</div>
                     </div>
-                    <div style={{ flex: '1 1 140px', padding: '10px', background: T.bg, borderRadius: 'var(--radius-md)', textAlign: 'center', border: `0.5px solid ${journalStats.boostLift >= 1 ? T.green : T.red}22` }}>
-                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text2, marginBottom: 4 }}>التحسن</div>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: journalStats.boostLift >= 1 ? T.green : T.red }}>
+                    <div style={{ flex: '1 1 140px', padding: '10px', background: '#0B0E14', borderRadius: 'var(--radius-md)', textAlign: 'center', border: `0.5px solid ${journalStats.boostLift >= 1 ? '#00FFA3' : '#FF4757'}22` }}>
+                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#9CA3B5', marginBottom: 4 }}>التحسن</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: journalStats.boostLift >= 1 ? '#00FFA3' : '#FF4757' }}>
                         {journalStats.boostLift > 0 ? `${journalStats.boostLift >= 1 ? '+' : ''}${Math.round((journalStats.boostLift - 1) * 100)}%` : '—'}
                       </div>
-                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>تحسن التعزيز</div>
+                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>تحسن التعزيز</div>
                     </div>
                   </div>
                 </div>
@@ -2532,25 +2531,25 @@ export default function PortfolioPage() {
               {/* ── Regime Performance ── */}
               {Object.keys(journalStats.byRegime).length > 0 && (
                 <div style={{
-                  background: T.card, border: `0.5px solid ${T.border}`,
+                  background: '#151A22', border: `0.5px solid ${'#2A313C'}`,
                   borderRadius: 'var(--radius-lg)', padding: '14px', marginBottom: 12,
                 }}>
                   <div style={{
                     fontFamily: "var(--font-ar)", fontWeight: 700,
-                    fontSize: 'var(--text-sm)', color: T.text, marginBottom: 10,
+                    fontSize: 'var(--text-sm)', color: '#F0F2F5', marginBottom: 10,
                   }}>الأداء حسب نظام السوق</div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {Object.entries(journalStats.byRegime).map(([regime, data]) => (
                       <div key={regime} style={{
-                        flex: '1 1 120px', padding: '10px', background: T.bg, borderRadius: 'var(--radius-md)',
-                        border: `0.5px solid ${data.winRate >= 0.5 ? T.green : T.red}18`,
+                        flex: '1 1 120px', padding: '10px', background: '#0B0E14', borderRadius: 'var(--radius-md)',
+                        border: `0.5px solid ${data.winRate >= 0.5 ? '#00FFA3' : '#FF4757'}18`,
                         textAlign: 'center',
                       }}>
-                        <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text, marginBottom: 4 }}>{regime}</div>
-                        <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-md)', fontWeight: 800, color: data.winRate >= 0.5 ? T.green : T.red }}>
+                        <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 700, color: '#F0F2F5', marginBottom: 4 }}>{regime}</div>
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-md)', fontWeight: 800, color: data.winRate >= 0.5 ? '#00FFA3' : '#FF4757' }}>
                           {Math.round(data.winRate * 100)}%
                         </div>
-                        <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{data.trades} صفقة · {data.wins} رابح</div>
+                        <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>{data.trades} صفقة · {data.wins} رابح</div>
                       </div>
                     ))}
                   </div>
@@ -2559,28 +2558,28 @@ export default function PortfolioPage() {
 
               {/* ── Recent Journal Entries ── */}
               <div style={{
-                background: T.card, border: `0.5px solid ${T.border}`,
+                background: '#151A22', border: `0.5px solid ${'#2A313C'}`,
                 borderRadius: 'var(--radius-lg)', overflow: 'hidden',
               }}>
                 <div style={{
                   display: 'flex', alignItems: 'center',
                   padding: '8px 14px', gap: 8,
-                  borderBottom: `0.5px solid ${T.border}`,
-                  background: `linear-gradient(90deg, ${T.amber}0a, transparent)`,
+                  borderBottom: `0.5px solid ${'#2A313C'}`,
+                  background: `linear-gradient(90deg, ${'#FFB800'}0a, transparent)`,
                 }}>
-                  <div style={{ width: 3, height: 14, borderRadius: 'var(--radius-xs)', background: T.amber }} />
+                  <div style={{ width: 3, height: 14, borderRadius: 'var(--radius-xs)', background: '#FFB800' }} />
                   <span style={{
                     fontFamily: "var(--font-ar)", fontWeight: 700,
-                    fontSize: 'var(--text-sm)', color: T.text, flex: 1,
+                    fontSize: 'var(--text-sm)', color: '#F0F2F5', flex: 1,
                   }}>آخر اقتراحات التداول</span>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text3 }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>
                     {journalEntries.length} سجل
                   </span>
                 </div>
 
                 {journalEntries.length === 0 ? (
                   <div style={{ padding: 24, textAlign: 'center' }}>
-                    <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>لا توجد سجلات</span>
+                    <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>لا توجد سجلات</span>
                   </div>
                 ) : isMobile ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 8 }}>
@@ -2590,41 +2589,41 @@ export default function PortfolioPage() {
                       return (
                         <div key={entry.id} style={{
                           background: 'rgba(255,255,255,0.02)',
-                          border: `0.5px solid ${isResolved ? (isWin ? T.green : T.red) : T.border}22`,
+                          border: `0.5px solid ${isResolved ? (isWin ? '#00FFA3' : '#FF4757') : '#2A313C'}22`,
                           borderRadius: 'var(--radius-md)', padding: '8px 10px',
                           display: 'flex', flexDirection: 'column', gap: 4,
                         }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                              <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text }}>{entry.symbol}</span>
+                              <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700, color: '#F0F2F5' }}>{entry.symbol}</span>
                               <span style={{
                                 padding: '1px 5px', borderRadius: 'var(--radius-xs)',
                                 fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
-                                background: entry.direction === 'bullish' ? `${T.green}18` : `${T.red}18`,
-                                color: entry.direction === 'bullish' ? T.green : T.red,
+                                background: entry.direction === 'bullish' ? `${'#00FFA3'}18` : `${'#FF4757'}18`,
+                                color: entry.direction === 'bullish' ? '#00FFA3' : '#FF4757',
                               }}>{entry.direction === 'bullish' ? '▲ شراء' : '▼ بيع'}</span>
                             </div>
                             {isResolved ? (
                               <span style={{
                                 fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
-                                color: isWin ? T.green : T.red,
+                                color: isWin ? '#00FFA3' : '#FF4757',
                               }}>{isWin ? '+' : ''}{Math.round(entry.realizedPnL * 100) / 100}</span>
                             ) : (
                               <span style={{
                                 padding: '1px 5px', borderRadius: 'var(--radius-xs)',
                                 fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)',
-                                background: `${T.amber}14`, color: T.amber,
+                                background: `${'#FFB800'}14`, color: '#FFB800',
                               }}>معلق</span>
                             )}
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 3, fontSize: 'var(--text-xs)' }}>
-                            <div><span style={{ color: T.text3 }}>دخول: </span><span style={{ color: T.text2 }}>{entry.entryPrice}</span></div>
-                            <div><span style={{ color: T.text3 }}>SL: </span><span style={{ color: T.red }}>{entry.stopLoss}</span></div>
-                            <div><span style={{ color: T.text3 }}>R:R: </span><span style={{ color: T.text2 }}>1:{entry.rrRatio}</span></div>
+                            <div><span style={{ color: '#6B7280' }}>دخول: </span><span style={{ color: '#9CA3B5' }}>{entry.entryPrice}</span></div>
+                            <div><span style={{ color: '#6B7280' }}>SL: </span><span style={{ color: '#FF4757' }}>{entry.stopLoss}</span></div>
+                            <div><span style={{ color: '#6B7280' }}>R:R: </span><span style={{ color: '#9CA3B5' }}>1:{entry.rrRatio}</span></div>
                           </div>
-                          <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {entry.date} · {entry.regime} · ثقة: {Math.round(entry.confidence * 100)}%
-                            {entry.boostFactorsActive.length > 0 && <span style={{ color: T.amber }}> · +{entry.boostFactorsActive.length} تعزيز</span>}
+                            {entry.boostFactorsActive.length > 0 && <span style={{ color: '#FFB800' }}> · +{entry.boostFactorsActive.length} تعزيز</span>}
                           </div>
                         </div>
                       )
@@ -2637,10 +2636,10 @@ export default function PortfolioPage() {
                         display: 'grid',
                         gridTemplateColumns: '80px 55px 70px 70px 60px 55px 55px 70px 55px 70px 80px 60px',
                         padding: '5px 14px', gap: 0,
-                        borderBottom: `0.5px solid ${T.border}`,
+                        borderBottom: `0.5px solid ${'#2A313C'}`,
                       }}>
                         {['التاريخ','الاتجاه','الدخول','SL','TP1','R:R','ثقة','النتيجة','R','الربح','الإشارات','التعزيز'].map((h) => (
-                          <div key={h} style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3, textAlign: 'center' }}>{h}</div>
+                          <div key={h} style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280', textAlign: 'center' }}>{h}</div>
                         ))}
                       </div>
                       {journalEntries.slice(0, 25).map((entry, i) => {
@@ -2652,47 +2651,47 @@ export default function PortfolioPage() {
                             display: 'grid',
                             gridTemplateColumns: '80px 55px 70px 70px 60px 55px 55px 70px 55px 70px 80px 60px',
                             padding: '6px 14px', gap: 0,
-                            borderBottom: i < Math.min(journalEntries.length, 25) - 1 ? `0.5px solid ${T.border}` : 'none',
+                            borderBottom: i < Math.min(journalEntries.length, 25) - 1 ? `0.5px solid ${'#2A313C'}` : 'none',
                             alignItems: 'center',
                             background: i % 2 === 0 ? 'rgba(255,255,255,0.005)' : 'transparent',
                           }}>
-                            <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text2, textAlign: 'center' }}>{entry.date}</div>
+                            <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#9CA3B5', textAlign: 'center' }}>{entry.date}</div>
                             <div style={{ textAlign: 'center' }}>
                               <span style={{
                                 padding: '1px 5px', borderRadius: 'var(--radius-xs)',
                                 fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
-                                background: entry.direction === 'bullish' ? `${T.green}18` : `${T.red}18`,
-                                color: entry.direction === 'bullish' ? T.green : T.red,
+                                background: entry.direction === 'bullish' ? `${'#00FFA3'}18` : `${'#FF4757'}18`,
+                                color: entry.direction === 'bullish' ? '#00FFA3' : '#FF4757',
                               }}>{entry.direction === 'bullish' ? '▲' : '▼'}</span>
                             </div>
-                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text2 }}>{entry.entryPrice}</div>
-                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.red }}>{entry.stopLoss}</div>
-                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.green }}>{entry.takeProfits[0] || '—'}</div>
-                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text2 }}>1:{entry.rrRatio}</div>
-                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text2 }}>{Math.round(entry.confidence * 100)}%</div>
+                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#9CA3B5' }}>{entry.entryPrice}</div>
+                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#FF4757' }}>{entry.stopLoss}</div>
+                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#00FFA3' }}>{entry.takeProfits[0] || '—'}</div>
+                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#9CA3B5' }}>1:{entry.rrRatio}</div>
+                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#9CA3B5' }}>{Math.round(entry.confidence * 100)}%</div>
                             <div style={{ textAlign: 'center' }}>
                               <span style={{
                                 padding: '1px 5px', borderRadius: 'var(--radius-xs)',
                                 fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
-                                background: !isResolved ? `${T.amber}14` : isWin ? `${T.green}18` : `${T.red}18`,
-                                color: !isResolved ? T.amber : isWin ? T.green : T.red,
+                                background: !isResolved ? `${'#FFB800'}14` : isWin ? `${'#00FFA3'}18` : `${'#FF4757'}18`,
+                                color: !isResolved ? '#FFB800' : isWin ? '#00FFA3' : '#FF4757',
                               }}>{statusLabel}</span>
                             </div>
-                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: entry.rMultiple > 0 ? T.green : entry.rMultiple < 0 ? T.red : T.text2 }}>{entry.rMultiple > 0 ? '+' : ''}{entry.rMultiple}R</div>
-                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700, color: isWin ? T.green : !isResolved ? T.text3 : T.red }}>{isResolved ? (isWin ? '+' : '') + (Math.round(entry.realizedPnL * 100) / 100) : '—'}</div>
+                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: entry.rMultiple > 0 ? '#00FFA3' : entry.rMultiple < 0 ? '#FF4757' : '#9CA3B5' }}>{entry.rMultiple > 0 ? '+' : ''}{entry.rMultiple}R</div>
+                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700, color: isWin ? '#00FFA3' : !isResolved ? '#6B7280' : '#FF4757' }}>{isResolved ? (isWin ? '+' : '') + (Math.round(entry.realizedPnL * 100) / 100) : '—'}</div>
                             <div style={{ textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {entry.agreeingSignals.slice(0, 2).map(s => s.source).join(', ')}
-                              {entry.agreeingSignals.length > 2 && <span style={{ color: T.text3, fontSize: 'var(--text-xs)' }}> +{entry.agreeingSignals.length - 2}</span>}
+                              {entry.agreeingSignals.length > 2 && <span style={{ color: '#6B7280', fontSize: 'var(--text-xs)' }}> +{entry.agreeingSignals.length - 2}</span>}
                             </div>
                             <div style={{ textAlign: 'center' }}>
                               {entry.boostFactorsActive.length > 0 ? (
                                 <span style={{
                                   padding: '1px 4px', borderRadius: 'var(--radius-xs)',
                                   fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
-                                  background: `${T.amber}14`, color: T.amber,
+                                  background: `${'#FFB800'}14`, color: '#FFB800',
                                 }}>+{entry.boostFactorsActive.length}</span>
                               ) : (
-                                <span style={{ color: T.text3, fontSize: 'var(--text-xs)' }}>—</span>
+                                <span style={{ color: '#6B7280', fontSize: 'var(--text-xs)' }}>—</span>
                               )}
                             </div>
                           </div>
@@ -2706,36 +2705,36 @@ export default function PortfolioPage() {
               {/* ── Consecutive Stats ── */}
               <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
                 <div style={{
-                  flex: 1, padding: '10px 14px', background: T.card,
-                  border: `0.5px solid ${T.green}22`, borderRadius: 'var(--radius-lg)',
+                  flex: 1, padding: '10px 14px', background: '#151A22',
+                  border: `0.5px solid ${'#00FFA3'}22`, borderRadius: 'var(--radius-lg)',
                   display: 'flex', alignItems: 'center', gap: 10,
                 }}>
-                  <TrendingUp size={16} color={T.green} />
+                  <TrendingUp size={16} color={'#00FFA3'} />
                   <div>
-                    <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>أطول سلسلة رابحة</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: T.green }}>{journalStats.maxConsecutiveWins}</div>
+                    <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>أطول سلسلة رابحة</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: '#00FFA3' }}>{journalStats.maxConsecutiveWins}</div>
                   </div>
                 </div>
                 <div style={{
-                  flex: 1, padding: '10px 14px', background: T.card,
-                  border: `0.5px solid ${T.red}22`, borderRadius: 'var(--radius-lg)',
+                  flex: 1, padding: '10px 14px', background: '#151A22',
+                  border: `0.5px solid ${'#FF4757'}22`, borderRadius: 'var(--radius-lg)',
                   display: 'flex', alignItems: 'center', gap: 10,
                 }}>
-                  <TrendingDown size={16} color={T.red} />
+                  <TrendingDown size={16} color={'#FF4757'} />
                   <div>
-                    <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>أطول سلسلة خاسرة</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: T.red }}>{journalStats.maxConsecutiveLosses}</div>
+                    <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>أطول سلسلة خاسرة</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: '#FF4757' }}>{journalStats.maxConsecutiveLosses}</div>
                   </div>
                 </div>
                 <div style={{
-                  flex: 1, padding: '10px 14px', background: T.card,
-                  border: `0.5px solid ${T.blue}22`, borderRadius: 'var(--radius-lg)',
+                  flex: 1, padding: '10px 14px', background: '#151A22',
+                  border: `0.5px solid ${'#0A84FF'}22`, borderRadius: 'var(--radius-lg)',
                   display: 'flex', alignItems: 'center', gap: 10,
                 }}>
-                  <Clock size={16} color={T.blue} />
+                  <Clock size={16} color={'#0A84FF'} />
                   <div>
-                    <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>متوسط مدة الصفقة</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: T.cyan }}>
+                    <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>متوسط مدة الصفقة</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: '#00D4FF' }}>
                       {journalStats.avgDurationMinutes >= 60
                         ? `${Math.floor(journalStats.avgDurationMinutes / 60)}h ${Math.round(journalStats.avgDurationMinutes % 60)}m`
                         : `${Math.round(journalStats.avgDurationMinutes)}m`
@@ -2744,34 +2743,34 @@ export default function PortfolioPage() {
                   </div>
                 </div>
                 <div style={{
-                  flex: 1, padding: '10px 14px', background: T.card,
-                  border: `0.5px solid ${T.purple}22`, borderRadius: 'var(--radius-lg)',
+                  flex: 1, padding: '10px 14px', background: '#151A22',
+                  border: `0.5px solid ${'#B388FF'}22`, borderRadius: 'var(--radius-lg)',
                   display: 'flex', alignItems: 'center', gap: 10,
                 }}>
-                  <Activity size={16} color={T.purple} />
+                  <Activity size={16} color={'#B388FF'} />
                   <div>
-                    <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>صفقات/يوم</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: T.purple }}>{journalStats.tradesPerDay}</div>
+                    <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280' }}>صفقات/يوم</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: '#B388FF' }}>{journalStats.tradesPerDay}</div>
                   </div>
                 </div>
               </div>
 
               {/* ── Investor Notice ── */}
               <div style={{
-                background: `${T.green}08`, border: `0.5px solid ${T.green}22`,
+                background: `${'#00FFA3'}08`, border: `0.5px solid ${'#00FFA3'}22`,
                 borderRadius: 'var(--radius-lg)', padding: '12px 16px', marginTop: 12,
                 display: 'flex', gap: 8, alignItems: 'flex-start',
               }}>
-                <Award size={14} style={{ color: T.green, marginTop: 2, flexShrink: 0 }} />
+                <Award size={14} style={{ color: '#00FFA3', marginTop: 2, flexShrink: 0 }} />
                 <div>
-                  <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 700, color: T.green, marginBottom: 2 }}>
+                  <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 700, color: '#00FFA3', marginBottom: 2 }}>
                     دليل أداء النظام
                   </div>
-                  <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3, lineHeight: 1.7 }}>
+                  <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#6B7280', lineHeight: 1.7 }}>
                     هذه البيانات تُسجّل تلقائياً من نظام التداول الآلي على بيانات حية.
                     استخدم زر "تقرير PDF للمستثمرين" لتصدير تقرير احترافي.
                     <br />
-                    <span style={{ color: T.amber }}>تنبيه:</span> النتائج السابقة لا تضمن النتائج المستقبلية. هذه بيانات تداول ورقي على أسعار حية.
+                    <span style={{ color: '#FFB800' }}>تنبيه:</span> النتائج السابقة لا تضمن النتائج المستقبلية. هذه بيانات تداول ورقي على أسعار حية.
                   </div>
                 </div>
               </div>

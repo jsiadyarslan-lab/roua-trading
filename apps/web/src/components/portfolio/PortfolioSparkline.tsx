@@ -2,7 +2,6 @@
 
 import { useId, useMemo } from 'react'
 import { ScopedStyle } from '@/components/ScopedStyle'
-import T from '@/lib/unified-tokens'
 
 function safeMax(arr: number[]): number {
   if (arr.length === 0) return -Infinity;
@@ -26,7 +25,7 @@ interface PortfolioSparklineProps {
 
 export function PortfolioSparkline({
   data,
-  color = T.blue,
+  color = '#0A84FF',
   width = 200,
   height = 40,
 }: PortfolioSparklineProps) {
@@ -93,7 +92,7 @@ export function PortfolioSparkline({
   const lastVal = data[data.length - 1]
   const firstVal = data[0]
   const isUp = lastVal >= firstVal
-  const lineColor = isUp ? color : T.danger
+  const lineColor = isUp ? color : '#FF4757'
 
   return (
     <div

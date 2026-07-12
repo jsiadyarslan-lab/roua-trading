@@ -8,7 +8,6 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl'
-import T from '@/lib/unified-tokens';
 
 interface CompareOverlayProps {
   chart: any; // IChartApi from lightweight-charts
@@ -80,7 +79,7 @@ export function CompareOverlay({ chart, symbol, onClose }: CompareOverlayProps) 
 
       // Create a secondary LineSeries with separate price scale
       const compareSeries = chart.addSeries(LineSeries, {
-        color: T.gold,
+        color: '#d4af37',
         lineWidth: 2 as any,
         priceScaleId: 'compare-overlay',
         lastValueVisible: true,
@@ -156,7 +155,7 @@ export function CompareOverlay({ chart, symbol, onClose }: CompareOverlayProps) 
         gap: 8,
         fontFamily: "var(--font-mono)",
         fontSize: 'var(--text-xs)',
-        color: T.gold,
+        color: '#d4af37',
       }}
     >
       {/* Symbol label */}
@@ -169,10 +168,10 @@ export function CompareOverlay({ chart, symbol, onClose }: CompareOverlayProps) 
         <span style={{ color: 'rgba(212,175,55,0.6)' }}>...</span>
       )}
       {error && (
-        <span style={{ color: T.danger, fontSize: 'var(--text-xs)' }}>{error}</span>
+        <span style={{ color: '#FF4757', fontSize: 'var(--text-xs)' }}>{error}</span>
       )}
       {currentPrice !== null && !loading && !error && (
-        <span style={{ color: T.gold, fontWeight: 600 }}>
+        <span style={{ color: '#d4af37', fontWeight: 600 }}>
           {currentPrice > 1000
             ? currentPrice.toFixed(1)
             : currentPrice > 1
@@ -188,7 +187,7 @@ export function CompareOverlay({ chart, symbol, onClose }: CompareOverlayProps) 
           background: 'rgba(212,175,55,0.15)',
           border: 'none',
           borderRadius: 'var(--radius-sm)',
-          color: T.gold,
+          color: '#d4af37',
           width: 16,
           height: 16,
           cursor: 'pointer',

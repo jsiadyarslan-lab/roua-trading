@@ -1,7 +1,6 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import T from '@/lib/unified-tokens'
 
 type TagSize = 'sm' | 'md' | 'lg'
 
@@ -26,11 +25,11 @@ const DIR_KEYS: Record<string, string> = {
 }
 
 const DIR_COLORS: Record<string, { color: string; bg: string }> = {
-  STRONG_BUY:  { color: T.green,   bg: `${T.green}15` },
-  BUY:         { color: T.greenDim, bg: `${T.greenDim}12` },
-  NEUTRAL:     { color: T.text2,    bg: `${T.text2}10` },
-  SELL:        { color: T.redDim,   bg: `${T.redDim}12` },
-  STRONG_SELL: { color: T.red,     bg: `${T.red}15` },
+  STRONG_BUY:  { color: '#00FFA3',   bg: `${'#00FFA3'}15` },
+  BUY:         { color: '#00CC82', bg: `${'#00CC82'}12` },
+  NEUTRAL:     { color: '#9CA3B5',    bg: `${'#9CA3B5'}10` },
+  SELL:        { color: '#CC3945',   bg: `${'#CC3945'}12` },
+  STRONG_SELL: { color: '#FF4757',     bg: `${'#FF4757'}15` },
 }
 
 // Normalize signalClass values: 'Trend', 'trend', 'REVERSION' → uppercase
@@ -48,12 +47,12 @@ const SIGNAL_KEYS: Record<string, string> = {
 }
 
 const SIGNAL_COLORS: Record<string, string> = {
-  TREND: T.blue,
-  REVERSION: T.purple,
-  BREAKOUT: T.amber,
-  CONSOLIDATION: T.text3,
-  WATCH: T.text3,
-  DIVERGENCE: T.cyan,
+  TREND: '#0A84FF',
+  REVERSION: '#B388FF',
+  BREAKOUT: '#FFB800',
+  CONSOLIDATION: '#6B7280',
+  WATCH: '#6B7280',
+  DIVERGENCE: '#00D4FF',
 }
 
 const SIZE_MAP: Record<TagSize, { px: number; py: number; fontSize: number }> = {
@@ -68,7 +67,7 @@ export function DirectionTag({ direction, signalClass, size = 'md' }: DirectionT
   const dirConf = DIR_COLORS[normDir] || DIR_COLORS.NEUTRAL
   const dirKey = DIR_KEYS[normDir] || 'direction.neutral'
   const normSignal = signalClass ? normalizeSignalClass(signalClass) : null
-  const sigConf = normSignal ? { color: SIGNAL_COLORS[normSignal] || T.text3, key: SIGNAL_KEYS[normSignal] } : null
+  const sigConf = normSignal ? { color: SIGNAL_COLORS[normSignal] || '#6B7280', key: SIGNAL_KEYS[normSignal] } : null
   const sz = SIZE_MAP[size]
 
   return (

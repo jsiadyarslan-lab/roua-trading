@@ -2,7 +2,6 @@
 
 import { ExternalLink, GitBranch, Link2, MessageCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import T from '@/lib/unified-tokens'
 
 const SOCIAL_LINKS = [
   { icon: ExternalLink, label: 'Twitter', href: 'https://twitter.com/rouatrading' },
@@ -48,7 +47,7 @@ export default function Footer() {
             </span>
             <span
               className="text-[10px] font-semibold tracking-[0.3em] mt-0.5"
-              style={{ color: T.border, fontFamily: 'var(--font-brand)' }}
+              style={{ color: '#2A313C', fontFamily: 'var(--font-brand)' }}
             >
               {tc('brandSub')}
             </span>
@@ -61,7 +60,7 @@ export default function Footer() {
                 key={link.label}
                 href={link.href}
                 className="text-xs transition-colors duration-200 hover:text-white"
-                style={{ color: T.text2, fontFamily: 'var(--font-ar)' }}
+                style={{ color: '#9CA3B5', fontFamily: 'var(--font-ar)' }}
               >
                 {link.label}
               </a>
@@ -81,17 +80,17 @@ export default function Footer() {
                   style={{
                     background: 'rgba(255,255,255,0.02)',
                     border: '1px solid rgba(255,255,255,0.04)',
-                    color: T.text3,
+                    color: '#6B7280',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = 'rgba(16,185,129,0.08)'
                     e.currentTarget.style.borderColor = 'rgba(16,185,129,0.15)'
-                    e.currentTarget.style.color = T.profit
+                    e.currentTarget.style.color = '#10b981'
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = 'rgba(255,255,255,0.02)'
                     e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)'
-                    e.currentTarget.style.color = T.text3
+                    e.currentTarget.style.color = '#6B7280'
                   }}
                 >
                   <Icon className="w-3.5 h-3.5" />
@@ -109,10 +108,10 @@ export default function Footer() {
 
         {/* Copyright */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="text-[11px]" style={{ color: T.border, fontFamily: 'var(--font-ar)' }}>
+          <p className="text-[11px]" style={{ color: '#2A313C', fontFamily: 'var(--font-ar)' }}>
             © {new Date().getFullYear()} {tc('brand')}. {tc('allRightsReserved')}.
           </p>
-          <p className="text-[9px] tracking-[0.2em]" style={{ color: T.border, fontFamily: 'var(--font-brand)' }}>
+          <p className="text-[9px] tracking-[0.2em]" style={{ color: '#2A313C', fontFamily: 'var(--font-brand)' }}>
             NEURAL TRADING INTELLIGENCE
           </p>
         </div>

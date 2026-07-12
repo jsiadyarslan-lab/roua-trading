@@ -579,14 +579,14 @@ export function buildPositionSizeHTML(
 
   const C = {
     bg: '#0F172A',
-    cardBg: T.border,
-    textPrimary: T.text2,
-    textSecondary: T.text2,
+    cardBg: '#2A313C',
+    textPrimary: '#9CA3B5',
+    textSecondary: '#9CA3B5',
     textMuted: '#9CA3B5',
     accentGreen: '#4ADE80',
-    accentRed: T.danger,
-    accentYellow: T.warning,
-    accentBlue: T.info,
+    accentRed: '#FF4757',
+    accentYellow: '#FFB800',
+    accentBlue: '#00D4FF',
     accentPurple: '#C084FC',
     accentCyan: '#38BDF8',
   };
@@ -752,7 +752,7 @@ export function buildPositionSizeHTML(
   ">
     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
       <span style="font-size: 24px;">🧮</span>
-      <span style="font-size: 14px; font-weight: 800; color: #34D399; letter-spacing: 0.5px;">${L.title}</span>
+      <span style="font-size: 14px; font-weight: 800; color: '#34D399'; letter-spacing: 0.5px;">${L.title}</span>
     </div>
     <div style="font-size: 12px; color: ${C.textSecondary};">
       ${locale === 'ar' ? result.assetNameAr : result.assetName} (${result.symbol})

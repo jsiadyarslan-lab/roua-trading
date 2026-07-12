@@ -753,17 +753,17 @@ export function buildHTMLCards(bundle: any, locale: Locale): string {
   // Color palette
   const C = {
     bg: '#0F172A',
-    cardBg: T.border,
+    cardBg: '#2A313C',
     cardBorder: 'rgba(99,102,241,0.15)',
     cardGlow: '0 4px 24px rgba(99,102,241,0.08)',
-    textPrimary: T.text2,
-    textSecondary: T.text2,
+    textPrimary: '#9CA3B5',
+    textSecondary: '#9CA3B5',
     textMuted: '#9CA3B5',
-    accentBlue: T.info,
+    accentBlue: '#00D4FF',
     accentPurple: '#C084FC',
     accentGreen: '#4ADE80',
-    accentRed: T.danger,
-    accentYellow: T.warning,
+    accentRed: '#FF4757',
+    accentYellow: '#FFB800',
     accentCyan: '#38BDF8',
     accentIndigo: '#818CF8',
     divider: 'rgba(99,102,241,0.1)',
@@ -1685,10 +1685,10 @@ function cleanupAIContent(raw: string, isRtl: boolean): string {
   });
 
   // 2. Convert ### and ## headers to h3
-  html = html.replace(/^#{1,3}\s+(.+)$/gm, '<h3 style="color: #C084FC; font-size: 14px; font-weight: 700; margin: 14px 0 8px 0; padding-bottom: 4px; border-bottom: 1px solid rgba(168,85,247,0.2);">$1</h3>');
+  html = html.replace(/^#{1,3}\s+(.+)$/gm, '<h3 style="color: '#C084FC'; font-size: 14px; font-weight: 700; margin: 14px 0 8px 0; padding-bottom: 4px; border-bottom: 1px solid rgba(168,85,247,0.2);">$1</h3>');
 
   // 3. Convert bold **text** → <strong>
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong style="color: #F1F5F9;">$1</strong>');
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong style="color: '#F1F5F9';">$1</strong>');
 
   // 4. Convert italic *text* → <em> (but not inside already converted strong)
   html = html.replace(/(?<!<)\*(.+?)\*(?!>)/g, '<em>$1</em>');
@@ -1715,7 +1715,7 @@ function cleanupAIContent(raw: string, isRtl: boolean): string {
   });
 
   // 8. Convert double newlines to paragraph breaks
-  html = html.replace(/\n{2,}/g, '</p><p style="margin: 8px 0; line-height: 1.9; color: #E2E8F0; font-size: 13px;">');
+  html = html.replace(/\n{2,}/g, '</p><p style="margin: 8px 0; line-height: 1.9; color: '#E2E8F0'; font-size: 13px;">');
 
   // 9. Convert single newlines to <br>
   html = html.replace(/\n/g, '<br>');
@@ -1909,8 +1909,8 @@ Answer with genuine understanding and professionalism. Use Markdown only (no HTM
     : questionType === 'news_impact' ? '#38BDF8'
     : questionType === 'comparison' ? '#C084FC'
     : questionType === 'entry_timing' ? '#FB923C'
-    : questionType === 'risk_assessment' ? T.danger
-    : questionType === 'technical_deep' ? T.council
+    : questionType === 'risk_assessment' ? '#FF4757'
+    : questionType === 'technical_deep' ? '#B388FF'
     : '#818CF8';
 
   const analysisTitle: Record<Locale, string> = {
@@ -1955,7 +1955,7 @@ Answer with genuine understanding and professionalism. Use Markdown only (no HTM
 
   return `
 <div style="
-  background: #1E293B;
+  background: '#1E293B';
   border: 1px solid ${themeColor}33;
   border-radius: 12px;
   overflow: hidden;
@@ -1977,7 +1977,7 @@ Answer with genuine understanding and professionalism. Use Markdown only (no HTM
       ${analysisTitle[locale] || analysisTitle.en}
     </span>
   </div>
-  <div style="padding: 14px 16px; color: #E2E8F0; font-size: 13px; line-height: 1.9;">
+  <div style="padding: 14px 16px; color: '#E2E8F0'; font-size: 13px; line-height: 1.9;">
     ${aiContentFinal}
   </div>
 </div>`;

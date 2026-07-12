@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Play, Plus, Settings2, Shield, Activity, GitBranch, Save, Trash2, X as XIcon, ArrowDown } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
-import T from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 interface StrategyNode {
@@ -30,37 +29,37 @@ export default function StrategyBuilderPage() {
     {
       category: sb('catIndicators'),
       items: [
-        { type: 'indicator', label: sb('indRsiLabel'), sublabel: sb('indRsiSub'), color: T.cyan, icon: '📊' },
-        { type: 'indicator', label: sb('indMacdLabel'), sublabel: sb('indMacdSub'), color: T.cyan, icon: '📈' },
-        { type: 'indicator', label: sb('indBbLabel'), sublabel: sb('indBbSub'), color: T.cyan, icon: '📏' },
-        { type: 'indicator', label: sb('indEmaLabel'), sublabel: sb('indEmaSub'), color: T.cyan, icon: '📉' },
+        { type: 'indicator', label: sb('indRsiLabel'), sublabel: sb('indRsiSub'), color: '#00D4FF', icon: '📊' },
+        { type: 'indicator', label: sb('indMacdLabel'), sublabel: sb('indMacdSub'), color: '#00D4FF', icon: '📈' },
+        { type: 'indicator', label: sb('indBbLabel'), sublabel: sb('indBbSub'), color: '#00D4FF', icon: '📏' },
+        { type: 'indicator', label: sb('indEmaLabel'), sublabel: sb('indEmaSub'), color: '#00D4FF', icon: '📉' },
       ],
     },
     {
       category: sb('catConditions'),
       items: [
-        { type: 'condition', label: sb('condCrossLabel'), sublabel: sb('condCrossSub'), color: T.blue, icon: '🔀' },
-        { type: 'condition', label: sb('condPriceLabel'), sublabel: sb('condPriceSub'), color: T.blue, icon: '🎯' },
-        { type: 'condition', label: sb('condVolumeLabel'), sublabel: sb('condVolumeSub'), color: T.blue, icon: '📦' },
-        { type: 'condition', label: sb('condTimeLabel'), sublabel: sb('condTimeSub'), color: T.blue, icon: '⏰' },
+        { type: 'condition', label: sb('condCrossLabel'), sublabel: sb('condCrossSub'), color: '#0A84FF', icon: '🔀' },
+        { type: 'condition', label: sb('condPriceLabel'), sublabel: sb('condPriceSub'), color: '#0A84FF', icon: '🎯' },
+        { type: 'condition', label: sb('condVolumeLabel'), sublabel: sb('condVolumeSub'), color: '#0A84FF', icon: '📦' },
+        { type: 'condition', label: sb('condTimeLabel'), sublabel: sb('condTimeSub'), color: '#0A84FF', icon: '⏰' },
       ],
     },
     {
       category: sb('catActions'),
       items: [
-        { type: 'action', label: sb('actBuyMarketLabel'), sublabel: sb('actBuyMarketSub'), color: T.green, icon: '🟢' },
-        { type: 'action', label: sb('actSellMarketLabel'), sublabel: sb('actSellMarketSub'), color: T.amber, icon: '🟡' },
-        { type: 'action', label: sb('actBuyLimitLabel'), sublabel: sb('actBuyLimitSub'), color: T.green, icon: '📋' },
-        { type: 'action', label: sb('actSellLimitLabel'), sublabel: sb('actSellLimitSub'), color: T.amber, icon: '📋' },
+        { type: 'action', label: sb('actBuyMarketLabel'), sublabel: sb('actBuyMarketSub'), color: '#00FFA3', icon: '🟢' },
+        { type: 'action', label: sb('actSellMarketLabel'), sublabel: sb('actSellMarketSub'), color: '#FFB800', icon: '🟡' },
+        { type: 'action', label: sb('actBuyLimitLabel'), sublabel: sb('actBuyLimitSub'), color: '#00FFA3', icon: '📋' },
+        { type: 'action', label: sb('actSellLimitLabel'), sublabel: sb('actSellLimitSub'), color: '#FFB800', icon: '📋' },
       ],
     },
     {
       category: sb('catRisk'),
       items: [
-        { type: 'risk', label: sb('riskStopLossLabel'), sublabel: sb('riskStopLossSub'), color: T.purple, icon: '🛑' },
-        { type: 'risk', label: sb('riskTakeProfitLabel'), sublabel: sb('riskTakeProfitSub'), color: T.purple, icon: '💰' },
-        { type: 'risk', label: sb('riskPositionSizeLabel'), sublabel: sb('riskPositionSizeSub'), color: T.purple, icon: '📐' },
-        { type: 'risk', label: sb('riskMaxDrawdownLabel'), sublabel: sb('riskMaxDrawdownSub'), color: T.purple, icon: '🧮' },
+        { type: 'risk', label: sb('riskStopLossLabel'), sublabel: sb('riskStopLossSub'), color: '#B388FF', icon: '🛑' },
+        { type: 'risk', label: sb('riskTakeProfitLabel'), sublabel: sb('riskTakeProfitSub'), color: '#B388FF', icon: '💰' },
+        { type: 'risk', label: sb('riskPositionSizeLabel'), sublabel: sb('riskPositionSizeSub'), color: '#B388FF', icon: '📐' },
+        { type: 'risk', label: sb('riskMaxDrawdownLabel'), sublabel: sb('riskMaxDrawdownSub'), color: '#B388FF', icon: '🧮' },
       ],
     },
   ]
@@ -115,30 +114,30 @@ export default function StrategyBuilderPage() {
       <div style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-            <GitBranch size={20} color={T.cyan} />
-            <h1 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: T.text }}>{sb('pageTitle')}</h1>
+            <GitBranch size={20} color={'#00D4FF'} />
+            <h1 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: '#F0F2F5' }}>{sb('pageTitle')}</h1>
             <span style={{
               fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-2xl)',
-              background: `${T.cyan}18`, color: T.cyan,
+              background: `${'#00D4FF'}18`, color: '#00D4FF',
               fontFamily: "var(--font-mono)",
             }}>NO-CODE BUILDER</span>
           </div>
-          <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: T.text2 }}>
+          <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: '#9CA3B5' }}>
             {sb('pageSubtitle')}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 12 }}>
           <button
             onClick={handleSaveDraft}
-            style={{ background: T.surface, color: T.text, padding: '8px 20px', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6, border: `1px solid ${T.border}`, cursor: 'pointer', transition: 'all 0.2s' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = T.cyan; e.currentTarget.style.color = T.cyan }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.text }}
+            style={{ background: '#151A22', color: '#F0F2F5', padding: '8px 20px', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6, border: `1px solid ${'#2A313C'}`, cursor: 'pointer', transition: 'all 0.2s' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#00D4FF'; e.currentTarget.style.color = '#00D4FF' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = '#2A313C'; e.currentTarget.style.color = '#F0F2F5' }}
           >
             <Save size={16} /> {sb('saveDraft')}
           </button>
           <button
             onClick={handleBacktest}
-            style={{ background: `linear-gradient(135deg, ${T.cyan}, ${T.blue})`, color: '#fff', padding: '8px 20px', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6, border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+            style={{ background: `linear-gradient(135deg, ${'#00D4FF'}, ${'#0A84FF'})`, color: '#fff', padding: '8px 20px', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6, border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
           >
             <Play size={16} /> {sb('backtestBtn')}
           </button>
@@ -150,28 +149,28 @@ export default function StrategyBuilderPage() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Strategy Name Input */}
           <div style={{
-            background: T.card, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-xl)', padding: '14px 20px',
+            background: '#151A22', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-xl)', padding: '14px 20px',
             display: 'flex', alignItems: 'center', gap: 12,
           }}>
-            <GitBranch size={16} color={T.cyan} />
+            <GitBranch size={16} color={'#00D4FF'} />
             <input
               type="text"
               value={strategyName}
               onChange={e => setStrategyName(e.target.value)}
               style={{
                 flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                color: T.text, fontSize: 'var(--text-base)', fontWeight: 700, fontFamily: "var(--font-ar)",
+                color: '#F0F2F5', fontSize: 'var(--text-base)', fontWeight: 700, fontFamily: "var(--font-ar)",
                 direction: 'inherit',
               }}
               placeholder={sb('strategyNamePlaceholder')}
             />
-            <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>
+            <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>
               {sb('componentCount', { count: nodes.length })}
             </span>
             {nodes.length > 0 && (
               <button
                 onClick={handleClearAll}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.red, display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: "var(--font-ar)" }}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#FF4757', display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: "var(--font-ar)" }}
               >
                 <Trash2 size={12} /> {sb('clearAll')}
               </button>
@@ -180,24 +179,24 @@ export default function StrategyBuilderPage() {
 
           {/* Flow Canvas */}
           <div style={{
-            flex: 1, background: '#02040a', border: `1px solid ${T.border}`, borderRadius: 'var(--radius-xl)',
+            flex: 1, background: '#02040a', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-xl)',
             position: 'relative', overflow: 'auto', padding: 24,
           }}>
             {/* Grid Background */}
             <div style={{
               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-              backgroundImage: `radial-gradient(${T.border} 1px, transparent 1px)`,
+              backgroundImage: `radial-gradient(${'#2A313C'} 1px, transparent 1px)`,
               backgroundSize: '24px 24px', opacity: 0.5, pointerEvents: 'none',
             }} />
 
             {nodes.length === 0 ? (
               /* Empty State */
               <div style={{ position: 'relative', textAlign: 'center', padding: '60px 20px' }}>
-                <Settings2 size={48} color={T.border} style={{ marginBottom: 16, marginInline: 'auto' }} />
-                <div style={{ color: T.text2, fontSize: 'var(--text-base)', fontWeight: 700, marginBottom: 8 }}>
+                <Settings2 size={48} color={'#2A313C'} style={{ marginBottom: 16, marginInline: 'auto' }} />
+                <div style={{ color: '#9CA3B5', fontSize: 'var(--text-base)', fontWeight: 700, marginBottom: 8 }}>
                   {sb('emptyTitle')}
                 </div>
-                <div style={{ color: T.text3, fontSize: 'var(--text-sm)' }}>
+                <div style={{ color: '#6B7280', fontSize: 'var(--text-sm)' }}>
                   {sb('emptySubtitle')}
                 </div>
               </div>
@@ -207,13 +206,13 @@ export default function StrategyBuilderPage() {
                 {/* Start Node */}
                 <div style={{
                   padding: '8px 24px', borderRadius: 'var(--radius-2xl)',
-                  background: `${T.cyan}15`, border: `1px solid ${T.cyan}40`,
-                  color: T.cyan, fontSize: 'var(--text-sm)', fontWeight: 800, fontFamily: "var(--font-mono)",
+                  background: `${'#00D4FF'}15`, border: `1px solid ${'#00D4FF'}40`,
+                  color: '#00D4FF', fontSize: 'var(--text-sm)', fontWeight: 800, fontFamily: "var(--font-mono)",
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}>
                   ▶ {sb('strategyStart')}
                 </div>
-                <ArrowDown size={20} color={T.text3} style={{ margin: '4px 0' }} />
+                <ArrowDown size={20} color={'#6B7280'} style={{ margin: '4px 0' }} />
 
                 {nodes.map((node, idx) => (
                   <div key={node.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
@@ -235,11 +234,11 @@ export default function StrategyBuilderPage() {
                       {/* Icon & Label */}
                       <span style={{ fontSize: 'var(--text-md)' }}>{node.icon}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{node.label}</div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{node.sublabel}</div>
+                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: '#F0F2F5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{node.label}</div>
+                        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{node.sublabel}</div>
                       </div>
                       {/* Step Number */}
-                      <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>
+                      <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>
                         {sb('step', { n: idx + 1 })}
                       </span>
                       {/* Move & Delete Buttons */}
@@ -248,8 +247,8 @@ export default function StrategyBuilderPage() {
                           onClick={() => moveNode(idx, 'up')}
                           disabled={idx === 0}
                           style={{
-                            background: 'transparent', border: `1px solid ${T.border}`, borderRadius: 'var(--radius-sm)',
-                            color: idx === 0 ? T.text3 : T.text2, cursor: idx === 0 ? 'not-allowed' : 'pointer',
+                            background: 'transparent', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-sm)',
+                            color: idx === 0 ? '#6B7280' : '#9CA3B5', cursor: idx === 0 ? 'not-allowed' : 'pointer',
                             padding: 2, display: 'flex', opacity: idx === 0 ? 0.3 : 1,
                           }}
                           title={sb('moveUp')}
@@ -260,8 +259,8 @@ export default function StrategyBuilderPage() {
                           onClick={() => moveNode(idx, 'down')}
                           disabled={idx === nodes.length - 1}
                           style={{
-                            background: 'transparent', border: `1px solid ${T.border}`, borderRadius: 'var(--radius-sm)',
-                            color: idx === nodes.length - 1 ? T.text3 : T.text2, cursor: idx === nodes.length - 1 ? 'not-allowed' : 'pointer',
+                            background: 'transparent', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-sm)',
+                            color: idx === nodes.length - 1 ? '#6B7280' : '#9CA3B5', cursor: idx === nodes.length - 1 ? 'not-allowed' : 'pointer',
                             padding: 2, display: 'flex', opacity: idx === nodes.length - 1 ? 0.3 : 1,
                           }}
                           title={sb('moveDown')}
@@ -271,8 +270,8 @@ export default function StrategyBuilderPage() {
                         <button
                           onClick={() => removeNode(node.id)}
                           style={{
-                            background: 'transparent', border: `1px solid ${T.border}`, borderRadius: 'var(--radius-sm)',
-                            color: T.red, cursor: 'pointer', padding: 2, display: 'flex',
+                            background: 'transparent', border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-sm)',
+                            color: '#FF4757', cursor: 'pointer', padding: 2, display: 'flex',
                           }}
                           title={sb('deleteNode')}
                         >
@@ -281,15 +280,15 @@ export default function StrategyBuilderPage() {
                       </div>
                     </div>
                     {/* Connector Arrow */}
-                    <ArrowDown size={20} color={T.text3} style={{ margin: '4px 0' }} />
+                    <ArrowDown size={20} color={'#6B7280'} style={{ margin: '4px 0' }} />
                   </div>
                 ))}
 
                 {/* End Node */}
                 <div style={{
                   padding: '8px 24px', borderRadius: 'var(--radius-2xl)',
-                  background: `${T.purple}15`, border: `1px solid ${T.purple}40`,
-                  color: T.purple, fontSize: 'var(--text-sm)', fontWeight: 800, fontFamily: "var(--font-mono)",
+                  background: `${'#B388FF'}15`, border: `1px solid ${'#B388FF'}40`,
+                  color: '#B388FF', fontSize: 'var(--text-sm)', fontWeight: 800, fontFamily: "var(--font-mono)",
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}>
                   ◼ {sb('strategyEnd')}
@@ -301,7 +300,7 @@ export default function StrategyBuilderPage() {
 
         {/* Right Panel - Components */}
         <div style={{
-          width: showPanel ? 280 : 48, background: T.card, border: `1px solid ${T.border}`,
+          width: showPanel ? 280 : 48, background: '#151A22', border: `1px solid ${'#2A313C'}`,
           borderRadius: 'var(--radius-xl)', padding: showPanel ? 16 : 8, display: 'flex', flexDirection: 'column',
           transition: 'all 0.3s', overflow: 'hidden', flexShrink: 0,
         }}>
@@ -309,7 +308,7 @@ export default function StrategyBuilderPage() {
           <button
             onClick={() => setShowPanel(!showPanel)}
             style={{
-              background: 'transparent', border: 'none', color: T.text2, cursor: 'pointer',
+              background: 'transparent', border: 'none', color: '#9CA3B5', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               marginBottom: showPanel ? 12 : 0, padding: 4,
             }}
@@ -319,11 +318,11 @@ export default function StrategyBuilderPage() {
 
           {showPanel && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', flex: 1 }}>
-              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text, margin: 0 }}>{sb('availableComponents')}</h3>
+              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', margin: 0 }}>{sb('availableComponents')}</h3>
 
               {availableComponents.map((cat, catIdx) => (
                 <div key={catIdx}>
-                  <div style={{ fontSize: 'var(--text-xs)', color: T.text2, fontWeight: 700, marginBottom: 8, paddingBottom: 4, borderBottom: `1px solid ${T.border}` }}>
+                  <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', fontWeight: 700, marginBottom: 8, paddingBottom: 4, borderBottom: `1px solid ${'#2A313C'}` }}>
                     {cat.category}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -334,7 +333,7 @@ export default function StrategyBuilderPage() {
                         style={{
                           padding: '10px 12px', background: `${item.color}08`,
                           border: `1px solid ${item.color}25`, borderRadius: 'var(--radius-md)',
-                          color: T.text, fontSize: 'var(--text-sm)', fontWeight: 700, cursor: 'pointer',
+                          color: '#F0F2F5', fontSize: 'var(--text-sm)', fontWeight: 700, cursor: 'pointer',
                           display: 'flex', alignItems: 'center', gap: 8,
                           transition: 'all 0.2s', textAlign: 'right',
                           fontFamily: "var(--font-ar)",
@@ -351,7 +350,7 @@ export default function StrategyBuilderPage() {
                         <span style={{ fontSize: 'var(--text-base)' }}>{item.icon}</span>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: item.color }}>{item.label}</div>
-                          <div style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 400 }}>{item.sublabel}</div>
+                          <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 400 }}>{item.sublabel}</div>
                         </div>
                         <Plus size={12} color={item.color} style={{ opacity: 0.5 }} />
                       </button>

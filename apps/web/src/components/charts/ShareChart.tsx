@@ -2,7 +2,6 @@
 
 import React, { useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl'
-import T from '@/lib/unified-tokens';
 
 interface ShareChartProps {
   symbol: string;
@@ -102,7 +101,7 @@ const ShareChart: React.FC<ShareChartProps> = ({
             fontFamily: "var(--font-ar)",
             fontSize: 'var(--text-base)',
             fontWeight: 600,
-            color: T.text2,
+            color: '#9CA3B5',
             letterSpacing: '0.02em',
           }}
         >
@@ -161,7 +160,7 @@ const ShareChart: React.FC<ShareChartProps> = ({
             border: '1px solid rgba(0,212,255,0.15)',
             borderRadius: 'var(--radius-sm)',
             padding: '8px 10px',
-            color: T.text2,
+            color: '#9CA3B5',
             fontFamily: "var(--font-mono)",
             fontSize: 'var(--text-xs)',
             outline: 'none',
@@ -180,7 +179,7 @@ const ShareChart: React.FC<ShareChartProps> = ({
             background: 'none',
             border: '1px solid rgba(0,212,255,0.25)',
             borderRadius: 'var(--radius-sm)',
-            color: copied ? T.profit : T.info,
+            color: copied ? '#10b981' : '#00D4FF',
             padding: '7px 8px',
             cursor: 'pointer',
             display: 'flex',
@@ -219,10 +218,10 @@ const ShareChart: React.FC<ShareChartProps> = ({
             onClick={handleShare}
             style={{
               flex: 1,
-              background: T.accent,
+              background: '#059669',
               border: 'none',
               borderRadius: 'var(--radius-sm)',
-              color: T.text,
+              color: '#F0F2F5',
               fontFamily: "var(--font-ar)",
               fontSize: 'var(--text-sm)',
               fontWeight: 600,
@@ -246,10 +245,10 @@ const ShareChart: React.FC<ShareChartProps> = ({
           onClick={handleCopy}
           style={{
             flex: 1,
-            background: copied ? T.accent : T.info,
+            background: copied ? '#059669' : '#00D4FF',
             border: 'none',
             borderRadius: 'var(--radius-sm)',
-            color: copied ? T.text : '#000000',
+            color: copied ? '#F0F2F5' : '#000000',
             fontFamily: "var(--font-ar)",
             fontSize: 'var(--text-sm)',
             fontWeight: 700,

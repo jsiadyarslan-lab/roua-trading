@@ -111,7 +111,7 @@ export function convertToChartMarkers(
     markers.push({
       time: signalTime,
       position: isBuy ? 'belowBar' : 'aboveBar',
-      color: isBuy ? '#00FFA3' : isSell ? '#FF4757' : T.warning,
+      color: isBuy ? '#00FFA3' : isSell ? '#FF4757' : '#FFB800',
       shape: isBuy ? 'arrowUp' : isSell ? 'arrowDown' : 'circle',
       text: label,
       _signalData: signal,
@@ -134,7 +134,7 @@ export function convertToChartMarkers(
     markers.push({
       time: briefTime,
       position: brief.direction === 'bullish' ? 'belowBar' : 'aboveBar',
-      color: brief.direction === 'bullish' ? '#00D4FF' : brief.direction === 'bearish' ? '#FF6B6B' : T.warning,
+      color: brief.direction === 'bullish' ? '#00D4FF' : brief.direction === 'bearish' ? '#FF6B6B' : '#FFB800',
       shape: brief.direction === 'bullish' ? 'arrowUp' : 'arrowDown',
       text: '',
       _signalData: brief,

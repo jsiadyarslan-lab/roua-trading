@@ -11,7 +11,6 @@ import {
 import { toast } from '@/hooks/use-toast'
 import { useAuthStore } from '@/lib/auth-store'
 import { ROLE_INFO, type Role } from '@/lib/permissions'
-import T from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations } from 'next-intl'
 
@@ -44,13 +43,13 @@ function StatCard({ icon, label, value, color, subtext }: {
 }) {
   return (
     <div style={{
-      background: T.surface, border: `1px solid ${T.border}`,
+      background: '#151A22', border: `1px solid ${'#2A313C'}`,
       borderRadius: 'var(--radius-lg)', padding: '14px 16px',
       display: 'flex', flexDirection: 'column', gap: 8,
       transition: 'border-color 0.2s',
     }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = `${color}30` }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = T.border }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = '#2A313C' }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{
@@ -60,7 +59,7 @@ function StatCard({ icon, label, value, color, subtext }: {
         }}>
           {icon}
         </div>
-        <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 600, fontFamily: "var(--font-ar)" }}>{label}</span>
+        <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 600, fontFamily: "var(--font-ar)" }}>{label}</span>
       </div>
       <div style={{
         fontSize: 'var(--text-lg)', fontWeight: 900, color,
@@ -69,7 +68,7 @@ function StatCard({ icon, label, value, color, subtext }: {
       }}>
         {value}
       </div>
-      {subtext && <div style={{ fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-ar)" }}>{subtext}</div>}
+      {subtext && <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>{subtext}</div>}
     </div>
   )
 }
@@ -81,13 +80,13 @@ function SectionCard({ icon, iconColor, iconBg, title, subtitle, children, badge
 }) {
   return (
     <div style={{
-      background: T.card, border: `1px solid ${T.border}`,
+      background: '#151A22', border: `1px solid ${'#2A313C'}`,
       borderRadius: 'var(--radius-xl)', overflow: 'hidden',
       transition: 'border-color 0.3s',
     }}>
       <div style={{
         display: 'flex', alignItems: 'center', gap: 14,
-        padding: '18px 20px', borderBottom: `1px solid ${T.border}`,
+        padding: '18px 20px', borderBottom: `1px solid ${'#2A313C'}`,
       }}>
         <div style={{
           width: 40, height: 40, borderRadius: 'var(--radius-lg)',
@@ -97,17 +96,17 @@ function SectionCard({ icon, iconColor, iconBg, title, subtitle, children, badge
           {icon}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text, display: 'flex', alignItems: 'center', gap: 8, fontFamily: "var(--font-ar)" }}>
+          <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', display: 'flex', alignItems: 'center', gap: 8, fontFamily: "var(--font-ar)" }}>
             {title}
             {badge && (
               <span style={{
                 fontSize: 'var(--text-xs)', padding: '2px 7px', borderRadius: 'var(--radius-lg)',
-                background: 'rgba(255,255,255,0.04)', color: T.text3,
+                background: 'rgba(255,255,255,0.04)', color: '#6B7280',
                 fontFamily: "var(--font-mono)", fontWeight: 600,
               }}>{badge}</span>
             )}
           </div>
-          <div style={{ fontSize: 'var(--text-xs)', color: T.text3, marginTop: 2, fontFamily: "var(--font-ar)" }}>{subtitle}</div>
+          <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 2, fontFamily: "var(--font-ar)" }}>{subtitle}</div>
         </div>
       </div>
       <div style={{ padding: '4px 20px 18px' }}>
@@ -124,14 +123,14 @@ function FormInput({ label, value, onChange, placeholder, readonly, type, icon }
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <label style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text2, fontFamily: "var(--font-ar)" }}>
+      <label style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#9CA3B5', fontFamily: "var(--font-ar)" }}>
         {label}
       </label>
       <div style={{ position: 'relative' }}>
         {icon && (
           <span style={{
             position: 'absolute', insetInlineEnd: 12, top: '50%', transform: 'translateY(-50%)',
-            color: T.text4, display: 'flex', alignItems: 'center', pointerEvents: 'none',
+            color: '#6B7280', display: 'flex', alignItems: 'center', pointerEvents: 'none',
           }}>
             {icon}
           </span>
@@ -143,17 +142,17 @@ function FormInput({ label, value, onChange, placeholder, readonly, type, icon }
           readOnly={readonly}
           placeholder={placeholder}
           style={{
-            width: '100%', background: readonly ? 'rgba(255,255,255,0.02)' : T.surface,
-            border: `1px solid ${readonly ? T.border : T.border2}`,
+            width: '100%', background: readonly ? 'rgba(255,255,255,0.02)' : '#151A22',
+            border: `1px solid ${readonly ? '#2A313C' : '#3A4150'}`,
             borderRadius: 'var(--radius-lg)', padding: icon ? '10px 40px 10px 14px' : '10px 14px',
-            color: readonly ? T.text3 : T.text, fontSize: 'var(--text-sm)',
+            color: readonly ? '#6B7280' : '#F0F2F5', fontSize: 'var(--text-sm)',
             fontFamily: type === 'email' ? "'JetBrains Mono', monospace" : "'Cairo', sans-serif",
             fontWeight: readonly ? 500 : 600, outline: 'none',
             direction: 'inherit', transition: 'border-color 0.2s',
             cursor: readonly ? 'default' : 'text',
           }}
-          onFocus={!readonly ? e => { e.target.style.borderColor = T.cyan; e.target.style.boxShadow = `0 0 0 3px ${T.cyan}15` } : undefined}
-          onBlur={!readonly ? e => { e.target.style.borderColor = T.border2; e.target.style.boxShadow = 'none' } : undefined}
+          onFocus={!readonly ? e => { e.target.style.borderColor = '#00D4FF'; e.target.style.boxShadow = `0 0 0 3px ${'#00D4FF'}15` } : undefined}
+          onBlur={!readonly ? e => { e.target.style.borderColor = '#3A4150'; e.target.style.boxShadow = 'none' } : undefined}
         />
       </div>
     </div>
@@ -167,14 +166,14 @@ function FormSelect({ label, value, onChange, options, icon }: {
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <label style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text2, fontFamily: "var(--font-ar)" }}>
+      <label style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#9CA3B5', fontFamily: "var(--font-ar)" }}>
         {label}
       </label>
       <div style={{ position: 'relative' }}>
         {icon && (
           <span style={{
             position: 'absolute', insetInlineEnd: 12, top: '50%', transform: 'translateY(-50%)',
-            color: T.text4, display: 'flex', alignItems: 'center', pointerEvents: 'none',
+            color: '#6B7280', display: 'flex', alignItems: 'center', pointerEvents: 'none',
           }}>
             {icon}
           </span>
@@ -183,19 +182,19 @@ function FormSelect({ label, value, onChange, options, icon }: {
           value={value}
           onChange={e => onChange(e.target.value)}
           style={{
-            width: '100%', background: T.surface,
-            border: `1px solid ${T.border2}`, borderRadius: 'var(--radius-lg)',
+            width: '100%', background: '#151A22',
+            border: `1px solid ${'#3A4150'}`, borderRadius: 'var(--radius-lg)',
             padding: icon ? '10px 40px 10px 14px' : '10px 14px',
-            color: T.text, fontSize: 'var(--text-sm)', fontWeight: 600,
+            color: '#F0F2F5', fontSize: 'var(--text-sm)', fontWeight: 600,
             fontFamily: "var(--font-ar)", outline: 'none',
             direction: 'inherit', appearance: 'none', cursor: 'pointer',
           }}
-          onFocus={e => { e.target.style.borderColor = T.cyan; e.target.style.boxShadow = `0 0 0 3px ${T.cyan}15` }}
-          onBlur={e => { e.target.style.borderColor = T.border2; e.target.style.boxShadow = 'none' }}
+          onFocus={e => { e.target.style.borderColor = '#00D4FF'; e.target.style.boxShadow = `0 0 0 3px ${'#00D4FF'}15` }}
+          onBlur={e => { e.target.style.borderColor = '#3A4150'; e.target.style.boxShadow = 'none' }}
         >
           {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        <ChevronLeft size={14} color={T.text4} style={{
+        <ChevronLeft size={14} color={'#6B7280'} style={{
           position: 'absolute', insetInlineStart: 12, top: '50%', transform: 'translateY(-50%) rotate(180deg)',
           pointerEvents: 'none',
         }} />
@@ -301,11 +300,11 @@ export default function ProfilePage() {
   const avatarLetter = user?.displayName?.[0] || user?.email?.[0]?.toUpperCase() || 'R'
 
   return (
-    <div className="custom-scrollbar" style={{ direction: 'inherit', fontFamily: "var(--font-ar)", height: '100%', overflowY: 'auto', background: T.bg }}>
+    <div className="custom-scrollbar" style={{ direction: 'inherit', fontFamily: "var(--font-ar)", height: '100%', overflowY: 'auto', background: '#0B0E14' }}>
       {/* Scoped styles via useScopedStyle */}{/* ═══ Header ═══ */}
       <div style={{
-        padding: '24px 24px 0', borderBottom: `1px solid ${T.border}`,
-        background: `linear-gradient(180deg, ${T.bg2}, ${T.bg})`,
+        padding: '24px 24px 0', borderBottom: `1px solid ${'#2A313C'}`,
+        background: `linear-gradient(180deg, ${'#0F1117'}, ${'#0B0E14'})`,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
           <div style={{
@@ -316,8 +315,8 @@ export default function ProfilePage() {
             <UserCircle size={18} color="#fff" />
           </div>
           <div>
-            <h1 style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 900, color: T.text, fontFamily: "var(--font-ar)" }}>الملف الشخصي</h1>
-            <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>إدارة بياناتك الشخصية وإعدادات حسابك على منصة رؤى</p>
+            <h1 style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 900, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>الملف الشخصي</h1>
+            <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>إدارة بياناتك الشخصية وإعدادات حسابك على منصة رؤى</p>
           </div>
         </div>
       </div>
@@ -327,7 +326,7 @@ export default function ProfilePage() {
 
         {/* ═══ Profile Hero Card ═══ */}
         <div className="profile-section" style={{
-          background: T.card, border: `1px solid ${T.border}`,
+          background: '#151A22', border: `1px solid ${'#2A313C'}`,
           borderRadius: 'var(--radius-xl)', overflow: 'hidden', position: 'relative',
         }}>
           {/* Background Glow */}
@@ -357,10 +356,10 @@ export default function ProfilePage() {
 
             {/* Info */}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: T.text, marginBottom: 4, fontFamily: "var(--font-ar)" }}>
+              <div style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: '#F0F2F5', marginBottom: 4, fontFamily: "var(--font-ar)" }}>
                 {user?.displayName || 'مستخدم رؤى'}
               </div>
-              <div style={{ fontSize: 'var(--text-sm)', color: T.text2, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontFamily: "var(--font-mono)" }}>
+              <div style={{ fontSize: 'var(--text-sm)', color: '#9CA3B5', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontFamily: "var(--font-mono)" }}>
                 <Mail size={12} />
                 <span>{user?.email || 'user@roua.io'}</span>
               </div>
@@ -378,7 +377,7 @@ export default function ProfilePage() {
                   {tc(roleInfo.labelKey)}
                 </span>
                 {/* Member Since */}
-                <span style={{ fontSize: 'var(--text-xs)', color: T.text4, display: 'flex', alignItems: 'center', gap: 4, fontFamily: "var(--font-ar)" }}>
+                <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', display: 'flex', alignItems: 'center', gap: 4, fontFamily: "var(--font-ar)" }}>
                   <Calendar size={10} />
                   عضو منذ {MOCK_STATS.memberSince}
                 </span>
@@ -391,14 +390,14 @@ export default function ProfilePage() {
                 <button
                   onClick={() => setIsEditing(true)}
                   style={{
-                    padding: '8px 16px', borderRadius: 'var(--radius-lg)', border: `1px solid ${T.border2}`,
-                    background: 'rgba(0,212,255,0.06)', color: T.cyan,
+                    padding: '8px 16px', borderRadius: 'var(--radius-lg)', border: `1px solid ${'#3A4150'}`,
+                    background: 'rgba(0,212,255,0.06)', color: '#00D4FF',
                     fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                     fontFamily: "var(--font-ar)",
                     display: 'flex', alignItems: 'center', gap: 6,
                     transition: 'all 0.2s', flexShrink: 0,
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.12)'; e.currentTarget.style.boxShadow = `0 0 12px ${T.cyan}20` }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.12)'; e.currentTarget.style.boxShadow = `0 0 12px ${'#00D4FF'}20` }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.06)'; e.currentTarget.style.boxShadow = 'none' }}
                 >
                   <Edit3 size={14} />
@@ -411,7 +410,7 @@ export default function ProfilePage() {
                     disabled={isSaving}
                     style={{
                       padding: '8px 16px', borderRadius: 'var(--radius-lg)', border: 'none',
-                      background: `linear-gradient(135deg, ${T.cyan}, ${T.blue})`,
+                      background: `linear-gradient(135deg, ${'#00D4FF'}, ${'#0A84FF'})`,
                       color: '#000', fontSize: 'var(--text-xs)', fontWeight: 800, cursor: isSaving ? 'wait' : 'pointer',
                       fontFamily: "var(--font-ar)",
                       display: 'flex', alignItems: 'center', gap: 6,
@@ -424,8 +423,8 @@ export default function ProfilePage() {
                   <button
                     onClick={handleCancel}
                     style={{
-                      padding: '8px 14px', borderRadius: 'var(--radius-lg)', border: `1px solid ${T.border}`,
-                      background: T.surface, color: T.text3,
+                      padding: '8px 14px', borderRadius: 'var(--radius-lg)', border: `1px solid ${'#2A313C'}`,
+                      background: '#151A22', color: '#6B7280',
                       fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                       fontFamily: "var(--font-ar)",
                       display: 'flex', alignItems: 'center', gap: 4,
@@ -444,9 +443,9 @@ export default function ProfilePage() {
         {/* ═══ Editable Profile Form ═══ */}
         <div className="profile-section">
           <SectionCard
-            icon={<Edit3 size={18} color={T.cyan} />}
-            iconColor={T.cyan}
-            iconBg={`${T.cyan}14`}
+            icon={<Edit3 size={18} color={'#00D4FF'} />}
+            iconColor={'#00D4FF'}
+            iconBg={`${'#00D4FF'}14`}
             title="البيانات الشخصية"
             subtitle={isEditing ? 'قم بتعديل بياناتك ثم اضغط حفظ' : 'عرض وتعديل بياناتك الشخصية'}
           >
@@ -463,13 +462,13 @@ export default function ProfilePage() {
 
               {/* Email (readonly) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text2, fontFamily: "var(--font-ar)" }}>
+                <label style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#9CA3B5', fontFamily: "var(--font-ar)" }}>
                   البريد الإلكتروني
                 </label>
                 <div style={{ position: 'relative' }}>
                   <span style={{
                     position: 'absolute', insetInlineEnd: 12, top: '50%', transform: 'translateY(-50%)',
-                    color: T.text4, display: 'flex', alignItems: 'center', pointerEvents: 'none',
+                    color: '#6B7280', display: 'flex', alignItems: 'center', pointerEvents: 'none',
                   }}>
                     <Mail size={14} />
                   </span>
@@ -479,9 +478,9 @@ export default function ProfilePage() {
                     readOnly
                     style={{
                       width: '100%', background: 'rgba(255,255,255,0.02)',
-                      border: `1px solid ${T.border}`, borderRadius: 'var(--radius-lg)',
+                      border: `1px solid ${'#2A313C'}`, borderRadius: 'var(--radius-lg)',
                       padding: '10px 40px 10px 14px',
-                      color: T.text3, fontSize: 'var(--text-sm)',
+                      color: '#6B7280', fontSize: 'var(--text-sm)',
                       fontFamily: "var(--font-mono)",
                       fontWeight: 500, outline: 'none', direction: 'inherit', cursor: 'default',
                     }}
@@ -492,12 +491,12 @@ export default function ProfilePage() {
                       style={{
                         position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)',
                         background: 'none', border: 'none', cursor: 'pointer',
-                        color: T.cyan, fontSize: 'var(--text-xs)', fontWeight: 700,
+                        color: '#00D4FF', fontSize: 'var(--text-xs)', fontWeight: 700,
                         fontFamily: "var(--font-ar)",
                         padding: '4px 8px', borderRadius: 'var(--radius-sm)',
                         transition: 'background 0.2s',
                       }}
-                      onMouseEnter={e => { e.currentTarget.style.background = `${T.cyan}12` }}
+                      onMouseEnter={e => { e.currentTarget.style.background = `${'#00D4FF'}12` }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
                     >
                       تغيير
@@ -539,7 +538,7 @@ export default function ProfilePage() {
 
               {/* Bio / About */}
               <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text2, fontFamily: "var(--font-ar)" }}>
+                <label style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#9CA3B5', fontFamily: "var(--font-ar)" }}>
                   نبذة عنك
                 </label>
                 <textarea
@@ -549,16 +548,16 @@ export default function ProfilePage() {
                   placeholder={isEditing ? 'اكتب نبذة مختصرة عنك...' : 'لم يتم إضافة نبذة بعد'}
                   rows={3}
                   style={{
-                    width: '100%', background: isEditing ? T.surface : 'rgba(255,255,255,0.02)',
-                    border: `1px solid ${isEditing ? T.border2 : T.border}`,
+                    width: '100%', background: isEditing ? '#151A22' : 'rgba(255,255,255,0.02)',
+                    border: `1px solid ${isEditing ? '#3A4150' : '#2A313C'}`,
                     borderRadius: 'var(--radius-lg)', padding: '10px 14px',
-                    color: isEditing ? T.text : T.text3, fontSize: 'var(--text-sm)',
+                    color: isEditing ? '#F0F2F5' : '#6B7280', fontSize: 'var(--text-sm)',
                     fontFamily: "var(--font-ar)", fontWeight: isEditing ? 600 : 500,
                     outline: 'none', direction: 'inherit', resize: isEditing ? 'vertical' : 'none',
                     transition: 'border-color 0.2s', lineHeight: 1.8,
                   }}
-                  onFocus={isEditing ? e => { e.target.style.borderColor = T.cyan; e.target.style.boxShadow = `0 0 0 3px ${T.cyan}15` } : undefined}
-                  onBlur={isEditing ? e => { e.target.style.borderColor = T.border2; e.target.style.boxShadow = 'none' } : undefined}
+                  onFocus={isEditing ? e => { e.target.style.borderColor = '#00D4FF'; e.target.style.boxShadow = `0 0 0 3px ${'#00D4FF'}15` } : undefined}
+                  onBlur={isEditing ? e => { e.target.style.borderColor = '#3A4150'; e.target.style.boxShadow = 'none' } : undefined}
                 />
               </div>
             </div>
@@ -568,9 +567,9 @@ export default function ProfilePage() {
         {/* ═══ Trading Statistics ═══ */}
         <div className="profile-section">
           <SectionCard
-            icon={<BarChart3 size={18} color={T.green} />}
-            iconColor={T.green}
-            iconBg={`${T.green}14`}
+            icon={<BarChart3 size={18} color={'#00FFA3'} />}
+            iconColor={'#00FFA3'}
+            iconBg={`${'#00FFA3'}14`}
             title="إحصائيات المتابعة"
             subtitle="أداء حساباتك المربوطة على منصة رؤى منذ الانضمام"
             badge="تجريبي"
@@ -580,42 +579,42 @@ export default function ProfilePage() {
                 icon={<Activity size={14} />}
                 label="إجمالي الصفقات المتابعة"
                 value={String(MOCK_STATS.totalTrades)}
-                color={T.cyan}
+                color={'#00D4FF'}
               />
               <StatCard
                 icon={<Trophy size={14} />}
                 label="نسبة الفوز"
                 value={`${MOCK_STATS.winRate}%`}
-                color={T.green}
+                color={'#00FFA3'}
                 subtext="آخر 90 يوماً"
               />
               <StatCard
                 icon={<Zap size={14} />}
                 label="أفضل صفقة"
                 value={MOCK_STATS.bestTrade}
-                color={T.amber}
+                color={'#FFB800'}
               />
               <StatCard
                 icon={<TrendingUp size={14} />}
                 label="إجمالي الربح"
                 value={MOCK_STATS.totalPnL}
-                color={T.green}
+                color={'#00FFA3'}
               />
               <StatCard
                 icon={<Calendar size={14} />}
                 label="عضو منذ"
                 value={MOCK_STATS.memberSince}
-                color={T.purple}
+                color={'#B388FF'}
               />
               <StatCard
                 icon={<Eye size={14} />}
                 label="أيام النشاط"
                 value={String(MOCK_STATS.activeDays)}
-                color={T.cyan}
+                color={'#00D4FF'}
                 subtext="من آخر 180 يوماً"
               />
             </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-ar)", textAlign: 'center', padding: '6px 0 0' }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)", textAlign: 'center', padding: '6px 0 0' }}>
               ستظهر إحصائياتك الحقيقية بعد ربط حساباتك وبدء المتابعة
             </div>
           </SectionCard>
@@ -624,9 +623,9 @@ export default function ProfilePage() {
         {/* ═══ Activity Feed ═══ */}
         <div className="profile-section">
           <SectionCard
-            icon={<Activity size={18} color={T.amber} />}
-            iconColor={T.amber}
-            iconBg={`${T.amber}14`}
+            icon={<Activity size={18} color={'#FFB800'} />}
+            iconColor={'#FFB800'}
+            iconBg={`${'#FFB800'}14`}
             title="سجل النشاط"
             subtitle="آخر الإجراءات على حسابك"
           >
@@ -635,7 +634,7 @@ export default function ProfilePage() {
                 <div key={item.id} style={{
                   display: 'flex', alignItems: 'flex-start', gap: 12,
                   padding: '12px 0',
-                  borderBottom: i < MOCK_ACTIVITY.length - 1 ? `1px solid ${T.border}` : 'none',
+                  borderBottom: i < MOCK_ACTIVITY.length - 1 ? `1px solid ${'#2A313C'}` : 'none',
                 }}>
                   <div style={{
                     width: 32, height: 32, borderRadius: 'var(--radius-md)',
@@ -646,16 +645,16 @@ export default function ProfilePage() {
                     {item.icon}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)", marginBottom: 2 }}>
+                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)", marginBottom: 2 }}>
                       {item.label}
                     </div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)", lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)", lineHeight: 1.6 }}>
                       {item.detail}
                     </div>
                   </div>
                   <div style={{ flexShrink: 0, marginTop: 2 }}>
                     <span style={{
-                      fontSize: 'var(--text-xs)', color: T.text4,
+                      fontSize: 'var(--text-xs)', color: '#6B7280',
                       fontFamily: "var(--font-mono)", fontWeight: 500,
                       whiteSpace: 'nowrap',
                     }}>
@@ -671,9 +670,9 @@ export default function ProfilePage() {
         {/* ═══ Connected Accounts ═══ */}
         <div className="profile-section">
           <SectionCard
-            icon={<Key size={18} color={T.purple} />}
-            iconColor={T.purple}
-            iconBg={`${T.purple}14`}
+            icon={<Key size={18} color={'#B388FF'} />}
+            iconColor={'#B388FF'}
+            iconBg={`${'#B388FF'}14`}
             title="الحسابات المرتبطة"
             subtitle="إدارة الاتصالات والبورصات المرتبطة بحسابك"
           >
@@ -683,26 +682,26 @@ export default function ProfilePage() {
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 14,
                 padding: '12px 16px', borderRadius: 'var(--radius-lg)',
-                background: T.surface, border: `1px solid ${T.border}`,
+                background: '#151A22', border: `1px solid ${'#2A313C'}`,
                 transition: 'border-color 0.2s',
               }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = `${T.cyan}20` }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = T.border }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = `${'#00D4FF'}20` }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#2A313C' }}
               >
                 <div style={{
                   width: 36, height: 36, borderRadius: 'var(--radius-lg)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: `${T.red}14`, flexShrink: 0,
+                  background: `${'#FF4757'}14`, flexShrink: 0,
                 }}>
-                  <Mail size={16} color={T.red} />
+                  <Mail size={16} color={'#FF4757'} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>Google</div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>{user?.email || 'user@roua.io'}</div>
+                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>Google</div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>{user?.email || 'user@roua.io'}</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <CheckCircle2 size={14} color={T.green} />
-                  <span style={{ fontSize: 'var(--text-xs)', color: T.green, fontWeight: 700, fontFamily: "var(--font-ar)" }}>متصل</span>
+                  <CheckCircle2 size={14} color={'#00FFA3'} />
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#00FFA3', fontWeight: 700, fontFamily: "var(--font-ar)" }}>متصل</span>
                 </div>
               </div>
 
@@ -710,27 +709,27 @@ export default function ProfilePage() {
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 14,
                 padding: '12px 16px', borderRadius: 'var(--radius-lg)',
-                background: T.surface, border: `1px solid ${T.border}`,
+                background: '#151A22', border: `1px solid ${'#2A313C'}`,
               }}>
                 <div style={{
                   width: 36, height: 36, borderRadius: 'var(--radius-lg)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: `${T.amber}14`, flexShrink: 0,
+                  background: `${'#FFB800'}14`, flexShrink: 0,
                 }}>
-                  <Cpu size={16} color={T.amber} />
+                  <Cpu size={16} color={'#FFB800'} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>حسابات البورصة</div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>Binance, Alpaca</div>
+                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>حسابات البورصة</div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>Binance, Alpaca</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{
                     padding: '3px 10px', borderRadius: 'var(--radius-md)',
-                    background: `${T.amber}15`, color: T.amber,
+                    background: `${'#FFB800'}15`, color: '#FFB800',
                     fontSize: 'var(--text-xs)', fontWeight: 700,
                     fontFamily: "var(--font-mono)",
                   }}>2</span>
-                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>مرتبط</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>مرتبط</span>
                 </div>
               </div>
 
@@ -738,27 +737,27 @@ export default function ProfilePage() {
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 14,
                 padding: '12px 16px', borderRadius: 'var(--radius-lg)',
-                background: T.surface, border: `1px solid ${T.border}`,
+                background: '#151A22', border: `1px solid ${'#2A313C'}`,
               }}>
                 <div style={{
                   width: 36, height: 36, borderRadius: 'var(--radius-lg)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: `${T.green}14`, flexShrink: 0,
+                  background: `${'#00FFA3'}14`, flexShrink: 0,
                 }}>
-                  <Fingerprint size={16} color={T.green} />
+                  <Fingerprint size={16} color={'#00FFA3'} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>مفاتيح المرور (WebAuthn)</div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>مصادقة بيومترية سريعة وآمنة</div>
+                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>مفاتيح المرور (WebAuthn)</div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>مصادقة بيومترية سريعة وآمنة</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{
                     padding: '3px 10px', borderRadius: 'var(--radius-md)',
-                    background: `${T.green}15`, color: T.green,
+                    background: `${'#00FFA3'}15`, color: '#00FFA3',
                     fontSize: 'var(--text-xs)', fontWeight: 700,
                     fontFamily: "var(--font-mono)",
                   }}>1</span>
-                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>مفتاح</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>مفتاح</span>
                 </div>
               </div>
 
@@ -774,10 +773,10 @@ export default function ProfilePage() {
           {/* Header */}
           <div style={{ padding: '16px 20px', borderBottom: `1px solid rgba(255,71,87,0.10)` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <AlertTriangle size={16} color={T.red} />
-              <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.red, fontFamily: "var(--font-ar)" }}>منطقة الخطر</span>
+              <AlertTriangle size={16} color={'#FF4757'} />
+              <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#FF4757', fontFamily: "var(--font-ar)" }}>منطقة الخطر</span>
             </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: T.text4, marginTop: 4, fontFamily: "var(--font-ar)" }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 4, fontFamily: "var(--font-ar)" }}>
               إجراءات لا يمكن التراجع عنها — يرجى التوخي الحذر
             </div>
           </div>
@@ -786,13 +785,13 @@ export default function ProfilePage() {
             {/* Logout */}
             <div style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '10px 0', borderBottom: `1px solid ${T.border}`,
+              padding: '10px 0', borderBottom: `1px solid ${'#2A313C'}`,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <LogOut size={14} color={T.red} />
+                <LogOut size={14} color={'#FF4757'} />
                 <div>
-                  <div style={{ fontSize: 'var(--text-sm)', color: T.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>تسجيل الخروج</div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-ar)" }}>إنهاء الجلسة الحالية من جميع الأجهزة</div>
+                  <div style={{ fontSize: 'var(--text-sm)', color: '#F0F2F5', fontWeight: 600, fontFamily: "var(--font-ar)" }}>تسجيل الخروج</div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>إنهاء الجلسة الحالية من جميع الأجهزة</div>
                 </div>
               </div>
               <button
@@ -800,7 +799,7 @@ export default function ProfilePage() {
                 style={{
                   padding: '6px 14px', borderRadius: 'var(--radius-md)',
                   background: 'rgba(255,71,87,0.10)', border: `1px solid rgba(255,71,87,0.20)`,
-                  color: T.red, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
+                  color: '#FF4757', fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                   fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.18)' }}
@@ -816,10 +815,10 @@ export default function ProfilePage() {
               padding: '10px 0',
             }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                <Trash2 size={14} color={T.red} style={{ marginTop: 2 }} />
+                <Trash2 size={14} color={'#FF4757'} style={{ marginTop: 2 }} />
                 <div>
-                  <div style={{ fontSize: 'var(--text-sm)', color: T.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>حذف الحساب نهائياً</div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-ar)", lineHeight: 1.7, maxWidth: 400 }}>
+                  <div style={{ fontSize: 'var(--text-sm)', color: '#F0F2F5', fontWeight: 600, fontFamily: "var(--font-ar)" }}>حذف الحساب نهائياً</div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)", lineHeight: 1.7, maxWidth: 400 }}>
                     سيتم حذف حسابك وجميع بياناتك نهائياً بعد 30 يوماً من الطلب. لا يمكن التراجع عن هذا الإجراء بعد تأكيده.
                   </div>
                 </div>
@@ -829,7 +828,7 @@ export default function ProfilePage() {
                 style={{
                   padding: '6px 14px', borderRadius: 'var(--radius-md)',
                   background: 'rgba(255,71,87,0.10)', border: `1px solid rgba(255,71,87,0.20)`,
-                  color: T.red, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
+                  color: '#FF4757', fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                   fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                   flexShrink: 0,
                 }}
@@ -848,12 +847,12 @@ export default function ProfilePage() {
                 animation: 'profile-fade-in 0.3s ease-out',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                  <XCircle size={16} color={T.red} />
-                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: T.red, fontFamily: "var(--font-ar)" }}>تأكيد حذف الحساب</span>
+                  <XCircle size={16} color={'#FF4757'} />
+                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: '#FF4757', fontFamily: "var(--font-ar)" }}>تأكيد حذف الحساب</span>
                 </div>
-                <div style={{ fontSize: 'var(--text-sm)', color: T.text3, lineHeight: 1.8, marginBottom: 14, fontFamily: "var(--font-ar)" }}>
+                <div style={{ fontSize: 'var(--text-sm)', color: '#6B7280', lineHeight: 1.8, marginBottom: 14, fontFamily: "var(--font-ar)" }}>
                   هذا الإجراء لا يمكن التراجع عنه. سيتم حذف جميع بياناتك بما في ذلك سجل التداول والإعدادات والمفاتيح المرتبطة.
-                  اكتب <strong style={{ color: T.red }}>&quot;حذف&quot;</strong> للتأكيد.
+                  اكتب <strong style={{ color: '#FF4757' }}>&quot;حذف&quot;</strong> للتأكيد.
                 </div>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                   <input
@@ -862,9 +861,9 @@ export default function ProfilePage() {
                     onChange={e => setDeleteConfirmText(e.target.value)}
                     placeholder='اكتب "حذف" هنا'
                     style={{
-                      flex: 1, background: T.surface, border: `1px solid rgba(255,71,87,0.20)`,
+                      flex: 1, background: '#151A22', border: `1px solid rgba(255,71,87,0.20)`,
                       borderRadius: 'var(--radius-md)', padding: '8px 12px',
-                      color: T.text, fontSize: 'var(--text-sm)', fontWeight: 600,
+                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontWeight: 600,
                       fontFamily: "var(--font-ar)", outline: 'none',
                       direction: 'inherit',
                     }}
@@ -874,8 +873,8 @@ export default function ProfilePage() {
                     disabled={deleteConfirmText !== 'حذف'}
                     style={{
                       padding: '8px 16px', borderRadius: 'var(--radius-md)', border: 'none',
-                      background: deleteConfirmText === 'حذف' ? T.red : 'rgba(255,71,87,0.2)',
-                      color: deleteConfirmText === 'حذف' ? '#fff' : T.text4,
+                      background: deleteConfirmText === 'حذف' ? '#FF4757' : 'rgba(255,71,87,0.2)',
+                      color: deleteConfirmText === 'حذف' ? '#fff' : '#6B7280',
                       fontSize: 'var(--text-xs)', fontWeight: 800, cursor: deleteConfirmText === 'حذف' ? 'pointer' : 'not-allowed',
                       fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                     }}
@@ -885,8 +884,8 @@ export default function ProfilePage() {
                   <button
                     onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText('') }}
                     style={{
-                      padding: '8px 14px', borderRadius: 'var(--radius-md)', border: `1px solid ${T.border}`,
-                      background: T.surface, color: T.text3,
+                      padding: '8px 14px', borderRadius: 'var(--radius-md)', border: `1px solid ${'#2A313C'}`,
+                      background: '#151A22', color: '#6B7280',
                       fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                       fontFamily: "var(--font-ar)",
                     }}

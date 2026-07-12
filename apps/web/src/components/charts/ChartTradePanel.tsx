@@ -100,7 +100,7 @@ export function ChartTradePanel({
             aria-label="Buy long"
             onClick={onBuyLong}
             style={{
-              background: T.success,
+              background: '#00FFA3',
               border: 'none',
               borderRadius: 'var(--radius-sm)',
               color: '#000',

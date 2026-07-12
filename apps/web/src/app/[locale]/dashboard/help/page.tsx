@@ -9,7 +9,6 @@ import {
   Zap, Globe, RefreshCw, ExternalLink, Sparkles, X, Link2, Bell, Eye
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
-import T from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 /* ── Design Tokens (canonical + local extensions) ── */
@@ -36,7 +35,7 @@ type TFunction = (key: string, params?: Record<string, string | number>) => stri
 function FAQAccordion({ item, isOpen, onToggle }: { item: FAQItem; isOpen: boolean; onToggle: () => void }) {
   return (
     <div style={{
-      borderBottom: `1px solid ${T.border}`,
+      borderBottom: `1px solid ${'#2A313C'}`,
       overflow: 'hidden',
     }}>
       <button
@@ -46,7 +45,7 @@ function FAQAccordion({ item, isOpen, onToggle }: { item: FAQItem; isOpen: boole
           width: '100%', display: 'flex', alignItems: 'center', gap: 12,
           padding: '14px 0', background: 'none', border: 'none',
           cursor: 'pointer', textAlign: 'right' as const,
-          color: isOpen ? T.text : T.text2,
+          color: isOpen ? '#F0F2F5' : '#9CA3B5',
           fontSize: 'var(--text-sm)', fontWeight: isOpen ? 700 : 500,
           fontFamily: "var(--font-ar)",
           transition: 'color 0.2s',
@@ -55,12 +54,12 @@ function FAQAccordion({ item, isOpen, onToggle }: { item: FAQItem; isOpen: boole
         <div style={{
           width: 22, height: 22, borderRadius: 'var(--radius-sm)', flexShrink: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: isOpen ? `${T.cyan}14` : T.surface,
+          background: isOpen ? `${'#00D4FF'}14` : '#151A22',
           transition: 'all 0.3s',
         }}>
           <ChevronDown
             size={13}
-            color={isOpen ? T.cyan : T.text4}
+            color={isOpen ? '#00D4FF' : '#6B7280'}
             style={{
               transition: 'transform 0.3s',
               transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
@@ -77,7 +76,7 @@ function FAQAccordion({ item, isOpen, onToggle }: { item: FAQItem; isOpen: boole
       }}>
         <div style={{
           padding: '0 34px 16px 0', fontSize: 'var(--text-sm)', lineHeight: 1.9,
-          color: T.text3, fontFamily: "var(--font-ar)",
+          color: '#6B7280', fontFamily: "var(--font-ar)",
         }}>
           {item.answer}
         </div>
@@ -100,13 +99,13 @@ function FAQCategorySection({
 }) {
   return (
     <div style={{
-      background: T.card, border: `1px solid ${T.border}`,
+      background: '#151A22', border: `1px solid ${'#2A313C'}`,
       borderRadius: 'var(--radius-xl)', overflow: 'hidden',
     }}>
       {/* Category Header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12,
-        padding: '16px 20px', borderBottom: `1px solid ${T.border}`,
+        padding: '16px 20px', borderBottom: `1px solid ${'#2A313C'}`,
         background: `${category.iconBg}08`,
       }}>
         <div style={{
@@ -118,10 +117,10 @@ function FAQCategorySection({
           {category.icon}
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>
+          <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
             {category.title}
           </div>
-          <div style={{ fontSize: 'var(--text-xs)', color: T.text4, marginTop: 1, fontFamily: "var(--font-ar)" }}>
+          <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 1, fontFamily: "var(--font-ar)" }}>
             {t('faqItemsCount', { count: category.items.length })}
           </div>
         </div>
@@ -173,8 +172,8 @@ export default function HelpCenterPage() {
         }
         .help-fade-in { animation: help-fade-in 0.4s ease-out; }
         @keyframes help-pulse-glow {
-          0%, 100% { box-shadow: 0 0 8px ${T.cyan}20; }
-          50% { box-shadow: 0 0 20px ${T.cyan}40; }
+          0%, 100% { box-shadow: 0 0 8px ${'#00D4FF'}20; }
+          50% { box-shadow: 0 0 20px ${'#00D4FF'}40; }
         }
 @keyframes spin {
           from { transform: rotate(0deg); }
@@ -196,8 +195,8 @@ export default function HelpCenterPage() {
       id: 'basics',
       title: t('catBasics'),
       icon: <BookOpen size={18} />,
-      iconColor: T.cyan,
-      iconBg: `${T.cyan}14`,
+      iconColor: '#00D4FF',
+      iconBg: `${'#00D4FF'}14`,
       items: [
         { id: 'b1', question: t('faqB1Q'), answer: t('faqB1A') },
         { id: 'b2', question: t('faqB2Q'), answer: t('faqB2A') },
@@ -209,8 +208,8 @@ export default function HelpCenterPage() {
       id: 'trading',
       title: t('catTrading'),
       icon: <Link2 size={18} />,
-      iconColor: T.green,
-      iconBg: `${T.green}14`,
+      iconColor: '#00FFA3',
+      iconBg: `${'#00FFA3'}14`,
       items: [
         { id: 't1', question: t('faqT1Q'), answer: t('faqT1A') },
         { id: 't2', question: t('faqT2Q'), answer: t('faqT2A') },
@@ -222,8 +221,8 @@ export default function HelpCenterPage() {
       id: 'ai',
       title: t('catAi'),
       icon: <Brain size={18} />,
-      iconColor: T.purple,
-      iconBg: `${T.purple}14`,
+      iconColor: '#B388FF',
+      iconBg: `${'#B388FF'}14`,
       items: [
         { id: 'a1', question: t('faqA1Q'), answer: t('faqA1A') },
         { id: 'a2', question: t('faqA2Q'), answer: t('faqA2A') },
@@ -235,8 +234,8 @@ export default function HelpCenterPage() {
       id: 'security',
       title: t('catSecurity'),
       icon: <ShieldCheck size={18} />,
-      iconColor: T.green,
-      iconBg: `${T.green}14`,
+      iconColor: '#00FFA3',
+      iconBg: `${'#00FFA3'}14`,
       items: [
         { id: 's1', question: t('faqS1Q'), answer: t('faqS1A') },
         { id: 's2', question: t('faqS2Q'), answer: t('faqS2A') },
@@ -248,8 +247,8 @@ export default function HelpCenterPage() {
       id: 'billing',
       title: t('catBilling'),
       icon: <CreditCard size={18} />,
-      iconColor: T.amber,
-      iconBg: `${T.amber}14`,
+      iconColor: '#FFB800',
+      iconBg: `${'#FFB800'}14`,
       items: [
         { id: 'p1', question: t('faqP1Q'), answer: t('faqP1A') },
         { id: 'p2', question: t('faqP2Q'), answer: t('faqP2A') },
@@ -265,32 +264,32 @@ export default function HelpCenterPage() {
       title: t('beginnerGuide'),
       description: t('beginnerGuideDesc'),
       icon: <BookOpen size={22} />,
-      color: T.cyan,
-      bg: `${T.cyan}14`,
+      color: '#00D4FF',
+      bg: `${'#00D4FF'}14`,
     },
     {
       id: 'ai-guide',
       title: t('aiGuide'),
       description: t('aiGuideDesc'),
       icon: <Brain size={22} />,
-      color: T.purple,
-      bg: `${T.purple}14`,
+      color: '#B388FF',
+      bg: `${'#B388FF'}14`,
     },
     {
       id: 'security',
       title: t('securityPolicy'),
       description: t('securityPolicyDesc'),
       icon: <ShieldCheck size={22} />,
-      color: T.green,
-      bg: `${T.green}14`,
+      color: '#00FFA3',
+      bg: `${'#00FFA3'}14`,
     },
     {
       id: 'account-linking-guide',
       title: t('accountLinkingGuide'),
       description: t('accountLinkingGuideDesc'),
       icon: <Link2 size={22} />,
-      color: T.amber,
-      bg: `${T.amber}14`,
+      color: '#FFB800',
+      bg: `${'#FFB800'}14`,
     },
   ], [t])
 
@@ -357,30 +356,30 @@ export default function HelpCenterPage() {
         fontFamily: "var(--font-ar)",
         height: '100%',
         overflowY: 'auto',
-        background: T.bg,
+        background: '#0B0E14',
       }}
     >
       {/* Scoped styles via useScopedStyle */}{/* ═══ Header ═══ */}
       <div style={{
         padding: '28px 24px 20px',
-        borderBottom: `1px solid ${T.border}`,
-        background: `linear-gradient(180deg, ${T.bg2}, ${T.bg})`,
+        borderBottom: `1px solid ${'#2A313C'}`,
+        background: `linear-gradient(180deg, ${'#0F1117'}, ${'#0B0E14'})`,
       }}>
         <div className="help-header-inner" style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
           <div style={{
             width: 44, height: 44, borderRadius: 'var(--radius-lg)',
             background: 'linear-gradient(135deg, #00D4FF, #0A84FF)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: `0 0 20px ${T.cyan}30`,
+            boxShadow: `0 0 20px ${'#00D4FF'}30`,
             flexShrink: 0,
           }}>
             <HelpCircle size={22} color="#fff" />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h1 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: T.text, fontFamily: "var(--font-ar)" }}>
+            <h1 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
               {t('title')}
             </h1>
-            <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: T.text3, fontFamily: "var(--font-ar)" }}>
+            <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>
               {t('subtitle')}
             </p>
           </div>
@@ -390,7 +389,7 @@ export default function HelpCenterPage() {
         <div style={{ position: 'relative', maxWidth: 560 }}>
           <Search
             size={16}
-            color={T.text4}
+            color={'#6B7280'}
             style={{
               position: 'absolute', insetInlineEnd: 14, top: '50%', transform: 'translateY(-50%)',
               pointerEvents: 'none',
@@ -404,13 +403,13 @@ export default function HelpCenterPage() {
             aria-label={t('searchAriaLabel')}
             className="help-search-box"
             style={{
-              width: '100%', background: T.surface, border: `1px solid ${T.border}`,
+              width: '100%', background: '#151A22', border: `1px solid ${'#2A313C'}`,
               borderRadius: 'var(--radius-lg)', padding: '12px 42px 12px 16px',
-              color: T.text, fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)',
+              color: '#F0F2F5', fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)',
               outline: 'none', transition: 'border-color 0.2s',
             }}
-            onFocus={e => { e.target.style.borderColor = T.cyan; e.target.style.boxShadow = `0 0 0 3px ${T.cyan}15` }}
-            onBlur={e => { e.target.style.borderColor = T.border; e.target.style.boxShadow = 'none' }}
+            onFocus={e => { e.target.style.borderColor = '#00D4FF'; e.target.style.boxShadow = `0 0 0 3px ${'#00D4FF'}15` }}
+            onBlur={e => { e.target.style.borderColor = '#2A313C'; e.target.style.boxShadow = 'none' }}
           />
           {searchQuery && (
             <button
@@ -419,7 +418,7 @@ export default function HelpCenterPage() {
               style={{
                 position: 'absolute', insetInlineStart: 10, top: '50%', transform: 'translateY(-50%)',
                 background: 'none', border: 'none', cursor: 'pointer',
-                color: T.text4, display: 'flex', alignItems: 'center',
+                color: '#6B7280', display: 'flex', alignItems: 'center',
               }}
             >
               <X size={14} />
@@ -427,7 +426,7 @@ export default function HelpCenterPage() {
           )}
         </div>
         {searchQuery.trim() && (
-          <div style={{ marginTop: 8, fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-ar)" }}>
+          <div style={{ marginTop: 8, fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>
             {totalResults > 0
               ? t('resultsFound', { count: totalResults, query: searchQuery.trim() })
               : t('noResults', { query: searchQuery.trim() })}
@@ -441,7 +440,7 @@ export default function HelpCenterPage() {
         {/* ═══ Quick Links Grid ═══ */}
         {!searchQuery.trim() && (
           <section aria-labelledby="quick-links-heading" className="help-fade-in">
-            <h2 id="quick-links-heading" style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text, marginBottom: 14, fontFamily: "var(--font-ar)" }}>
+            <h2 id="quick-links-heading" style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', marginBottom: 14, fontFamily: "var(--font-ar)" }}>
               {t('quickLinks')}
             </h2>
             <div className="help-quick-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
@@ -449,7 +448,7 @@ export default function HelpCenterPage() {
                 <button
                   key={link.id}
                   style={{
-                    background: T.card, border: `1px solid ${T.border}`,
+                    background: '#151A22', border: `1px solid ${'#2A313C'}`,
                     borderRadius: 'var(--radius-xl)', padding: '20px 16px', cursor: 'pointer',
                     textAlign: 'right' as const, transition: 'all 0.25s',
                     display: 'flex', flexDirection: 'column', gap: 12,
@@ -460,8 +459,8 @@ export default function HelpCenterPage() {
                     e.currentTarget.style.boxShadow = `0 0 20px ${link.color}10`
                   }}
                   onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = T.border
-                    e.currentTarget.style.background = T.card
+                    e.currentTarget.style.borderColor = '#2A313C'
+                    e.currentTarget.style.background = '#151A22'
                     e.currentTarget.style.boxShadow = 'none'
                   }}
                 >
@@ -473,10 +472,10 @@ export default function HelpCenterPage() {
                     {link.icon}
                   </div>
                   <div>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)", marginBottom: 4 }}>
+                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)", marginBottom: 4 }}>
                       {link.title}
                     </div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: T.text3, lineHeight: 1.7, fontFamily: "var(--font-ar)" }}>
+                    <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', lineHeight: 1.7, fontFamily: "var(--font-ar)" }}>
                       {link.description}
                     </div>
                   </div>
@@ -497,14 +496,14 @@ export default function HelpCenterPage() {
         {/* ═══ FAQ Sections ═══ */}
         <section aria-labelledby="faq-heading" className="help-fade-in">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <h2 id="faq-heading" style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)", margin: 0 }}>
+            <h2 id="faq-heading" style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)", margin: 0 }}>
               {t('faqTitle')}
             </h2>
             {!searchQuery.trim() && (
               <span style={{
-                fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-mono)",
-                padding: '3px 10px', borderRadius: 'var(--radius-lg)', background: T.surface,
-                border: `1px solid ${T.border}`,
+                fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)",
+                padding: '3px 10px', borderRadius: 'var(--radius-lg)', background: '#151A22',
+                border: `1px solid ${'#2A313C'}`,
               }}>
                 {t('faqCount', { count: faqCategories.reduce((s, c) => s + c.items.length, 0) })}
               </span>
@@ -525,14 +524,14 @@ export default function HelpCenterPage() {
             </div>
           ) : (
             <div style={{
-              background: T.card, border: `1px solid ${T.border}`,
+              background: '#151A22', border: `1px solid ${'#2A313C'}`,
               borderRadius: 'var(--radius-xl)', padding: '40px 24px', textAlign: 'center',
             }}>
-              <AlertCircle size={36} color={T.text4} style={{ margin: '0 auto 12px' }} />
-              <div style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: T.text2, marginBottom: 6, fontFamily: "var(--font-ar)" }}>
+              <AlertCircle size={36} color={'#6B7280'} style={{ margin: '0 auto 12px' }} />
+              <div style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: '#9CA3B5', marginBottom: 6, fontFamily: "var(--font-ar)" }}>
                 {t('noFaqResults')}
               </div>
-              <div style={{ fontSize: 'var(--text-sm)', color: T.text4, fontFamily: "var(--font-ar)", lineHeight: 1.7 }}>
+              <div style={{ fontSize: 'var(--text-sm)', color: '#6B7280', fontFamily: "var(--font-ar)", lineHeight: 1.7 }}>
                 {t('noFaqResultsDesc')}
               </div>
             </div>
@@ -541,7 +540,7 @@ export default function HelpCenterPage() {
 
         {/* ═══ Contact & Support Section ═══ */}
         <section aria-labelledby="contact-heading" className="help-fade-in">
-          <h2 id="contact-heading" style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text, marginBottom: 14, fontFamily: "var(--font-ar)" }}>
+          <h2 id="contact-heading" style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', marginBottom: 14, fontFamily: "var(--font-ar)" }}>
             {t('contactTitle')}
           </h2>
 
@@ -549,11 +548,11 @@ export default function HelpCenterPage() {
 
             {/* ── Contact Methods (Tabs) ── */}
             <div style={{
-              background: T.card, border: `1px solid ${T.border}`,
+              background: '#151A22', border: `1px solid ${'#2A313C'}`,
               borderRadius: 'var(--radius-xl)', overflow: 'hidden',
             }}>
               {/* Tab Header */}
-              <div style={{ display: 'flex', borderBottom: `1px solid ${T.border}` }}>
+              <div style={{ display: 'flex', borderBottom: `1px solid ${'#2A313C'}` }}>
                 {[
                   { id: 'email' as const, label: t('emailTab'), icon: <Mail size={14} /> },
                   { id: 'chat' as const, label: t('chatTab'), icon: <MessageSquare size={14} /> },
@@ -565,11 +564,11 @@ export default function HelpCenterPage() {
                     style={{
                       flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
                       gap: 6, padding: '14px 8px', border: 'none', cursor: 'pointer',
-                      background: activeContactTab === tab.id ? `${T.cyan}08` : 'transparent',
-                      color: activeContactTab === tab.id ? T.cyan : T.text3,
+                      background: activeContactTab === tab.id ? `${'#00D4FF'}08` : 'transparent',
+                      color: activeContactTab === tab.id ? '#00D4FF' : '#6B7280',
                       fontSize: 'var(--text-xs)', fontWeight: activeContactTab === tab.id ? 800 : 500,
                       fontFamily: "var(--font-ar)",
-                      borderBottom: activeContactTab === tab.id ? `2px solid ${T.cyan}` : '2px solid transparent',
+                      borderBottom: activeContactTab === tab.id ? `2px solid ${'#00D4FF'}` : '2px solid transparent',
                       transition: 'all 0.2s',
                     }}
                   >
@@ -586,24 +585,24 @@ export default function HelpCenterPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <div style={{
                         width: 40, height: 40, borderRadius: 'var(--radius-lg)',
-                        background: `${T.cyan}14`, display: 'flex',
+                        background: `${'#00D4FF'}14`, display: 'flex',
                         alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                       }}>
-                        <Mail size={18} color={T.cyan} />
+                        <Mail size={18} color={'#00D4FF'} />
                       </div>
                       <div>
-                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>
+                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
                           {t('emailTitle')}
                         </div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>
+                        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>
                           support@roua.io
                         </div>
                       </div>
                     </div>
                     <div style={{
                       padding: '12px 14px', borderRadius: 'var(--radius-lg)',
-                      background: `${T.cyan}06`, border: `1px solid ${T.cyan}12`,
-                      fontSize: 'var(--text-xs)', color: T.text3, lineHeight: 1.8,
+                      background: `${'#00D4FF'}06`, border: `1px solid ${'#00D4FF'}12`,
+                      fontSize: 'var(--text-xs)', color: '#6B7280', lineHeight: 1.8,
                       fontFamily: "var(--font-ar)",
                     }}>
                       {t('emailDesc')}
@@ -617,8 +616,8 @@ export default function HelpCenterPage() {
                         <span key={i} style={{
                           display: 'inline-flex', alignItems: 'center', gap: 4,
                           padding: '4px 10px', borderRadius: 'var(--radius-sm)',
-                          background: T.surface, border: `1px solid ${T.border}`,
-                          fontSize: 'var(--text-xs)', color: T.text2, fontWeight: 600,
+                          background: '#151A22', border: `1px solid ${'#2A313C'}`,
+                          fontSize: 'var(--text-xs)', color: '#9CA3B5', fontWeight: 600,
                           fontFamily: "var(--font-ar)",
                         }}>
                           {f.icon} {f.text}
@@ -633,25 +632,25 @@ export default function HelpCenterPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <div style={{
                         width: 40, height: 40, borderRadius: 'var(--radius-lg)',
-                        background: `${T.green}14`, display: 'flex',
+                        background: `${'#00FFA3'}14`, display: 'flex',
                         alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                       }}>
-                        <MessageSquare size={18} color={T.green} />
+                        <MessageSquare size={18} color={'#00FFA3'} />
                       </div>
                       <div>
-                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>
+                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
                           {t('chatTitle')}
                         </div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: T.green, fontFamily: "var(--font-ar)", display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <span style={{ width: 6, height: 6, borderRadius: 'var(--radius-xs)', background: T.green, boxShadow: `0 0 6px ${T.green}60` }} />
+                        <div style={{ fontSize: 'var(--text-xs)', color: '#00FFA3', fontFamily: "var(--font-ar)", display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ width: 6, height: 6, borderRadius: 'var(--radius-xs)', background: '#00FFA3', boxShadow: `0 0 6px ${'#00FFA3'}60` }} />
                           {t('availableNow')}
                         </div>
                       </div>
                     </div>
                     <div style={{
                       padding: '12px 14px', borderRadius: 'var(--radius-lg)',
-                      background: `${T.green}06`, border: `1px solid ${T.green}12`,
-                      fontSize: 'var(--text-xs)', color: T.text3, lineHeight: 1.8,
+                      background: `${'#00FFA3'}06`, border: `1px solid ${'#00FFA3'}12`,
+                      fontSize: 'var(--text-xs)', color: '#6B7280', lineHeight: 1.8,
                       fontFamily: "var(--font-ar)",
                     }}>
                       {t('chatDesc')}
@@ -660,7 +659,7 @@ export default function HelpCenterPage() {
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                         padding: '10px 20px', borderRadius: 'var(--radius-lg)', border: 'none',
-                        background: `linear-gradient(135deg, ${T.green}, ${T.greenDim})`,
+                        background: `linear-gradient(135deg, ${'#00FFA3'}, ${'#00CC82'})`,
                         color: '#000', fontSize: 'var(--text-sm)', fontWeight: 800, cursor: 'pointer',
                         fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                       }}
@@ -676,24 +675,24 @@ export default function HelpCenterPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <div style={{
                         width: 40, height: 40, borderRadius: 'var(--radius-lg)',
-                        background: `${T.purple}14`, display: 'flex',
+                        background: `${'#B388FF'}14`, display: 'flex',
                         alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                       }}>
-                        <FileText size={18} color={T.purple} />
+                        <FileText size={18} color={'#B388FF'} />
                       </div>
                       <div>
-                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>
+                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
                           {t('docsTitle')}
                         </div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>
+                        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>
                           docs.roua.io
                         </div>
                       </div>
                     </div>
                     <div style={{
                       padding: '12px 14px', borderRadius: 'var(--radius-lg)',
-                      background: `${T.purple}06`, border: `1px solid ${T.purple}12`,
-                      fontSize: 'var(--text-xs)', color: T.text3, lineHeight: 1.8,
+                      background: `${'#B388FF'}06`, border: `1px solid ${'#B388FF'}12`,
+                      fontSize: 'var(--text-xs)', color: '#6B7280', lineHeight: 1.8,
                       fontFamily: "var(--font-ar)",
                     }}>
                       {t('docsDesc')}
@@ -709,15 +708,15 @@ export default function HelpCenterPage() {
                         style={{
                           display: 'flex', alignItems: 'center', gap: 10,
                           padding: '10px 12px', borderRadius: 'var(--radius-md)', width: '100%',
-                          background: T.surface, border: `1px solid ${T.border}`,
-                          color: T.text2, fontSize: 'var(--text-sm)', fontWeight: 600,
+                          background: '#151A22', border: `1px solid ${'#2A313C'}`,
+                          color: '#9CA3B5', fontSize: 'var(--text-sm)', fontWeight: 600,
                           cursor: 'pointer', fontFamily: "var(--font-ar)",
                           transition: 'all 0.2s',
                         }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = `${T.purple}30`; e.currentTarget.style.color = T.purple }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.text2 }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = `${'#B388FF'}30`; e.currentTarget.style.color = '#B388FF' }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = '#2A313C'; e.currentTarget.style.color = '#9CA3B5' }}
                       >
-                        <span style={{ color: T.purple }}>{doc.icon}</span>
+                        <span style={{ color: '#B388FF' }}>{doc.icon}</span>
                         {doc.label}
                         <ExternalLink size={10} style={{ marginRight: 'auto' }} />
                       </button>
@@ -729,26 +728,26 @@ export default function HelpCenterPage() {
 
             {/* ── Feedback Form ── */}
             <div style={{
-              background: T.card, border: `1px solid ${T.border}`,
+              background: '#151A22', border: `1px solid ${'#2A313C'}`,
               borderRadius: 'var(--radius-xl)', overflow: 'hidden',
             }}>
               {/* Form Header */}
               <div style={{
-                padding: '16px 20px', borderBottom: `1px solid ${T.border}`,
+                padding: '16px 20px', borderBottom: `1px solid ${'#2A313C'}`,
                 display: 'flex', alignItems: 'center', gap: 10,
               }}>
                 <div style={{
                   width: 36, height: 36, borderRadius: 'var(--radius-lg)',
-                  background: `${T.amber}14`, display: 'flex',
+                  background: `${'#FFB800'}14`, display: 'flex',
                   alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                 }}>
-                  <Sparkles size={16} color={T.amber} />
+                  <Sparkles size={16} color={'#FFB800'} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>
+                  <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
                     {t('feedbackTitle')}
                   </div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-ar)" }}>
+                  <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)" }}>
                     {t('feedbackDesc')}
                   </div>
                 </div>
@@ -759,7 +758,7 @@ export default function HelpCenterPage() {
                 {/* Name & Email Row */}
                 <div style={{ display: 'flex', gap: 10 }}>
                   <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text3, marginBottom: 4, display: 'block', fontFamily: "var(--font-ar)" }}>
+                    <label style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#6B7280', marginBottom: 4, display: 'block', fontFamily: "var(--font-ar)" }}>
                       {t('feedbackName')}
                     </label>
                     <input
@@ -769,17 +768,17 @@ export default function HelpCenterPage() {
                       placeholder={t('feedbackNamePlaceholder')}
                       aria-label={t('feedbackName')}
                       style={{
-                        width: '100%', background: T.surface, border: `1px solid ${T.border}`,
+                        width: '100%', background: '#151A22', border: `1px solid ${'#2A313C'}`,
                         borderRadius: 'var(--radius-md)', padding: '10px 12px',
-                        color: T.text, fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)',
+                        color: '#F0F2F5', fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)',
                         outline: 'none', transition: 'border-color 0.2s',
                       }}
-                      onFocus={e => e.target.style.borderColor = T.cyan}
-                      onBlur={e => e.target.style.borderColor = T.border}
+                      onFocus={e => e.target.style.borderColor = '#00D4FF'}
+                      onBlur={e => e.target.style.borderColor = '#2A313C'}
                     />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text3, marginBottom: 4, display: 'block', fontFamily: "var(--font-ar)" }}>
+                    <label style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#6B7280', marginBottom: 4, display: 'block', fontFamily: "var(--font-ar)" }}>
                       {t('feedbackEmail')}
                     </label>
                     <input
@@ -790,21 +789,21 @@ export default function HelpCenterPage() {
                       dir="ltr"
                       aria-label={t('feedbackEmail')}
                       style={{
-                        width: '100%', background: T.surface, border: `1px solid ${T.border}`,
+                        width: '100%', background: '#151A22', border: `1px solid ${'#2A313C'}`,
                         borderRadius: 'var(--radius-md)', padding: '10px 12px',
-                        color: T.text, fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)',
+                        color: '#F0F2F5', fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)',
                         outline: 'none', transition: 'border-color 0.2s',
                         textAlign: 'right',
                       }}
-                      onFocus={e => e.target.style.borderColor = T.cyan}
-                      onBlur={e => e.target.style.borderColor = T.border}
+                      onFocus={e => e.target.style.borderColor = '#00D4FF'}
+                      onBlur={e => e.target.style.borderColor = '#2A313C'}
                     />
                   </div>
                 </div>
 
                 {/* Subject */}
                 <div>
-                  <label style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text3, marginBottom: 4, display: 'block', fontFamily: "var(--font-ar)" }}>
+                  <label style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#6B7280', marginBottom: 4, display: 'block', fontFamily: "var(--font-ar)" }}>
                     {t('feedbackSubject')}
                   </label>
                   <select
@@ -812,9 +811,9 @@ export default function HelpCenterPage() {
                     onChange={e => setFeedbackSubject(e.target.value)}
                     aria-label={t('feedbackSubject')}
                     style={{
-                      width: '100%', background: T.surface, border: `1px solid ${T.border}`,
+                      width: '100%', background: '#151A22', border: `1px solid ${'#2A313C'}`,
                       borderRadius: 'var(--radius-md)', padding: '10px 12px',
-                      color: T.text, fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)',
+                      color: '#F0F2F5', fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)',
                       outline: 'none', cursor: 'pointer', direction: 'inherit',
                       appearance: 'none',
                     }}
@@ -830,7 +829,7 @@ export default function HelpCenterPage() {
 
                 {/* Message */}
                 <div>
-                  <label style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text3, marginBottom: 4, display: 'block', fontFamily: "var(--font-ar)" }}>
+                  <label style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#6B7280', marginBottom: 4, display: 'block', fontFamily: "var(--font-ar)" }}>
                     {t('feedbackMessage')}
                   </label>
                   <textarea
@@ -840,14 +839,14 @@ export default function HelpCenterPage() {
                     rows={4}
                     aria-label={t('feedbackMessage')}
                     style={{
-                      width: '100%', background: T.surface, border: `1px solid ${T.border}`,
+                      width: '100%', background: '#151A22', border: `1px solid ${'#2A313C'}`,
                       borderRadius: 'var(--radius-md)', padding: '10px 12px',
-                      color: T.text, fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)',
+                      color: '#F0F2F5', fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)',
                       outline: 'none', resize: 'vertical', minHeight: 80,
                       transition: 'border-color 0.2s', lineHeight: 1.7,
                     }}
-                    onFocus={e => e.target.style.borderColor = T.cyan}
-                    onBlur={e => e.target.style.borderColor = T.border}
+                    onFocus={e => e.target.style.borderColor = '#00D4FF'}
+                    onBlur={e => e.target.style.borderColor = '#2A313C'}
                   />
                 </div>
 
@@ -858,8 +857,8 @@ export default function HelpCenterPage() {
                   style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                     padding: '12px 24px', borderRadius: 'var(--radius-lg)', border: 'none',
-                    background: isSubmitting ? T.surface : `linear-gradient(135deg, ${T.cyan}, ${T.blue})`,
-                    color: isSubmitting ? T.text3 : '#000',
+                    background: isSubmitting ? '#151A22' : `linear-gradient(135deg, ${'#00D4FF'}, ${'#0A84FF'})`,
+                    color: isSubmitting ? '#6B7280' : '#000',
                     fontSize: 'var(--text-sm)', fontWeight: 800, cursor: isSubmitting ? 'not-allowed' : 'pointer',
                     fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                     opacity: isSubmitting ? 0.6 : 1,
@@ -882,10 +881,10 @@ export default function HelpCenterPage() {
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 12,
                   padding: '10px 12px', borderRadius: 'var(--radius-md)',
-                  background: `${T.green}04`, border: `1px solid ${T.green}10`,
+                  background: `${'#00FFA3'}04`, border: `1px solid ${'#00FFA3'}10`,
                 }}>
-                  <Lock size={12} color={T.green} />
-                  <span style={{ fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-ar)", lineHeight: 1.6 }}>
+                  <Lock size={12} color={'#00FFA3'} />
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)", lineHeight: 1.6 }}>
                     {t('feedbackInfoSecureDesc')}
                   </span>
                 </div>
@@ -900,16 +899,16 @@ export default function HelpCenterPage() {
             display: 'flex', gap: 10, flexWrap: 'wrap',
           }}>
             {[
-              { icon: <Users size={14} />, label: t('feedbackInfoTitle'), color: T.cyan },
-              { icon: <Clock size={14} />, label: t('feedbackInfoDesc'), color: T.green },
-              { icon: <Star size={14} />, label: t('feedbackInfoSecure'), color: T.amber },
-              { icon: <Globe size={14} />, label: t('emailFeature2'), color: T.purple },
+              { icon: <Users size={14} />, label: t('feedbackInfoTitle'), color: '#00D4FF' },
+              { icon: <Clock size={14} />, label: t('feedbackInfoDesc'), color: '#00FFA3' },
+              { icon: <Star size={14} />, label: t('feedbackInfoSecure'), color: '#FFB800' },
+              { icon: <Globe size={14} />, label: t('emailFeature2'), color: '#B388FF' },
             ].map((stat, i) => (
               <span key={i} style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,
                 padding: '8px 14px', borderRadius: 'var(--radius-lg)',
-                background: T.card, border: `1px solid ${T.border}`,
-                fontSize: 'var(--text-xs)', color: T.text2, fontWeight: 600,
+                background: '#151A22', border: `1px solid ${'#2A313C'}`,
+                fontSize: 'var(--text-xs)', color: '#9CA3B5', fontWeight: 600,
                 fontFamily: "var(--font-ar)",
               }}>
                 <span style={{ color: stat.color }}>{stat.icon}</span>

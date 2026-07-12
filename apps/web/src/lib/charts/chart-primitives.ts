@@ -33,22 +33,22 @@ export const OVERLAY_COLORS = {
   trendUp: '#059669',       // Green for support / ascending
   trendDown: '#ef4444',     // Red for resistance / descending
   harmonic: '#d4af37',      // Gold for harmonic patterns
-  srStrong: T.info,      // Cyan for strong S/R
-  srMedium: T.council,      // Purple for medium S/R
+  srStrong: '#00D4FF',      // Cyan for strong S/R
+  srMedium: '#B388FF',      // Purple for medium S/R
   srWeak: '#64748b',        // Gray for weak S/R
   bosBull: '#10b981',       // Green BOS
-  bosBear: T.warning,       // Orange BOS
+  bosBear: '#FFB800',       // Orange BOS
   chochBull: '#06b6d4',     // Cyan CHoCH
   chochBear: '#eab308',     // Yellow CHoCH
   elliott: '#93c5fd',       // Light blue for Elliott
-  geo: T.council,           // Purple for geometric
-  fvg: T.info,           // Cyan for FVG
+  geo: '#B388FF',           // Purple for geometric
+  fvg: '#00D4FF',           // Cyan for FVG
   entry: '#00D4FF',         // Cyan for entry
   sl: '#ef4444',            // Red for SL
   tp: '#10b981',            // Green for TP
   wyckoff: '#fb923c',       // Orange for Wyckoff
-  fibonacci: T.warning,     // Yellow for Fibonacci
-  vp: T.warning,            // Yellow for Volume Profile
+  fibonacci: '#FFB800',     // Yellow for Fibonacci
+  vp: '#FFB800',            // Yellow for Volume Profile
   zone: 'rgba(5, 150, 105, 0.08)', // Subtle green zone fill
   zoneRed: 'rgba(239, 68, 68, 0.08)', // Subtle red zone fill
   zoneGold: 'rgba(212, 175, 55, 0.08)', // Subtle gold zone fill
@@ -825,7 +825,7 @@ class AlertMarkerRenderer implements IPrimitivePaneRenderer {
         // Color based on direction
         const isBull = this._direction === 'bullish';
         const isBear = this._direction === 'bearish';
-        const pinColor = isBull ? '#10b981' : isBear ? '#ef4444' : T.warning;
+        const pinColor = isBull ? '#10b981' : isBear ? '#ef4444' : '#FFB800';
         const bgColor = isBull ? 'rgba(16, 185, 129, 0.15)' : isBear ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)';
         const borderColor = isBull ? 'rgba(16, 185, 129, 0.6)' : isBear ? 'rgba(239, 68, 68, 0.6)' : 'rgba(245, 158, 11, 0.6)';
 

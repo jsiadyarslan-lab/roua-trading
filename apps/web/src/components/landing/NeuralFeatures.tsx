@@ -5,7 +5,6 @@ import { motion } from 'framer-motion'
 import { Globe, Zap, Radar, Shield, FlaskConical } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { usePrefersReducedMotion } from '@/hooks/use-reduced-motion'
-import T from '@/lib/unified-tokens'
 
 interface Feature {
   id: string
@@ -24,7 +23,7 @@ const FEATURES: Feature[] = [
     titleKey: 'multilingualAnalyst',
     titleEn: 'Polyglot Analyst',
     descKey: 'multilingualAnalystDesc',
-    color: T.info,
+    color: '#00D4FF',
     glowColor: 'rgba(59, 130, 246, 0.3)',
   },
   {
@@ -42,7 +41,7 @@ const FEATURES: Feature[] = [
     titleKey: 'newsRadar',
     titleEn: 'News Radar',
     descKey: 'newsRadarDesc',
-    color: T.council,
+    color: '#B388FF',
     glowColor: 'rgba(168, 85, 247, 0.3)',
   },
   {
@@ -51,7 +50,7 @@ const FEATURES: Feature[] = [
     titleKey: 'sanctuary',
     titleEn: 'Portfolio Sanctuary',
     descKey: 'sanctuaryDesc',
-    color: T.profit,
+    color: '#10b981',
     glowColor: 'rgba(16, 185, 129, 0.3)',
   },
   {
@@ -75,18 +74,18 @@ function NeuralConnections() {
       fill="none"
     >
       {/* Row 1 connections */}
-      <line x1="200" y1="130" x2="500" y2="130" stroke={T.info} strokeWidth="1" opacity="0.2" />
+      <line x1="200" y1="130" x2="500" y2="130" stroke={'#00D4FF'} strokeWidth="1" opacity="0.2" />
       <line x1="500" y1="130" x2="800" y2="130" stroke="#FFD700" strokeWidth="1" opacity="0.2" />
-      <line x1="200" y1="130" x2="800" y2="130" stroke={T.council} strokeWidth="0.5" opacity="0.1" strokeDasharray="6 4" />
+      <line x1="200" y1="130" x2="800" y2="130" stroke={'#B388FF'} strokeWidth="0.5" opacity="0.1" strokeDasharray="6 4" />
 
       {/* Row 1 to Row 2 connections */}
-      <line x1="350" y1="220" x2="350" y2="380" stroke={T.info} strokeWidth="1" opacity="0.15" />
-      <line x1="500" y1="220" x2="350" y2="380" stroke={T.profit} strokeWidth="0.8" opacity="0.15" />
+      <line x1="350" y1="220" x2="350" y2="380" stroke={'#00D4FF'} strokeWidth="1" opacity="0.15" />
+      <line x1="500" y1="220" x2="350" y2="380" stroke={'#10b981'} strokeWidth="0.8" opacity="0.15" />
       <line x1="500" y1="220" x2="700" y2="380" stroke="#06B6D4" strokeWidth="0.8" opacity="0.15" />
       <line x1="800" y1="220" x2="700" y2="380" stroke="#FFD700" strokeWidth="1" opacity="0.15" />
 
       {/* Row 2 connection */}
-      <line x1="350" y1="460" x2="700" y2="460" stroke={T.profit} strokeWidth="1" opacity="0.2" />
+      <line x1="350" y1="460" x2="700" y2="460" stroke={'#10b981'} strokeWidth="1" opacity="0.2" />
 
       {/* Node dots at intersections */}
       {[
@@ -112,11 +111,11 @@ function NeuralConnections() {
 
       {/* Data flow particles */}
       {[
-        { x1: 200, y1: 130, x2: 500, y2: 130, color: T.info, dur: '3s' },
+        { x1: 200, y1: 130, x2: 500, y2: 130, color: '#00D4FF', dur: '3s' },
         { x1: 500, y1: 130, x2: 800, y2: 130, color: '#FFD700', dur: '4s' },
-        { x1: 350, y1: 220, x2: 350, y2: 380, color: T.info, dur: '2.5s' },
+        { x1: 350, y1: 220, x2: 350, y2: 380, color: '#00D4FF', dur: '2.5s' },
         { x1: 800, y1: 220, x2: 700, y2: 380, color: '#06B6D4', dur: '3.5s' },
-        { x1: 350, y1: 460, x2: 700, y2: 460, color: T.profit, dur: '3s' },
+        { x1: 350, y1: 460, x2: 700, y2: 460, color: '#10b981', dur: '3s' },
       ].map((line, i) => (
         <circle key={`particle-${i}`} r="2" fill={line.color} opacity="0.8">
           <animateMotion dur={line.dur} repeatCount="indefinite" path={`M${line.x1},${line.y1} L${line.x2},${line.y2}`} />
@@ -199,7 +198,7 @@ function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
         {/* Description */}
         <p
           className="text-sm leading-relaxed"
-          style={{ color: T.text2, fontFamily: 'var(--font-ar)' }}
+          style={{ color: '#9CA3B5', fontFamily: 'var(--font-ar)' }}
         >
           {t(feature.descKey)}
         </p>
@@ -242,7 +241,7 @@ export default function NeuralFeatures() {
           </h2>
           <p
             className="text-base max-w-md mx-auto"
-            style={{ color: T.text2, fontFamily: 'var(--font-ar)' }}
+            style={{ color: '#9CA3B5', fontFamily: 'var(--font-ar)' }}
           >
             {t('subtitle')}
           </p>

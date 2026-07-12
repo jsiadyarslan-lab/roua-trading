@@ -1,7 +1,6 @@
 'use client'
 
 
-import T from '@/lib/unified-tokens'
 
 interface ScoreGaugeProps {
   score: number
@@ -11,11 +10,11 @@ interface ScoreGaugeProps {
 }
 
 function getScoreColor(score: number): string {
-  if (score >= 40) return T.green
-  if (score >= 15) return T.greenDim
-  if (score > -15) return T.amber
-  if (score > -40) return T.redDim
-  return T.red
+  if (score >= 40) return '#00FFA3'
+  if (score >= 15) return '#00CC82'
+  if (score > -15) return '#FFB800'
+  if (score > -40) return '#CC3945'
+  return '#FF4757'
 }
 
 export function ScoreGauge({ score, size = 44, label, showValue = true }: ScoreGaugeProps) {
@@ -63,7 +62,7 @@ export function ScoreGauge({ score, size = 44, label, showValue = true }: ScoreG
       )}
       {label && (
         <span style={{
-          fontSize: size * 0.17, color: T.text3, fontWeight: 600,
+          fontSize: size * 0.17, color: '#6B7280', fontWeight: 600,
           fontFamily: "var(--font-ar)",
         }}>
           {label}

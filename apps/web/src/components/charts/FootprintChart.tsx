@@ -7,7 +7,6 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl'
-import T from '@/lib/unified-tokens';
 
 function safeMax(arr: number[]): number {
   if (arr.length === 0) return -Infinity;
@@ -49,16 +48,16 @@ type FootprintMode = 'bidask' | 'delta' | 'volume';
 type FootprintTimeframe = '1min' | '5min' | '15min' | '1h';
 
 const C = {
-  bg: T.bg,
-  card: T.card,
-  border: T.card,
-  text: T.text,
-  textDim: T.text2,
-  textMuted: T.text3,
-  cyan: T.info,
-  success: T.success,
-  danger: T.danger,
-  warning: T.warning,
+  bg: '#0B0E14',
+  card: '#151A22',
+  border: '#151A22',
+  text: '#F0F2F5',
+  textDim: '#9CA3B5',
+  textMuted: '#6B7280',
+  cyan: '#00D4FF',
+  success: '#00FFA3',
+  danger: '#FF4757',
+  warning: '#FFB800',
 };
 
 const TF_OPTIONS: { value: FootprintTimeframe; label: string }[] = [
@@ -221,8 +220,8 @@ export function FootprintChart({ symbol, onClose }: FootprintChartProps) {
       ctx.fillText(timeStr, x + CANDLE_W / 2, HEADER_H - 8);
 
       // Candle outline
-      const bullColor = T.success;
-      const bearColor = T.danger;
+      const bullColor = '#00FFA3';
+      const bearColor = '#FF4757';
       const isBull = candle.close >= candle.open;
 
       // Draw volume at each level

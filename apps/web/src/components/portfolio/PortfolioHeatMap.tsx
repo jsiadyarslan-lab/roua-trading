@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo } from 'react'
-import T from '@/lib/unified-tokens'
 import { getPnlSign } from '@/lib/pnl-utils'
 
 interface HeatMapPosition {
@@ -74,7 +73,7 @@ export function PortfolioHeatMap({ positions }: PortfolioHeatMapProps) {
           alignItems: 'center',
           justifyContent: 'center',
           height: 80,
-          color: T.textMuted,
+          color: '#6B7280',
           fontSize: 'var(--text-xs)',
           fontFamily: "var(--font-ar)",
           direction: 'inherit',
@@ -137,7 +136,7 @@ export function PortfolioHeatMap({ positions }: PortfolioHeatMapProps) {
                 rx={4}
                 ry={4}
                 fill={item.color}
-                stroke={item.pnlPct > 0 ? T.green : item.pnlPct < 0 ? T.red : T.text2}
+                stroke={item.pnlPct > 0 ? '#00FFA3' : item.pnlPct < 0 ? '#FF4757' : '#9CA3B5'}
                 strokeWidth={0.5}
                 strokeOpacity={0.3}
               >
@@ -168,7 +167,7 @@ export function PortfolioHeatMap({ positions }: PortfolioHeatMapProps) {
                 y={y + cellSize / 2 + 7}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                fill={item.pnlPct > 0 ? T.green : item.pnlPct < 0 ? T.red : T.text2}
+                fill={item.pnlPct > 0 ? '#00FFA3' : item.pnlPct < 0 ? '#FF4757' : '#9CA3B5'}
                 fontSize={6}
                 fontWeight={700}
                 fontFamily="'JetBrains Mono', monospace"

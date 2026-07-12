@@ -1,7 +1,6 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import T from '@/lib/unified-tokens'
 
 interface SmartScore {
   trendScore: number
@@ -16,11 +15,11 @@ interface SmartScoreBarProps {
 }
 
 function getBarColor(val: number): string {
-  if (val >= 60) return T.green
-  if (val >= 40) return T.greenDim
-  if (val >= 20) return T.amber
-  if (val >= 0) return T.redDim
-  return T.red
+  if (val >= 60) return '#00FFA3'
+  if (val >= 40) return '#00CC82'
+  if (val >= 20) return '#FFB800'
+  if (val >= 0) return '#CC3945'
+  return '#FF4757'
 }
 
 const BAR_KEYS: { key: keyof SmartScore; labelKey: string }[] = [
@@ -46,14 +45,14 @@ export function SmartScoreBar({ smartScore }: SmartScoreBarProps) {
         return (
           <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{
-              width: 32, fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text3,
+              width: 32, fontSize: 'var(--text-xs)', fontWeight: 700, color: '#6B7280',
               fontFamily: "var(--font-ar)", textAlign: 'right', flexShrink: 0,
             }}>
               {t(labelKey)}
             </span>
             <div style={{
               flex: 1, height: isComposite ? 6 : 4,
-              borderRadius: 'var(--radius-xs)', background: T.surface, overflow: 'hidden',
+              borderRadius: 'var(--radius-xs)', background: '#151A22', overflow: 'hidden',
             }}>
               <div style={{
                 width: `${pct}%`, height: '100%', borderRadius: 'var(--radius-xs)',

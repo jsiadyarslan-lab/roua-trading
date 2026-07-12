@@ -11,7 +11,6 @@ import { useTabAlertStore } from '@/hooks/useTabAlertStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { isMarketOpen } from '@/lib/market-hours'
-import T from '@/lib/unified-tokens'
 
 // Default to paper trading for safety — only go live if explicitly enabled
 const PAPER_TRADING_MODE = process.env.NEXT_PUBLIC_PAPER_TRADING !== 'false'
@@ -169,7 +168,7 @@ export function BotEngine() {
                 useTabAlertStore.getState().pushAlert('bot', {
                   action: 'BUY',
                   label: t('securePosition', { symbol: trade.symbol }),
-                  color: T.blue,
+                  color: '#0A84FF',
                 })
               }
             }
@@ -531,7 +530,7 @@ export function BotEngine() {
       useTabAlertStore.getState().pushAlert('bot', {
         action: isBuy ? 'BUY' : 'SELL',
         label: `${isBuy ? '⬆' : '⬇'} ${signal.pair} $${price.toFixed(0)}`,
-        color: isBuy ? T.success : '#FF3B30',
+        color: isBuy ? '#00FFA3' : '#FF3B30',
       })
 
       addNotification({
@@ -585,7 +584,7 @@ export function BotEngine() {
     useTabAlertStore.getState().pushAlert('bot', {
       action: profitable ? 'BUY' : 'SELL',
       label: `${reason === 'TP' ? '✅ ' + t('closeProfit') : '❌ ' + t('closeLoss')} ${trade.symbol} ${pnl > 0 ? '+' : ''}${pnl.toFixed(0)}$`,
-      color: profitable ? T.success : '#FF3B30',
+      color: profitable ? '#00FFA3' : '#FF3B30',
     })
     addNotification({
       source: 'bot',

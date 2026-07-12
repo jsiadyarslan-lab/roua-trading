@@ -10,20 +10,19 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
-import T from '@/lib/unified-tokens'
 
 /* ── design tokens ── */
 const COLORS = {
-  bg: T.bg,
+  bg: '#0B0E14',
   card: '#111318',
-  accent: T.info,
-  success: T.success,
-  danger: T.danger,
-  amber: T.warning,
-  text: T.text,
-  muted: T.text2,
+  accent: '#00D4FF',
+  success: '#00FFA3',
+  danger: '#FF4757',
+  amber: '#FFB800',
+  text: '#F0F2F5',
+  muted: '#9CA3B5',
   border: 'rgba(0,229,255,0.08)',
-  purple: T.council,
+  purple: '#B388FF',
 }
 
 const CARD_STYLE: React.CSSProperties = {
@@ -37,11 +36,11 @@ const CARD_STYLE: React.CSSProperties = {
 
 /* ── tier helpers ── */
 const TIER_CONFIG = [
-  { key: 'FREE' as const, label: 'مجاني', color: T.text2 },
-  { key: 'PRO' as const, label: 'برو', color: T.info },
-  { key: 'PLUS' as const, label: 'بلس', color: T.warning },
-  { key: 'PREMIUM' as const, label: 'مميز', color: T.success },
-  { key: 'INSTITUTIONAL' as const, label: 'مؤسسي', color: T.council },
+  { key: 'FREE' as const, label: 'مجاني', color: '#9CA3B5' },
+  { key: 'PRO' as const, label: 'برو', color: '#00D4FF' },
+  { key: 'PLUS' as const, label: 'بلس', color: '#FFB800' },
+  { key: 'PREMIUM' as const, label: 'مميز', color: '#00FFA3' },
+  { key: 'INSTITUTIONAL' as const, label: 'مؤسسي', color: '#B388FF' },
 ]
 
 function getTierLabel(tier: string): string {
@@ -53,9 +52,9 @@ function getTierLabel(tier: string): string {
 
 function getTierColor(tier: string): string {
   const map: Record<string, string> = {
-    FREE: T.text2, PRO: T.info, PLUS: T.warning, PREMIUM: T.success, INSTITUTIONAL: T.council,
+    FREE: '#9CA3B5', PRO: '#00D4FF', PLUS: '#FFB800', PREMIUM: '#00FFA3', INSTITUTIONAL: '#B388FF',
   }
-  return map[tier] || T.text2
+  return map[tier] || '#9CA3B5'
 }
 
 /* ── types ── */

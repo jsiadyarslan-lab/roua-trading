@@ -26,7 +26,6 @@ import {
   Activity,
 } from 'lucide-react'
 import SubPageLayout from '@/components/dashboard/SubPageLayout'
-import T from '@/lib/unified-tokens'
 import { toast } from '@/hooks/use-toast'
 import { useNotificationStore, Notification as StoreNotification } from '@/hooks/useNotificationStore'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
@@ -144,50 +143,50 @@ function getCategoryConfig(t: (key: string) => string): Record<NotificationCateg
     signal: {
       label: t(CATEGORY_CONFIG_KEY.signal),
       icon: <Zap size={14} />,
-      color: T.success,
-      bgColor: `${T.success}14`,
-      borderColor: `${T.success}33`,
-      gradient: T.gradientGreen,
+      color: '#00FFA3',
+      bgColor: `${'#00FFA3'}14`,
+      borderColor: `${'#00FFA3'}33`,
+      gradient: 'linear-gradient(135deg, #00FFA3, #00CC82)',
     },
     trade: {
       label: t(CATEGORY_CONFIG_KEY.trade),
       icon: <BarChart3 size={14} />,
-      color: T.cyan,
-      bgColor: `${T.cyan}14`,
-      borderColor: `${T.cyan}33`,
-      gradient: T.gradientInfo,
+      color: '#00D4FF',
+      bgColor: `${'#00D4FF'}14`,
+      borderColor: `${'#00D4FF'}33`,
+      gradient: 'linear-gradient(135deg, #00D4FF, #0A84FF)',
     },
     security: {
       label: t(CATEGORY_CONFIG_KEY.security),
       icon: <ShieldCheck size={14} />,
-      color: T.danger,
-      bgColor: `${T.danger}14`,
-      borderColor: `${T.danger}33`,
-      gradient: T.gradientRed,
+      color: '#FF4757',
+      bgColor: `${'#FF4757'}14`,
+      borderColor: `${'#FF4757'}33`,
+      gradient: 'linear-gradient(135deg, #FF4757, #FF6B81)',
     },
     system: {
       label: t(CATEGORY_CONFIG_KEY.system),
       icon: <Settings2 size={14} />,
-      color: T.text2,
-      bgColor: `${T.text2}14`,
-      borderColor: `${T.text2}26`,
-      gradient: `linear-gradient(135deg, ${T.text2}, #64748B)`,
+      color: '#9CA3B5',
+      bgColor: `${'#9CA3B5'}14`,
+      borderColor: `${'#9CA3B5'}26`,
+      gradient: `linear-gradient(135deg, ${'#9CA3B5'}, #64748B)`,
     },
     price: {
       label: t(CATEGORY_CONFIG_KEY.price),
       icon: <Target size={14} />,
-      color: T.amber,
-      bgColor: `${T.amber}14`,
-      borderColor: `${T.amber}33`,
-      gradient: `linear-gradient(135deg, ${T.amber}, #F59E0B)`,
+      color: '#FFB800',
+      bgColor: `${'#FFB800'}14`,
+      borderColor: `${'#FFB800'}33`,
+      gradient: `linear-gradient(135deg, ${'#FFB800'}, #F59E0B)`,
     },
     ai: {
       label: t(CATEGORY_CONFIG_KEY.ai),
       icon: <Brain size={14} />,
-      color: T.purple,
-      bgColor: `${T.purple}14`,
-      borderColor: `${T.purple}33`,
-      gradient: `linear-gradient(135deg, ${T.purple}, #A259FF)`,
+      color: '#B388FF',
+      bgColor: `${'#B388FF'}14`,
+      borderColor: `${'#B388FF'}33`,
+      gradient: `linear-gradient(135deg, ${'#B388FF'}, #A259FF)`,
     },
   }
 }
@@ -352,7 +351,7 @@ function NotificationCard({
             <span style={{
               fontSize: '13px',
               fontWeight: item.read ? 600 : 800,
-              color: item.read ? T.text2 : T.text,
+              color: item.read ? '#9CA3B5' : '#F0F2F5',
               fontFamily: "var(--font-ar)",
             }}>
               {item.title}
@@ -369,7 +368,7 @@ function NotificationCard({
                   ? 'rgba(0,255,163,0.12)'
                   : 'rgba(255,71,87,0.12)',
                 border: `1px solid ${item.signalDirection === 'BUY' ? 'rgba(0,255,163,0.25)' : 'rgba(255,71,87,0.25)'}`,
-                color: item.signalDirection === 'BUY' ? T.success : T.danger,
+                color: item.signalDirection === 'BUY' ? '#00FFA3' : '#FF4757',
                 fontFamily: "var(--font-ar)",
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -400,7 +399,7 @@ function NotificationCard({
                 fontSize: '9px',
                 fontWeight: 700,
                 fontFamily: "var(--font-mono)",
-                color: item.signalConfidence >= 80 ? T.success : item.signalConfidence >= 60 ? T.amber : T.danger,
+                color: item.signalConfidence >= 80 ? '#00FFA3' : item.signalConfidence >= 60 ? '#FFB800' : '#FF4757',
               }} dir="ltr">
                 {item.signalConfidence}%
               </span>
@@ -423,7 +422,7 @@ function NotificationCard({
                 fontSize: '11px',
                 fontWeight: 700,
                 fontFamily: "var(--font-mono)",
-                color: T.text,
+                color: '#F0F2F5',
               }} dir="ltr">
                 {item.signalSymbol || item.priceSymbol}
               </span>
@@ -431,7 +430,7 @@ function NotificationCard({
                 <span style={{
                   fontSize: '10px',
                   fontFamily: "var(--font-mono)",
-                  color: T.text2,
+                  color: '#9CA3B5',
                 }} dir="ltr">
                   ${item.priceCurrent.toLocaleString()}
                 </span>
@@ -442,7 +441,7 @@ function NotificationCard({
           {/* Description */}
           <p style={{
             fontSize: '11px',
-            color: T.text2,
+            color: '#9CA3B5',
             lineHeight: '1.65',
             margin: 0,
             fontFamily: "var(--font-ar)",
@@ -459,7 +458,7 @@ function NotificationCard({
           }}>
             <span style={{
               fontSize: '10px',
-              color: T.text2,
+              color: '#9CA3B5',
               fontFamily: "var(--font-ar)",
               opacity: 0.7,
             }}>
@@ -524,7 +523,7 @@ function NotificationCard({
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              color: T.danger,
+              color: '#FF4757',
               flexShrink: 0,
               transition: 'all 0.15s',
             }}
@@ -544,7 +543,7 @@ function NotificationCard({
 function ToggleSwitch({
   enabled,
   onToggle,
-  color = T.cyan,
+  color = '#00D4FF',
 }: {
   enabled: boolean
   onToggle: () => void
@@ -592,8 +591,8 @@ function EmptyState({ filterLabel, t }: { filterLabel: string; t: (key: string) 
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
       style={{
-        background: T.card,
-        border: `1px solid ${T.border}`,
+        background: '#151A22',
+        border: `1px solid ${'#2A313C'}`,
         borderRadius: '14px',
         padding: '56px 24px',
         textAlign: 'center',
@@ -609,7 +608,7 @@ function EmptyState({ filterLabel, t }: { filterLabel: string; t: (key: string) 
         transform: 'translate(-50%, -50%)',
         width: '140px',
         height: '140px',
-        background: `linear-gradient(135deg, ${T.cyan}, ${T.purple})`,
+        background: `linear-gradient(135deg, ${'#00D4FF'}, ${'#B388FF'})`,
         filter: 'blur(60px)',
         opacity: 0.06,
         pointerEvents: 'none',
@@ -619,20 +618,20 @@ function EmptyState({ filterLabel, t }: { filterLabel: string; t: (key: string) 
         width: '56px',
         height: '56px',
         borderRadius: '16px',
-        background: `linear-gradient(135deg, ${T.cyan}26, ${T.purple}26)`,
+        background: `linear-gradient(135deg, ${'#00D4FF'}26, ${'#B388FF'}26)`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         margin: '0 auto 16px',
-        border: `1px solid ${T.cyan}1F`,
+        border: `1px solid ${'#00D4FF'}1F`,
       }}>
-        <BellRing size={24} color={T.cyan} />
+        <BellRing size={24} color={'#00D4FF'} />
       </div>
 
       <p style={{
         fontSize: '15px',
         fontWeight: 700,
-        color: T.text,
+        color: '#F0F2F5',
         fontFamily: "var(--font-ar)",
         margin: '0 0 6px',
       }}>
@@ -640,7 +639,7 @@ function EmptyState({ filterLabel, t }: { filterLabel: string; t: (key: string) 
       </p>
       <p style={{
         fontSize: '12px',
-        color: T.text2,
+        color: '#9CA3B5',
         fontFamily: "var(--font-ar)",
         lineHeight: '1.6',
         margin: 0,
@@ -810,7 +809,7 @@ export default function NotificationsPage() {
     <SubPageLayout
       title={t('title')}
       icon={<Bell size={14} color="#fff" />}
-      iconBg={`linear-gradient(135deg, ${T.cyan}, ${T.purple})`}
+      iconBg={`linear-gradient(135deg, ${'#00D4FF'}, ${'#B388FF'})`}
       actions={
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {/* Unread count badge */}
@@ -820,9 +819,9 @@ export default function NotificationsPage() {
               fontWeight: 800,
               padding: '2px 9px',
               borderRadius: '10px',
-              background: `${T.cyan}1F`,
-              border: `1px solid ${T.cyan}40`,
-              color: T.cyan,
+              background: `${'#00D4FF'}1F`,
+              border: `1px solid ${'#00D4FF'}40`,
+              color: '#00D4FF',
               fontFamily: "var(--font-mono)",
             }}>
               {unreadCount} {t('new')}
@@ -838,9 +837,9 @@ export default function NotificationsPage() {
                 gap: '5px',
                 padding: '5px 12px',
                 borderRadius: '7px',
-                border: `1px solid ${T.success}33`,
-                background: `${T.success}0F`,
-                color: T.success,
+                border: `1px solid ${'#00FFA3'}33`,
+                background: `${'#00FFA3'}0F`,
+                color: '#00FFA3',
                 fontSize: '10px',
                 fontWeight: 700,
                 fontFamily: "var(--font-ar)",
@@ -866,7 +865,7 @@ export default function NotificationsPage() {
               background: showPreferences
                 ? 'rgba(179,136,255,0.08)'
                 : 'rgba(255,255,255,0.03)',
-              color: showPreferences ? T.purple : T.text2,
+              color: showPreferences ? '#B388FF' : '#9CA3B5',
               fontSize: '10px',
               fontWeight: 700,
               fontFamily: "var(--font-ar)",
@@ -939,7 +938,7 @@ export default function NotificationsPage() {
               <div style={{ fontSize: '10px', fontWeight: 700, color: cfg.color, fontFamily: "var(--font-mono)" }}>
                 {count}
               </div>
-              <div style={{ fontSize: '9px', color: T.text2, fontFamily: "var(--font-ar)", marginTop: '2px' }}>
+              <div style={{ fontSize: '9px', color: '#9CA3B5', fontFamily: "var(--font-ar)", marginTop: '2px' }}>
                 {cfg.label}
               </div>
             </motion.button>
@@ -977,8 +976,8 @@ export default function NotificationsPage() {
                 fontSize: '11px',
                 fontWeight: 600,
                 fontFamily: "var(--font-ar)",
-                background: activeFilter === tab.id ? T.cyan : 'transparent',
-                color: activeFilter === tab.id ? '#fff' : T.text2,
+                background: activeFilter === tab.id ? '#00D4FF' : 'transparent',
+                color: activeFilter === tab.id ? '#fff' : '#9CA3B5',
                 transition: 'all 0.15s',
               }}
             >
@@ -991,7 +990,7 @@ export default function NotificationsPage() {
                   padding: '0px 5px',
                   borderRadius: '8px',
                   background: activeFilter === tab.id ? 'rgba(255,255,255,0.2)' : 'rgba(0,212,255,0.12)',
-                  color: activeFilter === tab.id ? '#fff' : T.cyan,
+                  color: activeFilter === tab.id ? '#fff' : '#00D4FF',
                 }}>
                   {categoryStats[tab.id]}
                 </span>
@@ -1012,7 +1011,7 @@ export default function NotificationsPage() {
               borderRadius: '6px',
               border: '1px solid rgba(255,255,255,0.08)',
               background: 'rgba(255,255,255,0.03)',
-              color: T.text2,
+              color: '#9CA3B5',
               fontSize: '10px',
               fontWeight: 600,
               fontFamily: "var(--font-ar)",
@@ -1036,7 +1035,7 @@ export default function NotificationsPage() {
                   borderRadius: '6px',
                   border: '1px solid rgba(0,255,163,0.15)',
                   background: 'rgba(0,255,163,0.06)',
-                  color: T.success,
+                  color: '#00FFA3',
                   fontSize: '10px',
                   fontWeight: 600,
                   fontFamily: "var(--font-ar)",
@@ -1057,7 +1056,7 @@ export default function NotificationsPage() {
                   borderRadius: '6px',
                   border: '1px solid rgba(255,71,87,0.15)',
                   background: 'rgba(255,71,87,0.06)',
-                  color: T.danger,
+                  color: '#FF4757',
                   fontSize: '10px',
                   fontWeight: 600,
                   fontFamily: "var(--font-ar)",
@@ -1118,8 +1117,8 @@ export default function NotificationsPage() {
             style={{ overflow: 'hidden' }}
           >
             <div style={{
-              background: T.card,
-              border: `1px solid ${T.border}`,
+              background: '#151A22',
+              border: `1px solid ${'#2A313C'}`,
               borderRadius: '14px',
               overflow: 'hidden',
               position: 'relative',
@@ -1131,7 +1130,7 @@ export default function NotificationsPage() {
                 left: '-20px',
                 width: '80px',
                 height: '80px',
-                background: T.purple,
+                background: '#B388FF',
                 filter: 'blur(50px)',
                 opacity: 0.06,
                 pointerEvents: 'none',
@@ -1140,7 +1139,7 @@ export default function NotificationsPage() {
               {/* Header */}
               <div style={{
                 padding: '14px 18px',
-                borderBottom: `1px solid ${T.border}`,
+                borderBottom: `1px solid ${'#2A313C'}`,
                 display: 'flex',
                 alignItems: 'center',
                 gap: '10px',
@@ -1150,14 +1149,14 @@ export default function NotificationsPage() {
                   width: '28px',
                   height: '28px',
                   borderRadius: '8px',
-                  background: `linear-gradient(135deg, ${T.purple}, #A259FF)`,
+                  background: `linear-gradient(135deg, ${'#B388FF'}, #A259FF)`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
                   <Settings2 size={13} color="#fff" />
                 </div>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#F0F2F5', fontFamily: "var(--font-ar)" }}>
                   {t('notificationPrefs')}
                 </span>
                 <span style={{
@@ -1167,7 +1166,7 @@ export default function NotificationsPage() {
                   borderRadius: '4px',
                   background: 'rgba(179,136,255,0.10)',
                   border: '1px solid rgba(179,136,255,0.20)',
-                  color: T.purple,
+                  color: '#B388FF',
                   fontFamily: "var(--font-ar)",
                 }}>
                   {t('settingsTab')}
@@ -1194,8 +1193,8 @@ export default function NotificationsPage() {
                         justifyContent: 'space-between',
                         alignItems: 'center',
                         gap: '12px',
-                        borderBottom: i < preferences.length - 2 ? `1px solid ${T.border}` : 'none',
-                        borderInlineStart: !isEven ? `1px solid ${T.border}` : 'none',
+                        borderBottom: i < preferences.length - 2 ? `1px solid ${'#2A313C'}` : 'none',
+                        borderInlineStart: !isEven ? `1px solid ${'#2A313C'}` : 'none',
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
@@ -1208,7 +1207,7 @@ export default function NotificationsPage() {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          color: pref.enabled ? T.cyan : T.text2,
+                          color: pref.enabled ? '#00D4FF' : '#9CA3B5',
                           flexShrink: 0,
                           transition: 'all 0.2s',
                         }}>
@@ -1218,7 +1217,7 @@ export default function NotificationsPage() {
                           <div style={{
                             fontSize: '11px',
                             fontWeight: 700,
-                            color: T.text,
+                            color: '#F0F2F5',
                             fontFamily: "var(--font-ar)",
                             marginBottom: '2px',
                           }}>
@@ -1226,7 +1225,7 @@ export default function NotificationsPage() {
                           </div>
                           <div style={{
                             fontSize: '9px',
-                            color: T.text2,
+                            color: '#9CA3B5',
                             fontFamily: "var(--font-ar)",
                             lineHeight: '1.4',
                             whiteSpace: 'nowrap',
@@ -1240,7 +1239,7 @@ export default function NotificationsPage() {
                       <ToggleSwitch
                         enabled={pref.enabled}
                         onToggle={() => togglePreference(pref.key)}
-                        color={pref.enabled ? T.cyan : T.text2}
+                        color={pref.enabled ? '#00D4FF' : '#9CA3B5'}
                       />
                     </div>
                   )
@@ -1250,16 +1249,16 @@ export default function NotificationsPage() {
               {/* Footer info */}
               <div style={{
                 padding: '10px 18px',
-                borderTop: `1px solid ${T.border}`,
+                borderTop: `1px solid ${'#2A313C'}`,
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
                 background: 'rgba(255,255,255,0.01)',
               }}>
-                <AlertTriangle size={10} style={{ color: T.text2, flexShrink: 0 }} />
+                <AlertTriangle size={10} style={{ color: '#9CA3B5', flexShrink: 0 }} />
                 <span style={{
                   fontSize: '9px',
-                  color: T.text2,
+                  color: '#9CA3B5',
                   fontFamily: "var(--font-ar)",
                   lineHeight: '1.5',
                 }}>
@@ -1283,22 +1282,22 @@ export default function NotificationsPage() {
         border: '1px solid rgba(255,255,255,0.04)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Activity size={12} style={{ color: T.text2 }} />
-          <span style={{ fontSize: '10px', color: T.text2, fontFamily: "var(--font-ar)" }}>
+          <Activity size={12} style={{ color: '#9CA3B5' }} />
+          <span style={{ fontSize: '10px', color: '#9CA3B5', fontFamily: "var(--font-ar)" }}>
             {notifications.length} {t('totalNotifications')}
           </span>
           <span style={{ width: '1px', height: '12px', background: 'rgba(255,255,255,0.08)' }} />
-          <span style={{ fontSize: '10px', color: T.cyan, fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: '10px', color: '#00D4FF', fontFamily: "var(--font-ar)" }}>
             {unreadCount} {t('unread')}
           </span>
           <span style={{ width: '1px', height: '12px', background: 'rgba(255,255,255,0.08)' }} />
-          <span style={{ fontSize: '10px', color: T.success, fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: '10px', color: '#00FFA3', fontFamily: "var(--font-ar)" }}>
             {notifications.length - unreadCount} {t('readStatus')}
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Wifi size={10} style={{ color: T.success }} />
-          <span style={{ fontSize: '9px', color: T.text2, fontFamily: "var(--font-ar)" }}>
+          <Wifi size={10} style={{ color: '#00FFA3' }} />
+          <span style={{ fontSize: '9px', color: '#9CA3B5', fontFamily: "var(--font-ar)" }}>
             {t('liveConnection')}
           </span>
         </div>

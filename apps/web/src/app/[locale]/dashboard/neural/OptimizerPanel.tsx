@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl'
-import T from '@/lib/unified-tokens';
 import {
   BarChart,
   Bar,
@@ -251,16 +250,16 @@ export default function OptimizerPanel() {
                   { name: t('winRate'), [t('optimizerBest')]: result.performance.winRate, [t('optimizerPrevious')]: result.previousBest.winRate },
                   { name: t('sharpeRatio'), [t('optimizerBest')]: result.performance.sharpeRatio, [t('optimizerPrevious')]: result.previousBest.sharpeRatio },
                 ]}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={T.card} />
-                  <XAxis dataKey="name" stroke={T.text3} tick={{ fontSize: 'var(--text-xs)' }} />
-                  <YAxis stroke={T.text3} tick={{ fontSize: 'var(--text-xs)' }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={'#151A22'} />
+                  <XAxis dataKey="name" stroke={'#6B7280'} tick={{ fontSize: 'var(--text-xs)' }} />
+                  <YAxis stroke={'#6B7280'} tick={{ fontSize: 'var(--text-xs)' }} />
                   <Tooltip
-                    contentStyle={{ background: T.card, border: '1px solid #374151', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)' }}
-                    labelStyle={{ color: T.text2 }}
+                    contentStyle={{ background: '#151A22', border: '1px solid #374151', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)' }}
+                    labelStyle={{ color: '#9CA3B5' }}
                   />
                   <Legend wrapperStyle={{ fontSize: 'var(--text-sm)' }} />
-                  <Bar dataKey={t('optimizerBest')} fill={T.profit} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey={t('optimizerPrevious')} fill={T.text3} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey={t('optimizerBest')} fill={'#10b981'} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey={t('optimizerPrevious')} fill={'#6B7280'} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

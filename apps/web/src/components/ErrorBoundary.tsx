@@ -2,7 +2,6 @@
 
 import React from 'react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
-import T from '@/lib/unified-tokens'
 
 interface ErrorBoundaryProps {
   children: React.ReactNode
@@ -57,7 +56,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             marginBottom: 16,
           }}>
-            <AlertTriangle size={28} color={T.redAlt} />
+            <AlertTriangle size={28} color={'#FF4D4D'} />
           </div>
           <h2 style={{
             fontSize: 'var(--text-lg)', fontWeight: 800, color: '#E6EBF5',
@@ -72,7 +71,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             {this.state.error?.message || 'حدث خطأ أثناء عرض هذا القسم.'}
           </p>
           <p style={{
-            fontSize: 'var(--text-xs)', color: T.text3,
+            fontSize: 'var(--text-xs)', color: '#6B7280',
             margin: '0 0 20px',
           }}>
             يمكنك المحاولة مرة أخرى أو العودة لاحقاً.
@@ -84,7 +83,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               padding: '8px 20px', borderRadius: 'var(--radius-md)',
               background: 'rgba(10,132,255,0.1)',
               border: '1px solid rgba(10,132,255,0.2)',
-              color: T.info, fontSize: 'var(--text-sm)', fontWeight: 700,
+              color: '#00D4FF', fontSize: 'var(--text-sm)', fontWeight: 700,
               cursor: 'pointer', fontFamily: "var(--font-ar)",
               transition: 'all 0.2s',
             }}

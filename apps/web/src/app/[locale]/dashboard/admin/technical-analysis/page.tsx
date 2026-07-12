@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { getDirection } from '@/lib/i18n-utils';
 import { useLocale } from 'next-intl'
-import T from '@/lib/unified-tokens';
 import {
   LineChart, Sparkles, TrendingUp, FileText, BarChart3,
   Settings2, Plus, Clock, Eye, ThumbsUp, Share2,
@@ -30,15 +29,15 @@ const FONT_MONO = "'JetBrains Mono', monospace"
    Helper Functions
    ═══════════════════════════════════════════════ */
 function getStatusColor(status: ContentAgentStatus | null): string {
-  if (!status) return T.text3
+  if (!status) return '#6B7280'
   switch (status) {
-    case ContentAgentStatus.GENERATING: return T.accent2
-    case ContentAgentStatus.PUBLISHING: return T.green
-    case ContentAgentStatus.CURATING: return T.purple
-    case ContentAgentStatus.PAUSED: return T.amber
-    case ContentAgentStatus.ERROR: return T.red
-    case ContentAgentStatus.IDLE: return T.text2
-    default: return T.text3
+    case ContentAgentStatus.GENERATING: return '#047857'
+    case ContentAgentStatus.PUBLISHING: return '#00FFA3'
+    case ContentAgentStatus.CURATING: return '#B388FF'
+    case ContentAgentStatus.PAUSED: return '#FFB800'
+    case ContentAgentStatus.ERROR: return '#FF4757'
+    case ContentAgentStatus.IDLE: return '#9CA3B5'
+    default: return '#6B7280'
   }
 }
 
@@ -90,39 +89,39 @@ function getCategoryLabel(c: ContentCategory): string {
 
 function getCategoryColor(c: ContentCategory): string {
   const map: Record<ContentCategory, string> = {
-    [ContentCategory.CRYPTO]: T.warning,
-    [ContentCategory.FOREX]: T.info,
-    [ContentCategory.STOCKS]: T.success,
-    [ContentCategory.COMMODITIES]: T.warning,
-    [ContentCategory.ECONOMY]: T.council,
-    [ContentCategory.REGULATION]: T.danger,
-    [ContentCategory.TECHNOLOGY]: T.info,
-    [ContentCategory.EDUCATION]: T.profit,
-    [ContentCategory.GEOPOLITICS]: T.danger,
-    [ContentCategory.DEFI]: T.council,
+    [ContentCategory.CRYPTO]: '#FFB800',
+    [ContentCategory.FOREX]: '#00D4FF',
+    [ContentCategory.STOCKS]: '#00FFA3',
+    [ContentCategory.COMMODITIES]: '#FFB800',
+    [ContentCategory.ECONOMY]: '#B388FF',
+    [ContentCategory.REGULATION]: '#FF4757',
+    [ContentCategory.TECHNOLOGY]: '#00D4FF',
+    [ContentCategory.EDUCATION]: '#10b981',
+    [ContentCategory.GEOPOLITICS]: '#FF4757',
+    [ContentCategory.DEFI]: '#B388FF',
     [ContentCategory.NFT]: '#F472B6',
   }
-  return map[c] || T.text3
+  return map[c] || '#6B7280'
 }
 
 function getStatusBadgeStyle(s: ContentStatus): { bg: string; color: string; label: string } {
   switch (s) {
     case ContentStatus.PUBLISHED:
-      return { bg: 'rgba(0,255,163,0.10)', color: T.green, label: 'منشور' }
+      return { bg: 'rgba(0,255,163,0.10)', color: '#00FFA3', label: 'منشور' }
     case ContentStatus.DRAFT:
-      return { bg: 'rgba(255,255,255,0.06)', color: T.text2, label: 'مسودة' }
+      return { bg: 'rgba(255,255,255,0.06)', color: '#9CA3B5', label: 'مسودة' }
     case ContentStatus.IN_REVIEW:
-      return { bg: 'rgba(0,212,255,0.10)', color: T.accent2, label: 'قيد المراجعة' }
+      return { bg: 'rgba(0,212,255,0.10)', color: '#047857', label: 'قيد المراجعة' }
     case ContentStatus.APPROVED:
-      return { bg: 'rgba(0,212,255,0.10)', color: T.accent2, label: 'معتمد' }
+      return { bg: 'rgba(0,212,255,0.10)', color: '#047857', label: 'معتمد' }
     case ContentStatus.SCHEDULED:
-      return { bg: 'rgba(255,184,0,0.10)', color: T.amber, label: 'مجدول' }
+      return { bg: 'rgba(255,184,0,0.10)', color: '#FFB800', label: 'مجدول' }
     case ContentStatus.ARCHIVED:
-      return { bg: 'rgba(255,255,255,0.04)', color: T.text3, label: 'مؤرشف' }
+      return { bg: 'rgba(255,255,255,0.04)', color: '#6B7280', label: 'مؤرشف' }
     case ContentStatus.REJECTED:
-      return { bg: 'rgba(255,71,87,0.10)', color: T.red, label: 'مرفوض' }
+      return { bg: 'rgba(255,71,87,0.10)', color: '#FF4757', label: 'مرفوض' }
     default:
-      return { bg: 'rgba(255,255,255,0.04)', color: T.text3, label: s }
+      return { bg: 'rgba(255,255,255,0.04)', color: '#6B7280', label: s }
   }
 }
 
@@ -140,17 +139,17 @@ function timeAgo(dateStr: string | undefined): string {
 
 function getImpactLabel(impact: string): { label: string; color: string } {
   switch (impact) {
-    case 'HIGH': return { label: 'تأثير عالي', color: T.red }
-    case 'MEDIUM': return { label: 'تأثير متوسط', color: T.amber }
-    case 'LOW': return { label: 'تأثير منخفض', color: T.green }
-    default: return { label: impact, color: T.text3 }
+    case 'HIGH': return { label: 'تأثير عالي', color: '#FF4757' }
+    case 'MEDIUM': return { label: 'تأثير متوسط', color: '#FFB800' }
+    case 'LOW': return { label: 'تأثير منخفض', color: '#00FFA3' }
+    default: return { label: impact, color: '#6B7280' }
   }
 }
 
 function getSentimentLabel(score: number): { label: string; color: string; icon: React.ReactNode } {
-  if (score > 0.3) return { label: 'صعودي', color: T.green, icon: <ArrowUpRight size={12} /> }
-  if (score < -0.3) return { label: 'هبوطي', color: T.red, icon: <ArrowDownRight size={12} /> }
-  return { label: 'محايد', color: T.amber, icon: <Crosshair size={12} /> }
+  if (score > 0.3) return { label: 'صعودي', color: '#00FFA3', icon: <ArrowUpRight size={12} /> }
+  if (score < -0.3) return { label: 'هبوطي', color: '#FF4757', icon: <ArrowDownRight size={12} /> }
+  return { label: 'محايد', color: '#FFB800', icon: <Crosshair size={12} /> }
 }
 
 /* ═══════════════════════════════════════════════
@@ -159,10 +158,10 @@ function getSentimentLabel(score: number): { label: string; color: string; icon:
 function GlassCard({ children, style, glow }: { children: React.ReactNode; style?: React.CSSProperties; glow?: string }) {
   return (
     <div style={{
-      background: T.glass,
+      background: 'rgba(255,255,255,0.04)',
       backdropFilter: 'blur(16px) saturate(1.4)',
       WebkitBackdropFilter: 'blur(16px) saturate(1.4)',
-      border: `1px solid ${T.border}`,
+      border: `1px solid ${'#2A313C'}`,
       borderRadius: 'var(--radius-xl)',
       boxShadow: `0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)${glow ? `, 0 0 30px ${glow}` : ''}`,
       overflow: 'hidden',
@@ -235,7 +234,7 @@ export default function TechnicalAnalysisPage() {
   return (
     <>
       <style>{TA_CSS}</style>
-      <div dir={dir} style={{ minHeight: '100vh', background: T.bg, color: T.text, fontFamily: FONT_AR }}>
+      <div dir={dir} style={{ minHeight: '100vh', background: '#0B0E14', color: '#F0F2F5', fontFamily: FONT_AR }}>
         {/* ── Header ── */}
         <div style={{
           padding: '28px 32px 0',
@@ -248,7 +247,7 @@ export default function TechnicalAnalysisPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
             <div style={{
               width: 56, height: 56, borderRadius: 'var(--radius-xl)',
-              background: `linear-gradient(135deg, ${isGenerating ? T.info : T.accent}, ${isGenerating ? T.blue : '#047857'})`,
+              background: `linear-gradient(135deg, ${isGenerating ? '#00D4FF' : '#059669'}, ${isGenerating ? '#0A84FF' : '#047857'})`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: isGenerating ? `0 0 28px rgba(0,212,255,0.35)` : `0 0 28px rgba(5,150,105,0.25)`,
               transition: 'all 0.4s ease',
@@ -283,7 +282,7 @@ export default function TechnicalAnalysisPage() {
                 </span>
                 {agentState && (
                   <span style={{
-                    fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3,
+                    fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: '#6B7280',
                     marginRight: 8, padding: '2px 10px', borderRadius: 'var(--radius-sm)',
                     background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)',
                   }}>
@@ -310,7 +309,7 @@ export default function TechnicalAnalysisPage() {
               onClick={() => setActiveTab('generate')}
               style={{
                 ...btnStyle,
-                background: 'rgba(255,71,87,0.10)', color: T.red,
+                background: 'rgba(255,71,87,0.10)', color: '#FF4757',
                 border: '1px solid rgba(255,71,87,0.25)', padding: '11px 20px', fontSize: 'var(--text-sm)', borderRadius: 'var(--radius-lg)',
               }}
             >
@@ -319,8 +318,8 @@ export default function TechnicalAnalysisPage() {
             <button
               onClick={() => { fetchState(); fetchStats(); fetchFeed(); fetchTrending(); fetchGaps() }}
               style={{
-                ...btnStyle, background: 'rgba(255,255,255,0.06)', color: T.text2,
-                padding: '11px 14px', borderRadius: 'var(--radius-lg)', border: `1px solid ${T.border}`,
+                ...btnStyle, background: 'rgba(255,255,255,0.06)', color: '#9CA3B5',
+                padding: '11px 14px', borderRadius: 'var(--radius-lg)', border: `1px solid ${'#2A313C'}`,
               }}
             >
               <RefreshCw size={15} />
@@ -331,11 +330,11 @@ export default function TechnicalAnalysisPage() {
         {/* ── Stats Bar ── */}
         <div style={{ padding: '24px 32px 0' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
-            <MiniStatCard icon={<LineChart size={15} />} label="إجمالي التحليلات" value={String(totalGenerated)} color={T.accent2} sub={`${publishRate}% معدل النشر`} />
-            <MiniStatCard icon={<Send size={15} />} label="المنشورة" value={String(totalPublished)} color={T.green} sub="نشط" />
-            <MiniStatCard icon={<Calendar size={15} />} label="الحصة اليومية" value={`${dailyGenerated}/${dailyQuota}`} color={T.amber} sub={dailyPercent >= 100 ? 'اكتملت' : `${dailyQuota - dailyGenerated} متبقي`} />
-            <MiniStatCard icon={<Award size={15} />} label="متوسط الجودة" value={qualityScore ? `${qualityScore.toFixed(0)}%` : '—'} color={qualityScore >= 70 ? T.green : T.amber} sub={qualityScore >= 80 ? 'ممتاز' : qualityScore >= 70 ? 'جيد' : 'يحتاج تحسين'} />
-            <MiniStatCard icon={<Eye size={15} />} label="المشاهدات" value={stats?.totalViews ? Number(stats.totalViews).toLocaleString('en') : '0'} color={T.purple} sub="جميع الأوقات" />
+            <MiniStatCard icon={<LineChart size={15} />} label="إجمالي التحليلات" value={String(totalGenerated)} color={'#047857'} sub={`${publishRate}% معدل النشر`} />
+            <MiniStatCard icon={<Send size={15} />} label="المنشورة" value={String(totalPublished)} color={'#00FFA3'} sub="نشط" />
+            <MiniStatCard icon={<Calendar size={15} />} label="الحصة اليومية" value={`${dailyGenerated}/${dailyQuota}`} color={'#FFB800'} sub={dailyPercent >= 100 ? 'اكتملت' : `${dailyQuota - dailyGenerated} متبقي`} />
+            <MiniStatCard icon={<Award size={15} />} label="متوسط الجودة" value={qualityScore ? `${qualityScore.toFixed(0)}%` : '—'} color={qualityScore >= 70 ? '#00FFA3' : '#FFB800'} sub={qualityScore >= 80 ? 'ممتاز' : qualityScore >= 70 ? 'جيد' : 'يحتاج تحسين'} />
+            <MiniStatCard icon={<Eye size={15} />} label="المشاهدات" value={stats?.totalViews ? Number(stats.totalViews).toLocaleString('en') : '0'} color={'#B388FF'} sub="جميع الأوقات" />
           </div>
         </div>
 
@@ -344,7 +343,7 @@ export default function TechnicalAnalysisPage() {
           <div style={{
             margin: '20px 32px 0', padding: '14px 20px',
             background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.20)', borderRadius: 'var(--radius-lg)',
-            display: 'flex', alignItems: 'center', gap: 12, fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: T.red,
+            display: 'flex', alignItems: 'center', gap: 12, fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: '#FF4757',
           }}>
             <AlertTriangle size={18} />
             <span style={{ fontWeight: 700 }}>{error}</span>
@@ -352,20 +351,20 @@ export default function TechnicalAnalysisPage() {
         )}
 
         {/* ── Tab Navigation ── */}
-        <div style={{ padding: '0 32px', marginTop: 24, display: 'flex', gap: 0, borderBottom: `1px solid ${T.border}`, marginBottom: 24 }}>
+        <div style={{ padding: '0 32px', marginTop: 24, display: 'flex', gap: 0, borderBottom: `1px solid ${'#2A313C'}`, marginBottom: 24 }}>
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id
             return (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
                 display: 'flex', alignItems: 'center', gap: 8, padding: '14px 22px',
                 fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: isActive ? 800 : 500,
-                color: isActive ? T.accent : T.text2, background: 'transparent', border: 'none',
-                borderBottom: isActive ? '2px solid ' + T.accent : '2px solid transparent',
+                color: isActive ? '#059669' : '#9CA3B5', background: 'transparent', border: 'none',
+                borderBottom: isActive ? '2px solid ' + '#059669' : '2px solid transparent',
                 cursor: 'pointer', transition: 'all 0.15s',
               }}>
                 {tab.icon} {tab.label}
                 {tab.id === 'analyses' && articles.length > 0 && (
-                  <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, padding: '2px 8px', borderRadius: 'var(--radius-lg)', background: T.accent + '20', color: T.accent, fontFamily: FONT_MONO }}>{articles.length}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, padding: '2px 8px', borderRadius: 'var(--radius-lg)', background: '#059669' + '20', color: '#059669', fontFamily: FONT_MONO }}>{articles.length}</span>
                 )}
               </button>
             )
@@ -401,22 +400,22 @@ export default function TechnicalAnalysisPage() {
         {/* Filters */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <button onClick={() => setShowFilters(!showFilters)} style={{
-            ...btnStyle, background: showFilters ? T.accent + '10' : 'rgba(255,255,255,0.06)',
-            color: showFilters ? T.accent : T.text2, fontSize: 'var(--text-xs)', borderRadius: 'var(--radius-md)',
-            border: `1px solid ${showFilters ? T.accent + '25' : T.border}`,
+            ...btnStyle, background: showFilters ? '#059669' + '10' : 'rgba(255,255,255,0.06)',
+            color: showFilters ? '#059669' : '#9CA3B5', fontSize: 'var(--text-xs)', borderRadius: 'var(--radius-md)',
+            border: `1px solid ${showFilters ? '#059669' + '25' : '#2A313C'}`,
           }}>
             <Filter size={13} /> فلاتر
             {(filterCategory || filterStatus) && (
-              <span style={{ fontSize: 'var(--text-xs)', padding: '2px 7px', borderRadius: 'var(--radius-md)', background: T.accent + '20', color: T.accent, fontFamily: FONT_MONO }}>
+              <span style={{ fontSize: 'var(--text-xs)', padding: '2px 7px', borderRadius: 'var(--radius-md)', background: '#059669' + '20', color: '#059669', fontFamily: FONT_MONO }}>
                 {[filterCategory, filterStatus].filter(Boolean).length}
               </span>
             )}
           </button>
           <div style={{ flex: 1 }} />
-          <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>{filteredArticles.length} تحليل</span>
+          <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: '#6B7280' }}>{filteredArticles.length} تحليل</span>
           {(filterCategory || filterStatus) && (
             <button onClick={() => { setFilterCategory(''); setFilterStatus('') }}
-              style={{ ...btnStyle, background: 'rgba(255,71,87,0.08)', color: T.red, fontSize: 'var(--text-xs)', padding: '5px 12px', borderRadius: 'var(--radius-md)' }}>
+              style={{ ...btnStyle, background: 'rgba(255,71,87,0.08)', color: '#FF4757', fontSize: 'var(--text-xs)', padding: '5px 12px', borderRadius: 'var(--radius-md)' }}>
               <XCircle size={11} /> مسح
             </button>
           )}
@@ -432,7 +431,7 @@ export default function TechnicalAnalysisPage() {
 
         {filteredArticles.length === 0 ? (
           <GlassCard>
-            <div style={{ padding: '60px 20px', textAlign: 'center', fontFamily: FONT_AR, color: T.text3 }}>
+            <div style={{ padding: '60px 20px', textAlign: 'center', fontFamily: FONT_AR, color: '#6B7280' }}>
               <LineChart size={44} style={{ marginBottom: 14, opacity: 0.25 }} />
               <div style={{ fontSize: 'var(--text-md)', fontWeight: 800 }}>لا توجد تحليلات فنية</div>
               <div style={{ fontSize: 'var(--text-sm)', marginTop: 6 }}>ابدأ بتوليد تحليل فني من تبويب التوليد</div>
@@ -466,16 +465,16 @@ export default function TechnicalAnalysisPage() {
 
     const inputStyle: React.CSSProperties = {
       width: '100%', padding: '12px 16px', borderRadius: 'var(--radius-lg)',
-      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border}`,
-      color: T.text, fontFamily: FONT_AR, fontSize: 'var(--text-sm)', outline: 'none', direction: 'inherit',
+      background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#2A313C'}`,
+      color: '#F0F2F5', fontFamily: FONT_AR, fontSize: 'var(--text-sm)', outline: 'none', direction: 'inherit',
     }
     const selectStyle: React.CSSProperties = {
       width: '100%', padding: '12px 14px', borderRadius: 'var(--radius-lg)',
-      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border}`,
-      color: T.text, fontFamily: FONT_AR, fontSize: 'var(--text-sm)', outline: 'none', direction: 'inherit',
+      background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#2A313C'}`,
+      color: '#F0F2F5', fontFamily: FONT_AR, fontSize: 'var(--text-sm)', outline: 'none', direction: 'inherit',
     }
     const labelStyle: React.CSSProperties = {
-      fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text2, marginBottom: 8, display: 'block',
+      fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 700, color: '#9CA3B5', marginBottom: 8, display: 'block',
     }
 
     return (
@@ -484,9 +483,9 @@ export default function TechnicalAnalysisPage() {
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={() => setFormMode('analysis')} style={{
               ...btnStyle, flex: 1, justifyContent: 'center',
-              background: formMode === 'analysis' ? T.accent + '12' : 'rgba(255,255,255,0.04)',
-              color: formMode === 'analysis' ? T.accent : T.text2,
-              border: `1px solid ${formMode === 'analysis' ? T.accent + '30' : T.border}`,
+              background: formMode === 'analysis' ? '#059669' + '12' : 'rgba(255,255,255,0.04)',
+              color: formMode === 'analysis' ? '#059669' : '#9CA3B5',
+              border: `1px solid ${formMode === 'analysis' ? '#059669' + '30' : '#2A313C'}`,
               padding: '13px', borderRadius: 'var(--radius-lg)',
             }}>
               <LineChart size={15} /> تحليل فني
@@ -494,8 +493,8 @@ export default function TechnicalAnalysisPage() {
             <button onClick={() => setFormMode('breaking')} style={{
               ...btnStyle, flex: 1, justifyContent: 'center',
               background: formMode === 'breaking' ? 'rgba(255,71,87,0.12)' : 'rgba(255,255,255,0.04)',
-              color: formMode === 'breaking' ? T.red : T.text2,
-              border: `1px solid ${formMode === 'breaking' ? 'rgba(255,71,87,0.3)' : T.border}`,
+              color: formMode === 'breaking' ? '#FF4757' : '#9CA3B5',
+              border: `1px solid ${formMode === 'breaking' ? 'rgba(255,71,87,0.3)' : '#2A313C'}`,
               padding: '13px', borderRadius: 'var(--radius-lg)',
             }}>
               <Zap size={15} /> تنبيه عاجل
@@ -506,7 +505,7 @@ export default function TechnicalAnalysisPage() {
             <GlassCard>
               <div style={{ padding: 24 }}>
                 <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-md)', fontWeight: 800, marginBottom: 22, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <LineChart size={18} color={T.accent} /> توليد تحليل فني جديد
+                  <LineChart size={18} color={'#059669'} /> توليد تحليل فني جديد
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
                   <div>
@@ -518,16 +517,16 @@ export default function TechnicalAnalysisPage() {
                     <div>
                       <label style={labelStyle}>نوع التحليل</label>
                       <select value={genType} onChange={(e) => setGenType(e.target.value as ContentType)} style={selectStyle}>
-                        <option value={ContentType.ANALYSIS} style={{ background: T.bg2 }}>تحليل فني</option>
-                        <option value={ContentType.MARKET_REPORT} style={{ background: T.bg2 }}>تقرير سوق</option>
-                        <option value={ContentType.ARTICLE} style={{ background: T.bg2 }}>مقال تحليلي</option>
-                        <option value={ContentType.NEWS_DIGEST} style={{ background: T.bg2 }}>ملخص سوقي</option>
+                        <option value={ContentType.ANALYSIS} style={{ background: '#0F1117' }}>تحليل فني</option>
+                        <option value={ContentType.MARKET_REPORT} style={{ background: '#0F1117' }}>تقرير سوق</option>
+                        <option value={ContentType.ARTICLE} style={{ background: '#0F1117' }}>مقال تحليلي</option>
+                        <option value={ContentType.NEWS_DIGEST} style={{ background: '#0F1117' }}>ملخص سوقي</option>
                       </select>
                     </div>
                     <div>
                       <label style={labelStyle}>الفئة</label>
                       <select value={genCategory} onChange={(e) => setGenCategory(e.target.value as ContentCategory)} style={selectStyle}>
-                        {Object.values(ContentCategory).map(c => <option key={c} value={c} style={{ background: T.bg2 }}>{getCategoryLabel(c as ContentCategory)}</option>)}
+                        {Object.values(ContentCategory).map(c => <option key={c} value={c} style={{ background: '#0F1117' }}>{getCategoryLabel(c as ContentCategory)}</option>)}
                       </select>
                     </div>
                   </div>
@@ -535,16 +534,16 @@ export default function TechnicalAnalysisPage() {
                     <div>
                       <label style={labelStyle}>اللغة</label>
                       <select value={genLanguage} onChange={(e) => setGenLanguage(e.target.value as ContentLanguage)} style={selectStyle}>
-                        <option value={ContentLanguage.AR} style={{ background: T.bg2 }}>عربي</option>
-                        <option value={ContentLanguage.EN} style={{ background: T.bg2 }}>English</option>
-                        <option value={ContentLanguage.BILINGUAL} style={{ background: T.bg2 }}>ثنائي اللغة</option>
+                        <option value={ContentLanguage.AR} style={{ background: '#0F1117' }}>عربي</option>
+                        <option value={ContentLanguage.EN} style={{ background: '#0F1117' }}>English</option>
+                        <option value={ContentLanguage.BILINGUAL} style={{ background: '#0F1117' }}>ثنائي اللغة</option>
                       </select>
                     </div>
                     <div>
                       <label style={labelStyle}>الأولوية</label>
                       <select value={genPriority} onChange={(e) => setGenPriority(e.target.value as ContentPriority)} style={selectStyle}>
                         {Object.values(ContentPriority).map(p => (
-                          <option key={p} value={p} style={{ background: T.bg2 }}>
+                          <option key={p} value={p} style={{ background: '#0F1117' }}>
                             {p === ContentPriority.URGENT ? 'عاجل' : p === ContentPriority.HIGH ? 'عالي' : p === ContentPriority.NORMAL ? 'عادي' : 'منخفض'}
                           </option>
                         ))}
@@ -562,8 +561,8 @@ export default function TechnicalAnalysisPage() {
                     generateContent({ type: genType, category: genCategory, topic: genTopic, symbols: genSymbols ? genSymbols.split(',').map(s => s.trim()) : undefined, language: genLanguage, priority: genPriority })
                   }} disabled={loading || !genTopic.trim()} style={{
                     ...btnStyle, width: '100%', justifyContent: 'center',
-                    background: loading || !genTopic.trim() ? T.accent + '20' : 'linear-gradient(135deg, ' + T.accent + ', #047857)',
-                    color: loading || !genTopic.trim() ? T.text3 : '#fff', fontWeight: 800, padding: '14px', fontSize: 'var(--text-base)', borderRadius: 'var(--radius-lg)',
+                    background: loading || !genTopic.trim() ? '#059669' + '20' : 'linear-gradient(135deg, ' + '#059669' + ', #047857)',
+                    color: loading || !genTopic.trim() ? '#6B7280' : '#fff', fontWeight: 800, padding: '14px', fontSize: 'var(--text-base)', borderRadius: 'var(--radius-lg)',
                     cursor: loading || !genTopic.trim() ? 'not-allowed' : 'pointer',
                     boxShadow: loading || !genTopic.trim() ? 'none' : '0 4px 16px rgba(5,150,105,0.3)',
                   }}>
@@ -576,7 +575,7 @@ export default function TechnicalAnalysisPage() {
             <GlassCard glow="rgba(255,71,87,0.10)">
               <div style={{ padding: 24 }}>
                 <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-md)', fontWeight: 800, marginBottom: 22, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Zap size={18} color={T.red} /> تنبيه عاجل
+                  <Zap size={18} color={'#FF4757'} /> تنبيه عاجل
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
                   <div>
@@ -602,7 +601,7 @@ export default function TechnicalAnalysisPage() {
                   }} disabled={loading || !breakingTopic.trim()} style={{
                     ...btnStyle, width: '100%', justifyContent: 'center',
                     background: loading || !breakingTopic.trim() ? 'rgba(255,71,87,0.2)' : 'linear-gradient(135deg, #FF4757, #C0392B)',
-                    color: loading || !breakingTopic.trim() ? T.text3 : '#fff', fontWeight: 800, padding: '14px', fontSize: 'var(--text-base)', borderRadius: 'var(--radius-lg)',
+                    color: loading || !breakingTopic.trim() ? '#6B7280' : '#fff', fontWeight: 800, padding: '14px', fontSize: 'var(--text-base)', borderRadius: 'var(--radius-lg)',
                     cursor: loading || !breakingTopic.trim() ? 'not-allowed' : 'pointer',
                   }}>
                     {loading ? <><RefreshCw size={16} style={{ animation: 'ta-spin 1s linear infinite' }} /> جارٍ النشر...</> : <><Zap size={16} /> نشر التنبيه العاجل</>}
@@ -618,20 +617,20 @@ export default function TechnicalAnalysisPage() {
           <GlassCard>
             <div style={{ padding: 24 }}>
               <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-base)', fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Zap size={15} color={T.amber} /> توليد سريع
+                <Zap size={15} color={'#FFB800'} /> توليد سريع
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <QuickPreset label="تحليل BTC/USD" icon={<LineChart size={13} />} color={T.warning}
+                <QuickPreset label="تحليل BTC/USD" icon={<LineChart size={13} />} color={'#FFB800'}
                   onClick={() => generateContent({ type: ContentType.ANALYSIS, category: ContentCategory.CRYPTO, topic: 'تحليل فني للبيتكوين — مستويات الدعم والمقاومة', symbols: ['BTC'], language: ContentLanguage.BILINGUAL, priority: ContentPriority.HIGH })} />
-                <QuickPreset label="تحليل EUR/USD" icon={<CandlestickChart size={13} />} color={T.info}
+                <QuickPreset label="تحليل EUR/USD" icon={<CandlestickChart size={13} />} color={'#00D4FF'}
                   onClick={() => generateContent({ type: ContentType.ANALYSIS, category: ContentCategory.FOREX, topic: 'تحليل فني لزوج اليورو دولار', symbols: ['EUR', 'USD'], language: ContentLanguage.BILINGUAL, priority: ContentPriority.HIGH })} />
-                <QuickPreset label="تقرير سوق الأسهم" icon={<BarChart size={13} />} color={T.success}
+                <QuickPreset label="تقرير سوق الأسهم" icon={<BarChart size={13} />} color={'#00FFA3'}
                   onClick={() => generateContent({ type: ContentType.MARKET_REPORT, category: ContentCategory.STOCKS, topic: 'تقرير سوق الأسهم الأمريكية', symbols: ['AAPL', 'MSFT', 'NVDA'], language: ContentLanguage.BILINGUAL, priority: ContentPriority.HIGH })} />
-                <QuickPreset label="ملخص الكريبتو" icon={<TrendingUp size={13} />} color={T.warning}
+                <QuickPreset label="ملخص الكريبتو" icon={<TrendingUp size={13} />} color={'#FFB800'}
                   onClick={() => generateContent({ type: ContentType.NEWS_DIGEST, category: ContentCategory.CRYPTO, topic: 'ملخص سوق الكريبتو اليومي', language: ContentLanguage.BILINGUAL, priority: ContentPriority.NORMAL })} />
-                <QuickPreset label="تحليل الذهب" icon={<Gauge size={13} />} color={T.gold}
+                <QuickPreset label="تحليل الذهب" icon={<Gauge size={13} />} color={'#d4af37'}
                   onClick={() => generateContent({ type: ContentType.ANALYSIS, category: ContentCategory.COMMODITIES, topic: 'تحليل فني للذهب — XAU/USD', symbols: ['XAU'], language: ContentLanguage.BILINGUAL, priority: ContentPriority.HIGH })} />
-                <QuickPreset label="مستجدات DeFi" icon={<Layers size={13} />} color={T.council}
+                <QuickPreset label="مستجدات DeFi" icon={<Layers size={13} />} color={'#B388FF'}
                   onClick={() => generateContent({ type: ContentType.ARTICLE, category: ContentCategory.DEFI, topic: 'أحدث المستجدات في عالم التمويل اللامركزي', language: ContentLanguage.BILINGUAL, priority: ContentPriority.NORMAL })} />
               </div>
             </div>
@@ -641,14 +640,14 @@ export default function TechnicalAnalysisPage() {
             <GlassCard>
               <div style={{ padding: 24 }}>
                 <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-base)', fontWeight: 800, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Layers size={15} color={T.orange} /> فجوات تحتاج تحليل
+                  <Layers size={15} color={'#FF8040'} /> فجوات تحتاج تحليل
                 </div>
                 {contentGaps.filter(g => g.priority === 'HIGH').map((gap, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', marginBottom: 6, borderRadius: 'var(--radius-md)', background: 'rgba(255,71,87,0.05)', border: '1px solid rgba(255,71,87,0.1)' }}>
-                    <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: T.text, fontWeight: 600 }}>{gap.categoryAr || getCategoryLabel(gap.category)}</span>
-                    <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>({gap.gapHours}س)</span>
+                    <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: '#F0F2F5', fontWeight: 600 }}>{gap.categoryAr || getCategoryLabel(gap.category)}</span>
+                    <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: '#6B7280' }}>({gap.gapHours}س)</span>
                     <button onClick={() => generateContent({ type: ContentType.ANALYSIS, category: gap.category, topic: gap.suggestedTopics?.[0] || `تحليل فني: ${gap.categoryAr || gap.category}`, language: ContentLanguage.BILINGUAL, priority: ContentPriority.HIGH })}
-                      disabled={loading} style={{ ...btnStyle, marginLeft: 'auto', background: 'rgba(255,71,87,0.10)', color: T.red, fontSize: 'var(--text-xs)', padding: '5px 12px', borderRadius: 'var(--radius-md)' }}>
+                      disabled={loading} style={{ ...btnStyle, marginLeft: 'auto', background: 'rgba(255,71,87,0.10)', color: '#FF4757', fontSize: 'var(--text-xs)', padding: '5px 12px', borderRadius: 'var(--radius-md)' }}>
                       <Plus size={10} /> توليد
                     </button>
                   </div>
@@ -669,19 +668,19 @@ export default function TechnicalAnalysisPage() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <GlassCard>
           <div style={{ padding: 24 }}>
-            <SectionHeader icon={<Calendar size={17} />} color={T.amber} title="الحصة اليومية" subtitle="استهلاك الحصة اليومية" />
+            <SectionHeader icon={<Calendar size={17} />} color={'#FFB800'} title="الحصة اليومية" subtitle="استهلاك الحصة اليومية" />
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
               <div style={{ flex: 1, height: 10, borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                <div style={{ height: '100%', borderRadius: 'var(--radius-sm)', background: dailyPercent >= 100 ? T.red : `linear-gradient(90deg, ${T.accent}, ${T.profit})`, width: `${dailyPercent}%`, transition: 'width 0.5s ease' }} />
+                <div style={{ height: '100%', borderRadius: 'var(--radius-sm)', background: dailyPercent >= 100 ? '#FF4757' : `linear-gradient(90deg, ${'#059669'}, ${'#10b981'})`, width: `${dailyPercent}%`, transition: 'width 0.5s ease' }} />
               </div>
-              <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-base)', fontWeight: 800, color: T.text }}>{dailyGenerated}/{dailyQuota}</span>
+              <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5' }}>{dailyGenerated}/{dailyQuota}</span>
             </div>
-            <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: T.text3, lineHeight: 1.9 }}>يتم إعادة تعيين الحصة اليومية كل يوم في الساعة 00:00 UTC. الحصة الافتراضية هي 20 تحليل يومياً.</div>
+            <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: '#6B7280', lineHeight: 1.9 }}>يتم إعادة تعيين الحصة اليومية كل يوم في الساعة 00:00 UTC. الحصة الافتراضية هي 20 تحليل يومياً.</div>
           </div>
         </GlassCard>
         <GlassCard>
           <div style={{ padding: 24 }}>
-            <SectionHeader icon={<Sparkles size={17} />} color={T.accent} title="إعدادات AI" subtitle="نموذج ومعلمات التوليد" />
+            <SectionHeader icon={<Sparkles size={17} />} color={'#059669'} title="إعدادات AI" subtitle="نموذج ومعلمات التوليد" />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <SettingRow label="نموذج AI" value="GLM-5" />
               <SettingRow label="درجة الإبداع" value="0.7" />
@@ -694,18 +693,18 @@ export default function TechnicalAnalysisPage() {
         </GlassCard>
         <GlassCard>
           <div style={{ padding: 24 }}>
-            <SectionHeader icon={<CheckCircle2 size={17} />} color={T.green} title="عتبات الجودة" subtitle="معايير النشر التلقائي" />
+            <SectionHeader icon={<CheckCircle2 size={17} />} color={'#00FFA3'} title="عتبات الجودة" subtitle="معايير النشر التلقائي" />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <ThresholdRow label="الحد الأدنى للنشر التلقائي" value="70%" color={T.green} />
-              <ThresholdRow label="عتبة التنبيهات العاجلة" value="90%" color={T.red} />
-              <ThresholdRow label="الحد الأدنى لدرجة المشاعر" value="+-0.3" color={T.amber} />
+              <ThresholdRow label="الحد الأدنى للنشر التلقائي" value="70%" color={'#00FFA3'} />
+              <ThresholdRow label="عتبة التنبيهات العاجلة" value="90%" color={'#FF4757'} />
+              <ThresholdRow label="الحد الأدنى لدرجة المشاعر" value="+-0.3" color={'#FFB800'} />
             </div>
-            <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: T.text3, lineHeight: 1.9, marginTop: 18 }}>التحليلات التي لا تحقق الحد الأدنى تبقى كمسودة للمراجعة اليدوية.</div>
+            <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: '#6B7280', lineHeight: 1.9, marginTop: 18 }}>التحليلات التي لا تحقق الحد الأدنى تبقى كمسودة للمراجعة اليدوية.</div>
           </div>
         </GlassCard>
         <GlassCard>
           <div style={{ padding: 24 }}>
-            <SectionHeader icon={<Clock size={17} />} color={T.accent2} title="الجدولة التلقائية" subtitle="مواعيد التوليد الدورية" />
+            <SectionHeader icon={<Clock size={17} />} color={'#047857'} title="الجدولة التلقائية" subtitle="مواعيد التوليد الدورية" />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <ScheduleRow label="تحليل السوق الصباحي" time="08:00 UTC" active />
               <ScheduleRow label="ملء الفجوات" time="كل 6 ساعات" active />
@@ -738,30 +737,30 @@ function AnalysisCard({ article }: { article: any }) {
           <span style={{ fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-sm)', background: `${catColor}12`, color: catColor, fontFamily: FONT_AR, fontWeight: 800 }}>
             {getCategoryLabel(article.category as ContentCategory)}
           </span>
-          <span style={{ fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.05)', color: T.text2, fontFamily: FONT_AR, fontWeight: 700 }}>
+          <span style={{ fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.05)', color: '#9CA3B5', fontFamily: FONT_AR, fontWeight: 700 }}>
             {getTypeLabel(article.type as ContentType)}
           </span>
           <span style={{ fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-sm)', background: badge.bg, color: badge.color, fontFamily: FONT_AR, fontWeight: 700 }}>
             {badge.label}
           </span>
           <div style={{ flex: 1 }} />
-          <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>{timeAgo(article.createdAt)}</span>
+          <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: '#6B7280' }}>{timeAgo(article.createdAt)}</span>
         </div>
 
         {/* Title */}
-        <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-md)', fontWeight: 800, color: T.text, lineHeight: 1.7, marginBottom: 10 }}>
+        <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-md)', fontWeight: 800, color: '#F0F2F5', lineHeight: 1.7, marginBottom: 10 }}>
           {article.titleAr || article.titleEn}
         </div>
 
         {/* Summary */}
         {(article.summaryAr || article.summaryEn) && (
-          <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: T.text2, lineHeight: 1.8, marginBottom: 12 }}>
+          <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: '#9CA3B5', lineHeight: 1.8, marginBottom: 12 }}>
             {expanded ? (article.summaryAr || article.summaryEn) : (article.summaryAr || article.summaryEn).substring(0, 150) + '...'}
           </div>
         )}
 
         {/* Sentiment + Impact + Quality Row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14, padding: '10px 14px', borderRadius: 'var(--radius-lg)', background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14, padding: '10px 14px', borderRadius: 'var(--radius-lg)', background: 'rgba(255,255,255,0.02)', border: `1px solid ${'#2A313C'}` }}>
           {/* Sentiment */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <div style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', background: `${sentiment.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -769,7 +768,7 @@ function AnalysisCard({ article }: { article: any }) {
             </div>
             <div>
               <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', fontWeight: 800, color: sentiment.color }}>{sentiment.label}</div>
-              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>المشاعر</div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: '#6B7280' }}>المشاعر</div>
             </div>
           </div>
           {/* Impact */}
@@ -779,27 +778,27 @@ function AnalysisCard({ article }: { article: any }) {
             </div>
             <div>
               <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', fontWeight: 800, color: impact.color }}>{impact.label}</div>
-              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>التأثير</div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: '#6B7280' }}>التأثير</div>
             </div>
           </div>
           {/* Quality */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <div style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', background: `${article.qualityScore >= 70 ? T.green : T.amber}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Award size={12} color={article.qualityScore >= 70 ? T.green : T.amber} />
+            <div style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', background: `${article.qualityScore >= 70 ? '#00FFA3' : '#FFB800'}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Award size={12} color={article.qualityScore >= 70 ? '#00FFA3' : '#FFB800'} />
             </div>
             <div>
-              <div style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', fontWeight: 800, color: article.qualityScore >= 70 ? T.green : T.amber }}>{article.qualityScore}%</div>
-              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>الجودة</div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', fontWeight: 800, color: article.qualityScore >= 70 ? '#00FFA3' : '#FFB800' }}>{article.qualityScore}%</div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: '#6B7280' }}>الجودة</div>
             </div>
           </div>
           {/* Reading Time */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <div style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Clock size={12} color={T.text3} />
+              <Clock size={12} color={'#6B7280'} />
             </div>
             <div>
-              <div style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', fontWeight: 800, color: T.text3 }}>{article.readingTimeMinutes || 0} د</div>
-              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>القراءة</div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', fontWeight: 800, color: '#6B7280' }}>{article.readingTimeMinutes || 0} د</div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: '#6B7280' }}>القراءة</div>
             </div>
           </div>
         </div>
@@ -807,38 +806,38 @@ function AnalysisCard({ article }: { article: any }) {
         {/* Symbols + Tags */}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
           {article.relatedSymbols?.slice(0, 5).map((sym: string, i: number) => (
-            <span key={i} style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,212,255,0.08)', color: T.accent2, fontWeight: 700 }}>{sym}</span>
+            <span key={i} style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,212,255,0.08)', color: '#047857', fontWeight: 700 }}>{sym}</span>
           ))}
           {article.tags?.slice(0, 4).map((tag: string, i: number) => (
-            <span key={i} style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', padding: '3px 8px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.04)', color: T.text3 }}>#{tag}</span>
+            <span key={i} style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', padding: '3px 8px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.04)', color: '#6B7280' }}>#{tag}</span>
           ))}
         </div>
 
         {/* Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 12, borderTop: `1px solid ${T.border}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 12, borderTop: `1px solid ${'#2A313C'}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <Eye size={12} color={T.text3} />
-            <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', color: T.text3 }}>{Number(article.views || 0).toLocaleString('en')}</span>
+            <Eye size={12} color={'#6B7280'} />
+            <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', color: '#6B7280' }}>{Number(article.views || 0).toLocaleString('en')}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <ThumbsUp size={12} color={T.text3} />
-            <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', color: T.text3 }}>{article.likes || 0}</span>
+            <ThumbsUp size={12} color={'#6B7280'} />
+            <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', color: '#6B7280' }}>{article.likes || 0}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <Share2 size={12} color={T.text3} />
-            <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', color: T.text3 }}>{article.shares || 0}</span>
+            <Share2 size={12} color={'#6B7280'} />
+            <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', color: '#6B7280' }}>{article.shares || 0}</span>
           </div>
           <div style={{ flex: 1 }} />
           {article.status === ContentStatus.DRAFT && (
-            <button onClick={() => publishContent(article.id)} style={{ ...btnStyle, background: T.accent + '12', color: T.accent, fontSize: 'var(--text-xs)', padding: '6px 14px', borderRadius: 'var(--radius-md)', border: `1px solid ${T.accent}25` }}>
+            <button onClick={() => publishContent(article.id)} style={{ ...btnStyle, background: '#059669' + '12', color: '#059669', fontSize: 'var(--text-xs)', padding: '6px 14px', borderRadius: 'var(--radius-md)', border: `1px solid ${'#059669'}25` }}>
               <Send size={11} /> نشر
             </button>
           )}
-          <button onClick={() => setExpanded(!expanded)} style={{ ...btnStyle, background: 'rgba(255,255,255,0.04)', color: T.text2, fontSize: 'var(--text-xs)', padding: '6px 14px', borderRadius: 'var(--radius-md)', border: `1px solid ${T.border}` }}>
+          <button onClick={() => setExpanded(!expanded)} style={{ ...btnStyle, background: 'rgba(255,255,255,0.04)', color: '#9CA3B5', fontSize: 'var(--text-xs)', padding: '6px 14px', borderRadius: 'var(--radius-md)', border: `1px solid ${'#2A313C'}` }}>
             {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
             {expanded ? 'إغلاق' : 'قراءة'}
           </button>
-          <button onClick={() => archiveContent(article.id)} style={{ ...btnStyle, background: 'rgba(255,255,255,0.04)', color: T.text3, fontSize: 'var(--text-xs)', padding: '6px 10px', borderRadius: 'var(--radius-md)', border: `1px solid ${T.border}` }}>
+          <button onClick={() => archiveContent(article.id)} style={{ ...btnStyle, background: 'rgba(255,255,255,0.04)', color: '#6B7280', fontSize: 'var(--text-xs)', padding: '6px 10px', borderRadius: 'var(--radius-md)', border: `1px solid ${'#2A313C'}` }}>
             <Archive size={12} />
           </button>
         </div>
@@ -847,13 +846,13 @@ function AnalysisCard({ article }: { article: any }) {
         {expanded && (article.contentAr || article.contentEn) && (
           <div style={{
             marginTop: 16, padding: '18px 20px', borderRadius: 'var(--radius-lg)',
-            background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`,
-            fontFamily: FONT_AR, fontSize: 'var(--text-base)', color: T.text2, lineHeight: 2.1,
+            background: 'rgba(255,255,255,0.02)', border: `1px solid ${'#2A313C'}`,
+            fontFamily: FONT_AR, fontSize: 'var(--text-base)', color: '#9CA3B5', lineHeight: 2.1,
             direction: 'inherit', maxHeight: 500, overflowY: 'auto',
           }} className="custom-scrollbar">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, paddingBottom: 12, borderBottom: `1px solid ${T.border}` }}>
-              <LineChart size={14} color={T.accent} />
-              <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 800, color: T.accent }}>التحليل الفني الكامل</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, paddingBottom: 12, borderBottom: `1px solid ${'#2A313C'}` }}>
+              <LineChart size={14} color={'#059669'} />
+              <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 800, color: '#059669' }}>التحليل الفني الكامل</span>
             </div>
             {(article.contentAr || article.contentEn).substring(0, 3000)}{(article.contentAr || article.contentEn).length > 3000 ? '...' : ''}
           </div>
@@ -871,15 +870,15 @@ function MiniStatCard({ icon, label, value, color, sub }: { icon: React.ReactNod
   return (
     <div style={{
       background: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-xl)', padding: '16px 18px',
-      border: `1px solid ${T.border}`, position: 'relative', overflow: 'hidden',
+      border: `1px solid ${'#2A313C'}`, position: 'relative', overflow: 'hidden',
     }}>
       <div style={{ position: 'absolute', top: 0, right: 0, width: 60, height: 60, background: `radial-gradient(circle at top right, ${color}08, transparent)`, pointerEvents: 'none' }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <span style={{ color, display: 'flex' }}>{icon}</span>
-        <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text2, fontWeight: 600 }}>{label}</span>
+        <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: '#9CA3B5', fontWeight: 600 }}>{label}</span>
       </div>
       <div style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xl)', color, fontWeight: 800, direction: 'ltr', textAlign: 'right', lineHeight: 1 }}>{value}</div>
-      <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3, marginTop: 6 }}>{sub}</div>
+      <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 6 }}>{sub}</div>
     </div>
   )
 }
@@ -889,8 +888,8 @@ function SectionHeader({ icon, color, title, subtitle }: { icon: React.ReactNode
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
       <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-lg)', background: `${color}10`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
       <div>
-        <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-base)', fontWeight: 800, color: T.text }}>{title}</div>
-        <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3, marginTop: 1 }}>{subtitle}</div>
+        <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5' }}>{title}</div>
+        <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 1 }}>{subtitle}</div>
       </div>
     </div>
   )
@@ -899,11 +898,11 @@ function SectionHeader({ icon, color, title, subtitle }: { icon: React.ReactNode
 function FilterSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (v: any) => void; options: { value: string; label: string }[] }) {
   return (
     <div>
-      <label style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text3, marginBottom: 5, display: 'block' }}>{label}</label>
+      <label style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', fontWeight: 700, color: '#6B7280', marginBottom: 5, display: 'block' }}>{label}</label>
       <select value={value} onChange={(e) => onChange(e.target.value || '')}
-        style={{ padding: '8px 12px', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border}`, color: T.text, fontFamily: FONT_AR, fontSize: 'var(--text-xs)', outline: 'none', direction: 'inherit', minWidth: 120 }}>
-        <option value="" style={{ background: T.bg2 }}>الكل</option>
-        {options.map(o => <option key={o.value} value={o.value} style={{ background: T.bg2 }}>{o.label}</option>)}
+        style={{ padding: '8px 12px', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#2A313C'}`, color: '#F0F2F5', fontFamily: FONT_AR, fontSize: 'var(--text-xs)', outline: 'none', direction: 'inherit', minWidth: 120 }}>
+        <option value="" style={{ background: '#0F1117' }}>الكل</option>
+        {options.map(o => <option key={o.value} value={o.value} style={{ background: '#0F1117' }}>{o.label}</option>)}
       </select>
     </div>
   )
@@ -920,24 +919,24 @@ function QuickPreset({ label, icon, color, onClick }: { label: string; icon: Rea
       onMouseLeave={e => { e.currentTarget.style.background = `${color}06`; e.currentTarget.style.borderColor = `${color}18` }}
     >
       <span style={{ color, display: 'flex' }}>{icon}</span>
-      <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text }}>{label}</span>
+      <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', fontWeight: 700, color: '#F0F2F5' }}>{label}</span>
     </button>
   )
 }
 
 function SettingRow({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${T.border}` }}>
-      <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: T.text2 }}>{label}</span>
-      <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: T.text, fontWeight: 700 }}>{value}</span>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${'#2A313C'}` }}>
+      <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: '#9CA3B5' }}>{label}</span>
+      <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: '#F0F2F5', fontWeight: 700 }}>{value}</span>
     </div>
   )
 }
 
 function ThresholdRow({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${T.border}` }}>
-      <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: T.text2 }}>{label}</span>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${'#2A313C'}` }}>
+      <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: '#9CA3B5' }}>{label}</span>
       <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-sm)', fontWeight: 800, color, padding: '3px 10px', borderRadius: 'var(--radius-sm)', background: `${color}10` }}>{value}</span>
     </div>
   )
@@ -945,10 +944,10 @@ function ThresholdRow({ label, value, color }: { label: string; value: string; c
 
 function ScheduleRow({ label, time, active }: { label: string; time: string; active: boolean }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 'var(--radius-lg)', background: active ? 'rgba(5,150,105,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${active ? 'rgba(5,150,105,0.15)' : T.border}` }}>
-      <div style={{ width: 8, height: 8, borderRadius: '50%', background: active ? T.accent : T.text3, boxShadow: active ? `0 0 8px ${T.accent}` : 'none' }} />
-      <div style={{ flex: 1 }}><div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text }}>{label}</div></div>
-      <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', color: T.text3 }}>{time}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 'var(--radius-lg)', background: active ? 'rgba(5,150,105,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${active ? 'rgba(5,150,105,0.15)' : '#2A313C'}` }}>
+      <div style={{ width: 8, height: 8, borderRadius: '50%', background: active ? '#059669' : '#6B7280', boxShadow: active ? `0 0 8px ${'#059669'}` : 'none' }} />
+      <div style={{ flex: 1 }}><div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 700, color: '#F0F2F5' }}>{label}</div></div>
+      <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', color: '#6B7280' }}>{time}</span>
     </div>
   )
 }

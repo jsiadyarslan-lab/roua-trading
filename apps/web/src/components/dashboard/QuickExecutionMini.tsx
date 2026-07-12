@@ -9,7 +9,6 @@ import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { formatExecutionLabel, formatFreshness, getStatusLabel, getStatusTone, type DataStatus, type ExecutionState } from '@/lib/dashboard-live'
-import T from '@/lib/unified-tokens'
 
 function formatCashValue(value: unknown) {
   const cash = Number(value)
@@ -347,8 +346,8 @@ export function QuickExecutionMini({
           background: 'rgba(0,200,83,0.08)', border: '1px solid rgba(0,200,83,0.2)',
           borderRadius: 'var(--radius-sm)', padding: '3px 8px',
         }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.success, boxShadow: '0 0 6px #00C853' }} />
-          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.warning, fontFamily: "var(--font-mono)" }}>{t('demoAccount')}</span>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#00FFA3', boxShadow: '0 0 6px #00C853' }} />
+          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#FFB800', fontFamily: "var(--font-mono)" }}>{t('demoAccount')}</span>
         </div>
         {account && (
           <div style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', fontFamily: "var(--font-mono)" }}>
@@ -685,7 +684,7 @@ export function QuickExecutionMini({
       {status.msg && (
         <div style={{
           position: 'absolute', inset: 0,
-          background: `${T.bg}f0`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12,
+          background: `${'#0B0E14'}f0`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12,
           fontSize: 'var(--text-sm)', fontWeight: 800, fontFamily: "var(--font-ar)",
           color: status.type === 'success' ? 'var(--success)' : status.type === 'error' ? 'var(--danger)' : 'var(--foreground)',
           backdropFilter: 'blur(8px)', zIndex: 20, borderRadius: 'var(--radius-lg)',

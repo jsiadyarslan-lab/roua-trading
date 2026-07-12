@@ -1,7 +1,6 @@
 'use client'
 
 
-import T from '@/lib/unified-tokens'
 
 type BadgeStatus = 'bullish' | 'bearish' | 'neutral' | 'warning' | 'oversold' | 'overbought'
 
@@ -12,12 +11,12 @@ interface IndicatorBadgeProps {
 }
 
 const STATUS_STYLES: Record<BadgeStatus, { color: string; bg: string; border: string }> = {
-  bullish:    { color: T.green,  bg: `${T.green}12`,  border: `${T.green}30` },
-  bearish:    { color: T.red,    bg: `${T.red}12`,    border: `${T.red}30` },
-  neutral:    { color: T.text2,  bg: T.bg2,           border: T.border },
-  warning:    { color: T.amber,  bg: `${T.amber}12`,  border: `${T.amber}30` },
-  oversold:   { color: T.cyan,   bg: `${T.cyan}12`,   border: `${T.cyan}30` },
-  overbought: { color: T.purple, bg: `${T.purple}12`, border: `${T.purple}30` },
+  bullish:    { color: '#00FFA3',  bg: `${'#00FFA3'}12`,  border: `${'#00FFA3'}30` },
+  bearish:    { color: '#FF4757',    bg: `${'#FF4757'}12`,    border: `${'#FF4757'}30` },
+  neutral:    { color: '#9CA3B5',  bg: '#0F1117',           border: '#2A313C' },
+  warning:    { color: '#FFB800',  bg: `${'#FFB800'}12`,  border: `${'#FFB800'}30` },
+  oversold:   { color: '#00D4FF',   bg: `${'#00D4FF'}12`,   border: `${'#00D4FF'}30` },
+  overbought: { color: '#B388FF', bg: `${'#B388FF'}12`, border: `${'#B388FF'}30` },
 }
 
 export function IndicatorBadge({ label, value, status = 'neutral' }: IndicatorBadgeProps) {
@@ -34,7 +33,7 @@ export function IndicatorBadge({ label, value, status = 'neutral' }: IndicatorBa
       fontFamily: "var(--font-mono)",
       lineHeight: '16px', whiteSpace: 'nowrap',
     }}>
-      <span style={{ color: T.text2, fontWeight: 600, fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)' }}>
+      <span style={{ color: '#9CA3B5', fontWeight: 600, fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)' }}>
         {label}
       </span>
       {displayValue}

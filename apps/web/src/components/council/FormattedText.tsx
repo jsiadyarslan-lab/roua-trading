@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Sparkles } from "lucide-react";
 import { COLORS } from "@/lib/council/types";
 import { hexToRgba } from "@/lib/council/format"
-import T from '@/lib/unified-tokens';
 
 // ════════════════════════════════════════════════════════════
 // Lightweight inline markdown parser (bold, code, italic)
@@ -444,7 +443,7 @@ export function FormattedText({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: T.bg,
+              color: '#0B0E14',
               flexShrink: 0,
             }}
           >

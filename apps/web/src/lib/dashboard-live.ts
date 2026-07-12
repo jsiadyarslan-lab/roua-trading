@@ -1,7 +1,6 @@
 'use client'
 
 import type { QuoteData } from '@/hooks/useMarketStore'
-import T from '@/lib/unified-tokens'
 
 export type DataStatus = 'live' | 'delayed' | 'fallback' | 'demo' | 'disconnected'
 export type ExecutionState =
@@ -65,15 +64,15 @@ export function getStatusLabel(status: DataStatus, t?: TFn): string {
 export function getStatusTone(status: DataStatus) {
   switch (status) {
     case 'live':
-      return T.success
+      return '#00FFA3'
     case 'delayed':
-      return T.warning
+      return '#FFB800'
     case 'fallback':
-      return T.info
+      return '#00D4FF'
     case 'demo':
-      return T.council
+      return '#B388FF'
     default:
-      return T.warning // Amber instead of red — "waiting for connection" is not an error
+      return '#FFB800' // Amber instead of red — "waiting for connection" is not an error
   }
 }
 

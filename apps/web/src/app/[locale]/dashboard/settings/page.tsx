@@ -22,7 +22,6 @@ import { hasPermission, getPermissions, ROLE_INFO, type Role, type Permission } 
 import { SmartExecutorTab } from './tabs/SmartExecutorTab'
 import { AutonomousAgentTab } from './tabs/AutonomousAgentTab'
 import { AICouncilTab } from './tabs/AICouncilTab'
-import T from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations } from 'next-intl'
 import { useLocale } from 'next-intl'
@@ -58,7 +57,7 @@ function Toggle({ checked, onChange, color, size = 'md', ariaLabel }: {
     >
       <div style={{
         width: s.dot, height: s.dot, borderRadius: '50%',
-        background: checked ? '#fff' : T.text3,
+        background: checked ? '#fff' : '#6B7280',
         position: 'absolute', top: (s.h - s.dot) / 2,
         insetInlineEnd: checked ? (s.h - s.dot) / 2 : 'auto',
         insetInlineStart: checked ? 'auto' : (s.h - s.dot) / 2,
@@ -81,9 +80,9 @@ function SelectBox({ value, onChange, options, small }: {
         value={value}
         onChange={e => onChange(e.target.value)}
         style={{
-          background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
+          background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
           borderRadius: 'var(--radius-lg)', padding: small ? '5px 28px 5px 10px' : '7px 30px 7px 12px',
-          color: T.text, fontSize: small ? 11 : 12,
+          color: '#F0F2F5', fontSize: small ? 11 : 12,
           fontFamily: "var(--font-ar)", fontWeight: 600,
           outline: 'none', cursor: 'pointer',
           appearance: 'none',
@@ -91,12 +90,12 @@ function SelectBox({ value, onChange, options, small }: {
           transition: 'all 0.2s',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
         }}
-        onFocus={e => { e.currentTarget.style.borderColor = T.council + '60'; e.currentTarget.style.boxShadow = `0 0 0 3px ${T.council}15` }}
-        onBlur={e => { e.currentTarget.style.borderColor = T.border2; e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.03)' }}
+        onFocus={e => { e.currentTarget.style.borderColor = '#B388FF' + '60'; e.currentTarget.style.boxShadow = `0 0 0 3px ${'#B388FF'}15` }}
+        onBlur={e => { e.currentTarget.style.borderColor = '#3A4150'; e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.03)' }}
       >
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
-      <ChevronLeft size={12} color={T.text3} style={{
+      <ChevronLeft size={12} color={'#6B7280'} style={{
         position: 'absolute', top: '50%', transform: 'translateY(-50%) scaleX(-1)',
         insetInlineEnd: 8, pointerEvents: 'none',
       }} />
@@ -111,17 +110,17 @@ function SectionCard({ icon, iconColor, iconBg, title, subtitle, children, badge
 }) {
   return (
     <div style={{
-      background: T.glassCard,
+      background: 'rgba(255,255,255,0.04)',
       backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-      border: `1px solid ${T.border2}`,
+      border: `1px solid ${'#3A4150'}`,
       borderRadius: 'var(--radius-xl)', overflow: 'hidden',
-      boxShadow: T.shadowGlass,
+      boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
       transition: 'border-color 0.3s, transform 0.3s, box-shadow 0.3s',
     }}>
       {/* Section Header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 14,
-        padding: '20px 22px', borderBottom: `1px solid ${T.border}`,
+        padding: '20px 22px', borderBottom: `1px solid ${'#2A313C'}`,
         background: 'linear-gradient(180deg, rgba(255,255,255,0.025), transparent)',
       }}>
         <div style={{
@@ -135,7 +134,7 @@ function SectionCard({ icon, iconColor, iconBg, title, subtitle, children, badge
           {icon}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text, display: 'flex', alignItems: 'center', gap: 8, letterSpacing: '-0.01em' }}>
+          <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5', display: 'flex', alignItems: 'center', gap: 8, letterSpacing: '-0.01em' }}>
             {title}
             {badge && (
               <span style={{
@@ -146,7 +145,7 @@ function SectionCard({ icon, iconColor, iconBg, title, subtitle, children, badge
               }}>{badge}</span>
             )}
           </div>
-          <div style={{ fontSize: 'var(--text-xs)', color: T.text3, marginTop: 3, lineHeight: 1.5 }}>{subtitle}</div>
+          <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 3, lineHeight: 1.5 }}>{subtitle}</div>
         </div>
       </div>
       {/* Section Body */}
@@ -165,7 +164,7 @@ function SettingRow({ icon, label, description, children, indent }: {
     <div style={{
       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       padding: '12px 0', minHeight: 44,
-      borderBottom: `1px solid ${T.border}`,
+      borderBottom: `1px solid ${'#2A313C'}`,
       paddingInlineEnd: indent ? 20 : 0,
       transition: 'background 0.2s',
     }}>
@@ -179,8 +178,8 @@ function SettingRow({ icon, label, description, children, indent }: {
           }}>{icon}</span>
         )}
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 'var(--text-sm)', color: T.text, fontWeight: 600, whiteSpace: 'nowrap', letterSpacing: '-0.005em' }}>{label}</div>
-          {description && <div style={{ fontSize: 'var(--text-xs)', color: T.text4, marginTop: 2, lineHeight: 1.4 }}>{description}</div>}
+          <div style={{ fontSize: 'var(--text-sm)', color: '#F0F2F5', fontWeight: 600, whiteSpace: 'nowrap', letterSpacing: '-0.005em' }}>{label}</div>
+          {description && <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 2, lineHeight: 1.4 }}>{description}</div>}
         </div>
       </div>
       <div style={{ flexShrink: 0, marginInlineStart: 12 }}>{children}</div>
@@ -195,10 +194,10 @@ function PermissionTag({ label, active, color }: { label: string; active: boolea
       display: 'inline-flex', alignItems: 'center', gap: 5,
       padding: '5px 10px', borderRadius: 'var(--radius-md)',
       background: active ? `${color}12` : 'rgba(255,255,255,0.025)',
-      color: active ? color : T.text4,
+      color: active ? color : '#6B7280',
       fontSize: 'var(--text-xs)', fontWeight: 600,
       fontFamily: "var(--font-ar)",
-      border: `1px solid ${active ? `${color}30` : T.border}`,
+      border: `1px solid ${active ? `${color}30` : '#2A313C'}`,
       transition: 'all 0.25s',
       boxShadow: active ? `0 0 10px ${color}10` : 'none',
     }}>
@@ -265,8 +264,8 @@ function ActiveAccountSelector() {
 
   if (loading) {
     return (
-      <div style={{ padding: '16px 0', textAlign: 'center', color: T.text3, fontSize: 'var(--text-xs)' }}>
-        <Loader2 size={16} color={T.council} style={{ margin: '0 auto 8px', display: 'block', animation: 'spin 1s linear infinite' }} />
+      <div style={{ padding: '16px 0', textAlign: 'center', color: '#6B7280', fontSize: 'var(--text-xs)' }}>
+        <Loader2 size={16} color={'#B388FF'} style={{ margin: '0 auto 8px', display: 'block', animation: 'spin 1s linear infinite' }} />
         {t('loadingAccounts')}
       </div>
     )
@@ -275,18 +274,18 @@ function ActiveAccountSelector() {
   if (credentials.length === 0) {
     return (
       <div style={{ padding: '16px 0', textAlign: 'center' }}>
-        <div style={{ fontSize: 'var(--text-sm)', color: T.text3, marginBottom: 12 }}>
+        <div style={{ fontSize: 'var(--text-sm)', color: '#6B7280', marginBottom: 12 }}>
           {t('noLinkedAccounts')}
         </div>
         <button
           onClick={() => window.location.href = '/dashboard/settings/exchange'}
           style={{
             padding: '8px 18px', borderRadius: 'var(--radius-lg)',
-            background: `linear-gradient(135deg, ${T.council}18, ${T.cyan}12)`,
-            border: `1px solid ${T.council}30`,
-            color: T.council, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
+            background: `linear-gradient(135deg, ${'#B388FF'}18, ${'#00D4FF'}12)`,
+            border: `1px solid ${'#B388FF'}30`,
+            color: '#B388FF', fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
             fontFamily: "var(--font-ar)",
-            boxShadow: `0 4px 14px ${T.council}15`,
+            boxShadow: `0 4px 14px ${'#B388FF'}15`,
           }}
         >
           {t('linkExchange')}
@@ -301,12 +300,12 @@ function ActiveAccountSelector() {
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '12px 16px', borderRadius: 'var(--radius-lg)',
-        background: `linear-gradient(135deg, ${T.council}08, ${T.cyan}06)`,
-        border: `1px solid ${T.council}18`,
+        background: `linear-gradient(135deg, ${'#B388FF'}08, ${'#00D4FF'}06)`,
+        border: `1px solid ${'#B388FF'}18`,
         marginBottom: 14,
       }}>
-        <Shield size={16} color={T.council} />
-        <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.6 }}>
+        <Shield size={16} color={'#B388FF'} />
+        <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.6 }}>
           {t('accountSelectorBanner')}
         </div>
       </div>
@@ -319,15 +318,15 @@ function ActiveAccountSelector() {
           const isPaper = cred.exchange === 'paper-trading'
 
           let typeLabel: string = t('real')
-          let typeColor: string = T.green
+          let typeColor: string = '#00FFA3'
           let typeIcon: string = '💰'
           if (isPaper) {
             typeLabel = t('paper')
-            typeColor = T.cyan
+            typeColor = '#00D4FF'
             typeIcon = '📝'
           } else if (isTestnet) {
             typeLabel = t('testnet')
-            typeColor = T.amber
+            typeColor = '#FFB800'
             typeIcon = '🧪'
           }
 
@@ -337,7 +336,7 @@ function ActiveAccountSelector() {
               onClick={() => saveActiveAccount(cred.id)}
               style={{
                 width: '100%', padding: '12px 16px', borderRadius: 'var(--radius-lg)',
-                border: isActive ? `1px solid ${typeColor}50` : `1px solid ${T.border2}`,
+                border: isActive ? `1px solid ${typeColor}50` : `1px solid ${'#3A4150'}`,
                 background: isActive
                   ? `linear-gradient(135deg, ${typeColor}10, ${typeColor}05)`
                   : 'rgba(255,255,255,0.025)',
@@ -355,7 +354,7 @@ function ActiveAccountSelector() {
 
               {/* Account info */}
               <div style={{ flex: 1, textAlign: 'right' }}>
-                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: isActive ? typeColor : T.text, display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: isActive ? typeColor : '#F0F2F5', display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
                   {cred.label || cred.exchange}
                   <span style={{
                     fontSize: 'var(--text-xs)', padding: '2px 7px', borderRadius: 'var(--radius-sm)',
@@ -366,7 +365,7 @@ function ActiveAccountSelector() {
                     {typeLabel}
                   </span>
                 </div>
-                <div style={{ fontSize: 'var(--text-xs)', color: T.text4, marginTop: 3 }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 3 }}>
                   {cred.exchange} {cred.lastValidatedAt ? `• ${t('lastVerified')}: ${new Date(cred.lastValidatedAt).toLocaleDateString()}` : ''}
                 </div>
               </div>
@@ -404,35 +403,35 @@ function SaveStatusBadge({ status, t }: {
   const config = {
     idle: {
       bg: 'rgba(255,255,255,0.03)',
-      border: T.border2,
-      color: T.text3,
-      icon: <Check size={13} color={T.green} />,
+      border: '#3A4150',
+      color: '#6B7280',
+      icon: <Check size={13} color={'#00FFA3'} />,
       label: t('allChangesSaved'),
       glow: 'none',
     },
     saving: {
-      bg: `${T.cyan}12`,
-      border: `${T.cyan}40`,
-      color: T.cyan,
+      bg: `${'#00D4FF'}12`,
+      border: `${'#00D4FF'}40`,
+      color: '#00D4FF',
       icon: <Loader2 size={13} style={{ animation: 'spin 0.8s linear infinite' }} />,
       label: t('saving'),
-      glow: `0 0 16px ${T.cyan}25`,
+      glow: `0 0 16px ${'#00D4FF'}25`,
     },
     saved: {
-      bg: `${T.green}12`,
-      border: `${T.green}45`,
-      color: T.green,
+      bg: `${'#00FFA3'}12`,
+      border: `${'#00FFA3'}45`,
+      color: '#00FFA3',
       icon: <Check size={13} />,
       label: t('saved'),
-      glow: `0 0 18px ${T.green}30`,
+      glow: `0 0 18px ${'#00FFA3'}30`,
     },
     error: {
-      bg: `${T.red}12`,
-      border: `${T.red}45`,
-      color: T.red,
+      bg: `${'#FF4757'}12`,
+      border: `${'#FF4757'}45`,
+      color: '#FF4757',
       icon: <AlertCircle size={13} />,
       label: t('saveError'),
-      glow: `0 0 18px ${T.red}30`,
+      glow: `0 0 18px ${'#FF4757'}30`,
     },
   }[status]
 
@@ -516,25 +515,25 @@ export default function SettingsPage() {
         .settings-sidebar::-webkit-scrollbar { width: 5px; }
         .settings-sidebar::-webkit-scrollbar-track { background: transparent; }
         .settings-sidebar::-webkit-scrollbar-thumb {
-          background: ${T.council}30;
+          background: ${'#B388FF'}30;
           border-radius: 3px;
         }
         .settings-sidebar::-webkit-scrollbar-thumb:hover {
-          background: ${T.council}50;
+          background: ${'#B388FF'}50;
         }
         .settings-mobile-tabs::-webkit-scrollbar { height: 4px; }
         .settings-mobile-tabs::-webkit-scrollbar-track { background: transparent; }
-        .settings-mobile-tabs::-webkit-scrollbar-thumb { background: ${T.council}30; border-radius: 2px; }
+        .settings-mobile-tabs::-webkit-scrollbar-thumb { background: ${'#B388FF'}30; border-radius: 2px; }
         .settings-content::-webkit-scrollbar { width: 6px; }
         .settings-content::-webkit-scrollbar-track { background: transparent; }
-        .settings-content::-webkit-scrollbar-thumb { background: ${T.border2}; border-radius: 3px; }
-        .settings-content::-webkit-scrollbar-thumb:hover { background: ${T.council}40; }
+        .settings-content::-webkit-scrollbar-thumb { background: ${'#3A4150'}; border-radius: 3px; }
+        .settings-content::-webkit-scrollbar-thumb:hover { background: ${'#B388FF'}40; }
 
         /* Premium sidebar group label */
         .settings-group-label {
           font-size: 9.5px;
           font-weight: 800;
-          color: ${T.text4};
+          color: ${'#6B7280'};
           padding: 14px 14px 6px;
           letter-spacing: 0.12em;
           text-transform: uppercase;
@@ -547,7 +546,7 @@ export default function SettingsPage() {
           content: '';
           flex: 1;
           height: 1px;
-          background: linear-gradient(90deg, ${T.border2}, transparent);
+          background: linear-gradient(90deg, ${'#3A4150'}, transparent);
         }
 
         /* Sidebar tab hover/active states */
@@ -1049,40 +1048,40 @@ export default function SettingsPage() {
     {
       id: 'account-group',
       label: t('groupAccount'),
-      accent: T.cyan,
+      accent: '#00D4FF',
       tabs: [
-        { id: 'account', label: t('tabAccount'), icon: <User size={16} />, color: T.cyan, description: t('tabAccountDesc') },
-        { id: 'subscription', label: t('tabSubscription'), icon: <Crown size={16} />, color: T.gold, description: t('tabSubscriptionDesc') },
-        { id: 'security', label: t('tabSecurity'), icon: <Shield size={16} />, color: T.red, description: t('tabSecurityDesc') },
+        { id: 'account', label: t('tabAccount'), icon: <User size={16} />, color: '#00D4FF', description: t('tabAccountDesc') },
+        { id: 'subscription', label: t('tabSubscription'), icon: <Crown size={16} />, color: '#d4af37', description: t('tabSubscriptionDesc') },
+        { id: 'security', label: t('tabSecurity'), icon: <Shield size={16} />, color: '#FF4757', description: t('tabSecurityDesc') },
       ],
     },
     {
       id: 'trading-group',
       label: t('groupTrading'),
-      accent: T.green,
+      accent: '#00FFA3',
       tabs: [
-        { id: 'trading', label: t('tabTrading'), icon: <BarChart3 size={16} />, color: T.green, description: t('tabTradingDesc') },
-        { id: 'smart-executor', label: t('smartExecutor'), icon: <Zap size={16} />, color: T.amber, description: t('smartExecutorDesc') },
-        { id: 'autonomous-agent', label: t('autonomousAgent'), icon: <Bot size={16} />, color: T.council, description: t('autonomousAgentDesc') },
+        { id: 'trading', label: t('tabTrading'), icon: <BarChart3 size={16} />, color: '#00FFA3', description: t('tabTradingDesc') },
+        { id: 'smart-executor', label: t('smartExecutor'), icon: <Zap size={16} />, color: '#FFB800', description: t('smartExecutorDesc') },
+        { id: 'autonomous-agent', label: t('autonomousAgent'), icon: <Bot size={16} />, color: '#B388FF', description: t('autonomousAgentDesc') },
       ],
     },
     {
       id: 'ai-group',
       label: t('groupAI'),
-      accent: T.council,
+      accent: '#B388FF',
       tabs: [
-        { id: 'ai-council', label: t('aiCouncil'), icon: <Brain size={16} />, color: T.council, description: t('aiCouncilDesc') },
-        { id: 'ai', label: t('tabAI'), icon: <Cpu size={16} />, color: T.cyan, description: t('tabAIDesc') },
+        { id: 'ai-council', label: t('aiCouncil'), icon: <Brain size={16} />, color: '#B388FF', description: t('aiCouncilDesc') },
+        { id: 'ai', label: t('tabAI'), icon: <Cpu size={16} />, color: '#00D4FF', description: t('tabAIDesc') },
       ],
     },
     {
       id: 'preferences-group',
       label: t('groupPreferences'),
-      accent: T.pink,
+      accent: '#F472B6',
       tabs: [
-        { id: 'notifications', label: t('tabNotifications'), icon: <Bell size={16} />, color: T.cyan, description: t('tabNotificationsDesc') },
-        { id: 'appearance', label: t('tabAppearance'), icon: <Palette size={16} />, color: T.pink, description: t('tabAppearanceDesc') },
-        { id: 'data', label: t('tabData'), icon: <Database size={16} />, color: T.blue, description: t('tabDataDesc') },
+        { id: 'notifications', label: t('tabNotifications'), icon: <Bell size={16} />, color: '#00D4FF', description: t('tabNotificationsDesc') },
+        { id: 'appearance', label: t('tabAppearance'), icon: <Palette size={16} />, color: '#F472B6', description: t('tabAppearanceDesc') },
+        { id: 'data', label: t('tabData'), icon: <Database size={16} />, color: '#0A84FF', description: t('tabDataDesc') },
       ],
     },
   ]
@@ -1143,7 +1142,7 @@ export default function SettingsPage() {
     <div className="custom-scrollbar" style={{
       fontFamily: "var(--font-ar)",
       height: '100%', overflowY: 'auto',
-      background: `radial-gradient(ellipse at top right, ${T.council}0a, transparent 50%), ${T.bg}`,
+      background: `radial-gradient(ellipse at top right, ${'#B388FF'}0a, transparent 50%), ${'#0B0E14'}`,
       display: 'flex', flexDirection: 'column',
     }}>
       {/* ═══════════════════════════════════════════════════════════
@@ -1153,8 +1152,8 @@ export default function SettingsPage() {
       <header className="settings-top-bar" style={{
         display: 'flex', alignItems: 'center', gap: 18,
         padding: '16px 24px',
-        background: T.glassTopBar,
-        borderBottom: `1px solid ${T.border2}`,
+        background: 'rgba(11,14,20,0.85)',
+        borderBottom: `1px solid ${'#3A4150'}`,
         position: 'sticky', top: 0, zIndex: 30,
         backdropFilter: 'blur(24px) saturate(180%)',
         WebkitBackdropFilter: 'blur(24px) saturate(180%)',
@@ -1167,7 +1166,7 @@ export default function SettingsPage() {
             width: 42, height: 42, borderRadius: 'var(--radius-lg)',
             background: 'linear-gradient(135deg, #A855F7, #06B6D4)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: `0 4px 18px ${T.councilGlow}, inset 0 1px 0 rgba(255,255,255,0.2)`,
+            boxShadow: `0 4px 18px ${'0 0 16px rgba(179,136,255,0.35)'}, inset 0 1px 0 rgba(255,255,255,0.2)`,
             position: 'relative',
           }}>
             <Settings size={20} color="#fff" />
@@ -1180,13 +1179,13 @@ export default function SettingsPage() {
           </div>
           <div className="settings-brand-meta">
             <h1 style={{
-              margin: 0, fontSize: 'var(--text-lg)', fontWeight: 900, color: T.text,
+              margin: 0, fontSize: 'var(--text-lg)', fontWeight: 900, color: '#F0F2F5',
               letterSpacing: '-0.02em',
               background: 'linear-gradient(135deg, #F0F2F5, #A855F7)',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
             }}>{t('title')}</h1>
-            <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 500 }}>{t('subtitle')}</p>
+            <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 500 }}>{t('subtitle')}</p>
           </div>
         </div>
 
@@ -1196,21 +1195,21 @@ export default function SettingsPage() {
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '9px 14px', borderRadius: 'var(--radius-lg)',
           background: 'rgba(255,255,255,0.04)',
-          border: `1px solid ${T.border2}`,
+          border: `1px solid ${'#3A4150'}`,
           transition: 'border-color 0.25s, box-shadow 0.25s, background 0.25s',
         }}>
-          <Search size={15} color={T.text3} style={{ flexShrink: 0 }} />
+          <Search size={15} color={'#6B7280'} style={{ flexShrink: 0 }} />
           <input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             onFocus={e => {
-              e.currentTarget.parentElement.style.borderColor = `${T.council}50`
-              e.currentTarget.parentElement.style.boxShadow = `0 0 0 3px ${T.council}15`
+              e.currentTarget.parentElement.style.borderColor = `${'#B388FF'}50`
+              e.currentTarget.parentElement.style.boxShadow = `0 0 0 3px ${'#B388FF'}15`
               e.currentTarget.parentElement.style.background = 'rgba(255,255,255,0.06)'
             }}
             onBlur={e => {
-              e.currentTarget.parentElement.style.borderColor = T.border2
+              e.currentTarget.parentElement.style.borderColor = '#3A4150'
               e.currentTarget.parentElement.style.boxShadow = 'none'
               e.currentTarget.parentElement.style.background = 'rgba(255,255,255,0.04)'
             }}
@@ -1218,7 +1217,7 @@ export default function SettingsPage() {
             aria-label={t('searchSettingsAria')}
             style={{
               flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'transparent',
-              color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-ar)", fontWeight: 500,
+              color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-ar)", fontWeight: 500,
             }}
           />
           {searchQuery ? (
@@ -1228,20 +1227,20 @@ export default function SettingsPage() {
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 width: 20, height: 20, borderRadius: '50%', border: 'none', cursor: 'pointer',
-                background: `${T.council}20`, color: T.council, flexShrink: 0,
+                background: `${'#B388FF'}20`, color: '#B388FF', flexShrink: 0,
                 transition: 'all 0.2s',
               }}
-              onMouseEnter={e => { e.currentTarget.style.background = `${T.council}35` }}
-              onMouseLeave={e => { e.currentTarget.style.background = `${T.council}20` }}
+              onMouseEnter={e => { e.currentTarget.style.background = `${'#B388FF'}35` }}
+              onMouseLeave={e => { e.currentTarget.style.background = `${'#B388FF'}20` }}
             >
               <X size={11} />
             </button>
           ) : (
             <kbd style={{
               fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)',
-              background: 'rgba(255,255,255,0.05)', color: T.text4,
+              background: 'rgba(255,255,255,0.05)', color: '#6B7280',
               fontFamily: "var(--font-mono)", fontWeight: 600,
-              border: `1px solid ${T.border}`,
+              border: `1px solid ${'#2A313C'}`,
             }}>⌘K</kbd>
           )}
         </div>
@@ -1265,8 +1264,8 @@ export default function SettingsPage() {
           display: 'none', // controlled by CSS media query
           flexDirection: 'column', gap: 2,
           padding: '18px 12px 24px',
-          borderInlineEnd: `1px solid ${T.border2}`,
-          background: T.glassSidebar,
+          borderInlineEnd: `1px solid ${'#3A4150'}`,
+          background: 'rgba(11,14,20,0.85)',
           backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
           overflowY: 'auto',
           position: 'relative',
@@ -1274,7 +1273,7 @@ export default function SettingsPage() {
           {/* Decorative top gradient */}
           <div style={{
             position: 'absolute', top: 0, insetInlineEnd: 0, width: 120, height: 120,
-            background: `radial-gradient(circle, ${T.council}10, transparent 70%)`,
+            background: `radial-gradient(circle, ${'#B388FF'}10, transparent 70%)`,
             pointerEvents: 'none', filter: 'blur(20px)',
           }} />
 
@@ -1301,7 +1300,7 @@ export default function SettingsPage() {
                         background: isActive
                           ? `linear-gradient(135deg, ${tab.color}18, ${tab.color}08)`
                           : 'transparent',
-                        color: isActive ? tab.color : T.text3,
+                        color: isActive ? tab.color : '#6B7280',
                         fontSize: 'var(--text-sm)', fontWeight: isActive ? 800 : 600,
                         fontFamily: "var(--font-ar)",
                         transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -1309,13 +1308,13 @@ export default function SettingsPage() {
                           ? `3px solid ${tab.color}`
                           : '3px solid transparent',
                         textAlign: 'start',
-                        boxShadow: isActive ? T.shadowActiveTab : 'none',
+                        boxShadow: isActive ? '0 0 0 2px #059669' : 'none',
                         position: 'relative',
                       }}
                     >
                       <span style={{
                         flexShrink: 0, display: 'flex',
-                        color: isActive ? tab.color : T.text3,
+                        color: isActive ? tab.color : '#6B7280',
                         transition: 'transform 0.25s',
                         transform: isActive ? 'scale(1.08)' : 'scale(1)',
                       }}>{tab.icon}</span>
@@ -1340,27 +1339,27 @@ export default function SettingsPage() {
             <div style={{ padding: '32px 16px', textAlign: 'center' }}>
               <div style={{
                 width: 48, height: 48, borderRadius: 'var(--radius-xl)',
-                background: `${T.council}10`,
+                background: `${'#B388FF'}10`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 margin: '0 auto 12px',
               }}>
-                <Search size={22} color={T.council} />
+                <Search size={22} color={'#B388FF'} />
               </div>
-              <div style={{ fontSize: 'var(--text-sm)', color: T.text3, fontWeight: 700 }}>{t('noSearchResults')}</div>
-              <div style={{ fontSize: 'var(--text-xs)', color: T.text4, marginTop: 6, lineHeight: 1.5 }}>{t('noSearchResultsDesc')}</div>
+              <div style={{ fontSize: 'var(--text-sm)', color: '#6B7280', fontWeight: 700 }}>{t('noSearchResults')}</div>
+              <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 6, lineHeight: 1.5 }}>{t('noSearchResultsDesc')}</div>
             </div>
           )}
 
           {/* Sidebar footer — Council branding */}
           <div style={{
             marginTop: 'auto', padding: '14px 12px 0',
-            borderTop: `1px solid ${T.border}`,
+            borderTop: `1px solid ${'#2A313C'}`,
           }}>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
               padding: '8px 10px', borderRadius: 'var(--radius-lg)',
-              background: `linear-gradient(135deg, ${T.council}10, transparent)`,
-              border: `1px solid ${T.council}20`,
+              background: `linear-gradient(135deg, ${'#B388FF'}10, transparent)`,
+              border: `1px solid ${'#B388FF'}20`,
             }}>
               <div style={{
                 width: 22, height: 22, borderRadius: 'var(--radius-md)',
@@ -1371,8 +1370,8 @@ export default function SettingsPage() {
                 <Sparkles size={11} color="#fff" />
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.text2, fontFamily: "var(--font-mono)", letterSpacing: '0.02em' }}>ROUA COUNCIL</div>
-                <div style={{ fontSize: 'var(--text-xs)', color: T.text4 }}>AI Strategic Council</div>
+                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#9CA3B5', fontFamily: "var(--font-mono)", letterSpacing: '0.02em' }}>ROUA COUNCIL</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>AI Strategic Council</div>
               </div>
             </div>
           </div>
@@ -1382,8 +1381,8 @@ export default function SettingsPage() {
         <div className="settings-mobile-tabs custom-scrollbar" style={{
           display: 'none', // controlled by CSS media query
           gap: 6, padding: '10px 14px',
-          overflowX: 'auto', borderBottom: `1px solid ${T.border2}`,
-          background: T.glassSidebar,
+          overflowX: 'auto', borderBottom: `1px solid ${'#3A4150'}`,
+          background: 'rgba(11,14,20,0.85)',
           backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
           flexShrink: 0,
         }}>
@@ -1402,7 +1401,7 @@ export default function SettingsPage() {
                         background: isActive
                           ? `linear-gradient(135deg, ${tab.color}18, ${tab.color}08)`
                           : 'rgba(255,255,255,0.03)',
-                        color: isActive ? tab.color : T.text3,
+                        color: isActive ? tab.color : '#6B7280',
                         fontSize: 'var(--text-sm)', fontWeight: isActive ? 800 : 600,
                         fontFamily: "var(--font-ar)",
                         whiteSpace: 'nowrap', flexShrink: 0,
@@ -1411,7 +1410,7 @@ export default function SettingsPage() {
                         borderInlineStart: isActive ? `2px solid ${tab.color}` : '2px solid transparent',
                       }}
                     >
-                      <span style={{ display: 'flex', color: isActive ? tab.color : T.text3 }}>{tab.icon}</span>
+                      <span style={{ display: 'flex', color: isActive ? tab.color : '#6B7280' }}>{tab.icon}</span>
                       <span>{tab.label}</span>
                     </button>
                   )
@@ -1419,7 +1418,7 @@ export default function SettingsPage() {
               </div>
             ))
           ) : (
-            <div style={{ padding: '8px 10px', fontSize: 'var(--text-xs)', color: T.text3 }}>{t('noSearchResults')}</div>
+            <div style={{ padding: '8px 10px', fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('noSearchResults')}</div>
           )}
         </div>
 
@@ -1429,7 +1428,7 @@ export default function SettingsPage() {
           <div className="settings-tab-header" style={{
             display: 'flex', alignItems: 'center', gap: 18,
             padding: '24px 28px 20px',
-            borderBottom: `1px solid ${T.border2}`,
+            borderBottom: `1px solid ${'#3A4150'}`,
             background: `linear-gradient(180deg, ${activeTabMeta.color}08, transparent)`,
             flexShrink: 0,
             position: 'relative',
@@ -1470,7 +1469,7 @@ export default function SettingsPage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, delay: 0.05 }}
                 style={{
-                  margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: T.text,
+                  margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: '#F0F2F5',
                   letterSpacing: '-0.02em',
                 }}
               >
@@ -1481,7 +1480,7 @@ export default function SettingsPage() {
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, delay: 0.1 }}
-                style={{ margin: '4px 0 0', fontSize: 'var(--text-sm)', color: T.text3, lineHeight: 1.5, fontWeight: 500 }}
+                style={{ margin: '4px 0 0', fontSize: 'var(--text-sm)', color: '#6B7280', lineHeight: 1.5, fontWeight: 500 }}
               >
                 {activeTabMeta.description}
               </motion.p>
@@ -1506,11 +1505,11 @@ export default function SettingsPage() {
           <>
             {/* Profile Card */}
             <div className="settings-profile-row" style={{
-              background: T.glassCard,
+              background: 'rgba(255,255,255,0.04)',
               backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-              border: `1px solid ${T.border2}`,
+              border: `1px solid ${'#3A4150'}`,
               borderRadius: 'var(--radius-xl)', padding: 26, display: 'flex', alignItems: 'center', gap: 22,
-              boxShadow: T.shadowGlass,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
               position: 'relative', overflow: 'hidden',
             }}>
               {/* Decorative gradient */}
@@ -1533,10 +1532,10 @@ export default function SettingsPage() {
                 {user?.displayName?.[0] || user?.email?.[0]?.toUpperCase() || 'R'}
               </div>
               <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
-                <div style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: T.text, marginBottom: 5, letterSpacing: '-0.02em' }}>
+                <div style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: '#F0F2F5', marginBottom: 5, letterSpacing: '-0.02em' }}>
                   {user?.displayName || t('defaultUserName')}
                 </div>
-                <div style={{ fontSize: 'var(--text-sm)', color: T.text2, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <div style={{ fontSize: 'var(--text-sm)', color: '#9CA3B5', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                   <Mail size={12} />
                   <span style={{ fontFamily: "var(--font-mono)" }}>{user?.email || 'user@roua.io'}</span>
                 </div>
@@ -1552,23 +1551,23 @@ export default function SettingsPage() {
                     {['PREMIUM', 'INSTITUTIONAL', 'PLUS'].includes(userTier) ? <Sparkles size={11} /> : userTier === 'PRO' ? <Star size={11} /> : <Crown size={11} />}
                     {tc(roleInfo.labelKey)}
                   </span>
-                  <span style={{ fontSize: 'var(--text-xs)', color: T.text4 }}>{tc(roleInfo.descriptionKey)}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{tc(roleInfo.descriptionKey)}</span>
                 </div>
               </div>
               <button
                 onClick={() => router.push('/dashboard/portfolio')}
                 style={{
-                  padding: '9px 18px', borderRadius: 'var(--radius-lg)', border: `1px solid ${T.council}30`,
-                  background: `linear-gradient(135deg, ${T.council}12, ${T.cyan}08)`,
-                  color: T.council,
+                  padding: '9px 18px', borderRadius: 'var(--radius-lg)', border: `1px solid ${'#B388FF'}30`,
+                  background: `linear-gradient(135deg, ${'#B388FF'}12, ${'#00D4FF'}08)`,
+                  color: '#B388FF',
                   fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                   fontFamily: "var(--font-ar)",
                   display: 'flex', alignItems: 'center', gap: 7,
                   transition: 'all 0.25s', flexShrink: 0,
-                  boxShadow: `0 4px 14px ${T.council}15`,
+                  boxShadow: `0 4px 14px ${'#B388FF'}15`,
                 }}
-                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = `0 6px 20px ${T.council}25` }}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = `0 4px 14px ${T.council}15` }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = `0 6px 20px ${'#B388FF'}25` }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = `0 4px 14px ${'#B388FF'}15` }}
               >
                 <UserCircle size={14} />
                 {tc('accountInfo')}
@@ -1577,9 +1576,9 @@ export default function SettingsPage() {
 
             {/* Exchange API Keys */}
             <SectionCard
-              icon={<Key size={18} color={T.amber} />}
-              iconColor={T.amber}
-              iconBg={`${T.amber}14`}
+              icon={<Key size={18} color={'#FFB800'} />}
+              iconColor={'#FFB800'}
+              iconBg={`${'#FFB800'}14`}
               title={t("apiKeysTitle")}
               subtitle={t("apiKeysSubtitle")}
             >
@@ -1590,24 +1589,24 @@ export default function SettingsPage() {
                   background: 'rgba(0,212,255,0.04)', border: `1px solid rgba(0,212,255,0.12)`,
                   marginBottom: 14,
                 }}>
-                  <Shield size={16} color={T.cyan} />
-                  <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.6 }}>
+                  <Shield size={16} color={'#00D4FF'} />
+                  <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.6 }}>
                     {t('apiKeysSecurityInfo')}
-                    <span style={{ color: T.red, fontWeight: 600 }}> {t('withdrawKeysRejected')}</span>
+                    <span style={{ color: '#FF4757', fontWeight: 600 }}> {t('withdrawKeysRejected')}</span>
                   </div>
                 </div>
                 <button
                   onClick={() => router.push('/dashboard/settings/exchange')}
                   style={{
                     width: '100%', padding: '13px 18px', borderRadius: 'var(--radius-lg)',
-                    border: `1px dashed ${T.border2}`, background: 'transparent',
-                    color: T.cyan, fontSize: 'var(--text-sm)', fontWeight: 700, cursor: 'pointer',
+                    border: `1px dashed ${'#3A4150'}`, background: 'transparent',
+                    color: '#00D4FF', fontSize: 'var(--text-sm)', fontWeight: 700, cursor: 'pointer',
                     fontFamily: "var(--font-ar)",
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                     transition: 'all 0.2s',
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.04)'; e.currentTarget.style.borderColor = T.cyan }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = T.border2 }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.04)'; e.currentTarget.style.borderColor = '#00D4FF' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#3A4150' }}
                 >
                   <Key size={16} />
                   {t('manageApiKeys')}
@@ -1618,14 +1617,14 @@ export default function SettingsPage() {
                   onClick={() => router.push('/dashboard/settings/ea-bridge')}
                   style={{
                     width: '100%', padding: '13px 18px', borderRadius: 'var(--radius-lg)',
-                    border: `1px dashed ${T.border2}`, background: 'transparent',
-                    color: T.council, fontSize: 'var(--text-sm)', fontWeight: 700, cursor: 'pointer',
+                    border: `1px dashed ${'#3A4150'}`, background: 'transparent',
+                    color: '#B388FF', fontSize: 'var(--text-sm)', fontWeight: 700, cursor: 'pointer',
                     fontFamily: "var(--font-ar)",
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                     transition: 'all 0.2s', marginTop: 8,
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = `${T.council}08`; e.currentTarget.style.borderColor = T.council }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = T.border2 }}
+                  onMouseEnter={e => { e.currentTarget.style.background = `${'#B388FF'}08`; e.currentTarget.style.borderColor = '#B388FF' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#3A4150' }}
                 >
                   <Cpu size={16} />
                   MT5 EA Bridge
@@ -1636,23 +1635,23 @@ export default function SettingsPage() {
 
             {/* Account Info */}
             <SectionCard
-              icon={<Database size={18} color={T.blue} />}
-              iconColor={T.blue}
-              iconBg={`${T.blue}14`}
+              icon={<Database size={18} color={'#0A84FF'} />}
+              iconColor={'#0A84FF'}
+              iconBg={`${'#0A84FF'}14`}
               title={t("accountInfo")}
               subtitle={t("accountInfoSubtitle")}
             >
               <SettingRow
-                icon={<User size={13} color={T.text3} />}
+                icon={<User size={13} color={'#6B7280'} />}
                 label={t("userId")}
                 description={user?.id || '—'}
               >
-                <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>
+                <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>
                   {user?.id?.slice(0, 12) || '—'}...
                 </span>
               </SettingRow>
               <SettingRow
-                icon={<TrendingUp size={13} color={T.text3} />}
+                icon={<TrendingUp size={13} color={'#6B7280'} />}
                 label={t("subscriptionLevel")}
               >
                 <span style={{
@@ -1665,11 +1664,11 @@ export default function SettingsPage() {
                 </span>
               </SettingRow>
               <SettingRow
-                icon={<Clock size={13} color={T.text3} />}
+                icon={<Clock size={13} color={'#6B7280'} />}
                 label={t("sessionStatus")}
               >
-                <span style={{ fontSize: 'var(--text-xs)', color: T.green, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: 'var(--radius-xs)', background: T.green, boxShadow: `0 0 6px ${T.green}60` }} />
+                <span style={{ fontSize: 'var(--text-xs)', color: '#00FFA3', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: 'var(--radius-xs)', background: '#00FFA3', boxShadow: `0 0 6px ${'#00FFA3'}60` }} />
                   {t('activeAutoRenew')}
                 </span>
               </SettingRow>
@@ -1686,13 +1685,13 @@ export default function SettingsPage() {
             }}>
               <div style={{ padding: '18px 22px', borderBottom: `1px solid rgba(255,71,87,0.12)`, background: 'linear-gradient(180deg, rgba(255,71,87,0.04), transparent)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <AlertTriangle size={16} color={T.red} />
-                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: T.red, letterSpacing: '-0.01em' }}>{t('dangerZone')}</span>
+                  <AlertTriangle size={16} color={'#FF4757'} />
+                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: '#FF4757', letterSpacing: '-0.01em' }}>{t('dangerZone')}</span>
                 </div>
               </div>
               <div style={{ padding: '8px 22px 18px' }}>
                 <SettingRow
-                  icon={<LogOut size={13} color={T.red} />}
+                  icon={<LogOut size={13} color={'#FF4757'} />}
                   label={t("logout")}
                   description={t("logoutDesc")}
                 >
@@ -1701,7 +1700,7 @@ export default function SettingsPage() {
                     style={{
                       padding: '7px 16px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,71,87,0.10)', border: `1px solid rgba(255,71,87,0.22)`,
-                      color: T.red, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
+                      color: '#FF4757', fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                       fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                     }}
                   >
@@ -1709,7 +1708,7 @@ export default function SettingsPage() {
                   </button>
                 </SettingRow>
                 <SettingRow
-                  icon={<Trash2 size={13} color={T.red} />}
+                  icon={<Trash2 size={13} color={'#FF4757'} />}
                   label={t("deleteAccount")}
                   description={t("deleteAccountDesc")}
                 >
@@ -1718,7 +1717,7 @@ export default function SettingsPage() {
                     style={{
                       padding: '7px 16px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,71,87,0.10)', border: '1px solid rgba(255,71,87,0.28)',
-                      color: T.red, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
+                      color: '#FF4757', fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                       fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                     }}
                   >
@@ -1732,11 +1731,11 @@ export default function SettingsPage() {
                   padding: '18px 22px', borderTop: `1px solid rgba(255,71,87,0.18)`,
                   background: 'rgba(255,71,87,0.04)',
                 }}>
-                  <div style={{ fontSize: 'var(--text-sm)', color: T.text2, marginBottom: 12, lineHeight: 1.6 }}>
+                  <div style={{ fontSize: 'var(--text-sm)', color: '#9CA3B5', marginBottom: 12, lineHeight: 1.6 }}>
                     {t('deleteAccountWarning')}
                   </div>
                   <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 'var(--text-xs)', color: T.text3, marginBottom: 5 }}>
+                    <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginBottom: 5 }}>
                       {t('typeToConfirm')} &quot;DELETE&quot;
                     </div>
                     <input
@@ -1746,8 +1745,8 @@ export default function SettingsPage() {
                       placeholder="DELETE"
                       style={{
                         width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-md)',
-                        background: T.surface, border: `1px solid rgba(255,71,87,0.22)`,
-                        color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                        background: '#151A22', border: `1px solid rgba(255,71,87,0.22)`,
+                        color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                         outline: 'none', direction: 'ltr',
                       }}
                     />
@@ -1757,8 +1756,8 @@ export default function SettingsPage() {
                       onClick={() => { setShowDeleteDialog(false); setDeleteConfirmText('') }}
                       style={{
                         padding: '7px 16px', borderRadius: 'var(--radius-md)',
-                        background: T.surface, border: `1px solid ${T.border}`,
-                        color: T.text3, fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer',
+                        background: '#151A22', border: `1px solid ${'#2A313C'}`,
+                        color: '#6B7280', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer',
                         fontFamily: "var(--font-ar)",
                       }}
                     >
@@ -1775,9 +1774,9 @@ export default function SettingsPage() {
                       }}
                       style={{
                         padding: '7px 16px', borderRadius: 'var(--radius-md)',
-                        background: deleteConfirmText === 'DELETE' ? 'rgba(255,71,87,0.18)' : T.surface,
+                        background: deleteConfirmText === 'DELETE' ? 'rgba(255,71,87,0.18)' : '#151A22',
                         border: '1px solid rgba(255,71,87,0.28)',
-                        color: T.red, fontSize: 'var(--text-xs)', fontWeight: 700,
+                        color: '#FF4757', fontSize: 'var(--text-xs)', fontWeight: 700,
                         cursor: deleteConfirmText === 'DELETE' ? 'pointer' : 'not-allowed',
                         fontFamily: "var(--font-ar)",
                         opacity: deleteConfirmText === 'DELETE' ? 1 : 0.5,
@@ -1797,11 +1796,11 @@ export default function SettingsPage() {
           <>
             {/* Current Plan */}
             <div style={{
-              background: T.glassCard,
+              background: 'rgba(255,255,255,0.04)',
               backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
               border: `1px solid ${roleInfo.color}30`,
               borderRadius: 'var(--radius-xl)', overflow: 'hidden',
-              boxShadow: T.shadowGlass,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
             }}>
               <div style={{
                 padding: '22px 22px 0', position: 'relative', overflow: 'hidden',
@@ -1826,18 +1825,18 @@ export default function SettingsPage() {
                      <Crown size={26} color="#fff" />}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: T.text, display: 'flex', alignItems: 'center', gap: 8, letterSpacing: '-0.02em' }}>
+                    <div style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: '#F0F2F5', display: 'flex', alignItems: 'center', gap: 8, letterSpacing: '-0.02em' }}>
                       {t('planLabel', { plan: tc(roleInfo.labelKey) })}
                       {userTier === 'FREE' && (
                         <span style={{
                           fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-lg)',
-                          background: `${T.cyan}15`, color: T.cyan,
+                          background: `${'#00D4FF'}15`, color: '#00D4FF',
                           fontFamily: "var(--font-ar)", fontWeight: 700,
-                          border: `1px solid ${T.cyan}25`,
+                          border: `1px solid ${'#00D4FF'}25`,
                         }}>{t('upgrade')}</span>
                       )}
                     </div>
-                    <div style={{ fontSize: 'var(--text-sm)', color: T.text3, marginTop: 3 }}>{tc(roleInfo.descriptionKey)}</div>
+                    <div style={{ fontSize: 'var(--text-sm)', color: '#6B7280', marginTop: 3 }}>{tc(roleInfo.descriptionKey)}</div>
                   </div>
                 </div>
 
@@ -1849,14 +1848,14 @@ export default function SettingsPage() {
                       <div key={key} style={{
                         flex: 1, padding: '13px 8px', borderRadius: 'var(--radius-lg)', textAlign: 'center',
                         background: isActive ? `${info.color}12` : 'rgba(255,255,255,0.025)',
-                        border: isActive ? `1px solid ${info.color}40` : `1px solid ${T.border}`,
+                        border: isActive ? `1px solid ${info.color}40` : `1px solid ${'#2A313C'}`,
                         transition: 'all 0.3s',
                         boxShadow: isActive ? `0 4px 18px ${info.color}12` : 'none',
                       }}>
-                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: isActive ? info.color : T.text3, fontFamily: "var(--font-ar)" }}>
+                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: isActive ? info.color : '#6B7280', fontFamily: "var(--font-ar)" }}>
                           {tc(info.labelKey)}
                         </div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: T.text4, marginTop: 3 }}>{tc(info.descriptionKey)}</div>
+                        <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 3 }}>{tc(info.descriptionKey)}</div>
                         {isActive && (
                           <div style={{
                             marginTop: 8, fontSize: 'var(--text-xs)', fontWeight: 700,
@@ -1872,9 +1871,9 @@ export default function SettingsPage() {
 
             {/* Permissions Grid */}
             <SectionCard
-              icon={<Shield size={18} color={T.cyan} />}
-              iconColor={T.cyan}
-              iconBg={`${T.cyan}14`}
+              icon={<Shield size={18} color={'#00D4FF'} />}
+              iconColor={'#00D4FF'}
+              iconBg={`${'#00D4FF'}14`}
               title={t('yourPermissions')}
               subtitle={t('planPermissionsCount', { plan: tc(roleInfo.labelKey), count: userPermissions.length })}
               badge={`${userPermissions.length}`}
@@ -1882,7 +1881,7 @@ export default function SettingsPage() {
               <div style={{ padding: '8px 0' }}>
                 {permissionCategories.map((cat, ci) => (
                   <div key={ci} style={{ marginBottom: ci < permissionCategories.length - 1 ? 14 : 0 }}>
-                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text4, marginBottom: 8, letterSpacing: '0.06em' }}>{cat.name}</div>
+                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#6B7280', marginBottom: 8, letterSpacing: '0.06em' }}>{cat.name}</div>
                     <div className="perm-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 7 }}>
                       {cat.perms.map((p, pi) => (
                         <PermissionTag key={pi} label={p.label} active={hasPermission(userTier, p.perm)} color={roleInfo.color} />
@@ -1896,33 +1895,33 @@ export default function SettingsPage() {
             {/* Upgrade Prompt for FREE users */}
             {userTier === 'FREE' && (
               <div style={{
-                background: `linear-gradient(135deg, ${T.council}10, ${T.cyan}08)`,
-                border: `1px solid ${T.council}25`, borderRadius: 'var(--radius-xl)',
+                background: `linear-gradient(135deg, ${'#B388FF'}10, ${'#00D4FF'}08)`,
+                border: `1px solid ${'#B388FF'}25`, borderRadius: 'var(--radius-xl)',
                 padding: 24, textAlign: 'center',
                 backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-                boxShadow: `0 8px 32px ${T.council}12`,
+                boxShadow: `0 8px 32px ${'#B388FF'}12`,
                 position: 'relative', overflow: 'hidden',
               }}>
                 <div style={{
                   position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)',
                   width: 200, height: 100, borderRadius: '50%',
-                  background: `radial-gradient(circle, ${T.council}20, transparent 70%)`,
+                  background: `radial-gradient(circle, ${'#B388FF'}20, transparent 70%)`,
                   pointerEvents: 'none', filter: 'blur(30px)',
                 }} />
-                <div style={{ fontSize: 'var(--text-md)', fontWeight: 900, color: T.text, marginBottom: 10, position: 'relative', letterSpacing: '-0.02em' }}>
+                <div style={{ fontSize: 'var(--text-md)', fontWeight: 900, color: '#F0F2F5', marginBottom: 10, position: 'relative', letterSpacing: '-0.02em' }}>
                   {t('unlockFullPotential')}
                 </div>
-                <div style={{ fontSize: 'var(--text-sm)', color: T.text3, lineHeight: 1.8, marginBottom: 18, position: 'relative' }}>
+                <div style={{ fontSize: 'var(--text-sm)', color: '#6B7280', lineHeight: 1.8, marginBottom: 18, position: 'relative' }}>
                   {t('upgradeProDesc')}
                 </div>
                 <button
                   onClick={() => router.push('/dashboard/billing')}
                   style={{
                   padding: '11px 32px', borderRadius: 'var(--radius-lg)',
-                  background: `linear-gradient(135deg, ${T.council}, ${T.cyan})`,
+                  background: `linear-gradient(135deg, ${'#B388FF'}, ${'#00D4FF'})`,
                   border: 'none', color: '#fff', fontSize: 'var(--text-sm)', fontWeight: 800,
                   cursor: 'pointer', fontFamily: "var(--font-ar)",
-                  boxShadow: `0 8px 24px ${T.council}35`,
+                  boxShadow: `0 8px 24px ${'#B388FF'}35`,
                   position: 'relative',
                 }}>
                   {tc('upgrade')}
@@ -1937,9 +1936,9 @@ export default function SettingsPage() {
           <>
             {/* V126: Active Trading Account Selector */}
             <SectionCard
-              icon={<Key size={18} color={T.cyan} />}
-              iconColor={T.cyan}
-              iconBg={`${T.cyan}14`}
+              icon={<Key size={18} color={'#00D4FF'} />}
+              iconColor={'#00D4FF'}
+              iconBg={`${'#00D4FF'}14`}
               title={t('activeTradingAccount')}
               subtitle={t('activeTradingAccountSubtitle')}
             >
@@ -1948,17 +1947,17 @@ export default function SettingsPage() {
 
             {/* Mode Selection */}
             <SectionCard
-              icon={<Zap size={18} color={T.cyan} />}
-              iconColor={T.cyan}
-              iconBg={`${T.cyan}14`}
+              icon={<Zap size={18} color={'#00D4FF'} />}
+              iconColor={'#00D4FF'}
+              iconBg={`${'#00D4FF'}14`}
               title={t('tradingMode')}
               subtitle={t('tradingModeSubtitle')}
             >
               <div style={{ display: 'flex', gap: 8, padding: '8px 0' }}>
                 {([
-                  { id: 'trader' as TradingMode, label: t('traderMode'), desc: t('quickExecution'), color: T.cyan, icon: <BarChart3 size={16} /> },
-                  { id: 'investor' as TradingMode, label: t('investorMode'), desc: t('longInvestment'), color: T.green, icon: <TrendingUp size={16} /> },
-                  { id: 'ai' as TradingMode, label: 'AI', desc: t('aiIntelligence'), color: T.council, icon: <Brain size={16} /> },
+                  { id: 'trader' as TradingMode, label: t('traderMode'), desc: t('quickExecution'), color: '#00D4FF', icon: <BarChart3 size={16} /> },
+                  { id: 'investor' as TradingMode, label: t('investorMode'), desc: t('longInvestment'), color: '#00FFA3', icon: <TrendingUp size={16} /> },
+                  { id: 'ai' as TradingMode, label: 'AI', desc: t('aiIntelligence'), color: '#B388FF', icon: <Brain size={16} /> },
                 ]).map(m => (
                   <button
                     key={m.id}
@@ -1968,18 +1967,18 @@ export default function SettingsPage() {
                       background: mode === m.id
                         ? `linear-gradient(135deg, ${m.color}15, ${m.color}08)`
                         : 'rgba(255,255,255,0.025)',
-                      border: mode === m.id ? `1px solid ${m.color}40` : `1px solid ${T.border}`,
+                      border: mode === m.id ? `1px solid ${m.color}40` : `1px solid ${'#2A313C'}`,
                       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', textAlign: 'center',
                       boxShadow: mode === m.id ? `0 4px 18px ${m.color}18` : 'none',
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8, color: mode === m.id ? m.color : T.text3 }}>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8, color: mode === m.id ? m.color : '#6B7280' }}>
                       {m.icon}
                     </div>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: mode === m.id ? m.color : T.text2, fontFamily: "var(--font-ar)" }}>
+                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: mode === m.id ? m.color : '#9CA3B5', fontFamily: "var(--font-ar)" }}>
                       {m.label}
                     </div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: T.text4, marginTop: 3 }}>{m.desc}</div>
+                    <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 3 }}>{m.desc}</div>
                   </button>
                 ))}
               </div>
@@ -1987,14 +1986,14 @@ export default function SettingsPage() {
 
             {/* Trading Preferences */}
             <SectionCard
-              icon={<Sliders size={18} color={T.amber} />}
-              iconColor={T.amber}
-              iconBg={`${T.amber}14`}
+              icon={<Sliders size={18} color={'#FFB800'} />}
+              iconColor={'#FFB800'}
+              iconBg={`${'#FFB800'}14`}
               title={t('tradingPrefs')}
               subtitle={t('orderExecSettings')}
             >
               <SettingRow
-                icon={<LineChart size={13} color={T.text3} />}
+                icon={<LineChart size={13} color={'#6B7280'} />}
                 label={t('defaultOrderSize')}
                 description={t('riskPerTradeDesc')}
               >
@@ -2003,15 +2002,15 @@ export default function SettingsPage() {
                     type="range" min={1} max={100} step={1}
                     value={orderSize}
                     onChange={e => setOrderSize(e.target.value)}
-                    style={{ width: 90, accentColor: T.council, height: 3 }}
+                    style={{ width: 90, accentColor: '#B388FF', height: 3 }}
                   />
-                  <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.council, fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
+                  <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#B388FF', fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
                     {orderSize}%
                   </span>
                 </div>
               </SettingRow>
               <SettingRow
-                icon={<AlertTriangle size={13} color={T.text3} />}
+                icon={<AlertTriangle size={13} color={'#6B7280'} />}
                 label={t('riskLevelLabel')}
                 description={t('riskLevelLabelDesc')}
               >
@@ -2027,31 +2026,31 @@ export default function SettingsPage() {
                 />
               </SettingRow>
               <SettingRow
-                icon={<CheckCircle2 size={13} color={T.text3} />}
+                icon={<CheckCircle2 size={13} color={'#6B7280'} />}
                 label={t('confirmBeforeExec')}
                 description={t('confirmBeforeExecDesc')}
               >
-                <Toggle checked={confirmTrades} onChange={() => setConfirmTrades(!confirmTrades)} color={T.cyan} size="sm" />
+                <Toggle checked={confirmTrades} onChange={() => setConfirmTrades(!confirmTrades)} color={'#00D4FF'} size="sm" />
               </SettingRow>
               <SettingRow
-                icon={<Eye size={13} color={T.text3} />}
+                icon={<Eye size={13} color={'#6B7280'} />}
                 label={t('showOpenPositions')}
                 description={t('showOpenPositionsDesc')}
               >
-                <Toggle checked={showPositions} onChange={() => setShowPositions(!showPositions)} color={T.green} size="sm" />
+                <Toggle checked={showPositions} onChange={() => setShowPositions(!showPositions)} color={'#00FFA3'} size="sm" />
               </SettingRow>
             </SectionCard>
 
             {/* Risk Management — User-controlled limits */}
             <SectionCard
-              icon={<Shield size={18} color={T.green} />}
-              iconColor={T.green}
-              iconBg={`${T.green}14`}
+              icon={<Shield size={18} color={'#00FFA3'} />}
+              iconColor={'#00FFA3'}
+              iconBg={`${'#00FFA3'}14`}
               title={t('riskManagement')}
               subtitle={t('riskManagementSubtitle')}
             >
               <SettingRow
-                icon={<Target size={13} color={T.danger} />}
+                icon={<Target size={13} color={'#FF4757'} />}
                 label={t('defaultStopLoss')}
                 description={t('defaultStopLossDesc')}
               >
@@ -2062,17 +2061,17 @@ export default function SettingsPage() {
                     onChange={e => setUserStopLoss(e.target.value)}
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
-                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
+                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
                   />
-                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 600 }}>%</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 600 }}>%</span>
                 </div>
               </SettingRow>
               <SettingRow
-                icon={<TrendingUp size={13} color={T.success} />}
+                icon={<TrendingUp size={13} color={'#00FFA3'} />}
                 label={t('defaultTakeProfit')}
                 description={t('defaultTakeProfitDesc')}
               >
@@ -2083,17 +2082,17 @@ export default function SettingsPage() {
                     onChange={e => setUserTakeProfit(e.target.value)}
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
-                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
+                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
                   />
-                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 600 }}>%</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 600 }}>%</span>
                 </div>
               </SettingRow>
               <SettingRow
-                icon={<Activity size={13} color={T.amber} />}
+                icon={<Activity size={13} color={'#FFB800'} />}
                 label={t('riskPerTrade')}
                 description={t('riskPerTradeLabelDesc')}
               >
@@ -2104,17 +2103,17 @@ export default function SettingsPage() {
                     onChange={e => setUserRiskPerTrade(e.target.value)}
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
-                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
+                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
                   />
-                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 600 }}>%</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 600 }}>%</span>
                 </div>
               </SettingRow>
               <SettingRow
-                icon={<AlertTriangle size={13} color={T.danger} />}
+                icon={<AlertTriangle size={13} color={'#FF4757'} />}
                 label={t('maxDailyLoss')}
                 description={t('maxDailyLossDesc')}
               >
@@ -2125,25 +2124,25 @@ export default function SettingsPage() {
                     onChange={e => setUserMaxDailyLoss(e.target.value)}
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
-                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
+                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
                   />
-                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 600 }}>%</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 600 }}>%</span>
                 </div>
               </SettingRow>
               {/* BUG-066: Configurable hard caps */}
               <div style={{
                 marginTop: 8, marginBottom: 4, padding: '8px 10px', borderRadius: 'var(--radius-md)',
-                background: `${T.danger}08`, border: `1px solid ${T.danger}20`,
-                fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)", lineHeight: 1.5,
+                background: `${'#FF4757'}08`, border: `1px solid ${'#FF4757'}20`,
+                fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)", lineHeight: 1.5,
               }}>
                 {t('hardCapsBanner')}
               </div>
               <SettingRow
-                icon={<Shield size={13} color={T.danger} />}
+                icon={<Shield size={13} color={'#FF4757'} />}
                 label={t('hardRiskCapLabel')}
                 description={t('hardRiskCapDesc')}
               >
@@ -2154,17 +2153,17 @@ export default function SettingsPage() {
                     onChange={e => setHardRiskCap(e.target.value)}
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
-                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
+                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
                   />
-                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 600 }}>%</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 600 }}>%</span>
                 </div>
               </SettingRow>
               <SettingRow
-                icon={<BarChart3 size={13} color={T.accent} />}
+                icon={<BarChart3 size={13} color={'#059669'} />}
                 label={t('maxNotionalLabel')}
                 description={t('maxNotionalDesc')}
               >
@@ -2175,17 +2174,17 @@ export default function SettingsPage() {
                     onChange={e => setMaxNotionalPct(e.target.value)}
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
-                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
+                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
                   />
-                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 600 }}>%</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontWeight: 600 }}>%</span>
                 </div>
               </SettingRow>
               <SettingRow
-                icon={<BarChart3 size={13} color={T.cyan} />}
+                icon={<BarChart3 size={13} color={'#00D4FF'} />}
                 label={t('maxOpenPositions')}
                 description={t('maxOpenPositionsDesc')}
               >
@@ -2196,8 +2195,8 @@ export default function SettingsPage() {
                     onChange={e => setUserMaxOpenPositions(e.target.value)}
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
-                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
+                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -2205,32 +2204,32 @@ export default function SettingsPage() {
                 </div>
               </SettingRow>
               <SettingRow
-                icon={<Lock size={13} color={T.text3} />}
+                icon={<Lock size={13} color={'#6B7280'} />}
                 label={t('autoStopLoss')}
                 description={t('autoStopLossDesc')}
               >
-                <Toggle checked={autoStopLoss} onChange={() => setAutoStopLoss(!autoStopLoss)} color={T.green} size="sm" />
+                <Toggle checked={autoStopLoss} onChange={() => setAutoStopLoss(!autoStopLoss)} color={'#00FFA3'} size="sm" />
               </SettingRow>
               <SettingRow
-                icon={<Activity size={13} color={T.text3} />}
+                icon={<Activity size={13} color={'#6B7280'} />}
                 label={t('trailingStop')}
                 description={t('trailingStopDesc')}
               >
-                <Toggle checked={trailingStop} onChange={() => setTrailingStop(!trailingStop)} color={T.amber} size="sm" />
+                <Toggle checked={trailingStop} onChange={() => setTrailingStop(!trailingStop)} color={'#FFB800'} size="sm" />
               </SettingRow>
 
               {/* BUG-066f: Reset paper account — closes inflated positions + resets balance */}
               <div style={{
                 marginTop: 12, padding: '12px 14px', borderRadius: 'var(--radius-lg)',
-                background: `${T.danger}08`, border: `1px solid ${T.danger}30`,
+                background: `${'#FF4757'}08`, border: `1px solid ${'#FF4757'}30`,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <AlertTriangle size={14} color={T.danger} />
-                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.danger, fontFamily: "var(--font-ar)" }}>
+                  <AlertTriangle size={14} color={'#FF4757'} />
+                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#FF4757', fontFamily: "var(--font-ar)" }}>
                     {t('resetPaperAccountTitle')}
                   </span>
                 </div>
-                <div style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)", marginBottom: 10, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-ar)", marginBottom: 10, lineHeight: 1.5 }}>
                   {t('resetPaperAccountDesc')}
                 </div>
                 <button
@@ -2256,8 +2255,8 @@ export default function SettingsPage() {
                   }}
                   style={{
                     padding: '8px 16px', borderRadius: 'var(--radius-md)',
-                    background: `${T.danger}15`, border: `1px solid ${T.danger}40`,
-                    color: T.danger, fontSize: 'var(--text-xs)', fontWeight: 700,
+                    background: `${'#FF4757'}15`, border: `1px solid ${'#FF4757'}40`,
+                    color: '#FF4757', fontSize: 'var(--text-xs)', fontWeight: 700,
                     fontFamily: "var(--font-ar)", cursor: 'pointer',
                   }}
                 >
@@ -2268,14 +2267,14 @@ export default function SettingsPage() {
 
             {/* Chart Settings */}
             <SectionCard
-              icon={<LineChart size={18} color={T.council} />}
-              iconColor={T.council}
-              iconBg={`${T.council}14`}
+              icon={<LineChart size={18} color={'#B388FF'} />}
+              iconColor={'#B388FF'}
+              iconBg={`${'#B388FF'}14`}
               title={t('chartSettings')}
               subtitle={t('chartTypeTimeframe')}
             >
               <SettingRow
-                icon={<BarChart3 size={13} color={T.text3} />}
+                icon={<BarChart3 size={13} color={'#6B7280'} />}
                 label={t('defaultChartType')}
               >
                 <SelectBox
@@ -2291,7 +2290,7 @@ export default function SettingsPage() {
                 />
               </SettingRow>
               <SettingRow
-                icon={<Clock size={13} color={T.text3} />}
+                icon={<Clock size={13} color={'#6B7280'} />}
                 label={t('defaultTimeframe')}
               >
                 <SelectBox
@@ -2309,14 +2308,14 @@ export default function SettingsPage() {
 
             {/* Feature 4: Trading Pair Filter */}
             <SectionCard
-              icon={<Filter size={18} color={T.green} />}
-              iconColor={T.green}
-              iconBg={`${T.green}14`}
+              icon={<Filter size={18} color={'#00FFA3'} />}
+              iconColor={'#00FFA3'}
+              iconBg={`${'#00FFA3'}14`}
               title={t('pairFilterTitle')}
               subtitle={t('pairFilterSubtitle')}
             >
               <SettingRow
-                icon={<Filter size={13} color={T.green} />}
+                icon={<Filter size={13} color={'#00FFA3'} />}
                 label={t('pairFilterMode')}
                 description={t('pairFilterModeDesc')}
               >
@@ -2333,7 +2332,7 @@ export default function SettingsPage() {
               </SettingRow>
               {pairFilterMode === 'whitelist' && (
                 <div style={{ padding: '8px 0' }}>
-                  <div style={{ fontSize: 'var(--text-sm)', color: T.text, fontWeight: 600, marginBottom: 8 }}>
+                  <div style={{ fontSize: 'var(--text-sm)', color: '#F0F2F5', fontWeight: 600, marginBottom: 8 }}>
                     {t('pairWhitelistLabel')}
                   </div>
                   <textarea
@@ -2343,8 +2342,8 @@ export default function SettingsPage() {
                     rows={4}
                     style={{
                       width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-lg)',
-                      background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
+                      background: 'rgba(255,255,255,0.03)', border: `1px solid ${'#3A4150'}`,
+                      color: '#F0F2F5', fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
                       outline: 'none', direction: 'ltr', resize: 'vertical',
                       lineHeight: 1.6,
                     }}
@@ -2353,7 +2352,7 @@ export default function SettingsPage() {
               )}
               {pairFilterMode === 'blacklist' && (
                 <div style={{ padding: '8px 0' }}>
-                  <div style={{ fontSize: 'var(--text-sm)', color: T.text, fontWeight: 600, marginBottom: 8 }}>
+                  <div style={{ fontSize: 'var(--text-sm)', color: '#F0F2F5', fontWeight: 600, marginBottom: 8 }}>
                     {t('pairBlacklistLabel')}
                   </div>
                   <textarea
@@ -2363,8 +2362,8 @@ export default function SettingsPage() {
                     rows={4}
                     style={{
                       width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-lg)',
-                      background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
+                      background: 'rgba(255,255,255,0.03)', border: `1px solid ${'#3A4150'}`,
+                      color: '#F0F2F5', fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
                       outline: 'none', direction: 'ltr', resize: 'vertical',
                       lineHeight: 1.6,
                     }}
@@ -2378,8 +2377,8 @@ export default function SettingsPage() {
                 background: 'rgba(0,255,163,0.04)', border: `1px solid rgba(0,255,163,0.12)`,
                 marginTop: 10,
               }}>
-                <CheckCircle2 size={16} color={T.green} />
-                <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.6 }}>
+                <CheckCircle2 size={16} color={'#00FFA3'} />
+                <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.6 }}>
                   {t('pairFilterInfo')}
                 </div>
               </div>
@@ -2387,23 +2386,23 @@ export default function SettingsPage() {
 
             {/* Feature 5: Trading Schedule */}
             <SectionCard
-              icon={<Clock size={18} color={T.amber} />}
-              iconColor={T.amber}
-              iconBg={`${T.amber}14`}
+              icon={<Clock size={18} color={'#FFB800'} />}
+              iconColor={'#FFB800'}
+              iconBg={`${'#FFB800'}14`}
               title={t('tradingScheduleTitle')}
               subtitle={t('tradingScheduleSubtitle')}
             >
               <SettingRow
-                icon={<Clock size={13} color={T.amber} />}
+                icon={<Clock size={13} color={'#FFB800'} />}
                 label={t('tradingScheduleEnable')}
                 description={t('tradingScheduleEnableDesc')}
               >
-                <Toggle checked={tradingScheduleEnabled} onChange={() => setTradingScheduleEnabled(!tradingScheduleEnabled)} color={T.amber} size="sm" />
+                <Toggle checked={tradingScheduleEnabled} onChange={() => setTradingScheduleEnabled(!tradingScheduleEnabled)} color={'#FFB800'} size="sm" />
               </SettingRow>
               {tradingScheduleEnabled && (
                 <>
                   <SettingRow
-                    icon={<Zap size={13} color={T.green} />}
+                    icon={<Zap size={13} color={'#00FFA3'} />}
                     label={t('tradingScheduleStart')}
                     description={t('tradingScheduleStartDesc')}
                   >
@@ -2413,14 +2412,14 @@ export default function SettingsPage() {
                       onChange={e => setTradingScheduleStart(e.target.value)}
                       style={{
                         padding: '5px 10px', borderRadius: 'var(--radius-md)',
-                        background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                        color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                        background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
+                        color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                         outline: 'none', direction: 'ltr',
                       }}
                     />
                   </SettingRow>
                   <SettingRow
-                    icon={<Target size={13} color={T.red} />}
+                    icon={<Target size={13} color={'#FF4757'} />}
                     label={t('tradingScheduleEnd')}
                     description={t('tradingScheduleEndDesc')}
                   >
@@ -2430,14 +2429,14 @@ export default function SettingsPage() {
                       onChange={e => setTradingScheduleEnd(e.target.value)}
                       style={{
                         padding: '5px 10px', borderRadius: 'var(--radius-md)',
-                        background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                        color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                        background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
+                        color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                         outline: 'none', direction: 'ltr',
                       }}
                     />
                   </SettingRow>
                   <div style={{ padding: '8px 0' }}>
-                    <div style={{ fontSize: 'var(--text-sm)', color: T.text, fontWeight: 600, marginBottom: 10 }}>
+                    <div style={{ fontSize: 'var(--text-sm)', color: '#F0F2F5', fontWeight: 600, marginBottom: 10 }}>
                       {t('tradingDays')}
                     </div>
                     <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
@@ -2463,9 +2462,9 @@ export default function SettingsPage() {
                             }}
                             style={{
                               padding: '7px 12px', borderRadius: 'var(--radius-md)',
-                              border: isSelected ? `1px solid ${T.amber}45` : `1px solid ${T.border2}`,
-                              background: isSelected ? `${T.amber}14` : 'rgba(255,255,255,0.025)',
-                              color: isSelected ? T.amber : T.text3,
+                              border: isSelected ? `1px solid ${'#FFB800'}45` : `1px solid ${'#3A4150'}`,
+                              background: isSelected ? `${'#FFB800'}14` : 'rgba(255,255,255,0.025)',
+                              color: isSelected ? '#FFB800' : '#6B7280',
                               fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                               fontFamily: "var(--font-ar)",
                               transition: 'all 0.2s',
@@ -2484,8 +2483,8 @@ export default function SettingsPage() {
                     background: 'rgba(255,184,0,0.04)', border: `1px solid rgba(255,184,0,0.12)`,
                     marginTop: 10,
                   }}>
-                    <AlertTriangle size={16} color={T.amber} />
-                    <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.6 }}>
+                    <AlertTriangle size={16} color={'#FFB800'} />
+                    <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.6 }}>
                       {t('tradingScheduleInfo')}
                     </div>
                   </div>
@@ -2572,57 +2571,57 @@ export default function SettingsPage() {
         {activeTab === 'notifications' && (
           <>
             <SectionCard
-              icon={<Bell size={18} color={T.cyan} />}
-              iconColor={T.cyan}
-              iconBg={`${T.cyan}14`}
+              icon={<Bell size={18} color={'#00D4FF'} />}
+              iconColor={'#00D4FF'}
+              iconBg={`${'#00D4FF'}14`}
               title={t('notificationsAlerts')}
               subtitle={t('notificationsAlertsSubtitle')}
             >
               <SettingRow
-                icon={<Bell size={13} color={T.cyan} />}
+                icon={<Bell size={13} color={'#00D4FF'} />}
                 label={t('enableNotifications')}
                 description={t('receivePlatformAlerts')}
               >
-                <Toggle checked={settings.enabled} onChange={() => updateSettings({ enabled: !settings.enabled })} color={T.cyan} />
+                <Toggle checked={settings.enabled} onChange={() => updateSettings({ enabled: !settings.enabled })} color={'#00D4FF'} />
               </SettingRow>
               <SettingRow
-                icon={<Volume2 size={13} color={T.green} />}
+                icon={<Volume2 size={13} color={'#00FFA3'} />}
                 label={t('sounds')}
                 description={t('soundsDesc')}
               >
-                <Toggle checked={settings.soundEnabled} onChange={() => updateSettings({ soundEnabled: !settings.soundEnabled })} color={T.green} />
+                <Toggle checked={settings.soundEnabled} onChange={() => updateSettings({ soundEnabled: !settings.soundEnabled })} color={'#00FFA3'} />
               </SettingRow>
 
 
-              <div style={{ height: 1, background: T.border, margin: '10px 0' }} />
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text4, padding: '4px 0 0', letterSpacing: '0.06em' }}>{t('notificationSources')}</div>
+              <div style={{ height: 1, background: '#2A313C', margin: '10px 0' }} />
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#6B7280', padding: '4px 0 0', letterSpacing: '0.06em' }}>{t('notificationSources')}</div>
 
-              <SettingRow icon={<Bot size={13} color={T.council} />} label={t('botAlerts')}>
-                <Toggle checked={settings.botAlerts} onChange={() => updateSettings({ botAlerts: !settings.botAlerts })} color={T.council} size="sm" />
+              <SettingRow icon={<Bot size={13} color={'#B388FF'} />} label={t('botAlerts')}>
+                <Toggle checked={settings.botAlerts} onChange={() => updateSettings({ botAlerts: !settings.botAlerts })} color={'#B388FF'} size="sm" />
               </SettingRow>
-              <SettingRow icon={<Brain size={13} color={T.cyan} />} label={t('aiAlerts')}>
-                <Toggle checked={settings.aiAlerts} onChange={() => updateSettings({ aiAlerts: !settings.aiAlerts })} color={T.cyan} size="sm" />
+              <SettingRow icon={<Brain size={13} color={'#00D4FF'} />} label={t('aiAlerts')}>
+                <Toggle checked={settings.aiAlerts} onChange={() => updateSettings({ aiAlerts: !settings.aiAlerts })} color={'#00D4FF'} size="sm" />
               </SettingRow>
-              <SettingRow icon={<Radar size={13} color={T.amber} />} label={t('scannerAlerts')}>
-                <Toggle checked={settings.scannerAlerts} onChange={() => updateSettings({ scannerAlerts: !settings.scannerAlerts })} color={T.amber} size="sm" />
+              <SettingRow icon={<Radar size={13} color={'#FFB800'} />} label={t('scannerAlerts')}>
+                <Toggle checked={settings.scannerAlerts} onChange={() => updateSettings({ scannerAlerts: !settings.scannerAlerts })} color={'#FFB800'} size="sm" />
               </SettingRow>
-              <SettingRow icon={<BarChart3 size={13} color={T.green} />} label={t('tradeAlerts')}>
-                <Toggle checked={settings.tradeAlerts} onChange={() => updateSettings({ tradeAlerts: !settings.tradeAlerts })} color={T.green} size="sm" />
+              <SettingRow icon={<BarChart3 size={13} color={'#00FFA3'} />} label={t('tradeAlerts')}>
+                <Toggle checked={settings.tradeAlerts} onChange={() => updateSettings({ tradeAlerts: !settings.tradeAlerts })} color={'#00FFA3'} size="sm" />
               </SettingRow>
 
 
               {/* Confidence Slider */}
               <div style={{ marginTop: 10, padding: '8px 0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span style={{ fontSize: 'var(--text-sm)', color: T.text2, fontWeight: 600 }}>
+                  <span style={{ fontSize: 'var(--text-sm)', color: '#9CA3B5', fontWeight: 600 }}>
                     <Target size={13} style={{ display: 'inline', verticalAlign: -2, marginLeft: 4 }} />
                     {t('minConfidenceLevel')}
                   </span>
                   <span style={{
-                    fontSize: 'var(--text-sm)', fontWeight: 800, color: T.cyan,
+                    fontSize: 'var(--text-sm)', fontWeight: 800, color: '#00D4FF',
                     fontFamily: "var(--font-mono)",
-                    background: `${T.cyan}15`, padding: '3px 10px', borderRadius: 'var(--radius-md)',
-                    border: `1px solid ${T.cyan}25`,
+                    background: `${'#00D4FF'}15`, padding: '3px 10px', borderRadius: 'var(--radius-md)',
+                    border: `1px solid ${'#00D4FF'}25`,
                   }}>
                     {settings.minConfidence}%
                   </span>
@@ -2631,49 +2630,49 @@ export default function SettingsPage() {
                   type="range" min={0} max={100} step={5}
                   value={settings.minConfidence}
                   onChange={e => updateSettings({ minConfidence: Number(e.target.value) })}
-                  style={{ width: '100%', accentColor: T.council, height: 4 }}
+                  style={{ width: '100%', accentColor: '#B388FF', height: 4 }}
                 />
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-                  <span style={{ fontSize: 'var(--text-xs)', color: T.text4 }}>{t('allSignals')}</span>
-                  <span style={{ fontSize: 'var(--text-xs)', color: T.text4 }}>{t('highConfidenceOnly')}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('allSignals')}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>{t('highConfidenceOnly')}</span>
                 </div>
               </div>
             </SectionCard>
 
             {/* Notification Schedule */}
             <SectionCard
-              icon={<Clock size={18} color={T.amber} />}
-              iconColor={T.amber}
-              iconBg={`${T.amber}14`}
+              icon={<Clock size={18} color={'#FFB800'} />}
+              iconColor={'#FFB800'}
+              iconBg={`${'#FFB800'}14`}
               title={t('notificationSchedule')}
               subtitle={t('notificationScheduleDesc')}
             >
               <SettingRow
-                icon={<Bell size={13} color={T.text3} />}
+                icon={<Bell size={13} color={'#6B7280'} />}
                 label={t('doNotDisturb')}
                 description={t('doNotDisturbDesc')}
               >
-                <Toggle checked={doNotDisturb} onChange={() => setDoNotDisturb(!doNotDisturb)} color={T.amber} size="sm" />
+                <Toggle checked={doNotDisturb} onChange={() => setDoNotDisturb(!doNotDisturb)} color={'#FFB800'} size="sm" />
               </SettingRow>
               <SettingRow
-                icon={<Activity size={13} color={T.text3} />}
+                icon={<Activity size={13} color={'#6B7280'} />}
                 label={t('emergencyOnly')}
                 description={t('emergencyOnlyDesc')}
               >
-                <Toggle checked={emergencyOnly} onChange={() => setEmergencyOnly(!emergencyOnly)} color={T.red} size="sm" />
+                <Toggle checked={emergencyOnly} onChange={() => setEmergencyOnly(!emergencyOnly)} color={'#FF4757'} size="sm" />
               </SettingRow>
             </SectionCard>
 
             {/* Feature 3: External Notification Channels */}
             <SectionCard
-              icon={<Send size={18} color={T.council} />}
-              iconColor={T.council}
-              iconBg={`${T.council}14`}
+              icon={<Send size={18} color={'#B388FF'} />}
+              iconColor={'#B388FF'}
+              iconBg={`${'#B388FF'}14`}
               title={t('extNotifChannelsTitle')}
               subtitle={t('extNotifChannelsSubtitle')}
             >
               <SettingRow
-                icon={<Smartphone size={13} color={T.council} />}
+                icon={<Smartphone size={13} color={'#B388FF'} />}
                 label="Telegram Bot Token"
                 description={t('telegramBotTokenDesc')}
               >
@@ -2684,14 +2683,14 @@ export default function SettingsPage() {
                   placeholder="123456:ABC-DEF..."
                   style={{
                     width: 180, padding: '5px 10px', borderRadius: 'var(--radius-md)',
-                    background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                    color: T.text, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
+                    background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
+                    color: '#F0F2F5', fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
                     outline: 'none', direction: 'ltr',
                   }}
                 />
               </SettingRow>
               <SettingRow
-                icon={<MessageSquare size={13} color={T.cyan} />}
+                icon={<MessageSquare size={13} color={'#00D4FF'} />}
                 label="Telegram Chat ID"
                 description={t('telegramChatIdDesc')}
               >
@@ -2702,14 +2701,14 @@ export default function SettingsPage() {
                   placeholder="-1001234567890"
                   style={{
                     width: 180, padding: '5px 10px', borderRadius: 'var(--radius-md)',
-                    background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                    color: T.text, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
+                    background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
+                    color: '#F0F2F5', fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
                     outline: 'none', direction: 'ltr',
                   }}
                 />
               </SettingRow>
               <SettingRow
-                icon={<Wifi size={13} color={T.council} />}
+                icon={<Wifi size={13} color={'#B388FF'} />}
                 label="Discord Webhook URL"
                 description={t('discordWebhookDesc')}
               >
@@ -2720,18 +2719,18 @@ export default function SettingsPage() {
                   placeholder="https://discord.com/api/webhooks/..."
                   style={{
                     width: 180, padding: '5px 10px', borderRadius: 'var(--radius-md)',
-                    background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                    color: T.text, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
+                    background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
+                    color: '#F0F2F5', fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
                     outline: 'none', direction: 'ltr',
                   }}
                 />
               </SettingRow>
               <SettingRow
-                icon={<Send size={13} color={T.green} />}
+                icon={<Send size={13} color={'#00FFA3'} />}
                 label={t('extNotifEnable')}
                 description={t('extNotifEnableDesc')}
               >
-                <Toggle checked={externalNotificationsEnabled} onChange={() => setExternalNotificationsEnabled(!externalNotificationsEnabled)} color={T.green} size="sm" />
+                <Toggle checked={externalNotificationsEnabled} onChange={() => setExternalNotificationsEnabled(!externalNotificationsEnabled)} color={'#00FFA3'} size="sm" />
               </SettingRow>
             </SectionCard>
           </>
@@ -2741,14 +2740,14 @@ export default function SettingsPage() {
         {activeTab === 'ai' && (
           <>
             <SectionCard
-              icon={<Brain size={18} color={T.council} />}
-              iconColor={T.council}
-              iconBg={`${T.council}14`}
+              icon={<Brain size={18} color={'#B388FF'} />}
+              iconColor={'#B388FF'}
+              iconBg={`${'#B388FF'}14`}
               title={t('aiSettings')}
               subtitle={t('aiSettingsSubtitle')}
             >
               <SettingRow
-                icon={<Cpu size={13} color={T.council} />}
+                icon={<Cpu size={13} color={'#B388FF'} />}
                 label={t('aiModel')}
                 description={t('aiModelDesc')}
               >
@@ -2764,7 +2763,7 @@ export default function SettingsPage() {
                 />
               </SettingRow>
               <SettingRow
-                icon={<Target size={13} color={T.cyan} />}
+                icon={<Target size={13} color={'#00D4FF'} />}
                 label={t('autoExecConfidenceThreshold')}
                 description={t('autoExecConfidenceThresholdDesc')}
               >
@@ -2773,41 +2772,41 @@ export default function SettingsPage() {
                     type="range" min={50} max={99} step={5}
                     value={aiConfidence}
                     onChange={e => setAiConfidence(e.target.value)}
-                    style={{ width: 90, accentColor: T.council, height: 3 }}
+                    style={{ width: 90, accentColor: '#B388FF', height: 3 }}
                   />
-                  <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.council, fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
+                  <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#B388FF', fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
                     {aiConfidence}%
                   </span>
                 </div>
               </SettingRow>
               <SettingRow
-                icon={<Zap size={13} color={T.amber} />}
+                icon={<Zap size={13} color={'#FFB800'} />}
                 label={t('aiAutoFollow')}
                 description={t('aiAutoFollowDesc')}
               >
-                <Toggle checked={aiAutoTrade} onChange={() => setAiAutoTrade(!aiAutoTrade)} color={T.amber} />
+                <Toggle checked={aiAutoTrade} onChange={() => setAiAutoTrade(!aiAutoTrade)} color={'#FFB800'} />
               </SettingRow>
             </SectionCard>
 
             {/* ─── Continuous Market Monitoring ─── */}
             <SectionCard
-              icon={<Radar size={18} color={T.cyan} />}
-              iconColor={T.cyan}
-              iconBg={`${T.cyan}14`}
+              icon={<Radar size={18} color={'#00D4FF'} />}
+              iconColor={'#00D4FF'}
+              iconBg={`${'#00D4FF'}14`}
               title={t('continuousMarketMonitoring')}
               subtitle={t('analysis247')}
             >
               <SettingRow
-                icon={<Radar size={13} color={T.cyan} />}
+                icon={<Radar size={13} color={'#00D4FF'} />}
                 label={t('enableMonitoring')}
                 description={t('enableMonitoringDesc')}
               >
-                <Toggle checked={continuousMonitoringEnabled} onChange={() => setContinuousMonitoringEnabled(!continuousMonitoringEnabled)} color={T.cyan} />
+                <Toggle checked={continuousMonitoringEnabled} onChange={() => setContinuousMonitoringEnabled(!continuousMonitoringEnabled)} color={'#00D4FF'} />
               </SettingRow>
               {continuousMonitoringEnabled && (
                 <>
                   <SettingRow
-                    icon={<Clock size={13} color={T.amber} />}
+                    icon={<Clock size={13} color={'#FFB800'} />}
                     label={t('monitoringInterval')}
                     description={t('monitoringIntervalDesc')}
                   >
@@ -2824,7 +2823,7 @@ export default function SettingsPage() {
                     />
                   </SettingRow>
                   <div style={{ padding: '8px 0' }}>
-                    <div style={{ fontSize: 'var(--text-sm)', color: T.text, fontWeight: 600, marginBottom: 8 }}>
+                    <div style={{ fontSize: 'var(--text-sm)', color: '#F0F2F5', fontWeight: 600, marginBottom: 8 }}>
                       {t('monitoringPairsLabel')}
                     </div>
                     <textarea
@@ -2834,8 +2833,8 @@ export default function SettingsPage() {
                       rows={3}
                       style={{
                         width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-lg)',
-                        background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border2}`,
-                        color: T.text, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
+                        background: 'rgba(255,255,255,0.03)', border: `1px solid ${'#3A4150'}`,
+                        color: '#F0F2F5', fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
                         outline: 'none', direction: 'ltr', resize: 'vertical',
                         lineHeight: 1.6,
                       }}
@@ -2847,8 +2846,8 @@ export default function SettingsPage() {
                     background: 'rgba(0,212,255,0.04)', border: `1px solid rgba(0,212,255,0.12)`,
                     marginTop: 10,
                   }}>
-                    <Radar size={16} color={T.cyan} />
-                    <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.6 }}>
+                    <Radar size={16} color={'#00D4FF'} />
+                    <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.6 }}>
                       {t('monitoringInfo')}
                     </div>
                   </div>
@@ -2858,23 +2857,23 @@ export default function SettingsPage() {
 
             {/* ─── Entry & Exit Signals ─── */}
             <SectionCard
-              icon={<Activity size={18} color={T.green} />}
-              iconColor={T.green}
-              iconBg={`${T.green}14`}
+              icon={<Activity size={18} color={'#00FFA3'} />}
+              iconColor={'#00FFA3'}
+              iconBg={`${'#00FFA3'}14`}
               title={t('entryExitSignals')}
               subtitle={t('instantOpportunityAlerts')}
             >
               <SettingRow
-                icon={<Activity size={13} color={T.green} />}
+                icon={<Activity size={13} color={'#00FFA3'} />}
                 label={t('enableSignals')}
                 description={t('enableSignalsDesc')}
               >
-                <Toggle checked={entryExitSignalsEnabled} onChange={() => setEntryExitSignalsEnabled(!entryExitSignalsEnabled)} color={T.green} />
+                <Toggle checked={entryExitSignalsEnabled} onChange={() => setEntryExitSignalsEnabled(!entryExitSignalsEnabled)} color={'#00FFA3'} />
               </SettingRow>
               {entryExitSignalsEnabled && (
                 <>
                   <SettingRow
-                    icon={<Target size={13} color={T.cyan} />}
+                    icon={<Target size={13} color={'#00D4FF'} />}
                     label={t('signalMinConfidence')}
                     description={t('signalMinConfidenceDesc')}
                   >
@@ -2883,15 +2882,15 @@ export default function SettingsPage() {
                         type="range" min={50} max={99} step={5}
                         value={signalMinConfidence}
                         onChange={e => setSignalMinConfidence(e.target.value)}
-                        style={{ width: 90, accentColor: T.green, height: 3 }}
+                        style={{ width: 90, accentColor: '#00FFA3', height: 3 }}
                       />
-                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.green, fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
+                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#00FFA3', fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
                         {signalMinConfidence}%
                       </span>
                     </div>
                   </SettingRow>
                   <SettingRow
-                    icon={<Bell size={13} color={T.amber} />}
+                    icon={<Bell size={13} color={'#FFB800'} />}
                     label={t('signalAlertMethod')}
                     description={t('signalAlertMethodDesc')}
                   >
@@ -2912,8 +2911,8 @@ export default function SettingsPage() {
                     background: 'rgba(0,255,163,0.04)', border: `1px solid rgba(0,255,163,0.12)`,
                     marginTop: 10,
                   }}>
-                    <Activity size={16} color={T.green} />
-                    <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.6 }}>
+                    <Activity size={16} color={'#00FFA3'} />
+                    <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.6 }}>
                       {t('signalsInfo')}
                     </div>
                   </div>
@@ -2923,23 +2922,23 @@ export default function SettingsPage() {
 
             {/* ─── Risk Alerts ─── */}
             <SectionCard
-              icon={<AlertTriangle size={18} color={T.amber} />}
-              iconColor={T.amber}
-              iconBg={`${T.amber}14`}
+              icon={<AlertTriangle size={18} color={'#FFB800'} />}
+              iconColor={'#FFB800'}
+              iconBg={`${'#FFB800'}14`}
               title={t('riskAlerts')}
               subtitle={t('highVolatilityWarnings')}
             >
               <SettingRow
-                icon={<AlertTriangle size={13} color={T.amber} />}
+                icon={<AlertTriangle size={13} color={'#FFB800'} />}
                 label={t('enableRiskAlerts')}
                 description={t('enableRiskAlertsDesc')}
               >
-                <Toggle checked={riskAlertsEnabled} onChange={() => setRiskAlertsEnabled(!riskAlertsEnabled)} color={T.amber} />
+                <Toggle checked={riskAlertsEnabled} onChange={() => setRiskAlertsEnabled(!riskAlertsEnabled)} color={'#FFB800'} />
               </SettingRow>
               {riskAlertsEnabled && (
                 <>
                   <SettingRow
-                    icon={<TrendingUp size={13} color={T.red} />}
+                    icon={<TrendingUp size={13} color={'#FF4757'} />}
                     label={t('volatilityThreshold')}
                     description={t('volatilityThresholdDesc')}
                   >
@@ -2948,15 +2947,15 @@ export default function SettingsPage() {
                         type="range" min={1} max={10} step={0.5}
                         value={volatilityThreshold}
                         onChange={e => setVolatilityThreshold(e.target.value)}
-                        style={{ width: 90, accentColor: T.amber, height: 3 }}
+                        style={{ width: 90, accentColor: '#FFB800', height: 3 }}
                       />
-                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.amber, fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
+                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#FFB800', fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
                         {volatilityThreshold}%
                       </span>
                     </div>
                   </SettingRow>
                   <SettingRow
-                    icon={<Shield size={13} color={T.cyan} />}
+                    icon={<Shield size={13} color={'#00D4FF'} />}
                     label={t('riskAlertTypes')}
                     description={t('riskAlertTypesDesc')}
                   >
@@ -2977,8 +2976,8 @@ export default function SettingsPage() {
                     background: 'rgba(255,184,0,0.04)', border: `1px solid rgba(255,184,0,0.12)`,
                     marginTop: 10,
                   }}>
-                    <AlertTriangle size={16} color={T.amber} />
-                    <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.6 }}>
+                    <AlertTriangle size={16} color={'#FFB800'} />
+                    <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.6 }}>
                       {t('riskAlertsInfo')}
                     </div>
                   </div>
@@ -2988,23 +2987,23 @@ export default function SettingsPage() {
 
             {/* ─── Sentiment Analysis ─── */}
             <SectionCard
-              icon={<BarChart3 size={18} color={T.council} />}
-              iconColor={T.council}
-              iconBg={`${T.council}14`}
+              icon={<BarChart3 size={18} color={'#B388FF'} />}
+              iconColor={'#B388FF'}
+              iconBg={`${'#B388FF'}14`}
               title={t('sentimentAnalysis')}
               subtitle={t('sentimentAnalysisDesc')}
             >
               <SettingRow
-                icon={<BarChart3 size={13} color={T.council} />}
+                icon={<BarChart3 size={13} color={'#B388FF'} />}
                 label={t('enableSentiment')}
                 description={t('enableSentimentDesc')}
               >
-                <Toggle checked={sentimentEnabled} onChange={() => setSentimentEnabled(!sentimentEnabled)} color={T.council} />
+                <Toggle checked={sentimentEnabled} onChange={() => setSentimentEnabled(!sentimentEnabled)} color={'#B388FF'} />
               </SettingRow>
               {sentimentEnabled && (
                 <>
                   <SettingRow
-                    icon={<Globe size={13} color={T.cyan} />}
+                    icon={<Globe size={13} color={'#00D4FF'} />}
                     label={t('sentimentSources')}
                     description={t('sentimentSourcesDesc')}
                   >
@@ -3020,7 +3019,7 @@ export default function SettingsPage() {
                     />
                   </SettingRow>
                   <SettingRow
-                    icon={<Sliders size={13} color={T.green} />}
+                    icon={<Sliders size={13} color={'#00FFA3'} />}
                     label={t('sentimentSensitivity')}
                     description={t('sentimentSensitivityDesc')}
                   >
@@ -3038,11 +3037,11 @@ export default function SettingsPage() {
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 10,
                     padding: '12px 16px', borderRadius: 'var(--radius-lg)',
-                    background: `${T.council}08`, border: `1px solid ${T.council}18`,
+                    background: `${'#B388FF'}08`, border: `1px solid ${'#B388FF'}18`,
                     marginTop: 10,
                   }}>
-                    <BarChart3 size={16} color={T.council} />
-                    <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.6 }}>
+                    <BarChart3 size={16} color={'#B388FF'} />
+                    <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.6 }}>
                       {t('sentimentInfo')}
                     </div>
                   </div>
@@ -3052,9 +3051,9 @@ export default function SettingsPage() {
 
             {/* Feature 2: Advanced Strategy Settings */}
             <SectionCard
-              icon={<Cpu size={18} color={T.amber} />}
-              iconColor={T.amber}
-              iconBg={`${T.amber}14`}
+              icon={<Cpu size={18} color={'#FFB800'} />}
+              iconColor={'#FFB800'}
+              iconBg={`${'#FFB800'}14`}
               title={t('advStrategyTitle')}
               subtitle={t('advStrategySubtitle')}
             >
@@ -3065,13 +3064,13 @@ export default function SettingsPage() {
                 background: 'rgba(255,184,0,0.06)', border: `1px solid rgba(255,184,0,0.18)`,
                 marginBottom: 14,
               }}>
-                <AlertTriangle size={16} color={T.amber} />
-                <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.6 }}>
+                <AlertTriangle size={16} color={'#FFB800'} />
+                <div style={{ fontSize: 'var(--text-xs)', color: '#9CA3B5', lineHeight: 1.6 }}>
                   {t('advStrategyWarning')}
                 </div>
               </div>
               <SettingRow
-                icon={<Clock size={13} color={T.amber} />}
+                icon={<Clock size={13} color={'#FFB800'} />}
                 label={t('scalpingTimeframe')}
                 description={t('scalpingTimeframeDesc')}
               >
@@ -3087,7 +3086,7 @@ export default function SettingsPage() {
                 />
               </SettingRow>
               <SettingRow
-                icon={<Target size={13} color={T.green} />}
+                icon={<Target size={13} color={'#00FFA3'} />}
                 label={t('scalpingTakeProfit')}
                 description={t('scalpingTakeProfitDesc')}
               >
@@ -3098,8 +3097,8 @@ export default function SettingsPage() {
                     onChange={e => setScalpingTakeProfitPips(e.target.value)}
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
-                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
+                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -3107,7 +3106,7 @@ export default function SettingsPage() {
                 </div>
               </SettingRow>
               <SettingRow
-                icon={<AlertTriangle size={13} color={T.red} />}
+                icon={<AlertTriangle size={13} color={'#FF4757'} />}
                 label={t('scalpingStopLoss')}
                 description={t('scalpingStopLossDesc')}
               >
@@ -3118,8 +3117,8 @@ export default function SettingsPage() {
                     onChange={e => setScalpingStopLossPips(e.target.value)}
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
-                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
+                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -3127,7 +3126,7 @@ export default function SettingsPage() {
                 </div>
               </SettingRow>
               <SettingRow
-                icon={<Activity size={13} color={T.cyan} />}
+                icon={<Activity size={13} color={'#00D4FF'} />}
                 label={t('maxSpreadPips')}
                 description={t('maxSpreadPipsDesc')}
               >
@@ -3138,8 +3137,8 @@ export default function SettingsPage() {
                     onChange={e => setScalpingMaxSpread(e.target.value)}
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
-                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
+                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -3147,7 +3146,7 @@ export default function SettingsPage() {
                 </div>
               </SettingRow>
               <SettingRow
-                icon={<Sliders size={13} color={T.council} />}
+                icon={<Sliders size={13} color={'#B388FF'} />}
                 label={t('gridLevelsLabel')}
                 description={t('gridLevelsDesc')}
               >
@@ -3158,8 +3157,8 @@ export default function SettingsPage() {
                     onChange={e => setGridLevels(e.target.value)}
                     style={{
                       width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
-                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
+                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -3174,21 +3173,21 @@ export default function SettingsPage() {
         {activeTab === 'appearance' && (
           <>
             <SectionCard
-              icon={<Palette size={18} color={T.pink} />}
-              iconColor={T.pink}
-              iconBg={`${T.pink}14`}
+              icon={<Palette size={18} color={'#F472B6'} />}
+              iconColor={'#F472B6'}
+              iconBg={`${'#F472B6'}14`}
               title={t('appearanceLanguage')}
               subtitle={t('appearanceLanguageSubtitle')}
             >
               <SettingRow
-                icon={isDark ? <Moon size={13} color={T.blue} /> : <Sun size={13} color={T.amber} />}
+                icon={isDark ? <Moon size={13} color={'#0A84FF'} /> : <Sun size={13} color={'#FFB800'} />}
                 label={t('darkMode')}
                 description={t('darkModeDesc')}
               >
-                <Toggle checked={isDark} onChange={() => setIsDark(!isDark)} color={T.blue} />
+                <Toggle checked={isDark} onChange={() => setIsDark(!isDark)} color={'#0A84FF'} />
               </SettingRow>
               <SettingRow
-                icon={<Globe size={13} color={T.text3} />}
+                icon={<Globe size={13} color={'#6B7280'} />}
                 label={t('language')}
                 description={t('languageDesc')}
               >
@@ -3235,19 +3234,19 @@ export default function SettingsPage() {
                 />
               </SettingRow>
               <SettingRow
-                icon={<Fingerprint size={13} color={T.text3} />}
+                icon={<Fingerprint size={13} color={'#6B7280'} />}
                 label={t('textDirection')}
                 description={t('textDirectionRtl')}
               >
                 <span style={{
                   fontSize: 'var(--text-xs)', padding: '3px 9px', borderRadius: 'var(--radius-md)',
-                  background: 'rgba(255,255,255,0.04)', color: T.text3,
+                  background: 'rgba(255,255,255,0.04)', color: '#6B7280',
                   fontFamily: "var(--font-mono)", fontWeight: 600,
-                  border: `1px solid ${T.border2}`,
+                  border: `1px solid ${'#3A4150'}`,
                 }}>RTL</span>
               </SettingRow>
               <SettingRow
-                icon={<Eye size={13} color={T.text3} />}
+                icon={<Eye size={13} color={'#6B7280'} />}
                 label={t('fontSize')}
                 description={t('fontSizeDesc')}
               >
@@ -3263,40 +3262,40 @@ export default function SettingsPage() {
                 />
               </SettingRow>
               <SettingRow
-                icon={<Monitor size={13} color={T.text3} />}
+                icon={<Monitor size={13} color={'#6B7280'} />}
                 label={t('animations')}
                 description={t('animationsDesc')}
               >
-                <Toggle checked={animationsEnabled} onChange={() => setAnimationsEnabled(!animationsEnabled)} color={T.cyan} size="sm" />
+                <Toggle checked={animationsEnabled} onChange={() => setAnimationsEnabled(!animationsEnabled)} color={'#00D4FF'} size="sm" />
               </SettingRow>
             </SectionCard>
 
             {/* Chart Appearance */}
             <SectionCard
-              icon={<LineChart size={18} color={T.cyan} />}
-              iconColor={T.cyan}
-              iconBg={`${T.cyan}14`}
+              icon={<LineChart size={18} color={'#00D4FF'} />}
+              iconColor={'#00D4FF'}
+              iconBg={`${'#00D4FF'}14`}
               title={t('chartAppearance')}
               subtitle={t('chartSettingsSubtitle')}
             >
               <SettingRow
-                icon={<BarChart3 size={13} color={T.text3} />}
+                icon={<BarChart3 size={13} color={'#6B7280'} />}
                 label={t('bullishCandleColor')}
               >
-                <div style={{ width: 28, height: 18, borderRadius: 'var(--radius-sm)', background: T.green, border: `1px solid ${T.border2}`, boxShadow: `0 0 8px ${T.green}40` }} />
+                <div style={{ width: 28, height: 18, borderRadius: 'var(--radius-sm)', background: '#00FFA3', border: `1px solid ${'#3A4150'}`, boxShadow: `0 0 8px ${'#00FFA3'}40` }} />
               </SettingRow>
               <SettingRow
-                icon={<BarChart3 size={13} color={T.text3} />}
+                icon={<BarChart3 size={13} color={'#6B7280'} />}
                 label={t('bearishCandleColor')}
               >
-                <div style={{ width: 28, height: 18, borderRadius: 'var(--radius-sm)', background: T.red, border: `1px solid ${T.border2}`, boxShadow: `0 0 8px ${T.red}40` }} />
+                <div style={{ width: 28, height: 18, borderRadius: 'var(--radius-sm)', background: '#FF4757', border: `1px solid ${'#3A4150'}`, boxShadow: `0 0 8px ${'#FF4757'}40` }} />
               </SettingRow>
               <SettingRow
-                icon={<Eye size={13} color={T.text3} />}
+                icon={<Eye size={13} color={'#6B7280'} />}
                 label={t('gridLines')}
                 description={t('gridLinesDesc')}
               >
-                <Toggle checked={gridLinesEnabled} onChange={() => setGridLinesEnabled(!gridLinesEnabled)} color={T.blue} size="sm" />
+                <Toggle checked={gridLinesEnabled} onChange={() => setGridLinesEnabled(!gridLinesEnabled)} color={'#0A84FF'} size="sm" />
               </SettingRow>
             </SectionCard>
           </>
@@ -3306,14 +3305,14 @@ export default function SettingsPage() {
         {activeTab === 'security' && (
           <>
             <SectionCard
-              icon={<Shield size={18} color={T.green} />}
-              iconColor={T.green}
-              iconBg={`${T.green}14`}
+              icon={<Shield size={18} color={'#00FFA3'} />}
+              iconColor={'#00FFA3'}
+              iconBg={`${'#00FFA3'}14`}
               title={t('twoFactorAuth')}
               subtitle={t('twoFactorSubtitle')}
             >
               <SettingRow
-                icon={<Smartphone size={13} color={T.text3} />}
+                icon={<Smartphone size={13} color={'#6B7280'} />}
                 label={t('totpAuth')}
                 description={t('totpAuthDesc')}
               >
@@ -3321,29 +3320,29 @@ export default function SettingsPage() {
                   onClick={() => router.push('/dashboard/security/2fa')}
                   style={{
                   padding: '6px 14px', borderRadius: 'var(--radius-md)',
-                  background: `${T.green}12`, border: `1px solid ${T.green}28`,
-                  color: T.green, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
+                  background: `${'#00FFA3'}12`, border: `1px solid ${'#00FFA3'}28`,
+                  color: '#00FFA3', fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                   fontFamily: "var(--font-ar)",
                 }}>{tc('activate')}</button>
               </SettingRow>
               <SettingRow
-                icon={<Fingerprint size={13} color={T.text3} />}
+                icon={<Fingerprint size={13} color={'#6B7280'} />}
                 label={t('passkeys')}
                 description={t('passkeysDesc')}
               >
-                <Toggle checked={passkeysEnabled} onChange={() => setPasskeysEnabled(!passkeysEnabled)} color={T.council} size="sm" />
+                <Toggle checked={passkeysEnabled} onChange={() => setPasskeysEnabled(!passkeysEnabled)} color={'#B388FF'} size="sm" />
               </SettingRow>
             </SectionCard>
 
             <SectionCard
-              icon={<Lock size={18} color={T.amber} />}
-              iconColor={T.amber}
-              iconBg={`${T.amber}14`}
+              icon={<Lock size={18} color={'#FFB800'} />}
+              iconColor={'#FFB800'}
+              iconBg={`${'#FFB800'}14`}
               title={t('sessionSecurity')}
               subtitle={t('sessionSecuritySubtitle')}
             >
               <SettingRow
-                icon={<Clock size={13} color={T.text3} />}
+                icon={<Clock size={13} color={'#6B7280'} />}
                 label={t('sessionDuration')}
                 description={t('sessionDurationDesc')}
               >
@@ -3361,14 +3360,14 @@ export default function SettingsPage() {
                 />
               </SettingRow>
               <SettingRow
-                icon={<RefreshCw size={13} color={T.green} />}
+                icon={<RefreshCw size={13} color={'#00FFA3'} />}
                 label={t('autoSessionRenewal')}
                 description={t('autoSessionRenewalDesc')}
               >
-                <Toggle checked={autoSessionRenewal} onChange={() => setAutoSessionRenewal(!autoSessionRenewal)} color={T.green} size="sm" />
+                <Toggle checked={autoSessionRenewal} onChange={() => setAutoSessionRenewal(!autoSessionRenewal)} color={'#00FFA3'} size="sm" />
               </SettingRow>
               <SettingRow
-                icon={<Wifi size={13} color={T.text3} />}
+                icon={<Wifi size={13} color={'#6B7280'} />}
                 label={t('killOtherSessions')}
                 description={t('logoutOtherDevices')}
               >
@@ -3378,7 +3377,7 @@ export default function SettingsPage() {
                   style={{
                     padding: '6px 14px', borderRadius: 'var(--radius-md)',
                     background: 'rgba(255,71,87,0.10)', border: '1px solid rgba(255,71,87,0.24)',
-                    color: T.red, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: killLoading ? 'wait' : 'pointer',
+                    color: '#FF4757', fontSize: 'var(--text-xs)', fontWeight: 700, cursor: killLoading ? 'wait' : 'pointer',
                     fontFamily: "var(--font-ar)",
                     opacity: killLoading ? 0.6 : 1,
                   }}
@@ -3388,21 +3387,21 @@ export default function SettingsPage() {
 
             {/* Active Sessions — V189: Real session data */}
             <SectionCard
-              icon={<Monitor size={18} color={T.cyan} />}
-              iconColor={T.cyan}
-              iconBg={`${T.cyan}14`}
+              icon={<Monitor size={18} color={'#00D4FF'} />}
+              iconColor={'#00D4FF'}
+              iconBg={`${'#00D4FF'}14`}
               title={t('activeSessions')}
               subtitle={t('activeSessionsDesc')}
             >
               <div style={{ padding: '8px 0' }}>
                 {sessionsLoading && (
-                  <div style={{ padding: '14px 0', textAlign: 'center', color: T.text3, fontSize: 'var(--text-xs)' }}>
-                    <Loader2 size={16} color={T.council} style={{ margin: '0 auto 8px', display: 'block', animation: 'spin 1s linear infinite' }} />
+                  <div style={{ padding: '14px 0', textAlign: 'center', color: '#6B7280', fontSize: 'var(--text-xs)' }}>
+                    <Loader2 size={16} color={'#B388FF'} style={{ margin: '0 auto 8px', display: 'block', animation: 'spin 1s linear infinite' }} />
                     {t('loadingAccounts')}
                   </div>
                 )}
                 {!sessionsLoading && sessions.length === 0 && (
-                  <div style={{ padding: '14px 0', textAlign: 'center', color: T.text3, fontSize: 'var(--text-xs)' }}>
+                  <div style={{ padding: '14px 0', textAlign: 'center', color: '#6B7280', fontSize: 'var(--text-xs)' }}>
                     {t('noActiveSessions')}
                   </div>
                 )}
@@ -3410,25 +3409,25 @@ export default function SettingsPage() {
                   <div key={session.id} style={{
                     display: 'flex', alignItems: 'center', gap: 12,
                     padding: '12px 16px', borderRadius: 'var(--radius-lg)',
-                    background: session.current ? `${T.cyan}06` : 'rgba(255,255,255,0.025)',
-                    border: `1px solid ${session.current ? `${T.cyan}18` : T.border}`,
+                    background: session.current ? `${'#00D4FF'}06` : 'rgba(255,255,255,0.025)',
+                    border: `1px solid ${session.current ? `${'#00D4FF'}18` : '#2A313C'}`,
                     marginBottom: 10,
                     transition: 'all 0.2s',
                   }}>
-                    <Monitor size={16} color={session.current ? T.cyan : T.text3} />
+                    <Monitor size={16} color={session.current ? '#00D4FF' : '#6B7280'} />
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: T.text, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: '#F0F2F5', display: 'flex', alignItems: 'center', gap: 6 }}>
                         {session.device}
                         {session.current && (
                           <span style={{
                             fontSize: 'var(--text-xs)', padding: '2px 7px', borderRadius: 'var(--radius-sm)',
-                            background: `${T.cyan}15`, color: T.cyan,
+                            background: `${'#00D4FF'}15`, color: '#00D4FF',
                             fontFamily: "var(--font-mono)", fontWeight: 700,
-                            border: `1px solid ${T.cyan}25`,
+                            border: `1px solid ${'#00D4FF'}25`,
                           }}>{t('current')}</span>
                         )}
                       </div>
-                      <div style={{ fontSize: 'var(--text-xs)', color: T.text4, display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
+                      <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
                         <span>{t('lastActivity')}: {session.lastActive}</span>
                         {session.maskedIp && <span>IP: {session.maskedIp}</span>}
                       </div>
@@ -3451,7 +3450,7 @@ export default function SettingsPage() {
                         style={{
                           padding: '4px 10px', borderRadius: 'var(--radius-md)',
                           background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.18)',
-                          color: T.red, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
+                          color: '#FF4757', fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                           fontFamily: "var(--font-ar)",
                         }}
                       >{t('terminate')}</button>
@@ -3462,22 +3461,22 @@ export default function SettingsPage() {
             </SectionCard>
 
             <SectionCard
-              icon={<AlertTriangle size={18} color={T.red} />}
-              iconColor={T.red}
-              iconBg={`${T.red}10`}
+              icon={<AlertTriangle size={18} color={'#FF4757'} />}
+              iconColor={'#FF4757'}
+              iconBg={`${'#FF4757'}10`}
               title={t('antiPhishingCode')}
               subtitle={t('antiPhishingCodeDesc')}
             >
               <SettingRow
-                icon={<Shield size={13} color={T.amber} />}
+                icon={<Shield size={13} color={'#FFB800'} />}
                 label={t('enableAntiPhishing')}
                 description={t('antiPhishingCodeEnabled')}
               >
-                <Toggle checked={antiPhishingEnabled} onChange={() => setAntiPhishingEnabled(!antiPhishingEnabled)} color={T.amber} size="sm" />
+                <Toggle checked={antiPhishingEnabled} onChange={() => setAntiPhishingEnabled(!antiPhishingEnabled)} color={'#FFB800'} size="sm" />
               </SettingRow>
               {antiPhishingEnabled && (
                 <div style={{ padding: '8px 0' }}>
-                  <div style={{ fontSize: 'var(--text-sm)', color: T.text, fontWeight: 600, marginBottom: 8 }}>
+                  <div style={{ fontSize: 'var(--text-sm)', color: '#F0F2F5', fontWeight: 600, marginBottom: 8 }}>
                     {t('antiPhishingSecretWord')}
                   </div>
                   <input
@@ -3488,12 +3487,12 @@ export default function SettingsPage() {
                     maxLength={20}
                     style={{
                       width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-lg)',
-                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${'#3A4150'}`,
+                      color: '#F0F2F5', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       outline: 'none', direction: 'ltr',
                     }}
                   />
-                  <div style={{ fontSize: 'var(--text-xs)', color: T.text3, marginTop: 6, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginTop: 6, lineHeight: 1.5 }}>
                     {t('antiPhishingHint')}
                   </div>
                 </div>
@@ -3506,14 +3505,14 @@ export default function SettingsPage() {
         {activeTab === 'data' && (
           <>
             <SectionCard
-              icon={<Database size={18} color={T.cyan} />}
-              iconColor={T.cyan}
-              iconBg={`${T.cyan}14`}
+              icon={<Database size={18} color={'#00D4FF'} />}
+              iconColor={'#00D4FF'}
+              iconBg={`${'#00D4FF'}14`}
               title={t('yourData')}
               subtitle={t('exportDataSubtitle')}
             >
               <SettingRow
-                icon={<Download size={13} color={T.cyan} />}
+                icon={<Download size={13} color={'#00D4FF'} />}
                 label={t('downloadYourData')}
                 description={t('downloadYourDataDesc')}
               >
@@ -3522,8 +3521,8 @@ export default function SettingsPage() {
                   disabled={dataExportLoading}
                   style={{
                     padding: '6px 14px', borderRadius: 'var(--radius-md)',
-                    background: `${T.cyan}12`, border: `1px solid ${T.cyan}28`,
-                    color: T.cyan, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: dataExportLoading ? 'wait' : 'pointer',
+                    background: `${'#00D4FF'}12`, border: `1px solid ${'#00D4FF'}28`,
+                    color: '#00D4FF', fontSize: 'var(--text-xs)', fontWeight: 700, cursor: dataExportLoading ? 'wait' : 'pointer',
                     fontFamily: "var(--font-ar)",
                     display: 'flex', alignItems: 'center', gap: 5,
                     opacity: dataExportLoading ? 0.6 : 1,
@@ -3534,7 +3533,7 @@ export default function SettingsPage() {
                 </button>
               </SettingRow>
               <SettingRow
-                icon={<Upload size={13} color={T.text3} />}
+                icon={<Upload size={13} color={'#6B7280'} />}
                 label={t('importSettings')}
                 description={t('importSettingsDesc')}
               >
@@ -3586,8 +3585,8 @@ export default function SettingsPage() {
                   disabled={importLoading}
                   style={{
                     padding: '6px 14px', borderRadius: 'var(--radius-md)',
-                    background: `${T.council}12`, border: `1px solid ${T.council}28`,
-                    color: T.council, fontSize: 'var(--text-xs)', fontWeight: 700,
+                    background: `${'#B388FF'}12`, border: `1px solid ${'#B388FF'}28`,
+                    color: '#B388FF', fontSize: 'var(--text-xs)', fontWeight: 700,
                     cursor: importLoading ? 'wait' : 'pointer',
                     fontFamily: "var(--font-ar)",
                     display: 'flex', alignItems: 'center', gap: 5,
@@ -3601,44 +3600,44 @@ export default function SettingsPage() {
             </SectionCard>
 
             <SectionCard
-              icon={<Eye size={18} color={T.amber} />}
-              iconColor={T.amber}
-              iconBg={`${T.amber}14`}
+              icon={<Eye size={18} color={'#FFB800'} />}
+              iconColor={'#FFB800'}
+              iconBg={`${'#FFB800'}14`}
               title={t('privacy')}
               subtitle={t('privacySubtitle')}
             >
               <SettingRow
-                icon={<Activity size={13} color={T.text3} />}
+                icon={<Activity size={13} color={'#6B7280'} />}
                 label={t('analyticsUsage')}
                 description={t('analyticsUsageDesc')}
               >
-                <Toggle checked={analyticsEnabled} onChange={() => setAnalyticsEnabled(!analyticsEnabled)} color={T.cyan} size="sm" />
+                <Toggle checked={analyticsEnabled} onChange={() => setAnalyticsEnabled(!analyticsEnabled)} color={'#00D4FF'} size="sm" />
               </SettingRow>
               <SettingRow
-                icon={<AlertTriangle size={13} color={T.text3} />}
+                icon={<AlertTriangle size={13} color={'#6B7280'} />}
                 label={t('crashReports')}
                 description={t('crashReportsDesc')}
               >
-                <Toggle checked={crashReports} onChange={() => setCrashReports(!crashReports)} color={T.green} size="sm" />
+                <Toggle checked={crashReports} onChange={() => setCrashReports(!crashReports)} color={'#00FFA3'} size="sm" />
               </SettingRow>
               <SettingRow
-                icon={<Shield size={13} color={T.text3} />}
+                icon={<Shield size={13} color={'#6B7280'} />}
                 label={t('stealthMode')}
                 description={t('hideBalances')}
               >
-                <Toggle checked={stealthMode} onChange={() => setStealthMode(!stealthMode)} color={T.council} size="sm" />
+                <Toggle checked={stealthMode} onChange={() => setStealthMode(!stealthMode)} color={'#B388FF'} size="sm" />
               </SettingRow>
             </SectionCard>
 
             <SectionCard
-              icon={<CreditCard size={18} color={T.council} />}
-              iconColor={T.council}
-              iconBg={`${T.council}14`}
+              icon={<CreditCard size={18} color={'#B388FF'} />}
+              iconColor={'#B388FF'}
+              iconBg={`${'#B388FF'}14`}
               title={t('cacheStorage')}
               subtitle={t('cacheStorageSubtitle')}
             >
               <SettingRow
-                icon={<Database size={13} color={T.text3} />}
+                icon={<Database size={13} color={'#6B7280'} />}
                 label={t('clearCache')}
                 description={t('clearCacheDesc')}
               >
@@ -3650,13 +3649,13 @@ export default function SettingsPage() {
                   style={{
                     padding: '6px 14px', borderRadius: 'var(--radius-md)',
                     background: 'rgba(255,71,87,0.10)', border: '1px solid rgba(255,71,87,0.24)',
-                    color: T.red, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
+                    color: '#FF4757', fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                     fontFamily: "var(--font-ar)",
                   }}
                 >{tc('reset')}</button>
               </SettingRow>
               <SettingRow
-                icon={<Clock size={13} color={T.text3} />}
+                icon={<Clock size={13} color={'#6B7280'} />}
                 label={t('cacheDuration')}
                 description={t('cacheDurationDesc')}
               >

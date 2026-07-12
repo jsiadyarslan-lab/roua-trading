@@ -5,7 +5,6 @@ import { Search, Clock, Filter } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useScannerContext } from './ScannerProvider'
 import type { CategoryFilter, DirectionFilter, SignalFilter } from './hooks/useScannerFilters'
-import T from '@/lib/unified-tokens'
 
 function Pill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
@@ -14,8 +13,8 @@ function Pill({ active, onClick, children }: { active: boolean; onClick: () => v
       style={{
         padding: '4px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 700,
         fontFamily: "var(--font-ar)", cursor: 'pointer',
-        background: active ? `${T.cyan}20` : T.surface, color: active ? T.cyan : T.text3,
-        border: `0.5px solid ${active ? T.border2 : T.border}`,
+        background: active ? `${'#00D4FF'}20` : '#151A22', color: active ? '#00D4FF' : '#6B7280',
+        border: `0.5px solid ${active ? '#3A4150' : '#2A313C'}`,
         transition: 'all 0.2s', whiteSpace: 'nowrap',
       }}
     >
@@ -72,30 +71,30 @@ export function ScannerToolbar() {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '10px 16px', background: T.card,
-      borderBottom: `1px solid ${T.border}`, direction: 'inherit', flexWrap: 'wrap', gap: 8,
+      padding: '10px 16px', background: '#151A22',
+      borderBottom: `1px solid ${'#2A313C'}`, direction: 'inherit', flexWrap: 'wrap', gap: 8,
     }}>
       {/* Left — title */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-        <Filter size={16} color={T.cyan} />
+        <Filter size={16} color={'#00D4FF'} />
         <span style={{
-          fontSize: 'var(--text-base)', fontWeight: 800, color: T.text,
+          fontSize: 'var(--text-base)', fontWeight: 800, color: '#F0F2F5',
           fontFamily: "var(--font-ar)",
         }}>
           {t('toolbar.liveScanTable')}
         </span>
         <span style={{
-          fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text3,
+          fontSize: 'var(--text-xs)', fontWeight: 700, color: '#6B7280',
           fontFamily: "var(--font-mono)",
-          padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: T.surface,
+          padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: '#151A22',
         }}>
           {count} {count === 1 ? t('asset') : t('assets')}
         </span>
         <span style={{
           display: 'inline-flex', alignItems: 'center', gap: 4,
-          fontSize: 'var(--text-xs)', fontWeight: 700, color: T.cyan,
+          fontSize: 'var(--text-xs)', fontWeight: 700, color: '#00D4FF',
           fontFamily: "var(--font-ar)",
-          padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${T.cyan}10`,
+          padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${'#00D4FF'}10`,
         }}>
           <Clock size={10} /> {tfLabel}
         </span>
@@ -110,7 +109,7 @@ export function ScannerToolbar() {
           </Pill>
         ))}
 
-        <div style={{ width: 1, height: 20, background: T.border, margin: '0 4px' }} />
+        <div style={{ width: 1, height: 20, background: '#2A313C', margin: '0 4px' }} />
 
         {/* Direction pills */}
         {DIRECTIONS.map(d => (
@@ -119,7 +118,7 @@ export function ScannerToolbar() {
           </Pill>
         ))}
 
-        <div style={{ width: 1, height: 20, background: T.border, margin: '0 4px' }} />
+        <div style={{ width: 1, height: 20, background: '#2A313C', margin: '0 4px' }} />
 
         {/* Timeframe select */}
         <select
@@ -128,8 +127,8 @@ export function ScannerToolbar() {
           aria-label={t('toolbar.selectTimeframe')}
           style={{
             padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 700,
-            fontFamily: "var(--font-ar)", background: T.surface, color: T.text2,
-            border: `0.5px solid ${T.border}`, cursor: 'pointer', direction: 'inherit',
+            fontFamily: "var(--font-ar)", background: '#151A22', color: '#9CA3B5',
+            border: `0.5px solid ${'#2A313C'}`, cursor: 'pointer', direction: 'inherit',
           }}
         >
           {TIMEFRAMES.map(tf => (
@@ -144,8 +143,8 @@ export function ScannerToolbar() {
           aria-label={t('toolbar.filterBySignal')}
           style={{
             padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 700,
-            fontFamily: "var(--font-ar)", background: T.surface, color: T.text2,
-            border: `0.5px solid ${T.border}`, cursor: 'pointer', direction: 'inherit',
+            fontFamily: "var(--font-ar)", background: '#151A22', color: '#9CA3B5',
+            border: `0.5px solid ${'#2A313C'}`, cursor: 'pointer', direction: 'inherit',
           }}
         >
           {SIGNALS.map(s => (
@@ -157,15 +156,15 @@ export function ScannerToolbar() {
         <div style={{
           position: 'relative', display: 'flex', alignItems: 'center',
         }}>
-          <Search size={13} color={T.text3} style={{ position: 'absolute', insetInlineEnd: 8 }} />
+          <Search size={13} color={'#6B7280'} style={{ position: 'absolute', insetInlineEnd: 8 }} />
           <input
             type="text" placeholder={t('toolbar.search')} value={localSearch}
             onChange={e => handleSearchChange(e.target.value)}
             aria-label={t('toolbar.searchScanner')}
             style={{
               padding: '4px 28px 4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)',
-              fontFamily: "var(--font-ar)", background: T.surface, color: T.text,
-              border: `0.5px solid ${T.border}`, direction: 'inherit', width: 120,
+              fontFamily: "var(--font-ar)", background: '#151A22', color: '#F0F2F5',
+              border: `0.5px solid ${'#2A313C'}`, direction: 'inherit', width: 120,
               outline: 'none',
             }}
           />

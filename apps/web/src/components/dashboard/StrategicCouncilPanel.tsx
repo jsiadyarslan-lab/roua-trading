@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
-import T from '@/lib/unified-tokens'
 
 interface TradingBrief {
   id: string
@@ -236,16 +235,16 @@ export function StrategicCouncilPanel() {
   }
 
   const timeframeColors: Record<string, string> = {
-    M5: T.success,
-    M15: T.accent,
-    M30: T.amber,
-    H1: T.cyan,
-    H4: T.purple,
-    D1: T.amber,
-    W1: T.danger,
+    M5: '#00FFA3',
+    M15: '#059669',
+    M30: '#FFB800',
+    H1: '#00D4FF',
+    H4: '#B388FF',
+    D1: '#FFB800',
+    W1: '#FF4757',
   }
 
-  const directionColors = { BUY: T.success, SELL: T.danger }
+  const directionColors = { BUY: '#00FFA3', SELL: '#FF4757' }
 
   const consensusLabel = (confidence: number, direction: 'BUY' | 'SELL') => {
     if (direction === 'BUY') {
@@ -280,11 +279,11 @@ export function StrategicCouncilPanel() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
             width: 8, height: 8, borderRadius: '50%',
-            background: T.purple,
-            boxShadow: `0 0 10px ${T.purple}, 0 0 20px rgba(179,136,255,0.4)`,
+            background: '#B388FF',
+            boxShadow: `0 0 10px ${'#B388FF'}, 0 0 20px rgba(179,136,255,0.4)`,
             animation: 'agentCtrlPulse 2s ease-in-out infinite'
           }} />
-          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.text }}>{ts('title')}</span>
+          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#F0F2F5' }}>{ts('title')}</span>
           
           {/* Scanning Heartbeat */}
           <div style={{ 
@@ -293,18 +292,18 @@ export function StrategicCouncilPanel() {
             borderRadius: 'var(--radius-lg)', border: '1px solid rgba(0,212,255,0.1)'
           }}>
             <div style={{ 
-              width: 4, height: 4, borderRadius: '50%', background: T.accent,
-              boxShadow: `0 0 5px ${T.accent}`,
+              width: 4, height: 4, borderRadius: '50%', background: '#059669',
+              boxShadow: `0 0 5px ${'#059669'}`,
               animation: 'agentCtrlPulse 1s ease-in-out infinite'
             }} />
-            <span style={{ fontSize: 'var(--text-xs)', color: T.accent, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
+            <span style={{ fontSize: 'var(--text-xs)', color: '#059669', fontWeight: 700, fontFamily: "var(--font-mono)" }}>
               {ts('scanning')} {currentScanSymbol}
             </span>
           </div>
 
           <span style={{
             fontSize: 'var(--text-xs)', padding: '1px 5px', borderRadius: 'var(--radius-sm)',
-            background: 'rgba(179,136,255,0.15)', color: T.purple, fontWeight: 700,
+            background: 'rgba(179,136,255,0.15)', color: '#B388FF', fontWeight: 700,
           }}>
             {ts('briefsCount', { count: activeBriefs.length })}
           </span>
@@ -317,7 +316,7 @@ export function StrategicCouncilPanel() {
             borderRadius: 'var(--radius-sm)', border: `1px solid ${triggerStatus === 'processing' ? 'rgba(0,212,255,0.3)' : triggerStatus === 'already_running' ? 'rgba(255,184,0,0.3)' : 'rgba(179,136,255,0.3)'}`,
             cursor: triggerLoading ? 'not-allowed' : 'pointer',
             background: triggerStatus === 'processing' ? 'rgba(0,212,255,0.15)' : triggerStatus === 'already_running' ? 'rgba(255,184,0,0.15)' : 'rgba(179,136,255,0.15)',
-            color: triggerStatus === 'processing' ? T.cyan : triggerStatus === 'already_running' ? T.amber : T.purple, fontWeight: 700,
+            color: triggerStatus === 'processing' ? '#00D4FF' : triggerStatus === 'already_running' ? '#FFB800' : '#B388FF', fontWeight: 700,
           }}
         >
           {triggerLoading ? '...' : triggerStatus === 'processing' ? ts('analyzing') : triggerStatus === 'already_running' ? ts('activeSession') : triggerStatus === 'completed' ? ts('completed') : ts('manualSession')}
@@ -327,7 +326,7 @@ export function StrategicCouncilPanel() {
       {/* Backend Offline Banner */}
       {backendOffline && (
         <div style={{ padding: '4px 8px', background: 'rgba(255,184,0,0.1)', borderBottom: '1px solid rgba(255,184,0,0.2)' }}>
-          <span style={{ fontSize: 'var(--text-xs)', color: T.amber }}>{ts('serverUnavailable')}</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: '#FFB800' }}>{ts('serverUnavailable')}</span>
         </div>
       )}
 
@@ -337,26 +336,26 @@ export function StrategicCouncilPanel() {
           padding: '5px 8px', borderBottom: '1px solid rgba(0,212,255,0.08)',
           display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 'var(--text-xs)',
         }}>
-          <span style={{ color: T.text3 }}>{ts('lastSession')}</span>
-          <span style={{ color: T.text, fontWeight: 700 }}>{formatTime(lastSession.timestamp)}</span>
-          <span style={{ color: T.text3 }}>{ts('pairs')} {lastSession.pairsAnalyzed}</span>
-          <span style={{ color: T.success }}>{ts('newBrief', { n: lastSession.briefsIssued })}</span>
-          <span style={{ color: T.amber }}>{ts('modifiedBrief', { n: lastSession.briefsModified })}</span>
-          <span style={{ color: T.danger }}>{ts('cancelledBrief', { n: lastSession.briefsCancelled })}</span>
-          <span style={{ color: T.text3 }}>• {formatDuration(lastSession.durationMs)}</span>
+          <span style={{ color: '#6B7280' }}>{ts('lastSession')}</span>
+          <span style={{ color: '#F0F2F5', fontWeight: 700 }}>{formatTime(lastSession.timestamp)}</span>
+          <span style={{ color: '#6B7280' }}>{ts('pairs')} {lastSession.pairsAnalyzed}</span>
+          <span style={{ color: '#00FFA3' }}>{ts('newBrief', { n: lastSession.briefsIssued })}</span>
+          <span style={{ color: '#FFB800' }}>{ts('modifiedBrief', { n: lastSession.briefsModified })}</span>
+          <span style={{ color: '#FF4757' }}>{ts('cancelledBrief', { n: lastSession.briefsCancelled })}</span>
+          <span style={{ color: '#6B7280' }}>• {formatDuration(lastSession.durationMs)}</span>
         </div>
       )}
 
       {/* Tabs */}
       <div style={{
         display: 'flex', gap: 2, padding: '3px 6px',
-        background: T.bg, borderBottom: '1px solid rgba(0,212,255,0.08)',
+        background: '#0B0E14', borderBottom: '1px solid rgba(0,212,255,0.08)',
       }}>
         <button onClick={() => { setTab('active'); fetchActiveBriefs() }} style={{
           flex: 1, minHeight: 20, padding: '2px 5px', fontSize: 'var(--text-xs)',
           background: tab === 'active' ? 'rgba(0,212,255,0.14)' : 'rgba(255,255,255,0.03)',
           border: `1px solid ${tab === 'active' ? 'rgba(0,212,255,0.32)' : 'rgba(255,255,255,0.08)'}`,
-          borderRadius: 'var(--radius-sm)', color: tab === 'active' ? T.cyan : T.text3, cursor: 'pointer', fontWeight: 700,
+          borderRadius: 'var(--radius-sm)', color: tab === 'active' ? '#00D4FF' : '#6B7280', cursor: 'pointer', fontWeight: 700,
         }}>
           {ts('activeTab')} ({activeBriefs.length})
         </button>
@@ -364,7 +363,7 @@ export function StrategicCouncilPanel() {
           flex: 1, minHeight: 20, padding: '2px 5px', fontSize: 'var(--text-xs)',
           background: tab === 'history' ? 'rgba(0,212,255,0.14)' : 'rgba(255,255,255,0.03)',
           border: `1px solid ${tab === 'history' ? 'rgba(0,212,255,0.32)' : 'rgba(255,255,255,0.08)'}`,
-          borderRadius: 'var(--radius-sm)', color: tab === 'history' ? T.cyan : T.text3, cursor: 'pointer', fontWeight: 700,
+          borderRadius: 'var(--radius-sm)', color: tab === 'history' ? '#00D4FF' : '#6B7280', cursor: 'pointer', fontWeight: 700,
         }}>
           {ts('logTab')}
         </button>
@@ -396,7 +395,7 @@ export function StrategicCouncilPanel() {
                   }}>
                     {brief.direction === 'BUY' ? tc('buy') : tc('sell')}
                   </span>
-                  <span style={{ color: T.text, fontWeight: 700, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)" }}>
+                  <span style={{ color: '#F0F2F5', fontWeight: 700, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)" }}>
                     {brief.pair}
                   </span>
                   <span style={{
@@ -407,15 +406,15 @@ export function StrategicCouncilPanel() {
                     {brief.timeframe}
                   </span>
                   <div style={{ flex: 1 }} />
-                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280' }}>
                     {formatTime(brief.issuedAt)}
                   </span>
                 </div>
                 {/* Prices */}
-                <div style={{ display: 'flex', gap: 8, fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>
-                  <span>{ts('entryLabel')} <b style={{ color: T.text }}>{brief.entryPrice.toFixed(2)}</b></span>
-                  <span>{ts('stopLossShort')}: <b style={{ color: T.danger }}>{brief.stopLoss.toFixed(2)}</b></span>
-                  <span>{ts('takeProfitShort')}: <b style={{ color: T.success }}>{brief.takeProfit.toFixed(2)}</b></span>
+                <div style={{ display: 'flex', gap: 8, fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>
+                  <span>{ts('entryLabel')} <b style={{ color: '#F0F2F5' }}>{brief.entryPrice.toFixed(2)}</b></span>
+                  <span>{ts('stopLossShort')}: <b style={{ color: '#FF4757' }}>{brief.stopLoss.toFixed(2)}</b></span>
+                  <span>{ts('takeProfitShort')}: <b style={{ color: '#00FFA3' }}>{brief.takeProfit.toFixed(2)}</b></span>
                 </div>
                 {/* Confidence */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3 }}>
@@ -423,12 +422,12 @@ export function StrategicCouncilPanel() {
                     <div style={{
                       height: '100%', borderRadius: 'var(--radius-xs)',
                       width: `${brief.confidence}%`,
-                      background: brief.confidence >= 80 ? T.success : brief.confidence >= 60 ? T.amber : T.danger,
+                      background: brief.confidence >= 80 ? '#00FFA3' : brief.confidence >= 60 ? '#FFB800' : '#FF4757',
                     }} />
                   </div>
                   <span style={{
                     fontSize: 'var(--text-xs)', fontWeight: 800, fontFamily: "var(--font-mono)",
-                    color: brief.confidence >= 80 ? T.success : brief.confidence >= 60 ? T.amber : T.danger,
+                    color: brief.confidence >= 80 ? '#00FFA3' : brief.confidence >= 60 ? '#FFB800' : '#FF4757',
                   }}>
                     {brief.confidence}%
                   </span>
@@ -441,8 +440,8 @@ export function StrategicCouncilPanel() {
                       background: brief.reviewStatus === 'EXECUTED' ? 'rgba(0,255,163,0.12)' :
                         brief.reviewStatus === 'MODIFIED' ? 'rgba(255,184,0,0.12)' :
                           'rgba(255,71,87,0.12)',
-                      color: brief.reviewStatus === 'EXECUTED' ? T.success :
-                        brief.reviewStatus === 'MODIFIED' ? T.amber : T.danger,
+                      color: brief.reviewStatus === 'EXECUTED' ? '#00FFA3' :
+                        brief.reviewStatus === 'MODIFIED' ? '#FFB800' : '#FF4757',
                       fontWeight: 700,
                     }}>
                       {reviewStatusLabel(brief.reviewStatus)}

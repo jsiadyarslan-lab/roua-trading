@@ -16,7 +16,6 @@ import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { fmtPriceLocale as fmtPrice, fmtPrice as fmtPricePlain, fmtPnl } from '@/lib/price-format'
 import { isNestJsId } from '@/lib/api-fetch'
 import { PositionModal, type PositionModalData } from './PositionModal'
-import T from '@/lib/unified-tokens'
 
 // Fix: تحويل الوحدات الخام إلى لوتات للعرض
 // للكريبتو: contractSize=1, فاللوتات = الوحدات (0.01 BTC = 0.01 لوت)
@@ -88,7 +87,7 @@ function getTradeSourceLabel(
       || tradeSource === 'smart_executor' || tradeSource === 'auto_paper') {
     return {
       label: t('sourceExecutor'),
-      color: T.cyan,
+      color: '#00D4FF',
       bg: 'rgba(0,212,255,0.12)',
       border: 'rgba(0,212,255,0.20)',
     }
@@ -97,7 +96,7 @@ function getTradeSourceLabel(
   if (source === 'agent' || tradeSource === 'agent') {
     return {
       label: t('sourceAgent'),
-      color: T.purple,
+      color: '#B388FF',
       bg: 'rgba(168,85,247,0.12)',
       border: 'rgba(168,85,247,0.20)',
     }
@@ -106,7 +105,7 @@ function getTradeSourceLabel(
   if (isPaper || exchange === 'paper-trading' || tradeSource === 'user_manual') {
     return {
       label: t('sourcePaper'),
-      color: T.amber,
+      color: '#FFB800',
       bg: 'rgba(255,184,0,0.12)',
       border: 'rgba(255,184,0,0.20)',
     }
@@ -226,17 +225,17 @@ export function AlpacaPositions() {
   function getCloseReasonLabel(reason: string | null | undefined): { label: string; color: string } | null {
     if (!reason) return null
     const r = reason.toUpperCase()
-    if (r.includes('STOP_LOSS') || r === 'STOP_LOSS_HIT') return { label: t('reasonStopLoss'), color: T.danger }
-    if (r.includes('TAKE_PROFIT') || r === 'TAKE_PROFIT_HIT') return { label: t('reasonTakeProfit'), color: T.success }
-    if (r === 'MANUAL' || r === 'USER_MANUAL') return { label: t('reasonManual'), color: T.text2 }
-    if (r.includes('TIME_EXPIRED')) return { label: t('reasonAuto'), color: T.amber }
-    if (r === 'AUTO_CLOSE') return { label: t('reasonAuto'), color: T.amber }
-    if (r.includes('STALE') || r.includes('AUTO')) return { label: t('reasonAuto'), color: T.amber }
-    if (r.includes('STRATEGY') || r.includes('MAX_HOLDING')) return { label: t('reasonStrategic'), color: T.purple }
-    if (r.includes('EXCHANGE_SYNC')) return { label: t('reasonSync'), color: T.cyan }
-    if (r === 'FORCE_CLOSE') return { label: t('reasonForce'), color: T.danger }
-    if (r.includes('EMERGENCY')) return { label: t('reasonForce'), color: T.danger }
-    return { label: reason, color: T.text3 }
+    if (r.includes('STOP_LOSS') || r === 'STOP_LOSS_HIT') return { label: t('reasonStopLoss'), color: '#FF4757' }
+    if (r.includes('TAKE_PROFIT') || r === 'TAKE_PROFIT_HIT') return { label: t('reasonTakeProfit'), color: '#00FFA3' }
+    if (r === 'MANUAL' || r === 'USER_MANUAL') return { label: t('reasonManual'), color: '#9CA3B5' }
+    if (r.includes('TIME_EXPIRED')) return { label: t('reasonAuto'), color: '#FFB800' }
+    if (r === 'AUTO_CLOSE') return { label: t('reasonAuto'), color: '#FFB800' }
+    if (r.includes('STALE') || r.includes('AUTO')) return { label: t('reasonAuto'), color: '#FFB800' }
+    if (r.includes('STRATEGY') || r.includes('MAX_HOLDING')) return { label: t('reasonStrategic'), color: '#B388FF' }
+    if (r.includes('EXCHANGE_SYNC')) return { label: t('reasonSync'), color: '#00D4FF' }
+    if (r === 'FORCE_CLOSE') return { label: t('reasonForce'), color: '#FF4757' }
+    if (r.includes('EMERGENCY')) return { label: t('reasonForce'), color: '#FF4757' }
+    return { label: reason, color: '#6B7280' }
   }
 
   // V141: Format duration between two dates
@@ -564,7 +563,7 @@ export function AlpacaPositions() {
         minHeight: MIN_HEIGHT,
         maxHeight: MAX_HEIGHT,
         overflow: 'hidden',
-        background: T.panel,
+        background: '#151A22',
         position: 'relative',
         transition: isResizing ? 'none' : 'height 0.15s ease',
       }}
@@ -636,7 +635,7 @@ export function AlpacaPositions() {
               gap: 6,
               alignItems: 'center',
               padding: '0 6px 2px',
-              color: T.text2,
+              color: '#9CA3B5',
               fontSize: 'var(--text-xs)',
               fontWeight: 800,
               fontFamily: "var(--font-ar)",
@@ -661,7 +660,7 @@ export function AlpacaPositions() {
           <div
             style={{
               borderRadius: 'var(--radius-lg)',
-              border: `1px dashed ${T.border}`,
+              border: `1px dashed ${'#2A313C'}`,
               background: 'rgba(255,255,255,0.025)',
               minHeight: 110,
               display: 'flex',
@@ -669,12 +668,12 @@ export function AlpacaPositions() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: 6,
-              color: T.text3,
+              color: '#6B7280',
               textAlign: 'center',
               padding: 16,
             }}
           >
-            <div style={{ fontSize: 'var(--text-xs)', color: T.text }}>{t('noOpenTrades')}</div>
+            <div style={{ fontSize: 'var(--text-xs)', color: '#F0F2F5' }}>{t('noOpenTrades')}</div>
             <div style={{ fontSize: 'var(--text-xs)' }}>{t('noOpenTradesHint')}</div>
           </div>
         )}
@@ -722,7 +721,7 @@ export function AlpacaPositions() {
               style={{
                 borderRadius: 'var(--radius-lg)',
                 border: `1px solid ${pnlUp ? 'rgba(0,255,163,0.16)' : 'rgba(255,71,87,0.16)'}`,
-                background: `linear-gradient(180deg, ${T.card}, ${T.cardAlt})`,
+                background: `linear-gradient(180deg, ${'#151A22'}, ${'#1A1D29'})`,
                 boxShadow: `inset 0 1px 0 rgba(255,255,255,0.02), 0 4px 10px rgba(0,0,0,0.12)`,
                 padding: '5px 6px',
                 display: 'grid',
@@ -737,7 +736,7 @@ export function AlpacaPositions() {
                   style={{
                     fontSize: 'var(--text-xs)',
                     fontWeight: 900,
-                    color: T.text,
+                    color: '#F0F2F5',
                     fontFamily: "var(--font-mono)",
                     whiteSpace: 'nowrap',
                   }}
@@ -754,7 +753,7 @@ export function AlpacaPositions() {
                     borderRadius: 'var(--radius-xs)',
                     background: isLong ? 'rgba(0,255,163,0.18)' : 'rgba(255,71,87,0.18)',
                     border: `1px solid ${isLong ? 'rgba(0,255,163,0.35)' : 'rgba(255,71,87,0.35)'}`,
-                    color: isLong ? T.success : T.danger,
+                    color: isLong ? '#00FFA3' : '#FF4757',
                     fontSize: 'var(--text-xs)',
                     fontWeight: 900,
                     whiteSpace: 'nowrap',
@@ -787,7 +786,7 @@ export function AlpacaPositions() {
                 style={{
                   fontSize: 'var(--text-xs)',
                   fontWeight: 700,
-                  color: T.text2,
+                  color: '#9CA3B5',
                   fontFamily: "var(--font-mono)",
                   textAlign: 'center',
                   whiteSpace: 'nowrap',
@@ -798,32 +797,32 @@ export function AlpacaPositions() {
                 {openedAt}
               </div>
 
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {Number((position as any).qty ?? (position as any).quantity ?? 0).toFixed(2)}
               </div>
 
               {/* Entry — Fix 2: overflow hidden + ellipsis */}
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {fmtPrice(position.avgEntryPrice, position.symbol)}
               </div>
 
               {/* Current */}
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {fmtPrice(position.currentPrice, position.symbol)}
               </div>
 
               {/* TP */}
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: position.tp ? T.success : T.text3, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: position.tp ? '#00FFA3' : '#6B7280', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {position.tp ? fmtPrice(position.tp, position.symbol) : '—'}
               </div>
 
               {/* SL */}
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: position.sl ? T.danger : T.text3, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: position.sl ? '#FF4757' : '#6B7280', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {position.sl ? fmtPrice(position.sl, position.symbol) : '—'}
               </div>
 
               {/* P&L — Fix 3: format is now +$X.XX (changed in fmtPnl) */}
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 900, color: pnlUp ? T.success : T.danger, fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 900, color: pnlUp ? '#00FFA3' : '#FF4757', fontFamily: "var(--font-mono)", textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {fmtPnl(position.unrealizedPnl)}
               </div>
 
@@ -839,7 +838,7 @@ export function AlpacaPositions() {
                     borderRadius: 'var(--radius-sm)',
                     border: `1px solid ${confirmClose === position.id ? 'rgba(255,71,87,0.42)' : 'rgba(255,71,87,0.22)'}`,
                     background: confirmClose === position.id ? 'rgba(255,71,87,0.16)' : 'rgba(255,71,87,0.08)',
-                    color: T.danger,
+                    color: '#FF4757',
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -889,7 +888,7 @@ export function AlpacaPositions() {
                     width: 20, height: 20, borderRadius: 'var(--radius-sm)',
                     border: '1px solid rgba(255,255,255,0.1)',
                     background: 'rgba(255,255,255,0.03)',
-                    color: T.text2,
+                    color: '#9CA3B5',
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                     cursor: 'pointer', fontSize: 'var(--text-xs)', fontWeight: 900, lineHeight: 1, padding: 0,
                     transition: 'all 0.15s',
@@ -897,12 +896,12 @@ export function AlpacaPositions() {
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = 'rgba(0,212,255,0.12)'
                     e.currentTarget.style.borderColor = 'rgba(0,212,255,0.3)'
-                    e.currentTarget.style.color = T.info
+                    e.currentTarget.style.color = '#00D4FF'
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = 'rgba(255,255,255,0.03)'
                     e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
-                    e.currentTarget.style.color = T.text2
+                    e.currentTarget.style.color = '#9CA3B5'
                   }}
                 >
                   ⋮
@@ -972,7 +971,7 @@ export function AlpacaPositions() {
               borderRadius: 'var(--radius-md)',
               border: `1px solid rgba(255,71,87,0.18)`,
               background: 'rgba(255,71,87,0.06)',
-              color: T.danger,
+              color: '#FF4757',
               fontSize: 'var(--text-xs)',
               fontWeight: 800,
               fontFamily: "var(--font-ar)",
@@ -991,7 +990,7 @@ export function AlpacaPositions() {
 
       {/* V141: Closed Trades Section — now fetches from DATABASE, not just localStorage */}
       {(dbClosedPositions.length > 0 || closedTrades.length > 0) && (
-        <div style={{ borderTop: `1px solid ${T.border}`, marginTop: 4 }}>
+        <div style={{ borderTop: `1px solid ${'#2A313C'}`, marginTop: 4 }}>
           <button
             onClick={() => {
               const newShow = !showClosed
@@ -1001,7 +1000,7 @@ export function AlpacaPositions() {
             }}
             style={{
               width: '100%', padding: '8px 10px', background: 'transparent', border: 'none',
-              color: T.text2, cursor: 'pointer', display: 'flex', alignItems: 'center',
+              color: '#9CA3B5', cursor: 'pointer', display: 'flex', alignItems: 'center',
               justifyContent: 'space-between', fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 700,
             }}
           >
@@ -1034,15 +1033,15 @@ export function AlpacaPositions() {
                 return (
                   <div key={cp.id} style={{
                     borderRadius: 'var(--radius-md)', border: `1px solid ${pnlUp ? 'rgba(0,255,163,0.12)' : 'rgba(255,71,87,0.12)'}`,
-                    background: T.cardAlt, padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 4,
+                    background: '#1A1D29', padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 4,
                   }}>
                     {/* Row 1: Symbol, Direction, Source, Close Reason, PnL */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 900, color: isLong ? T.success : T.danger, fontFamily: "var(--font-mono)" }}>
+                        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 900, color: isLong ? '#00FFA3' : '#FF4757', fontFamily: "var(--font-mono)" }}>
                           {isLong ? '⬆' : '⬇'}
                         </span>
-                        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)" }}>{cp.symbol}</span>
+                        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)" }}>{cp.symbol}</span>
                         {sourceBadge && (
                           <span style={{ padding: '1px 4px', borderRadius: 'var(--radius-2xl)', background: sourceBadge.bg, border: `1px solid ${sourceBadge.border}`, color: sourceBadge.color, fontSize: 'var(--text-xs)', fontWeight: 800 }}>{sourceBadge.label}</span>
                         )}
@@ -1051,17 +1050,17 @@ export function AlpacaPositions() {
                           <span style={{ padding: '1px 4px', borderRadius: 'var(--radius-2xl)', background: `${closeReasonBadge.color}18`, border: `1px solid ${closeReasonBadge.color}30`, color: closeReasonBadge.color, fontSize: 'var(--text-xs)', fontWeight: 800 }}>{closeReasonBadge.label}</span>
                         )}
                       </div>
-                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 900, color: pnlUp ? T.success : T.danger, fontFamily: "var(--font-mono)" }}>
+                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 900, color: pnlUp ? '#00FFA3' : '#FF4757', fontFamily: "var(--font-mono)" }}>
                         {fmtPnl(realizedPnl)}
                       </span>
                     </div>
                     {/* Row 2: Entry → Exit, SL, TP, Qty, Duration */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>
                       <span>
                         {t('entry')} {fmtPricePlain(entryPrice, cp.symbol)} → {t('exit')} {exitPrice > 0 ? fmtPricePlain(exitPrice, cp.symbol) : '—'}
                       </span>
-                      {stopLoss > 0 && <span style={{ color: T.danger }}>{t('sl')} {fmtPricePlain(stopLoss, cp.symbol)}</span>}
-                      {takeProfit > 0 && <span style={{ color: T.success }}>{t('tp')} {fmtPricePlain(takeProfit, cp.symbol)}</span>}
+                      {stopLoss > 0 && <span style={{ color: '#FF4757' }}>{t('sl')} {fmtPricePlain(stopLoss, cp.symbol)}</span>}
+                      {takeProfit > 0 && <span style={{ color: '#00FFA3' }}>{t('tp')} {fmtPricePlain(takeProfit, cp.symbol)}</span>}
                       <span>{quantity}</span>
                       <span>{duration}</span>
                       <span>{closedDate}</span>
@@ -1090,14 +1089,14 @@ export function AlpacaPositions() {
                 return (
                   <div key={ct.id} style={{
                     borderRadius: 'var(--radius-md)', border: `1px solid ${pnlUp ? 'rgba(0,255,163,0.12)' : 'rgba(255,71,87,0.12)'}`,
-                    background: T.cardAlt, padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 4,
+                    background: '#1A1D29', padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 4,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 900, color: isLong ? T.success : T.danger, fontFamily: "var(--font-mono)" }}>
+                        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 900, color: isLong ? '#00FFA3' : '#FF4757', fontFamily: "var(--font-mono)" }}>
                           {isLong ? '⬆' : '⬇'}
                         </span>
-                        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)" }}>{ct.symbol}</span>
+                        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#F0F2F5', fontFamily: "var(--font-mono)" }}>{ct.symbol}</span>
                         {closedSourceBadge && (
                           <span style={{ padding: '1px 4px', borderRadius: 'var(--radius-2xl)', background: closedSourceBadge.bg, border: `1px solid ${closedSourceBadge.border}`, color: closedSourceBadge.color, fontSize: 'var(--text-xs)', fontWeight: 800 }}>{closedSourceBadge.label}</span>
                         )}
@@ -1106,16 +1105,16 @@ export function AlpacaPositions() {
                           <span style={{ padding: '1px 4px', borderRadius: 'var(--radius-2xl)', background: `${paperCloseReasonBadge.color}18`, border: `1px solid ${paperCloseReasonBadge.color}30`, color: paperCloseReasonBadge.color, fontSize: 'var(--text-xs)', fontWeight: 800 }}>{paperCloseReasonBadge.label}</span>
                         )}
                       </div>
-                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 900, color: pnlUp ? T.success : T.danger, fontFamily: "var(--font-mono)" }}>
+                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 900, color: pnlUp ? '#00FFA3' : '#FF4757', fontFamily: "var(--font-mono)" }}>
                         {fmtPnl(ct.realizedPnl)}
                       </span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 'var(--text-xs)', color: '#6B7280', fontFamily: "var(--font-mono)" }}>
                       <span>
                         {t('entry')} {fmtPricePlain(ct.entryPrice, ct.symbol)} → {t('exit')} {fmtPricePlain(ct.exitPrice, ct.symbol)}
                       </span>
-                      {ct.sl ? <span style={{ color: T.danger }}>{t('sl')} {fmtPricePlain(ct.sl, ct.symbol)}</span> : null}
-                      {ct.tp ? <span style={{ color: T.success }}>{t('tp')} {fmtPricePlain(ct.tp, ct.symbol)}</span> : null}
+                      {ct.sl ? <span style={{ color: '#FF4757' }}>{t('sl')} {fmtPricePlain(ct.sl, ct.symbol)}</span> : null}
+                      {ct.tp ? <span style={{ color: '#00FFA3' }}>{t('tp')} {fmtPricePlain(ct.tp, ct.symbol)}</span> : null}
                       <span>{ct.qty}</span>
                     </div>
                   </div>
@@ -1127,8 +1126,8 @@ export function AlpacaPositions() {
                   onClick={fetchClosedPositions}
                   disabled={closedLoading}
                   style={{
-                    padding: '4px 8px', background: 'transparent', border: `1px solid ${T.border}`,
-                    color: T.text3, borderRadius: 'var(--radius-sm)', cursor: closedLoading ? 'wait' : 'pointer', fontSize: 'var(--text-xs)',
+                    padding: '4px 8px', background: 'transparent', border: `1px solid ${'#2A313C'}`,
+                    color: '#6B7280', borderRadius: 'var(--radius-sm)', cursor: closedLoading ? 'wait' : 'pointer', fontSize: 'var(--text-xs)',
                     fontFamily: "var(--font-ar)", fontWeight: 700,
                   }}
                 >
@@ -1137,8 +1136,8 @@ export function AlpacaPositions() {
                 <button
                   onClick={clearClosedTrades}
                   style={{
-                    padding: '4px 8px', background: 'transparent', border: `1px solid ${T.border}`,
-                    color: T.text3, borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: 'var(--text-xs)',
+                    padding: '4px 8px', background: 'transparent', border: `1px solid ${'#2A313C'}`,
+                    color: '#6B7280', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: 'var(--text-xs)',
                     fontFamily: "var(--font-ar)", fontWeight: 700,
                   }}
                 >
@@ -1185,26 +1184,26 @@ export function AlpacaPositions() {
             }}>
               <span style={{
                 fontSize: 'var(--text-xs)', fontWeight: 800,
-                color: contextMenu.side === 'long' ? T.success : T.danger,
+                color: contextMenu.side === 'long' ? '#00FFA3' : '#FF4757',
                 padding: '1px 5px', borderRadius: 'var(--radius-xs)',
                 background: contextMenu.side === 'long' ? 'rgba(0,255,163,0.12)' : 'rgba(255,71,87,0.12)',
               }}>
                 {contextMenu.side === 'long' ? 'BUY' : 'SELL'}
               </span>
-              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text, fontFamily: 'var(--font-mono)' }}>
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#F0F2F5', fontFamily: 'var(--font-mono)' }}>
                 {contextMenu.symbol || '—'}
               </span>
-              <span style={{ fontSize: 'var(--text-xs)', color: T.text3, marginLeft: 'auto', fontFamily: 'var(--font-mono)' }}>
+              <span style={{ fontSize: 'var(--text-xs)', color: '#6B7280', marginLeft: 'auto', fontFamily: 'var(--font-mono)' }}>
                 {contextMenu.qty} @ {contextMenu.entryPrice.toFixed(contextMenu.entryPrice > 100 ? 2 : 5)}
               </span>
               <button
                 onClick={() => setContextMenu(null)}
                 style={{
                   background: 'transparent', border: 'none', cursor: 'pointer',
-                  color: T.text3, fontSize: 'var(--text-base)', lineHeight: 1, padding: '0 2px', marginLeft: 4,
+                  color: '#6B7280', fontSize: 'var(--text-base)', lineHeight: 1, padding: '0 2px', marginLeft: 4,
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = T.danger; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = T.text3; }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = '#FF4757'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = '#6B7280'; }}
                 title="إغلاق"
               >
                 ✕
@@ -1213,15 +1212,15 @@ export function AlpacaPositions() {
 
             {/* Menu items */}
             {([
-              { icon: '✎', label: 'تعديل SL/TP', color: T.info, action: 'modify_sltp' },
-              { icon: '✕', label: 'إغلاق الصفقة', color: T.danger, action: 'close' },
-              { icon: '⇄', label: 'عكس الصفقة', color: T.warning, action: 'reverse' },
+              { icon: '✎', label: 'تعديل SL/TP', color: '#00D4FF', action: 'modify_sltp' },
+              { icon: '✕', label: 'إغلاق الصفقة', color: '#FF4757', action: 'close' },
+              { icon: '⇄', label: 'عكس الصفقة', color: '#FFB800', action: 'reverse' },
               { divider: true },
-              { icon: '📊', label: 'فتح الشارت', color: T.success, action: 'focus_chart' },
-              { icon: '🔔', label: 'تنبيه على السعر', color: T.council, action: 'alert' },
+              { icon: '📊', label: 'فتح الشارت', color: '#00FFA3', action: 'focus_chart' },
+              { icon: '🔔', label: 'تنبيه على السعر', color: '#B388FF', action: 'alert' },
               { divider: true },
-              { icon: 'ℹ', label: 'تفاصيل الصفقة', color: T.text2, action: 'details' },
-              { icon: '📋', label: 'نسخ معرف الصفقة', color: T.text2, action: 'copy_id' },
+              { icon: 'ℹ', label: 'تفاصيل الصفقة', color: '#9CA3B5', action: 'details' },
+              { icon: '📋', label: 'نسخ معرف الصفقة', color: '#9CA3B5', action: 'copy_id' },
             ] as Array<{ icon?: string; label?: string; color?: string; action?: string; divider?: boolean }>).map((item, i) => item.divider ? (
               <div key={`div-${i}`} style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
             ) : (
@@ -1275,18 +1274,18 @@ export function AlpacaPositions() {
                   padding: '7px 12px',
                   display: 'flex', alignItems: 'center', gap: 8,
                   cursor: 'pointer',
-                  color: T.text2,
+                  color: '#9CA3B5',
                   fontSize: 'var(--text-xs)',
                   fontWeight: 600,
                   transition: 'background 0.15s',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = `${item.color || T.text2}15`
-                  e.currentTarget.style.color = item.color || T.text2
+                  e.currentTarget.style.background = `${item.color || '#9CA3B5'}15`
+                  e.currentTarget.style.color = item.color || '#9CA3B5'
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = 'transparent'
-                  e.currentTarget.style.color = T.text2
+                  e.currentTarget.style.color = '#9CA3B5'
                 }}
               >
                 <span style={{ fontSize: 'var(--text-sm)', width: 16, textAlign: 'center' }}>{item.icon}</span>

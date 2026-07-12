@@ -957,7 +957,14 @@ export function renderOverlays(
       // Event price lines
       (events || []).forEach((ev: any, i: number) => {
         if (ev.price > 0) {
-          safeAddPriceLine(`wy-ev-${i}`, ev.price, col, `Wyckoff: ${arLabel(locale, ev.labelAr || ev.type, ev.type, t)}`, 1, 0, true, 'wyckoff');
+          // Map Wyckoff event type to chartOverlay translation key.
+          // Swing points use ev.type = 'peak' or 'trough' (mapped directly).
+          // Wyckoff events use ev.type = 'SC', 'AR', 'ST', etc. (mapped as 'wyckoffSC', etc.).
+          // For Arabic locale, ev.labelAr holds the Arabic description.
+          // For other locales, t(tKey) returns the native translation.
+          const evType = ev.type || '';
+          const tKey = ['peak', 'trough'].includes(evType) ? evType : `wyckoff${evType}`;
+          safeAddPriceLine(`wy-ev-${i}`, ev.price, col, `Wyckoff: ${arLabel(locale, ev.labelAr || evType, tKey, t)}`, 1, 0, true, 'wyckoff');
         }
       });
 
@@ -2065,10 +2072,11 @@ function detectLocalWyckoff(
   }
 
   // Generate events from swing points
+  // type matches chartOverlay translation keys: 'peak' for HIGH, 'trough' (now Bottom) for LOW
   const events: any[] = [];
   swings.slice(-6).forEach((sw) => {
     events.push({
-      type: sw.type === 'HIGH' ? 'Peak' : 'Trough',
+      type: sw.type === 'HIGH' ? 'peak' : 'trough',
       price: sw.price,
       time: sw.time,
       labelAr: sw.type === 'HIGH' ? 'قمة' : 'قاع',

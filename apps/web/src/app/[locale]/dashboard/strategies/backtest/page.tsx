@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Play, Activity } from 'lucide-react'
 import T from '@/lib/unified-tokens'
-import { getPnlColor } from '@/lib/unified-tokens'
+import { getPnlColor } from '@/lib/pnl-utils'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 const SYMBOLS = ['BTC/USD','ETH/USD','SOL/USD','EUR/USD','GBP/USD','XAU/USD','AAPL','TSLA']

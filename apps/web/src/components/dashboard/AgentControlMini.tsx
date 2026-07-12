@@ -9,7 +9,8 @@ import {
 import { useAgentStore, AgentStatus, StrategyType } from '@/hooks/useAgentStore'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
-import T, { getPnlColor, getPnlSign } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
+import { getPnlColor, getPnlSign } from '@/lib/pnl-utils'
 
 /* ═══════════════════════════════════════════════
    Design Tokens — Roua Trading dark theme

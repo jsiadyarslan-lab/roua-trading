@@ -18,7 +18,8 @@ import { safeToFixed } from '@/lib/charts/chart-utils'
 /* ═══════════════════════════════════════════════
    Design Tokens — matching Roua Trading theme
    ═══════════════════════════════════════════════ */
-import T, { getPnlColor } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
+import { getPnlColor } from '@/lib/pnl-utils'
 const FONT_AR = "'Cairo', sans-serif"
 const FONT_MONO = "'JetBrains Mono', monospace"
 

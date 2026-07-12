@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import T from '@/lib/unified-tokens'
-import { getPnlSign } from '@/lib/unified-tokens'
+import { getPnlSign } from '@/lib/pnl-utils'
 
 interface HeatMapPosition {
   symbol: string

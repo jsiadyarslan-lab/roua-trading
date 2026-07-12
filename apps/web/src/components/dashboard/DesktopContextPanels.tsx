@@ -6,7 +6,8 @@ import { useTranslations, useLocale } from 'next-intl'
 import { Activity, CalendarDays, GitMerge, Newspaper, RefreshCw } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { formatFreshness } from '@/lib/dashboard-live'
-import T, { getPnlColor } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
+import { getPnlColor } from '@/lib/pnl-utils'
 import { safeStr } from '@/lib/utils'
 
 function PanelShell({

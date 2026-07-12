@@ -174,9 +174,8 @@ export const TMinimal = {
  *   {isPnlPositive(pnl) ? '+' : ''}   // → '+' only when truly positive
  *   {getPnlSign(pnl)}{Math.abs(pnl)}  // → '+$100' / '-$50' / '$0'
  */
-// P/L functions moved to separate file to avoid SSR circular dependency
-// Re-exported here for backward compatibility
-export { getPnlColor, isPnlPositive, getPnlSign } from './pnl-utils';
+// P/L functions are in separate file: @/lib/pnl-utils
+// Do NOT re-export here — it causes webpack TDZ (Temporal Dead Zone) errors
 
 export const TExtended = {
   ...TMinimal,

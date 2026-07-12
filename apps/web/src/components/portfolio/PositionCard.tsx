@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { X as XIcon, TrendingUp, TrendingDown, Loader2 } from 'lucide-react'
 import T from '@/lib/unified-tokens'
-import { getPnlColor, isPnlPositive } from '@/lib/unified-tokens'
+import { getPnlColor, isPnlPositive } from '@/lib/pnl-utils'
 import { fmtPrice, fmtPriceLocale } from '@/lib/price-format'
 import { useTranslations } from 'next-intl'
 

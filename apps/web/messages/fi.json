@@ -5521,7 +5521,10 @@
     "dmi": "Suuntaliikkeen indeksi",
     "obv": "Balance Volume",
     "trix": "TRIX",
-    "adx": "Keskimääräinen suuntaindeksi"
+    "adx": "Keskimääräinen suuntaindeksi",
+    "supertrend": "SuperTrend",
+    "donchian": "Donchian-kanava",
+    "pivot": "Pivot-pisteet"
   },
   "dashboardLive": {
     "binanceLive": "Binance Live",

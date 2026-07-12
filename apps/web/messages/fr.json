@@ -5521,7 +5521,10 @@
     "dmi": "Indice de mouvement directionnel",
     "obv": "Sur le volume du solde",
     "trix": "TRIX",
-    "adx": "Indice directionnel moyen"
+    "adx": "Indice directionnel moyen",
+    "supertrend": "SuperTrend",
+    "donchian": "Canal de Donchian",
+    "pivot": "Points Pivot"
   },
   "dashboardLive": {
     "binanceLive": "Binance en direct",

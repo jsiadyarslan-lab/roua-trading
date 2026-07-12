@@ -5521,7 +5521,10 @@
     "dmi": "Yönsel Hareket İndeksi",
     "obv": "Hacim Dengesi",
     "trix": "TRIX",
-    "adx": "Ortalama Yönsel İndeks"
+    "adx": "Ortalama Yönsel İndeks",
+    "supertrend": "Süper Trend",
+    "donchian": "Donchian Kanalı",
+    "pivot": "Pivot Noktaları"
   },
   "dashboardLive": {
     "binanceLive": "Binance Canlı",

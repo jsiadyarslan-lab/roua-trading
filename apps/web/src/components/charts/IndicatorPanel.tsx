@@ -23,17 +23,53 @@ export function IndicatorPanel({
   onClose,
 }: IndicatorPanelProps) {
   const tc = useTranslations('dashboard.chart');
+  const ti = useTranslations('indicators');
   const [search, setSearch] = useState('');
+
+  // Map indicator config key to translation key in 'indicators' namespace
+  const INDICATOR_KEY_MAP: Record<string, string> = {
+    sma: 'sma',
+    ema: 'ema',
+    bb: 'bollinger',
+    vwap: 'vwap',
+    psar: 'parabolicSar',
+    ichimoku: 'ichimoku',
+    supertrend: 'supertrend',
+    pivot: 'pivot',
+    donchian: 'donchian',
+    rsi: 'rsi',
+    macd: 'macd',
+    stochastic: 'stochastic',
+    atr: 'atr',
+    adx: 'adx',
+    cci: 'cci',
+  };
+
+  // Get localized label: use translation if available, fallback to config.label
+  const getLabel = (config: typeof INDICATOR_CONFIGS[0]): string => {
+    const tKey = INDICATOR_KEY_MAP[config.key];
+    if (tKey) {
+      try {
+        const translated = ti(tKey);
+        if (translated && translated !== tKey) return translated;
+      } catch { /* fallback */ }
+    }
+    return config.label;
+  };
 
   const overlayIndicators = INDICATOR_CONFIGS.filter(c => c.category === 'overlay');
   const oscillatorIndicators = INDICATOR_CONFIGS.filter(c => c.category === 'oscillator');
 
-  const filteredOverlay = overlayIndicators.filter(c =>
-    c.label.includes(search) || c.labelEn.toLowerCase().includes(search.toLowerCase())
-  );
-  const filteredOsc = oscillatorIndicators.filter(c =>
-    c.label.includes(search) || c.labelEn.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredOverlay = overlayIndicators.filter(c => {
+    const label = getLabel(c);
+    return label.toLowerCase().includes(search.toLowerCase()) ||
+           c.labelEn.toLowerCase().includes(search.toLowerCase());
+  });
+  const filteredOsc = oscillatorIndicators.filter(c => {
+    const label = getLabel(c);
+    return label.toLowerCase().includes(search.toLowerCase()) ||
+           c.labelEn.toLowerCase().includes(search.toLowerCase());
+  });
 
   const COLORS = {
     card: 'rgba(11, 14, 20, 0.98)',
@@ -80,7 +116,7 @@ export function IndicatorPanel({
           fontWeight: isActive ? 600 : 400,
           flex: 1,
         }}>
-          {config.label}
+          {getLabel(config)}
           <span style={{ color: COLORS.textMuted, fontSize: 11, marginInlineEnd: 4 }}>({config.labelEn})</span>
         </span>
 

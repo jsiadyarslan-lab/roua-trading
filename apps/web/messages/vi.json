@@ -5521,7 +5521,10 @@
     "dmi": "Chỉ số chuyển động định hướng",
     "obv": "Khối lượng cân bằng",
     "trix": "TRIX",
-    "adx": "Chỉ số định hướng trung bình"
+    "adx": "Chỉ số định hướng trung bình",
+    "supertrend": "SuperTrend",
+    "donchian": "Kênh Donchian",
+    "pivot": "Điểm Pivot"
   },
   "dashboardLive": {
     "binanceLive": "Binance trực tiếp",

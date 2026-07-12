@@ -5521,7 +5521,10 @@
     "dmi": "Indeks Pergerakan Arah",
     "obv": "Pada Volum Baki",
     "trix": "TRIX",
-    "adx": "Indeks Arah Purata"
+    "adx": "Indeks Arah Purata",
+    "supertrend": "SuperTrend",
+    "donchian": "Saluran Donchian",
+    "pivot": "Titik Pivot"
   },
   "dashboardLive": {
     "binanceLive": "Binance Live",

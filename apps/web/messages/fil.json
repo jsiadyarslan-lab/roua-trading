@@ -5521,7 +5521,10 @@
     "dmi": "Directional Movement Index",
     "obv": "Sa Dami ng Balanse",
     "trix": "TRIX",
-    "adx": "Average na Index ng Direksyon"
+    "adx": "Average na Index ng Direksyon",
+    "supertrend": "SuperTrend",
+    "donchian": "Donchian Channel",
+    "pivot": "Pivot Points"
   },
   "dashboardLive": {
     "binanceLive": "Binance Live",

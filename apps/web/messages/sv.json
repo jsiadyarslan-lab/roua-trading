@@ -5521,7 +5521,10 @@
     "dmi": "Riktningsindex för rörelser",
     "obv": "På balansvolym",
     "trix": "TRIX",
-    "adx": "Genomsnittligt riktningsindex"
+    "adx": "Genomsnittligt riktningsindex",
+    "supertrend": "SuperTrend",
+    "donchian": "Donchian Kanal",
+    "pivot": "Pivot Punkter"
   },
   "dashboardLive": {
     "binanceLive": "Binance Live",

@@ -5521,7 +5521,10 @@
     "dmi": "Directionele bewegingsindex",
     "obv": "Aan Balansvolume",
     "trix": "TRIX",
-    "adx": "Gemiddelde directionele index"
+    "adx": "Gemiddelde directionele index",
+    "supertrend": "SuperTrend",
+    "donchian": "Donchian Kanaal",
+    "pivot": "Pivot Punten"
   },
   "dashboardLive": {
     "binanceLive": "Binance Live",

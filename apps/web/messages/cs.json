@@ -5607,7 +5607,10 @@
     "stochastic": "Stochastické",
     "bollinger": "Bollingerovy kapely",
     "parabolicSar": "Parabolická SAR",
-    "fibonacci": "Fibonacci"
+    "fibonacci": "Fibonacci",
+    "supertrend": "SuperTrend",
+    "donchian": "Donchianův kanál",
+    "pivot": "Pivot Body"
   },
   "errors": {
     "cacheError": "Chyba připojení mezipaměti",

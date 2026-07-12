@@ -5521,7 +5521,10 @@
     "dmi": "방향 이동 지수",
     "obv": "잔액 거래량",
     "trix": "TRIX",
-    "adx": "평균 방향 지수"
+    "adx": "평균 방향 지수",
+    "supertrend": "슈퍼트렌드",
+    "donchian": "동키안 채널",
+    "pivot": "피벗 포인트"
   },
   "dashboardLive": {
     "binanceLive": "바이낸스 라이브",

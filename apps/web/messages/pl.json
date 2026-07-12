@@ -5521,7 +5521,10 @@
     "dmi": "Indeks ruchu kierunkowego",
     "obv": "Wł. Wolumen salda",
     "trix": "TRIX",
-    "adx": "Średni indeks kierunkowy"
+    "adx": "Średni indeks kierunkowy",
+    "supertrend": "SuperTrend",
+    "donchian": "Kanał Donchiana",
+    "pivot": "Punkty Pivot"
   },
   "dashboardLive": {
     "binanceLive": "Binance na żywo",

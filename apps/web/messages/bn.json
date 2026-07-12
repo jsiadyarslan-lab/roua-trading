@@ -5607,7 +5607,10 @@
     "stochastic": "স্টোকাস্টিক",
     "bollinger": "বলিঙ্গার ব্যান্ডস",
     "parabolicSar": "প্যারাবোলিক SAR",
-    "fibonacci": "ফিবোনাচি"
+    "fibonacci": "ফিবোনাচি",
+    "supertrend": "সুপারট্রেন্ড",
+    "donchian": "ডনচিয়ান চ্যানেল",
+    "pivot": "পিভট পয়েন্ট"
   },
   "errors": {
     "cacheError": "ক্যাশে সংযোগ ত্রুটি৷",

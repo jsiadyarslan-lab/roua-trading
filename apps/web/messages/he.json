@@ -5521,7 +5521,10 @@
     "dmi": "מדד תנועה כיוונית",
     "obv": "נפח מאוזן",
     "trix": "TRIX",
-    "adx": "מדד כיווני ממוצע"
+    "adx": "מדד כיווני ממוצע",
+    "supertrend": "SuperTrend",
+    "donchian": "ערוץ דונצ'יאן",
+    "pivot": "נקודות Pivot"
   },
   "dashboardLive": {
     "binanceLive": "Binance Live",

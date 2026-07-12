@@ -5521,7 +5521,10 @@
     "dmi": "方向运动指数",
     "obv": "On 余额 成交量",
     "trix": "TRIX",
-    "adx": "平均方向指数"
+    "adx": "平均方向指数",
+    "supertrend": "超级趋势",
+    "donchian": "唐奇安通道",
+    "pivot": "枢轴点"
   },
   "dashboardLive": {
     "binanceLive": "币安实时",

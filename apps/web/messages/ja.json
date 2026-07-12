@@ -5521,7 +5521,10 @@
     "dmi": "方向性移動指数",
     "obv": "オンバランスボリューム",
     "trix": "TRIX",
-    "adx": "平均方向性指数"
+    "adx": "平均方向性指数",
+    "supertrend": "スーパートレンド",
+    "donchian": "ドンチャンチャネル",
+    "pivot": "ピボットポイント"
   },
   "dashboardLive": {
     "binanceLive": "Binanceライブ",

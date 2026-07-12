@@ -3721,7 +3721,10 @@
     "dmi": "Directional Movement Index",
     "macdBullish": "Bullish",
     "macdBearish": "Bearish",
-    "macdNeutral": "Neutral"
+    "macdNeutral": "Neutral",
+    "supertrend": "SuperTrend",
+    "donchian": "Donchian Channel",
+    "pivot": "Pivot Points"
   },
   "drawingTools": {
     "pointer": "Pointer",

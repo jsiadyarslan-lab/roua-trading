@@ -5521,7 +5521,10 @@
     "dmi": "Irányított mozgási index",
     "obv": "Egyenleg hangerő",
     "trix": "TRIX",
-    "adx": "Átlagos iránymutató"
+    "adx": "Átlagos iránymutató",
+    "supertrend": "SuperTrend",
+    "donchian": "Donchian Csatorna",
+    "pivot": "Pivot Pontok"
   },
   "dashboardLive": {
     "binanceLive": "Binance élőben",

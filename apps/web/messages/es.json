@@ -5521,7 +5521,10 @@
     "dmi": "Índice de Movimiento Direccional",
     "obv": "Volumen Equilibrado",
     "trix": "TRIX",
-    "adx": "Índice Direccional Promedio"
+    "adx": "Índice Direccional Promedio",
+    "supertrend": "SuperTrend",
+    "donchian": "Canal de Donchian",
+    "pivot": "Puntos Pivote"
   },
   "dashboardLive": {
     "binanceLive": "Binance en vivo",

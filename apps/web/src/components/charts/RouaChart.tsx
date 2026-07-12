@@ -339,7 +339,7 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull, compact }: {
     >
       <div style={{
         background: bgColor,
-        color: '#fff',
+        color: '#000',
         fontFamily: "var(--font-mono)",
         fontSize: 11 * scale,
         fontWeight: 700,

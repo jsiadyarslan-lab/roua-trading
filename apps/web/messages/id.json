@@ -5521,7 +5521,10 @@
     "dmi": "Indeks Pergerakan Arah",
     "obv": "Volume Pada Saldo",
     "trix": "TRIX",
-    "adx": "Indeks Arah Rata-rata"
+    "adx": "Indeks Arah Rata-rata",
+    "supertrend": "SuperTrend",
+    "donchian": "Saluran Donchian",
+    "pivot": "Titik Pivot"
   },
   "dashboardLive": {
     "binanceLive": "Binance Langsung",

@@ -68,7 +68,7 @@ export default function LandingNavbar() {
               </span>
               <span
                 className="text-[8px] font-semibold tracking-[0.3em] opacity-40"
-                style={{ color: '#94A3B8', fontFamily: 'var(--font-brand)' }}
+                style={{ color: T.text2, fontFamily: 'var(--font-brand)' }}
               >
                 {tc('brandSub')}
               </span>
@@ -82,12 +82,12 @@ export default function LandingNavbar() {
                 key={item.label}
                 href={item.href}
                 className="px-3 py-1.5 rounded-lg text-sm transition-all duration-200 hover:bg-white/5"
-                style={{ color: '#94A3B8', fontFamily: 'var(--font-ar)' }}
+                style={{ color: T.text2, fontFamily: 'var(--font-ar)' }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.color = '#E2E8F0'
+                  e.currentTarget.style.color = T.text2
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.color = '#94A3B8'
+                  e.currentTarget.style.color = T.text2
                 }}
               >
                 {item.label}
@@ -103,7 +103,7 @@ export default function LandingNavbar() {
                 variant="ghost"
                 size="sm"
                 className="gap-2 text-sm font-medium rounded-lg"
-                style={{ color: '#94A3B8' }}
+                style={{ color: T.text2 }}
               >
                 <LogIn className="w-3.5 h-3.5" />
                 <span style={{ fontFamily: 'var(--font-ar)' }}>{t('login')}</span>
@@ -129,7 +129,7 @@ export default function LandingNavbar() {
           {/* Mobile Menu Button */}
           <button
             className="md:hidden w-9 h-9 rounded-lg flex items-center justify-center"
-            style={{ color: '#94A3B8' }}
+            style={{ color: T.text2 }}
             onClick={() => setMobileOpen(!mobileOpen)}
           >
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -157,7 +157,7 @@ export default function LandingNavbar() {
                   href={item.href}
                   onClick={() => setMobileOpen(false)}
                   className="block px-3 py-2.5 rounded-lg text-sm transition-colors hover:bg-white/5"
-                  style={{ color: '#94A3B8', fontFamily: 'var(--font-ar)' }}
+                  style={{ color: T.text2, fontFamily: 'var(--font-ar)' }}
                 >
                   {item.label}
                 </a>
@@ -170,7 +170,7 @@ export default function LandingNavbar() {
                   <Button
                     variant="ghost"
                     className="w-full justify-center gap-2 rounded-lg"
-                    style={{ color: '#94A3B8' }}
+                    style={{ color: T.text2 }}
                   >
                     <LogIn className="w-4 h-4" />
                     <span style={{ fontFamily: 'var(--font-ar)' }}>{t('login')}</span>

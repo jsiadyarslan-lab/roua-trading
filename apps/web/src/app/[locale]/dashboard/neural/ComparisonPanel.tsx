@@ -259,15 +259,15 @@ export default function ComparisonPanel() {
                 [result.strategy1.label]: Number(d[result.strategy1.strategy]),
                 [result.strategy2.label]: Number(d[result.strategy2.strategy]),
               }))}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                <CartesianGrid strokeDasharray="3 3" stroke={T.card} />
                 <XAxis dataKey="metric" stroke={T.text3} tick={{ fontSize: 'var(--text-xs)' }} />
                 <YAxis stroke={T.text3} tick={{ fontSize: 'var(--text-xs)' }} />
                 <Tooltip
-                  contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)' }}
-                  labelStyle={{ color: '#9ca3af' }}
+                  contentStyle={{ background: T.card, border: '1px solid #374151', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)' }}
+                  labelStyle={{ color: T.text2 }}
                 />
                 <Legend wrapperStyle={{ fontSize: 'var(--text-sm)' }} />
-                <Bar dataKey={result.strategy1.label} fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey={result.strategy1.label} fill={T.info} radius={[4, 4, 0, 0]} />
                 <Bar dataKey={result.strategy2.label} fill="#6366f1" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>

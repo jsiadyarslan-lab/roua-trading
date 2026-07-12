@@ -41,9 +41,9 @@ function SymbolButton({ symbol, isActive, onSelect }: SymbolButtonProps) {
 
   // V522: Tick direction determines the vivid color
   // up: bright green, down: bright red, flat: neutral based on 24h change
-  const tickColor = tickDir === 'up' ? '#00FF88'
+  const tickColor = tickDir === 'up' ? T.success
                   : tickDir === 'down' ? '#FF3355'
-                  : (isUp ? '#00FF88' : '#FF3355')
+                  : (isUp ? T.success : '#FF3355')
   // Background intensity based on tick direction
   const tickBg = tickDir === 'up' ? 'rgba(0,255,136,0.18)'
                : tickDir === 'down' ? 'rgba(255,51,85,0.18)'
@@ -75,7 +75,7 @@ function SymbolButton({ symbol, isActive, onSelect }: SymbolButtonProps) {
         <span style={{ fontSize: 'var(--text-xs)', fontWeight:800, color: tickColor, fontFamily: "var(--font-mono)", lineHeight:1.2, textShadow: tickDir !== 'flat' ? `0 0 6px ${tickDir === 'up' ? 'rgba(0,255,136,0.6)' : 'rgba(255,51,85,0.6)'}` : 'none', transition: 'color 0.15s' }}>
           {price}
         </span>
-        <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color: isUp ? '#00FF88' : '#FF3355', fontFamily: "var(--font-mono)", lineHeight:1, padding: '1px 5px', borderRadius: 'var(--radius-sm)', background: pctBg }}>
+        <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color: isUp ? T.success : '#FF3355', fontFamily: "var(--font-mono)", lineHeight:1, padding: '1px 5px', borderRadius: 'var(--radius-sm)', background: pctBg }}>
           {isUp ? '▲' : '▼'} {chgPct >= 0 ? '+' : ''}{chgPct.toFixed(2)}%
         </span>
       </div>

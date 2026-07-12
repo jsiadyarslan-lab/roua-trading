@@ -147,9 +147,9 @@ const PATTERN_ICONS: Record<string, string> = {
 
 const C = {
   bg: 'rgba(11,14,20,0.96)',
-  card: '#111620',
+  card: T.card,
   cardHover: '#151D2B',
-  border: '#1E2530',
+  border: T.card,
   borderActive: 'rgba(0,212,255,0.35)',
   cyan: T.info,
   text: T.text,
@@ -157,7 +157,7 @@ const C = {
   textMuted: T.text3,
   success: T.success,
   danger: T.danger,
-  warning: '#fbbf24',
+  warning: T.warning,
   gold: T.gold,
   upBg: 'rgba(0,255,163,0.06)',
   downBg: 'rgba(255,71,87,0.06)',

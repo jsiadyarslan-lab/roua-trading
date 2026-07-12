@@ -153,8 +153,8 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp, onSelectSymb
             Stocks: tw('stocks'),
           }
           const tabColors: Record<string, string> = {
-            Crypto: '#F59E0B', Forex: '#06B6D4', Metals: '#CD7F32',
-            Indices: '#8B5CF6', Energy: T.profit, Stocks: '#EC4899',
+            Crypto: T.warning, Forex: '#06B6D4', Metals: '#CD7F32',
+            Indices: T.council, Energy: T.profit, Stocks: '#EC4899',
           }
           const accent = tabColors[tab] || 'var(--accent)'
           return (

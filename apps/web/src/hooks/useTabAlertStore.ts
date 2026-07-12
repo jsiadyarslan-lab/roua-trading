@@ -31,12 +31,12 @@ interface TabAlertState {
 }
 
 const DEFAULT_COLORS: Record<TabId, string> = {
-  'bot':      '#00E5FF',
+  'bot':      T.info,
   'trader':   '#00FFA3',
   'council':  '#B388FF',
   'scanner':  '#FFB800',
   'multi-tf': '#B388FF',
-  'signals':  '#00C853',
+  'signals':  T.success,
 }
 
 export const useTabAlertStore = create<TabAlertState>()((set, get) => ({

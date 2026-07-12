@@ -65,11 +65,11 @@ export function getStatusLabel(status: DataStatus, t?: TFn): string {
 export function getStatusTone(status: DataStatus) {
   switch (status) {
     case 'live':
-      return '#00C853'
+      return T.success
     case 'delayed':
       return T.warning
     case 'fallback':
-      return '#00E5FF'
+      return T.info
     case 'demo':
       return T.council
     default:

@@ -74,7 +74,7 @@ interface Signal {
 
 const QUICK_PAIRS = [
   { symbol: 'BTC/USDT', name: 'بيتكوين', icon: '₿', color: T.warning, gradient: 'linear-gradient(135deg, #FFB800, #FF8C00)' },
-  { symbol: 'ETH/USDT', name: 'إيثريوم', icon: 'Ξ', color: '#A259FF', gradient: 'linear-gradient(135deg, #A259FF, #7C3AED)' },
+  { symbol: 'ETH/USDT', name: 'إيثريوم', icon: 'Ξ', color: T.council, gradient: 'linear-gradient(135deg, #A259FF, #7C3AED)' },
   { symbol: 'SOL/USDT', name: 'سولانا', icon: '◎', color: T.blue, gradient: 'linear-gradient(135deg, #0A84FF, #6366F1)' },
   { symbol: 'AAPL', name: 'آبل', icon: '', color: T.greenAlt, gradient: 'linear-gradient(135deg, #00FFC6, #10B981)' },
   { symbol: 'TSLA', name: 'تسلا', icon: '', color: T.redAlt, gradient: 'linear-gradient(135deg, #FF4D4D, #EF4444)' },

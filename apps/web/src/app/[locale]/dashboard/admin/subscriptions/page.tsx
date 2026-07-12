@@ -16,9 +16,9 @@ import T from '@/lib/unified-tokens'
 const COLORS = {
   bg: T.bg,
   card: '#111318',
-  accent: '#00E5FF',
-  success: '#00E676',
-  danger: '#FF5252',
+  accent: T.info,
+  success: T.success,
+  danger: T.danger,
   amber: T.warning,
   text: T.text,
   muted: T.text2,
@@ -38,9 +38,9 @@ const CARD_STYLE: React.CSSProperties = {
 /* ── tier helpers ── */
 const TIER_CONFIG = [
   { key: 'FREE' as const, label: 'مجاني', color: T.text2 },
-  { key: 'PRO' as const, label: 'برو', color: '#00E5FF' },
+  { key: 'PRO' as const, label: 'برو', color: T.info },
   { key: 'PLUS' as const, label: 'بلس', color: T.warning },
-  { key: 'PREMIUM' as const, label: 'مميز', color: '#00E676' },
+  { key: 'PREMIUM' as const, label: 'مميز', color: T.success },
   { key: 'INSTITUTIONAL' as const, label: 'مؤسسي', color: T.council },
 ]
 
@@ -53,7 +53,7 @@ function getTierLabel(tier: string): string {
 
 function getTierColor(tier: string): string {
   const map: Record<string, string> = {
-    FREE: T.text2, PRO: '#00E5FF', PLUS: T.warning, PREMIUM: '#00E676', INSTITUTIONAL: T.council,
+    FREE: T.text2, PRO: T.info, PLUS: T.warning, PREMIUM: T.success, INSTITUTIONAL: T.council,
   }
   return map[tier] || T.text2
 }

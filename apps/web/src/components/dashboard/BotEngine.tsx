@@ -531,7 +531,7 @@ export function BotEngine() {
       useTabAlertStore.getState().pushAlert('bot', {
         action: isBuy ? 'BUY' : 'SELL',
         label: `${isBuy ? '⬆' : '⬇'} ${signal.pair} $${price.toFixed(0)}`,
-        color: isBuy ? '#00C853' : '#FF3B30',
+        color: isBuy ? T.success : '#FF3B30',
       })
 
       addNotification({
@@ -585,7 +585,7 @@ export function BotEngine() {
     useTabAlertStore.getState().pushAlert('bot', {
       action: profitable ? 'BUY' : 'SELL',
       label: `${reason === 'TP' ? '✅ ' + t('closeProfit') : '❌ ' + t('closeLoss')} ${trade.symbol} ${pnl > 0 ? '+' : ''}${pnl.toFixed(0)}$`,
-      color: profitable ? '#00C853' : '#FF3B30',
+      color: profitable ? T.success : '#FF3B30',
     })
     addNotification({
       source: 'bot',

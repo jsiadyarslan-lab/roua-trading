@@ -51,7 +51,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
     { id: 'lazic', label: tr('tabLazic'), accent: '#FF6B35', icon: Zap, subtitle: tr('subtitleLazic') },
     { id: 'executor', label: tr('tabExecutor'), accent: T.cyan, icon: Swords, subtitle: tr('subtitleExecutor') },
     { id: 'strategic', label: tr('tabStrategic'), accent: T.purple, icon: Landmark, subtitle: tr('subtitleStrategic') },
-    { id: 'trader', label: tr('tabTrader'), accent: '#FF8C42', icon: Bot, subtitle: tr('subtitleTrader') },
+    { id: 'trader', label: tr('tabTrader'), accent: T.warning, icon: Bot, subtitle: tr('subtitleTrader') },
     { id: 'council', label: tr('tabCouncil'), accent: T.accent, icon: Brain, subtitle: tr('subtitleCouncil') },
     { id: 'scanner', label: tr('tabScanner'), accent: T.amber, icon: ScanSearch, subtitle: tr('subtitleScanner') },
   ]

@@ -426,7 +426,7 @@ export function PortfolioMini({
         }}>
           <span style={{ fontSize: 'var(--text-xs)' }}>🔴</span>
           <span style={{
-            fontSize: 'var(--text-xs)', color: '#f87171', fontFamily: "var(--font-ar)",
+            fontSize: 'var(--text-xs)', color: T.danger, fontFamily: "var(--font-ar)",
             fontWeight: 700, lineHeight: 1.4,
           }}>
             MetaAPI غير متصل — لا يمكن جلب بيانات حساب MT5 الحقيقي. {usePositionsStore(s => s.account?.metaapiError) || 'تأكد من ضبط مفتاح METAAPI_TOKEN.'}

@@ -167,7 +167,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         direction: 'inherit',
       }}>
         <div style={{ textAlign: 'center' }}>
-          <Loader2 size={32} color="#00E5FF" style={{ animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
+          <Loader2 size={32} color={T.info} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
           <div style={{ fontSize: 'var(--text-base)', color: T.text2, fontFamily: "var(--font-ar)" }}>جارٍ التحقق من الهوية...</div>
         </div>
       </div>
@@ -186,9 +186,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   const sidebarWidth = collapsed ? 64 : 220
-  const SIDEBAR_BG = '#0D1017'
+  const SIDEBAR_BG = T.bg
   const SIDEBAR_BORDER = 'rgba(0,229,255,0.08)'
-  const ACCENT = '#00E5FF'
+  const ACCENT = T.info
   const TEXT = T.text
   const TEXT_MUTED = T.text2
   const BG = T.bg
@@ -315,7 +315,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               justifyContent: collapsed ? 'center' : 'flex-start',
               borderRadius: 'var(--radius-sm)',
               cursor: 'pointer',
-              color: '#FF5252',
+              color: T.danger,
             }}
           >
             <LogOut size={16} />

@@ -268,20 +268,20 @@ export default function NeuralPanel() {
                 <AreaChart data={result.predictions}>
                   <defs>
                     <linearGradient id="predGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#a78bfa" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#a78bfa" stopOpacity={0} />
+                      <stop offset="5%" stopColor={T.council} stopOpacity={0.3} />
+                      <stop offset="95%" stopColor={T.council} stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="confGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#6366f1" stopOpacity={0.15} />
                       <stop offset="95%" stopColor="#6366f1" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                  <CartesianGrid strokeDasharray="3 3" stroke={T.card} />
                   <XAxis dataKey="timestamp" stroke={T.text3} tick={{ fontSize: 'var(--text-xs)' }} />
                   <YAxis stroke={T.text3} tick={{ fontSize: 'var(--text-xs)' }} domain={['auto', 'auto']} />
                   <Tooltip
-                    contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)' }}
-                    labelStyle={{ color: '#9ca3af' }}
+                    contentStyle={{ background: T.card, border: '1px solid #374151', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)' }}
+                    labelStyle={{ color: T.text2 }}
                     formatter={(value: number, name: string) => {
                       const labels: Record<string, string> = {
                         predictedPrice: t('neuralPredictedPrice'),
@@ -293,7 +293,7 @@ export default function NeuralPanel() {
                   />
                   <Area type="monotone" dataKey="upperBound" stroke="none" fill="url(#confGrad)" />
                   <Area type="monotone" dataKey="lowerBound" stroke="none" fill="url(#confGrad)" />
-                  <Line type="monotone" dataKey="predictedPrice" stroke="#a78bfa" strokeWidth={2} dot={{ fill: '#a78bfa', r: 3 }} />
+                  <Line type="monotone" dataKey="predictedPrice" stroke={T.council} strokeWidth={2} dot={{ fill: T.council, r: 3 }} />
                   <Line type="monotone" dataKey="upperBound" stroke="#4f46e5" strokeWidth={1} strokeDasharray="4 4" dot={false} />
                   <Line type="monotone" dataKey="lowerBound" stroke="#4f46e5" strokeWidth={1} strokeDasharray="4 4" dot={false} />
                 </AreaChart>

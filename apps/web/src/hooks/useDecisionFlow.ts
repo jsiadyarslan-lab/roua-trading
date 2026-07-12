@@ -111,7 +111,7 @@ export function useDecisionFlow() {
   const summary = useMemo(() => {
     if (loading) {
       return {
-        tone: '#00E5FF',
+        tone: T.info,
         title: 'محرك القرار يفحص السوق',
         detail: `جاري جمع قراءة ${selectedSymbol} من السكانر والمجلس والبوت`,
       }
@@ -119,7 +119,7 @@ export function useDecisionFlow() {
 
     if (council?.recommendation === 'BUY' && signalActive) {
       return {
-        tone: '#00C853',
+        tone: T.success,
         title: `${selectedSymbol} جاهز هجوميًا`,
         detail: council.conflictExplanation || scanner?.reasons?.[0] || 'الطبقات الأساسية متوافقة على الشراء',
       }
@@ -142,7 +142,7 @@ export function useDecisionFlow() {
     }
 
     return {
-      tone: '#00E5FF',
+      tone: T.info,
       title: `${selectedSymbol} قيد المراقبة`,
       detail: narrator?.summary || scanner?.reasons?.[0] || 'لا توجد فرصة واضحة كفاية بعد',
     }

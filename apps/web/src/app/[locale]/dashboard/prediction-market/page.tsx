@@ -143,7 +143,7 @@ function categoryColor(cat?: string): string {
     case 'economy': return T.warning
     case 'technology': return T.info
     case 'sports': return T.greenAlt
-    default: return '#A259FF'
+    default: return T.council
   }
 }
 
@@ -210,7 +210,7 @@ function ProbabilityBar({ market, ai, gap, t }: { market: number; ai?: number | 
       {/* AI Bar */}
       {aiPct !== null ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-          <span style={{ fontSize: '9px', fontWeight: 700, color: '#A259FF', fontFamily: 'var(--font-ar), Inter, sans-serif', width: '32px', flexShrink: 0 }}>AI</span>
+          <span style={{ fontSize: '9px', fontWeight: 700, color: T.council, fontFamily: 'var(--font-ar), Inter, sans-serif', width: '32px', flexShrink: 0 }}>AI</span>
           <div style={{ flex: 1, height: '10px', background: 'var(--bg-input)', borderRadius: '5px', overflow: 'hidden', position: 'relative' }}>
             <motion.div
               initial={{ width: 0 }}
@@ -224,7 +224,7 @@ function ProbabilityBar({ market, ai, gap, t }: { market: number; ai?: number | 
               }}
             />
           </div>
-          <span style={{ fontSize: '10px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#A259FF', width: '36px', textAlign: 'left', flexShrink: 0 }} dir="ltr">
+          <span style={{ fontSize: '10px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: T.council, width: '36px', textAlign: 'left', flexShrink: 0 }} dir="ltr">
             {(aiPct * 100).toFixed(0)}%
           </span>
         </div>
@@ -585,8 +585,8 @@ function GapCard({ event, index, t }: { event: PredictionEvent; index: number; t
         )}
         {isAiHigher && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <TrendingDown size={11} style={{ color: '#A259FF' }} />
-            <span style={{ fontSize: '9px', color: '#A259FF', fontFamily: 'var(--font-ar), Inter, sans-serif', fontWeight: 600 }}>
+            <TrendingDown size={11} style={{ color: T.council }} />
+            <span style={{ fontSize: '9px', color: T.council, fontFamily: 'var(--font-ar), Inter, sans-serif', fontWeight: 600 }}>
               {t('aiHigher')}
             </span>
           </div>
@@ -632,8 +632,8 @@ function GapCard({ event, index, t }: { event: PredictionEvent; index: number; t
           background: 'rgba(162, 89, 255, 0.06)', border: '1px solid rgba(162, 89, 255, 0.15)',
           textAlign: 'center',
         }}>
-          <div style={{ fontSize: '8px', color: '#A259FF', fontFamily: 'var(--font-ar), Inter, sans-serif', marginBottom: '2px' }}>AI</div>
-          <div style={{ fontSize: '13px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#A259FF' }} dir="ltr">
+          <div style={{ fontSize: '8px', color: T.council, fontFamily: 'var(--font-ar), Inter, sans-serif', marginBottom: '2px' }}>AI</div>
+          <div style={{ fontSize: '13px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: T.council }} dir="ltr">
             {event.aiProbability != null && Number.isFinite(event.aiProbability) ? formatPercent(event.aiProbability, 0) : '—'}
           </div>
         </div>
@@ -940,7 +940,7 @@ export default function PredictionMarketPage() {
           icon={<DollarSign size={12} color="#fff" />}
           label={t('statTradingVolume')}
           value={formatVolume(totalVolume)}
-          color="#A259FF"
+          color={T.council}
           gradient="linear-gradient(135deg, #A259FF, #7C3AED)"
           delay={0.15}
         />

@@ -29,7 +29,7 @@ const steps: Step[] = [
     titleKey: 'step3Title',
     subtitleKey: 'step2Subtitle',
     descKey: 'step2Desc',
-    color: '#3B82F6',
+    color: T.info,
     step: 2,
   },
   {
@@ -37,7 +37,7 @@ const steps: Step[] = [
     titleKey: 'step2Title',
     subtitleKey: 'step3Subtitle',
     descKey: 'step3Desc',
-    color: '#8B5CF6',
+    color: T.council,
     step: 3,
   },
   {
@@ -45,7 +45,7 @@ const steps: Step[] = [
     titleKey: 'step4Title',
     subtitleKey: 'step4Subtitle',
     descKey: 'step4Desc',
-    color: '#F59E0B',
+    color: T.warning,
     step: 4,
   },
 ]
@@ -91,7 +91,7 @@ export default function HowItWorksSection() {
             style={{
               background: 'rgba(139,92,246,0.06)',
               border: '1px solid rgba(139,92,246,0.12)',
-              color: '#A78BFA',
+              color: T.council,
               fontFamily: 'var(--font-en)',
             }}
           >
@@ -194,7 +194,7 @@ export default function HowItWorksSection() {
                   {/* Description */}
                   <p
                     className="text-sm leading-relaxed"
-                    style={{ color: '#94A3B8', fontFamily: 'var(--font-ar)' }}
+                    style={{ color: T.text2, fontFamily: 'var(--font-ar)' }}
                   >
                     {t(step.descKey)}
                   </p>

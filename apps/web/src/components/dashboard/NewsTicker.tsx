@@ -168,7 +168,7 @@ export default function NewsTicker() {
         <span className="text-[6px] font-bold px-1.5 py-0 rounded" style={{ color: item.color, background: item.bgColor }}>
           {getLocalizedCategory(item, locale)}
         </span>
-        <span className="text-[7px]" style={{ color: '#999999' }}>{displayText}</span>
+        <span className="text-[7px]" style={{ color: T.text3 }}>{displayText}</span>
         <span className="text-[7px]">
           {item.impact === 'high' ? (
             <span style={{ color: 'var(--loss)' }}>●</span>
@@ -195,11 +195,11 @@ export default function NewsTicker() {
       <div className="flex-1 overflow-hidden h-full flex items-center" style={{ background: 'var(--bg-ticker)' }}>
         {isLoading ? (
           <div className="flex items-center h-full px-4">
-            <span className="text-[7px]" style={{ color: '#999999' }}>{tn('loading')}</span>
+            <span className="text-[7px]" style={{ color: T.text3 }}>{tn('loading')}</span>
           </div>
         ) : newsItems.length === 0 ? (
           <div className="flex items-center h-full px-4">
-            <span className="text-[7px]" style={{ color: '#999999' }}>{tn('unavailable')}</span>
+            <span className="text-[7px]" style={{ color: T.text3 }}>{tn('unavailable')}</span>
           </div>
         ) : (
           <div ref={tickerRef} className="flex items-center h-full" style={{ animation: 'ql-news 60s linear infinite' }}>

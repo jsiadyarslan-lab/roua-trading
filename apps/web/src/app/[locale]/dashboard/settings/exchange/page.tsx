@@ -979,7 +979,7 @@ export default function ExchangeSettingsPage() {
                         }}>
                           <div className="font-bold mb-2" style={{
                             color: (testResults[cred.id].restApiWorks || testResults[cred.id].rpcWorks)
-                              ? '#22c55e' : T.loss,
+                              ? T.success : T.loss,
                             fontFamily: "var(--font-ar)",
                           }}>
                             {(testResults[cred.id].restApiWorks || testResults[cred.id].rpcWorks)
@@ -988,7 +988,7 @@ export default function ExchangeSettingsPage() {
                           <div className="space-y-1" style={{ fontFamily: "var(--font-ar)" }}>
                             {testResults[cred.id].steps?.map((step: any, i: number) => (
                               <div key={i} className="flex items-center gap-2">
-                                <span style={{ color: step.success ? '#22c55e' : T.loss }}>
+                                <span style={{ color: step.success ? T.success : T.loss }}>
                                   {step.success ? '✓' : '✗'}
                                 </span>
                                 <span className="text-muted-foreground">{step.step}</span>

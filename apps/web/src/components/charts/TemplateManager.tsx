@@ -136,9 +136,9 @@ export function TemplateManager({
     textMuted: T.text2,
     success: T.success,
     danger: T.danger,
-    warning: '#fbbf24',
+    warning: T.warning,
     bg: T.bg,
-    purple: '#a855f7',
+    purple: T.council,
   };
 
   return (

@@ -66,7 +66,7 @@ export class DrawingManager {
 
   // ── CRUD Operations ────────────────────────────────────
 
-  create(type: DrawingTool, points: DrawingPoint[], color: string = '#fbbf24', lineWidth: number = 1.5, opacity: number = 0.8, lineStyle: Drawing['lineStyle'] = 'solid', scope: Drawing['scope'] = 'all-tf'): Drawing {
+  create(type: DrawingTool, points: DrawingPoint[], color: string = T.warning, lineWidth: number = 1.5, opacity: number = 0.8, lineStyle: Drawing['lineStyle'] = 'solid', scope: Drawing['scope'] = 'all-tf'): Drawing {
     const drawing: Drawing = {
       id: `draw-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       type,

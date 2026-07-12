@@ -34,15 +34,15 @@ const SPEEDS: { value: ReplaySpeed; label: string; intervalMs: number }[] = [
 // ── Color Palette ─────────────────────────────────────────
 const C = {
   bg: 'rgba(11,14,20,0.95)',
-  card: '#111620',
-  border: '#1E2530',
+  card: T.card,
+  border: T.card,
   cyan: T.info,
   text: T.text,
   textDim: T.text2,
   textMuted: T.text3,
   success: T.success,
   danger: T.danger,
-  warning: '#fbbf24',
+  warning: T.warning,
 };
 
 export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) {

@@ -81,8 +81,8 @@ const C = {
   success: T.success,
   danger: T.danger,
   gold: T.gold,
-  upColor: '#3fb950',
-  downColor: '#f85149',
+  upColor: T.success,
+  downColor: T.danger,
   headerBg: 'rgba(21,26,34,0.95)',
 };
 

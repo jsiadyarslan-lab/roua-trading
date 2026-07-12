@@ -441,7 +441,7 @@ function LoginForm() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.4 }}
             className="text-lg font-bold text-center mb-6"
-            style={{ color: '#E2E8F0', fontFamily: 'var(--font-ar)' }}
+            style={{ color: T.text2, fontFamily: 'var(--font-ar)' }}
           >
             {t('welcomeBack')}
           </motion.h2>
@@ -472,7 +472,7 @@ function LoginForm() {
                 style={{
                   background: 'rgba(255,255,255,0.05)',
                   border: '1px solid rgba(255,255,255,0.1)',
-                  color: '#E2E8F0',
+                  color: T.text2,
                   fontFamily: 'var(--font-en)',
                 }}
                 onFocus={(e) => {

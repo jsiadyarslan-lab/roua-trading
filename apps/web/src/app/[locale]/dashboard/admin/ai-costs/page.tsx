@@ -28,7 +28,7 @@ const COLORS = {
   ...BASE_COLORS,
   blue: '#448AFF',
   pink: '#FF4081',
-  teal: '#1DE9B6',
+  teal: T.success,
   orange: '#FF6D00',
 }
 

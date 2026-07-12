@@ -266,19 +266,19 @@ export default function LiveMarketChart() {
                 className="flex items-center gap-1.5 px-2 py-0.5 rounded-md"
                 style={{ background: 'rgba(245, 158, 11, 0.06)' }}
               >
-                <Activity className="w-2.5 h-2.5" style={{ color: '#F59E0B' }} />
+                <Activity className="w-2.5 h-2.5" style={{ color: T.warning }} />
                 <span
                   className="text-[9px] font-bold tracking-wider"
-                  style={{ color: '#F59E0B', fontFamily: 'var(--font-brand)' }}
+                  style={{ color: T.warning, fontFamily: 'var(--font-brand)' }}
                 >
                   DEMO
                 </span>
-                <span className="w-1 h-1 rounded-full animate-pulse" style={{ background: '#F59E0B' }} />
+                <span className="w-1 h-1 rounded-full animate-pulse" style={{ background: T.warning }} />
               </div>
 
               <span
                 className="text-xs font-bold"
-                style={{ color: '#E2E8F0', fontFamily: 'var(--font-mono)' }}
+                style={{ color: T.text2, fontFamily: 'var(--font-mono)' }}
               >
                 BTC/USD
               </span>

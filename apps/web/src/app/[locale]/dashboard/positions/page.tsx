@@ -72,7 +72,7 @@ function getSourceBadge(source?: string | null, tradeSource?: string | null) {
     agent: {
       label: 'الوكيل',
       bg: 'rgba(162,89,255,0.12)',
-      color: '#A259FF',
+      color: T.council,
       border: 'rgba(162,89,255,0.25)',
       icon: '\uD83E\uDD16',
     },

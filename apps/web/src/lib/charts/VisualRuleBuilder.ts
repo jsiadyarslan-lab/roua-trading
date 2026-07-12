@@ -139,19 +139,19 @@ export const SIGNAL_BLOCK_LIBRARY: Array<{
   defaultConfidence: number;
 }> = [
   // Harmonic Patterns
-  { category: 'harmonic', signalType: 'Gartley', labelAr: 'نمط جارتلي', color: '#a78bfa', defaultConfidence: 0.6 },
-  { category: 'harmonic', signalType: 'Bat', labelAr: 'نمط خفاش', color: '#a78bfa', defaultConfidence: 0.6 },
-  { category: 'harmonic', signalType: 'Butterfly', labelAr: 'نمط فراشة', color: '#a78bfa', defaultConfidence: 0.6 },
-  { category: 'harmonic', signalType: 'Crab', labelAr: 'نمط سلطعون', color: '#a78bfa', defaultConfidence: 0.6 },
-  { category: 'harmonic', signalType: 'Shark', labelAr: 'نمط قرش', color: '#a78bfa', defaultConfidence: 0.6 },
-  { category: 'harmonic', signalType: 'Cypher', labelAr: 'نمط سايفر', color: '#a78bfa', defaultConfidence: 0.6 },
-  { category: 'harmonic', signalType: 'any', labelAr: 'أي نمط هارمونيك', color: '#a78bfa', defaultConfidence: 0.5 },
+  { category: 'harmonic', signalType: 'Gartley', labelAr: 'نمط جارتلي', color: T.council, defaultConfidence: 0.6 },
+  { category: 'harmonic', signalType: 'Bat', labelAr: 'نمط خفاش', color: T.council, defaultConfidence: 0.6 },
+  { category: 'harmonic', signalType: 'Butterfly', labelAr: 'نمط فراشة', color: T.council, defaultConfidence: 0.6 },
+  { category: 'harmonic', signalType: 'Crab', labelAr: 'نمط سلطعون', color: T.council, defaultConfidence: 0.6 },
+  { category: 'harmonic', signalType: 'Shark', labelAr: 'نمط قرش', color: T.council, defaultConfidence: 0.6 },
+  { category: 'harmonic', signalType: 'Cypher', labelAr: 'نمط سايفر', color: T.council, defaultConfidence: 0.6 },
+  { category: 'harmonic', signalType: 'any', labelAr: 'أي نمط هارمونيك', color: T.council, defaultConfidence: 0.5 },
 
   // SMC
-  { category: 'smc', signalType: 'BOS', labelAr: 'كسر هيكل (BOS)', color: '#22d3ee', defaultConfidence: 0.65 },
-  { category: 'smc', signalType: 'CHoCH', labelAr: 'تغير شخصية (CHoCH)', color: '#22d3ee', defaultConfidence: 0.6 },
-  { category: 'smc', signalType: 'OrderBlock', labelAr: 'بلوك أوامر', color: '#22d3ee', defaultConfidence: 0.55 },
-  { category: 'smc', signalType: 'FVG', labelAr: 'فجوة قيمة عادلة', color: '#22d3ee', defaultConfidence: 0.5 },
+  { category: 'smc', signalType: 'BOS', labelAr: 'كسر هيكل (BOS)', color: T.info, defaultConfidence: 0.65 },
+  { category: 'smc', signalType: 'CHoCH', labelAr: 'تغير شخصية (CHoCH)', color: T.info, defaultConfidence: 0.6 },
+  { category: 'smc', signalType: 'OrderBlock', labelAr: 'بلوك أوامر', color: T.info, defaultConfidence: 0.55 },
+  { category: 'smc', signalType: 'FVG', labelAr: 'فجوة قيمة عادلة', color: T.info, defaultConfidence: 0.5 },
 
   // Elliott Wave
   { category: 'elliott', signalType: 'impulse', labelAr: 'موجة نبضة', color: '#10b981', defaultConfidence: 0.6 },
@@ -159,11 +159,11 @@ export const SIGNAL_BLOCK_LIBRARY: Array<{
   { category: 'elliott', signalType: 'wave3', labelAr: 'الموجة 3 (أقوى موجة)', color: '#10b981', defaultConfidence: 0.65 },
 
   // Wyckoff
-  { category: 'wyckoff', signalType: 'spring', labelAr: 'سبرينج (Spring)', color: '#f59e0b', defaultConfidence: 0.7 },
-  { category: 'wyckoff', signalType: 'SOS', labelAr: 'علامة قوة (SOS)', color: '#f59e0b', defaultConfidence: 0.65 },
-  { category: 'wyckoff', signalType: 'UTAD', labelAr: 'UTAD (فوق القمة)', color: '#f59e0b', defaultConfidence: 0.7 },
-  { category: 'wyckoff', signalType: 'Accumulation', labelAr: 'تراكم', color: '#f59e0b', defaultConfidence: 0.5 },
-  { category: 'wyckoff', signalType: 'Distribution', labelAr: 'توزيع', color: '#f59e0b', defaultConfidence: 0.5 },
+  { category: 'wyckoff', signalType: 'spring', labelAr: 'سبرينج (Spring)', color: T.warning, defaultConfidence: 0.7 },
+  { category: 'wyckoff', signalType: 'SOS', labelAr: 'علامة قوة (SOS)', color: T.warning, defaultConfidence: 0.65 },
+  { category: 'wyckoff', signalType: 'UTAD', labelAr: 'UTAD (فوق القمة)', color: T.warning, defaultConfidence: 0.7 },
+  { category: 'wyckoff', signalType: 'Accumulation', labelAr: 'تراكم', color: T.warning, defaultConfidence: 0.5 },
+  { category: 'wyckoff', signalType: 'Distribution', labelAr: 'توزيع', color: T.warning, defaultConfidence: 0.5 },
 
   // Candlestick
   { category: 'candlestick', signalType: 'Engulfing', labelAr: 'ابتلاع', color: '#ef4444', defaultConfidence: 0.55 },
@@ -173,8 +173,8 @@ export const SIGNAL_BLOCK_LIBRARY: Array<{
   { category: 'candlestick', signalType: 'EveningStar', labelAr: 'نجمة مسائية', color: '#ef4444', defaultConfidence: 0.55 },
 
   // Volume
-  { category: 'volume', signalType: 'spike', labelAr: 'ارتفاع حجم مفاجئ', color: '#3b82f6', defaultConfidence: 0.45 },
-  { category: 'volume', signalType: 'dryup', labelAr: 'جفاف حجم', color: '#3b82f6', defaultConfidence: 0.4 },
+  { category: 'volume', signalType: 'spike', labelAr: 'ارتفاع حجم مفاجئ', color: T.info, defaultConfidence: 0.45 },
+  { category: 'volume', signalType: 'dryup', labelAr: 'جفاف حجم', color: T.info, defaultConfidence: 0.4 },
 
   // Fibonacci
   { category: 'fibonacci', signalType: 'retracement0618', labelAr: 'ارتداد 61.8%', color: '#d4af37', defaultConfidence: 0.55 },
@@ -715,7 +715,7 @@ export function createTripleConfluenceRule(): VisualRule {
       timeframe: 'any',
       minConfidence: 0.5,
       enabled: true,
-      color: '#a78bfa',
+      color: T.council,
     },
   );
 
@@ -727,7 +727,7 @@ export function createTripleConfluenceRule(): VisualRule {
     timeframe: 'any',
     minConfidence: 0.5,
     enabled: true,
-    color: '#22d3ee',
+    color: T.info,
   }, rule.rootBlockId, 'AND');
 
   addBlockToRule(rule.id, {
@@ -738,7 +738,7 @@ export function createTripleConfluenceRule(): VisualRule {
     timeframe: 'any',
     minConfidence: 0.4,
     enabled: true,
-    color: '#f59e0b',
+    color: T.warning,
   }, rule.rootBlockId, 'AND');
 
   rule.priority = 'critical';
@@ -760,7 +760,7 @@ export function createSpringBOSRule(): VisualRule {
       timeframe: 'any',
       minConfidence: 0.6,
       enabled: true,
-      color: '#f59e0b',
+      color: T.warning,
     },
   );
 
@@ -772,7 +772,7 @@ export function createSpringBOSRule(): VisualRule {
     timeframe: 'any',
     minConfidence: 0.6,
     enabled: true,
-    color: '#22d3ee',
+    color: T.info,
   }, rule.rootBlockId, 'AND');
 
   rule.priority = 'critical';

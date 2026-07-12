@@ -1299,9 +1299,9 @@ export default function PortfolioPage() {
           background: 'rgba(239,68,68,0.1)',
           border: '1px solid rgba(239,68,68,0.3)',
         }}>
-          <AlertTriangle size={14} color="#f87171" />
+          <AlertTriangle size={14} color={T.danger} />
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#f87171', fontFamily: "var(--font-ar)" }}>
+            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.danger, fontFamily: "var(--font-ar)" }}>
               MetaAPI غير متصل — حساب MT5 لا يمكنه جلب البيانات الحقيقية
             </div>
             <div style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-ar)", marginTop: 2 }}>

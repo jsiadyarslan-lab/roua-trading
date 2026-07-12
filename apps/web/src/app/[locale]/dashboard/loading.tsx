@@ -16,7 +16,7 @@ export default function Loading() {
     <div
       className="min-h-screen flex items-center justify-center"
       style={{
-        background: '#06090f',
+        background: T.bg,
       }}
     >
       <div className="text-center">
@@ -26,7 +26,7 @@ export default function Loading() {
             className="absolute inset-0 rounded-full border-2 border-transparent"
             style={{
               borderTopColor: '#10b981',
-              borderRightColor: '#3B82F6',
+              borderRightColor: T.info,
               animation: 'spin 1s linear infinite',
             }}
           />

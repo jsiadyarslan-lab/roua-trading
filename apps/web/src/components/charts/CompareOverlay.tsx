@@ -169,7 +169,7 @@ export function CompareOverlay({ chart, symbol, onClose }: CompareOverlayProps) 
         <span style={{ color: 'rgba(212,175,55,0.6)' }}>...</span>
       )}
       {error && (
-        <span style={{ color: '#f85149', fontSize: 'var(--text-xs)' }}>{error}</span>
+        <span style={{ color: T.danger, fontSize: 'var(--text-xs)' }}>{error}</span>
       )}
       {currentPrice !== null && !loading && !error && (
         <span style={{ color: T.gold, fontWeight: 600 }}>

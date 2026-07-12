@@ -43,7 +43,7 @@ const planets: Planet[] = [
   {
     name: 'Gemini 2.5',
     icon: ChartBar,
-    color: '#3B82F6',
+    color: T.info,
     orbitRadius: 190,
     orbitDuration: 26,
     descKey: 'geminiDesc',
@@ -53,7 +53,7 @@ const planets: Planet[] = [
   {
     name: 'Bedrock',
     icon: Key,
-    color: '#8B5CF6',
+    color: T.council,
     orbitRadius: 240,
     orbitDuration: 32,
     descKey: 'bedrockDesc',
@@ -73,7 +73,7 @@ const planets: Planet[] = [
   {
     name: 'Twelve Data',
     icon: Globe,
-    color: '#F59E0B',
+    color: T.warning,
     orbitRadius: 325,
     orbitDuration: 44,
     descKey: 'twelveDataDesc',

@@ -37,9 +37,9 @@ interface AdminUser {
 const COLORS = {
   bg: T.bg,
   card: '#111318',
-  accent: '#00E5FF',
-  success: '#00E676',
-  danger: '#FF5252',
+  accent: T.info,
+  success: T.success,
+  danger: T.danger,
   amber: T.warning,
   text: T.text,
   muted: T.text2,

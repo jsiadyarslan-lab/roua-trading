@@ -337,18 +337,18 @@ export default function BacktestPanel() {
                 <AreaChart data={result.equityCurve}>
                   <defs>
                     <linearGradient id="equityGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                      <stop offset="5%" stopColor={T.council} stopOpacity={0.3} />
+                      <stop offset="95%" stopColor={T.council} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                  <CartesianGrid strokeDasharray="3 3" stroke={T.card} />
                   <XAxis dataKey="date" stroke={T.text3} tick={{ fontSize: 'var(--text-xs)' }} />
                   <YAxis stroke={T.text3} tick={{ fontSize: 'var(--text-xs)' }} />
                   <Tooltip
-                    contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)' }}
-                    labelStyle={{ color: '#9ca3af' }}
+                    contentStyle={{ background: T.card, border: '1px solid #374151', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)' }}
+                    labelStyle={{ color: T.text2 }}
                   />
-                  <Area type="monotone" dataKey="value" stroke="#8b5cf6" fill="url(#equityGrad)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="value" stroke={T.council} fill="url(#equityGrad)" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>

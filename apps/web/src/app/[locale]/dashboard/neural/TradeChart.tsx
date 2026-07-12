@@ -92,13 +92,13 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
         height: 400,
         layout: {
           background: { color: '#0a0e17' },
-          textColor: '#9ca3af',
+          textColor: T.text2,
           fontSize: 'var(--text-xs)',
           attributionLogo: false,
         },
         grid: {
-          vertLines: { color: '#1f2937' },
-          horzLines: { color: '#1f2937' },
+          vertLines: { color: T.card },
+          horzLines: { color: T.card },
         },
         crosshair: {
           vertLine: { color: T.text3, width: 1, style: 2 },
@@ -117,11 +117,11 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
 
       // Add candlestick series using v5 API
       const candleSeries = chart.addSeries(CandlestickSeries, {
-        upColor: '#22c55e',
+        upColor: T.success,
         downColor: T.loss,
-        borderUpColor: '#22c55e',
+        borderUpColor: T.success,
         borderDownColor: T.loss,
-        wickUpColor: '#22c55e',
+        wickUpColor: T.success,
         wickDownColor: T.loss,
       });
 
@@ -143,7 +143,7 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
           markers.push({
             time: trade.entryDate,
             position: trade.side === 'BUY' ? 'belowBar' : 'aboveBar',
-            color: trade.side === 'BUY' ? '#22c55e' : T.loss,
+            color: trade.side === 'BUY' ? T.success : T.loss,
             shape: trade.side === 'BUY' ? 'arrowUp' : 'arrowDown',
             text: trade.side === 'BUY' ? t('tradeChartEntry') : t('tradeChartSellEntryShort'),
           });
@@ -154,7 +154,7 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
           markers.push({
             time: trade.exitDate,
             position: trade.side === 'BUY' ? 'aboveBar' : 'belowBar',
-            color: trade.side === 'BUY' ? T.loss : '#22c55e',
+            color: trade.side === 'BUY' ? T.loss : T.success,
             shape: trade.side === 'BUY' ? 'arrowDown' : 'arrowUp',
             text: t('tradeChartExit'),
           });

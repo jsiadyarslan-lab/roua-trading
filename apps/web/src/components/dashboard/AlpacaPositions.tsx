@@ -1191,20 +1191,20 @@ export function AlpacaPositions() {
               }}>
                 {contextMenu.side === 'long' ? 'BUY' : 'SELL'}
               </span>
-              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#E0ECF8', fontFamily: 'var(--font-mono)' }}>
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text, fontFamily: 'var(--font-mono)' }}>
                 {contextMenu.symbol || '—'}
               </span>
-              <span style={{ fontSize: 'var(--text-xs)', color: '#5A6A80', marginLeft: 'auto', fontFamily: 'var(--font-mono)' }}>
+              <span style={{ fontSize: 'var(--text-xs)', color: T.text3, marginLeft: 'auto', fontFamily: 'var(--font-mono)' }}>
                 {contextMenu.qty} @ {contextMenu.entryPrice.toFixed(contextMenu.entryPrice > 100 ? 2 : 5)}
               </span>
               <button
                 onClick={() => setContextMenu(null)}
                 style={{
                   background: 'transparent', border: 'none', cursor: 'pointer',
-                  color: '#5A6A80', fontSize: 'var(--text-base)', lineHeight: 1, padding: '0 2px', marginLeft: 4,
+                  color: T.text3, fontSize: 'var(--text-base)', lineHeight: 1, padding: '0 2px', marginLeft: 4,
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.color = T.danger; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = '#5A6A80'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = T.text3; }}
                 title="إغلاق"
               >
                 ✕
@@ -1275,7 +1275,7 @@ export function AlpacaPositions() {
                   padding: '7px 12px',
                   display: 'flex', alignItems: 'center', gap: 8,
                   cursor: 'pointer',
-                  color: '#C8D4E4',
+                  color: T.text2,
                   fontSize: 'var(--text-xs)',
                   fontWeight: 600,
                   transition: 'background 0.15s',
@@ -1286,7 +1286,7 @@ export function AlpacaPositions() {
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = 'transparent'
-                  e.currentTarget.style.color = '#C8D4E4'
+                  e.currentTarget.style.color = T.text2
                 }}
               >
                 <span style={{ fontSize: 'var(--text-sm)', width: 16, textAlign: 'center' }}>{item.icon}</span>

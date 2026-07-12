@@ -40,7 +40,7 @@ export default function ThinkingIndicator({
             <div className="neural-orb neural-orb-3" />
             {/* Brain icon on top for brand identity */}
             <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 2 }}>
-              <BrainIcon size={18} color="#00E5FF" pulse={true} />
+              <BrainIcon size={18} color={T.info} pulse={true} />
             </div>
           </div>
 

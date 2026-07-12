@@ -52,8 +52,8 @@ const POPULAR_PAIRS = [
 
 const C = {
   bg: T.bg,
-  card: '#111620',
-  cardBorder: '#1E2530',
+  card: T.card,
+  cardBorder: T.card,
   grid: 'rgba(42,49,60,0.25)',
   text: T.text,
   textDim: T.text2,
@@ -61,8 +61,8 @@ const C = {
   cyan: T.info,
   success: T.success,
   danger: T.danger,
-  upColor: '#3fb950',
-  downColor: '#f85149',
+  upColor: T.success,
+  downColor: T.danger,
 };
 
 let slotIdCounter = 0;

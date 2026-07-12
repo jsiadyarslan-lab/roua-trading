@@ -280,22 +280,22 @@ export interface ActiveIndicator {
 
 export const INDICATOR_CONFIGS: IndicatorConfig[] = [
   // ── Overlay Indicators ──
-  { key: 'sma',       label: 'المتوسط المتحرك البسيط', labelEn: 'SMA',     category: 'overlay',   defaultParams: { period: 20 },           defaultColor: '#fbbf24', defaultOpacity: 0.8, paramConstraints: { period: { min: 2, max: 500 } } },
-  { key: 'ema',       label: 'المتوسط الأسي',           labelEn: 'EMA',     category: 'overlay',   defaultParams: { period: 12 },           defaultColor: '#22d3ee', defaultOpacity: 0.7, paramConstraints: { period: { min: 2, max: 500 } } },
+  { key: 'sma',       label: 'المتوسط المتحرك البسيط', labelEn: 'SMA',     category: 'overlay',   defaultParams: { period: 20 },           defaultColor: T.warning, defaultOpacity: 0.8, paramConstraints: { period: { min: 2, max: 500 } } },
+  { key: 'ema',       label: 'المتوسط الأسي',           labelEn: 'EMA',     category: 'overlay',   defaultParams: { period: 12 },           defaultColor: T.info, defaultOpacity: 0.7, paramConstraints: { period: { min: 2, max: 500 } } },
   { key: 'bb',        label: 'بولينجر',                  labelEn: 'BB',      category: 'overlay',   defaultParams: { period: 20, stdDev: 2 },defaultColor: '#58a6ff', defaultOpacity: 0.4, paramConstraints: { period: { min: 2, max: 500 }, stdDev: { min: 0.1, max: 5, step: 0.1 } } },
   { key: 'vwap',      label: 'VWAP',                    labelEn: 'VWAP',    category: 'overlay',   defaultParams: {},                       defaultColor: '#ffd700', defaultOpacity: 0.6 },
   { key: 'psar',      label: 'SAR المكافئ',             labelEn: 'PSAR',    category: 'overlay',   defaultParams: { step: 0.02, max: 0.2 }, defaultColor: '#ffffff', defaultOpacity: 0.8, paramConstraints: { step: { min: 0.001, max: 0.5, step: 0.001 }, max: { min: 0.01, max: 1, step: 0.01 } } },
   { key: 'ichimoku',  label: 'إيشيموكو',                labelEn: 'Ichimoku',category: 'overlay',   defaultParams: { conversion: 9, base: 26, spanB: 52 }, defaultColor: '#58a6ff', defaultOpacity: 0.5, paramConstraints: { conversion: { min: 2, max: 200 }, base: { min: 2, max: 400 }, spanB: { min: 2, max: 600 } } },
-  { key: 'supertrend',label: 'سوبر ترند',               labelEn: 'SuperTrend', category: 'overlay',defaultParams: { period: 10, multiplier: 3 }, defaultColor: '#22d3ee', defaultOpacity: 0.7, paramConstraints: { period: { min: 2, max: 200 }, multiplier: { min: 0.5, max: 20, step: 0.1 } } },
-  { key: 'pivot',     label: 'نقاط البايفوت',            labelEn: 'Pivot',   category: 'overlay',   defaultParams: {},                       defaultColor: '#a78bfa', defaultOpacity: 0.6 },
-  { key: 'donchian',  label: 'قناة دونشيان',             labelEn: 'Donchian', category: 'overlay',   defaultParams: { period: 20 },           defaultColor: '#f97316', defaultOpacity: 0.5, paramConstraints: { period: { min: 2, max: 500 } } },
+  { key: 'supertrend',label: 'سوبر ترند',               labelEn: 'SuperTrend', category: 'overlay',defaultParams: { period: 10, multiplier: 3 }, defaultColor: T.info, defaultOpacity: 0.7, paramConstraints: { period: { min: 2, max: 200 }, multiplier: { min: 0.5, max: 20, step: 0.1 } } },
+  { key: 'pivot',     label: 'نقاط البايفوت',            labelEn: 'Pivot',   category: 'overlay',   defaultParams: {},                       defaultColor: T.council, defaultOpacity: 0.6 },
+  { key: 'donchian',  label: 'قناة دونشيان',             labelEn: 'Donchian', category: 'overlay',   defaultParams: { period: 20 },           defaultColor: T.warning, defaultOpacity: 0.5, paramConstraints: { period: { min: 2, max: 500 } } },
 
   // ── Oscillator Indicators ──
   { key: 'rsi',       label: 'RSI',                     labelEn: 'RSI',     category: 'oscillator', defaultParams: { period: 14 },           defaultColor: '#58a6ff', defaultOpacity: 0.8, paramConstraints: { period: { min: 2, max: 500 } } },
   { key: 'macd',      label: 'MACD',                    labelEn: 'MACD',    category: 'oscillator', defaultParams: { fast: 12, slow: 26, signal: 9 }, defaultColor: '#58a6ff', defaultOpacity: 0.8, paramConstraints: { fast: { min: 2, max: 200 }, slow: { min: 2, max: 400 }, signal: { min: 2, max: 200 } } },
-  { key: 'stochastic',label: 'الاستوكاستك',              labelEn: 'Stoch',   category: 'oscillator', defaultParams: { kPeriod: 14, dPeriod: 3 }, defaultColor: '#a855f7', defaultOpacity: 0.8, paramConstraints: { kPeriod: { min: 2, max: 200 }, dPeriod: { min: 1, max: 100 } } },
-  { key: 'atr',       label: 'ATR',                     labelEn: 'ATR',     category: 'oscillator', defaultParams: { period: 14 },           defaultColor: '#f97316', defaultOpacity: 0.8, paramConstraints: { period: { min: 2, max: 500 } } },
-  { key: 'adx',       label: 'ADX',                     labelEn: 'ADX',     category: 'oscillator', defaultParams: { period: 14 },           defaultColor: '#fbbf24', defaultOpacity: 0.8, paramConstraints: { period: { min: 2, max: 500 } } },
+  { key: 'stochastic',label: 'الاستوكاستك',              labelEn: 'Stoch',   category: 'oscillator', defaultParams: { kPeriod: 14, dPeriod: 3 }, defaultColor: T.council, defaultOpacity: 0.8, paramConstraints: { kPeriod: { min: 2, max: 200 }, dPeriod: { min: 1, max: 100 } } },
+  { key: 'atr',       label: 'ATR',                     labelEn: 'ATR',     category: 'oscillator', defaultParams: { period: 14 },           defaultColor: T.warning, defaultOpacity: 0.8, paramConstraints: { period: { min: 2, max: 500 } } },
+  { key: 'adx',       label: 'ADX',                     labelEn: 'ADX',     category: 'oscillator', defaultParams: { period: 14 },           defaultColor: T.warning, defaultOpacity: 0.8, paramConstraints: { period: { min: 2, max: 500 } } },
   { key: 'cci',       label: 'CCI',                     labelEn: 'CCI',     category: 'oscillator', defaultParams: { period: 20 },           defaultColor: '#34d399', defaultOpacity: 0.8, paramConstraints: { period: { min: 2, max: 500 } } },
 ];
 
@@ -322,8 +322,8 @@ export const DEFAULT_CHART_SETTINGS: ChartSettings = {
   showSessions: true,
   showCandleTimer: true,
   crosshairType: 'cross',
-  upColor: '#3fb950',
-  downColor: '#f85149',
+  upColor: T.success,
+  downColor: T.danger,
   bgColor: '#0B0E14',
   gridColor: 'rgba(42,49,60,0.5)',
 };
@@ -424,11 +424,11 @@ export const UI_PALETTE = {
   textSecondary: '#9CA3B5',
   textMuted: '#64748b',
   cyan: '#00D4FF',
-  success: '#3fb950',
-  danger: '#f85149',
-  warning: '#fbbf24',
+  success: T.success,
+  danger: T.danger,
+  warning: T.warning,
   info: '#58a6ff',
-  purple: '#a855f7',
+  purple: T.council,
   sessionTokyo: 'rgba(255,255,255,0.025)',
   sessionLondon: 'rgba(88,166,255,0.03)',
   sessionNY: 'rgba(63,185,80,0.03)',

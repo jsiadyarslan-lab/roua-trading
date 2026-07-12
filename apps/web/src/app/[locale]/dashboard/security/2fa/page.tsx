@@ -19,7 +19,7 @@ import { useTranslations } from 'next-intl'
 /* ═══════════════════════════════════════════════════════
    Design Tokens (canonical + local extensions)
 ═══════════════════════════════════════════════════════ */
-const T = { ...SharedT, pink: '#f472b6', text4: T.text3 }
+const T = { ...SharedT, pink: T.pink, text4: T.text3 }
 
 /* ═══════════════════════════════════════════════════════
    Types

@@ -1117,17 +1117,17 @@ function TechnicalAnalysisTab({ analyses, loading, newsLang }: { analyses: any[]
     CRYPTO: { label: t('Crypto', 'كريبتو', 'Crypto', 'Kripto', newsLang), color: T.warning },
     FOREX: { label: t('Forex', 'فوركس', 'Forex', 'Forex', newsLang), color: T.info },
     STOCKS: { label: t('Stocks', 'أسهم', 'Actions', 'Hisse Senetleri', newsLang), color: T.success },
-    COMMODITIES: { label: t('Commodities', 'سلع', 'Matières premières', 'Emtialar', newsLang), color: '#FF8C42' },
+    COMMODITIES: { label: t('Commodities', 'سلع', 'Matières premières', 'Emtialar', newsLang), color: T.warning },
     ECONOMY: { label: t('Economy', 'اقتصاد', 'Économie', 'Ekonomi', newsLang), color: T.council },
     TECHNOLOGY: { label: t('Technology', 'تقنية', 'Technologie', 'Teknoloji', newsLang), color: T.info },
-    DEFI: { label: t('DeFi', 'ديفاي', 'DeFi', 'DeFi', newsLang), color: '#A78BFA' },
+    DEFI: { label: t('DeFi', 'ديفاي', 'DeFi', 'DeFi', newsLang), color: T.council },
     REGULATION: { label: t('Regulation', 'تشريعات', 'Réglementation', 'Düzenleme', newsLang), color: T.danger },
   }
   const typeMap: Record<string, { label: string; color: string }> = {
     ANALYSIS: { label: t('Technical Analysis', 'تحليل فني', 'Analyse technique', 'Teknik Analiz', newsLang), color: T.accent },
     MARKET_REPORT: { label: t('Market Report', 'تقرير سوق', 'Rapport de marché', 'Piyasa Raporu', newsLang), color: T.info },
     ARTICLE: { label: t('Analytical Article', 'مقال تحليلي', 'Article analytique', 'Analitik Makale', newsLang), color: T.council },
-    NEWS_DIGEST: { label: t('Market Digest', 'ملخص سوقي', 'Résumé du marché', 'Piyasa Özeti', newsLang), color: '#FF8C42' },
+    NEWS_DIGEST: { label: t('Market Digest', 'ملخص سوقي', 'Résumé du marché', 'Piyasa Özeti', newsLang), color: T.warning },
     BREAKING: { label: t('Breaking', 'عاجل', 'Flash', 'Son Dakika', newsLang), color: T.danger },
   }
 

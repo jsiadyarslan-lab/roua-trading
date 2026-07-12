@@ -246,7 +246,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
     hoverBg: 'rgba(0,212,255,0.08)',
     activeBg: T.info,
     danger: T.danger,
-    warning: '#fbbf24',
+    warning: T.warning,
     success: T.success,
   };
 
@@ -736,7 +736,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
               }}
             >
               {TOOLBAR_SYMBOLS.map(s => (
-                <option key={s} value={s} style={{ background: '#111620', color: T.text }}>{s}</option>
+                <option key={s} value={s} style={{ background: T.card, color: T.text }}>{s}</option>
               ))}
             </select>
             <div style={sepStyle} />

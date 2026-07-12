@@ -12,7 +12,7 @@ export function renderSparkline(
     strokeWidth?: number;
   }
 ): string {
-  const { width = 120, height = 40, color = '#3b82f6', fillColor = 'rgba(59,130,246,0.1)', strokeWidth = 1.5 } = options || {};
+  const { width = 120, height = 40, color = T.info, fillColor = 'rgba(59,130,246,0.1)', strokeWidth = 1.5 } = options || {};
   
   if (!data || data.length < 2) return '';
   
@@ -53,7 +53,7 @@ export function renderMiniCandlestick(
   const candleSvgs = candles.map((c, i) => {
     const x = gap * i + gap / 2;
     const isUp = c.close >= c.open;
-    const color = isUp ? '#22c55e' : '#ef4444';
+    const color = isUp ? T.success : '#ef4444';
     
     const highY = height - ((c.high - min) / range) * height;
     const lowY = height - ((c.low - min) / range) * height;
@@ -75,7 +75,7 @@ export function renderMiniCandlestick(
 export function renderPriceChange(change: number, changePercent: number, _locale: string = 'ar'): string {
   const isUp = change >= 0;
   const arrow = isUp ? '▲' : '▼';
-  const color = isUp ? '#22c55e' : '#ef4444';
+  const color = isUp ? T.success : '#ef4444';
   const sign = isUp ? '+' : '';
   
   return `<span style="color:${color};font-weight:600;font-size:0.9em">${arrow} ${sign}${changePercent.toFixed(2)}%</span>`;
@@ -105,9 +105,9 @@ export function extractPriceDataFromText(text: string): Array<{ prices: number[]
  * Generate a color based on price trend (green for up, red for down)
  */
 export function getTrendColor(prices: number[]): { stroke: string; fill: string } {
-  if (!prices || prices.length < 2) return { stroke: '#3b82f6', fill: 'rgba(59,130,246,0.1)' };
+  if (!prices || prices.length < 2) return { stroke: T.info, fill: 'rgba(59,130,246,0.1)' };
   const isUp = prices[prices.length - 1] >= prices[0];
   return isUp
-    ? { stroke: '#22c55e', fill: 'rgba(34,197,94,0.1)' }
+    ? { stroke: T.success, fill: 'rgba(34,197,94,0.1)' }
     : { stroke: '#ef4444', fill: 'rgba(239,68,68,0.1)' };
 }

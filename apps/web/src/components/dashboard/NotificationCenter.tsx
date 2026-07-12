@@ -97,7 +97,7 @@ const SRC_COLOR: Record<NotifSource, string> = {
   scanner: T.warning,
   trade: T.success,
   system: T.text2,
-  agent: '#A259FF',
+  agent: T.council,
 }
 
 const ACTION_COLOR: Record<NotifAction, string> = {

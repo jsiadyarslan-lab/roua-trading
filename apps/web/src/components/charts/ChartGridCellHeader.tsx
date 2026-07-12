@@ -95,7 +95,7 @@ export function ChartGridCellHeader({
         }}
       >
         {POPULAR_SYMBOLS_MINI.map(p => (
-          <option key={p} value={p} style={{ background: '#111620', color: T.text }}>{p}</option>
+          <option key={p} value={p} style={{ background: T.card, color: T.text }}>{p}</option>
         ))}
       </select>
 
@@ -121,7 +121,7 @@ export function ChartGridCellHeader({
         })}
       </div>
       {isPaused && (
-        <span style={{ color: '#fbbf24', fontSize: 'var(--text-xs)', fontWeight: 700 }}>⏸</span>
+        <span style={{ color: T.warning, fontSize: 'var(--text-xs)', fontWeight: 700 }}>⏸</span>
       )}
       {feedState === 'waiting' && (
         <div style={{ width: 8, height: 8, border: '2px solid #1E2530',

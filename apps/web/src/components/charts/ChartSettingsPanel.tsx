@@ -32,9 +32,9 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
 
   const PRESET_THEMES = [
     { name: 'ROUA Classic', bg: T.bg, up: T.success, down: T.danger },
-    { name: 'Ocean', bg: '#0a1628', up: T.info, down: '#ff6b6b' },
-    { name: 'Neon', bg: '#0d0221', up: '#00ff88', down: '#ff0055' },
-    { name: 'Sunset', bg: '#1a0a2e', up: '#ffd700', down: '#ff4500' },
+    { name: 'Ocean', bg: '#0a1628', up: T.info, down: T.danger },
+    { name: 'Neon', bg: '#0d0221', up: T.success, down: '#ff0055' },
+    { name: 'Sunset', bg: '#1a0a2e', up: T.gold, down: '#ff4500' },
     { name: 'Arctic', bg: '#0a192f', up: '#64ffda', down: '#ff5555' },
     { name: 'Forest', bg: '#0a1a0a', up: '#39ff14', down: '#ff3333' },
   ];
@@ -50,7 +50,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
     textMuted: T.text2,
     success: T.success,
     danger: T.danger,
-    warning: '#fbbf24',
+    warning: T.warning,
   };
 
   const switchStyle = (isOn: boolean): React.CSSProperties => ({

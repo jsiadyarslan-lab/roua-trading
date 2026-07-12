@@ -38,7 +38,7 @@ export default function CTASection() {
       >
         <h2
           className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4"
-          style={{ color: '#E2E8F0', fontFamily: 'var(--font-ar)' }}
+          style={{ color: T.text2, fontFamily: 'var(--font-ar)' }}
         >
           {t('titlePart1')}{'\u00A0'}
           <span

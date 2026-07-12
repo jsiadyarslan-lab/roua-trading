@@ -151,8 +151,8 @@ const MTF_DEFAULT_TIMEFRAMES = ['15min', '1h', '4h', '1day', '5min', '1min'];
 
 const C = {
   bg: T.bg,
-  card: '#111620',
-  cardBorder: '#1E2530',
+  card: T.card,
+  cardBorder: T.card,
   grid: 'rgba(42,49,60,0.25)',
   text: T.text,
   textDim: T.text2,
@@ -161,15 +161,15 @@ const C = {
   success: T.success,
   danger: T.danger,
   gold: T.gold,
-  upColor: '#3fb950',
-  downColor: '#f85149',
-  warning: '#fbbf24',
+  upColor: T.success,
+  downColor: T.danger,
+  warning: T.warning,
 };
 
 const SOURCE_LABELS: Record<DataSource, { label: string; color: string }> = {
   loading: { label: '...', color: C.textMuted },
   binance: { label: 'Binance', color: C.success },
-  coingecko: { label: 'CoinGecko', color: '#8B5CF6' },
+  coingecko: { label: 'CoinGecko', color: T.council },
   yahoo: { label: 'Yahoo', color: '#6366F1' },
   twelvedata: { label: '12Data', color: '#EC4899' },
   unavailable: { label: 'Unavailable', color: C.danger },

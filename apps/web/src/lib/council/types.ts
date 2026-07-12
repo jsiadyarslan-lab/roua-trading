@@ -84,15 +84,15 @@ export const COLORS = {
   borderStrong: "rgba(255, 255, 255, 0.14)",
   textPrimary: "#F1F5F9",
   textSecondary: "#CBD5E1",
-  textMuted: "#94A3B8",
+  textMuted: T.text2,
   textDim: '#9CA3B5',
   buy: '#10b981',
   buySoft: "rgba(16, 185, 129, 0.12)",
   sell: '#ef4444',
   sellSoft: "rgba(239, 68, 68, 0.12)",
-  hold: "#F59E0B",
+  hold: T.warning,
   holdSoft: "rgba(245, 158, 11, 0.12)",
-  council: "#A855F7",
+  council: T.council,
   councilSoft: "rgba(168, 85, 247, 0.12)",
   info: "#06B6D4",
   infoSoft: "rgba(6, 182, 212, 0.12)",
@@ -108,14 +108,14 @@ export const COUNCIL_ROLES: Array<{
   icon: string;
   accent: string;
 }> = [
-  { id: "macro-strategist", model: "GPT-4o", icon: "Globe", accent: "#A855F7" },
+  { id: "macro-strategist", model: "GPT-4o", icon: "Globe", accent: T.council },
   { id: "risk-sentinel", model: "Claude 3.5 Sonnet", icon: "ShieldAlert", accent: '#ef4444' },
   { id: "liquidity-analyst", model: "Gemini 1.5 Pro", icon: "Droplets", accent: "#06B6D4" },
   { id: "sentiment-reader", model: "DeepSeek V3", icon: "HeartPulse", accent: "#F472B6" },
   { id: "technical-analyst", model: "GPT-4o-mini", icon: "LineChart", accent: '#10b981' },
-  { id: "momentum-hunter", model: "Llama 3.1 70B", icon: "Zap", accent: "#F59E0B" },
-  { id: "pattern-architect", model: "Claude 3 Opus", icon: "Hexagon", accent: "#8B5CF6" },
-  { id: "volatility-tactician", model: "Mistral Large", icon: "Activity", accent: "#3B82F6" },
+  { id: "momentum-hunter", model: "Llama 3.1 70B", icon: "Zap", accent: T.warning },
+  { id: "pattern-architect", model: "Claude 3 Opus", icon: "Hexagon", accent: T.council },
+  { id: "volatility-tactician", model: "Mistral Large", icon: "Activity", accent: T.info },
 ];
 
 export const SYMBOLS = ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "DOGE"] as const;

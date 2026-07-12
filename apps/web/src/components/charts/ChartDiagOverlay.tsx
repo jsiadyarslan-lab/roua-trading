@@ -26,7 +26,7 @@ export function ChartDiagOverlay({ connectionState }: { connectionState?: string
     : '—';
 
   const row = (label: string, value: string | number, warn = false) => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, color: warn ? '#ff6b6b' : '#9be29b' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, color: warn ? T.danger : '#9be29b' }}>
       <span style={{ opacity: 0.8 }}>{label}</span>
       <span style={{ fontWeight: 700 }}>{value}</span>
     </div>

@@ -155,7 +155,7 @@ export function CrosshairOverlay({
             </span>
           )}
           {feedState === 'fallback' && (
-            <span style={{ fontSize: 'var(--text-xs)', color: '#fbbf24', fontFamily: "var(--font-mono)" }}>{t('fallbackData')}</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: T.warning, fontFamily: "var(--font-mono)" }}>{t('fallbackData')}</span>
           )}
         </div>
       </div>
@@ -257,7 +257,7 @@ export function CrosshairOverlay({
         color: COLORS.textSecondary,
       }}>
         {feedState === 'fallback' && (
-          <span style={{ color: '#fbbf24' }}>{t('usingFallbackData')}</span>
+          <span style={{ color: T.warning }}>{t('usingFallbackData')}</span>
         )}
         {!mobile && (
           <>

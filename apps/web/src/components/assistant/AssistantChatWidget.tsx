@@ -1734,7 +1734,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
   // ─── Market pulse color helper ─────────────────────────────────
   const getPulseColor = () => {
     switch (marketPulse) {
-      case 'bullish': return '#22C55E';
+      case 'bullish': return T.success;
       case 'bearish': return '#EF5350';
       case 'neutral': return T.warning;
       default: return '#8A9DB2';

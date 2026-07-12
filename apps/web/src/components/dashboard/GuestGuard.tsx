@@ -120,12 +120,12 @@ function GuestUpgradeModal({
         </div>
 
         {/* Title */}
-        <h3 className="text-lg font-bold text-center mb-2" style={{ color: '#E2E8F0' }}>
+        <h3 className="text-lg font-bold text-center mb-2" style={{ color: T.text2 }}>
           {tg('loginRequired')}
         </h3>
 
         {/* Description */}
-        <p className="text-center text-sm mb-6" style={{ color: '#94A3B8' }}>
+        <p className="text-center text-sm mb-6" style={{ color: T.text2 }}>
           {tg('fullExperienceDesc')}
         </p>
 
@@ -177,7 +177,7 @@ export function GuestBanner() {
       }}
     >
       <Lock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-      <span className="text-xs" style={{ color: '#94A3B8' }}>
+      <span className="text-xs" style={{ color: T.text2 }}>
         {tg('viewModeBanner')}
       </span>
       <button

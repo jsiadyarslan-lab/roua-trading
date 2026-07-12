@@ -6,13 +6,13 @@ import T from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 function corrColor(v: number): string {
-  if (isNaN(v)) return '#1A1D29' // default for NaN
+  if (isNaN(v)) return T.card // default for NaN
   if (v >= 0.7)  return T.greenAlt
   if (v >= 0.4)  return '#4ade80'
   if (v >= 0.1)  return '#86efac'
   if (v >= -0.1) return '#8090A8'
   if (v >= -0.4) return '#fca5a5'
-  if (v >= -0.7) return '#f87171'
+  if (v >= -0.7) return T.danger
   return T.redAlt
 }
 
@@ -85,7 +85,7 @@ export default function CorrelationPage() {
               { range: '0.7 → 1.0', label: 'ارتباط قوي', color: T.green },
               { range: '0.4 → 0.7', label: 'ارتباط متوسط', color: '#4ade80' },
               { range: '-0.1 → 0.1', label: 'محايد', color: T.text2 },
-              { range: '-0.7 → -0.4', label: 'ارتباط عكسي', color: '#f87171' },
+              { range: '-0.7 → -0.4', label: 'ارتباط عكسي', color: T.danger },
               { range: '-1.0 → -0.7', label: 'ارتباط عكسي قوي', color: T.red },
             ].map(l => (
               <div key={l.range} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

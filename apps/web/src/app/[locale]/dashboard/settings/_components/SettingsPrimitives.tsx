@@ -142,7 +142,7 @@ export function SelectBox({
       }}
     >
       {options.map(o => (
-        <option key={o.value} value={o.value} style={{ background: "#1A1D29", color: "#F1F5F9" }}>
+        <option key={o.value} value={o.value} style={{ background: T.card, color: "#F1F5F9" }}>
           {o.label}
         </option>
       ))}

@@ -92,13 +92,13 @@ function getCategoryColor(c: ContentCategory): string {
     [ContentCategory.CRYPTO]: T.warning,
     [ContentCategory.FOREX]: T.info,
     [ContentCategory.STOCKS]: T.success,
-    [ContentCategory.COMMODITIES]: '#FF8C42',
+    [ContentCategory.COMMODITIES]: T.warning,
     [ContentCategory.ECONOMY]: T.council,
     [ContentCategory.REGULATION]: T.danger,
     [ContentCategory.TECHNOLOGY]: T.info,
     [ContentCategory.EDUCATION]: T.profit,
-    [ContentCategory.GEOPOLITICS]: '#FF6B81',
-    [ContentCategory.DEFI]: '#A78BFA',
+    [ContentCategory.GEOPOLITICS]: T.danger,
+    [ContentCategory.DEFI]: T.council,
     [ContentCategory.NFT]: '#F472B6',
   }
   return map[c] || T.text3
@@ -1255,11 +1255,11 @@ export default function ContentAgentPage() {
                   onClick={() => generateContent({ type: ContentType.NEWS_DIGEST, category: ContentCategory.CRYPTO, topic: 'ملخص سوق الكريبتو اليومي', language: ContentLanguage.BILINGUAL, priority: ContentPriority.HIGH })} />
                 <QuickPreset label="تقرير الفوركس الأسبوعي" icon={<BarChart3 size={13} />} color={T.info}
                   onClick={() => generateContent({ type: ContentType.MARKET_REPORT, category: ContentCategory.FOREX, topic: 'تقرير سوق الفوركس الأسبوعي', language: ContentLanguage.BILINGUAL, priority: ContentPriority.NORMAL })} />
-                <QuickPreset label="تحليل البيتكوين" icon={<Activity size={13} />} color="#FF8C42"
+                <QuickPreset label="تحليل البيتكوين" icon={<Activity size={13} />} color={T.warning}
                   onClick={() => generateContent({ type: ContentType.ANALYSIS, category: ContentCategory.CRYPTO, topic: 'تحليل فني وأساسي للبيتكوين', symbols: ['BTC'], language: ContentLanguage.BILINGUAL, priority: ContentPriority.HIGH })} />
                 <QuickPreset label="دليل المتداول المبتدئ" icon={<BookOpen size={13} />} color={T.profit}
                   onClick={() => generateContent({ type: ContentType.EDUCATIONAL, category: ContentCategory.EDUCATION, topic: 'دليل شامل للمتداول المبتدئ في الأسواق المالية', language: ContentLanguage.AR, priority: ContentPriority.LOW })} />
-                <QuickPreset label="مستجدات DeFi" icon={<Layers size={13} />} color="#A78BFA"
+                <QuickPreset label="مستجدات DeFi" icon={<Layers size={13} />} color={T.council}
                   onClick={() => generateContent({ type: ContentType.ARTICLE, category: ContentCategory.DEFI, topic: 'أحدث المستجدات في عالم التمويل اللامركزي', language: ContentLanguage.BILINGUAL, priority: ContentPriority.NORMAL })} />
                 <QuickPreset label="تحليل الأسهم الأمريكية" icon={<TrendingUp size={13} />} color={T.success}
                   onClick={() => generateContent({ type: ContentType.MARKET_REPORT, category: ContentCategory.STOCKS, topic: 'تحليل أسواق الأسهم الأمريكية', symbols: ['AAPL', 'MSFT', 'NVDA'], language: ContentLanguage.BILINGUAL, priority: ContentPriority.HIGH })} />

@@ -52,11 +52,11 @@ function getModelShortName(model: string): string {
 
 /** Get a color for a model badge */
 function getModelColor(model: string): string {
-  if (model.includes('Groq')) return '#F97316' // orange
-  if (model.includes('Gemini')) return '#3B82F6' // blue
+  if (model.includes('Groq')) return T.warning // orange
+  if (model.includes('Gemini')) return T.info // blue
   if (model.includes('GLM')) return T.profit // green
-  if (model.includes('HuggingFace') || model.includes('HF')) return '#FBBF24' // yellow
-  if (model.includes('Ollama')) return '#8B5CF6' // purple
+  if (model.includes('HuggingFace') || model.includes('HF')) return T.warning // yellow
+  if (model.includes('Ollama')) return T.council // purple
   if (model.includes('Bedrock') || model.includes('Claude')) return '#EC4899' // pink
   if (model.includes('DeepSeek')) return '#06B6D4' // cyan
   return T.text2 // default

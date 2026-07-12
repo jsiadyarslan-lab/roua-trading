@@ -26,15 +26,15 @@ interface SessionData {
 
 const C = {
   bg: 'rgba(0,0,0,0.6)',
-  card: '#111620',
-  border: '#1E2530',
+  card: T.card,
+  border: T.card,
   text: T.text,
   textDim: T.text2,
   textMuted: T.text3,
   cyan: T.info,
   success: T.success,
   danger: T.danger,
-  warning: '#fbbf24',
+  warning: T.warning,
 };
 
 export function SessionStats({ symbol, onClose }: SessionStatsProps) {

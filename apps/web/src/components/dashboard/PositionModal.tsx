@@ -75,7 +75,7 @@ export function PositionModal({
             }}>
               {modal.positionData.side === 'long' ? 'BUY' : 'SELL'}
             </span>
-            <span style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: '#E0ECF8', fontFamily: 'var(--font-mono)' }}>
+            <span style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: T.text, fontFamily: 'var(--font-mono)' }}>
               {modal.positionData.symbol}
             </span>
           </div>
@@ -83,11 +83,11 @@ export function PositionModal({
             onClick={() => setModal(null)}
             style={{
               background: 'transparent', border: 'none', cursor: 'pointer',
-              color: '#5A6A80', fontSize: 'var(--text-md)', lineHeight: 1, padding: '2px 6px',
+              color: T.text3, fontSize: 'var(--text-md)', lineHeight: 1, padding: '2px 6px',
               borderRadius: 'var(--radius-sm)',
             }}
             onMouseEnter={(e) => { e.currentTarget.style.color = T.danger; e.currentTarget.style.background = 'rgba(255,71,87,0.1)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = '#5A6A80'; e.currentTarget.style.background = 'transparent'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = T.text3; e.currentTarget.style.background = 'transparent'; }}
           >
             ✕
           </button>
@@ -120,7 +120,7 @@ export function PositionModal({
                     width: '100%', padding: '8px 12px',
                     background: 'rgba(255,71,87,0.06)',
                     border: '1px solid rgba(255,71,87,0.25)',
-                    borderRadius: 'var(--radius-md)', color: '#E0ECF8',
+                    borderRadius: 'var(--radius-md)', color: T.text,
                     fontSize: 'var(--text-base)', fontFamily: 'var(--font-mono)',
                     outline: 'none',
                   }}
@@ -140,7 +140,7 @@ export function PositionModal({
                     width: '100%', padding: '8px 12px',
                     background: 'rgba(0,255,163,0.06)',
                     border: '1px solid rgba(0,255,163,0.25)',
-                    borderRadius: 'var(--radius-md)', color: '#E0ECF8',
+                    borderRadius: 'var(--radius-md)', color: T.text,
                     fontSize: 'var(--text-base)', fontFamily: 'var(--font-mono)',
                     outline: 'none',
                   }}
@@ -191,11 +191,11 @@ export function PositionModal({
                 padding: '10px 12px', borderRadius: 'var(--radius-md)',
                 background: 'rgba(255,71,87,0.08)',
                 border: '1px solid rgba(255,71,87,0.2)',
-                fontSize: 'var(--text-sm)', color: '#C8D4E4', lineHeight: 1.6,
+                fontSize: 'var(--text-sm)', color: T.text2, lineHeight: 1.6,
               }}>
-                هل أنت متأكد من إغلاق صفقة <strong style={{ color: '#E0ECF8' }}>{modal.positionData.symbol}</strong>؟
+                هل أنت متأكد من إغلاق صفقة <strong style={{ color: T.text }}>{modal.positionData.symbol}</strong>؟
                 <br />
-                <span style={{ fontSize: 'var(--text-xs)', color: '#5A6A80' }}>
+                <span style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>
                   الحجم: {modal.positionData.qty} @ {modal.positionData.entryPrice.toFixed(modal.positionData.entryPrice > 100 ? 2 : 5)}
                 </span>
               </div>
@@ -239,11 +239,11 @@ export function PositionModal({
                 padding: '10px 12px', borderRadius: 'var(--radius-md)',
                 background: 'rgba(255,184,0,0.08)',
                 border: '1px solid rgba(255,184,0,0.2)',
-                fontSize: 'var(--text-sm)', color: '#C8D4E4', lineHeight: 1.6,
+                fontSize: 'var(--text-sm)', color: T.text2, lineHeight: 1.6,
               }}>
-                تأكيد عكس صفقة <strong style={{ color: '#E0ECF8' }}>{modal.positionData.symbol}</strong>؟
+                تأكيد عكس صفقة <strong style={{ color: T.text }}>{modal.positionData.symbol}</strong>؟
                 <br />
-                <span style={{ fontSize: 'var(--text-xs)', color: '#5A6A80' }}>
+                <span style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>
                   سيُغلق المركز الحالي ويُفتح مركز عكسي بنفس الحجم.
                 </span>
               </div>
@@ -306,7 +306,7 @@ export function PositionModal({
                     width: '100%', padding: '8px 12px',
                     background: 'rgba(179,136,255,0.06)',
                     border: '1px solid rgba(179,136,255,0.25)',
-                    borderRadius: 'var(--radius-md)', color: '#E0ECF8',
+                    borderRadius: 'var(--radius-md)', color: T.text,
                     fontSize: 'var(--text-base)', fontFamily: 'var(--font-mono)',
                     outline: 'none',
                   }}
@@ -351,21 +351,21 @@ export function PositionModal({
           {modal.type === 'details' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {[
-                { label: 'الزوج', value: modal.positionData.symbol, color: '#E0ECF8' },
+                { label: 'الزوج', value: modal.positionData.symbol, color: T.text },
                 { label: 'الاتجاه', value: modal.positionData.side === 'long' ? 'شراء ▲' : 'بيع ▼', color: modal.positionData.side === 'long' ? T.success : T.danger },
-                { label: 'سعر الدخول', value: modal.positionData.entryPrice.toString(), color: '#E0ECF8' },
-                { label: 'الحجم', value: modal.positionData.qty.toString(), color: '#E0ECF8' },
+                { label: 'سعر الدخول', value: modal.positionData.entryPrice.toString(), color: T.text },
+                { label: 'الحجم', value: modal.positionData.qty.toString(), color: T.text },
                 { label: 'وقف الخسارة', value: modal.positionData.stopLoss?.toString() || '—', color: T.danger },
                 { label: 'أخذ الربح', value: modal.positionData.takeProfit?.toString() || '—', color: T.success },
                 { label: 'المصدر', value: modal.positionData.source || '—', color: T.text2 },
-                { label: 'المعرف', value: modal.positionData.positionId, color: '#5A6A80', mono: true },
+                { label: 'المعرف', value: modal.positionData.positionId, color: T.text3, mono: true },
               ].map((row, i) => (
                 <div key={i} style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   padding: '6px 10px', borderRadius: 'var(--radius-sm)',
                   background: 'rgba(255,255,255,0.02)',
                 }}>
-                  <span style={{ fontSize: 'var(--text-xs)', color: '#5A6A80' }}>{row.label}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{row.label}</span>
                   <span style={{
                     fontSize: 'var(--text-sm)', fontWeight: 600, color: row.color,
                     fontFamily: row.mono ? 'var(--font-mono)' : 'var(--font-ar)',

@@ -212,7 +212,7 @@ export default function NewsArticlePage() {
           {/* Category badge on image */}
           <div style={{ position: 'absolute', bottom: 20, right: 24, display: 'flex', gap: 8, alignItems: 'center' }}>
             {(localizedCategory(article, lang)) && (
-              <span style={{ fontSize: 'var(--text-xs)', padding: '5px 14px', borderRadius: 'var(--radius-lg)', background: 'rgba(0,229,255,0.2)', backdropFilter: 'blur(8px)', color: '#00E5FF', fontWeight: 800, border: '0.5px solid rgba(0,229,255,0.3)' }}>
+              <span style={{ fontSize: 'var(--text-xs)', padding: '5px 14px', borderRadius: 'var(--radius-lg)', background: 'rgba(0,229,255,0.2)', backdropFilter: 'blur(8px)', color: T.info, fontWeight: 800, border: '0.5px solid rgba(0,229,255,0.3)' }}>
                 {localizedCategory(article, lang)}
               </span>
             )}
@@ -282,7 +282,7 @@ export default function NewsArticlePage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-lg)', background: 'linear-gradient(135deg, #00E5FF20, #00B0FF20)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '0.5px solid #00E5FF22' }}>
-                <Globe size={18} color="#00E5FF" />
+                <Globe size={18} color={T.info} />
               </div>
               <div>
                 <span style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: T.text, display: 'block' }}>{article.source || (t("Ru'aa News", 'رؤى للأخبار', "Actualités Ru'aa", "Ru'aa Haberler", lang))}</span>
@@ -590,7 +590,7 @@ function PlainArticleContent({ content }: { content: string }) {
 
   // Color cycle for sections
   const sectionColors = [
-    { border: '#00E5FF40', bg: '#00E5FF08', iconBg: '#00E5FF18', color: '#00E5FF' },
+    { border: '#00E5FF40', bg: '#00E5FF08', iconBg: '#00E5FF18', color: T.info },
     { border: '#FFB80040', bg: '#FFB80008', iconBg: '#FFB80018', color: T.warning },
     { border: '#32D74B40', bg: '#32D74B08', iconBg: '#32D74B18', color: '#32D74B' },
     { border: '#B388FF40', bg: '#B388FF08', iconBg: '#B388FF18', color: T.council },

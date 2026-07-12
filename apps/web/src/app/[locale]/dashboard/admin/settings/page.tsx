@@ -539,7 +539,7 @@ export default function AdminSettingsPage() {
                       }}
                     >
                       {field.options?.map(opt => (
-                        <option key={opt} value={opt} style={{ background: '#1A1D29', color: COLORS.text }}>{opt}</option>
+                        <option key={opt} value={opt} style={{ background: T.card, color: COLORS.text }}>{opt}</option>
                       ))}
                     </select>
                   ) : (
@@ -742,7 +742,7 @@ export default function AdminSettingsPage() {
 
             {/* Agent Section */}
             <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-md)', background: 'rgba(168,85,247,0.04)', border: '1px solid rgba(168,85,247,0.1)' }}>
-              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#a855f7', fontFamily: "var(--font-ar)", marginBottom: 10 }}>
+              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.council, fontFamily: "var(--font-ar)", marginBottom: 10 }}>
                 🤖 الوكيل (Agent)
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -760,7 +760,7 @@ export default function AdminSettingsPage() {
                         step={1}
                         value={agentExecutorConfig[field.key as keyof typeof agentExecutorConfig]}
                         onChange={e => setAgentExecutorConfig(prev => ({ ...prev, [field.key]: e.target.value }))}
-                        style={{ flex: 1, accentColor: '#a855f7' }}
+                        style={{ flex: 1, accentColor: T.council }}
                       />
                       <input
                         type="number"
@@ -816,7 +816,7 @@ export default function AdminSettingsPage() {
                       step={field.key === 'dailyCostCapUsd' ? 1 : 1}
                       value={councilConfig[field.key as keyof typeof councilConfig]}
                       onChange={e => setCouncilConfig(prev => ({ ...prev, [field.key]: e.target.value }))}
-                      style={{ flex: 1, accentColor: '#a855f7' }}
+                      style={{ flex: 1, accentColor: T.council }}
                     />
                     <input
                       type="number"
@@ -951,12 +951,12 @@ export default function AdminSettingsPage() {
                     outline: 'none',
                   }}
                 >
-                  <option value="" style={{ background: '#1A1D29', color: COLORS.muted }}>اختر المنصة...</option>
-                  <option value="Alpaca" style={{ background: '#1A1D29', color: COLORS.text }}>Alpaca</option>
-                  <option value="Binance" style={{ background: '#1A1D29', color: COLORS.text }}>Binance</option>
-                  <option value="Twelve Data" style={{ background: '#1A1D29', color: COLORS.text }}>Twelve Data</option>
-                  <option value="Coinbase" style={{ background: '#1A1D29', color: COLORS.text }}>Coinbase</option>
-                  <option value="Interactive Brokers" style={{ background: '#1A1D29', color: COLORS.text }}>Interactive Brokers</option>
+                  <option value="" style={{ background: T.card, color: COLORS.muted }}>اختر المنصة...</option>
+                  <option value="Alpaca" style={{ background: T.card, color: COLORS.text }}>Alpaca</option>
+                  <option value="Binance" style={{ background: T.card, color: COLORS.text }}>Binance</option>
+                  <option value="Twelve Data" style={{ background: T.card, color: COLORS.text }}>Twelve Data</option>
+                  <option value="Coinbase" style={{ background: T.card, color: COLORS.text }}>Coinbase</option>
+                  <option value="Interactive Brokers" style={{ background: T.card, color: COLORS.text }}>Interactive Brokers</option>
                 </select>
               </div>
 

@@ -347,7 +347,7 @@ export function QuickExecutionMini({
           background: 'rgba(0,200,83,0.08)', border: '1px solid rgba(0,200,83,0.2)',
           borderRadius: 'var(--radius-sm)', padding: '3px 8px',
         }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#00C853', boxShadow: '0 0 6px #00C853' }} />
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.success, boxShadow: '0 0 6px #00C853' }} />
           <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.warning, fontFamily: "var(--font-mono)" }}>{t('demoAccount')}</span>
         </div>
         {account && (

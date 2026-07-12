@@ -95,14 +95,14 @@ const STATE: Record<MarketState, { core: string; glow: string }> = {
   bullish:  { core: T.greenAlt, glow: 'rgba(0,255,198,0.55)'  },
   bearish:  { core: T.redAlt, glow: 'rgba(255,77,77,0.55)'  },
   volatile: { core: T.warning, glow: 'rgba(255,184,0,0.55)'  },
-  neutral:  { core: '#00C8FF', glow: 'rgba(0,200,255,0.45)'  },
+  neutral:  { core: T.info, glow: 'rgba(0,200,255,0.45)'  },
 }
 
 const PLANETS = [
   { inset: -5,  size: 6, color: T.warning, glow: '#FFB80088', dur: '5s',  dir: 'ring-cw'  },
   { inset: -12, size: 8, color: T.council, glow: '#B388FF88', dur: '10s', dir: 'ring-ccw' },
   { inset: -20, size: 5, color: T.redAlt, glow: '#FF4D4D88', dur: '16s', dir: 'ring-cw'  },
-  { inset: -28, size: 4, color: '#00C8FF', glow: '#00C8FF88', dur: '22s', dir: 'ring-ccw' },
+  { inset: -28, size: 4, color: T.info, glow: '#00C8FF88', dur: '22s', dir: 'ring-ccw' },
 ]
 
 const STARS = [
@@ -363,7 +363,7 @@ function NewsTicker() {
                     textShadow: 'none',
                   }}>{displayCat || 'News'}</span>
                   {item.impact === 'high' && <span style={{ color: T.danger, fontSize: 'var(--text-xs)', fontWeight: 900, textShadow: '0 0 4px rgba(255,71,87,0.5)' }}>●</span>}
-                  <span style={{ color: '#999999' }}>{displayText}</span>
+                  <span style={{ color: T.text3 }}>{displayText}</span>
                 </span>
               )
             })}
@@ -371,7 +371,7 @@ function NewsTicker() {
         ) : (
           <span style={{
             padding: '0 14px', fontFamily: "var(--font-en)",
-            fontSize: 'var(--text-xs)', color: '#999999', fontWeight: 500,
+            fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 500,
           }}>{t('dashboard.news.loading')}</span>
         )}
         {/* Fade edges */}
@@ -1163,7 +1163,7 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
   const modeConfig: Record<TradingMode, { accent: string }> = {
     trader:   { accent: T.info },
     investor: { accent: T.profit },
-    ai:       { accent: '#a78bfa' },
+    ai:       { accent: T.council },
   }
 
   return (
@@ -1590,7 +1590,7 @@ export function AppHeader() {
              <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid rgba(0,212,255,0.10)`, display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', padding: 2, borderRadius: 'var(--radius-md)', border: `1px solid ${T.border}` }}>
                   {([['trader', t('common.trader')], ['investor', t('common.investor')], ['ai', 'AI']] as [TradingMode, string][]).map(([m, label]) => {
-                    const accentMap: Record<TradingMode, string> = { trader: T.info, investor: T.profit, ai: '#a78bfa' }
+                    const accentMap: Record<TradingMode, string> = { trader: T.info, investor: T.profit, ai: T.council }
                     return (
                       <button key={m} onClick={() => handleModeChange(m)} style={{
                         flex: 1, padding: '8px 10px', fontSize: 'var(--text-xs)', fontWeight: m === mode ? 800 : 500,
@@ -1671,7 +1671,7 @@ export function AppHeader() {
              <LogoCircle state={marketState} size="mobile" />
              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                <span style={{ fontFamily: "var(--font-ar)", fontWeight: 900, fontSize: 'var(--text-base)', color: T.text, whiteSpace: 'nowrap', lineHeight: 1.1 }}>{t('common.brand')}</span>
-               <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#00C8FF', letterSpacing: '0.12em', opacity: 0.85, lineHeight: 1 }}>{t('common.brandSub')}</span>
+               <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.info, letterSpacing: '0.12em', opacity: 0.85, lineHeight: 1 }}>{t('common.brandSub')}</span>
              </div>
           </SafeLink>
           {/* Ticker مخفي — موجود في m2-ticker أسفل الهيدر */}

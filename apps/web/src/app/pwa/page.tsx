@@ -10,7 +10,7 @@ export default function PWAEntry() {
   return (
     <div style={{
       position:'fixed', inset:0,
-      background:'#0A0D13',
+      background:T.bg,
       display:'flex', alignItems:'center', justifyContent:'center',
     }}>
       <div style={{ color:'#00D4FF', fontFamily: "var(--font-mono)", fontSize: 'var(--text-base)' }}>

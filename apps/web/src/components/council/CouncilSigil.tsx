@@ -13,10 +13,10 @@ export function CouncilSigil({ size = 36, animated = true }: { size?: number; an
     <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
       <defs>
         <linearGradient id="council-sigil-grad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#A855F7" /><stop offset="50%" stopColor="#6366F1" /><stop offset="100%" stopColor="#06B6D4" />
+          <stop offset="0%" stopColor={T.council} /><stop offset="50%" stopColor="#6366F1" /><stop offset="100%" stopColor="#06B6D4" />
         </linearGradient>
         <radialGradient id="council-sigil-glow" cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0%" stopColor="#A855F7" stopOpacity="0.9" /><stop offset="60%" stopColor="#6366F1" stopOpacity="0.3" /><stop offset="100%" stopColor="#06B6D4" stopOpacity="0" />
+          <stop offset="0%" stopColor={T.council} stopOpacity="0.9" /><stop offset="60%" stopColor="#6366F1" stopOpacity="0.3" /><stop offset="100%" stopColor="#06B6D4" stopOpacity="0" />
         </radialGradient>
       </defs>
       <motion.circle cx={cx} cy={cy} r={ringR} stroke="url(#council-sigil-grad)" strokeWidth="1" strokeDasharray="2 3" opacity={0.4}

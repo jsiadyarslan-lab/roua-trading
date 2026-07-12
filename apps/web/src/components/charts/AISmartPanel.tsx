@@ -60,8 +60,8 @@ import T from '@/lib/unified-tokens';
 const C = {
   bg: '#0a0e17', card: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.09)',
   text: '#e8eaf0', dim: 'rgba(255,255,255,0.5)', mut: 'rgba(255,255,255,0.25)',
-  cyan: '#22d3ee', green: T.profit, red: T.loss, yellow: '#f59e0b',
-  purple: '#a78bfa', gold: T.gold, blue: '#3b82f6',
+  cyan: T.info, green: T.profit, red: T.loss, yellow: T.warning,
+  purple: T.council, gold: T.gold, blue: T.info,
 };
 
 // ── Map Geometric type → aiSmartPanel i18n key ──
@@ -1708,7 +1708,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
       {/* Overlay Toggles — compact icon buttons in grid */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(42px, 1fr))', gap:2, padding:'3px 6px', borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
-        {([['S/R','sr','#4ade80'],['📈','trend','#facc15'],['HM','harmonic','#c084fc'],['FVG','fvg','#22d3ee'],['BOS','bos','#f97316'],['GEO','geo','#a78bfa'],['EW','ew','#93c5fd'],['WY','wyckoff','#fb923c'],['VP','vp','#fbbf24'],['ENT','entry',T.info],['MTF','mtf','#06b6d4'],['LIQ','liq','#f472b6'],['TRD','trade','#a3e635']] as [string,keyof typeof overlays,string][]).map(([lbl,key,col])=>(
+        {([['S/R','sr','#4ade80'],['📈','trend','#facc15'],['HM','harmonic',T.council],['FVG','fvg',T.info],['BOS','bos',T.warning],['GEO','geo',T.council],['EW','ew','#93c5fd'],['WY','wyckoff','#fb923c'],['VP','vp',T.warning],['ENT','entry',T.info],['MTF','mtf','#06b6d4'],['LIQ','liq',T.pink],['TRD','trade','#a3e635']] as [string,keyof typeof overlays,string][]).map(([lbl,key,col])=>(
           <button key={key} onClick={()=>{ toggleOverlay(key); }} title={[['S/R','sr'],['📈','trend'],['HM','harmonic'],['FVG','fvg'],['BOS','bos'],['GEO','geo'],['EW','ew'],['WY','wyckoff'],['VP','vp'],['ENT','entry'],['MTF','mtf'],['LIQ','liq'],['TRD','trade']].find(x=>x[1]===key)?.[0] || key}
             style={{ padding:'2px 0', borderRadius: 'var(--radius-xs)', fontSize: 'var(--text-xs)', fontWeight:700, cursor:'pointer', outline:'none', fontFamily:'inherit',
               textAlign:'center', lineHeight:1.2,
@@ -1836,7 +1836,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     display: 'flex', alignItems: 'center', gap: 5,
                   }}>
                     <span style={{ fontSize: 'var(--text-xs)' }}>⚡</span>
-                    <span style={{ color: '#f59e0b', fontSize: 'var(--text-xs)', fontWeight: 600, lineHeight: 1.4 }}>
+                    <span style={{ color: T.warning, fontSize: 'var(--text-xs)', fontWeight: 600, lineHeight: 1.4 }}>
                       {locale === 'ar'
                         ? 'تناقض: Bayesian مرتفع لكن Confluence منخفض — الإشارة تعتمد على احتمالية إحصائية عالية مع اتفاق محدود بين المؤشرات'
                         : 'Contradiction: Bayesian high but Confluence low — Signal relies on statistical probability with limited indicator agreement'}
@@ -1871,7 +1871,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                           }}>
                             <span style={{ color: C.dim, fontSize: 'var(--text-xs)' }}>{t('riskReward')}</span>
                             <span style={{
-                              color: isCritical ? C.red : isWeak ? '#f59e0b' : C.text,
+                              color: isCritical ? C.red : isWeak ? T.warning : C.text,
                               fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: "var(--font-mono)",
                             }}>1:{safeToFixed(rr, 2, '—')}</span>
                           </div>
@@ -1882,8 +1882,8 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                               borderRadius: 'var(--radius-sm)', padding: '3px 7px', marginBottom: 4,
                               display: 'flex', alignItems: 'center', gap: 4,
                             }}>
-                              <span style={{ fontSize: 'var(--text-xs)', color: isCritical ? C.red : '#f59e0b' }}>⚠</span>
-                              <span style={{ fontSize: 'var(--text-xs)', color: isCritical ? C.red : '#f59e0b', fontWeight: 600, lineHeight: 1.3 }}>
+                              <span style={{ fontSize: 'var(--text-xs)', color: isCritical ? C.red : T.warning }}>⚠</span>
+                              <span style={{ fontSize: 'var(--text-xs)', color: isCritical ? C.red : T.warning, fontWeight: 600, lineHeight: 1.3 }}>
                                 {locale === 'ar'
                                   ? (isCritical ? 'نسبة ربح/خطر ضعيفة جداً — يُنصح بعدم الدخول' : 'نسبة ربح/خطر أقل من المثالي — الحد الأدنى الموصى به 1:1.5')
                                   : (isCritical ? 'Very weak R/R — entry not recommended' : 'Suboptimal R/R — minimum recommended is 1:1.5')}
@@ -1953,7 +1953,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                           border: '1px solid rgba(245,158,11,0.2)',
                           borderRadius: 'var(--radius-sm)',
                         }}>
-                          <span style={{ color: '#f59e0b', fontSize: 'var(--text-xs)', fontWeight: 600, lineHeight: 1.3 }}>
+                          <span style={{ color: T.warning, fontSize: 'var(--text-xs)', fontWeight: 600, lineHeight: 1.3 }}>
                             {locale === 'ar'
                               ? `⚠ أنماط معاكسة للإشارة: ${patternNames} — الإشارة من Bayesian/الإجماع قد تتجاوز هذه الأنماط الفردية`
                               : `⚠ Contradicting patterns: ${patternNames} — Signal from Bayesian/consensus may override these individual patterns`}
@@ -2414,7 +2414,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 {/* Divergences */}
                 {mtfResult.divergences.length > 0 && (
                   <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)', borderRadius: 'var(--radius-sm)', padding: '6px 8px', marginBottom: 8 }}>
-                    <div style={{ color: '#f59e0b', fontSize: 'var(--text-xs)', fontWeight: 700, marginBottom: 3 }}>⚠️ تباعدات بين الفريمات</div>
+                    <div style={{ color: T.warning, fontSize: 'var(--text-xs)', fontWeight: 700, marginBottom: 3 }}>⚠️ تباعدات بين الفريمات</div>
                     {mtfResult.divergences.map((div, i) => (
                       <div key={i} style={{ color: C.dim, fontSize: 'var(--text-xs)', marginBottom: 3, lineHeight: 1.4 }}>{div.descriptionAr}</div>
                     ))}
@@ -3354,13 +3354,13 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         {tab === 'predict' && (
           <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
             <div style={{ background: `${C.red}08`, border: `1px solid ${C.red}20`, borderRadius: 'var(--radius-sm)', padding: '8px 10px', marginBottom: 10 }}>
-              <div style={{ color: '#ff6b6b', fontSize: 'var(--text-xs)', fontWeight: 700, marginBottom: 5 }}>🔮 توقع اكتمال الأنماط — Predictive Completion</div>
+              <div style={{ color: T.danger, fontSize: 'var(--text-xs)', fontWeight: 700, marginBottom: 5 }}>🔮 توقع اكتمال الأنماط — Predictive Completion</div>
               <div style={{ fontSize: 'var(--text-xs)', color: C.dim }}>عندما يكون النمط مكتمل جزئياً، يتنبأ هذا المحرك أين ستكتمل النقاط المتبقية. يمكنك الاستعداد قبل اكتمال النمط والدخول بأسعار أفضل.</div>
             </div>
 
             {patternPredictions.length > 0 ? (
               <div>
-                <div style={{ color: '#ff6b6b', fontSize: 'var(--text-xs)', fontWeight: 700, marginBottom: 5 }}>🔮 أنماط قيد التشكّل ({patternPredictions.length})</div>
+                <div style={{ color: T.danger, fontSize: 'var(--text-xs)', fontWeight: 700, marginBottom: 5 }}>🔮 أنماط قيد التشكّل ({patternPredictions.length})</div>
                 {patternPredictions.map((pred, i) => {
                   const dirCol = pred.predictedDirection === 'bullish' ? C.green : C.red;
                   const completionCol = pred.completionPct >= 80 ? C.green : pred.completionPct >= 60 ? C.yellow : C.cyan;

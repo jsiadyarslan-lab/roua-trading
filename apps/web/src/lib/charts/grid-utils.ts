@@ -113,7 +113,7 @@ export const MTF_DEFAULT_TIMEFRAMES = ['15min', '1h', '4h', '1day', '5min', '1mi
 export const SOURCE_LABELS: Record<DataSource, { label: string; color: string }> = {
   loading: { label: '...', color: '#6B7280' },
   binance: { label: 'Binance', color: '#00FFA3' },
-  coingecko: { label: 'CoinGecko', color: '#8B5CF6' },
+  coingecko: { label: 'CoinGecko', color: T.council },
   yahoo: { label: 'Yahoo', color: '#6366F1' },
   twelvedata: { label: '12Data', color: '#EC4899' },
   unavailable: { label: 'Unavailable', color: '#FF4757' },
@@ -133,9 +133,9 @@ export const GRID_COLORS = {
   success: '#00FFA3',
   danger: '#FF4757',
   gold: '#d4af37',
-  upColor: '#3fb950',
-  downColor: '#f85149',
-  warning: '#fbbf24',
+  upColor: T.success,
+  downColor: T.danger,
+  warning: T.warning,
 } as const;
 
 // ── Cell ID Counter ─────────────────────────────────────

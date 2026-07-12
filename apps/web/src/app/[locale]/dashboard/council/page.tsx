@@ -28,7 +28,7 @@ import T from '@/lib/unified-tokens'
 
 const dirLabelKey: Record<string, string> = { BUY: 'buy', SELL: 'sell', HOLD: 'hold' }
 const stLabelKey: Record<string, string> = { ACTIVE: 'stActive', MODIFIED: 'stModified', CANCELLED: 'stCancelled', EXECUTED: 'stExecuted' }
-const tfColor: Record<string, string> = { M1: COLORS.sell, M5: COLORS.hold, M15: COLORS.info, M30: '#3B82F6', H1: COLORS.council, H4: COLORS.council, D1: COLORS.buy, W1: COLORS.buy }
+const tfColor: Record<string, string> = { M1: COLORS.sell, M5: COLORS.hold, M15: COLORS.info, M30: T.info, H1: COLORS.council, H4: COLORS.council, D1: COLORS.buy, W1: COLORS.buy }
 
 // ═══════════════════════════════════════
 // MAIN PAGE

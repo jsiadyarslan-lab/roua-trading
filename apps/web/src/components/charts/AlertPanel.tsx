@@ -18,9 +18,9 @@ interface AlertPanelProps {
 
 const C = {
   bg: 'rgba(11,14,20,0.97)',
-  card: '#111620',
+  card: T.card,
   cardHover: '#151D2B',
-  border: '#1E2530',
+  border: T.card,
   borderActive: 'rgba(0,212,255,0.35)',
   cyan: T.info,
   text: T.text,
@@ -28,13 +28,13 @@ const C = {
   textMuted: T.text3,
   success: T.success,
   danger: T.danger,
-  warning: '#fbbf24',
+  warning: T.warning,
   gold: T.gold,
 };
 
 const TYPE_COLORS: Record<AlertType, string> = {
   price: C.cyan,
-  indicator: '#a855f7',
+  indicator: T.council,
   pattern: C.warning,
   whale: C.danger,
   prediction: C.success,

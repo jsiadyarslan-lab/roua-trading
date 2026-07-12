@@ -62,7 +62,7 @@ const MODE_CONFIG: Record<TradingMode, { accent: string; glowBg: string; label: 
     label: 'Investor',
   },
   ai: {
-    accent: '#a78bfa',
+    accent: T.council,
     glowBg: 'rgba(167,139,250,0.04)',
     label: 'AI',
   },
@@ -1482,7 +1482,7 @@ export default function DashboardPage() {
                   // منخفض = آمن (استخدام محافظ)
                   const isCritical = mlPct < 120 && mlPct > 0;  // < 120% خطر فعلي (قريب من margin call)
                   const isWarning  = mlPct >= 120 && mlPct < 200;              // 120-200% تحذير
-                  const mlColor = isCritical ? T.danger : isWarning ? '#f59e0b' : T.cyan;
+                  const mlColor = isCritical ? T.danger : isWarning ? T.warning : T.cyan;
                   return (
                     <div style={{
                       display: 'flex', alignItems: 'center', gap: 5,
@@ -1501,7 +1501,7 @@ export default function DashboardPage() {
                           <line x1="12" y1="17" x2="12.01" y2="17"/>
                         </svg>
                       )}
-                      <span style={{ fontSize: 'var(--text-xs)', color: isCritical ? T.danger : isWarning ? '#f59e0b' : T.text3, fontWeight: 700, fontFamily: "var(--font-ar)" }}>{tc('marginLevel')}</span>
+                      <span style={{ fontSize: 'var(--text-xs)', color: isCritical ? T.danger : isWarning ? T.warning : T.text3, fontWeight: 700, fontFamily: "var(--font-ar)" }}>{tc('marginLevel')}</span>
                       <span dir="ltr" style={{
                         fontSize: isCritical ? 13 : 12, fontWeight: isCritical ? 900 : 700,
                         fontFamily: "var(--font-mono)",
@@ -1646,7 +1646,7 @@ export default function DashboardPage() {
                       {m2TFs.map(tf => (
                         <button key={tf} type="button"
                           onClick={() => { setTimeframe(tf); setM2ShowTf(false); }}
-                          style={{ padding:'7px 12px', borderRadius: 'var(--radius-sm)', cursor:'pointer', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)", fontWeight:700, background: tf===timeframe?'rgba(0,212,255,0.12)':'rgba(255,255,255,0.04)', border: tf===timeframe?'1px solid rgba(0,212,255,0.35)':'1px solid rgba(255,255,255,0.07)', color: tf===timeframe?T.info:'#5A6A80' }}>
+                          style={{ padding:'7px 12px', borderRadius: 'var(--radius-sm)', cursor:'pointer', fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)", fontWeight:700, background: tf===timeframe?'rgba(0,212,255,0.12)':'rgba(255,255,255,0.04)', border: tf===timeframe?'1px solid rgba(0,212,255,0.35)':'1px solid rgba(255,255,255,0.07)', color: tf===timeframe?T.info:T.text3 }}>
                           {tf}
                         </button>
                       ))}
@@ -1672,11 +1672,11 @@ export default function DashboardPage() {
                   touchAction:'manipulation', WebkitTapHighlightColor:'transparent',
                 }}>
                 <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
-                  <path d="M1 9L7 3L8 2M7 3L9 1M2 8L4 6" stroke={m2ShowDrawing?'#A78BFA':T.textMuted} strokeWidth="1.2" strokeLinecap="round"/>
+                  <path d="M1 9L7 3L8 2M7 3L9 1M2 8L4 6" stroke={m2ShowDrawing?T.council:T.textMuted} strokeWidth="1.2" strokeLinecap="round"/>
                 </svg>
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight:600, color: m2ShowDrawing?'#A78BFA':T.textMuted, fontFamily: "var(--font-ar)" }}>رسم</span>
+                <span style={{ fontSize: 'var(--text-xs)', fontWeight:600, color: m2ShowDrawing?T.council:T.textMuted, fontFamily: "var(--font-ar)" }}>رسم</span>
                 <svg width="6" height="4" viewBox="0 0 6 4" style={{ opacity:0.4 }}>
-                  <path d="M0 0L3 4L6 0" fill={m2ShowDrawing?'#A78BFA':T.textMuted}/>
+                  <path d="M0 0L3 4L6 0" fill={m2ShowDrawing?T.council:T.textMuted}/>
                 </svg>
               </button>
               {m2ShowDrawing && (
@@ -1690,7 +1690,7 @@ export default function DashboardPage() {
                       {m2DrawTools.map(dt => (
                         <button key={dt.id} type="button"
                           onClick={() => { setM2ActiveTool(dt.id); setM2ShowDrawing(false); }}
-                          style={{ padding:'10px 0', borderRadius: 'var(--radius-md)', cursor:'pointer', fontSize: 'var(--text-lg)', display:'flex', flexDirection:'column', alignItems:'center', background: m2ActiveTool===dt.id?'rgba(139,92,246,0.1)':'rgba(255,255,255,0.03)', border: m2ActiveTool===dt.id?'1px solid rgba(139,92,246,0.3)':'1px solid rgba(255,255,255,0.05)', color: m2ActiveTool===dt.id?'#A78BFA':'#5A6A80' }}>
+                          style={{ padding:'10px 0', borderRadius: 'var(--radius-md)', cursor:'pointer', fontSize: 'var(--text-lg)', display:'flex', flexDirection:'column', alignItems:'center', background: m2ActiveTool===dt.id?'rgba(139,92,246,0.1)':'rgba(255,255,255,0.03)', border: m2ActiveTool===dt.id?'1px solid rgba(139,92,246,0.3)':'1px solid rgba(255,255,255,0.05)', color: m2ActiveTool===dt.id?T.council:T.text3 }}>
                           {dt.icon}
                         </button>
                       ))}
@@ -1715,11 +1715,11 @@ export default function DashboardPage() {
                 touchAction:'manipulation', WebkitTapHighlightColor:'transparent',
               }}>
               <svg width="10" height="9" viewBox="0 0 10 9" fill="none">
-                <path d="M0 7C2 7 2 2 4 2C6 2 6 7 8 7L10 7" stroke={m2ShowInd?T.profit:'#3A4558'} strokeWidth="1.3" strokeLinecap="round"/>
+                <path d="M0 7C2 7 2 2 4 2C6 2 6 7 8 7L10 7" stroke={m2ShowInd?T.profit:T.text3} strokeWidth="1.3" strokeLinecap="round"/>
               </svg>
-              <span style={{ fontSize: 'var(--text-xs)', fontWeight:600, color: m2ShowInd?T.profit:'#3A4558', fontFamily: "var(--font-mono)", letterSpacing:'0.3px' }}>IND</span>
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight:600, color: m2ShowInd?T.profit:T.text3, fontFamily: "var(--font-mono)", letterSpacing:'0.3px' }}>IND</span>
               <svg width="6" height="4" viewBox="0 0 6 4" style={{ opacity:0.4 }}>
-                <path d="M0 0L3 4L6 0" fill={m2ShowInd?T.profit:'#3A4558'}/>
+                <path d="M0 0L3 4L6 0" fill={m2ShowInd?T.profit:T.text3}/>
               </svg>
             </button>
 
@@ -1738,12 +1738,12 @@ export default function DashboardPage() {
                 touchAction:'manipulation', WebkitTapHighlightColor:'transparent',
               }}>
               <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
-                <circle cx="4.5" cy="4.5" r="2" stroke={m2ShowAI?'#C084FC':'#3A4558'} strokeWidth="1.2"/>
-                <path d="M4.5 1V0M4.5 9V8M1 4.5H0M9 4.5H8" stroke={m2ShowAI?'#C084FC':'#3A4558'} strokeWidth="1" strokeLinecap="round"/>
+                <circle cx="4.5" cy="4.5" r="2" stroke={m2ShowAI?'#C084FC':T.text3} strokeWidth="1.2"/>
+                <path d="M4.5 1V0M4.5 9V8M1 4.5H0M9 4.5H8" stroke={m2ShowAI?'#C084FC':T.text3} strokeWidth="1" strokeLinecap="round"/>
               </svg>
-              <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color: m2ShowAI?'#C084FC':'#3A4558', fontFamily: "var(--font-mono)", letterSpacing:'0.5px' }}>AI</span>
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color: m2ShowAI?'#C084FC':T.text3, fontFamily: "var(--font-mono)", letterSpacing:'0.5px' }}>AI</span>
               <svg width="6" height="4" viewBox="0 0 6 4" style={{ opacity:0.4 }}>
-                <path d="M0 0L3 4L6 0" fill={m2ShowAI?'#C084FC':'#3A4558'}/>
+                <path d="M0 0L3 4L6 0" fill={m2ShowAI?'#C084FC':T.text3}/>
               </svg>
             </button>
 
@@ -1763,13 +1763,13 @@ export default function DashboardPage() {
                   touchAction:'manipulation', WebkitTapHighlightColor:'transparent',
                 }}>
                 <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
-                  <rect x="0" y="5" width="2" height="4" fill={m2ShowMarkets?'#F59E0B':'#3A4558'} rx="0.5"/>
-                  <rect x="3.5" y="2.5" width="2" height="6.5" fill={m2ShowMarkets?'#F59E0B':'#3A4558'} rx="0.5"/>
-                  <rect x="7" y="0" width="2" height="9" fill={m2ShowMarkets?'#F59E0B':'#3A4558'} rx="0.5"/>
+                  <rect x="0" y="5" width="2" height="4" fill={m2ShowMarkets?T.warning:T.text3} rx="0.5"/>
+                  <rect x="3.5" y="2.5" width="2" height="6.5" fill={m2ShowMarkets?T.warning:T.text3} rx="0.5"/>
+                  <rect x="7" y="0" width="2" height="9" fill={m2ShowMarkets?T.warning:T.text3} rx="0.5"/>
                 </svg>
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight:600, color: m2ShowMarkets?'#F59E0B':'#3A4558', fontFamily: "var(--font-ar)" }}>سوق</span>
+                <span style={{ fontSize: 'var(--text-xs)', fontWeight:600, color: m2ShowMarkets?T.warning:T.text3, fontFamily: "var(--font-ar)" }}>سوق</span>
                 <svg width="6" height="4" viewBox="0 0 6 4" style={{ opacity:0.4 }}>
-                  <path d="M0 0L3 4L6 0" fill={m2ShowMarkets?'#F59E0B':'#3A4558'}/>
+                  <path d="M0 0L3 4L6 0" fill={m2ShowMarkets?T.warning:T.text3}/>
                 </svg>
               </button>
               {m2ShowMarkets && (
@@ -1790,7 +1790,7 @@ export default function DashboardPage() {
                           {g.syms.map(sym => (
                             <button key={sym} type="button"
                               onClick={() => { handleSelectSymbol(sym); setM2ShowMarkets(false); }}
-                              style={{ padding:'5px 10px', borderRadius: 'var(--radius-sm)', cursor:'pointer', fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)", fontWeight:700, background: sym===selectedSymbol?'rgba(245,158,11,0.1)':'rgba(255,255,255,0.03)', border: sym===selectedSymbol?'1px solid rgba(245,158,11,0.3)':'1px solid rgba(255,255,255,0.06)', color: sym===selectedSymbol?'#F59E0B':T.textMuted }}>
+                              style={{ padding:'5px 10px', borderRadius: 'var(--radius-sm)', cursor:'pointer', fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)", fontWeight:700, background: sym===selectedSymbol?'rgba(245,158,11,0.1)':'rgba(255,255,255,0.03)', border: sym===selectedSymbol?'1px solid rgba(245,158,11,0.3)':'1px solid rgba(255,255,255,0.06)', color: sym===selectedSymbol?T.warning:T.textMuted }}>
                               {sym.split('/')[0]}
                             </button>
                           ))}
@@ -1816,7 +1816,7 @@ export default function DashboardPage() {
                 boxShadow:'0 -20px 60px rgba(0,0,0,0.7)',
               }} onClick={e => e.stopPropagation()}>
                 <div style={{ width:32, height:3, background:'rgba(255,255,255,0.12)', borderRadius: 'var(--radius-xs)', margin:'0 auto 14px' }}/>
-                <div style={{ fontSize: 'var(--text-sm)', fontWeight:700, color:'#A78BFA', marginBottom:12 }}>المؤشرات الفنية</div>
+                <div style={{ fontSize: 'var(--text-sm)', fontWeight:700, color:T.council, marginBottom:12 }}>المؤشرات الفنية</div>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
                   {m2Indicators.map(ind => (
                     <button key={ind} type="button"
@@ -1852,7 +1852,7 @@ export default function DashboardPage() {
                   <span style={{ fontSize: 'var(--text-sm)', color:'#6A7A90', fontFamily: "var(--font-mono)" }}>{selectedSymbol}</span>
                 </div>
                 <div style={{ display:'flex', gap:10, marginBottom:14 }}>
-                  {[{l:'شراء',v:'79%',c:T.success},{l:'حيادي',v:'11%',c:'#F59E0B'},{l:'بيع',v:'10%',c:T.danger}].map(b => (
+                  {[{l:'شراء',v:'79%',c:T.success},{l:'حيادي',v:'11%',c:T.warning},{l:'بيع',v:'10%',c:T.danger}].map(b => (
                     <div key={b.l} style={{
                       flex:1, padding:'12px 0', textAlign:'center', borderRadius: 'var(--radius-lg)',
                       background:`${b.c}18`, border:`1px solid ${b.c}44`,
@@ -1862,7 +1862,7 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
-                <div style={{ fontSize: 'var(--text-xs)', color:'#5A6A80', lineHeight:1.8, background:'rgba(255,255,255,0.03)', padding:'10px', borderRadius: 'var(--radius-md)' }}>
+                <div style={{ fontSize: 'var(--text-xs)', color:T.text3, lineHeight:1.8, background:'rgba(255,255,255,0.03)', padding:'10px', borderRadius: 'var(--radius-md)' }}>
                   📍 دعم قوي: {currentPrice ? (currentPrice*0.995).toFixed(currentPrice > 100 ? 2 : 5) : '—'}<br/>
                   🎯 مقاومة: {currentPrice ? (currentPrice*1.008).toFixed(currentPrice > 100 ? 2 : 5) : '—'}<br/>
                   ⚡ التوصية: استمرار الاتجاه الصاعد على المدى القصير
@@ -1879,10 +1879,10 @@ export default function DashboardPage() {
             }}>
               {/* Header */}
               <div style={{ padding:'12px 14px 8px', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ fontSize: 'var(--text-base)', fontWeight:800, color:'#E0ECF8', fontFamily: "var(--font-ar)" }}>
+                <div style={{ fontSize: 'var(--text-base)', fontWeight:800, color:T.text, fontFamily: "var(--font-ar)" }}>
                   مركز صنع القرار
                 </div>
-                <div style={{ fontSize: 'var(--text-xs)', color:'#5A6A80', fontFamily: "var(--font-ar)", marginTop:2 }}>
+                <div style={{ fontSize: 'var(--text-xs)', color:T.text3, fontFamily: "var(--font-ar)", marginTop:2 }}>
                   المنفذ · الوكيل · المجلس · الإشارات
                 </div>
               </div>
@@ -1912,8 +1912,8 @@ export default function DashboardPage() {
               {/* الوكيل */}
               <div style={{ margin:'10px 12px 0', borderRadius: 'var(--radius-lg)', overflow:'hidden', border:'1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ padding:'8px 12px', background:'rgba(167,139,250,0.05)', borderBottom:'1px solid rgba(167,139,250,0.1)', display:'flex', alignItems:'center', gap:6 }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#A78BFA" strokeWidth="2.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-                  <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color:'#A78BFA', fontFamily: "var(--font-ar)" }}>الوكيل الآلي</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.council} strokeWidth="2.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                  <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color:T.council, fontFamily: "var(--font-ar)" }}>الوكيل الآلي</span>
                 </div>
                 <AgentControlMini />
               </div>
@@ -1921,8 +1921,8 @@ export default function DashboardPage() {
               {/* المجلس الاستراتيجي */}
               <div style={{ margin:'10px 12px 0', borderRadius: 'var(--radius-lg)', overflow:'hidden', border:'1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ padding:'8px 12px', background:'rgba(245,158,11,0.05)', borderBottom:'1px solid rgba(245,158,11,0.1)', display:'flex', alignItems:'center', gap:6 }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                  <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color:'#F59E0B', fontFamily: "var(--font-ar)" }}>المجلس الاستراتيجي</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.warning} strokeWidth="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                  <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color:T.warning, fontFamily: "var(--font-ar)" }}>المجلس الاستراتيجي</span>
                 </div>
                 <StrategicCouncilPanel />
               </div>
@@ -1978,8 +1978,8 @@ export default function DashboardPage() {
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, paddingTop:8, borderTop:'1px solid rgba(255,255,255,0.05)' }}>
                   {[
                     { label:'الهامش', value:`$${(Number(account?.buyingPower)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`, color:'#34D399' },
-                    { label:'هامش مستخدم', value:`$${(Number(account?.initialMargin)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`, color:'#FBBF24' },
-                    { label:'نسبة الهامش', value: (Number(account?.initialMargin)||0) > 0 ? `${((Number(account?.equity)||0) / (Number(account?.initialMargin)||1) * 100).toFixed(0)}%` : '—', color:'#60A5FA' },
+                    { label:'هامش مستخدم', value:`$${(Number(account?.initialMargin)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`, color:T.warning },
+                    { label:'نسبة الهامش', value: (Number(account?.initialMargin)||0) > 0 ? `${((Number(account?.equity)||0) / (Number(account?.initialMargin)||1) * 100).toFixed(0)}%` : '—', color:T.info },
                   ].map(item => (
                     <div key={item.label}>
                       <div style={{ fontSize: 'var(--text-xs)', color:'#8090A8', marginBottom:3, fontFamily: "var(--font-ar)" }}>{item.label}</div>
@@ -2046,7 +2046,7 @@ export default function DashboardPage() {
                           style={{ background:isPos?'rgba(0,255,163,0.03)':'rgba(255,71,87,0.03)', border:`1px solid ${isPos?'rgba(0,255,163,0.1)':'rgba(255,71,87,0.1)'}`, borderRadius: 'var(--radius-lg)', padding:'10px 12px', marginBottom:7, cursor:'pointer', userSelect:'none' }}>
                           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                             <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                              <span style={{ fontSize: 'var(--text-sm)', fontWeight:800, color:'#E0ECF8', fontFamily: "var(--font-mono)" }}>{pos.symbol}</span>
+                              <span style={{ fontSize: 'var(--text-sm)', fontWeight:800, color:T.text, fontFamily: "var(--font-mono)" }}>{pos.symbol}</span>
                               <span style={{ fontSize: 'var(--text-xs)', padding:'2px 6px', borderRadius: 'var(--radius-sm)', fontWeight:700, background:pos.side==='BUY'?'rgba(0,255,163,0.08)':'rgba(255,71,87,0.08)', color:pos.side==='BUY'?T.success:T.danger, border:`1px solid ${pos.side==='BUY'?'rgba(0,255,163,0.15)':'rgba(255,71,87,0.15)'}` }}>{pos.side==='BUY'?'شراء':'بيع'}</span>
                             </div>
                             <div style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -2092,7 +2092,7 @@ export default function DashboardPage() {
                           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                             <span style={{ fontSize: 'var(--text-sm)', fontWeight:800, color:'#D0E0F0', fontFamily: "var(--font-mono)" }}>{pos.symbol}</span>
                             <span style={{ fontSize: 'var(--text-xs)', padding:'2px 6px', borderRadius: 'var(--radius-sm)', fontWeight:700, background:pos.side==='BUY'?'rgba(0,255,163,0.06)':'rgba(255,71,87,0.06)', color:pos.side==='BUY'?'rgba(0,255,163,0.6)':'rgba(255,71,87,0.6)', border:`1px solid ${pos.side==='BUY'?'rgba(0,255,163,0.1)':'rgba(255,71,87,0.1)'}` }}>{pos.side==='BUY'?'شراء':'بيع'}</span>
-                            <span style={{ fontSize: 'var(--text-xs)', color:'#5A6A80', fontFamily: "var(--font-mono)" }}>
+                            <span style={{ fontSize: 'var(--text-xs)', color:T.text3, fontFamily: "var(--font-mono)" }}>
                               {({'STOP_LOSS':'SL وقف','STOP_LOSS_HIT':'SL وقف','TAKE_PROFIT':'TP هدف','TAKE_PROFIT_HIT':'TP هدف','TIME_EXPIRED':'منتهي الوقت','AUTO_CLOSE':'إغلاق تلقائي','AUTO_STALE':'تلقائي (قديم)','MANUAL':'يدوي','USER_MANUAL':'يدوي','STRATEGY_EXIT':'استراتيجية','EMERGENCY_STOP':'طوارئ','EXCHANGE_SYNC':'مزامنة','FORCE_CLOSE':'إغلاق إجباري','DISPUTED':'متنازع'}[pos.closeReason]||pos.closeReason||'')}</span>
                           </div>
                           <div style={{ textAlign:'right' }}>
@@ -2179,7 +2179,7 @@ export default function DashboardPage() {
                   cursor:'pointer',
                 }}>
                 <span style={{ fontSize: 'var(--text-xs)', color:'rgba(248,113,113,0.55)', letterSpacing:'1px', fontFamily: "var(--font-ar)" }}>بيع</span>
-                <span style={{ fontSize: 'var(--text-sm)', fontWeight:800, color:'#F87171', fontFamily: "var(--font-mono)", letterSpacing:'-0.3px' }}>
+                <span style={{ fontSize: 'var(--text-sm)', fontWeight:800, color:T.danger, fontFamily: "var(--font-mono)", letterSpacing:'-0.3px' }}>
                   {currentPrice ? (currentPrice * 0.99995).toFixed(currentPrice > 100 ? 2 : 5) : '—'}
                 </span>
               </button>
@@ -2279,11 +2279,11 @@ export default function DashboardPage() {
                     }}/>
                   )}
                   {/* Nav icons */}
-                  {item.id === 'chart' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?T.info:'#3A4558'} strokeWidth="2"><rect x="2" y="5" width="4" height="14" rx="1"/><line x1="4" y1="2" x2="4" y2="5"/><line x1="4" y1="19" x2="4" y2="22"/><rect x="10" y="8" width="4" height="9" rx="1"/><line x1="12" y1="4" x2="12" y2="8"/><line x1="12" y1="17" x2="12" y2="21"/><rect x="18" y="6" width="4" height="11" rx="1"/><line x1="20" y1="3" x2="20" y2="6"/><line x1="20" y1="17" x2="20" y2="20"/></svg>}
-                  {item.id === 'portfolio' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?T.info:'#3A4558'} strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>}
-                  {item.id === 'scanner' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?T.info:'#3A4558'} strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>}
-                  {item.id === 'ai' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?'#A78BFA':'#3A4558'} strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>}
-                  {item.id === 'menu' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?T.info:'#3A4558'} strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>}
+                  {item.id === 'chart' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?T.info:T.text3} strokeWidth="2"><rect x="2" y="5" width="4" height="14" rx="1"/><line x1="4" y1="2" x2="4" y2="5"/><line x1="4" y1="19" x2="4" y2="22"/><rect x="10" y="8" width="4" height="9" rx="1"/><line x1="12" y1="4" x2="12" y2="8"/><line x1="12" y1="17" x2="12" y2="21"/><rect x="18" y="6" width="4" height="11" rx="1"/><line x1="20" y1="3" x2="20" y2="6"/><line x1="20" y1="17" x2="20" y2="20"/></svg>}
+                  {item.id === 'portfolio' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?T.info:T.text3} strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>}
+                  {item.id === 'scanner' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?T.info:T.text3} strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>}
+                  {item.id === 'ai' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?T.council:T.text3} strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>}
+                  {item.id === 'menu' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?T.info:T.text3} strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>}
                   <span style={{ fontSize: 'var(--text-xs)', fontWeight:active?700:400, color:active?T.info:'#6A7A90', fontFamily: "var(--font-ar)" }}>
                     {item.label}
                   </span>
@@ -2344,8 +2344,8 @@ export default function DashboardPage() {
                             cursor:'pointer',
                           }}>
                           <span style={{ fontSize: 'var(--text-md)' }}>{item.icon}</span>
-                          <span style={{ flex:1, fontSize: 'var(--text-sm)', color:'#C8D4E4', fontFamily: "var(--font-ar)", fontWeight:500, textAlign:'right' }}>{item.label}</span>
-                          <span style={{ fontSize: 'var(--text-sm)', color:'#3A4558' }}>›</span>
+                          <span style={{ flex:1, fontSize: 'var(--text-sm)', color:T.text2, fontFamily: "var(--font-ar)", fontWeight:500, textAlign:'right' }}>{item.label}</span>
+                          <span style={{ fontSize: 'var(--text-sm)', color:T.text3 }}>›</span>
                         </button>
                       ))}
                     </div>
@@ -2376,7 +2376,7 @@ export default function DashboardPage() {
                   {l:'القيمة الكلية', v:currentPrice?`$${(parseFloat(m2Qty)*currentPrice).toFixed(2)}`:'—'},
                 ].map(row => (
                   <div key={row.l} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
-                    <span style={{ fontSize: 'var(--text-sm)', color:'#5A6A80' }}>{row.l}</span>
+                    <span style={{ fontSize: 'var(--text-sm)', color:T.text3 }}>{row.l}</span>
                     <span style={{ fontSize: 'var(--text-sm)', fontWeight:700, color:'#C8D0DC', fontFamily: "var(--font-mono)" }}>{row.v}</span>
                   </div>
                 ))}

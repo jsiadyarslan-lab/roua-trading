@@ -48,7 +48,7 @@ export default function Footer() {
             </span>
             <span
               className="text-[10px] font-semibold tracking-[0.3em] mt-0.5"
-              style={{ color: '#334155', fontFamily: 'var(--font-brand)' }}
+              style={{ color: T.border, fontFamily: 'var(--font-brand)' }}
             >
               {tc('brandSub')}
             </span>
@@ -109,10 +109,10 @@ export default function Footer() {
 
         {/* Copyright */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="text-[11px]" style={{ color: '#334155', fontFamily: 'var(--font-ar)' }}>
+          <p className="text-[11px]" style={{ color: T.border, fontFamily: 'var(--font-ar)' }}>
             © {new Date().getFullYear()} {tc('brand')}. {tc('allRightsReserved')}.
           </p>
-          <p className="text-[9px] tracking-[0.2em]" style={{ color: '#1E293B', fontFamily: 'var(--font-brand)' }}>
+          <p className="text-[9px] tracking-[0.2em]" style={{ color: T.border, fontFamily: 'var(--font-brand)' }}>
             NEURAL TRADING INTELLIGENCE
           </p>
         </div>

@@ -251,12 +251,12 @@ export default function OptimizerPanel() {
                   { name: t('winRate'), [t('optimizerBest')]: result.performance.winRate, [t('optimizerPrevious')]: result.previousBest.winRate },
                   { name: t('sharpeRatio'), [t('optimizerBest')]: result.performance.sharpeRatio, [t('optimizerPrevious')]: result.previousBest.sharpeRatio },
                 ]}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                  <CartesianGrid strokeDasharray="3 3" stroke={T.card} />
                   <XAxis dataKey="name" stroke={T.text3} tick={{ fontSize: 'var(--text-xs)' }} />
                   <YAxis stroke={T.text3} tick={{ fontSize: 'var(--text-xs)' }} />
                   <Tooltip
-                    contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)' }}
-                    labelStyle={{ color: '#9ca3af' }}
+                    contentStyle={{ background: T.card, border: '1px solid #374151', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)' }}
+                    labelStyle={{ color: T.text2 }}
                   />
                   <Legend wrapperStyle={{ fontSize: 'var(--text-sm)' }} />
                   <Bar dataKey={t('optimizerBest')} fill={T.profit} radius={[4, 4, 0, 0]} />

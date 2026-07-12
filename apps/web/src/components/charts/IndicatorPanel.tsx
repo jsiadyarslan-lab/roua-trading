@@ -40,7 +40,7 @@ export function IndicatorPanel({
     card: 'rgba(11, 14, 20, 0.98)',
     border: 'rgba(0, 212, 255, 0.3)',
     cyan: T.info,
-    text: '#C8D4E4',
+    text: T.text2,
     textSecondary: T.text2,
     textMuted: T.text2,
     success: T.success,

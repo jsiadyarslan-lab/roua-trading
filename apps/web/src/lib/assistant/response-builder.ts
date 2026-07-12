@@ -753,17 +753,17 @@ export function buildHTMLCards(bundle: any, locale: Locale): string {
   // Color palette
   const C = {
     bg: '#0F172A',
-    cardBg: '#1E293B',
+    cardBg: T.border,
     cardBorder: 'rgba(99,102,241,0.15)',
     cardGlow: '0 4px 24px rgba(99,102,241,0.08)',
-    textPrimary: '#E2E8F0',
-    textSecondary: '#94A3B8',
+    textPrimary: T.text2,
+    textSecondary: T.text2,
     textMuted: '#9CA3B5',
-    accentBlue: '#60A5FA',
+    accentBlue: T.info,
     accentPurple: '#C084FC',
     accentGreen: '#4ADE80',
-    accentRed: '#F87171',
-    accentYellow: '#FBBF24',
+    accentRed: T.danger,
+    accentYellow: T.warning,
     accentCyan: '#38BDF8',
     accentIndigo: '#818CF8',
     divider: 'rgba(99,102,241,0.1)',
@@ -1909,8 +1909,8 @@ Answer with genuine understanding and professionalism. Use Markdown only (no HTM
     : questionType === 'news_impact' ? '#38BDF8'
     : questionType === 'comparison' ? '#C084FC'
     : questionType === 'entry_timing' ? '#FB923C'
-    : questionType === 'risk_assessment' ? '#F87171'
-    : questionType === 'technical_deep' ? '#A78BFA'
+    : questionType === 'risk_assessment' ? T.danger
+    : questionType === 'technical_deep' ? T.council
     : '#818CF8';
 
   const analysisTitle: Record<Locale, string> = {

@@ -75,7 +75,7 @@
   --bg-ticker: #030405;
 
   /* Type Scale — Fluid (clamp) — unified across all components */
-  --text-xs:   clamp(0.625rem, 0.58rem + 0.18vw, 0.75rem);    /* 10-12px */
+  --text-xs:   clamp(0.75rem, 0.70rem + 0.20vw, 0.875rem);    /* 12-14px — minimum readable */
   --text-sm:   clamp(0.75rem,  0.70rem + 0.20vw, 0.875rem);   /* 12-14px */
   --text-base: clamp(0.875rem, 0.82rem + 0.25vw, 1rem);       /* 14-16px */
   --text-md:   clamp(1rem,     0.95rem + 0.30vw, 1.125rem);   /* 16-18px */

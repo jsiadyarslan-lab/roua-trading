@@ -22,7 +22,7 @@ import { DrawingManager } from './DrawingManager';
 import { safeMax, safeMin } from './chart-utils'
 
 // ── Style Constants ──────────────────────────────────────
-const DEFAULT_COLOR = '#fbbf24';
+const DEFAULT_COLOR = T.warning;
 const DEFAULT_LINE_WIDTH = 1.5;
 const DEFAULT_OPACITY = 0.8;
 const PREVIEW_DASH = [6, 4];
@@ -1631,12 +1631,12 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
     // Entry line
     ctx.beginPath(); ctx.moveTo(a.x - 20, a.y); ctx.lineTo(a.x + 20, a.y); ctx.stroke();
     // TP line
-    ctx.save(); ctx.strokeStyle = '#3fb950'; ctx.setLineDash([4, 4]);
+    ctx.save(); ctx.strokeStyle = T.success; ctx.setLineDash([4, 4]);
     const tpY = this._series.priceToCoordinate(tp);
     if (tpY !== null) { ctx.beginPath(); ctx.moveTo(a.x - 30, tpY); ctx.lineTo(a.x + 30, tpY); ctx.stroke(); }
     ctx.restore();
     // SL line
-    ctx.save(); ctx.strokeStyle = '#f85149'; ctx.setLineDash([4, 4]);
+    ctx.save(); ctx.strokeStyle = T.danger; ctx.setLineDash([4, 4]);
     const slY = this._series.priceToCoordinate(sl);
     if (slY !== null) { ctx.beginPath(); ctx.moveTo(a.x - 30, slY); ctx.lineTo(a.x + 30, slY); ctx.stroke(); }
     ctx.restore();
@@ -2566,9 +2566,9 @@ export class DrawingRenderer {
   private contextMenuCloseHandler: ((e: MouseEvent) => void) | null = null;
 
   private static readonly COLORS = [
-    '#fbbf24', '#f59e0b', '#ef4444', '#f85149', '#fb7185',
-    '#22d3ee', '#06b6d4', '#3b82f6', '#6366f1', '#a855f7',
-    '#00FFA3', '#3fb950', '#10b981', '#ec4899', '#ffffff',
+    T.warning, T.warning, '#ef4444', T.danger, '#fb7185',
+    T.info, '#06b6d4', T.info, '#6366f1', T.council,
+    '#00FFA3', T.success, '#10b981', '#ec4899', '#ffffff',
   ];
 
   private static readonly LINE_WIDTHS = [1, 1.5, 2, 3, 4];

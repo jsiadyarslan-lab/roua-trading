@@ -50,15 +50,15 @@ type FootprintTimeframe = '1min' | '5min' | '15min' | '1h';
 
 const C = {
   bg: T.bg,
-  card: '#111620',
-  border: '#1E2530',
+  card: T.card,
+  border: T.card,
   text: T.text,
   textDim: T.text2,
   textMuted: T.text3,
   cyan: T.info,
   success: T.success,
   danger: T.danger,
-  warning: '#fbbf24',
+  warning: T.warning,
 };
 
 const TF_OPTIONS: { value: FootprintTimeframe; label: string }[] = [
@@ -221,8 +221,8 @@ export function FootprintChart({ symbol, onClose }: FootprintChartProps) {
       ctx.fillText(timeStr, x + CANDLE_W / 2, HEADER_H - 8);
 
       // Candle outline
-      const bullColor = '#3fb950';
-      const bearColor = '#f85149';
+      const bullColor = T.success;
+      const bearColor = T.danger;
       const isBull = candle.close >= candle.open;
 
       // Draw volume at each level

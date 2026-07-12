@@ -2644,7 +2644,7 @@ export class DrawingRenderer {
       z-index: 99999; background: '#1a1b26'; border: 1px solid rgba(255,255,255,0.12);
       border-radius: 8px; padding: 8px 0; min-width: 180px;
       box-shadow: 0 8px 32px rgba(0,0,0,0.5); font-family: 'JetBrains Mono', monospace;
-      font-size: 11px; color: '#e0e0e0'; user-select: none;
+      font-size: 11px; color: #e0e0e0; user-select: none;
     `;
 
     // ── Color Section ──
@@ -2753,7 +2753,7 @@ export class DrawingRenderer {
     opacitySlider.max = '1';
     opacitySlider.step = '0.1';
     opacitySlider.value = String(drawing.opacity);
-    opacitySlider.style.cssText = 'flex:1;accent-color: '#00d4ff';height:4px;';
+    opacitySlider.style.cssText = 'flex:1;accent-color: #00d4ff;height:4px;';
     const opacityLabel = document.createElement('span');
     opacityLabel.textContent = `${Math.round(drawing.opacity * 100)}%`;
     opacityLabel.style.cssText = 'font-size:10px;color:#888;min-width:32px;text-align:right;';
@@ -2785,7 +2785,7 @@ export class DrawingRenderer {
       `;
       const lbl = document.createElement('span');
       lbl.textContent = so.label;
-      lbl.style.cssText = 'font-size:10px;font-weight:600;color: '#e0e0e0';';
+      lbl.style.cssText = 'font-size:10px;font-weight:600;color: #e0e0e0;';
       const desc = document.createElement('span');
       desc.textContent = so.desc;
       desc.style.cssText = 'font-size:8px;color:#888;margin-top:1px;';

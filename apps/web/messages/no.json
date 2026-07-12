@@ -104,7 +104,7 @@
       "tabRisk": "Fare",
       "noPerformanceDataAction": "Ingen ytelsesdata ennå - utfør handler for å se analyse",
       "csvPair": "Par",
-      "sourceManual": "Håndbok",
+      "sourceManual": "Manuell",
       "excellent": "Glimrende",
       "openPositions": "Åpne stillinger",
       "winningTradeCount": "vinnende handel(er)",
@@ -206,7 +206,7 @@
       "openPositionCount": "åpne posisjon(er)",
       "csvSource": "Kilde",
       "sourcePaper": "Papir",
-      "sourceLasic": "Lasic",
+      "sourceLasic": "Stinger",
       "totalLoss": "Totalt tap",
       "openTrades": "Åpne handler",
       "periodDaily": "Daglig",
@@ -2992,9 +2992,9 @@
       "loading": "Laster...",
       "stinging": "Stikker nå",
       "stopped": "Stoppet",
-      "enable": "Aktiver Lasic",
-      "disable": "Stopp Lasic",
-      "settingsTitle": "Lasic-innstillinger",
+      "enable": "Aktiver Stinger",
+      "disable": "Stopp Stinger",
+      "settingsTitle": "Stinger-innstillinger",
       "saveSettings": "Lagre",
       "settingsSaved": "✓ Lagret",
       "obiThresholdLabel": "OBI-terskel (inngangssignal)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "Siste tilbudspunkt",
     "wyckoffUT": "Upthrust",
     "wyckoffSOW": "Tegn på svakhet",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

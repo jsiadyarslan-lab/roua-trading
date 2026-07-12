@@ -104,7 +104,7 @@
       "tabRisk": "לְהִסְתָכֵּן",
       "noPerformanceDataAction": "עדיין אין נתוני ביצועים - בצע עסקאות כדי לראות ניתוח",
       "csvPair": "זוּג",
-      "sourceManual": "יָדָנִי",
+      "sourceManual": "ידני",
       "excellent": "מְעוּלֶה",
       "openPositions": "עמדות פתוחות",
       "winningTradeCount": "עסקאות מנצחות",
@@ -205,8 +205,8 @@
       "csvDirection": "כיוון",
       "openPositionCount": "פוזיציות פתוחות",
       "csvSource": "מָקוֹר",
-      "sourcePaper": "נְיָר",
-      "sourceLasic": "לסיק",
+      "sourcePaper": "נייר",
+      "sourceLasic": "Stinger",
       "totalLoss": "הפסד מוחלט",
       "openTrades": "עסקאות פתוחות",
       "periodDaily": "יוֹמִי",
@@ -2992,9 +2992,9 @@
       "loading": "טוען...",
       "stinging": "עוקץ עכשיו",
       "stopped": "מופסק",
-      "enable": "הפעל לסיק",
-      "disable": "עצור לסיק",
-      "settingsTitle": "הגדרות לסיק",
+      "enable": "הפעל Stinger",
+      "disable": "עצור Stinger",
+      "settingsTitle": "הגדרות Stinger",
       "saveSettings": "שמור",
       "settingsSaved": "✓ נשמר",
       "obiThresholdLabel": "סף OBI (אות כניסה)",
@@ -5907,7 +5907,7 @@
   },
   "chartOverlay": {
     "peak": "פסגה",
-    "trough": "שפל",
+    "trough": "תחתית",
     "orderBlock": "בלוק פקודות",
     "mitigated": "מותן",
     "mitigatedParens": "(מותן)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "נקודת היצע אחרונה",
     "wyckoffUT": "Upthrust",
     "wyckoffSOW": "סימן לחולשה",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

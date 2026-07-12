@@ -206,7 +206,7 @@
       "openPositionCount": "açık pozisyon",
       "csvSource": "Kaynak",
       "sourcePaper": "Kağıt",
-      "sourceLasic": "Lasic",
+      "sourceLasic": "Stinger",
       "totalLoss": "Toplam Zarar",
       "openTrades": "Açık İşlemler",
       "periodDaily": "Günlük",
@@ -2992,9 +2992,9 @@
       "loading": "Yükleniyor...",
       "stinging": "Şimdi sokuyor",
       "stopped": "Durduruldu",
-      "enable": "Lasic'i etkinleştir",
-      "disable": "Lasic'i durdur",
-      "settingsTitle": "Lasic Ayarları",
+      "enable": "Stinger'i etkinleştir",
+      "disable": "Stinger'i durdur",
+      "settingsTitle": "Stinger Ayarları",
       "saveSettings": "Kaydet",
       "settingsSaved": "✓ Kaydedildi",
       "obiThresholdLabel": "OBI Eşiği (giriş sinyali)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "Son Arz Noktası",
     "wyckoffUT": "Upthrust",
     "wyckoffSOW": "Zayıflık İşareti",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

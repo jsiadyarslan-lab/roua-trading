@@ -206,7 +206,7 @@
       "openPositionCount": "open positie(s)",
       "csvSource": "Bron",
       "sourcePaper": "Papier",
-      "sourceLasic": "Lasic",
+      "sourceLasic": "Stinger",
       "totalLoss": "Totaal verlies",
       "openTrades": "Openstaande transacties",
       "periodDaily": "Dagelijks",
@@ -2992,9 +2992,9 @@
       "loading": "Laden...",
       "stinging": "Steekt nu",
       "stopped": "Gestopt",
-      "enable": "Lasic activeren",
-      "disable": "Lasic stoppen",
-      "settingsTitle": "Lasic Instellingen",
+      "enable": "Stinger activeren",
+      "disable": "Stinger stoppen",
+      "settingsTitle": "Stinger Instellingen",
       "saveSettings": "Opslaan",
       "settingsSaved": "✓ Opgeslagen",
       "obiThresholdLabel": "OBI-drempel (entry-signaal)",
@@ -5907,7 +5907,7 @@
   },
   "chartOverlay": {
     "peak": "Piek",
-    "trough": "Dal",
+    "trough": "Bodem",
     "orderBlock": "Orderblok",
     "mitigated": "verzacht",
     "mitigatedParens": "(verzacht)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "Laatste Aanbodpunt",
     "wyckoffUT": "Upthrust",
     "wyckoffSOW": "Teken van Zwakte",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

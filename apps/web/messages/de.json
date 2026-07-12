@@ -2072,7 +2072,7 @@
       "sourceSmart": "Intelligent",
       "sourceAgent": "Agent",
       "sourcePaper": "Papier",
-      "sourceLasic": "Lasic",
+      "sourceLasic": "Stinger",
       "sourceManual": "Manuell",
       "sizeLabel": "Größe",
       "closeLabel": "Schließen",
@@ -3495,9 +3495,9 @@
       "loading": "Laden...",
       "stinging": "Sticht jetzt",
       "stopped": "Gestoppt",
-      "enable": "Lasic aktivieren",
-      "disable": "Lasic stoppen",
-      "settingsTitle": "Lasic-Einstellungen",
+      "enable": "Stinger aktivieren",
+      "disable": "Stinger stoppen",
+      "settingsTitle": "Stinger-Einstellungen",
       "saveSettings": "Einstellungen speichern",
       "settingsSaved": "✓ Gespeichert",
       "obiThresholdLabel": "OBI-Schwellenwert (Einstiegssignal)",
@@ -5907,7 +5907,7 @@
   },
   "chartOverlay": {
     "peak": "Hoch",
-    "trough": "Tief",
+    "trough": "Boden",
     "orderBlock": "Order Block",
     "mitigated": "gemildert",
     "mitigatedParens": "(gemildert)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "Letzter Angebotspunkt",
     "wyckoffUT": "Upthrust",
     "wyckoffSOW": "Zeichen der Schwäche",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

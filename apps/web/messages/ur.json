@@ -206,7 +206,7 @@
       "openPositionCount": "اوپن پوزیشن(ز)",
       "csvSource": "ماخذ",
       "sourcePaper": "کاغذ",
-      "sourceLasic": "لاسک",
+      "sourceLasic": "Stinger",
       "totalLoss": "کل نقصان",
       "openTrades": "اوپن ٹریڈز",
       "periodDaily": "روزانہ",
@@ -2992,9 +2992,9 @@
       "loading": "لوڈ ہو رہا ہے...",
       "stinging": "اب ڈنگ مار رہا ہے",
       "stopped": "روکا ہوا",
-      "enable": "لاسک فعال کریں",
-      "disable": "لاسک روکیں",
-      "settingsTitle": "لاسک ترتیبات",
+      "enable": "Stinger فعال کریں",
+      "disable": "Stinger روکیں",
+      "settingsTitle": "Stinger ترتیبات",
       "saveSettings": "محفوظ کریں",
       "settingsSaved": "✓ محفوظ ہو گیا",
       "obiThresholdLabel": "OBI حد (داخلہ سگنل)",
@@ -5907,7 +5907,7 @@
   },
   "chartOverlay": {
     "peak": "چوٹی",
-    "trough": "گڑھا",
+    "trough": "نیچے",
     "orderBlock": "آرڈر بلاک",
     "mitigated": "کم کیا",
     "mitigatedParens": "(کم کیا)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "آخری فراہمی نقطہ",
     "wyckoffUT": "Upthrust",
     "wyckoffSOW": "کمزوری کی علامت",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

@@ -104,7 +104,7 @@
       "tabRisk": "Kockázat",
       "noPerformanceDataAction": "Még nincsenek teljesítményadatok – hajtsa végre a kereskedéseket az elemzés megtekintéséhez",
       "csvPair": "Pár",
-      "sourceManual": "Kézikönyv",
+      "sourceManual": "Manuális",
       "excellent": "Kiváló",
       "openPositions": "Érték",
       "winningTradeCount": "nyertes kereskedés(ek)",
@@ -206,7 +206,7 @@
       "openPositionCount": "nyitott pozíció(k)",
       "csvSource": "Forrás",
       "sourcePaper": "Papír",
-      "sourceLasic": "Lasic",
+      "sourceLasic": "Stinger",
       "totalLoss": "Teljes veszteség",
       "openTrades": "Nyitott kereskedések",
       "periodDaily": "Napi",
@@ -2992,9 +2992,9 @@
       "loading": "Betöltés...",
       "stinging": "Most szúr",
       "stopped": "Leállítva",
-      "enable": "Lasic indítása",
-      "disable": "Lasic leállítása",
-      "settingsTitle": "Lasic beállítások",
+      "enable": "Stinger indítása",
+      "disable": "Stinger leállítása",
+      "settingsTitle": "Stinger beállítások",
       "saveSettings": "Mentés",
       "settingsSaved": "✓ Mentve",
       "obiThresholdLabel": "OBI küszöb (belépési jelzés)",
@@ -5907,7 +5907,7 @@
   },
   "chartOverlay": {
     "peak": "Csúcs",
-    "trough": "Völgy",
+    "trough": "Alja",
     "orderBlock": "Rendelésblokk",
     "mitigated": "enyhített",
     "mitigatedParens": "(enyhített)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "Utolsó kínálati pont",
     "wyckoffUT": "Upthrust",
     "wyckoffSOW": "Gyengeség jele",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

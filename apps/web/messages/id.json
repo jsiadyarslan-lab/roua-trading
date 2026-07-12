@@ -104,7 +104,7 @@
       "tabRisk": "Mempertaruhkan",
       "noPerformanceDataAction": "Belum ada data kinerja — jalankan perdagangan untuk melihat analisis",
       "csvPair": "Pasangan",
-      "sourceManual": "petunjuk",
+      "sourceManual": "Manual",
       "excellent": "Bagus sekali",
       "openPositions": "Posisi Terbuka",
       "winningTradeCount": "memenangkan perdagangan",
@@ -205,8 +205,8 @@
       "csvDirection": "Arah",
       "openPositionCount": "posisi terbuka",
       "csvSource": "Sumber",
-      "sourcePaper": "Kertas",
-      "sourceLasic": "Lasic",
+      "sourcePaper": "Paper",
+      "sourceLasic": "Stinger",
       "totalLoss": "Kerugian Total",
       "openTrades": "Perdagangan Terbuka",
       "periodDaily": "Sehari-hari",
@@ -2992,9 +2992,9 @@
       "loading": "Memuat...",
       "stinging": "Menyengat sekarang",
       "stopped": "Berhenti",
-      "enable": "Aktifkan Lasic",
-      "disable": "Nonaktifkan Lasic",
-      "settingsTitle": "Pengaturan Lasic",
+      "enable": "Aktifkan Stinger",
+      "disable": "Nonaktifkan Stinger",
+      "settingsTitle": "Pengaturan Stinger",
       "saveSettings": "Simpan",
       "settingsSaved": "✓ Tersimpan",
       "obiThresholdLabel": "Ambang OBI (sinyal masuk)",
@@ -5907,7 +5907,7 @@
   },
   "chartOverlay": {
     "peak": "Puncak",
-    "trough": "Palung",
+    "trough": "Bawah",
     "orderBlock": "Blok Pesanan",
     "mitigated": "dimitigasi",
     "mitigatedParens": "(dimitigasi)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "Titik Pasokan Terakhir",
     "wyckoffUT": "Upthrust",
     "wyckoffSOW": "Tanda Kelemahan",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

@@ -206,7 +206,7 @@
       "openPositionCount": "공개 포지션",
       "csvSource": "소스",
       "sourcePaper": "종이",
-      "sourceLasic": "라식",
+      "sourceLasic": "Stinger",
       "totalLoss": "총 손실",
       "openTrades": "공개 거래",
       "periodDaily": "일일",
@@ -2992,9 +2992,9 @@
       "loading": "로딩 중...",
       "stinging": "쏘는 중",
       "stopped": "정지됨",
-      "enable": "라식 활성화",
-      "disable": "라식 중지",
-      "settingsTitle": "라식 설정",
+      "enable": "Stinger 활성화",
+      "disable": "Stinger 중지",
+      "settingsTitle": "Stinger 설정",
       "saveSettings": "저장",
       "settingsSaved": "✓ 저장됨",
       "obiThresholdLabel": "OBI 임계값 (진입 신호)",
@@ -5907,7 +5907,7 @@
   },
   "chartOverlay": {
     "peak": "피크",
-    "trough": "트로프",
+    "trough": "바닥",
     "orderBlock": "오더 블록",
     "mitigated": "완화됨",
     "mitigatedParens": "(완화됨)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "마지막 공급점",
     "wyckoffUT": "업스러스트",
     "wyckoffSOW": "약세 신호",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

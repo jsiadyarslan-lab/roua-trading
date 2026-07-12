@@ -2072,7 +2072,7 @@
       "sourceSmart": "Smart",
       "sourceAgent": "Agent",
       "sourcePaper": "Papir",
-      "sourceLasic": "Lasic",
+      "sourceLasic": "Stinger",
       "sourceManual": "Manuel",
       "sizeLabel": "Størrelse",
       "closeLabel": "Tæt",
@@ -3495,9 +3495,9 @@
       "loading": "Indlæser...",
       "stinging": "Stikker nu",
       "stopped": "Stoppet",
-      "enable": "Aktivér Lasic",
-      "disable": "Stop Lasic",
-      "settingsTitle": "Lasic-indstillinger",
+      "enable": "Aktivér Stinger",
+      "disable": "Stop Stinger",
+      "settingsTitle": "Stinger-indstillinger",
       "saveSettings": "Gem",
       "settingsSaved": "✓ Gemt",
       "obiThresholdLabel": "OBI-tærskel (indgangssignal)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "Sidste udbudspunkt",
     "wyckoffUT": "Upthrust",
     "wyckoffSOW": "Tegn på svaghed",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

@@ -206,7 +206,7 @@
       "openPositionCount": "ตำแหน่งที่เปิดรับ",
       "csvSource": "แหล่งที่มา",
       "sourcePaper": "กระดาษ",
-      "sourceLasic": "ลาซิค",
+      "sourceLasic": "Stinger",
       "totalLoss": "การสูญเสียทั้งหมด",
       "openTrades": "เปิดการซื้อขาย",
       "periodDaily": "รายวัน",
@@ -2992,9 +2992,9 @@
       "loading": "กำลังโหลด...",
       "stinging": "กำลังต่อย",
       "stopped": "หยุดแล้ว",
-      "enable": "เปิด Lasic",
-      "disable": "ปิด Lasic",
-      "settingsTitle": "ตั้งค่า Lasic",
+      "enable": "เปิด Stinger",
+      "disable": "ปิด Stinger",
+      "settingsTitle": "ตั้งค่า Stinger",
       "saveSettings": "บันทึก",
       "settingsSaved": "✓ บันทึกแล้ว",
       "obiThresholdLabel": "ขีดจำกัด OBI (สัญญาณเข้า)",
@@ -5907,7 +5907,7 @@
   },
   "chartOverlay": {
     "peak": "จุดสูงสุด",
-    "trough": "จุดต่ำสุด",
+    "trough": "ก้น",
     "orderBlock": "บล็อกคำสั่ง",
     "mitigated": "บรรเทา",
     "mitigatedParens": "(บรรเทา)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "จุดอุปทานสุดท้าย",
     "wyckoffUT": "Upthrust",
     "wyckoffSOW": "สัญญาณแสดงความอ่อนแอ",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

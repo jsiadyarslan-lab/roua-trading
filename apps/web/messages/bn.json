@@ -1506,7 +1506,7 @@
       "headerReason": "কারণ",
       "exitTPShort": "টিপি",
       "sourcePaper": "কাগজ",
-      "sourceLasic": "লাসিক",
+      "sourceLasic": "Stinger",
       "closeAllPositionsError": "সমস্ত অবস্থান বন্ধ করার সময় ত্রুটি৷",
       "timeLabel": "সময়",
       "allDirections": "সমস্ত দিকনির্দেশ",
@@ -2992,9 +2992,9 @@
       "loading": "Loading...",
       "stinging": "Stinging now",
       "stopped": "Stopped",
-      "enable": "Enable Lasic",
-      "disable": "Disable Lasic",
-      "settingsTitle": "Lasic Settings",
+      "enable": "Enable Stinger",
+      "disable": "Disable Stinger",
+      "settingsTitle": "Stinger Settings",
       "saveSettings": "Save Settings",
       "settingsSaved": "✓ Saved",
       "obiThresholdLabel": "OBI Threshold (entry signal)",
@@ -5907,7 +5907,7 @@
   },
   "chartOverlay": {
     "peak": "শিখর",
-    "trough": "গর্ত",
+    "trough": "নিচ",
     "orderBlock": "অর্ডার ব্লক",
     "mitigated": "প্রশমিত",
     "mitigatedParens": "(প্রশমিত)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "শেষ সরবরাহ বিন্দু",
     "wyckoffUT": "আপথ্রাস্ট",
     "wyckoffSOW": "দুর্বলতার লক্ষণ",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

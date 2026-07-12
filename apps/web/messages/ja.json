@@ -104,7 +104,7 @@
       "tabRisk": "リスク",
       "noPerformanceDataAction": "Risk/Reward",
       "csvPair": "ペア",
-      "sourceManual": "2 hours ago",
+      "sourceManual": "マニュアル",
       "excellent": "エクセレント",
       "openPositions": "オープンポジション",
       "winningTradeCount": "勝ちトレード数",
@@ -206,7 +206,7 @@
       "openPositionCount": "Confidence:",
       "csvSource": "ソース",
       "sourcePaper": "シミュレーション",
-      "sourceLasic": "ラシック",
+      "sourceLasic": "Stinger",
       "totalLoss": "合計 損失",
       "openTrades": "オープントレード",
       "periodDaily": "日次",
@@ -2992,9 +2992,9 @@
       "loading": "読み込み中...",
       "stinging": "刺しています",
       "stopped": "停止中",
-      "enable": "ラシックを有効化",
-      "disable": "ラシックを停止",
-      "settingsTitle": "ラシック設定",
+      "enable": "Stingerを有効化",
+      "disable": "Stingerを停止",
+      "settingsTitle": "Stinger設定",
       "saveSettings": "保存",
       "settingsSaved": "✓ 保存済み",
       "obiThresholdLabel": "OBI閾値（エントリーシグナル）",
@@ -5907,7 +5907,7 @@
   },
   "chartOverlay": {
     "peak": "ピーク",
-    "trough": "トラフ",
+    "trough": "ボトム",
     "orderBlock": "オーダーブロック",
     "mitigated": "軽減",
     "mitigatedParens": "(軽減)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "最終供給ポイント",
     "wyckoffUT": "アップスラスト",
     "wyckoffSOW": "弱勢シグナル",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

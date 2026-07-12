@@ -104,7 +104,7 @@
       "tabRisk": "Ризик",
       "noPerformanceDataAction": "Даних про ефективність ще немає — укладайте угоди, щоб переглянути аналіз",
       "csvPair": "Пара",
-      "sourceManual": "Інструкція",
+      "sourceManual": "Вручну",
       "excellent": "Чудово",
       "openPositions": "Відкриті позиції",
       "winningTradeCount": "виграшні операції",
@@ -206,7 +206,7 @@
       "openPositionCount": "відкрита посада(и)",
       "csvSource": "Джерело",
       "sourcePaper": "Папір",
-      "sourceLasic": "Ласік",
+      "sourceLasic": "Stinger",
       "totalLoss": "Повна втрата",
       "openTrades": "Відкриті торги",
       "periodDaily": "Щодня",
@@ -2992,9 +2992,9 @@
       "loading": "Завантаження...",
       "stinging": "Жалить зараз",
       "stopped": "Зупинено",
-      "enable": "Увімкнути Lasic",
-      "disable": "Зупинити Lasic",
-      "settingsTitle": "Налаштування Lasic",
+      "enable": "Увімкнути Stinger",
+      "disable": "Зупинити Stinger",
+      "settingsTitle": "Налаштування Stinger",
       "saveSettings": "Зберегти",
       "settingsSaved": "✓ Збережено",
       "obiThresholdLabel": "Поріг OBI (сигнал входу)",
@@ -5907,7 +5907,7 @@
   },
   "chartOverlay": {
     "peak": "Пік",
-    "trough": "Впадина",
+    "trough": "Дно",
     "orderBlock": "Блок ордерів",
     "mitigated": "пом'якшений",
     "mitigatedParens": "(пом'якшений)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "Остання точка пропозиції",
     "wyckoffUT": "Upthrust",
     "wyckoffSOW": "Знак слабкості",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

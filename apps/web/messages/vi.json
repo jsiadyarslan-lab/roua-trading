@@ -206,7 +206,7 @@
       "openPositionCount": "(các) vị trí mở",
       "csvSource": "Nguồn",
       "sourcePaper": "Giấy",
-      "sourceLasic": "Lasic",
+      "sourceLasic": "Stinger",
       "totalLoss": "Tổng thiệt hại",
       "openTrades": "Mở giao dịch",
       "periodDaily": "Hằng ngày",
@@ -2992,9 +2992,9 @@
       "loading": "Đang tải...",
       "stinging": "Đang chích",
       "stopped": "Đã dừng",
-      "enable": "Bật Lasic",
-      "disable": "Tắt Lasic",
-      "settingsTitle": "Cài đặt Lasic",
+      "enable": "Bật Stinger",
+      "disable": "Tắt Stinger",
+      "settingsTitle": "Cài đặt Stinger",
       "saveSettings": "Lưu",
       "settingsSaved": "✓ Đã lưu",
       "obiThresholdLabel": "Ngưỡng OBI (tín hiệu vào)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "Điểm cung cấp cuối cùng",
     "wyckoffUT": "Upthrust",
     "wyckoffSOW": "Dấu hiệu suy yếu",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

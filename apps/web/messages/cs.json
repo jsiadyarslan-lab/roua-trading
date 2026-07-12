@@ -1506,7 +1506,7 @@
       "headerReason": "Důvod",
       "exitTPShort": "TP",
       "sourcePaper": "Papír",
-      "sourceLasic": "Lasic",
+      "sourceLasic": "Stinger",
       "closeAllPositionsError": "Chyba při zavírání všech pozic",
       "timeLabel": "Čas",
       "allDirections": "Všechny směry",
@@ -2992,9 +2992,9 @@
       "loading": "Načítání...",
       "stinging": "Bodá teď",
       "stopped": "Zastaveno",
-      "enable": "Aktivovat Lasic",
-      "disable": "Zastavit Lasic",
-      "settingsTitle": "Nastavení Lasic",
+      "enable": "Aktivovat Stinger",
+      "disable": "Zastavit Stinger",
+      "settingsTitle": "Nastavení Stinger",
       "saveSettings": "Uložit",
       "settingsSaved": "✓ Uloženo",
       "obiThresholdLabel": "Práh OBI (vstupní signál)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "Poslední bod nabídky",
     "wyckoffUT": "Upthrust",
     "wyckoffSOW": "Znamení slabosti",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

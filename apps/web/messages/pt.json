@@ -206,7 +206,7 @@
       "openPositionCount": "aberto position(s)",
       "csvSource": "Fonte",
       "sourcePaper": "Simulado",
-      "sourceLasic": "Lasic",
+      "sourceLasic": "Stinger",
       "totalLoss": "Perda Total",
       "openTrades": "Abrir Trades",
       "periodDaily": "Diário",
@@ -2992,9 +2992,9 @@
       "loading": "Carregando...",
       "stinging": "Picando agora",
       "stopped": "Parado",
-      "enable": "Ativar Lasic",
-      "disable": "Desativar Lasic",
-      "settingsTitle": "Configurações Lasic",
+      "enable": "Ativar Stinger",
+      "disable": "Desativar Stinger",
+      "settingsTitle": "Configurações Stinger",
       "saveSettings": "Salvar",
       "settingsSaved": "✓ Salvo",
       "obiThresholdLabel": "Limite OBI (sinal de entrada)",
@@ -5907,7 +5907,7 @@
   },
   "chartOverlay": {
     "peak": "Pico",
-    "trough": "Vale",
+    "trough": "Fundo",
     "orderBlock": "Bloco de Ordens",
     "mitigated": "mitigado",
     "mitigatedParens": "(mitigado)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "Último Ponto de Oferta",
     "wyckoffUT": "Upthrust",
     "wyckoffSOW": "Sinal de Fraqueza",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

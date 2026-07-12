@@ -206,7 +206,7 @@
       "openPositionCount": "открытая(ых) позиция(ий)",
       "csvSource": "Источник",
       "sourcePaper": "Бумажный",
-      "sourceLasic": "Ласик",
+      "sourceLasic": "Stinger",
       "totalLoss": "Общий убыток",
       "openTrades": "Открытые сделки",
       "periodDaily": "Ежедневно",
@@ -2992,9 +2992,9 @@
       "loading": "Загрузка...",
       "stinging": "Жалит сейчас",
       "stopped": "Остановлен",
-      "enable": "Включить Lasic",
-      "disable": "Остановить Lasic",
-      "settingsTitle": "Настройки Lasic",
+      "enable": "Включить Stinger",
+      "disable": "Остановить Stinger",
+      "settingsTitle": "Настройки Stinger",
       "saveSettings": "Сохранить",
       "settingsSaved": "✓ Сохранено",
       "obiThresholdLabel": "Порог OBI (сигнал входа)",
@@ -5907,7 +5907,7 @@
   },
   "chartOverlay": {
     "peak": "Пик",
-    "trough": "Впадина",
+    "trough": "Дно",
     "orderBlock": "Блок ордеров",
     "mitigated": "смягчен",
     "mitigatedParens": "(смягчен)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "Последняя точка предложения",
     "wyckoffUT": "Upthrust",
     "wyckoffSOW": "Знак слабости",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

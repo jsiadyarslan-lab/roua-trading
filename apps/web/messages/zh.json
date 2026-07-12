@@ -206,7 +206,7 @@
       "openPositionCount": "个持仓",
       "csvSource": "来源",
       "sourcePaper": "模拟",
-      "sourceLasic": "拉斯克",
+      "sourceLasic": "Stinger",
       "totalLoss": "总亏损",
       "openTrades": "开盘 交易s",
       "periodDaily": "每日",
@@ -2992,9 +2992,9 @@
       "loading": "加载中...",
       "stinging": "正在出击",
       "stopped": "已停止",
-      "enable": "启用 Lasic",
-      "disable": "停用 Lasic",
-      "settingsTitle": "Lasic 设置",
+      "enable": "启用 Stinger",
+      "disable": "停用 Stinger",
+      "settingsTitle": "Stinger 设置",
       "saveSettings": "保存设置",
       "settingsSaved": "✓ 已保存",
       "obiThresholdLabel": "OBI 阈值（入场信号）",
@@ -5907,7 +5907,7 @@
   },
   "chartOverlay": {
     "peak": "峰值",
-    "trough": "谷值",
+    "trough": "底部",
     "orderBlock": "订单块",
     "mitigated": "已缓解",
     "mitigatedParens": "(已缓解)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "最后供应点",
     "wyckoffUT": "上冲",
     "wyckoffSOW": "弱势信号",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

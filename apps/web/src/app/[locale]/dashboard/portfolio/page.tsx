@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, AreaChart, Area, BarChart, Bar,
@@ -257,6 +257,8 @@ function formatDuration(start: string | number, end: string | number) {
 export default function PortfolioPage() {
   const t = useTranslations('dashboard.portfolio')
   const tc = useTranslations('common')
+  const locale = useLocale()
+  const isAr = locale === 'ar'
   const [tab, setTab] = useState<'positions' | 'performance' | 'risk' | 'journal' | 'coach'>('positions')
   const [positions, setPositions] = useState<Position[]>([])
   const [closedPositions, setClosedPositions] = useState<Position[]>([])
@@ -694,13 +696,13 @@ export default function PortfolioPage() {
       [t('csvTakeProfit')]: p.takeProfit || '',
       'P&L': p.unrealizedPnl || 0,
       [t('csvDateOpened')]: p.openedAt || '',
-      // V331: Translate source to Arabic label instead of raw English enum
-      [t('csvSource')]: p.source === 'smart_executor' ? 'منفذ ذكي' :
-                        p.source === 'agent' ? 'وكيل مستقل' :
-                        (p.source === 'lazic' || p.source === 'lasic') ? 'لاسع' :
-                        p.source === 'auto_paper' ? 'ورقي' :
-                        p.source === 'mt5_sync' || p.source === 'reconciliation' ? 'مزامنة MT5' :
-                        p.source || 'يدوي',
+      // V331: Translate source label based on locale
+      [t('csvSource')]: p.source === 'smart_executor' ? (isAr ? 'منفذ ذكي' : 'Smart Executor') :
+                        p.source === 'agent' ? (isAr ? 'وكيل مستقل' : 'Agent') :
+                        (p.source === 'lazic' || p.source === 'lasic') ? (isAr ? 'لاسع' : 'Stinger') :
+                        p.source === 'auto_paper' ? (isAr ? 'ورقي' : 'Paper') :
+                        p.source === 'mt5_sync' || p.source === 'reconciliation' ? (isAr ? 'مزامنة MT5' : 'MT5 Sync') :
+                        p.source || (isAr ? 'يدوي' : 'Manual'),
     }))
     exportToCSV(data, 'open_positions')
   }, [positions, exportToCSV])
@@ -2763,14 +2765,13 @@ export default function PortfolioPage() {
               }}>
                 <Award size={14} style={{ color: '#00FFA3', marginTop: 2, flexShrink: 0 }} />
                 <div>
-                  <div style={{ fontFamily: "var(--font-ar)", fontSize: 11, fontWeight: 700, color: '#00FFA3', marginBottom: 2 }}>
-                    دليل أداء النظام
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#00FFA3', marginBottom: 2 }}>
+                    {isAr ? 'دليل أداء النظام' : 'System Performance Guide'}
                   </div>
-                  <div style={{ fontFamily: "var(--font-ar)", fontSize: 11, color: '#6B7280', lineHeight: 1.7 }}>
-                    هذه البيانات تُسجّل تلقائياً من نظام التداول الآلي على بيانات حية.
-                    استخدم زر "تقرير PDF للمستثمرين" لتصدير تقرير احترافي.
+                  <div style={{ fontSize: 11, color: '#6B7280', lineHeight: 1.7 }}>
+                    {isAr ? 'هذه البيانات تُسجّل تلقائياً من نظام التداول الآلي على بيانات حية. استخدم زر "تقرير PDF للمستثمرين" لتصدير تقرير احترافي.' : 'This data is automatically recorded from the automated trading system on live data. Use the "Investor PDF Report" button to export a professional report.'}
                     <br />
-                    <span style={{ color: '#FFB800' }}>تنبيه:</span> النتائج السابقة لا تضمن النتائج المستقبلية. هذه بيانات تداول ورقي على أسعار حية.
+                    <span style={{ color: '#FFB800' }}>{isAr ? 'تنبيه:' : 'Warning:'}</span> {isAr ? 'النتائج السابقة لا تضمن النتائج المستقبلية. هذه بيانات تداول ورقي على أسعار حية.' : 'Past performance does not guarantee future results. This is paper trading data on live prices.'}
                   </div>
                 </div>
               </div>

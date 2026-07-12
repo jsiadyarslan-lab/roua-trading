@@ -206,7 +206,7 @@
       "openPositionCount": "موقعیت(های) باز",
       "csvSource": "منبع",
       "sourcePaper": "کاغذ",
-      "sourceLasic": "لاسیک",
+      "sourceLasic": "Stinger",
       "totalLoss": "ضرر کل",
       "openTrades": "معاملات باز",
       "periodDaily": "روزانه",
@@ -2992,9 +2992,9 @@
       "loading": "در حال بارگذاری...",
       "stinging": "اکنون نیش می‌زند",
       "stopped": "متوقف",
-      "enable": "فعال‌سازی لاسیک",
-      "disable": "توقف لاسیک",
-      "settingsTitle": "تنظیمات لاسیک",
+      "enable": "فعال‌سازی Stinger",
+      "disable": "توقف Stinger",
+      "settingsTitle": "تنظیمات Stinger",
       "saveSettings": "ذخیره",
       "settingsSaved": "✓ ذخیره شد",
       "obiThresholdLabel": "آستانه OBI (سیگنال ورود)",
@@ -5907,7 +5907,7 @@
   },
   "chartOverlay": {
     "peak": "قله",
-    "trough": "دره",
+    "trough": "کف",
     "orderBlock": "بلوک سفارش",
     "mitigated": "تعدیل شده",
     "mitigatedParens": "(تعدیل شده)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "آخرین نقطه عرضه",
     "wyckoffUT": "آپ تراست",
     "wyckoffSOW": "نشانه ضعف",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

@@ -206,7 +206,7 @@
       "openPositionCount": "खुली पोज़िशन",
       "csvSource": "स्रोत",
       "sourcePaper": "पेपर",
-      "sourceLasic": "लासिक",
+      "sourceLasic": "Stinger",
       "totalLoss": "कुल हानि",
       "openTrades": "खुले ट्रेड",
       "periodDaily": "दैनिक",
@@ -2992,9 +2992,9 @@
       "loading": "लोड हो रहा है...",
       "stinging": "अभी डंक मार रहा है",
       "stopped": "रुका हुआ",
-      "enable": "लासिक सक्रिय करें",
-      "disable": "लासिक रोकें",
-      "settingsTitle": "लासिक सेटिंग्स",
+      "enable": "Stinger सक्रिय करें",
+      "disable": "Stinger रोकें",
+      "settingsTitle": "Stinger सेटिंग्स",
       "saveSettings": "सहेजें",
       "settingsSaved": "✓ सहेजा गया",
       "obiThresholdLabel": "OBI सीमा (प्रवेश संकेत)",
@@ -5907,7 +5907,7 @@
   },
   "chartOverlay": {
     "peak": "चोटी",
-    "trough": "गर्त",
+    "trough": "निचला",
     "orderBlock": "ऑर्डर ब्लॉक",
     "mitigated": "शमित",
     "mitigatedParens": "(शमित)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "अंतिम आपूर्ति बिंदु",
     "wyckoffUT": "Upthrust",
     "wyckoffSOW": "कमजोरी का संकेत",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

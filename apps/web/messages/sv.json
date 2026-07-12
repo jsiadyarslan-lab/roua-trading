@@ -206,7 +206,7 @@
       "openPositionCount": "öppen position(er)",
       "csvSource": "Källa",
       "sourcePaper": "Papper",
-      "sourceLasic": "Lasic",
+      "sourceLasic": "Stinger",
       "totalLoss": "Total förlust",
       "openTrades": "Öppna affärer",
       "periodDaily": "Dagligen",
@@ -2992,9 +2992,9 @@
       "loading": "Laddar...",
       "stinging": "Sticker nu",
       "stopped": "Stoppad",
-      "enable": "Aktivera Lasic",
-      "disable": "Stoppa Lasic",
-      "settingsTitle": "Lasic-inställningar",
+      "enable": "Aktivera Stinger",
+      "disable": "Stoppa Stinger",
+      "settingsTitle": "Stinger-inställningar",
       "saveSettings": "Spara",
       "settingsSaved": "✓ Sparat",
       "obiThresholdLabel": "OBI-tröskel (inångssignal)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "Sista utbudspunkten",
     "wyckoffUT": "Upthrust",
     "wyckoffSOW": "Svaghetstecken",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

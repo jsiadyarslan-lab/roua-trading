@@ -206,7 +206,7 @@
       "openPositionCount": "poziție(e) deschisă(e)",
       "csvSource": "Sursă",
       "sourcePaper": "Hârtie",
-      "sourceLasic": "Lasic",
+      "sourceLasic": "Stinger",
       "totalLoss": "Pierdere totală",
       "openTrades": "Tranzacții deschise",
       "periodDaily": "Zilnic",
@@ -2992,9 +2992,9 @@
       "loading": "Se încarcă...",
       "stinging": "Înțeapă acum",
       "stopped": "Oprit",
-      "enable": "Activează Lasic",
-      "disable": "Oprește Lasic",
-      "settingsTitle": "Setări Lasic",
+      "enable": "Activează Stinger",
+      "disable": "Oprește Stinger",
+      "settingsTitle": "Setări Stinger",
       "saveSettings": "Salvează",
       "settingsSaved": "✓ Salvat",
       "obiThresholdLabel": "Prag OBI (semnal intrare)",
@@ -5907,7 +5907,7 @@
   },
   "chartOverlay": {
     "peak": "Vârf",
-    "trough": "Văgăună",
+    "trough": "Fund",
     "orderBlock": "Bloc de Ordine",
     "mitigated": "atenuat",
     "mitigatedParens": "(atenuat)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "Ultimul Punct de Ofertă",
     "wyckoffUT": "Upthrust",
     "wyckoffSOW": "Semn de Slăbiciune",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

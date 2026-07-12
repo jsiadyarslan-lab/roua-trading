@@ -206,7 +206,7 @@
       "openPositionCount": "bukas na (mga) posisyon",
       "csvSource": "Pinagmulan",
       "sourcePaper": "Papel",
-      "sourceLasic": "Lasic",
+      "sourceLasic": "Stinger",
       "totalLoss": "Kabuuang Pagkalugi",
       "openTrades": "Buksan ang Trades",
       "periodDaily": "Araw-araw",
@@ -2992,9 +2992,9 @@
       "loading": "Naglo-load...",
       "stinging": "Kumagat na",
       "stopped": "Nakahinto",
-      "enable": "I-enable ang Lasic",
-      "disable": "I-disable ang Lasic",
-      "settingsTitle": "Mga Setting ng Lasic",
+      "enable": "I-enable ang Stinger",
+      "disable": "I-disable ang Stinger",
+      "settingsTitle": "Mga Setting ng Stinger",
       "saveSettings": "I-save",
       "settingsSaved": "✓ Na-save",
       "obiThresholdLabel": "OBI Threshold (entry signal)",
@@ -5907,7 +5907,7 @@
   },
   "chartOverlay": {
     "peak": "Rurok",
-    "trough": "Libis",
+    "trough": "Ilalim",
     "orderBlock": "Order Block",
     "mitigated": "pababa",
     "mitigatedParens": "(pababa)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "Last Point of Supply",
     "wyckoffUT": "Upthrust",
     "wyckoffSOW": "Sign of Weakness",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

@@ -206,7 +206,7 @@
       "openPositionCount": "kedudukan terbuka",
       "csvSource": "Sumber",
       "sourcePaper": "kertas",
-      "sourceLasic": "Lasic",
+      "sourceLasic": "Stinger",
       "totalLoss": "Jumlah Kerugian",
       "openTrades": "Dagangan Terbuka",
       "periodDaily": "Setiap hari",
@@ -2992,9 +2992,9 @@
       "loading": "Memuatkan...",
       "stinging": "Menyengat sekarang",
       "stopped": "Berhenti",
-      "enable": "Aktifkan Lasic",
-      "disable": "Hentikan Lasic",
-      "settingsTitle": "Tetapan Lasic",
+      "enable": "Aktifkan Stinger",
+      "disable": "Hentikan Stinger",
+      "settingsTitle": "Tetapan Stinger",
       "saveSettings": "Simpan",
       "settingsSaved": "✓ Disimpan",
       "obiThresholdLabel": "Ambang OBI (isyarat masuk)",
@@ -5907,7 +5907,7 @@
   },
   "chartOverlay": {
     "peak": "Puncak",
-    "trough": "Lembah",
+    "trough": "Bawah",
     "orderBlock": "Blok Pesanan",
     "mitigated": "dikurangkan",
     "mitigatedParens": "(dikurangkan)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "Titik Bekalan Terakhir",
     "wyckoffUT": "Upthrust",
     "wyckoffSOW": "Tanda Kelemahan",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

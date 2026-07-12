@@ -206,7 +206,7 @@
       "openPositionCount": "avoimet työpaikat",
       "csvSource": "Lähde",
       "sourcePaper": "Paperi",
-      "sourceLasic": "Lasic",
+      "sourceLasic": "Stinger",
       "totalLoss": "Totaalinen tappio",
       "openTrades": "Avoimet kaupat",
       "periodDaily": "Päivittäin",
@@ -2992,9 +2992,9 @@
       "loading": "Ladataan...",
       "stinging": "Pistää nyt",
       "stopped": "Pysäytetty",
-      "enable": "Ota Lasic käyttöön",
-      "disable": "Pysäytä Lasic",
-      "settingsTitle": "Lasic-asetukset",
+      "enable": "Ota Stinger käyttöön",
+      "disable": "Pysäytä Stinger",
+      "settingsTitle": "Stinger-asetukset",
       "saveSettings": "Tallenna",
       "settingsSaved": "✓ Tallennettu",
       "obiThresholdLabel": "OBI-kynnys (sisääntulossignaali)",
@@ -5947,6 +5947,7 @@
     "wyckoffLPSY": "Viimeinen tarjontapiste",
     "wyckoffUT": "Upthrust",
     "wyckoffSOW": "Heikkouden merkki",
-    "misc": "—"
+    "misc": "—",
+    "stinger": "Stinger"
   }
 }

@@ -184,9 +184,9 @@ const CATEGORIES_AR = [
   { id: 'طاقة', label: 'طاقة', icon: '⛽', color: T.red },
   { id: 'بنوك مركزية', label: 'بنوك', icon: '🏦', color: '#64B5F6' },
   { id: 'عملات', label: 'فوركس', icon: '💱', color: T.cyan },
-  { id: 'القطاع التكنولوجي', label: 'تكنولوجيا', icon: '💻', color: '#B388FF' },
+  { id: 'القطاع التكنولوجي', label: 'تكنولوجيا', icon: '💻', color: T.council },
   { id: 'القطاع الصحي', label: 'صحة', icon: '🏥', color: T.green },
-  { id: 'قطاع التكنولوجيا', label: 'تقنية', icon: '🔌', color: '#B388FF' },
+  { id: 'قطاع التكنولوجيا', label: 'تقنية', icon: '🔌', color: T.council },
 ] as const
 
 
@@ -197,7 +197,7 @@ const CATEGORIES_EN = [
   { id: 'Stocks', label: 'Stocks', icon: '📈', color: T.green },
   { id: 'Forex', label: 'Forex', icon: '💱', color: T.cyan },
   { id: 'Commodities', label: 'Commodities', icon: '🛢️', color: T.amber },
-  { id: 'Technology', label: 'Tech', icon: '💻', color: '#B388FF' },
+  { id: 'Technology', label: 'Tech', icon: '💻', color: T.council },
 ] as const
 
 const CATEGORIES_FR = [
@@ -207,7 +207,7 @@ const CATEGORIES_FR = [
   { id: 'Actions', label: 'Actions', icon: '📈', color: T.green },
   { id: 'Forex', label: 'Forex', icon: '💱', color: T.cyan },
   { id: 'Matières premières', label: 'Matières', icon: '🛢️', color: T.amber },
-  { id: 'Technologie', label: 'Tech', icon: '💻', color: '#B388FF' },
+  { id: 'Technologie', label: 'Tech', icon: '💻', color: T.council },
 ] as const
 
 const CATEGORIES_TR = [
@@ -217,7 +217,7 @@ const CATEGORIES_TR = [
   { id: 'Hisse Senetleri', label: 'Hisseler', icon: '📈', color: T.green },
   { id: 'Forex', label: 'Forex', icon: '💱', color: T.cyan },
   { id: 'Emtialar', label: 'Emtialar', icon: '🛢️', color: T.amber },
-  { id: 'Teknoloji', label: 'Teknoloji', icon: '💻', color: '#B388FF' },
+  { id: 'Teknoloji', label: 'Teknoloji', icon: '💻', color: T.council },
 ] as const
 
 export default function NewsPage() {
@@ -908,7 +908,7 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
     'strategic': { label: t('Strategic', 'استراتيجي', 'Stratégique', 'Stratejik', newsLang), color: T.amber, icon: '🎯' },
     'daily': { label: t('Daily', 'يومي', 'Quotidien', 'Günlük', newsLang), color: T.cyan, icon: '📅' },
     'earnings': { label: t('Earnings', 'أرباح', 'Résultats', 'Kârlar', newsLang), color: T.green, icon: '💰' },
-    'technicalAnalysis': { label: t('Technical Analysis', 'تحليل فني', 'Analyse technique', 'Teknik Analiz', newsLang), color: '#B388FF', icon: '📊' },
+    'technicalAnalysis': { label: t('Technical Analysis', 'تحليل فني', 'Analyse technique', 'Teknik Analiz', newsLang), color: T.council, icon: '📊' },
     'energy': { label: t('Energy', 'طاقة', 'Énergie', 'Enerji', newsLang), color: T.red, icon: '⛽' },
     'bonds': { label: t('Bonds', 'سندات', 'Obligations', 'Tahviller', newsLang), color: '#64B5F6', icon: '🏦' },
     'crypto': { label: t('Crypto', 'كريبتو', 'Crypto', 'Kripto', newsLang), color: '#F7931A', icon: '₿' },
@@ -1114,21 +1114,21 @@ function TechnicalAnalysisTab({ analyses, loading, newsLang }: { analyses: any[]
   const [filterCat, setFilterCat] = useState('')
 
   const categoryMap: Record<string, { label: string; color: string }> = {
-    CRYPTO: { label: t('Crypto', 'كريبتو', 'Crypto', 'Kripto', newsLang), color: '#FFB800' },
-    FOREX: { label: t('Forex', 'فوركس', 'Forex', 'Forex', newsLang), color: '#00D4FF' },
-    STOCKS: { label: t('Stocks', 'أسهم', 'Actions', 'Hisse Senetleri', newsLang), color: '#00FFA3' },
+    CRYPTO: { label: t('Crypto', 'كريبتو', 'Crypto', 'Kripto', newsLang), color: T.warning },
+    FOREX: { label: t('Forex', 'فوركس', 'Forex', 'Forex', newsLang), color: T.info },
+    STOCKS: { label: t('Stocks', 'أسهم', 'Actions', 'Hisse Senetleri', newsLang), color: T.success },
     COMMODITIES: { label: t('Commodities', 'سلع', 'Matières premières', 'Emtialar', newsLang), color: '#FF8C42' },
-    ECONOMY: { label: t('Economy', 'اقتصاد', 'Économie', 'Ekonomi', newsLang), color: '#B388FF' },
-    TECHNOLOGY: { label: t('Technology', 'تقنية', 'Technologie', 'Teknoloji', newsLang), color: '#00D4FF' },
+    ECONOMY: { label: t('Economy', 'اقتصاد', 'Économie', 'Ekonomi', newsLang), color: T.council },
+    TECHNOLOGY: { label: t('Technology', 'تقنية', 'Technologie', 'Teknoloji', newsLang), color: T.info },
     DEFI: { label: t('DeFi', 'ديفاي', 'DeFi', 'DeFi', newsLang), color: '#A78BFA' },
-    REGULATION: { label: t('Regulation', 'تشريعات', 'Réglementation', 'Düzenleme', newsLang), color: '#FF4757' },
+    REGULATION: { label: t('Regulation', 'تشريعات', 'Réglementation', 'Düzenleme', newsLang), color: T.danger },
   }
   const typeMap: Record<string, { label: string; color: string }> = {
-    ANALYSIS: { label: t('Technical Analysis', 'تحليل فني', 'Analyse technique', 'Teknik Analiz', newsLang), color: '#059669' },
-    MARKET_REPORT: { label: t('Market Report', 'تقرير سوق', 'Rapport de marché', 'Piyasa Raporu', newsLang), color: '#00D4FF' },
-    ARTICLE: { label: t('Analytical Article', 'مقال تحليلي', 'Article analytique', 'Analitik Makale', newsLang), color: '#B388FF' },
+    ANALYSIS: { label: t('Technical Analysis', 'تحليل فني', 'Analyse technique', 'Teknik Analiz', newsLang), color: T.accent },
+    MARKET_REPORT: { label: t('Market Report', 'تقرير سوق', 'Rapport de marché', 'Piyasa Raporu', newsLang), color: T.info },
+    ARTICLE: { label: t('Analytical Article', 'مقال تحليلي', 'Article analytique', 'Analitik Makale', newsLang), color: T.council },
     NEWS_DIGEST: { label: t('Market Digest', 'ملخص سوقي', 'Résumé du marché', 'Piyasa Özeti', newsLang), color: '#FF8C42' },
-    BREAKING: { label: t('Breaking', 'عاجل', 'Flash', 'Son Dakika', newsLang), color: '#FF4757' },
+    BREAKING: { label: t('Breaking', 'عاجل', 'Flash', 'Son Dakika', newsLang), color: T.danger },
   }
 
   const filtered = filterCat ? analyses.filter(a => a.category === filterCat) : analyses
@@ -1560,7 +1560,7 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
       parts.push(
         <span key={`b-${keyIdx++}`} style={{
           fontWeight: 800,
-          color: isPrice ? '#d4af37' : isLevel ? T.cyan : T.text,
+          color: isPrice ? T.gold : isLevel ? T.cyan : T.text,
           fontFamily: isPrice ? FONT_MONO : FONT_AR,
         }}>
           {boldContent}
@@ -1616,7 +1616,7 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
       parts.push(
         <span key={`s-${startKey}-${idx++}`} style={{
           fontWeight: 800,
-          color: m.type === 'price' ? '#d4af37' : T.cyan,
+          color: m.type === 'price' ? T.gold : T.cyan,
           fontFamily: FONT_MONO,
           fontSize: m.type === 'price' ? 12 : 11,
           padding: m.type === 'symbol' ? '0 3px' : 0,
@@ -1739,7 +1739,7 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
             }}>
               <div style={{
                 width: 5, height: 5, borderRadius: '50%',
-                background: isKeyData ? '#d4af37' : T.text3,
+                background: isKeyData ? T.gold : T.text3,
                 marginTop: 9, flexShrink: 0,
               }} />
               <span style={{

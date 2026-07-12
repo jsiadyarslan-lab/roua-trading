@@ -57,7 +57,7 @@ export function MultiTfScannerMini() {
           useTabAlertStore.getState().pushAlert('multi-tf', {
             action: direction,
             label: `${direction === 'BUY' ? '⬆' : '⬇'} ${mtData.alignment} ${selectedSymbol}`,
-            color: direction === 'BUY' ? '#00FFA3' : '#FF4757',
+            color: direction === 'BUY' ? T.success : T.danger,
           })
         }
       } else {

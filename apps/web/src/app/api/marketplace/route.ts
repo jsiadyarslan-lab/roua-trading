@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import T from '@/lib/unified-tokens'
 
 /**
  * GET /api/marketplace
@@ -42,7 +43,7 @@ const MARKETPLACE_ITEMS: MarketplaceItem[] = [
     returnPct: 67.3,
     winRate: 74,
     icon: '📈',
-    color: '#00D4FF',
+    color: T.info,
     isFeatured: true,
   },
   {
@@ -60,7 +61,7 @@ const MARKETPLACE_ITEMS: MarketplaceItem[] = [
     returnPct: 42.1,
     winRate: 68,
     icon: '🔄',
-    color: '#B388FF',
+    color: T.council,
   },
   {
     id: 'strat-3',
@@ -77,7 +78,7 @@ const MARKETPLACE_ITEMS: MarketplaceItem[] = [
     returnPct: 55.8,
     winRate: 71,
     icon: '⚡',
-    color: '#FFB800',
+    color: T.warning,
   },
   {
     id: 'strat-4',
@@ -113,7 +114,7 @@ const MARKETPLACE_ITEMS: MarketplaceItem[] = [
     returnPct: 89.2,
     winRate: 78,
     icon: '🤖',
-    color: '#00D4FF',
+    color: T.info,
     isFeatured: true,
   },
   {
@@ -131,7 +132,7 @@ const MARKETPLACE_ITEMS: MarketplaceItem[] = [
     returnPct: 34.5,
     winRate: 82,
     icon: '⚡',
-    color: '#FFB800',
+    color: T.warning,
   },
   {
     id: 'bot-3',
@@ -148,7 +149,7 @@ const MARKETPLACE_ITEMS: MarketplaceItem[] = [
     returnPct: 28.9,
     winRate: 70,
     icon: '🕸️',
-    color: '#B388FF',
+    color: T.council,
   },
 
   // ─── مؤشرات ───
@@ -167,7 +168,7 @@ const MARKETPLACE_ITEMS: MarketplaceItem[] = [
     returnPct: 0,
     winRate: 0,
     icon: '📊',
-    color: '#00D4FF',
+    color: T.info,
     isFeatured: true,
   },
   {
@@ -202,7 +203,7 @@ const MARKETPLACE_ITEMS: MarketplaceItem[] = [
     returnPct: 0,
     winRate: 0,
     icon: '📉',
-    color: '#FFB800',
+    color: T.warning,
   },
 ]
 

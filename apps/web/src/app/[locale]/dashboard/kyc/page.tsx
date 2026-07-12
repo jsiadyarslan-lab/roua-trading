@@ -46,7 +46,7 @@ interface PermissionInfo {
 ═══════════════════════════════════════════════════════ */
 const EXCHANGES = [
   { id: 'binance', name: 'Binance', initial: 'B', color: '#F0B90B', bgColor: '#F0B90B15', desc: 'أكبر بورصة عملات رقمية' },
-  { id: 'alpaca', name: 'Alpaca', initial: 'A', color: '#00D4FF', bgColor: '#00D4FF15', desc: 'متابعة أسهم وعملات' },
+  { id: 'alpaca', name: 'Alpaca', initial: 'A', color: T.info, bgColor: '#00D4FF15', desc: 'متابعة أسهم وعملات' },
   { id: 'bybit', name: 'Bybit', initial: 'By', color: '#F7A600', bgColor: '#F7A60015', desc: 'مشتقات وعقود آجلة' },
   { id: 'okx', name: 'OKX', initial: 'OK', color: '#FFFFFF', bgColor: '#FFFFFF10', desc: 'بورصة عالمية متعددة' },
   { id: 'kucoin', name: 'KuCoin', initial: 'K', color: '#23AF91', bgColor: '#23AF9115', desc: 'بورصة متنوعة العملات' },
@@ -1367,7 +1367,7 @@ export default function AccountLinkingPage() {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
                   padding: '12px 24px', borderRadius: 10,
-                  background: `linear-gradient(135deg, ${T.cyan}, #0A84FF)`,
+                  background: `linear-gradient(135deg, ${T.cyan}, ${T.blue})`,
                   border: 'none', color: '#000', fontSize: 13, fontWeight: 800,
                   cursor: 'pointer', fontFamily: "var(--font-ar)",
                   boxShadow: `0 0 20px ${T.cyan}25`, transition: 'all 0.2s',
@@ -1385,7 +1385,7 @@ export default function AccountLinkingPage() {
                   padding: '12px 28px', borderRadius: 10,
                   background: isSubmitting || linkingStatus === 'connected'
                     ? T.surface
-                    : `linear-gradient(135deg, ${T.green}, #00CC82)`,
+                    : `linear-gradient(135deg, ${T.green}, ${T.greenDim})`,
                   border: 'none',
                   color: isSubmitting || linkingStatus === 'connected' ? T.text3 : '#000',
                   fontSize: 13, fontWeight: 800, cursor: isSubmitting || linkingStatus === 'connected' ? 'not-allowed' : 'pointer',

@@ -7,7 +7,8 @@
 import { useMemo } from 'react';
 import type { CrosshairData, CandleData } from '@/lib/charts/types';
 import { priceDecimals } from '@/lib/price-format';
-import { useLocale, useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl'
+import T from '@/lib/unified-tokens';
 
 interface CrosshairOverlayProps {
   symbol: string;
@@ -61,15 +62,15 @@ export function CrosshairOverlay({
   const decimals = useMemo(() => priceDecimals(price, symbol), [symbol, price]);
 
   const isBull = displayData ? displayData.close >= displayData.open : true;
-  const changeColor = displayData && displayData.change >= 0 ? '#00FFA3' : '#FF4757';
+  const changeColor = displayData && displayData.change >= 0 ? T.success : T.danger;
 
   const COLORS = {
-    text: '#F0F2F5',
-    textSecondary: '#8B92A8',
-    textMuted: '#8B92A8',
-    cyan: '#00D4FF',
-    success: '#00FFA3',
-    danger: '#FF4757',
+    text: T.text,
+    textSecondary: T.text2,
+    textMuted: T.text2,
+    cyan: T.info,
+    success: T.success,
+    danger: T.danger,
     bg: 'rgba(11,14,20,0.82)',
   };
 

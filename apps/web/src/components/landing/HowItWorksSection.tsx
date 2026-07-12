@@ -4,6 +4,7 @@ import { motion, type Variants } from 'framer-motion'
 import { UserPlus, Brain, TrendingUp, ShieldCheck } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import T from '@/lib/unified-tokens'
 
 interface Step {
   icon: LucideIcon
@@ -20,7 +21,7 @@ const steps: Step[] = [
     titleKey: 'step1Title',
     subtitleKey: 'step1Subtitle',
     descKey: 'step1Desc',
-    color: '#10B981',
+    color: T.profit,
     step: 1,
   },
   {

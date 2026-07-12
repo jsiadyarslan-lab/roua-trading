@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl'
+import T from '@/lib/unified-tokens';
 
 interface ShareChartProps {
   symbol: string;
@@ -179,7 +180,7 @@ const ShareChart: React.FC<ShareChartProps> = ({
             background: 'none',
             border: '1px solid rgba(0,212,255,0.25)',
             borderRadius: 6,
-            color: copied ? '#10b981' : '#00D4FF',
+            color: copied ? T.profit : T.info,
             padding: '7px 8px',
             cursor: 'pointer',
             display: 'flex',
@@ -218,7 +219,7 @@ const ShareChart: React.FC<ShareChartProps> = ({
             onClick={handleShare}
             style={{
               flex: 1,
-              background: '#059669',
+              background: T.accent,
               border: 'none',
               borderRadius: 6,
               color: '#ffffff',
@@ -245,7 +246,7 @@ const ShareChart: React.FC<ShareChartProps> = ({
           onClick={handleCopy}
           style={{
             flex: 1,
-            background: copied ? '#059669' : '#00D4FF',
+            background: copied ? T.accent : T.info,
             border: 'none',
             borderRadius: 6,
             color: copied ? '#ffffff' : '#000000',

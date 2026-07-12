@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl'
+import T from '@/lib/unified-tokens';
 
 interface BugResult {
   id: string;
@@ -43,24 +44,24 @@ interface ApiResponse {
 }
 
 const SEVERITY_COLORS: Record<string, string> = {
-  CRITICAL: '#ff4757',
+  CRITICAL: T.danger,
   HIGH: '#ff8c42',
   MEDIUM: '#ffb700',
   LOW: '#5b9bd5',
 };
 
 const STATUS_CONFIG: Record<string, { emoji: string; color: string; bg: string; label: string }> = {
-  FIXED: { emoji: '✅', color: '#00ffa3', bg: 'rgba(0,255,163,0.10)', label: 'مُصلَح' },
-  PRESENT: { emoji: '🔴', color: '#ff4757', bg: 'rgba(255,71,87,0.10)', label: 'موجود' },
+  FIXED: { emoji: '✅', color: T.success, bg: 'rgba(0,255,163,0.10)', label: 'مُصلَح' },
+  PRESENT: { emoji: '🔴', color: T.danger, bg: 'rgba(255,71,87,0.10)', label: 'موجود' },
   REGRESSED: { emoji: '🚨', color: '#ff8c42', bg: 'rgba(255,140,66,0.15)', label: 'انتكس!' },
-  UNKNOWN: { emoji: '⚪', color: '#8b92a8', bg: 'rgba(139,146,168,0.10)', label: 'غير معروف' },
+  UNKNOWN: { emoji: '⚪', color: T.text2, bg: 'rgba(139,146,168,0.10)', label: 'غير معروف' },
 };
 
 const TEST_STATUS_CONFIG: Record<string, { emoji: string; color: string }> = {
-  PASS: { emoji: '✅', color: '#00ffa3' },
-  FAIL: { emoji: '❌', color: '#ff4757' },
+  PASS: { emoji: '✅', color: T.success },
+  FAIL: { emoji: '❌', color: T.danger },
   TIMEOUT: { emoji: '⏱️', color: '#ff8c42' },
-  ERROR: { emoji: '💥', color: '#ff4757' },
+  ERROR: { emoji: '💥', color: T.danger },
 };
 
 export default function ChartBugsPage() {
@@ -102,7 +103,7 @@ export default function ChartBugsPage() {
   }) || [];
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0b0e14', color: '#e8edf3', fontFamily: 'system-ui, sans-serif', direction: 'rtl' }}>
+    <div style={{ minHeight: '100vh', background: T.bg, color: '#e8edf3', fontFamily: 'system-ui, sans-serif', direction: 'rtl' }}>
       {/* Header */}
       <div style={{
         padding: '24px 32px',
@@ -111,10 +112,10 @@ export default function ChartBugsPage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
           <div>
-            <h1 style={{ fontSize: 28, fontWeight: 800, margin: 0, color: '#00d4ff' }}>
+            <h1 style={{ fontSize: 28, fontWeight: 800, margin: 0, color: T.info }}>
               🐛 سجل أخطاء الشارت
             </h1>
-            <p style={{ fontSize: 14, color: '#8b92a8', margin: '4px 0 0' }}>
+            <p style={{ fontSize: 14, color: T.text2, margin: '4px 0 0' }}>
               نظام منع الانتكاس الدائم — {data?.summary.total || 0} خطأ مسجَّل
             </p>
           </div>
@@ -124,7 +125,7 @@ export default function ChartBugsPage() {
               style={{
                 padding: '8px 16px', borderRadius: 8, border: '1px solid rgba(0,212,255,0.3)',
                 background: verbose ? 'rgba(0,212,255,0.15)' : 'transparent',
-                color: verbose ? '#00d4ff' : '#8b92a8', cursor: 'pointer', fontSize: 13,
+                color: verbose ? T.info : T.text2, cursor: 'pointer', fontSize: 13,
               }}
             >
               {verbose ? '✓ تفصيلي' : 'تفصيلي'}
@@ -135,7 +136,7 @@ export default function ChartBugsPage() {
               style={{
                 padding: '8px 20px', borderRadius: 8, border: 'none',
                 background: loading ? '#333' : 'linear-gradient(135deg, #00d4ff, #00ffa3)',
-                color: loading ? '#888' : '#0b0e14', cursor: loading ? 'wait' : 'pointer',
+                color: loading ? '#888' : T.bg, cursor: loading ? 'wait' : 'pointer',
                 fontWeight: 700, fontSize: 14,
               }}
             >
@@ -151,12 +152,12 @@ export default function ChartBugsPage() {
           display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
           gap: 16, padding: '24px 32px',
         }}>
-          <SummaryCard label="إجمالي الأخطاء" value={data.summary.total} color="#00d4ff" emoji="📋" />
-          <SummaryCard label="مُصلَح" value={data.summary.fixed} color="#00ffa3" emoji="✅" />
-          <SummaryCard label="موجود" value={data.summary.present} color="#ff4757" emoji="🔴" />
+          <SummaryCard label="إجمالي الأخطاء" value={data.summary.total} color={T.info} emoji="📋" />
+          <SummaryCard label="مُصلَح" value={data.summary.fixed} color={T.success} emoji="✅" />
+          <SummaryCard label="موجود" value={data.summary.present} color={T.danger} emoji="🔴" />
           <SummaryCard label="انتكس" value={data.summary.regressed} color="#ff8c42" emoji="🚨" highlight={data.summary.regressed > 0} />
-          <SummaryCard label="غير معروف" value={data.summary.unknown} color="#8b92a8" emoji="⚪" />
-          <SummaryCard label="اختبارات ناجحة" value={`${data.summary.testsPassed}/${data.summary.testsTotal}`} color="#00ffa3" emoji="🧪" />
+          <SummaryCard label="غير معروف" value={data.summary.unknown} color={T.text2} emoji="⚪" />
+          <SummaryCard label="اختبارات ناجحة" value={`${data.summary.testsPassed}/${data.summary.testsTotal}`} color={T.success} emoji="🧪" />
         </div>
       )}
 
@@ -172,7 +173,7 @@ export default function ChartBugsPage() {
         <div style={{
           margin: '0 32px 16px', padding: 16, borderRadius: 12,
           background: 'rgba(255,71,87,0.10)', border: '1px solid rgba(255,71,87,0.3)',
-          color: '#ff4757',
+          color: T.danger,
         }}>
           <strong>❌ خطأ:</strong> {error}
         </div>
@@ -192,7 +193,7 @@ export default function ChartBugsPage() {
             style={{
               padding: '6px 14px', borderRadius: 20, border: '1px solid rgba(255,255,255,0.1)',
               background: filter === tab.key ? 'rgba(0,212,255,0.15)' : 'transparent',
-              color: filter === tab.key ? '#00d4ff' : '#8b92a8',
+              color: filter === tab.key ? T.info : T.text2,
               cursor: 'pointer', fontSize: 13, fontWeight: 600,
             }}
           >
@@ -212,7 +213,7 @@ export default function ChartBugsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {filteredBugs.map(bug => {
               const cfg = STATUS_CONFIG[bug.actualStatus];
-              const sevColor = SEVERITY_COLORS[bug.severity] || '#8b92a8';
+              const sevColor = SEVERITY_COLORS[bug.severity] || T.text2;
               const isExpanded = expandedBug === bug.id;
               return (
                 <div
@@ -270,7 +271,7 @@ export default function ChartBugsPage() {
       {/* Tests section */}
       {data && data.tests.length > 0 && (
         <div style={{ padding: '0 32px 48px' }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 16px', color: '#00d4ff' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 16px', color: T.info }}>
             🧪 اختبارات الانحدار ({data.summary.testsPassed}/{data.summary.testsTotal} ناجح)
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -290,7 +291,7 @@ export default function ChartBugsPage() {
                   <span style={{ fontFamily: 'monospace', fontSize: 13, flex: 1 }}>{test.name}</span>
                   <span style={{ color: cfg.color, fontSize: 12, fontWeight: 700 }}>{test.status}</span>
                   {test.error && (
-                    <span style={{ color: '#ff4757', fontSize: 11, maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <span style={{ color: T.danger, fontSize: 11, maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {test.error}
                     </span>
                   )}
@@ -306,8 +307,8 @@ export default function ChartBugsPage() {
         padding: '16px 32px', borderTop: '1px solid rgba(255,255,255,0.05)',
         fontSize: 12, color: '#5b6577', textAlign: 'center',
       }}>
-        البيانات من <code style={{ color: '#8b92a8' }}>BUGS.md</code> + فحص مباشر للكود —{' '}
-        <a href="https://github.com/jsiadyarslan-lab/roua-trading/blob/main/BUGS.md" target="_blank" rel="noopener" style={{ color: '#00d4ff' }}>
+        البيانات من <code style={{ color: T.text2 }}>BUGS.md</code> + فحص مباشر للكود —{' '}
+        <a href="https://github.com/jsiadyarslan-lab/roua-trading/blob/main/BUGS.md" target="_blank" rel="noopener" style={{ color: T.info }}>
           عرض على GitHub
         </a>
       </div>
@@ -327,7 +328,7 @@ function SummaryCard({ label, value, color, emoji, highlight }: {
     }}>
       <div style={{ fontSize: 28, marginBottom: 4 }}>{emoji}</div>
       <div style={{ fontSize: 24, fontWeight: 800, color }}>{value}</div>
-      <div style={{ fontSize: 11, color: '#8b92a8', marginTop: 2 }}>{label}</div>
+      <div style={{ fontSize: 11, color: T.text2, marginTop: 2 }}>{label}</div>
     </div>
   );
 }

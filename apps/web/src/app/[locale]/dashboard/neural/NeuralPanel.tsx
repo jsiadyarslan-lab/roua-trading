@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl'
+import T from '@/lib/unified-tokens';
 import {
   LineChart,
   Line,
@@ -276,8 +277,8 @@ export default function NeuralPanel() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                  <XAxis dataKey="timestamp" stroke="#6b7280" tick={{ fontSize: 9 }} />
-                  <YAxis stroke="#6b7280" tick={{ fontSize: 10 }} domain={['auto', 'auto']} />
+                  <XAxis dataKey="timestamp" stroke={T.text3} tick={{ fontSize: 9 }} />
+                  <YAxis stroke={T.text3} tick={{ fontSize: 10 }} domain={['auto', 'auto']} />
                   <Tooltip
                     contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 8, fontSize: 12 }}
                     labelStyle={{ color: '#9ca3af' }}

@@ -7,7 +7,8 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { isRtlLocale } from '@/lib/i18n-utils';
+import { isRtlLocale } from '@/lib/i18n-utils'
+import T from '@/lib/unified-tokens';
 
 // ── Command Definition ───────────────────────────────────
 export interface Command {
@@ -31,14 +32,14 @@ interface CommandPaletteProps {
 
 const C = {
   bg: 'rgba(11,14,20,0.97)',
-  card: '#151A22',
-  border: '#2A313C',
-  text: '#F0F2F5',
-  textDim: '#8B92A8',
+  card: T.card,
+  border: T.border,
+  text: T.text,
+  textDim: T.text2,
   textMuted: '#4B5563',
-  cyan: '#00D4FF',
-  success: '#059669',
-  gold: '#d4af37',
+  cyan: T.info,
+  success: T.accent,
+  gold: T.gold,
   hover: 'rgba(0,212,255,0.08)',
   active: 'rgba(0,212,255,0.15)',
 };

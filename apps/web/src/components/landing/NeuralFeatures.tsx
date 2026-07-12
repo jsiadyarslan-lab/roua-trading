@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { Globe, Zap, Radar, Shield, FlaskConical } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { usePrefersReducedMotion } from '@/hooks/use-reduced-motion'
+import T from '@/lib/unified-tokens'
 
 interface Feature {
   id: string
@@ -50,7 +51,7 @@ const FEATURES: Feature[] = [
     titleKey: 'sanctuary',
     titleEn: 'Portfolio Sanctuary',
     descKey: 'sanctuaryDesc',
-    color: '#10B981',
+    color: T.profit,
     glowColor: 'rgba(16, 185, 129, 0.3)',
   },
   {
@@ -80,12 +81,12 @@ function NeuralConnections() {
 
       {/* Row 1 to Row 2 connections */}
       <line x1="350" y1="220" x2="350" y2="380" stroke="#3B82F6" strokeWidth="1" opacity="0.15" />
-      <line x1="500" y1="220" x2="350" y2="380" stroke="#10B981" strokeWidth="0.8" opacity="0.15" />
+      <line x1="500" y1="220" x2="350" y2="380" stroke={T.profit} strokeWidth="0.8" opacity="0.15" />
       <line x1="500" y1="220" x2="700" y2="380" stroke="#06B6D4" strokeWidth="0.8" opacity="0.15" />
       <line x1="800" y1="220" x2="700" y2="380" stroke="#FFD700" strokeWidth="1" opacity="0.15" />
 
       {/* Row 2 connection */}
-      <line x1="350" y1="460" x2="700" y2="460" stroke="#10B981" strokeWidth="1" opacity="0.2" />
+      <line x1="350" y1="460" x2="700" y2="460" stroke={T.profit} strokeWidth="1" opacity="0.2" />
 
       {/* Node dots at intersections */}
       {[
@@ -115,7 +116,7 @@ function NeuralConnections() {
         { x1: 500, y1: 130, x2: 800, y2: 130, color: '#FFD700', dur: '4s' },
         { x1: 350, y1: 220, x2: 350, y2: 380, color: '#3B82F6', dur: '2.5s' },
         { x1: 800, y1: 220, x2: 700, y2: 380, color: '#06B6D4', dur: '3.5s' },
-        { x1: 350, y1: 460, x2: 700, y2: 460, color: '#10B981', dur: '3s' },
+        { x1: 350, y1: 460, x2: 700, y2: 460, color: T.profit, dur: '3s' },
       ].map((line, i) => (
         <circle key={`particle-${i}`} r="2" fill={line.color} opacity="0.8">
           <animateMotion dur={line.dur} repeatCount="indefinite" path={`M${line.x1},${line.y1} L${line.x2},${line.y2}`} />

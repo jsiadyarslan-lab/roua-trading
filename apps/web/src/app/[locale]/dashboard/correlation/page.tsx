@@ -7,13 +7,13 @@ import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 function corrColor(v: number): string {
   if (isNaN(v)) return '#1A1D29' // default for NaN
-  if (v >= 0.7)  return '#00FFC6'
+  if (v >= 0.7)  return T.greenAlt
   if (v >= 0.4)  return '#4ade80'
   if (v >= 0.1)  return '#86efac'
   if (v >= -0.1) return '#8090A8'
   if (v >= -0.4) return '#fca5a5'
   if (v >= -0.7) return '#f87171'
-  return '#FF4D4D'
+  return T.redAlt
 }
 
 export default function CorrelationPage() {

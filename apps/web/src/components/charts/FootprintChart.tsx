@@ -6,7 +6,8 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl'
+import T from '@/lib/unified-tokens';
 
 function safeMax(arr: number[]): number {
   if (arr.length === 0) return -Infinity;
@@ -48,15 +49,15 @@ type FootprintMode = 'bidask' | 'delta' | 'volume';
 type FootprintTimeframe = '1min' | '5min' | '15min' | '1h';
 
 const C = {
-  bg: '#0B0E14',
+  bg: T.bg,
   card: '#111620',
   border: '#1E2530',
-  text: '#F0F2F5',
-  textDim: '#8B92A8',
+  text: T.text,
+  textDim: T.text2,
   textMuted: '#4B5563',
-  cyan: '#00D4FF',
-  success: '#00FFA3',
-  danger: '#FF4757',
+  cyan: T.info,
+  success: T.success,
+  danger: T.danger,
   warning: '#fbbf24',
 };
 

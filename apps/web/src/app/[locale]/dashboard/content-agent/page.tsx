@@ -89,14 +89,14 @@ function getCategoryLabel(c: ContentCategory): string {
 
 function getCategoryColor(c: ContentCategory): string {
   const map: Record<ContentCategory, string> = {
-    [ContentCategory.CRYPTO]: '#FFB800',
-    [ContentCategory.FOREX]: '#00D4FF',
-    [ContentCategory.STOCKS]: '#00FFA3',
+    [ContentCategory.CRYPTO]: T.warning,
+    [ContentCategory.FOREX]: T.info,
+    [ContentCategory.STOCKS]: T.success,
     [ContentCategory.COMMODITIES]: '#FF8C42',
-    [ContentCategory.ECONOMY]: '#B388FF',
-    [ContentCategory.REGULATION]: '#FF4757',
-    [ContentCategory.TECHNOLOGY]: '#00D4FF',
-    [ContentCategory.EDUCATION]: '#10B981',
+    [ContentCategory.ECONOMY]: T.council,
+    [ContentCategory.REGULATION]: T.danger,
+    [ContentCategory.TECHNOLOGY]: T.info,
+    [ContentCategory.EDUCATION]: T.profit,
     [ContentCategory.GEOPOLITICS]: '#FF6B81',
     [ContentCategory.DEFI]: '#A78BFA',
     [ContentCategory.NFT]: '#F472B6',
@@ -235,7 +235,7 @@ export default function ContentAgentPage() {
             {/* Agent Avatar */}
             <div style={{
               width: 56, height: 56, borderRadius: 16,
-              background: `linear-gradient(135deg, ${isGenerating ? '#00D4FF' : T.accent}, ${isGenerating ? '#0A84FF' : '#047857'})`,
+              background: `linear-gradient(135deg, ${isGenerating ? T.info : T.accent}, ${isGenerating ? T.blue : '#047857'})`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: isGenerating ? `0 0 28px rgba(0,212,255,0.35)` : `0 0 28px rgba(5,150,105,0.25)`,
               transition: 'all 0.4s ease',
@@ -652,7 +652,7 @@ export default function ContentAgentPage() {
                 <div style={{ height: 8, borderRadius: 4, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
                   <div style={{
                     height: '100%', borderRadius: 4,
-                    background: `linear-gradient(90deg, ${qualityScore >= 70 ? T.green : T.amber}, ${qualityScore >= 70 ? '#10B981' : '#FCD34D'})`,
+                    background: `linear-gradient(90deg, ${qualityScore >= 70 ? T.green : T.amber}, ${qualityScore >= 70 ? T.profit : '#FCD34D'})`,
                     width: `${qualityScore || 0}%`, transition: 'width 0.6s ease',
                   }} />
                 </div>
@@ -1251,17 +1251,17 @@ export default function ContentAgentPage() {
                 <Zap size={15} color={T.amber} /> توليد سريع
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <QuickPreset label="ملخص الكريبتو اليومي" icon={<TrendingUp size={13} />} color="#FFB800"
+                <QuickPreset label="ملخص الكريبتو اليومي" icon={<TrendingUp size={13} />} color={T.warning}
                   onClick={() => generateContent({ type: ContentType.NEWS_DIGEST, category: ContentCategory.CRYPTO, topic: 'ملخص سوق الكريبتو اليومي', language: ContentLanguage.BILINGUAL, priority: ContentPriority.HIGH })} />
-                <QuickPreset label="تقرير الفوركس الأسبوعي" icon={<BarChart3 size={13} />} color="#00D4FF"
+                <QuickPreset label="تقرير الفوركس الأسبوعي" icon={<BarChart3 size={13} />} color={T.info}
                   onClick={() => generateContent({ type: ContentType.MARKET_REPORT, category: ContentCategory.FOREX, topic: 'تقرير سوق الفوركس الأسبوعي', language: ContentLanguage.BILINGUAL, priority: ContentPriority.NORMAL })} />
                 <QuickPreset label="تحليل البيتكوين" icon={<Activity size={13} />} color="#FF8C42"
                   onClick={() => generateContent({ type: ContentType.ANALYSIS, category: ContentCategory.CRYPTO, topic: 'تحليل فني وأساسي للبيتكوين', symbols: ['BTC'], language: ContentLanguage.BILINGUAL, priority: ContentPriority.HIGH })} />
-                <QuickPreset label="دليل المتداول المبتدئ" icon={<BookOpen size={13} />} color="#10B981"
+                <QuickPreset label="دليل المتداول المبتدئ" icon={<BookOpen size={13} />} color={T.profit}
                   onClick={() => generateContent({ type: ContentType.EDUCATIONAL, category: ContentCategory.EDUCATION, topic: 'دليل شامل للمتداول المبتدئ في الأسواق المالية', language: ContentLanguage.AR, priority: ContentPriority.LOW })} />
                 <QuickPreset label="مستجدات DeFi" icon={<Layers size={13} />} color="#A78BFA"
                   onClick={() => generateContent({ type: ContentType.ARTICLE, category: ContentCategory.DEFI, topic: 'أحدث المستجدات في عالم التمويل اللامركزي', language: ContentLanguage.BILINGUAL, priority: ContentPriority.NORMAL })} />
-                <QuickPreset label="تحليل الأسهم الأمريكية" icon={<TrendingUp size={13} />} color="#00FFA3"
+                <QuickPreset label="تحليل الأسهم الأمريكية" icon={<TrendingUp size={13} />} color={T.success}
                   onClick={() => generateContent({ type: ContentType.MARKET_REPORT, category: ContentCategory.STOCKS, topic: 'تحليل أسواق الأسهم الأمريكية', symbols: ['AAPL', 'MSFT', 'NVDA'], language: ContentLanguage.BILINGUAL, priority: ContentPriority.HIGH })} />
               </div>
             </div>
@@ -1334,7 +1334,7 @@ export default function ContentAgentPage() {
               <div style={{ flex: 1, height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
                 <div style={{
                   height: '100%', borderRadius: 5,
-                  background: dailyPercent >= 100 ? T.red : `linear-gradient(90deg, ${T.accent}, #10B981)`,
+                  background: dailyPercent >= 100 ? T.red : `linear-gradient(90deg, ${T.accent}, ${T.profit})`,
                   width: `${dailyPercent}%`, transition: 'width 0.5s ease',
                 }} />
               </div>

@@ -20,6 +20,7 @@ import { CouncilSigil } from '@/components/council/CouncilSigil'
 import { FormattedText, LoadMoreButton } from '@/components/council/FormattedText'
 import { DecisionMatrix } from '@/components/council/DecisionMatrix'
 import { PerformanceDetails } from '@/components/council/PerformanceDetails'
+import T from '@/lib/unified-tokens'
 
 // ═══════════════════════════════════════
 // HELPERS — keys into the locale dictionary instead of hardcoded strings
@@ -193,7 +194,7 @@ export default function CouncilPage() {
               <LiveDot color={sessionRunning?COLORS.buy:COLORS.textDim} size={7} label={sessionRunning?t('running'):t('idle')} />
             </div>
             <motion.button whileTap={{ scale:0.97 }} onClick={trigger} disabled={triggerLoading||sessionRunning}
-              style={{ display:'inline-flex', alignItems:'center', gap:7, padding:'9px 14px', borderRadius:10, border:'none', cursor:triggerLoading||sessionRunning?'not-allowed':'pointer', background:triggerLoading||sessionRunning?'rgba(168,85,247,0.3)':COLORS.gradientCouncil, color:'#0B0E14', fontSize:12, fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase', boxShadow:`0 8px 24px -8px ${hexToRgba(COLORS.council,0.6)}` }}>
+              style={{ display:'inline-flex', alignItems:'center', gap:7, padding:'9px 14px', borderRadius:10, border:'none', cursor:triggerLoading||sessionRunning?'not-allowed':'pointer', background:triggerLoading||sessionRunning?'rgba(168,85,247,0.3)':COLORS.gradientCouncil, color:T.bg, fontSize:12, fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase', boxShadow:`0 8px 24px -8px ${hexToRgba(COLORS.council,0.6)}` }}>
               {triggerLoading||sessionRunning ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} strokeWidth={2.75} />}
               {sessionRunning ? t('inProgress') : t('triggerSession')}
             </motion.button>
@@ -296,7 +297,7 @@ export default function CouncilPage() {
                   {councilResult ? (
                     <motion.div key={councilResult.recommendation} initial={{ opacity:0, scale:0.94, y:6 }} animate={{ opacity:1, scale:1, y:0 }} transition={{ duration:0.5 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:12 }}>
-                        <div style={{ width:52, height:52, borderRadius:13, background:councilResult.recommendation==='BUY'?COLORS.gradientBuy:councilResult.recommendation==='SELL'?COLORS.gradientSell:'linear-gradient(135deg,#F59E0B,#A855F7)', display:'flex', alignItems:'center', justifyContent:'center', color:'#0B0E14', boxShadow:`0 8px 24px -8px ${hexToRgba(directionColor(councilResult.recommendation),0.7)}` }}>
+                        <div style={{ width:52, height:52, borderRadius:13, background:councilResult.recommendation==='BUY'?COLORS.gradientBuy:councilResult.recommendation==='SELL'?COLORS.gradientSell:'linear-gradient(135deg,#F59E0B,#A855F7)', display:'flex', alignItems:'center', justifyContent:'center', color:T.bg, boxShadow:`0 8px 24px -8px ${hexToRgba(directionColor(councilResult.recommendation),0.7)}` }}>
                           {councilResult.recommendation==='BUY'?<ArrowUpRight size={26} strokeWidth={2.75}/>:councilResult.recommendation==='SELL'?<ArrowDownRight size={26} strokeWidth={2.75}/>:<Minus size={26} strokeWidth={2.75}/>}
                         </div>
                         <div style={{ fontSize:44, fontWeight:700, letterSpacing:'-0.03em', color:directionColor(councilResult.recommendation), lineHeight:1 }}>{t(dirLabelKey[councilResult.recommendation])}</div>
@@ -331,7 +332,7 @@ export default function CouncilPage() {
                   <ConfidenceBar value={councilResult?.consensusScore ?? 0} color={councilResult?directionColor(councilResult.recommendation):COLORS.council} height={6} />
                 </div>
                 <motion.button whileTap={{ scale:0.98 }} onClick={fetchCouncil} disabled={councilLoading}
-                  style={{ width:'100%', padding:'12px 18px', borderRadius:11, border:'none', cursor:councilLoading?'wait':'pointer', background:COLORS.gradientCouncil, color:'#0B0E14', fontWeight:600, fontSize:13, display:'inline-flex', alignItems:'center', justifyContent:'center', gap:8, boxShadow:`0 10px 30px -10px ${hexToRgba(COLORS.council,0.7)}` }}>
+                  style={{ width:'100%', padding:'12px 18px', borderRadius:11, border:'none', cursor:councilLoading?'wait':'pointer', background:COLORS.gradientCouncil, color:T.bg, fontWeight:600, fontSize:13, display:'inline-flex', alignItems:'center', justifyContent:'center', gap:8, boxShadow:`0 10px 30px -10px ${hexToRgba(COLORS.council,0.7)}` }}>
                   <RefreshCw size={14} strokeWidth={2.5} className={councilLoading?'animate-spin':''} />
                   {councilLoading ? t('conveningCouncil') : t('analyze')}
                 </motion.button>
@@ -342,7 +343,7 @@ export default function CouncilPage() {
             {councilResult?.masterStrategy && (
               <div style={{ padding:'22px 24px', borderTop:`1px solid ${COLORS.border}`, background:'rgba(0,0,0,0.18)' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
-                  <div style={{ width:26, height:26, borderRadius:7, background:COLORS.gradientCouncil, display:'flex', alignItems:'center', justifyContent:'center', color:'#0B0E14' }}><Sparkles size={13} strokeWidth={2.5} /></div>
+                  <div style={{ width:26, height:26, borderRadius:7, background:COLORS.gradientCouncil, display:'flex', alignItems:'center', justifyContent:'center', color:T.bg }}><Sparkles size={13} strokeWidth={2.5} /></div>
                   <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.16em', textTransform:'uppercase', color:COLORS.council }}>{t('unifiedStrategy')}</div>
                   <div style={{ flex:1, height:1, background:`linear-gradient(90deg, ${hexToRgba(COLORS.council,0.4)}, transparent)` }} />
                 </div>
@@ -853,7 +854,7 @@ function BriefCard({ brief, loc, index, expanded, onToggle, t }: {
                   {/* AI analysis */}
                   <div style={{ padding:'14px', borderRadius:10, background:hexToRgba(COLORS.council,0.05), border:`1px solid ${hexToRgba(COLORS.council,0.15)}` }}>
                     <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:10 }}>
-                      <div style={{ width:24, height:24, borderRadius:7, background:COLORS.gradientCouncil, display:'flex', alignItems:'center', justifyContent:'center', color:'#0B0E14' }}>
+                      <div style={{ width:24, height:24, borderRadius:7, background:COLORS.gradientCouncil, display:'flex', alignItems:'center', justifyContent:'center', color:T.bg }}>
                         <Sparkles size={12} strokeWidth={2.5} />
                       </div>
                       <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:COLORS.council }}>{t('whyThisSignal')}</span>

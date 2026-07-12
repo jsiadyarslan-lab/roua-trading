@@ -350,7 +350,7 @@ export function StrategicCouncilPanel() {
       {/* Tabs */}
       <div style={{
         display: 'flex', gap: 2, padding: '3px 6px',
-        background: '#0B0E14', borderBottom: '1px solid rgba(0,212,255,0.08)',
+        background: T.bg, borderBottom: '1px solid rgba(0,212,255,0.08)',
       }}>
         <button onClick={() => { setTab('active'); fetchActiveBriefs() }} style={{
           flex: 1, minHeight: 20, padding: '2px 5px', fontSize: 7,

@@ -348,7 +348,7 @@ export function QuickExecutionMini({
           borderRadius: 6, padding: '3px 8px',
         }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#00C853', boxShadow: '0 0 6px #00C853' }} />
-          <span style={{ fontSize: 9, fontWeight: 800, color: '#FFB800', fontFamily: "var(--font-mono)" }}>{t('demoAccount')}</span>
+          <span style={{ fontSize: 9, fontWeight: 800, color: T.warning, fontFamily: "var(--font-mono)" }}>{t('demoAccount')}</span>
         </div>
         {account && (
           <div style={{ fontSize: 9, color: 'var(--muted)', fontFamily: "var(--font-mono)" }}>

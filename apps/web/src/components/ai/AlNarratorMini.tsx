@@ -6,6 +6,7 @@ import { Activity, ShieldCheck, Zap, Bell, CheckCircle2, TrendingUp, TrendingDow
 import { formatFreshness, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
 import { useTranslations, useLocale } from 'next-intl'
 import { ScopedStyle } from '@/components/ScopedStyle'
+import T from '@/lib/unified-tokens'
 
 interface Keyword {
   word: string
@@ -215,7 +216,7 @@ export function AlNarratorMini({
     bullish:  'var(--success)',
     bearish:  'var(--danger)',
     neutral:  'var(--primary)',
-    volatile: '#FFB800',
+    volatile: T.warning,
   }
 
   const isHighConfidence = (data?.confidence ?? 0) > 85
@@ -267,7 +268,7 @@ export function AlNarratorMini({
               <div style={{ fontSize: 8, color: 'rgba(0,212,255,0.8)', fontWeight: 700, marginBottom: 6, letterSpacing: 1 }}>🏛️ {t('councilSignals')}</div>
               {activeBriefs.map((b: any, i: number) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0', fontSize: 9, borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
-                  <span style={{ color: b.direction === 'BUY' ? '#00FFA3' : '#FF4757', fontWeight: 800 }}>{b.direction === 'BUY' ? '▲' : '▼'} {b.pair}</span>
+                  <span style={{ color: b.direction === 'BUY' ? T.success : T.danger, fontWeight: 800 }}>{b.direction === 'BUY' ? '▲' : '▼'} {b.pair}</span>
                   <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 8 }}>{b.timeframe}</span>
                   <span style={{ color: 'rgba(255,255,255,0.7)' }}>@ {Number(b.entryPrice).toLocaleString()}</span>
                   <span style={{ color: '#FFD700', fontWeight: 700 }}>{b.confidence}%</span>
@@ -296,10 +297,10 @@ export function AlNarratorMini({
             }}>
                <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 700 }}>{t('riskLevel')}</span>
                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <ShieldCheck size={16} color={data.risk === 'Low' ? 'var(--success)' : data.risk === 'Medium' ? '#FFB800' : 'var(--danger)'} />
+                  <ShieldCheck size={16} color={data.risk === 'Low' ? 'var(--success)' : data.risk === 'Medium' ? T.warning : 'var(--danger)'} />
                   <span style={{
                     fontSize: 13, fontWeight: 900,
-                    color: data.risk === 'Low' ? 'var(--success)' : data.risk === 'Medium' ? '#FFB800' : 'var(--danger)',
+                    color: data.risk === 'Low' ? 'var(--success)' : data.risk === 'Medium' ? T.warning : 'var(--danger)',
                     fontFamily: "var(--font-ar)"
                   }}>
                     {data.risk === 'Low' ? t('veryLowRisk') : data.risk === 'Medium' ? t('mediumRisk') : t('highRiskLevel')}
@@ -424,7 +425,7 @@ export function AlNarratorMini({
                     <span style={{
                       padding: '2px 8px', borderRadius: 4, fontWeight: 800,
                       background: recommendation.action === 'buy' ? 'rgba(0,255,198,0.1)' : recommendation.action === 'sell' ? 'rgba(255,77,77,0.1)' : 'rgba(255,184,0,0.1)',
-                      color: recommendation.action === 'buy' ? 'var(--success)' : recommendation.action === 'sell' ? 'var(--danger)' : '#FFB800',
+                      color: recommendation.action === 'buy' ? 'var(--success)' : recommendation.action === 'sell' ? 'var(--danger)' : T.warning,
                     }}>
                       {t(recommendation.action)}
                     </span>

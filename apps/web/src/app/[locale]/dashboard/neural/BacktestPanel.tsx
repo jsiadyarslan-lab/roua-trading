@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl'
+import T from '@/lib/unified-tokens';
 import {
   LineChart,
   Line,
@@ -341,8 +342,8 @@ export default function BacktestPanel() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                  <XAxis dataKey="date" stroke="#6b7280" tick={{ fontSize: 10 }} />
-                  <YAxis stroke="#6b7280" tick={{ fontSize: 10 }} />
+                  <XAxis dataKey="date" stroke={T.text3} tick={{ fontSize: 10 }} />
+                  <YAxis stroke={T.text3} tick={{ fontSize: 10 }} />
                   <Tooltip
                     contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 8, fontSize: 12 }}
                     labelStyle={{ color: '#9ca3af' }}

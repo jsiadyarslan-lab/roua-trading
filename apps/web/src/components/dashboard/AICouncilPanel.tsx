@@ -54,7 +54,7 @@ function getModelShortName(model: string): string {
 function getModelColor(model: string): string {
   if (model.includes('Groq')) return '#F97316' // orange
   if (model.includes('Gemini')) return '#3B82F6' // blue
-  if (model.includes('GLM')) return '#10B981' // green
+  if (model.includes('GLM')) return T.profit // green
   if (model.includes('HuggingFace') || model.includes('HF')) return '#FBBF24' // yellow
   if (model.includes('Ollama')) return '#8B5CF6' // purple
   if (model.includes('Bedrock') || model.includes('Claude')) return '#EC4899' // pink
@@ -201,7 +201,7 @@ export function AICouncilPanel() {
           useTabAlertStore.getState().pushAlert('council', {
             action: j.data.recommendation,
             label: `${j.data.recommendation === 'BUY' ? `⬆ ${tc('buy')}` : `⬇ ${tc('sell')}`} ${j.data.consensusScore}%`,
-            color: j.source === 'real-ai' ? '#B388FF' : '#FFB800',
+            color: j.source === 'real-ai' ? T.council : T.warning,
           })
         }
       } else {

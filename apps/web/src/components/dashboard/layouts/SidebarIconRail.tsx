@@ -32,16 +32,16 @@ export interface TabConfig {
 }
 
 const TAB_CONFIG: TabConfig[] = [
-  { id: 'portfolio', label: '', helper: '', accent: '#0A84FF', icon: Wallet },
-  { id: 'execute', label: '', helper: '', accent: '#00FFA3', icon: Zap },
-  { id: 'book', label: '', helper: '', accent: '#FF4757', icon: BookOpen },
-  { id: 'watch', label: '', helper: '', accent: '#00D4FF', icon: Eye },
-  { id: 'alerts', label: '', helper: '', accent: '#FFB800', icon: Bell },
-  { id: 'ai', label: '', helper: '', accent: '#B388FF', icon: Brain },
-  { id: 'news', label: '', helper: '', accent: '#00D4FF', icon: Newspaper },
-  { id: 'calendar', label: '', helper: '', accent: '#FFB800', icon: CalendarDays },
-  { id: 'backtest', label: '', helper: '', accent: '#B388FF', icon: FlaskConical },
-  { id: 'correlation', label: '', helper: '', accent: '#00FFA3', icon: GitBranch },
+  { id: 'portfolio', label: '', helper: '', accent: T.blue, icon: Wallet },
+  { id: 'execute', label: '', helper: '', accent: T.success, icon: Zap },
+  { id: 'book', label: '', helper: '', accent: T.danger, icon: BookOpen },
+  { id: 'watch', label: '', helper: '', accent: T.info, icon: Eye },
+  { id: 'alerts', label: '', helper: '', accent: T.warning, icon: Bell },
+  { id: 'ai', label: '', helper: '', accent: T.council, icon: Brain },
+  { id: 'news', label: '', helper: '', accent: T.info, icon: Newspaper },
+  { id: 'calendar', label: '', helper: '', accent: T.warning, icon: CalendarDays },
+  { id: 'backtest', label: '', helper: '', accent: T.council, icon: FlaskConical },
+  { id: 'correlation', label: '', helper: '', accent: T.success, icon: GitBranch },
 ]
 
 interface SidebarIconRailProps {

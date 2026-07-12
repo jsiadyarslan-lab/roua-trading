@@ -7,7 +7,8 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import type { ChartSettings } from '@/lib/charts/types';
+import type { ChartSettings } from '@/lib/charts/types'
+import T from '@/lib/unified-tokens';
 
 interface ChartSettingsPanelProps {
   settings: ChartSettings;
@@ -30,8 +31,8 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
   ];
 
   const PRESET_THEMES = [
-    { name: 'ROUA Classic', bg: '#0B0E14', up: '#00FFA3', down: '#FF4757' },
-    { name: 'Ocean', bg: '#0a1628', up: '#00d4ff', down: '#ff6b6b' },
+    { name: 'ROUA Classic', bg: T.bg, up: T.success, down: T.danger },
+    { name: 'Ocean', bg: '#0a1628', up: T.info, down: '#ff6b6b' },
     { name: 'Neon', bg: '#0d0221', up: '#00ff88', down: '#ff0055' },
     { name: 'Sunset', bg: '#1a0a2e', up: '#ffd700', down: '#ff4500' },
     { name: 'Arctic', bg: '#0a192f', up: '#64ffda', down: '#ff5555' },
@@ -39,16 +40,16 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
   ];
 
   const COLORS = {
-    bg: '#0B0E14',
-    card: '#151A22',
+    bg: T.bg,
+    card: T.card,
     cardHover: '#1a2030',
     border: 'rgba(42,49,60,0.9)',
-    cyan: '#00D4FF',
-    text: '#F0F2F5',
-    textSecondary: '#8B92A8',
-    textMuted: '#8B92A8',
-    success: '#00FFA3',
-    danger: '#FF4757',
+    cyan: T.info,
+    text: T.text,
+    textSecondary: T.text2,
+    textMuted: T.text2,
+    success: T.success,
+    danger: T.danger,
     warning: '#fbbf24',
   };
 
@@ -277,7 +278,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
               <span style={settingLabel}>{t('gridColor')}</span>
               <input
                 type="color"
-                value={settings.gridColor?.startsWith('rgba') ? '#2A313C' : settings.gridColor}
+                value={settings.gridColor?.startsWith('rgba') ? T.border : settings.gridColor}
                 onChange={e => {
                   // Convert hex to rgba with 50% alpha
                   const hex = e.target.value;
@@ -361,9 +362,9 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
               showSessions: true,
               showCandleTimer: true,
               crosshairType: 'cross',
-              upColor: '#00FFA3',
-              downColor: '#FF4757',
-              bgColor: '#0B0E14',
+              upColor: T.success,
+              downColor: T.danger,
+              bgColor: T.bg,
               gridColor: 'rgba(42,49,60,0.5)',
             });
           }}

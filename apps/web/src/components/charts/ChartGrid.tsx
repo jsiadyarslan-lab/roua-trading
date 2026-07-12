@@ -8,7 +8,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import type { ChartType } from '@/lib/charts/types';
-import { ScopedStyle } from '@/components/ScopedStyle';
+import { ScopedStyle } from '@/components/ScopedStyle'
+import T from '@/lib/unified-tokens';
 
 // ── Types ────────────────────────────────────────────────
 interface ChartGridProps {
@@ -68,18 +69,18 @@ const TIMEFRAME_BUTTONS = [
 ];
 
 const C = {
-  bg: '#0B0E14',
-  card: '#151A22',
-  cardBorder: '#2A313C',
+  bg: T.bg,
+  card: T.card,
+  cardBorder: T.border,
   cardBorderLight: 'rgba(42,49,60,0.6)',
   grid: 'rgba(42,49,60,0.25)',
-  text: '#F0F2F5',
-  textDim: '#8B92A8',
+  text: T.text,
+  textDim: T.text2,
   textMuted: '#4B5563',
-  cyan: '#00D4FF',
-  success: '#00FFA3',
-  danger: '#FF4757',
-  gold: '#d4af37',
+  cyan: T.info,
+  success: T.success,
+  danger: T.danger,
+  gold: T.gold,
   upColor: '#3fb950',
   downColor: '#f85149',
   headerBg: 'rgba(21,26,34,0.95)',

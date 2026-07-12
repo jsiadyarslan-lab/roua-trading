@@ -41,20 +41,21 @@ const C = {
   cardHover: '#151D2B',
   border: '#1E2530',
   borderActive: 'rgba(0,212,255,0.35)',
-  cyan: '#00D4FF',
-  text: '#F0F2F5',
-  textDim: '#8B92A8',
+  cyan: T.info,
+  text: T.text,
+  textDim: T.text2,
   textMuted: '#4B5563',
-  success: '#00FFA3',
-  danger: '#FF4757',
+  success: T.success,
+  danger: T.danger,
   warning: '#fbbf24',
-  gold: '#d4af37',
+  gold: T.gold,
 };
 
 // ── localStorage helpers ──────────────────────────────────
 // Fix: كان 'roua-price-alerts' بدون userId — بيانات تتسرب بين المستخدمين.
 // الآن نستخدم userId من auth store لإنشاء key منفصل لكل مستخدم.
-import { useAuthStore } from '@/lib/auth-store';
+import { useAuthStore } from '@/lib/auth-store'
+import T from '@/lib/unified-tokens';
 
 function getStorageKey(): string {
   if (typeof window === 'undefined') return 'roua-price-alerts:guest';

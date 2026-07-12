@@ -8,6 +8,7 @@ import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { formatFreshness, getDataStatus, getStatusLabel, getStatusTone } from '@/lib/dashboard-live'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations } from 'next-intl'
+import T from '@/lib/unified-tokens'
 
 // Helper component to handle price pulse animation
 function PriceDisplay({ price, isUp }: { price: number | null, isUp: boolean }) {
@@ -153,7 +154,7 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp, onSelectSymb
           }
           const tabColors: Record<string, string> = {
             Crypto: '#F59E0B', Forex: '#06B6D4', Metals: '#CD7F32',
-            Indices: '#8B5CF6', Energy: '#10B981', Stocks: '#EC4899',
+            Indices: '#8B5CF6', Energy: T.profit, Stocks: '#EC4899',
           }
           const accent = tabColors[tab] || 'var(--accent)'
           return (

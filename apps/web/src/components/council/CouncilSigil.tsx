@@ -1,6 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "framer-motion"
+import T from '@/lib/unified-tokens';
 
 export function CouncilSigil({ size = 36, animated = true }: { size?: number; animated?: boolean }) {
   const cx = 20, cy = 20, ringR = 14, nodeCount = 6;
@@ -33,7 +34,7 @@ export function CouncilSigil({ size = 36, animated = true }: { size?: number; an
         animate={animated ? { scale: [1, 1.1, 1] } : undefined}
         transition={animated ? { duration: 2, repeat: Infinity, ease: "easeInOut" } : undefined}
         style={{ transformOrigin: "center" }} />
-      <circle cx={cx} cy={cy} r="1.2" fill="#0B0E14" />
+      <circle cx={cx} cy={cy} r="1.2" fill={T.bg} />
     </svg>
   );
 }

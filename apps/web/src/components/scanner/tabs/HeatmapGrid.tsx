@@ -37,7 +37,7 @@ function getOpacity(pct: number): number {
 function scoreDot(score: number): string {
   if (score >= 60) return T.green
   if (score >= 40) return T.cyan
-  if (score >= 20) return '#FFB800'
+  if (score >= 20) return T.warning
   return T.red
 }
 

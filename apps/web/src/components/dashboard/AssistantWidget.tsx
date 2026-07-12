@@ -18,6 +18,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { useAssistant, type AssistantMessage } from '@/hooks/useAssistant'
+import T from '@/lib/unified-tokens'
 
 // ─── SVG Icons ──────────────────────────────────────────────
 
@@ -184,17 +185,17 @@ function SpinnerIcon({ size = 16, className }: IconProps) {
 // ─── Theme tokens ───────────────────────────────────────────
 
 const COLORS = {
-  bg: '#0B0E14',
+  bg: T.bg,
   surface: 'rgba(15, 22, 36, 0.72)',
   surfaceSolid: 'rgba(11, 14, 20, 0.6)',
-  accent: '#059669',
+  accent: T.accent,
   accentDark: '#047857',
-  online: '#10B981',
+  online: T.profit,
   warning: '#F59E0B',
-  error: '#EF4444',
+  error: T.loss,
   textPrimary: '#E5E7EB',
   textSecondary: '#9CA3AF',
-  textMuted: '#6B7280',
+  textMuted: T.text3,
   border: 'rgba(5, 150, 105, 0.18)',
   borderHover: 'rgba(5, 150, 105, 0.45)',
 } as const
@@ -256,7 +257,7 @@ const ASSISTANT_CSS = `
 }
 
 .asst-fab {
-  background: linear-gradient(135deg, #059669 0%, #047857 45%, #059669 100%);
+  background: linear-gradient(135deg, ${T.accent} 0%, #047857 45%, ${T.accent} 100%);
   background-size: 220% 220%;
   animation: asst-glow-pulse 2.6s ease-in-out infinite, asst-gradient-shift 8s ease infinite;
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),

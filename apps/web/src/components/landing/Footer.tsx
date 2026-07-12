@@ -2,6 +2,7 @@
 
 import { ExternalLink, GitBranch, Link2, MessageCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import T from '@/lib/unified-tokens'
 
 const SOCIAL_LINKS = [
   { icon: ExternalLink, label: 'Twitter', href: 'https://twitter.com/rouatrading' },
@@ -85,7 +86,7 @@ export default function Footer() {
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = 'rgba(16,185,129,0.08)'
                     e.currentTarget.style.borderColor = 'rgba(16,185,129,0.15)'
-                    e.currentTarget.style.color = '#10B981'
+                    e.currentTarget.style.color = {T.profit}
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = 'rgba(255,255,255,0.02)'

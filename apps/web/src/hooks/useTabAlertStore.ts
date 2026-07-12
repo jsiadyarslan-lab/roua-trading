@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import T from '@/lib/unified-tokens'
 
 /**
  * Tab Alert Store — Tracks unread alert counts and latest alert info per sidebar tab.
@@ -32,10 +33,10 @@ interface TabAlertState {
 
 const DEFAULT_COLORS: Record<TabId, string> = {
   'bot':      '#00E5FF',
-  'trader':   '#00FFA3',
-  'council':  '#B388FF',
-  'scanner':  '#FFB800',
-  'multi-tf': '#B388FF',
+  'trader':   T.success,
+  'council':  T.council,
+  'scanner':  T.warning,
+  'multi-tf': T.council,
   'signals':  '#00C853',
 }
 

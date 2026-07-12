@@ -1470,3 +1470,14 @@
   - All 49 unique T.* properties are defined in unified-tokens.ts
   - 0 missing properties
 - **Commit:** (filled after push)
+
+### CHANGE-002: Phase 2 — Inline hex → T.token replacement
+- **Type:** REFACTORING
+- **Status:** COMPLETED
+- **Severity:** MEDIUM (visual consistency)
+- **Files:** 124 component files + 9 files with template literal fixes
+- **Description:** 851 inline hex color literals replaced with canonical T.* token references using context-aware replacement (JSX attr → {T.x}, style value → T.x, template literal → ${T.x}).
+- **Result:**
+  - Canonical colors (success/danger/info/warning/council/card/border/text) — all replaced with T.* tokens
+  - 255 unique hex values remain (non-canonical Tailwind variants like #f59e0b — would require visual color changes to unify)
+- **Commit:** (filled after push)

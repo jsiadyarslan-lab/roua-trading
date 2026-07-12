@@ -8,7 +8,8 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { DrawingTool } from '@/lib/charts/types';
 import { DRAWING_CATEGORIES } from '@/lib/charts/types';
-import { DrawingManager } from '@/lib/charts/DrawingManager';
+import { DrawingManager } from '@/lib/charts/DrawingManager'
+import T from '@/lib/unified-tokens';
 
 interface DrawingPanelProps {
   activeTool: DrawingTool;
@@ -55,13 +56,13 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
   const COLORS = {
     card: 'rgba(11, 14, 20, 0.98)',
     border: 'rgba(0, 212, 255, 0.3)',
-    cyan: '#00D4FF',
+    cyan: T.info,
     text: '#C8D4E4',
-    textSecondary: '#8B92A8',
-    textMuted: '#8B92A8',
-    danger: '#FF4757',
+    textSecondary: T.text2,
+    textMuted: T.text2,
+    danger: T.danger,
     hoverBg: 'rgba(0,212,255,0.12)',
-    activeBg: '#00D4FF',
+    activeBg: T.info,
     bg: 'rgba(0, 0, 0, 0.4)',
   };
 

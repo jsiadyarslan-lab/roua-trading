@@ -6,6 +6,7 @@ import { useRouter, Link } from '@/i18n/navigation'
 import { Fingerprint, TrendingUp, ArrowRight, Mail, Shield, KeyRound, Timer } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { motion, AnimatePresence } from 'framer-motion'
+import T from '@/lib/unified-tokens'
 
 /**
  * Login Page — Roua Trading (رؤى)
@@ -548,7 +549,7 @@ function LoginForm() {
                           style={{
                             background: 'rgba(255,255,255,0.06)',
                             border: digit ? '1px solid rgba(0,212,255,0.5)' : '1px solid rgba(255,255,255,0.1)',
-                            color: '#00d4ff',
+                            color: T.info,
                             fontFamily: 'var(--font-en)',
                             boxShadow: digit ? '0 0 10px rgba(0,212,255,0.15)' : 'none',
                           }}
@@ -697,7 +698,7 @@ function LoginForm() {
                        disabled:opacity-40 disabled:cursor-not-allowed
                        transition-all duration-200 mb-4"
           >
-            <Fingerprint className="w-4 h-4" style={{ color: '#00d4ff' }} />
+            <Fingerprint className="w-4 h-4" style={{ color: T.info }} />
             <span style={{ fontFamily: 'var(--font-ar)' }}>{loading === 'passkey' ? t('passkeyVerifying') : 'Passkey'}</span>
           </motion.button>
 

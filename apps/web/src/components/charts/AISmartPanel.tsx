@@ -54,13 +54,14 @@ import { predictPatternCompletion, type PatternPrediction } from '@/lib/charts/P
 import { recordPrediction as recordAdaptivePrediction, resolvePrediction, autoResolvePredictions, getAdaptiveIntelligenceState, calibrateConfidence, getSourceWeight, getAllSourceWeights, recordAnalysisPredictions, type AdaptiveIntelligenceState, type SignalSource as IntelligenceSignalSource } from '@/lib/charts/AdaptiveIntelligenceEngine';
 import { computeScenarios, type ScenarioResult, type Scenario } from '@/lib/charts/ScenarioEngine';
 import { detectSprings, type SpringDetectionResult, type SpringDetection } from '@/lib/charts/SpringDetectionEngine';
-import { journalTradeProposal, syncJournalWithProposals, computeJournalStats, getJournalEntries, exportJournalJSON, generateReportHTML, clearJournal, type JournalEntry, type JournalStats } from '@/lib/charts/TradeJournal';
+import { journalTradeProposal, syncJournalWithProposals, computeJournalStats, getJournalEntries, exportJournalJSON, generateReportHTML, clearJournal, type JournalEntry, type JournalStats } from '@/lib/charts/TradeJournal'
+import T from '@/lib/unified-tokens';
 
 const C = {
   bg: '#0a0e17', card: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.09)',
   text: '#e8eaf0', dim: 'rgba(255,255,255,0.5)', mut: 'rgba(255,255,255,0.25)',
-  cyan: '#22d3ee', green: '#10b981', red: '#ef4444', yellow: '#f59e0b',
-  purple: '#a78bfa', gold: '#d4af37', blue: '#3b82f6',
+  cyan: '#22d3ee', green: T.profit, red: T.loss, yellow: '#f59e0b',
+  purple: '#a78bfa', gold: T.gold, blue: '#3b82f6',
 };
 
 // ── Map Geometric type → aiSmartPanel i18n key ──
@@ -1707,7 +1708,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
       {/* Overlay Toggles — compact icon buttons in grid */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(42px, 1fr))', gap:2, padding:'3px 6px', borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
-        {([['S/R','sr','#4ade80'],['📈','trend','#facc15'],['HM','harmonic','#c084fc'],['FVG','fvg','#22d3ee'],['BOS','bos','#f97316'],['GEO','geo','#a78bfa'],['EW','ew','#93c5fd'],['WY','wyckoff','#fb923c'],['VP','vp','#fbbf24'],['ENT','entry','#00D4FF'],['MTF','mtf','#06b6d4'],['LIQ','liq','#f472b6'],['TRD','trade','#a3e635']] as [string,keyof typeof overlays,string][]).map(([lbl,key,col])=>(
+        {([['S/R','sr','#4ade80'],['📈','trend','#facc15'],['HM','harmonic','#c084fc'],['FVG','fvg','#22d3ee'],['BOS','bos','#f97316'],['GEO','geo','#a78bfa'],['EW','ew','#93c5fd'],['WY','wyckoff','#fb923c'],['VP','vp','#fbbf24'],['ENT','entry',T.info],['MTF','mtf','#06b6d4'],['LIQ','liq','#f472b6'],['TRD','trade','#a3e635']] as [string,keyof typeof overlays,string][]).map(([lbl,key,col])=>(
           <button key={key} onClick={()=>{ toggleOverlay(key); }} title={[['S/R','sr'],['📈','trend'],['HM','harmonic'],['FVG','fvg'],['BOS','bos'],['GEO','geo'],['EW','ew'],['WY','wyckoff'],['VP','vp'],['ENT','entry'],['MTF','mtf'],['LIQ','liq'],['TRD','trade']].find(x=>x[1]===key)?.[0] || key}
             style={{ padding:'2px 0', borderRadius:3, fontSize:7.5, fontWeight:700, cursor:'pointer', outline:'none', fontFamily:'inherit',
               textAlign:'center', lineHeight:1.2,

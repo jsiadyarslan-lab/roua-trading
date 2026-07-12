@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import SubPageLayout from '@/components/dashboard/SubPageLayout'
+import T from '@/lib/unified-tokens'
 
 // ── Types ──
 interface PositionDetail {
@@ -325,7 +326,7 @@ export default function SanctuaryPage() {
   // Pie chart segments from positions
   const pieSegments = report ? report.positions.slice(0, 5).map(pos => ({
     value: pos.value,
-    color: pos.change24h >= 0 ? '#00FFC6' : '#FF4D4D',
+    color: pos.change24h >= 0 ? T.greenAlt : T.redAlt,
     label: pos.symbol,
   })) : []
 
@@ -533,7 +534,7 @@ export default function SanctuaryPage() {
                   background: 'var(--bg-card)', border: '1px solid var(--border)',
                   borderRadius: '10px', padding: '16px', position: 'relative', overflow: 'hidden',
                 }}>
-                  <div style={{ position: 'absolute', top: '-8px', left: '-8px', width: '50px', height: '50px', background: '#FFB800', filter: 'blur(30px)', opacity: 0.08, pointerEvents: 'none' }} />
+                  <div style={{ position: 'absolute', top: '-8px', left: '-8px', width: '50px', height: '50px', background: T.warning, filter: 'blur(30px)', opacity: 0.08, pointerEvents: 'none' }} />
                   <SectionHeader
                     icon={<Target size={12} color="#fff" strokeWidth={2.2} />}
                     label="توزيع المحفظة"
@@ -549,7 +550,7 @@ export default function SanctuaryPage() {
                   background: 'var(--bg-card)', border: '1px solid var(--border)',
                   borderRadius: '10px', padding: '16px', position: 'relative', overflow: 'hidden',
                 }}>
-                  <div style={{ position: 'absolute', top: '-8px', right: '-8px', width: '50px', height: '50px', background: '#0A84FF', filter: 'blur(30px)', opacity: 0.08, pointerEvents: 'none' }} />
+                  <div style={{ position: 'absolute', top: '-8px', right: '-8px', width: '50px', height: '50px', background: T.blue, filter: 'blur(30px)', opacity: 0.08, pointerEvents: 'none' }} />
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                     <SectionHeader
                       icon={<Activity size={12} color="#fff" strokeWidth={2.2} />}
@@ -565,7 +566,7 @@ export default function SanctuaryPage() {
                     }} dir="ltr">{portfolioReturn !== null ? `${portfolioReturn >= 0 ? '+' : ''}${portfolioReturn.toFixed(2)}%` : '—'}</span>
                   </div>
                   {performanceData.length > 0 ? (
-                    <LineChart data={performanceData} color="#0A84FF" height={120} />
+                    <LineChart data={performanceData} color={T.blue} height={120} />
                   ) : (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120, color: 'var(--text-faint)', fontSize: '12px', fontFamily: 'var(--font-ar)' }}>لا توجد بيانات أداء</div>
                   )}

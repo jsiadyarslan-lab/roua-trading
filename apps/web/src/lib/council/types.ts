@@ -1,3 +1,5 @@
+import T from '@/lib/unified-tokens'
+
 // Types + color tokens + role definitions for the AI Council dashboard
 
 export type Direction = "BUY" | "SELL" | "HOLD";
@@ -75,7 +77,7 @@ export interface CouncilSession {
 }
 
 export const COLORS = {
-  bg: "#0B0E14",
+  bg: T.bg,
   bgElevated: "#0F131C",
   surface: "rgba(255, 255, 255, 0.03)",
   surfaceHover: "rgba(255, 255, 255, 0.05)",
@@ -85,9 +87,9 @@ export const COLORS = {
   textSecondary: "#CBD5E1",
   textMuted: "#94A3B8",
   textDim: "#64748B",
-  buy: "#10B981",
+  buy: T.profit,
   buySoft: "rgba(16, 185, 129, 0.12)",
-  sell: "#EF4444",
+  sell: T.loss,
   sellSoft: "rgba(239, 68, 68, 0.12)",
   hold: "#F59E0B",
   holdSoft: "rgba(245, 158, 11, 0.12)",
@@ -108,10 +110,10 @@ export const COUNCIL_ROLES: Array<{
   accent: string;
 }> = [
   { id: "macro-strategist", model: "GPT-4o", icon: "Globe", accent: "#A855F7" },
-  { id: "risk-sentinel", model: "Claude 3.5 Sonnet", icon: "ShieldAlert", accent: "#EF4444" },
+  { id: "risk-sentinel", model: "Claude 3.5 Sonnet", icon: "ShieldAlert", accent: T.loss },
   { id: "liquidity-analyst", model: "Gemini 1.5 Pro", icon: "Droplets", accent: "#06B6D4" },
   { id: "sentiment-reader", model: "DeepSeek V3", icon: "HeartPulse", accent: "#F472B6" },
-  { id: "technical-analyst", model: "GPT-4o-mini", icon: "LineChart", accent: "#10B981" },
+  { id: "technical-analyst", model: "GPT-4o-mini", icon: "LineChart", accent: T.profit },
   { id: "momentum-hunter", model: "Llama 3.1 70B", icon: "Zap", accent: "#F59E0B" },
   { id: "pattern-architect", model: "Claude 3 Opus", icon: "Hexagon", accent: "#8B5CF6" },
   { id: "volatility-tactician", model: "Mistral Large", icon: "Activity", accent: "#3B82F6" },

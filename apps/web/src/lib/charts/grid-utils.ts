@@ -5,7 +5,8 @@
 // ═══════════════════════════════════════════════════════════
 
 import type { ChartType } from '@/lib/charts/types';
-import { safeMax, safeMin } from '@/lib/charts/chart-utils';
+import { safeMax, safeMin } from '@/lib/charts/chart-utils'
+import T from '@/lib/unified-tokens';
 
 // Re-export safe math helpers for grid consumers
 export { safeMax, safeMin };
@@ -112,27 +113,27 @@ export const MTF_DEFAULT_TIMEFRAMES = ['15min', '1h', '4h', '1day', '5min', '1mi
 // UNIFY (4.4): was only in SmartGrid, now shared
 export const SOURCE_LABELS: Record<DataSource, { label: string; color: string }> = {
   loading: { label: '...', color: '#4B5563' },
-  binance: { label: 'Binance', color: '#00FFA3' },
+  binance: { label: 'Binance', color: T.success },
   coingecko: { label: 'CoinGecko', color: '#8B5CF6' },
   yahoo: { label: 'Yahoo', color: '#6366F1' },
   twelvedata: { label: '12Data', color: '#EC4899' },
-  unavailable: { label: 'Unavailable', color: '#FF4757' },
+  unavailable: { label: 'Unavailable', color: T.danger },
 };
 
 /** Common grid color palette — shared subset used by all grid components */
 // UNIFY (4.4): was duplicated as `C` in ChartGrid, SmartGrid, and `T` in HeatmapGrid
 export const GRID_COLORS = {
-  bg: '#0B0E14',
-  card: '#151A22',
-  cardBorder: '#2A313C',
+  bg: T.bg,
+  card: T.card,
+  cardBorder: T.border,
   grid: 'rgba(42,49,60,0.25)',
-  text: '#F0F2F5',
-  textDim: '#8B92A8',
+  text: T.text,
+  textDim: T.text2,
   textMuted: '#4B5563',
-  cyan: '#00D4FF',
-  success: '#00FFA3',
-  danger: '#FF4757',
-  gold: '#d4af37',
+  cyan: T.info,
+  success: T.success,
+  danger: T.danger,
+  gold: T.gold,
   upColor: '#3fb950',
   downColor: '#f85149',
   warning: '#fbbf24',

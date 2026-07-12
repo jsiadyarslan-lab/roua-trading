@@ -6,6 +6,7 @@ import { BellRing, X, Shield } from 'lucide-react'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { isRtlLocale } from '@/lib/i18n-utils'
 import { useTranslations, useLocale } from 'next-intl'
+import T from '@/lib/unified-tokens'
 
 /**
  * NotificationPermissionBanner — شعار يطلب إذن الإشعارات من المستخدم
@@ -102,13 +103,13 @@ export default function NotificationPermissionBanner() {
             border: '0.5px solid rgba(0,212,255,0.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <BellRing size={20} color="#00D4FF" />
+            <BellRing size={20} color={T.info} />
           </div>
 
           {/* Content */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{
-              fontSize: 13, fontWeight: 800, color: '#F0F2F5',
+              fontSize: 13, fontWeight: 800, color: T.text,
               margin: 0, lineHeight: 1.4,
             }}>
               {tn('enableDeviceNotifications')}
@@ -129,7 +130,7 @@ export default function NotificationPermissionBanner() {
                 background: 'rgba(0,212,255,0.15)',
                 border: '0.5px solid rgba(0,212,255,0.35)',
                 borderRadius: 10,
-                color: '#00D4FF',
+                color: T.info,
                 padding: '6px 14px',
                 fontSize: 11,
                 fontWeight: 800,

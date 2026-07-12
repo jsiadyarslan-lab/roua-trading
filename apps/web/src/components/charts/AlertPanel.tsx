@@ -7,7 +7,8 @@
 
 import { useState, useCallback } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Alert, AlertType, createAlert, ALERT_TYPE_LABELS, ALERT_TYPE_ICONS } from './AlertManager';
+import { Alert, AlertType, createAlert, ALERT_TYPE_LABELS, ALERT_TYPE_ICONS } from './AlertManager'
+import T from '@/lib/unified-tokens';
 
 interface AlertPanelProps {
   symbol: string;
@@ -21,14 +22,14 @@ const C = {
   cardHover: '#151D2B',
   border: '#1E2530',
   borderActive: 'rgba(0,212,255,0.35)',
-  cyan: '#00D4FF',
-  text: '#F0F2F5',
-  textDim: '#8B92A8',
+  cyan: T.info,
+  text: T.text,
+  textDim: T.text2,
   textMuted: '#4B5563',
-  success: '#00FFA3',
-  danger: '#FF4757',
+  success: T.success,
+  danger: T.danger,
   warning: '#fbbf24',
-  gold: '#d4af37',
+  gold: T.gold,
 };
 
 const TYPE_COLORS: Record<AlertType, string> = {

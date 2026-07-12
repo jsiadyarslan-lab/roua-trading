@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Activity } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import T from '@/lib/unified-tokens'
 
 /* ── Types ── */
 // FIX: Renamed from CandleData to DemoCandleData to avoid confusion with
@@ -101,10 +102,10 @@ function ChartInner() {
     chartRef.current = chart
 
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#10B981',
-      downColor: '#EF4444',
-      borderUpColor: '#10B981',
-      borderDownColor: '#EF4444',
+      upColor: T.profit,
+      downColor: T.loss,
+      borderUpColor: T.profit,
+      borderDownColor: T.loss,
       wickUpColor: '#10B98160',
       wickDownColor: '#EF444460',
     })
@@ -287,7 +288,7 @@ export default function LiveMarketChart() {
               <span
                 className="text-sm font-bold"
                 style={{
-                  color: isPositive ? '#10B981' : '#EF4444',
+                  color: isPositive ? T.profit : T.loss,
                   fontFamily: 'var(--font-mono)',
                 }}
               >
@@ -297,7 +298,7 @@ export default function LiveMarketChart() {
                 variant="outline"
                 className="text-[10px] font-mono px-1.5 py-0"
                 style={{
-                  color: isPositive ? '#10B981' : '#EF4444',
+                  color: isPositive ? T.profit : T.loss,
                   borderColor: isPositive ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)',
                   background: isPositive ? 'rgba(16,185,129,0.05)' : 'rgba(239,68,68,0.05)',
                 }}

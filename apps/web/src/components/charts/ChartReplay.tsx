@@ -7,7 +7,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import type { CandleData } from '@/lib/charts/types';
+import type { CandleData } from '@/lib/charts/types'
+import T from '@/lib/unified-tokens';
 
 // ── Types ─────────────────────────────────────────────────
 type ReplaySpeed = 0.5 | 1 | 2 | 5 | 10;
@@ -35,12 +36,12 @@ const C = {
   bg: 'rgba(11,14,20,0.95)',
   card: '#111620',
   border: '#1E2530',
-  cyan: '#00D4FF',
-  text: '#F0F2F5',
-  textDim: '#8B92A8',
+  cyan: T.info,
+  text: T.text,
+  textDim: T.text2,
   textMuted: '#4B5563',
-  success: '#00FFA3',
-  danger: '#FF4757',
+  success: T.success,
+  danger: T.danger,
   warning: '#fbbf24',
 };
 

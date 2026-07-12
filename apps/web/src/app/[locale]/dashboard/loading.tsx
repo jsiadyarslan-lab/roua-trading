@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import T from '@/lib/unified-tokens'
 
 export default function Loading() {
   const tc = useTranslations('common')
@@ -25,7 +26,7 @@ export default function Loading() {
           <div
             className="absolute inset-0 rounded-full border-2 border-transparent"
             style={{
-              borderTopColor: '#10B981',
+              borderTopColor: T.profit,
               borderRightColor: '#3B82F6',
               animation: 'spin 1s linear infinite',
             }}

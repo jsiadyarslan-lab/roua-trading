@@ -310,7 +310,7 @@ export default function PortfolioPage() {
       .portfolio-page-root { min-height: 100% !important; height: 100% !important; }
     }
     ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-track { background: #0B0E14; }
+    ::-webkit-scrollbar-track { background: ${T.bg}; }
     ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
     .portfolio-charts-row { display: flex; gap: 10px; margin-bottom: 12px; }
     .portfolio-distribution { flex: 0 0 300px; }
@@ -761,7 +761,7 @@ export default function PortfolioPage() {
     const symMap: Record<string, number> = {}
     positions.forEach(p => { symMap[p.symbol] = (symMap[p.symbol] || 0) + Math.abs(p.unrealizedPnl || 0) })
     const total = Object.values(symMap).reduce((s, v) => s + v, 0) || 1
-    const colors = ['#0A84FF', '#FFB800', '#F7931A', '#00FFA3', '#B388FF', '#FF4757', '#00D4FF']
+    const colors = [T.blue, T.warning, '#F7931A', T.success, T.council, T.danger, T.info]
     return Object.entries(symMap).map(([name, value], i) => ({
       name, value: Math.round((value / total) * 100), color: colors[i % colors.length],
     }))
@@ -989,7 +989,7 @@ export default function PortfolioPage() {
 <title>تقرير أداء — رؤى للتداول</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Cairo', 'Arial', sans-serif; background: #0B0E14; color: #F1F5F9; padding: 40px; }
+  body { font-family: 'Cairo', 'Arial', sans-serif; background: ${T.bg}; color: #F1F5F9; padding: 40px; }
   .header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #A855F7; }
   .header h1 { font-size: 24px; color: #A855F7; margin-bottom: 8px; }
   .header .date { font-size: 12px; color: #94A3B8; }
@@ -997,8 +997,8 @@ export default function PortfolioPage() {
   .stat-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; text-align: center; }
   .stat-label { font-size: 10px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
   .stat-value { font-size: 22px; font-weight: 700; font-family: monospace; }
-  .stat-value.green { color: #10B981; }
-  .stat-value.red { color: #EF4444; }
+  .stat-value.green { color: ${T.profit}; }
+  .stat-value.red { color: ${T.loss}; }
   .stat-value.purple { color: #A855F7; }
   .stat-value.cyan { color: #06B6D4; }
   .section { margin-bottom: 25px; }
@@ -1006,8 +1006,8 @@ export default function PortfolioPage() {
   table { width: 100%; border-collapse: collapse; font-size: 11px; }
   th { text-align: right; padding: 8px 10px; background: rgba(168,85,247,0.08); color: #A855F7; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid rgba(168,85,247,0.15); }
   td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); color: #CBD5E1; }
-  td.pnl-pos { color: #10B981; font-weight: 600; }
-  td.pnl-neg { color: #EF4444; font-weight: 600; }
+  td.pnl-pos { color: ${T.profit}; font-weight: 600; }
+  td.pnl-neg { color: ${T.loss}; font-weight: 600; }
   .direction-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .dir-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; }
   .dir-card h3 { font-size: 12px; margin-bottom: 8px; }
@@ -1063,12 +1063,12 @@ export default function PortfolioPage() {
     <h2>الأداء حسب الاتجاه</h2>
     <div class="direction-grid">
       <div class="dir-card">
-        <h3 style="color:#10B981;">شراء (BUY)</h3>
-        <p style="font-size:11px;color:#CBD5E1;">${buyTrades.length} صفقة | P&L: <span style="color:${buyPnl >= 0 ? '#10B981' : '#EF4444'};font-weight:600;">$${buyPnl.toFixed(2)}</span></p>
+        <h3 style="color:${T.profit};">شراء (BUY)</h3>
+        <p style="font-size:11px;color:#CBD5E1;">${buyTrades.length} صفقة | P&L: <span style="color:${buyPnl >= 0 ? T.profit : T.loss};font-weight:600;">$${buyPnl.toFixed(2)}</span></p>
       </div>
       <div class="dir-card">
-        <h3 style="color:#EF4444;">بيع (SELL)</h3>
-        <p style="font-size:11px;color:#CBD5E1;">${sellTrades.length} صفقة | P&L: <span style="color:${sellPnl >= 0 ? '#10B981' : '#EF4444'};font-weight:600;">$${sellPnl.toFixed(2)}</span></p>
+        <h3 style="color:${T.loss};">بيع (SELL)</h3>
+        <p style="font-size:11px;color:#CBD5E1;">${sellTrades.length} صفقة | P&L: <span style="color:${sellPnl >= 0 ? T.profit : T.loss};font-weight:600;">$${sellPnl.toFixed(2)}</span></p>
       </div>
     </div>
   </div>
@@ -1099,7 +1099,7 @@ export default function PortfolioPage() {
         ${trades.slice(0, 30).map(t => `
           <tr>
             <td style="font-weight:600;">${t.symbol || ''}</td>
-            <td style="color:${t.side === 'BUY' ? '#10B981' : '#EF4444'};">${t.side === 'BUY' ? 'شراء' : 'بيع'}</td>
+            <td style="color:${t.side === 'BUY' ? T.profit : T.loss};">${t.side === 'BUY' ? 'شراء' : 'بيع'}</td>
             <td>${t.entryPrice ? Number(t.entryPrice).toFixed(4) : '—'}</td>
             <td>${t.exitPrice ? Number(t.exitPrice).toFixed(4) : '—'}</td>
             <td>${t.exitReason || '—'}</td>

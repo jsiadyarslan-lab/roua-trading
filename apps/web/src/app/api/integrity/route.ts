@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server'
+import T from '@/lib/unified-tokens';
 
 /**
  * GET /api/integrity?html=1
@@ -184,30 +185,30 @@ export async function GET(request: NextRequest) {
 <title>Roua Data Integrity</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0B0E14;color:#F1F5F9;padding:24px;max-width:1100px;margin:0 auto}
-h1{color:#10B981;margin-bottom:4px;font-size:1.5rem}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:${T.bg};color:#F1F5F9;padding:24px;max-width:1100px;margin:0 auto}
+h1{color:${T.profit};margin-bottom:4px;font-size:1.5rem}
 .sub{color:#94A3B8;margin-bottom:24px;font-size:.85rem}
 .stats{display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap}
 .stat{background:#1A1D29;border:1px solid #2D3348;border-radius:10px;padding:16px 20px;text-align:center;min-width:90px}
 .stat .n{font-size:1.8rem;font-weight:700}
 .stat .l{color:#94A3B8;font-size:.72rem;margin-top:4px}
-.ok{color:#10B981}.err{color:#EF4444}.warn{color:#F59E0B}.fix{color:#3B82F6}.info{color:#60A5FA}
+.ok{color:${T.profit}}.err{color:${T.loss}}.warn{color:#F59E0B}.fix{color:#3B82F6}.info{color:#60A5FA}
 .tbl{width:100%;border-collapse:collapse;background:#1A1D29;border-radius:10px;overflow:hidden;margin-bottom:24px}
 .tbl th{background:#242838;padding:10px 14px;text-align:left;color:#94A3B8;font-size:.78rem;text-transform:uppercase;letter-spacing:.5px}
 .tbl td{padding:10px 14px;border-top:1px solid #2D3348;font-size:.85rem}
 .tbl tr:hover{background:rgba(255,255,255,.02)}
 .badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:.72rem;font-weight:600;white-space:nowrap}
-.b-ok{background:rgba(16,185,129,.15);color:#10B981}
+.b-ok{background:rgba(16,185,129,.15);color:${T.profit}}
 .b-exists{background:rgba(59,130,246,.15);color:#60A5FA}
-.b-err{background:rgba(239,68,68,.15);color:#EF4444}
+.b-err{background:rgba(239,68,68,.15);color:${T.loss}}
 .b-warn{background:rgba(245,158,11,.15);color:#F59E0B}
 .b-fix{background:rgba(59,130,246,.15);color:#3B82F6}
-.mismatch{background:rgba(239,68,68,.08);border-left:3px solid #EF4444;padding:8px 14px;margin:4px 0;border-radius:4px;font-size:.82rem}
+.mismatch{background:rgba(239,68,68,.08);border-left:3px solid ${T.loss};padding:8px 14px;margin:4px 0;border-radius:4px;font-size:.82rem}
 .mismatch code{color:#F87171;font-family:monospace}
 .mismatch .expected{color:#F59E0B;font-family:monospace}
 .code{font-family:'SF Mono',monospace;font-size:.82rem;color:#60A5FA}
-.detail-box{background:#0B0E14;border:1px solid #2D3348;border-radius:8px;padding:12px;margin-top:8px;max-height:200px;overflow:auto;font-family:monospace;font-size:.75rem;color:#94A3B8;white-space:pre-wrap;word-break:break-all}
-.verdict{background:#1A1D29;border:2px solid ${allGood ? '#10B981' : '#EF4444'};border-radius:12px;padding:20px;margin-bottom:24px;text-align:center}
+.detail-box{background:${T.bg};border:1px solid #2D3348;border-radius:8px;padding:12px;margin-top:8px;max-height:200px;overflow:auto;font-family:monospace;font-size:.75rem;color:#94A3B8;white-space:pre-wrap;word-break:break-all}
+.verdict{background:#1A1D29;border:2px solid ${allGood ? T.profit : T.loss};border-radius:12px;padding:20px;margin-bottom:24px;text-align:center}
 .verdict h2{font-size:1.3rem;margin-bottom:4px}
 .verdict p{color:#94A3B8;font-size:.9rem}
 .tip{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:.82rem;color:#94A3B8}
@@ -221,7 +222,7 @@ h1{color:#10B981;margin-bottom:4px;font-size:1.5rem}
 </div>
 
 <div class="verdict">
-  <h2 style="color:${allGood ? '#10B981' : '#EF4444'}">${allGood ? '✅ All Endpoints Exist' : '❌ Some Endpoints Missing'}</h2>
+  <h2 style="color:${allGood ? T.profit : T.loss}">${allGood ? '✅ All Endpoints Exist' : '❌ Some Endpoints Missing'}</h2>
   <p>${allGood
     ? 'All API routes exist on the backend. The iOS route fix (/trading/v2 → /trading) is working.'
     : 'Some endpoints return 404 — iOS will get $0/empty for these.'}</p>
@@ -293,7 +294,7 @@ ${results.filter(r => r.responseData && r.status >= 200 && r.status < 300).map(r
 </details>
 `).join('')}
 
-<h2 style="color:#10B981;font-size:1.1rem;margin-top:24px;margin-bottom:12px">✅ Route Fixes Applied</h2>
+<h2 style="color:${T.profit};font-size:1.1rem;margin-top:24px;margin-bottom:12px">✅ Route Fixes Applied</h2>
 <table class="tbl">
 <tr><th>iOS Old Path</th><th>Backend Status</th><th>iOS New Path</th><th>Backend Status</th><th>Result</th></tr>
 ${results.filter(r => r.routeFixed).map(r => `<tr>

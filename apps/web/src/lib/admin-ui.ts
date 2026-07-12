@@ -1,3 +1,5 @@
+import T from '@/lib/unified-tokens'
+
 /**
  * Shared design tokens and constants for the admin dashboard.
  *
@@ -8,16 +10,16 @@
 
 /* ── Color palette ── */
 export const COLORS = {
-  bg: '#0B0E14',
+  bg: T.bg,
   card: '#111318',
   accent: '#00E5FF',
   success: '#00E676',
   danger: '#FF5252',
-  amber: '#FFB800',
-  text: '#F0F2F5',
-  muted: '#8B92A8',
+  amber: T.warning,
+  text: T.text,
+  muted: T.text2,
   border: 'rgba(0,229,255,0.08)',
-  purple: '#B388FF',
+  purple: T.council,
 } as const
 
 /* ── Card container style ── */

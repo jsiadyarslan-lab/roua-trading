@@ -27,7 +27,8 @@ import { detectSMC } from '@/lib/charts/SMCDetector';
 import { detectElliottWaves } from '@/lib/charts/ElliottWave';
 import { detectWyckoff } from '@/lib/charts/WyckoffAnalysis';
 import { calcVolumeProfile } from '@/lib/charts/VolumeProfile';
-import { detectGeometricPatterns } from '@/lib/charts/GeometricPatterns';
+import { detectGeometricPatterns } from '@/lib/charts/GeometricPatterns'
+import T from '@/lib/unified-tokens';
 
 export interface SupportResistanceLevel {
   price: number;
@@ -150,14 +151,14 @@ const C = {
   cardHover: '#151D2B',
   border: '#1E2530',
   borderActive: 'rgba(0,212,255,0.35)',
-  cyan: '#00D4FF',
-  text: '#F0F2F5',
-  textDim: '#8B92A8',
+  cyan: T.info,
+  text: T.text,
+  textDim: T.text2,
   textMuted: '#4B5563',
-  success: '#00FFA3',
-  danger: '#FF4757',
+  success: T.success,
+  danger: T.danger,
   warning: '#fbbf24',
-  gold: '#d4af37',
+  gold: T.gold,
   upBg: 'rgba(0,255,163,0.06)',
   downBg: 'rgba(255,71,87,0.06)',
 };
@@ -1462,7 +1463,7 @@ export function AIPatternPanel({
               style={{
                 width: '100%', padding: '8px', borderRadius: 8, border: 'none',
                 background: engineRunning ? 'rgba(0,212,255,0.08)' : 'linear-gradient(135deg, rgba(0,212,255,0.2), rgba(0,212,255,0.1))',
-                color: '#00D4FF', fontWeight: 700, cursor: engineRunning ? 'not-allowed' : 'pointer',
+                color: T.info, fontWeight: 700, cursor: engineRunning ? 'not-allowed' : 'pointer',
                 fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               }}>
               {engineRunning ? `⏳ ${t('detectingPatterns')}` : `🔍 ${t('detectGeometricPatterns')}` }
@@ -1500,7 +1501,7 @@ export function AIPatternPanel({
           ) : (
             <div>
               {enginePatterns.map((p, i) => {
-                const col = p.direction === 'bullish' ? '#00FFA3' : '#FF4757';
+                const col = p.direction === 'bullish' ? T.success : T.danger;
                 return (
                   <div key={p.id} style={{
                     padding: '8px 12px',
@@ -1542,7 +1543,7 @@ export function AIPatternPanel({
                       </div>
                       <span style={{
                         background: p.quality.overall >= 7 ? 'rgba(0,255,163,0.15)' : 'rgba(0,212,255,0.1)',
-                        color: p.quality.overall >= 7 ? '#00FFA3' : '#00D4FF',
+                        color: p.quality.overall >= 7 ? T.success : T.info,
                         borderRadius: 6, padding: '1px 6px', fontSize: 9, fontWeight: 700,
                       }}>
                         {p.quality.overall}/10

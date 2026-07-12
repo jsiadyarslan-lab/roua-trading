@@ -8,7 +8,8 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { ScopedStyle } from '@/components/ScopedStyle';
+import { ScopedStyle } from '@/components/ScopedStyle'
+import T from '@/lib/unified-tokens';
 
 interface MultiTimeframeChartProps {
   symbol: string;
@@ -50,16 +51,16 @@ const POPULAR_PAIRS = [
 ];
 
 const C = {
-  bg: '#0B0E14',
+  bg: T.bg,
   card: '#111620',
   cardBorder: '#1E2530',
   grid: 'rgba(42,49,60,0.25)',
-  text: '#F0F2F5',
+  text: T.text,
   textDim: '#64748B',
   textMuted: '#4B5563',
-  cyan: '#00D4FF',
-  success: '#00FFA3',
-  danger: '#FF4757',
+  cyan: T.info,
+  success: T.success,
+  danger: T.danger,
   upColor: '#3fb950',
   downColor: '#f85149',
 };

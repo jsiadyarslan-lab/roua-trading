@@ -8,12 +8,13 @@
 // Previously this file had its own CHART_COLORS with different color values
 // (#22c55e/#ef4444 vs #3fb950/#f85149) that were never imported but could
 // cause confusion. Chart-specific colors are now centralized.
-import { CHART_COLORS } from './chart-utils';
+import { CHART_COLORS } from './chart-utils'
+import T from '@/lib/unified-tokens';
 export { CHART_COLORS };
 
 // ── UI-specific colors not covered by chart-utils CHART_COLORS ──
 export const UI_COLORS = {
-  background: '#0b0e14',
+  background: T.bg,
   gridText: '#64748b',
   borderColor: '#64748b',
 } as const;

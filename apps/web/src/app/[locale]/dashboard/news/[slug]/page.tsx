@@ -591,9 +591,9 @@ function PlainArticleContent({ content }: { content: string }) {
   // Color cycle for sections
   const sectionColors = [
     { border: '#00E5FF40', bg: '#00E5FF08', iconBg: '#00E5FF18', color: '#00E5FF' },
-    { border: '#FFB80040', bg: '#FFB80008', iconBg: '#FFB80018', color: '#FFB800' },
+    { border: '#FFB80040', bg: '#FFB80008', iconBg: '#FFB80018', color: T.warning },
     { border: '#32D74B40', bg: '#32D74B08', iconBg: '#32D74B18', color: '#32D74B' },
-    { border: '#B388FF40', bg: '#B388FF08', iconBg: '#B388FF18', color: '#B388FF' },
+    { border: '#B388FF40', bg: '#B388FF08', iconBg: '#B388FF18', color: T.council },
     { border: '#FF453A40', bg: '#FF453A08', iconBg: '#FF453A18', color: '#FF453A' },
   ]
 

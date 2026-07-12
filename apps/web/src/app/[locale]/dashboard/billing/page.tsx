@@ -374,7 +374,7 @@ export default function BillingPage() {
                     <div style={{
                       position: 'absolute', top: 12, left: 12,
                       padding: '3px 10px', borderRadius: 10,
-                      background: `linear-gradient(135deg, ${T.cyan}, #0A84FF)`,
+                      background: `linear-gradient(135deg, ${T.cyan}, ${T.blue})`,
                       color: '#000', fontSize: 9, fontWeight: 800,
                       fontFamily: "var(--font-ar)",
                       boxShadow: `0 0 12px ${T.cyan}30`,

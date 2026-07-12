@@ -69,7 +69,7 @@ export function BotCommandCenter() {
           useTabAlertStore.getState().pushAlert('signals', {
             action: sig.type,
             label: `${sig.type === 'BUY' ? '⬆' : '⬇'} ${sig.pair} ${sig.conf}%`,
-            color: sig.type === 'BUY' ? '#00FFA3' : '#FF4757',
+            color: sig.type === 'BUY' ? T.success : T.danger,
           })
         }
       }

@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Zap, ChartBar, Key, Cpu, Globe } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { ScopedStyle } from '@/components/ScopedStyle';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl'
+import T from '@/lib/unified-tokens';
 
 interface Planet {
   name: string;
@@ -62,7 +63,7 @@ const planets: Planet[] = [
   {
     name: 'Ollama',
     icon: Cpu,
-    color: '#10B981',
+    color: T.profit,
     orbitRadius: 285,
     orbitDuration: 38,
     descKey: 'ollamaDesc',

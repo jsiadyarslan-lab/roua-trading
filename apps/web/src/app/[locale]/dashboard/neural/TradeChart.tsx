@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl'
+import T from '@/lib/unified-tokens';
 
 interface TradePoint {
   entryDate: string;
@@ -100,8 +101,8 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
           horzLines: { color: '#1f2937' },
         },
         crosshair: {
-          vertLine: { color: '#6b7280', width: 1, style: 2 },
-          horzLine: { color: '#6b7280', width: 1, style: 2 },
+          vertLine: { color: T.text3, width: 1, style: 2 },
+          horzLine: { color: T.text3, width: 1, style: 2 },
         },
         rightPriceScale: {
           borderColor: '#374151',
@@ -117,11 +118,11 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
       // Add candlestick series using v5 API
       const candleSeries = chart.addSeries(CandlestickSeries, {
         upColor: '#22c55e',
-        downColor: '#ef4444',
+        downColor: T.loss,
         borderUpColor: '#22c55e',
-        borderDownColor: '#ef4444',
+        borderDownColor: T.loss,
         wickUpColor: '#22c55e',
-        wickDownColor: '#ef4444',
+        wickDownColor: T.loss,
       });
 
       const candleData = generateCandleData(trades);
@@ -142,7 +143,7 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
           markers.push({
             time: trade.entryDate,
             position: trade.side === 'BUY' ? 'belowBar' : 'aboveBar',
-            color: trade.side === 'BUY' ? '#22c55e' : '#ef4444',
+            color: trade.side === 'BUY' ? '#22c55e' : T.loss,
             shape: trade.side === 'BUY' ? 'arrowUp' : 'arrowDown',
             text: trade.side === 'BUY' ? t('tradeChartEntry') : t('tradeChartSellEntryShort'),
           });
@@ -153,7 +154,7 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
           markers.push({
             time: trade.exitDate,
             position: trade.side === 'BUY' ? 'aboveBar' : 'belowBar',
-            color: trade.side === 'BUY' ? '#ef4444' : '#22c55e',
+            color: trade.side === 'BUY' ? T.loss : '#22c55e',
             shape: trade.side === 'BUY' ? 'arrowDown' : 'arrowUp',
             text: t('tradeChartExit'),
           });

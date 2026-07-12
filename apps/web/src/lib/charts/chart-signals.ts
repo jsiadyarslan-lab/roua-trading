@@ -1,3 +1,5 @@
+import T from '@/lib/unified-tokens'
+
 // ═══════════════════════════════════════════════════════════
 // ROUA Trading Chart — Signal Fetching Service
 // Fetches active signals & strategic council briefs for chart display
@@ -110,7 +112,7 @@ export function convertToChartMarkers(
     markers.push({
       time: signalTime,
       position: isBuy ? 'belowBar' : 'aboveBar',
-      color: isBuy ? '#00FFA3' : isSell ? '#FF4757' : '#fbbf24',
+      color: isBuy ? T.success : isSell ? T.danger : '#fbbf24',
       shape: isBuy ? 'arrowUp' : isSell ? 'arrowDown' : 'circle',
       text: label,
       _signalData: signal,
@@ -133,7 +135,7 @@ export function convertToChartMarkers(
     markers.push({
       time: briefTime,
       position: brief.direction === 'bullish' ? 'belowBar' : 'aboveBar',
-      color: brief.direction === 'bullish' ? '#00D4FF' : brief.direction === 'bearish' ? '#FF6B6B' : '#fbbf24',
+      color: brief.direction === 'bullish' ? T.info : brief.direction === 'bearish' ? '#FF6B6B' : '#fbbf24',
       shape: brief.direction === 'bullish' ? 'arrowUp' : 'arrowDown',
       text: '',
       _signalData: brief,

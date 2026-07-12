@@ -19,7 +19,8 @@ import { useChartStateStore, type SmartGridPersistConfig, type SmartGridCellConf
 import type { CandleData, ActiveIndicator } from '@/lib/charts/types';
 import { INDICATOR_CONFIGS } from '@/lib/charts/types';
 import { calculateIndicator } from '@/lib/charts/IndicatorCalculator';
-import { CRYPTO_BASES as CRYPTO_BASES_LOCAL } from '@/lib/charts/config';
+import { CRYPTO_BASES as CRYPTO_BASES_LOCAL } from '@/lib/charts/config'
+import T from '@/lib/unified-tokens';
 
 // ── Request Queue — limits concurrent fetches + deduplicates by URL ──
 // PERF (3.10): Added dedup — if the same URL is already in the queue or
@@ -149,17 +150,17 @@ const TIMEFRAME_OPTIONS = [
 const MTF_DEFAULT_TIMEFRAMES = ['15min', '1h', '4h', '1day', '5min', '1min'];
 
 const C = {
-  bg: '#0B0E14',
+  bg: T.bg,
   card: '#111620',
   cardBorder: '#1E2530',
   grid: 'rgba(42,49,60,0.25)',
-  text: '#F0F2F5',
-  textDim: '#8B92A8',
+  text: T.text,
+  textDim: T.text2,
   textMuted: '#4B5563',
-  cyan: '#00D4FF',
-  success: '#00FFA3',
-  danger: '#FF4757',
-  gold: '#d4af37',
+  cyan: T.info,
+  success: T.success,
+  danger: T.danger,
+  gold: T.gold,
   upColor: '#3fb950',
   downColor: '#f85149',
   warning: '#fbbf24',

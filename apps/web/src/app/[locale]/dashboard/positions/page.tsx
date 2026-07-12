@@ -23,7 +23,8 @@ import { fetchPositionsUnified, fetchSummaryUnified, closePositionUnified } from
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 
 import { getDirection } from '@/lib/i18n-utils';
-import { useLocale } from 'next-intl';
+import { useLocale } from 'next-intl'
+import T from '@/lib/unified-tokens';
 // ── Types ──
 interface Position {
   id: string
@@ -64,7 +65,7 @@ function getSourceBadge(source?: string | null, tradeSource?: string | null) {
     smart_executor: {
       label: 'المنفذ',
       bg: 'rgba(0,212,255,0.12)',
-      color: '#00D4FF',
+      color: T.info,
       border: 'rgba(0,212,255,0.25)',
       icon: '\u2694\uFE0F',
     },
@@ -78,14 +79,14 @@ function getSourceBadge(source?: string | null, tradeSource?: string | null) {
     auto_paper: {
       label: 'ورقي',
       bg: 'rgba(255,184,0,0.12)',
-      color: '#FFB800',
+      color: T.warning,
       border: 'rgba(255,184,0,0.25)',
       icon: '\uD83D\uDCDD',
     },
     mt5_sync: {
       label: 'MT5',
       bg: 'rgba(16,185,129,0.12)',
-      color: '#10B981',
+      color: T.profit,
       border: 'rgba(16,185,129,0.25)',
       icon: '\uD83D\uDCF1',
     },

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl'
+import T from '@/lib/unified-tokens';
 
 export default function CosmicCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -32,7 +33,7 @@ export default function CosmicCanvas() {
     }
 
     const satellites: Satellite[] = [
-      { nameKey: 'linguisticAnalyst', descKey: 'linguisticAnalystDesc', color: '#00d4ff', angle: 0, speed: 0.0045, radius: 320, tilt: 0.45, size: 9 },
+      { nameKey: 'linguisticAnalyst', descKey: 'linguisticAnalystDesc', color: T.info, angle: 0, speed: 0.0045, radius: 320, tilt: 0.45, size: 9 },
       { nameKey: 'chartAnalysis', descKey: 'chartAnalysisDesc', color: '#7dd3fc', angle: 1.0, speed: 0.0035, radius: 390, tilt: 0.35, size: 10 },
       { nameKey: 'dataProcessing', descKey: 'dataProcessingDesc', color: '#34d399', angle: 2.1, speed: 0.0055, radius: 290, tilt: 0.55, size: 8 },
       { nameKey: 'secureInfra', descKey: 'secureInfraDesc', color: '#bae6fd', angle: 3.5, speed: 0.0028, radius: 430, tilt: 0.4, size: 9 },

@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
-import { getDirection } from '@/lib/i18n-utils';
+import { getDirection } from '@/lib/i18n-utils'
+import T from '@/lib/unified-tokens';
 import {
   Users,
   Search,
@@ -34,14 +35,14 @@ interface AdminUser {
 }
 
 const COLORS = {
-  bg: '#0B0E14',
+  bg: T.bg,
   card: '#111318',
   accent: '#00E5FF',
   success: '#00E676',
   danger: '#FF5252',
-  amber: '#FFB800',
-  text: '#F0F2F5',
-  muted: '#8B92A8',
+  amber: T.warning,
+  text: T.text,
+  muted: T.text2,
   border: 'rgba(0,229,255,0.08)',
 }
 
@@ -62,7 +63,7 @@ function getTierStyle(tier: string) {
     case 'PREMIUM':
       return { bg: 'rgba(0,230,118,0.10)', border: 'rgba(0,230,118,0.25)', color: COLORS.success, label: 'مميز' }
     case 'INSTITUTIONAL':
-      return { bg: 'rgba(179,136,255,0.10)', border: 'rgba(179,136,255,0.25)', color: '#B388FF', label: 'مؤسسي' }
+      return { bg: 'rgba(179,136,255,0.10)', border: 'rgba(179,136,255,0.25)', color: T.council, label: 'مؤسسي' }
     default:
       return { bg: 'rgba(139,146,168,0.10)', border: 'rgba(139,146,168,0.25)', color: COLORS.muted, label: 'مجاني' }
   }

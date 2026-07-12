@@ -2098,7 +2098,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     chart.applyOptions({
       layout: {
         background: { color: settings.bgColor },
-        textColor: '#8B92A8',
+        textColor: T.text2,
         attributionLogo: false,
       },
       grid: {

@@ -7,7 +7,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import type { CandleData } from '@/lib/charts/types';
+import type { CandleData } from '@/lib/charts/types'
+import T from '@/lib/unified-tokens';
 
 function safeMax(arr: number[]): number {
   if (arr.length === 0) return -Infinity;
@@ -41,12 +42,12 @@ const C = {
   bg: 'rgba(0,0,0,0.6)',
   card: '#111620',
   border: '#1E2530',
-  text: '#F0F2F5',
-  textDim: '#8B92A8',
+  text: T.text,
+  textDim: T.text2,
   textMuted: '#4B5563',
-  cyan: '#00D4FF',
-  success: '#00FFA3',
-  danger: '#FF4757',
+  cyan: T.info,
+  success: T.success,
+  danger: T.danger,
   warning: '#fbbf24',
 };
 

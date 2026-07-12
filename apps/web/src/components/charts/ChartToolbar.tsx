@@ -10,7 +10,8 @@ import { getPortalRoot } from '@/lib/portal-root';
 import type { ChartType, DrawingTool } from '@/lib/charts/types';
 import { TIMEFRAMES } from '@/lib/charts/types';
 import { ScopedStyle } from '@/components/ScopedStyle';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl'
+import T from '@/lib/unified-tokens';
 
 interface ChartToolbarProps {
   symbol: string;
@@ -235,18 +236,18 @@ export function ChartToolbar(props: ChartToolbarProps) {
   const tfLabel = activeTF?.label || timeframe;
 
   const COLORS = {
-    bg: '#0F1117',
+    bg: T.bg2,
     border: 'rgba(42,49,60,0.9)',
-    cyan: '#00D4FF',
-    text: '#F0F2F5',
-    textSecondary: '#8B92A8',
-    textMuted: '#8B92A8',
-    card: '#151A22',
+    cyan: T.info,
+    text: T.text,
+    textSecondary: T.text2,
+    textMuted: T.text2,
+    card: T.card,
     hoverBg: 'rgba(0,212,255,0.08)',
-    activeBg: '#00D4FF',
-    danger: '#FF4757',
+    activeBg: T.info,
+    danger: T.danger,
     warning: '#fbbf24',
-    success: '#00FFA3',
+    success: T.success,
   };
 
   // FIX: على الجوال الضيق جداً نُخفي الأزرار الثانوية
@@ -735,7 +736,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
               }}
             >
               {TOOLBAR_SYMBOLS.map(s => (
-                <option key={s} value={s} style={{ background: '#111620', color: '#F0F2F5' }}>{s}</option>
+                <option key={s} value={s} style={{ background: '#111620', color: T.text }}>{s}</option>
               ))}
             </select>
             <div style={sepStyle} />

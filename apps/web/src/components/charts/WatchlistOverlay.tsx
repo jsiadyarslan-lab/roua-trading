@@ -7,7 +7,8 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useMarketStore } from '@/hooks/useMarketStore';
-import type { QuoteData } from '@/hooks/useMarketStore';
+import type { QuoteData } from '@/hooks/useMarketStore'
+import T from '@/lib/unified-tokens';
 
 function safeMax(arr: number[]): number {
   if (arr.length === 0) return -Infinity;
@@ -64,13 +65,13 @@ export function WatchlistOverlay({
   const COLORS = {
     bg: 'rgba(21,26,34,0.9)',
     border: 'rgba(42,49,60,0.6)',
-    text: '#F0F2F5',
-    textSecondary: '#8B92A8',
-    textMuted: '#8B92A8',
-    success: '#00FFA3',
-    danger: '#FF4757',
-    cyan: '#00D4FF',
-    card: '#151A22',
+    text: T.text,
+    textSecondary: T.text2,
+    textMuted: T.text2,
+    success: T.success,
+    danger: T.danger,
+    cyan: T.info,
+    card: T.card,
   };
 
   if (!visible || sparklines.length === 0) return null;

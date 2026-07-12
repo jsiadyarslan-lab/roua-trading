@@ -119,23 +119,23 @@ function getRegimeLabel(regime: MarketRegime, t: (k: string) => string): string 
 
 function getRegimeColor(regime: MarketRegime): string {
   switch (regime) {
-    case MarketRegime.TRENDING_UP: return '#00FFA3'
-    case MarketRegime.TRENDING_DOWN: return '#FF4757'
-    case MarketRegime.RANGING: return '#FFB800'
+    case MarketRegime.TRENDING_UP: return T.success
+    case MarketRegime.TRENDING_DOWN: return T.danger
+    case MarketRegime.RANGING: return T.warning
     case MarketRegime.VOLATILE: return '#FF6B9D'
-    case MarketRegime.TRANSITIONAL: return '#8B92A8'
-    default: return '#8B92A8'
+    case MarketRegime.TRANSITIONAL: return T.text2
+    default: return T.text2
   }
 }
 
 function getRegimeIcon(regime: MarketRegime): React.ReactNode {
   switch (regime) {
-    case MarketRegime.TRENDING_UP: return <TrendingUp size={18} color="#00FFA3" />
-    case MarketRegime.TRENDING_DOWN: return <TrendingDown size={18} color="#FF4757" />
-    case MarketRegime.RANGING: return <ArrowUpDown size={18} color="#FFB800" />
+    case MarketRegime.TRENDING_UP: return <TrendingUp size={18} color={T.success} />
+    case MarketRegime.TRENDING_DOWN: return <TrendingDown size={18} color={T.danger} />
+    case MarketRegime.RANGING: return <ArrowUpDown size={18} color={T.warning} />
     case MarketRegime.VOLATILE: return <Zap size={18} color="#FF6B9D" />
-    case MarketRegime.TRANSITIONAL: return <Activity size={18} color="#8B92A8" />
-    default: return <Activity size={18} color="#8B92A8" />
+    case MarketRegime.TRANSITIONAL: return <Activity size={18} color={T.text2} />
+    default: return <Activity size={18} color={T.text2} />
   }
 }
 
@@ -160,11 +160,11 @@ function getVolatilityLabel(level: string, t: (k: string) => string): string {
 
 function getVolatilityColor(level: string): string {
   switch (level) {
-    case 'LOW': return '#00FFA3'
-    case 'MEDIUM': return '#FFB800'
+    case 'LOW': return T.success
+    case 'MEDIUM': return T.warning
     case 'HIGH': return '#FF6B9D'
-    case 'EXTREME': return '#FF4757'
-    default: return '#8B92A8'
+    case 'EXTREME': return T.danger
+    default: return T.text2
   }
 }
 
@@ -299,7 +299,7 @@ export default function AutonomousTraderPage() {
             {/* Agent Avatar */}
             <div style={{
               width: 52, height: 52, borderRadius: 14,
-              background: `linear-gradient(135deg, ${isRunning ? '#00FFA3' : T.accent}, ${isRunning ? '#00B894' : '#0A84FF'})`,
+              background: `linear-gradient(135deg, ${isRunning ? T.success : T.accent}, ${isRunning ? '#00B894' : T.blue})`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: isRunning ? `0 0 24px rgba(0,255,163,0.3)` : `0 0 24px ${T.glow}`,
               transition: 'all 0.4s ease',
@@ -459,13 +459,13 @@ export default function AutonomousTraderPage() {
                     const isActive = strategy === s
                     const accentMap: Record<StrategyType, string> = {
                       [StrategyType.AUTO]: '#FF9F43',
-                      [StrategyType.SWING]: '#00FFA3',
-                      [StrategyType.GRID]: '#B388FF',
-                      [StrategyType.MEAN_REVERSION]: '#FFB800',
+                      [StrategyType.SWING]: T.success,
+                      [StrategyType.GRID]: T.council,
+                      [StrategyType.MEAN_REVERSION]: T.warning,
                       [StrategyType.MOMENTUM_BREAKOUT]: '#FF6B9D',
                       [StrategyType.DCA]: '#00B894',
-                      [StrategyType.VWAP_RSI]: '#A29BFE',
-                      [StrategyType.SCALPING]: '#00D4FF', // kept for type safety even though removed from UI
+                      [StrategyType.VWAP_RSI]: T.brandLight,
+                      [StrategyType.SCALPING]: T.info, // kept for type safety even though removed from UI
                     }
                     const accent = accentMap[s]
                     return (
@@ -1404,7 +1404,7 @@ export default function AutonomousTraderPage() {
                 <>
                   <div style={{
                     width: `${(performance.winningTrades / performance.totalTrades) * 100}%`,
-                    background: `linear-gradient(90deg, ${T.green}, #00CC82)`,
+                    background: `linear-gradient(90deg, ${T.green}, ${T.greenDim})`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontFamily: FONT_MONO, fontSize: 10, fontWeight: 800, color: '#000',
                     transition: 'width 0.5s ease',
@@ -1954,8 +1954,8 @@ export default function AutonomousTraderPage() {
 function InfoRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
-      <span style={{ fontFamily: "var(--font-ar)", fontSize: 11, color: '#8B92A8' }}>{label}</span>
-      <span style={{ fontFamily: "var(--font-ar)", fontSize: 11, fontWeight: 700, color: valueColor || '#F0F2F5' }}>{value}</span>
+      <span style={{ fontFamily: "var(--font-ar)", fontSize: 11, color: T.text2 }}>{label}</span>
+      <span style={{ fontFamily: "var(--font-ar)", fontSize: 11, fontWeight: 700, color: valueColor || T.text }}>{value}</span>
     </div>
   )
 }
@@ -1981,7 +1981,7 @@ function StrategyTag({ label }: { label: string }) {
       padding: '3px 8px', borderRadius: 4,
       background: 'rgba(255,255,255,0.05)',
       border: '1px solid rgba(255,255,255,0.08)',
-      color: '#8B92A8',
+      color: T.text2,
     }}>{label}</span>
   )
 }
@@ -2008,8 +2008,8 @@ function MiniGauge({ value, max, color, label }: { value: number; max: number; c
 function DetailMetric({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div>
-      <div style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: '#8B92A8', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 800, color: color || '#F0F2F5', direction: 'ltr', textAlign: 'right' }}>{value}</div>
+      <div style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: T.text2, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 800, color: color || T.text, direction: 'ltr', textAlign: 'right' }}>{value}</div>
     </div>
   )
 }
@@ -2021,7 +2021,7 @@ function RiskSlider({ label, subLabel, value, min, max, step, unit, color, onCha
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
         <div>
-          <div style={{ fontFamily: "var(--font-ar)", fontSize: 12, fontWeight: 700, color: '#F0F2F5' }}>{label}</div>
+          <div style={{ fontFamily: "var(--font-ar)", fontSize: 12, fontWeight: 700, color: T.text }}>{label}</div>
           <div style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: '#5A6178' }}>{subLabel}</div>
         </div>
         <div style={{

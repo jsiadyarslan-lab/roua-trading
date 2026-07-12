@@ -65,10 +65,10 @@ function getStrategyAccent(s: StrategyType): string {
     case StrategyType.SCALPING: return T.accent
     case StrategyType.SWING: return T.green
     case StrategyType.GRID: return T.purple
-    case StrategyType.MEAN_REVERSION: return '#FFB800'
+    case StrategyType.MEAN_REVERSION: return T.warning
     case StrategyType.MOMENTUM_BREAKOUT: return '#FF6B9D'
     case StrategyType.DCA: return '#00B894'
-    case StrategyType.VWAP_RSI: return '#A29BFE'
+    case StrategyType.VWAP_RSI: return T.brandLight
     default: return T.accent
   }
 }

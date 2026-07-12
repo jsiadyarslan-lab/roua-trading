@@ -5,14 +5,15 @@ import { useRouter } from '@/i18n/navigation'
 import { Shield, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations } from 'next-intl'
+import T from '@/lib/unified-tokens'
 
 const COLORS = {
-  bg: '#0B0E14',
+  bg: T.bg,
   card: '#111318',
   accent: '#00E5FF',
   danger: '#FF5252',
-  text: '#F0F2F5',
-  muted: '#8B92A8',
+  text: T.text,
+  muted: T.text2,
   border: 'rgba(0,229,255,0.08)',
 }
 

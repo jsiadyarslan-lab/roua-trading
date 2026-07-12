@@ -92,16 +92,16 @@ const ORB_GAP = 120
 type MarketState = 'bullish' | 'bearish' | 'volatile' | 'neutral'
 
 const STATE: Record<MarketState, { core: string; glow: string }> = {
-  bullish:  { core: '#00FFC6', glow: 'rgba(0,255,198,0.55)'  },
-  bearish:  { core: '#FF4D4D', glow: 'rgba(255,77,77,0.55)'  },
-  volatile: { core: '#FFB800', glow: 'rgba(255,184,0,0.55)'  },
+  bullish:  { core: T.greenAlt, glow: 'rgba(0,255,198,0.55)'  },
+  bearish:  { core: T.redAlt, glow: 'rgba(255,77,77,0.55)'  },
+  volatile: { core: T.warning, glow: 'rgba(255,184,0,0.55)'  },
   neutral:  { core: '#00C8FF', glow: 'rgba(0,200,255,0.45)'  },
 }
 
 const PLANETS = [
-  { inset: -5,  size: 6, color: '#FFB800', glow: '#FFB80088', dur: '5s',  dir: 'ring-cw'  },
-  { inset: -12, size: 8, color: '#B388FF', glow: '#B388FF88', dur: '10s', dir: 'ring-ccw' },
-  { inset: -20, size: 5, color: '#FF4D4D', glow: '#FF4D4D88', dur: '16s', dir: 'ring-cw'  },
+  { inset: -5,  size: 6, color: T.warning, glow: '#FFB80088', dur: '5s',  dir: 'ring-cw'  },
+  { inset: -12, size: 8, color: T.council, glow: '#B388FF88', dur: '10s', dir: 'ring-ccw' },
+  { inset: -20, size: 5, color: T.redAlt, glow: '#FF4D4D88', dur: '16s', dir: 'ring-cw'  },
   { inset: -28, size: 4, color: '#00C8FF', glow: '#00C8FF88', dur: '22s', dir: 'ring-ccw' },
 ]
 
@@ -260,7 +260,7 @@ function fetchNewsData(locale: string): Promise<NewsItem[]> {
             categoryFr: item.categoryFr || item.category || 'Général',
             categoryTr: item.categoryTr || item.category || 'Genel',
             categoryEs: item.categoryEs || item.category || 'General',
-            color: item.color || '#8B92A8',
+            color: item.color || T.text2,
             impact: item.impact || 'medium',
           })
         }
@@ -331,10 +331,10 @@ function NewsTicker() {
       }}>
         <span style={{
           fontFamily: "var(--font-mono)", fontSize: 8, fontWeight: 800,
-          color: '#00D4FF', letterSpacing: '0.12em',
+          color: T.info, letterSpacing: '0.12em',
         }}>NEWS</span>
         <span style={{
-          width: 5, height: 5, borderRadius: '50%', background: '#10B981',
+          width: 5, height: 5, borderRadius: '50%', background: T.profit,
           boxShadow: '0 0 6px #10B981',
           animation: 'star-blink 2s ease-in-out infinite',
         }} />
@@ -362,7 +362,7 @@ function NewsTicker() {
                     border: `1px solid ${item.color}40`,
                     textShadow: 'none',
                   }}>{displayCat || 'News'}</span>
-                  {item.impact === 'high' && <span style={{ color: '#FF4757', fontSize: 5, fontWeight: 900, textShadow: '0 0 4px rgba(255,71,87,0.5)' }}>●</span>}
+                  {item.impact === 'high' && <span style={{ color: T.danger, fontSize: 5, fontWeight: 900, textShadow: '0 0 4px rgba(255,71,87,0.5)' }}>●</span>}
                   <span style={{ color: '#999999' }}>{displayText}</span>
                 </span>
               )
@@ -957,7 +957,7 @@ function AccountDropdown({
           <div style={{
             display: 'inline-block', fontSize: 9, fontWeight: 700,
             padding: '2px 8px', borderRadius: 4,
-            background: 'rgba(0,212,255,0.10)', color: '#00d4ff',
+            background: 'rgba(0,212,255,0.10)', color: T.info,
             fontFamily: "var(--font-mono)",
             letterSpacing: '0.05em',
           }}>{authUser.tier}</div>
@@ -1002,11 +1002,11 @@ function AccountDropdown({
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
           fontFamily: "var(--font-ar)", fontSize: 13,
-          color: '#FF4757', fontWeight: 500, transition: 'all 0.15s',
+          color: T.danger, fontWeight: 500, transition: 'all 0.15s',
           borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 4,
         }}
         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.08)'; e.currentTarget.style.color = '#FF6B7A' }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#FF4757' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = {T.danger} }}
       >
         <LogOut size={15} strokeWidth={2} />
         {t('common.logout')}
@@ -1161,8 +1161,8 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
 
   // Mode-specific styling
   const modeConfig: Record<TradingMode, { accent: string }> = {
-    trader:   { accent: '#00d4ff' },
-    investor: { accent: '#10b981' },
+    trader:   { accent: T.info },
+    investor: { accent: T.profit },
     ai:       { accent: '#a78bfa' },
   }
 
@@ -1590,7 +1590,7 @@ export function AppHeader() {
              <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid rgba(0,212,255,0.10)`, display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', padding: 2, borderRadius: 8, border: `1px solid ${T.border}` }}>
                   {([['trader', t('common.trader')], ['investor', t('common.investor')], ['ai', 'AI']] as [TradingMode, string][]).map(([m, label]) => {
-                    const accentMap: Record<TradingMode, string> = { trader: '#00d4ff', investor: '#10b981', ai: '#a78bfa' }
+                    const accentMap: Record<TradingMode, string> = { trader: T.info, investor: T.profit, ai: '#a78bfa' }
                     return (
                       <button key={m} onClick={() => handleModeChange(m)} style={{
                         flex: 1, padding: '8px 10px', fontSize: 10, fontWeight: m === mode ? 800 : 500,
@@ -1621,7 +1621,7 @@ export function AppHeader() {
                     display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px',
                     borderRadius: 10, background: 'rgba(255,71,87,0.06)',
                     border: '1px solid rgba(255,71,87,0.12)', cursor: 'pointer',
-                    color: '#FF4757',
+                    color: T.danger,
                   }}
                 >
                   <LogOut size={18} />

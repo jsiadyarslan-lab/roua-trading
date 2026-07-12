@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import T from '@/lib/unified-tokens'
 
 export interface PositionModalData {
   type: 'modify_sltp' | 'close' | 'reverse' | 'alert' | 'details' | 'copy_id'
@@ -68,7 +69,7 @@ export function PositionModal({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{
               fontSize: 10, fontWeight: 800,
-              color: modal.positionData.side === 'long' ? '#00FFA3' : '#FF4757',
+              color: modal.positionData.side === 'long' ? T.success : T.danger,
               padding: '2px 8px', borderRadius: 4,
               background: modal.positionData.side === 'long' ? 'rgba(0,255,163,0.12)' : 'rgba(255,71,87,0.12)',
             }}>
@@ -85,7 +86,7 @@ export function PositionModal({
               color: '#5A6A80', fontSize: 16, lineHeight: 1, padding: '2px 6px',
               borderRadius: 4,
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = '#FF4757'; e.currentTarget.style.background = 'rgba(255,71,87,0.1)'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = {T.danger}; e.currentTarget.style.background = 'rgba(255,71,87,0.1)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = '#5A6A80'; e.currentTarget.style.background = 'transparent'; }}
           >
             ✕
@@ -94,7 +95,7 @@ export function PositionModal({
 
         {/* Title */}
         <div style={{ padding: '10px 18px 4px' }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#00D4FF' }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: T.info }}>
             {modal.title}
           </span>
         </div>
@@ -106,7 +107,7 @@ export function PositionModal({
           {modal.type === 'modify_sltp' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
-                <label style={{ fontSize: 11, color: '#8B92A8', display: 'block', marginBottom: 4 }}>
+                <label style={{ fontSize: 11, color: T.text2, display: 'block', marginBottom: 4 }}>
                   وقف الخسارة (SL)
                 </label>
                 <input
@@ -126,7 +127,7 @@ export function PositionModal({
                 />
               </div>
               <div>
-                <label style={{ fontSize: 11, color: '#8B92A8', display: 'block', marginBottom: 4 }}>
+                <label style={{ fontSize: 11, color: T.text2, display: 'block', marginBottom: 4 }}>
                   أخذ الربح (TP)
                 </label>
                 <input
@@ -150,7 +151,7 @@ export function PositionModal({
                   flex: 1, padding: '8px',
                   background: 'rgba(255,255,255,0.04)',
                   border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 8, color: '#8B92A8',
+                  borderRadius: 8, color: T.text2,
                   fontSize: 11, fontWeight: 700, cursor: 'pointer',
                   fontFamily: 'var(--font-ar)',
                 }}>إلغاء</button>
@@ -175,7 +176,7 @@ export function PositionModal({
                   flex: 1, padding: '8px',
                   background: 'rgba(0,212,255,0.12)',
                   border: '1px solid rgba(0,212,255,0.4)',
-                  borderRadius: 8, color: '#00D4FF',
+                  borderRadius: 8, color: T.info,
                   fontSize: 11, fontWeight: 700, cursor: 'pointer',
                   fontFamily: 'var(--font-ar)',
                 }}>حفظ</button>
@@ -203,7 +204,7 @@ export function PositionModal({
                   flex: 1, padding: '8px',
                   background: 'rgba(255,255,255,0.04)',
                   border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 8, color: '#8B92A8',
+                  borderRadius: 8, color: T.text2,
                   fontSize: 11, fontWeight: 700, cursor: 'pointer',
                   fontFamily: 'var(--font-ar)',
                 }}>إلغاء</button>
@@ -223,7 +224,7 @@ export function PositionModal({
                   flex: 1, padding: '8px',
                   background: 'rgba(255,71,87,0.15)',
                   border: '1px solid rgba(255,71,87,0.4)',
-                  borderRadius: 8, color: '#FF4757',
+                  borderRadius: 8, color: T.danger,
                   fontSize: 11, fontWeight: 700, cursor: 'pointer',
                   fontFamily: 'var(--font-ar)',
                 }}>تأكيد الإغلاق</button>
@@ -251,7 +252,7 @@ export function PositionModal({
                   flex: 1, padding: '8px',
                   background: 'rgba(255,255,255,0.04)',
                   border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 8, color: '#8B92A8',
+                  borderRadius: 8, color: T.text2,
                   fontSize: 11, fontWeight: 700, cursor: 'pointer',
                   fontFamily: 'var(--font-ar)',
                 }}>إلغاء</button>
@@ -280,7 +281,7 @@ export function PositionModal({
                   flex: 1, padding: '8px',
                   background: 'rgba(255,184,0,0.15)',
                   border: '1px solid rgba(255,184,0,0.4)',
-                  borderRadius: 8, color: '#FFB800',
+                  borderRadius: 8, color: T.warning,
                   fontSize: 11, fontWeight: 700, cursor: 'pointer',
                   fontFamily: 'var(--font-ar)',
                 }}>تأكيد العكس</button>
@@ -292,7 +293,7 @@ export function PositionModal({
           {modal.type === 'alert' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
-                <label style={{ fontSize: 11, color: '#8B92A8', display: 'block', marginBottom: 4 }}>
+                <label style={{ fontSize: 11, color: T.text2, display: 'block', marginBottom: 4 }}>
                   سعر التنبيه
                 </label>
                 <input
@@ -316,7 +317,7 @@ export function PositionModal({
                   flex: 1, padding: '8px',
                   background: 'rgba(255,255,255,0.04)',
                   border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 8, color: '#8B92A8',
+                  borderRadius: 8, color: T.text2,
                   fontSize: 11, fontWeight: 700, cursor: 'pointer',
                   fontFamily: 'var(--font-ar)',
                 }}>إلغاء</button>
@@ -338,7 +339,7 @@ export function PositionModal({
                   flex: 1, padding: '8px',
                   background: 'rgba(179,136,255,0.15)',
                   border: '1px solid rgba(179,136,255,0.4)',
-                  borderRadius: 8, color: '#B388FF',
+                  borderRadius: 8, color: T.council,
                   fontSize: 11, fontWeight: 700, cursor: 'pointer',
                   fontFamily: 'var(--font-ar)',
                 }}>إنشاء التنبيه</button>
@@ -351,12 +352,12 @@ export function PositionModal({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {[
                 { label: 'الزوج', value: modal.positionData.symbol, color: '#E0ECF8' },
-                { label: 'الاتجاه', value: modal.positionData.side === 'long' ? 'شراء ▲' : 'بيع ▼', color: modal.positionData.side === 'long' ? '#00FFA3' : '#FF4757' },
+                { label: 'الاتجاه', value: modal.positionData.side === 'long' ? 'شراء ▲' : 'بيع ▼', color: modal.positionData.side === 'long' ? T.success : T.danger },
                 { label: 'سعر الدخول', value: modal.positionData.entryPrice.toString(), color: '#E0ECF8' },
                 { label: 'الحجم', value: modal.positionData.qty.toString(), color: '#E0ECF8' },
-                { label: 'وقف الخسارة', value: modal.positionData.stopLoss?.toString() || '—', color: '#FF4757' },
-                { label: 'أخذ الربح', value: modal.positionData.takeProfit?.toString() || '—', color: '#00FFA3' },
-                { label: 'المصدر', value: modal.positionData.source || '—', color: '#8B92A8' },
+                { label: 'وقف الخسارة', value: modal.positionData.stopLoss?.toString() || '—', color: T.danger },
+                { label: 'أخذ الربح', value: modal.positionData.takeProfit?.toString() || '—', color: T.success },
+                { label: 'المصدر', value: modal.positionData.source || '—', color: T.text2 },
                 { label: 'المعرف', value: modal.positionData.positionId, color: '#5A6A80', mono: true },
               ].map((row, i) => (
                 <div key={i} style={{
@@ -378,7 +379,7 @@ export function PositionModal({
                 marginTop: 8, padding: '8px',
                 background: 'rgba(0,212,255,0.12)',
                 border: '1px solid rgba(0,212,255,0.4)',
-                borderRadius: 8, color: '#00D4FF',
+                borderRadius: 8, color: T.info,
                 fontSize: 11, fontWeight: 700, cursor: 'pointer',
                 fontFamily: 'var(--font-ar)',
               }}>إغلاق</button>

@@ -35,7 +35,8 @@ import ThinkingIndicator from './ThinkingIndicator';
 import ChatInput from './ChatInput';
 import WelcomeScreen from './WelcomeScreen';
 import { Locale, CHAT_TEXT, Message } from './chat-text';
-import MessageBubble from './MessageBubble';
+import MessageBubble from './MessageBubble'
+import T from '@/lib/unified-tokens';
 import './assistant.css';
 
 // Message interface is now exported from ./chat-text
@@ -1735,7 +1736,7 @@ export default function AssistantChatWidget({ variant = 'floating', reportType }
     switch (marketPulse) {
       case 'bullish': return '#22C55E';
       case 'bearish': return '#EF5350';
-      case 'neutral': return '#FFB800';
+      case 'neutral': return T.warning;
       default: return '#8A9DB2';
     }
   };

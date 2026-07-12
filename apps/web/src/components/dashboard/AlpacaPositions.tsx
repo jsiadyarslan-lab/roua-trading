@@ -636,7 +636,7 @@ export function AlpacaPositions() {
               gap: 6,
               alignItems: 'center',
               padding: '0 6px 2px',
-              color: '#8B92A8',
+              color: T.text2,
               fontSize: 7,
               fontWeight: 800,
               fontFamily: "var(--font-ar)",
@@ -889,7 +889,7 @@ export function AlpacaPositions() {
                     width: 20, height: 20, borderRadius: 4,
                     border: '1px solid rgba(255,255,255,0.1)',
                     background: 'rgba(255,255,255,0.03)',
-                    color: '#8B92A8',
+                    color: T.text2,
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                     cursor: 'pointer', fontSize: 11, fontWeight: 900, lineHeight: 1, padding: 0,
                     transition: 'all 0.15s',
@@ -897,12 +897,12 @@ export function AlpacaPositions() {
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = 'rgba(0,212,255,0.12)'
                     e.currentTarget.style.borderColor = 'rgba(0,212,255,0.3)'
-                    e.currentTarget.style.color = '#00D4FF'
+                    e.currentTarget.style.color = {T.info}
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = 'rgba(255,255,255,0.03)'
                     e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
-                    e.currentTarget.style.color = '#8B92A8'
+                    e.currentTarget.style.color = {T.text2}
                   }}
                 >
                   ⋮
@@ -1185,7 +1185,7 @@ export function AlpacaPositions() {
             }}>
               <span style={{
                 fontSize: 9, fontWeight: 800,
-                color: contextMenu.side === 'long' ? '#00FFA3' : '#FF4757',
+                color: contextMenu.side === 'long' ? T.success : T.danger,
                 padding: '1px 5px', borderRadius: 3,
                 background: contextMenu.side === 'long' ? 'rgba(0,255,163,0.12)' : 'rgba(255,71,87,0.12)',
               }}>
@@ -1203,7 +1203,7 @@ export function AlpacaPositions() {
                   background: 'transparent', border: 'none', cursor: 'pointer',
                   color: '#5A6A80', fontSize: 14, lineHeight: 1, padding: '0 2px', marginLeft: 4,
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = '#FF4757'; }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = {T.danger}; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = '#5A6A80'; }}
                 title="إغلاق"
               >
@@ -1213,15 +1213,15 @@ export function AlpacaPositions() {
 
             {/* Menu items */}
             {([
-              { icon: '✎', label: 'تعديل SL/TP', color: '#00D4FF', action: 'modify_sltp' },
-              { icon: '✕', label: 'إغلاق الصفقة', color: '#FF4757', action: 'close' },
-              { icon: '⇄', label: 'عكس الصفقة', color: '#FFB800', action: 'reverse' },
+              { icon: '✎', label: 'تعديل SL/TP', color: T.info, action: 'modify_sltp' },
+              { icon: '✕', label: 'إغلاق الصفقة', color: T.danger, action: 'close' },
+              { icon: '⇄', label: 'عكس الصفقة', color: T.warning, action: 'reverse' },
               { divider: true },
-              { icon: '📊', label: 'فتح الشارت', color: '#00FFA3', action: 'focus_chart' },
-              { icon: '🔔', label: 'تنبيه على السعر', color: '#B388FF', action: 'alert' },
+              { icon: '📊', label: 'فتح الشارت', color: T.success, action: 'focus_chart' },
+              { icon: '🔔', label: 'تنبيه على السعر', color: T.council, action: 'alert' },
               { divider: true },
-              { icon: 'ℹ', label: 'تفاصيل الصفقة', color: '#8B92A8', action: 'details' },
-              { icon: '📋', label: 'نسخ معرف الصفقة', color: '#8B92A8', action: 'copy_id' },
+              { icon: 'ℹ', label: 'تفاصيل الصفقة', color: T.text2, action: 'details' },
+              { icon: '📋', label: 'نسخ معرف الصفقة', color: T.text2, action: 'copy_id' },
             ] as Array<{ icon?: string; label?: string; color?: string; action?: string; divider?: boolean }>).map((item, i) => item.divider ? (
               <div key={`div-${i}`} style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
             ) : (
@@ -1281,8 +1281,8 @@ export function AlpacaPositions() {
                   transition: 'background 0.15s',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = `${item.color || '#8B92A8'}15`
-                  e.currentTarget.style.color = item.color || '#8B92A8'
+                  e.currentTarget.style.background = `${item.color || T.text2}15`
+                  e.currentTarget.style.color = item.color || T.text2
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = 'transparent'

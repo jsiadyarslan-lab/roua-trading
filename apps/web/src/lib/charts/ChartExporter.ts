@@ -2,7 +2,8 @@
 // ROUA Trading Chart — Export Utilities (PNG, CSV)
 // ═══════════════════════════════════════════════════════════
 
-import type { CandleData } from './types';
+import type { CandleData } from './types'
+import T from '@/lib/unified-tokens';
 
 export class ChartExporter {
 
@@ -81,7 +82,7 @@ export class ChartExporter {
      viewBox="0 0 ${cssWidth} ${cssHeight}">
   <title>ROUA Chart Export</title>
   <desc>Chart exported from ROUA Trading Platform</desc>
-  <rect width="100%" height="100%" fill="#0B0E14"/>
+  <rect width="100%" height="100%" fill={T.bg}/>
   <image xlink:href="${dataUrl}" width="${cssWidth}" height="${cssHeight}" preserveAspectRatio="xMinYMin meet"/>
 </svg>`;
 

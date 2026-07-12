@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { useTranslations, useLocale } from 'next-intl'
+import T from '@/lib/unified-tokens'
 
 interface NewsItem {
   category: string
@@ -125,7 +126,7 @@ export default function NewsTicker() {
             categoryFr: item.categoryFr || item.category || 'Général',
             categoryTr: item.categoryTr || item.category || 'Genel',
             categoryEs: item.categoryEs || item.category || 'General',
-            color: item.color || '#8B92A8',
+            color: item.color || T.text2,
             bgColor: item.bgColor || '#8B92A812',
             text: item.text || item.headline || item.title || '',
             textAr: (item.textAr && /[\u0600-\u06FF]/.test(item.textAr)) ? item.textAr : (item.translatedTitle && /[\u0600-\u06FF]/.test(item.translatedTitle)) ? item.translatedTitle : '',

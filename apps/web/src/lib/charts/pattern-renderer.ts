@@ -4,7 +4,8 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import type { DetectedPattern } from './pattern-engine';
-import { startAnimatedPattern, cancelAnimatedPattern } from './AnimatedPatterns';
+import { startAnimatedPattern, cancelAnimatedPattern } from './AnimatedPatterns'
+import T from '@/lib/unified-tokens';
 
 // ── Animation toggle (set to true for Autochartist-like progressive drawing) ──
 let animationEnabled = true;
@@ -48,14 +49,14 @@ const COLORS = {
     neckline: 'rgba(0,212,255,0.8)',
     forecast: 'rgba(0,255,163,0.15)',
     forecastBorder: 'rgba(0,255,163,0.5)',
-    label: '#00FFA3',
+    label: T.success,
   },
   bearish: {
     line: 'rgba(255,71,87,0.9)',
     neckline: 'rgba(255,165,0,0.8)',
     forecast: 'rgba(255,71,87,0.15)',
     forecastBorder: 'rgba(255,71,87,0.5)',
-    label: '#FF4757',
+    label: T.danger,
   },
 };
 

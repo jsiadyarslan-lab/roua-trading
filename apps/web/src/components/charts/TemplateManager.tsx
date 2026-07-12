@@ -11,7 +11,8 @@ import { useState, useEffect } from 'react';
 import type { ChartTemplate } from '@/lib/charts/types';
 import { ChartTemplateManager } from '@/lib/charts/ChartTemplate';
 import { GridTemplateManager, type GridTemplate } from '@/lib/charts/GridTemplate';
-import { useLocale, useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl'
+import T from '@/lib/unified-tokens';
 
 interface TemplateManagerProps {
   onLoadTemplate: (id: string) => void;
@@ -127,16 +128,16 @@ export function TemplateManager({
   };
 
   const COLORS = {
-    card: '#151A22',
+    card: T.card,
     border: 'rgba(42,49,60,0.9)',
-    cyan: '#00D4FF',
-    text: '#F0F2F5',
-    textSecondary: '#8B92A8',
-    textMuted: '#8B92A8',
-    success: '#00FFA3',
-    danger: '#FF4757',
+    cyan: T.info,
+    text: T.text,
+    textSecondary: T.text2,
+    textMuted: T.text2,
+    success: T.success,
+    danger: T.danger,
     warning: '#fbbf24',
-    bg: '#0B0E14',
+    bg: T.bg,
     purple: '#a855f7',
   };
 

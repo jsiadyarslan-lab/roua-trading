@@ -22,6 +22,7 @@ import {
   LineChart,
 } from 'lucide-react'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import T from '@/lib/unified-tokens'
 
 const NAV_ITEMS = [
   { id: 'overview', label: 'نظرة عامة', icon: LayoutDashboard, path: '/dashboard/admin' },
@@ -159,7 +160,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return (
       <div style={{
         minHeight: '100vh',
-        background: '#0B0E14',
+        background: T.bg,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -167,7 +168,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       }}>
         <div style={{ textAlign: 'center' }}>
           <Loader2 size={32} color="#00E5FF" style={{ animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
-          <div style={{ fontSize: 14, color: '#8B92A8', fontFamily: "var(--font-ar)" }}>جارٍ التحقق من الهوية...</div>
+          <div style={{ fontSize: 14, color: T.text2, fontFamily: "var(--font-ar)" }}>جارٍ التحقق من الهوية...</div>
         </div>
       </div>
     )
@@ -188,9 +189,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const SIDEBAR_BG = '#0D1017'
   const SIDEBAR_BORDER = 'rgba(0,229,255,0.08)'
   const ACCENT = '#00E5FF'
-  const TEXT = '#F0F2F5'
-  const TEXT_MUTED = '#8B92A8'
-  const BG = '#0B0E14'
+  const TEXT = {T.text}
+  const TEXT_MUTED = {T.text2}
+  const BG = {T.bg}
 
   return (
     <div style={{ display: 'flex', minHeight: '100%', direction: 'inherit', background: BG }}>

@@ -335,7 +335,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
           padding: 4,
           display: 'flex',
           flexDirection: 'column',
-          background: '#0B0E14',
+          background: T.bg,
           position: 'relative',
           zIndex: 1,
         }}

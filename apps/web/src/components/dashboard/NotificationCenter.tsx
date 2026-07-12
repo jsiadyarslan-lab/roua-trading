@@ -13,6 +13,7 @@ import {
 } from '@/hooks/useNotificationStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
+import T from '@/lib/unified-tokens'
 
 /* ══ Helpers ══════════════════════════════════════════════ */
 
@@ -91,20 +92,20 @@ const SRC_ICON: Record<NotifSource, React.ReactNode> = {
 }
 
 const SRC_COLOR: Record<NotifSource, string> = {
-  bot: '#00D4FF',
-  ai: '#b388ff',
-  scanner: '#FFB800',
-  trade: '#00FFA3',
-  system: '#8B92A8',
+  bot: T.info,
+  ai: T.council,
+  scanner: T.warning,
+  trade: T.success,
+  system: T.text2,
   agent: '#A259FF',
 }
 
 const ACTION_COLOR: Record<NotifAction, string> = {
-  BUY: '#00FFA3',
-  SELL: '#FF4757',
-  INFO: '#00D4FF',
-  WARN: '#FFB800',
-  CLOSE: '#FF4757',
+  BUY: T.success,
+  SELL: T.danger,
+  INFO: T.info,
+  WARN: T.warning,
+  CLOSE: T.danger,
   CANCEL: '#FF9500',
 }
 
@@ -307,7 +308,7 @@ function ToastCard({
           style={{
             fontSize: 11,
             fontWeight: 800,
-            color: '#F0F2F5',
+            color: T.text,
             margin: '0 0 3px 0',
           }}
         >
@@ -316,7 +317,7 @@ function ToastCard({
         <p
           style={{
             fontSize: 10,
-            color: '#8B92A8',
+            color: T.text2,
             margin: 0,
             lineHeight: 1.4,
           }}
@@ -376,7 +377,7 @@ function ToastCard({
                   border: `1px solid ${
                     executed ? 'rgba(255,255,255,0.1)' : `${actionColor}40`
                   }`,
-                  color: executed ? '#8B92A8' : actionColor,
+                  color: executed ? T.text2 : actionColor,
                   padding: '3px 8px',
                   borderRadius: 4,
                   fontSize: 9,
@@ -404,7 +405,7 @@ function ToastCard({
           background: 'transparent',
           border: 'none',
           cursor: 'pointer',
-          color: '#8B92A8',
+          color: T.text2,
           padding: 0,
           flexShrink: 0,
           marginTop: 2,
@@ -554,14 +555,14 @@ function NotificationItem({
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-          <span style={{ fontSize: 11, fontWeight: 800, color: '#F0F2F5' }}>{localizedTitle}</span>
-          <span style={{ fontSize: 9, color: '#8B92A8', flexShrink: 0, marginInlineEnd: 8 }}>{timeAgo(notif.timestamp)}</span>
+          <span style={{ fontSize: 11, fontWeight: 800, color: T.text }}>{localizedTitle}</span>
+          <span style={{ fontSize: 9, color: T.text2, flexShrink: 0, marginInlineEnd: 8 }}>{timeAgo(notif.timestamp)}</span>
         </div>
-        <p style={{ fontSize: 10, color: '#8B92A8', margin: 0, lineHeight: 1.5 }}>{localizedBody}</p>
+        <p style={{ fontSize: 10, color: T.text2, margin: 0, lineHeight: 1.5 }}>{localizedBody}</p>
         {notif.pair && (
           <div style={{ marginTop: 4, display: 'flex', gap: 6, alignItems: 'center' }}>
             <span style={{ fontSize: 9, fontFamily: "var(--font-mono)", color: '#fff', fontWeight: 700 }}>{notif.pair}</span>
-            {notif.price && <span style={{ fontSize: 9, color: '#8B92A8' }}>{notif.price}</span>}
+            {notif.price && <span style={{ fontSize: 9, color: T.text2 }}>{notif.price}</span>}
             <span
               style={{
                 fontSize: 8,
@@ -590,7 +591,7 @@ function NotificationItem({
           background: 'transparent',
           border: 'none',
           cursor: 'pointer',
-          color: '#8B92A8',
+          color: T.text2,
           padding: 2,
           flexShrink: 0,
           opacity: 0.5,
@@ -622,7 +623,7 @@ function NotifSettingsPanel() {
     <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
       {rows.map((r) => (
         <div key={r.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: '#F0F2F5' }}>{r.label}</span>
+          <span style={{ fontSize: 11, color: T.text }}>{r.label}</span>
           <button
             onClick={() => updateSettings({ [r.key]: !(settings as any)[r.key] })}
             style={{
@@ -662,8 +663,8 @@ function NotifSettingsPanel() {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <div>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#FFB800' }}>{tn('autoExecuteSignals')}</span>
-            <p style={{ fontSize: 9, color: '#8B92A8', margin: '2px 0 0' }}>{tn('autoExecuteDesc')}</p>
+            <span style={{ fontSize: 11, fontWeight: 800, color: T.warning }}>{tn('autoExecuteSignals')}</span>
+            <p style={{ fontSize: 9, color: T.text2, margin: '2px 0 0' }}>{tn('autoExecuteDesc')}</p>
           </div>
           <button
             onClick={() => updateSettings({ autoExecute: !(settings as any).autoExecute })}
@@ -674,7 +675,7 @@ function NotifSettingsPanel() {
               border: 'none',
               cursor: 'pointer',
               position: 'relative',
-              background: (settings as any).autoExecute ? '#FFB800' : 'rgba(255,255,255,0.1)',
+              background: (settings as any).autoExecute ? T.warning : 'rgba(255,255,255,0.1)',
               transition: 'background 0.2s',
             }}
           >
@@ -704,8 +705,8 @@ function NotifSettingsPanel() {
             marginTop: 6,
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span style={{ fontSize: 9, color: '#8B92A8' }}>{tn('confidenceThreshold')}</span>
-              <span style={{ fontSize: 9, color: '#FFB800', fontWeight: 800 }}>{settings.minConfidence}%</span>
+              <span style={{ fontSize: 9, color: T.text2 }}>{tn('confidenceThreshold')}</span>
+              <span style={{ fontSize: 9, color: T.warning, fontWeight: 800 }}>{settings.minConfidence}%</span>
             </div>
             <input
               type="range"
@@ -714,9 +715,9 @@ function NotifSettingsPanel() {
               step={5}
               value={settings.minConfidence}
               onChange={(e) => updateSettings({ minConfidence: parseInt(e.target.value) })}
-              style={{ width: '100%', accentColor: '#FFB800' }}
+              style={{ width: '100%', accentColor: T.warning }}
             />
-            <p style={{ fontSize: 8, color: '#8B92A8', margin: '4px 0 0', lineHeight: 1.4 }}>
+            <p style={{ fontSize: 8, color: T.text2, margin: '4px 0 0', lineHeight: 1.4 }}>
               {tn('autoExecuteNotice')}
             </p>
           </div>
@@ -725,7 +726,7 @@ function NotifSettingsPanel() {
 
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-          <span style={{ fontSize: 11, color: '#F0F2F5' }}>{tn('minConfidence')}</span>
+          <span style={{ fontSize: 11, color: T.text }}>{tn('minConfidence')}</span>
           <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 800 }}>{settings.minConfidence}%</span>
         </div>
         <input
@@ -790,7 +791,7 @@ export function NotificationCenter() {
           background: open ? 'rgba(0,212,255,0.1)' : 'transparent',
           border: open ? '1px solid rgba(0,212,255,0.25)' : '1px solid transparent',
           borderRadius: 8,
-          color: open ? '#00D4FF' : '#8B92A8',
+          color: open ? T.info : T.text2,
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
@@ -812,7 +813,7 @@ export function NotificationCenter() {
         >
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-          {unread > 0 && <circle cx="18" cy="5" r="4" fill="#FF4757" stroke="#060b13" strokeWidth="2" />}
+          {unread > 0 && <circle cx="18" cy="5" r="4" fill={T.danger} stroke="#060b13" strokeWidth="2" />}
         </svg>
         {unread > 0 && (
           <span
@@ -824,7 +825,7 @@ export function NotificationCenter() {
               height: 16,
               borderRadius: 8,
               padding: '0 4px',
-              background: '#FF4757',
+              background: T.danger,
               fontSize: 8,
               color: '#fff',
               display: 'flex',
@@ -880,7 +881,7 @@ export function NotificationCenter() {
             >
               <span style={{ fontSize: 13, fontWeight: 900, color: '#fff' }}>
                 {tn('title')}{' '}
-                {unread > 0 && <span style={{ color: '#00D4FF', fontSize: 11 }}>({unread} {tn('new')})</span>}
+                {unread > 0 && <span style={{ color: T.info, fontSize: 11 }}>({unread} {tn('new')})</span>}
               </span>
               <div style={{ display: 'flex', gap: 6 }}>
                 {unread > 0 && (
@@ -888,7 +889,7 @@ export function NotificationCenter() {
                     onClick={markAllRead}
                     style={{
                       fontSize: 9,
-                      color: '#8B92A8',
+                      color: T.text2,
                       background: 'transparent',
                       border: 'none',
                       cursor: 'pointer',
@@ -902,7 +903,7 @@ export function NotificationCenter() {
                     onClick={clearAll}
                     style={{
                       fontSize: 9,
-                      color: '#FF4757',
+                      color: T.danger,
                       background: 'transparent',
                       border: 'none',
                       cursor: 'pointer',
@@ -925,7 +926,7 @@ export function NotificationCenter() {
                     fontSize: 11,
                     background: 'transparent',
                     border: 'none',
-                    color: tab === t ? '#00D4FF' : '#8B92A8',
+                    color: tab === t ? T.info : T.text2,
                     cursor: 'pointer',
                     borderBottom: tab === t ? '2px solid #00D4FF' : 'none',
                     fontFamily: "var(--font-ar)",

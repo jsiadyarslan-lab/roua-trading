@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { COLORS, CARD_STYLE } from '@/lib/admin-ui'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import T from '@/lib/unified-tokens'
 
 interface AdminStats {
   users: { total: number; free: number; pro: number; plus: number; premium: number; institutional: number }
@@ -275,7 +276,7 @@ export default function AdminOverviewPage() {
           { label: 'برو', value: stats?.users.pro ?? 0, color: COLORS.accent, icon: CreditCard },
           { label: 'بلس', value: stats?.users.plus ?? 0, color: COLORS.amber, icon: CreditCard },
           { label: 'مميز', value: stats?.users.premium ?? 0, color: COLORS.success, icon: CreditCard },
-          { label: 'مؤسسي', value: stats?.users.institutional ?? 0, color: '#B388FF', icon: Shield },
+          { label: 'مؤسسي', value: stats?.users.institutional ?? 0, color: T.council, icon: Shield },
           { label: 'مراكز مفتوحة', value: stats?.trading.activePositions ?? 0, color: COLORS.accent, icon: Activity },
         ].map((item, i) => {
           const Icon = item.icon
@@ -407,7 +408,7 @@ export default function AdminOverviewPage() {
           {[
             { label: 'فحص النظام', icon: Shield, color: COLORS.accent },
             { label: 'إدارة الاشتراكات', icon: CreditCard, color: COLORS.amber },
-            { label: 'مراقبة AI', icon: Brain, color: '#B388FF' },
+            { label: 'مراقبة AI', icon: Brain, color: T.council },
             { label: 'إدارة المستخدمين', icon: Users, color: COLORS.accent },
           ].map((action, i) => {
             const ActionIcon = action.icon

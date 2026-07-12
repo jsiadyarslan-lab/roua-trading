@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
+import T from '@/lib/unified-tokens'
 
 interface ErrorBoundaryProps {
   children: React.ReactNode
@@ -56,7 +57,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             marginBottom: 16,
           }}>
-            <AlertTriangle size={28} color="#FF4D4D" />
+            <AlertTriangle size={28} color={T.redAlt} />
           </div>
           <h2 style={{
             fontSize: 18, fontWeight: 800, color: '#E6EBF5',

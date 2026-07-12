@@ -5,7 +5,8 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react'
+import T from '@/lib/unified-tokens';
 
 // ── Types ─────────────────────────────────────────────────
 interface HeatmapItem {
@@ -31,12 +32,12 @@ const C = {
   bg: 'rgba(11,14,20,0.97)',
   card: '#111620',
   border: '#1E2530',
-  cyan: '#00D4FF',
-  text: '#F0F2F5',
-  textDim: '#8B92A8',
+  cyan: T.info,
+  text: T.text,
+  textDim: T.text2,
   textMuted: '#4B5563',
-  success: '#00FFA3',
-  danger: '#FF4757',
+  success: T.success,
+  danger: T.danger,
   warning: '#fbbf24',
 };
 

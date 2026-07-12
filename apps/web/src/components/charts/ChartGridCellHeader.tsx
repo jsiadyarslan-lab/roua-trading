@@ -4,7 +4,8 @@
 
 'use client';
 
-import React from 'react';
+import React from 'react'
+import T from '@/lib/unified-tokens';
 
 // ── Constants (duplicated from RouaChart to keep this component self-contained) ──
 
@@ -88,13 +89,13 @@ export function ChartGridCellHeader({
         }}
         style={{
           background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)',
-          borderRadius: 3, color: '#00D4FF', fontFamily: "var(--font-mono)",
+          borderRadius: 3, color: T.info, fontFamily: "var(--font-mono)",
           fontSize: 10, fontWeight: 700, padding: '1px 4px', cursor: 'pointer',
           outline: 'none', maxWidth: 95, flexShrink: 0,
         }}
       >
         {POPULAR_SYMBOLS_MINI.map(p => (
-          <option key={p} value={p} style={{ background: '#111620', color: '#F0F2F5' }}>{p}</option>
+          <option key={p} value={p} style={{ background: '#111620', color: T.text }}>{p}</option>
         ))}
       </select>
 
@@ -110,7 +111,7 @@ export function ChartGridCellHeader({
               style={{
                 background: active ? 'rgba(0,212,255,0.15)' : 'transparent',
                 border: active ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent',
-                borderRadius: 2, color: active ? '#00D4FF' : '#4B5563',
+                borderRadius: 2, color: active ? T.info : '#4B5563',
                 fontFamily: "var(--font-mono)", fontSize: 8,
                 fontWeight: active ? 700 : 500, padding: '0 3px', height: 18,
                 cursor: 'pointer', whiteSpace: 'nowrap',
@@ -124,7 +125,7 @@ export function ChartGridCellHeader({
       )}
       {feedState === 'waiting' && (
         <div style={{ width: 8, height: 8, border: '2px solid #1E2530',
-          borderTopColor: '#00D4FF', borderRadius: '50%', animation: 'mcSpin 1s linear infinite' }} />
+          borderTopColor: T.info, borderRadius: '50%', animation: 'mcSpin 1s linear infinite' }} />
       )}
       <div style={{ flex: 1 }} />
       {/* Expand/Collapse button */}
@@ -135,7 +136,7 @@ export function ChartGridCellHeader({
           style={{
             background: isExpanded ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.04)',
             border: isExpanded ? '1px solid rgba(0,212,255,0.3)' : '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 2, color: isExpanded ? '#00D4FF' : '#4B5563', width: 16, height: 16, cursor: 'pointer',
+            borderRadius: 2, color: isExpanded ? T.info : '#4B5563', width: 16, height: 16, cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
             flexShrink: 0, transition: 'all 0.15s ease',
           }}

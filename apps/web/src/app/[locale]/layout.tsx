@@ -9,7 +9,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { GlobalStyleRegistry } from "@/components/GlobalStyleRegistry";
 import PWARegistrar from "@/components/PWARegistrar";
 // V469: مساعد التداول الذكي — منقول بالكامل من مساعد رؤى المالي
-import AssistantChatWidgetClient from "@/components/assistant/AssistantChatWidgetClient";
+import AssistantChatWidgetClient from "@/components/assistant/AssistantChatWidgetClient"
+import T from '@/lib/unified-tokens';
 
 // V597: Load fonts properly via next/font/google (was empty objects before)
 // This makes --font-cairo, --font-inter, --font-jetbrains, --font-orbitron
@@ -59,7 +60,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: 'cover',
-  themeColor: '#0B0E14',
+  themeColor: T.bg,
   // V465: interactiveWidget='resizes-visual' lets the visual viewport
   // resize when the keyboard appears, instead of resizing the layout viewport.
   // This works with our visualViewport listener to keep the chart sized correctly.

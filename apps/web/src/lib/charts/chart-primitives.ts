@@ -19,7 +19,8 @@ import type {
   Time,
   AutoscaleInfo,
 } from 'lightweight-charts';
-import { safeMax, safeMin } from './chart-utils';
+import { safeMax, safeMin } from './chart-utils'
+import T from '@/lib/unified-tokens';
 
 // CanvasRenderingTarget2D is not exported from lightweight-charts types
 // We use the internal type from fancy-canvas
@@ -30,22 +31,22 @@ interface CanvasRenderingTarget2D {
 
 // ── Color Palette for overlays ─────────────────────────────────────
 export const OVERLAY_COLORS = {
-  trendUp: '#059669',       // Green for support / ascending
-  trendDown: '#ef4444',     // Red for resistance / descending
-  harmonic: '#d4af37',      // Gold for harmonic patterns
+  trendUp: T.accent,       // Green for support / ascending
+  trendDown: T.loss,     // Red for resistance / descending
+  harmonic: T.gold,      // Gold for harmonic patterns
   srStrong: '#22d3ee',      // Cyan for strong S/R
   srMedium: '#a78bfa',      // Purple for medium S/R
   srWeak: '#64748b',        // Gray for weak S/R
-  bosBull: '#10b981',       // Green BOS
+  bosBull: T.profit,       // Green BOS
   bosBear: '#f97316',       // Orange BOS
   chochBull: '#06b6d4',     // Cyan CHoCH
   chochBear: '#eab308',     // Yellow CHoCH
   elliott: '#93c5fd',       // Light blue for Elliott
   geo: '#a78bfa',           // Purple for geometric
   fvg: '#22d3ee',           // Cyan for FVG
-  entry: '#00D4FF',         // Cyan for entry
-  sl: '#ef4444',            // Red for SL
-  tp: '#10b981',            // Green for TP
+  entry: T.info,         // Cyan for entry
+  sl: T.loss,            // Red for SL
+  tp: T.profit,            // Green for TP
   wyckoff: '#fb923c',       // Orange for Wyckoff
   fibonacci: '#fbbf24',     // Yellow for Fibonacci
   vp: '#fbbf24',            // Yellow for Volume Profile
@@ -825,7 +826,7 @@ class AlertMarkerRenderer implements IPrimitivePaneRenderer {
         // Color based on direction
         const isBull = this._direction === 'bullish';
         const isBear = this._direction === 'bearish';
-        const pinColor = isBull ? '#10b981' : isBear ? '#ef4444' : '#f59e0b';
+        const pinColor = isBull ? T.profit : isBear ? T.loss : '#f59e0b';
         const bgColor = isBull ? 'rgba(16, 185, 129, 0.15)' : isBear ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)';
         const borderColor = isBull ? 'rgba(16, 185, 129, 0.6)' : isBear ? 'rgba(239, 68, 68, 0.6)' : 'rgba(245, 158, 11, 0.6)';
 

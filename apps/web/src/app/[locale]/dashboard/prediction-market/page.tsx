@@ -30,6 +30,7 @@ import { useAuth } from '@/hooks/useAuth'
 import SubPageLayout from '@/components/dashboard/SubPageLayout'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations, useLocale } from 'next-intl'
+import T from '@/lib/unified-tokens'
 
 // ── Data Types ──
 interface PredictionEvent {
@@ -139,9 +140,9 @@ function categoryLabel(cat: string | undefined, t: (key: string) => string): str
 function categoryColor(cat?: string): string {
   switch (cat) {
     case 'politics': return '#FF6B6B'
-    case 'economy': return '#FFB800'
-    case 'technology': return '#00D4FF'
-    case 'sports': return '#00FFC6'
+    case 'economy': return T.warning
+    case 'technology': return T.info
+    case 'sports': return T.greenAlt
     default: return '#A259FF'
   }
 }
@@ -187,7 +188,7 @@ function ProbabilityBar({ market, ai, gap, t }: { market: number; ai?: number | 
     <div style={{ width: '100%' }}>
       {/* Market Bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-        <span style={{ fontSize: '9px', fontWeight: 700, color: '#00D4FF', fontFamily: 'var(--font-ar), Inter, sans-serif', width: '32px', flexShrink: 0 }}>{t('marketLabel')}</span>
+        <span style={{ fontSize: '9px', fontWeight: 700, color: T.info, fontFamily: 'var(--font-ar), Inter, sans-serif', width: '32px', flexShrink: 0 }}>{t('marketLabel')}</span>
         <div style={{ flex: 1, height: '10px', background: 'var(--bg-input)', borderRadius: '5px', overflow: 'hidden', position: 'relative' }}>
           <motion.div
             initial={{ width: 0 }}
@@ -201,7 +202,7 @@ function ProbabilityBar({ market, ai, gap, t }: { market: number; ai?: number | 
             }}
           />
         </div>
-        <span style={{ fontSize: '10px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#00D4FF', width: '36px', textAlign: 'left', flexShrink: 0 }} dir="ltr">
+        <span style={{ fontSize: '10px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: T.info, width: '36px', textAlign: 'left', flexShrink: 0 }} dir="ltr">
           {(mktPct * 100).toFixed(0)}%
         </span>
       </div>
@@ -576,8 +577,8 @@ function GapCard({ event, index, t }: { event: PredictionEvent; index: number; t
         {/* Direction */}
         {isMarketHigher && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <TrendingUp size={11} style={{ color: '#00D4FF' }} />
-            <span style={{ fontSize: '9px', color: '#00D4FF', fontFamily: 'var(--font-ar), Inter, sans-serif', fontWeight: 600 }}>
+            <TrendingUp size={11} style={{ color: T.info }} />
+            <span style={{ fontSize: '9px', color: T.info, fontFamily: 'var(--font-ar), Inter, sans-serif', fontWeight: 600 }}>
               {t('marketHigher')}
             </span>
           </div>
@@ -621,8 +622,8 @@ function GapCard({ event, index, t }: { event: PredictionEvent; index: number; t
           background: 'rgba(0, 212, 255, 0.06)', border: '1px solid rgba(0, 212, 255, 0.15)',
           textAlign: 'center',
         }}>
-          <div style={{ fontSize: '8px', color: '#00D4FF', fontFamily: 'var(--font-ar), Inter, sans-serif', marginBottom: '2px' }}>{t('marketLabel')}</div>
-          <div style={{ fontSize: '13px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#00D4FF' }} dir="ltr">
+          <div style={{ fontSize: '8px', color: T.info, fontFamily: 'var(--font-ar), Inter, sans-serif', marginBottom: '2px' }}>{t('marketLabel')}</div>
+          <div style={{ fontSize: '13px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: T.info }} dir="ltr">
             {formatPercent(event.marketProbability, 0)}
           </div>
         </div>
@@ -915,7 +916,7 @@ export default function PredictionMarketPage() {
           icon={<BarChart3 size={12} color="#fff" />}
           label={t('statTotalEvents')}
           value={totalEvents}
-          color="#00D4FF"
+          color={T.info}
           gradient="linear-gradient(135deg, #00D4FF, #0A84FF)"
           delay={0}
         />
@@ -923,7 +924,7 @@ export default function PredictionMarketPage() {
           icon={<ArrowUpDown size={12} color="#fff" />}
           label={t('statAvgGap')}
           value={formatPercent(avgGap)}
-          color="#FFB800"
+          color={T.warning}
           gradient="linear-gradient(135deg, #FFB800, #F59E0B)"
           delay={0.05}
         />
@@ -931,7 +932,7 @@ export default function PredictionMarketPage() {
           icon={<CheckCircle2 size={12} color="#fff" />}
           label={t('statAlignedEvents')}
           value={alignedEvents}
-          color="#00FFC6"
+          color={T.greenAlt}
           gradient="linear-gradient(135deg, #00FFC6, #10B981)"
           delay={0.1}
         />
@@ -1285,8 +1286,8 @@ export default function PredictionMarketPage() {
                 <div style={{
                   position: 'absolute', top: '-30px', right: '-30px',
                   width: '100px', height: '100px',
-                  background: voteConfig(voteData.vote, t).color === 'var(--profit)' ? '#00FFC6' :
-                    voteConfig(voteData.vote, t).color === 'var(--loss)' ? '#FF4D4D' : '#FFB800',
+                  background: voteConfig(voteData.vote, t).color === 'var(--profit)' ? T.greenAlt :
+                    voteConfig(voteData.vote, t).color === 'var(--loss)' ? T.redAlt : T.warning,
                   filter: 'blur(50px)', opacity: 0.08,
                   pointerEvents: 'none',
                 }} />

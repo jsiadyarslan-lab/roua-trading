@@ -411,7 +411,7 @@ export default function ProfilePage() {
                     disabled={isSaving}
                     style={{
                       padding: '8px 16px', borderRadius: 10, border: 'none',
-                      background: `linear-gradient(135deg, ${T.cyan}, #0A84FF)`,
+                      background: `linear-gradient(135deg, ${T.cyan}, ${T.blue})`,
                       color: '#000', fontSize: 11, fontWeight: 800, cursor: isSaving ? 'wait' : 'pointer',
                       fontFamily: "var(--font-ar)",
                       display: 'flex', alignItems: 'center', gap: 6,

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl'
+import T from '@/lib/unified-tokens';
 import {
   BarChart,
   Bar,
@@ -259,8 +260,8 @@ export default function ComparisonPanel() {
                 [result.strategy2.label]: Number(d[result.strategy2.strategy]),
               }))}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                <XAxis dataKey="metric" stroke="#6b7280" tick={{ fontSize: 10 }} />
-                <YAxis stroke="#6b7280" tick={{ fontSize: 10 }} />
+                <XAxis dataKey="metric" stroke={T.text3} tick={{ fontSize: 10 }} />
+                <YAxis stroke={T.text3} tick={{ fontSize: 10 }} />
                 <Tooltip
                   contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 8, fontSize: 12 }}
                   labelStyle={{ color: '#9ca3af' }}

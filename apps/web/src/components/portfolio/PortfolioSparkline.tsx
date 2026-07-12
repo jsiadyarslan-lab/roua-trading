@@ -26,7 +26,7 @@ interface PortfolioSparklineProps {
 
 export function PortfolioSparkline({
   data,
-  color = {T.blue},
+  color = T.blue,
   width = 200,
   height = 40,
 }: PortfolioSparklineProps) {

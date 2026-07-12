@@ -3798,7 +3798,7 @@ export default function RouaChart({
                         color: '#5A6A80', fontSize: 14, lineHeight: 1, padding: '0 2px',
                         marginLeft: 4,
                       }}
-                      onMouseEnter={(e) => { e.currentTarget.style.color = {T.danger}; }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = T.danger; }}
                       onMouseLeave={(e) => { e.currentTarget.style.color = '#5A6A80'; }}
                       title="إغلاق"
                     >
@@ -3948,7 +3948,7 @@ export default function RouaChart({
                           color: '#5A6A80', fontSize: 16, lineHeight: 1, padding: '2px 6px',
                           borderRadius: 4,
                         }}
-                        onMouseEnter={(e) => { e.currentTarget.style.color = {T.danger}; e.currentTarget.style.background = 'rgba(255,71,87,0.1)'; }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = T.danger; e.currentTarget.style.background = 'rgba(255,71,87,0.1)'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.color = '#5A6A80'; e.currentTarget.style.background = 'transparent'; }}
                       >
                         ✕
@@ -4363,7 +4363,7 @@ export default function RouaChart({
                         background: 'transparent', border: 'none', cursor: 'pointer',
                         color: '#5A6A80', fontSize: 14, lineHeight: 1, padding: '0 2px', marginLeft: 'auto',
                       }}
-                      onMouseEnter={(e) => { e.currentTarget.style.color = {T.danger}; }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = T.danger; }}
                       onMouseLeave={(e) => { e.currentTarget.style.color = '#5A6A80'; }}
                     >✕</button>
                   </div>
@@ -4406,7 +4406,7 @@ export default function RouaChart({
                               color: chart.settings.type === ct.type ? T.info : '#C8D4E4',
                               background: chart.settings.type === ct.type ? 'rgba(0,212,255,0.1)' : 'transparent',
                             }}
-                            onMouseEnter={(e) => { if (chart.settings.type !== ct.type) { e.currentTarget.style.background = 'rgba(0,212,255,0.06)'; e.currentTarget.style.color = {T.info}; } }}
+                            onMouseEnter={(e) => { if (chart.settings.type !== ct.type) { e.currentTarget.style.background = 'rgba(0,212,255,0.06)'; e.currentTarget.style.color = T.info; } }}
                             onMouseLeave={(e) => { if (chart.settings.type !== ct.type) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#C8D4E4'; } }}>
                             <span style={{ fontSize: 12, width: 16, textAlign: 'center' }}>{ct.icon}</span>
                             <span style={{ flex: 1 }}>{ct.label}</span>
@@ -4448,7 +4448,7 @@ export default function RouaChart({
                               color: timeframe_ === tf.value ? T.info : '#C8D4E4',
                               background: timeframe_ === tf.value ? 'rgba(0,212,255,0.1)' : 'transparent',
                             }}
-                            onMouseEnter={(e) => { if (timeframe_ !== tf.value) { e.currentTarget.style.background = 'rgba(0,212,255,0.06)'; e.currentTarget.style.color = {T.info}; } }}
+                            onMouseEnter={(e) => { if (timeframe_ !== tf.value) { e.currentTarget.style.background = 'rgba(0,212,255,0.06)'; e.currentTarget.style.color = T.info; } }}
                             onMouseLeave={(e) => { if (timeframe_ !== tf.value) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#C8D4E4'; } }}>
                             <span style={{ flex: 1 }}>{tf.label}</span>
                             {timeframe_ === tf.value && <span style={{ fontSize: 9, color: T.info }}>✓</span>}
@@ -4542,7 +4542,7 @@ export default function RouaChart({
                         setChartContextMenu(null);
                       }}
                       style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#C8D4E4', fontSize: 11, fontWeight: 600 }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0,255,163,0.1)'; e.currentTarget.style.color = {T.success}; }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0,255,163,0.1)'; e.currentTarget.style.color = T.success; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#C8D4E4'; }}>
                       <span style={{ fontSize: 13, width: 18, textAlign: 'center' }}>💾</span>
                       <span>{tc('chartContextMenu.saveTemplate') || 'Save Template'}</span>

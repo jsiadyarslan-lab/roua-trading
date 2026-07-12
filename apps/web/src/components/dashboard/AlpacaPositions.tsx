@@ -897,12 +897,12 @@ export function AlpacaPositions() {
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = 'rgba(0,212,255,0.12)'
                     e.currentTarget.style.borderColor = 'rgba(0,212,255,0.3)'
-                    e.currentTarget.style.color = {T.info}
+                    e.currentTarget.style.color = T.info
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = 'rgba(255,255,255,0.03)'
                     e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
-                    e.currentTarget.style.color = {T.text2}
+                    e.currentTarget.style.color = T.text2
                   }}
                 >
                   ⋮
@@ -1203,7 +1203,7 @@ export function AlpacaPositions() {
                   background: 'transparent', border: 'none', cursor: 'pointer',
                   color: '#5A6A80', fontSize: 14, lineHeight: 1, padding: '0 2px', marginLeft: 4,
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = {T.danger}; }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = T.danger; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = '#5A6A80'; }}
                 title="إغلاق"
               >

@@ -189,9 +189,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const SIDEBAR_BG = '#0D1017'
   const SIDEBAR_BORDER = 'rgba(0,229,255,0.08)'
   const ACCENT = '#00E5FF'
-  const TEXT = {T.text}
-  const TEXT_MUTED = {T.text2}
-  const BG = {T.bg}
+  const TEXT = T.text
+  const TEXT_MUTED = T.text2
+  const BG = T.bg
 
   return (
     <div style={{ display: 'flex', minHeight: '100%', direction: 'inherit', background: BG }}>

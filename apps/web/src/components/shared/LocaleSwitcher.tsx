@@ -293,13 +293,13 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
                   onMouseEnter={(e) => {
                     if (opt.code !== locale) {
                       e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
-                      e.currentTarget.style.color = {T.text};
+                      e.currentTarget.style.color = T.text;
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (opt.code !== locale) {
                       e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = {T.text2};
+                      e.currentTarget.style.color = T.text2;
                     }
                   }}
                 >
@@ -380,12 +380,12 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = 'rgba(0,212,255,0.08)';
-            e.currentTarget.style.color = {T.text};
+            e.currentTarget.style.color = T.text;
             e.currentTarget.style.borderColor = 'rgba(0,212,255,0.25)';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-            e.currentTarget.style.color = {T.text2};
+            e.currentTarget.style.color = T.text2;
             e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
           }}
           aria-label="Switch language"

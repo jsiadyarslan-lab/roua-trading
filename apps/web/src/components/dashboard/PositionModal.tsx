@@ -86,7 +86,7 @@ export function PositionModal({
               color: '#5A6A80', fontSize: 16, lineHeight: 1, padding: '2px 6px',
               borderRadius: 4,
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = {T.danger}; e.currentTarget.style.background = 'rgba(255,71,87,0.1)'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = T.danger; e.currentTarget.style.background = 'rgba(255,71,87,0.1)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = '#5A6A80'; e.currentTarget.style.background = 'transparent'; }}
           >
             ✕

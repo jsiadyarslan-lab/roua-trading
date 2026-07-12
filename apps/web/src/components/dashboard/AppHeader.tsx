@@ -1006,7 +1006,7 @@ function AccountDropdown({
           borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 4,
         }}
         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.08)'; e.currentTarget.style.color = '#FF6B7A' }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = {T.danger} }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.danger }}
       >
         <LogOut size={15} strokeWidth={2} />
         {t('common.logout')}

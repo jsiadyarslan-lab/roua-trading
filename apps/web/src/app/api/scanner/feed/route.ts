@@ -100,25 +100,25 @@ export async function GET(req: Request) {
 
           // Determine AI score from real indicators
           let aiScore = 'Neutral'
-          let aiColor = {T.warning}
+          let aiColor = T.warning
           let reasons: string[] = []
           let signalStrength = 50
 
           if (rsi !== null) {
             if (rsi < 30) {
-              aiScore = 'Strong Buy'; aiColor = {T.greenAlt}
+              aiScore = 'Strong Buy'; aiColor = T.greenAlt
               reasons.push(`Oversold (RSI: ${rsi})`)
               signalStrength += 25
             } else if (rsi < 45) {
-              aiScore = 'Buy'; aiColor = {T.greenAlt}
+              aiScore = 'Buy'; aiColor = T.greenAlt
               reasons.push(`Low RSI (${rsi})`)
               signalStrength += 12
             } else if (rsi > 70) {
-              aiScore = 'Strong Sell'; aiColor = {T.redAlt}
+              aiScore = 'Strong Sell'; aiColor = T.redAlt
               reasons.push(`Overbought (RSI: ${rsi})`)
               signalStrength += 25
             } else if (rsi > 58) {
-              aiScore = 'Sell'; aiColor = {T.redAlt}
+              aiScore = 'Sell'; aiColor = T.redAlt
               reasons.push(`High RSI (${rsi})`)
               signalStrength += 12
             }
@@ -126,11 +126,11 @@ export async function GET(req: Request) {
 
           if (ema20 !== null && ema50 !== null) {
             if (ema20 > ema50) {
-              if (aiScore === 'Neutral') { aiScore = 'Buy'; aiColor = {T.greenAlt} }
+              if (aiScore === 'Neutral') { aiScore = 'Buy'; aiColor = T.greenAlt }
               reasons.push('EMA 20/50 Bullish Cross')
               signalStrength += 10
             } else {
-              if (aiScore === 'Neutral') { aiScore = 'Sell'; aiColor = {T.redAlt} }
+              if (aiScore === 'Neutral') { aiScore = 'Sell'; aiColor = T.redAlt }
               reasons.push('EMA 20/50 Bearish Cross')
               signalStrength += 10
             }

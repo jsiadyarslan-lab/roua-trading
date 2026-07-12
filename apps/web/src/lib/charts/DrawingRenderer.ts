@@ -642,7 +642,7 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
     const padX = 4, padY = 2;
     const rx = x + padX, ry = y - 6 - padY, rw = textW + padX * 2, rh = 12 + padY * 2;
     ctx.globalAlpha = 0.85;
-    ctx.fillStyle = {T.card};
+    ctx.fillStyle = T.card;
     ctx.beginPath(); ctx.roundRect(rx, ry, rw, rh, 3); ctx.fill();
     ctx.strokeStyle = DEFAULT_COLOR; ctx.lineWidth = 1; ctx.globalAlpha = 0.5; ctx.stroke();
     ctx.globalAlpha = 0.95; ctx.fillStyle = DEFAULT_COLOR;
@@ -658,7 +658,7 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
     const textW = ctx.measureText(text).width;
     const padX = 4, padY = 2;
     const rx = x - textW / 2 - padX, ry = y, rw = textW + padX * 2, rh = 12 + padY * 2;
-    ctx.globalAlpha = 0.85; ctx.fillStyle = {T.card};
+    ctx.globalAlpha = 0.85; ctx.fillStyle = T.card;
     ctx.beginPath(); ctx.roundRect(rx, ry, rw, rh, 3); ctx.fill();
     ctx.strokeStyle = DEFAULT_COLOR; ctx.lineWidth = 1; ctx.globalAlpha = 0.5; ctx.stroke();
     ctx.globalAlpha = 0.95; ctx.fillStyle = DEFAULT_COLOR;
@@ -1199,10 +1199,10 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
     ctx.save(); ctx.font = "10px 'JetBrains Mono', monospace";
     const textW = ctx.measureText(text).width, padX = 6, padY = 3;
     const rx = pt.x - textW / 2 - padX, ry = pt.y - 6 - padY, rw = textW + padX * 2, rh = 12 + padY * 2;
-    ctx.globalAlpha = 0.85; ctx.fillStyle = {T.card}; ctx.beginPath(); ctx.roundRect(rx, ry, rw, rh, 4); ctx.fill();
+    ctx.globalAlpha = 0.85; ctx.fillStyle = T.card; ctx.beginPath(); ctx.roundRect(rx, ry, rw, rh, 4); ctx.fill();
     ctx.strokeStyle = d.color; ctx.lineWidth = d.isPreview ? 1 : 1.5; ctx.globalAlpha = d.isPreview ? 0.5 : 0.7; ctx.stroke();
     ctx.globalAlpha = 0.95; ctx.fillStyle = d.color; ctx.fillText(text, rx + padX, ry + padY + 10);
-    ctx.globalAlpha = 0.85; ctx.fillStyle = {T.card}; const as = 4;
+    ctx.globalAlpha = 0.85; ctx.fillStyle = T.card; const as = 4;
     ctx.beginPath(); ctx.moveTo(pt.x - as, ry + rh); ctx.lineTo(pt.x, ry + rh + as); ctx.lineTo(pt.x + as, ry + rh); ctx.closePath(); ctx.fill();
     ctx.restore();
   }
@@ -1212,7 +1212,7 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
     const sz = 6;
     ctx.save(); ctx.globalAlpha = d.isPreview ? 0.5 : 0.9;
     ctx.beginPath(); ctx.arc(pt.x, pt.y, sz + 2, 0, Math.PI * 2); ctx.fillStyle = d.color; ctx.fill();
-    ctx.beginPath(); ctx.arc(pt.x, pt.y, sz - 1, 0, Math.PI * 2); ctx.fillStyle = {T.card}; ctx.fill();
+    ctx.beginPath(); ctx.arc(pt.x, pt.y, sz - 1, 0, Math.PI * 2); ctx.fillStyle = T.card; ctx.fill();
     ctx.strokeStyle = d.color; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(pt.x, pt.y + sz + 2); ctx.lineTo(pt.x, pt.y + sz + 12); ctx.stroke();
     ctx.restore();
@@ -1548,11 +1548,11 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
     const tw = ctx.measureText(text).width;
     const padX = 8, padY = 4, boxW = tw + padX * 2, boxH = 18 + padY * 2;
     const bx = pt.x + 10, by = pt.y - boxH - 10;
-    ctx.globalAlpha = 0.9; ctx.fillStyle = {T.card};
+    ctx.globalAlpha = 0.9; ctx.fillStyle = T.card;
     ctx.beginPath(); ctx.roundRect(bx, by, boxW, boxH, 4); ctx.fill();
     ctx.strokeStyle = d.color; ctx.lineWidth = 1; ctx.stroke();
     // Arrow pointer
-    ctx.beginPath(); ctx.moveTo(pt.x + 4, by + boxH); ctx.lineTo(pt.x, pt.y); ctx.lineTo(pt.x + 12, by + boxH); ctx.fillStyle = {T.card}; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(pt.x + 4, by + boxH); ctx.lineTo(pt.x, pt.y); ctx.lineTo(pt.x + 12, by + boxH); ctx.fillStyle = T.card; ctx.fill();
     ctx.globalAlpha = 0.95; ctx.fillStyle = d.color; ctx.fillText(text, bx + padX, by + padY + 12);
     ctx.restore();
     this.drawDot(ctx, pt);

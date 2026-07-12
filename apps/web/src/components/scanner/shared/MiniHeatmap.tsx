@@ -23,7 +23,7 @@ interface MiniHeatmapProps {
 }
 
 export function MiniHeatmap({
-  data, color = {T.info}, width = 72, height = 24,
+  data, color = T.info, width = 72, height = 24,
 }: MiniHeatmapProps) {
   if (!data || data.length < 2) return null
 

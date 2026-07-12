@@ -1095,10 +1095,10 @@ export default function DashboardPage() {
   const [loadingClosed, setLoadingClosed] = useState(false)
   const [expandedPositionId, setExpandedPositionId] = useState<string|null>(null)
   const [closedDateFilter, setClosedDateFilter] = useState<'day'|'week'|'month'|'year'|'all'>('all')
-  const closedPnlTotal = closedPositions.reduce((sum:number, p:any) => sum + (Number(p.realizedPnl||p.pnl)||0), 0)  // طي/فتح لوحة التنفيذ
-  const [m2ShowMore, setM2ShowMore] = useState(false)               // قائمة المزيد
-  const [m2ShowMarkets, setM2ShowMarkets] = useState(false)         // قائمة الأسواق
-  const [m2ShowDrawing, setM2ShowDrawing] = useState(false)         // قائمة أدوات الرسم
+  const closedPnlTotal = closedPositions.reduce((sum:number, p:any) => sum + (Number(p.realizedPnl||p.pnl)||0), 0)  // طي/Open لوحة التنفيذ
+  const [m2ShowMore, setM2ShowMore] = useState(false)               // قائمة More
+  const [m2ShowMarkets, setM2ShowMarkets] = useState(false)         // قائمة الMarkets
+  const [m2ShowDrawing, setM2ShowDrawing] = useState(false)         // قائمة أدوات الDrawing
   const [m2ActiveInds, setM2ActiveInds] = useState<string[]>(['RSI', 'EMA 20'])
   const m2TFs = ['1m','5m','15m','30m','1H','4H','1D','1W']
   const m2DrawTools = [
@@ -1107,11 +1107,11 @@ export default function DashboardPage() {
   ]
   const m2Indicators = ['RSI','MACD','EMA 20','EMA 50','Bollinger','Volume','ATR','Stoch']
   const m2NavItems = [
-    { id:'chart',     label: 'الشارت'  },
-    { id:'positions', label: 'الصفقات' },
-    { id:'scanner',   label: 'السكانر' },
-    { id:'ai',        label: 'القرار'   },
-    { id:'menu',      label: 'المزيد'  },
+    { id:'chart',     label: t('chart')  },
+    { id:'positions', label: t('positions') },
+    { id:'scanner',   label: t('scanner') },
+    { id:'ai',        label: t('decision')   },
+    { id:'menu',      label: t('more')  },
   ]
 
   // ── Chart Height: Pure CSS flex + explicit resize trigger ──
@@ -1158,7 +1158,7 @@ export default function DashboardPage() {
     return () => { window.clearInterval(intervalId); clearTimeout(quickFetch) }
   }, [fetchAccount, fetchPositions])
 
-  // تحديث البيانات عند فتح تاب الصفقات
+  // Refresh البيانات عند Open تاب الصفقات
   useEffect(() => {
     if (m2ActiveTab === 'positions') {
       fetchAccount()
@@ -1166,7 +1166,7 @@ export default function DashboardPage() {
     }
   }, [m2ActiveTab, fetchAccount, fetchPositions])
 
-  // جلب الصفقات المغلقة
+  // جلب Closed Positions
   const fetchClosedPositions = useCallback(async (filter: 'day'|'week'|'month'|'year'|'all' = closedDateFilter) => {
     setLoadingClosed(true)
     try {
@@ -1202,7 +1202,7 @@ export default function DashboardPage() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [fetchAccount, fetchPositions])
 
-  // تحديث البيانات عند فتح تاب الصفقات
+  // Refresh البيانات عند Open تاب الصفقات
   useEffect(() => {
     if (m2ActiveTab === 'positions') {
       fetchAccount()
@@ -1210,7 +1210,7 @@ export default function DashboardPage() {
     }
   }, [m2ActiveTab, fetchAccount, fetchPositions])
 
-  // جلب الصفقات المغلقة
+  // جلب Closed Positions
   // Cross-tab sync: listen for account data changes from other tabs
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
@@ -1223,7 +1223,7 @@ export default function DashboardPage() {
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [fetchAccount, fetchPositions])
 
-  // تحديث البيانات عند فتح تاب الصفقات
+  // Refresh البيانات عند Open تاب الصفقات
   useEffect(() => {
     if (m2ActiveTab === 'positions') {
       fetchAccount()
@@ -1238,7 +1238,7 @@ export default function DashboardPage() {
     fetchClosedPositions(closedDateFilter)
   }, [activeCredentialId, fetchPositions, fetchClosedPositions, closedDateFilter])
 
-  // جلب الصفقات المغلقة
+  // جلب Closed Positions
   useEffect(() => {
     if (typeof window === 'undefined') return
 
@@ -1293,7 +1293,7 @@ export default function DashboardPage() {
   const accountDataStatus: DataStatus = (() => {
     if (positionsError) return 'disconnected'
     if (!account) return 'disconnected'
-    // إذا كان الحساب موجود لكن بدون بيانات حقيقية (equity=0 ولا مراكز)، اعتبره "تجريبي"
+    // إذا كان الAccount موجود لكن بدون بيانات حقيقية (equity=0 ولا مراكز)، اعتبره "تجريبي"
     const hasRealData = Number(account.equity) > 0 || Number(account.longMarketValue) > 0 || Number(account.shortMarketValue) > 0 || positions.length > 0
     if (!lastUpdate && !hasRealData) return 'demo'
     if (!lastUpdate) return 'fallback'
@@ -1356,7 +1356,7 @@ export default function DashboardPage() {
   const initialMargin = isPaperMode
     ? accountMargin   // Backend usedMargin — always accurate for paper trading
     : (clientSideMargin > 0 ? clientSideMargin : accountMargin)
-  const freeMargin = Math.max(0, equityValue - initialMargin) // الهامش الحر = حقوق الملكية - الهامش المستخدم
+  const freeMargin = Math.max(0, equityValue - initialMargin) // Free Margin = Equity - Used Margin
   // P&L لحظي من المراكز (محسوب من الأسعار المباشرة) بدلاً من account.unrealizedPnl المتجمد
   const livePositionsPnl = positions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0)
   const unrealizedPnl = positions.length > 0 ? livePositionsPnl : (Number(account?.unrealizedPnl) || 0)
@@ -1449,7 +1449,7 @@ export default function DashboardPage() {
                 background: 'linear-gradient(90deg, rgba(0,212,255,0.05), transparent 60%)',
                 overflow: 'hidden',
               }}>
-                {/* LED + الرصيد — V183: Balance = true wallet balance (margin NOT deducted) */}
+                {/* LED + Balance — V183: Balance = true wallet balance (margin NOT deducted) */}
                 <div title={isPaperMode
                   ? `${t('balance')}: ${t('balanceTooltipPaper')}`
                   : `${t('balance')}: ${t('balanceTooltipReal')}`
@@ -1458,29 +1458,29 @@ export default function DashboardPage() {
                   <span style={{ fontSize: 11, color: '#6B7280', fontWeight: 700, fontFamily: "var(--font-ar)" }}>{tc('balance')}</span>
                   <span dir="ltr" style={{ fontSize: 13, fontWeight: 800, fontFamily: "var(--font-mono)", color: '#F0F2F5' }}>{formatMoney(cashValue)}</span>
                 </div>
-                {/* الرصيد الحالي (Equity) — V183: Balance + unrealized P/L */}
+                {/* Balance Current (Equity) — V183: Balance + unrealized P/L */}
                 <div title={`${t('equity')}: ${t('equityTooltip')}`} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0, cursor: 'help' }}>
                   <span style={{ fontSize: 11, color: '#6B7280', fontWeight: 700, fontFamily: "var(--font-ar)" }}>{tc('equity')}</span>
                   <span dir="ltr" style={{ fontSize: 13, fontWeight: 800, fontFamily: "var(--font-mono)", color: '#00D4FF' }}>{formatMoney(equityValue)}</span>
                 </div>
-                {/* الهامش المتاح — V183: Balance - Used Margin + unrealized P/L */}
+                {/* Free Margin — V183: Balance - Used Margin + unrealized P/L */}
                 <div title={`${t('freeMargin')}: ${t('freeMarginTooltip')}`} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0, cursor: 'help' }}>
                   <span style={{ fontSize: 11, color: '#6B7280', fontWeight: 700, fontFamily: "var(--font-ar)" }}>{t('freeMargin')}</span>
                   <span dir="ltr" style={{ fontSize: 13, fontWeight: 700, fontFamily: "var(--font-mono)", color: '#00FFA3' }}>{formatMoney(freeMargin)}</span>
                 </div>
-                {/* الهامش المستخدم — V183: Margin locked in open positions */}
+                {/* Used Margin — V183: Margin locked in open positions */}
                 <div title={`${tc('margin')}: ${t('usedMarginTooltip')}`} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0, cursor: 'help' }}>
                   <span style={{ fontSize: 11, color: '#6B7280', fontWeight: 700, fontFamily: "var(--font-ar)" }}>{tc('margin')}</span>
                   <span dir="ltr" style={{ fontSize: 13, fontWeight: 700, fontFamily: "var(--font-mono)", color: initialMargin > 0 ? '#FFB800' : '#F0F2F5' }}>{formatMoney(initialMargin)}</span>
                 </div>
-                {/* نسبة الهامش — تحذير صارخ عند المستوى المنخفض */}
+                {/* Margin Level — Warning صارخ عند Level المنخفض */}
                 {(() => {
                   const mlPct = initialMargin > 0 ? (equityValue / initialMargin) * 100 : 0;
                   // Margin Level = margin/equity × 100
-                  // عالي = خطر (استخدام كبير لرأس المال)
+                  // عالي = Danger (استخدام كبير لرأس المال)
                   // منخفض = آمن (استخدام محافظ)
-                  const isCritical = mlPct < 120 && mlPct > 0;  // < 120% خطر فعلي (قريب من margin call)
-                  const isWarning  = mlPct >= 120 && mlPct < 200;              // 120-200% تحذير
+                  const isCritical = mlPct < 120 && mlPct > 0;  // < 120% Danger فعلي (قريب من margin call)
+                  const isWarning  = mlPct >= 120 && mlPct < 200;              // 120-200% Warning
                   const mlColor = isCritical ? '#FF4757' : isWarning ? '#FFB800' : '#00D4FF';
                   return (
                     <div style={{
@@ -1571,19 +1571,19 @@ export default function DashboardPage() {
       )}
 
       {/* ═══════════════════════════════════════════
-           MOBILE V2 — التصميم الجديد
+           MOBILE V2 — New Design
           ═══════════════════════════════════════════ */}
       {isMobileViewport && (
         <div className="m2-shell" dir={dir}>
 
-          {/* ── HEADER: لوغو + معلومات الحساب ── */}
+          {/* ── HEADER: لوغو + Account Info ── */}
           <div style={{
             display:'flex', alignItems:'center', justifyContent:'space-between',
             padding:'calc(env(safe-area-inset-top, 0px) + 8px) 14px 6px',
             borderBottom:'1px solid rgba(255,255,255,0.05)',
             flexShrink:0,
           }}>
-            {/* اللوغو */}
+            {/* Logo */}
             <div style={{ display:'flex', alignItems:'center', gap:8 }}>
               <div style={{
                 width:30, height:30, borderRadius:'50%',
@@ -1593,11 +1593,11 @@ export default function DashboardPage() {
                 fontSize: 15,
               }}>🌙</div>
               <div>
-                <div style={{ fontSize: 15, fontWeight:800, color:'#E8ECF4', fontFamily: "var(--font-ar)", lineHeight:1 }}>رؤى</div>
+                <div style={{ fontSize: 15, fontWeight:800, color:'#E8ECF4', fontFamily: "var(--font-ar)", lineHeight:1 }}>{t('brand')}</div>
                 <div style={{ fontSize: 11, color:'rgba(0,212,255,0.7)', fontFamily: "var(--font-mono)", letterSpacing:'1px' }}>ROUA TRADING</div>
               </div>
             </div>
-            {/* معلومات الرصيد */}
+            {/* Info Balance */}
             <div style={{ textAlign:'right' }}>
               <div style={{ fontSize: 13, fontWeight:800, color:'#E8ECF4', fontFamily: "var(--font-mono)" }}>
                 ${(Number(account?.balance ?? account?.equity) || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}
@@ -1658,7 +1658,7 @@ export default function DashboardPage() {
             {/* separator */}
             <div style={{ width:1, height:12, background:'rgba(255,255,255,0.06)', flexShrink:0 }}/>
 
-            {/* ─ رسم ─ */}
+            {/* ─ Drawing ─ */}
             <div style={{ position:'relative', flexShrink:0 }}>
               <button type="button"
                 onClick={() => { setM2ShowDrawing(!m2ShowDrawing); setM2ShowTf(false); setM2ShowInd(false); setM2ShowAI(false); setM2ShowMarkets(false); }}
@@ -1673,7 +1673,7 @@ export default function DashboardPage() {
                 <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
                   <path d="M1 9L7 3L8 2M7 3L9 1M2 8L4 6" stroke={m2ShowDrawing?'#B388FF':'#6B7280'} strokeWidth="1.2" strokeLinecap="round"/>
                 </svg>
-                <span style={{ fontSize: 11, fontWeight:600, color: m2ShowDrawing?'#B388FF':'#6B7280', fontFamily: "var(--font-ar)" }}>رسم</span>
+                <span style={{ fontSize: 11, fontWeight:600, color: m2ShowDrawing?'#B388FF':'#6B7280', fontFamily: "var(--font-ar)" }}>Drawing</span>
                 <svg width="6" height="4" viewBox="0 0 6 4" style={{ opacity:0.4 }}>
                   <path d="M0 0L3 4L6 0" fill={m2ShowDrawing?'#B388FF':'#6B7280'}/>
                 </svg>
@@ -1749,7 +1749,7 @@ export default function DashboardPage() {
             {/* separator */}
             <div style={{ width:1, height:12, background:'rgba(255,255,255,0.06)', flexShrink:0 }}/>
 
-            {/* ─ أسواق ─ */}
+            {/* ─ Markets ─ */}
             <div style={{ position:'relative', flexShrink:0 }}>
               <button type="button"
                 onClick={() => { setM2ShowMarkets(!m2ShowMarkets); setM2ShowTf(false); setM2ShowInd(false); setM2ShowAI(false); setM2ShowDrawing(false); }}
@@ -1766,7 +1766,7 @@ export default function DashboardPage() {
                   <rect x="3.5" y="2.5" width="2" height="6.5" fill={m2ShowMarkets?'#FFB800':'#6B7280'} rx="0.5"/>
                   <rect x="7" y="0" width="2" height="9" fill={m2ShowMarkets?'#FFB800':'#6B7280'} rx="0.5"/>
                 </svg>
-                <span style={{ fontSize: 11, fontWeight:600, color: m2ShowMarkets?'#FFB800':'#6B7280', fontFamily: "var(--font-ar)" }}>سوق</span>
+                <span style={{ fontSize: 11, fontWeight:600, color: m2ShowMarkets?'#FFB800':'#6B7280', fontFamily: "var(--font-ar)" }}>وق</span>
                 <svg width="6" height="4" viewBox="0 0 6 4" style={{ opacity:0.4 }}>
                   <path d="M0 0L3 4L6 0" fill={m2ShowMarkets?'#FFB800':'#6B7280'}/>
                 </svg>
@@ -1815,7 +1815,7 @@ export default function DashboardPage() {
                 boxShadow:'0 -20px 60px rgba(0,0,0,0.7)',
               }} onClick={e => e.stopPropagation()}>
                 <div style={{ width:32, height:3, background:'rgba(255,255,255,0.12)', borderRadius: 'var(--radius-xs)', margin:'0 auto 14px' }}/>
-                <div style={{ fontSize: 13, fontWeight:700, color:'#B388FF', marginBottom:12 }}>المؤشرات الفنية</div>
+                <div style={{ fontSize: 13, fontWeight:700, color:'#B388FF', marginBottom:12 }}>Technical Indicators</div>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
                   {m2Indicators.map(ind => (
                     <button key={ind} type="button"
@@ -1847,11 +1847,11 @@ export default function DashboardPage() {
               }} onClick={e => e.stopPropagation()}>
                 <div style={{ width:32, height:3, background:'rgba(255,255,255,0.12)', borderRadius: 'var(--radius-xs)', margin:'0 auto 14px' }}/>
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:14 }}>
-                  <span style={{ fontSize: 13, fontWeight:700, color:'#C4B5FD' }}>تحليل ذكي AI</span>
+                  <span style={{ fontSize: 13, fontWeight:700, color:'#C4B5FD' }}>AI Smart Analysis</span>
                   <span style={{ fontSize: 13, color:'#6A7A90', fontFamily: "var(--font-mono)" }}>{selectedSymbol}</span>
                 </div>
                 <div style={{ display:'flex', gap:10, marginBottom:14 }}>
-                  {[{l:'شراء',v:'79%',c:'#00FFA3'},{l:'حيادي',v:'11%',c:'#FFB800'},{l:'بيع',v:'10%',c:'#FF4757'}].map(b => (
+                  {[{l:'Buy',v:'79%',c:'#00FFA3'},{l:'Neutral',v:'11%',c:'#FFB800'},{l:'Sell',v:'10%',c:'#FF4757'}].map(b => (
                     <div key={b.l} style={{
                       flex:1, padding:'12px 0', textAlign:'center', borderRadius: 'var(--radius-lg)',
                       background:`${b.c}18`, border:`1px solid ${b.c}44`,
@@ -1862,15 +1862,15 @@ export default function DashboardPage() {
                   ))}
                 </div>
                 <div style={{ fontSize: 11, color:'#6B7280', lineHeight:1.8, background:'rgba(255,255,255,0.03)', padding:'10px', borderRadius: 'var(--radius-md)' }}>
-                  📍 دعم قوي: {currentPrice ? (currentPrice*0.995).toFixed(currentPrice > 100 ? 2 : 5) : '—'}<br/>
-                  🎯 مقاومة: {currentPrice ? (currentPrice*1.008).toFixed(currentPrice > 100 ? 2 : 5) : '—'}<br/>
-                  ⚡ التوصية: استمرار الاتجاه الصاعد على المدى القصير
+                  📍 Strong Support: {currentPrice ? (currentPrice*0.995).toFixed(currentPrice > 100 ? 2 : 5) : '—'}<br/>
+                  🎯 Resistance: {currentPrice ? (currentPrice*1.008).toFixed(currentPrice > 100 ? 2 : 5) : '—'}<br/>
+                  ⚡ Recommendation: Continue bullish direction short-term
                 </div>
               </div>
             </div>
           )}
 
-          {/* ── مركز القرار ── */}
+          {/* ── مركز Decision ── */}
           {m2ActiveTab === 'ai' && (
             <div style={{
               flex:1, overflowY:'auto', overflowX:'hidden',
@@ -1879,31 +1879,31 @@ export default function DashboardPage() {
               {/* Header */}
               <div style={{ padding:'12px 14px 8px', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ fontSize: 15, fontWeight:800, color:'#F0F2F5', fontFamily: "var(--font-ar)" }}>
-                  مركز صنع القرار
+                  Decision Center
                 </div>
                 <div style={{ fontSize: 11, color:'#6B7280', fontFamily: "var(--font-ar)", marginTop:2 }}>
-                  المنفذ · الوكيل · المجلس · الإشارات
+                  Executor · Agent · Council · Signals
                 </div>
               </div>
 
-              {/* المنفذ الذكي */}
+              {/* Smart Executor */}
               <div style={{ margin:'10px 12px 0', borderRadius: 'var(--radius-lg)', overflow:'hidden', border:'1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ padding:'8px 12px', background:'rgba(0,212,255,0.05)', borderBottom:'1px solid rgba(0,212,255,0.08)', display:'flex', alignItems:'center', gap:6 }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={'#00D4FF'} strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                  <span style={{ fontSize: 11, fontWeight:700, color:'#00D4FF', fontFamily: "var(--font-ar)" }}>المنفذ الذكي</span>
+                  <span style={{ fontSize: 11, fontWeight:700, color:'#00D4FF', fontFamily: "var(--font-ar)" }}>Smart Executor</span>
                 </div>
                 <SmartExecutorPanel />
               </div>
 
-              {/* اللاسع — وكيل التداول فائق السرعة */}
+              {/* Lazic — وكيل الTrading فائق Speed */}
               <div style={{ margin:'10px 12px 0', borderRadius: 'var(--radius-lg)', overflow:'hidden', border:'1px solid rgba(255,107,53,0.2)' }}>
                 <div style={{ padding:'8px 12px', background:'rgba(255,107,53,0.06)', borderBottom:'1px solid rgba(255,107,53,0.12)', display:'flex', alignItems:'center', gap:6 }}>
                   {/* أيقونة دبور/صاعقة */}
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FF6B35" strokeWidth="2.5">
                     <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
                   </svg>
-                  <span style={{ fontSize: 11, fontWeight:700, color:'#FF6B35', fontFamily: "var(--font-ar)" }}>اللاسع</span>
-                  <span style={{ fontSize: 11, color:'rgba(255,107,53,0.6)', marginRight:'auto' }}>OBI · على الثانية</span>
+                  <span style={{ fontSize: 11, fontWeight:700, color:'#FF6B35', fontFamily: "var(--font-ar)" }}>Lazic</span>
+                  <span style={{ fontSize: 11, color:'rgba(255,107,53,0.6)', marginRight:'auto' }}>OBI · Per Second</span>
                 </div>
                 <LazicPanel />
               </div>
@@ -1912,25 +1912,25 @@ export default function DashboardPage() {
               <div style={{ margin:'10px 12px 0', borderRadius: 'var(--radius-lg)', overflow:'hidden', border:'1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ padding:'8px 12px', background:'rgba(167,139,250,0.05)', borderBottom:'1px solid rgba(167,139,250,0.1)', display:'flex', alignItems:'center', gap:6 }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={'#B388FF'} strokeWidth="2.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-                  <span style={{ fontSize: 11, fontWeight:700, color:'#B388FF', fontFamily: "var(--font-ar)" }}>الوكيل الآلي</span>
+                  <span style={{ fontSize: 11, fontWeight:700, color:'#B388FF', fontFamily: "var(--font-ar)" }}>Auto Agent</span>
                 </div>
                 <AgentControlMini />
               </div>
 
-              {/* المجلس الاستراتيجي */}
+              {/* Strategic Council */}
               <div style={{ margin:'10px 12px 0', borderRadius: 'var(--radius-lg)', overflow:'hidden', border:'1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ padding:'8px 12px', background:'rgba(245,158,11,0.05)', borderBottom:'1px solid rgba(245,158,11,0.1)', display:'flex', alignItems:'center', gap:6 }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={'#FFB800'} strokeWidth="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                  <span style={{ fontSize: 11, fontWeight:700, color:'#FFB800', fontFamily: "var(--font-ar)" }}>المجلس الاستراتيجي</span>
+                  <span style={{ fontSize: 11, fontWeight:700, color:'#FFB800', fontFamily: "var(--font-ar)" }}>Strategic Council</span>
                 </div>
                 <StrategicCouncilPanel />
               </div>
 
-              {/* إشارات السكانر */}
+              {/* Signals Scanner */}
               <div style={{ margin:'10px 12px 0', borderRadius: 'var(--radius-lg)', overflow:'hidden', border:'1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ padding:'8px 12px', background:'rgba(0,255,163,0.04)', borderBottom:'1px solid rgba(0,255,163,0.08)', display:'flex', alignItems:'center', gap:6 }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={'#00FFA3'} strokeWidth="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                  <span style={{ fontSize: 11, fontWeight:700, color:'#00FFA3', fontFamily: "var(--font-ar)" }}>إشارات السكانر</span>
+                  <span style={{ fontSize: 11, fontWeight:700, color:'#00FFA3', fontFamily: "var(--font-ar)" }}>Signals Scanner</span>
                 </div>
                 <ScannerMini mobile />
               </div>
@@ -1943,42 +1943,42 @@ export default function DashboardPage() {
           {m2ActiveTab === 'positions' && (
             <div style={{ flex:1, overflow:'auto', display:'flex', flexDirection:'column' }}>
 
-              {/* بطاقة الحساب */}
+              {/* بطاقة الAccount */}
               <div style={{ margin:'6px 12px 4px', background:'rgba(0,212,255,0.03)', border:'1px solid rgba(0,212,255,0.08)', borderRadius: 'var(--radius-lg)', padding:'10px 12px' }}>
-                {/* P&L — أعلى المنتصف، الأهم للمتداول */}
+                {/* P&L — أعلى المنتصف، الأهم للمTrading */}
                 {(() => {
                   const pnl = Number(account?.unrealizedPnl)||0
                   const isPos = pnl >= 0
                   return (
                     <div style={{ textAlign:'center', marginBottom:8, paddingBottom:8, borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
-                      <div style={{ fontSize: 11, color:'#6A7A90', fontFamily: "var(--font-ar)", marginBottom:4 }}>الربح / الخسارة</div>
+                      <div style={{ fontSize: 11, color:'#6A7A90', fontFamily: "var(--font-ar)", marginBottom:4 }}>Profit / Loss</div>
                       <div style={{ fontSize: 22, fontWeight:900, color:isPos?'#00FFA3':'#FF4757', fontFamily: "var(--font-mono)", lineHeight:1 }}>
                         {isPos?'+':''}{pnl.toFixed(2)}$
                       </div>
                     </div>
                   )
                 })()}
-                {/* الرصيد + الرصيد الحالي */}
+                {/* Balance + Balance Current */}
                 <div style={{ marginBottom:8 }}>
                   <div>
-                    <div style={{ fontSize: 11, color:'#8090A8', fontFamily: "var(--font-ar)", marginBottom:1 }}>الرصيد</div>
+                    <div style={{ fontSize: 11, color:'#8090A8', fontFamily: "var(--font-ar)", marginBottom:1 }}>Balance</div>
                     <div style={{ fontSize: 17, fontWeight:800, color:'#E8ECF4', fontFamily: "var(--font-mono)" }}>
                       ${(Number(account?.cash||account?.portfolioValue)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
                     </div>
                   </div>
                   <div style={{ marginTop:6 }}>
-                    <div style={{ fontSize: 11, color:'#8090A8', fontFamily: "var(--font-ar)", marginBottom:2 }}>الرصيد الحالي</div>
+                    <div style={{ fontSize: 11, color:'#8090A8', fontFamily: "var(--font-ar)", marginBottom:2 }}>Balance Current</div>
                     <div style={{ fontSize: 13, fontWeight:700, color:'#B0C0D0', fontFamily: "var(--font-mono)" }}>
                       ${(Number(account?.balance ?? account?.equity)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
                     </div>
                   </div>
                 </div>
-                {/* الهامش + هامش مستخدم + نسبة الهامش */}
+                {/* الMargin + Margin مستخدم + Margin Level */}
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, paddingTop:8, borderTop:'1px solid rgba(255,255,255,0.05)' }}>
                   {[
-                    { label:'الهامش', value:`$${(Number(account?.buyingPower)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`, color:'#34D399' },
-                    { label:'هامش مستخدم', value:`$${(Number(account?.initialMargin)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`, color:'#FFB800' },
-                    { label:'نسبة الهامش', value: (Number(account?.initialMargin)||0) > 0 ? `${((Number(account?.equity)||0) / (Number(account?.initialMargin)||1) * 100).toFixed(0)}%` : '—', color:'#00D4FF' },
+                    { label:'الMargin', value:`$${(Number(account?.buyingPower)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`, color:'#34D399' },
+                    { label:'Margin مستخدم', value:`$${(Number(account?.initialMargin)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`, color:'#FFB800' },
+                    { label:'Margin Level', value: (Number(account?.initialMargin)||0) > 0 ? `${((Number(account?.equity)||0) / (Number(account?.initialMargin)||1) * 100).toFixed(0)}%` : '—', color:'#00D4FF' },
                   ].map(item => (
                     <div key={item.label}>
                       <div style={{ fontSize: 11, color:'#8090A8', marginBottom:3, fontFamily: "var(--font-ar)" }}>{item.label}</div>
@@ -1998,12 +1998,12 @@ export default function DashboardPage() {
                 ))}
               </div>
 
-              {/* أزرار فلتر المغلقة + إجمالي الربح/الخسارة */}
+              {/* أزرار فلتر المغلقة + إجمالي Profit/Loss */}
               {m2PositionsTab === 'closed' && (
                 <div style={{ margin:'0 12px 4px' }}>
                   <div style={{ display:'flex', gap:3, marginBottom:4 }}>
                     {(['day','week','month','year','all'] as const).map(f => {
-                      const labels = {day:'يومي',week:'أسبوعي',month:'شهري',year:'سنوي',all:'الكل'}
+                      const labels = {day:'يومي',week:'أسبوعي',month:'شهري',year:'سنوي',all:'All'}
                       return (
                         <button key={f} type="button"
                           onClick={() => { setClosedDateFilter(f); fetchClosedPositions(f); }}
@@ -2046,7 +2046,7 @@ export default function DashboardPage() {
                           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                             <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                               <span style={{ fontSize: 13, fontWeight:800, color:'#F0F2F5', fontFamily: "var(--font-mono)" }}>{pos.symbol}</span>
-                              <span style={{ fontSize: 11, padding:'2px 6px', borderRadius: 'var(--radius-sm)', fontWeight:700, background:pos.side==='BUY'?'rgba(0,255,163,0.08)':'rgba(255,71,87,0.08)', color:pos.side==='BUY'?'#00FFA3':'#FF4757', border:`1px solid ${pos.side==='BUY'?'rgba(0,255,163,0.15)':'rgba(255,71,87,0.15)'}` }}>{pos.side==='BUY'?'شراء':'بيع'}</span>
+                              <span style={{ fontSize: 11, padding:'2px 6px', borderRadius: 'var(--radius-sm)', fontWeight:700, background:pos.side==='BUY'?'rgba(0,255,163,0.08)':'rgba(255,71,87,0.08)', color:pos.side==='BUY'?'#00FFA3':'#FF4757', border:`1px solid ${pos.side==='BUY'?'rgba(0,255,163,0.15)':'rgba(255,71,87,0.15)'}` }}>{pos.side==='BUY'?'Buy':'Sell'}</span>
                             </div>
                             <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                               <span style={{ fontSize: 11, color:'#A0B0C0', fontFamily: "var(--font-mono)" }}>{Number(pos.qty||pos.quantity||0).toFixed(3)}</span>
@@ -2061,9 +2061,9 @@ export default function DashboardPage() {
                                   ['دخول', ep.toFixed(dec)],
                                   ['SL', (pos.sl||pos.stopLoss) ? Number(pos.sl||pos.stopLoss).toFixed(dec) : '—'],
                                   ['TP', (pos.tp||pos.takeProfit) ? Number(pos.tp||pos.takeProfit).toFixed(dec) : '—'],
-                                  ['تاريخ الفتح', pos.openedAt ? new Date(pos.openedAt).toLocaleString('ar',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '—'],
-                                  ['المصدر', (pos.tradeSource||pos.source)==='smart_executor'?'AI':'وكيل'],
-                                  ['الحجم الكامل', Number(pos.qty||pos.quantity||0).toFixed(5)],
+                                  ['تاريخ الOpen', pos.openedAt ? new Date(pos.openedAt).toLocaleString('ar',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '—'],
+                                  ['Source', (pos.tradeSource||pos.source)==='smart_executor'?'AI':'وكيل'],
+                                  ['Size الكامل', Number(pos.qty||pos.quantity||0).toFixed(5)],
                                 ].map(([l,v]) => (
                                   <div key={String(l)}>
                                     <div style={{ fontSize: 11, color:'#7080A0', fontFamily: "var(--font-mono)", marginBottom:2 }}>{l}</div>
@@ -2076,7 +2076,7 @@ export default function DashboardPage() {
                         </div>
                       );
                     })                ) : loadingClosed ? (
-                  <div style={{ textAlign:'center', padding:'40px 0', color:'#6B7280', fontSize: 13 }}>جاري التحميل...</div>
+                  <div style={{ textAlign:'center', padding:'40px 0', color:'#6B7280', fontSize: 13 }}>Running الLoad...</div>
                 ) : closedPositions.length === 0 ? (
                   <div style={{ textAlign:'center', padding:'40px 0', color:'#2A3548', fontSize: 13, fontFamily: "var(--font-ar)" }}>لا توجد صفقات مغلقة</div>
                 ) : (
@@ -2090,9 +2090,9 @@ export default function DashboardPage() {
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
                           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                             <span style={{ fontSize: 13, fontWeight:800, color:'#D0E0F0', fontFamily: "var(--font-mono)" }}>{pos.symbol}</span>
-                            <span style={{ fontSize: 11, padding:'2px 6px', borderRadius: 'var(--radius-sm)', fontWeight:700, background:pos.side==='BUY'?'rgba(0,255,163,0.06)':'rgba(255,71,87,0.06)', color:pos.side==='BUY'?'rgba(0,255,163,0.6)':'rgba(255,71,87,0.6)', border:`1px solid ${pos.side==='BUY'?'rgba(0,255,163,0.1)':'rgba(255,71,87,0.1)'}` }}>{pos.side==='BUY'?'شراء':'بيع'}</span>
+                            <span style={{ fontSize: 11, padding:'2px 6px', borderRadius: 'var(--radius-sm)', fontWeight:700, background:pos.side==='BUY'?'rgba(0,255,163,0.06)':'rgba(255,71,87,0.06)', color:pos.side==='BUY'?'rgba(0,255,163,0.6)':'rgba(255,71,87,0.6)', border:`1px solid ${pos.side==='BUY'?'rgba(0,255,163,0.1)':'rgba(255,71,87,0.1)'}` }}>{pos.side==='BUY'?'Buy':'Sell'}</span>
                             <span style={{ fontSize: 11, color:'#6B7280', fontFamily: "var(--font-mono)" }}>
-                              {({'STOP_LOSS':'SL وقف','STOP_LOSS_HIT':'SL وقف','TAKE_PROFIT':'TP هدف','TAKE_PROFIT_HIT':'TP هدف','TIME_EXPIRED':'منتهي الوقت','AUTO_CLOSE':'إغلاق تلقائي','AUTO_STALE':'تلقائي (قديم)','MANUAL':'يدوي','USER_MANUAL':'يدوي','STRATEGY_EXIT':'استراتيجية','EMERGENCY_STOP':'طوارئ','EXCHANGE_SYNC':'مزامنة','FORCE_CLOSE':'إغلاق إجباري','DISPUTED':'متنازع'}[pos.closeReason]||pos.closeReason||'')}</span>
+                              {({'STOP_LOSS':'SL وقف','STOP_LOSS_HIT':'SL وقف','TAKE_PROFIT':'TP هدف','TAKE_PROFIT_HIT':'TP هدف','TIME_EXPIRED':'منتهي Time','AUTO_CLOSE':'Close تلقائي','AUTO_STALE':'تلقائي (قديم)','MANUAL':'يدوي','USER_MANUAL':'يدوي','STRATEGY_EXIT':'استراتيجية','EMERGENCY_STOP':'طوارئ','EXCHANGE_SYNC':'مزامنة','FORCE_CLOSE':'Close إجباري','DISPUTED':'متنازع'}[pos.closeReason]||pos.closeReason||'')}</span>
                           </div>
                           <div style={{ textAlign:'right' }}>
                             <div style={{ fontSize: 15, fontWeight:800, color:isPos?'rgba(0,255,163,0.7)':'rgba(255,71,87,0.7)', fontFamily: "var(--font-mono)" }}>{isPos?'+':''}{pnl.toFixed(2)}$</div>
@@ -2100,7 +2100,7 @@ export default function DashboardPage() {
                           </div>
                         </div>
                         <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:4 }}>
-                          {[['دخول',ep.toFixed(dec)],['إغلاق',(Number(pos.exitPrice||pos.closePrice||0)).toFixed(dec)],['حجم',Number(pos.quantity||0).toFixed(3)]].map(([l,v])=>(
+                          {[['دخول',ep.toFixed(dec)],['Close',(Number(pos.exitPrice||pos.closePrice||0)).toFixed(dec)],['حجم',Number(pos.quantity||0).toFixed(3)]].map(([l,v])=>(
                             <div key={l}><div style={{ fontSize: 11, color:'#7A8A9A', fontFamily: "var(--font-mono)" }}>{l}</div><div style={{ fontSize: 11, color:'#A0B4C8', fontFamily: "var(--font-mono)", fontWeight:600 }}>{v}</div></div>
                           ))}
                         </div>
@@ -2126,7 +2126,7 @@ export default function DashboardPage() {
               borderBottom:'1px solid rgba(255,255,255,0.06)',
               pointerEvents:'none',
             }}>
-              {/* السطر الأول: الزوج + OHLC مثل MT5 */}
+              {/* السطر الأول: Pair + OHLC مثل MT5 */}
               <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
                 <span style={{ fontSize: 11, fontWeight:800, color:'#00D4FF', fontFamily: "var(--font-mono)", letterSpacing:'0.3px' }}>
                   {selectedSymbol}
@@ -2177,7 +2177,7 @@ export default function DashboardPage() {
                   border:'none', borderRight:'1px solid rgba(255,255,255,0.06)',
                   cursor:'pointer',
                 }}>
-                <span style={{ fontSize: 11, color:'rgba(248,113,113,0.55)', letterSpacing:'1px', fontFamily: "var(--font-ar)" }}>بيع</span>
+                <span style={{ fontSize: 11, color:'rgba(248,113,113,0.55)', letterSpacing:'1px', fontFamily: "var(--font-ar)" }}>Sell</span>
                 <span style={{ fontSize: 13, fontWeight:800, color:'#FF4757', fontFamily: "var(--font-mono)", letterSpacing:'-0.3px' }}>
                   {currentPrice ? (currentPrice * 0.99995).toFixed(currentPrice > 100 ? 2 : 5) : '—'}
                 </span>
@@ -2215,7 +2215,7 @@ export default function DashboardPage() {
                   border:'none', borderLeft:'1px solid rgba(255,255,255,0.06)',
                   cursor:'pointer',
                 }}>
-                <span style={{ fontSize: 11, color:'rgba(74,222,128,0.55)', letterSpacing:'1px', fontFamily: "var(--font-ar)" }}>شراء</span>
+                <span style={{ fontSize: 11, color:'rgba(74,222,128,0.55)', letterSpacing:'1px', fontFamily: "var(--font-ar)" }}>Buy</span>
                 <span style={{ fontSize: 13, fontWeight:800, color:'#4ADE80', fontFamily: "var(--font-mono)", letterSpacing:'-0.3px' }}>
                   {currentPrice ? (currentPrice * 1.00005).toFixed(currentPrice > 100 ? 2 : 5) : '—'}
                 </span>
@@ -2303,28 +2303,28 @@ export default function DashboardPage() {
                 <div style={{ width:32, height:3, background:'rgba(255,255,255,0.1)', borderRadius: 'var(--radius-xs)', margin:'0 auto 14px' }}/>
                 <div style={{ fontSize: 13, fontWeight:800, color:'#E8ECF4', fontFamily: "var(--font-ar)", marginBottom:14 }}>كل الصفحات</div>
                 {[
-                  { title:'التداول', items:[
-                    { label:'المحفظة', icon:'💼', href:'/dashboard/portfolio' },
+                  { title:'الTrading', items:[
+                    { label:'المSaveة', icon:'💼', href:'/dashboard/portfolio' },
                     { label:'المراكز', icon:'📋', href:'/dashboard/positions' },
-                    { label:'الإشارات', icon:'📡', href:'/dashboard/signals' },
-                    { label:'التداول الاجتماعي', icon:'👥', href:'/dashboard/copy-trading' },
+                    { label:'الSignals', icon:'📡', href:'/dashboard/signals' },
+                    { label:'الTrading الاجتماعي', icon:'👥', href:'/dashboard/copy-trading' },
                   ]},
-                  { title:'التحليل', items:[
-                    { label:'الأخبار', icon:'📰', href:'/dashboard/news' },
-                    { label:'السكانر', icon:'🔍', href:'/dashboard/scanner' },
-                    { label:'أسواق التنبؤ', icon:'🔮', href:'/dashboard/prediction-market' },
+                  { title:'الAnalysis', items:[
+                    { label:'الNews', icon:'📰', href:'/dashboard/news' },
+                    { label:'Scanner', icon:'🔍', href:'/dashboard/scanner' },
+                    { label:'Markets التنبؤ', icon:'🔮', href:'/dashboard/prediction-market' },
                     { label:'الارتباط', icon:'🕸️', href:'/dashboard/correlation' },
                     { label:'الشبكة العصبية', icon:'🧠', href:'/dashboard/neural' },
                   ]},
                   { title:'الذكاء الاصطناعي', items:[
-                    { label:'المجلس الاستراتيجي', icon:'🏛️', href:'/dashboard/council' },
+                    { label:'Strategic Council', icon:'🏛️', href:'/dashboard/council' },
                     { label:'مجلس AI', icon:'🧠', href:'/dashboard/ai' },
-                    { label:'الوكيل الآلي', icon:'🤖', href:'/dashboard/autonomous-trader' },
+                    { label:'Auto Agent', icon:'🤖', href:'/dashboard/autonomous-trader' },
                     { label:'الملاذ', icon:'🛡️', href:'/dashboard/sanctuary' },
                     { label:'الاستراتيجيات', icon:'🎯', href:'/dashboard/strategies' },
                   ]},
-                  { title:'الحساب', items:[
-                    { label:'الإعدادات', icon:'⚙️', href:'/dashboard/settings' },
+                  { title:'الAccount', items:[
+                    { label:'الSettings', icon:'⚙️', href:'/dashboard/settings' },
                     { label:'الأمان', icon:'🔒', href:'/dashboard/security/2fa' },
                     { label:'الإشعارات', icon:'🔔', href:'/dashboard/notifications' },
                     { label:'المساعدة', icon:'❓', href:'/dashboard/help' },
@@ -2363,7 +2363,7 @@ export default function DashboardPage() {
                 <div style={{ width:32, height:3, background:'rgba(255,255,255,0.1)', borderRadius: 'var(--radius-xs)', margin:'0 auto 16px' }}/>
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:16 }}>
                   <span style={{ fontSize: 15, fontWeight:800, color:'#E8ECF4', fontFamily: "var(--font-ar)" }}>
-                    تأكيد {m2OrderSide==='buy'?'الشراء':'البيع'} · {selectedSymbol}
+                    Confirm {m2OrderSide==='buy'?'الBuy':'الSell'} · {selectedSymbol}
                   </span>
                   <span style={{ fontSize: 13, fontWeight:700, color:'#6A7A90', fontFamily: "var(--font-mono)" }}>
                     {currentPrice ? formatQuotePrice(currentPrice) : '—'}
@@ -2372,7 +2372,7 @@ export default function DashboardPage() {
                 {[
                   {l:'نوع الأمر', v:'سوق فوري'},
                   {l:'حجم العقد', v:m2Qty},
-                  {l:'القيمة الكلية', v:currentPrice?`$${(parseFloat(m2Qty)*currentPrice).toFixed(2)}`:'—'},
+                  {l:'Value Allية', v:currentPrice?`$${(parseFloat(m2Qty)*currentPrice).toFixed(2)}`:'—'},
                 ].map(row => (
                   <div key={row.l} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
                     <span style={{ fontSize: 13, color:'#6B7280' }}>{row.l}</span>
@@ -2388,7 +2388,7 @@ export default function DashboardPage() {
                     fontSize: 15, fontWeight:800, cursor:'pointer', fontFamily: "var(--font-ar)",
                     boxShadow: m2OrderSide==='buy'?'0 6px 24px rgba(0,255,163,0.28)':'0 6px 24px rgba(255,71,87,0.28)',
                   }}>
-                  تأكيد {m2OrderSide==='buy'?'الشراء':'البيع'}
+                  Confirm {m2OrderSide==='buy'?'الBuy':'الSell'}
                 </button>
               </div>
             </div>

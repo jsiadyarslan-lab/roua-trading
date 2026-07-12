@@ -5,8 +5,8 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import type { CandleData } from './types';
-import { detectZigZag, type SwingPoint } from './igag';
-import { createIncrementalState, initialieState, updateIncremental, needsFullRecalc, getQuickTrend, type IncrementalState } from './IncrementalCalc';
+import { detectZigZag, type SwingPoint } from './zigzag';
+import { createIncrementalState, initializeState, updateIncremental, needsFullRecalc, getQuickTrend, type IncrementalState } from './IncrementalCalc';
 import { getDynamicThresholds, adjustQualityForVolatility } from './ATRAdapter';
 
 // ── Incremental state for O(1) updates instead of O(n) full recalculation ──
@@ -856,14 +856,14 @@ export function detectHarmonics(
  if (!inRange(ratioXAD, ratios.XAD[0], ratios.XAD[1], p + 0.03)) continue;
 
  // Calculate PRZ (Potential Reversal Zone)
- const prPrice = D.price;
- const prRange = prPrice * 0.015; // ±1.5% around D
+ const przPrice = D.price;
+ const przRange = przPrice * 0.015; // ±1.5% around D
 
  const direction: PatternDirection = isBullish ? 'bullish' : 'bearish';
 
  const forecast: ForecastZone = {
- priceMin: isBullish ? prPrice + XA * 0.382 : prPrice - XA * 0.382,
- priceMax: isBullish ? prPrice + XA * 0.618 : prPrice - XA * 0.618,
+ priceMin: isBullish ? przPrice + XA * 0.382 : przPrice - XA * 0.382,
+ priceMax: isBullish ? przPrice + XA * 0.618 : przPrice - XA * 0.618,
  timeFrom: D.time + barDuration * 3,
  timeTo: D.time + barDuration * Math.round((D.index - X.index) * 0.5),
  probability: Math.round(65 + (1 - Math.abs(ratioXAB - ratios.XAB[0])) * 10),
@@ -906,7 +906,7 @@ export function detectHarmonics(
  forecast,
  quality,
  patternHeight: XA,
- breakoutPrice: prPrice,
+ breakoutPrice: przPrice,
  timeStart: X.time,
  timeEnd: D.time,
  });
@@ -955,7 +955,7 @@ export function runPatternEngine(
  }
 
  if (shouldFullRecalc) {
- _incrementalState = initialieState(_incrementalState, candles);
+ _incrementalState = initializeState(_incrementalState, candles);
  } else {
  // Incremental update with just the new candle(s)
  const newCandlesCount = currentLen - _lastCandleCount;

@@ -47,7 +47,7 @@ export const TIMEFRAME_LABELS_EN: Record<string, string> = {
 
 // ── Full Timeframe List (for dropdowns, toolbars, etc.) ──
 export interface TimeframeInfo {
- value: string; // Normalied API value (e.g. '1min', '1h', '1day')
+ value: string; // Normalized API value (e.g. '1min', '1h', '1day')
  labelAr: string; // Arabic display label
  labelEn: string; // English display label
  minutes: number; // Duration in minutes (fractional for seconds)
@@ -85,19 +85,19 @@ export { TIMEFRAMES };
 
 // ── Utility: Timeframe → Seconds ─────────────────────────
 export function timeframeToSeconds(tf: string): number {
- return TIMEFRAME_SECONDS[normalieTimeframe(tf)] ?? 60;
+ return TIMEFRAME_SECONDS[normalizeTimeframe(tf)] ?? 60;
 }
 
 // ── Utility: Timeframe → Label ───────────────────────────
 export function timeframeToLabel(tf: string, lang: 'ar' | 'en' = 'en'): string {
- const normalied = normalieTimeframe(tf);
+ const normalized = normalizeTimeframe(tf);
  if (lang === 'ar') {
- return TIMEFRAME_LABELS_AR[normalied] ?? tf;
+ return TIMEFRAME_LABELS_AR[normalized] ?? tf;
  }
- return TIMEFRAME_LABELS_EN[normalied] ?? tf;
+ return TIMEFRAME_LABELS_EN[normalized] ?? tf;
 }
 
-// ── Utility: Normalie Timeframe ─────────────────────────
+// ── Utility: Normalize Timeframe ─────────────────────────
 // Converts variant formats to the canonical API value:
 // '1m' → '1min', '1H' → '1h', '1D' → '1day', '1W' → '1week', etc.
 const NORMALIZE_MAP: Record<string, string> = {
@@ -111,12 +111,12 @@ const NORMALIZE_MAP: Record<string, string> = {
  '1d': '1day', '3d': '3day', '1w': '1week',
 };
 
-export function normalieTimeframe(tf: string): string {
+export function normalizeTimeframe(tf: string): string {
  return NORMALIZE_MAP[tf] ?? tf;
 }
 
 // ── Binance Interval Map ─────────────────────────────────
-// Maps normalied (canonical) timeframe values to Binance API interval strings.
+// Maps normalized (canonical) timeframe values to Binance API interval strings.
 // Seconds-level timeframes map to '1m' (Binance minimum).
 export const BINANCE_INTERVAL_MAP: Record<string, string> = {
  '1s': '1m', '5s': '1m', '15s': '1m', '30s': '1m', // seconds → 1m (Binance min)
@@ -127,7 +127,7 @@ export const BINANCE_INTERVAL_MAP: Record<string, string> = {
 
 // ── Convenience: Resolve a timeframe to Binance interval ──
 export function timeframeToBinanceInterval(tf: string): string {
- return BINANCE_INTERVAL_MAP[normalieTimeframe(tf)] ?? '1m';
+ return BINANCE_INTERVAL_MAP[normalizeTimeframe(tf)] ?? '1m';
 }
 
 // ── SmartGrid / MultiChart default timeframes ────────────

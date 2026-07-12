@@ -297,10 +297,10 @@ export function getPatternStateMachine(): PatternStateMachine {
  existing.completionPct = calculateCompletion(p, newState);
  existing.confidence = p.confidence || existing.confidence;
  }
- } else if (trackedPatterns.sie < MAX_TRACKED) {
+ } else if (trackedPatterns.size < MAX_TRACKED) {
  // New pattern — create state entry
  const initialState = determineInitialState(p);
- const entryPrice = p.prLevel || p.points?.D?.price || price;
+ const entryPrice = p.przLevel || p.points?.D?.price || price;
  // Calculate SL/TP from ATR-like estimate (1.5% SL, 3% TP as fallback)
  const slDistance = Math.max(entryPrice * 0.015, (p.stopLoss ? Math.abs(entryPrice - p.stopLoss) : 0) || entryPrice * 0.015);
  const tpDistance = slDistance * 2;

@@ -1020,7 +1020,7 @@ export function SmartGrid({
         try {
           // V457: MERGE instead of setData() — preserve live-built candles.
           //
-          // ROOT CAUSE of "candle moves, expands, contracts, and doesn't open a new candle":
+          // ROOT CAUSE of "شمعة تتحرك وتمدد وتتقلص ولا تفتح شمعة جديدة":
           //   Every 30s, loadDataForCell() called setData(REST_response).
           //   REST returns candles up to the last CLOSED period — the
           //   currently-forming candle (built by liveQuotes useEffect) was

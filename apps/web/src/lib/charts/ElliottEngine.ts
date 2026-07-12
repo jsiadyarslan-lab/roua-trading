@@ -3,7 +3,7 @@
 //
 // Professional Elliott Wave detection with:
 // - 5-wave impulse with Fibonacci ratio verification
-// - ABC correction patterns: Zigag, Flat, Triangle, Complex (WXY)
+// - ABC correction patterns: Zigzag, Flat, Triangle, Complex (WXY)
 // - Dynamic confidence based on ratio accuracy
 // - Extension rules (Wave 3 = 1.618 × W1, etc.)
 // - Multiple alternate counts with probability ranking (top 5)
@@ -22,7 +22,7 @@ import { calcATR } from './ATRAdapter';
  */
 export interface WaveCount {
  /** Pattern classification */
- type: 'impulse' | 'igag' | 'flat' | 'triangle' | 'complex';
+ type: 'impulse' | 'zigzag' | 'flat' | 'triangle' | 'complex';
  /** Overall direction of the wave pattern */
  direction: 'bullish' | 'bearish';
  /** Confidence 0–1 based on Fibonacci ratio accuracy and wave rules */
@@ -40,7 +40,7 @@ export interface WaveCount {
  };
  /** Projected target price based on extension rules, or null if indeterminate */
  targetPrice: number | null;
- /** Human-readable label (e.g. "Impulse (Bullish)", "Zigag Correction") */
+ /** Human-readable label (e.g. "Impulse (Bullish)", "Zigzag Correction") */
  label: string;
 }
 
@@ -78,8 +78,8 @@ const MAX_COUNTS = 5;
 const LABELS_AR: Record<string, string> = {
  'impulse-bullish': ' bullish',
  'impulse-bearish': ' ',
- 'igag-bullish': 'correct igag bullish',
- 'igag-bearish': 'correct igag bearish',
+ 'zigzag-bullish': 'correct zigzag bullish',
+ 'zigzag-bearish': 'correct zigzag bearish',
  'flat-bullish': 'correct flat bullish',
  'flat-bearish': 'correct flat bearish',
  'triangle-bullish': 'correct triangle bullish',
@@ -259,26 +259,26 @@ function detectImpulse(swings: SwingPoint[], direction: 'bullish' | 'bearish'): 
  return counts;
 }
 
-// ── ABC Zigag Correction Detection ──────────────────────────────────
+// ── ABC Zigzag Correction Detection ──────────────────────────────────
 
 /**
- * Detect ABC Zigag correction (5-3-5 structure).
- * Bullish igag: HIGH-LOW-HIGH (A down, B up, C down — but within a correction of a larger uptrend)
- * The igag is a sharp correction with:
+ * Detect ABC Zigzag correction (5-3-5 structure).
+ * Bullish zigzag: HIGH-LOW-HIGH (A down, B up, C down — but within a correction of a larger uptrend)
+ * The zigzag is a sharp correction with:
  * - Wave A = 5-wave impulse
  * - Wave B = small retrace (~38.2% to 50% of A)
  * - Wave C = 5-wave impulse extending ~161.8% of A
  *
- * For simplicity we detect 3-swing igag patterns.
+ * For simplicity we detect 3-swing zigzag patterns.
  */
-function detectZigagCorrection(swings: SwingPoint[], direction: 'bullish' | 'bearish'): WaveCount[] {
+function detectZigzagCorrection(swings: SwingPoint[], direction: 'bullish' | 'bearish'): WaveCount[] {
  const counts: WaveCount[] = [];
 
  for (let i = 0; i <= swings.length - 3; i++) {
  const pts = swings.slice(i, i + 3);
 
  if (direction === 'bearish') {
- // Bearish igag: HIGH-LOW-HIGH (A=down, B=up, C=down)
+ // Bearish zigzag: HIGH-LOW-HIGH (A=down, B=up, C=down)
  if (pts[0].type !== 'HIGH' || pts[1].type !== 'LOW' || pts[2].type !== 'HIGH') continue;
 
  const aPrice = pts[0].price;
@@ -295,7 +295,7 @@ function detectZigagCorrection(swings: SwingPoint[], direction: 'bullish' | 'bea
  // Wave B typically retraces 38.2%–61.8% of Wave A
  if (bRetrace < 0.2 || bRetrace > 0.8) continue;
 
- // C point should be lower than A for a valid igag
+ // C point should be lower than A for a valid zigzag
  if (cPrice >= aPrice) continue;
 
  const cExtendA = (aPrice - cPrice) / waveA;
@@ -308,7 +308,7 @@ function detectZigagCorrection(swings: SwingPoint[], direction: 'bullish' | 'bea
  const wave3Extend = Math.round(cExtendA * 1000) / 1000;
 
  counts.push({
- type: 'igag',
+ type: 'zigzag',
  direction: 'bearish',
  confidence,
  probability: 0,
@@ -320,10 +320,10 @@ function detectZigagCorrection(swings: SwingPoint[], direction: 'bullish' | 'bea
  wave5Extend: 0,
  },
  targetPrice: bPrice - waveA * 1.618,
- label: 'Zigag Correction (Bearish)',
+ label: 'Zigzag Correction (Bearish)',
  });
  } else {
- // Bullish igag: LOW-HIGH-LOW
+ // Bullish zigzag: LOW-HIGH-LOW
  if (pts[0].type !== 'LOW' || pts[1].type !== 'HIGH' || pts[2].type !== 'LOW') continue;
 
  const aPrice = pts[0].price;
@@ -350,7 +350,7 @@ function detectZigagCorrection(swings: SwingPoint[], direction: 'bullish' | 'bea
  const wave3Extend = Math.round(cExtendA * 1000) / 1000;
 
  counts.push({
- type: 'igag',
+ type: 'zigzag',
  direction: 'bullish',
  confidence,
  probability: 0,
@@ -362,7 +362,7 @@ function detectZigagCorrection(swings: SwingPoint[], direction: 'bullish' | 'bea
  wave5Extend: 0,
  },
  targetPrice: aPrice + waveA * 1.618,
- label: 'Zigag Correction (Bullish)',
+ label: 'Zigzag Correction (Bullish)',
  });
  }
  }
@@ -702,8 +702,8 @@ export function detectElliottAdvanced(candles: CandleData[]): ElliottResult {
  ...detectImpulse(swings, 'bearish'),
 
  // Corrective patterns
- ...detectZigagCorrection(swings, 'bullish'),
- ...detectZigagCorrection(swings, 'bearish'),
+ ...detectZigzagCorrection(swings, 'bullish'),
+ ...detectZigzagCorrection(swings, 'bearish'),
  ...detectFlatCorrection(swings, 'bullish'),
  ...detectFlatCorrection(swings, 'bearish'),
  ...detectTriangleCorrection(swings, 'bullish'),

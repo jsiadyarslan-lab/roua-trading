@@ -38,7 +38,7 @@ export function detectWyckoff(candles: CandleData[]): WyckoffResult {
  const sumXY = prices.reduce((s,p,i)=>s+i*p,0);
  const sumX2 = n*(n-1)*(2*n-1)/6;
  const slope = (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX);
- const slopeNorm = slope / (sumY/n); // normalied slope
+ const slopeNorm = slope / (sumY/n); // normalized slope
 
  const events: WyckoffResult['events'] = [];
  let phase: WyckoffPhase = 'Unknown';

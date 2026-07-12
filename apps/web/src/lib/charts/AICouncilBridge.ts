@@ -587,7 +587,7 @@ export function recordModelOutcome(model: AIModel, wasCorrect: boolean): void {
  if (!perf) return;
 
  if (wasCorrect) perf.correctPredictions++;
- // V225 FIX: Guard against division by ero if totalPredictions is corrupted
+ // V225 FIX: Guard against division by zero if totalPredictions is corrupted
  perf.winRate = perf.totalPredictions > 0 ? perf.correctPredictions / perf.totalPredictions : 0;
 
  // EMA update
@@ -647,7 +647,7 @@ export function getAIvsAlgoStats(): {
 
 // ═══════════════════════════════════════════════════════════════════════
 // REAL AI COUNCIL — Calls /api/ai/smart-council to reach actual AI models
-// (-ai-web-dev-sdk on server, GROQ as fallback)
+// (z-ai-web-dev-sdk on server, GROQ as fallback)
 // ═══════════════════════════════════════════════════════════════════════
 
 /** Cooldown to prevent spamming the AI API */
@@ -676,7 +676,7 @@ export async function queryAICouncil(payload: AIAnalysisPayload): Promise<{
  // Build the prompt from the analysis payload
  const prompt = buildAICouncilPrompt(payload);
 
- // Call our API route (server-side handles -ai-web-dev-sdk / GROQ)
+ // Call our API route (server-side handles z-ai-web-dev-sdk / GROQ)
  const response = await fetch('/api/ai/smart-council', {
  method: 'POST',
  headers: { 'Content-Type': 'application/json' },
@@ -700,7 +700,7 @@ export async function queryAICouncil(payload: AIAnalysisPayload): Promise<{
  const { direction, confidence, reasoningAr, model } = data.prediction;
 
  const prediction: AIModelPrediction = {
- model: (model || 'ai-llm') as AIModel,
+ model: (model || 'zai-llm') as AIModel,
  direction: direction as 'bullish' | 'bearish' | 'neutral',
  confidence: confidence as number,
  reasoningAr: reasoningAr || '',

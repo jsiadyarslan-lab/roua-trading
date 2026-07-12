@@ -37,7 +37,7 @@ export interface PatternPrediction {
  price: number;
  confidence: number;
  }>;
- /** Price one where the pattern is likely to complete */
+ /** Price zone where the pattern is likely to complete */
  completionZone: {
  high: number;
  low: number;
@@ -220,7 +220,7 @@ function detectPartialHarmonics(
  center: Math.round(dTarget * 100) / 100,
  },
  confidence: Math.min(0.7, 0.3 + (1 - Math.abs(abRetrace - ratio)) * 3),
- descriptionAr: `pattern ${pattern.nameAr} incomplete — points X, A, B shape. what style at ${Math.round(dTarget * 100) / 100}`,
+ descriptionAr: `pattern ${pattern.nameAr} incomplete — points X, A, B shape. includes what style at ${Math.round(dTarget * 100) / 100}`,
  estimatedCandlesToCompletion: Math.round((candles.length - B.index) * 0.5),
  });
  }
@@ -257,7 +257,7 @@ function detectPartialHarmonics(
  center: Math.round(dTarget * 100) / 100,
  },
  confidence: Math.min(0.7, 0.3 + (1 - Math.abs(abRetrace - ratio)) * 3),
- descriptionAr: `pattern ${pattern.nameAr} bearish incomplete — whathas at ${Math.round(dTarget * 100) / 100}`,
+ descriptionAr: `pattern ${pattern.nameAr} bearish incomplete — includes whathas at ${Math.round(dTarget * 100) / 100}`,
  estimatedCandlesToCompletion: Math.round((candles.length - B.index) * 0.5),
  });
  }

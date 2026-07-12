@@ -361,7 +361,7 @@ function detectSpringAtLevel(
  if (springCandle.volume && springCandle.volume > 0) {
  const avgVol = recent.reduce((s, c) => s + (c.volume || 0), 0) / recent.length;
  if (springCandle.volume > avgVol * 1.5) {
- confirmations.push('sie trade at six');
+ confirmations.push('size trade at six');
  }
  }
 

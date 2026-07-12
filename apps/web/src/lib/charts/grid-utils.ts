@@ -50,7 +50,7 @@ export interface CellState {
  retryCount: number;
 }
 
-/** Default (empty) cell state — used to initialie new cells */
+/** Default (empty) cell state — used to initialize new cells */
 export const DEFAULT_CELL_STATE: CellState = {
  loading: true,
  error: null,
@@ -217,7 +217,7 @@ export interface ParsedCandle {
 }
 
 /**
- * Parse raw API candle data into standardied format.
+ * Parse raw API candle data into standardized format.
  * UNIFY (4.4): was duplicated in ChartGrid and SmartGrid.
  * Handles timestamp conversion, numeric coercion, deduplication, and sorting.
  */
@@ -304,21 +304,21 @@ export function detectDataSource(response: any): DataSource {
  return 'binance';
 }
 
-// ── Symbol Normaliation ─────────────────────────────────
+// ── Symbol Normalization ─────────────────────────────────
 
 /**
- * Normalie symbol for matching — removes slashes, dashes, underscores
+ * Normalize symbol for matching — removes slashes, dashes, underscores
  * and uppercases for consistent comparison.
  * UNIFY (4.4): was only in SmartGrid, now shared.
  */
-export function normalieSymbol(s: string): string {
+export function normalizeSymbol(s: string): string {
  return s.toUpperCase().replace(/[/\-_]/g, '');
 }
 
 // ── Container Dimensions ─────────────────────────────────
 
 /**
- * Wait for an element to have real (non-ero) dimensions.
+ * Wait for an element to have real (non-zero) dimensions.
  * Useful when chart containers haven't been laid out yet.
  * UNIFY (4.4): was only in SmartGrid, now shared.
  */

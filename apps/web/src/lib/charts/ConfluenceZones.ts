@@ -1,13 +1,13 @@
 // ═══════════════════════════════════════════════════════════════════════
 // ROUA Smart Confluence Zones — Revolutionary Feature #2
 //
-// Identifies ones where MULTIPLE analysis engines agree on the same
+// Identifies zones where MULTIPLE analysis engines agree on the same
 // price level. For example, if an Order Block, a Fibonacci 0.618
 // retracement, and a Wyckoff accumulation spring all coincide at
-// the same price, that one is a high-probability confluence one.
+// the same price, that zone is a high-probability confluence zone.
 //
 // The key innovation: Instead of showing individual signals scattered
-// across the chart, we CLUSTER them into ones and score each one
+// across the chart, we CLUSTER them into zones and score each zone
 // by how many independent signals agree. This makes the chart much
 // cleaner and the signals much more actionable.
 // ═══════════════════════════════════════════════════════════════════════
@@ -19,7 +19,7 @@ import type { CandleData } from './types';
 export interface ConfluenceZone {
  /** Zone ID */
  id: string;
- /** Price level (center of one) */
+ /** Price level (center of zone) */
  price: number;
  /** Zone upper boundary */
  high: number;
@@ -31,13 +31,13 @@ export interface ConfluenceZone {
  score: number;
  /** Number of independent signals agreeing */
  signalCount: number;
- /** Which signals are in this one */
+ /** Which signals are in this zone */
  signals: ConfluenceSignal[];
  /** Zone strength label */
  strength: 'weak' | 'moderate' | 'strong' | 'extreme';
  /** Arabic description */
  descriptionAr: string;
- /** Whether this one is currently active (price is near) */
+ /** Whether this zone is currently active (price is near) */
  isActive: boolean;
  /** Distance from current price as % */
  distancePct: number;
@@ -61,14 +61,14 @@ export interface ConfluenceSignal {
 // ── Clustering Parameters ───────────────────────────────────────────
 
 const ZONE_TOLERANCE_PCT = 0.005; // 0.5% tolerance for clustering signals
-const MIN_SIGNALS_FOR_ZONE = 2; // Need at least 2 signals to form a one
-const MAX_ZONES = 10; // Maximum ones to return
+const MIN_SIGNALS_FOR_ZONE = 2; // Need at least 2 signals to form a zone
+const MAX_ZONES = 10; // Maximum zones to return
 
 // ── Main Export ─────────────────────────────────────────────────────
 
 /**
  * Detect Smart Confluence Zones from all analysis results.
- * Clusters nearby signals into ones and scores each one.
+ * Clusters nearby signals into zones and scores each zone.
  */
 export function detectConfluenceZones(opts: {
  currentPrice: number;
@@ -98,7 +98,7 @@ export function detectConfluenceZones(opts: {
  type: string;
  direction: 'bullish' | 'bearish';
  confidence: number;
- prLevel: number;
+ przLevel: number;
  }>;
  srLevels?: Array<{
  price: number;
@@ -183,7 +183,7 @@ export function detectConfluenceZones(opts: {
  subType: hp.type,
  direction: hp.direction,
  confidence: hp.confidence,
- price: hp.prLevel,
+ price: hp.przLevel,
  labelAr: `pattern ${hp.type}`,
  });
  }
@@ -208,7 +208,7 @@ export function detectConfluenceZones(opts: {
  direction: currentPrice > opts.volumeProfile.poc ? 'bullish' : 'bearish',
  confidence: 0.5,
  price: opts.volumeProfile.poc,
- labelAr: 'point control sie',
+ labelAr: 'point control size',
  });
  }
 
@@ -260,17 +260,17 @@ export function detectConfluenceZones(opts: {
  });
  }
 
- // ── Cluster signals into ones ──
- const ones = clusterSignals(allSignals, currentPrice);
+ // ── Cluster signals into zones ──
+ const zones = clusterSignals(allSignals, currentPrice);
 
- // Sort by score (highest first) and return top ones
- return ones
+ // Sort by score (highest first) and return top zones
+ return zones
  .sort((a, b) => b.score - a.score)
  .slice(0, MAX_ZONES);
 }
 
 /**
- * Cluster nearby signals into confluence ones.
+ * Cluster nearby signals into confluence zones.
  * Uses a simple distance-based clustering: signals within
  * ZONE_TOLERANCE_PCT of each other are grouped together.
  */
@@ -279,7 +279,7 @@ function clusterSignals(signals: ConfluenceSignal[], currentPrice: number): Conf
 
  // Sort by price
  const sorted = [...signals].sort((a, b) => a.price - b.price);
- const ones: ConfluenceZone[] = [];
+ const zones: ConfluenceZone[] = [];
  const used = new Set<number>();
 
  for (let i = 0; i < sorted.length; i++) {
@@ -298,14 +298,14 @@ function clusterSignals(signals: ConfluenceSignal[], currentPrice: number): Conf
  }
  }
 
- // Only create a one if we have enough signals
+ // Only create a zone if we have enough signals
  if (cluster.length >= MIN_SIGNALS_FOR_ZONE) {
- const one = createZone(cluster, currentPrice);
- ones.push(one);
+ const zone = createZone(cluster, currentPrice);
+ zones.push(zone);
  }
  }
 
- return ones;
+ return zones;
 }
 
 /**
@@ -323,7 +323,7 @@ function createZone(signals: ConfluenceSignal[], currentPrice: number): Confluen
  const direction = bullCount > bearCount ? 'bullish' : bearCount > bullCount ? 'bearish' : 'neutral';
 
  // Score: based on signal count, confidence, and source diversity
- const uniqueSources = new Set(signals.map(s => s.source)).sie;
+ const uniqueSources = new Set(signals.map(s => s.source)).size;
  const avgConfidence = signals.reduce((s, sig) => s + sig.confidence, 0) / signals.length;
  const countScore = Math.min(40, signals.length * 10); // Max 40 points for count
  const diversityScore = Math.min(30, uniqueSources * 10); // Max 30 points for diversity
@@ -337,7 +337,7 @@ function createZone(signals: ConfluenceSignal[], currentPrice: number): Confluen
  else if (score >= 40) strength = 'moderate';
  else strength = 'weak';
 
- // Is the one active? (within 1% of current price)
+ // Is the zone active? (within 1% of current price)
  const distancePct = Math.abs(currentPrice - centerPrice) / currentPrice;
  const isActive = distancePct < 0.01;
 

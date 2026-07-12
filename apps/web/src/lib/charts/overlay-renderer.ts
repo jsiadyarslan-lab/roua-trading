@@ -16,10 +16,10 @@ import type { CandleData } from './types';
 import type { OverlayType } from './OverlayRegistry';
 import { getOverlayRegistry, OverlayRegistry } from './OverlayRegistry';
 import {
- TrendLinePrimitive, HoriontalLinePrimitive, ShapePrimitive,
+ TrendLinePrimitive, HorizontalLinePrimitive, ShapePrimitive,
  FibonacciPrimitive, LabelPrimitive, ZonePrimitive, AlertMarkerPrimitive,
  OVERLAY_COLORS,
- type TrendLineData, type HoriontalLineData, type ShapeData,
+ type TrendLineData, type HorizontalLineData, type ShapeData,
  type FibonacciData, type LabelData, type ZoneData, type Point, type AlertMarkerData,
 } from './chart-primitives';
 import {
@@ -130,7 +130,7 @@ export interface OverlayInput {
  patterns?: any[];
  /** Alert markers from auto-detection — visual pins on chart */
  alerts?: AlertMarkerData[];
- /** Elliott+SMC Fusion result — shows confluence ones on chart */
+ /** Elliott+SMC Fusion result — shows confluence zones on chart */
  fusionResult?: {
  direction: 'bullish' | 'bearish' | 'neutral';
  confluenceScore: number;
@@ -181,9 +181,9 @@ export interface OverlayInput {
  descriptionAr: string;
  currentTrailSL?: number | null;
  }>;
- /** Liquidity ones — shows pools, sweeps, and voids */
+ /** Liquidity zones — shows pools, sweeps, and voids */
  liquidityResult?: {
- ones: Array<{
+ zones: Array<{
  type: string;
  price: number;
  high: number;
@@ -302,12 +302,12 @@ export function renderOverlays(
  const safeAddPriceLine = createSafePriceLineFn(candles, addPriceLine, registry);
 
  // ═══════════════════════════════════════════════════════════════
- // S/R — Support/Resistance using clustering + horiontal lines
+ // S/R — Support/Resistance using clustering + horizontal lines
  // ═══════════════════════════════════════════════════════════════
  if (showSR) {
  const levels = detectSRLevels(closedCandles);
  // ── CLEANUP: Only show top 4 strongest levels to avoid chart clutter ──
- // Filter to only levels within 3% of current price (relevant one)
+ // Filter to only levels within 3% of current price (relevant zone)
  const lastPrice = candles[candles.length - 1].close;
  const nearbyLevels = levels.filter(l => Math.abs(l.price - lastPrice) / lastPrice < 0.03);
  const displayLevels = (nearbyLevels.length >= 2 ? nearbyLevels : levels).slice(0, 4);
@@ -318,8 +318,8 @@ export function renderOverlays(
  displayLevels.forEach((level, i) => {
  const opacity = level.strength > 0.6 ? 0.8 : level.strength > 0.3 ? 0.5 : 0.3;
 
- // Use HoriontalLinePrimitive for S/R
- registry.add('sr', new HoriontalLinePrimitive({
+ // Use HorizontalLinePrimitive for S/R
+ registry.add('sr', new HorizontalLinePrimitive({
  price: level.price,
  color: level.type === 'support'
  ? `rgba(0, 255, 163, ${opacity})`
@@ -339,7 +339,7 @@ export function renderOverlays(
  (input.supportLevels || []).slice(0, 2).forEach((level, i) => {
  if (!displayLevels.some(l => Math.abs(l.price - level.price) / level.price < 0.005)) {
  const opacity = level.strength === 'strong' ? 0.8 : level.strength === 'medium' ? 0.5 : 0.3;
- registry.add('sr', new HoriontalLinePrimitive({
+ registry.add('sr', new HorizontalLinePrimitive({
  price: level.price,
  color: `rgba(0, 255, 163, ${opacity})`,
  lineWidth: level.strength === 'strong' ? 2 : 1,
@@ -351,7 +351,7 @@ export function renderOverlays(
  (input.resistanceLevels || []).slice(0, 2).forEach((level, i) => {
  if (!displayLevels.some(l => Math.abs(l.price - level.price) / level.price < 0.005)) {
  const opacity = level.strength === 'strong' ? 0.8 : level.strength === 'medium' ? 0.5 : 0.3;
- registry.add('sr', new HoriontalLinePrimitive({
+ registry.add('sr', new HorizontalLinePrimitive({
  price: level.price,
  color: `rgba(255, 71, 87, ${opacity})`,
  lineWidth: level.strength === 'strong' ? 2 : 1,
@@ -405,7 +405,7 @@ export function renderOverlays(
  color: sw.structureLabel === 'HH' || sw.structureLabel === 'HL'
  ? OVERLAY_COLORS.trendUp
  : OVERLAY_COLORS.trendDown,
- fontSie: 11,
+ fontSize: 11,
  align: 'center',
  bg: 'rgba(11, 14, 20, 0.8)',
  position: sw.type === 'HIGH' ? 'above' : 'below',
@@ -424,7 +424,7 @@ export function renderOverlays(
  const harmonics = detectHarmonicPatterns(swings);
 
  // Build data signature from harmonic patterns
- const harmonicSig = JSON.stringify(harmonics.slice(0, 4).map(h => `${h.type}:${h.direction}:${h.prLevel}:${h.points.X.price}:${h.points.D.price}`).join('|'));
+ const harmonicSig = JSON.stringify(harmonics.slice(0, 4).map(h => `${h.type}:${h.direction}:${h.przLevel}:${h.points.X.price}:${h.points.D.price}`).join('|'));
  if (registry.smartRedraw('harmonic', harmonicSig)) {
  harmonics.slice(0, 4).forEach((harm, idx) => {
  const isBull = harm.direction === 'bullish';
@@ -452,14 +452,14 @@ export function renderOverlays(
  }));
  });
 
- // PRZ one at point D — use closedCandles for stable ATR
+ // PRZ zone at point D — use closedCandles for stable ATR
  const atr = closedCandles[closedCandles.length - 1].high - closedCandles[closedCandles.length - 1].low;
  registry.add('harmonic', new ZonePrimitive({
  startTime: pts.C.time as any,
  endTime: pts.D.time as any,
- highPrice: harm.prLevel + atr * 0.5,
- lowPrice: harm.prLevel - atr * 0.5,
- fillColor: isBull ? OVERLAY_COLORS.oneGold : OVERLAY_COLORS.oneRed,
+ highPrice: harm.przLevel + atr * 0.5,
+ lowPrice: harm.przLevel - atr * 0.5,
+ fillColor: isBull ? OVERLAY_COLORS.zoneGold : OVERLAY_COLORS.zoneRed,
  borderColor: col,
  label: `PRZ ${harm.type}`,
  }));
@@ -472,7 +472,7 @@ export function renderOverlays(
  price: pt.price,
  text: labels[i],
  color: col,
- fontSie: 13,
+ fontSize: 13,
  align: 'center',
  bg: 'rgba(11, 14, 20, 0.85)',
  position: i % 2 === 0 ? 'below' : 'above',
@@ -480,7 +480,7 @@ export function renderOverlays(
  });
 
  // PRZ price line
- safeAddPriceLine(`h-pr-${idx}`, harm.prLevel, col, `PRZ ${harm.type}`, 2, 2, true, 'harmonic');
+ safeAddPriceLine(`h-prz-${idx}`, harm.przLevel, col, `PRZ ${harm.type}`, 2, 2, true, 'harmonic');
  });
 
  // Also include classic patterns from AI panel
@@ -494,7 +494,7 @@ export function renderOverlays(
  registry.add('harmonic', new ShapePrimitive({
  points,
  strokeColor: col,
- fillColor: isBull ? OVERLAY_COLORS.one : OVERLAY_COLORS.oneRed,
+ fillColor: isBull ? OVERLAY_COLORS.zone : OVERLAY_COLORS.zoneRed,
  lineWidth: 2,
  }));
  }
@@ -506,7 +506,7 @@ export function renderOverlays(
  }
 
  // ═══════════════════════════════════════════════════════════════
- // FVG — Fair Value Gap ones (PHASE 4: Enhanced with fill tracking)
+ // FVG — Fair Value Gap zones (PHASE 4: Enhanced with fill tracking)
  // ═══════════════════════════════════════════════════════════════
  // PHASE 4: Compute Order Blocks first (needed for FVG confluence)
  const bosBreaks = detectBOS(closedCandles, swings);
@@ -516,14 +516,14 @@ export function renderOverlays(
  // PHASE 4: Use enhanced FVG detection with fill tracking and OB confluence
  const fvgs = detectFVGsEnhanced(closedCandles, orderBlocks);
 
- // Build data signature from FVG ones (including fill percent and confluence)
+ // Build data signature from FVG zones (including fill percent and confluence)
  const fvgSig = JSON.stringify(fvgs.map(f => `${f.type}:${f.highPrice}:${f.lowPrice}:${f.startTime}:${f.fillPercent.toFixed(2)}:${f.confluenceWithOB}`).join('|'));
  if (registry.smartRedraw('fvg', fvgSig)) {
  fvgs.forEach((fvg, i) => {
  const isBull = fvg.type === 'bullish';
 
  // PHASE 4: Visual distinction based on fill status
- // - Unfilled: solid border + filled one (active one)
+ // - Unfilled: solid border + filled zone (active zone)
  // - Partially filled: dashed border + semi-transparent (weakening)
  // - Fully filled (>80%): very transparent + dotted border (expired)
  // - OB Confluence: gold border highlight
@@ -591,8 +591,8 @@ export function renderOverlays(
  ? (isBull ? OVERLAY_COLORS.bosBull : OVERLAY_COLORS.bosBear)
  : (isBull ? OVERLAY_COLORS.chochBull : OVERLAY_COLORS.chochBear);
 
- // Draw horiontal line at broken level
- registry.add('bos', new HoriontalLinePrimitive({
+ // Draw horizontal line at broken level
+ registry.add('bos', new HorizontalLinePrimitive({
  price: br.brokenLevel,
  color,
  lineWidth: 2,
@@ -607,7 +607,7 @@ export function renderOverlays(
  price: br.breakPrice,
  text: br.type,
  color,
- fontSie: 11,
+ fontSize: 11,
  align: 'center',
  bg: 'rgba(11, 14, 20, 0.85)',
  position: isBull ? 'below' : 'above',
@@ -621,8 +621,8 @@ export function renderOverlays(
  }
 
  // ═══════════════════════════════════════════════════════════════
- // ORDER BLOCKS (OB) — Phase 4: SMC institutional order ones
- // Draws colored ones for bullish/bearish order blocks detected
+ // ORDER BLOCKS (OB) — Phase 4: SMC institutional order zones
+ // Draws colored zones for bullish/bearish order blocks detected
  // from BOS breaks. Shows mitigation status and OB+FVG confluence.
  // ═══════════════════════════════════════════════════════════════
  if (showOB) {
@@ -635,7 +635,7 @@ export function renderOverlays(
  const isBull = ob.type === 'bullish';
 
  // Mitigated OBs: grayed out (institutional orders already absorbed)
- // Unmitigated OBs: colored one (active institutional level)
+ // Unmitigated OBs: colored zone (active institutional level)
  const mitigatedOpacity = ob.mitigated ? 0.04 : 0.12;
  const borderColorOpacity = ob.mitigated ? 0.2 : 0.6;
 
@@ -649,7 +649,7 @@ export function renderOverlays(
 
  const lastTime = candles[candles.length - 1].time;
 
- // Draw OB one rectangle (from OB candle to current/mitigation time)
+ // Draw OB zone rectangle (from OB candle to current/mitigation time)
  registry.add('ob', new ZonePrimitive({
  startTime: ob.startTime as any,
  endTime: (ob.mitigated ? (ob.mitigationTime || ob.endTime) : lastTime) as any,
@@ -660,24 +660,24 @@ export function renderOverlays(
  label: ob.mitigated ? `${ob.labelAr} ()` : `${ob.labelAr} S${ob.strength}`,
  }));
 
- // Mitigation marker — show where price returned to OB one
+ // Mitigation marker — show where price returned to OB zone
  if (ob.mitigated && ob.mitigationTime) {
  registry.add('ob', new LabelPrimitive({
  time: ob.mitigationTime as any,
  price: isBull ? ob.highPrice : ob.lowPrice,
  text: `✓ ${ob.labelAr} `,
  color: 'rgba(156, 163, 175, 0.7)',
- fontSie: 11,
+ fontSize: 11,
  align: 'center',
  bg: 'rgba(11, 14, 20, 0.7)',
  position: isBull ? 'above' : 'below',
  }));
  }
 
- // Unmitigated OBs: add horiontal line at OB level for easy identification
+ // Unmitigated OBs: add horizontal line at OB level for easy identification
  if (!ob.mitigated && ob.strength >= 3) {
  const lineColor = isBull ? 'rgba(34, 211, 238, 0.5)' : 'rgba(239, 68, 68, 0.5)';
- registry.add('ob', new HoriontalLinePrimitive({
+ registry.add('ob', new HorizontalLinePrimitive({
  price: isBull ? ob.lowPrice : ob.highPrice, // Key level: OB low for bullish, OB high for bearish
  color: lineColor,
  lineWidth: 1,
@@ -699,7 +699,7 @@ export function renderOverlays(
  price: lastPrice * (confluentFVGs[0].type === 'bullish' ? 0.998 : 1.002),
  text: `⬡ OB+FVG (${confluentFVGs.length})`,
  color: '#d4af37',
- fontSie: 11,
+ fontSize: 11,
  align: 'right',
  bg: 'rgba(212, 175, 55, 0.1)',
  position: confluentFVGs[0].type === 'bullish' ? 'below' : 'above',
@@ -729,7 +729,7 @@ export function renderOverlays(
  registry.add('geo', new ShapePrimitive({
  points: pat.points.map(p => ({ time: p.time as any, price: p.price })),
  strokeColor: col,
- fillColor: isBull ? OVERLAY_COLORS.one : OVERLAY_COLORS.oneRed,
+ fillColor: isBull ? OVERLAY_COLORS.zone : OVERLAY_COLORS.zoneRed,
  lineWidth: 2,
  labels: pat.points.map(p => ({ text: p.type === 'HIGH' ? 'H' : 'L', point: { time: p.time as any, price: p.price } })),
  }));
@@ -752,7 +752,7 @@ export function renderOverlays(
 
  // Target price
  if (pat.targetPrice) {
- registry.add('geo', new HoriontalLinePrimitive({
+ registry.add('geo', new HorizontalLinePrimitive({
  price: pat.targetPrice,
  color: col,
  lineWidth: 1,
@@ -774,7 +774,7 @@ export function renderOverlays(
  registry.add('geo', new ShapePrimitive({
  points: validPts.map((p: any) => ({ time: p.time as any, price: p.price })),
  strokeColor: col,
- fillColor: isBull ? OVERLAY_COLORS.one : OVERLAY_COLORS.oneRed,
+ fillColor: isBull ? OVERLAY_COLORS.zone : OVERLAY_COLORS.zoneRed,
  lineWidth: 2,
  }));
  }
@@ -832,7 +832,7 @@ export function renderOverlays(
  price: w.price,
  text: `W${w.waveNumber}`,
  color: i % 2 === 0 ? col : '#FFB800',
- fontSie: 13,
+ fontSize: 13,
  align: 'center',
  bg: 'rgba(11, 14, 20, 0.85)',
  position: isBull === (i % 2 === 0) ? 'below' : 'above',
@@ -901,7 +901,7 @@ export function renderOverlays(
  price: bias === 'bullish' ? safeMin(candles.slice(-20).map(c => c.low)) : safeMax(candles.slice(-20).map(c => c.high)),
  text: phase,
  color: col,
- fontSie: 13,
+ fontSize: 13,
  align: 'right',
  bg: 'rgba(11, 14, 20, 0.85)',
  position: bias === 'bullish' ? 'below' : 'above',
@@ -914,7 +914,7 @@ export function renderOverlays(
  }
  });
 
- // FIX: Add key S/R levels as horiontal lines for Wyckoff context
+ // FIX: Add key S/R levels as horizontal lines for Wyckoff context
  // even when there are no events from AI data
  if (events.length === 0) {
  const recentHigh = safeMax(candles.slice(-30).map(c => c.high));
@@ -922,7 +922,7 @@ export function renderOverlays(
  const midRange = (recentHigh + recentLow) / 2;
 
  // Resistance level
- registry.add('wyckoff', new HoriontalLinePrimitive({
+ registry.add('wyckoff', new HorizontalLinePrimitive({
  price: recentHigh,
  color: 'rgba(255, 71, 87, 0.5)',
  lineWidth: 1,
@@ -930,7 +930,7 @@ export function renderOverlays(
  label: 'Resistance',
  }));
  // Support level
- registry.add('wyckoff', new HoriontalLinePrimitive({
+ registry.add('wyckoff', new HorizontalLinePrimitive({
  price: recentLow,
  color: 'rgba(0, 255, 163, 0.5)',
  lineWidth: 1,
@@ -938,7 +938,7 @@ export function renderOverlays(
  label: 'Support',
  }));
  // Mid-range (potential equilibrium)
- registry.add('wyckoff', new HoriontalLinePrimitive({
+ registry.add('wyckoff', new HorizontalLinePrimitive({
  price: midRange,
  color: 'rgba(251, 191, 36, 0.3)',
  lineWidth: 1,
@@ -964,21 +964,21 @@ export function renderOverlays(
  const vpSig = JSON.stringify(vp ? `${vp.poc}:${vp.vah}:${vp.val}` : null);
  if (registry.smartRedraw('vp', vpSig)) {
  if (vp && vp.poc > 0) {
- registry.add('vp', new HoriontalLinePrimitive({
+ registry.add('vp', new HorizontalLinePrimitive({
  price: vp.poc,
  color: OVERLAY_COLORS.vp,
  lineWidth: 2,
  lineStyle: 0,
  label: 'POC',
  }));
- registry.add('vp', new HoriontalLinePrimitive({
+ registry.add('vp', new HorizontalLinePrimitive({
  price: vp.vah,
  color: 'rgba(0, 200, 255, 0.6)',
  lineWidth: 1,
  lineStyle: 2,
  label: 'VAH',
  }));
- registry.add('vp', new HoriontalLinePrimitive({
+ registry.add('vp', new HorizontalLinePrimitive({
  price: vp.val,
  color: 'rgba(255, 100, 100, 0.6)',
  lineWidth: 1,
@@ -1044,8 +1044,8 @@ export function renderOverlays(
  const entrySig = JSON.stringify({ entry, sl, tp, dir });
  if (registry.smartRedraw('entry', entrySig)) {
 
- // Draw entry/SL/TP using HoriontalLinePrimitive with price badges
- registry.add('entry', new HoriontalLinePrimitive({
+ // Draw entry/SL/TP using HorizontalLinePrimitive with price badges
+ registry.add('entry', new HorizontalLinePrimitive({
  price: entry,
  color: OVERLAY_COLORS.entry,
  lineWidth: 2,
@@ -1054,7 +1054,7 @@ export function renderOverlays(
  showPrice: true,
  }));
  if (sl > 0) {
- registry.add('entry', new HoriontalLinePrimitive({
+ registry.add('entry', new HorizontalLinePrimitive({
  price: sl,
  color: OVERLAY_COLORS.sl,
  lineWidth: 2,
@@ -1064,7 +1064,7 @@ export function renderOverlays(
  }));
  }
  if (tp > 0) {
- registry.add('entry', new HoriontalLinePrimitive({
+ registry.add('entry', new HorizontalLinePrimitive({
  price: tp,
  color: OVERLAY_COLORS.tp,
  lineWidth: 2,
@@ -1074,7 +1074,7 @@ export function renderOverlays(
  }));
  }
 
- // SL/TP one fills
+ // SL/TP zone fills
  if (sl > 0 && entry > 0) {
  registry.add('entry', new ZonePrimitive({
  startTime: candles[candles.length - 30]?.time as any || candles[0].time as any,
@@ -1106,8 +1106,8 @@ export function renderOverlays(
  }
 
  // ═══════════════════════════════════════════════════════════════
- // FUSION CONFLUENCE — Show Elliott+SMC Fusion confluence ones
- // Renders a colored one at the bottom of the chart showing
+ // FUSION CONFLUENCE — Show Elliott+SMC Fusion confluence zones
+ // Renders a colored zone at the bottom of the chart showing
  // the confluence strength and direction from all methods combined.
  // ═══════════════════════════════════════════════════════════════
  if (input.fusionResult && input.fusionResult.confluenceScore > 40) {
@@ -1133,7 +1133,7 @@ export function renderOverlays(
  price: lastPrice,
  text: `${arrowLabel} confluence ${fusion.confluenceScore}%`,
  color: confluenceColor,
- fontSie: 11,
+ fontSize: 11,
  align: 'right',
  bg: isBull ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
  position: isBull ? 'above' : 'below',
@@ -1148,7 +1148,7 @@ export function renderOverlays(
  : safeMax(recentCandles.map(c => c.high)) * 1.0005,
  text: layerText,
  color: 'rgba(255,255,255,0.4)',
- fontSie: 11,
+ fontSize: 11,
  align: 'left',
  bg: 'rgba(11,14,20,0.6)',
  position: isBull ? 'below' : 'above',
@@ -1197,7 +1197,7 @@ export function renderOverlays(
  price: lastPrice,
  text: `⬡ ${isBull ? '' : ''} ${confPct}%`,
  color: bayesColor,
- fontSie: 11,
+ fontSize: 11,
  align: 'right',
  bg: `${bayesColor}15`,
  position: isBull ? 'below' : 'above',
@@ -1213,7 +1213,7 @@ export function renderOverlays(
  : safeMax(candles.slice(-10).map(c => c.high)),
  text: `P(▲)=${bullPct}% P(▼)=${bearPct}%`,
  color: 'rgba(255,255,255,0.35)',
- fontSie: 11,
+ fontSize: 11,
  align: 'left',
  bg: 'rgba(11,14,20,0.5)',
  position: isBull ? 'below' : 'above',
@@ -1270,9 +1270,9 @@ export function renderOverlays(
  }
 
  // ═══════════════════════════════════════════════════════════════
- // MTF CONFLUENCE — Multi-Timeframe alignment visualiation
+ // MTF CONFLUENCE — Multi-Timeframe alignment visualization
  // Shows confluence direction label, S/R confluence levels,
- // and Fibonacci confluence ones across timeframes.
+ // and Fibonacci confluence zones across timeframes.
  // ═══════════════════════════════════════════════════════════════
  if (showMTF && input.mtfResult && input.mtfResult.confluenceScore > 30) {
  const mtf = input.mtfResult;
@@ -1297,7 +1297,7 @@ export function renderOverlays(
  : safeMax(candles.slice(-10).map(c => c.high)) * 1.001,
  text: `${arrow} MTF ${mtf.confluenceScore}% (${mtf.agreeingTFs}/${mtf.totalTFs})`,
  color: mtfColor,
- fontSie: 11,
+ fontSize: 11,
  align: 'right',
  bg: isBull ? 'rgba(34, 211, 238, 0.12)' : 'rgba(249, 115, 22, 0.12)',
  position: isBull ? 'below' : 'above',
@@ -1310,7 +1310,7 @@ export function renderOverlays(
  const srColor = sr.type === 'support'
  ? `rgba(0, 255, 163, ${opacity})`
  : `rgba(255, 71, 87, ${opacity})`;
- registry.add('mtf', new HoriontalLinePrimitive({
+ registry.add('mtf', new HorizontalLinePrimitive({
  price: sr.price,
  color: srColor,
  lineWidth: sr.combinedStrength > 0.7 ? 2 : 1,
@@ -1320,12 +1320,12 @@ export function renderOverlays(
  safeAddPriceLine(`mtf-sr-${sr.price}`, sr.price, srColor, sr.labelAr, sr.combinedStrength > 0.7 ? 2 : 1, 1, true, 'mtf');
  }
 
- // Fibonacci confluence ones
+ // Fibonacci confluence zones
  for (const fib of mtf.fibConfluences.slice(0, 3)) {
  const fibColor = fib.direction === 'bullish'
  ? 'rgba(212, 175, 55, 0.3)'
  : 'rgba(212, 175, 55, 0.3)';
- registry.add('mtf', new HoriontalLinePrimitive({
+ registry.add('mtf', new HorizontalLinePrimitive({
  price: fib.price,
  color: fibColor,
  lineWidth: 1,
@@ -1342,7 +1342,7 @@ export function renderOverlays(
  price: lastPrice,
  text: `⚠ ${div.type === 'bullish-divergence' ? 'spacing ' : div.type === 'bearish-divergence' ? 'spacing ' : 'spacing momentum'}`,
  color: 'rgba(245, 158, 11, 0.7)',
- fontSie: 11,
+ fontSize: 11,
  align: 'right',
  bg: 'rgba(245, 158, 11, 0.08)',
  position: 'above',
@@ -1355,7 +1355,7 @@ export function renderOverlays(
 
  // ═══════════════════════════════════════════════════════════════
  // TRADE PROPOSALS — Show active trade Entry/SL/TP1/TP2/TP3
- // Renders lines for each price level with ones showing
+ // Renders lines for each price level with zones showing
  // risk (red) and reward (green) areas.
  // ═══════════════════════════════════════════════════════════════
  if (showTrade && input.tradeProposals && input.tradeProposals.length > 0) {
@@ -1373,7 +1373,7 @@ export function renderOverlays(
  const dirAr = isBull ? '' : '';
 
  // Entry line
- registry.add('trade', new HoriontalLinePrimitive({
+ registry.add('trade', new HorizontalLinePrimitive({
  price: proposal.entryPrice,
  color: isBull ? '#00D4FF' : '#FFB800',
  lineWidth: 2,
@@ -1384,7 +1384,7 @@ export function renderOverlays(
 
  // Stop Loss line (use trail SL if active)
  const effectiveSL = proposal.currentTrailSL ?? proposal.stopLoss;
- registry.add('trade', new HoriontalLinePrimitive({
+ registry.add('trade', new HorizontalLinePrimitive({
  price: effectiveSL,
  color: proposal.currentTrailSL ? '#FFB800' : '#ef4444',
  lineWidth: 2,
@@ -1415,7 +1415,7 @@ export function renderOverlays(
  for (let i = 0; i < proposal.takeProfits.length; i++) {
  const tpPrice = proposal.takeProfits[i];
  if (tpPrice == null || tpPrice <= 0) continue; // Bounds check — skip undefined TPs
- registry.add('trade', new HoriontalLinePrimitive({
+ registry.add('trade', new HorizontalLinePrimitive({
  price: tpPrice,
  color: tpColors[i] || tpColors[2],
  lineWidth: i === 0 ? 2 : 1,
@@ -1425,7 +1425,7 @@ export function renderOverlays(
  }));
  }
 
- // Risk one (Entry → SL)
+ // Risk zone (Entry → SL)
  registry.add('trade', new ZonePrimitive({
  startTime: candles[candles.length - 30]?.time as any || candles[0].time as any,
  endTime: candles[candles.length - 1].time as any,
@@ -1435,7 +1435,7 @@ export function renderOverlays(
  borderColor: undefined,
  }));
 
- // Reward one (Entry → farthest TP) — FIXED: was using takeProfits[2] without bounds check
+ // Reward zone (Entry → farthest TP) — FIXED: was using takeProfits[2] without bounds check
  const farthestTP = proposal.takeProfits.length > 0
  ? proposal.takeProfits.filter(tp => tp != null && tp > 0)
  .reduce((max, tp) => isBull ? Math.max(max, tp) : Math.min(max, tp), isBull ? -Infinity : Infinity)
@@ -1459,7 +1459,7 @@ export function renderOverlays(
  : safeMin(candles.slice(-5).map(c => c.low)) * 0.998,
  text: `R:R 1:${proposal.rrRatio} | ${proposal.qualityScore}% | confidence ${Math.round(proposal.confidence * 100)}%`,
  color: 'rgba(255,255,255,0.5)',
- fontSie: 11,
+ fontSize: 11,
  align: 'right',
  bg: 'rgba(11,14,20,0.7)',
  position: isBull ? 'above' : 'below',
@@ -1471,7 +1471,7 @@ export function renderOverlays(
  price: proposal.entryPrice,
  text: isBull ? '▲ ' : '▼ ',
  color: isBull ? '#00D4FF' : '#FFB800',
- fontSie: 11,
+ fontSize: 11,
  align: 'right',
  bg: isBull ? 'rgba(34, 211, 238, 0.1)' : 'rgba(249, 115, 22, 0.1)',
  position: isBull ? 'above' : 'below',
@@ -1499,86 +1499,86 @@ export function renderOverlays(
  const liqSig = JSON.stringify(liqData ? `${liqData.activeZones}:${liqData.sweptZones}:${liqData.dominantSweepDirection}:${liqData.zones.map(z => `${z.type}:${z.price}:${z.swept}`).join('|')}` : null);
  if (registry.smartRedraw('liq', liqSig)) {
 
- if (liqData && liqData.ones.length > 0) {
+ if (liqData && liqData.zones.length > 0) {
  const lastTime = candles[candles.length - 1].time;
  const lastPrice = candles[candles.length - 1].close;
 
- // Only render ones within visible range (last 100 candles)
+ // Only render zones within visible range (last 100 candles)
  const visibleStart = candles.length > 100 ? candles[candles.length - 100].time : candles[0].time;
 
- for (const one of liqData.ones) {
- // Skip ones entirely outside visible range
- if (one.endTime < visibleStart && !one.swept) continue;
+ for (const zone of liqData.zones) {
+ // Skip zones entirely outside visible range
+ if (zone.endTime < visibleStart && !zone.swept) continue;
 
- // Draw one rectangle
+ // Draw zone rectangle
  registry.add('liq', new ZonePrimitive({
- startTime: Math.max(one.startTime, visibleStart) as any,
- endTime: (one.swept ? (one.sweepTime || one.endTime) : lastTime) as any,
- highPrice: one.high,
- lowPrice: one.low,
- fillColor: one.swept
+ startTime: Math.max(zone.startTime, visibleStart) as any,
+ endTime: (zone.swept ? (zone.sweepTime || zone.endTime) : lastTime) as any,
+ highPrice: zone.high,
+ lowPrice: zone.low,
+ fillColor: zone.swept
  ? 'rgba(156, 163, 175, 0.06)' // Grayed out if swept
- : one.sweepDirection === 'bullish'
- ? 'rgba(0, 255, 163, 0.08)' // Green for bullish sweep ones
- : 'rgba(255, 71, 87, 0.08)', // Red for bearish sweep ones
- borderColor: one.swept
+ : zone.sweepDirection === 'bullish'
+ ? 'rgba(0, 255, 163, 0.08)' // Green for bullish sweep zones
+ : 'rgba(255, 71, 87, 0.08)', // Red for bearish sweep zones
+ borderColor: zone.swept
  ? undefined
- : one.sweepDirection === 'bullish'
+ : zone.sweepDirection === 'bullish'
  ? 'rgba(0, 255, 163, 0.3)'
  : 'rgba(255, 71, 87, 0.3)',
  }));
 
  // Sweep marker — show a small arrow where the sweep happened
- if (one.swept && one.sweepTime) {
- const sweepIsBull = one.sweepDirection === 'bullish';
+ if (zone.swept && zone.sweepTime) {
+ const sweepIsBull = zone.sweepDirection === 'bullish';
  registry.add('liq', new LabelPrimitive({
- time: one.sweepTime as any,
- price: sweepIsBull ? one.high : one.low,
+ time: zone.sweepTime as any,
+ price: sweepIsBull ? zone.high : zone.low,
  text: sweepIsBull ? '⚡ ' : '⚡ ',
  color: sweepIsBull ? 'rgba(0, 255, 163, 0.7)' : 'rgba(255, 71, 87, 0.7)',
- fontSie: 11,
+ fontSize: 11,
  align: 'center',
  bg: sweepIsBull ? 'rgba(0, 255, 163, 0.08)' : 'rgba(255, 71, 87, 0.08)',
  position: sweepIsBull ? 'above' : 'below',
  }));
  }
 
- // Label for significant ones (strength >= 2 or unswept)
- if (!one.swept && one.strength >= 2) {
- const labelColor = one.sweepDirection === 'bullish'
+ // Label for significant zones (strength >= 2 or unswept)
+ if (!zone.swept && zone.strength >= 2) {
+ const labelColor = zone.sweepDirection === 'bullish'
  ? 'rgba(0, 255, 163, 0.8)'
  : 'rgba(255, 71, 87, 0.8)';
  registry.add('liq', new LabelPrimitive({
- time: one.startTime as any,
- price: one.type === 'equal_highs' || one.type === 'previous_high'
- ? one.high
- : one.low,
- text: one.labelAr,
+ time: zone.startTime as any,
+ price: zone.type === 'equal_highs' || zone.type === 'previous_high'
+ ? zone.high
+ : zone.low,
+ text: zone.labelAr,
  color: labelColor,
- fontSie: 11,
+ fontSize: 11,
  align: 'left',
- bg: one.sweepDirection === 'bullish'
+ bg: zone.sweepDirection === 'bullish'
  ? 'rgba(0, 255, 163, 0.08)'
  : 'rgba(255, 71, 87, 0.08)',
- position: one.type === 'equal_highs' || one.type === 'previous_high'
+ position: zone.type === 'equal_highs' || zone.type === 'previous_high'
  ? 'above'
  : 'below',
  }));
  }
 
- // Horiontal line at the pool price level (for active ones)
- if (!one.swept && one.strength >= 3) {
- const lineColor = one.sweepDirection === 'bullish'
+ // Horizontal line at the pool price level (for active zones)
+ if (!zone.swept && zone.strength >= 3) {
+ const lineColor = zone.sweepDirection === 'bullish'
  ? 'rgba(0, 255, 163, 0.5)'
  : 'rgba(255, 71, 87, 0.5)';
- registry.add('liq', new HoriontalLinePrimitive({
- price: one.price,
+ registry.add('liq', new HorizontalLinePrimitive({
+ price: zone.price,
  color: lineColor,
  lineWidth: 1,
  lineStyle: 2,
- label: `${one.labelAr} ×${one.strength}`,
+ label: `${zone.labelAr} ×${zone.strength}`,
  }));
- safeAddPriceLine(`liq-${one.type}-${one.price}`, one.price, lineColor, `${one.labelAr} ×${one.strength}`, 1, 2, false, 'liq');
+ safeAddPriceLine(`liq-${zone.type}-${zone.price}`, zone.price, lineColor, `${zone.labelAr} ×${zone.strength}`, 1, 2, false, 'liq');
  }
  }
 
@@ -1592,7 +1592,7 @@ export function renderOverlays(
  : safeMax(candles.slice(-5).map(c => c.high)) * 1.002,
  text: `${isBull ? '▲' : '▼'} ${isBull ? 'bullish' : 'bearish'} (${liqData.sweptZones} )`,
  color: isBull ? 'rgba(0, 255, 163, 0.9)' : 'rgba(255, 71, 87, 0.9)',
- fontSie: 11,
+ fontSize: 11,
  align: 'right',
  bg: isBull ? 'rgba(0, 255, 163, 0.1)' : 'rgba(255, 71, 87, 0.1)',
  position: isBull ? 'below' : 'above',
@@ -1606,7 +1606,7 @@ export function renderOverlays(
  price: safeMin(candles.slice(-5).map(c => c.low)) * 0.995,
  text: liqData.interpretationAr,
  color: 'rgba(255,255,255,0.4)',
- fontSie: 11,
+ fontSize: 11,
  align: 'right',
  bg: 'rgba(11,14,20,0.5)',
  position: 'below',
@@ -1701,13 +1701,13 @@ export function renderAnalysisOverlays(
  const vpSig = JSON.stringify(vp ? `${vp.poc}:${vp.vah}:${vp.val}` : null);
  if (registry.smartRedraw('vp', vpSig)) {
  if (vp && vp.poc > 0) {
- registry.add('vp', new HoriontalLinePrimitive({
+ registry.add('vp', new HorizontalLinePrimitive({
  price: vp.poc, color: OVERLAY_COLORS.vp, lineWidth: 2, lineStyle: 0, label: 'POC',
  }));
- registry.add('vp', new HoriontalLinePrimitive({
+ registry.add('vp', new HorizontalLinePrimitive({
  price: vp.vah, color: 'rgba(0, 200, 255, 0.6)', lineWidth: 1, lineStyle: 2, label: 'VAH',
  }));
- registry.add('vp', new HoriontalLinePrimitive({
+ registry.add('vp', new HorizontalLinePrimitive({
  price: vp.val, color: 'rgba(255, 100, 100, 0.6)', lineWidth: 1, lineStyle: 2, label: 'VAL',
  }));
  safeAddPriceLine('vp-poc', vp.poc, 'rgba(251,191,36,0.9)', 'POC', 2, 0, true, 'vp');
@@ -1745,9 +1745,9 @@ export function renderAnalysisOverlays(
  // Build data signature from entry/SL/TP/direction — prevents "dancing lines"
  const entrySig = JSON.stringify({ entry, sl, tp, dir });
  if (registry.smartRedraw('entry', entrySig)) {
- registry.add('entry', new HoriontalLinePrimitive({ price: entry, color: OVERLAY_COLORS.entry, lineWidth: 2, lineStyle: 0, label: `Entry ${dir === 'long' ? '▲ BUY' : '▼ SELL'}`, showPrice: true }));
- if (sl > 0) registry.add('entry', new HoriontalLinePrimitive({ price: sl, color: OVERLAY_COLORS.sl, lineWidth: 2, lineStyle: 2, label: 'SL', showPrice: true }));
- if (tp > 0) registry.add('entry', new HoriontalLinePrimitive({ price: tp, color: OVERLAY_COLORS.tp, lineWidth: 2, lineStyle: 2, label: 'TP', showPrice: true }));
+ registry.add('entry', new HorizontalLinePrimitive({ price: entry, color: OVERLAY_COLORS.entry, lineWidth: 2, lineStyle: 0, label: `Entry ${dir === 'long' ? '▲ BUY' : '▼ SELL'}`, showPrice: true }));
+ if (sl > 0) registry.add('entry', new HorizontalLinePrimitive({ price: sl, color: OVERLAY_COLORS.sl, lineWidth: 2, lineStyle: 2, label: 'SL', showPrice: true }));
+ if (tp > 0) registry.add('entry', new HorizontalLinePrimitive({ price: tp, color: OVERLAY_COLORS.tp, lineWidth: 2, lineStyle: 2, label: 'TP', showPrice: true }));
  if (sl > 0 && entry > 0) registry.add('entry', new ZonePrimitive({ startTime: candles[candles.length - 30]?.time as any || candles[0].time as any, endTime: candles[candles.length - 1].time as any, highPrice: Math.max(entry, sl), lowPrice: Math.min(entry, sl), fillColor: 'rgba(239, 68, 68, 0.04)', borderColor: undefined }));
  if (tp > 0 && entry > 0) registry.add('entry', new ZonePrimitive({ startTime: candles[candles.length - 30]?.time as any || candles[0].time as any, endTime: candles[candles.length - 1].time as any, highPrice: Math.max(entry, tp), lowPrice: Math.min(entry, tp), fillColor: 'rgba(16, 185, 129, 0.04)', borderColor: undefined }));
  safeAddPriceLine('ee-entry', entry, '#00D4FF', `Entry ${dir === 'long' ? 'BUY' : 'SELL'}`, 2, 0, true, 'entry');
@@ -1770,10 +1770,10 @@ export function renderAnalysisOverlays(
  const isBull = fusion.direction === 'bullish';
  const confluenceColor = isBull ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)';
  const arrowLabel = isBull ? '▲' : '▼';
- registry.add('fusion', new LabelPrimitive({ time: lastTime as any, price: lastPrice, text: `${arrowLabel} confluence ${fusion.confluenceScore}%`, color: confluenceColor, fontSie: 11, align: 'right', bg: isBull ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', position: isBull ? 'above' : 'below' }));
+ registry.add('fusion', new LabelPrimitive({ time: lastTime as any, price: lastPrice, text: `${arrowLabel} confluence ${fusion.confluenceScore}%`, color: confluenceColor, fontSize: 11, align: 'right', bg: isBull ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', position: isBull ? 'above' : 'below' }));
  const recentCandles = candles.slice(-5);
  const layerText = `L1:${fusion.layerScores.directionalAgreement}% L2:${fusion.layerScores.spatialConfluence}%`;
- registry.add('fusion', new LabelPrimitive({ time: recentCandles[0]?.time as any || lastTime as any, price: isBull ? safeMin(recentCandles.map(c => c.low)) * 0.9995 : safeMax(recentCandles.map(c => c.high)) * 1.0005, text: layerText, color: 'rgba(255,255,255,0.4)', fontSie: 11, align: 'left', bg: 'rgba(11,14,20,0.6)', position: isBull ? 'below' : 'above' }));
+ registry.add('fusion', new LabelPrimitive({ time: recentCandles[0]?.time as any || lastTime as any, price: isBull ? safeMin(recentCandles.map(c => c.low)) * 0.9995 : safeMax(recentCandles.map(c => c.high)) * 1.0005, text: layerText, color: 'rgba(255,255,255,0.4)', fontSize: 11, align: 'left', bg: 'rgba(11,14,20,0.6)', position: isBull ? 'below' : 'above' }));
  }
  } // smartRedraw: data unchanged, existing primitives stay
  } else {
@@ -1792,10 +1792,10 @@ export function renderAnalysisOverlays(
  const isBull = bayes.direction === 'bullish';
  const bayesColor = isBull ? '#00D4FF' : '#FFB800';
  const confPct = Math.round(bayes.confidence * 100);
- registry.add('bayesian', new LabelPrimitive({ time: (lastTime - 3600) as any, price: lastPrice, text: `⬡ ${isBull ? '' : ''} ${confPct}%`, color: bayesColor, fontSie: 11, align: 'right', bg: `${bayesColor}15`, position: isBull ? 'below' : 'above' }));
+ registry.add('bayesian', new LabelPrimitive({ time: (lastTime - 3600) as any, price: lastPrice, text: `⬡ ${isBull ? '' : ''} ${confPct}%`, color: bayesColor, fontSize: 11, align: 'right', bg: `${bayesColor}15`, position: isBull ? 'below' : 'above' }));
  const bullPct = Math.round(bayes.posteriorBullish * 100);
  const bearPct = Math.round(bayes.posteriorBearish * 100);
- registry.add('bayesian', new LabelPrimitive({ time: (lastTime - 7200) as any, price: isBull ? safeMin(candles.slice(-10).map(c => c.low)) : safeMax(candles.slice(-10).map(c => c.high)), text: `P(▲)=${bullPct}% P(▼)=${bearPct}%`, color: 'rgba(255,255,255,0.35)', fontSie: 11, align: 'left', bg: 'rgba(11,14,20,0.5)', position: isBull ? 'below' : 'above' }));
+ registry.add('bayesian', new LabelPrimitive({ time: (lastTime - 7200) as any, price: isBull ? safeMin(candles.slice(-10).map(c => c.low)) : safeMax(candles.slice(-10).map(c => c.high)), text: `P(▲)=${bullPct}% P(▼)=${bearPct}%`, color: 'rgba(255,255,255,0.35)', fontSize: 11, align: 'left', bg: 'rgba(11,14,20,0.5)', position: isBull ? 'below' : 'above' }));
  }
  } // smartRedraw: data unchanged, existing primitives stay
  } else {
@@ -1837,21 +1837,21 @@ export function renderAnalysisOverlays(
  const isBull = mtf.confluenceDirection === 'bullish';
  const mtfColor = isBull ? 'rgba(34, 211, 238, 0.9)' : 'rgba(249, 115, 22, 0.9)';
  const arrow = isBull ? '▲' : '▼';
- registry.add('mtf', new LabelPrimitive({ time: lastTime as any, price: isBull ? safeMin(candles.slice(-10).map(c => c.low)) * 0.999 : safeMax(candles.slice(-10).map(c => c.high)) * 1.001, text: `${arrow} MTF ${mtf.confluenceScore}% (${mtf.agreeingTFs}/${mtf.totalTFs})`, color: mtfColor, fontSie: 11, align: 'right', bg: isBull ? 'rgba(34, 211, 238, 0.12)' : 'rgba(249, 115, 22, 0.12)', position: isBull ? 'below' : 'above' }));
+ registry.add('mtf', new LabelPrimitive({ time: lastTime as any, price: isBull ? safeMin(candles.slice(-10).map(c => c.low)) * 0.999 : safeMax(candles.slice(-10).map(c => c.high)) * 1.001, text: `${arrow} MTF ${mtf.confluenceScore}% (${mtf.agreeingTFs}/${mtf.totalTFs})`, color: mtfColor, fontSize: 11, align: 'right', bg: isBull ? 'rgba(34, 211, 238, 0.12)' : 'rgba(249, 115, 22, 0.12)', position: isBull ? 'below' : 'above' }));
  }
  for (const sr of mtf.srConfluences.slice(0, 3)) {
  const opacity = Math.min(0.8, sr.combinedStrength);
  const srColor = sr.type === 'support' ? `rgba(0, 255, 163, ${opacity})` : `rgba(255, 71, 87, ${opacity})`;
- registry.add('mtf', new HoriontalLinePrimitive({ price: sr.price, color: srColor, lineWidth: sr.combinedStrength > 0.7 ? 2 : 1, lineStyle: 1, label: `${sr.labelAr} (${(sr as any).timeframes?.length || 0}TF)` }));
+ registry.add('mtf', new HorizontalLinePrimitive({ price: sr.price, color: srColor, lineWidth: sr.combinedStrength > 0.7 ? 2 : 1, lineStyle: 1, label: `${sr.labelAr} (${(sr as any).timeframes?.length || 0}TF)` }));
  safeAddPriceLine(`mtf-sr-${sr.price}`, sr.price, srColor, sr.labelAr, sr.combinedStrength > 0.7 ? 2 : 1, 1, true, 'mtf');
  }
  for (const fib of mtf.fibConfluences.slice(0, 3)) {
  const fibColor = 'rgba(212, 175, 55, 0.3)';
- registry.add('mtf', new HoriontalLinePrimitive({ price: fib.price, color: fibColor, lineWidth: 1, lineStyle: 2, label: `Fib MTF (${(fib as any).ratios?.length || 0})` }));
+ registry.add('mtf', new HorizontalLinePrimitive({ price: fib.price, color: fibColor, lineWidth: 1, lineStyle: 2, label: `Fib MTF (${(fib as any).ratios?.length || 0})` }));
  safeAddPriceLine(`mtf-fib-${fib.price}`, fib.price, fibColor, `Fib MTF ${((fib as any).ratios || []).map((r: any) => r.label).join('+')}`, 1, 2, false, 'mtf');
  }
  for (const div of mtf.divergences.filter(d => d.significance > 0.5).slice(0, 2)) {
- registry.add('mtf', new LabelPrimitive({ time: (lastTime - 3600) as any, price: lastPrice, text: `⚠ ${div.type === 'bullish-divergence' ? 'spacing ' : div.type === 'bearish-divergence' ? 'spacing ' : 'spacing momentum'}`, color: 'rgba(245, 158, 11, 0.7)', fontSie: 11, align: 'right', bg: 'rgba(245, 158, 11, 0.08)', position: 'above' }));
+ registry.add('mtf', new LabelPrimitive({ time: (lastTime - 3600) as any, price: lastPrice, text: `⚠ ${div.type === 'bullish-divergence' ? 'spacing ' : div.type === 'bearish-divergence' ? 'spacing ' : 'spacing momentum'}`, color: 'rgba(245, 158, 11, 0.7)', fontSize: 11, align: 'right', bg: 'rgba(245, 158, 11, 0.08)', position: 'above' }));
  }
  } // smartRedraw: data unchanged, existing primitives stay
  } else {
@@ -1867,20 +1867,20 @@ export function renderAnalysisOverlays(
  if (proposal) {
  const isBull = proposal.direction === 'bullish';
  const dirAr = isBull ? '' : '';
- registry.add('trade', new HoriontalLinePrimitive({ price: proposal.entryPrice, color: isBull ? '#00D4FF' : '#FFB800', lineWidth: 2, lineStyle: 0, label: `Entry ${dirAr} (Q:${proposal.qualityScore})`, showPrice: true }));
+ registry.add('trade', new HorizontalLinePrimitive({ price: proposal.entryPrice, color: isBull ? '#00D4FF' : '#FFB800', lineWidth: 2, lineStyle: 0, label: `Entry ${dirAr} (Q:${proposal.qualityScore})`, showPrice: true }));
  const effectiveSL = proposal.currentTrailSL ?? proposal.stopLoss;
- registry.add('trade', new HoriontalLinePrimitive({ price: effectiveSL, color: proposal.currentTrailSL ? '#FFB800' : '#ef4444', lineWidth: 2, lineStyle: proposal.currentTrailSL ? 0 : 2, label: proposal.currentTrailSL ? 'Trail SL' : 'SL', showPrice: true }));
+ registry.add('trade', new HorizontalLinePrimitive({ price: effectiveSL, color: proposal.currentTrailSL ? '#FFB800' : '#ef4444', lineWidth: 2, lineStyle: proposal.currentTrailSL ? 0 : 2, label: proposal.currentTrailSL ? 'Trail SL' : 'SL', showPrice: true }));
  const tpLabels = ['TP1 (50%)', 'TP2 (30%)', 'TP3 (20%)'];
  const tpColors = ['rgba(16, 185, 129, 0.8)', 'rgba(16, 185, 129, 0.6)', 'rgba(16, 185, 129, 0.4)'];
  for (let i = 0; i < proposal.takeProfits.length; i++) {
- registry.add('trade', new HoriontalLinePrimitive({ price: proposal.takeProfits[i], color: tpColors[i] || tpColors[2], lineWidth: i === 0 ? 2 : 1, lineStyle: i === 0 ? 0 : i === 1 ? 1 : 2, label: tpLabels[i] || `TP${i + 1}`, showPrice: true }));
+ registry.add('trade', new HorizontalLinePrimitive({ price: proposal.takeProfits[i], color: tpColors[i] || tpColors[2], lineWidth: i === 0 ? 2 : 1, lineStyle: i === 0 ? 0 : i === 1 ? 1 : 2, label: tpLabels[i] || `TP${i + 1}`, showPrice: true }));
  }
  registry.add('trade', new ZonePrimitive({ startTime: candles[candles.length - 30]?.time as any || candles[0].time as any, endTime: candles[candles.length - 1].time as any, highPrice: Math.max(proposal.entryPrice, effectiveSL), lowPrice: Math.min(proposal.entryPrice, effectiveSL), fillColor: 'rgba(239, 68, 68, 0.05)', borderColor: undefined }));
  if (proposal.takeProfits[2]) {
  registry.add('trade', new ZonePrimitive({ startTime: candles[candles.length - 30]?.time as any || candles[0].time as any, endTime: candles[candles.length - 1].time as any, highPrice: Math.max(proposal.entryPrice, proposal.takeProfits[2]), lowPrice: Math.min(proposal.entryPrice, proposal.takeProfits[2]), fillColor: 'rgba(16, 185, 129, 0.04)', borderColor: undefined }));
  }
- // NOTE: No safeAddPriceLine — HoriontalLinePrimitive handles lines + labels
- registry.add('trade', new LabelPrimitive({ time: candles[candles.length - 1].time as any, price: isBull ? safeMax(candles.slice(-5).map(c => c.high)) * 1.002 : safeMin(candles.slice(-5).map(c => c.low)) * 0.998, text: `R:R 1:${proposal.rrRatio} | ${proposal.qualityScore}% | confidence ${Math.round(proposal.confidence * 100)}%`, color: 'rgba(255,255,255,0.5)', fontSie: 11, align: 'right', bg: 'rgba(11,14,20,0.7)', position: isBull ? 'above' : 'below' }));
+ // NOTE: No safeAddPriceLine — HorizontalLinePrimitive handles lines + labels
+ registry.add('trade', new LabelPrimitive({ time: candles[candles.length - 1].time as any, price: isBull ? safeMax(candles.slice(-5).map(c => c.high)) * 1.002 : safeMin(candles.slice(-5).map(c => c.low)) * 0.998, text: `R:R 1:${proposal.rrRatio} | ${proposal.qualityScore}% | confidence ${Math.round(proposal.confidence * 100)}%`, color: 'rgba(255,255,255,0.5)', fontSize: 11, align: 'right', bg: 'rgba(11,14,20,0.7)', position: isBull ? 'above' : 'below' }));
  }
  if (!proposal) registry.clearType('trade');
  } // smartRedraw: data unchanged, existing primitives stay
@@ -1894,23 +1894,23 @@ export function renderAnalysisOverlays(
  // Build data signature from liquidity zones
  const liqSig = JSON.stringify(liqData ? `${liqData.activeZones}:${liqData.sweptZones}:${liqData.dominantSweepDirection}:${liqData.zones.map(z => `${z.type}:${z.price}:${z.swept}`).join('|')}` : null);
  if (registry.smartRedraw('liq', liqSig)) {
- if (liqData && liqData.ones.length > 0) {
+ if (liqData && liqData.zones.length > 0) {
  const lastTime = candles[candles.length - 1].time;
- for (const one of liqData.ones) {
- registry.add('liq', new ZonePrimitive({ startTime: one.startTime as any, endTime: (one.swept ? (one.sweepTime || one.endTime) : lastTime) as any, highPrice: one.high, lowPrice: one.low, fillColor: one.swept ? 'rgba(156, 163, 175, 0.06)' : one.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.08)' : 'rgba(255, 71, 87, 0.08)', borderColor: one.swept ? undefined : one.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.3)' : 'rgba(255, 71, 87, 0.3)' }));
- if (!one.swept && one.strength >= 2) {
- const labelColor = one.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.8)' : 'rgba(255, 71, 87, 0.8)';
- registry.add('liq', new LabelPrimitive({ time: one.startTime as any, price: one.type === 'equal_highs' || one.type === 'previous_high' ? one.high : one.low, text: one.labelAr, color: labelColor, fontSie: 11, align: 'left', bg: one.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.08)' : 'rgba(255, 71, 87, 0.08)', position: one.type === 'equal_highs' || one.type === 'previous_high' ? 'above' : 'below' }));
+ for (const zone of liqData.zones) {
+ registry.add('liq', new ZonePrimitive({ startTime: zone.startTime as any, endTime: (zone.swept ? (zone.sweepTime || zone.endTime) : lastTime) as any, highPrice: zone.high, lowPrice: zone.low, fillColor: zone.swept ? 'rgba(156, 163, 175, 0.06)' : zone.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.08)' : 'rgba(255, 71, 87, 0.08)', borderColor: zone.swept ? undefined : zone.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.3)' : 'rgba(255, 71, 87, 0.3)' }));
+ if (!zone.swept && zone.strength >= 2) {
+ const labelColor = zone.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.8)' : 'rgba(255, 71, 87, 0.8)';
+ registry.add('liq', new LabelPrimitive({ time: zone.startTime as any, price: zone.type === 'equal_highs' || zone.type === 'previous_high' ? zone.high : zone.low, text: zone.labelAr, color: labelColor, fontSize: 11, align: 'left', bg: zone.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.08)' : 'rgba(255, 71, 87, 0.08)', position: zone.type === 'equal_highs' || zone.type === 'previous_high' ? 'above' : 'below' }));
  }
- if (!one.swept && one.strength >= 3) {
- const lineColor = one.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.5)' : 'rgba(255, 71, 87, 0.5)';
- registry.add('liq', new HoriontalLinePrimitive({ price: one.price, color: lineColor, lineWidth: 1, lineStyle: 2, label: `${one.labelAr} ×${one.strength}` }));
- safeAddPriceLine(`liq-${one.type}-${one.price}`, one.price, lineColor, `${one.labelAr} ×${one.strength}`, 1, 2, false, 'liq');
+ if (!zone.swept && zone.strength >= 3) {
+ const lineColor = zone.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.5)' : 'rgba(255, 71, 87, 0.5)';
+ registry.add('liq', new HorizontalLinePrimitive({ price: zone.price, color: lineColor, lineWidth: 1, lineStyle: 2, label: `${zone.labelAr} ×${zone.strength}` }));
+ safeAddPriceLine(`liq-${zone.type}-${zone.price}`, zone.price, lineColor, `${zone.labelAr} ×${zone.strength}`, 1, 2, false, 'liq');
  }
  }
  if (liqData.dominantSweepDirection !== 'neutral' && liqData.sweptZones > 0) {
  const isBull = liqData.dominantSweepDirection === 'bullish';
- registry.add('liq', new LabelPrimitive({ time: lastTime as any, price: isBull ? safeMin(candles.slice(-5).map(c => c.low)) * 0.998 : safeMax(candles.slice(-5).map(c => c.high)) * 1.002, text: `${isBull ? '▲' : '▼'} ${isBull ? 'bullish' : 'bearish'} (${liqData.sweptZones} )`, color: isBull ? 'rgba(0, 255, 163, 0.9)' : 'rgba(255, 71, 87, 0.9)', fontSie: 11, align: 'right', bg: isBull ? 'rgba(0, 255, 163, 0.1)' : 'rgba(255, 71, 87, 0.1)', position: isBull ? 'below' : 'above' }));
+ registry.add('liq', new LabelPrimitive({ time: lastTime as any, price: isBull ? safeMin(candles.slice(-5).map(c => c.low)) * 0.998 : safeMax(candles.slice(-5).map(c => c.high)) * 1.002, text: `${isBull ? '▲' : '▼'} ${isBull ? 'bullish' : 'bearish'} (${liqData.sweptZones} )`, color: isBull ? 'rgba(0, 255, 163, 0.9)' : 'rgba(255, 71, 87, 0.9)', fontSize: 11, align: 'right', bg: isBull ? 'rgba(0, 255, 163, 0.1)' : 'rgba(255, 71, 87, 0.1)', position: isBull ? 'below' : 'above' }));
  }
  }
  } // smartRedraw: data unchanged, existing primitives stay

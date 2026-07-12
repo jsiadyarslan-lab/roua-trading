@@ -36,8 +36,8 @@ export interface PaperTrade {
  stopLoss: number;
  /** Take profit levels */
  takeProfits: number[];
- /** Position sie in base currency */
- positionSie: number;
+ /** Position size in base currency */
+ positionSize: number;
  /** Entry timestamp */
  entryTime: number;
  /** Exit price (0 if still open) */
@@ -80,10 +80,10 @@ export interface PaperAccount {
  initialBalance: number;
  /** Current balance */
  currentBalance: number;
- /** Realied P&L */
- realiedPnL: number;
- /** Unrealied P&L */
- unrealiedPnL: number;
+ /** Realized P&L */
+ realizedPnL: number;
+ /** Unrealized P&L */
+ unrealizedPnL: number;
  /** Total trades */
  totalTrades: number;
  /** Win count */
@@ -102,7 +102,7 @@ export interface PaperAccount {
  maxDrawdownPct: number;
  /** Current drawdown */
  currentDrawdownPct: number;
- /** Sharpe ratio (annualied) */
+ /** Sharpe ratio (annualized) */
  sharpeRatio: number;
  /** Equity curve */
  equityCurve: Array<{ timestamp: number; equity: number }>;
@@ -124,7 +124,7 @@ export interface PaperAccount {
 export interface PaperRiskSettings {
  /** Risk per trade (default: 1%) */
  riskPerTrade: number;
- /** Max position sie as % of account (default: 10%) */
+ /** Max position size as % of account (default: 10%) */
  maxPositionPct: number;
  /** Max open trades (default: 3) */
  maxOpenTrades: number;
@@ -166,8 +166,8 @@ function createDefaultAccount(): PaperAccount {
  return {
  initialBalance: INITIAL_BALANCE,
  currentBalance: INITIAL_BALANCE,
- realiedPnL: 0,
- unrealiedPnL: 0,
+ realizedPnL: 0,
+ unrealizedPnL: 0,
  totalTrades: 0,
  wins: 0,
  losses: 0,
@@ -266,21 +266,21 @@ export function openPaperTrade(opts: {
  }
  if (dailyPnL < -(account.currentBalance * risk.dailyLossLimitPct)) return null;
 
- // Calculate position sie
+ // Calculate position size
  const riskAmount = account.currentBalance * risk.riskPerTrade;
  const slDistance = Math.abs(entryPrice - stopLoss);
  if (slDistance === 0) return null;
 
- let positionSie = riskAmount / slDistance;
+ let positionSize = riskAmount / slDistance;
  const maxPositionValue = account.currentBalance * risk.maxPositionPct;
- positionSie = Math.min(positionSie, maxPositionValue / entryPrice);
+ positionSize = Math.min(positionSize, maxPositionValue / entryPrice);
 
  // Calculate R:R
  const reward = Math.abs(takeProfits[takeProfits.length - 1] - entryPrice);
  const rrRatio = slDistance > 0 ? reward / slDistance : 0;
 
  // Calculate fees
- const entryFee = positionSie * entryPrice * risk.feeRate;
+ const entryFee = positionSize * entryPrice * risk.feeRate;
 
  const trade: PaperTrade = {
  id: `paper_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -289,7 +289,7 @@ export function openPaperTrade(opts: {
  entryPrice,
  stopLoss,
  takeProfits,
- positionSie,
+ positionSize,
  entryTime: Date.now(),
  exitPrice: 0,
  exitTime: 0,
@@ -334,21 +334,21 @@ export function closePaperTrade(tradeId: string, currentPrice: number, reasonAr:
  trade.status = 'closed';
 
  // Calculate P&L
- const exitFee = trade.positionSie * currentPrice * account.riskSettings.feeRate;
+ const exitFee = trade.positionSize * currentPrice * account.riskSettings.feeRate;
  trade.fees += exitFee;
 
  if (trade.direction === 'long') {
- trade.pnl = (currentPrice - trade.entryPrice) * trade.positionSie;
+ trade.pnl = (currentPrice - trade.entryPrice) * trade.positionSize;
  } else {
- trade.pnl = (trade.entryPrice - currentPrice) * trade.positionSie;
+ trade.pnl = (trade.entryPrice - currentPrice) * trade.positionSize;
  }
 
- trade.pnlPct = (trade.pnl / (trade.entryPrice * trade.positionSie)) * 100;
+ trade.pnlPct = (trade.pnl / (trade.entryPrice * trade.positionSize)) * 100;
  trade.netPnl = trade.pnl - trade.fees;
 
  // Update account
  account.currentBalance += trade.netPnl;
- account.realiedPnL += trade.netPnl;
+ account.realizedPnL += trade.netPnl;
  dailyPnL += trade.netPnl;
 
  // Update stats
@@ -402,26 +402,26 @@ export function autoEvaluatePaperTrades(currentPrice: number, candles?: CandleDa
  account.buyAndHold.returnPct = ((currentPrice - account.buyAndHold.initialPrice) / account.buyAndHold.initialPrice) * 100;
  }
 
- // Update unrealied P&L
+ // Update unrealized P&L
  if (!closed) {
- const unrealied = trade.direction === 'long'
- ? (currentPrice - trade.entryPrice) * trade.positionSie
- : (trade.entryPrice - currentPrice) * trade.positionSie;
- trade.pnl = unrealied;
- trade.pnlPct = (unrealied / (trade.entryPrice * trade.positionSie)) * 100;
- trade.netPnl = unrealied - trade.fees;
+ const unrealized = trade.direction === 'long'
+ ? (currentPrice - trade.entryPrice) * trade.positionSize
+ : (trade.entryPrice - currentPrice) * trade.positionSize;
+ trade.pnl = unrealized;
+ trade.pnlPct = (unrealized / (trade.entryPrice * trade.positionSize)) * 100;
+ trade.netPnl = unrealized - trade.fees;
  }
 
  updated.push(trade);
  }
 
- // Recalculate account unrealied P&L
- account.unrealiedPnL = trades
+ // Recalculate account unrealized P&L
+ account.unrealizedPnL = trades
  .filter(t => t.status === 'open')
  .reduce((s, t) => s + t.netPnl, 0);
 
  // Update equity curve
- const equity = account.currentBalance + account.unrealiedPnL;
+ const equity = account.currentBalance + account.unrealizedPnL;
  account.equityCurve.push({ timestamp: Date.now(), equity });
  if (account.equityCurve.length > MAX_EQUITY_CURVE) {
  account.equityCurve = account.equityCurve.slice(-MAX_EQUITY_CURVE);
@@ -461,13 +461,13 @@ function updateAccountStats(): void {
  // V225 FIX: Cap profitFactor at 999 instead of Infinity — Infinity.toFixed() shows "Infinity" in UI
  account.profitFactor = grossLoss > 0 ? Math.min(grossProfit / grossLoss, 999) : grossProfit > 0 ? 999 : 0;
 
- // Sharpe Ratio (simplified annualied)
+ // Sharpe Ratio (simplified annualized)
  if (closedTrades.length >= 5) {
  const returns = closedTrades.map(t => t.pnlPct / 100);
  const avgReturn = returns.reduce((s, r) => s + r, 0) / returns.length;
  const variance = returns.reduce((s, r) => s + Math.pow(r - avgReturn, 2), 0) / returns.length;
  const stdDev = Math.sqrt(variance);
- // Annualie assuming ~252 trading days × ~4 trades/day = ~1000 trades/year
+ // Annualize assuming ~252 trading days × ~4 trades/day = ~1000 trades/year
  account.sharpeRatio = stdDev > 0 ? (avgReturn / stdDev) * Math.sqrt(1000) : 0;
  }
 }
@@ -527,7 +527,7 @@ export function getPerformanceComparison(): {
 } {
  // V225 FIX: Guard against initialBalance=0 producing Infinity/NaN
  const paperReturnPct = account.initialBalance > 0
- ? ((account.currentBalance + account.unrealiedPnL - account.initialBalance) / account.initialBalance) * 100
+ ? ((account.currentBalance + account.unrealizedPnL - account.initialBalance) / account.initialBalance) * 100
  : 0;
  const buyAndHoldReturnPct = account.buyAndHold.returnPct;
 

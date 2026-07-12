@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
 // ROUA Chart — Options Builder
 // Pure function that builds lightweight-charts v5 chart options.
-// Extracted from useChart.ts to reduce the God Hook sie.
+// Extracted from useChart.ts to reduce the God Hook size.
 // ═══════════════════════════════════════════════════════════
 
 import type { DeepPartial, ChartOptions } from 'lightweight-charts';
@@ -37,13 +37,13 @@ export function buildChartOptions(opts: {
  layout: {
  background: { color: isMobile ? '#000000' : bgColor },
  textColor,
- fontSie: isMobile ? 11 : 12,
+ fontSize: isMobile ? 11 : 12,
  fontFamily: "var(--font-mono)",
  attributionLogo: false,
  },
  grid: {
  vertLines: { color: isMobile ? 'rgba(255,255,255,0.06)' : CHART_COLORS.grid, style: isMobile ? 1 : 0 },
- horLines: { color: isMobile ? 'rgba(255,255,255,0.06)' : CHART_COLORS.grid, style: isMobile ? 1 : 0 },
+ horzLines: { color: isMobile ? 'rgba(255,255,255,0.06)' : CHART_COLORS.grid, style: isMobile ? 1 : 0 },
  },
  crosshair: {
  mode: 0, // Normal
@@ -54,7 +54,7 @@ export function buildChartOptions(opts: {
  labelVisible: true,
  labelBackgroundColor: isMobile ? '#2a2e3e' : cardColor,
  },
- horLine: {
+ horzLine: {
  color: isMobile ? 'rgba(160,200,220,0.7)' : CHART_COLORS.crosshair,
  width: 1,
  style: 2,
@@ -73,18 +73,18 @@ export function buildChartOptions(opts: {
  secondsVisible: true,
  rightOffset: isMobile ? 3 : 5,
  barSpacing: isMobile ? 6 : 10,
- // FIX: minBarSpacing=1 allows maximum oom out (1px per candle).
- // Was 3 which limited oom out to ~3px/candle — couldn't see enough history.
+ // FIX: minBarSpacing=1 allows maximum zoom out (1px per candle).
+ // Was 3 which limited zoom out to ~3px/candle — couldn't see enough history.
  minBarSpacing: 1,
  // FIX: Data conflation is DISABLED because it destroys candlestick
  // OHLC rendering. When enabled, LWC merges multiple candles into a
- // single data point (dot) when oomed out, losing open/high/low/close.
+ // single data point (dot) when zoomed out, losing open/high/low/close.
  enableConflation: false,
  },
  handleScroll: {
  mouseWheel: true,
  pressedMouseMove: true,
- horTouchDrag: true,
+ horzTouchDrag: true,
  vertTouchDrag: true, // price on 
  },
  handleScale: {

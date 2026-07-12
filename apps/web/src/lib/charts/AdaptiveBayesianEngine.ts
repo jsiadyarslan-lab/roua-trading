@@ -5,7 +5,7 @@
 // - Dynamic prior updates: If SMC signals succeed 70%, their weight rises
 // - Preferential forgetting: Recent performance > old (exponential decay)
 // - Market-type adaptation: Different modes for trend/range/volatile markets
-// - User customiation: Traders can adjust methodology weights
+// - User customization: Traders can adjust methodology weights
 // - Cross-validation: Compares predicted vs actual outcomes continuously
 //
 // This transforms the static Naive Bayes (Phase 1) into an adaptive system
@@ -60,7 +60,7 @@ interface SourcePerformance {
  lastUpdated: number;
 }
 
-/** User-customiable weight overrides */
+/** User-customizable weight overrides */
 export interface UserWeightOverrides {
  /** Manual weight overrides per source (0 = use adaptive weight) */
  [source: string]: number;
@@ -475,7 +475,7 @@ function getRegimeAdjustments(
  * - Market regime detection and adaptation
  * - Adaptive weights that learn from signal performance
  * - Preferential forgetting (recent > old)
- * - User-customiable weight overrides
+ * - User-customizable weight overrides
  * - Regime-specific prior adjustments
  *
  * @param signals - Array of signal sources with base confidences

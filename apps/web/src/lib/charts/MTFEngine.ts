@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════════
 // ROUA Multi-Timeframe Analysis Engine — Phase 3 (Upgraded)
 //
-// Analyes 3-4 timeframes simultaneously and produces a confluence
+// Analyzes 3-4 timeframes simultaneously and produces a confluence
 // signal. Higher TF determines trend direction, lower TF determines
 // entry timing. Matches professional MTF methodology:
 //
@@ -90,7 +90,7 @@ export interface FibLevel {
  timeframe: MTFTimeframe;
 }
 
-/** Fibonacci confluence one across timeframes */
+/** Fibonacci confluence zone across timeframes */
 export interface FibConfluence {
  price: number;
  ratios: Array<{ tf: MTFTimeframe; ratio: number; label: string }>;
@@ -117,7 +117,7 @@ export interface MTFResult {
  confluenceScore: number;
  /** Timeframes agreeing with confluence */
  agreeingTFs: number;
- /** Total timeframes analyed */
+ /** Total timeframes analyzed */
  totalTFs: number;
  /** Interpretation in Arabic */
  interpretationAr: string;
@@ -128,9 +128,9 @@ export interface MTFResult {
  preferredTimeframe: MTFTimeframe;
  reasonAr: string;
  };
- /** Fibonacci confluence ones */
+ /** Fibonacci confluence zones */
  fibConfluences: FibConfluence[];
- /** S/R confluence ones (levels shared by multiple TFs) */
+ /** S/R confluence zones (levels shared by multiple TFs) */
  srConfluences: SRConfluence[];
  /** Divergences between timeframes */
  divergences: MTFDivergence[];
@@ -142,7 +142,7 @@ export interface MTFResult {
  timestamp: number;
 }
 
-/** S/R confluence one (shared across timeframes) */
+/** S/R confluence zone (shared across timeframes) */
 export interface SRConfluence {
  price: number;
  type: 'support' | 'resistance';
@@ -226,7 +226,7 @@ export function detectTradingStyle(currentTimeframe: string): 'scalping' | 'intr
  * Run unified analysis on a single timeframe's candle data.
  * Enhanced with trend state detection, key levels, and Fibonacci extraction.
  */
-function analyeSingleTF(
+function analyzeSingleTF(
  candles: CandleData[],
  timeframe: MTFTimeframe,
  higherTFDirection?: 'bullish' | 'bearish' | 'neutral',
@@ -588,7 +588,7 @@ function getTrendAlignmentBonus(trendState: TFTrendState, direction: 'bullish' |
 /**
  * Find Fibonacci levels that align across multiple timeframes.
  * When a 61.8% retracement on 4H aligns with a 38.2% level on 1D,
- * that's a very strong confluence one.
+ * that's a very strong confluence zone.
  */
 function detectFibConfluences(tfAnalyses: TimeframeAnalysis[]): FibConfluence[] {
  const allFibs: Array<{ price: number; ratio: number; label: string; tf: MTFTimeframe }> = [];
@@ -624,12 +624,12 @@ function detectFibConfluences(tfAnalyses: TimeframeAnalysis[]): FibConfluence[] 
  // Need at least 2 TFs agreeing
  if (group.length >= 2) {
  const uniqueTFs = new Set(group.map(g => g.tf));
- if (uniqueTFs.sie >= 2) {
+ if (uniqueTFs.size >= 2) {
  const avgPrice = group.reduce((s, g) => s + g.price, 0) / group.length;
  confluences.push({
  price: Math.round(avgPrice * 100) / 100,
  ratios: group.map(g => ({ tf: g.tf, ratio: g.ratio, label: g.label })),
- strength: Math.min(1.0, uniqueTFs.sie * 0.3 + group.length * 0.1),
+ strength: Math.min(1.0, uniqueTFs.size * 0.3 + group.length * 0.1),
  direction: avgPrice > allFibs[0].price ? 'bullish' : 'bearish',
  });
  }
@@ -675,11 +675,11 @@ function detectSRConfluences(tfAnalyses: TimeframeAnalysis[]): SRConfluence[] {
 
  // Need at least 2 TFs or strong level
  const uniqueTFs = new Set(group.map(g => g.timeframe));
- if (uniqueTFs.sie >= 2 || group.reduce((s, g) => s + g.strength, 0) / group.length > 0.7) {
+ if (uniqueTFs.size >= 2 || group.reduce((s, g) => s + g.strength, 0) / group.length > 0.7) {
  const avgPrice = group.reduce((s, g) => s + g.price, 0) / group.length;
  const combinedStrength = Math.min(1.0,
  group.reduce((s, g) => s + g.strength, 0) / group.length +
- (uniqueTFs.sie - 1) * 0.15
+ (uniqueTFs.size - 1) * 0.15
  );
 
  confluences.push({
@@ -688,8 +688,8 @@ function detectSRConfluences(tfAnalyses: TimeframeAnalysis[]): SRConfluence[] {
  timeframes: Array.from(uniqueTFs),
  combinedStrength,
  labelAr: group[0].type === 'support'
- ? `support multi-timeframewhat (${uniqueTFs.sie} what)`
- : `resistance multiple what (${uniqueTFs.sie} what)`,
+ ? `support multi-timeframewhat (${uniqueTFs.size} what)`
+ : `resistance multiple what (${uniqueTFs.size} what)`,
  });
  }
  }
@@ -773,7 +773,7 @@ export function runMTFAnalysis(
  if (candles && candles.length >= 30) {
  // Pass higher TF direction for counter-trend detection
  const higherTFDir = i > 0 ? tfAnalyses[i - 1]?.direction : undefined;
- tfAnalyses.push(analyeSingleTF(candles, tf, higherTFDir));
+ tfAnalyses.push(analyzeSingleTF(candles, tf, higherTFDir));
  }
  }
 

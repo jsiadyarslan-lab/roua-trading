@@ -174,7 +174,7 @@ export const SIGNAL_BLOCK_LIBRARY: Array<{
 
  // Volume
  { category: 'volume', signalType: 'spike', labelAr: 'sudden volume spike', color: '#00D4FF', defaultConfidence: 0.45 },
- { category: 'volume', signalType: 'dryup', labelAr: ' sie', color: '#00D4FF', defaultConfidence: 0.4 },
+ { category: 'volume', signalType: 'dryup', labelAr: ' size', color: '#00D4FF', defaultConfidence: 0.4 },
 
  // Fibonacci
  { category: 'fibonacci', signalType: 'retracement0618', labelAr: ' 61.8%', color: '#d4af37', defaultConfidence: 0.55 },
@@ -201,7 +201,7 @@ export const CATEGORY_LABELS_AR: Record<BlockCategory, string> = {
  elliott: 'waves ',
  wyckoff: 'analysis ',
  candlestick: 'patterns ',
- volume: 'analysis sie',
+ volume: 'analysis size',
  fibonacci: 'levels in',
  trendline: 'lines direction',
  custom: 'custom',
@@ -400,7 +400,7 @@ function evaluateBlock(
  case 'harmonic': {
  for (const p of analysisData.harmonicPatterns) {
  if ((block.signalType === 'any' || p.type === block.signalType) && dirMatch(p.direction) && confMatch(p.confidence)) {
- return { matched: true, confidence: p.confidence, direction: p.direction, keyLevel: p.prLevel };
+ return { matched: true, confidence: p.confidence, direction: p.direction, keyLevel: p.przLevel };
  }
  }
  break;
@@ -606,7 +606,7 @@ export interface RuleAnalysisData {
  type: string;
  direction: 'bullish' | 'bearish';
  confidence: number;
- prLevel: number;
+ przLevel: number;
  }>;
  orderBlocks: Array<{
  type: 'bullish' | 'bearish';

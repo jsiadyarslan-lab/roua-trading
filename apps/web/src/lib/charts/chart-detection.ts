@@ -53,7 +53,7 @@ export interface DetectedHarmonic {
  D: { index: number; time: number; price: number };
  };
  ratios: { ab_xa: number; bc_ab: number; cd_bc: number; ad_xa: number };
- prLevel: number; // Potential Reversal Zone
+ przLevel: number; // Potential Reversal Zone
 }
 
 export interface DetectedBOS {
@@ -514,7 +514,7 @@ export function detectHarmonicPatterns(swings: SwingPoint[], tolerance: number =
 
  // Check ALL swing combinations for broader detection
  // FIX: Was only checking last 8 swings which missed many patterns.
- // Now check all, but prioritie recent ones.
+ // Now check all, but prioritize recent ones.
  const startIdx = 0;
 
  for (let i = startIdx; i <= swings.length - 5; i++) {
@@ -567,7 +567,7 @@ export function detectHarmonicPatterns(swings: SwingPoint[], tolerance: number =
  D: { index: D.index, time: D.time, price: D.price },
  },
  ratios: { ab_xa, bc_ab, cd_bc, ad_xa },
- prLevel: D.price,
+ przLevel: D.price,
  });
  }
  }
@@ -910,7 +910,7 @@ export function detectFVGs(candles: CandleData[]): FVGZone[] {
  if (candles.length < 3) return fvgs;
 
  // FIX: Scan more candles — was only 30, now 60, because FVGs from
- // earlier can still be relevant for unfilled ones.
+ // earlier can still be relevant for unfilled zones.
  const lookback = Math.min(60, candles.length);
  const startIdx = candles.length - lookback;
 
@@ -920,7 +920,7 @@ export function detectFVGs(candles: CandleData[]): FVGZone[] {
  // FIX: Lowered minimum gap from 0.3x to 0.15x ATR. Crypto charts
  // often have small gaps that are still valid FVGs. The 0.3x filter
  // was too aggressive and caused FVG overlay to show nothing.
- const minGapSie = recentATR * 0.15;
+ const minGapSize = recentATR * 0.15;
 
  for (let i = startIdx + 2; i < candles.length; i++) {
  const prev = candles[i - 2];
@@ -932,8 +932,8 @@ export function detectFVGs(candles: CandleData[]): FVGZone[] {
  // In crypto, FVGs can form even when the middle candle isn't strongly
  // directional. The gap itself is the signal.
  if (curr.low > prev.high) {
- const gapSie = curr.low - prev.high;
- if (gapSie >= minGapSie) {
+ const gapSize = curr.low - prev.high;
+ if (gapSize >= minGapSize) {
  fvgs.push({
  type: 'bullish',
  highPrice: curr.low,
@@ -949,8 +949,8 @@ export function detectFVGs(candles: CandleData[]): FVGZone[] {
 
  // Bearish FVG: gap between prev low and curr high
  if (curr.high < prev.low) {
- const gapSie = prev.low - curr.high;
- if (gapSie >= minGapSie) {
+ const gapSize = prev.low - curr.high;
+ if (gapSize >= minGapSize) {
  fvgs.push({
  type: 'bearish',
  highPrice: prev.low,
@@ -983,14 +983,14 @@ export function detectFVGs(candles: CandleData[]): FVGZone[] {
 
 export interface OrderBlock {
  type: 'bullish' | 'bearish';
- highPrice: number; // Top of the order block one
- lowPrice: number; // Bottom of the order block one
+ highPrice: number; // Top of the order block zone
+ lowPrice: number; // Bottom of the order block zone
  startIndex: number; // Index of the OB candle
  startTime: number; // Time of the OB candle
  endIndex: number; // Index where OB was confirmed (BOS candle)
  endTime: number; // Time where OB was confirmed
  strength: number; // 1-5 based on volume and breakout momentum
- mitigated: boolean; // Whether price has returned to the OB one
+ mitigated: boolean; // Whether price has returned to the OB zone
  mitigationIndex?: number; // Index where mitigation happened
  mitigationTime?: number; // Time where mitigation happened
  labelAr: string; // Arabic label for display
@@ -1006,9 +1006,9 @@ export interface OrderBlock {
  * Key rules:
  * - Bullish OB: Last bearish (close < open) candle before bullish BOS
  * - Bearish OB: Last bullish (close > open) candle before bearish BOS
- * - OB one = [candle open, candle close] (body only, not wicks)
- * - Strength based on: volume ratio, BOS momentum, ATR relative sie
- * - Mitigation: price returns to OB one after confirmation
+ * - OB zone = [candle open, candle close] (body only, not wicks)
+ * - Strength based on: volume ratio, BOS momentum, ATR relative size
+ * - Mitigation: price returns to OB zone after confirmation
  */
 export function detectOrderBlocks(
  candles: CandleData[],
@@ -1050,36 +1050,36 @@ export function detectOrderBlocks(
 
  if (!obCandle || obIndex < 0) continue;
 
- // OB one is the candle body (open-close range, not wicks)
+ // OB zone is the candle body (open-close range, not wicks)
  const obHigh = Math.max(obCandle.open, obCandle.close);
  const obLow = Math.min(obCandle.open, obCandle.close);
 
  // Calculate strength (1-5)
  // - Volume ratio: OB candle volume vs average
  // - BOS momentum: how far price moved beyond the BOS level
- // - OB sie relative to ATR
+ // - OB size relative to ATR
  const avgVolume = candles.slice(-20).reduce((s, c) => s + (c.volume || 0), 0) / 20;
  const volRatio = avgVolume > 0 ? (obCandle.volume || 0) / avgVolume : 1;
- const obSieATR = recentATR > 0 ? (obHigh - obLow) / recentATR : 1;
+ const obSizeATR = recentATR > 0 ? (obHigh - obLow) / recentATR : 1;
  const bosMomentum = Math.abs(bos.breakPrice - bos.brokenLevel) / (recentATR || 1);
 
  let strength = 1;
  if (volRatio > 2) strength++;
  if (volRatio > 3) strength++;
- if (obSieATR > 0.5) strength++;
+ if (obSizeATR > 0.5) strength++;
  if (bosMomentum > 1.5) strength++;
  strength = Math.min(5, Math.max(1, strength));
 
- // Check if OB has been mitigated (price returned to OB one)
+ // Check if OB has been mitigated (price returned to OB zone)
  let mitigated = false;
  let mitigationIndex: number | undefined;
  let mitigationTime: number | undefined;
  for (let i = bos.breakIndex + 1; i < candles.length; i++) {
  const c = candles[i];
  if (c.low <= obHigh && c.high >= obLow) {
- // Price entered the OB one
- // For bullish OB: mitigation means price dipped into OB one
- // For bearish OB: mitigation means price rallied into OB one
+ // Price entered the OB zone
+ // For bullish OB: mitigation means price dipped into OB zone
+ // For bearish OB: mitigation means price rallied into OB zone
  if ((bos.direction === 'bullish' && c.low <= obHigh) ||
  (bos.direction === 'bearish' && c.high >= obLow)) {
  mitigated = true;
@@ -1143,7 +1143,7 @@ export interface FVGZoneEnhanced extends FVGZone {
  * Improvements over basic detectFVGs:
  * 1. Tracks partial fills (what % of the gap has been filled)
  * 2. Returns both filled and unfilled FVGs (filled ones are still useful for context)
- * 3. Detects confluence with Order Blocks (FVG + OB = high-probability one)
+ * 3. Detects confluence with Order Blocks (FVG + OB = high-probability zone)
  * 4. More accurate fill detection using candle bodies, not just close price
  */
 export function detectFVGsEnhanced(
@@ -1158,7 +1158,7 @@ export function detectFVGsEnhanced(
 
  const atrValues = computeATR(candles, 14);
  const recentATR = atrValues[atrValues.length - 1] || (candles[candles.length - 1].high - candles[candles.length - 1].low);
- const minGapSie = recentATR * 0.15;
+ const minGapSize = recentATR * 0.15;
 
  for (let i = startIdx + 2; i < candles.length; i++) {
  const prev = candles[i - 2];
@@ -1166,8 +1166,8 @@ export function detectFVGsEnhanced(
 
  // Bullish FVG
  if (curr.low > prev.high) {
- const gapSie = curr.low - prev.high;
- if (gapSie >= minGapSie) {
+ const gapSize = curr.low - prev.high;
+ if (gapSize >= minGapSize) {
  const gapHigh = curr.low;
  const gapLow = prev.high;
 
@@ -1183,9 +1183,9 @@ export function detectFVGsEnhanced(
  // Calculate how much of the gap was filled
  const intrusionHigh = Math.min(c.high, gapHigh);
  const intrusionLow = Math.max(c.low, gapLow);
- const intrusionSie = intrusionHigh - intrusionLow;
- const gapSie2 = gapHigh - gapLow;
- const thisFill = gapSie2 > 0 ? intrusionSie / gapSie2 : 0;
+ const intrusionSize = intrusionHigh - intrusionLow;
+ const gapSize2 = gapHigh - gapLow;
+ const thisFill = gapSize2 > 0 ? intrusionSize / gapSize2 : 0;
  fillPercent = Math.max(fillPercent, thisFill);
  fillHighPrice = Math.min(fillHighPrice, intrusionHigh);
  fillLowPrice = Math.max(fillLowPrice, intrusionLow);
@@ -1229,8 +1229,8 @@ export function detectFVGsEnhanced(
 
  // Bearish FVG
  if (curr.high < prev.low) {
- const gapSie = prev.low - curr.high;
- if (gapSie >= minGapSie) {
+ const gapSize = prev.low - curr.high;
+ if (gapSize >= minGapSize) {
  const gapHigh = prev.low;
  const gapLow = curr.high;
 
@@ -1243,9 +1243,9 @@ export function detectFVGsEnhanced(
  if (c.low <= gapHigh && c.high >= gapLow) {
  const intrusionHigh = Math.min(c.high, gapHigh);
  const intrusionLow = Math.max(c.low, gapLow);
- const intrusionSie = intrusionHigh - intrusionLow;
- const gapSie2 = gapHigh - gapLow;
- const thisFill = gapSie2 > 0 ? intrusionSie / gapSie2 : 0;
+ const intrusionSize = intrusionHigh - intrusionLow;
+ const gapSize2 = gapHigh - gapLow;
+ const thisFill = gapSize2 > 0 ? intrusionSize / gapSize2 : 0;
  fillPercent = Math.max(fillPercent, thisFill);
  fillHighPrice = Math.min(fillHighPrice, intrusionHigh);
  fillLowPrice = Math.max(fillLowPrice, intrusionLow);

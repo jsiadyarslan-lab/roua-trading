@@ -168,7 +168,7 @@ export class DrawingManager {
  this.drawingBucket.clear();
  this.loadedBuckets.clear();
  this.loadFromStorage();
- console.log(`[DrawingManager] setTimeframe: ${oldTf} → ${timeframe}, loaded ${this.drawings.sie} drawings, buckets: [${Array.from(this.loadedBuckets).join(', ')}]`);
+ console.log(`[DrawingManager] setTimeframe: ${oldTf} → ${timeframe}, loaded ${this.drawings.size} drawings, buckets: [${Array.from(this.loadedBuckets).join(', ')}]`);
  }
 
  /** Get the composite storage key for the current symbol+timeframe */
@@ -323,7 +323,7 @@ export class DrawingManager {
  }
  }
 
- console.log(`[DrawingManager] Loaded ${this.drawings.sie} drawings for ${currentKey} (${crossTfCount} cross-TF from ${this.loadedBuckets.sie} buckets)`);
+ console.log(`[DrawingManager] Loaded ${this.drawings.size} drawings for ${currentKey} (${crossTfCount} cross-TF from ${this.loadedBuckets.size} buckets)`);
  } catch (err: any) {
  // BUG-016 FIX: Don't silently wipe corrupted data — rename it so it can be recovered.
  // Old code: empty catch → next saveToStorage overwrites with empty → permanent data loss.
@@ -384,8 +384,8 @@ export class DrawingManager {
  switch (tool) {
  case 'cursor': return 0;
  // ── 1-point tools ──
- case 'horiontal': return 1;
- case 'horiontal-ray': return 1;
+ case 'horizontal': return 1;
+ case 'horizontal-ray': return 1;
  case 'vertical': return 1;
  case 'x-marker': return 1;
  case 'price-label': return 1;
@@ -415,7 +415,7 @@ export class DrawingManager {
  case 'fib-fan': return 2;
  case 'fib-spiral': return 2;
  case 'fib-wedge': return 2;
- case 'fib-time-one': return 2;
+ case 'fib-time-zone': return 2;
  case 'fib-circles': return 2;
  case 'fib-speed-resist': return 2;
  case 'fib-speed-fan': return 2;
@@ -453,7 +453,7 @@ export class DrawingManager {
  case 'andrews-pitchfork': return 3;
  case 'schiff-pitchfork': return 3;
  case 'modified-schiff': return 3;
- case 'beier-curve': return 3;
+ case 'bezier-curve': return 3;
  case 'fib-channel': return 3;
  case 'pentagon': return 3;
  case 'hexagon': return 3;
@@ -480,8 +480,8 @@ export class DrawingManager {
  'info-line': { ar: 'font information', en: 'Info Line' },
  'extended-line': { ar: 'extended line', en: 'Extended Line' },
  'trend-angle': { ar: 'font direction angle', en: 'Trend Angle' },
- 'horiontal': { ar: 'horiontal line', en: 'Horiontal Line' },
- 'horiontal-ray': { ar: 'horiontal ray', en: 'Horiontal Ray' },
+ 'horizontal': { ar: 'horizontal line', en: 'Horizontal Line' },
+ 'horizontal-ray': { ar: 'horizontal ray', en: 'Horizontal Ray' },
  'vertical': { ar: 'vertical line', en: 'Vertical Line' },
  'cross-line': { ar: 'cross line', en: 'Cross Line' },
  'arrow-line': { ar: 'arrow line', en: 'Arrow Line' },
@@ -489,7 +489,7 @@ export class DrawingManager {
  'curved-line': { ar: 'font curved', en: 'Curved Line' },
  'parallel-line': { ar: 'parallel line', en: 'Parallel Line' },
  'stepped-line': { ar: 'gradient line', en: 'Stepped Line' },
- 'beier-curve': { ar: 'whoBeier curve', en: 'Beier Curve' },
+ 'bezier-curve': { ar: 'whoBezier curve', en: 'Bezier Curve' },
  // Channels
  'channel': { ar: ' parallel', en: 'Parallel Channel' },
  'regression-trend': { ar: 'direction regression', en: 'Regression Trend' },
@@ -508,7 +508,7 @@ export class DrawingManager {
  'fib-fan': { ar: 'fan in', en: 'Fib Fan' },
  'fib-spiral': { ar: 'spiral in', en: 'Fib Spiral' },
  'fib-wedge': { ar: 'in in', en: 'Fib Wedge' },
- 'fib-time-one': { ar: 'who time in', en: 'Fib Time Zone' },
+ 'fib-time-zone': { ar: 'who time in', en: 'Fib Time Zone' },
  'fib-circles': { ar: 'circles in', en: 'Fib Circles' },
  'fib-speed-resist': { ar: 'resistance speed in', en: 'Fib Speed Resist' },
  'fib-speed-fan': { ar: 'fan speed in', en: 'Fib Speed Fan' },
@@ -579,8 +579,8 @@ export class DrawingManager {
  'info-line': 'ℹ',
  'extended-line': '⟶',
  'trend-angle': '∡',
- 'horiontal': '━',
- 'horiontal-ray': '⟶',
+ 'horizontal': '━',
+ 'horizontal-ray': '⟶',
  'vertical': '┃',
  'cross-line': '╋',
  'arrow-line': '→',
@@ -588,7 +588,7 @@ export class DrawingManager {
  'curved-line': '〜',
  'parallel-line': '║',
  'stepped-line': '⌐',
- 'beier-curve': '⌇',
+ 'bezier-curve': '⌇',
  // Channels
  'channel': '║',
  'regression-trend': '📈',
@@ -607,7 +607,7 @@ export class DrawingManager {
  'fib-fan': '🎷',
  'fib-spiral': '🌀',
  'fib-wedge': '◭',
- 'fib-time-one': '⏱',
+ 'fib-time-zone': '⏱',
  'fib-circles': '◎',
  'fib-speed-resist': '◠',
  'fib-speed-fan': '⌔',

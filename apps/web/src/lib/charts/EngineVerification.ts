@@ -174,7 +174,7 @@ export function verifyBayesianEngine(): EngineVerificationResult {
  // ── Check 4: Posterior probabilities sum to ~1.0 ──
  const posteriorSum = bullResult.posteriorBullish + bullResult.posteriorBearish;
  checks.push({
- name: 'Posterior probabilities normalie',
+ name: 'Posterior probabilities normalize',
  nameAr: 'possibilities posterior 1',
  passed: Math.abs(posteriorSum - 1.0) < 0.01,
  detail: `P(bullish|signals) + P(bearish|signals) = ${posteriorSum.toFixed(4)}`,
@@ -295,7 +295,7 @@ export function verifyPatternStateMachine(): EngineVerificationResult {
  quality: { overall: 85 },
  points: { X: { time: candles[0].time, price: 64000 }, D: { time: candles[30].time, price: 66000 } },
  time: candles[30].time,
- prLevel: 66000,
+ przLevel: 66000,
  stopLoss: 65400,
  };
 
@@ -317,7 +317,7 @@ export function verifyPatternStateMachine(): EngineVerificationResult {
  checks.push({
  name: 'Multiple pattern states tracked',
  nameAr: ' pattern tracking',
- passed: uniqueStates.sie >= 1, // At least one state
+ passed: uniqueStates.size >= 1, // At least one state
  detail: `States found: ${Array.from(uniqueStates).join(', ')}`,
  detailAr: `cases : ${Array.from(uniqueStates).join(', ')}`,
  });
@@ -332,7 +332,7 @@ export function verifyPatternStateMachine(): EngineVerificationResult {
  quality: { overall: 90 },
  points: { D: { time: candles[40].time, price: 66000 } },
  time: candles[40].time,
- prLevel: 66000,
+ przLevel: 66000,
  stopLoss: 65400,
  };
 
@@ -369,7 +369,7 @@ export function verifyPatternStateMachine(): EngineVerificationResult {
  quality: { overall: 80 },
  points: { D: { time: failedCandles[30].time, price: 65000 } },
  time: failedCandles[30].time,
- prLevel: 65000,
+ przLevel: 65000,
  stopLoss: 64800, // Very close, will likely be broken
  };
 
@@ -554,8 +554,8 @@ export function verifyConfidenceHeatmap(): EngineVerificationResult {
  name: 'Confidence varies across candles',
  nameAr: 'confidence through ',
  passed: result.points.length > 0,
- detail: `Points: ${result.points.length}, Unique confidence levels: ${uniqueConfidences.sie}`,
- detailAr: `points: ${result.points.length}, levels confidence : ${uniqueConfidences.sie}`,
+ detail: `Points: ${result.points.length}, Unique confidence levels: ${uniqueConfidences.size}`,
+ detailAr: `points: ${result.points.length}, levels confidence : ${uniqueConfidences.size}`,
  });
 
  // ── Check 2: Not all confidences are 0.3 (the old stub value) ──
@@ -588,12 +588,12 @@ export function verifyConfidenceHeatmap(): EngineVerificationResult {
  detailAr: `: ${bullishPoints.length}, : ${bearishPoints.length}, neutral: ${resultWithSignals.points.filter(p => p.direction === 'neutral').length}`,
  });
 
- // ── Check 4: Confluence ones detected ──
+ // ── Check 4: Confluence zones detected ──
  checks.push({
- name: 'Confluence ones tracked',
+ name: 'Confluence zones tracked',
  nameAr: 'who confluence tracking',
  passed: typeof resultWithSignals.confluenceZones === 'number',
- detail: `Confluence ones: ${resultWithSignals.confluenceZones}`,
+ detail: `Confluence zones: ${resultWithSignals.confluenceZones}`,
  detailAr: `who confluence: ${resultWithSignals.confluenceZones}`,
  });
 
@@ -617,7 +617,7 @@ export function verifyConfidenceHeatmap(): EngineVerificationResult {
  fvgs: [{ type: 'bullish', time: candles[30].time, endTime: candles[99].time, high: 65400, low: 64900, filled: false }],
  structureBreaks: [{ type: 'bullish_bos', direction: 'bullish', time: candles[20].time, endTime: candles[99].time, price: 65600 }],
  },
- patterns: [{ type: 'Gartley', direction: 'bullish', confidence: 0.8, time: candles[60].time, points: { X: { time: candles[40].time }, D: { time: candles[80].time, price: 65500 } }, prLevel: 65500 }],
+ patterns: [{ type: 'Gartley', direction: 'bullish', confidence: 0.8, time: candles[60].time, points: { X: { time: candles[40].time }, D: { time: candles[80].time, price: 65500 } }, przLevel: 65500 }],
  }] as any);
 
  checks.push({

@@ -192,7 +192,7 @@ function avgVolume(candles: CandleData[], start: number, end: number): number {
 
 /**
  * Calculate simple linear regression slope of close prices.
- * Returns normalied slope (slope / mean price).
+ * Returns normalized slope (slope / mean price).
  */
 function priceSlope(candles: CandleData[], start: number, end: number): number {
  const n = end - start;
@@ -272,7 +272,7 @@ function detectAccumulation(candles: CandleData[], atr: number): WyckoffResult |
  const n = candles.length;
  if (n < MIN_CANDLES) return null;
 
- // Analye price position and slope
+ // Analyze price position and slope
  const recentSlice = candles.slice(-Math.min(LOOKBACK, n));
  const prices = recentSlice.map(c => c.close);
  const volumes = recentSlice.map(c => c.volume);
@@ -450,7 +450,7 @@ function detectAccumulation(candles: CandleData[], atr: number): WyckoffResult |
  confidence += hasAbsorption ? 0.1 : 0;
  confidence += hasPhaseC ? 0.15 : 0;
  confidence += hasPhaseD ? 0.15 : 0;
- confidence += phasesDetected.sie >= 4 ? 0.1 : 0;
+ confidence += phasesDetected.size >= 4 ? 0.1 : 0;
  confidence = Math.min(0.92, confidence);
 
  // Direction: accumulation is bullish
@@ -660,7 +660,7 @@ function detectDistribution(candles: CandleData[], atr: number): WyckoffResult |
  confidence += hasDistribution ? 0.1 : 0;
  confidence += hasPhaseC ? 0.15 : 0;
  confidence += hasPhaseD ? 0.15 : 0;
- confidence += phasesDetected.sie >= 4 ? 0.1 : 0;
+ confidence += phasesDetected.size >= 4 ? 0.1 : 0;
  confidence = Math.min(0.92, confidence);
 
  const direction: 'bullish' | 'bearish' | 'neutral' = currentPhase === 'E' ? 'bearish' : 'neutral';
@@ -685,10 +685,10 @@ function detectDistribution(candles: CandleData[], atr: number): WyckoffResult |
 // ── Money Flow Analysis ──────────────────────────────────────────────
 
 /**
- * Analye money flow using price × volume direction.
+ * Analyze money flow using price × volume direction.
  * Returns net money flow: positive = buying pressure, negative = selling pressure.
  */
-function analyeMoneyFlow(candles: CandleData[], startIdx: number, endIdx: number): number {
+function analyzeMoneyFlow(candles: CandleData[], startIdx: number, endIdx: number): number {
  let moneyFlow = 0;
  for (let i = Math.max(1, startIdx); i < endIdx && i < candles.length; i++) {
  const typicalPrice = (candles[i].high + candles[i].low + candles[i].close) / 3;
@@ -704,7 +704,7 @@ function analyeMoneyFlow(candles: CandleData[], startIdx: number, endIdx: number
 /**
  * Advanced Wyckoff Analysis Engine with full A-E phase detection.
  *
- * Analyes price structure, volume patterns, and money flow to identify
+ * Analyzes price structure, volume patterns, and money flow to identify
  * Wyckoff accumulation or distribution schemes with specific event labeling.
  *
  * @param candles - Array of candle data (OHLCV)
@@ -733,7 +733,7 @@ export function detectWyckoffAdvanced(candles: CandleData[]): WyckoffResult {
 
  // Pick the scheme with higher confidence
  // Also consider money flow as a tiebreaker
- const moneyFlow = analyeMoneyFlow(candles,
+ const moneyFlow = analyzeMoneyFlow(candles,
  Math.max(0, candles.length - LOOKBACK), candles.length);
 
  let result: WyckoffResult;
@@ -818,12 +818,12 @@ export function detectWyckoffAdvanced(candles: CandleData[]): WyckoffResult {
 /**
  * Convert Wyckoff analysis results to AIPattern format for chart rendering.
  * Each Wyckoff event becomes a labeled pattern, and the overall scheme
- * becomes a one pattern.
+ * becomes a zone pattern.
  */
 export function wyckoffToAIPatterns(result: WyckoffResult): AIPattern[] {
  const patterns: AIPattern[] = [];
 
- // Scheme-level pattern (one showing the trading range)
+ // Scheme-level pattern (zone showing the trading range)
  if (result.scheme !== 'none') {
  const schemeLabelAr = SCHEME_LABELS_AR[result.scheme];
 
@@ -834,7 +834,7 @@ export function wyckoffToAIPatterns(result: WyckoffResult): AIPattern[] {
  price: result.range.mid,
  confidence: result.confidence,
  direction: result.direction,
- shapeType: 'one',
+ shapeType: 'zone',
  shapePoints: [
  { time: result.events[0]?.time ?? 0, price: result.range.high },
  { time: result.events[result.events.length - 1]?.time ?? 0, price: result.range.high },

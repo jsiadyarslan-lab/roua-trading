@@ -96,7 +96,7 @@ export function computeScenarios(opts: {
  /** Resistance levels */
  resistances?: number[];
  /** Harmonic patterns */
- harmonicPatterns?: Array<{ type: string; direction: string; confidence: number; prLevel: number }>;
+ harmonicPatterns?: Array<{ type: string; direction: string; confidence: number; przLevel: number }>;
  /** Market regime */
  regime?: string;
  /** Volume profile POC */
@@ -330,7 +330,7 @@ export function computeScenarios(opts: {
  });
  }
 
- // ── Normalie probabilities to sum to ~1.0 ──
+ // ── Normalize probabilities to sum to ~1.0 ──
  const totalProb = scenarios.reduce((s, sc) => s + sc.probability, 0);
  for (const sc of scenarios) {
  sc.probability = Math.round((sc.probability / totalProb) * 100) / 100;

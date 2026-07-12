@@ -430,7 +430,7 @@ function smcToAIPatterns(smcData: ReturnType<typeof detectSMC>): AIPattern[] {
  price: (ob.high + ob.low) / 2,
  confidence: ob.strength,
  direction: ob.type,
- shapeType: 'one',
+ shapeType: 'zone',
  shapePoints: [
  { time: ob.time, price: ob.high },
  { time: ob.endTime, price: ob.high },
@@ -453,7 +453,7 @@ function smcToAIPatterns(smcData: ReturnType<typeof detectSMC>): AIPattern[] {
  price: (fvg.high + fvg.low) / 2,
  confidence: 0.6,
  direction: fvg.type,
- shapeType: 'one',
+ shapeType: 'zone',
  shapePoints: [
  { time: fvg.time, price: fvg.high },
  { time: fvg.time + 3600, price: fvg.high },
@@ -573,7 +573,7 @@ export function runUnifiedAnalysis(candles: CandleData[]): UnifiedAnalysisResult
  }
 
  // ── 1. Compute ZigZag (foundation for many engines) ──
- const swings = safeEngineCall('igag', 'computeZigZag', () => computeZigZag(candles), []);
+ const swings = safeEngineCall('zigzag', 'computeZigZag', () => computeZigZag(candles), []);
 
  // ── 2. Support / Resistance ──
  const srLevels = safeEngineCall('sr', 'detectSRLevels', () => detectSRLevels(candles), []);
@@ -635,7 +635,7 @@ export function runUnifiedAnalysis(candles: CandleData[]): UnifiedAnalysisResult
 
  // ── 15. Validate results ──
  // BUG-061 FIX: Disabled validateAnalysis logWarn in production.
- // The logWarn was firing on every analye() call (which runs on every
+ // The logWarn was firing on every analyze() call (which runs on every
  // WebSocket tick), producing thousands of console.warn lines that
  // flooded the main thread and prevented lightweight-charts from
  // rendering. The validation itself still runs (to filter bad patterns),

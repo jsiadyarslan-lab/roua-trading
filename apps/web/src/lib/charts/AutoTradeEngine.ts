@@ -2,7 +2,7 @@
 // ROUA Auto-Trade Engine — Phase 3 (Upgraded)
 //
 // When the system detects high confluence (3+ agreeing signals),
-// it automatically proposes a trade with Entry/SL/TP/Position Sie.
+// it automatically proposes a trade with Entry/SL/TP/Position Size.
 //
 // UPGRADES from Phase 3:
 // - Trailing stop logic (move SL to breakeven + trail)
@@ -13,7 +13,7 @@
 // - Trade history with P&L tracking
 // - MTF confluence integration (stronger entries)
 // - Partial close at TP1 (50%) and TP2 (30%)
-// - Risk-adjusted position siing with Kelly criterion hint
+// - Risk-adjusted position sizing with Kelly criterion hint
 // - Trade scoring system (quality metrics)
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -34,8 +34,8 @@ export interface TradeProposal {
  stopLoss: number;
  /** Take profit price(s) — TP1, TP2, TP3 */
  takeProfits: number[];
- /** Position sie in base currency */
- positionSie: number;
+ /** Position size in base currency */
+ positionSize: number;
  /** Risk amount in quote currency */
  riskAmount: number;
  /** Reward amount in quote currency (to TP3) */
@@ -95,17 +95,17 @@ export interface TradeSignal {
  * WITHOUT changing any existing code path.
  */
 export interface RevolutionaryBoost {
- /** Confluence one near current price — boosts confluenceScore if strong */
+ /** Confluence zone near current price — boosts confluenceScore if strong */
  confluenceZoneBoost?: {
  score: number; // Zone score 0-100
  direction: 'bullish' | 'bearish' | 'neutral';
- isActive: boolean; // Price is inside/near the one
- signalCount: number; // How many signals cluster in this one
+ isActive: boolean; // Price is inside/near the zone
+ signalCount: number; // How many signals cluster in this zone
  };
  /** Per-source win rates from visual backtest — weights signal confidence */
  backtestSourceWeights?: Record<string, {
  winRate: number; // 0-1 historical win rate for this source
- sampleSie: number; // How many signals evaluated
+ sampleSize: number; // How many signals evaluated
  }>;
  /** Best correlation combo that includes one of our signals — boosts confidence */
  correlationBoost?: {
@@ -137,13 +137,13 @@ export interface PartialClose {
 
 /** P&L tracking for a trade */
 export interface TradePnL {
- /** Realied P&L from partial closes */
- realied: number;
- /** Unrealied P&L at current price */
- unrealied: number;
+ /** Realized P&L from partial closes */
+ realized: number;
+ /** Unrealized P&L at current price */
+ unrealized: number;
  /** Fees estimated (0.1% per trade for Binance) */
  fees: number;
- /** Net P&L (realied - fees) */
+ /** Net P&L (realized - fees) */
  netPnL: number;
 }
 
@@ -155,7 +155,7 @@ export interface RiskParams {
  accountBalance: number;
  /** Minimum R:R ratio to accept a trade (default: 2.0) */
  minRRRatio: number;
- /** Maximum position sie as fraction of account (default: 0.1 = 10%) */
+ /** Maximum position size as fraction of account (default: 0.1 = 10%) */
  maxPositionFraction: number;
  /** Minimum confluence score to propose (default: 60) */
  minConfluence: number;
@@ -423,7 +423,7 @@ function calculateKellyFraction(): number {
  // Old code: if (losses.length === 0) return 0.25; — bets 25% of account after 10 lucky wins.
  // This is reckless — the true win rate is unknown with 0 losses.
  // New code: require at least 30 trades AND 5 losses before computing Kelly.
- // Without losses, the Kelly formula is undefined (division by ero in the odds ratio).
+ // Without losses, the Kelly formula is undefined (division by zero in the odds ratio).
  // Return 0 (no Kelly boost) — fall back to fixed riskPerTrade.
  if (completed.length < 30 || losses.length < 5) return 0;
 
@@ -440,11 +440,11 @@ function calculateKellyFraction(): number {
 }
 
 /**
- * Calculate position sie based on risk parameters.
+ * Calculate position size based on risk parameters.
  * Uses Kelly-capped risk fraction when sufficient trade history exists.
- * positionSie = (accountBalance × effectiveRiskFraction) / |entry - stopLoss|
+ * positionSize = (accountBalance × effectiveRiskFraction) / |entry - stopLoss|
  */
-function calculatePositionSie(
+function calculatePositionSize(
  entryPrice: number,
  stopLoss: number,
  params: RiskParams,
@@ -457,13 +457,13 @@ function calculatePositionSie(
 
  if (slDistance === 0) return 0;
 
- let positionSie = riskAmount / slDistance;
+ let positionSize = riskAmount / slDistance;
 
- // Cap position sie
+ // Cap position size
  const maxPosition = (params.accountBalance * params.maxPositionFraction) / entryPrice;
- positionSie = Math.min(positionSie, maxPosition);
+ positionSize = Math.min(positionSize, maxPosition);
 
- return Math.round(positionSie * 10000) / 10000; // 4 decimal places
+ return Math.round(positionSize * 10000) / 10000; // 4 decimal places
 }
 
 // ── Quality Score ───────────────────────────────────────────────────
@@ -616,10 +616,10 @@ export function generateTradeProposal(opts: {
 
  if (rrRatio < params.minRRRatio) return null;
 
- // ── Calculate Position Sie ──
- const positionSie = calculatePositionSie(entryPrice, stopLoss, params);
- const riskAmount = positionSie * risk;
- const rewardAmount = positionSie * reward;
+ // ── Calculate Position Size ──
+ const positionSize = calculatePositionSize(entryPrice, stopLoss, params);
+ const riskAmount = positionSize * risk;
+ const rewardAmount = positionSize * reward;
 
  // ── Confidence ──
  // V225 FIX: Fallback for missing confidence values — prevents NaN propagation
@@ -639,14 +639,14 @@ export function generateTradeProposal(opts: {
  let revBoostDescription = '';
 
  if (revolutionaryBoost) {
- // 1. Confluence Zone Boost: If price is near a strong active one that
+ // 1. Confluence Zone Boost: If price is near a strong active zone that
  // agrees with our direction, boost confluenceScore by up to 15 points
  if (revolutionaryBoost.confluenceZoneBoost) {
- const cb = revolutionaryBoost.confluenceZoneBoost;
- if (cb.isActive && cb.direction === direction) {
- const oneBoost = Math.min(15, Math.round(cb.score * 0.15));
- effectiveConfluenceScore = Math.min(100, effectiveConfluenceScore + oneBoost);
- revBoostDescription += ` | who confluence ${cb.signalCount} signals (+${oneBoost})`;
+ const czb = revolutionaryBoost.confluenceZoneBoost;
+ if (czb.isActive && czb.direction === direction) {
+ const zoneBoost = Math.min(15, Math.round(czb.score * 0.15));
+ effectiveConfluenceScore = Math.min(100, effectiveConfluenceScore + zoneBoost);
+ revBoostDescription += ` | who confluence ${czb.signalCount} signals (+${zoneBoost})`;
  }
  }
 
@@ -655,7 +655,7 @@ export function generateTradeProposal(opts: {
  if (revolutionaryBoost.backtestSourceWeights) {
  for (const sig of agreeingSignals) {
  const w = revolutionaryBoost.backtestSourceWeights[sig.source];
- if (w && w.sampleSie >= 5) {
+ if (w && w.sampleSize >= 5) {
  if (w.winRate > 0.6) {
  sig.confidence = Math.min(0.95, sig.confidence * (1 + (w.winRate - 0.5) * 0.2));
  } else if (w.winRate < 0.4) {
@@ -742,7 +742,7 @@ export function generateTradeProposal(opts: {
  entryPrice: Math.round(entryPrice * 100) / 100,
  stopLoss: Math.round(stopLoss * 100) / 100,
  takeProfits,
- positionSie,
+ positionSize,
  riskAmount: Math.round(riskAmount * 100) / 100,
  rewardAmount: Math.round(rewardAmount * 100) / 100,
  rrRatio: Math.round(rrRatio * 100) / 100,
@@ -765,12 +765,12 @@ export function generateTradeProposal(opts: {
  score: mtfConfluence.score,
  agreeingTFs: mtfConfluence.agreeingTFs,
  } : undefined,
- pnl: { realied: 0, unrealied: 0, fees: 0, netPnL: 0 },
+ pnl: { realized: 0, unrealized: 0, fees: 0, netPnL: 0 },
  };
 
  // Store proposal
  proposals.set(proposal.id, proposal);
- if (proposals.sie > MAX_PROPOSALS) {
+ if (proposals.size > MAX_PROPOSALS) {
  const oldest = Array.from(proposals.keys())[0];
  if (oldest) proposals.delete(oldest);
  }
@@ -805,7 +805,7 @@ export function updateProposalStatus(id: string, status: TradeProposal['status']
  // Move completed trades to history
  if (status === 'hit_tp3' || status === 'hit_sl' || status === 'expired' || status === 'closed') {
  tradeHistory.set(id, { ...proposal });
- if (tradeHistory.sie > MAX_HISTORY) {
+ if (tradeHistory.size > MAX_HISTORY) {
  const oldestKey = Array.from(tradeHistory.keys())[0];
  if (oldestKey) tradeHistory.delete(oldestKey);
  }
@@ -840,13 +840,13 @@ export function autoEvaluateProposals(currentPrice: number, candles?: CandleData
  newStatus = proposal.currentTrailSL ? 'trail_sl' : 'hit_sl';
  // Calculate P&L for SL hit
  const slDistance = Math.abs(proposal.entryPrice - effectiveSL);
- pnlChange = -proposal.positionSie * slDistance;
+ pnlChange = -proposal.positionSize * slDistance;
  }
  } else {
  if (currentPrice >= effectiveSL) {
  newStatus = proposal.currentTrailSL ? 'trail_sl' : 'hit_sl';
  const slDistance = Math.abs(proposal.entryPrice - effectiveSL);
- pnlChange = -proposal.positionSie * slDistance;
+ pnlChange = -proposal.positionSize * slDistance;
  }
  }
 
@@ -857,25 +857,25 @@ export function autoEvaluateProposals(currentPrice: number, candles?: CandleData
  newStatus = 'hit_tp3';
  // BUG-012 FIX: TP3 closes the REMAINING position (20%), not 100%.
  // TP1 closed 50%, TP2 closed 30%, so only 20% remains at TP3.
- // Old code: pnlChange = positionSie * |TP3 - entry| (100% — 5× overstated).
+ // Old code: pnlChange = positionSize * |TP3 - entry| (100% — 5× overstated).
  // New code: compute remaining fraction from executed partial closes.
  const remainingFraction = 1 - proposal.partialCloses
  .filter(pc => pc.executed)
  .reduce((sum, pc) => sum + pc.fraction, 0);
- pnlChange = proposal.positionSie * remainingFraction * Math.abs(proposal.takeProfits[2] - proposal.entryPrice);
+ pnlChange = proposal.positionSize * remainingFraction * Math.abs(proposal.takeProfits[2] - proposal.entryPrice);
  } else if (currentPrice >= proposal.takeProfits[1] && (proposal.status as string) !== 'hit_tp2') {
  newStatus = 'hit_tp2';
  // Partial close P&L
  if (proposal.partialCloses.length > 0 && !proposal.partialCloses[1].executed) {
  proposal.partialCloses[1].executed = true;
- pnlChange = proposal.positionSie * 0.3 * Math.abs(proposal.takeProfits[1] - proposal.entryPrice);
+ pnlChange = proposal.positionSize * 0.3 * Math.abs(proposal.takeProfits[1] - proposal.entryPrice);
  }
  } else if (currentPrice >= proposal.takeProfits[0] && proposal.status === 'pending') {
  newStatus = 'hit_tp1';
  // First partial close
  if (proposal.partialCloses.length > 0 && !proposal.partialCloses[0].executed) {
  proposal.partialCloses[0].executed = true;
- pnlChange = proposal.positionSie * 0.5 * Math.abs(proposal.takeProfits[0] - proposal.entryPrice);
+ pnlChange = proposal.positionSize * 0.5 * Math.abs(proposal.takeProfits[0] - proposal.entryPrice);
  }
 
  // ── Move SL to breakeven after TP1 ──
@@ -892,18 +892,18 @@ export function autoEvaluateProposals(currentPrice: number, candles?: CandleData
  const remainingFraction = 1 - proposal.partialCloses
  .filter(pc => pc.executed)
  .reduce((sum, pc) => sum + pc.fraction, 0);
- pnlChange = proposal.positionSie * remainingFraction * Math.abs(proposal.takeProfits[2] - proposal.entryPrice);
+ pnlChange = proposal.positionSize * remainingFraction * Math.abs(proposal.takeProfits[2] - proposal.entryPrice);
  } else if (currentPrice <= proposal.takeProfits[1] && (proposal.status as string) !== 'hit_tp2') {
  newStatus = 'hit_tp2';
  if (proposal.partialCloses.length > 0 && !proposal.partialCloses[1].executed) {
  proposal.partialCloses[1].executed = true;
- pnlChange = proposal.positionSie * 0.3 * Math.abs(proposal.takeProfits[1] - proposal.entryPrice);
+ pnlChange = proposal.positionSize * 0.3 * Math.abs(proposal.takeProfits[1] - proposal.entryPrice);
  }
  } else if (currentPrice <= proposal.takeProfits[0] && proposal.status === 'pending') {
  newStatus = 'hit_tp1';
  if (proposal.partialCloses.length > 0 && !proposal.partialCloses[0].executed) {
  proposal.partialCloses[0].executed = true;
- pnlChange = proposal.positionSie * 0.5 * Math.abs(proposal.takeProfits[0] - proposal.entryPrice);
+ pnlChange = proposal.positionSize * 0.5 * Math.abs(proposal.takeProfits[0] - proposal.entryPrice);
  }
  if (params.enableBreakeven) {
  proposal.stopLoss = proposal.entryPrice;
@@ -954,14 +954,14 @@ export function autoEvaluateProposals(currentPrice: number, candles?: CandleData
  // ── Step-based trailing ──
  // Only move trail if new position is at least 0.2 × ATR better
  // This prevents tiny movements from constantly shifting the trail
- const minStepSie = atr * 0.2;
+ const minStepSize = atr * 0.2;
 
  if (proposal.direction === 'bullish') {
  const newTrailSL = currentPrice - trailDist;
  if (!proposal.currentTrailSL) {
  // First trail activation
  proposal.currentTrailSL = Math.round(newTrailSL * 100) / 100;
- } else if (newTrailSL > proposal.currentTrailSL + minStepSie) {
+ } else if (newTrailSL > proposal.currentTrailSL + minStepSize) {
  // Only move if improvement exceeds minimum step
  proposal.currentTrailSL = Math.round(newTrailSL * 100) / 100;
  }
@@ -969,7 +969,7 @@ export function autoEvaluateProposals(currentPrice: number, candles?: CandleData
  const newTrailSL = currentPrice + trailDist;
  if (!proposal.currentTrailSL) {
  proposal.currentTrailSL = Math.round(newTrailSL * 100) / 100;
- } else if (newTrailSL < proposal.currentTrailSL - minStepSie) {
+ } else if (newTrailSL < proposal.currentTrailSL - minStepSize) {
  proposal.currentTrailSL = Math.round(newTrailSL * 100) / 100;
  }
  }
@@ -977,14 +977,14 @@ export function autoEvaluateProposals(currentPrice: number, candles?: CandleData
  }
 
  // ── Update P&L ──
- proposal.pnl.unrealied = proposal.direction === 'bullish'
- ? (currentPrice - proposal.entryPrice) * proposal.positionSie
- : (proposal.entryPrice - currentPrice) * proposal.positionSie;
+ proposal.pnl.unrealized = proposal.direction === 'bullish'
+ ? (currentPrice - proposal.entryPrice) * proposal.positionSize
+ : (proposal.entryPrice - currentPrice) * proposal.positionSize;
 
  if (pnlChange !== 0) {
- proposal.pnl.realied += pnlChange;
- proposal.pnl.fees += proposal.positionSie * proposal.entryPrice * 0.001; // 0.1% fee estimate
- proposal.pnl.netPnL = proposal.pnl.realied - proposal.pnl.fees;
+ proposal.pnl.realized += pnlChange;
+ proposal.pnl.fees += proposal.positionSize * proposal.entryPrice * 0.001; // 0.1% fee estimate
+ proposal.pnl.netPnL = proposal.pnl.realized - proposal.pnl.fees;
  recordTradeResult(pnlChange);
  }
 
@@ -997,11 +997,11 @@ export function autoEvaluateProposals(currentPrice: number, candles?: CandleData
  // For trail_sl: calculate P&L based on trail stop level vs entry
  if (newStatus === 'trail_sl' && proposal.currentTrailSL) {
  const trailPnL = proposal.direction === 'bullish'
- ? (proposal.currentTrailSL - proposal.entryPrice) * proposal.positionSie
- : (proposal.entryPrice - proposal.currentTrailSL) * proposal.positionSie;
- proposal.pnl.realied += trailPnL;
- proposal.pnl.fees += proposal.positionSie * proposal.entryPrice * 0.001;
- proposal.pnl.netPnL = proposal.pnl.realied - proposal.pnl.fees;
+ ? (proposal.currentTrailSL - proposal.entryPrice) * proposal.positionSize
+ : (proposal.entryPrice - proposal.currentTrailSL) * proposal.positionSize;
+ proposal.pnl.realized += trailPnL;
+ proposal.pnl.fees += proposal.positionSize * proposal.entryPrice * 0.001;
+ proposal.pnl.netPnL = proposal.pnl.realized - proposal.pnl.fees;
  }
  tradeHistory.set(proposal.id, { ...proposal });
  }

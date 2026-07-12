@@ -102,7 +102,7 @@ export interface AnalysisSnapshot {
  type: string;
  direction: 'bullish' | 'bearish';
  confidence: number;
- prLevel: number;
+ przLevel: number;
  timeframe?: string;
  }>;
  /** Elliott wave results */
@@ -316,7 +316,7 @@ const DEFAULT_RULES: AlertRule[] = [
  },
  {
  id: 'volume-spike',
- nameAr: ' sie trade',
+ nameAr: ' size trade',
  conditions: [
  { source: 'volume', direction: 'any', timeframe: 'any' },
  ],
@@ -387,7 +387,7 @@ const DEFAULT_RULES: AlertRule[] = [
  { source: 'trendline', direction: 'any', timeframe: 'any' },
  { source: 'fibonacci', direction: 'any', timeframe: 'any' },
  ],
- logic: 'OR', // Either one is notable at this confluence one
+ logic: 'OR', // Either one is notable at this confluence zone
  priority: 'high',
  enabled: true,
  cooldownMs: 300000,
@@ -437,7 +437,7 @@ const DEFAULT_RULES: AlertRule[] = [
  },
 ];
 
-// Initialie default rules
+// Initialize default rules
 for (const rule of DEFAULT_RULES) {
  activeRules.set(rule.id, rule);
 }
@@ -468,7 +468,7 @@ function evaluateCondition(
  case 'harmonic': {
  for (const p of snapshot.harmonicPatterns) {
  if (dirMatch(p.direction) && tfMatch(p.timeframe) && confMatch(p.confidence) && subMatch(p.type)) {
- return { matched: true, confidence: p.confidence, direction: p.direction, keyLevel: p.prLevel };
+ return { matched: true, confidence: p.confidence, direction: p.direction, keyLevel: p.przLevel };
  }
  }
  break;
@@ -561,12 +561,12 @@ function evaluateCondition(
  }
 
  case 'liquidity': {
- // Liquidity ones from the snapshot — check for active/swept ones
+ // Liquidity zones from the snapshot — check for active/swept zones
  if ((snapshot as any).liquidityZones) {
- for (const l of (snapshot as any).liquidityZones) {
- const lDir: 'bullish' | 'bearish' = l.sweepDirection === 'bullish' ? 'bullish' : 'bearish';
- if (dirMatch(lDir)) {
- return { matched: true, confidence: 0.6, direction: lDir, keyLevel: l.price || snapshot.currentPrice };
+ for (const lz of (snapshot as any).liquidityZones) {
+ const lzDir: 'bullish' | 'bearish' = lz.sweepDirection === 'bullish' ? 'bullish' : 'bearish';
+ if (dirMatch(lzDir)) {
+ return { matched: true, confidence: 0.6, direction: lzDir, keyLevel: lz.price || snapshot.currentPrice };
  }
  }
  }
@@ -872,7 +872,7 @@ export function buildAlertSnapshot(opts: {
  }
  }
  }
- // FIX: Also derive Fibonacci levels from key S/R ones around current price
+ // FIX: Also derive Fibonacci levels from key S/R zones around current price
  // This ensures Fibonacci alerts fire when price is near a key level
  if (fibonacciLevels.length === 0) {
  // Use harmonic pattern PRZ levels as Fibonacci-like levels
@@ -882,13 +882,13 @@ export function buildAlertSnapshot(opts: {
  p.type?.includes('Cypher')
  );
  for (const hp of harmonicPats.slice(0, 2)) {
- const prLevel = hp.prLevel || hp.price || hp.points?.D?.price;
- if (prLevel && Math.abs(prLevel - currentPrice) / currentPrice < 0.05) {
+ const przLevel = hp.przLevel || hp.price || hp.points?.D?.price;
+ if (przLevel && Math.abs(przLevel - currentPrice) / currentPrice < 0.05) {
  const dir: 'bullish' | 'bearish' = hp.direction === 'bearish' ? 'bearish' : 'bullish';
  // Map PRZ proximity to a Fibonacci ratio
- const ratio = Math.abs(prLevel - currentPrice) / currentPrice < 0.01 ? 0.618 :
- Math.abs(prLevel - currentPrice) / currentPrice < 0.025 ? 0.5 : 0.382;
- fibonacciLevels.push({ ratio, price: prLevel, direction: dir });
+ const ratio = Math.abs(przLevel - currentPrice) / currentPrice < 0.01 ? 0.618 :
+ Math.abs(przLevel - currentPrice) / currentPrice < 0.025 ? 0.5 : 0.382;
+ fibonacciLevels.push({ ratio, price: przLevel, direction: dir });
  }
  }
  }
@@ -937,25 +937,25 @@ export function buildAlertSnapshot(opts: {
  }
  }
 
- // ── Build liquidity ones from liquidity result ──
+ // ── Build liquidity zones from liquidity result ──
  // FIX: Support multiple liquidity data formats — the LiquidityEngine may return
- // {ones}, {pools}, {sweeps}, or just an array of levels.
+ // {zones}, {pools}, {sweeps}, or just an array of levels.
  const liquidityZones: Array<{ price: number; sweepDirection: string; type: string }> = [];
- const liqSource = liquidityResult?.ones || liquidityResult?.pools || liquidityResult?.sweeps ||
+ const liqSource = liquidityResult?.zones || liquidityResult?.pools || liquidityResult?.sweeps ||
  (Array.isArray(liquidityResult) ? liquidityResult : null);
  if (liqSource && liqSource.length > 0) {
- for (const one of liqSource.slice(0, 5)) {
+ for (const zone of liqSource.slice(0, 5)) {
  liquidityZones.push({
- price: one.price || (one.high + one.low) / 2 || currentPrice,
- sweepDirection: one.sweepDirection || one.direction || one.type || 'bullish',
- type: one.type || 'pool',
+ price: zone.price || (zone.high + zone.low) / 2 || currentPrice,
+ sweepDirection: zone.sweepDirection || zone.direction || zone.type || 'bullish',
+ type: zone.type || 'pool',
  });
  }
  }
- // FIX: If no liquidity ones found, derive them from S/R levels
+ // FIX: If no liquidity zones found, derive them from S/R levels
  // (major S/R levels are natural liquidity pools)
  if (liquidityZones.length === 0) {
- // Use recent swing highs/lows as liquidity ones
+ // Use recent swing highs/lows as liquidity zones
  for (const brk of (smcData?.structureBreaks || []).slice(-3)) {
  liquidityZones.push({
  price: brk.price || currentPrice,
@@ -972,7 +972,7 @@ export function buildAlertSnapshot(opts: {
  type: p.type || 'unknown',
  direction: p.direction || 'neutral',
  confidence: p.confidence || 0.5,
- prLevel: p.prLevel || p.price || p.points?.D?.price || currentPrice,
+ przLevel: p.przLevel || p.price || p.points?.D?.price || currentPrice,
  timeframe,
  }))
  // ── Revolutionary: Add pattern predictions as harmonic-like alerts ──
@@ -985,7 +985,7 @@ export function buildAlertSnapshot(opts: {
  type: `partial-${pred.patternType}`,
  direction: pred.predictedDirection as 'bullish' | 'bearish' | 'neutral',
  confidence: pred.confidence * (pred.completionPct / 100),
- prLevel: pred.targetPrice,
+ przLevel: pred.targetPrice,
  timeframe,
  }))
  ),

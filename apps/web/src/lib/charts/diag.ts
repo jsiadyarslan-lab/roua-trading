@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────
 // — frontend , without any behavioral change.
-// goal: with which path on mobile to identify cause
+// goal: with which path includes on mobile to identify cause
 // "chart what then in price correct, candle new".
 //
 // ?diag=1 to url page, on users.

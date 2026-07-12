@@ -30,8 +30,8 @@ export interface SignalCorrelation {
  lift: number;
  /** Direction of correlation */
  direction: 'bullish' | 'bearish' | 'neutral';
- /** Sample sie */
- sampleSie: number;
+ /** Sample size */
+ sampleSize: number;
  /** Arabic description */
  descriptionAr: string;
 }
@@ -45,7 +45,7 @@ export interface CorrelationMatrix {
  topCombinations: Array<{
  sources: string[];
  winRate: number;
- sampleSie: number;
+ sampleSize: number;
  direction: 'bullish' | 'bearish';
  descriptionAr: string;
  }>;
@@ -240,7 +240,7 @@ function computePairCorrelation(
  winRateB: Math.round(winRateB * 100) / 100,
  lift: Math.round(lift * 100) / 100,
  direction,
- sampleSie: coOccurring.length,
+ sampleSize: coOccurring.length,
  descriptionAr: `${sourceALabel} + ${sourceBLabel}: ratio success ${Math.round(combinedWinRate * 100)}% at hethey with ( ${lift > 1 ? '+' : ''}${Math.round((lift - 1) * 100)}% with ${sourceALabel} )`,
  };
 }
@@ -284,7 +284,7 @@ function findTopCombinations(
  .map(([key, v]) => ({
  sources: key.split('+'),
  winRate: Math.round((v.wins / v.total) * 100) / 100,
- sampleSie: v.total,
+ sampleSize: v.total,
  direction: v.direction,
  descriptionAr: `${key.split('+').map(mapSourceToArabic).join(' + ')}: ratio success ${Math.round((v.wins / v.total) * 100)}% (${v.total} )`,
  }))
@@ -304,7 +304,7 @@ function mapSourceToArabic(source: string): string {
  'wyckoff': '',
  'elliott': '',
  'sr': 'support/resistance',
- 'volume': 'sie',
+ 'volume': 'size',
  'fibonacci': 'in',
  'trendline': '',
  'pattern': 'pattern',

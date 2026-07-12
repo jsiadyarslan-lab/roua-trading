@@ -8,7 +8,7 @@
 // 4. PRZ (Potential Reversal Zone) calculation with Fibonacci projections
 // 5. Pattern confidence based on ratio precision
 // 6. Each pattern includes its 5 labeled points (X, A, B, C, D)
-// plus the PRZ one for drawing
+// plus the PRZ zone for drawing
 // ═══════════════════════════════════════════════════════════════════════
 
 import type { CandleData, AIPattern } from './types';
@@ -32,7 +32,7 @@ interface HarmonicMatch {
  direction: 'bullish' | 'bearish';
  confidence: number;
  points: XABCDPoint[]; // [X, A, B, C, D] — always 5 points
- prZone: { high: number; low: number }; // Potential Reversal Zone
+ przZone: { high: number; low: number }; // Potential Reversal Zone
  ratios: {
  ab_xa: number;
  bc_ab: number;
@@ -243,10 +243,10 @@ export function detectHarmonicPatternsPro(candles: CandleData[]): AIPattern[] {
  }
  const atr = atrSum / atrLen;
 
- const prWidth = atr * 0.5;
- const prZone = {
- high: D.price + prWidth,
- low: D.price - prWidth,
+ const przWidth = atr * 0.5;
+ const przZone = {
+ high: D.price + przWidth,
+ low: D.price - przWidth,
  };
 
  matches.push({
@@ -261,7 +261,7 @@ export function detectHarmonicPatternsPro(candles: CandleData[]): AIPattern[] {
  { label: 'C', time: C.time, price: C.price },
  { label: 'D', time: D.time, price: D.price },
  ],
- prZone,
+ przZone,
  ratios: { ab_xa, bc_ab, cd_bc, ad_xa },
  });
 
@@ -286,7 +286,7 @@ export function detectHarmonicPatternsPro(candles: CandleData[]): AIPattern[] {
  shapeColor: match.direction === 'bullish' ? 'rgba(0,255,163,0.2)' : 'rgba(255,71,87,0.2)',
  // Store extra data for enhanced rendering
  points: match.points.map(p => ({ time: p.time, price: p.price })),
- prZone: match.prZone,
+ przZone: match.przZone,
  ratios: match.ratios,
  }));
 }

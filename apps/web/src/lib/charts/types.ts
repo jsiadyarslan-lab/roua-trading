@@ -52,8 +52,8 @@ export type DrawingTool =
  | 'info-line' // font information
  | 'extended-line' // extended line
  | 'trend-angle' // font direction angle
- | 'horiontal' // horiontal line
- | 'horiontal-ray' // horiontal ray
+ | 'horizontal' // horizontal line
+ | 'horizontal-ray' // horizontal ray
  | 'vertical' // vertical line
  | 'cross-line' // cross line
  | 'arrow-line' // arrow line
@@ -61,7 +61,7 @@ export type DrawingTool =
  | 'curved-line' // font curved
  | 'parallel-line' // parallel line
  | 'stepped-line' // gradient line
- | 'beier-curve' // whoBeier curve
+ | 'bezier-curve' // whoBezier curve
  // ── Channels ──
  | 'channel' // parallel
  | 'regression-trend' // direction regression
@@ -80,7 +80,7 @@ export type DrawingTool =
  | 'fib-fan' // fan in
  | 'fib-spiral' // spiral in
  | 'fib-wedge' // in in
- | 'fib-time-one' // who time in
+ | 'fib-time-zone' // who time in
  | 'fib-circles' // circles in
  | 'fib-speed-resist' // resistance speed in
  | 'fib-speed-fan' // fan speed in
@@ -154,7 +154,7 @@ export const DRAWING_CATEGORIES: DrawingToolCategory[] = [
  labelAr: 'fonts',
  labelEn: 'Lines',
  icon: '📐',
- tools: ['trendline', 'ray', 'info-line', 'extended-line', 'trend-angle', 'horiontal', 'horiontal-ray', 'vertical', 'cross-line', 'arrow-line', 'double-arrow', 'curved-line', 'parallel-line', 'stepped-line', 'beier-curve'],
+ tools: ['trendline', 'ray', 'info-line', 'extended-line', 'trend-angle', 'horizontal', 'horizontal-ray', 'vertical', 'cross-line', 'arrow-line', 'double-arrow', 'curved-line', 'parallel-line', 'stepped-line', 'bezier-curve'],
  },
  {
  key: 'channels',
@@ -175,7 +175,7 @@ export const DRAWING_CATEGORIES: DrawingToolCategory[] = [
  labelAr: 'in',
  labelEn: 'Fibonacci',
  icon: '📏',
- tools: ['fibonacci', 'fib-extension', 'fib-fan', 'fib-spiral', 'fib-wedge', 'fib-time-one', 'fib-circles', 'fib-speed-resist', 'fib-speed-fan', 'fib-time-ext'],
+ tools: ['fibonacci', 'fib-extension', 'fib-fan', 'fib-spiral', 'fib-wedge', 'fib-time-zone', 'fib-circles', 'fib-speed-resist', 'fib-speed-fan', 'fib-time-ext'],
  },
  {
  key: 'gann',
@@ -361,12 +361,12 @@ export interface AIPattern {
  direction: 'bullish' | 'bearish' | 'neutral';
  // ── Pattern shape data for visual drawing on chart ──
  shapePoints?: { time: number; price: number }[]; // Polygon vertices to draw
- shapeType?: 'polygon' | 'line' | 'one' | 'harmonic' | 'classic'; // How to render the shape
+ shapeType?: 'polygon' | 'line' | 'zone' | 'harmonic' | 'classic'; // How to render the shape
  shapeColor?: string; // Fill/border color
  // ── Extended fields for advanced pattern engines (harmonic, Elliott, etc.) ──
  points?: { time: number; price: number }[]; // Alias for shapePoints (harmonic engines)
  breakoutPrice?: number; // Price level that confirms the pattern
- prLevel?: number; // PRZ level for harmonic patterns
+ przLevel?: number; // PRZ level for harmonic patterns
  stopLoss?: number; // Suggested stop loss
  takeProfit?: number; // Suggested take profit
  target?: number; // Pattern price target

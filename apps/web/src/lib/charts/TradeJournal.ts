@@ -38,7 +38,7 @@ export interface JournalEntry {
  entryPrice: number;
  stopLoss: number;
  takeProfits: number[];
- positionSie: number;
+ positionSize: number;
  riskAmount: number;
  rewardAmount: number;
  rrRatio: number;
@@ -66,7 +66,7 @@ export interface JournalEntry {
  /** Current status */
  status: 'pending' | 'active' | 'hit_tp1' | 'hit_tp2' | 'hit_tp3' | 'hit_sl' | 'trail_sl' | 'breakeven' | 'expired' | 'closed';
  /** Final P&L in quote currency */
- realiedPnL: number;
+ realizedPnL: number;
  /** Final P&L as percentage */
  pnlPct: number;
  /** Timestamp when resolved */
@@ -211,7 +211,7 @@ export function journalTradeProposal(opts: {
 
  // Identify active boost factors
  const boostFactorsActive: string[] = [];
- if (revolutionaryBoost?.confluenceZoneBoost) boostFactorsActive.push('confluence-one');
+ if (revolutionaryBoost?.confluenceZoneBoost) boostFactorsActive.push('confluence-zone');
  if (revolutionaryBoost?.backtestSourceWeights) boostFactorsActive.push('backtest-weights');
  if (revolutionaryBoost?.correlationBoost) boostFactorsActive.push('correlation');
  if (revolutionaryBoost?.predictionNearCompletion) boostFactorsActive.push('prediction');
@@ -230,7 +230,7 @@ export function journalTradeProposal(opts: {
  entryPrice: proposal.entryPrice,
  stopLoss: proposal.stopLoss,
  takeProfits: proposal.takeProfits,
- positionSie: proposal.positionSie,
+ positionSize: proposal.positionSize,
  riskAmount: proposal.riskAmount,
  rewardAmount: proposal.rewardAmount,
  rrRatio: proposal.rrRatio,
@@ -244,7 +244,7 @@ export function journalTradeProposal(opts: {
  mtfScore: proposal.mtfConfluence?.score,
  mtfAgreeingTFs: proposal.mtfConfluence?.agreeingTFs,
  status: 'pending',
- realiedPnL: 0,
+ realizedPnL: 0,
  pnlPct: 0,
  resolvedAt: null,
  durationMinutes: null,
@@ -286,8 +286,8 @@ export function syncJournalWithProposals(updatedProposals: TradeProposal[]): voi
  // Calculate P&L
  const risk = Math.abs(entry.entryPrice - entry.stopLoss);
  const pnl = proposal.pnl.netPnL;
- entry.realiedPnL = Math.round(pnl * 100) / 100;
- entry.pnlPct = risk > 0 ? Math.round((pnl / (entry.positionSie * risk)) * 10000) / 100 : 0;
+ entry.realizedPnL = Math.round(pnl * 100) / 100;
+ entry.pnlPct = risk > 0 ? Math.round((pnl / (entry.positionSize * risk)) * 10000) / 100 : 0;
 
  // Determine exit level
  if (newStatus === 'hit_tp1') entry.exitLevel = 1;
@@ -299,14 +299,14 @@ export function syncJournalWithProposals(updatedProposals: TradeProposal[]): voi
  // Calculate R-multiple
  if (risk > 0) {
  const rawPnL = entry.direction === 'bullish'
- ? (proposal.pnl.realied > 0 ? Math.abs(proposal.takeProfits[Math.min(entry.exitLevel, 2)] - entry.entryPrice) : -risk)
- : (proposal.pnl.realied > 0 ? Math.abs(entry.entryPrice - proposal.takeProfits[Math.min(entry.exitLevel, 2)]) : -risk);
+ ? (proposal.pnl.realized > 0 ? Math.abs(proposal.takeProfits[Math.min(entry.exitLevel, 2)] - entry.entryPrice) : -risk)
+ : (proposal.pnl.realized > 0 ? Math.abs(entry.entryPrice - proposal.takeProfits[Math.min(entry.exitLevel, 2)]) : -risk);
  entry.rMultiple = Math.round((rawPnL / risk) * 100) / 100;
  }
 
  // Did the boost help?
  if (entry.boostFactorsActive.length > 0) {
- entry.boostHelped = entry.realiedPnL > 0;
+ entry.boostHelped = entry.realizedPnL > 0;
  }
 
  modified = true;
@@ -349,30 +349,30 @@ export function computeJournalStats(
 
  const filtered = entries.filter(e => e.date >= start && e.date <= end);
  const closed = filtered.filter(e => isResolvedStatus(e.status));
- const wins = closed.filter(e => e.realiedPnL > 0);
- const losses = closed.filter(e => e.realiedPnL < 0);
- const breakevens = closed.filter(e => e.realiedPnL === 0);
+ const wins = closed.filter(e => e.realizedPnL > 0);
+ const losses = closed.filter(e => e.realizedPnL < 0);
+ const breakevens = closed.filter(e => e.realizedPnL === 0);
 
  // P&L
- const totalPnL = closed.reduce((s, e) => s + e.realiedPnL, 0);
+ const totalPnL = closed.reduce((s, e) => s + e.realizedPnL, 0);
  const avgPnL = closed.length > 0 ? totalPnL / closed.length : 0;
- const avgWinPnL = wins.length > 0 ? wins.reduce((s, e) => s + e.realiedPnL, 0) / wins.length : 0;
- const avgLossPnL = losses.length > 0 ? losses.reduce((s, e) => s + e.realiedPnL, 0) / losses.length : 0;
- const grossProfit = wins.reduce((s, e) => s + e.realiedPnL, 0);
- const grossLoss = Math.abs(losses.reduce((s, e) => s + e.realiedPnL, 0));
+ const avgWinPnL = wins.length > 0 ? wins.reduce((s, e) => s + e.realizedPnL, 0) / wins.length : 0;
+ const avgLossPnL = losses.length > 0 ? losses.reduce((s, e) => s + e.realizedPnL, 0) / losses.length : 0;
+ const grossProfit = wins.reduce((s, e) => s + e.realizedPnL, 0);
+ const grossLoss = Math.abs(losses.reduce((s, e) => s + e.realizedPnL, 0));
 
  // Consecutive
  let maxConsWins = 0, maxConsLosses = 0, consWins = 0, consLosses = 0;
  for (const e of closed) {
- if (e.realiedPnL > 0) { consWins++; consLosses = 0; maxConsWins = Math.max(maxConsWins, consWins); }
- else if (e.realiedPnL < 0) { consLosses++; consWins = 0; maxConsLosses = Math.max(maxConsLosses, consLosses); }
+ if (e.realizedPnL > 0) { consWins++; consLosses = 0; maxConsWins = Math.max(maxConsWins, consWins); }
+ else if (e.realizedPnL < 0) { consLosses++; consWins = 0; maxConsLosses = Math.max(maxConsLosses, consLosses); }
  else { consWins = 0; consLosses = 0; }
  }
 
  // Drawdown
  let cumPnL = 0, peakPnL = 0, maxDD = 0;
  for (const e of closed) {
- cumPnL += e.realiedPnL;
+ cumPnL += e.realizedPnL;
  if (cumPnL > peakPnL) peakPnL = cumPnL;
  const dd = peakPnL - cumPnL;
  if (dd > maxDD) maxDD = dd;
@@ -388,7 +388,7 @@ export function computeJournalStats(
  : 0;
 
  // Trades per day
- const uniqueDays = new Set(closed.map(e => e.date)).sie;
+ const uniqueDays = new Set(closed.map(e => e.date)).size;
  const tradesPerDay = uniqueDays > 0 ? closed.length / uniqueDays : 0;
 
  // By direction
@@ -401,8 +401,8 @@ export function computeJournalStats(
  for (const sig of e.agreeingSignals) {
  if (!bySource[sig.source]) bySource[sig.source] = { trades: 0, wins: 0, winRate: 0, pnl: 0, avgConfidence: 0 };
  bySource[sig.source].trades++;
- if (e.realiedPnL > 0) bySource[sig.source].wins++;
- bySource[sig.source].pnl += e.realiedPnL / e.agreeingSignals.length;
+ if (e.realizedPnL > 0) bySource[sig.source].wins++;
+ bySource[sig.source].pnl += e.realizedPnL / e.agreeingSignals.length;
  bySource[sig.source].avgConfidence += sig.confidence;
  }
  }
@@ -418,15 +418,15 @@ export function computeJournalStats(
  const r = e.regime || 'unknown';
  if (!byRegime[r]) byRegime[r] = { trades: 0, wins: 0, winRate: 0 };
  byRegime[r].trades++;
- if (e.realiedPnL > 0) byRegime[r].wins++;
+ if (e.realizedPnL > 0) byRegime[r].wins++;
  byRegime[r].winRate = byRegime[r].trades > 0 ? byRegime[r].wins / byRegime[r].trades : 0;
  }
 
  // Boost impact
  const boostTrades = closed.filter(e => e.boostFactorsActive.length > 0);
  const noBoostTrades = closed.filter(e => e.boostFactorsActive.length === 0);
- const boostWR = boostTrades.length > 0 ? boostTrades.filter(e => e.realiedPnL > 0).length / boostTrades.length : 0;
- const noBoostWR = noBoostTrades.length > 0 ? noBoostTrades.filter(e => e.realiedPnL > 0).length / noBoostTrades.length : 0;
+ const boostWR = boostTrades.length > 0 ? boostTrades.filter(e => e.realizedPnL > 0).length / boostTrades.length : 0;
+ const noBoostWR = noBoostTrades.length > 0 ? noBoostTrades.filter(e => e.realizedPnL > 0).length / noBoostTrades.length : 0;
 
  // Weekly breakdown
  const weeklyMap = new Map<string, { trades: number; wins: number; pnl: number }>();
@@ -438,8 +438,8 @@ export function computeJournalStats(
  if (!weeklyMap.has(weekKey)) weeklyMap.set(weekKey, { trades: 0, wins: 0, pnl: 0 });
  const wk = weeklyMap.get(weekKey)!;
  wk.trades++;
- if (e.realiedPnL > 0) wk.wins++;
- wk.pnl += e.realiedPnL;
+ if (e.realizedPnL > 0) wk.wins++;
+ wk.pnl += e.realizedPnL;
  }
 
  const weeklyBreakdown: JournalStats['weeklyBreakdown'] = [];
@@ -479,8 +479,8 @@ export function computeJournalStats(
  avgPnL: Math.round(avgPnL * 100) / 100,
  avgWinPnL: Math.round(avgWinPnL * 100) / 100,
  avgLossPnL: Math.round(avgLossPnL * 100) / 100,
- bestTradePnL: closed.length > 0 ? Math.round(Math.max(...closed.map(e => e.realiedPnL)) * 100) / 100 : 0,
- worstTradePnL: closed.length > 0 ? Math.round(Math.min(...closed.map(e => e.realiedPnL)) * 100) / 100 : 0,
+ bestTradePnL: closed.length > 0 ? Math.round(Math.max(...closed.map(e => e.realizedPnL)) * 100) / 100 : 0,
+ worstTradePnL: closed.length > 0 ? Math.round(Math.min(...closed.map(e => e.realizedPnL)) * 100) / 100 : 0,
  profitFactor: grossLoss > 0 ? Math.round((grossProfit / grossLoss) * 100) / 100 : grossProfit > 0 ? 999 : 0,
  avgRR: closed.length > 0 ? closed.reduce((s, e) => s + e.rrRatio, 0) / closed.length : 0,
  avgRMultiple: Math.round(avgR * 100) / 100,
@@ -493,15 +493,15 @@ export function computeJournalStats(
  byDirection: {
  bullish: {
  trades: bullTrades.length,
- wins: bullTrades.filter(e => e.realiedPnL > 0).length,
- winRate: bullTrades.length > 0 ? bullTrades.filter(e => e.realiedPnL > 0).length / bullTrades.length : 0,
- pnl: Math.round(bullTrades.reduce((s, e) => s + e.realiedPnL, 0) * 100) / 100,
+ wins: bullTrades.filter(e => e.realizedPnL > 0).length,
+ winRate: bullTrades.length > 0 ? bullTrades.filter(e => e.realizedPnL > 0).length / bullTrades.length : 0,
+ pnl: Math.round(bullTrades.reduce((s, e) => s + e.realizedPnL, 0) * 100) / 100,
  },
  bearish: {
  trades: bearTrades.length,
- wins: bearTrades.filter(e => e.realiedPnL > 0).length,
- winRate: bearTrades.length > 0 ? bearTrades.filter(e => e.realiedPnL > 0).length / bearTrades.length : 0,
- pnl: Math.round(bearTrades.reduce((s, e) => s + e.realiedPnL, 0) * 100) / 100,
+ wins: bearTrades.filter(e => e.realizedPnL > 0).length,
+ winRate: bearTrades.length > 0 ? bearTrades.filter(e => e.realizedPnL > 0).length / bearTrades.length : 0,
+ pnl: Math.round(bearTrades.reduce((s, e) => s + e.realizedPnL, 0) * 100) / 100,
  },
  },
  bySource,
@@ -551,28 +551,28 @@ export function generateReportHTML(symbol?: string): string {
 <title>report system trade smart</title>
 <style>
  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;600;700&display=swap');
- * { margin: 0; padding: 0; box-siing: border-box; }
+ * { margin: 0; padding: 0; box-sizing: border-box; }
  body { font-family: 'Noto Sans Arabic', sans-serif; background: '#0a0a0f'; color: '#e0e0e0'; padding: 40px; direction: rtl; }
  .header { text-align: center; border-bottom: 2px solid #ffd700; padding-bottom: 20px; margin-bottom: 30px; }
- .header h1 { color: '#ffd700'; font-sie: 28px; margin-bottom: 8px; }
- .header p { color: #888; font-sie: 14px; }
+ .header h1 { color: '#ffd700'; font-size: 28px; margin-bottom: 8px; }
+ .header p { color: #888; font-size: 14px; }
  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 30px; }
  .stat-card { background: '#151520'; border: 1px solid #2a2a3a; border-radius: 12px; padding: 20px; text-align: center; }
- .stat-card .value { font-sie: 32px; font-weight: 700; margin-bottom: 4px; }
- .stat-card .label { font-sie: 13px; color: #888; }
+ .stat-card .value { font-size: 32px; font-weight: 700; margin-bottom: 4px; }
+ .stat-card .label { font-size: 13px; color: #888; }
  .green { color: '#00e676'; }
  .red { color: '#ff5252'; }
  .gold { color: '#ffd700'; }
  .blue { color: '#448aff'; }
  .section { margin-bottom: 30px; }
- .section h2 { color: '#ffd700'; font-sie: 18px; margin-bottom: 12px; border-bottom: 1px solid #2a2a3a; padding-bottom: 8px; }
- table { width: 100%; border-collapse: collapse; font-sie: 13px; }
+ .section h2 { color: '#ffd700'; font-size: 18px; margin-bottom: 12px; border-bottom: 1px solid #2a2a3a; padding-bottom: 8px; }
+ table { width: 100%; border-collapse: collapse; font-size: 13px; }
  th { background: '#1a1a2a'; color: '#ffd700'; padding: 10px; text-align: right; border: 1px solid #2a2a3a; }
  td { padding: 8px 10px; border: 1px solid #1a1a2a; }
  tr:nth-child(even) { background: '#0f0f18'; }
  .win { color: '#00e676'; }
  .loss { color: '#ff5252'; }
- .footer { text-align: center; color: #555; font-sie: 12px; margin-top: 40px; border-top: 1px solid #2a2a3a; padding-top: 20px; }
+ .footer { text-align: center; color: #555; font-size: 12px; margin-top: 40px; border-top: 1px solid #2a2a3a; padding-top: 20px; }
  @media print { body { background: white; color: black; } .stat-card { border: 1px solid #ccc; } }
 </style>
 </head>
@@ -669,9 +669,9 @@ ${stats.weeklyBreakdown.length > 0 ? `
  <td>${e.direction === 'bullish' ? '' : ''}</td>
  <td>${e.entryPrice}</td>
  <td>${e.stopLoss}</td>
- <td class="${e.realiedPnL > 0 ? 'win' : 'loss'}">${e.status === 'hit_tp1' ? 'TP1' : e.status === 'hit_tp2' ? 'TP2' : e.status === 'hit_tp3' ? 'TP3' : e.status === 'hit_sl' ? 'SL' : e.status === 'trail_sl' ? 'Trail' : e.status}</td>
+ <td class="${e.realizedPnL > 0 ? 'win' : 'loss'}">${e.status === 'hit_tp1' ? 'TP1' : e.status === 'hit_tp2' ? 'TP2' : e.status === 'hit_tp3' ? 'TP3' : e.status === 'hit_sl' ? 'SL' : e.status === 'trail_sl' ? 'Trail' : e.status}</td>
  <td>1:${e.rrRatio}</td>
- <td class="${e.realiedPnL >= 0 ? 'win' : 'loss'}">${e.realiedPnL >= 0 ? '+' : ''}${Math.round(e.realiedPnL * 100) / 100}</td>
+ <td class="${e.realizedPnL >= 0 ? 'win' : 'loss'}">${e.realizedPnL >= 0 ? '+' : ''}${Math.round(e.realizedPnL * 100) / 100}</td>
  <td>${e.agreeingSignals.map(s => s.source).join(', ')}</td>
  </tr>`).join('\n')}
  </table>

@@ -7,7 +7,7 @@
 // - Equal Highs/Lows: Multiple swing points at similar price levels
 // → stops cluster there → liquidity pool
 // - Previous High/Low: Obvious swing points attract stops
-// - Sweep: Price briefly pierces a liquidity one then reverses
+// - Sweep: Price briefly pierces a liquidity zone then reverses
 // → indicates stop hunt by institutions
 // - Liquidity Voids: Large gaps with no overlap (like FVG but
 // measured by absence of trading activity)
@@ -20,20 +20,20 @@ import { safeMax, safeMin } from './chart-utils';
 
 // ── Types ───────────────────────────────────────────────────────────
 
-/** Type of liquidity one */
+/** Type of liquidity zone */
 export type LiquidityType = 'equal_highs' | 'equal_lows' | 'previous_high' | 'previous_low' | 'liquidity_void';
 
-/** A detected liquidity one */
+/** A detected liquidity zone */
 export interface LiquidityZone {
  /** Zone type */
  type: LiquidityType;
  /** Price level of the liquidity pool */
  price: number;
- /** Upper boundary of the one */
+ /** Upper boundary of the zone */
  high: number;
- /** Lower boundary of the one */
+ /** Lower boundary of the zone */
  low: number;
- /** Start time of the one */
+ /** Start time of the zone */
  startTime: number;
  /** End time (or current if still active) */
  endTime: number;
@@ -41,7 +41,7 @@ export interface LiquidityZone {
  strength: number;
  /** Direction of expected reversal after sweep */
  sweepDirection: 'bullish' | 'bearish';
- /** Has this one been swept? */
+ /** Has this zone been swept? */
  swept: boolean;
  /** If swept, when? */
  sweepTime?: number;
@@ -260,8 +260,8 @@ function detectLiquidityVoids(candles: CandleData[]): LiquidityZone[] {
 
  // Bullish void: current low > previous high (gap up)
  if (curr.low > prev.high) {
- const gapSie = curr.low - prev.high;
- if (gapSie > atr * 0.5) { // Only significant gaps
+ const gapSize = curr.low - prev.high;
+ if (gapSize > atr * 0.5) { // Only significant gaps
  zones.push({
  type: 'liquidity_void',
  price: (prev.high + curr.low) / 2,
@@ -269,10 +269,10 @@ function detectLiquidityVoids(candles: CandleData[]): LiquidityZone[] {
  low: prev.high,
  startTime: prev.time,
  endTime: curr.time,
- strength: Math.min(5, Math.round(gapSie / atr)),
+ strength: Math.min(5, Math.round(gapSize / atr)),
  sweepDirection: 'bearish', // Price tends to fill gaps
  swept: false,
- confidence: Math.min(0.8, 0.3 + (gapSie / atr) * 0.2),
+ confidence: Math.min(0.8, 0.3 + (gapSize / atr) * 0.2),
  labelAr: LABELS_AR['liquidity_void'],
  });
  }
@@ -280,8 +280,8 @@ function detectLiquidityVoids(candles: CandleData[]): LiquidityZone[] {
 
  // Bearish void: current high < previous low (gap down)
  if (curr.high < prev.low) {
- const gapSie = prev.low - curr.high;
- if (gapSie > atr * 0.5) {
+ const gapSize = prev.low - curr.high;
+ if (gapSize > atr * 0.5) {
  zones.push({
  type: 'liquidity_void',
  price: (prev.low + curr.high) / 2,
@@ -289,10 +289,10 @@ function detectLiquidityVoids(candles: CandleData[]): LiquidityZone[] {
  low: curr.high,
  startTime: prev.time,
  endTime: curr.time,
- strength: Math.min(5, Math.round(gapSie / atr)),
+ strength: Math.min(5, Math.round(gapSize / atr)),
  sweepDirection: 'bullish', // Price tends to fill gaps
  swept: false,
- confidence: Math.min(0.8, 0.3 + (gapSie / atr) * 0.2),
+ confidence: Math.min(0.8, 0.3 + (gapSize / atr) * 0.2),
  labelAr: LABELS_AR['liquidity_void'],
  });
  }
@@ -365,23 +365,23 @@ export function detectLiquidityZones(candles: CandleData[]): LiquidityResult {
  * Convert liquidity zones to AIPattern format for chart rendering.
  */
 export function liquidityToAIPatterns(result: LiquidityResult): AIPattern[] {
- return result.zones.map(one => ({
- type: `liquidity-${one.type}`,
- labelAr: one.labelAr,
- time: one.startTime,
- price: one.price,
- confidence: one.confidence,
- direction: one.sweepDirection,
- shapeType: 'one' as const,
+ return result.zones.map(zone => ({
+ type: `liquidity-${zone.type}`,
+ labelAr: zone.labelAr,
+ time: zone.startTime,
+ price: zone.price,
+ confidence: zone.confidence,
+ direction: zone.sweepDirection,
+ shapeType: 'zone' as const,
  shapePoints: [
- { time: one.startTime, price: one.high },
- { time: one.endTime, price: one.high },
- { time: one.endTime, price: one.low },
- { time: one.startTime, price: one.low },
+ { time: zone.startTime, price: zone.high },
+ { time: zone.endTime, price: zone.high },
+ { time: zone.endTime, price: zone.low },
+ { time: zone.startTime, price: zone.low },
  ],
- shapeColor: one.swept
+ shapeColor: zone.swept
  ? 'rgba(156, 163, 175, 0.08)' // Grayed out if swept
- : one.sweepDirection === 'bullish'
+ : zone.sweepDirection === 'bullish'
  ? 'rgba(0, 255, 163, 0.1)' // Green for bullish sweep zones
  : 'rgba(255, 71, 87, 0.1)', // Red for bearish sweep zones
  }));

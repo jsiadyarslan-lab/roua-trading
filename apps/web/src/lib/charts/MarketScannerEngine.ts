@@ -173,14 +173,14 @@ const SCAN_UNIVERSE: Array<{ symbol: string; sector: AssetSector }> = [
 
 /** Sector Arabic labels */
 export const SECTOR_LABELS_AR: Record<AssetSector, string> = {
- defi: 'DeFi — decentralied',
+ defi: 'DeFi — decentralized',
  layer1: ' first — Layer 1',
  layer2: ' second — Layer 2',
  meme: 'coins meme',
  ai: 'AI',
  gaming: '',
  rwa: 'real assets',
- cefi: 'centralied finance',
+ cefi: 'centralized finance',
  stablecoin: 'coins stable',
  other: '',
 };
@@ -193,11 +193,11 @@ const CACHE_TTL = 60000; // 1 minute
 // ── Single Asset Analysis ───────────────────────────────────────────
 
 /**
- * Analye a single asset using quick candle data analysis.
+ * Analyze a single asset using quick candle data analysis.
  * This is a lightweight analysis for scanning — not as deep as the
  * full unified analysis but fast enough to scan 50+ assets.
  */
-function analyeAssetQuick(
+function analyzeAssetQuick(
  symbol: string,
  candles: CandleData[],
  sector: AssetSector,
@@ -415,7 +415,7 @@ function getSignalLabelAr(source: string): string {
  rsi_overbought: 'RSI ',
  rsi_bullish: 'RSI bullish',
  rsi_bearish: 'RSI bearish',
- volume_spike: 'height sie',
+ volume_spike: 'height size',
  near_high: 'near high',
  near_low: 'near low',
  bullish_engulfing: ' bullish',
@@ -455,7 +455,7 @@ async function fetchAssetCandles(symbol: string, interval: string = '1h', limit:
 
 /**
  * Run a full market scan across all assets in the universe.
- * Fetches candle data in parallel and analyes each asset.
+ * Fetches candle data in parallel and analyzes each asset.
  *
  * @param maxAssets - Maximum number of assets to scan (default: 50)
  * @param interval - Candle interval for scanning (default: '1h')
@@ -479,7 +479,7 @@ export async function runMarketScan(
  const candles = await fetchAssetCandles(asset.symbol, interval);
  if (candles.length < 30) return null;
 
- const result = analyeAssetQuick(asset.symbol, candles, asset.sector);
+ const result = analyzeAssetQuick(asset.symbol, candles, asset.sector);
  scanCache.set(asset.symbol, { result, timestamp: Date.now() });
  return result;
  });
@@ -623,7 +623,7 @@ export function runSingleAssetScan(
  candles: CandleData[],
  sector: AssetSector = 'other',
 ): AssetScanResult {
- return analyeAssetQuick(symbol, candles, sector);
+ return analyzeAssetQuick(symbol, candles, sector);
 }
 
 /** Get the scan universe (list of assets that can be scanned) */

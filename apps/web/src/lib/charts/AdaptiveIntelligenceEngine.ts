@@ -190,7 +190,7 @@ export function recordPrediction(opts: {
  };
 
  predictions.set(id, record);
- if (predictions.sie > MAX_PREDICTIONS) {
+ if (predictions.size > MAX_PREDICTIONS) {
  const oldest = Array.from(predictions.keys())[0];
  if (oldest) predictions.delete(oldest);
  }
@@ -434,7 +434,7 @@ function sourceNameAr(source: SignalSource): string {
  fvg: ' value',
  bayesian: '',
  candlestick: '',
- volume: 'sie',
+ volume: 'size',
  liquidity: '',
  mtf: 'multi-timeframewhat',
  'smc-fusion': ' SMC',

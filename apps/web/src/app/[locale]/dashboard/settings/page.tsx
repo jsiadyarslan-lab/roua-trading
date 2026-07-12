@@ -29,7 +29,7 @@ import { useLocale } from 'next-intl'
 // ═══════════════════════════════════════════════════════════
 // PREMIUM DESIGN TOKENS
 // Roua Trading — AI Strategic Council Trading Platform
-// Color palette: #0B0E14 bg / #A855F7 council purple /
+// Color palette: '#0B0E14' bg / #A855F7 council purple /
 //                #10B981 green / #EF4444 red / #06B6D4 cyan
 // ═══════════════════════════════════════════════════════════
 /* ─── Toggle Switch (Premium) ─── */

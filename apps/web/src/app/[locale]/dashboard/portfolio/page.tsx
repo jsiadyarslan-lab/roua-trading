@@ -1063,11 +1063,11 @@ export default function PortfolioPage() {
     <div class="direction-grid">
       <div class="dir-card">
         <h3 style="color:${'#10b981'};">شراء (BUY)</h3>
-        <p style="font-size:11px;color:#CBD5E1;">${buyTrades.length} صفقة | P&L: <span style="color:${buyPnl >= 0 ? '#10b981' : '#ef4444'};font-weight:600;">$${buyPnl.toFixed(2)}</span></p>
+        <p style="font-size:11px;color: '#CBD5E1';">${buyTrades.length} صفقة | P&L: <span style="color:${buyPnl >= 0 ? '#10b981' : '#ef4444'};font-weight:600;">$${buyPnl.toFixed(2)}</span></p>
       </div>
       <div class="dir-card">
         <h3 style="color:${'#ef4444'};">بيع (SELL)</h3>
-        <p style="font-size:11px;color:#CBD5E1;">${sellTrades.length} صفقة | P&L: <span style="color:${sellPnl >= 0 ? '#10b981' : '#ef4444'};font-weight:600;">$${sellPnl.toFixed(2)}</span></p>
+        <p style="font-size:11px;color: '#CBD5E1';">${sellTrades.length} صفقة | P&L: <span style="color:${sellPnl >= 0 ? '#10b981' : '#ef4444'};font-weight:600;">$${sellPnl.toFixed(2)}</span></p>
       </div>
     </div>
   </div>
@@ -1103,7 +1103,7 @@ export default function PortfolioPage() {
             <td>${t.exitPrice ? Number(t.exitPrice).toFixed(4) : '—'}</td>
             <td>${t.exitReason || '—'}</td>
             <td class="${(t.pnl || 0) >= 0 ? 'pnl-pos' : 'pnl-neg'}">${(t.pnl || 0) >= 0 ? '+' : ''}$${(t.pnl || 0).toFixed(2)}</td>
-            <td style="font-size:10px;color:#64748B;">${t.executedAt ? new Date(t.executedAt).toLocaleDateString('en-GB') : '—'}</td>
+            <td style="font-size:10px;color: '#64748B';">${t.executedAt ? new Date(t.executedAt).toLocaleDateString('en-GB') : '—'}</td>
           </tr>
         `).join('')}
       </tbody>

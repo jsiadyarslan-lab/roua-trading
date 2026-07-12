@@ -358,7 +358,7 @@ const ASSISTANT_CSS = `
 }
 .asst-clear-btn:hover {
   background: rgba(239, 68, 68, 0.15) !important;
-  color: #FCA5A5 !important;
+  color: '#FCA5A5' !important;
   transform: scale(1.05);
 }
 
@@ -367,7 +367,7 @@ const ASSISTANT_CSS = `
 }
 .asst-ghost-btn:hover {
   background: rgba(255,255,255,0.1) !important;
-  color: #E5E7EB !important;
+  color: '#E5E7EB' !important;
 }
 .asst-ghost-btn:active { transform: scale(0.94); }
 

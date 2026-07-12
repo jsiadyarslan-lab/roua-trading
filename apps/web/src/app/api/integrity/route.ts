@@ -184,34 +184,34 @@ export async function GET(request: NextRequest) {
 <title>Roua Data Integrity</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:${'#0B0E14'};color:#F1F5F9;padding:24px;max-width:1100px;margin:0 auto}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:${'#0B0E14'};color: '#F1F5F9';padding:24px;max-width:1100px;margin:0 auto}
 h1{color:${'#10b981'};margin-bottom:4px;font-size:1.5rem}
-.sub{color:#94A3B8;margin-bottom:24px;font-size:.85rem}
+.sub{color: '#94A3B8';margin-bottom:24px;font-size:.85rem}
 .stats{display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap}
-.stat{background:#1A1D29;border:1px solid #2D3348;border-radius:10px;padding:16px 20px;text-align:center;min-width:90px}
+.stat{background: '#1A1D29';border:1px solid #2D3348;border-radius:10px;padding:16px 20px;text-align:center;min-width:90px}
 .stat .n{font-size:1.8rem;font-weight:700}
-.stat .l{color:#94A3B8;font-size:.72rem;margin-top:4px}
-.ok{color:${'#10b981'}}.err{color:${'#ef4444'}}.warn{color:#F59E0B}.fix{color:#3B82F6}.info{color:#60A5FA}
-.tbl{width:100%;border-collapse:collapse;background:#1A1D29;border-radius:10px;overflow:hidden;margin-bottom:24px}
-.tbl th{background:#242838;padding:10px 14px;text-align:left;color:#94A3B8;font-size:.78rem;text-transform:uppercase;letter-spacing:.5px}
+.stat .l{color: '#94A3B8';font-size:.72rem;margin-top:4px}
+.ok{color:${'#10b981'}}.err{color:${'#ef4444'}}.warn{color: '#F59E0B'}.fix{color: '#3B82F6'}.info{color: '#60A5FA'}
+.tbl{width:100%;border-collapse:collapse;background: '#1A1D29';border-radius:10px;overflow:hidden;margin-bottom:24px}
+.tbl th{background: '#242838';padding:10px 14px;text-align:left;color: '#94A3B8';font-size:.78rem;text-transform:uppercase;letter-spacing:.5px}
 .tbl td{padding:10px 14px;border-top:1px solid #2D3348;font-size:.85rem}
 .tbl tr:hover{background:rgba(255,255,255,.02)}
 .badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:.72rem;font-weight:600;white-space:nowrap}
 .b-ok{background:rgba(16,185,129,.15);color:${'#10b981'}}
-.b-exists{background:rgba(59,130,246,.15);color:#60A5FA}
+.b-exists{background:rgba(59,130,246,.15);color: '#60A5FA'}
 .b-err{background:rgba(239,68,68,.15);color:${'#ef4444'}}
-.b-warn{background:rgba(245,158,11,.15);color:#F59E0B}
-.b-fix{background:rgba(59,130,246,.15);color:#3B82F6}
+.b-warn{background:rgba(245,158,11,.15);color: '#F59E0B'}
+.b-fix{background:rgba(59,130,246,.15);color: '#3B82F6'}
 .mismatch{background:rgba(239,68,68,.08);border-left:3px solid ${'#ef4444'};padding:8px 14px;margin:4px 0;border-radius:4px;font-size:.82rem}
-.mismatch code{color:#F87171;font-family:monospace}
-.mismatch .expected{color:#F59E0B;font-family:monospace}
-.code{font-family:'SF Mono',monospace;font-size:.82rem;color:#60A5FA}
-.detail-box{background:${'#0B0E14'};border:1px solid #2D3348;border-radius:8px;padding:12px;margin-top:8px;max-height:200px;overflow:auto;font-family:monospace;font-size:.75rem;color:#94A3B8;white-space:pre-wrap;word-break:break-all}
-.verdict{background:#1A1D29;border:2px solid ${allGood ? '#10b981' : '#ef4444'};border-radius:12px;padding:20px;margin-bottom:24px;text-align:center}
+.mismatch code{color: '#F87171';font-family:monospace}
+.mismatch .expected{color: '#F59E0B';font-family:monospace}
+.code{font-family:'SF Mono',monospace;font-size:.82rem;color: '#60A5FA'}
+.detail-box{background:${'#0B0E14'};border:1px solid #2D3348;border-radius:8px;padding:12px;margin-top:8px;max-height:200px;overflow:auto;font-family:monospace;font-size:.75rem;color: '#94A3B8';white-space:pre-wrap;word-break:break-all}
+.verdict{background: '#1A1D29';border:2px solid ${allGood ? '#10b981' : '#ef4444'};border-radius:12px;padding:20px;margin-bottom:24px;text-align:center}
 .verdict h2{font-size:1.3rem;margin-bottom:4px}
-.verdict p{color:#94A3B8;font-size:.9rem}
-.tip{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:.82rem;color:#94A3B8}
-.tip strong{color:#60A5FA}
+.verdict p{color: '#94A3B8';font-size:.9rem}
+.tip{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:.82rem;color: '#94A3B8'}
+.tip strong{color: '#60A5FA'}
 </style></head><body>
 <h1>Roua Data Integrity Check</h1>
 <p class="sub">iOS ↔ Backend data sync diagnostic | ${new Date().toISOString()}</p>
@@ -261,7 +261,7 @@ ${results.map(r => {
   const critMark = r.critical ? '⚡' : '';
   const fixMark = r.routeFixed ? ' <span class="badge b-fix">ROUTE FIXED</span>' : '';
   const oldInfo = r.oldPath
-    ? `<br><span style="color:#64748B;font-size:.72rem">was: ${r.oldPath} → ${r.oldStatus === 404 ? '<span style="color:#EF4444">404 ✗</span>' : r.oldStatus || 'N/A'}</span>`
+    ? `<br><span style="color: '#64748B';font-size:.72rem">was: ${r.oldPath} → ${r.oldStatus === 404 ? '<span style="color: '#EF4444'">404 ✗</span>' : r.oldStatus || 'N/A'}</span>`
     : '';
   const mismatchHtml = r.fieldMismatches.length > 0
     ? r.fieldMismatches.map((m: any) => `<div class="mismatch">❌ iOS <code>${m.swift}</code> expects <code class="expected">${m.expected}</code> — missing in response${m.note ? ` (${m.note})` : ''}</div>`).join('')
@@ -281,14 +281,14 @@ ${results.map(r => {
 </table>
 
 ${allMismatches.length > 0 ? `
-<h2 style="color:#F59E0B;font-size:1.1rem;margin-bottom:12px">⚠️ Field Mismatches (iOS CodingKey ≠ Backend JSON)</h2>
-<p style="color:#94A3B8;font-size:.85rem;margin-bottom:12px">These fields are expected by iOS models but not found in the backend response. When iOS can't find a CodingKey, it uses a default value (0, nil) — this can cause $0 balances or empty data.</p>
-${allMismatches.map(m => `<div class="mismatch"><strong>${m.endpoint}</strong>: iOS <code>${m.swift}</code> → expects JSON key <code class="expected">${m.expected}</code>${m.note ? ` <span style="color:#94A3B8">(${m.note})</span>` : ''}</div>`).join('')}
+<h2 style="color: '#F59E0B';font-size:1.1rem;margin-bottom:12px">⚠️ Field Mismatches (iOS CodingKey ≠ Backend JSON)</h2>
+<p style="color: '#94A3B8';font-size:.85rem;margin-bottom:12px">These fields are expected by iOS models but not found in the backend response. When iOS can't find a CodingKey, it uses a default value (0, nil) — this can cause $0 balances or empty data.</p>
+${allMismatches.map(m => `<div class="mismatch"><strong>${m.endpoint}</strong>: iOS <code>${m.swift}</code> → expects JSON key <code class="expected">${m.expected}</code>${m.note ? ` <span style="color: '#94A3B8'">(${m.note})</span>` : ''}</div>`).join('')}
 ` : ''}
 
 ${results.filter(r => r.responseData && r.status >= 200 && r.status < 300).map(r => `
 <details style="margin-bottom:8px">
-  <summary style="color:#60A5FA;cursor:pointer;font-size:.85rem">${r.name} — Response</summary>
+  <summary style="color: '#60A5FA';cursor:pointer;font-size:.85rem">${r.name} — Response</summary>
   <div class="detail-box">${JSON.stringify(r.responseData, null, 2)}</div>
 </details>
 `).join('')}
@@ -305,9 +305,9 @@ ${results.filter(r => r.routeFixed).map(r => `<tr>
 </tr>`).join('')}
 </table>
 
-<div style="margin-top:24px;padding:16px;background:#1A1D29;border:1px solid #2D3348;border-radius:10px;text-align:center">
-  <p style="color:#94A3B8;font-size:.85rem;margin-bottom:8px">🔍 فحص سلامة الكود (V01-V15) — هل الإصلاحات مطبقة فعلياً؟</p>
-  <a href="/api/integrity/code?html=1" style="display:inline-block;padding:10px 24px;background:#3B82F6;color:white;border-radius:8px;text-decoration:none;font-size:.9rem">Code Integrity Check → V15: V184 Auto-Close Fix</a>
+<div style="margin-top:24px;padding:16px;background: '#1A1D29';border:1px solid #2D3348;border-radius:10px;text-align:center">
+  <p style="color: '#94A3B8';font-size:.85rem;margin-bottom:8px">🔍 فحص سلامة الكود (V01-V15) — هل الإصلاحات مطبقة فعلياً؟</p>
+  <a href="/api/integrity/code?html=1" style="display:inline-block;padding:10px 24px;background: '#3B82F6';color:white;border-radius:8px;text-decoration:none;font-size:.9rem">Code Integrity Check → V15: V184 Auto-Close Fix</a>
 </div>
 
 </body></html>`;

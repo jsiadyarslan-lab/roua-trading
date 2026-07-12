@@ -96,7 +96,12 @@ export const DEFAULT_LAZIC_CONFIG: Omit<LazicSymbolConfig, 'symbol'> = {
   minSpreadAvgSamples: 20,
 };
 
-/** الأزواج التي يدعمها اللاسع — كل الأزواج المتاحة في OANDA + Binance */
+/** الأزواج التي يدعمها اللاسع — كل الأزواج المتاحة في OANDA + Binance
+ *
+ * V1183: Removed MATIC/USDT — Binance deprecated it (migrated to POL).
+ * Binance API returns stale closeTime (5+ days old) for MATIC, which causes
+ * V430 stale-quote detection to skip SL/TP checks → positions stay open forever.
+ */
 export const LAZIC_SUPPORTED_SYMBOLS = [
   // Forex Majors (OANDA) — 7
   'EUR/USD', 'GBP/USD', 'USD/JPY', 'USD/CHF', 'AUD/USD', 'NZD/USD', 'USD/CAD',
@@ -106,9 +111,9 @@ export const LAZIC_SUPPORTED_SYMBOLS = [
   'XAU/USD', 'XAG/USD',
   // Indices (OANDA) — 3
   'US30/USD', 'NAS100/USD', 'SPX500/USD',
-  // Crypto (Binance) — 12
+  // Crypto (Binance) — 11 (V1183: MATIC/USDT removed — Binance deprecated)
   'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT',
-  'ADA/USDT', 'DOGE/USDT', 'DOT/USDT', 'MATIC/USDT', 'AVAX/USDT',
+  'ADA/USDT', 'DOGE/USDT', 'DOT/USDT', 'AVAX/USDT',
   'LINK/USDT', 'UNI/USDT',
 ] as const;
 

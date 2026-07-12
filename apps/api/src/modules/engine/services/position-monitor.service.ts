@@ -754,34 +754,23 @@ export class PositionMonitorService {
     // Production evidence: XAU/USD quote was 49 minutes old because OANDA REST
     // returned a candle from a previous time window. Making SL/TP decisions on
     // stale prices is dangerous — the market may have moved significantly.
+    //
+    // V1183 FIX: Previously, stale quotes caused SL/TP check to be SKIPPED entirely.
+    // This meant positions stayed open forever when an exchange deprecated a pair
+    // (e.g., MATIC/USDT on Binance returns closeTime from 5+ days ago).
+    // Now: log warning but PROCEED with SL/TP check using currentPrice.
+    // The price may be stale, but it's still the best available data.
+    // Skipping SL/TP is WORSE than using a slightly stale price — positions
+    // accumulate losses indefinitely when monitoring is skipped.
     const STALE_QUOTE_THRESHOLD_MS = 60_000; // 1 minute
     const quoteAge = quote?.timestamp ? (Date.now() - new Date(quote.timestamp).getTime()) : 0;
     const isStaleQuote = quoteAge > STALE_QUOTE_THRESHOLD_MS;
     if (isStaleQuote) {
       this.logger.warn(
-        `🛡️ V430 STALE QUOTE: ${position.symbol} price is ${Math.round(quoteAge / 1000)}s old (threshold: ${STALE_QUOTE_THRESHOLD_MS / 1000}s) — skipping SL/TP check, updating PnL only`,
+        `🛡️ V1183 STALE QUOTE: ${position.symbol} price is ${Math.round(quoteAge / 1000)}s old — PROCEEDING with SL/TP check anyway (V1183: skipping caused positions to stay open forever)`,
       );
-      // Still update price/PnL for display, but DON'T make SL/TP decisions
-      const staleEntryPrice = position.entryPrice?.toNumber?.() ?? Number(position.entryPrice);
-      const staleQuantity = position.quantity?.toNumber?.() ?? Number(position.quantity);
-      // V431: استخدم contractSize الصحيح من symbol-metadata
-      const staleSymbol = position.symbol || '';
-      const staleContractSize = getSymbolMetadata(staleSymbol).contractSize || 100000;
-      const staleQtyUnits = staleQuantity * staleContractSize;
-      const unrealizedPnl =
-        position.side === 'BUY'
-          ? (currentPrice - staleEntryPrice) * staleQtyUnits
-          : (staleEntryPrice - currentPrice) * staleQtyUnits;
-      priceUpdates.push(
-        this.prisma.position.update({
-          where: { id: position.id },
-          data: {
-            currentPrice,
-            unrealizedPnl,
-          },
-        }),
-      );
-      return result;
+      // Don't return — fall through to SL/TP check below.
+      // The price may be stale, but it's still the best available data.
     }
 
     // Extract quote.high/low — fall back to currentPrice if not available

@@ -77,10 +77,10 @@ function ScannerContent() {
           onClick={() => setSidebarVisible(!sidebarVisible)}
           style={{
             position: 'fixed', top: 12, right: 12, zIndex: 60,
-            width: 36, height: 36, borderRadius: 8,
+            width: 36, height: 36, borderRadius: 'var(--radius-md)',
             background: T.card, border: `1px solid ${T.border}`,
             color: T.text, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', fontSize: 14,
+            cursor: 'pointer', fontSize: 'var(--text-base)',
           }}
         >
           ☰
@@ -101,7 +101,7 @@ function ScannerContent() {
       {/* ── Main Content ── */}
       <div style={{
         flex: 1, background: T.card, border: `0.5px solid ${T.border}`,
-        borderRadius: 8, overflow: 'hidden', display: 'flex', flexDirection: 'column'
+        borderRadius: 'var(--radius-md)', overflow: 'hidden', display: 'flex', flexDirection: 'column'
       }}>
         {renderTab()}
       </div>

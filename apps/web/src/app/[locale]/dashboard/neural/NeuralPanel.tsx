@@ -277,10 +277,10 @@ export default function NeuralPanel() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                  <XAxis dataKey="timestamp" stroke={T.text3} tick={{ fontSize: 9 }} />
-                  <YAxis stroke={T.text3} tick={{ fontSize: 10 }} domain={['auto', 'auto']} />
+                  <XAxis dataKey="timestamp" stroke={T.text3} tick={{ fontSize: 'var(--text-xs)' }} />
+                  <YAxis stroke={T.text3} tick={{ fontSize: 'var(--text-xs)' }} domain={['auto', 'auto']} />
                   <Tooltip
-                    contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 8, fontSize: 12 }}
+                    contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)' }}
                     labelStyle={{ color: '#9ca3af' }}
                     formatter={(value: number, name: string) => {
                       const labels: Record<string, string> = {

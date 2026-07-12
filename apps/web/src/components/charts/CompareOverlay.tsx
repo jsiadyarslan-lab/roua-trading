@@ -147,7 +147,7 @@ export function CompareOverlay({ chart, symbol, onClose }: CompareOverlayProps) 
         background: 'rgba(8,10,18,0.88)',
         backdropFilter: 'blur(24px)',
         border: '1px solid rgba(212,175,55,0.3)',
-        borderRadius: 8,
+        borderRadius: 'var(--radius-md)',
         padding: '4px 10px',
         zIndex: 100,
         pointerEvents: 'auto',
@@ -155,7 +155,7 @@ export function CompareOverlay({ chart, symbol, onClose }: CompareOverlayProps) 
         alignItems: 'center',
         gap: 8,
         fontFamily: "var(--font-mono)",
-        fontSize: 10,
+        fontSize: 'var(--text-xs)',
         color: T.gold,
       }}
     >
@@ -169,7 +169,7 @@ export function CompareOverlay({ chart, symbol, onClose }: CompareOverlayProps) 
         <span style={{ color: 'rgba(212,175,55,0.6)' }}>...</span>
       )}
       {error && (
-        <span style={{ color: '#f85149', fontSize: 9 }}>{error}</span>
+        <span style={{ color: '#f85149', fontSize: 'var(--text-xs)' }}>{error}</span>
       )}
       {currentPrice !== null && !loading && !error && (
         <span style={{ color: T.gold, fontWeight: 600 }}>
@@ -187,7 +187,7 @@ export function CompareOverlay({ chart, symbol, onClose }: CompareOverlayProps) 
         style={{
           background: 'rgba(212,175,55,0.15)',
           border: 'none',
-          borderRadius: 4,
+          borderRadius: 'var(--radius-sm)',
           color: T.gold,
           width: 16,
           height: 16,
@@ -195,7 +195,7 @@ export function CompareOverlay({ chart, symbol, onClose }: CompareOverlayProps) 
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 10,
+          fontSize: 'var(--text-xs)',
           lineHeight: 1,
           padding: 0,
           transition: 'background 0.15s ease',

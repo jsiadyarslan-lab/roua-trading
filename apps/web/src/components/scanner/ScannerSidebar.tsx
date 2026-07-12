@@ -48,11 +48,11 @@ export function ScannerSidebar() {
       <div style={{ padding: '16px 14px 12px', borderBottom: `1px solid ${T.border}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
           <ScanSearch size={20} color={T.cyan} />
-          <span style={{ fontSize: 13, fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>
             {t('advancedScanner')}
           </span>
         </div>
-        <p style={{ fontSize: 9, color: T.text3, lineHeight: 1.5, fontFamily: "var(--font-ar)", margin: 0 }}>
+        <p style={{ fontSize: 'var(--text-xs)', color: T.text3, lineHeight: 1.5, fontFamily: "var(--font-ar)", margin: 0 }}>
           {t('subtitle')}
         </p>
       </div>
@@ -75,7 +75,7 @@ export function ScannerSidebar() {
             >
               <span style={{ display: 'flex', color: active ? T.cyan : T.text3 }}>{item.icon}</span>
               <span style={{
-                fontSize: 11, fontWeight: active ? 700 : 600,
+                fontSize: 'var(--text-xs)', fontWeight: active ? 700 : 600,
                 fontFamily: "var(--font-ar)",
               }}>
                 {item.label}
@@ -97,12 +97,12 @@ export function ScannerSidebar() {
               width: 6, height: 6, borderRadius: '50%', background: T.green,
               boxShadow: `0 0 6px ${T.green}60`,
             }} />
-            <span style={{ fontSize: 9, fontWeight: 700, color: T.green, fontFamily: "var(--font-ar)" }}>
+            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.green, fontFamily: "var(--font-ar)" }}>
               {t('live')}
             </span>
           </div>
           <span style={{
-            fontSize: 10, fontWeight: 700, color: T.text2,
+            fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text2,
             fontFamily: "var(--font-mono)",
           }}>
             {mins}:{secs.toString().padStart(2, '0')}
@@ -114,8 +114,8 @@ export function ScannerSidebar() {
           onClick={refresh}
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            padding: '6px 0', borderRadius: 6, border: `0.5px solid ${T.border}`,
-            background: T.surface, color: T.text2, cursor: 'pointer', fontSize: 10,
+            padding: '6px 0', borderRadius: 'var(--radius-sm)', border: `0.5px solid ${T.border}`,
+            background: T.surface, color: T.text2, cursor: 'pointer', fontSize: 'var(--text-xs)',
             fontFamily: "var(--font-ar)", fontWeight: 700, transition: 'all 0.2s',
           }}
         >
@@ -124,7 +124,7 @@ export function ScannerSidebar() {
 
         {/* Last update */}
         {lastUpdate && (
-          <span style={{ fontSize: 8, color: T.text3, fontFamily: "var(--font-ar)", textAlign: 'center' }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)", textAlign: 'center' }}>
             {t('lastUpdate')} {formatTime(lastUpdate)}
           </span>
         )}
@@ -132,7 +132,7 @@ export function ScannerSidebar() {
         {/* Badge */}
         <span style={{
           display: 'inline-block', textAlign: 'center', padding: '3px 8px',
-          borderRadius: 4, fontSize: 8, fontWeight: 800,
+          borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 800,
           fontFamily: "var(--font-ar)", color: T.cyan,
           background: `${T.cyan}10`, border: `0.5px solid ${T.border2}`,
         }}>

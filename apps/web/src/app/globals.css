@@ -74,6 +74,26 @@
   --bg-sidebar: #05070efa;
   --bg-ticker: #030405;
 
+  /* Type Scale — Fluid (clamp) — unified across all components */
+  --text-xs:   clamp(0.625rem, 0.58rem + 0.18vw, 0.75rem);    /* 10-12px */
+  --text-sm:   clamp(0.75rem,  0.70rem + 0.20vw, 0.875rem);   /* 12-14px */
+  --text-base: clamp(0.875rem, 0.82rem + 0.25vw, 1rem);       /* 14-16px */
+  --text-md:   clamp(1rem,     0.95rem + 0.30vw, 1.125rem);   /* 16-18px */
+  --text-lg:   clamp(1.125rem, 1.05rem + 0.40vw, 1.25rem);    /* 18-20px */
+  --text-xl:   clamp(1.25rem,  1.15rem + 0.50vw, 1.5rem);     /* 20-24px */
+  --text-2xl:  clamp(1.5rem,   1.35rem + 0.75vw, 1.875rem);   /* 24-30px */
+  --text-3xl:  clamp(1.875rem, 1.65rem + 1.20vw, 2.5rem);     /* 30-40px */
+  --text-4xl:  clamp(2.5rem,   2.10rem + 2.00vw, 3.5rem);     /* 40-56px */
+  --text-5xl:  clamp(3.5rem,   2.80rem + 3.50vw, 5rem);       /* 56-80px */
+
+  /* Radius Scale — unified across all components */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+
   /* Borders */
   --border-subtle: #ffffff0f;
   --border-strong: #ffffff1a;

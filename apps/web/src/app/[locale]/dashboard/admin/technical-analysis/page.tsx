@@ -163,7 +163,7 @@ function GlassCard({ children, style, glow }: { children: React.ReactNode; style
       backdropFilter: 'blur(16px) saturate(1.4)',
       WebkitBackdropFilter: 'blur(16px) saturate(1.4)',
       border: `1px solid ${T.border}`,
-      borderRadius: 16,
+      borderRadius: 'var(--radius-xl)',
       boxShadow: `0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)${glow ? `, 0 0 30px ${glow}` : ''}`,
       overflow: 'hidden',
       ...style,
@@ -178,11 +178,11 @@ const btnStyle: React.CSSProperties = {
   alignItems: 'center',
   gap: 6,
   padding: '8px 16px',
-  borderRadius: 8,
+  borderRadius: 'var(--radius-md)',
   border: 'none',
   cursor: 'pointer',
   fontFamily: FONT_AR,
-  fontSize: 12,
+  fontSize: 'var(--text-sm)',
   fontWeight: 700,
   transition: 'all 0.15s',
   outline: 'none',
@@ -247,7 +247,7 @@ export default function TechnicalAnalysisPage() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
             <div style={{
-              width: 56, height: 56, borderRadius: 16,
+              width: 56, height: 56, borderRadius: 'var(--radius-xl)',
               background: `linear-gradient(135deg, ${isGenerating ? T.info : T.accent}, ${isGenerating ? T.blue : '#047857'})`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: isGenerating ? `0 0 28px rgba(0,212,255,0.35)` : `0 0 28px rgba(5,150,105,0.25)`,
@@ -257,7 +257,7 @@ export default function TechnicalAnalysisPage() {
               <LineChart size={26} color="#fff" strokeWidth={2.5} />
               {isGenerating && (
                 <div style={{
-                  position: 'absolute', inset: -3, borderRadius: 18,
+                  position: 'absolute', inset: -3, borderRadius: 'var(--radius-xl)',
                   border: '2px solid rgba(0,212,255,0.3)',
                   animation: 'ta-pulse 2s ease-in-out infinite',
                 }} />
@@ -265,7 +265,7 @@ export default function TechnicalAnalysisPage() {
             </div>
             <div>
               <h1 style={{
-                fontFamily: FONT_AR, fontSize: 24, fontWeight: 900, margin: 0, lineHeight: 1.2,
+                fontFamily: FONT_AR, fontSize: 'var(--text-xl)', fontWeight: 900, margin: 0, lineHeight: 1.2,
                 background: 'linear-gradient(135deg, #F0F2F5, #8B92A8)',
                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
               }}>
@@ -278,13 +278,13 @@ export default function TechnicalAnalysisPage() {
                   boxShadow: `0 0 10px ${getStatusColor(status)}`,
                   animation: isGenerating ? 'ta-pulse 2s ease-in-out infinite' : 'none',
                 }} />
-                <span style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 700, color: getStatusColor(status) }}>
+                <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 700, color: getStatusColor(status) }}>
                   {getStatusLabel(status)}
                 </span>
                 {agentState && (
                   <span style={{
-                    fontFamily: FONT_AR, fontSize: 11, color: T.text3,
-                    marginRight: 8, padding: '2px 10px', borderRadius: 6,
+                    fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3,
+                    marginRight: 8, padding: '2px 10px', borderRadius: 'var(--radius-sm)',
                     background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)',
                   }}>
                     {agentState.totalGenerated} تحليل مُوَلَّد
@@ -300,7 +300,7 @@ export default function TechnicalAnalysisPage() {
               style={{
                 ...btnStyle,
                 background: 'linear-gradient(135deg, #059669, #047857)',
-                color: '#fff', fontWeight: 800, padding: '11px 24px', fontSize: 13, borderRadius: 10,
+                color: '#fff', fontWeight: 800, padding: '11px 24px', fontSize: 'var(--text-sm)', borderRadius: 'var(--radius-lg)',
                 boxShadow: '0 4px 16px rgba(5,150,105,0.3)',
               }}
             >
@@ -311,7 +311,7 @@ export default function TechnicalAnalysisPage() {
               style={{
                 ...btnStyle,
                 background: 'rgba(255,71,87,0.10)', color: T.red,
-                border: '1px solid rgba(255,71,87,0.25)', padding: '11px 20px', fontSize: 13, borderRadius: 10,
+                border: '1px solid rgba(255,71,87,0.25)', padding: '11px 20px', fontSize: 'var(--text-sm)', borderRadius: 'var(--radius-lg)',
               }}
             >
               <Zap size={15} /> تنبيه عاجل
@@ -320,7 +320,7 @@ export default function TechnicalAnalysisPage() {
               onClick={() => { fetchState(); fetchStats(); fetchFeed(); fetchTrending(); fetchGaps() }}
               style={{
                 ...btnStyle, background: 'rgba(255,255,255,0.06)', color: T.text2,
-                padding: '11px 14px', borderRadius: 10, border: `1px solid ${T.border}`,
+                padding: '11px 14px', borderRadius: 'var(--radius-lg)', border: `1px solid ${T.border}`,
               }}
             >
               <RefreshCw size={15} />
@@ -343,8 +343,8 @@ export default function TechnicalAnalysisPage() {
         {error && (
           <div style={{
             margin: '20px 32px 0', padding: '14px 20px',
-            background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.20)', borderRadius: 12,
-            display: 'flex', alignItems: 'center', gap: 12, fontFamily: FONT_AR, fontSize: 13, color: T.red,
+            background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.20)', borderRadius: 'var(--radius-lg)',
+            display: 'flex', alignItems: 'center', gap: 12, fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: T.red,
           }}>
             <AlertTriangle size={18} />
             <span style={{ fontWeight: 700 }}>{error}</span>
@@ -358,14 +358,14 @@ export default function TechnicalAnalysisPage() {
             return (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
                 display: 'flex', alignItems: 'center', gap: 8, padding: '14px 22px',
-                fontFamily: FONT_AR, fontSize: 13, fontWeight: isActive ? 800 : 500,
+                fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: isActive ? 800 : 500,
                 color: isActive ? T.accent : T.text2, background: 'transparent', border: 'none',
                 borderBottom: isActive ? '2px solid ' + T.accent : '2px solid transparent',
                 cursor: 'pointer', transition: 'all 0.15s',
               }}>
                 {tab.icon} {tab.label}
                 {tab.id === 'analyses' && articles.length > 0 && (
-                  <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 10, background: T.accent + '20', color: T.accent, fontFamily: FONT_MONO }}>{articles.length}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, padding: '2px 8px', borderRadius: 'var(--radius-lg)', background: T.accent + '20', color: T.accent, fontFamily: FONT_MONO }}>{articles.length}</span>
                 )}
               </button>
             )
@@ -402,21 +402,21 @@ export default function TechnicalAnalysisPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <button onClick={() => setShowFilters(!showFilters)} style={{
             ...btnStyle, background: showFilters ? T.accent + '10' : 'rgba(255,255,255,0.06)',
-            color: showFilters ? T.accent : T.text2, fontSize: 11, borderRadius: 8,
+            color: showFilters ? T.accent : T.text2, fontSize: 'var(--text-xs)', borderRadius: 'var(--radius-md)',
             border: `1px solid ${showFilters ? T.accent + '25' : T.border}`,
           }}>
             <Filter size={13} /> فلاتر
             {(filterCategory || filterStatus) && (
-              <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 8, background: T.accent + '20', color: T.accent, fontFamily: FONT_MONO }}>
+              <span style={{ fontSize: 'var(--text-xs)', padding: '2px 7px', borderRadius: 'var(--radius-md)', background: T.accent + '20', color: T.accent, fontFamily: FONT_MONO }}>
                 {[filterCategory, filterStatus].filter(Boolean).length}
               </span>
             )}
           </button>
           <div style={{ flex: 1 }} />
-          <span style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3 }}>{filteredArticles.length} تحليل</span>
+          <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>{filteredArticles.length} تحليل</span>
           {(filterCategory || filterStatus) && (
             <button onClick={() => { setFilterCategory(''); setFilterStatus('') }}
-              style={{ ...btnStyle, background: 'rgba(255,71,87,0.08)', color: T.red, fontSize: 10, padding: '5px 12px', borderRadius: 8 }}>
+              style={{ ...btnStyle, background: 'rgba(255,71,87,0.08)', color: T.red, fontSize: 'var(--text-xs)', padding: '5px 12px', borderRadius: 'var(--radius-md)' }}>
               <XCircle size={11} /> مسح
             </button>
           )}
@@ -434,8 +434,8 @@ export default function TechnicalAnalysisPage() {
           <GlassCard>
             <div style={{ padding: '60px 20px', textAlign: 'center', fontFamily: FONT_AR, color: T.text3 }}>
               <LineChart size={44} style={{ marginBottom: 14, opacity: 0.25 }} />
-              <div style={{ fontSize: 16, fontWeight: 800 }}>لا توجد تحليلات فنية</div>
-              <div style={{ fontSize: 12, marginTop: 6 }}>ابدأ بتوليد تحليل فني من تبويب التوليد</div>
+              <div style={{ fontSize: 'var(--text-md)', fontWeight: 800 }}>لا توجد تحليلات فنية</div>
+              <div style={{ fontSize: 'var(--text-sm)', marginTop: 6 }}>ابدأ بتوليد تحليل فني من تبويب التوليد</div>
             </div>
           </GlassCard>
         ) : (
@@ -465,17 +465,17 @@ export default function TechnicalAnalysisPage() {
     const [breakingContext, setBreakingContext] = useState('')
 
     const inputStyle: React.CSSProperties = {
-      width: '100%', padding: '12px 16px', borderRadius: 10,
+      width: '100%', padding: '12px 16px', borderRadius: 'var(--radius-lg)',
       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border}`,
-      color: T.text, fontFamily: FONT_AR, fontSize: 13, outline: 'none', direction: 'inherit',
+      color: T.text, fontFamily: FONT_AR, fontSize: 'var(--text-sm)', outline: 'none', direction: 'inherit',
     }
     const selectStyle: React.CSSProperties = {
-      width: '100%', padding: '12px 14px', borderRadius: 10,
+      width: '100%', padding: '12px 14px', borderRadius: 'var(--radius-lg)',
       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border}`,
-      color: T.text, fontFamily: FONT_AR, fontSize: 12, outline: 'none', direction: 'inherit',
+      color: T.text, fontFamily: FONT_AR, fontSize: 'var(--text-sm)', outline: 'none', direction: 'inherit',
     }
     const labelStyle: React.CSSProperties = {
-      fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text2, marginBottom: 8, display: 'block',
+      fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text2, marginBottom: 8, display: 'block',
     }
 
     return (
@@ -487,7 +487,7 @@ export default function TechnicalAnalysisPage() {
               background: formMode === 'analysis' ? T.accent + '12' : 'rgba(255,255,255,0.04)',
               color: formMode === 'analysis' ? T.accent : T.text2,
               border: `1px solid ${formMode === 'analysis' ? T.accent + '30' : T.border}`,
-              padding: '13px', borderRadius: 10,
+              padding: '13px', borderRadius: 'var(--radius-lg)',
             }}>
               <LineChart size={15} /> تحليل فني
             </button>
@@ -496,7 +496,7 @@ export default function TechnicalAnalysisPage() {
               background: formMode === 'breaking' ? 'rgba(255,71,87,0.12)' : 'rgba(255,255,255,0.04)',
               color: formMode === 'breaking' ? T.red : T.text2,
               border: `1px solid ${formMode === 'breaking' ? 'rgba(255,71,87,0.3)' : T.border}`,
-              padding: '13px', borderRadius: 10,
+              padding: '13px', borderRadius: 'var(--radius-lg)',
             }}>
               <Zap size={15} /> تنبيه عاجل
             </button>
@@ -505,7 +505,7 @@ export default function TechnicalAnalysisPage() {
           {formMode === 'analysis' ? (
             <GlassCard>
               <div style={{ padding: 24 }}>
-                <div style={{ fontFamily: FONT_AR, fontSize: 16, fontWeight: 800, marginBottom: 22, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-md)', fontWeight: 800, marginBottom: 22, display: 'flex', alignItems: 'center', gap: 10 }}>
                   <LineChart size={18} color={T.accent} /> توليد تحليل فني جديد
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -555,7 +555,7 @@ export default function TechnicalAnalysisPage() {
                     <label style={labelStyle}>الرموز (اختياري)</label>
                     <input type="text" value={genSymbols} onChange={(e) => setGenSymbols(e.target.value)}
                       placeholder="BTC, ETH, SOL — مفصولة بفواصل"
-                      style={{ ...inputStyle, fontFamily: FONT_MONO, fontSize: 12, direction: 'ltr' }} />
+                      style={{ ...inputStyle, fontFamily: FONT_MONO, fontSize: 'var(--text-sm)', direction: 'ltr' }} />
                   </div>
                   <button onClick={() => {
                     if (!genTopic.trim()) return
@@ -563,7 +563,7 @@ export default function TechnicalAnalysisPage() {
                   }} disabled={loading || !genTopic.trim()} style={{
                     ...btnStyle, width: '100%', justifyContent: 'center',
                     background: loading || !genTopic.trim() ? T.accent + '20' : 'linear-gradient(135deg, ' + T.accent + ', #047857)',
-                    color: loading || !genTopic.trim() ? T.text3 : '#fff', fontWeight: 800, padding: '14px', fontSize: 14, borderRadius: 10,
+                    color: loading || !genTopic.trim() ? T.text3 : '#fff', fontWeight: 800, padding: '14px', fontSize: 'var(--text-base)', borderRadius: 'var(--radius-lg)',
                     cursor: loading || !genTopic.trim() ? 'not-allowed' : 'pointer',
                     boxShadow: loading || !genTopic.trim() ? 'none' : '0 4px 16px rgba(5,150,105,0.3)',
                   }}>
@@ -575,7 +575,7 @@ export default function TechnicalAnalysisPage() {
           ) : (
             <GlassCard glow="rgba(255,71,87,0.10)">
               <div style={{ padding: 24 }}>
-                <div style={{ fontFamily: FONT_AR, fontSize: 16, fontWeight: 800, marginBottom: 22, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-md)', fontWeight: 800, marginBottom: 22, display: 'flex', alignItems: 'center', gap: 10 }}>
                   <Zap size={18} color={T.red} /> تنبيه عاجل
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -588,7 +588,7 @@ export default function TechnicalAnalysisPage() {
                   <div>
                     <label style={labelStyle}>الرموز المتأثرة</label>
                     <input type="text" value={breakingSymbols} onChange={(e) => setBreakingSymbols(e.target.value)}
-                      placeholder="BTC, ETH" style={{ ...inputStyle, fontFamily: FONT_MONO, fontSize: 12, direction: 'ltr' }} />
+                      placeholder="BTC, ETH" style={{ ...inputStyle, fontFamily: FONT_MONO, fontSize: 'var(--text-sm)', direction: 'ltr' }} />
                   </div>
                   <div>
                     <label style={labelStyle}>سياق إضافي</label>
@@ -602,7 +602,7 @@ export default function TechnicalAnalysisPage() {
                   }} disabled={loading || !breakingTopic.trim()} style={{
                     ...btnStyle, width: '100%', justifyContent: 'center',
                     background: loading || !breakingTopic.trim() ? 'rgba(255,71,87,0.2)' : 'linear-gradient(135deg, #FF4757, #C0392B)',
-                    color: loading || !breakingTopic.trim() ? T.text3 : '#fff', fontWeight: 800, padding: '14px', fontSize: 14, borderRadius: 10,
+                    color: loading || !breakingTopic.trim() ? T.text3 : '#fff', fontWeight: 800, padding: '14px', fontSize: 'var(--text-base)', borderRadius: 'var(--radius-lg)',
                     cursor: loading || !breakingTopic.trim() ? 'not-allowed' : 'pointer',
                   }}>
                     {loading ? <><RefreshCw size={16} style={{ animation: 'ta-spin 1s linear infinite' }} /> جارٍ النشر...</> : <><Zap size={16} /> نشر التنبيه العاجل</>}
@@ -617,7 +617,7 @@ export default function TechnicalAnalysisPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <GlassCard>
             <div style={{ padding: 24 }}>
-              <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-base)', fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <Zap size={15} color={T.amber} /> توليد سريع
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -640,15 +640,15 @@ export default function TechnicalAnalysisPage() {
           {contentGaps.filter(g => g.priority === 'HIGH').length > 0 && (
             <GlassCard>
               <div style={{ padding: 24 }}>
-                <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-base)', fontWeight: 800, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
                   <Layers size={15} color={T.orange} /> فجوات تحتاج تحليل
                 </div>
                 {contentGaps.filter(g => g.priority === 'HIGH').map((gap, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', marginBottom: 6, borderRadius: 8, background: 'rgba(255,71,87,0.05)', border: '1px solid rgba(255,71,87,0.1)' }}>
-                    <span style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text, fontWeight: 600 }}>{gap.categoryAr || getCategoryLabel(gap.category)}</span>
-                    <span style={{ fontFamily: FONT_AR, fontSize: 9, color: T.text3 }}>({gap.gapHours}س)</span>
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', marginBottom: 6, borderRadius: 'var(--radius-md)', background: 'rgba(255,71,87,0.05)', border: '1px solid rgba(255,71,87,0.1)' }}>
+                    <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: T.text, fontWeight: 600 }}>{gap.categoryAr || getCategoryLabel(gap.category)}</span>
+                    <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>({gap.gapHours}س)</span>
                     <button onClick={() => generateContent({ type: ContentType.ANALYSIS, category: gap.category, topic: gap.suggestedTopics?.[0] || `تحليل فني: ${gap.categoryAr || gap.category}`, language: ContentLanguage.BILINGUAL, priority: ContentPriority.HIGH })}
-                      disabled={loading} style={{ ...btnStyle, marginLeft: 'auto', background: 'rgba(255,71,87,0.10)', color: T.red, fontSize: 9, padding: '5px 12px', borderRadius: 7 }}>
+                      disabled={loading} style={{ ...btnStyle, marginLeft: 'auto', background: 'rgba(255,71,87,0.10)', color: T.red, fontSize: 'var(--text-xs)', padding: '5px 12px', borderRadius: 'var(--radius-md)' }}>
                       <Plus size={10} /> توليد
                     </button>
                   </div>
@@ -671,12 +671,12 @@ export default function TechnicalAnalysisPage() {
           <div style={{ padding: 24 }}>
             <SectionHeader icon={<Calendar size={17} />} color={T.amber} title="الحصة اليومية" subtitle="استهلاك الحصة اليومية" />
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
-              <div style={{ flex: 1, height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                <div style={{ height: '100%', borderRadius: 5, background: dailyPercent >= 100 ? T.red : `linear-gradient(90deg, ${T.accent}, ${T.profit})`, width: `${dailyPercent}%`, transition: 'width 0.5s ease' }} />
+              <div style={{ flex: 1, height: 10, borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                <div style={{ height: '100%', borderRadius: 'var(--radius-sm)', background: dailyPercent >= 100 ? T.red : `linear-gradient(90deg, ${T.accent}, ${T.profit})`, width: `${dailyPercent}%`, transition: 'width 0.5s ease' }} />
               </div>
-              <span style={{ fontFamily: FONT_MONO, fontSize: 14, fontWeight: 800, color: T.text }}>{dailyGenerated}/{dailyQuota}</span>
+              <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-base)', fontWeight: 800, color: T.text }}>{dailyGenerated}/{dailyQuota}</span>
             </div>
-            <div style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text3, lineHeight: 1.9 }}>يتم إعادة تعيين الحصة اليومية كل يوم في الساعة 00:00 UTC. الحصة الافتراضية هي 20 تحليل يومياً.</div>
+            <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: T.text3, lineHeight: 1.9 }}>يتم إعادة تعيين الحصة اليومية كل يوم في الساعة 00:00 UTC. الحصة الافتراضية هي 20 تحليل يومياً.</div>
           </div>
         </GlassCard>
         <GlassCard>
@@ -700,7 +700,7 @@ export default function TechnicalAnalysisPage() {
               <ThresholdRow label="عتبة التنبيهات العاجلة" value="90%" color={T.red} />
               <ThresholdRow label="الحد الأدنى لدرجة المشاعر" value="+-0.3" color={T.amber} />
             </div>
-            <div style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text3, lineHeight: 1.9, marginTop: 18 }}>التحليلات التي لا تحقق الحد الأدنى تبقى كمسودة للمراجعة اليدوية.</div>
+            <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: T.text3, lineHeight: 1.9, marginTop: 18 }}>التحليلات التي لا تحقق الحد الأدنى تبقى كمسودة للمراجعة اليدوية.</div>
           </div>
         </GlassCard>
         <GlassCard>
@@ -735,71 +735,71 @@ function AnalysisCard({ article }: { article: any }) {
       <div style={{ padding: '20px 24px' }}>
         {/* Header Row */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-          <span style={{ fontSize: 9, padding: '3px 10px', borderRadius: 6, background: `${catColor}12`, color: catColor, fontFamily: FONT_AR, fontWeight: 800 }}>
+          <span style={{ fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-sm)', background: `${catColor}12`, color: catColor, fontFamily: FONT_AR, fontWeight: 800 }}>
             {getCategoryLabel(article.category as ContentCategory)}
           </span>
-          <span style={{ fontSize: 9, padding: '3px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.05)', color: T.text2, fontFamily: FONT_AR, fontWeight: 700 }}>
+          <span style={{ fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.05)', color: T.text2, fontFamily: FONT_AR, fontWeight: 700 }}>
             {getTypeLabel(article.type as ContentType)}
           </span>
-          <span style={{ fontSize: 9, padding: '3px 10px', borderRadius: 6, background: badge.bg, color: badge.color, fontFamily: FONT_AR, fontWeight: 700 }}>
+          <span style={{ fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-sm)', background: badge.bg, color: badge.color, fontFamily: FONT_AR, fontWeight: 700 }}>
             {badge.label}
           </span>
           <div style={{ flex: 1 }} />
-          <span style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3 }}>{timeAgo(article.createdAt)}</span>
+          <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>{timeAgo(article.createdAt)}</span>
         </div>
 
         {/* Title */}
-        <div style={{ fontFamily: FONT_AR, fontSize: 17, fontWeight: 800, color: T.text, lineHeight: 1.7, marginBottom: 10 }}>
+        <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-md)', fontWeight: 800, color: T.text, lineHeight: 1.7, marginBottom: 10 }}>
           {article.titleAr || article.titleEn}
         </div>
 
         {/* Summary */}
         {(article.summaryAr || article.summaryEn) && (
-          <div style={{ fontFamily: FONT_AR, fontSize: 13, color: T.text2, lineHeight: 1.8, marginBottom: 12 }}>
+          <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: T.text2, lineHeight: 1.8, marginBottom: 12 }}>
             {expanded ? (article.summaryAr || article.summaryEn) : (article.summaryAr || article.summaryEn).substring(0, 150) + '...'}
           </div>
         )}
 
         {/* Sentiment + Impact + Quality Row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14, padding: '10px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14, padding: '10px 14px', borderRadius: 'var(--radius-lg)', background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}` }}>
           {/* Sentiment */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <div style={{ width: 24, height: 24, borderRadius: 6, background: `${sentiment.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', background: `${sentiment.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {sentiment.icon}
             </div>
             <div>
-              <div style={{ fontFamily: FONT_AR, fontSize: 10, fontWeight: 800, color: sentiment.color }}>{sentiment.label}</div>
-              <div style={{ fontFamily: FONT_AR, fontSize: 8, color: T.text3 }}>المشاعر</div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', fontWeight: 800, color: sentiment.color }}>{sentiment.label}</div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>المشاعر</div>
             </div>
           </div>
           {/* Impact */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <div style={{ width: 24, height: 24, borderRadius: 6, background: `${impact.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', background: `${impact.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Gauge size={12} color={impact.color} />
             </div>
             <div>
-              <div style={{ fontFamily: FONT_AR, fontSize: 10, fontWeight: 800, color: impact.color }}>{impact.label}</div>
-              <div style={{ fontFamily: FONT_AR, fontSize: 8, color: T.text3 }}>التأثير</div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', fontWeight: 800, color: impact.color }}>{impact.label}</div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>التأثير</div>
             </div>
           </div>
           {/* Quality */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <div style={{ width: 24, height: 24, borderRadius: 6, background: `${article.qualityScore >= 70 ? T.green : T.amber}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', background: `${article.qualityScore >= 70 ? T.green : T.amber}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Award size={12} color={article.qualityScore >= 70 ? T.green : T.amber} />
             </div>
             <div>
-              <div style={{ fontFamily: FONT_MONO, fontSize: 10, fontWeight: 800, color: article.qualityScore >= 70 ? T.green : T.amber }}>{article.qualityScore}%</div>
-              <div style={{ fontFamily: FONT_AR, fontSize: 8, color: T.text3 }}>الجودة</div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', fontWeight: 800, color: article.qualityScore >= 70 ? T.green : T.amber }}>{article.qualityScore}%</div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>الجودة</div>
             </div>
           </div>
           {/* Reading Time */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Clock size={12} color={T.text3} />
             </div>
             <div>
-              <div style={{ fontFamily: FONT_MONO, fontSize: 10, fontWeight: 800, color: T.text3 }}>{article.readingTimeMinutes || 0} د</div>
-              <div style={{ fontFamily: FONT_AR, fontSize: 8, color: T.text3 }}>القراءة</div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', fontWeight: 800, color: T.text3 }}>{article.readingTimeMinutes || 0} د</div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>القراءة</div>
             </div>
           </div>
         </div>
@@ -807,10 +807,10 @@ function AnalysisCard({ article }: { article: any }) {
         {/* Symbols + Tags */}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
           {article.relatedSymbols?.slice(0, 5).map((sym: string, i: number) => (
-            <span key={i} style={{ fontFamily: FONT_MONO, fontSize: 10, padding: '3px 10px', borderRadius: 6, background: 'rgba(0,212,255,0.08)', color: T.accent2, fontWeight: 700 }}>{sym}</span>
+            <span key={i} style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-sm)', background: 'rgba(0,212,255,0.08)', color: T.accent2, fontWeight: 700 }}>{sym}</span>
           ))}
           {article.tags?.slice(0, 4).map((tag: string, i: number) => (
-            <span key={i} style={{ fontFamily: FONT_AR, fontSize: 9, padding: '3px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', color: T.text3 }}>#{tag}</span>
+            <span key={i} style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', padding: '3px 8px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.04)', color: T.text3 }}>#{tag}</span>
           ))}
         </div>
 
@@ -818,27 +818,27 @@ function AnalysisCard({ article }: { article: any }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 12, borderTop: `1px solid ${T.border}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <Eye size={12} color={T.text3} />
-            <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: T.text3 }}>{Number(article.views || 0).toLocaleString('en')}</span>
+            <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', color: T.text3 }}>{Number(article.views || 0).toLocaleString('en')}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <ThumbsUp size={12} color={T.text3} />
-            <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: T.text3 }}>{article.likes || 0}</span>
+            <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', color: T.text3 }}>{article.likes || 0}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <Share2 size={12} color={T.text3} />
-            <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: T.text3 }}>{article.shares || 0}</span>
+            <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', color: T.text3 }}>{article.shares || 0}</span>
           </div>
           <div style={{ flex: 1 }} />
           {article.status === ContentStatus.DRAFT && (
-            <button onClick={() => publishContent(article.id)} style={{ ...btnStyle, background: T.accent + '12', color: T.accent, fontSize: 10, padding: '6px 14px', borderRadius: 8, border: `1px solid ${T.accent}25` }}>
+            <button onClick={() => publishContent(article.id)} style={{ ...btnStyle, background: T.accent + '12', color: T.accent, fontSize: 'var(--text-xs)', padding: '6px 14px', borderRadius: 'var(--radius-md)', border: `1px solid ${T.accent}25` }}>
               <Send size={11} /> نشر
             </button>
           )}
-          <button onClick={() => setExpanded(!expanded)} style={{ ...btnStyle, background: 'rgba(255,255,255,0.04)', color: T.text2, fontSize: 10, padding: '6px 14px', borderRadius: 8, border: `1px solid ${T.border}` }}>
+          <button onClick={() => setExpanded(!expanded)} style={{ ...btnStyle, background: 'rgba(255,255,255,0.04)', color: T.text2, fontSize: 'var(--text-xs)', padding: '6px 14px', borderRadius: 'var(--radius-md)', border: `1px solid ${T.border}` }}>
             {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
             {expanded ? 'إغلاق' : 'قراءة'}
           </button>
-          <button onClick={() => archiveContent(article.id)} style={{ ...btnStyle, background: 'rgba(255,255,255,0.04)', color: T.text3, fontSize: 10, padding: '6px 10px', borderRadius: 8, border: `1px solid ${T.border}` }}>
+          <button onClick={() => archiveContent(article.id)} style={{ ...btnStyle, background: 'rgba(255,255,255,0.04)', color: T.text3, fontSize: 'var(--text-xs)', padding: '6px 10px', borderRadius: 'var(--radius-md)', border: `1px solid ${T.border}` }}>
             <Archive size={12} />
           </button>
         </div>
@@ -846,14 +846,14 @@ function AnalysisCard({ article }: { article: any }) {
         {/* Expanded Content */}
         {expanded && (article.contentAr || article.contentEn) && (
           <div style={{
-            marginTop: 16, padding: '18px 20px', borderRadius: 12,
+            marginTop: 16, padding: '18px 20px', borderRadius: 'var(--radius-lg)',
             background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`,
-            fontFamily: FONT_AR, fontSize: 14, color: T.text2, lineHeight: 2.1,
+            fontFamily: FONT_AR, fontSize: 'var(--text-base)', color: T.text2, lineHeight: 2.1,
             direction: 'inherit', maxHeight: 500, overflowY: 'auto',
           }} className="custom-scrollbar">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, paddingBottom: 12, borderBottom: `1px solid ${T.border}` }}>
               <LineChart size={14} color={T.accent} />
-              <span style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 800, color: T.accent }}>التحليل الفني الكامل</span>
+              <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 800, color: T.accent }}>التحليل الفني الكامل</span>
             </div>
             {(article.contentAr || article.contentEn).substring(0, 3000)}{(article.contentAr || article.contentEn).length > 3000 ? '...' : ''}
           </div>
@@ -870,16 +870,16 @@ function AnalysisCard({ article }: { article: any }) {
 function MiniStatCard({ icon, label, value, color, sub }: { icon: React.ReactNode; label: string; value: string; color: string; sub: string }) {
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.03)', borderRadius: 14, padding: '16px 18px',
+      background: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-xl)', padding: '16px 18px',
       border: `1px solid ${T.border}`, position: 'relative', overflow: 'hidden',
     }}>
       <div style={{ position: 'absolute', top: 0, right: 0, width: 60, height: 60, background: `radial-gradient(circle at top right, ${color}08, transparent)`, pointerEvents: 'none' }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <span style={{ color, display: 'flex' }}>{icon}</span>
-        <span style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text2, fontWeight: 600 }}>{label}</span>
+        <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text2, fontWeight: 600 }}>{label}</span>
       </div>
-      <div style={{ fontFamily: FONT_MONO, fontSize: 22, color, fontWeight: 800, direction: 'ltr', textAlign: 'right', lineHeight: 1 }}>{value}</div>
-      <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 6 }}>{sub}</div>
+      <div style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xl)', color, fontWeight: 800, direction: 'ltr', textAlign: 'right', lineHeight: 1 }}>{value}</div>
+      <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3, marginTop: 6 }}>{sub}</div>
     </div>
   )
 }
@@ -887,10 +887,10 @@ function MiniStatCard({ icon, label, value, color, sub }: { icon: React.ReactNod
 function SectionHeader({ icon, color, title, subtitle }: { icon: React.ReactNode; color: string; title: string; subtitle: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-      <div style={{ width: 36, height: 36, borderRadius: 10, background: `${color}10`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
+      <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-lg)', background: `${color}10`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
       <div>
-        <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, color: T.text }}>{title}</div>
-        <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginTop: 1 }}>{subtitle}</div>
+        <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-base)', fontWeight: 800, color: T.text }}>{title}</div>
+        <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3, marginTop: 1 }}>{subtitle}</div>
       </div>
     </div>
   )
@@ -899,9 +899,9 @@ function SectionHeader({ icon, color, title, subtitle }: { icon: React.ReactNode
 function FilterSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (v: any) => void; options: { value: string; label: string }[] }) {
   return (
     <div>
-      <label style={{ fontFamily: FONT_AR, fontSize: 10, fontWeight: 700, color: T.text3, marginBottom: 5, display: 'block' }}>{label}</label>
+      <label style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text3, marginBottom: 5, display: 'block' }}>{label}</label>
       <select value={value} onChange={(e) => onChange(e.target.value || '')}
-        style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border}`, color: T.text, fontFamily: FONT_AR, fontSize: 11, outline: 'none', direction: 'inherit', minWidth: 120 }}>
+        style={{ padding: '8px 12px', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border}`, color: T.text, fontFamily: FONT_AR, fontSize: 'var(--text-xs)', outline: 'none', direction: 'inherit', minWidth: 120 }}>
         <option value="" style={{ background: T.bg2 }}>الكل</option>
         {options.map(o => <option key={o.value} value={o.value} style={{ background: T.bg2 }}>{o.label}</option>)}
       </select>
@@ -912,7 +912,7 @@ function FilterSelect({ label, value, onChange, options }: { label: string; valu
 function QuickPreset({ label, icon, color, onClick }: { label: string; icon: React.ReactNode; color: string; onClick: () => void }) {
   return (
     <button onClick={onClick} style={{
-      display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderRadius: 12,
+      display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderRadius: 'var(--radius-lg)',
       background: `${color}06`, border: `1px solid ${color}18`, cursor: 'pointer', textAlign: 'right',
       transition: 'all 0.15s', direction: 'inherit',
     }}
@@ -920,7 +920,7 @@ function QuickPreset({ label, icon, color, onClick }: { label: string; icon: Rea
       onMouseLeave={e => { e.currentTarget.style.background = `${color}06`; e.currentTarget.style.borderColor = `${color}18` }}
     >
       <span style={{ color, display: 'flex' }}>{icon}</span>
-      <span style={{ fontFamily: FONT_AR, fontSize: 11, fontWeight: 700, color: T.text }}>{label}</span>
+      <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text }}>{label}</span>
     </button>
   )
 }
@@ -928,8 +928,8 @@ function QuickPreset({ label, icon, color, onClick }: { label: string; icon: Rea
 function SettingRow({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${T.border}` }}>
-      <span style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text2 }}>{label}</span>
-      <span style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text, fontWeight: 700 }}>{value}</span>
+      <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: T.text2 }}>{label}</span>
+      <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: T.text, fontWeight: 700 }}>{value}</span>
     </div>
   )
 }
@@ -937,18 +937,18 @@ function SettingRow({ label, value }: { label: string; value: string }) {
 function ThresholdRow({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${T.border}` }}>
-      <span style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text2 }}>{label}</span>
-      <span style={{ fontFamily: FONT_MONO, fontSize: 12, fontWeight: 800, color, padding: '3px 10px', borderRadius: 6, background: `${color}10` }}>{value}</span>
+      <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: T.text2 }}>{label}</span>
+      <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-sm)', fontWeight: 800, color, padding: '3px 10px', borderRadius: 'var(--radius-sm)', background: `${color}10` }}>{value}</span>
     </div>
   )
 }
 
 function ScheduleRow({ label, time, active }: { label: string; time: string; active: boolean }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 10, background: active ? 'rgba(5,150,105,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${active ? 'rgba(5,150,105,0.15)' : T.border}` }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 'var(--radius-lg)', background: active ? 'rgba(5,150,105,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${active ? 'rgba(5,150,105,0.15)' : T.border}` }}>
       <div style={{ width: 8, height: 8, borderRadius: '50%', background: active ? T.accent : T.text3, boxShadow: active ? `0 0 8px ${T.accent}` : 'none' }} />
-      <div style={{ flex: 1 }}><div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text }}>{label}</div></div>
-      <span style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.text3 }}>{time}</span>
+      <div style={{ flex: 1 }}><div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text }}>{label}</div></div>
+      <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', color: T.text3 }}>{time}</span>
     </div>
   )
 }

@@ -117,14 +117,14 @@ export function SidebarDrawer({
               style={{
                 width: 6,
                 height: 6,
-                borderRadius: 999,
+                borderRadius: 'var(--radius-2xl)',
                 background: T.info,
                 boxShadow: '0 0 8px rgba(0,212,255,0.4)',
               }}
             />
             <span
               style={{
-                fontSize: 10,
+                fontSize: 'var(--text-xs)',
                 fontWeight: 800,
                 color: T.text,
                 fontFamily: "var(--font-ar)",
@@ -146,7 +146,7 @@ export function SidebarDrawer({
                     ? 'rgba(0,212,255,0.15)'
                     : 'rgba(255,255,255,0.04)',
                   border: `1px solid ${pinned ? 'rgba(0,212,255,0.3)' : 'rgba(255,255,255,0.08)'}`,
-                  borderRadius: 6,
+                  borderRadius: 'var(--radius-sm)',
                   padding: '4px 6px',
                   cursor: 'pointer',
                   display: 'flex',
@@ -174,7 +174,7 @@ export function SidebarDrawer({
                 style={{
                   background: 'rgba(255,255,255,0.04)',
                   border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: 6,
+                  borderRadius: 'var(--radius-sm)',
                   padding: '4px 6px',
                   cursor: 'pointer',
                   display: 'flex',

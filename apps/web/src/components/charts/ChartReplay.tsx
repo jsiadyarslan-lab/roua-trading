@@ -182,8 +182,8 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
           display: 'flex', alignItems: 'center', gap: 4,
           background: 'rgba(0,212,255,0.1)',
           border: '1px solid rgba(0,212,255,0.25)',
-          borderRadius: 5, padding: '3px 8px',
-          fontSize: 9, fontWeight: 700, color: C.cyan,
+          borderRadius: 'var(--radius-sm)', padding: '3px 8px',
+          fontSize: 'var(--text-xs)', fontWeight: 700, color: C.cyan,
           fontFamily: "var(--font-mono)",
           flexShrink: 0,
         }}>
@@ -197,11 +197,11 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
             onClick={handleStepBackward}
             disabled={replayIndex <= 1}
             style={{
-              width: 26, height: 26, borderRadius: 4,
+              width: 26, height: 26, borderRadius: 'var(--radius-sm)',
               background: 'rgba(255,255,255,0.04)',
               border: '1px solid rgba(255,255,255,0.08)',
               color: replayIndex <= 1 ? C.textMuted : C.text,
-              fontSize: 12, cursor: replayIndex <= 1 ? 'not-allowed' : 'pointer',
+              fontSize: 'var(--text-sm)', cursor: replayIndex <= 1 ? 'not-allowed' : 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
             }}
             title={t('previousBar')}
@@ -213,11 +213,11 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
           <button
             onClick={isPlaying ? handlePause : handlePlay}
             style={{
-              width: 32, height: 26, borderRadius: 4,
+              width: 32, height: 26, borderRadius: 'var(--radius-sm)',
               background: isPlaying ? 'rgba(251,191,36,0.15)' : 'rgba(0,255,163,0.15)',
               border: `1px solid ${isPlaying ? 'rgba(251,191,36,0.3)' : 'rgba(0,255,163,0.3)'}`,
               color: isPlaying ? C.warning : C.success,
-              fontSize: 12, cursor: 'pointer',
+              fontSize: 'var(--text-sm)', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
               fontWeight: 700,
             }}
@@ -231,11 +231,11 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
             onClick={handleStepForward}
             disabled={replayIndex >= totalCandles}
             style={{
-              width: 26, height: 26, borderRadius: 4,
+              width: 26, height: 26, borderRadius: 'var(--radius-sm)',
               background: 'rgba(255,255,255,0.04)',
               border: '1px solid rgba(255,255,255,0.08)',
               color: replayIndex >= totalCandles ? C.textMuted : C.text,
-              fontSize: 12, cursor: replayIndex >= totalCandles ? 'not-allowed' : 'pointer',
+              fontSize: 'var(--text-sm)', cursor: replayIndex >= totalCandles ? 'not-allowed' : 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
             }}
             title={t('nextBar')}
@@ -247,11 +247,11 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
           <button
             onClick={handleStop}
             style={{
-              width: 26, height: 26, borderRadius: 4,
+              width: 26, height: 26, borderRadius: 'var(--radius-sm)',
               background: 'rgba(255,71,87,0.08)',
               border: '1px solid rgba(255,71,87,0.15)',
               color: C.danger,
-              fontSize: 10, cursor: 'pointer',
+              fontSize: 'var(--text-xs)', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
             }}
             title={t('stopShowAll')}
@@ -270,8 +270,8 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
                 padding: '3px 5px',
                 background: speed === s.value ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.03)',
                 border: `1px solid ${speed === s.value ? 'rgba(0,212,255,0.3)' : 'transparent'}`,
-                borderRadius: 3, color: speed === s.value ? C.cyan : C.textDim,
-                fontSize: 8, fontWeight: speed === s.value ? 700 : 500,
+                borderRadius: 'var(--radius-xs)', color: speed === s.value ? C.cyan : C.textDim,
+                fontSize: 'var(--text-xs)', fontWeight: speed === s.value ? 700 : 500,
                 cursor: 'pointer', fontFamily: "var(--font-mono)",
                 transition: 'all 0.1s ease',
               }}
@@ -285,7 +285,7 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
         {currentCandle && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
-            fontSize: 9, fontFamily: "var(--font-mono)",
+            fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
             color: C.textDim, flexShrink: 0,
           }}>
             <span style={{ color: C.cyan }}>{formatDateTime(currentCandle.time)}</span>
@@ -302,7 +302,7 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
 
         {/* Bar counter */}
         <div style={{
-          fontSize: 9, fontFamily: "var(--font-mono)",
+          fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
           color: C.textMuted, flexShrink: 0,
         }}>
           {replayIndex}/{totalCandles}
@@ -312,9 +312,9 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
         <button
           onClick={onClose}
           style={{
-            width: 22, height: 22, borderRadius: 4,
+            width: 22, height: 22, borderRadius: 'var(--radius-sm)',
             background: 'rgba(255,255,255,0.04)', border: 'none',
-            color: C.textMuted, fontSize: 10, cursor: 'pointer',
+            color: C.textMuted, fontSize: 'var(--text-xs)', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
           }}
           title={t('closeReplay')}
@@ -328,14 +328,14 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
         {/* Track */}
         <div style={{
           position: 'absolute', left: 0, right: 0, height: 3,
-          background: 'rgba(255,255,255,0.06)', borderRadius: 2,
+          background: 'rgba(255,255,255,0.06)', borderRadius: 'var(--radius-xs)',
         }} />
         {/* Fill */}
         <div style={{
           position: 'absolute', left: 0, height: 3,
           width: `${progress}%`,
           background: `linear-gradient(90deg, ${C.cyan}, ${C.success})`,
-          borderRadius: 2,
+          borderRadius: 'var(--radius-xs)',
           transition: 'width 0.15s ease',
         }} />
         {/* Slider input (invisible but interactive) */}

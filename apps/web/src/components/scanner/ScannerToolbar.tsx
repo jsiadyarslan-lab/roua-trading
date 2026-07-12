@@ -12,7 +12,7 @@ function Pill({ active, onClick, children }: { active: boolean; onClick: () => v
     <button
       onClick={onClick}
       style={{
-        padding: '4px 12px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+        padding: '4px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 700,
         fontFamily: "var(--font-ar)", cursor: 'pointer',
         background: active ? `${T.cyan}20` : T.surface, color: active ? T.cyan : T.text3,
         border: `0.5px solid ${active ? T.border2 : T.border}`,
@@ -79,23 +79,23 @@ export function ScannerToolbar() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         <Filter size={16} color={T.cyan} />
         <span style={{
-          fontSize: 14, fontWeight: 800, color: T.text,
+          fontSize: 'var(--text-base)', fontWeight: 800, color: T.text,
           fontFamily: "var(--font-ar)",
         }}>
           {t('toolbar.liveScanTable')}
         </span>
         <span style={{
-          fontSize: 10, fontWeight: 700, color: T.text3,
+          fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text3,
           fontFamily: "var(--font-mono)",
-          padding: '2px 8px', borderRadius: 4, background: T.surface,
+          padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: T.surface,
         }}>
           {count} {count === 1 ? t('asset') : t('assets')}
         </span>
         <span style={{
           display: 'inline-flex', alignItems: 'center', gap: 4,
-          fontSize: 9, fontWeight: 700, color: T.cyan,
+          fontSize: 'var(--text-xs)', fontWeight: 700, color: T.cyan,
           fontFamily: "var(--font-ar)",
-          padding: '2px 8px', borderRadius: 4, background: `${T.cyan}10`,
+          padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${T.cyan}10`,
         }}>
           <Clock size={10} /> {tfLabel}
         </span>
@@ -127,7 +127,7 @@ export function ScannerToolbar() {
           onChange={e => ctx.setTimeframe(e.target.value)}
           aria-label={t('toolbar.selectTimeframe')}
           style={{
-            padding: '4px 10px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+            padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 700,
             fontFamily: "var(--font-ar)", background: T.surface, color: T.text2,
             border: `0.5px solid ${T.border}`, cursor: 'pointer', direction: 'inherit',
           }}
@@ -143,7 +143,7 @@ export function ScannerToolbar() {
           onChange={e => ctx.setSignalFilter(e.target.value as SignalFilter)}
           aria-label={t('toolbar.filterBySignal')}
           style={{
-            padding: '4px 10px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+            padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 700,
             fontFamily: "var(--font-ar)", background: T.surface, color: T.text2,
             border: `0.5px solid ${T.border}`, cursor: 'pointer', direction: 'inherit',
           }}
@@ -163,7 +163,7 @@ export function ScannerToolbar() {
             onChange={e => handleSearchChange(e.target.value)}
             aria-label={t('toolbar.searchScanner')}
             style={{
-              padding: '4px 28px 4px 10px', borderRadius: 6, fontSize: 10,
+              padding: '4px 28px 4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)',
               fontFamily: "var(--font-ar)", background: T.surface, color: T.text,
               border: `0.5px solid ${T.border}`, direction: 'inherit', width: 120,
               outline: 'none',

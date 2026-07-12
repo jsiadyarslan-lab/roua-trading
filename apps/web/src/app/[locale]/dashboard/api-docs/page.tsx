@@ -81,14 +81,14 @@ function CodeBlock({ code, language = 'json' }: { code: string; language?: strin
   }, [code, t])
 
   return (
-    <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', margin: '8px 0' }}>
+    <div style={{ position: 'relative', borderRadius: 'var(--radius-lg)', overflow: 'hidden', margin: '8px 0' }}>
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '6px 12px', background: '#0A0C14',
         borderBottom: `1px solid ${T.border}`,
       }}>
         <span style={{
-          fontSize: 9, color: T.text4, fontFamily: "var(--font-mono)",
+          fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-mono)",
           textTransform: 'uppercase', letterSpacing: 1,
         }}>
           {language}
@@ -98,7 +98,7 @@ function CodeBlock({ code, language = 'json' }: { code: string; language?: strin
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
             color: copied ? T.green : T.text4, display: 'flex',
-            alignItems: 'center', gap: 4, fontSize: 10,
+            alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)',
             fontFamily: "var(--font-ar)", fontWeight: 600,
             transition: 'color 0.2s',
           }}
@@ -110,7 +110,7 @@ function CodeBlock({ code, language = 'json' }: { code: string; language?: strin
       <pre style={{
         margin: 0, padding: '14px 16px', background: '#07080E',
         overflowX: 'auto', direction: 'ltr', textAlign: 'left',
-        fontFamily: "var(--font-mono)", fontSize: 11.5,
+        fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)',
         lineHeight: 1.7, color: T.text2,
         maxHeight: 280,
       }}>
@@ -141,9 +141,9 @@ function EndpointItem({ endpoint, isOpen, onToggle }: { endpoint: Endpoint; isOp
       >
         {/* Method Badge */}
         <span style={{
-          padding: '3px 10px', borderRadius: 6,
+          padding: '3px 10px', borderRadius: 'var(--radius-sm)',
           background: mc.bg, color: mc.text, border: `1px solid ${mc.border}`,
-          fontSize: 10, fontWeight: 800,
+          fontSize: 'var(--text-xs)', fontWeight: 800,
           fontFamily: "var(--font-mono)",
           flexShrink: 0, letterSpacing: 0.5,
           minWidth: 52, textAlign: 'center',
@@ -153,7 +153,7 @@ function EndpointItem({ endpoint, isOpen, onToggle }: { endpoint: Endpoint; isOp
 
         {/* Path */}
         <span style={{
-          flex: 1, fontSize: 12.5, fontWeight: 600,
+          flex: 1, fontSize: 'var(--text-sm)', fontWeight: 600,
           color: isOpen ? T.text : T.text2,
           fontFamily: "var(--font-mono)",
           direction: 'ltr' as const, textAlign: 'left',
@@ -165,7 +165,7 @@ function EndpointItem({ endpoint, isOpen, onToggle }: { endpoint: Endpoint; isOp
 
         {/* Description */}
         <span style={{
-          flex: 2, fontSize: 11.5, color: T.text3,
+          flex: 2, fontSize: 'var(--text-xs)', color: T.text3,
           fontFamily: "var(--font-ar)",
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
@@ -174,10 +174,10 @@ function EndpointItem({ endpoint, isOpen, onToggle }: { endpoint: Endpoint; isOp
 
         {/* Permission Badge */}
         <span style={{
-          padding: '2px 8px', borderRadius: 6,
+          padding: '2px 8px', borderRadius: 'var(--radius-sm)',
           background: endpoint.permission === 'none' ? `${T.text4}14` : `${T.green}14`,
           color: endpoint.permission === 'none' ? T.text4 : T.green,
-          fontSize: 9, fontWeight: 700, fontFamily: "var(--font-ar)",
+          fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: "var(--font-ar)",
           border: `1px solid ${endpoint.permission === 'none' ? `${T.text4}25` : `${T.green}25`}`,
           flexShrink: 0,
         }}>
@@ -186,7 +186,7 @@ function EndpointItem({ endpoint, isOpen, onToggle }: { endpoint: Endpoint; isOp
 
         {/* Chevron */}
         <div style={{
-          width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+          width: 22, height: 22, borderRadius: 'var(--radius-sm)', flexShrink: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           background: isOpen ? `${T.cyan}14` : T.surface,
           transition: 'all 0.3s',
@@ -212,9 +212,9 @@ function EndpointItem({ endpoint, isOpen, onToggle }: { endpoint: Endpoint; isOp
         <div style={{ padding: '0 0 16px 0' }}>
           {/* Description */}
           <div style={{
-            fontSize: 12, color: T.text3, lineHeight: 1.8,
+            fontSize: 'var(--text-sm)', color: T.text3, lineHeight: 1.8,
             fontFamily: "var(--font-ar)", marginBottom: 12,
-            padding: '8px 12px', borderRadius: 8,
+            padding: '8px 12px', borderRadius: 'var(--radius-md)',
             background: `${T.cyan}04`, border: `1px solid ${T.cyan}08`,
           }}>
             <Info size={12} color={T.cyan} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: 6 }} />
@@ -225,7 +225,7 @@ function EndpointItem({ endpoint, isOpen, onToggle }: { endpoint: Endpoint; isOp
           {endpoint.requestBody && (
             <div style={{ marginBottom: 10 }}>
               <div style={{
-                fontSize: 11, fontWeight: 700, color: T.text2, marginBottom: 4,
+                fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text2, marginBottom: 4,
                 fontFamily: "var(--font-ar)",
                 display: 'flex', alignItems: 'center', gap: 6,
               }}>
@@ -239,7 +239,7 @@ function EndpointItem({ endpoint, isOpen, onToggle }: { endpoint: Endpoint; isOp
           {/* Response Example */}
           <div>
             <div style={{
-              fontSize: 11, fontWeight: 700, color: T.text2, marginBottom: 4,
+              fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text2, marginBottom: 4,
               fontFamily: "var(--font-ar)",
               display: 'flex', alignItems: 'center', gap: 6,
             }}>
@@ -273,7 +273,7 @@ function CategorySection({
   return (
     <div style={{
       background: T.card, border: `1px solid ${T.border}`,
-      borderRadius: 16, overflow: 'hidden',
+      borderRadius: 'var(--radius-xl)', overflow: 'hidden',
     }}>
       {/* Category Header */}
       <button
@@ -286,7 +286,7 @@ function CategorySection({
         }}
       >
         <div style={{
-          width: 36, height: 36, borderRadius: 10,
+          width: 36, height: 36, borderRadius: 'var(--radius-lg)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           background: category.iconBg, flexShrink: 0,
           color: category.iconColor,
@@ -294,22 +294,22 @@ function CategorySection({
           {category.icon}
         </div>
         <div style={{ flex: 1, textAlign: 'right' }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>
+          <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>
             {category.title}
           </div>
-          <div style={{ fontSize: 10, color: T.text4, marginTop: 1, fontFamily: "var(--font-ar)" }}>
+          <div style={{ fontSize: 'var(--text-xs)', color: T.text4, marginTop: 1, fontFamily: "var(--font-ar)" }}>
             {category.description}
           </div>
         </div>
         <span style={{
-          fontSize: 9, padding: '3px 8px', borderRadius: 10,
+          fontSize: 'var(--text-xs)', padding: '3px 8px', borderRadius: 'var(--radius-lg)',
           background: `${category.iconColor}10`, color: category.iconColor,
           fontFamily: "var(--font-mono)", fontWeight: 700,
         }}>
           {category.endpoints.length}
         </span>
         <div style={{
-          width: 24, height: 24, borderRadius: 6, flexShrink: 0,
+          width: 24, height: 24, borderRadius: 'var(--radius-sm)', flexShrink: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           background: isCategoryOpen ? `${category.iconColor}14` : T.surface,
           transition: 'all 0.3s',
@@ -1003,7 +1003,7 @@ for signal in client.signals.stream():
       }}>
         <div className="apidocs-header-inner" style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
           <div style={{
-            width: 44, height: 44, borderRadius: 12,
+            width: 44, height: 44, borderRadius: 'var(--radius-lg)',
             background: 'linear-gradient(135deg, #00D4FF, #0A84FF)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: `0 0 20px ${T.cyan}30`,
@@ -1012,10 +1012,10 @@ for signal in client.signals.stream():
             <Code size={22} color="#fff" />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text, fontFamily: "var(--font-ar)", display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h1 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: T.text, fontFamily: "var(--font-ar)", display: 'flex', alignItems: 'center', gap: 10 }}>
               {t('title')}
               <span style={{
-                fontSize: 10, padding: '3px 10px', borderRadius: 10,
+                fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-lg)',
                 background: `linear-gradient(135deg, ${T.cyan}, ${T.blue})`,
                 color: '#000', fontWeight: 800,
                 fontFamily: "var(--font-mono)",
@@ -1025,7 +1025,7 @@ for signal in client.signals.stream():
                 v1.0
               </span>
             </h1>
-            <p style={{ margin: 0, fontSize: 12, color: T.text3, fontFamily: "var(--font-ar)" }}>
+            <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: T.text3, fontFamily: "var(--font-ar)" }}>
               {t('subtitle')}
             </p>
           </div>
@@ -1045,21 +1045,21 @@ for signal in client.signals.stream():
           ].map((stat, i) => (
             <div key={i} style={{
               background: T.card, border: `1px solid ${T.border}`,
-              borderRadius: 12, padding: '14px 16px',
+              borderRadius: 'var(--radius-lg)', padding: '14px 16px',
               display: 'flex', alignItems: 'center', gap: 10,
             }}>
               <div style={{
-                width: 32, height: 32, borderRadius: 8,
+                width: 32, height: 32, borderRadius: 'var(--radius-md)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: stat.bg, color: stat.color, flexShrink: 0,
               }}>
                 {stat.icon}
               </div>
               <div>
-                <div style={{ fontSize: 10, color: T.text4, fontFamily: "var(--font-ar)", marginBottom: 2 }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-ar)", marginBottom: 2 }}>
                   {stat.label}
                 </div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: T.text, fontFamily: "var(--font-mono)", direction: 'ltr', textAlign: 'left' }}>
+                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, fontFamily: "var(--font-mono)", direction: 'ltr', textAlign: 'left' }}>
                   {stat.value}
                 </div>
               </div>
@@ -1071,33 +1071,33 @@ for signal in client.signals.stream():
         <section aria-labelledby="getting-started-heading" className="apidocs-fade-in">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <div style={{
-              width: 30, height: 30, borderRadius: 8,
+              width: 30, height: 30, borderRadius: 'var(--radius-md)',
               background: `${T.cyan}14`, display: 'flex',
               alignItems: 'center', justifyContent: 'center',
             }}>
               <BookOpen size={14} color={T.cyan} />
             </div>
-            <h2 id="getting-started-heading" style={{ fontSize: 15, fontWeight: 800, color: T.text, margin: 0, fontFamily: "var(--font-ar)" }}>
+            <h2 id="getting-started-heading" style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text, margin: 0, fontFamily: "var(--font-ar)" }}>
               {t('gettingStarted')}
             </h2>
           </div>
 
           <div style={{
             background: T.card, border: `1px solid ${T.border}`,
-            borderRadius: 16, overflow: 'hidden',
+            borderRadius: 'var(--radius-xl)', overflow: 'hidden',
           }}>
             {/* Base URL */}
             <div style={{ padding: '18px 20px', borderBottom: `1px solid ${T.border}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <Globe size={14} color={T.cyan} />
-                <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>
+                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>
                   {t('baseUrlTitle')}
                 </span>
               </div>
               <div style={{
-                padding: '10px 14px', borderRadius: 10,
+                padding: '10px 14px', borderRadius: 'var(--radius-lg)',
                 background: '#07080E', border: `1px solid ${T.border2}`,
-                fontFamily: "var(--font-mono)", fontSize: 13,
+                fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)',
                 color: T.cyan, direction: 'ltr', textAlign: 'left',
                 display: 'flex', alignItems: 'center', gap: 8,
               }}>
@@ -1112,14 +1112,14 @@ for signal in client.signals.stream():
             <div style={{ padding: '18px 20px', borderBottom: `1px solid ${T.border}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <Shield size={14} color={T.green} />
-                <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>
+                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>
                   {t('authTitle')}
                 </span>
               </div>
               <div style={{
-                padding: '12px 14px', borderRadius: 10,
+                padding: '12px 14px', borderRadius: 'var(--radius-lg)',
                 background: `${T.green}06`, border: `1px solid ${T.green}12`,
-                fontSize: 11.5, color: T.text3, lineHeight: 1.8,
+                fontSize: 'var(--text-xs)', color: T.text3, lineHeight: 1.8,
                 fontFamily: "var(--font-ar)", marginBottom: 10,
               }}>
                 {t('authDescription', { code: 'Authorization' })}
@@ -1134,7 +1134,7 @@ for signal in client.signals.stream():
             <div style={{ padding: '18px 20px', borderBottom: `1px solid ${T.border}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <Zap size={14} color={T.amber} />
-                <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>
+                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>
                   {t('rateLimitsTitle')}
                 </span>
               </div>
@@ -1145,20 +1145,20 @@ for signal in client.signals.stream():
                   { plan: t('planPremiumPlus'), limit: '500', unit: t('requestsPerMinute'), color: T.amber },
                 ].map((r, i) => (
                   <div key={i} style={{
-                    padding: '12px 14px', borderRadius: 10,
+                    padding: '12px 14px', borderRadius: 'var(--radius-lg)',
                     background: T.surface, border: `1px solid ${T.border}`,
                     textAlign: 'center',
                   }}>
-                    <div style={{ fontSize: 10, color: T.text4, marginBottom: 4, fontFamily: "var(--font-ar)" }}>{r.plan}</div>
-                    <div style={{ fontSize: 22, fontWeight: 900, color: r.color, fontFamily: "var(--font-mono)" }}>{r.limit}</div>
-                    <div style={{ fontSize: 9, color: T.text4, fontFamily: "var(--font-ar)" }}>{r.unit}</div>
+                    <div style={{ fontSize: 'var(--text-xs)', color: T.text4, marginBottom: 4, fontFamily: "var(--font-ar)" }}>{r.plan}</div>
+                    <div style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: r.color, fontFamily: "var(--font-mono)" }}>{r.limit}</div>
+                    <div style={{ fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-ar)" }}>{r.unit}</div>
                   </div>
                 ))}
               </div>
               <div style={{
-                marginTop: 10, padding: '10px 12px', borderRadius: 8,
+                marginTop: 10, padding: '10px 12px', borderRadius: 'var(--radius-md)',
                 background: `${T.amber}06`, border: `1px solid ${T.amber}10`,
-                fontSize: 10.5, color: T.text3, lineHeight: 1.7,
+                fontSize: 'var(--text-xs)', color: T.text3, lineHeight: 1.7,
                 fontFamily: "var(--font-ar)",
                 display: 'flex', alignItems: 'flex-start', gap: 8,
               }}>
@@ -1171,7 +1171,7 @@ for signal in client.signals.stream():
             <div style={{ padding: '18px 20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <Terminal size={14} color={T.purple} />
-                <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>
+                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>
                   {t('curlExampleTitle')}
                 </span>
               </div>
@@ -1190,26 +1190,26 @@ for signal in client.signals.stream():
         <section aria-labelledby="api-keys-heading" className="apidocs-fade-in">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <div style={{
-              width: 30, height: 30, borderRadius: 8,
+              width: 30, height: 30, borderRadius: 'var(--radius-md)',
               background: `${T.green}14`, display: 'flex',
               alignItems: 'center', justifyContent: 'center',
             }}>
               <Key size={14} color={T.green} />
             </div>
-            <h2 id="api-keys-heading" style={{ fontSize: 15, fontWeight: 800, color: T.text, margin: 0, fontFamily: "var(--font-ar)" }}>
+            <h2 id="api-keys-heading" style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text, margin: 0, fontFamily: "var(--font-ar)" }}>
               {t('apiKeysTitle')}
             </h2>
           </div>
 
           <div style={{
             background: T.card, border: `1px solid ${T.border}`,
-            borderRadius: 16, overflow: 'hidden',
+            borderRadius: 'var(--radius-xl)', overflow: 'hidden',
           }}>
             {/* Generate Button */}
             <div style={{ padding: '18px 20px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>{t('yourApiKeys')}</div>
-                <div style={{ fontSize: 11, color: T.text3, fontFamily: "var(--font-ar)" }}>
+                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>{t('yourApiKeys')}</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>
                   {t('yourApiKeysDesc')}
                 </div>
               </div>
@@ -1218,9 +1218,9 @@ for signal in client.signals.stream():
                 disabled={generating}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '9px 18px', borderRadius: 10,
+                  padding: '9px 18px', borderRadius: 'var(--radius-lg)',
                   background: `linear-gradient(135deg, ${T.green}, ${T.greenDim})`,
-                  color: '#000', fontSize: 12, fontWeight: 800, cursor: generating ? 'wait' : 'pointer',
+                  color: '#000', fontSize: 'var(--text-sm)', fontWeight: 800, cursor: generating ? 'wait' : 'pointer',
                   fontFamily: "var(--font-ar)", border: 'none', transition: 'all 0.2s',
                   boxShadow: `0 0 16px ${T.green}20`,
                   opacity: generating ? 0.7 : 1,
@@ -1239,20 +1239,20 @@ for signal in client.signals.stream():
               ].map(p => (
                 <div key={p.perm} style={{
                   display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '5px 10px', borderRadius: 8,
+                  padding: '5px 10px', borderRadius: 'var(--radius-md)',
                   background: p.disabled ? `${T.red}06` : `${p.color}06`,
                   border: `1px solid ${p.disabled ? `${T.red}15` : `${p.color}15`}`,
                   opacity: p.disabled ? 0.6 : 1,
                 }}>
                   {p.disabled ? <Lock size={10} color={T.red} /> : <Check size={10} color={p.color} />}
                   <span style={{
-                    fontSize: 10, fontWeight: 700, color: p.disabled ? T.red : p.color,
+                    fontSize: 'var(--text-xs)', fontWeight: 700, color: p.disabled ? T.red : p.color,
                     fontFamily: "var(--font-ar)",
                     textDecoration: p.disabled ? 'line-through' : 'none',
                   }}>
                     {p.label}
                   </span>
-                  <span style={{ fontSize: 9, color: T.text4, fontFamily: "var(--font-ar)" }}>
+                  <span style={{ fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-ar)" }}>
                     {p.desc}
                   </span>
                 </div>
@@ -1268,7 +1268,7 @@ for signal in client.signals.stream():
                 }}>
                   <div className="apidocs-key-row" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
                     <div style={{
-                      width: 32, height: 32, borderRadius: 8,
+                      width: 32, height: 32, borderRadius: 'var(--radius-md)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       background: k.status === 'active' ? `${T.green}14` : `${T.red}14`,
                       color: k.status === 'active' ? T.green : T.red,
@@ -1277,11 +1277,11 @@ for signal in client.signals.stream():
                       <Key size={14} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: k.status === 'revoked' ? T.text4 : T.text, fontFamily: "var(--font-ar)", textDecoration: k.status === 'revoked' ? 'line-through' : 'none' }}>
+                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: k.status === 'revoked' ? T.text4 : T.text, fontFamily: "var(--font-ar)", textDecoration: k.status === 'revoked' ? 'line-through' : 'none' }}>
                         {k.name}
                       </div>
                       <div style={{
-                        fontSize: 10, color: T.text4,
+                        fontSize: 'var(--text-xs)', color: T.text4,
                         fontFamily: "var(--font-mono)",
                         direction: 'ltr', textAlign: 'left',
                         display: 'flex', alignItems: 'center', gap: 6,
@@ -1302,10 +1302,10 @@ for signal in client.signals.stream():
                       <div style={{ display: 'flex', gap: 4 }}>
                         {k.permissions.map(p => (
                           <span key={p} style={{
-                            padding: '2px 7px', borderRadius: 5,
+                            padding: '2px 7px', borderRadius: 'var(--radius-sm)',
                             background: p === 'read' ? `${T.green}14` : `${T.text4}14`,
                             color: p === 'read' ? T.green : T.text4,
-                            fontSize: 9, fontWeight: 700, fontFamily: "var(--font-ar)",
+                            fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: "var(--font-ar)",
                           }}>
                             {p === 'read' ? t('permRead') : '—'}
                           </span>
@@ -1313,8 +1313,8 @@ for signal in client.signals.stream():
                       </div>
                       {/* Last Used */}
                       <span style={{
-                        fontSize: 9, color: T.text4, fontFamily: "var(--font-ar)",
-                        padding: '2px 8px', background: T.surface, borderRadius: 5,
+                        fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-ar)",
+                        padding: '2px 8px', background: T.surface, borderRadius: 'var(--radius-sm)',
                         border: `1px solid ${T.border}`,
                       }}>
                         <Clock size={8} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: 3 }} />
@@ -1326,9 +1326,9 @@ for signal in client.signals.stream():
                           onClick={() => handleRevokeKey(k.id)}
                           style={{
                             display: 'flex', alignItems: 'center', gap: 4,
-                            padding: '4px 10px', borderRadius: 6,
+                            padding: '4px 10px', borderRadius: 'var(--radius-sm)',
                             background: `${T.red}10`, border: `1px solid ${T.red}20`,
-                            color: T.red, fontSize: 10, fontWeight: 700,
+                            color: T.red, fontSize: 'var(--text-xs)', fontWeight: 700,
                             fontFamily: "var(--font-ar)", cursor: 'pointer',
                             transition: 'all 0.2s',
                           }}
@@ -1340,7 +1340,7 @@ for signal in client.signals.stream():
                         </button>
                       ) : (
                         <span style={{
-                          fontSize: 9, padding: '3px 8px', borderRadius: 5,
+                          fontSize: 'var(--text-xs)', padding: '3px 8px', borderRadius: 'var(--radius-sm)',
                           background: `${T.red}14`, color: T.red, fontWeight: 700,
                           fontFamily: "var(--font-ar)",
                           border: `1px solid ${T.red}25`,
@@ -1361,20 +1361,20 @@ for signal in client.signals.stream():
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{
-                width: 30, height: 30, borderRadius: 8,
+                width: 30, height: 30, borderRadius: 'var(--radius-md)',
                 background: `${T.purple}14`, display: 'flex',
                 alignItems: 'center', justifyContent: 'center',
               }}>
                 <Braces size={14} color={T.purple} />
               </div>
-              <h2 id="endpoints-heading" style={{ fontSize: 15, fontWeight: 800, color: T.text, margin: 0, fontFamily: "var(--font-ar)" }}>
+              <h2 id="endpoints-heading" style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text, margin: 0, fontFamily: "var(--font-ar)" }}>
                 {t('endpointsTitle')}
               </h2>
             </div>
             <span style={{
-              fontSize: 10, color: T.text4,
+              fontSize: 'var(--text-xs)', color: T.text4,
               fontFamily: "var(--font-mono)",
-              padding: '3px 10px', borderRadius: 10, background: T.surface,
+              padding: '3px 10px', borderRadius: 'var(--radius-lg)', background: T.surface,
               border: `1px solid ${T.border}`,
             }}>
               {t('endpointsCount', { count: ENDPOINT_CATEGORIES.reduce((s, c) => s + c.endpoints.length, 0) })}
@@ -1399,20 +1399,20 @@ for signal in client.signals.stream():
         <section aria-labelledby="sdks-heading" className="apidocs-fade-in">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <div style={{
-              width: 30, height: 30, borderRadius: 8,
+              width: 30, height: 30, borderRadius: 'var(--radius-md)',
               background: `${T.amber}14`, display: 'flex',
               alignItems: 'center', justifyContent: 'center',
             }}>
               <Terminal size={14} color={T.amber} />
             </div>
-            <h2 id="sdks-heading" style={{ fontSize: 15, fontWeight: 800, color: T.text, margin: 0, fontFamily: "var(--font-ar)" }}>
+            <h2 id="sdks-heading" style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text, margin: 0, fontFamily: "var(--font-ar)" }}>
               {t('sdksTitle')}
             </h2>
           </div>
 
           <div style={{
             background: T.card, border: `1px solid ${T.border}`,
-            borderRadius: 16, overflow: 'hidden',
+            borderRadius: 'var(--radius-xl)', overflow: 'hidden',
           }}>
             {/* Tab Header */}
             <div className="apidocs-sdk-tabs" style={{ display: 'flex', borderBottom: `1px solid ${T.border}` }}>
@@ -1428,13 +1428,13 @@ for signal in client.signals.stream():
                     gap: 8, padding: '14px 12px', border: 'none', cursor: 'pointer',
                     background: activeTab === tab.id ? `${tab.color}08` : 'transparent',
                     color: activeTab === tab.id ? tab.color : T.text3,
-                    fontSize: 12, fontWeight: activeTab === tab.id ? 800 : 500,
+                    fontSize: 'var(--text-sm)', fontWeight: activeTab === tab.id ? 800 : 500,
                     fontFamily: "var(--font-ar)",
                     borderBottom: activeTab === tab.id ? `2px solid ${tab.color}` : '2px solid transparent',
                     transition: 'all 0.2s',
                   }}
                 >
-                  <span style={{ fontSize: 14 }}>{tab.icon}</span>
+                  <span style={{ fontSize: 'var(--text-base)' }}>{tab.icon}</span>
                   {tab.label}
                 </button>
               ))}
@@ -1442,7 +1442,7 @@ for signal in client.signals.stream():
 
             {/* Install Command */}
             <div style={{ padding: '14px 20px', borderBottom: `1px solid ${T.border}` }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: T.text2, marginBottom: 6, fontFamily: "var(--font-ar)" }}>
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text2, marginBottom: 6, fontFamily: "var(--font-ar)" }}>
                 {t('install')}
               </div>
               <CodeBlock
@@ -1453,7 +1453,7 @@ for signal in client.signals.stream():
 
             {/* Code Snippet */}
             <div style={{ padding: '14px 20px' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: T.text2, marginBottom: 6, fontFamily: "var(--font-ar)" }}>
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text2, marginBottom: 6, fontFamily: "var(--font-ar)" }}>
                 {t('fullExample')}
               </div>
               <CodeBlock
@@ -1468,33 +1468,33 @@ for signal in client.signals.stream():
         <section aria-labelledby="webhooks-heading" className="apidocs-fade-in">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <div style={{
-              width: 30, height: 30, borderRadius: 8,
+              width: 30, height: 30, borderRadius: 'var(--radius-md)',
               background: `${T.cyan}14`, display: 'flex',
               alignItems: 'center', justifyContent: 'center',
             }}>
               <Webhook size={14} color={T.cyan} />
             </div>
-            <h2 id="webhooks-heading" style={{ fontSize: 15, fontWeight: 800, color: T.text, margin: 0, fontFamily: "var(--font-ar)" }}>
+            <h2 id="webhooks-heading" style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text, margin: 0, fontFamily: "var(--font-ar)" }}>
               Webhooks
             </h2>
           </div>
 
           <div style={{
             background: T.card, border: `1px solid ${T.border}`,
-            borderRadius: 16, overflow: 'hidden',
+            borderRadius: 'var(--radius-xl)', overflow: 'hidden',
           }}>
             {/* Setup Instructions */}
             <div style={{ padding: '18px 20px', borderBottom: `1px solid ${T.border}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <Server size={14} color={T.cyan} />
-                <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>
+                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>
                   {t('webhooksSetup')}
                 </span>
               </div>
               <div style={{
-                padding: '12px 14px', borderRadius: 10,
+                padding: '12px 14px', borderRadius: 'var(--radius-lg)',
                 background: `${T.cyan}06`, border: `1px solid ${T.cyan}12`,
-                fontSize: 11.5, color: T.text3, lineHeight: 1.8,
+                fontSize: 'var(--text-xs)', color: T.text3, lineHeight: 1.8,
                 fontFamily: "var(--font-ar)", marginBottom: 12,
               }}>
                 {t('webhooksDescription')}
@@ -1510,29 +1510,29 @@ for signal in client.signals.stream():
 
             {/* Event Types */}
             <div style={{ padding: '18px 20px', borderBottom: `1px solid ${T.border}` }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)", marginBottom: 10 }}>
+              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)", marginBottom: 10 }}>
                 {t('eventTypes')}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }} className="apidocs-grid-2">
                 {WEBHOOK_EVENTS.map(ev => (
                   <div key={ev.event} style={{
                     display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '8px 12px', borderRadius: 8,
+                    padding: '8px 12px', borderRadius: 'var(--radius-md)',
                     background: T.surface, border: `1px solid ${T.border}`,
                   }}>
                     <div style={{
-                      width: 6, height: 6, borderRadius: 3,
+                      width: 6, height: 6, borderRadius: 'var(--radius-xs)',
                       background: ev.color, boxShadow: `0 0 6px ${ev.color}50`,
                       flexShrink: 0,
                     }} />
                     <span style={{
-                      fontSize: 10, color: ev.color,
+                      fontSize: 'var(--text-xs)', color: ev.color,
                       fontFamily: "var(--font-mono)",
                       fontWeight: 700, direction: 'ltr',
                     }}>
                       {ev.event}
                     </span>
-                    <span style={{ fontSize: 10, color: T.text3, fontFamily: "var(--font-ar)" }}>
+                    <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>
                       {ev.description}
                     </span>
                   </div>
@@ -1542,7 +1542,7 @@ for signal in client.signals.stream():
 
             {/* Payload Example */}
             <div style={{ padding: '18px 20px' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)", marginBottom: 8 }}>
+              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)", marginBottom: 8 }}>
                 {t('payloadExample')}
               </div>
               <CodeBlock
@@ -1564,9 +1564,9 @@ for signal in client.signals.stream():
                 }, null, 2)}
               />
               <div style={{
-                marginTop: 8, padding: '8px 12px', borderRadius: 8,
+                marginTop: 8, padding: '8px 12px', borderRadius: 'var(--radius-md)',
                 background: `${T.green}06`, border: `1px solid ${T.green}10`,
-                fontSize: 10.5, color: T.text3, lineHeight: 1.7,
+                fontSize: 'var(--text-xs)', color: T.text3, lineHeight: 1.7,
                 fontFamily: "var(--font-ar)",
                 display: 'flex', alignItems: 'flex-start', gap: 6,
               }}>
@@ -1581,27 +1581,27 @@ for signal in client.signals.stream():
         <section aria-labelledby="errors-heading" className="apidocs-fade-in">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <div style={{
-              width: 30, height: 30, borderRadius: 8,
+              width: 30, height: 30, borderRadius: 'var(--radius-md)',
               background: `${T.red}14`, display: 'flex',
               alignItems: 'center', justifyContent: 'center',
             }}>
               <AlertTriangle size={14} color={T.red} />
             </div>
-            <h2 id="errors-heading" style={{ fontSize: 15, fontWeight: 800, color: T.text, margin: 0, fontFamily: "var(--font-ar)" }}>
+            <h2 id="errors-heading" style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text, margin: 0, fontFamily: "var(--font-ar)" }}>
               {t('errorCodesTitle')}
             </h2>
           </div>
 
           <div style={{
             background: T.card, border: `1px solid ${T.border}`,
-            borderRadius: 16, overflow: 'hidden',
+            borderRadius: 'var(--radius-xl)', overflow: 'hidden',
           }}>
             {/* Table Header */}
             <div style={{
               display: 'grid', gridTemplateColumns: '80px 140px 1fr 1fr',
               padding: '12px 20px', borderBottom: `1px solid ${T.border}`,
               background: `${T.surface}40`,
-              fontSize: 10, fontWeight: 800, color: T.text4,
+              fontSize: 'var(--text-xs)', fontWeight: 800, color: T.text4,
               fontFamily: "var(--font-ar)",
             }}>
               <span>{t('colStatus')}</span>
@@ -1617,7 +1617,7 @@ for signal in client.signals.stream():
                   display: 'grid', gridTemplateColumns: '80px 140px 1fr 1fr',
                   padding: '10px 20px',
                   borderBottom: i < ERROR_CODES.length - 1 ? `1px solid ${T.border}` : 'none',
-                  alignItems: 'center', fontSize: 11,
+                  alignItems: 'center', fontSize: 'var(--text-xs)',
                   transition: 'background 0.2s',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = `${T.surface}30` }}
@@ -1628,14 +1628,14 @@ for signal in client.signals.stream():
                   fontFamily: "var(--font-mono)", fontWeight: 800,
                   color: err.httpStatus >= 500 ? T.red :
                          err.httpStatus >= 400 ? T.amber : T.green,
-                  fontSize: 12,
+                  fontSize: 'var(--text-sm)',
                 }}>
                   {err.httpStatus}
                 </span>
                 {/* Error Code */}
                 <span style={{
                   fontFamily: "var(--font-mono)",
-                  color: T.cyan, fontSize: 10, fontWeight: 600,
+                  color: T.cyan, fontSize: 'var(--text-xs)', fontWeight: 600,
                   direction: 'ltr',
                 }}>
                   {err.code}
@@ -1665,10 +1665,10 @@ for signal in client.signals.stream():
           borderTop: `1px solid ${T.border}`,
           marginTop: 8,
         }}>
-          <div style={{ fontSize: 11, color: T.text4, fontFamily: "var(--font-ar)", lineHeight: 1.8 }}>
+          <div style={{ fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-ar)", lineHeight: 1.8 }}>
             {t('footerNote')}
           </div>
-          <div style={{ fontSize: 10, color: T.text4, fontFamily: "var(--font-ar)", marginTop: 4 }}>
+          <div style={{ fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-ar)", marginTop: 4 }}>
             {t('needHelp')}{' '}
             <span style={{ color: T.cyan, cursor: 'pointer', fontWeight: 700 }}>{t('contactSupport')}</span>
             {' '}{t('or')}{' '}

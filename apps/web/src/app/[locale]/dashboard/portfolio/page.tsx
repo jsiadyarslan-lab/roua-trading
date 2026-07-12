@@ -41,8 +41,8 @@ import T from '@/lib/unified-tokens'
 const AICoachPanel = dynamic(
   () => import('@/components/portfolio/AICoachPanel').catch(() => ({
     default: () => (
-      <div style={{ padding: 24, textAlign: 'center', background: T.card, borderRadius: 12 }}>
-        <div style={{ fontFamily: "var(--font-ar)", fontSize: 12, color: T.red }}>
+      <div style={{ padding: 24, textAlign: 'center', background: T.card, borderRadius: 'var(--radius-lg)' }}>
+        <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)', color: T.red }}>
           {/* i18n: dashboard.portfolio.coachLoadError */}
           تعذر تحميل المُدرّب الذكي. يرجى تحديث الصفحة.
         </div>
@@ -53,7 +53,7 @@ const AICoachPanel = dynamic(
     ssr: false,
     loading: () => (
       <div style={{ padding: 24, textAlign: 'center' }}>
-        <div style={{ fontFamily: "var(--font-ar)", fontSize: 11, color: T.text3 }}>{/* i18n: dashboard.portfolio.coachLoading */}جاري تحميل المُدرّب الذكي...</div>
+        <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{/* i18n: dashboard.portfolio.coachLoading */}جاري تحميل المُدرّب الذكي...</div>
       </div>
     ),
   },
@@ -144,7 +144,7 @@ function StatCard({ label, value, sub, color, icon: Icon, note }: {
       flex: 1, padding: '12px 14px',
       background: T.card,
       border: `0.5px solid ${color}22`,
-      borderRadius: 10,
+      borderRadius: 'var(--radius-lg)',
       display: 'flex', flexDirection: 'column', gap: 4,
       position: 'relative', overflow: 'hidden',
     }}>
@@ -153,23 +153,23 @@ function StatCard({ label, value, sub, color, icon: Icon, note }: {
         background: `linear-gradient(90deg, transparent, ${color}66, transparent)`,
       }} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <span style={{ fontFamily: "var(--font-ar)", fontSize: 11, color: T.text2 }}>{label}</span>
+        <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text2 }}>{label}</span>
         <Icon size={13} color={color} strokeWidth={2} />
       </div>
       <div style={{
         fontFamily: "var(--font-mono)",
-        fontSize: 22, fontWeight: 800, color,
+        fontSize: 'var(--text-xl)', fontWeight: 800, color,
         letterSpacing: '-0.02em',
       }}>{value}</div>
       {sub && (
-        <div style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: T.text3 }}>{sub}</div>
+        <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{sub}</div>
       )}
       {note && (
         <div style={{
           display: 'inline-flex', alignItems: 'center',
-          padding: '1px 7px', borderRadius: 8,
+          padding: '1px 7px', borderRadius: 'var(--radius-md)',
           background: `${color}14`,
-          fontFamily: "var(--font-ar)", fontSize: 9.5, color,
+          fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color,
           alignSelf: 'flex-start', marginTop: 2,
         }}>{note}</div>
       )}
@@ -186,11 +186,11 @@ function TabButton({ label, active, onClick, icon: Icon, count }: {
       onClick={onClick}
       style={{
         display: 'flex', alignItems: 'center', gap: 6,
-        padding: '8px 16px', borderRadius: 8,
+        padding: '8px 16px', borderRadius: 'var(--radius-md)',
         background: active ? `${T.blue}18` : 'transparent',
         border: `0.5px solid ${active ? T.blue : T.border}`,
         color: active ? T.cyan : T.text2,
-        fontFamily: "var(--font-ar)", fontSize: 12, fontWeight: active ? 700 : 500,
+        fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)', fontWeight: active ? 700 : 500,
         cursor: 'pointer', transition: 'all 0.2s',
       }}
     >
@@ -198,9 +198,9 @@ function TabButton({ label, active, onClick, icon: Icon, count }: {
       {label}
       {count !== undefined && (
         <span style={{
-          padding: '1px 6px', borderRadius: 10,
+          padding: '1px 6px', borderRadius: 'var(--radius-lg)',
           background: active ? T.blue : T.border,
-          fontFamily: "var(--font-mono)", fontSize: 9, color: active ? T.text : T.text3,
+          fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: active ? T.text : T.text3,
         }}>{count}</span>
       )}
     </button>
@@ -213,11 +213,11 @@ function ChartTooltip({ active, payload, label, prefix = '$' }: any) {
   return (
     <div style={{
       background: T.bg2, border: `0.5px solid ${T.blue}44`,
-      borderRadius: 8, padding: '6px 12px',
+      borderRadius: 'var(--radius-md)', padding: '6px 12px',
       fontFamily: "var(--font-mono)",
     }}>
-      <div style={{ fontSize: 9, color: T.text2, marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: T.cyan }}>
+      <div style={{ fontSize: 'var(--text-xs)', color: T.text2, marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.cyan }}>
         {prefix}{payload[0].value.toLocaleString()}
       </div>
     </div>
@@ -229,16 +229,16 @@ function ApiErrorBanner({ error, onRetry, retryLabel }: { error: string; onRetry
   return (
     <div style={{
       background: `${T.red}08`, border: `0.5px solid ${T.red}22`,
-      borderRadius: 10, padding: '10px 14px', marginBottom: 12,
+      borderRadius: 'var(--radius-lg)', padding: '10px 14px', marginBottom: 12,
       display: 'flex', alignItems: 'center', gap: 8,
     }}>
       <AlertTriangle size={14} style={{ color: T.red, flexShrink: 0 }} />
-      <span style={{ fontFamily: "var(--font-ar)", fontSize: 11, color: T.red, flex: 1 }}>{error}</span>
+      <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.red, flex: 1 }}>{error}</span>
       <button onClick={onRetry} style={{
-        padding: '3px 10px', borderRadius: 5,
+        padding: '3px 10px', borderRadius: 'var(--radius-sm)',
         background: `${T.red}18`, color: T.red,
         border: `0.5px solid ${T.red}44`,
-        fontFamily: "var(--font-ar)", fontSize: 9.5, cursor: 'pointer',
+        fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', cursor: 'pointer',
       }}>{retryLabel}</button>
     </div>
   )
@@ -1196,10 +1196,10 @@ export default function PortfolioPage() {
 
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-        <div style={{ width: 3, height: 20, borderRadius: 2, background: T.blue }} />
+        <div style={{ width: 3, height: 20, borderRadius: 'var(--radius-xs)', background: T.blue }} />
         <h1 style={{
           fontFamily: "var(--font-ar)", fontWeight: 900,
-          fontSize: 18, color: T.text, margin: 0,
+          fontSize: 'var(--text-lg)', color: T.text, margin: 0,
         }}>{t('title')}</h1>
         <div style={{ flex: 1 }} />
         {/* V168: Export buttons */}
@@ -1210,10 +1210,10 @@ export default function PortfolioPage() {
                 onClick={exportOpenPositions}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 4,
-                  padding: '5px 10px', borderRadius: 7,
+                  padding: '5px 10px', borderRadius: 'var(--radius-md)',
                   border: `0.5px solid ${T.green}44`, background: `${T.green}0d`,
                   color: T.green, fontFamily: "var(--font-ar)",
-                  fontSize: 9, cursor: 'pointer', transition: 'all 0.2s',
+                  fontSize: 'var(--text-xs)', cursor: 'pointer', transition: 'all 0.2s',
                 }}
                 title={t('exportOpenCSV')}
               >
@@ -1226,10 +1226,10 @@ export default function PortfolioPage() {
                 onClick={() => exportClosedTrades(filteredHistory)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 4,
-                  padding: '5px 10px', borderRadius: 7,
+                  padding: '5px 10px', borderRadius: 'var(--radius-md)',
                   border: `0.5px solid ${T.blue}44`, background: `${T.blue}0d`,
                   color: T.cyan, fontFamily: "var(--font-ar)",
-                  fontSize: 9, cursor: 'pointer', transition: 'all 0.2s',
+                  fontSize: 'var(--text-xs)', cursor: 'pointer', transition: 'all 0.2s',
                 }}
                 title={t('exportClosedCSV')}
               >
@@ -1244,10 +1244,10 @@ export default function PortfolioPage() {
                   onClick={() => handleExportPDF(filteredHistory, periodLabel)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 4,
-                    padding: '5px 10px', borderRadius: 7,
+                    padding: '5px 10px', borderRadius: 'var(--radius-md)',
                     border: `0.5px solid ${T.amber}66`, background: `${T.amber}1a`,
                     color: T.amber, fontFamily: "var(--font-ar)",
-                    fontSize: 9, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                    fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
                   }}
                   title={`${t('exportPDF')} — ${periodLabel}`}
                 >
@@ -1258,10 +1258,10 @@ export default function PortfolioPage() {
                   onClick={() => handleExportJSON(filteredHistory, periodLabel)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 4,
-                    padding: '5px 10px', borderRadius: 7,
+                    padding: '5px 10px', borderRadius: 'var(--radius-md)',
                     border: `0.5px solid ${T.purple}55`, background: `${T.purple}14`,
                     color: T.purple, fontFamily: "var(--font-ar)",
-                    fontSize: 9, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                    fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
                   }}
                   title={`${t('exportJSON')} — ${periodLabel}`}
                 >
@@ -1277,10 +1277,10 @@ export default function PortfolioPage() {
           disabled={loading}
           style={{
             display: 'flex', alignItems: 'center', gap: 5,
-            padding: '5px 12px', borderRadius: 7,
+            padding: '5px 12px', borderRadius: 'var(--radius-md)',
             border: `0.5px solid ${T.border}`, background: T.card,
             color: T.text2, fontFamily: "var(--font-ar)",
-            fontSize: 10, cursor: loading ? 'wait' : 'pointer',
+            fontSize: 'var(--text-xs)', cursor: loading ? 'wait' : 'pointer',
             opacity: loading ? 0.5 : 1,
           }}
         >
@@ -1295,21 +1295,21 @@ export default function PortfolioPage() {
       {usePositionsStore(s => s.account?.metaapiDown === true) && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
-          padding: '8px 12px', borderRadius: 8, marginBottom: 8,
+          padding: '8px 12px', borderRadius: 'var(--radius-md)', marginBottom: 8,
           background: 'rgba(239,68,68,0.1)',
           border: '1px solid rgba(239,68,68,0.3)',
         }}>
           <AlertTriangle size={14} color="#f87171" />
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: '#f87171', fontFamily: "var(--font-ar)" }}>
+            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: '#f87171', fontFamily: "var(--font-ar)" }}>
               MetaAPI غير متصل — حساب MT5 لا يمكنه جلب البيانات الحقيقية
             </div>
-            <div style={{ fontSize: 8, color: T.text2, fontFamily: "var(--font-ar)", marginTop: 2 }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-ar)", marginTop: 2 }}>
               {usePositionsStore(s => s.account?.metaapiError)
                 ? `${usePositionsStore(s => s.account?.metaapiError)}`
                 : 'مفتاح METAAPI_TOKEN غير مضبوط أو غير صالح. يجب إضافته في متغيرات البيئة ليعمل حساب MT5 الحقيقي.'}
             </div>
-            <div style={{ fontSize: 8, color: T.text2, fontFamily: "var(--font-ar)", marginTop: 2, opacity: 0.7 }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-ar)", marginTop: 2, opacity: 0.7 }}>
               💡 اذهب إلى الإعدادات → مفاتيح البورصات → اضغط زر فحص الاتصال للحصول على تفاصيل أكثر
             </div>
           </div>
@@ -1318,19 +1318,19 @@ export default function PortfolioPage() {
       {usePositionsStore(s => s.account?.isStaleBalance === true) && !usePositionsStore(s => s.account?.metaapiDown === true) && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
-          padding: '8px 12px', borderRadius: 8, marginBottom: 8,
+          padding: '8px 12px', borderRadius: 'var(--radius-md)', marginBottom: 8,
           background: 'rgba(245,158,11,0.1)',
           border: '1px solid rgba(245,158,11,0.3)',
         }}>
           <AlertTriangle size={14} color={T.amber} />
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: T.amber, fontFamily: "var(--font-ar)" }}>
+            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.amber, fontFamily: "var(--font-ar)" }}>
               بيانات مؤقتة — الرصيد من ذاكرة التخزين المؤقت
             </div>
-            <div style={{ fontSize: 8, color: T.text2, fontFamily: "var(--font-ar)", marginTop: 2 }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-ar)", marginTop: 2 }}>
               فشل الاتصال بـ MetaAPI مؤقتاً. البيانات المعروضة قد لا تكون محدثة.
             </div>
-            <div style={{ fontSize: 8, color: T.text2, fontFamily: "var(--font-ar)", marginTop: 2, opacity: 0.7 }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-ar)", marginTop: 2, opacity: 0.7 }}>
               💡 اذهب إلى الإعدادات → مفاتيح البورصات → اضغط زر فحص الاتصال للحصول على تفاصيل أكثر
             </div>
           </div>
@@ -1388,7 +1388,7 @@ export default function PortfolioPage() {
                 flex: '1 1 140px', padding: '10px 12px',
                 background: T.card,
                 border: `0.5px solid ${cat.color}22`,
-                borderRadius: 10,
+                borderRadius: 'var(--radius-lg)',
                 display: 'flex', flexDirection: 'column', gap: 3,
                 position: 'relative', overflow: 'hidden',
               }}>
@@ -1397,18 +1397,18 @@ export default function PortfolioPage() {
                   background: `linear-gradient(90deg, transparent, ${cat.color}66, transparent)`,
                 }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: cat.color, fontWeight: 700 }}>{cat.label}</span>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: T.text3 }}>{cat.count} {t('tradeCount')}</span>
+                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: cat.color, fontWeight: 700 }}>{cat.label}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text3 }}>{cat.count} {t('tradeCount')}</span>
                 </div>
                 <div style={{
                   fontFamily: "var(--font-mono)",
-                  fontSize: 16, fontWeight: 800,
+                  fontSize: 'var(--text-md)', fontWeight: 800,
                   color: catPnl > 0 ? T.green : catPnl < 0 ? T.red : T.text2,
                   letterSpacing: '-0.02em',
                 }}>
                   {catPnl > 0 ? '+' : catPnl < 0 ? '-' : ''}${fmt(Math.abs(catPnl), 2)}
                 </div>
-                <div style={{ fontFamily: "var(--font-ar)", fontSize: 9, color: T.text3 }}>
+                <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>
                   {t('winRateLabel')}: {catWinRate.toFixed(0)}% ({cat.wins}/{cat.count})
                 </div>
               </div>
@@ -1438,11 +1438,11 @@ export default function PortfolioPage() {
             <div className="portfolio-distribution" style={{
               flex: '0 0 300px',
               background: T.card, border: `0.5px solid ${T.border}`,
-              borderRadius: 10, padding: '12px 14px',
+              borderRadius: 'var(--radius-lg)', padding: '12px 14px',
             }}>
               <div style={{
                 fontFamily: "var(--font-ar)", fontWeight: 700,
-                fontSize: 12, color: T.text, marginBottom: 8,
+                fontSize: 'var(--text-sm)', color: T.text, marginBottom: 8,
               }}>{t('positionDistribution')}</div>
               {distribution.length > 0 ? (
                 <ResponsiveContainer width="100%" height={200}>
@@ -1457,16 +1457,16 @@ export default function PortfolioPage() {
                         <Cell key={entry.name + '-' + i} fill={entry.color} opacity={0.85} />
                       ))}
                     </Pie>
-                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: 10, color: T.text2 }} />
+                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text2 }} />
                     <Tooltip
                       formatter={(val: any) => [`${val}%`, '']}
-                      contentStyle={{ background: T.bg2, border: `0.5px solid ${T.border2}`, borderRadius: 8, fontFamily: "var(--font-mono)", fontSize: 11 }}
+                      contentStyle={{ background: T.bg2, border: `0.5px solid ${T.border2}`, borderRadius: 'var(--radius-md)', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
                 <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 11, color: T.text3 }}>{t('noOpenPositions')}</span>
+                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{t('noOpenPositions')}</span>
                 </div>
               )}
             </div>
@@ -1475,11 +1475,11 @@ export default function PortfolioPage() {
             <div style={{
               flex: 1,
               background: T.card, border: `0.5px solid ${T.border}`,
-              borderRadius: 10, padding: '12px 14px',
+              borderRadius: 'var(--radius-lg)', padding: '12px 14px',
             }}>
               <div style={{
                 fontFamily: "var(--font-ar)", fontWeight: 700,
-                fontSize: 12, color: T.text, marginBottom: 8,
+                fontSize: 'var(--text-sm)', color: T.text, marginBottom: 8,
               }}>{t('realizedProfitCurve')}</div>
               {equityCurve.length > 0 ? (
                 <ResponsiveContainer width="100%" height={200}>
@@ -1490,15 +1490,15 @@ export default function PortfolioPage() {
                         <stop offset="95%" stopColor={T.cyan} stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <XAxis dataKey="date" tick={{ fontSize: 9, fill: T.text2 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 9, fill: T.text2 }} axisLine={false} tickLine={false} width={50} />
+                    <XAxis dataKey="date" tick={{ fontSize: 'var(--text-xs)', fill: T.text2 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 'var(--text-xs)', fill: T.text2 }} axisLine={false} tickLine={false} width={50} />
                     <Tooltip content={<ChartTooltip />} />
                     <Area type="monotone" dataKey="value" stroke={T.cyan} fill="url(#eqGrad)" strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
                 <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 11, color: T.text3 }}>{t('noPerformanceData')}</span>
+                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{t('noPerformanceData')}</span>
                 </div>
               )}
             </div>
@@ -1508,7 +1508,7 @@ export default function PortfolioPage() {
           {/* ── Open Positions table ── */}
           <div className={isMobile ? 'mobile-cards-enabled' : ''} style={{
             background: T.card, border: `0.5px solid ${T.border}`,
-            borderRadius: 10, overflow: 'hidden', marginBottom: 12,
+            borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginBottom: 12,
           }}>
             <div style={{
               display: 'flex', alignItems: 'center',
@@ -1516,17 +1516,17 @@ export default function PortfolioPage() {
               borderBottom: `0.5px solid ${T.border}`,
               background: `linear-gradient(90deg, ${T.green}0a, transparent)`,
             }}>
-              <div style={{ width: 3, height: 14, borderRadius: 2, background: T.green }} />
+              <div style={{ width: 3, height: 14, borderRadius: 'var(--radius-xs)', background: T.green }} />
               <span style={{
                 fontFamily: "var(--font-ar)", fontWeight: 700,
-                fontSize: 12, color: T.text, flex: 1,
+                fontSize: 'var(--text-sm)', color: T.text, flex: 1,
               }}>{t('openTrades')}</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: T.text3 }}>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text3 }}>
                 {positions.length} {t('position')}
               </span>
               {positions.length > 0 && (
                 <span style={{
-                  fontFamily: "var(--font-mono)", fontSize: 10,
+                  fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)',
                   color: totalUnrealizedPnl > 0 ? T.green : totalUnrealizedPnl < 0 ? T.red : T.text2, fontWeight: 700,
                   marginInlineStart: 8,
                 }}>
@@ -1538,12 +1538,12 @@ export default function PortfolioPage() {
             {loading ? (
               <div style={{ padding: 32, textAlign: 'center' }}>
                 <Loader2 className="animate-spin" style={{ color: T.blue, margin: '0 auto' }} size={24} />
-                <p style={{ fontFamily: "var(--font-ar)", fontSize: 11, color: T.text3, marginTop: 8 }}>{tc('loading')}</p>
+                <p style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3, marginTop: 8 }}>{tc('loading')}</p>
               </div>
             ) : positions.length === 0 ? (
               <div style={{ padding: 24, textAlign: 'center' }}>
                 <Activity size={28} style={{ color: T.text3, opacity: 0.3, margin: '0 auto 8px' }} />
-                <p style={{ fontFamily: "var(--font-ar)", fontSize: 12, color: T.text3 }}>{t('noOpenTrades')}</p>
+                <p style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)', color: T.text3 }}>{t('noOpenTrades')}</p>
               </div>
             ) : isMobile ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 10 }}>
@@ -1551,15 +1551,15 @@ export default function PortfolioPage() {
                   <div key={pos.id} style={{
                     background: 'rgba(255,255,255,0.02)',
                     border: `0.5px solid ${T.border}`,
-                    borderRadius: 10, padding: '10px 12px',
+                    borderRadius: 'var(--radius-lg)', padding: '10px 12px',
                     display: 'flex', flexDirection: 'column', gap: 6,
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: T.text }}>{pos.symbol}</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text }}>{pos.symbol}</span>
                         <span style={{
-                          padding: '1px 6px', borderRadius: 4,
-                          fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700,
+                          padding: '1px 6px', borderRadius: 'var(--radius-sm)',
+                          fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
                           background: pos.side === 'BUY' ? `${T.green}18` : `${T.red}18`,
                           color: pos.side === 'BUY' ? T.green : T.red,
                           border: `0.5px solid ${pos.side === 'BUY' ? T.green : T.red}44`,
@@ -1568,17 +1568,17 @@ export default function PortfolioPage() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{
                           fontFamily: "var(--font-mono)",
-                          fontSize: 13, fontWeight: 700,
+                          fontSize: 'var(--text-sm)', fontWeight: 700,
                           color: (pos.unrealizedPnl || 0) > 0 ? T.green : (pos.unrealizedPnl || 0) < 0 ? T.red : T.text2,
                         }}>
                           {(pos.unrealizedPnl || 0) > 0 ? '+' : (pos.unrealizedPnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pos.unrealizedPnl || 0))}
                         </span>
                         <button onClick={() => handleClosePosition(pos)} disabled={closing === pos.id} style={{
-                          padding: '4px 8px', borderRadius: 5,
+                          padding: '4px 8px', borderRadius: 'var(--radius-sm)',
                           background: `${T.red}18`, color: T.red,
                           border: `0.5px solid ${T.red}44`,
                           cursor: closing === pos.id ? 'wait' : 'pointer',
-                          fontFamily: "var(--font-ar)", fontSize: 9,
+                          fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)',
                           opacity: closing === pos.id ? 0.5 : 1,
                         }}>
                           <XIcon size={10} />
@@ -1590,15 +1590,15 @@ export default function PortfolioPage() {
                       <div
                         title={pos.id}
                         onClick={() => { try { navigator.clipboard?.writeText(pos.id) } catch {} }}
-                        style={{ fontFamily: "var(--font-mono)", fontSize: 8.5, color: T.cyan, cursor: 'pointer', opacity: 0.7 }}
+                        style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.cyan, cursor: 'pointer', opacity: 0.7 }}
                       >
                         ID: {formatTradeId(pos.id)}
                       </div>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 8.5, color: T.text3 }}>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text3 }}>
                         {formatEntryDate(pos.openedAt)}
                       </div>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, fontSize: 10 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, fontSize: 'var(--text-xs)' }}>
                       <div><span style={{ color: T.text3 }}>{t('quantityLabel')}: </span><span style={{ color: T.text2 }}>{pos.quantity}</span></div>
                       <div><span style={{ color: T.text3 }}>{t('entryLabel')}: </span><span style={{ color: T.text2 }}>{formatPrice(pos.entryPrice, pos.symbol)}</span></div>
                       <div><span style={{ color: T.text3 }}>{t('currentLabel')}: </span><span style={{ color: T.text, fontWeight: 700 }}>{pos.currentPrice ? formatPrice(pos.currentPrice, pos.symbol) : '—'}</span></div>
@@ -1621,7 +1621,7 @@ export default function PortfolioPage() {
                 }}>
                   {['ID',t('headerPair'),t('headerDirection'),t('headerSize'),t('headerEntryPrice'),t('headerCurrentPrice'),'SL','TP','P&L','دخول',t('headerAction')].map((h) => (
                     <div key={h} style={{
-                      fontFamily: "var(--font-ar)", fontSize: 9.5,
+                      fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)',
                       color: T.text3, textAlign: 'center',
                     }}>{h}</div>
                   ))}
@@ -1647,35 +1647,35 @@ export default function PortfolioPage() {
                     <div
                       title={pos.id}
                       onClick={() => { try { navigator.clipboard?.writeText(pos.id) } catch {} }}
-                      style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: T.cyan, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.8 }}
+                      style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.cyan, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.8 }}
                     >
                       {formatTradeId(pos.id)}
                     </div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.symbol}</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.symbol}</div>
                     <div style={{ display: 'flex', justifyContent: 'center' }}>
                       <span style={{
-                        padding: '2px 8px', borderRadius: 4,
-                        fontFamily: "var(--font-mono)", fontSize: 9.5, fontWeight: 700,
+                        padding: '2px 8px', borderRadius: 'var(--radius-sm)',
+                        fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
                         background: pos.side === 'BUY' ? `${T.green}18` : `${T.red}18`,
                         color: pos.side === 'BUY' ? T.green : T.red,
                         border: `0.5px solid ${pos.side === 'BUY' ? T.green : T.red}44`,
                       }}>{pos.side === 'BUY' ? t('buyArrow') : t('sellArrow')}</span>
                     </div>
-                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 10, color: T.text2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.quantity}</div>
-                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 10, color: T.text2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatPrice(pos.entryPrice, pos.symbol)}</div>
-                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.currentPrice ? formatPrice(pos.currentPrice, pos.symbol) : '—'}</div>
-                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 10, color: T.red, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.stopLoss ? formatPrice(pos.stopLoss, pos.symbol) : '—'}</div>
-                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 10, color: T.green, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.takeProfit ? formatPrice(pos.takeProfit, pos.symbol) : '—'}</div>
+                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.quantity}</div>
+                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatPrice(pos.entryPrice, pos.symbol)}</div>
+                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.currentPrice ? formatPrice(pos.currentPrice, pos.symbol) : '—'}</div>
+                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.red, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.stopLoss ? formatPrice(pos.stopLoss, pos.symbol) : '—'}</div>
+                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.green, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.takeProfit ? formatPrice(pos.takeProfit, pos.symbol) : '—'}</div>
                     <div style={{
                       textAlign: 'center', fontFamily: "var(--font-mono)",
-                      fontSize: 11, fontWeight: 700,
+                      fontSize: 'var(--text-xs)', fontWeight: 700,
                       color: (pos.unrealizedPnl || 0) > 0 ? T.green : (pos.unrealizedPnl || 0) < 0 ? T.red : T.text2,
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     }}>
                       {(pos.unrealizedPnl || 0) > 0 ? '+' : (pos.unrealizedPnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pos.unrealizedPnl || 0))}
                     </div>
                     {/* V340: Entry date — openedAt formatted as YYYY-MM-DD HH:MM */}
-                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 9, color: T.text3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={pos.openedAt}>
+                    <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={pos.openedAt}>
                       {formatEntryDate(pos.openedAt)}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'center' }}>
@@ -1684,11 +1684,11 @@ export default function PortfolioPage() {
                         disabled={closing === pos.id}
                         style={{
                           display: 'flex', alignItems: 'center', gap: 3,
-                          padding: '3px 10px', borderRadius: 5,
+                          padding: '3px 10px', borderRadius: 'var(--radius-sm)',
                           background: `${T.red}18`, color: T.red,
                           border: `0.5px solid ${T.red}44`,
                           cursor: closing === pos.id ? 'wait' : 'pointer',
-                          fontFamily: "var(--font-ar)", fontSize: 9.5,
+                          fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)',
                           opacity: closing === pos.id ? 0.5 : 1,
                         }}
                       >
@@ -1707,7 +1707,7 @@ export default function PortfolioPage() {
           {/* ── Closed Positions ── */}
           <div className={isMobile ? 'mobile-cards-enabled' : ''} style={{
             background: T.card, border: `0.5px solid ${T.border}`,
-            borderRadius: 10, overflow: 'hidden', marginBottom: 12,
+            borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginBottom: 12,
           }}>
             <div
               onClick={() => setShowClosed(!showClosed)}
@@ -1719,18 +1719,18 @@ export default function PortfolioPage() {
                 cursor: 'pointer',
               }}
             >
-              <div style={{ width: 3, height: 14, borderRadius: 2, background: T.blue }} />
+              <div style={{ width: 3, height: 14, borderRadius: 'var(--radius-xs)', background: T.blue }} />
               <History size={13} style={{ color: T.text3 }} />
               <span style={{
                 fontFamily: "var(--font-ar)", fontWeight: 700,
-                fontSize: 12, color: T.text, flex: 1,
+                fontSize: 'var(--text-sm)', color: T.text, flex: 1,
               }}>{t('closedTrades')}</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: T.text3 }}>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text3 }}>
                 {closedPositions.length + closedPaperTrades.length} {t('tradeCount')}
               </span>
               {totalRealizedPnl !== 0 && (
                 <span style={{
-                  fontFamily: "var(--font-mono)", fontSize: 10,
+                  fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)',
                   color: totalRealizedPnl > 0 ? T.green : totalRealizedPnl < 0 ? T.red : T.text2, fontWeight: 700,
                   marginInlineStart: 8,
                 }}>
@@ -1744,8 +1744,8 @@ export default function PortfolioPage() {
               filteredHistory.length === 0 ? (
                 <div style={{ padding: 24, textAlign: 'center' }}>
                   <History size={28} style={{ color: T.text3, opacity: 0.3, margin: '0 auto 8px' }} />
-                  <p style={{ fontFamily: "var(--font-ar)", fontSize: 12, color: T.text3 }}>{t('noMatchingClosedTrades')}</p>
-                  <p style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: T.text2, marginTop: 4 }}>{t('tryChangingFilters')}</p>
+                  <p style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)', color: T.text3 }}>{t('noMatchingClosedTrades')}</p>
+                  <p style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text2, marginTop: 4 }}>{t('tryChangingFilters')}</p>
                 </div>
               ) : (
                 <>
@@ -1759,11 +1759,11 @@ export default function PortfolioPage() {
                     <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
                       {(['ALL','DAY','WEEK','MONTH','YEAR','CUSTOM'] as const).map(period => (
                         <button key={period} onClick={() => setPeriodFilter(period)} style={{
-                          padding: '3px 8px', borderRadius: 5,
+                          padding: '3px 8px', borderRadius: 'var(--radius-sm)',
                           border: `0.5px solid ${periodFilter === period ? T.blue : T.border}`,
                           background: periodFilter === period ? `${T.blue}22` : T.bg,
                           color: periodFilter === period ? T.blue : T.text2,
-                          fontFamily: "var(--font-ar)", fontSize: 9, fontWeight: 600,
+                          fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 600,
                           cursor: 'pointer', transition: 'all 0.15s',
                         }}>
                           {{ ALL: t('periodAll'), DAY: t('periodDaily'), WEEK: t('periodWeekly'), MONTH: t('periodMonthly'), YEAR: t('periodYearly'), CUSTOM: t('periodCustom') }[period]}
@@ -1774,13 +1774,13 @@ export default function PortfolioPage() {
                     {periodFilter === 'CUSTOM' && (
                       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                         <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={{
-                          background: T.bg, border: `1px solid ${T.border}`, borderRadius: 5,
-                          padding: '2px 6px', color: T.text, fontSize: 10, fontFamily: "var(--font-mono)",
+                          background: T.bg, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-sm)',
+                          padding: '2px 6px', color: T.text, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
                         }} />
-                        <span style={{ color: T.text3, fontSize: 10 }}>→</span>
+                        <span style={{ color: T.text3, fontSize: 'var(--text-xs)' }}>→</span>
                         <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)} style={{
-                          background: T.bg, border: `1px solid ${T.border}`, borderRadius: 5,
-                          padding: '2px 6px', color: T.text, fontSize: 10, fontFamily: "var(--font-mono)",
+                          background: T.bg, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-sm)',
+                          padding: '2px 6px', color: T.text, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
                         }} />
                       </div>
                     )}
@@ -1790,8 +1790,8 @@ export default function PortfolioPage() {
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
                       style={{
-                        background: T.bg, border: `1px solid ${T.border}`, borderRadius: 6,
-                        padding: '4px 10px', color: T.text, fontSize: 11, fontFamily: "var(--font-mono)",
+                        background: T.bg, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-sm)',
+                        padding: '4px 10px', color: T.text, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
                         width: isMobile ? '100%' : 120, outline: 'none'
                       }}
                     />
@@ -1799,8 +1799,8 @@ export default function PortfolioPage() {
                       value={sideFilter}
                       onChange={e => setSideFilter(e.target.value as any)}
                       style={{
-                        background: T.bg, border: `1px solid ${T.border}`, borderRadius: 6,
-                        padding: '4px 8px', color: T.text, fontSize: 11, fontFamily: "var(--font-ar)", outline: 'none'
+                        background: T.bg, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-sm)',
+                        padding: '4px 8px', color: T.text, fontSize: 'var(--text-xs)', fontFamily: "var(--font-ar)", outline: 'none'
                       }}
                     >
                       <option value="ALL">{t('allDirections')}</option>
@@ -1811,8 +1811,8 @@ export default function PortfolioPage() {
                       value={statusFilter}
                       onChange={e => setStatusFilter(e.target.value as any)}
                       style={{
-                        background: T.bg, border: `1px solid ${T.border}`, borderRadius: 6,
-                        padding: '4px 8px', color: T.text, fontSize: 11, fontFamily: "var(--font-ar)", outline: 'none'
+                        background: T.bg, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-sm)',
+                        padding: '4px 8px', color: T.text, fontSize: 'var(--text-xs)', fontFamily: "var(--font-ar)", outline: 'none'
                       }}
                     >
                       <option value="ALL">{t('allResults')}</option>
@@ -1827,23 +1827,23 @@ export default function PortfolioPage() {
                         <div key={pt.id} style={{
                           background: 'rgba(255,255,255,0.02)',
                           border: `0.5px solid ${T.border}`,
-                          borderRadius: 10, padding: '10px 12px',
+                          borderRadius: 'var(--radius-lg)', padding: '10px 12px',
                           display: 'flex', flexDirection: 'column', gap: 6,
                         }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: T.text }}>{pt.symbol}</span>
+                              <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text }}>{pt.symbol}</span>
                               {/* V140B: Source badge — shows منفذ/وكيل/ورقي/يدوي */}
                               <span style={{
-                                padding: '0px 3px', borderRadius: 3,
-                                fontFamily: "var(--font-mono)", fontSize: 7, fontWeight: 700,
+                                padding: '0px 3px', borderRadius: 'var(--radius-xs)',
+                                fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
                                 background: pt.type === 'SMART' ? `${T.amber}14` : pt.type === 'AGENT' ? `${T.purple}14` : pt.type === 'PAPER' ? `${T.cyan}14` : pt.type === 'LASIC' ? 'rgba(255,107,53,0.12)' : `${T.border}`,
                                 color: pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : pt.type === 'LASIC' ? '#FF6B35' : T.text3,
                                 border: `0.5px solid ${pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : pt.type === 'LASIC' ? '#FF6B35' : T.border}`,
                               }}>{pt.type === 'SMART' ? t('sourceSmart') : pt.type === 'AGENT' ? t('sourceAgent') : pt.type === 'PAPER' ? t('sourcePaper') : pt.type === 'LASIC' ? t('sourceLasic') : t('sourceManual')}</span>
                               <span style={{
-                                padding: '1px 6px', borderRadius: 4,
-                                fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700,
+                                padding: '1px 6px', borderRadius: 'var(--radius-sm)',
+                                fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
                                 background: pt.side === 'BUY' ? `${T.green}18` : `${T.red}18`,
                                 color: pt.side === 'BUY' ? T.green : T.red,
                                 border: `0.5px solid ${pt.side === 'BUY' ? T.green : T.red}44`,
@@ -1851,13 +1851,13 @@ export default function PortfolioPage() {
                             </div>
                             <span style={{
                               fontFamily: "var(--font-mono)",
-                              fontSize: 13, fontWeight: 700,
+                              fontSize: 'var(--text-sm)', fontWeight: 700,
                               color: (pt.pnl || 0) > 0 ? T.green : (pt.pnl || 0) < 0 ? T.red : T.text2,
                             }}>
                               {(pt.pnl || 0) > 0 ? '+' : (pt.pnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pt.pnl || 0))}
                             </span>
                           </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 10 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 'var(--text-xs)' }}>
                             <div><span style={{ color: T.text3 }}>{t('sizeLabel')}: </span><span style={{ color: T.text2 }}>{pt.quantity}</span></div>
                             <div><span style={{ color: T.text3 }}>{t('entryLabel')}: </span><span style={{ color: T.text2 }}>{formatPrice(pt.price, pt.symbol)}</span></div>
                             <div><span style={{ color: T.text3 }}>{t('closeLabel')}: </span><span style={{ color: T.text2 }}>{(pt as any).exitPrice ? formatPrice((pt as any).exitPrice, pt.symbol) : '—'}</span></div>
@@ -1873,7 +1873,7 @@ export default function PortfolioPage() {
                           <div
                             title={pt.id}
                             onClick={() => { try { navigator.clipboard?.writeText(pt.id) } catch {} }}
-                            style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: T.cyan, cursor: 'pointer', opacity: 0.6 }}
+                            style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.cyan, cursor: 'pointer', opacity: 0.6 }}
                           >
                             ID: {formatTradeId(pt.id)}
                           </div>
@@ -1890,7 +1890,7 @@ export default function PortfolioPage() {
                   }}>
                     {['ID',t('headerPair'),t('headerDirection'),t('headerSize'),t('entryLabel'),t('headerClose'),t('headerStopLoss'),t('headerTakeProfit'),t('headerRealizedPnl'),t('headerReason'),t('headerDuration'),t('headerStatus'),t('headerCloseTime')].map((h) => (
                       <div key={h} style={{
-                        fontFamily: "var(--font-ar)", fontSize: 9.5,
+                        fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)',
                         color: T.text3, textAlign: 'center',
                       }}>{h}</div>
                     ))}
@@ -1916,16 +1916,16 @@ export default function PortfolioPage() {
                       <div
                         title={pt.id}
                         onClick={() => { try { navigator.clipboard?.writeText(pt.id) } catch {} }}
-                        style={{ fontFamily: "var(--font-mono)", fontSize: 8.5, color: T.cyan, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.8, textAlign: 'center' }}
+                        style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.cyan, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.8, textAlign: 'center' }}
                       >
                         {formatTradeId(pt.id)}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 600, color: T.text }}>{pt.symbol}</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 600, color: T.text }}>{pt.symbol}</span>
                         {/* V140B: Source badge — shows منفذ/وكيل/ورقي/يدوي */}
                         <span style={{
-                          padding: '0px 3px', borderRadius: 3,
-                          fontFamily: "var(--font-mono)", fontSize: 7, fontWeight: 700,
+                          padding: '0px 3px', borderRadius: 'var(--radius-xs)',
+                          fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
                           background: pt.type === 'SMART' ? `${T.amber}14` : pt.type === 'AGENT' ? `${T.purple}14` : pt.type === 'PAPER' ? `${T.cyan}14` : pt.type === 'LASIC' ? 'rgba(255,107,53,0.12)' : `${T.border}`,
                           color: pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : pt.type === 'LASIC' ? '#FF6B35' : T.text3,
                           border: `0.5px solid ${pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : pt.type === 'LASIC' ? '#FF6B35' : T.border}`,
@@ -1933,28 +1933,28 @@ export default function PortfolioPage() {
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'center' }}>
                         <span style={{
-                          padding: '1px 6px', borderRadius: 3,
-                          fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700,
+                          padding: '1px 6px', borderRadius: 'var(--radius-xs)',
+                          fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
                           background: pt.side === 'BUY' ? `${T.green}18` : `${T.red}18`,
                           color: pt.side === 'BUY' ? T.green : T.red,
                         }}>{pt.side === 'BUY' ? tc('buy') : tc('sell')}</span>
                       </div>
-                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 10, color: T.text2 }}>{pt.quantity}</div>
-                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 10, color: T.text2 }}>{formatPrice(pt.price, pt.symbol)}</div>
-                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 10, color: T.text2 }}>
+                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text2 }}>{pt.quantity}</div>
+                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text2 }}>{formatPrice(pt.price, pt.symbol)}</div>
+                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text2 }}>
                         {(pt as any).exitPrice ? formatPrice((pt as any).exitPrice, pt.symbol) : '—'}
                       </div>
                       {/* V140F: Stop Loss column */}
-                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 10, color: T.red }}>
+                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.red }}>
                         {(pt as any).stopLoss ? formatPrice((pt as any).stopLoss, pt.symbol) : '—'}
                       </div>
                       {/* V140F: Take Profit column */}
-                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 10, color: T.green }}>
+                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.green }}>
                         {(pt as any).takeProfit ? formatPrice((pt as any).takeProfit, pt.symbol) : '—'}
                       </div>
                       <div style={{
                         textAlign: 'center', fontFamily: "var(--font-mono)",
-                        fontSize: 10, fontWeight: 700,
+                        fontSize: 'var(--text-xs)', fontWeight: 700,
                         color: (pt.pnl || 0) > 0 ? T.green : (pt.pnl || 0) < 0 ? T.red : T.text2,
                       }}>
                         {(pt.pnl || 0) > 0 ? '+' : (pt.pnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pt.pnl || 0))}
@@ -1962,8 +1962,8 @@ export default function PortfolioPage() {
                       {/* V140F: Exit reason — SL / TP / TS / Manual */}
                       <div style={{ display: 'flex', justifyContent: 'center' }}>
                         <span style={{
-                          padding: '1px 5px', borderRadius: 3,
-                          fontFamily: "var(--font-mono)", fontSize: 8, fontWeight: 700,
+                          padding: '1px 5px', borderRadius: 'var(--radius-xs)',
+                          fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
                           background: (pt as any).exitReason === 'SL' ? `${T.red}18` :
                                       (pt as any).exitReason === 'TP' ? `${T.green}18` :
                                       (pt as any).exitReason === 'TS' ? `${T.cyan}18` : `${T.blue}12`,
@@ -1979,17 +1979,17 @@ export default function PortfolioPage() {
                             (pt as any).exitReason === 'TS' ? 'TS' : t('sourceManual')}
                         </span>
                       </div>
-                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 9, color: T.text3 }}>
+                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text3 }}>
                         {formatDuration(pt.openedAt, pt.executedAt)}
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'center' }}>
                         <span style={{
-                          padding: '1px 6px', borderRadius: 3,
-                          fontFamily: "var(--font-ar)", fontSize: 9, fontWeight: 700,
+                          padding: '1px 6px', borderRadius: 'var(--radius-xs)',
+                          fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 700,
                           background: `${T.blue}18`, color: T.blue,
                         }}>{t('closed')}</span>
                       </div>
-                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 9, color: T.text3 }}>
+                      <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text3 }}>
                         {pt.executedAt ? new Date(pt.executedAt).toLocaleDateString('ar', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
                       </div>
                     </div>
@@ -2026,19 +2026,19 @@ export default function PortfolioPage() {
           {/* Daily P&L Bar Chart */}
           <div style={{
             background: T.card, border: `0.5px solid ${T.border}`,
-            borderRadius: 10, padding: '12px 14px', marginBottom: 12,
+            borderRadius: 'var(--radius-lg)', padding: '12px 14px', marginBottom: 12,
           }}>
             <div style={{
               fontFamily: "var(--font-ar)", fontWeight: 700,
-              fontSize: 12, color: T.text, marginBottom: 8,
+              fontSize: 'var(--text-sm)', color: T.text, marginBottom: 8,
             }}>{t('dailyPnl')}</div>
             {performanceData.length > 0 ? (
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={performanceData}>
-                  <XAxis dataKey="date" tick={{ fontSize: 9, fill: T.text2 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 9, fill: T.text2 }} axisLine={false} tickLine={false} width={50} />
+                  <XAxis dataKey="date" tick={{ fontSize: 'var(--text-xs)', fill: T.text2 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 'var(--text-xs)', fill: T.text2 }} axisLine={false} tickLine={false} width={50} />
                   <Tooltip
-                    contentStyle={{ background: T.bg2, border: `0.5px solid ${T.border2}`, borderRadius: 8, fontFamily: "var(--font-mono)", fontSize: 11 }}
+                    contentStyle={{ background: T.bg2, border: `0.5px solid ${T.border2}`, borderRadius: 'var(--radius-md)', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)' }}
                     formatter={(val: any) => [`$${Number(val).toFixed(2)}`, 'P&L']}
                   />
                   <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
@@ -2050,7 +2050,7 @@ export default function PortfolioPage() {
               </ResponsiveContainer>
             ) : (
               <div style={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontFamily: "var(--font-ar)", fontSize: 11, color: T.text3 }}>{t('noPerformanceDataAction')}</span>
+                <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{t('noPerformanceDataAction')}</span>
               </div>
             )}
           </div>
@@ -2058,11 +2058,11 @@ export default function PortfolioPage() {
           {/* Equity Curve */}
           <div style={{
             background: T.card, border: `0.5px solid ${T.border}`,
-            borderRadius: 10, padding: '12px 14px',
+            borderRadius: 'var(--radius-lg)', padding: '12px 14px',
           }}>
             <div style={{
               fontFamily: "var(--font-ar)", fontWeight: 700,
-              fontSize: 12, color: T.text, marginBottom: 8,
+              fontSize: 'var(--text-sm)', color: T.text, marginBottom: 8,
             }}>{t('cumulativeEquityCurve')}</div>
             {equityCurve.length > 0 ? (
               <ResponsiveContainer width="100%" height={250}>
@@ -2073,15 +2073,15 @@ export default function PortfolioPage() {
                       <stop offset="95%" stopColor={T.cyan} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="date" tick={{ fontSize: 9, fill: T.text2 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 9, fill: T.text2 }} axisLine={false} tickLine={false} width={50} />
+                  <XAxis dataKey="date" tick={{ fontSize: 'var(--text-xs)', fill: T.text2 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 'var(--text-xs)', fill: T.text2 }} axisLine={false} tickLine={false} width={50} />
                   <Tooltip content={<ChartTooltip />} />
                   <Area type="monotone" dataKey="value" stroke={T.cyan} fill="url(#perfGrad)" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
               <div style={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontFamily: "var(--font-ar)", fontSize: 11, color: T.text3 }}>{t('noPerformanceData')}</span>
+                <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{t('noPerformanceData')}</span>
               </div>
             )}
           </div>
@@ -2108,86 +2108,86 @@ export default function PortfolioPage() {
           {/* Risk Breakdown */}
           <div style={{
             background: T.card, border: `0.5px solid ${T.border}`,
-            borderRadius: 10, padding: '16px', marginBottom: 12,
+            borderRadius: 'var(--radius-lg)', padding: '16px', marginBottom: 12,
           }}>
             <div style={{
               fontFamily: "var(--font-ar)", fontWeight: 700,
-              fontSize: 12, color: T.text, marginBottom: 12,
+              fontSize: 'var(--text-sm)', color: T.text, marginBottom: 12,
             }}>{t('riskAnalysisTitle')}</div>
 
             {/* Risk metrics grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {/* Win/Loss ratio */}
-              <div style={{ padding: '12px', background: T.bg, borderRadius: 8, border: `0.5px solid ${T.border}` }}>
-                <div style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: T.text2, marginBottom: 6 }}>{t('winLossRatio')}</div>
+              <div style={{ padding: '12px', background: T.bg, borderRadius: 'var(--radius-md)', border: `0.5px solid ${T.border}` }}>
+                <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text2, marginBottom: 6 }}>{t('winLossRatio')}</div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ height: 6, borderRadius: 3, background: `${T.red}22`, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 3, background: T.green, width: `${winRate}%`, transition: 'width 0.3s' }} />
+                    <div style={{ height: 6, borderRadius: 'var(--radius-xs)', background: `${T.red}22`, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', borderRadius: 'var(--radius-xs)', background: T.green, width: `${winRate}%`, transition: 'width 0.3s' }} />
                     </div>
                   </div>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: winRate >= 50 ? T.green : T.red }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)', fontWeight: 700, color: winRate >= 50 ? T.green : T.red }}>
                     {winRate.toFixed(1)}%
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 9, color: T.green }}>{winningCount} {t('wins')}</span>
-                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 9, color: T.red }}>{losingCount} {t('losses')}</span>
+                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.green }}>{winningCount} {t('wins')}</span>
+                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.red }}>{losingCount} {t('losses')}</span>
                 </div>
               </div>
 
               {/* Avg win vs avg loss */}
-              <div style={{ padding: '12px', background: T.bg, borderRadius: 8, border: `0.5px solid ${T.border}` }}>
-                <div style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: T.text2, marginBottom: 6 }}>{t('avgProfitVsLoss')}</div>
+              <div style={{ padding: '12px', background: T.bg, borderRadius: 'var(--radius-md)', border: `0.5px solid ${T.border}` }}>
+                <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text2, marginBottom: 6 }}>{t('avgProfitVsLoss')}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <div>
-                    <span style={{ fontFamily: "var(--font-ar)", fontSize: 9, color: T.text3 }}>{t('avgProfit')}</span>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 700, color: T.green }}>+${fmt(avgWin, 2)}</div>
+                    <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{t('avgProfit')}</span>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-base)', fontWeight: 700, color: T.green }}>+${fmt(avgWin, 2)}</div>
                   </div>
                   <div style={{ textAlign: 'start' }}>
-                    <span style={{ fontFamily: "var(--font-ar)", fontSize: 9, color: T.text3 }}>{t('avgLoss')}</span>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 700, color: T.red }}>-${fmt(avgLoss, 2)}</div>
+                    <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{t('avgLoss')}</span>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-base)', fontWeight: 700, color: T.red }}>-${fmt(avgLoss, 2)}</div>
                   </div>
                 </div>
               </div>
 
               {/* Open exposure */}
-              <div style={{ padding: '12px', background: T.bg, borderRadius: 8, border: `0.5px solid ${T.border}` }}>
-                <div style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: T.text2, marginBottom: 6 }}>{t('openExposure')}</div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 18, fontWeight: 800, color: totalUnrealizedPnl > 0 ? T.green : totalUnrealizedPnl < 0 ? T.red : T.text2 }}>
+              <div style={{ padding: '12px', background: T.bg, borderRadius: 'var(--radius-md)', border: `0.5px solid ${T.border}` }}>
+                <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text2, marginBottom: 6 }}>{t('openExposure')}</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: totalUnrealizedPnl > 0 ? T.green : totalUnrealizedPnl < 0 ? T.red : T.text2 }}>
                   {totalUnrealizedPnl > 0 ? '+' : totalUnrealizedPnl < 0 ? '-' : ''}${fmt(Math.abs(totalUnrealizedPnl), 2)}
                 </div>
-                <span style={{ fontFamily: "var(--font-ar)", fontSize: 9, color: T.text3 }}>{t('openPositionCount', { count: positions.length })}</span>
+                <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{t('openPositionCount', { count: positions.length })}</span>
               </div>
 
               {/* SL coverage */}
-              <div style={{ padding: '12px', background: T.bg, borderRadius: 8, border: `0.5px solid ${positions.some(p => !p.stopLoss) ? T.red + '44' : T.border}` }}>
-                <div style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: T.text2, marginBottom: 6 }}>{t('stopLossCoverage')}</div>
+              <div style={{ padding: '12px', background: T.bg, borderRadius: 'var(--radius-md)', border: `0.5px solid ${positions.some(p => !p.stopLoss) ? T.red + '44' : T.border}` }}>
+                <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text2, marginBottom: 6 }}>{t('stopLossCoverage')}</div>
                 {positions.length > 0 ? (
                   <>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ height: 6, borderRadius: 3, background: `${T.red}22`, overflow: 'hidden' }}>
+                        <div style={{ height: 6, borderRadius: 'var(--radius-xs)', background: `${T.red}22`, overflow: 'hidden' }}>
                           <div style={{
-                            height: '100%', borderRadius: 3,
+                            height: '100%', borderRadius: 'var(--radius-xs)',
                             background: positions.every(p => p.stopLoss) ? T.green : T.red,
                             width: `${(positions.filter(p => p.stopLoss).length / positions.length) * 100}%`,
                             transition: 'width 0.3s',
                           }} />
                         </div>
                       </div>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700, color: positions.every(p => p.stopLoss) ? T.green : T.red }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)', fontWeight: 700, color: positions.every(p => p.stopLoss) ? T.green : T.red }}>
                         {positions.filter(p => p.stopLoss).length}/{positions.length}
                       </span>
                     </div>
                     {!positions.every(p => p.stopLoss) && (
-                      <span className="animate-pulse" style={{ fontFamily: "var(--font-ar)", fontSize: 9, color: T.red, marginTop: 4, display: 'block', fontWeight: 700 }}>
+                      <span className="animate-pulse" style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.red, marginTop: 4, display: 'block', fontWeight: 700 }}>
                         ⚠️ {t('warning')}: {positions.filter(p => !p.stopLoss).length} {t('warningNoStopLoss')}
                       </span>
                     )}
                   </>
                 ) : (
-                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: T.text3 }}>{t('noOpenPositions')}</span>
+                  <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{t('noOpenPositions')}</span>
                 )}
               </div>
             </div>
@@ -2196,13 +2196,13 @@ export default function PortfolioPage() {
           {/* Risk Warning */}
           <div style={{
             background: `${T.amber}08`, border: `0.5px solid ${T.amber}22`,
-            borderRadius: 10, padding: '12px 16px',
+            borderRadius: 'var(--radius-lg)', padding: '12px 16px',
             display: 'flex', gap: 8, alignItems: 'flex-start',
           }}>
             <AlertTriangle size={14} style={{ color: T.amber, marginTop: 2, flexShrink: 0 }} />
             <div>
-              <div style={{ fontFamily: "var(--font-ar)", fontSize: 11, fontWeight: 700, color: T.amber, marginBottom: 2 }}>{t('riskManagementAlert')}</div>
-              <div style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: T.text3, lineHeight: 1.6 }}>
+              <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 700, color: T.amber, marginBottom: 2 }}>{t('riskManagementAlert')}</div>
+              <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3, lineHeight: 1.6 }}>
                 {t('riskDisclaimer')}
                 {t('riskDisclaimerLine2')}
                 {t('riskDisclaimerLine3')}
@@ -2219,8 +2219,8 @@ export default function PortfolioPage() {
         <>
           {/* Journal Header with Export Buttons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-            <div style={{ width: 3, height: 20, borderRadius: 2, background: T.amber }} />
-            <span style={{ fontFamily: "var(--font-ar)", fontWeight: 900, fontSize: 15, color: T.text }}>
+            <div style={{ width: 3, height: 20, borderRadius: 'var(--radius-xs)', background: T.amber }} />
+            <span style={{ fontFamily: "var(--font-ar)", fontWeight: 900, fontSize: 'var(--text-base)', color: T.text }}>
               سجل التداول الذكي
             </span>
             <div style={{ flex: 1 }} />
@@ -2230,10 +2230,10 @@ export default function PortfolioPage() {
                   onClick={handleExportPDF}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 5,
-                    padding: '6px 14px', borderRadius: 8,
+                    padding: '6px 14px', borderRadius: 'var(--radius-md)',
                     border: `0.5px solid ${T.amber}44`, background: `${T.amber}14`,
                     color: T.amber, fontFamily: "var(--font-ar)",
-                    fontSize: 10, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                    fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
                   }}
                 >
                   <FileText size={12} />
@@ -2243,10 +2243,10 @@ export default function PortfolioPage() {
                   onClick={handleExportJSON}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 5,
-                    padding: '5px 10px', borderRadius: 7,
+                    padding: '5px 10px', borderRadius: 'var(--radius-md)',
                     border: `0.5px solid ${T.border}`, background: T.card,
                     color: T.text2, fontFamily: "var(--font-ar)",
-                    fontSize: 9, cursor: 'pointer', transition: 'all 0.2s',
+                    fontSize: 'var(--text-xs)', cursor: 'pointer', transition: 'all 0.2s',
                   }}
                 >
                   <Download size={10} />
@@ -2259,18 +2259,18 @@ export default function PortfolioPage() {
           {journalEntries.length === 0 ? (
             <div style={{
               background: T.card, border: `0.5px solid ${T.border}`,
-              borderRadius: 10, padding: 40, textAlign: 'center',
+              borderRadius: 'var(--radius-lg)', padding: 40, textAlign: 'center',
             }}>
               <FileText size={40} style={{ color: T.text3, opacity: 0.3, margin: '0 auto 12px' }} />
-              <div style={{ fontFamily: "var(--font-ar)", fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 6 }}>
+              <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-base)', fontWeight: 700, color: T.text, marginBottom: 6 }}>
                 لا توجد بيانات تداول بعد
               </div>
-              <div style={{ fontFamily: "var(--font-ar)", fontSize: 11, color: T.text3, lineHeight: 1.7 }}>
+              <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3, lineHeight: 1.7 }}>
                 سيتم تسجيل كل اقتراح تداول تلقائياً عند استخدامه.
                 <br />
                 استخدم نظام التداول الآلي على الشارت لبدء تجميع البيانات.
                 <br />
-                <span style={{ color: T.amber, fontSize: 10 }}>
+                <span style={{ color: T.amber, fontSize: 'var(--text-xs)' }}>
                   كل يوم استخدام = دليل إضافي لأداء النظام
                 </span>
               </div>
@@ -2333,11 +2333,11 @@ export default function PortfolioPage() {
                 <div style={{
                   flex: '1 1 400px',
                   background: T.card, border: `0.5px solid ${T.border}`,
-                  borderRadius: 10, padding: '12px 14px',
+                  borderRadius: 'var(--radius-lg)', padding: '12px 14px',
                 }}>
                   <div style={{
                     fontFamily: "var(--font-ar)", fontWeight: 700,
-                    fontSize: 12, color: T.text, marginBottom: 8,
+                    fontSize: 'var(--text-sm)', color: T.text, marginBottom: 8,
                   }}>منحنى الربح التراكمي (سجل التداول)</div>
                   {journalStats.weeklyBreakdown.length > 0 ? (
                     <ResponsiveContainer width="100%" height={220}>
@@ -2348,10 +2348,10 @@ export default function PortfolioPage() {
                             <stop offset="95%" stopColor={T.green} stopOpacity={0} />
                           </linearGradient>
                         </defs>
-                        <XAxis dataKey="week" tick={{ fontSize: 9, fill: T.text2 }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 9, fill: T.text2 }} axisLine={false} tickLine={false} width={50} />
+                        <XAxis dataKey="week" tick={{ fontSize: 'var(--text-xs)', fill: T.text2 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 'var(--text-xs)', fill: T.text2 }} axisLine={false} tickLine={false} width={50} />
                         <Tooltip
-                          contentStyle={{ background: T.bg2, border: `0.5px solid ${T.border2}`, borderRadius: 8, fontFamily: "var(--font-mono)", fontSize: 11 }}
+                          contentStyle={{ background: T.bg2, border: `0.5px solid ${T.border2}`, borderRadius: 'var(--radius-md)', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)' }}
                           formatter={(val: any, name: string) => {
                             if (name === 'cumulativePnL') return [`$${Number(val).toFixed(2)}`, 'الربح التراكمي']
                             return [val, name]
@@ -2362,7 +2362,7 @@ export default function PortfolioPage() {
                     </ResponsiveContainer>
                   ) : (
                     <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span style={{ fontFamily: "var(--font-ar)", fontSize: 11, color: T.text3 }}>لا توجد بيانات أسبوعية بعد</span>
+                      <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>لا توجد بيانات أسبوعية بعد</span>
                     </div>
                   )}
                 </div>
@@ -2371,19 +2371,19 @@ export default function PortfolioPage() {
                 <div style={{
                   flex: '1 1 400px',
                   background: T.card, border: `0.5px solid ${T.border}`,
-                  borderRadius: 10, padding: '12px 14px',
+                  borderRadius: 'var(--radius-lg)', padding: '12px 14px',
                 }}>
                   <div style={{
                     fontFamily: "var(--font-ar)", fontWeight: 700,
-                    fontSize: 12, color: T.text, marginBottom: 8,
+                    fontSize: 'var(--text-sm)', color: T.text, marginBottom: 8,
                   }}>نسبة النجاح الأسبوعية</div>
                   {journalStats.weeklyBreakdown.length > 0 ? (
                     <ResponsiveContainer width="100%" height={220}>
                       <BarChart data={journalStats.weeklyBreakdown}>
-                        <XAxis dataKey="week" tick={{ fontSize: 9, fill: T.text2 }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 9, fill: T.text2 }} axisLine={false} tickLine={false} width={40} domain={[0, 100]} />
+                        <XAxis dataKey="week" tick={{ fontSize: 'var(--text-xs)', fill: T.text2 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 'var(--text-xs)', fill: T.text2 }} axisLine={false} tickLine={false} width={40} domain={[0, 100]} />
                         <Tooltip
-                          contentStyle={{ background: T.bg2, border: `0.5px solid ${T.border2}`, borderRadius: 8, fontFamily: "var(--font-mono)", fontSize: 11 }}
+                          contentStyle={{ background: T.bg2, border: `0.5px solid ${T.border2}`, borderRadius: 'var(--radius-md)', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)' }}
                           formatter={(val: any) => [`${Number(val).toFixed(1)}%`, 'نسبة النجاح']}
                         />
                         <Bar dataKey={(d: any) => Math.round(d.winRate * 100)} radius={[4, 4, 0, 0]}>
@@ -2395,7 +2395,7 @@ export default function PortfolioPage() {
                     </ResponsiveContainer>
                   ) : (
                     <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span style={{ fontFamily: "var(--font-ar)", fontSize: 11, color: T.text3 }}>لا توجد بيانات أسبوعية بعد</span>
+                      <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>لا توجد بيانات أسبوعية بعد</span>
                     </div>
                   )}
                 </div>
@@ -2407,41 +2407,41 @@ export default function PortfolioPage() {
                 <div style={{
                   flex: '1 1 300px',
                   background: T.card, border: `0.5px solid ${T.border}`,
-                  borderRadius: 10, padding: '14px',
+                  borderRadius: 'var(--radius-lg)', padding: '14px',
                 }}>
                   <div style={{
                     fontFamily: "var(--font-ar)", fontWeight: 700,
-                    fontSize: 12, color: T.text, marginBottom: 10,
+                    fontSize: 'var(--text-sm)', color: T.text, marginBottom: 10,
                   }}>الأداء حسب الاتجاه</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {/* Bullish */}
-                    <div style={{ padding: '10px', background: T.bg, borderRadius: 8, border: `0.5px solid ${T.green}22` }}>
+                    <div style={{ padding: '10px', background: T.bg, borderRadius: 'var(--radius-md)', border: `0.5px solid ${T.green}22` }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                        <span style={{ fontFamily: "var(--font-ar)", fontSize: 11, fontWeight: 700, color: T.green }}>▲ شراء (صاعد)</span>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 800, color: journalStats.byDirection.bullish.winRate >= 0.5 ? T.green : T.red }}>
+                        <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 700, color: T.green }}>▲ شراء (صاعد)</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)', fontWeight: 800, color: journalStats.byDirection.bullish.winRate >= 0.5 ? T.green : T.red }}>
                           {Math.round(journalStats.byDirection.bullish.winRate * 100)}%
                         </span>
                       </div>
-                      <div style={{ height: 5, borderRadius: 3, background: `${T.green}15`, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', borderRadius: 3, background: T.green, width: `${journalStats.byDirection.bullish.winRate * 100}%`, transition: 'width 0.3s' }} />
+                      <div style={{ height: 5, borderRadius: 'var(--radius-xs)', background: `${T.green}15`, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', borderRadius: 'var(--radius-xs)', background: T.green, width: `${journalStats.byDirection.bullish.winRate * 100}%`, transition: 'width 0.3s' }} />
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 9 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 'var(--text-xs)' }}>
                         <span style={{ fontFamily: "var(--font-ar)", color: T.text3 }}>{journalStats.byDirection.bullish.trades} صفقة</span>
                         <span style={{ fontFamily: "var(--font-mono)", color: journalStats.byDirection.bullish.pnl >= 0 ? T.green : T.red }}>{journalStats.byDirection.bullish.pnl >= 0 ? '+' : ''}{journalStats.byDirection.bullish.pnl}</span>
                       </div>
                     </div>
                     {/* Bearish */}
-                    <div style={{ padding: '10px', background: T.bg, borderRadius: 8, border: `0.5px solid ${T.red}22` }}>
+                    <div style={{ padding: '10px', background: T.bg, borderRadius: 'var(--radius-md)', border: `0.5px solid ${T.red}22` }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                        <span style={{ fontFamily: "var(--font-ar)", fontSize: 11, fontWeight: 700, color: T.red }}>▼ بيع (هابط)</span>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 800, color: journalStats.byDirection.bearish.winRate >= 0.5 ? T.green : T.red }}>
+                        <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 700, color: T.red }}>▼ بيع (هابط)</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)', fontWeight: 800, color: journalStats.byDirection.bearish.winRate >= 0.5 ? T.green : T.red }}>
                           {Math.round(journalStats.byDirection.bearish.winRate * 100)}%
                         </span>
                       </div>
-                      <div style={{ height: 5, borderRadius: 3, background: `${T.red}15`, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', borderRadius: 3, background: T.red, width: `${journalStats.byDirection.bearish.winRate * 100}%`, transition: 'width 0.3s' }} />
+                      <div style={{ height: 5, borderRadius: 'var(--radius-xs)', background: `${T.red}15`, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', borderRadius: 'var(--radius-xs)', background: T.red, width: `${journalStats.byDirection.bearish.winRate * 100}%`, transition: 'width 0.3s' }} />
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 9 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 'var(--text-xs)' }}>
                         <span style={{ fontFamily: "var(--font-ar)", color: T.text3 }}>{journalStats.byDirection.bearish.trades} صفقة</span>
                         <span style={{ fontFamily: "var(--font-mono)", color: journalStats.byDirection.bearish.pnl >= 0 ? T.green : T.red }}>{journalStats.byDirection.bearish.pnl >= 0 ? '+' : ''}{journalStats.byDirection.bearish.pnl}</span>
                       </div>
@@ -2453,11 +2453,11 @@ export default function PortfolioPage() {
                 <div style={{
                   flex: '1 1 300px',
                   background: T.card, border: `0.5px solid ${T.border}`,
-                  borderRadius: 10, padding: '14px',
+                  borderRadius: 'var(--radius-lg)', padding: '14px',
                 }}>
                   <div style={{
                     fontFamily: "var(--font-ar)", fontWeight: 700,
-                    fontSize: 12, color: T.text, marginBottom: 10,
+                    fontSize: 'var(--text-sm)', color: T.text, marginBottom: 10,
                   }}>أفضل مصادر الإشارة</div>
                   {Object.entries(journalStats.bySource).length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -2467,17 +2467,17 @@ export default function PortfolioPage() {
                         .map(([source, data]) => (
                           <div key={source} style={{
                             display: 'flex', alignItems: 'center', gap: 8,
-                            padding: '6px 8px', borderRadius: 6,
+                            padding: '6px 8px', borderRadius: 'var(--radius-sm)',
                             background: T.bg, border: `0.5px solid ${data.winRate >= 0.5 ? T.green : T.red}18`,
                           }}>
                             <span style={{
-                              fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700,
+                              fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
                               color: data.winRate >= 0.5 ? T.green : T.red, minWidth: 40,
                             }}>{Math.round(data.winRate * 100)}%</span>
-                            <span style={{ flex: 1, fontFamily: "var(--font-ar)", fontSize: 10, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{source}</span>
-                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: T.text3 }}>{data.trades}</span>
+                            <span style={{ flex: 1, fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{source}</span>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text3 }}>{data.trades}</span>
                             <span style={{
-                              fontFamily: "var(--font-mono)", fontSize: 9,
+                              fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)',
                               color: data.pnl >= 0 ? T.green : T.red,
                             }}>{data.pnl >= 0 ? '+' : ''}{Math.round(data.pnl * 100) / 100}</span>
                           </div>
@@ -2485,7 +2485,7 @@ export default function PortfolioPage() {
                     </div>
                   ) : (
                     <div style={{ padding: 20, textAlign: 'center' }}>
-                      <span style={{ fontFamily: "var(--font-ar)", fontSize: 11, color: T.text3 }}>لا توجد بيانات مصادر بعد</span>
+                      <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>لا توجد بيانات مصادر بعد</span>
                     </div>
                   )}
                 </div>
@@ -2495,35 +2495,35 @@ export default function PortfolioPage() {
               {journalStats.boostTradesCount > 0 && (
                 <div style={{
                   background: T.card, border: `0.5px solid ${T.amber}22`,
-                  borderRadius: 10, padding: '14px', marginBottom: 12,
+                  borderRadius: 'var(--radius-lg)', padding: '14px', marginBottom: 12,
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                    <div style={{ width: 3, height: 16, borderRadius: 2, background: T.amber }} />
-                    <span style={{ fontFamily: "var(--font-ar)", fontWeight: 700, fontSize: 12, color: T.text }}>
+                    <div style={{ width: 3, height: 16, borderRadius: 'var(--radius-xs)', background: T.amber }} />
+                    <span style={{ fontFamily: "var(--font-ar)", fontWeight: 700, fontSize: 'var(--text-sm)', color: T.text }}>
                       تأثير المحركات الثورية
                     </span>
                   </div>
                   <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                    <div style={{ flex: '1 1 140px', padding: '10px', background: T.bg, borderRadius: 8, textAlign: 'center' }}>
-                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 9, color: T.amber, marginBottom: 4 }}>مع التعزيز الثوري</div>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 800, color: journalStats.boostTradesWinRate >= 0.5 ? T.green : T.red }}>
+                    <div style={{ flex: '1 1 140px', padding: '10px', background: T.bg, borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
+                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.amber, marginBottom: 4 }}>مع التعزيز الثوري</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: journalStats.boostTradesWinRate >= 0.5 ? T.green : T.red }}>
                         {Math.round(journalStats.boostTradesWinRate * 100)}%
                       </div>
-                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 9, color: T.text3 }}>{journalStats.boostTradesCount} صفقة</div>
+                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{journalStats.boostTradesCount} صفقة</div>
                     </div>
-                    <div style={{ flex: '1 1 140px', padding: '10px', background: T.bg, borderRadius: 8, textAlign: 'center' }}>
-                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 9, color: T.text2, marginBottom: 4 }}>بدون تعزيز</div>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 800, color: journalStats.noBoostTradesWinRate >= 0.5 ? T.green : T.red }}>
+                    <div style={{ flex: '1 1 140px', padding: '10px', background: T.bg, borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
+                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text2, marginBottom: 4 }}>بدون تعزيز</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: journalStats.noBoostTradesWinRate >= 0.5 ? T.green : T.red }}>
                         {Math.round(journalStats.noBoostTradesWinRate * 100)}%
                       </div>
-                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 9, color: T.text3 }}>{journalStats.noBoostTradesCount} صفقة</div>
+                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{journalStats.noBoostTradesCount} صفقة</div>
                     </div>
-                    <div style={{ flex: '1 1 140px', padding: '10px', background: T.bg, borderRadius: 8, textAlign: 'center', border: `0.5px solid ${journalStats.boostLift >= 1 ? T.green : T.red}22` }}>
-                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 9, color: T.text2, marginBottom: 4 }}>التحسن</div>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 800, color: journalStats.boostLift >= 1 ? T.green : T.red }}>
+                    <div style={{ flex: '1 1 140px', padding: '10px', background: T.bg, borderRadius: 'var(--radius-md)', textAlign: 'center', border: `0.5px solid ${journalStats.boostLift >= 1 ? T.green : T.red}22` }}>
+                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text2, marginBottom: 4 }}>التحسن</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: journalStats.boostLift >= 1 ? T.green : T.red }}>
                         {journalStats.boostLift > 0 ? `${journalStats.boostLift >= 1 ? '+' : ''}${Math.round((journalStats.boostLift - 1) * 100)}%` : '—'}
                       </div>
-                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 9, color: T.text3 }}>تحسن التعزيز</div>
+                      <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>تحسن التعزيز</div>
                     </div>
                   </div>
                 </div>
@@ -2533,24 +2533,24 @@ export default function PortfolioPage() {
               {Object.keys(journalStats.byRegime).length > 0 && (
                 <div style={{
                   background: T.card, border: `0.5px solid ${T.border}`,
-                  borderRadius: 10, padding: '14px', marginBottom: 12,
+                  borderRadius: 'var(--radius-lg)', padding: '14px', marginBottom: 12,
                 }}>
                   <div style={{
                     fontFamily: "var(--font-ar)", fontWeight: 700,
-                    fontSize: 12, color: T.text, marginBottom: 10,
+                    fontSize: 'var(--text-sm)', color: T.text, marginBottom: 10,
                   }}>الأداء حسب نظام السوق</div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {Object.entries(journalStats.byRegime).map(([regime, data]) => (
                       <div key={regime} style={{
-                        flex: '1 1 120px', padding: '10px', background: T.bg, borderRadius: 8,
+                        flex: '1 1 120px', padding: '10px', background: T.bg, borderRadius: 'var(--radius-md)',
                         border: `0.5px solid ${data.winRate >= 0.5 ? T.green : T.red}18`,
                         textAlign: 'center',
                       }}>
-                        <div style={{ fontFamily: "var(--font-ar)", fontSize: 10, fontWeight: 700, color: T.text, marginBottom: 4 }}>{regime}</div>
-                        <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 800, color: data.winRate >= 0.5 ? T.green : T.red }}>
+                        <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text, marginBottom: 4 }}>{regime}</div>
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-md)', fontWeight: 800, color: data.winRate >= 0.5 ? T.green : T.red }}>
                           {Math.round(data.winRate * 100)}%
                         </div>
-                        <div style={{ fontFamily: "var(--font-ar)", fontSize: 9, color: T.text3 }}>{data.trades} صفقة · {data.wins} رابح</div>
+                        <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{data.trades} صفقة · {data.wins} رابح</div>
                       </div>
                     ))}
                   </div>
@@ -2560,7 +2560,7 @@ export default function PortfolioPage() {
               {/* ── Recent Journal Entries ── */}
               <div style={{
                 background: T.card, border: `0.5px solid ${T.border}`,
-                borderRadius: 10, overflow: 'hidden',
+                borderRadius: 'var(--radius-lg)', overflow: 'hidden',
               }}>
                 <div style={{
                   display: 'flex', alignItems: 'center',
@@ -2568,19 +2568,19 @@ export default function PortfolioPage() {
                   borderBottom: `0.5px solid ${T.border}`,
                   background: `linear-gradient(90deg, ${T.amber}0a, transparent)`,
                 }}>
-                  <div style={{ width: 3, height: 14, borderRadius: 2, background: T.amber }} />
+                  <div style={{ width: 3, height: 14, borderRadius: 'var(--radius-xs)', background: T.amber }} />
                   <span style={{
                     fontFamily: "var(--font-ar)", fontWeight: 700,
-                    fontSize: 12, color: T.text, flex: 1,
+                    fontSize: 'var(--text-sm)', color: T.text, flex: 1,
                   }}>آخر اقتراحات التداول</span>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: T.text3 }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text3 }}>
                     {journalEntries.length} سجل
                   </span>
                 </div>
 
                 {journalEntries.length === 0 ? (
                   <div style={{ padding: 24, textAlign: 'center' }}>
-                    <span style={{ fontFamily: "var(--font-ar)", fontSize: 11, color: T.text3 }}>لا توجد سجلات</span>
+                    <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>لا توجد سجلات</span>
                   </div>
                 ) : isMobile ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 8 }}>
@@ -2591,38 +2591,38 @@ export default function PortfolioPage() {
                         <div key={entry.id} style={{
                           background: 'rgba(255,255,255,0.02)',
                           border: `0.5px solid ${isResolved ? (isWin ? T.green : T.red) : T.border}22`,
-                          borderRadius: 8, padding: '8px 10px',
+                          borderRadius: 'var(--radius-md)', padding: '8px 10px',
                           display: 'flex', flexDirection: 'column', gap: 4,
                         }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: T.text }}>{entry.symbol}</span>
+                              <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text }}>{entry.symbol}</span>
                               <span style={{
-                                padding: '1px 5px', borderRadius: 3,
-                                fontFamily: "var(--font-mono)", fontSize: 8, fontWeight: 700,
+                                padding: '1px 5px', borderRadius: 'var(--radius-xs)',
+                                fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
                                 background: entry.direction === 'bullish' ? `${T.green}18` : `${T.red}18`,
                                 color: entry.direction === 'bullish' ? T.green : T.red,
                               }}>{entry.direction === 'bullish' ? '▲ شراء' : '▼ بيع'}</span>
                             </div>
                             {isResolved ? (
                               <span style={{
-                                fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700,
+                                fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
                                 color: isWin ? T.green : T.red,
                               }}>{isWin ? '+' : ''}{Math.round(entry.realizedPnL * 100) / 100}</span>
                             ) : (
                               <span style={{
-                                padding: '1px 5px', borderRadius: 3,
-                                fontFamily: "var(--font-ar)", fontSize: 8,
+                                padding: '1px 5px', borderRadius: 'var(--radius-xs)',
+                                fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)',
                                 background: `${T.amber}14`, color: T.amber,
                               }}>معلق</span>
                             )}
                           </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 3, fontSize: 9 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 3, fontSize: 'var(--text-xs)' }}>
                             <div><span style={{ color: T.text3 }}>دخول: </span><span style={{ color: T.text2 }}>{entry.entryPrice}</span></div>
                             <div><span style={{ color: T.text3 }}>SL: </span><span style={{ color: T.red }}>{entry.stopLoss}</span></div>
                             <div><span style={{ color: T.text3 }}>R:R: </span><span style={{ color: T.text2 }}>1:{entry.rrRatio}</span></div>
                           </div>
-                          <div style={{ fontFamily: "var(--font-ar)", fontSize: 8, color: T.text3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {entry.date} · {entry.regime} · ثقة: {Math.round(entry.confidence * 100)}%
                             {entry.boostFactorsActive.length > 0 && <span style={{ color: T.amber }}> · +{entry.boostFactorsActive.length} تعزيز</span>}
                           </div>
@@ -2640,7 +2640,7 @@ export default function PortfolioPage() {
                         borderBottom: `0.5px solid ${T.border}`,
                       }}>
                         {['التاريخ','الاتجاه','الدخول','SL','TP1','R:R','ثقة','النتيجة','R','الربح','الإشارات','التعزيز'].map((h) => (
-                          <div key={h} style={{ fontFamily: "var(--font-ar)", fontSize: 9, color: T.text3, textAlign: 'center' }}>{h}</div>
+                          <div key={h} style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3, textAlign: 'center' }}>{h}</div>
                         ))}
                       </div>
                       {journalEntries.slice(0, 25).map((entry, i) => {
@@ -2656,43 +2656,43 @@ export default function PortfolioPage() {
                             alignItems: 'center',
                             background: i % 2 === 0 ? 'rgba(255,255,255,0.005)' : 'transparent',
                           }}>
-                            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: T.text2, textAlign: 'center' }}>{entry.date}</div>
+                            <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text2, textAlign: 'center' }}>{entry.date}</div>
                             <div style={{ textAlign: 'center' }}>
                               <span style={{
-                                padding: '1px 5px', borderRadius: 3,
-                                fontFamily: "var(--font-mono)", fontSize: 8, fontWeight: 700,
+                                padding: '1px 5px', borderRadius: 'var(--radius-xs)',
+                                fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
                                 background: entry.direction === 'bullish' ? `${T.green}18` : `${T.red}18`,
                                 color: entry.direction === 'bullish' ? T.green : T.red,
                               }}>{entry.direction === 'bullish' ? '▲' : '▼'}</span>
                             </div>
-                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 9, color: T.text2 }}>{entry.entryPrice}</div>
-                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 9, color: T.red }}>{entry.stopLoss}</div>
-                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 9, color: T.green }}>{entry.takeProfits[0] || '—'}</div>
-                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 9, color: T.text2 }}>1:{entry.rrRatio}</div>
-                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 9, color: T.text2 }}>{Math.round(entry.confidence * 100)}%</div>
+                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text2 }}>{entry.entryPrice}</div>
+                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.red }}>{entry.stopLoss}</div>
+                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.green }}>{entry.takeProfits[0] || '—'}</div>
+                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text2 }}>1:{entry.rrRatio}</div>
+                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: T.text2 }}>{Math.round(entry.confidence * 100)}%</div>
                             <div style={{ textAlign: 'center' }}>
                               <span style={{
-                                padding: '1px 5px', borderRadius: 3,
-                                fontFamily: "var(--font-mono)", fontSize: 8, fontWeight: 700,
+                                padding: '1px 5px', borderRadius: 'var(--radius-xs)',
+                                fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
                                 background: !isResolved ? `${T.amber}14` : isWin ? `${T.green}18` : `${T.red}18`,
                                 color: !isResolved ? T.amber : isWin ? T.green : T.red,
                               }}>{statusLabel}</span>
                             </div>
-                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 9, color: entry.rMultiple > 0 ? T.green : entry.rMultiple < 0 ? T.red : T.text2 }}>{entry.rMultiple > 0 ? '+' : ''}{entry.rMultiple}R</div>
-                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700, color: isWin ? T.green : !isResolved ? T.text3 : T.red }}>{isResolved ? (isWin ? '+' : '') + (Math.round(entry.realizedPnL * 100) / 100) : '—'}</div>
+                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: entry.rMultiple > 0 ? T.green : entry.rMultiple < 0 ? T.red : T.text2 }}>{entry.rMultiple > 0 ? '+' : ''}{entry.rMultiple}R</div>
+                            <div style={{ textAlign: 'center', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700, color: isWin ? T.green : !isResolved ? T.text3 : T.red }}>{isResolved ? (isWin ? '+' : '') + (Math.round(entry.realizedPnL * 100) / 100) : '—'}</div>
                             <div style={{ textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {entry.agreeingSignals.slice(0, 2).map(s => s.source).join(', ')}
-                              {entry.agreeingSignals.length > 2 && <span style={{ color: T.text3, fontSize: 8 }}> +{entry.agreeingSignals.length - 2}</span>}
+                              {entry.agreeingSignals.length > 2 && <span style={{ color: T.text3, fontSize: 'var(--text-xs)' }}> +{entry.agreeingSignals.length - 2}</span>}
                             </div>
                             <div style={{ textAlign: 'center' }}>
                               {entry.boostFactorsActive.length > 0 ? (
                                 <span style={{
-                                  padding: '1px 4px', borderRadius: 3,
-                                  fontFamily: "var(--font-mono)", fontSize: 7, fontWeight: 700,
+                                  padding: '1px 4px', borderRadius: 'var(--radius-xs)',
+                                  fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700,
                                   background: `${T.amber}14`, color: T.amber,
                                 }}>+{entry.boostFactorsActive.length}</span>
                               ) : (
-                                <span style={{ color: T.text3, fontSize: 8 }}>—</span>
+                                <span style={{ color: T.text3, fontSize: 'var(--text-xs)' }}>—</span>
                               )}
                             </div>
                           </div>
@@ -2707,35 +2707,35 @@ export default function PortfolioPage() {
               <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
                 <div style={{
                   flex: 1, padding: '10px 14px', background: T.card,
-                  border: `0.5px solid ${T.green}22`, borderRadius: 10,
+                  border: `0.5px solid ${T.green}22`, borderRadius: 'var(--radius-lg)',
                   display: 'flex', alignItems: 'center', gap: 10,
                 }}>
                   <TrendingUp size={16} color={T.green} />
                   <div>
-                    <div style={{ fontFamily: "var(--font-ar)", fontSize: 9, color: T.text3 }}>أطول سلسلة رابحة</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 18, fontWeight: 800, color: T.green }}>{journalStats.maxConsecutiveWins}</div>
+                    <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>أطول سلسلة رابحة</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: T.green }}>{journalStats.maxConsecutiveWins}</div>
                   </div>
                 </div>
                 <div style={{
                   flex: 1, padding: '10px 14px', background: T.card,
-                  border: `0.5px solid ${T.red}22`, borderRadius: 10,
+                  border: `0.5px solid ${T.red}22`, borderRadius: 'var(--radius-lg)',
                   display: 'flex', alignItems: 'center', gap: 10,
                 }}>
                   <TrendingDown size={16} color={T.red} />
                   <div>
-                    <div style={{ fontFamily: "var(--font-ar)", fontSize: 9, color: T.text3 }}>أطول سلسلة خاسرة</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 18, fontWeight: 800, color: T.red }}>{journalStats.maxConsecutiveLosses}</div>
+                    <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>أطول سلسلة خاسرة</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: T.red }}>{journalStats.maxConsecutiveLosses}</div>
                   </div>
                 </div>
                 <div style={{
                   flex: 1, padding: '10px 14px', background: T.card,
-                  border: `0.5px solid ${T.blue}22`, borderRadius: 10,
+                  border: `0.5px solid ${T.blue}22`, borderRadius: 'var(--radius-lg)',
                   display: 'flex', alignItems: 'center', gap: 10,
                 }}>
                   <Clock size={16} color={T.blue} />
                   <div>
-                    <div style={{ fontFamily: "var(--font-ar)", fontSize: 9, color: T.text3 }}>متوسط مدة الصفقة</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 18, fontWeight: 800, color: T.cyan }}>
+                    <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>متوسط مدة الصفقة</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: T.cyan }}>
                       {journalStats.avgDurationMinutes >= 60
                         ? `${Math.floor(journalStats.avgDurationMinutes / 60)}h ${Math.round(journalStats.avgDurationMinutes % 60)}m`
                         : `${Math.round(journalStats.avgDurationMinutes)}m`
@@ -2745,13 +2745,13 @@ export default function PortfolioPage() {
                 </div>
                 <div style={{
                   flex: 1, padding: '10px 14px', background: T.card,
-                  border: `0.5px solid ${T.purple}22`, borderRadius: 10,
+                  border: `0.5px solid ${T.purple}22`, borderRadius: 'var(--radius-lg)',
                   display: 'flex', alignItems: 'center', gap: 10,
                 }}>
                   <Activity size={16} color={T.purple} />
                   <div>
-                    <div style={{ fontFamily: "var(--font-ar)", fontSize: 9, color: T.text3 }}>صفقات/يوم</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 18, fontWeight: 800, color: T.purple }}>{journalStats.tradesPerDay}</div>
+                    <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>صفقات/يوم</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-lg)', fontWeight: 800, color: T.purple }}>{journalStats.tradesPerDay}</div>
                   </div>
                 </div>
               </div>
@@ -2759,15 +2759,15 @@ export default function PortfolioPage() {
               {/* ── Investor Notice ── */}
               <div style={{
                 background: `${T.green}08`, border: `0.5px solid ${T.green}22`,
-                borderRadius: 10, padding: '12px 16px', marginTop: 12,
+                borderRadius: 'var(--radius-lg)', padding: '12px 16px', marginTop: 12,
                 display: 'flex', gap: 8, alignItems: 'flex-start',
               }}>
                 <Award size={14} style={{ color: T.green, marginTop: 2, flexShrink: 0 }} />
                 <div>
-                  <div style={{ fontFamily: "var(--font-ar)", fontSize: 11, fontWeight: 700, color: T.green, marginBottom: 2 }}>
+                  <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 700, color: T.green, marginBottom: 2 }}>
                     دليل أداء النظام
                   </div>
-                  <div style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: T.text3, lineHeight: 1.7 }}>
+                  <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3, lineHeight: 1.7 }}>
                     هذه البيانات تُسجّل تلقائياً من نظام التداول الآلي على بيانات حية.
                     استخدم زر "تقرير PDF للمستثمرين" لتصدير تقرير احترافي.
                     <br />

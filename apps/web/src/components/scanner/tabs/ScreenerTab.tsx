@@ -124,18 +124,18 @@ export function ScreenerTab() {
       <div style={{ padding: '12px 16px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Filter size={16} color={T.cyan} />
-          <span style={{ fontSize: 13, fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>
             {t('screener.customScreener')}
           </span>
           {activeCount > 0 && (
-            <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, background: `${T.cyan}15`, color: T.cyan, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
+            <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${T.cyan}15`, color: T.cyan, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
               {activeCount} {activeCount === 1 ? t('screener.activeFilter') : t('screener.activeFilters')}
             </span>
           )}
         </div>
         <button
           onClick={resetFilters}
-          style={{ fontSize: 9, padding: '4px 10px', borderRadius: 4, border: `0.5px solid ${T.border}`, background: T.surface, color: T.text3, cursor: 'pointer', fontFamily: "var(--font-ar)", fontWeight: 700, transition: 'all 0.2s' }}
+          style={{ fontSize: 'var(--text-xs)', padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: `0.5px solid ${T.border}`, background: T.surface, color: T.text3, cursor: 'pointer', fontFamily: "var(--font-ar)", fontWeight: 700, transition: 'all 0.2s' }}
         >
           {t('screener.reset')}
         </button>
@@ -146,7 +146,7 @@ export function ScreenerTab() {
         <div style={{ width: 240, minWidth: 240, borderInlineStart: `1px solid ${T.border}`, overflowY: 'auto', padding: '8px 0' }}>
           {/* Presets */}
           <div style={{ padding: '8px 12px' }}>
-            <div style={{ fontSize: 9, fontWeight: 800, color: T.text3, fontFamily: "var(--font-ar)", marginBottom: 6 }}>{t('screener.presetStrategies')}</div>
+            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.text3, fontFamily: "var(--font-ar)", marginBottom: 6 }}>{t('screener.presetStrategies')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {PRESETS.map(p => {
                 const Icon = p.icon
@@ -156,9 +156,9 @@ export function ScreenerTab() {
                     onClick={() => applyPreset(p)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px',
-                      borderRadius: 6, border: `0.5px solid ${T.border}`, background: T.bg,
+                      borderRadius: 'var(--radius-sm)', border: `0.5px solid ${T.border}`, background: T.bg,
                       color: T.text2, cursor: 'pointer', transition: 'all 0.2s',
-                      fontFamily: "var(--font-ar)", fontSize: 10, fontWeight: 700, width: '100%', textAlign: 'right',
+                      fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 700, width: '100%', textAlign: 'right',
                     }}
                   >
                     <Icon size={12} color={T.cyan} />
@@ -183,7 +183,7 @@ export function ScreenerTab() {
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     width: '100%', padding: '8px 12px', background: 'transparent',
                     border: 'none', cursor: 'pointer', color: isActive ? T.cyan : T.text2,
-                    fontFamily: "var(--font-ar)", fontSize: 10, fontWeight: 700, transition: 'color 0.2s',
+                    fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 700, transition: 'color 0.2s',
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -203,7 +203,7 @@ export function ScreenerTab() {
                               key={opt.value}
                               onClick={() => setFilter(f.id, opt.value)}
                               style={{
-                                padding: '3px 8px', borderRadius: 3, fontSize: 8, fontWeight: 700,
+                                padding: '3px 8px', borderRadius: 'var(--radius-xs)', fontSize: 'var(--text-xs)', fontWeight: 700,
                                 background: selected ? `${T.cyan}15` : T.surface,
                                 color: selected ? T.cyan : T.text3,
                                 border: selected ? `0.5px solid ${T.cyan}30` : `0.5px solid ${T.border}`,
@@ -218,10 +218,10 @@ export function ScreenerTab() {
                     ) : f.type === 'range' ? (
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                          <span style={{ fontSize: 8, color: T.text3, fontFamily: "var(--font-mono)" }}>
+                          <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>
                             {activeFilters[f.id] ?? f.min}
                           </span>
-                          <span style={{ fontSize: 8, color: T.text3, fontFamily: "var(--font-mono)" }}>{f.max}</span>
+                          <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>{f.max}</span>
                         </div>
                         <input
                           type="range"
@@ -244,21 +244,21 @@ export function ScreenerTab() {
         <div style={{ flex: 1, overflow: 'auto', padding: 12 }}>
           {/* Stats bar */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <div style={{ padding: '6px 12px', borderRadius: 6, background: T.bg, border: `0.5px solid ${T.border}` }}>
-              <span style={{ fontSize: 9, color: T.text3, fontFamily: "var(--font-ar)" }}>{t('screener.results')} </span>
-              <span style={{ fontSize: 11, fontWeight: 800, color: T.cyan, fontFamily: "var(--font-mono)" }}>{filtered.length}</span>
+            <div style={{ padding: '6px 12px', borderRadius: 'var(--radius-sm)', background: T.bg, border: `0.5px solid ${T.border}` }}>
+              <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>{t('screener.results')} </span>
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.cyan, fontFamily: "var(--font-mono)" }}>{filtered.length}</span>
             </div>
-            <div style={{ padding: '6px 12px', borderRadius: 6, background: T.bg, border: `0.5px solid ${T.border}` }}>
-              <span style={{ fontSize: 9, color: T.text3, fontFamily: "var(--font-ar)" }}>{t('screener.outOf')} </span>
-              <span style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "var(--font-mono)" }}>{scanData.length}</span>
+            <div style={{ padding: '6px 12px', borderRadius: 'var(--radius-sm)', background: T.bg, border: `0.5px solid ${T.border}` }}>
+              <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>{t('screener.outOf')} </span>
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.text2, fontFamily: "var(--font-mono)" }}>{scanData.length}</span>
             </div>
           </div>
 
           {filtered.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, gap: 8 }}>
               <Filter size={28} color={T.text3} style={{ opacity: 0.4 }} />
-              <span style={{ fontSize: 11, color: T.text3, fontFamily: "var(--font-ar)" }}>{t('screener.noMatchingResults')}</span>
-              <button onClick={resetFilters} style={{ fontSize: 9, padding: '4px 12px', borderRadius: 4, background: `${T.cyan}10`, color: T.cyan, border: `0.5px solid ${T.cyan}30`, cursor: 'pointer', fontFamily: "var(--font-ar)", fontWeight: 700 }}>
+              <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>{t('screener.noMatchingResults')}</span>
+              <button onClick={resetFilters} style={{ fontSize: 'var(--text-xs)', padding: '4px 12px', borderRadius: 'var(--radius-sm)', background: `${T.cyan}10`, color: T.cyan, border: `0.5px solid ${T.cyan}30`, cursor: 'pointer', fontFamily: "var(--font-ar)", fontWeight: 700 }}>
                 {t('screener.resetFilters')}
               </button>
             </div>
@@ -274,7 +274,7 @@ export function ScreenerTab() {
                     onClick={() => setSelectedSymbol(item.symbol)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px',
-                      borderRadius: 8, background: T.bg, border: `0.5px solid ${borderColor}`,
+                      borderRadius: 'var(--radius-md)', background: T.bg, border: `0.5px solid ${borderColor}`,
                       cursor: 'pointer', transition: 'all 0.2s',
                       animation: `fadeInRow 0.3s ease ${i * 40}ms both`,
                     }}
@@ -282,12 +282,12 @@ export function ScreenerTab() {
                     {/* Symbol + Direction */}
                     <div style={{ minWidth: 130 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                        <span style={{ fontSize: 12, fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)" }}>{item.symbol}</span>
+                        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)" }}>{item.symbol}</span>
                         <DirectionTag direction={item.direction} signalClass={item.signalClass} size="sm" />
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontSize: 10, color: T.text2, fontFamily: "var(--font-mono)" }}>${item.price.toLocaleString()}</span>
-                        <span style={{ fontSize: 9, fontWeight: 800, color: item.changePercent >= 0 ? T.green : T.red, fontFamily: "var(--font-mono)" }}>
+                        <span style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-mono)" }}>${item.price.toLocaleString()}</span>
+                        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: item.changePercent >= 0 ? T.green : T.red, fontFamily: "var(--font-mono)" }}>
                           {item.changePercent >= 0 ? '+' : ''}{item.changePercent.toFixed(2)}%
                         </span>
                       </div>
@@ -297,10 +297,10 @@ export function ScreenerTab() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <ScoreGauge score={ss.compositeScore} size={36} showValue label="" />
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        <span style={{ fontSize: 8, fontWeight: 800, color: T.cyan, fontFamily: "var(--font-ar)" }}>
+                        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.cyan, fontFamily: "var(--font-ar)" }}>
                           {ss.signalType === 'STRONG_TREND' ? t('filters.strongTrend') : ss.signalType === 'REVERSAL' ? t('filters.reversal') : ss.signalType === 'BREAKOUT' ? t('filters.breakout') : ss.signalType === 'DIVERGENCE' ? t('filters.divergence') : t('filters.consolidation')}
                         </span>
-                        <span style={{ fontSize: 7, color: T.text3, fontFamily: "var(--font-ar)" }}>
+                        <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>
                           {ss.tradeTimeframe === 'SCALP' ? t('screener.scalp') : ss.tradeTimeframe === 'DAY' ? t('screener.daily') : ss.tradeTimeframe === 'SWING' ? t('screener.swing') : t('screener.position')}
                         </span>
                       </div>
@@ -316,11 +316,11 @@ export function ScreenerTab() {
                       ].map(s => (
                         <div key={s.label} style={{ flex: 1 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-                            <span style={{ fontSize: 7, color: T.text3, fontFamily: "var(--font-ar)" }}>{s.label}</span>
-                            <span style={{ fontSize: 7, fontWeight: 800, color: s.color, fontFamily: "var(--font-mono)" }}>{s.value}</span>
+                            <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>{s.label}</span>
+                            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: s.color, fontFamily: "var(--font-mono)" }}>{s.value}</span>
                           </div>
-                          <div style={{ height: 3, borderRadius: 2, background: T.surface, overflow: 'hidden' }}>
-                            <div style={{ width: `${Math.min(s.value, 100)}%`, height: '100%', borderRadius: 2, background: s.color, transition: 'width 0.4s' }} />
+                          <div style={{ height: 3, borderRadius: 'var(--radius-xs)', background: T.surface, overflow: 'hidden' }}>
+                            <div style={{ width: `${Math.min(s.value, 100)}%`, height: '100%', borderRadius: 'var(--radius-xs)', background: s.color, transition: 'width 0.4s' }} />
                           </div>
                         </div>
                       ))}
@@ -338,7 +338,7 @@ export function ScreenerTab() {
                         }
                         const cfg = actionMap[ss.action] ?? actionMap['HOLD']
                         return (
-                          <span style={{ fontSize: 9, fontWeight: 800, padding: '3px 8px', borderRadius: 4, background: cfg.bg, color: cfg.color, fontFamily: "var(--font-ar)", display: 'inline-block' }}>
+                          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, padding: '3px 8px', borderRadius: 'var(--radius-sm)', background: cfg.bg, color: cfg.color, fontFamily: "var(--font-ar)", display: 'inline-block' }}>
                             {t(cfg.key)}
                           </span>
                         )

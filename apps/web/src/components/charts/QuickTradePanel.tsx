@@ -94,7 +94,7 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
       background: C.bg,
       backdropFilter: 'blur(16px)',
       WebkitBackdropFilter: 'blur(16px)',
-      borderRadius: 12,
+      borderRadius: 'var(--radius-lg)',
       padding: 14,
       border: `1px solid ${C.border}`,
       width: 260,
@@ -108,8 +108,8 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
         cursor: 'grab',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <span style={{ fontSize: 11 }}>⚡</span>
-          <span style={{ fontSize: 11, color: C.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: 'var(--text-xs)' }}>⚡</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: C.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
             {tc('quickTrade')}
           </span>
         </div>
@@ -117,10 +117,10 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
           <button
             onClick={onClose}
             style={{
-              background: 'rgba(255,255,255,0.04)', border: 'none', borderRadius: 3,
+              background: 'rgba(255,255,255,0.04)', border: 'none', borderRadius: 'var(--radius-xs)',
               color: C.textMuted, width: 18, height: 18, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 10, padding: 0,
+              fontSize: 'var(--text-xs)', padding: 0,
             }}
           >
             ✕
@@ -135,8 +135,8 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
         style={{
           width: '100%', padding: '5px 8px',
           background: 'rgba(0,0,0,0.3)', border: `1px solid ${C.border}`,
-          borderRadius: 5, color: C.cyan,
-          fontSize: 11, fontWeight: 700,
+          borderRadius: 'var(--radius-sm)', color: C.cyan,
+          fontSize: 'var(--text-xs)', fontWeight: 700,
           fontFamily: "var(--font-mono)",
           outline: 'none', marginBottom: 8, cursor: 'pointer',
         }}
@@ -150,13 +150,13 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
       <div style={{
         textAlign: 'center', padding: '6px 0 8px',
         marginBottom: 8,
-        background: 'rgba(0,0,0,0.2)', borderRadius: 6,
+        background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--radius-sm)',
       }}>
-        <div style={{ fontSize: 8, color: C.textMuted, fontFamily: "var(--font-ar)", marginBottom: 2 }}>
+        <div style={{ fontSize: 'var(--text-xs)', color: C.textMuted, fontFamily: "var(--font-ar)", marginBottom: 2 }}>
           {tc('currentPrice')}
         </div>
         <div style={{
-          fontSize: 20, fontWeight: 900, color: C.text,
+          fontSize: 'var(--text-lg)', fontWeight: 900, color: C.text,
           fontFamily: "var(--font-mono)",
           letterSpacing: 0.5,
         }}>
@@ -172,8 +172,8 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
             flex: 1, padding: '8px 0',
             background: side === 'buy' ? 'rgba(0,255,163,0.2)' : 'rgba(255,255,255,0.03)',
             border: `1px solid ${side === 'buy' ? 'rgba(0,255,163,0.4)' : C.border}`,
-            borderRadius: 7, color: side === 'buy' ? C.success : C.textDim,
-            fontSize: 12, fontWeight: 900, cursor: 'pointer',
+            borderRadius: 'var(--radius-md)', color: side === 'buy' ? C.success : C.textDim,
+            fontSize: 'var(--text-sm)', fontWeight: 900, cursor: 'pointer',
             fontFamily: "var(--font-ar)",
             transition: 'all 0.15s ease',
           }}
@@ -186,8 +186,8 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
             flex: 1, padding: '8px 0',
             background: side === 'sell' ? 'rgba(255,71,87,0.2)' : 'rgba(255,255,255,0.03)',
             border: `1px solid ${side === 'sell' ? 'rgba(255,71,87,0.4)' : C.border}`,
-            borderRadius: 7, color: side === 'sell' ? C.danger : C.textDim,
-            fontSize: 12, fontWeight: 900, cursor: 'pointer',
+            borderRadius: 'var(--radius-md)', color: side === 'sell' ? C.danger : C.textDim,
+            fontSize: 'var(--text-sm)', fontWeight: 900, cursor: 'pointer',
             fontFamily: "var(--font-ar)",
             transition: 'all 0.15s ease',
           }}
@@ -198,7 +198,7 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
 
       {/* Quantity */}
       <div style={{ marginBottom: 6 }}>
-        <label style={{ fontSize: 8, color: C.textMuted, fontFamily: "var(--font-ar)", display: 'block', marginBottom: 2 }}>
+        <label style={{ fontSize: 'var(--text-xs)', color: C.textMuted, fontFamily: "var(--font-ar)", display: 'block', marginBottom: 2 }}>
           {tc('quantity')}
         </label>
         <input
@@ -210,8 +210,8 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
           style={{
             width: '100%', padding: '5px 8px',
             background: 'rgba(0,0,0,0.3)', border: `1px solid ${C.border}`,
-            borderRadius: 5, color: C.text,
-            fontSize: 11, fontFamily: "var(--font-mono)",
+            borderRadius: 'var(--radius-sm)', color: C.text,
+            fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
             outline: 'none', direction: 'ltr',
           }}
         />
@@ -220,7 +220,7 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
       {/* SL & TP */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 8, color: C.danger, fontFamily: "var(--font-mono)", display: 'block', marginBottom: 2 }}>
+          <label style={{ fontSize: 'var(--text-xs)', color: C.danger, fontFamily: "var(--font-mono)", display: 'block', marginBottom: 2 }}>
             {tc('stopLoss')}
           </label>
           <input
@@ -231,14 +231,14 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
             style={{
               width: '100%', padding: '5px 6px',
               background: 'rgba(255,71,87,0.05)', border: '1px solid rgba(255,71,87,0.2)',
-              borderRadius: 5, color: C.danger,
-              fontSize: 10, fontFamily: "var(--font-mono)",
+              borderRadius: 'var(--radius-sm)', color: C.danger,
+              fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
               outline: 'none', direction: 'ltr',
             }}
           />
         </div>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 8, color: C.success, fontFamily: "var(--font-mono)", display: 'block', marginBottom: 2 }}>
+          <label style={{ fontSize: 'var(--text-xs)', color: C.success, fontFamily: "var(--font-mono)", display: 'block', marginBottom: 2 }}>
             {tc('takeProfit')}
           </label>
           <input
@@ -249,8 +249,8 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
             style={{
               width: '100%', padding: '5px 6px',
               background: 'rgba(0,255,163,0.05)', border: '1px solid rgba(0,255,163,0.2)',
-              borderRadius: 5, color: C.success,
-              fontSize: 10, fontFamily: "var(--font-mono)",
+              borderRadius: 'var(--radius-sm)', color: C.success,
+              fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
               outline: 'none', direction: 'ltr',
             }}
           />
@@ -261,13 +261,13 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
       {risk > 0 && reward > 0 && (
         <div style={{
           textAlign: 'center', padding: '4px 0', marginBottom: 8,
-          background: 'rgba(0,0,0,0.2)', borderRadius: 5,
+          background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--radius-sm)',
         }}>
-          <span style={{ fontSize: 8, color: C.textMuted, fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: C.textMuted, fontFamily: "var(--font-ar)" }}>
             {tc('riskRewardRatio')}
           </span>
           <span style={{
-            fontSize: 14, fontWeight: 900,
+            fontSize: 'var(--text-base)', fontWeight: 900,
             color: Number(rr) >= 2 ? C.success : Number(rr) >= 1 ? C.warning : C.danger,
             fontFamily: "var(--font-mono)",
             marginRight: 8,
@@ -286,9 +286,9 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
             ? 'linear-gradient(135deg, rgba(0,255,163,0.3) 0%, rgba(0,255,163,0.1) 100%)'
             : 'linear-gradient(135deg, rgba(255,71,87,0.3) 0%, rgba(255,71,87,0.1) 100%)',
           border: `1px solid ${side === 'buy' ? 'rgba(0,255,163,0.4)' : 'rgba(255,71,87,0.4)'}`,
-          borderRadius: 8,
+          borderRadius: 'var(--radius-md)',
           color: side === 'buy' ? C.success : C.danger,
-          fontSize: 12, fontWeight: 900, cursor: 'pointer',
+          fontSize: 'var(--text-sm)', fontWeight: 900, cursor: 'pointer',
           fontFamily: "var(--font-ar)",
           transition: 'all 0.15s ease',
         }}

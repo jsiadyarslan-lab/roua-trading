@@ -530,7 +530,7 @@ export default function AIPage() {
         {/* Title */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginInlineEnd: 16 }}>
           <div style={{
-            width: 34, height: 34, borderRadius: 10,
+            width: 34, height: 34, borderRadius: 'var(--radius-lg)',
             background: `linear-gradient(135deg, ${T.purple}20, ${T.cyan}20)`,
             border: `1px solid ${T.purple}40`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -538,8 +538,8 @@ export default function AIPage() {
             <Brain size={18} color={T.cyan} />
           </div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>{t('smartAnalysisCenter')}</div>
-            <div style={{ fontSize: 10, color: T.text3, marginTop: -2 }}>
+            <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text }}>{t('smartAnalysisCenter')}</div>
+            <div style={{ fontSize: 'var(--text-xs)', color: T.text3, marginTop: -2 }}>
               {nestjsConnected ? t('connectedToRealAI') : t('localModeApiKeysInactive')}
             </div>
           </div>
@@ -554,7 +554,7 @@ export default function AIPage() {
             className="ai-select"
             value={selectedSymbol}
             onChange={e => setSelectedSymbol(e.target.value)}
-            style={{ width: 130, fontSize: 13, fontWeight: 700 }}
+            style={{ width: 130, fontSize: 'var(--text-sm)', fontWeight: 700 }}
           >
             {PRIMARY_SYMBOLS.map(s => (
               <option key={s} value={s}>{s}</option>
@@ -565,14 +565,14 @@ export default function AIPage() {
         {/* Live Price */}
         {techData && (
           <div style={{
-            padding: '6px 12px', borderRadius: 8,
+            padding: '6px 12px', borderRadius: 'var(--radius-md)',
             background: `${dirColor}08`, border: `1px solid ${dirColor}25`,
-            display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700,
+            display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-sm)', fontWeight: 700,
             color: dirColor, fontFamily: "var(--font-mono)",
           }}>
             {techData.dir === 'buy' ? <ArrowUpRight size={14} /> : techData.dir === 'sell' ? <ArrowDownRight size={14} /> : <Minus size={14} />}
             {techData.price > 1000 ? (techData.price?.toFixed(2) ?? '—') : (techData.price?.toFixed(5) ?? '—')}
-            <span style={{ fontSize: 10, color: T.text3, fontWeight: 500 }}>
+            <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 500 }}>
               {techData.change >= 0 ? '+' : ''}{techData.change?.toFixed(2) ?? '—'}%
             </span>
           </div>
@@ -597,10 +597,10 @@ export default function AIPage() {
             return (
               <div key={m.name} style={{
                 display: 'flex', alignItems: 'center', gap: 4,
-                padding: '4px 10px', borderRadius: 16,
+                padding: '4px 10px', borderRadius: 'var(--radius-xl)',
                 background: available ? `${m.color}10` : T.bg,
                 border: `1px solid ${available ? `${m.color}30` : T.border}`,
-                fontSize: 10, fontWeight: 700, color: available ? m.color : T.text3,
+                fontSize: 'var(--text-xs)', fontWeight: 700, color: available ? m.color : T.text3,
               }}>
                 <div style={{
                   width: 5, height: 5, borderRadius: '50%',
@@ -619,9 +619,9 @@ export default function AIPage() {
           onClick={handleSmartRecommendation}
           disabled={isTyping}
           style={{
-            padding: '7px 14px', borderRadius: 8, border: 'none',
+            padding: '7px 14px', borderRadius: 'var(--radius-md)', border: 'none',
             background: `linear-gradient(90deg, ${T.cyan}, ${T.blue})`,
-            color: '#000', fontWeight: 800, fontSize: 11,
+            color: '#000', fontWeight: 800, fontSize: 'var(--text-xs)',
             cursor: isTyping ? 'not-allowed' : 'pointer',
             opacity: isTyping ? 0.6 : 1,
             display: 'flex', alignItems: 'center', gap: 5,
@@ -635,10 +635,10 @@ export default function AIPage() {
           onClick={handleComprehensiveAnalysis}
           disabled={isTyping}
           style={{
-            padding: '7px 14px', borderRadius: 8,
+            padding: '7px 14px', borderRadius: 'var(--radius-md)',
             border: `1px solid ${T.purple}40`,
             background: `${T.purple}10`,
-            color: T.purple, fontWeight: 700, fontSize: 11,
+            color: T.purple, fontWeight: 700, fontSize: 'var(--text-xs)',
             cursor: isTyping ? 'not-allowed' : 'pointer',
             opacity: isTyping ? 0.6 : 1,
             display: 'flex', alignItems: 'center', gap: 5,
@@ -654,14 +654,14 @@ export default function AIPage() {
       {fetchError && (
         <div style={{
           padding: '8px 16px', background: `${T.red}10`,
-          border: `1px solid ${T.red}30`, borderRadius: 8,
+          border: `1px solid ${T.red}30`, borderRadius: 'var(--radius-md)',
           margin: '8px 16px', display: 'flex', alignItems: 'center', gap: 8,
         }}>
           <AlertTriangle size={14} color={T.red} />
-          <span style={{ fontSize: 11, color: T.red }}>{fetchError}</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: T.red }}>{fetchError}</span>
           <button onClick={() => setFetchError(null)} style={{
             background: 'none', border: 'none', color: T.text3,
-            cursor: 'pointer', marginInlineStart: 'auto', fontSize: 10,
+            cursor: 'pointer', marginInlineStart: 'auto', fontSize: 'var(--text-xs)',
           }}>✕</button>
         </div>
       )}
@@ -677,14 +677,14 @@ export default function AIPage() {
           {/* Sentiment Card */}
           <div style={{ padding: '16px', borderBottom: `1px solid ${T.border}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <span style={{ fontSize: 11, color: T.text3, fontWeight: 700 }}>{t('marketSentiment')}</span>
+              <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 700 }}>{t('marketSentiment')}</span>
               <Activity size={14} color={sentimentColor} />
             </div>
             <div style={{
               textAlign: 'center', padding: '12px 0',
             }}>
               <div style={{
-                fontSize: 26, fontWeight: 900, color: sentimentColor,
+                fontSize: 'var(--text-2xl)', fontWeight: 900, color: sentimentColor,
                 fontFamily: "var(--font-mono)",
                 textShadow: `0 0 20px ${sentimentColor}30`,
               }}>
@@ -692,7 +692,7 @@ export default function AIPage() {
               </div>
               {narratorData && (
                 <div style={{
-                  fontSize: 10, color: T.text3, marginTop: 6,
+                  fontSize: 'var(--text-xs)', color: T.text3, marginTop: 6,
                   fontFamily: "var(--font-mono)",
                 }}>
                   {t('confidence')}: {narratorData.confidence}% | {t('risk')}: {narratorData.risk === 'Low' ? t('riskLow') : narratorData.risk === 'Medium' ? t('riskMedium') : t('riskHigh')}
@@ -701,9 +701,9 @@ export default function AIPage() {
             </div>
             {narratorData?.summary && (
               <div style={{
-                padding: '10px', borderRadius: 8, background: T.bg,
+                padding: '10px', borderRadius: 'var(--radius-md)', background: T.bg,
                 border: `1px solid ${T.border}`,
-                fontSize: 10, color: T.text2, lineHeight: 1.6,
+                fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.6,
               }}>
                 {narratorData.summary}
               </div>
@@ -713,7 +713,7 @@ export default function AIPage() {
           {/* Technical Indicators */}
           <div style={{ padding: '16px', borderBottom: `1px solid ${T.border}`, flex: 1 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <span style={{ fontSize: 11, color: T.text3, fontWeight: 700 }}>{t('technicalIndicators')} ({selectedSymbol})</span>
+              <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 700 }}>{t('technicalIndicators')} ({selectedSymbol})</span>
               <button
                 onClick={fetchTechIndicators}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}
@@ -726,7 +726,7 @@ export default function AIPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {[1, 2, 3, 4].map(i => (
                   <div key={i} style={{
-                    height: 52, borderRadius: 8,
+                    height: 52, borderRadius: 'var(--radius-md)',
                     background: `linear-gradient(90deg, ${T.bg} 25%, ${T.bg2} 50%, ${T.bg} 75%)`,
                     backgroundSize: '200% 100%',
                     animation: 'fadeSlideIn 1.5s infinite',
@@ -771,11 +771,11 @@ export default function AIPage() {
                 {/* Reasons */}
                 {techData.reasons.length > 0 && (
                   <div style={{
-                    padding: '10px', borderRadius: 8,
+                    padding: '10px', borderRadius: 'var(--radius-md)',
                     background: T.bg, border: `1px solid ${T.border}`,
-                    fontSize: 10, color: T.text2, lineHeight: 1.5,
+                    fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.5,
                   }}>
-                    <div style={{ fontSize: 9, color: T.text3, fontWeight: 700, marginBottom: 6 }}>{t('reasons')}</div>
+                    <div style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 700, marginBottom: 6 }}>{t('reasons')}</div>
                     {techData.reasons.map((r, i) => (
                       <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', marginBottom: 3 }}>
                         <CircleDot size={8} color={T.cyan} style={{ marginTop: 3, flexShrink: 0 }} />
@@ -787,7 +787,7 @@ export default function AIPage() {
               </div>
             ) : (
               <div style={{
-                padding: '20px', textAlign: 'center', color: T.text3, fontSize: 11,
+                padding: '20px', textAlign: 'center', color: T.text3, fontSize: 'var(--text-xs)',
               }}>
                 {t('noTechDataAvailable')}
               </div>
@@ -798,7 +798,7 @@ export default function AIPage() {
           {narratorData && (
             <div style={{ padding: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <span style={{ fontSize: 11, color: T.text3, fontWeight: 700 }}>{t('quickInsights')}</span>
+                <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 700 }}>{t('quickInsights')}</span>
                 <Eye size={12} color={T.purple} />
               </div>
               {narratorData.bullCase && (
@@ -830,9 +830,9 @@ export default function AIPage() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Cpu size={16} color={T.cyan} />
-              <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{t('smartAnalysisChat')}</span>
+              <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text }}>{t('smartAnalysisChat')}</span>
               <span style={{
-                fontSize: 9, padding: '2px 8px', borderRadius: 10,
+                fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-lg)',
                 background: nestjsConnected ? `${T.green}12` : `${T.amber}12`,
                 border: `1px solid ${nestjsConnected ? `${T.green}30` : `${T.amber}30`}`,
                 color: nestjsConnected ? T.green : T.amber,
@@ -845,9 +845,9 @@ export default function AIPage() {
               <button
                 onClick={handleClearChat}
                 style={{
-                  padding: '4px 10px', borderRadius: 6,
+                  padding: '4px 10px', borderRadius: 'var(--radius-sm)',
                   border: `1px solid ${T.border}`, background: T.bg,
-                  color: T.text3, fontSize: 10, cursor: 'pointer',
+                  color: T.text3, fontSize: 'var(--text-xs)', cursor: 'pointer',
                   fontFamily: "var(--font-ar)",
                 }}
               >
@@ -870,7 +870,7 @@ export default function AIPage() {
               }}>
                 {msg.role === 'ai' && (
                   <div style={{
-                    width: 30, height: 30, borderRadius: 8,
+                    width: 30, height: 30, borderRadius: 'var(--radius-md)',
                     background: `${T.cyan}15`,
                     border: `1px solid ${T.cyan}30`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -881,8 +881,8 @@ export default function AIPage() {
                 )}
                 <div style={{
                   background: msg.role === 'user' ? T.blue : T.card,
-                  color: T.text, fontSize: 13, lineHeight: 1.8,
-                  padding: '12px 16px', borderRadius: 12,
+                  color: T.text, fontSize: 'var(--text-sm)', lineHeight: 1.8,
+                  padding: '12px 16px', borderRadius: 'var(--radius-lg)',
                   border: msg.role === 'ai' ? `0.5px solid ${T.border}` : 'none',
                   borderTopRightRadius: msg.role === 'user' ? 4 : 12,
                   borderTopLeftRadius: msg.role === 'ai' ? 4 : 12,
@@ -895,13 +895,13 @@ export default function AIPage() {
                     marginTop: 8, paddingTop: 6, borderTop: `0.5px solid ${msg.role === 'user' ? 'rgba(255,255,255,0.1)' : T.border}`,
                   }}>
                     <span style={{
-                      fontSize: 8, color: msg.role === 'user' ? 'rgba(255,255,255,0.4)' : T.text3,
+                      fontSize: 'var(--text-xs)', color: msg.role === 'user' ? 'rgba(255,255,255,0.4)' : T.text3,
                     }}>
                       {msg.timestamp}
                     </span>
                     {msg.role === 'ai' && msg.model && (
                       <span style={{
-                        fontSize: 8, padding: '1px 6px', borderRadius: 4,
+                        fontSize: 'var(--text-xs)', padding: '1px 6px', borderRadius: 'var(--radius-sm)',
                         background: msg.source === 'ai-orchestrator' ? `${T.green}12` :
                           msg.source === 'local-fallback' ? `${T.amber}12` : `${T.text3}12`,
                         color: msg.source === 'ai-orchestrator' ? T.green :
@@ -922,7 +922,7 @@ export default function AIPage() {
                 maxWidth: '80%',
               }}>
                 <div style={{
-                  width: 30, height: 30, borderRadius: 8,
+                  width: 30, height: 30, borderRadius: 'var(--radius-md)',
                   background: `${T.cyan}15`,
                   border: `1px solid ${T.cyan}30`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -931,7 +931,7 @@ export default function AIPage() {
                   <Bot size={14} color={T.cyan} />
                 </div>
                 <div style={{
-                  background: T.card, padding: '14px 20px', borderRadius: 12, borderTopLeftRadius: 4,
+                  background: T.card, padding: '14px 20px', borderRadius: 'var(--radius-lg)', borderTopLeftRadius: 4,
                   border: `0.5px solid ${T.border}`,
                   display: 'flex', gap: 6, alignItems: 'center',
                 }}>
@@ -947,7 +947,7 @@ export default function AIPage() {
                     width: 6, height: 6, borderRadius: '50%', background: T.cyan,
                     animation: 'dot-pulse 1.4s infinite ease-in-out 0.4s',
                   }} />
-                  <span style={{ fontSize: 10, color: T.text3, marginInlineStart: 6 }}>
+                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3, marginInlineStart: 6 }}>
                     {nestjsConnected ? t('aiAnalyzing') : t('localAnalyzing')}
                   </span>
                 </div>
@@ -975,9 +975,9 @@ export default function AIPage() {
                   onClick={() => sendMessage(qp.prompt)}
                   disabled={isTyping}
                   style={{
-                    padding: '4px 10px', borderRadius: 6,
+                    padding: '4px 10px', borderRadius: 'var(--radius-sm)',
                     border: `1px solid ${T.border}`, background: T.bg,
-                    color: T.text3, fontSize: 10, cursor: isTyping ? 'not-allowed' : 'pointer',
+                    color: T.text3, fontSize: 'var(--text-xs)', cursor: isTyping ? 'not-allowed' : 'pointer',
                     fontFamily: "var(--font-ar)",
                     opacity: isTyping ? 0.5 : 1,
                     transition: 'all 0.2s',
@@ -1000,8 +1000,8 @@ export default function AIPage() {
                 aria-label={t('chatMessage')}
                 style={{
                   flex: 1, background: T.bg, border: `1px solid ${T.border}`,
-                  borderRadius: 10, padding: '12px 16px',
-                  color: T.text, fontFamily: "var(--font-ar)", fontSize: 13,
+                  borderRadius: 'var(--radius-lg)', padding: '12px 16px',
+                  color: T.text, fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)',
                   outline: 'none', transition: 'border-color 0.2s',
                 }}
                 onFocus={e => e.target.style.borderColor = T.cyan}
@@ -1012,7 +1012,7 @@ export default function AIPage() {
                 disabled={isTyping || !inputValue.trim()}
                 aria-label={t('sendMessage')}
                 style={{
-                  width: 46, borderRadius: 10, border: 'none',
+                  width: 46, borderRadius: 'var(--radius-lg)', border: 'none',
                   background: T.cyan, color: '#000',
                   cursor: isTyping || !inputValue.trim() ? 'not-allowed' : 'pointer',
                   opacity: isTyping || !inputValue.trim() ? 0.4 : 1,
@@ -1062,15 +1062,15 @@ export default function AIPage() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Flame size={14} color={T.amber} />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>{t('smartModelsCouncil')}</span>
+                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text }}>{t('smartModelsCouncil')}</span>
                 </div>
                 <button
                   onClick={fetchCouncil}
                   disabled={councilLoading}
                   style={{
-                    padding: '5px 12px', borderRadius: 6,
+                    padding: '5px 12px', borderRadius: 'var(--radius-sm)',
                     border: 'none', background: T.cyan, color: '#000',
-                    fontWeight: 800, fontSize: 10, cursor: councilLoading ? 'not-allowed' : 'pointer',
+                    fontWeight: 800, fontSize: 'var(--text-xs)', cursor: councilLoading ? 'not-allowed' : 'pointer',
                     fontFamily: "var(--font-ar)",
                     opacity: councilLoading ? 0.6 : 1,
                     display: 'flex', alignItems: 'center', gap: 4,
@@ -1086,7 +1086,7 @@ export default function AIPage() {
                 <div style={{
                   flex: 1, display: 'flex', flexDirection: 'column',
                   alignItems: 'center', justifyContent: 'center', gap: 12,
-                  color: T.text3, fontSize: 11,
+                  color: T.text3, fontSize: 'var(--text-xs)',
                 }}>
                   <RefreshCw size={24} color={T.cyan} className="spinning" />
                   <span>{t('councilDeliberating', { symbol: selectedSymbol })}</span>
@@ -1095,19 +1095,19 @@ export default function AIPage() {
                 <>
                   {/* Consensus Score */}
                   <div style={{
-                    textAlign: 'center', padding: '16px', borderRadius: 12,
+                    textAlign: 'center', padding: '16px', borderRadius: 'var(--radius-lg)',
                     background: `${recColor}06`, border: `1px solid ${recColor}20`,
                     marginBottom: 16,
                   }}>
                     <div style={{
-                      fontSize: 36, fontWeight: 900, color: recColor,
+                      fontSize: 'var(--text-3xl)', fontWeight: 900, color: recColor,
                       fontFamily: "var(--font-mono)",
                       textShadow: `0 0 20px ${recColor}30`,
                     }}>
                       {recAr}
                     </div>
                     <div style={{
-                      fontSize: 12, color: T.text2, marginTop: 4,
+                      fontSize: 'var(--text-sm)', color: T.text2, marginTop: 4,
                       fontFamily: "var(--font-mono)",
                     }}>
                       {t('consensus')} {councilResult.consensusScore}%
@@ -1118,13 +1118,13 @@ export default function AIPage() {
                     {/* Score Bar */}
                     <div style={{
                       width: '100%', height: 6, background: T.bg,
-                      borderRadius: 4, marginTop: 10, overflow: 'hidden',
+                      borderRadius: 'var(--radius-sm)', marginTop: 10, overflow: 'hidden',
                     }}>
                       <div style={{
                         width: `${councilResult.consensusScore}%`,
                         height: '100%',
                         background: `linear-gradient(90deg, ${recColor}, ${T.cyan})`,
-                        borderRadius: 4,
+                        borderRadius: 'var(--radius-sm)',
                         transition: 'width 1s ease-out',
                       }} />
                     </div>
@@ -1134,18 +1134,18 @@ export default function AIPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
                     {councilResult.analyses.map((vote, i) => (
                       <div key={i} style={{
-                        padding: '10px 12px', borderRadius: 8,
+                        padding: '10px 12px', borderRadius: 'var(--radius-md)',
                         background: T.bg, border: `1px solid ${T.border}`,
                       }}>
                         <div style={{
                           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                           marginBottom: 4,
                         }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: T.text }}>
+                          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text }}>
                             {translateRoleName(safeStr(vote.role), t)}
                           </span>
                           <span style={{
-                            fontSize: 9, padding: '2px 6px', borderRadius: 4,
+                            fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)',
                             background: vote.vote === 'BUY' ? `${T.green}12` : vote.vote === 'SELL' ? `${T.red}12` : `${T.amber}12`,
                             color: vote.vote === 'BUY' ? T.green : vote.vote === 'SELL' ? T.red : T.amber,
                             fontWeight: 700,
@@ -1154,14 +1154,14 @@ export default function AIPage() {
                           </span>
                         </div>
                         <div style={{
-                          fontSize: 9, color: T.text3, lineHeight: 1.5,
+                          fontSize: 'var(--text-xs)', color: T.text3, lineHeight: 1.5,
                           overflow: 'hidden', textOverflow: 'ellipsis',
                           display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
                         }}>
                           {safeStr(vote.reason)}
                         </div>
                         {vote.model && (
-                          <div style={{ fontSize: 8, color: T.text3, marginTop: 3, fontFamily: "var(--font-mono)" }}>
+                          <div style={{ fontSize: 'var(--text-xs)', color: T.text3, marginTop: 3, fontFamily: "var(--font-mono)" }}>
                             {safeStr(vote.model)}
                           </div>
                         )}
@@ -1172,11 +1172,11 @@ export default function AIPage() {
                   {/* Master Strategy */}
                   {councilResult.masterStrategy && (
                     <div style={{
-                      marginTop: 12, padding: '12px', borderRadius: 8,
+                      marginTop: 12, padding: '12px', borderRadius: 'var(--radius-md)',
                       background: `${T.cyan}05`, border: `1px solid ${T.cyan}20`,
-                      fontSize: 10, color: T.text2, lineHeight: 1.6,
+                      fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.6,
                     }}>
-                      <div style={{ fontSize: 9, color: T.cyan, fontWeight: 700, marginBottom: 4 }}>{t('mainStrategy')}</div>
+                      <div style={{ fontSize: 'var(--text-xs)', color: T.cyan, fontWeight: 700, marginBottom: 4 }}>{t('mainStrategy')}</div>
                       {safeStr(councilResult.masterStrategy)}
                     </div>
                   )}
@@ -1185,7 +1185,7 @@ export default function AIPage() {
                 <div style={{
                   flex: 1, display: 'flex', flexDirection: 'column',
                   alignItems: 'center', justifyContent: 'center', gap: 10,
-                  color: T.text3, fontSize: 11, textAlign: 'center',
+                  color: T.text3, fontSize: 'var(--text-xs)', textAlign: 'center',
                 }}>
                   <Shield size={28} color={T.text3} style={{ opacity: 0.3 }} />
                   <span>{t('pressActivateCouncil', { symbol: selectedSymbol })}</span>
@@ -1203,14 +1203,14 @@ export default function AIPage() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Brain size={14} color={T.purple} />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>{t('smartNarrator')}</span>
+                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text }}>{t('smartNarrator')}</span>
                 </div>
                 <button
                   onClick={fetchNarrator}
                   style={{
-                    padding: '4px 10px', borderRadius: 6,
+                    padding: '4px 10px', borderRadius: 'var(--radius-sm)',
                     border: `1px solid ${T.border}`, background: T.bg,
-                    color: T.text3, fontSize: 9, cursor: 'pointer',
+                    color: T.text3, fontSize: 'var(--text-xs)', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', gap: 4,
                   }}
                 >
@@ -1241,9 +1241,9 @@ export default function AIPage() {
 
                   {/* Narrative Text */}
                   <div style={{
-                    padding: '14px', borderRadius: 10,
+                    padding: '14px', borderRadius: 'var(--radius-lg)',
                     background: T.bg, border: `1px solid ${T.border}`,
-                    fontSize: 11, color: T.text, lineHeight: 1.8,
+                    fontSize: 'var(--text-xs)', color: T.text, lineHeight: 1.8,
                     flex: 1, overflowY: 'auto',
                   }}>
                     {narratorData.narrative}
@@ -1258,9 +1258,9 @@ export default function AIPage() {
                   )}
                   {narratorData.nextTrigger && (
                     <div style={{
-                      padding: '10px 12px', borderRadius: 8,
+                      padding: '10px 12px', borderRadius: 'var(--radius-md)',
                       background: `${T.cyan}05`, border: `1px solid ${T.cyan}20`,
-                      fontSize: 10, color: T.text2, lineHeight: 1.6,
+                      fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.6,
                     }}>
                       <strong style={{ color: T.cyan }}>{t('nextTrigger')}:</strong> {narratorData.nextTrigger}
                     </div>
@@ -1269,7 +1269,7 @@ export default function AIPage() {
               ) : (
                 <div style={{
                   flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: T.text3, fontSize: 11,
+                  color: T.text3, fontSize: 'var(--text-xs)',
                 }}>
                   {t('loadingNarrator')}
                 </div>
@@ -1292,20 +1292,20 @@ function IndicatorCard({ label, value, subValue, color, icon: Icon }: {
   return (
     <div style={{
       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      padding: '10px 12px', background: T.bg, borderRadius: 8,
+      padding: '10px 12px', background: T.bg, borderRadius: 'var(--radius-md)',
       border: `0.5px solid ${T.border}`,
     }}>
       <div>
-        <div style={{ fontSize: 9, color: T.text3, marginBottom: 3 }}>{label}</div>
-        <div style={{ fontSize: 13, fontWeight: 700, color, display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ fontSize: 'var(--text-xs)', color: T.text3, marginBottom: 3 }}>{label}</div>
+        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color, display: 'flex', alignItems: 'center', gap: 4 }}>
           {Icon && <Icon size={14} />}
           {value}
         </div>
       </div>
       <div style={{
-        padding: '3px 8px', borderRadius: 4,
+        padding: '3px 8px', borderRadius: 'var(--radius-sm)',
         background: `${color}12`, color,
-        fontSize: 9, fontWeight: 700,
+        fontSize: 'var(--text-xs)', fontWeight: 700,
       }}>
         {subValue}
       </div>
@@ -1324,7 +1324,7 @@ function TabButton({ active, onClick, icon, label }: {
         background: active ? `${T.cyan}08` : 'transparent',
         border: 'none', borderBottom: active ? `2px solid ${T.cyan}` : '2px solid transparent',
         color: active ? T.cyan : T.text3,
-        fontSize: 11, fontWeight: 700, cursor: 'pointer',
+        fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
         fontFamily: "var(--font-ar)",
         transition: 'all 0.2s',
@@ -1339,12 +1339,12 @@ function TabButton({ active, onClick, icon, label }: {
 function NarratorBadge({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div style={{
-      flex: 1, padding: '8px', borderRadius: 8,
+      flex: 1, padding: '8px', borderRadius: 'var(--radius-md)',
       background: `${color}06`, border: `1px solid ${color}20`,
       textAlign: 'center',
     }}>
-      <div style={{ fontSize: 8, color: T.text3, marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: 12, fontWeight: 800, color, fontFamily: "var(--font-mono)" }}>{value}</div>
+      <div style={{ fontSize: 'var(--text-xs)', color: T.text3, marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color, fontFamily: "var(--font-mono)" }}>{value}</div>
     </div>
   )
 }
@@ -1352,12 +1352,12 @@ function NarratorBadge({ label, value, color }: { label: string; value: string; 
 function InsightBox({ label, text, color }: { label: string; text: string; color: string }) {
   return (
     <div style={{
-      padding: '8px 10px', borderRadius: 8,
+      padding: '8px 10px', borderRadius: 'var(--radius-md)',
       background: `${color}05`, border: `1px solid ${color}15`,
       marginBottom: 6,
     }}>
-      <div style={{ fontSize: 9, color, fontWeight: 700, marginBottom: 3 }}>{label}</div>
-      <div style={{ fontSize: 10, color: T.text2, lineHeight: 1.5 }}>{text}</div>
+      <div style={{ fontSize: 'var(--text-xs)', color, fontWeight: 700, marginBottom: 3 }}>{label}</div>
+      <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.5 }}>{text}</div>
     </div>
   )
 }
@@ -1365,14 +1365,14 @@ function InsightBox({ label, text, color }: { label: string; text: string; color
 function CaseBox({ label, text, color, icon }: { label: string; text: string; color: string; icon: React.ReactNode }) {
   return (
     <div style={{
-      padding: '10px 12px', borderRadius: 8,
+      padding: '10px 12px', borderRadius: 'var(--radius-md)',
       background: `${color}05`, border: `1px solid ${color}15`,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
         {icon}
-        <span style={{ fontSize: 10, color, fontWeight: 700 }}>{label}</span>
+        <span style={{ fontSize: 'var(--text-xs)', color, fontWeight: 700 }}>{label}</span>
       </div>
-      <div style={{ fontSize: 10, color: T.text2, lineHeight: 1.5 }}>{text}</div>
+      <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.5 }}>{text}</div>
     </div>
   )
 }

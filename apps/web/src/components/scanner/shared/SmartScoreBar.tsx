@@ -46,24 +46,24 @@ export function SmartScoreBar({ smartScore }: SmartScoreBarProps) {
         return (
           <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{
-              width: 32, fontSize: 8, fontWeight: 700, color: T.text3,
+              width: 32, fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text3,
               fontFamily: "var(--font-ar)", textAlign: 'right', flexShrink: 0,
             }}>
               {t(labelKey)}
             </span>
             <div style={{
               flex: 1, height: isComposite ? 6 : 4,
-              borderRadius: 2, background: T.surface, overflow: 'hidden',
+              borderRadius: 'var(--radius-xs)', background: T.surface, overflow: 'hidden',
             }}>
               <div style={{
-                width: `${pct}%`, height: '100%', borderRadius: 2,
+                width: `${pct}%`, height: '100%', borderRadius: 'var(--radius-xs)',
                 background: `linear-gradient(90deg, ${color}60, ${color})`,
                 transition: 'width 0.5s ease',
                 boxShadow: isComposite ? `0 0 6px ${color}30` : 'none',
               }} />
             </div>
             <span style={{
-              width: 26, fontSize: 8, fontWeight: 800, color,
+              width: 26, fontSize: 'var(--text-xs)', fontWeight: 800, color,
               fontFamily: "var(--font-mono)", textAlign: 'left', flexShrink: 0,
             }}>
               {val > 0 ? '+' : ''}{val}

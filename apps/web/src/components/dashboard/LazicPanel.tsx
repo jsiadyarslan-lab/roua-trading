@@ -48,10 +48,10 @@ function OBIBar({ value, symbol, threshold }: { value: number; symbol: string; t
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-      <span style={{ fontSize: 9, color: T.text3, fontFamily: 'monospace', width: 60, textAlign: 'right' }}>
+      <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: 'monospace', width: 60, textAlign: 'right' }}>
         {symbol.split('/')[0]}
       </span>
-      <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, position: 'relative' }}>
+      <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 'var(--radius-xs)', position: 'relative' }}>
         {/* المنتصف */}
         <div style={{ position: 'absolute', left: '50%', top: 0, width: 1, height: '100%', background: 'rgba(255,255,255,0.1)' }} />
         {/* علامة العتبة */}
@@ -73,14 +73,14 @@ function OBIBar({ value, symbol, threshold }: { value: number; symbol: string; t
         <div style={{
           position: 'absolute',
           height: '100%',
-          borderRadius: 2,
+          borderRadius: 'var(--radius-xs)',
           background: color,
           width: `${pct / 2}%`,
           left: isBuy ? '50%' : `${50 - pct / 2}%`,
           transition: 'all 0.3s ease',
         }} />
       </div>
-      <span style={{ fontSize: 9, color, fontFamily: 'monospace', width: 36 }}>
+      <span style={{ fontSize: 'var(--text-xs)', color, fontFamily: 'monospace', width: 36 }}>
         {value > 0 ? '+' : ''}{value.toFixed(2)}
       </span>
     </div>
@@ -102,8 +102,8 @@ function SliderRow({
   return (
     <div style={{ marginBottom: 8 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-        <span style={{ fontSize: 9, color: T.text2, fontFamily: "var(--font-ar)" }}>{label}</span>
-        <span style={{ fontSize: 9, color, fontFamily: 'monospace', fontWeight: 700 }}>
+        <span style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-ar)" }}>{label}</span>
+        <span style={{ fontSize: 'var(--text-xs)', color, fontFamily: 'monospace', fontWeight: 700 }}>
           {value}{unit}
         </span>
       </div>
@@ -119,7 +119,7 @@ function SliderRow({
           height: 4,
           appearance: 'none',
           background: 'rgba(255,255,255,0.06)',
-          borderRadius: 2,
+          borderRadius: 'var(--radius-xs)',
           outline: 'none',
           cursor: 'pointer',
         }}
@@ -244,7 +244,7 @@ export function LazicPanel() {
             boxShadow: status?.enabled ? `0 0 6px ${T.green}` : 'none',
             animation: status?.enabled ? 'pulse 1.5s infinite' : 'none',
           }} />
-          <span style={{ fontSize: 11, color: status?.enabled ? T.green : T.text2, fontWeight: 600 }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: status?.enabled ? T.green : T.text2, fontWeight: 600 }}>
             {loading ? t('loading') : status?.enabled ? t('stinging') : t('stopped')}
           </span>
         </div>
@@ -257,9 +257,9 @@ export function LazicPanel() {
             style={{
               background: showSettings ? `rgba(255,107,53,0.15)` : 'rgba(255,255,255,0.04)',
               border: `1px solid ${showSettings ? T.accent : T.border}`,
-              borderRadius: 6,
+              borderRadius: 'var(--radius-sm)',
               color: showSettings ? T.accent : T.text3,
-              fontSize: 10,
+              fontSize: 'var(--text-xs)',
               padding: '4px 8px',
               cursor: 'pointer',
               fontFamily: "var(--font-ar)",
@@ -278,9 +278,9 @@ export function LazicPanel() {
                 ? 'rgba(255,71,87,0.15)'
                 : `rgba(255,107,53,0.15)`,
               border: `1px solid ${status?.enabled ? T.red : T.accent}`,
-              borderRadius: 6,
+              borderRadius: 'var(--radius-sm)',
               color: status?.enabled ? T.red : T.accent,
-              fontSize: 10,
+              fontSize: 'var(--text-xs)',
               fontWeight: 700,
               padding: '4px 10px',
               cursor: toggling ? 'wait' : 'pointer',
@@ -303,12 +303,12 @@ export function LazicPanel() {
           <div key={label} style={{
             background: 'rgba(255,255,255,0.03)',
             border: T.border,
-            borderRadius: 6,
+            borderRadius: 'var(--radius-sm)',
             padding: '5px 6px',
             textAlign: 'center',
           }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color, fontFamily: 'monospace' }}>{value}</div>
-            <div style={{ fontSize: 8, color: T.text3, marginTop: 1 }}>{label}</div>
+            <div style={{ fontSize: 'var(--text-base)', fontWeight: 700, color, fontFamily: 'monospace' }}>{value}</div>
+            <div style={{ fontSize: 'var(--text-xs)', color: T.text3, marginTop: 1 }}>{label}</div>
           </div>
         ))}
       </div>
@@ -318,16 +318,16 @@ export function LazicPanel() {
         <div style={{
           display: 'flex', gap: 5, marginBottom: 10,
           background: 'rgba(255,255,255,0.02)', border: T.border,
-          borderRadius: 6, padding: '5px 8px',
+          borderRadius: 'var(--radius-sm)', padding: '5px 8px',
         }}>
-          <span style={{ fontSize: 8, color: T.text3, fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>
             {t('metricSuccess')}: <span style={{ color: T.green, fontWeight: 700 }}>{metrics.success}</span>
           </span>
-          <span style={{ fontSize: 8, color: T.text3, fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>
             {t('metricFail')}: <span style={{ color: T.red, fontWeight: 700 }}>{metrics.fail}</span>
           </span>
           {successRate !== null && (
-            <span style={{ fontSize: 8, color: T.text3, fontFamily: "var(--font-ar)" }}>
+            <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>
               {t('metricRate')}: <span style={{ color: successRate > 70 ? T.green : T.amber, fontWeight: 700 }}>{successRate}%</span>
             </span>
           )}
@@ -339,11 +339,11 @@ export function LazicPanel() {
         <div style={{
           background: 'rgba(255,107,53,0.03)',
           border: `1px solid ${T.accent}33`,
-          borderRadius: 6,
+          borderRadius: 'var(--radius-sm)',
           padding: '8px 10px',
           marginBottom: 10,
         }}>
-          <div style={{ fontSize: 9, fontWeight: 800, color: T.accent, marginBottom: 8, fontFamily: "var(--font-ar)" }}>
+          <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.accent, marginBottom: 8, fontFamily: "var(--font-ar)" }}>
             ⚙ {t('settingsTitle')}
           </div>
 
@@ -426,9 +426,9 @@ export function LazicPanel() {
               marginTop: 8,
               background: settingsSaved ? `rgba(0,255,163,0.15)` : `rgba(255,107,53,0.15)`,
               border: `1px solid ${settingsSaved ? T.green : T.accent}`,
-              borderRadius: 6,
+              borderRadius: 'var(--radius-sm)',
               color: settingsSaved ? T.green : T.accent,
-              fontSize: 10,
+              fontSize: 'var(--text-xs)',
               fontWeight: 700,
               padding: '6px',
               cursor: savingSettings ? 'wait' : 'pointer',
@@ -446,10 +446,10 @@ export function LazicPanel() {
         <div style={{
           background: 'rgba(255,255,255,0.02)',
           border: T.border,
-          borderRadius: 6,
+          borderRadius: 'var(--radius-sm)',
           padding: '6px 8px',
         }}>
-          <div style={{ fontSize: 8, color: T.text3, marginBottom: 5, display: 'flex', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: 'var(--text-xs)', color: T.text3, marginBottom: 5, display: 'flex', justifyContent: 'space-between' }}>
             <span>{t('obiHeatbarTitle')}</span>
             <span style={{ color: T.accent }}>{t('obiSellBuy')}</span>
           </div>
@@ -460,18 +460,18 @@ export function LazicPanel() {
       )}
 
       {status?.enabled && strongSignals === 0 && (
-        <div style={{ fontSize: 9, color: T.text3, textAlign: 'center', marginTop: 6 }}>
+        <div style={{ fontSize: 'var(--text-xs)', color: T.text3, textAlign: 'center', marginTop: 6 }}>
           {t('waitingForSignal', { threshold: threshold.toFixed(2) })}
         </div>
       )}
 
       {error && (
-        <div style={{ fontSize: 9, color: T.red, textAlign: 'center', marginTop: 4 }}>{error}</div>
+        <div style={{ fontSize: 'var(--text-xs)', color: T.red, textAlign: 'center', marginTop: 4 }}>{error}</div>
       )}
 
       {/* قائمة الصفقات — مفتوحة + مغلقة */}
       <div style={{
-        marginTop: 10, borderRadius: 6, overflow: 'hidden',
+        marginTop: 10, borderRadius: 'var(--radius-sm)', overflow: 'hidden',
         border: `1px solid ${T.border}`,
       }}>
         {/* تبديل بين المفتوحة والمغلقة */}
@@ -479,7 +479,7 @@ export function LazicPanel() {
           <button
             onClick={() => setShowClosed(false)}
             style={{
-              flex: 1, padding: '4px 6px', fontSize: 8, fontWeight: 700,
+              flex: 1, padding: '4px 6px', fontSize: 'var(--text-xs)', fontWeight: 700,
               background: !showClosed ? 'rgba(255,107,53,0.08)' : 'transparent',
               color: !showClosed ? T.accent : T.text3,
               border: 'none', borderBottom: !showClosed ? `1.5px solid ${T.accent}` : 'none',
@@ -491,7 +491,7 @@ export function LazicPanel() {
           <button
             onClick={() => setShowClosed(true)}
             style={{
-              flex: 1, padding: '4px 6px', fontSize: 8, fontWeight: 700,
+              flex: 1, padding: '4px 6px', fontSize: 'var(--text-xs)', fontWeight: 700,
               background: showClosed ? 'rgba(255,107,53,0.08)' : 'transparent',
               color: showClosed ? T.accent : T.text3,
               border: 'none', borderBottom: showClosed ? `1.5px solid ${T.accent}` : 'none',
@@ -505,7 +505,7 @@ export function LazicPanel() {
         {/* قائمة الصفقات */}
         <div style={{ maxHeight: 180, overflowY: 'auto', padding: 3 }} className="custom-scrollbar">
           {(showClosed ? positions.closed : positions.open).length === 0 ? (
-            <div style={{ padding: 10, textAlign: 'center', fontSize: 8, color: T.text3 }}>
+            <div style={{ padding: 10, textAlign: 'center', fontSize: 'var(--text-xs)', color: T.text3 }}>
               {showClosed ? 'لا توجد صفقات مغلقة' : 'لا توجد صفقات مفتوحة'}
             </div>
           ) : (
@@ -521,8 +521,8 @@ export function LazicPanel() {
                 return (
                   <div key={pos.id} style={{
                     display: 'flex', alignItems: 'center', gap: 4,
-                    padding: '4px 5px', borderRadius: 3,
-                    background: 'rgba(255,255,255,0.02)', fontSize: 8,
+                    padding: '4px 5px', borderRadius: 'var(--radius-xs)',
+                    background: 'rgba(255,255,255,0.02)', fontSize: 'var(--text-xs)',
                   }}>
                     <span style={{ color: isBuy ? T.green : T.red, fontWeight: 800, minWidth: 18 }}>
                       {isBuy ? 'BUY' : 'SEL'}
@@ -532,7 +532,7 @@ export function LazicPanel() {
                     </span>
                     {showClosed && reasonLabel && (
                       <span style={{
-                        padding: '0 3px', borderRadius: 2, fontSize: 6, fontWeight: 700,
+                        padding: '0 3px', borderRadius: 'var(--radius-xs)', fontSize: 'var(--text-xs)', fontWeight: 700,
                         background: reasonLabel === 'TP' ? `${T.green}18` :
                                     reasonLabel === 'TS' ? `${T.amber}18` :
                                     reasonLabel === 'SL' ? `${T.red}18` : 'transparent',

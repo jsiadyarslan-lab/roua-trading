@@ -75,14 +75,14 @@ export class ChartErrorBoundary extends React.Component<ChartErrorBoundaryProps,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 24,
+            fontSize: 'var(--text-xl)',
           }}>
             ⚠
           </div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: T.text }}>
+          <div style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: T.text }}>
             Chart Rendering Error
           </div>
-          <div style={{ fontSize: 11, textAlign: 'center', maxWidth: 300, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 'var(--text-xs)', textAlign: 'center', maxWidth: 300, lineHeight: 1.5 }}>
             {this.props.symbol ? `[${this.props.symbol}] ` : ''}
             {this.state.error?.message || 'An unexpected error occurred while rendering the chart.'}
           </div>
@@ -95,9 +95,9 @@ export class ChartErrorBoundary extends React.Component<ChartErrorBoundaryProps,
               background: 'rgba(0,212,255,0.15)',
               color: T.info,
               border: '1px solid rgba(0,212,255,0.3)',
-              borderRadius: 6,
+              borderRadius: 'var(--radius-sm)',
               cursor: 'pointer',
-              fontSize: 12,
+              fontSize: 'var(--text-sm)',
               fontWeight: 600,
               transition: 'all 0.15s',
             }}

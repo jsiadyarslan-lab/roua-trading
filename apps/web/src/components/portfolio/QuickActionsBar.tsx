@@ -41,7 +41,7 @@ export function QuickActionsBar({ onAction }: QuickActionsBarProps) {
               justifyContent: 'center',
               gap: 4,
               padding: '6px 4px',
-              borderRadius: 8,
+              borderRadius: 'var(--radius-md)',
               border: `1px solid ${action.accent}25`,
               background: `linear-gradient(135deg, ${action.accent}0a, rgba(255,255,255,0.02))`,
               backdropFilter: 'blur(8px)',
@@ -50,7 +50,7 @@ export function QuickActionsBar({ onAction }: QuickActionsBarProps) {
               transition: 'all 0.2s ease',
               color: action.accent,
               fontFamily: "var(--font-ar)",
-              fontSize: 8,
+              fontSize: 'var(--text-xs)',
               fontWeight: 800,
               minWidth: 0,
             }}

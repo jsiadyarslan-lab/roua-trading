@@ -260,13 +260,13 @@ export default function ComparisonPanel() {
                 [result.strategy2.label]: Number(d[result.strategy2.strategy]),
               }))}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                <XAxis dataKey="metric" stroke={T.text3} tick={{ fontSize: 10 }} />
-                <YAxis stroke={T.text3} tick={{ fontSize: 10 }} />
+                <XAxis dataKey="metric" stroke={T.text3} tick={{ fontSize: 'var(--text-xs)' }} />
+                <YAxis stroke={T.text3} tick={{ fontSize: 'var(--text-xs)' }} />
                 <Tooltip
-                  contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 8, fontSize: 12 }}
+                  contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)' }}
                   labelStyle={{ color: '#9ca3af' }}
                 />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Legend wrapperStyle={{ fontSize: 'var(--text-sm)' }} />
                 <Bar dataKey={result.strategy1.label} fill="#3b82f6" radius={[4, 4, 0, 0]} />
                 <Bar dataKey={result.strategy2.label} fill="#6366f1" radius={[4, 4, 0, 0]} />
               </BarChart>

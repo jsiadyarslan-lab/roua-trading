@@ -86,7 +86,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
       style={{
       background: COLORS.card,
       border: `1px solid ${COLORS.border}`,
-      borderRadius: 12,
+      borderRadius: 'var(--radius-lg)',
       padding: 0,
       zIndex: 500,
       boxShadow: '0 12px 40px rgba(0,0,0,0.6), 0 0 24px rgba(0,212,255,0.12)',
@@ -109,8 +109,8 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
         borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 10, color: 'rgba(0,212,255,0.4)' }}>⠿</span>
-          <span style={{ fontSize: 11, fontWeight: 800, color: COLORS.cyan }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'rgba(0,212,255,0.4)' }}>⠿</span>
+          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: COLORS.cyan }}>
             {tc('drawingTools')} ({allTools.length})
           </span>
         </div>
@@ -118,7 +118,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
           onClick={onClose}
           style={{
             background: 'transparent', border: 'none', cursor: 'pointer',
-            color: COLORS.textMuted, fontSize: 14, lineHeight: 1, padding: '0 2px',
+            color: COLORS.textMuted, fontSize: 'var(--text-base)', lineHeight: 1, padding: '0 2px',
           }}
           onMouseEnter={(e) => { e.currentTarget.style.color = COLORS.danger; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = COLORS.textMuted; }}
@@ -139,9 +139,9 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
           padding: '5px 8px',
           background: COLORS.bg,
           border: '1px solid rgba(0,212,255,0.15)',
-          borderRadius: 6,
+          borderRadius: 'var(--radius-sm)',
           color: COLORS.text,
-          fontSize: 10,
+          fontSize: 'var(--text-xs)',
           fontFamily: "var(--font-ar)",
           outline: 'none',
           direction: 'inherit',
@@ -165,10 +165,10 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
               padding: '3px 8px',
               background: activeTool === 'cursor' ? COLORS.activeBg : activeCategory === null ? 'rgba(0,212,255,0.1)' : 'none',
               border: `1px solid ${activeTool === 'cursor' ? COLORS.cyan : 'transparent'}`,
-              borderRadius: 4,
+              borderRadius: 'var(--radius-sm)',
               color: activeTool === 'cursor' ? '#000' : COLORS.textSecondary,
               cursor: 'pointer',
-              fontSize: 9,
+              fontSize: 'var(--text-xs)',
               fontWeight: 700,
               fontFamily: "var(--font-ar)",
               transition: 'all 0.12s',
@@ -186,10 +186,10 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
                 padding: '3px 6px',
                 background: activeCategory === cat.key ? 'rgba(0,212,255,0.15)' : 'none',
                 border: `1px solid ${activeCategory === cat.key ? 'rgba(0,212,255,0.3)' : 'transparent'}`,
-                borderRadius: 4,
+                borderRadius: 'var(--radius-sm)',
                 color: activeCategory === cat.key ? COLORS.cyan : COLORS.textSecondary,
                 cursor: 'pointer',
-                fontSize: 9,
+                fontSize: 'var(--text-xs)',
                 fontWeight: activeCategory === cat.key ? 700 : 400,
                 fontFamily: "var(--font-ar)",
                 transition: 'all 0.12s',
@@ -226,7 +226,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
             .map(cat => (
               <div key={cat.key} style={{ marginBottom: 6 }}>
                 <div style={{
-                  fontSize: 9,
+                  fontSize: 'var(--text-xs)',
                   color: COLORS.textMuted,
                   fontWeight: 700,
                   fontFamily: "var(--font-ar)",
@@ -266,9 +266,9 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
           padding: '6px 0',
           background: 'rgba(248,81,73,0.1)',
           border: '1px solid rgba(248,81,73,0.2)',
-          borderRadius: 6,
+          borderRadius: 'var(--radius-sm)',
           color: COLORS.danger,
-          fontSize: 10,
+          fontSize: 'var(--text-xs)',
           fontWeight: 600,
           cursor: 'pointer',
           fontFamily: "var(--font-ar)",
@@ -308,11 +308,11 @@ function renderToolButton(
         padding: '6px 2px',
         background: isActive ? COLORS.activeBg : 'none',
         border: `1px solid ${isActive ? COLORS.cyan : 'transparent'}`,
-        borderRadius: 5,
+        borderRadius: 'var(--radius-sm)',
         color: isActive ? '#000' : COLORS.textSecondary,
         cursor: 'pointer',
         transition: 'all 0.12s',
-        fontSize: 9,
+        fontSize: 'var(--text-xs)',
         fontWeight: isActive ? 700 : 400,
         fontFamily: "var(--font-ar)",
       }}
@@ -323,9 +323,9 @@ function renderToolButton(
         if (!isActive) e.currentTarget.style.background = 'none';
       }}
     >
-      <span style={{ fontSize: 14 }}>{tool.icon}</span>
+      <span style={{ fontSize: 'var(--text-base)' }}>{tool.icon}</span>
       <span style={{
-        fontSize: 7,
+        fontSize: 'var(--text-xs)',
         whiteSpace: 'nowrap',
         overflow: 'hidden',
         textOverflow: 'ellipsis',

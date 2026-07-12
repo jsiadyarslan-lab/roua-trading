@@ -54,7 +54,7 @@ export function PrimarySidebarLayout() {
         gridTemplateColumns: collapsed ? '40px' : '40px minmax(0, 1fr)',
         height: '100%',
         minHeight: 0,
-        borderRadius: 14,
+        borderRadius: 'var(--radius-xl)',
         overflow: 'hidden',
         border: `1px solid rgba(0,212,255,0.18)`,
         background: 'rgba(0, 0, 0, 0.85)',

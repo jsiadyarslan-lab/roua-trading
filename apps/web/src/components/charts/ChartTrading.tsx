@@ -138,13 +138,13 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
         background: C.bg,
         backdropFilter: 'blur(24px)',
         border: `1px solid ${C.border}`,
-        borderRadius: 10,
+        borderRadius: 'var(--radius-lg)',
         boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
         userSelect: 'none',
       }}>
         {/* Symbol */}
         <span style={{
-          fontSize: 10,
+          fontSize: 'var(--text-xs)',
           color: C.cyan,
           fontWeight: 700,
           fontFamily: "var(--font-mono)",
@@ -155,7 +155,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
 
         {/* Price */}
         <span style={{
-          fontSize: 13,
+          fontSize: 'var(--text-sm)',
           color: C.text,
           fontWeight: 700,
           fontFamily: "var(--font-mono)",
@@ -170,11 +170,11 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
           style={{
             background: 'none',
             border: `1px solid ${C.border}`,
-            borderRadius: 4,
+            borderRadius: 'var(--radius-sm)',
             color: C.text2,
             cursor: 'pointer',
             padding: '2px 6px',
-            fontSize: 10,
+            fontSize: 'var(--text-xs)',
             fontFamily: "var(--font-ar)",
             lineHeight: 1,
           }}
@@ -190,9 +190,9 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
               padding: '3px 10px',
               background: C.buy,
               border: 'none',
-              borderRadius: 4,
+              borderRadius: 'var(--radius-sm)',
               color: '#000',
-              fontSize: 9,
+              fontSize: 'var(--text-xs)',
               fontWeight: 800,
               cursor: 'pointer',
               fontFamily: "var(--font-ar)",
@@ -206,9 +206,9 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
               padding: '3px 10px',
               background: C.sell,
               border: 'none',
-              borderRadius: 4,
+              borderRadius: 'var(--radius-sm)',
               color: '#fff',
-              fontSize: 9,
+              fontSize: 'var(--text-xs)',
               fontWeight: 800,
               cursor: 'pointer',
               fontFamily: "var(--font-ar)",
@@ -227,7 +227,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
       background: C.bg,
       backdropFilter: 'blur(24px)',
       border: `1px solid ${isBuy ? 'rgba(0,200,83,0.15)' : 'rgba(255,23,68,0.15)'}`,
-      borderRadius: 12,
+      borderRadius: 'var(--radius-lg)',
       width: 280,
       overflow: 'hidden',
       boxShadow: `0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.03) inset`,
@@ -247,7 +247,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
           background: 'rgba(255,255,255,0.02)',
         }}
       >
-        <span style={{ fontSize: 11, color: C.text, fontWeight: 700, letterSpacing: 0.3 }}>
+        <span style={{ fontSize: 'var(--text-xs)', color: C.text, fontWeight: 700, letterSpacing: 0.3 }}>
           تنفيذ صفقة
         </span>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -259,7 +259,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
               border: 'none',
               color: C.text2,
               cursor: 'pointer',
-              fontSize: 12,
+              fontSize: 'var(--text-sm)',
               padding: '0 2px',
               opacity: 0.7,
             }}
@@ -275,7 +275,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
               border: 'none',
               color: C.text2,
               cursor: 'pointer',
-              fontSize: 13,
+              fontSize: 'var(--text-sm)',
               padding: '0 2px',
               opacity: 0.7,
             }}
@@ -292,13 +292,13 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
         borderBottom: `1px solid ${C.border}`,
       }}>
         {/* Symbol */}
-        <div style={{ fontSize: 10, color: C.cyan, fontWeight: 700, fontFamily: "var(--font-mono)", marginBottom: 2 }}>
+        <div style={{ fontSize: 'var(--text-xs)', color: C.cyan, fontWeight: 700, fontFamily: "var(--font-mono)", marginBottom: 2 }}>
           {symbol}
         </div>
 
         {/* Current Price — Large */}
         <div style={{
-          fontSize: 22,
+          fontSize: 'var(--text-xl)',
           color: isBuy ? C.buy : C.sell,
           fontWeight: 800,
           fontFamily: "var(--font-mono)",
@@ -313,7 +313,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
           display: 'flex',
           gap: 10,
           marginTop: 4,
-          fontSize: 9,
+          fontSize: 'var(--text-xs)',
           color: C.text3,
           fontFamily: "var(--font-mono)",
         }}>
@@ -326,7 +326,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
       <div style={{ padding: '8px 12px 4px' }}>
         <div style={{
           display: 'flex',
-          borderRadius: 6,
+          borderRadius: 'var(--radius-sm)',
           overflow: 'hidden',
           border: `1px solid ${C.border}`,
         }}>
@@ -347,7 +347,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
                     : isB ? C.buyBg : C.sellBg,
                   border: 'none',
                   color: active ? '#000' : (isB ? C.buy : C.sell),
-                  fontSize: 11,
+                  fontSize: 'var(--text-xs)',
                   fontWeight: 800,
                   cursor: 'pointer',
                   fontFamily: "var(--font-ar)",
@@ -377,9 +377,9 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
                   padding: '4px 0',
                   background: active ? 'rgba(0,212,255,0.1)' : 'transparent',
                   border: `1px solid ${active ? 'rgba(0,212,255,0.3)' : C.border}`,
-                  borderRadius: 4,
+                  borderRadius: 'var(--radius-sm)',
                   color: active ? C.cyan : C.text3,
-                  fontSize: 9,
+                  fontSize: 'var(--text-xs)',
                   fontWeight: 600,
                   cursor: 'pointer',
                   fontFamily: "var(--font-ar)",
@@ -401,15 +401,15 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
           alignItems: 'center',
           marginBottom: 4,
         }}>
-          <label style={{ fontSize: 9, color: C.text2, fontWeight: 600 }}>حجم الصفقة</label>
-          <span style={{ fontSize: 8, color: C.text3, fontFamily: "var(--font-mono)" }}>USDT</span>
+          <label style={{ fontSize: 'var(--text-xs)', color: C.text2, fontWeight: 600 }}>حجم الصفقة</label>
+          <span style={{ fontSize: 'var(--text-xs)', color: C.text3, fontFamily: "var(--font-mono)" }}>USDT</span>
         </div>
         <div style={{
           display: 'flex',
           alignItems: 'center',
           background: C.input,
           border: `1px solid ${C.border}`,
-          borderRadius: 6,
+          borderRadius: 'var(--radius-sm)',
           overflow: 'hidden',
           transition: 'border-color 0.15s',
         }}>
@@ -425,7 +425,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
               background: 'transparent',
               border: 'none',
               color: C.text,
-              fontSize: 13,
+              fontSize: 'var(--text-sm)',
               fontWeight: 700,
               fontFamily: "var(--font-mono)",
               outline: 'none',
@@ -444,9 +444,9 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
                 padding: '3px 0',
                 background: quantity === a ? 'rgba(0,212,255,0.1)' : 'rgba(255,255,255,0.03)',
                 border: `1px solid ${quantity === a ? 'rgba(0,212,255,0.25)' : 'rgba(255,255,255,0.05)'}`,
-                borderRadius: 3,
+                borderRadius: 'var(--radius-xs)',
                 color: quantity === a ? C.cyan : C.text3,
-                fontSize: 8,
+                fontSize: 'var(--text-xs)',
                 fontWeight: 600,
                 cursor: 'pointer',
                 fontFamily: "var(--font-mono)",
@@ -468,7 +468,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
               display: 'flex',
               alignItems: 'center',
               gap: 3,
-              fontSize: 9,
+              fontSize: 'var(--text-xs)',
               color: C.sell,
               fontWeight: 600,
               marginBottom: 3,
@@ -487,7 +487,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
               alignItems: 'center',
               background: C.input,
               border: `1px solid ${sl ? 'rgba(255,23,68,0.3)' : C.border}`,
-              borderRadius: 5,
+              borderRadius: 'var(--radius-sm)',
               overflow: 'hidden',
             }}>
               <input
@@ -502,7 +502,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
                   background: 'transparent',
                   border: 'none',
                   color: C.text,
-                  fontSize: 11,
+                  fontSize: 'var(--text-xs)',
                   fontFamily: "var(--font-mono)",
                   outline: 'none',
                   minWidth: 0,
@@ -517,7 +517,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
               display: 'flex',
               alignItems: 'center',
               gap: 3,
-              fontSize: 9,
+              fontSize: 'var(--text-xs)',
               color: C.buy,
               fontWeight: 600,
               marginBottom: 3,
@@ -536,7 +536,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
               alignItems: 'center',
               background: C.input,
               border: `1px solid ${tp ? 'rgba(0,200,83,0.3)' : C.border}`,
-              borderRadius: 5,
+              borderRadius: 'var(--radius-sm)',
               overflow: 'hidden',
             }}>
               <input
@@ -551,7 +551,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
                   background: 'transparent',
                   border: 'none',
                   color: C.text,
-                  fontSize: 11,
+                  fontSize: 'var(--text-xs)',
                   fontFamily: "var(--font-mono)",
                   outline: 'none',
                   minWidth: 0,
@@ -568,17 +568,17 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
           margin: '0 12px 6px',
           padding: '5px 8px',
           background: C.input,
-          borderRadius: 5,
+          borderRadius: 'var(--radius-sm)',
           display: 'flex',
           justifyContent: 'space-between',
         }}>
           {rr && (
-            <span style={{ fontSize: 9, color: C.text2, fontFamily: "var(--font-mono)" }}>
+            <span style={{ fontSize: 'var(--text-xs)', color: C.text2, fontFamily: "var(--font-mono)" }}>
               R:R <b style={{ color: parseFloat(rr) >= 2 ? C.buy : C.gold }}>{rr}</b>
             </span>
           )}
           {pnl && (
-            <span style={{ fontSize: 9, color: C.text2, fontFamily: "var(--font-mono)" }}>
+            <span style={{ fontSize: 'var(--text-xs)', color: C.text2, fontFamily: "var(--font-mono)" }}>
               P&L <b style={{ color: parseFloat(pnl) > 0 ? C.buy : parseFloat(pnl) < 0 ? C.sell : C.text2 }}>
                 {parseFloat(pnl) > 0 ? '+' : ''}{pnl}$
               </b>
@@ -599,9 +599,9 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
               ? 'linear-gradient(135deg, #00C853 0%, #00E676 50%, #69F0AE 100%)'
               : 'linear-gradient(135deg, #FF1744 0%, #FF5252 50%, #FF8A80 100%)',
             border: 'none',
-            borderRadius: 8,
+            borderRadius: 'var(--radius-md)',
             color: isBuy ? '#003300' : '#330000',
-            fontSize: 13,
+            fontSize: 'var(--text-sm)',
             fontWeight: 900,
             cursor: submitting ? 'wait' : 'pointer',
             opacity: submitting ? 0.6 : 1,
@@ -628,7 +628,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder, spre
         borderTop: `1px solid ${C.border}`,
         display: 'flex',
         justifyContent: 'space-between',
-        fontSize: 8,
+        fontSize: 'var(--text-xs)',
         color: C.text3,
         fontFamily: "var(--font-mono)",
       }}>

@@ -187,7 +187,7 @@ function GlassCard({ children, style, glow }: { children: React.ReactNode; style
       backdropFilter: 'blur(16px) saturate(1.4)',
       WebkitBackdropFilter: 'blur(16px) saturate(1.4)',
       border: `1px solid ${T.border}`,
-      borderRadius: 14,
+      borderRadius: 'var(--radius-xl)',
       boxShadow: `0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)${glow ? `, 0 0 30px ${glow}` : ''}`,
       overflow: 'hidden',
       ...style,
@@ -203,7 +203,7 @@ function StatCard({ icon, label, value, subValue, color, mono }: {
   return (
     <div style={{
       background: 'rgba(255,255,255,0.03)',
-      borderRadius: 10,
+      borderRadius: 'var(--radius-lg)',
       padding: '14px 16px',
       border: `1px solid ${T.border}`,
       display: 'flex',
@@ -212,13 +212,13 @@ function StatCard({ icon, label, value, subValue, color, mono }: {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ color: color || T.accent, display: 'flex' }}>{icon}</span>
-        <span style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text2, fontWeight: 600 }}>{label}</span>
+        <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text2, fontWeight: 600 }}>{label}</span>
       </div>
-      <div style={{ fontFamily: mono ? FONT_MONO : FONT_AR, fontSize: 18, color: color || T.text, fontWeight: 800, direction: 'ltr', textAlign: 'right' }}>
+      <div style={{ fontFamily: mono ? FONT_MONO : FONT_AR, fontSize: 'var(--text-lg)', color: color || T.text, fontWeight: 800, direction: 'ltr', textAlign: 'right' }}>
         {value}
       </div>
       {subValue && (
-        <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3 }}>{subValue}</div>
+        <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>{subValue}</div>
       )}
     </div>
   )
@@ -298,7 +298,7 @@ export default function AutonomousTraderPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             {/* Agent Avatar */}
             <div style={{
-              width: 52, height: 52, borderRadius: 14,
+              width: 52, height: 52, borderRadius: 'var(--radius-xl)',
               background: `linear-gradient(135deg, ${isRunning ? T.success : T.accent}, ${isRunning ? '#00B894' : T.blue})`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: isRunning ? `0 0 24px rgba(0,255,163,0.3)` : `0 0 24px ${T.glow}`,
@@ -307,7 +307,7 @@ export default function AutonomousTraderPage() {
               <Cpu size={26} color="#000" strokeWidth={2.5} />
             </div>
             <div>
-              <h1 style={{ fontFamily: FONT_AR, fontSize: 22, fontWeight: 900, margin: 0, lineHeight: 1.2 }}>
+              <h1 style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xl)', fontWeight: 900, margin: 0, lineHeight: 1.2 }}>
                 {t('title')}
               </h1>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
@@ -318,13 +318,13 @@ export default function AutonomousTraderPage() {
                   boxShadow: `0 0 8px ${getStatusColor(status)}`,
                   animation: isRunning ? 'agent-pulse 2s ease-in-out infinite' : 'none',
                 }} />
-                <span style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: getStatusColor(status) }}>
+                <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 700, color: getStatusColor(status) }}>
                   {getStatusLabel(status, t)}
                 </span>
                 {isPaperTrading && isRunning && (
                   <span style={{
-                    fontFamily: FONT_AR, fontSize: 9, fontWeight: 700,
-                    padding: '2px 8px', borderRadius: 6,
+                    fontFamily: FONT_AR, fontSize: 'var(--text-xs)', fontWeight: 700,
+                    padding: '2px 8px', borderRadius: 'var(--radius-sm)',
                     background: `${T.accent}15`, color: T.accent,
                     border: `1px solid ${T.accent}30`,
                   }}>
@@ -332,7 +332,7 @@ export default function AutonomousTraderPage() {
                   </span>
                 )}
                 {config && (
-                  <span style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginInlineEnd: 8 }}>
+                  <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3, marginInlineEnd: 8 }}>
                     • {getStrategyLabel(config.strategy as StrategyType, t)}
                   </span>
                 )}
@@ -353,7 +353,7 @@ export default function AutonomousTraderPage() {
                   color: '#000',
                   fontWeight: 800,
                   padding: '10px 24px',
-                  fontSize: 13,
+                  fontSize: 'var(--text-sm)',
                   cursor: loading ? 'wait' : 'pointer',
                 }}
               >
@@ -450,7 +450,7 @@ export default function AutonomousTraderPage() {
           }}>
             <GlassCard>
               <div style={{ padding: 20 }}>
-                <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, marginBottom: 16, color: T.text }}>
+                <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-base)', fontWeight: 800, marginBottom: 16, color: T.text }}>
                   {t('chooseStrategy')}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
@@ -482,7 +482,7 @@ export default function AutonomousTraderPage() {
                         style={{
                           background: isActive ? `${accent}15` : 'rgba(255,255,255,0.03)',
                           border: `1.5px solid ${isActive ? accent : T.border}`,
-                          borderRadius: 12,
+                          borderRadius: 'var(--radius-lg)',
                           padding: '18px 16px',
                           cursor: 'pointer',
                           textAlign: 'right',
@@ -497,11 +497,11 @@ export default function AutonomousTraderPage() {
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                           <span style={{ color: accent, display: 'flex' }}>{getStrategyIcon(s)}</span>
-                          <span style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, color: isActive ? accent : T.text }}>
+                          <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-base)', fontWeight: 800, color: isActive ? accent : T.text }}>
                             {getStrategyLabel(s, t)}
                           </span>
                         </div>
-                        <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, lineHeight: 1.6 }}>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3, lineHeight: 1.6 }}>
                           {getStrategyDesc(s, t)}
                         </div>
                         <div style={{
@@ -627,9 +627,9 @@ export default function AutonomousTraderPage() {
             margin: '0 28px 16px', padding: '12px 18px',
             background: 'rgba(255,71,87,0.10)',
             border: `1px solid rgba(255,71,87,0.25)`,
-            borderRadius: 10,
+            borderRadius: 'var(--radius-lg)',
             display: 'flex', alignItems: 'center', gap: 10,
-            fontFamily: FONT_AR, fontSize: 12, color: T.red,
+            fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: T.red,
           }}>
             <XCircle size={16} />
             {error}
@@ -642,9 +642,9 @@ export default function AutonomousTraderPage() {
             margin: '0 28px 16px', padding: '14px 18px',
             background: 'rgba(0,212,255,0.06)',
             border: `1px solid rgba(0,212,255,0.20)`,
-            borderRadius: 10,
+            borderRadius: 'var(--radius-lg)',
             display: 'flex', alignItems: 'center', gap: 10,
-            fontFamily: FONT_AR, fontSize: 12, color: T.accent,
+            fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: T.accent,
           }}>
             <Activity size={16} />
             <span>
@@ -659,12 +659,12 @@ export default function AutonomousTraderPage() {
             margin: '0 28px 16px', padding: '16px 20px',
             background: 'rgba(255,71,87,0.08)',
             border: `1px solid rgba(255,71,87,0.25)`,
-            borderRadius: 12,
+            borderRadius: 'var(--radius-lg)',
             display: 'flex', alignItems: 'center', gap: 14,
             fontFamily: FONT_AR,
           }}>
             <div style={{
-              width: 42, height: 42, borderRadius: 11,
+              width: 42, height: 42, borderRadius: 'var(--radius-lg)',
               background: 'rgba(255,71,87,0.12)',
               border: '1px solid rgba(255,71,87,0.25)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -673,10 +673,10 @@ export default function AutonomousTraderPage() {
               <AlertCircle size={22} color={T.red} />
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: T.red, marginBottom: 4 }}>
+              <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.red, marginBottom: 4 }}>
                 {t('autoTradingDisabled')}
               </div>
-              <div style={{ fontSize: 11, color: T.text3, lineHeight: 1.7 }}>
+              <div style={{ fontSize: 'var(--text-xs)', color: T.text3, lineHeight: 1.7 }}>
                 {t('autoTradingDisabledDesc')}{' '}
                 {systemStatus?.source === 'database'
                   ? t('settingFromDB')
@@ -700,12 +700,12 @@ export default function AutonomousTraderPage() {
               }}
               disabled={enablingSystem}
               style={{
-                padding: '10px 24px', borderRadius: 10,
+                padding: '10px 24px', borderRadius: 'var(--radius-lg)',
                 background: enableSystemResult === 'success' ? T.green
                   : enableSystemResult === 'error' ? T.red
                   : 'linear-gradient(135deg, #00FFC6, #0A84FF)',
                 border: 'none', color: '#000',
-                fontFamily: FONT_AR, fontSize: 13, fontWeight: 800,
+                fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 800,
                 cursor: enablingSystem ? 'wait' : 'pointer',
                 transition: 'all 0.2s', flexShrink: 0,
                 opacity: enablingSystem ? 0.7 : 1,
@@ -730,9 +730,9 @@ export default function AutonomousTraderPage() {
             margin: '0 28px 16px', padding: '14px 18px',
             background: 'rgba(255,71,87,0.12)',
             border: `1px solid rgba(255,71,87,0.3)`,
-            borderRadius: 10,
+            borderRadius: 'var(--radius-lg)',
             display: 'flex', alignItems: 'center', gap: 10,
-            fontFamily: FONT_AR, fontSize: 13, color: T.red, fontWeight: 700,
+            fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: T.red, fontWeight: 700,
             animation: 'agent-pulse 2s ease-in-out infinite',
           }}>
             <AlertTriangle size={18} />
@@ -746,9 +746,9 @@ export default function AutonomousTraderPage() {
             margin: '0 28px 16px', padding: '14px 18px',
             background: 'rgba(255,184,0,0.10)',
             border: `1px solid rgba(255,184,0,0.3)`,
-            borderRadius: 10,
+            borderRadius: 'var(--radius-lg)',
             display: 'flex', alignItems: 'center', gap: 10,
-            fontFamily: FONT_AR, fontSize: 13, color: T.amber, fontWeight: 700,
+            fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: T.amber, fontWeight: 700,
           }}>
             <AlertTriangle size={18} />
             {t('dailyLimitReached')} ({config?.maxDailyLossPercent ?? 5}%) — {t('overrideLimit')}
@@ -772,7 +772,7 @@ export default function AutonomousTraderPage() {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
                   padding: '12px 20px',
-                  fontFamily: FONT_AR, fontSize: 12, fontWeight: isActive ? 800 : 500,
+                  fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: isActive ? 800 : 500,
                   color: isActive ? T.accent : T.text2,
                   background: 'transparent',
                   border: 'none',
@@ -785,8 +785,8 @@ export default function AutonomousTraderPage() {
                 {tab.label}
                 {tab.id === 'positions' && positions.length > 0 && (
                   <span style={{
-                    fontSize: 10, fontWeight: 800,
-                    padding: '1px 6px', borderRadius: 8,
+                    fontSize: 'var(--text-xs)', fontWeight: 800,
+                    padding: '1px 6px', borderRadius: 'var(--radius-md)',
                     background: `${T.accent}20`, color: T.accent,
                     fontFamily: FONT_MONO,
                   }}>{positions.length}</span>
@@ -830,7 +830,7 @@ export default function AutonomousTraderPage() {
           {/* Agent Status Card */}
           <GlassCard>
             <div style={{ padding: 20 }}>
-              <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Cpu size={15} color={T.accent} />
                 {t('agentStatus')}
               </div>
@@ -857,7 +857,7 @@ export default function AutonomousTraderPage() {
           {/* Current Strategy */}
           <GlassCard>
             <div style={{ padding: 20 }}>
-              <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 800, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Zap size={15} color={T.purple} />
                 {t('activeStrategy')}
               </div>
@@ -865,11 +865,11 @@ export default function AutonomousTraderPage() {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                     <span style={{ color: T.accent, display: 'flex' }}>{getStrategyIcon(config.strategy as StrategyType)}</span>
-                    <span style={{ fontFamily: FONT_AR, fontSize: 16, fontWeight: 900, color: T.text }}>
+                    <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-md)', fontWeight: 900, color: T.text }}>
                       {getStrategyLabel(config.strategy as StrategyType, t)}
                     </span>
                   </div>
-                  <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, lineHeight: 1.8, marginBottom: 12 }}>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3, lineHeight: 1.8, marginBottom: 12 }}>
                     {getStrategyDesc(config.strategy as StrategyType, t)}
                   </div>
                   {/* Strategy Params */}
@@ -940,7 +940,7 @@ export default function AutonomousTraderPage() {
                         background: 'rgba(255,255,255,0.06)',
                         color: T.accent,
                         border: `1px solid rgba(0,212,255,0.2)`,
-                        fontSize: 11,
+                        fontSize: 'var(--text-xs)',
                         padding: '8px 16px',
                       }}
                     >
@@ -949,7 +949,7 @@ export default function AutonomousTraderPage() {
                   )}
                 </div>
               ) : (
-                <div style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text3, textAlign: 'center', padding: '20px 0' }}>
+                <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: T.text3, textAlign: 'center', padding: '20px 0' }}>
                   {t('activateAgentToSelectStrategy')}
                 </div>
               )}
@@ -960,7 +960,7 @@ export default function AutonomousTraderPage() {
           {config?.strategy === StrategyType.AUTO && (
             <GlassCard glow="rgba(255,159,67,0.08)">
               <div style={{ padding: 20 }}>
-                <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 800, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Eye size={15} color="#FF9F43" />
                   {t('regimeAnalysis')}
                   <button
@@ -969,7 +969,7 @@ export default function AutonomousTraderPage() {
                       fetchRegimeInfo(sym)
                     }}
                     style={{
-                      ...btnStyle, padding: '4px 10px', fontSize: 10,
+                      ...btnStyle, padding: '4px 10px', fontSize: 'var(--text-xs)',
                       background: 'rgba(255,255,255,0.06)', color: T.text3,
                       marginInlineEnd: 'auto',
                     }}
@@ -984,13 +984,13 @@ export default function AutonomousTraderPage() {
                     {/* Current Regime */}
                     <div style={{
                       display: 'flex', alignItems: 'center', gap: 12,
-                      padding: '12px 14px', borderRadius: 10,
+                      padding: '12px 14px', borderRadius: 'var(--radius-lg)',
                       background: `${getRegimeColor(regimeInfo.regime)}12`,
                       border: `1px solid ${getRegimeColor(regimeInfo.regime)}30`,
                       marginBottom: 14,
                     }}>
                       <div style={{
-                        width: 38, height: 38, borderRadius: 10,
+                        width: 38, height: 38, borderRadius: 'var(--radius-lg)',
                         background: `${getRegimeColor(regimeInfo.regime)}20`,
                         border: `1px solid ${getRegimeColor(regimeInfo.regime)}40`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -998,10 +998,10 @@ export default function AutonomousTraderPage() {
                         {getRegimeIcon(regimeInfo.regime)}
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, color: getRegimeColor(regimeInfo.regime) }}>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-base)', fontWeight: 800, color: getRegimeColor(regimeInfo.regime) }}>
                           {getRegimeLabel(regimeInfo.regime, t)}
                         </div>
-                        <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3 }}>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>
                           {t('confidence')}: {regimeInfo.confidence}% • ADX: {regimeInfo.indicators?.adxProxy?.toFixed(0) || '—'} • {t('momentum')}: {getMomentumLabel(regimeInfo.indicators?.momentumDirection, t)}
                         </div>
                       </div>
@@ -1010,15 +1010,15 @@ export default function AutonomousTraderPage() {
                     {/* Auto-selected Strategy */}
                     {regimeInfo.currentStrategy && (
                       <div style={{
-                        padding: '10px 14px', borderRadius: 8,
+                        padding: '10px 14px', borderRadius: 'var(--radius-md)',
                         background: 'rgba(255,255,255,0.04)',
                         border: `1px solid ${T.border}`,
                         marginBottom: 12,
                         display: 'flex', alignItems: 'center', gap: 10,
                       }}>
-                        <span style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3 }}>{t('selectedStrategy')}:</span>
+                        <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>{t('selectedStrategy')}:</span>
                         <span style={{ color: T.accent, display: 'flex' }}>{getStrategyIcon(regimeInfo.currentStrategy)}</span>
-                        <span style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, color: T.text }}>
+                        <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 800, color: T.text }}>
                           {getStrategyLabel(regimeInfo.currentStrategy, t)}
                         </span>
                       </div>
@@ -1027,39 +1027,39 @@ export default function AutonomousTraderPage() {
                     {/* Strategy Scores */}
                     {regimeInfo.strategyScores && regimeInfo.strategyScores.length > 0 && (
                       <div>
-                        <div style={{ fontFamily: FONT_AR, fontSize: 10, fontWeight: 700, color: T.text3, marginBottom: 8 }}>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text3, marginBottom: 8 }}>
                           {t('strategyRanking')}
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                           {regimeInfo.strategyScores.slice(0, 5).map((score, i) => (
                             <div key={score.strategy} style={{
                               display: 'flex', alignItems: 'center', gap: 8,
-                              padding: '6px 10px', borderRadius: 6,
+                              padding: '6px 10px', borderRadius: 'var(--radius-sm)',
                               background: i === 0 ? 'rgba(255,159,67,0.08)' : 'transparent',
                               border: i === 0 ? '1px solid rgba(255,159,67,0.2)' : '1px solid transparent',
                             }}>
                               <span style={{
-                                fontFamily: FONT_MONO, fontSize: 9, fontWeight: 800,
+                                fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', fontWeight: 800,
                                 color: i === 0 ? '#FF9F43' : T.text3,
                                 width: 16, textAlign: 'center',
                               }}>#{i + 1}</span>
                               <span style={{ color: i === 0 ? T.accent : T.text3, display: 'flex' }}>{getStrategyIcon(score.strategy)}</span>
-                              <span style={{ fontFamily: FONT_AR, fontSize: 11, fontWeight: i === 0 ? 700 : 400, color: i === 0 ? T.text : T.text2, flex: 1 }}>
+                              <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', fontWeight: i === 0 ? 700 : 400, color: i === 0 ? T.text : T.text2, flex: 1 }}>
                                 {getStrategyLabel(score.strategy as StrategyType, t)}
                               </span>
                               <div style={{
-                                width: 60, height: 6, borderRadius: 3,
+                                width: 60, height: 6, borderRadius: 'var(--radius-xs)',
                                 background: 'rgba(255,255,255,0.06)',
                                 overflow: 'hidden',
                               }}>
                                 <div style={{
-                                  width: `${score.score}%`, height: '100%', borderRadius: 3,
+                                  width: `${score.score}%`, height: '100%', borderRadius: 'var(--radius-xs)',
                                   background: i === 0
                                     ? 'linear-gradient(90deg, #FF9F43, #FFB800)'
                                     : score.score > 50 ? T.accent : T.text3,
                                 }} />
                               </div>
-                              <span style={{ fontFamily: FONT_MONO, fontSize: 10, fontWeight: 700, color: i === 0 ? '#FF9F43' : T.text3, width: 28, textAlign: 'left' }}>
+                              <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', fontWeight: 700, color: i === 0 ? '#FF9F43' : T.text3, width: 28, textAlign: 'left' }}>
                                 {score.score}
                               </span>
                             </div>
@@ -1075,27 +1075,27 @@ export default function AutonomousTraderPage() {
                       display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8,
                     }}>
                       <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontFamily: FONT_AR, fontSize: 8, color: T.text3 }}>{t('trendStrength')}</div>
-                        <div style={{ fontFamily: FONT_MONO, fontSize: 12, fontWeight: 800, color: T.text }}>{regimeInfo.indicators?.trendStrength ?? '—'}</div>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>{t('trendStrength')}</div>
+                        <div style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-sm)', fontWeight: 800, color: T.text }}>{regimeInfo.indicators?.trendStrength ?? '—'}</div>
                       </div>
                       <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontFamily: FONT_AR, fontSize: 8, color: T.text3 }}>{t('volatility')}</div>
-                        <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 800, color: getVolatilityColor(regimeInfo.indicators?.volatilityLevel) }}>{getVolatilityLabel(regimeInfo.indicators?.volatilityLevel, t)}</div>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>{t('volatility')}</div>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 800, color: getVolatilityColor(regimeInfo.indicators?.volatilityLevel) }}>{getVolatilityLabel(regimeInfo.indicators?.volatilityLevel, t)}</div>
                       </div>
                       <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontFamily: FONT_AR, fontSize: 8, color: T.text3 }}>EMA</div>
-                        <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 800, color: regimeInfo.indicators?.emaAlignment === 'BULLISH' ? T.green : regimeInfo.indicators?.emaAlignment === 'BEARISH' ? T.red : T.text3 }}>{getEMAAlignmentLabel(regimeInfo.indicators?.emaAlignment, t)}</div>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>EMA</div>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 800, color: regimeInfo.indicators?.emaAlignment === 'BULLISH' ? T.green : regimeInfo.indicators?.emaAlignment === 'BEARISH' ? T.red : T.text3 }}>{getEMAAlignmentLabel(regimeInfo.indicators?.emaAlignment, t)}</div>
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div style={{
                     padding: '20px 0', textAlign: 'center',
-                    fontFamily: FONT_AR, fontSize: 11, color: T.text3,
+                    fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3,
                   }}>
                     <Brain size={24} style={{ marginBottom: 8, opacity: 0.3 }} />
                     <div>{t('pressRefreshForAnalysis')}</div>
-                    <div style={{ fontSize: 9, marginTop: 4 }}>{t('analyzesMarketAutoDesc')}</div>
+                    <div style={{ fontSize: 'var(--text-xs)', marginTop: 4 }}>{t('analyzesMarketAutoDesc')}</div>
                   </div>
                 )}
               </div>
@@ -1108,11 +1108,11 @@ export default function AutonomousTraderPage() {
           <GlassCard style={{ flex: 1 }}>
             <div style={{ padding: 20, display: 'flex', flexDirection: 'column', height: '100%' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Timer size={15} color={T.accent} />
                   {t('eventLog')}
                 </div>
-                <span style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.text3 }}>
+                <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', color: T.text3 }}>
                   {filteredLogs.length} {t('events')}
                 </span>
               </div>
@@ -1131,11 +1131,11 @@ export default function AutonomousTraderPage() {
                     onClick={() => setLogFilter(f.key)}
                     style={{
                       padding: '3px 8px',
-                      borderRadius: 6,
+                      borderRadius: 'var(--radius-sm)',
                       border: `1px solid ${logFilter === f.key ? f.color : 'rgba(255,255,255,0.08)'}`,
                       background: logFilter === f.key ? `${f.color}18` : 'transparent',
                       color: logFilter === f.key ? f.color : T.text3,
-                      fontSize: 9,
+                      fontSize: 'var(--text-xs)',
                       fontWeight: 700,
                       fontFamily: FONT_AR,
                       cursor: 'pointer',
@@ -1149,7 +1149,7 @@ export default function AutonomousTraderPage() {
 
               <div style={{ flex: 1, overflowY: 'auto', maxHeight: 420, direction: 'ltr' }} className="custom-scrollbar">
                 {displayLogs.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '40px 0', fontFamily: FONT_AR, fontSize: 12, color: T.text3, }}>
+                  <div style={{ textAlign: 'center', padding: '40px 0', fontFamily: FONT_AR, fontSize: 'var(--text-sm)', color: T.text3, }}>
                     {t('noEventsYet')}
                   </div>
                 ) : (
@@ -1157,10 +1157,10 @@ export default function AutonomousTraderPage() {
                     <div key={i} style={{
                       display: 'flex', gap: 8, padding: '8px 10px',
                       borderBottom: i < displayLogs.length - 1 ? `1px solid ${T.border}` : 'none',
-                      fontFamily: FONT_AR, fontSize: 11,
+                      fontFamily: FONT_AR, fontSize: 'var(--text-xs)',
                       animation: i === 0 ? 'fadeInSlideUp 0.3s ease-out' : 'none',
                     }}>
-                      <span style={{ fontFamily: FONT_MONO, fontSize: 9, color: T.text3, whiteSpace: 'nowrap', paddingTop: 1 }}>
+                      <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', color: T.text3, whiteSpace: 'nowrap', paddingTop: 1 }}>
                         {log.time}
                       </span>
                       <span style={{
@@ -1184,7 +1184,7 @@ export default function AutonomousTraderPage() {
                   style={{
                     ...btnStyle, width: '100', marginTop: 10,
                     background: 'rgba(255,255,255,0.04)', color: T.text3,
-                    fontSize: 11, padding: '8px 0', justifyContent: 'center',
+                    fontSize: 'var(--text-xs)', padding: '8px 0', justifyContent: 'center',
                   }}
                 >
                   {expandedLog ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
@@ -1210,8 +1210,8 @@ export default function AutonomousTraderPage() {
             fontFamily: FONT_AR, color: T.text3,
           }}>
             <ArrowUpDown size={40} style={{ marginBottom: 12, opacity: 0.3 }} />
-            <div style={{ fontSize: 14, fontWeight: 700 }}>{t('noOpenPositions')}</div>
-            <div style={{ fontSize: 11, marginTop: 6 }}>{t('positionsWillAppearDesc')}</div>
+            <div style={{ fontSize: 'var(--text-base)', fontWeight: 700 }}>{t('noOpenPositions')}</div>
+            <div style={{ fontSize: 'var(--text-xs)', marginTop: 6 }}>{t('positionsWillAppearDesc')}</div>
           </div>
         </GlassCard>
       )
@@ -1227,7 +1227,7 @@ export default function AutonomousTraderPage() {
               <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
                 {/* Side Indicator */}
                 <div style={{
-                  width: 36, height: 36, borderRadius: 10,
+                  width: 36, height: 36, borderRadius: 'var(--radius-lg)',
                   background: isBuy ? 'rgba(0,255,163,0.10)' : 'rgba(255,71,87,0.10)',
                   border: `1px solid ${isBuy ? 'rgba(0,255,163,0.2)' : 'rgba(255,71,87,0.2)'}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1238,29 +1238,29 @@ export default function AutonomousTraderPage() {
                 {/* Symbol + Strategy */}
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontFamily: FONT_MONO, fontSize: 14, fontWeight: 800, color: T.text }}>{pos.symbol}</span>
+                    <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-base)', fontWeight: 800, color: T.text }}>{pos.symbol}</span>
                     <span style={{
-                      fontFamily: FONT_MONO, fontSize: 9, fontWeight: 700,
-                      padding: '2px 6px', borderRadius: 4,
+                      fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', fontWeight: 700,
+                      padding: '2px 6px', borderRadius: 'var(--radius-sm)',
                       background: isBuy ? 'rgba(0,255,163,0.12)' : 'rgba(255,71,87,0.12)',
                       color: isBuy ? T.green : T.red,
                     }}>{pos.side}</span>
                     <span style={{
-                      fontFamily: FONT_AR, fontSize: 9, padding: '2px 6px', borderRadius: 4,
+                      fontFamily: FONT_AR, fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)',
                       background: `${T.purple}15`, color: T.purple,
                     }}>{getStrategyLabel(pos.strategy as StrategyType, t)}</span>
                   </div>
-                  <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 3, }}>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3, marginTop: 3, }}>
                     {pos.reasoning?.substring(0, 80)}{pos.reasoning?.length > 80 ? '...' : ''}
                   </div>
                 </div>
 
                 {/* Prices */}
                 <div style={{ textAlign: 'left', direction: 'ltr' }}>
-                  <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.text }}>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-sm)', color: T.text }}>
                     {fmtPriceLocale(Number(pos.entryPrice), pos.symbol)}
                   </div>
-                  <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.text3 }}>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', color: T.text3 }}>
                     → {pos.currentPrice ? fmtPriceLocale(Number(pos.currentPrice), pos.symbol) : '—'}
                   </div>
                 </div>
@@ -1269,12 +1269,12 @@ export default function AutonomousTraderPage() {
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <div>
-                      <div style={{ fontFamily: FONT_AR, fontSize: 8, color: T.text3 }}>SL</div>
-                      <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.red }}>{pos.stopLoss ? fmtPriceLocale(Number(pos.stopLoss), pos.symbol) : '—'}</div>
+                      <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>SL</div>
+                      <div style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', color: T.red }}>{pos.stopLoss ? fmtPriceLocale(Number(pos.stopLoss), pos.symbol) : '—'}</div>
                     </div>
                     <div>
-                      <div style={{ fontFamily: FONT_AR, fontSize: 8, color: T.text3 }}>TP</div>
-                      <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.green }}>{pos.takeProfit ? fmtPriceLocale(Number(pos.takeProfit), pos.symbol) : '—'}</div>
+                      <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>TP</div>
+                      <div style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', color: T.green }}>{pos.takeProfit ? fmtPriceLocale(Number(pos.takeProfit), pos.symbol) : '—'}</div>
                     </div>
                   </div>
                 </div>
@@ -1282,11 +1282,11 @@ export default function AutonomousTraderPage() {
                 {/* PnL */}
                 <div style={{
                   textAlign: 'left', direction: 'ltr',
-                  padding: '8px 14px', borderRadius: 8,
+                  padding: '8px 14px', borderRadius: 'var(--radius-md)',
                   background: pos.unrealizedPnl > 0 ? 'rgba(0,255,163,0.08)' : pos.unrealizedPnl < 0 ? 'rgba(255,71,87,0.08)' : 'rgba(139,146,168,0.06)',
                   border: `1px solid ${pos.unrealizedPnl > 0 ? 'rgba(0,255,163,0.15)' : pos.unrealizedPnl < 0 ? 'rgba(255,71,87,0.15)' : 'rgba(139,146,168,0.1)'}`,
                 }}>
-                  <div style={{ fontFamily: FONT_MONO, fontSize: 14, fontWeight: 800, color: pnlColor }}>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-base)', fontWeight: 800, color: pnlColor }}>
                     {formatUSD(pos.unrealizedPnl)}
                   </div>
                 </div>
@@ -1318,8 +1318,8 @@ export default function AutonomousTraderPage() {
             fontFamily: FONT_AR, color: T.text3,
           }}>
             <BarChart3 size={40} style={{ marginBottom: 12, opacity: 0.3 }} />
-            <div style={{ fontSize: 14, fontWeight: 700 }}>{t('noPerformanceData')}</div>
-            <div style={{ fontSize: 11, marginTop: 6 }}>{t('performanceWillAppearDesc')}</div>
+            <div style={{ fontSize: 'var(--text-base)', fontWeight: 700 }}>{t('noPerformanceData')}</div>
+            <div style={{ fontSize: 'var(--text-xs)', marginTop: 6 }}>{t('performanceWillAppearDesc')}</div>
           </div>
         </GlassCard>
       )
@@ -1334,38 +1334,38 @@ export default function AutonomousTraderPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
           <GlassCard>
             <div style={{ padding: 20, textAlign: 'center' }}>
-              <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginBottom: 8 }}>{t('totalPnl')}</div>
-              <div style={{ fontFamily: FONT_MONO, fontSize: 24, fontWeight: 900, color: pnlColor }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3, marginBottom: 8 }}>{t('totalPnl')}</div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xl)', fontWeight: 900, color: pnlColor }}>
                 {formatUSD(performance.totalPnL)}
               </div>
             </div>
           </GlassCard>
           <GlassCard>
             <div style={{ padding: 20, textAlign: 'center' }}>
-              <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginBottom: 8 }}>{t('winRate')}</div>
-              <div style={{ fontFamily: FONT_MONO, fontSize: 24, fontWeight: 900, color: winRateColor }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3, marginBottom: 8 }}>{t('winRate')}</div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xl)', fontWeight: 900, color: winRateColor }}>
                 {safeToFixed(performance.winRate, 1)}%
               </div>
-              <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 4 }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3, marginTop: 4 }}>
                 {performance.winningTrades} {t('wins')} / {performance.losingTrades} {t('losses')}
               </div>
             </div>
           </GlassCard>
           <GlassCard>
             <div style={{ padding: 20, textAlign: 'center' }}>
-              <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginBottom: 8 }}>{t('profitFactorLabel')}</div>
-              <div style={{ fontFamily: FONT_MONO, fontSize: 24, fontWeight: 900, color: performance.profitFactor >= 1.5 ? T.green : T.amber }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3, marginBottom: 8 }}>{t('profitFactorLabel')}</div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xl)', fontWeight: 900, color: performance.profitFactor >= 1.5 ? T.green : T.amber }}>
                 {safeToFixed(performance.profitFactor, 2)}
               </div>
             </div>
           </GlassCard>
           <GlassCard>
             <div style={{ padding: 20, textAlign: 'center' }}>
-              <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginBottom: 8 }}>{t('maxDrawdownLabel')}</div>
-              <div style={{ fontFamily: FONT_MONO, fontSize: 24, fontWeight: 900, color: T.red }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3, marginBottom: 8 }}>{t('maxDrawdownLabel')}</div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xl)', fontWeight: 900, color: T.red }}>
                 {safeToFixed(performance.maxDrawdownPercent, 1)}%
               </div>
-              <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.text3, marginTop: 4 }}>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', color: T.text3, marginTop: 4 }}>
                 ${Math.abs(performance.maxDrawdown).toLocaleString('en', { maximumFractionDigits: 2 })}
               </div>
             </div>
@@ -1375,7 +1375,7 @@ export default function AutonomousTraderPage() {
         {/* Detailed Metrics */}
         <GlassCard>
           <div style={{ padding: 20 }}>
-            <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Gauge size={15} color={T.accent} />
               {t('detailMetrics')}
             </div>
@@ -1396,17 +1396,17 @@ export default function AutonomousTraderPage() {
         {/* Win/Loss Visual Bar */}
         <GlassCard>
           <div style={{ padding: 20 }}>
-            <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 14 }}>
+            <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 800, marginBottom: 14 }}>
               {t('tradeDistribution')}
             </div>
-            <div style={{ display: 'flex', height: 28, borderRadius: 8, overflow: 'hidden', direction: 'ltr' }}>
+            <div style={{ display: 'flex', height: 28, borderRadius: 'var(--radius-md)', overflow: 'hidden', direction: 'ltr' }}>
               {performance.totalTrades > 0 && (
                 <>
                   <div style={{
                     width: `${(performance.winningTrades / performance.totalTrades) * 100}%`,
                     background: `linear-gradient(90deg, ${T.green}, ${T.greenDim})`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontFamily: FONT_MONO, fontSize: 10, fontWeight: 800, color: '#000',
+                    fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', fontWeight: 800, color: '#000',
                     transition: 'width 0.5s ease',
                   }}>
                     {performance.winningTrades} {t('wins')}
@@ -1415,7 +1415,7 @@ export default function AutonomousTraderPage() {
                     width: `${(performance.losingTrades / performance.totalTrades) * 100}%`,
                     background: `linear-gradient(90deg, #FF6B6B, ${T.red})`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontFamily: FONT_MONO, fontSize: 10, fontWeight: 800, color: '#fff',
+                    fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', fontWeight: 800, color: '#fff',
                     transition: 'width 0.5s ease',
                   }}>
                     {performance.losingTrades} {t('losses')}
@@ -1529,7 +1529,7 @@ export default function AutonomousTraderPage() {
           <div style={{ padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
               <div style={{
-                width: 38, height: 38, borderRadius: 10,
+                width: 38, height: 38, borderRadius: 'var(--radius-lg)',
                 background: globalAutoTrading ? 'rgba(0,255,163,0.10)' : 'rgba(255,71,87,0.10)',
                 border: `1px solid ${globalAutoTrading ? 'rgba(0,255,163,0.20)' : 'rgba(255,71,87,0.20)'}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1541,10 +1541,10 @@ export default function AutonomousTraderPage() {
                 }
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, color: globalAutoTrading ? T.green : T.red, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 800, color: globalAutoTrading ? T.green : T.red, display: 'flex', alignItems: 'center', gap: 6 }}>
                   {globalAutoTrading ? t('autoTradingEnabled') : t('autoTradingDisabled')}
                   <span style={{
-                    fontSize: 9, padding: '2px 6px', borderRadius: 6,
+                    fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)',
                     background: settingSource === 'database' ? `${T.accent}15` : `${T.amber}15`,
                     color: settingSource === 'database' ? T.accent : T.amber,
                     fontFamily: FONT_AR, fontWeight: 600,
@@ -1552,7 +1552,7 @@ export default function AutonomousTraderPage() {
                     {settingSource === 'database' ? t('fromDatabase') : t('fromEnv')}
                   </span>
                 </div>
-                <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 3 }}>
+                <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3, marginTop: 3 }}>
                   {globalAutoTrading
                     ? t('canEnableAgent')
                     : t('mustEnableAutoTrading')
@@ -1563,13 +1563,13 @@ export default function AutonomousTraderPage() {
             <button
               onClick={() => updateSystemSettings({ autoTradingEnabled: !globalAutoTrading })}
               style={{
-                minWidth: 80, padding: '10px 20px', borderRadius: 10,
+                minWidth: 80, padding: '10px 20px', borderRadius: 'var(--radius-lg)',
                 background: globalAutoTrading
                   ? 'rgba(255,71,87,0.10)'
                   : 'linear-gradient(135deg, #00FFC6, #0A84FF)',
                 border: globalAutoTrading ? '1px solid rgba(255,71,87,0.25)' : 'none',
                 color: globalAutoTrading ? T.red : '#000',
-                fontFamily: FONT_AR, fontSize: 12, fontWeight: 800,
+                fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 800,
                 cursor: 'pointer', transition: 'all 0.2s',
                 flexShrink: 0,
               }}
@@ -1587,11 +1587,11 @@ export default function AutonomousTraderPage() {
               onClick={() => setSettingsTab(tab.id)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
-                padding: '8px 14px', borderRadius: 8,
+                padding: '8px 14px', borderRadius: 'var(--radius-md)',
                 background: settingsTab === tab.id ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.03)',
                 border: `1px solid ${settingsTab === tab.id ? 'rgba(0,212,255,0.3)' : T.border}`,
                 color: settingsTab === tab.id ? T.accent : T.text2,
-                fontFamily: FONT_AR, fontSize: 11, fontWeight: 700,
+                fontFamily: FONT_AR, fontSize: 'var(--text-xs)', fontWeight: 700,
                 cursor: 'pointer', transition: 'all 0.2s',
               }}
             >
@@ -1605,29 +1605,29 @@ export default function AutonomousTraderPage() {
         {settingsTab === 'general' && (
           <GlassCard>
             <div style={{ padding: 20 }}>
-              <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Settings2 size={15} color={T.accent} />
                 {t('generalSettings')}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 {/* Auto Trading Toggle */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: 10, border: `1px solid ${T.border}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-lg)', border: `1px solid ${T.border}` }}>
                   <div>
-                    <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text }}>{t('enableAutoTrading')}</div>
-                    <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 2 }}>{t('allowAgentAutoDesc')}</div>
+                    <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text }}>{t('enableAutoTrading')}</div>
+                    <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3, marginTop: 2 }}>{t('allowAgentAutoDesc')}</div>
                   </div>
                   <button
                     onClick={() => handleSettingChange('autoTradingEnabled', !localSettings.autoTradingEnabled)}
                     style={{
-                      width: 44, height: 24, borderRadius: 12,
+                      width: 44, height: 24, borderRadius: 'var(--radius-lg)',
                       background: localSettings.autoTradingEnabled ? T.green : 'rgba(255,255,255,0.1)',
                       border: 'none', cursor: 'pointer',
                       position: 'relative', transition: 'all 0.2s',
                     }}
                   >
                     <div style={{
-                      width: 18, height: 18, borderRadius: 9,
+                      width: 18, height: 18, borderRadius: 'var(--radius-md)',
                       background: '#fff',
                       position: 'absolute', top: 3,
                       left: localSettings.autoTradingEnabled ? 23 : 3,
@@ -1639,7 +1639,7 @@ export default function AutonomousTraderPage() {
 
                 {/* Default Strategy */}
                 <div>
-                  <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 8 }}>{t('defaultStrategy')}</div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, marginBottom: 8 }}>{t('defaultStrategy')}</div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     {[
                       // FIX: SCALPING removed — it belongs to the Smart Executor
@@ -1652,11 +1652,11 @@ export default function AutonomousTraderPage() {
                         onClick={() => { handleSettingChange('defaultStrategy', s.value); setSettingsTab(s.value.toLowerCase() as any) }}
                         style={{
                           flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                          padding: '10px 12px', borderRadius: 8,
+                          padding: '10px 12px', borderRadius: 'var(--radius-md)',
                           background: localSettings.defaultStrategy === s.value ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.03)',
                           border: `1px solid ${localSettings.defaultStrategy === s.value ? 'rgba(0,212,255,0.3)' : T.border}`,
                           color: localSettings.defaultStrategy === s.value ? T.accent : T.text2,
-                          fontFamily: FONT_AR, fontSize: 11, fontWeight: 700,
+                          fontFamily: FONT_AR, fontSize: 'var(--text-xs)', fontWeight: 700,
                           cursor: 'pointer', transition: 'all 0.2s',
                         }}
                       >
@@ -1671,12 +1671,12 @@ export default function AutonomousTraderPage() {
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                     <div>
-                      <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text }}>{t('paperTradingBalance')}</div>
-                      <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3 }}>{t('paperBalanceDesc')}</div>
+                      <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text }}>{t('paperTradingBalance')}</div>
+                      <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3 }}>{t('paperBalanceDesc')}</div>
                     </div>
                     <div style={{
-                      fontFamily: FONT_MONO, fontSize: 16, fontWeight: 900, color: T.green,
-                      padding: '4px 12px', borderRadius: 8,
+                      fontFamily: FONT_MONO, fontSize: 'var(--text-md)', fontWeight: 900, color: T.green,
+                      padding: '4px 12px', borderRadius: 'var(--radius-md)',
                       background: `${T.green}12`, border: `1px solid ${T.green}30`,
                       direction: 'ltr',
                     }}>
@@ -1692,7 +1692,7 @@ export default function AutonomousTraderPage() {
                     onChange={(e) => handleSettingChange('paperBalance', parseInt(e.target.value))}
                     style={{ width: '100%', accentColor: T.green, height: 4, cursor: 'pointer' }}
                   />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: FONT_MONO, fontSize: 9, color: T.text3, direction: 'ltr' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', color: T.text3, direction: 'ltr' }}>
                     <span>$100</span>
                     <span>$100,000</span>
                   </div>
@@ -1700,12 +1700,12 @@ export default function AutonomousTraderPage() {
 
                 {/* Default Symbols */}
                 <div>
-                  <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 8 }}>{t('defaultSymbols')}</div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, marginBottom: 8 }}>{t('defaultSymbols')}</div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {localSettings.defaultSymbols.map((sym: string) => (
                       <span key={sym} style={{
-                        fontFamily: FONT_MONO, fontSize: 10,
-                        padding: '4px 10px', borderRadius: 6,
+                        fontFamily: FONT_MONO, fontSize: 'var(--text-xs)',
+                        padding: '4px 10px', borderRadius: 'var(--radius-sm)',
                         background: 'rgba(0,212,255,0.08)',
                         border: '1px solid rgba(0,212,255,0.2)',
                         color: T.accent,
@@ -1725,7 +1725,7 @@ export default function AutonomousTraderPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <GlassCard>
               <div style={{ padding: 20 }}>
-                <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Shield size={15} color={T.amber} />
                   {t('riskParams')}
                 </div>
@@ -1766,7 +1766,7 @@ export default function AutonomousTraderPage() {
             {/* Safety Rules */}
             <GlassCard>
               <div style={{ padding: 20 }}>
-                <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <AlertTriangle size={15} color={T.red} />
                   {t('safetyRules')}
                 </div>
@@ -1784,12 +1784,12 @@ export default function AutonomousTraderPage() {
                     <div key={i} style={{
                       display: 'flex', gap: 10, padding: '10px 12px',
                       background: 'rgba(255,255,255,0.02)',
-                      borderRadius: 8, border: `1px solid ${T.border}`,
+                      borderRadius: 'var(--radius-md)', border: `1px solid ${T.border}`,
                     }}>
                       <span style={{ color: rule.color, display: 'flex', marginTop: 1 }}>{rule.icon}</span>
                       <div>
-                        <div style={{ fontFamily: FONT_AR, fontSize: 11, fontWeight: 700, color: T.text }}>{rule.title}</div>
-                        <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 2 }}>{rule.desc}</div>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text }}>{rule.title}</div>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.text3, marginTop: 2 }}>{rule.desc}</div>
                       </div>
                     </div>
                   ))}
@@ -1803,24 +1803,24 @@ export default function AutonomousTraderPage() {
         {settingsTab === 'scalping' && (
           <GlassCard>
             <div style={{ padding: 20 }}>
-              <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Zap size={15} color={T.amber} />
                 {t('scalpingParams')}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 <div>
-                  <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 8 }}>{t('timeframe')}</div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, marginBottom: 8 }}>{t('timeframe')}</div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     {['1m', '3m', '5m', '15m', '30m'].map(tf => (
                       <button
                         key={tf}
                         onClick={() => handleSettingChange('scalpingTimeframe', tf)}
                         style={{
-                          padding: '8px 14px', borderRadius: 8,
+                          padding: '8px 14px', borderRadius: 'var(--radius-md)',
                           background: localSettings.scalpingTimeframe === tf ? 'rgba(255,184,0,0.12)' : 'rgba(255,255,255,0.03)',
                           border: `1px solid ${localSettings.scalpingTimeframe === tf ? 'rgba(255,184,0,0.3)' : T.border}`,
                           color: localSettings.scalpingTimeframe === tf ? T.amber : T.text2,
-                          fontFamily: FONT_MONO, fontSize: 11, fontWeight: 700,
+                          fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', fontWeight: 700,
                           cursor: 'pointer', transition: 'all 0.2s',
                         }}
                       >
@@ -1853,24 +1853,24 @@ export default function AutonomousTraderPage() {
         {settingsTab === 'swing' && (
           <GlassCard>
             <div style={{ padding: 20 }}>
-              <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <TrendingUp size={15} color={T.accent} />
                 {t('swingParams')}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 <div>
-                  <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 8 }}>{t('timeframe')}</div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, marginBottom: 8 }}>{t('timeframe')}</div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     {['15m', '30m', '1h', '4h', '1d'].map(tf => (
                       <button
                         key={tf}
                         onClick={() => handleSettingChange('swingTimeframe', tf)}
                         style={{
-                          padding: '8px 14px', borderRadius: 8,
+                          padding: '8px 14px', borderRadius: 'var(--radius-md)',
                           background: localSettings.swingTimeframe === tf ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.03)',
                           border: `1px solid ${localSettings.swingTimeframe === tf ? 'rgba(0,212,255,0.3)' : T.border}`,
                           color: localSettings.swingTimeframe === tf ? T.accent : T.text2,
-                          fontFamily: FONT_MONO, fontSize: 11, fontWeight: 700,
+                          fontFamily: FONT_MONO, fontSize: 'var(--text-xs)', fontWeight: 700,
                           cursor: 'pointer', transition: 'all 0.2s',
                         }}
                       >
@@ -1898,7 +1898,7 @@ export default function AutonomousTraderPage() {
         {settingsTab === 'grid' && (
           <GlassCard>
             <div style={{ padding: 20 }}>
-              <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 'var(--text-sm)', fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Layers size={15} color={T.purple} />
                 {t('gridParams')}
               </div>
@@ -1935,7 +1935,7 @@ export default function AutonomousTraderPage() {
               color: '#000', fontWeight: 800,
               padding: '14px 20px',
               justifyContent: 'center',
-              fontSize: 13,
+              fontSize: 'var(--text-sm)',
             }}
           >
             <CheckCircle2 size={16} />
@@ -1954,8 +1954,8 @@ export default function AutonomousTraderPage() {
 function InfoRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
-      <span style={{ fontFamily: "var(--font-ar)", fontSize: 11, color: T.text2 }}>{label}</span>
-      <span style={{ fontFamily: "var(--font-ar)", fontSize: 11, fontWeight: 700, color: valueColor || T.text }}>{value}</span>
+      <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text2 }}>{label}</span>
+      <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 700, color: valueColor || T.text }}>{value}</span>
     </div>
   )
 }
@@ -1964,9 +1964,9 @@ function SafetyBadge({ icon, label, color }: { icon: React.ReactNode; label: str
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 4,
-      padding: '4px 8px', borderRadius: 6,
+      padding: '4px 8px', borderRadius: 'var(--radius-sm)',
       background: `${color}10`, border: `1px solid ${color}25`,
-      fontFamily: "var(--font-ar)", fontSize: 9, fontWeight: 700, color,
+      fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 700, color,
     }}>
       {icon}
       {label}
@@ -1977,8 +1977,8 @@ function SafetyBadge({ icon, label, color }: { icon: React.ReactNode; label: str
 function StrategyTag({ label }: { label: string }) {
   return (
     <span style={{
-      fontFamily: "var(--font-mono)", fontSize: 9,
-      padding: '3px 8px', borderRadius: 4,
+      fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)',
+      padding: '3px 8px', borderRadius: 'var(--radius-sm)',
       background: 'rgba(255,255,255,0.05)',
       border: '1px solid rgba(255,255,255,0.08)',
       color: T.text2,
@@ -1991,16 +1991,16 @@ function MiniGauge({ value, max, color, label }: { value: number; max: number; c
   return (
     <div style={{ width: 44, textAlign: 'center' }}>
       <div style={{
-        height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.06)',
+        height: 3, borderRadius: 'var(--radius-xs)', background: 'rgba(255,255,255,0.06)',
         overflow: 'hidden', marginBottom: 3,
       }}>
         <div style={{
-          height: '100%', width: `${pct}%`, background: color, borderRadius: 2,
+          height: '100%', width: `${pct}%`, background: color, borderRadius: 'var(--radius-xs)',
           transition: 'width 0.3s ease',
         }} />
       </div>
-      <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color, fontWeight: 700 }}>{value}</div>
-      <div style={{ fontFamily: "var(--font-ar)", fontSize: 7, color: '#5A6178' }}>{label}</div>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color, fontWeight: 700 }}>{value}</div>
+      <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#5A6178' }}>{label}</div>
     </div>
   )
 }
@@ -2008,8 +2008,8 @@ function MiniGauge({ value, max, color, label }: { value: number; max: number; c
 function DetailMetric({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div>
-      <div style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: T.text2, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 800, color: color || T.text, direction: 'ltr', textAlign: 'right' }}>{value}</div>
+      <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text2, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-sm)', fontWeight: 800, color: color || T.text, direction: 'ltr', textAlign: 'right' }}>{value}</div>
     </div>
   )
 }
@@ -2021,12 +2021,12 @@ function RiskSlider({ label, subLabel, value, min, max, step, unit, color, onCha
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
         <div>
-          <div style={{ fontFamily: "var(--font-ar)", fontSize: 12, fontWeight: 700, color: T.text }}>{label}</div>
-          <div style={{ fontFamily: "var(--font-ar)", fontSize: 10, color: '#5A6178' }}>{subLabel}</div>
+          <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text }}>{label}</div>
+          <div style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: '#5A6178' }}>{subLabel}</div>
         </div>
         <div style={{
-          fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 900, color,
-          padding: '4px 12px', borderRadius: 8,
+          fontFamily: "var(--font-mono)", fontSize: 'var(--text-md)', fontWeight: 900, color,
+          padding: '4px 12px', borderRadius: 'var(--radius-md)',
           background: `${color}12`, border: `1px solid ${color}30`,
           direction: 'ltr',
         }}>
@@ -2047,7 +2047,7 @@ function RiskSlider({ label, subLabel, value, min, max, step, unit, color, onCha
           cursor: 'pointer',
         }}
       />
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "var(--font-mono)", fontSize: 9, color: '#5A6178', direction: 'ltr' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: '#5A6178', direction: 'ltr' }}>
         <span>{min}{unit}</span>
         <span>{max}{unit}</span>
       </div>
@@ -2063,11 +2063,11 @@ const btnStyle: React.CSSProperties = {
   alignItems: 'center',
   gap: 8,
   padding: '10px 18px',
-  borderRadius: 10,
+  borderRadius: 'var(--radius-lg)',
   border: 'none',
   cursor: 'pointer',
   fontFamily: "var(--font-ar)",
-  fontSize: 12,
+  fontSize: 'var(--text-sm)',
   fontWeight: 700,
   transition: 'all 0.2s',
   outline: 'none',

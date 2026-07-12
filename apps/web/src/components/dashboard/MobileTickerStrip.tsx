@@ -63,19 +63,19 @@ function SymbolButton({ symbol, isActive, onSelect }: SymbolButtonProps) {
       onClick={() => onSelect(symbol)}
       style={{
         display:'flex', alignItems:'center', gap:6,
-        padding:'4px 10px', borderRadius:8, flexShrink:0, cursor:'pointer',
+        padding:'4px 10px', borderRadius: 'var(--radius-md)', flexShrink:0, cursor:'pointer',
         border: buttonBorder,
         background: buttonBg,
         transition: 'background 0.15s, border-color 0.15s',
       }}>
       <div style={{ display:'flex', flexDirection:'column', gap:1, alignItems:'flex-start' }}>
-        <span style={{ fontSize:10, fontWeight:800, color: tickColor, fontFamily: "var(--font-mono)", lineHeight:1, letterSpacing:'0.05em', transition: 'color 0.15s' }}>
+        <span style={{ fontSize: 'var(--text-xs)', fontWeight:800, color: tickColor, fontFamily: "var(--font-mono)", lineHeight:1, letterSpacing:'0.05em', transition: 'color 0.15s' }}>
           {symbol.split('/')[0]}
         </span>
-        <span style={{ fontSize:11, fontWeight:800, color: tickColor, fontFamily: "var(--font-mono)", lineHeight:1.2, textShadow: tickDir !== 'flat' ? `0 0 6px ${tickDir === 'up' ? 'rgba(0,255,136,0.6)' : 'rgba(255,51,85,0.6)'}` : 'none', transition: 'color 0.15s' }}>
+        <span style={{ fontSize: 'var(--text-xs)', fontWeight:800, color: tickColor, fontFamily: "var(--font-mono)", lineHeight:1.2, textShadow: tickDir !== 'flat' ? `0 0 6px ${tickDir === 'up' ? 'rgba(0,255,136,0.6)' : 'rgba(255,51,85,0.6)'}` : 'none', transition: 'color 0.15s' }}>
           {price}
         </span>
-        <span style={{ fontSize:9, fontWeight:700, color: isUp ? '#00FF88' : '#FF3355', fontFamily: "var(--font-mono)", lineHeight:1, padding: '1px 5px', borderRadius: 4, background: pctBg }}>
+        <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, color: isUp ? '#00FF88' : '#FF3355', fontFamily: "var(--font-mono)", lineHeight:1, padding: '1px 5px', borderRadius: 'var(--radius-sm)', background: pctBg }}>
           {isUp ? '▲' : '▼'} {chgPct >= 0 ? '+' : ''}{chgPct.toFixed(2)}%
         </span>
       </div>

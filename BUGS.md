@@ -1481,3 +1481,19 @@
   - Canonical colors (success/danger/info/warning/council/card/border/text) — all replaced with T.* tokens
   - 255 unique hex values remain (non-canonical Tailwind variants like #f59e0b — would require visual color changes to unify)
 - **Commit:** (filled after push)
+
+### CHANGE-003: Phase 3+4 — Unify fontSize and borderRadius to scales
+- **Type:** REFACTORING
+- **Status:** COMPLETED
+- **Severity:** MEDIUM (visual consistency + readability)
+- **Files:** 132 files (fontSize) + 128 files (borderRadius) + globals.css
+- **Description:** 25+ inline fontSize values (1px-48px) and 16 borderRadius values (2-20px) replaced with unified CSS variable scale.
+- **Fix:**
+  - Phase 3: 3,829 fontSize replacements → 10-size fluid scale (var(--text-xs) to var(--text-5xl))
+  - Phase 4: 2,065 borderRadius replacements → 6-size scale (var(--radius-xs) to var(--radius-2xl))
+  - Added CSS variables to globals.css (:root + dark theme)
+- **Result:**
+  - fontSize: 25+ values → 10 (Major Third scale 1.25, fluid via clamp)
+  - borderRadius: 16 values → 6
+  - Small text (7-9px) now uses var(--text-xs) = 10-12px (WCAG-readable)
+- **Commit:** (filled after push)

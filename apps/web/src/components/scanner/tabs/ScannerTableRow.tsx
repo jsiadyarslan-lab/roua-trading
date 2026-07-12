@@ -39,9 +39,9 @@ function getMacdStatus(s: string | null): 'bullish' | 'bearish' | 'neutral' {
 function TinyBar({ value, maxVal, color }: { value: number; maxVal: number; color: string }) {
   const pct = Math.min(Math.max(Math.abs(value) / maxVal * 100, 2), 100)
   return (
-    <div style={{ width: 32, height: 3, borderRadius: 1.5, background: T.surface, overflow: 'hidden' }}>
+    <div style={{ width: 32, height: 3, borderRadius: 'var(--radius-xs)', background: T.surface, overflow: 'hidden' }}>
       <div style={{
-        width: `${pct}%`, height: '100%', borderRadius: 1.5,
+        width: `${pct}%`, height: '100%', borderRadius: 'var(--radius-xs)',
         background: color, transition: 'width 0.3s',
       }} />
     </div>
@@ -62,7 +62,7 @@ function ActionBadge({ action }: { action: string }) {
   const cfg = map[normAction] ?? map['HOLD']
   return (
     <span style={{
-      fontSize: 8, fontWeight: 800, padding: '2px 6px', borderRadius: 3,
+      fontSize: 'var(--text-xs)', fontWeight: 800, padding: '2px 6px', borderRadius: 'var(--radius-xs)',
       background: cfg.bg, color: cfg.color, fontFamily: "var(--font-ar)",
     }}>
       {t(cfg.key)}
@@ -130,13 +130,13 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <div>
             <div style={{
-              fontSize: 12, fontWeight: 800, color: T.text,
+              fontSize: 'var(--text-sm)', fontWeight: 800, color: T.text,
               fontFamily: "var(--font-mono)",
             }}>
               {item.symbol}
             </div>
             <div style={{
-              fontSize: 8, color: T.text3, fontWeight: 600,
+              fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 600,
               fontFamily: "var(--font-ar)",
             }}>
               {getLocalizedAssetName(item.symbol, safeStr(item.name), t, locale)}
@@ -153,10 +153,10 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
 
       {/* Change% */}
       <td style={{ padding: '8px 8px', borderBottom: `1px solid ${T.border}` }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: chgColor, fontFamily: "var(--font-mono)" }}>
+        <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: chgColor, fontFamily: "var(--font-mono)" }}>
           {item.changePercent >= 0 ? '+' : ''}{item.changePercent.toFixed(2)}%
         </div>
-        <div style={{ fontSize: 9, color: T.text3, fontFamily: "var(--font-mono)" }}>
+        <div style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>
           ${item.price > 0 ? item.price.toLocaleString() : '—'}
         </div>
       </td>
@@ -182,7 +182,7 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
 
       {/* Stoch */}
       <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}`, textAlign: 'center' }}>
-        <div style={{ fontSize: 9, fontWeight: 700, color: T.text2, fontFamily: "var(--font-mono)" }}>
+        <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text2, fontFamily: "var(--font-mono)" }}>
           {item.stochK !== null ? `${item.stochK.toFixed(0)}/${item.stochD?.toFixed(0)}` : '—'}
         </div>
       </td>
@@ -190,7 +190,7 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
       {/* ADX */}
       <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}`, textAlign: 'center' }}>
         <span style={{
-          fontSize: 10, fontWeight: 800,
+          fontSize: 'var(--text-xs)', fontWeight: 800,
           color: (item.adx ?? 0) > 25 ? T.green : T.text3,
           fontFamily: "var(--font-mono)",
         }}>
@@ -210,14 +210,14 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
       <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}`, textAlign: 'center' }}>
         {aiOpinionText ? (
           <div style={{
-            fontSize: 8, fontWeight: 700, color: T.cyan,
+            fontSize: 'var(--text-xs)', fontWeight: 700, color: T.cyan,
             fontFamily: "var(--font-ar)",
             lineHeight: 1.4,
           }}>
             {safeStr(aiOpinionText)}
           </div>
         ) : (
-          <span style={{ fontSize: 9, color: T.text3 }}>—</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>—</span>
         )}
       </td>
 
@@ -230,7 +230,7 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
               onClick={e => { e.stopPropagation(); onSelect(item.symbol) }}
               title={t('actions.deepAnalysis')}
               style={{
-                padding: 3, borderRadius: 3, border: `0.5px solid ${T.border}`,
+                padding: 3, borderRadius: 'var(--radius-xs)', border: `0.5px solid ${T.border}`,
                 background: T.surface, color: T.text3, cursor: 'pointer', transition: 'all 0.2s',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
@@ -241,7 +241,7 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
               onClick={e => { e.stopPropagation() }}
               title={t('actions.multiTimeframe')}
               style={{
-                padding: 3, borderRadius: 3, border: `0.5px solid ${T.border}`,
+                padding: 3, borderRadius: 'var(--radius-xs)', border: `0.5px solid ${T.border}`,
                 background: T.surface, color: T.text3, cursor: 'pointer', transition: 'all 0.2s',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
@@ -252,7 +252,7 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
               onClick={e => { e.stopPropagation(); onBellClick(item.symbol) }}
               title={t('actions.alerts')}
               style={{
-                padding: 3, borderRadius: 3, border: `0.5px solid ${T.border}`,
+                padding: 3, borderRadius: 'var(--radius-xs)', border: `0.5px solid ${T.border}`,
                 background: T.surface, color: hasActiveAlert ? T.amber : T.text3,
                 cursor: 'pointer', transition: 'all 0.2s',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',

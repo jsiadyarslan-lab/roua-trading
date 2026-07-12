@@ -57,9 +57,9 @@ const SIGNAL_COLORS: Record<string, string> = {
 }
 
 const SIZE_MAP: Record<TagSize, { px: number; py: number; fontSize: number }> = {
-  sm: { px: 4, py: 1, fontSize: 7 },
-  md: { px: 6, py: 2, fontSize: 8 },
-  lg: { px: 8, py: 3, fontSize: 9 },
+  sm: { px: 4, py: 1, fontSize: 'var(--text-xs)' },
+  md: { px: 6, py: 2, fontSize: 'var(--text-xs)' },
+  lg: { px: 8, py: 3, fontSize: 'var(--text-xs)' },
 }
 
 export function DirectionTag({ direction, signalClass, size = 'md' }: DirectionTagProps) {
@@ -74,7 +74,7 @@ export function DirectionTag({ direction, signalClass, size = 'md' }: DirectionT
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
       <span style={{
-        padding: `${sz.py}px ${sz.px}px`, borderRadius: 3,
+        padding: `${sz.py}px ${sz.px}px`, borderRadius: 'var(--radius-xs)',
         background: dirConf.bg, color: dirConf.color,
         fontSize: sz.fontSize, fontWeight: 700,
         fontFamily: "var(--font-ar)",
@@ -85,7 +85,7 @@ export function DirectionTag({ direction, signalClass, size = 'md' }: DirectionT
       </span>
       {sigConf && (
         <span style={{
-          padding: `${sz.py}px ${sz.px}px`, borderRadius: 3,
+          padding: `${sz.py}px ${sz.px}px`, borderRadius: 'var(--radius-xs)',
           background: `${sigConf.color}10`, color: sigConf.color,
           fontSize: sz.fontSize, fontWeight: 600,
           fontFamily: "var(--font-ar)",

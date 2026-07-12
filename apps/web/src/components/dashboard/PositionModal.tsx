@@ -52,7 +52,7 @@ export function PositionModal({
         width: 340, maxHeight: '70vh', overflowY: 'auto',
         background: 'rgba(15, 18, 28, 0.98)',
         border: '1px solid rgba(0, 212, 255, 0.3)',
-        borderRadius: 12,
+        borderRadius: 'var(--radius-lg)',
         boxShadow: '0 12px 40px rgba(0,0,0,0.5), 0 0 20px rgba(0,212,255,0.1)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
@@ -68,14 +68,14 @@ export function PositionModal({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{
-              fontSize: 10, fontWeight: 800,
+              fontSize: 'var(--text-xs)', fontWeight: 800,
               color: modal.positionData.side === 'long' ? T.success : T.danger,
-              padding: '2px 8px', borderRadius: 4,
+              padding: '2px 8px', borderRadius: 'var(--radius-sm)',
               background: modal.positionData.side === 'long' ? 'rgba(0,255,163,0.12)' : 'rgba(255,71,87,0.12)',
             }}>
               {modal.positionData.side === 'long' ? 'BUY' : 'SELL'}
             </span>
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#E0ECF8', fontFamily: 'var(--font-mono)' }}>
+            <span style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: '#E0ECF8', fontFamily: 'var(--font-mono)' }}>
               {modal.positionData.symbol}
             </span>
           </div>
@@ -83,8 +83,8 @@ export function PositionModal({
             onClick={() => setModal(null)}
             style={{
               background: 'transparent', border: 'none', cursor: 'pointer',
-              color: '#5A6A80', fontSize: 16, lineHeight: 1, padding: '2px 6px',
-              borderRadius: 4,
+              color: '#5A6A80', fontSize: 'var(--text-md)', lineHeight: 1, padding: '2px 6px',
+              borderRadius: 'var(--radius-sm)',
             }}
             onMouseEnter={(e) => { e.currentTarget.style.color = T.danger; e.currentTarget.style.background = 'rgba(255,71,87,0.1)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = '#5A6A80'; e.currentTarget.style.background = 'transparent'; }}
@@ -95,7 +95,7 @@ export function PositionModal({
 
         {/* Title */}
         <div style={{ padding: '10px 18px 4px' }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: T.info }}>
+          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.info }}>
             {modal.title}
           </span>
         </div>
@@ -107,7 +107,7 @@ export function PositionModal({
           {modal.type === 'modify_sltp' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
-                <label style={{ fontSize: 11, color: T.text2, display: 'block', marginBottom: 4 }}>
+                <label style={{ fontSize: 'var(--text-xs)', color: T.text2, display: 'block', marginBottom: 4 }}>
                   وقف الخسارة (SL)
                 </label>
                 <input
@@ -120,14 +120,14 @@ export function PositionModal({
                     width: '100%', padding: '8px 12px',
                     background: 'rgba(255,71,87,0.06)',
                     border: '1px solid rgba(255,71,87,0.25)',
-                    borderRadius: 8, color: '#E0ECF8',
-                    fontSize: 14, fontFamily: 'var(--font-mono)',
+                    borderRadius: 'var(--radius-md)', color: '#E0ECF8',
+                    fontSize: 'var(--text-base)', fontFamily: 'var(--font-mono)',
                     outline: 'none',
                   }}
                 />
               </div>
               <div>
-                <label style={{ fontSize: 11, color: T.text2, display: 'block', marginBottom: 4 }}>
+                <label style={{ fontSize: 'var(--text-xs)', color: T.text2, display: 'block', marginBottom: 4 }}>
                   أخذ الربح (TP)
                 </label>
                 <input
@@ -140,8 +140,8 @@ export function PositionModal({
                     width: '100%', padding: '8px 12px',
                     background: 'rgba(0,255,163,0.06)',
                     border: '1px solid rgba(0,255,163,0.25)',
-                    borderRadius: 8, color: '#E0ECF8',
-                    fontSize: 14, fontFamily: 'var(--font-mono)',
+                    borderRadius: 'var(--radius-md)', color: '#E0ECF8',
+                    fontSize: 'var(--text-base)', fontFamily: 'var(--font-mono)',
                     outline: 'none',
                   }}
                 />
@@ -151,8 +151,8 @@ export function PositionModal({
                   flex: 1, padding: '8px',
                   background: 'rgba(255,255,255,0.04)',
                   border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 8, color: T.text2,
-                  fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  borderRadius: 'var(--radius-md)', color: T.text2,
+                  fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                   fontFamily: 'var(--font-ar)',
                 }}>إلغاء</button>
                 <button onClick={async () => {
@@ -176,8 +176,8 @@ export function PositionModal({
                   flex: 1, padding: '8px',
                   background: 'rgba(0,212,255,0.12)',
                   border: '1px solid rgba(0,212,255,0.4)',
-                  borderRadius: 8, color: T.info,
-                  fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  borderRadius: 'var(--radius-md)', color: T.info,
+                  fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                   fontFamily: 'var(--font-ar)',
                 }}>حفظ</button>
               </div>
@@ -188,14 +188,14 @@ export function PositionModal({
           {modal.type === 'close' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{
-                padding: '10px 12px', borderRadius: 8,
+                padding: '10px 12px', borderRadius: 'var(--radius-md)',
                 background: 'rgba(255,71,87,0.08)',
                 border: '1px solid rgba(255,71,87,0.2)',
-                fontSize: 12, color: '#C8D4E4', lineHeight: 1.6,
+                fontSize: 'var(--text-sm)', color: '#C8D4E4', lineHeight: 1.6,
               }}>
                 هل أنت متأكد من إغلاق صفقة <strong style={{ color: '#E0ECF8' }}>{modal.positionData.symbol}</strong>؟
                 <br />
-                <span style={{ fontSize: 10, color: '#5A6A80' }}>
+                <span style={{ fontSize: 'var(--text-xs)', color: '#5A6A80' }}>
                   الحجم: {modal.positionData.qty} @ {modal.positionData.entryPrice.toFixed(modal.positionData.entryPrice > 100 ? 2 : 5)}
                 </span>
               </div>
@@ -204,8 +204,8 @@ export function PositionModal({
                   flex: 1, padding: '8px',
                   background: 'rgba(255,255,255,0.04)',
                   border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 8, color: T.text2,
-                  fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  borderRadius: 'var(--radius-md)', color: T.text2,
+                  fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                   fontFamily: 'var(--font-ar)',
                 }}>إلغاء</button>
                 <button onClick={async () => {
@@ -224,8 +224,8 @@ export function PositionModal({
                   flex: 1, padding: '8px',
                   background: 'rgba(255,71,87,0.15)',
                   border: '1px solid rgba(255,71,87,0.4)',
-                  borderRadius: 8, color: T.danger,
-                  fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  borderRadius: 'var(--radius-md)', color: T.danger,
+                  fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                   fontFamily: 'var(--font-ar)',
                 }}>تأكيد الإغلاق</button>
               </div>
@@ -236,14 +236,14 @@ export function PositionModal({
           {modal.type === 'reverse' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{
-                padding: '10px 12px', borderRadius: 8,
+                padding: '10px 12px', borderRadius: 'var(--radius-md)',
                 background: 'rgba(255,184,0,0.08)',
                 border: '1px solid rgba(255,184,0,0.2)',
-                fontSize: 12, color: '#C8D4E4', lineHeight: 1.6,
+                fontSize: 'var(--text-sm)', color: '#C8D4E4', lineHeight: 1.6,
               }}>
                 تأكيد عكس صفقة <strong style={{ color: '#E0ECF8' }}>{modal.positionData.symbol}</strong>؟
                 <br />
-                <span style={{ fontSize: 10, color: '#5A6A80' }}>
+                <span style={{ fontSize: 'var(--text-xs)', color: '#5A6A80' }}>
                   سيُغلق المركز الحالي ويُفتح مركز عكسي بنفس الحجم.
                 </span>
               </div>
@@ -252,8 +252,8 @@ export function PositionModal({
                   flex: 1, padding: '8px',
                   background: 'rgba(255,255,255,0.04)',
                   border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 8, color: T.text2,
-                  fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  borderRadius: 'var(--radius-md)', color: T.text2,
+                  fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                   fontFamily: 'var(--font-ar)',
                 }}>إلغاء</button>
                 <button onClick={async () => {
@@ -281,8 +281,8 @@ export function PositionModal({
                   flex: 1, padding: '8px',
                   background: 'rgba(255,184,0,0.15)',
                   border: '1px solid rgba(255,184,0,0.4)',
-                  borderRadius: 8, color: T.warning,
-                  fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  borderRadius: 'var(--radius-md)', color: T.warning,
+                  fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                   fontFamily: 'var(--font-ar)',
                 }}>تأكيد العكس</button>
               </div>
@@ -293,7 +293,7 @@ export function PositionModal({
           {modal.type === 'alert' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
-                <label style={{ fontSize: 11, color: T.text2, display: 'block', marginBottom: 4 }}>
+                <label style={{ fontSize: 'var(--text-xs)', color: T.text2, display: 'block', marginBottom: 4 }}>
                   سعر التنبيه
                 </label>
                 <input
@@ -306,8 +306,8 @@ export function PositionModal({
                     width: '100%', padding: '8px 12px',
                     background: 'rgba(179,136,255,0.06)',
                     border: '1px solid rgba(179,136,255,0.25)',
-                    borderRadius: 8, color: '#E0ECF8',
-                    fontSize: 14, fontFamily: 'var(--font-mono)',
+                    borderRadius: 'var(--radius-md)', color: '#E0ECF8',
+                    fontSize: 'var(--text-base)', fontFamily: 'var(--font-mono)',
                     outline: 'none',
                   }}
                 />
@@ -317,8 +317,8 @@ export function PositionModal({
                   flex: 1, padding: '8px',
                   background: 'rgba(255,255,255,0.04)',
                   border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 8, color: T.text2,
-                  fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  borderRadius: 'var(--radius-md)', color: T.text2,
+                  fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                   fontFamily: 'var(--font-ar)',
                 }}>إلغاء</button>
                 <button onClick={async () => {
@@ -339,8 +339,8 @@ export function PositionModal({
                   flex: 1, padding: '8px',
                   background: 'rgba(179,136,255,0.15)',
                   border: '1px solid rgba(179,136,255,0.4)',
-                  borderRadius: 8, color: T.council,
-                  fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  borderRadius: 'var(--radius-md)', color: T.council,
+                  fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                   fontFamily: 'var(--font-ar)',
                 }}>إنشاء التنبيه</button>
               </div>
@@ -362,12 +362,12 @@ export function PositionModal({
               ].map((row, i) => (
                 <div key={i} style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '6px 10px', borderRadius: 6,
+                  padding: '6px 10px', borderRadius: 'var(--radius-sm)',
                   background: 'rgba(255,255,255,0.02)',
                 }}>
-                  <span style={{ fontSize: 11, color: '#5A6A80' }}>{row.label}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#5A6A80' }}>{row.label}</span>
                   <span style={{
-                    fontSize: 12, fontWeight: 600, color: row.color,
+                    fontSize: 'var(--text-sm)', fontWeight: 600, color: row.color,
                     fontFamily: row.mono ? 'var(--font-mono)' : 'var(--font-ar)',
                     maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   }}>
@@ -379,8 +379,8 @@ export function PositionModal({
                 marginTop: 8, padding: '8px',
                 background: 'rgba(0,212,255,0.12)',
                 border: '1px solid rgba(0,212,255,0.4)',
-                borderRadius: 8, color: T.info,
-                fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                borderRadius: 'var(--radius-md)', color: T.info,
+                fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                 fontFamily: 'var(--font-ar)',
               }}>إغلاق</button>
             </div>

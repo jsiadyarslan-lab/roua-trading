@@ -24,9 +24,9 @@ const Gauge = ({ value, max, label, color }: { value: number, max: number, label
            <circle cx="22" cy="22" r={radius} fill="none" stroke={`${color}15`} strokeWidth="3" />
            <circle cx="22" cy="22" r={radius} fill="none" stroke={color} strokeWidth="3" strokeDasharray={strokeDasharray} strokeLinecap="round" style={{ transition: '1s ease-out' }} />
          </svg>
-         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', fontFamily: "var(--font-mono)" }}>{value}</div>
+         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-sm)', fontWeight: 700, color: '#fff', fontFamily: "var(--font-mono)" }}>{value}</div>
       </div>
-      <div style={{ fontSize: 9, color: T.text3, fontWeight: 600 }}>{label}</div>
+      <div style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 600 }}>{label}</div>
     </div>
   )
 }
@@ -110,13 +110,13 @@ export default function StrategiesPage() {
         <div style={{
           background: T.card,
           border: `0.5px solid ${T.border}`,
-          borderRadius: 12,
+          borderRadius: 'var(--radius-lg)',
           padding: 24,
           textAlign: 'center',
         }}>
           <FileText size={28} color={T.blue} style={{ marginBottom: 12 }} />
-          <h2 style={{ margin: '0 0 8px', fontSize: 18 }}>{t('noReportsTitle')}</h2>
-          <p style={{ margin: 0, color: T.text2, fontSize: 13 }}>
+          <h2 style={{ margin: '0 0 8px', fontSize: 'var(--text-lg)' }}>{t('noReportsTitle')}</h2>
+          <p style={{ margin: 0, color: T.text2, fontSize: 'var(--text-sm)' }}>
             {error || t('noReportsDesc')}
           </p>
         </div>
@@ -134,16 +134,16 @@ export default function StrategiesPage() {
       {/* Scoped styles via useScopedStyle */}{/* ── 1. Top Bar: Macroeconomic Radar (Ultra-Micro) ── */}
       <div className="strategies-top-bar" style={{ 
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
-        background: T.card, border: `0.5px solid ${T.border}`, borderRadius: 8, padding: '6px 12px',
+        background: T.card, border: `0.5px solid ${T.border}`, borderRadius: 'var(--radius-md)', padding: '6px 12px',
         flexShrink: 0
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Globe size={13} color={T.blue} />
-          <span style={{ fontSize: 12, fontWeight: 700, color: T.text, marginRight: 2 }}>{t('macroRadar')}</span>
-          <span style={{ fontSize: 9, background: `${T.blue}10`, color: T.blue, padding: '2px 6px', borderRadius: 12, fontWeight: 700, fontFamily: "var(--font-mono)", border: `0.5px solid ${T.border}` }}>
+          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, marginRight: 2 }}>{t('macroRadar')}</span>
+          <span style={{ fontSize: 'var(--text-xs)', background: `${T.blue}10`, color: T.blue, padding: '2px 6px', borderRadius: 'var(--radius-lg)', fontWeight: 700, fontFamily: "var(--font-mono)", border: `0.5px solid ${T.border}` }}>
             {t('liveInstiFeed')}
           </span>
-          <span style={{ fontSize: 8, color: T.text3, fontFamily: "var(--font-mono)", marginRight: 4 }}>{t('lastUpdate')} {new Date().toLocaleTimeString('ar-SA')}</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)", marginRight: 4 }}>{t('lastUpdate')} {new Date().toLocaleTimeString('ar-SA')}</span>
         </div>
         
         <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
@@ -155,10 +155,10 @@ export default function StrategiesPage() {
           ].map((id, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, borderInlineStart: i > 0 ? `0.5px solid ${T.border}` : 'none', paddingInlineStart: i > 0 ? 20 : 0 }}>
               <div>
-                <div style={{ fontSize: 9, color: T.text3, marginBottom: 1, letterSpacing: 0.5 }}>{id.label}</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: T.text3, marginBottom: 1, letterSpacing: 0.5 }}>{id.label}</div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "var(--font-mono)" }}>{id.val}</span>
-                  <span style={{ fontSize: 9, color: id.color, fontWeight: 600, fontFamily: "var(--font-mono)" }}>{id.chg}</span>
+                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, fontFamily: "var(--font-mono)" }}>{id.val}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: id.color, fontWeight: 600, fontFamily: "var(--font-mono)" }}>{id.chg}</span>
                 </div>
               </div>
             </div>
@@ -172,10 +172,10 @@ export default function StrategiesPage() {
           onClick={() => setSidebarOpen(!sidebarOpen)}
           style={{
             position: 'fixed', top: 12, right: 12, zIndex: 60,
-            width: 36, height: 36, borderRadius: 8,
+            width: 36, height: 36, borderRadius: 'var(--radius-md)',
             background: T.card, border: `1px solid ${T.border}`,
             color: T.text, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', fontSize: 14,
+            cursor: 'pointer', fontSize: 'var(--text-base)',
           }}
         >
           ☰
@@ -192,30 +192,30 @@ export default function StrategiesPage() {
         
         {/* 2. Left Sidebar: RMS */}
         <div className={`strategies-sidebar${sidebarOpen ? ' strategies-sidebar-open' : ''}`} style={{ 
-          width: 260, background: T.card, border: `0.5px solid ${T.border}`, borderRadius: 8, 
+          width: 260, background: T.card, border: `0.5px solid ${T.border}`, borderRadius: 'var(--radius-md)', 
           display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden'
         }}>
           <div style={{ padding: '12px', borderBottom: `0.5px solid ${T.border}`, background: `linear-gradient(180deg, ${T.blue}05, transparent)` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: T.text, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <h2 style={{ margin: 0, fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <FileText size={13} color={T.blue} /> {t('researchRms')}
               </h2>
-              <button style={{ background: `linear-gradient(135deg, ${T.cyan}, ${T.blue})`, border: 'none', borderRadius: 4, padding: '3px 8px', color: '#fff', fontSize: 9, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, letterSpacing: 0.5 }}>
+              <button style={{ background: `linear-gradient(135deg, ${T.cyan}, ${T.blue})`, border: 'none', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: '#fff', fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, letterSpacing: 0.5 }}>
                  {t('update')} <Zap size={10} />
               </button>
             </div>
             
             <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
                {['weekly', 'monthly', 'yearly', 'custom'].map(p => (
-                 <button key={p} style={{ flex: 1, padding: '4px', background: p === 'monthly' ? `${T.blue}15` : T.bg2, border: `0.5px solid ${T.border}`, borderRadius: 4, color: p === 'monthly' ? T.blue : T.text2, fontSize: 9, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                 <button key={p} style={{ flex: 1, padding: '4px', background: p === 'monthly' ? `${T.blue}15` : T.bg2, border: `0.5px solid ${T.border}`, borderRadius: 'var(--radius-sm)', color: p === 'monthly' ? T.blue : T.text2, fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                    {p === 'monthly' && <Calendar size={8}/>} {t(p)}
                  </button>
                ))}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 6, padding: '0 8px', height: 30 }}>
+            <div style={{ display: 'flex', alignItems: 'center', background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 'var(--radius-sm)', padding: '0 8px', height: 30 }}>
               <Search size={12} color={T.text3} />
-              <input placeholder={t('searchReports')} aria-label={t('searchReports')} style={{ background: 'transparent', border: 'none', color: T.text, fontSize: 11, outline: 'none', padding: '0 8px', width: '100%', fontFamily: "var(--font-ar)" }} />
+              <input placeholder={t('searchReports')} aria-label={t('searchReports')} style={{ background: 'transparent', border: 'none', color: T.text, fontSize: 'var(--text-xs)', outline: 'none', padding: '0 8px', width: '100%', fontFamily: "var(--font-ar)" }} />
             </div>
           </div>
           
@@ -225,7 +225,7 @@ export default function StrategiesPage() {
                 key={idx} 
                 onClick={() => setActiveIdx(idx)}
                 style={{ 
-                  padding: '10px 12px', borderRadius: 6, cursor: 'pointer', transition: 'all 0.2s ease',
+                  padding: '10px 12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'all 0.2s ease',
                   background: activeIdx === idx ? `${T.blue}10` : 'transparent',
                   border: `0.5px solid ${activeIdx === idx ? T.border2 : 'transparent'}`,
                 }}
@@ -233,10 +233,10 @@ export default function StrategiesPage() {
                 onMouseLeave={e => { if (activeIdx !== idx) e.currentTarget.style.background = 'transparent'; }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ fontSize: 9, background: T.bg, padding: '2px 6px', borderRadius: 4, color: T.blue, border: `0.5px solid ${T.border}`, fontFamily: "var(--font-mono)" }}>{rep.type}</span>
-                  <span style={{ fontSize: 9, color: T.text3 }}>{translateDate(rep.date)}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', background: T.bg, padding: '2px 6px', borderRadius: 'var(--radius-sm)', color: T.blue, border: `0.5px solid ${T.border}`, fontFamily: "var(--font-mono)" }}>{rep.type}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{translateDate(rep.date)}</span>
                 </div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: activeIdx === idx ? T.text : T.text2, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: activeIdx === idx ? T.text : T.text2, lineHeight: 1.5 }}>
                   {rep.title}
                 </div>
               </div>
@@ -250,37 +250,37 @@ export default function StrategiesPage() {
         }}>
           
           {/* 3.1 Header Dashboard (VIP Tools) */}
-          <div key={`header-${activeIdx}`} style={{ animation: 'fadeIn 0.3s ease', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: T.bg2, borderRadius: 8, border: `0.5px solid ${T.border}`, padding: '10px 16px', flexShrink: 0 }}>
+          <div key={`header-${activeIdx}`} style={{ animation: 'fadeIn 0.3s ease', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: T.bg2, borderRadius: 'var(--radius-md)', border: `0.5px solid ${T.border}`, padding: '10px 16px', flexShrink: 0 }}>
             
             {/* Context Actions */}
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-               <button style={{ padding: '6px 12px', background: `linear-gradient(135deg, ${T.cyan}10, transparent)`, border: `0.5px solid ${T.cyan}40`, borderRadius: 6, color: T.cyan, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+               <button style={{ padding: '6px 12px', background: `linear-gradient(135deg, ${T.cyan}10, transparent)`, border: `0.5px solid ${T.cyan}40`, borderRadius: 'var(--radius-sm)', color: T.cyan, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 'var(--text-xs)', fontWeight: 700 }}>
                  {t('extract')}
                </button>
                
-               <button style={{ padding: '6px 12px', background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 6, color: T.blue, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+               <button style={{ padding: '6px 12px', background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 'var(--radius-sm)', color: T.blue, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 'var(--text-xs)', fontWeight: 600 }}>
                  <Globe size={12} /> {t('markets')} <ChevronDown size={12} />
                </button>
 
-               <div style={{ display: 'flex', alignItems: 'center', background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 6, padding: '0 10px', height: 30, width: 120 }}>
-                 <span style={{ color: T.text, fontSize: 12, fontWeight: 700, fontFamily: "var(--font-mono)", flex: 1, textAlign: 'center' }}>{active.symbol}</span>
+               <div style={{ display: 'flex', alignItems: 'center', background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 'var(--radius-sm)', padding: '0 10px', height: 30, width: 120 }}>
+                 <span style={{ color: T.text, fontSize: 'var(--text-sm)', fontWeight: 700, fontFamily: "var(--font-mono)", flex: 1, textAlign: 'center' }}>{active.symbol}</span>
                  <Search size={12} color={T.cyan} />
                </div>
 
                <div style={{ width: 1, height: 20, background: T.border, margin: '0 8px' }} />
 
-               <button title={t('saveDocument')} style={{ width: 30, height: 30, background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 6, color: T.text2, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s' }}>
+               <button title={t('saveDocument')} style={{ width: 30, height: 30, background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 'var(--radius-sm)', color: T.text2, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s' }}>
                  <Save size={14} />
                </button>
-               <button title={t('exportPdfExcel')} style={{ padding: '0 10px', height: 30, background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 6, color: T.text, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontWeight: 600, fontSize: 10 }}>
+               <button title={t('exportPdfExcel')} style={{ padding: '0 10px', height: 30, background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 'var(--radius-sm)', color: T.text, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontWeight: 600, fontSize: 'var(--text-xs)' }}>
                  <Download size={12} color={T.blue} /> {t('export')}
                </button>
             </div>
 
             {/* Branding Title */}
             <div style={{ textAlign: 'left' }}>
-              <h1 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: T.cyan, letterSpacing: 0.5, textShadow: `0 0 10px ${T.cyan}20` }}>{t('strategyReports')}</h1>
-              <div style={{ fontSize: 8, color: T.text3, letterSpacing: 1, fontFamily: "var(--font-mono)", marginTop: 2, textTransform: 'uppercase' }}>
+              <h1 style={{ margin: 0, fontSize: 'var(--text-base)', fontWeight: 800, color: T.cyan, letterSpacing: 0.5, textShadow: `0 0 10px ${T.cyan}20` }}>{t('strategyReports')}</h1>
+              <div style={{ fontSize: 'var(--text-xs)', color: T.text3, letterSpacing: 1, fontFamily: "var(--font-mono)", marginTop: 2, textTransform: 'uppercase' }}>
                 {t('branding')}
               </div>
             </div>
@@ -291,36 +291,36 @@ export default function StrategiesPage() {
             {/* Scoped styles via useScopedStyle */}{/* ROW 1: Risk Matrix (Left) & Decision (Right) From Image */}
             <div className="strategies-row-2col">
                {/* Right side: Direct Decision */}
-               <div style={{ flex: 1.2, background: T.cardHover, border: `0.5px solid ${T.border}`, borderRadius: 8, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+               <div style={{ flex: 1.2, background: T.cardHover, border: `0.5px solid ${T.border}`, borderRadius: 'var(--radius-md)', padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
                    <Target size={14} color={T.cyan} />
-                   <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: T.text }}>{t('directDecision')}</h3>
-                   <span style={{ fontSize: 9, background: `${T.bg}`, padding: '2px 6px', borderRadius: 4, color: T.text3, marginRight: 'auto', border: `0.5px solid ${T.border}` }}>
+                   <h3 style={{ margin: 0, fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text }}>{t('directDecision')}</h3>
+                   <span style={{ fontSize: 'var(--text-xs)', background: `${T.bg}`, padding: '2px 6px', borderRadius: 'var(--radius-sm)', color: T.text3, marginRight: 'auto', border: `0.5px solid ${T.border}` }}>
                      {active.symbol} - {active.name}
                    </span>
                  </div>
                  
                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 12 }}>
-                   <div style={{ fontSize: 22, fontWeight: 800, color: active.decision.color, textShadow: `0 0 15px ${active.decision.color}20` }}>
+                   <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: active.decision.color, textShadow: `0 0 15px ${active.decision.color}20` }}>
                      {active.decision.title}
                    </div>
-                   <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: "var(--font-mono)" }}>${active.price}</div>
-                   <div style={{ fontSize: 11, fontWeight: 600, color: active.isUp ? T.green : T.red, display: 'flex', alignItems: 'center', fontFamily: "var(--font-mono)" }}>
+                   <div style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: T.text, fontFamily: "var(--font-mono)" }}>${active.price}</div>
+                   <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: active.isUp ? T.green : T.red, display: 'flex', alignItems: 'center', fontFamily: "var(--font-mono)" }}>
                      {active.isUp ? <TrendingUp size={12} style={{ marginRight: 4 }}/> : <TrendingDown size={12} style={{ marginRight: 4 }}/>} 
                      {active.change}%
                    </div>
                  </div>
                  
-                 <p style={{ fontSize: 11, color: T.text2, lineHeight: 1.6, margin: 0 }}>
+                 <p style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.6, margin: 0 }}>
                    {active.decision.desc}
                  </p>
                </div>
 
                {/* Left side: Risk Matrix */}
-               <div style={{ flex: 1, background: T.cardHover, border: `0.5px solid ${T.border}`, borderRadius: 8, padding: 20 }}>
+               <div style={{ flex: 1, background: T.cardHover, border: `0.5px solid ${T.border}`, borderRadius: 'var(--radius-md)', padding: 20 }}>
                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
                    <Activity size={14} color={T.purple} />
-                   <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: T.purple }}>{t('structuralMatrix')}</h3>
+                   <h3 style={{ margin: 0, fontSize: 'var(--text-sm)', fontWeight: 700, color: T.purple }}>{t('structuralMatrix')}</h3>
                  </div>
                  
                  <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
@@ -335,10 +335,10 @@ export default function StrategiesPage() {
             <div className="strategies-row-2col">
               
               {/* Quant Grid */}
-              <div style={{ flex: 1.5, background: T.card, border: `0.5px solid ${T.border}`, borderRadius: 8, padding: 16 }}>
+              <div style={{ flex: 1.5, background: T.card, border: `0.5px solid ${T.border}`, borderRadius: 'var(--radius-md)', padding: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
                   <Building2 size={14} color={T.blue} />
-                  <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: T.text }}>{t('quantMetrics')}</h3>
+                  <h3 style={{ margin: 0, fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text }}>{t('quantMetrics')}</h3>
                 </div>
                 <div className="strategies-quant-grid">
                   {[
@@ -347,26 +347,26 @@ export default function StrategiesPage() {
                     { label: t('sharpeRatio'), val: active.risk.sharpe, desc: t('riskReturn'), alert: false },
                     { label: t('peRatio'), val: active.risk.pe, desc: t('peRatioDesc'), alert: active.risk.peAlert },
                   ].map((m, i) => (
-                    <div key={i} style={{ background: T.bg2, border: `0.5px solid ${m.alert ? T.red : T.border}`, padding: 10, borderRadius: 6 }}>
-                      <div style={{ fontSize: 9, color: T.text3, marginBottom: 2 }}>{m.label}</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: m.alert ? T.red : T.text, fontFamily: "var(--font-mono)" }}>{m.val}</div>
-                      <div style={{ fontSize: 8, color: m.alert ? T.red : T.text2, marginTop: 4 }}>{m.desc}</div>
+                    <div key={i} style={{ background: T.bg2, border: `0.5px solid ${m.alert ? T.red : T.border}`, padding: 10, borderRadius: 'var(--radius-sm)' }}>
+                      <div style={{ fontSize: 'var(--text-xs)', color: T.text3, marginBottom: 2 }}>{m.label}</div>
+                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: m.alert ? T.red : T.text, fontFamily: "var(--font-mono)" }}>{m.val}</div>
+                      <div style={{ fontSize: 'var(--text-xs)', color: m.alert ? T.red : T.text2, marginTop: 4 }}>{m.desc}</div>
                     </div>
                   ))}
                 </div>
               </div>
 
               {/* Fair Value Radar */}
-              <div style={{ flex: 1, background: T.bg2, border: `0.5px solid ${T.border}`, borderRadius: 8, padding: 16 }}>
+              <div style={{ flex: 1, background: T.bg2, border: `0.5px solid ${T.border}`, borderRadius: 'var(--radius-md)', padding: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: T.text }}>{t('intelligenceValuation')}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: T.blue, fontFamily: "var(--font-mono)" }}>${active.risk.fv}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: T.text }}>{t('intelligenceValuation')}</span>
+                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.blue, fontFamily: "var(--font-mono)" }}>${active.risk.fv}</span>
                 </div>
-                <div style={{ height: 4, background: T.bg, borderRadius: 2, overflow: 'hidden', position: 'relative', marginTop: 10, border: `0.5px solid ${T.border}` }}>
+                <div style={{ height: 4, background: T.bg, borderRadius: 'var(--radius-xs)', overflow: 'hidden', position: 'relative', marginTop: 10, border: `0.5px solid ${T.border}` }}>
                   <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${active.risk.ratio}%`, background: `linear-gradient(90deg, ${T.blue}, ${T.cyan})` }} />
                   <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${active.risk.ratio}%`, width: 2, background: '#fff', boxShadow: '0 0 6px #fff' }} />
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 9, color: T.text3, fontFamily: "var(--font-mono)" }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>
                   <span>{t('undervalued')}</span>
                   <span>{t('premium')}</span>
                 </div>
@@ -374,12 +374,12 @@ export default function StrategiesPage() {
             </div>
 
             {/* ROW 3: Hidden Signature Alert + Dark Pools Flow */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: T.card, border: `0.5px solid ${T.border}`, borderRadius: 8, padding: 16 }}>
-              <div style={{ background: `${T.amber}05`, border: `0.5px solid ${T.amber}30`, borderInlineEnd: `3px solid ${T.amber}`, borderRadius: 6, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: T.card, border: `0.5px solid ${T.border}`, borderRadius: 'var(--radius-md)', padding: 16 }}>
+              <div style={{ background: `${T.amber}05`, border: `0.5px solid ${T.amber}30`, borderInlineEnd: `3px solid ${T.amber}`, borderRadius: 'var(--radius-sm)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
                 <AlertTriangle size={16} color={T.amber} />
                 <div>
-                  <h3 style={{ margin: '0 0 2px', fontSize: 11, fontWeight: 700, color: T.amber }}>{t('hiddenSignature')}</h3>
-                  <p style={{ fontSize: 11, color: T.text, margin: 0, fontWeight: 500 }}>{active.hiddenSignature}</p>
+                  <h3 style={{ margin: '0 0 2px', fontSize: 'var(--text-xs)', fontWeight: 700, color: T.amber }}>{t('hiddenSignature')}</h3>
+                  <p style={{ fontSize: 'var(--text-xs)', color: T.text, margin: 0, fontWeight: 500 }}>{active.hiddenSignature}</p>
                 </div>
               </div>
 
@@ -387,36 +387,36 @@ export default function StrategiesPage() {
               <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
                 <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {active.flow.map((block, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '6px 10px', background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 4 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: T.text3, width: 40, fontFamily: "var(--font-mono)" }}>{block.time}</div>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '6px 10px', background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 'var(--radius-sm)' }}>
+                      <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text3, width: 40, fontFamily: "var(--font-mono)" }}>{block.time}</div>
                       <div style={{ flex: 1, margin: '0 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <div style={{ flex: 1, height: 3, background: T.bg2, borderRadius: 2, overflow: 'hidden' }}>
+                        <div style={{ flex: 1, height: 3, background: T.bg2, borderRadius: 'var(--radius-xs)', overflow: 'hidden' }}>
                           <div style={{ height: '100%', width: `${block.heat}%`, background: `linear-gradient(90deg, ${block.color}22, ${block.color})` }} />
                         </div>
-                        <span style={{ fontSize: 9, fontWeight: 600, color: block.color, width: 60 }}>{block.type}</span>
+                        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: block.color, width: 60 }}>{block.type}</span>
                       </div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: T.text, fontFamily: "var(--font-mono)", width: 70, textAlign: 'left' }}>{block.size}</div>
+                      <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text, fontFamily: "var(--font-mono)", width: 70, textAlign: 'left' }}>{block.size}</div>
                     </div>
                   ))}
                 </div>
                 
-                <div style={{ flex: 1, padding: 16, background: `${T.blue}08`, border: `0.5px solid ${T.border}`, borderRadius: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: T.blue, marginBottom: 6 }}>{t('majorWalletsConsensus')}</div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>{active.consensus}</div>
+                <div style={{ flex: 1, padding: 16, background: `${T.blue}08`, border: `0.5px solid ${T.border}`, borderRadius: 'var(--radius-sm)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+                  <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.blue, marginBottom: 6 }}>{t('majorWalletsConsensus')}</div>
+                  <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: '#fff' }}>{active.consensus}</div>
                 </div>
               </div>
             </div>
 
             {/* ROW 4: Deep Strategic Analysis (AI Memo combination) */}
-            <div style={{ background: T.cardHover, border: `0.5px solid ${T.border}`, borderRadius: 8, padding: 20, marginBottom: 16 }}>
+            <div style={{ background: T.cardHover, border: `0.5px solid ${T.border}`, borderRadius: 'var(--radius-md)', padding: 20, marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
                 <Cpu size={14} color={T.blue} />
-                <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: T.blue }}>{t('deepInstitutionalAnalysis')}</h3>
+                <h3 style={{ margin: 0, fontSize: 'var(--text-sm)', fontWeight: 700, color: T.blue }}>{t('deepInstitutionalAnalysis')}</h3>
               </div>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {active.deepAnalysis.map((line, i) => (
-                  <div key={i} style={{ fontSize: 11, color: T.text, lineHeight: 1.7, position: 'relative', paddingInlineEnd: 12, borderInlineEnd: `2px solid ${T.text3}` }}>
+                  <div key={i} style={{ fontSize: 'var(--text-xs)', color: T.text, lineHeight: 1.7, position: 'relative', paddingInlineEnd: 12, borderInlineEnd: `2px solid ${T.text3}` }}>
                     {line}
                   </div>
                 ))}

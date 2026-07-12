@@ -220,7 +220,7 @@ export function VolumeProfile({
         position: 'absolute',
         top: 4,
         left: 4,
-        fontSize: 8,
+        fontSize: 'var(--text-xs)',
         color: 'rgba(255,255,255,0.3)',
         fontFamily: "var(--font-mono)",
         letterSpacing: 0.5,

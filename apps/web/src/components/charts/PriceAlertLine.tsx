@@ -348,25 +348,25 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
-            width: 24, height: 24, borderRadius: 6,
+            width: 24, height: 24, borderRadius: 'var(--radius-sm)',
             background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-xs)',
           }}>
             🔔
           </div>
           <div>
-            <div style={{ fontSize: 12, color: C.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
+            <div style={{ fontSize: 'var(--text-sm)', color: C.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
               Price Alerts
             </div>
-            <div style={{ fontSize: 9, color: C.textDim, fontFamily: "var(--font-mono)" }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: C.textDim, fontFamily: "var(--font-mono)" }}>
               {symbol} • {alerts.filter(a => a.active && !a.triggered).length} active
             </div>
           </div>
         </div>
         <button onClick={onClose} style={{
-          background: 'rgba(255,255,255,0.04)', border: 'none', borderRadius: 5,
+          background: 'rgba(255,255,255,0.04)', border: 'none', borderRadius: 'var(--radius-sm)',
           color: C.textMuted, width: 22, height: 22, cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, padding: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-xs)', padding: 0,
         }}>
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
         </button>
@@ -380,8 +380,8 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
             flex: 1, padding: '6px 0',
             background: 'rgba(0,212,255,0.1)',
             border: '1px solid rgba(0,212,255,0.25)',
-            borderRadius: 6, color: C.cyan,
-            fontSize: 10, fontWeight: 700, cursor: 'pointer',
+            borderRadius: 'var(--radius-sm)', color: C.cyan,
+            fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
             fontFamily: "var(--font-mono)",
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
           }}
@@ -395,8 +395,8 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
             flex: 1, padding: '6px 0',
             background: 'rgba(0,255,163,0.1)',
             border: '1px solid rgba(0,255,163,0.25)',
-            borderRadius: 6, color: C.success,
-            fontSize: 10, fontWeight: 700, cursor: 'pointer',
+            borderRadius: 'var(--radius-sm)', color: C.success,
+            fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
             fontFamily: "var(--font-mono)",
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
           }}
@@ -410,7 +410,7 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
       {showCreate && (
         <div style={{
           margin: '0 14px 8px',
-          background: C.card, borderRadius: 8, padding: 10,
+          background: C.card, borderRadius: 'var(--radius-md)', padding: 10,
           border: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', gap: 6,
         }}>
           {/* Direction selector */}
@@ -426,8 +426,8 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
                     flex: 1, padding: '5px 0',
                     background: newDirection === d ? `${color}18` : 'rgba(255,255,255,0.03)',
                     border: `1px solid ${newDirection === d ? `${color}40` : C.border}`,
-                    borderRadius: 5, color: newDirection === d ? color : C.textDim,
-                    fontSize: 9, cursor: 'pointer', fontWeight: 600,
+                    borderRadius: 'var(--radius-sm)', color: newDirection === d ? color : C.textDim,
+                    fontSize: 'var(--text-xs)', cursor: 'pointer', fontWeight: 600,
                     fontFamily: "var(--font-mono)",
                   }}
                 >
@@ -447,8 +447,8 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
             style={{
               width: '100%', padding: '7px 10px',
               background: 'rgba(0,0,0,0.3)', border: `1px solid ${C.border}`,
-              borderRadius: 5, color: C.text,
-              fontSize: 12, fontFamily: "var(--font-mono)",
+              borderRadius: 'var(--radius-sm)', color: C.text,
+              fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
               outline: 'none', direction: 'ltr',
             }}
             autoFocus
@@ -463,8 +463,8 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
                 flex: 1, padding: '6px 0',
                 background: 'rgba(0,255,163,0.15)',
                 border: '1px solid rgba(0,255,163,0.3)',
-                borderRadius: 6, color: C.success,
-                fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                borderRadius: 'var(--radius-sm)', color: C.success,
+                fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                 fontFamily: "var(--font-ar)",
                 opacity: !newPrice || isNaN(parseFloat(newPrice)) ? 0.4 : 1,
               }}
@@ -477,8 +477,8 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
                 flex: 1, padding: '6px 0',
                 background: 'rgba(255,255,255,0.03)',
                 border: `1px solid ${C.border}`,
-                borderRadius: 6, color: C.textDim,
-                fontSize: 10, cursor: 'pointer',
+                borderRadius: 'var(--radius-sm)', color: C.textDim,
+                fontSize: 'var(--text-xs)', cursor: 'pointer',
                 fontFamily: "var(--font-ar)",
               }}
             >
@@ -507,16 +507,16 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
                         ? `${color}08`
                         : `${color}06`,
                     border: `1px solid ${isFlashing ? `${color}50` : alert.triggered ? `${color}20` : 'transparent'}`,
-                    borderRadius: 7, transition: 'all 0.15s ease',
+                    borderRadius: 'var(--radius-md)', transition: 'all 0.15s ease',
                     animation: isFlashing ? 'pulse-alert 0.5s ease-in-out 3' : undefined,
                   }}
                 >
                   {/* Direction icon */}
                   <div style={{
-                    width: 22, height: 22, borderRadius: 5,
+                    width: 22, height: 22, borderRadius: 'var(--radius-sm)',
                     background: `${color}12`, border: `1px solid ${color}25`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 10, flexShrink: 0, color,
+                    fontSize: 'var(--text-xs)', flexShrink: 0, color,
                     fontWeight: 900,
                   }}>
                     {alert.direction === 'above' ? '↑' : '↓'}
@@ -524,15 +524,15 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
 
                   {/* Alert info */}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 11, color: C.text, fontWeight: 700, fontFamily: "var(--font-mono)", display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <div style={{ fontSize: 'var(--text-xs)', color: C.text, fontWeight: 700, fontFamily: "var(--font-mono)", display: 'flex', alignItems: 'center', gap: 4 }}>
                       <span style={{ color }}>{formatPrice(alert.price)}</span>
                       {alert.triggered && (
-                        <span style={{ fontSize: 8, color: C.warning, background: 'rgba(251,191,36,0.15)', padding: '1px 4px', borderRadius: 3 }}>
+                        <span style={{ fontSize: 'var(--text-xs)', color: C.warning, background: 'rgba(251,191,36,0.15)', padding: '1px 4px', borderRadius: 'var(--radius-xs)' }}>
                           TRIGGERED
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: 8, color: C.textMuted, fontFamily: "var(--font-mono)", marginTop: 1 }}>
+                    <div style={{ fontSize: 'var(--text-xs)', color: C.textMuted, fontFamily: "var(--font-mono)", marginTop: 1 }}>
                       {formatTime(alert.createdAt)} • {alert.direction === 'above' ? 'Above' : 'Below'}
                     </div>
                   </div>
@@ -543,9 +543,9 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
                       <button
                         onClick={() => handleResetTriggered(alert.id)}
                         style={{
-                          width: 18, height: 18, borderRadius: 3,
+                          width: 18, height: 18, borderRadius: 'var(--radius-xs)',
                           background: 'rgba(0,212,255,0.1)', border: 'none',
-                          color: C.cyan, fontSize: 7, cursor: 'pointer',
+                          color: C.cyan, fontSize: 'var(--text-xs)', cursor: 'pointer',
                           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
                         }}
                         title="Reset alert"
@@ -556,10 +556,10 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
                     <button
                       onClick={() => handleToggle(alert.id)}
                       style={{
-                        width: 18, height: 18, borderRadius: 3,
+                        width: 18, height: 18, borderRadius: 'var(--radius-xs)',
                         background: alert.active ? 'rgba(0,255,163,0.15)' : 'rgba(255,71,87,0.1)',
                         border: 'none', color: alert.active ? C.success : C.danger,
-                        fontSize: 8, cursor: 'pointer', display: 'flex',
+                        fontSize: 'var(--text-xs)', cursor: 'pointer', display: 'flex',
                         alignItems: 'center', justifyContent: 'center', padding: 0,
                       }}
                       title={alert.active ? 'Disable alert' : 'Enable alert'}
@@ -569,9 +569,9 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
                     <button
                       onClick={() => handleDelete(alert.id)}
                       style={{
-                        width: 18, height: 18, borderRadius: 3,
+                        width: 18, height: 18, borderRadius: 'var(--radius-xs)',
                         background: 'rgba(255,71,87,0.08)', border: 'none',
-                        color: C.textMuted, fontSize: 8, cursor: 'pointer',
+                        color: C.textMuted, fontSize: 'var(--text-xs)', cursor: 'pointer',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
                       }}
                       onMouseEnter={e => { e.currentTarget.style.color = C.danger; }}
@@ -587,11 +587,11 @@ export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePr
           </div>
         ) : (
           <div style={{
-            textAlign: 'center', color: C.textMuted, fontSize: 10,
+            textAlign: 'center', color: C.textMuted, fontSize: 'var(--text-xs)',
             padding: '24px 0', fontFamily: "var(--font-ar)",
           }}>
             No price alerts set
-            <div style={{ fontSize: 9, marginTop: 4, color: C.textMuted }}>
+            <div style={{ fontSize: 'var(--text-xs)', marginTop: 4, color: C.textMuted }}>
               Click &quot;Current Price&quot; or &quot;Custom&quot; to add
             </div>
           </div>

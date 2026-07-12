@@ -257,7 +257,7 @@ function ToastCard({
         background: 'rgba(11,14,20,0.95)',
         backdropFilter: 'blur(12px)',
         border: `1px solid ${color}30`,
-        borderRadius: 12,
+        borderRadius: 'var(--radius-lg)',
         padding: '12px 14px',
         display: 'flex',
         gap: 10,
@@ -290,7 +290,7 @@ function ToastCard({
         style={{
           width: 28,
           height: 28,
-          borderRadius: 8,
+          borderRadius: 'var(--radius-md)',
           flexShrink: 0,
           background: `${color}15`,
           border: `1px solid ${color}30`,
@@ -306,7 +306,7 @@ function ToastCard({
       <div style={{ flex: 1, minWidth: 0, marginTop: -2 }}>
         <h4
           style={{
-            fontSize: 11,
+            fontSize: 'var(--text-xs)',
             fontWeight: 800,
             color: T.text,
             margin: '0 0 3px 0',
@@ -316,7 +316,7 @@ function ToastCard({
         </h4>
         <p
           style={{
-            fontSize: 10,
+            fontSize: 'var(--text-xs)',
             color: T.text2,
             margin: 0,
             lineHeight: 1.4,
@@ -338,7 +338,7 @@ function ToastCard({
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <span
                 style={{
-                  fontSize: 9,
+                  fontSize: 'var(--text-xs)',
                   fontFamily: "var(--font-mono)",
                   color: '#fff',
                   fontWeight: 700,
@@ -348,9 +348,9 @@ function ToastCard({
               </span>
               <span
                 style={{
-                  fontSize: 8,
+                  fontSize: 'var(--text-xs)',
                   padding: '1px 5px',
-                  borderRadius: 3,
+                  borderRadius: 'var(--radius-xs)',
                   background: `${actionColor}20`,
                   color: actionColor,
                   fontWeight: 800,
@@ -379,8 +379,8 @@ function ToastCard({
                   }`,
                   color: executed ? T.text2 : actionColor,
                   padding: '3px 8px',
-                  borderRadius: 4,
-                  fontSize: 9,
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: 'var(--text-xs)',
                   fontWeight: 800,
                   cursor: executed || executing ? 'default' : 'pointer',
                   fontFamily: "var(--font-ar)",
@@ -541,7 +541,7 @@ function NotificationItem({
         style={{
           width: 30,
           height: 30,
-          borderRadius: 8,
+          borderRadius: 'var(--radius-md)',
           flexShrink: 0,
           background: `${color}15`,
           border: `1px solid ${color}30`,
@@ -555,19 +555,19 @@ function NotificationItem({
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-          <span style={{ fontSize: 11, fontWeight: 800, color: T.text }}>{localizedTitle}</span>
-          <span style={{ fontSize: 9, color: T.text2, flexShrink: 0, marginInlineEnd: 8 }}>{timeAgo(notif.timestamp)}</span>
+          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.text }}>{localizedTitle}</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: T.text2, flexShrink: 0, marginInlineEnd: 8 }}>{timeAgo(notif.timestamp)}</span>
         </div>
-        <p style={{ fontSize: 10, color: T.text2, margin: 0, lineHeight: 1.5 }}>{localizedBody}</p>
+        <p style={{ fontSize: 'var(--text-xs)', color: T.text2, margin: 0, lineHeight: 1.5 }}>{localizedBody}</p>
         {notif.pair && (
           <div style={{ marginTop: 4, display: 'flex', gap: 6, alignItems: 'center' }}>
-            <span style={{ fontSize: 9, fontFamily: "var(--font-mono)", color: '#fff', fontWeight: 700 }}>{notif.pair}</span>
-            {notif.price && <span style={{ fontSize: 9, color: T.text2 }}>{notif.price}</span>}
+            <span style={{ fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)", color: '#fff', fontWeight: 700 }}>{notif.pair}</span>
+            {notif.price && <span style={{ fontSize: 'var(--text-xs)', color: T.text2 }}>{notif.price}</span>}
             <span
               style={{
-                fontSize: 8,
+                fontSize: 'var(--text-xs)',
                 padding: '1px 5px',
-                borderRadius: 3,
+                borderRadius: 'var(--radius-xs)',
                 background: `${actionColor}20`,
                 color: actionColor,
                 fontWeight: 800,
@@ -623,13 +623,13 @@ function NotifSettingsPanel() {
     <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
       {rows.map((r) => (
         <div key={r.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: T.text }}>{r.label}</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: T.text }}>{r.label}</span>
           <button
             onClick={() => updateSettings({ [r.key]: !(settings as any)[r.key] })}
             style={{
               width: 40,
               height: 20,
-              borderRadius: 10,
+              borderRadius: 'var(--radius-lg)',
               border: 'none',
               cursor: 'pointer',
               position: 'relative',
@@ -663,15 +663,15 @@ function NotifSettingsPanel() {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <div>
-            <span style={{ fontSize: 11, fontWeight: 800, color: T.warning }}>{tn('autoExecuteSignals')}</span>
-            <p style={{ fontSize: 9, color: T.text2, margin: '2px 0 0' }}>{tn('autoExecuteDesc')}</p>
+            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.warning }}>{tn('autoExecuteSignals')}</span>
+            <p style={{ fontSize: 'var(--text-xs)', color: T.text2, margin: '2px 0 0' }}>{tn('autoExecuteDesc')}</p>
           </div>
           <button
             onClick={() => updateSettings({ autoExecute: !(settings as any).autoExecute })}
             style={{
               width: 40,
               height: 20,
-              borderRadius: 10,
+              borderRadius: 'var(--radius-lg)',
               border: 'none',
               cursor: 'pointer',
               position: 'relative',
@@ -700,13 +700,13 @@ function NotifSettingsPanel() {
           <div style={{
             background: 'rgba(255,184,0,0.04)',
             border: '1px solid rgba(255,184,0,0.15)',
-            borderRadius: 8,
+            borderRadius: 'var(--radius-md)',
             padding: '8px 10px',
             marginTop: 6,
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span style={{ fontSize: 9, color: T.text2 }}>{tn('confidenceThreshold')}</span>
-              <span style={{ fontSize: 9, color: T.warning, fontWeight: 800 }}>{settings.minConfidence}%</span>
+              <span style={{ fontSize: 'var(--text-xs)', color: T.text2 }}>{tn('confidenceThreshold')}</span>
+              <span style={{ fontSize: 'var(--text-xs)', color: T.warning, fontWeight: 800 }}>{settings.minConfidence}%</span>
             </div>
             <input
               type="range"
@@ -717,7 +717,7 @@ function NotifSettingsPanel() {
               onChange={(e) => updateSettings({ minConfidence: parseInt(e.target.value) })}
               style={{ width: '100%', accentColor: T.warning }}
             />
-            <p style={{ fontSize: 8, color: T.text2, margin: '4px 0 0', lineHeight: 1.4 }}>
+            <p style={{ fontSize: 'var(--text-xs)', color: T.text2, margin: '4px 0 0', lineHeight: 1.4 }}>
               {tn('autoExecuteNotice')}
             </p>
           </div>
@@ -726,8 +726,8 @@ function NotifSettingsPanel() {
 
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-          <span style={{ fontSize: 11, color: T.text }}>{tn('minConfidence')}</span>
-          <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 800 }}>{settings.minConfidence}%</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: T.text }}>{tn('minConfidence')}</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)', fontWeight: 800 }}>{settings.minConfidence}%</span>
         </div>
         <input
           type="range"
@@ -790,7 +790,7 @@ export function NotificationCenter() {
           position: 'relative',
           background: open ? 'rgba(0,212,255,0.1)' : 'transparent',
           border: open ? '1px solid rgba(0,212,255,0.25)' : '1px solid transparent',
-          borderRadius: 8,
+          borderRadius: 'var(--radius-md)',
           color: open ? T.info : T.text2,
           cursor: 'pointer',
           display: 'flex',
@@ -823,10 +823,10 @@ export function NotificationCenter() {
               insetInlineStart: -4,
               minWidth: 16,
               height: 16,
-              borderRadius: 8,
+              borderRadius: 'var(--radius-md)',
               padding: '0 4px',
               background: T.danger,
-              fontSize: 8,
+              fontSize: 'var(--text-xs)',
               color: '#fff',
               display: 'flex',
               alignItems: 'center',
@@ -861,7 +861,7 @@ export function NotificationCenter() {
               background: 'rgba(11,14,20,0.98)',
               backdropFilter: 'blur(24px)',
               border: '1px solid rgba(0,212,255,0.12)',
-              borderRadius: 14,
+              borderRadius: 'var(--radius-xl)',
               boxShadow:
                 '0 20px 60px rgba(0,0,0,0.8), 0 0 40px rgba(0,212,255,0.04)',
               overflow: 'hidden',
@@ -879,16 +879,16 @@ export function NotificationCenter() {
                 background: 'rgba(0,212,255,0.03)',
               }}
             >
-              <span style={{ fontSize: 13, fontWeight: 900, color: '#fff' }}>
+              <span style={{ fontSize: 'var(--text-sm)', fontWeight: 900, color: '#fff' }}>
                 {tn('title')}{' '}
-                {unread > 0 && <span style={{ color: T.info, fontSize: 11 }}>({unread} {tn('new')})</span>}
+                {unread > 0 && <span style={{ color: T.info, fontSize: 'var(--text-xs)' }}>({unread} {tn('new')})</span>}
               </span>
               <div style={{ display: 'flex', gap: 6 }}>
                 {unread > 0 && (
                   <button
                     onClick={markAllRead}
                     style={{
-                      fontSize: 9,
+                      fontSize: 'var(--text-xs)',
                       color: T.text2,
                       background: 'transparent',
                       border: 'none',
@@ -902,7 +902,7 @@ export function NotificationCenter() {
                   <button
                     onClick={clearAll}
                     style={{
-                      fontSize: 9,
+                      fontSize: 'var(--text-xs)',
                       color: T.danger,
                       background: 'transparent',
                       border: 'none',
@@ -923,7 +923,7 @@ export function NotificationCenter() {
                   style={{
                     flex: 1,
                     padding: '8px',
-                    fontSize: 11,
+                    fontSize: 'var(--text-xs)',
                     background: 'transparent',
                     border: 'none',
                     color: tab === t ? T.info : T.text2,
@@ -941,8 +941,8 @@ export function NotificationCenter() {
               <div style={{ maxHeight: 420, overflowY: 'auto' }}>
                 {notifications.length === 0 ? (
                   <div style={{ padding: 40, textAlign: 'center', opacity: 0.3 }}>
-                    <div style={{ fontSize: 28, marginBottom: 10 }}>🔔</div>
-                    <div style={{ fontSize: 12 }}>{tn('noAlertsYet')}</div>
+                    <div style={{ fontSize: 'var(--text-2xl)', marginBottom: 10 }}>🔔</div>
+                    <div style={{ fontSize: 'var(--text-sm)' }}>{tn('noAlertsYet')}</div>
                   </div>
                 ) : (
                   notifications.map((n) => (

@@ -186,7 +186,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
             width: 220,
             background: '#1A1D27',
             border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: 10,
+            borderRadius: 'var(--radius-lg)',
             padding: 0,
             zIndex: 99999,
             boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,212,255,0.06)',
@@ -218,7 +218,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
                 border: 'none',
                 outline: 'none',
                 color: T.text,
-                fontSize: 12,
+                fontSize: 'var(--text-sm)',
                 fontFamily: "var(--font-ar)",
               }}
             />
@@ -231,7 +231,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
                   color: T.text2,
                   cursor: 'pointer',
                   padding: 0,
-                  fontSize: 14,
+                  fontSize: 'var(--text-base)',
                   lineHeight: 1,
                   flexShrink: 0,
                 }}
@@ -262,7 +262,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
                 style={{
                   padding: '16px 14px',
                   color: T.text2,
-                  fontSize: 12,
+                  fontSize: 'var(--text-sm)',
                   textAlign: 'center',
                   fontFamily: "var(--font-ar)",
                 }}
@@ -284,7 +284,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
                     background: opt.code === locale ? 'rgba(0,212,255,0.08)' : 'transparent',
                     color: opt.code === locale ? T.info : T.text2,
                     cursor: 'pointer',
-                    fontSize: 13,
+                    fontSize: 'var(--text-sm)',
                     fontFamily: opt.code === 'ar' ? "'Cairo', sans-serif" : "'Inter', sans-serif",
                     fontWeight: opt.code === locale ? 600 : 400,
                     textAlign: 'start',
@@ -306,7 +306,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
                   <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ 
                       color: '#555C70', 
-                      fontSize: 10, 
+                      fontSize: 'var(--text-xs)', 
                       fontWeight: 600,
                       width: 22,
                       fontFamily: "var(--font-en)",
@@ -339,7 +339,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
             gap: 6,
             cursor: 'pointer',
             fontFamily: isAr ? "'Cairo', sans-serif" : "'Inter', sans-serif",
-            fontSize: 13,
+            fontSize: 'var(--text-sm)',
             fontWeight: 600,
           }}
           aria-label="Switch language"
@@ -367,13 +367,13 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
             alignItems: 'center',
             gap: 5,
             padding: '4px 10px',
-            borderRadius: 6,
+            borderRadius: 'var(--radius-sm)',
             border: '1px solid rgba(255,255,255,0.12)',
             background: 'rgba(255,255,255,0.04)',
             color: T.text2,
             cursor: 'pointer',
             fontFamily: isAr ? "'Cairo', sans-serif" : "'Inter', sans-serif",
-            fontSize: 11,
+            fontSize: 'var(--text-xs)',
             fontWeight: 600,
             transition: 'all 0.15s',
             whiteSpace: 'nowrap',
@@ -412,13 +412,13 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
           alignItems: 'center',
           gap: 6,
           padding: '6px 14px',
-          borderRadius: 8,
+          borderRadius: 'var(--radius-md)',
           border: '1px solid rgba(255,255,255,0.12)',
           background: 'rgba(255,255,255,0.04)',
           color: T.text2,
           cursor: 'pointer',
           fontFamily: isAr ? "'Cairo', sans-serif" : "'Inter', sans-serif",
-          fontSize: 13,
+          fontSize: 'var(--text-sm)',
           fontWeight: 600,
           transition: 'all 0.15s',
         }}

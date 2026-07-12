@@ -105,7 +105,7 @@ export function SidebarIconRail({
             style={{
               width: 28,
               height: 28,
-              borderRadius: 6,
+              borderRadius: 'var(--radius-sm)',
               border: '1px solid rgba(0,212,255,0.18)',
               background: 'rgba(0, 0, 0, 0.9)',
               color: T.text3,
@@ -176,7 +176,7 @@ export function SidebarIconRail({
                       ? 'rgba(255,255,255,0.08)'
                       : 'transparent',
                   transition: 'all 0.15s ease',
-                  borderRadius: 6,
+                  borderRadius: 'var(--radius-sm)',
                 }}
               >
                 {/* Active indicator bar */}
@@ -217,10 +217,10 @@ export function SidebarIconRail({
                     insetInlineEnd: 2,
                     minWidth: 12,
                     height: 12,
-                    borderRadius: 999,
+                    borderRadius: 'var(--radius-2xl)',
                     background: tab.accent,
                     color: '#000',
-                    fontSize: 7,
+                    fontSize: 'var(--text-xs)',
                     fontWeight: 900,
                     fontFamily: FONT_MONO,
                     display: 'flex',
@@ -246,7 +246,7 @@ export function SidebarIconRail({
                     whiteSpace: 'nowrap',
                     background: 'rgba(26, 29, 41, 0.95)',
                     border: `1px solid ${tab.accent}30`,
-                    borderRadius: 5,
+                    borderRadius: 'var(--radius-sm)',
                     padding: '3px 8px',
                     boxShadow: `0 4px 12px rgba(0,0,0,0.4), 0 0 8px ${tab.accent}15`,
                     backdropFilter: 'blur(8px)',
@@ -272,7 +272,7 @@ export function SidebarIconRail({
                 >
                   <span
                     style={{
-                      fontSize: 11,
+                      fontSize: 'var(--text-xs)',
                       fontWeight: 800,
                       color: tab.accent,
                       fontFamily: "var(--font-ar)",

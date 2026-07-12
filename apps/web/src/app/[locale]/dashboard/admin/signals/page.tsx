@@ -205,7 +205,7 @@ export default function AdminSignalsPage() {
       {hasAnyError && (
         <div style={{
           padding: '12px 16px',
-          borderRadius: 8,
+          borderRadius: 'var(--radius-md)',
           background: `${COLORS.amber}10`,
           border: `1px solid ${COLORS.amber}30`,
           display: 'flex',
@@ -214,10 +214,10 @@ export default function AdminSignalsPage() {
         }}>
           <AlertTriangle size={16} color={COLORS.amber} />
           <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.amber, fontFamily: "var(--font-ar)" }}>
+            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.amber, fontFamily: "var(--font-ar)" }}>
               فشل في جلب البيانات من الخادم
             </div>
-            <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)", marginTop: 2 }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", marginTop: 2 }}>
               {signalsError && <span>الإشارات: {signalsError}</span>}
               {signalsError && scannerError && <span> · </span>}
               {scannerError && <span>الماسح: {scannerError}</span>}
@@ -229,14 +229,14 @@ export default function AdminSignalsPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", margin: 0 }}>إدارة الإشارات</h1>
-          <p style={{ fontSize: 12, color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '4px 0 0' }}>الإشارات الذكية ونتائج الماسح</p>
+          <h1 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", margin: 0 }}>إدارة الإشارات</h1>
+          <p style={{ fontSize: 'var(--text-sm)', color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '4px 0 0' }}>الإشارات الذكية ونتائج الماسح</p>
         </div>
         <button onClick={() => { fetchData(); fetchStats(); }} style={{
           display: 'flex', alignItems: 'center', gap: 6,
-          padding: '8px 16px', borderRadius: 8,
+          padding: '8px 16px', borderRadius: 'var(--radius-md)',
           border: `1px solid ${COLORS.border}`, background: 'rgba(0,229,255,0.06)',
-          color: COLORS.accent, fontSize: 12, fontWeight: 600,
+          color: COLORS.accent, fontSize: 'var(--text-sm)', fontWeight: 600,
           fontFamily: "var(--font-ar)", cursor: 'pointer',
         }}>
           <RefreshCw size={14} /> تحديث
@@ -255,7 +255,7 @@ export default function AdminSignalsPage() {
           return (
             <div key={i} style={{ ...CARD_STYLE, padding: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{
-                width: 36, height: 36, borderRadius: 8,
+                width: 36, height: 36, borderRadius: 'var(--radius-md)',
                 background: `${card.color}15`,
                 border: `1px solid ${card.color}30`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -263,8 +263,8 @@ export default function AdminSignalsPage() {
                 <CardIcon size={16} color={card.color} />
               </div>
               <div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: card.color, fontFamily: "var(--font-mono)", lineHeight: 1 }}>{card.value}</div>
-                <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)", marginTop: 2 }}>{card.label}</div>
+                <div style={{ fontSize: 'var(--text-lg)', fontWeight: 800, color: card.color, fontFamily: "var(--font-mono)", lineHeight: 1 }}>{card.value}</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", marginTop: 2 }}>{card.label}</div>
               </div>
             </div>
           )
@@ -280,13 +280,13 @@ export default function AdminSignalsPage() {
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
             <Sparkles size={14} color={COLORS.accent} />
-            <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>الإشارات الذكية</span>
+            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>الإشارات الذكية</span>
           </div>
           <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 400, overflowY: 'auto' }} className="custom-scrollbar">
             {loading ? (
-              <div style={{ padding: 30, textAlign: 'center', color: COLORS.muted, fontSize: 12, fontFamily: "var(--font-ar)" }}>جارٍ التحميل...</div>
+              <div style={{ padding: 30, textAlign: 'center', color: COLORS.muted, fontSize: 'var(--text-sm)', fontFamily: "var(--font-ar)" }}>جارٍ التحميل...</div>
             ) : signals.length === 0 ? (
-              <div style={{ padding: 30, textAlign: 'center', color: COLORS.muted, fontSize: 12, fontFamily: "var(--font-ar)" }}>
+              <div style={{ padding: 30, textAlign: 'center', color: COLORS.muted, fontSize: 'var(--text-sm)', fontFamily: "var(--font-ar)" }}>
                 {signalsError ? 'لا توجد بيانات إشارات متاحة' : 'لا توجد إشارات حالياً'}
               </div>
             ) : signals.map((signal) => {
@@ -294,7 +294,7 @@ export default function AdminSignalsPage() {
               const ActionIcon = config.Icon
               return (
                 <div key={signal.id} style={{
-                  padding: '12px', borderRadius: 8,
+                  padding: '12px', borderRadius: 'var(--radius-md)',
                   background: 'rgba(255,255,255,0.02)',
                   border: `1px solid ${COLORS.border}`,
                   borderInlineEnd: `3px solid ${config.color}`,
@@ -303,27 +303,27 @@ export default function AdminSignalsPage() {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <div style={{
-                        width: 26, height: 26, borderRadius: 6,
+                        width: 26, height: 26, borderRadius: 'var(--radius-sm)',
                         background: config.bg, border: `1px solid ${config.border}`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
                         <ActionIcon size={12} color={config.color} />
                       </div>
-                      <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "var(--font-mono)", color: COLORS.text }} dir="ltr">{signal.pair}</span>
+                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, fontFamily: "var(--font-mono)", color: COLORS.text }} dir="ltr">{signal.pair}</span>
                       <span style={{
-                        padding: '1px 6px', borderRadius: 3,
+                        padding: '1px 6px', borderRadius: 'var(--radius-xs)',
                         background: config.bg, border: `1px solid ${config.border}`,
-                        fontSize: 9, fontWeight: 700, color: config.color,
+                        fontSize: 'var(--text-xs)', fontWeight: 700, color: config.color,
                         fontFamily: "var(--font-ar)",
                       }}>
                         {config.label}
                       </span>
                     </div>
-                    <span style={{ fontSize: 11, fontWeight: 700, fontFamily: "var(--font-mono)", color: signal.confidence >= 70 ? COLORS.success : signal.confidence >= 50 ? COLORS.amber : COLORS.danger }}>
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: "var(--font-mono)", color: signal.confidence >= 70 ? COLORS.success : signal.confidence >= 50 ? COLORS.amber : COLORS.danger }}>
                       {Math.round(signal.confidence)}%
                     </span>
                   </div>
-                  <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)", lineHeight: 1.5 }}>{signal.reason}</div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", lineHeight: 1.5 }}>{signal.reason}</div>
                 </div>
               )
             })}
@@ -338,13 +338,13 @@ export default function AdminSignalsPage() {
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
             <BarChart3 size={14} color={COLORS.amber} />
-            <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>نتائج الماسح</span>
+            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>نتائج الماسح</span>
           </div>
           <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 400, overflowY: 'auto' }} className="custom-scrollbar">
             {loading ? (
-              <div style={{ padding: 30, textAlign: 'center', color: COLORS.muted, fontSize: 12, fontFamily: "var(--font-ar)" }}>جارٍ التحميل...</div>
+              <div style={{ padding: 30, textAlign: 'center', color: COLORS.muted, fontSize: 'var(--text-sm)', fontFamily: "var(--font-ar)" }}>جارٍ التحميل...</div>
             ) : scannerResults.length === 0 ? (
-              <div style={{ padding: 30, textAlign: 'center', color: COLORS.muted, fontSize: 12, fontFamily: "var(--font-ar)" }}>
+              <div style={{ padding: 30, textAlign: 'center', color: COLORS.muted, fontSize: 'var(--text-sm)', fontFamily: "var(--font-ar)" }}>
                 {scannerError ? 'لا توجد بيانات ماسح متاحة' : 'لا توجد نتائج ماسح حالياً'}
               </div>
             ) : scannerResults.map((result, i) => {
@@ -352,14 +352,14 @@ export default function AdminSignalsPage() {
               const dirLabel = result.direction === 'bullish' ? 'صاعد' : result.direction === 'bearish' ? 'هابط' : 'محايد'
               return (
                 <div key={i} style={{
-                  padding: '10px 12px', borderRadius: 6,
+                  padding: '10px 12px', borderRadius: 'var(--radius-sm)',
                   background: 'rgba(255,255,255,0.02)',
                   border: `1px solid ${COLORS.border}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{
-                      width: 28, height: 28, borderRadius: 6,
+                      width: 28, height: 28, borderRadius: 'var(--radius-sm)',
                       background: `${dirColor}15`,
                       border: `1px solid ${dirColor}30`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -367,23 +367,23 @@ export default function AdminSignalsPage() {
                       <Activity size={12} color={dirColor} />
                     </div>
                     <div>
-                      <div style={{ fontSize: 12, fontWeight: 700, fontFamily: "var(--font-mono)", color: COLORS.text }} dir="ltr">{result.symbol}</div>
-                      <div style={{ fontSize: 9, color: dirColor, fontFamily: "var(--font-ar)", fontWeight: 600 }}>{dirLabel}</div>
+                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, fontFamily: "var(--font-mono)", color: COLORS.text }} dir="ltr">{result.symbol}</div>
+                      <div style={{ fontSize: 'var(--text-xs)', color: dirColor, fontFamily: "var(--font-ar)", fontWeight: 600 }}>{dirLabel}</div>
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     {/* Score bar */}
-                    <div style={{ width: 60, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                    <div style={{ width: 60, height: 4, borderRadius: 'var(--radius-xs)', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
                       <div style={{
                         width: `${result.score}%`, height: '100%',
-                        background: dirColor, borderRadius: 2,
+                        background: dirColor, borderRadius: 'var(--radius-xs)',
                       }} />
                     </div>
                     <div style={{ textAlign: 'left', minWidth: 50 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, fontFamily: "var(--font-mono)", color: result.change >= 0 ? COLORS.success : COLORS.danger }}>
+                      <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: "var(--font-mono)", color: result.change >= 0 ? COLORS.success : COLORS.danger }}>
                         {result.change >= 0 ? '+' : ''}{result.change}%
                       </div>
-                      <div style={{ fontSize: 8, color: COLORS.muted, fontFamily: "var(--font-mono)" }}>{result.score}/100</div>
+                      <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-mono)" }}>{result.score}/100</div>
                     </div>
                   </div>
                 </div>
@@ -397,9 +397,9 @@ export default function AdminSignalsPage() {
       <div style={{ ...CARD_STYLE, padding: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
           <Target size={14} color={COLORS.success} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>أداء الإشارات</span>
+          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>أداء الإشارات</span>
           {signalStats?.error && (
-            <span style={{ fontSize: 9, color: COLORS.amber, fontFamily: "var(--font-ar)", marginRight: 8 }}>
+            <span style={{ fontSize: 'var(--text-xs)', color: COLORS.amber, fontFamily: "var(--font-ar)", marginRight: 8 }}>
               (قاعدة البيانات غير متاحة)
             </span>
           )}
@@ -408,12 +408,12 @@ export default function AdminSignalsPage() {
           {statsLoading ? (
             // Loading skeleton
             Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} style={{ padding: 12, borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: `1px solid ${COLORS.border}` }}>
+              <div key={i} style={{ padding: 12, borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.02)', border: `1px solid ${COLORS.border}` }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <div style={{ width: 100, height: 10, borderRadius: 4, background: 'rgba(255,255,255,0.06)' }} />
-                  <div style={{ width: 60, height: 12, borderRadius: 4, background: 'rgba(255,255,255,0.06)' }} />
+                  <div style={{ width: 100, height: 10, borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.06)' }} />
+                  <div style={{ width: 60, height: 12, borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.06)' }} />
                 </div>
-                <div style={{ width: '100%', height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.06)' }} />
+                <div style={{ width: '100%', height: 4, borderRadius: 'var(--radius-xs)', background: 'rgba(255,255,255,0.06)' }} />
               </div>
             ))
           ) : (
@@ -449,13 +449,13 @@ export default function AdminSignalsPage() {
                 color: COLORS.danger,
               },
             ].map((stat, i) => (
-              <div key={i} style={{ padding: 12, borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: `1px solid ${COLORS.border}` }}>
+              <div key={i} style={{ padding: 12, borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.02)', border: `1px solid ${COLORS.border}` }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span style={{ fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{stat.label}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: stat.color, fontFamily: "var(--font-mono)" }}>{stat.value}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{stat.label}</span>
+                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: stat.color, fontFamily: "var(--font-mono)" }}>{stat.value}</span>
                 </div>
-                <div style={{ width: '100%', height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.06)' }}>
-                  <div style={{ width: `${Math.max(stat.bar, 2)}%`, height: '100%', background: stat.color, borderRadius: 2, transition: 'width 0.5s ease' }} />
+                <div style={{ width: '100%', height: 4, borderRadius: 'var(--radius-xs)', background: 'rgba(255,255,255,0.06)' }}>
+                  <div style={{ width: `${Math.max(stat.bar, 2)}%`, height: '100%', background: stat.color, borderRadius: 'var(--radius-xs)', transition: 'width 0.5s ease' }} />
                 </div>
               </div>
             ))

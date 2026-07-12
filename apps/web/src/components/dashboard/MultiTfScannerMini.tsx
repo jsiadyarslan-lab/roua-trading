@@ -96,21 +96,21 @@ export function MultiTfScannerMini() {
   const strategy = overallStrength > 100 ? tm('trendFollowLong') : overallStrength < -100 ? tm('trendFollowShort') : tm('waitPullback')
 
   return (
-    <div className="custom-scrollbar" style={{  height: '100%', padding: '14px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', borderRadius: 16, border: `1px solid ${T.border}` }}>
+    <div className="custom-scrollbar" style={{  height: '100%', padding: '14px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', borderRadius: 'var(--radius-xl)', border: `1px solid ${T.border}` }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, padding: '0 2px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Activity size={12} color={T.purple} className={loading ? 'animate-pulse' : ''} />
-          <span style={{ fontSize: 11, fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)" }}>{selectedSymbol}</span>
+          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.text, fontFamily: "var(--font-mono)" }}>{selectedSymbol}</span>
           {lastUpdate && (
-            <span style={{ fontSize: 7, color: T.text2, fontFamily: "var(--font-mono)" }}>· {lastUpdate}</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-mono)" }}>· {lastUpdate}</span>
           )}
-          <span style={{ fontSize: 7, color: T.text2, fontFamily: "var(--font-mono)", background: 'rgba(255,255,255,0.04)', padding: '1px 5px', borderRadius: 3 }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-mono)", background: 'rgba(255,255,255,0.04)', padding: '1px 5px', borderRadius: 'var(--radius-xs)' }}>
             #{scanCount}
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 7, color: T.text2, fontFamily: "var(--font-mono)" }}>{countdown}s</span>
-          <span style={{ fontSize: 6.5, background: `${T.purple}15`, border: `0.5px solid ${T.purple}30`, color: T.purple, padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-mono)" }}>{countdown}s</span>
+          <span style={{ fontSize: 'var(--text-xs)', background: `${T.purple}15`, border: `0.5px solid ${T.purple}30`, color: T.purple, padding: '2px 6px', borderRadius: 'var(--radius-sm)', fontWeight: 700 }}>
             {loading ? tm('scanning') : tm('liveSync')}
           </span>
         </div>
@@ -118,7 +118,7 @@ export function MultiTfScannerMini() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, justifyContent: 'center' }}>
         {data.length === 0 && !loading ? (
-           <div style={{ textAlign: 'center', color: T.text2, fontSize: 10 }}>{tm('noData')}</div>
+           <div style={{ textAlign: 'center', color: T.text2, fontSize: 'var(--text-xs)' }}>{tm('noData')}</div>
         ) : (
           (data.length > 0 ? data : [
             { tf: '15M', state: '...', strength: 0, color: T.border },
@@ -126,14 +126,14 @@ export function MultiTfScannerMini() {
             { tf: '4H',  state: '...', strength: 0, color: T.border },
             { tf: '1D',  state: '...', strength: 0, color: T.border }
           ]).map((t, i) => (
-            <div key={i} className="card" style={{ borderRadius: 12, border: `0.5px solid ${T.border}`, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontSize: 10, fontWeight: 900, color: t.color, width: 24, fontFamily: "var(--font-mono)" }}>{t.tf}</span>
-              <div style={{ flex: 1, height: 4, background: T.bg, borderRadius: 2, overflow: 'hidden', margin: '0 4px' }}>
+            <div key={i} className="card" style={{ borderRadius: 'var(--radius-lg)', border: `0.5px solid ${T.border}`, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 900, color: t.color, width: 24, fontFamily: "var(--font-mono)" }}>{t.tf}</span>
+              <div style={{ flex: 1, height: 4, background: T.bg, borderRadius: 'var(--radius-xs)', overflow: 'hidden', margin: '0 4px' }}>
                 <div style={{ height: '100%', width: `${t.strength}%`, background: t.color, boxShadow: `0 0 6px ${t.color}80`, transition: 'width 0.5s ease-out' }} />
               </div>
-              <span style={{ fontSize: 9, color: t.color, fontWeight: 800, width: 24, textAlign: 'right', fontFamily: "var(--font-mono)" }}>{t.strength}%</span>
+              <span style={{ fontSize: 'var(--text-xs)', color: t.color, fontWeight: 800, width: 24, textAlign: 'right', fontFamily: "var(--font-mono)" }}>{t.strength}%</span>
               {t.state && t.state !== '...' && (
-                <span style={{ fontSize: 7, fontWeight: 700, color: t.color, fontFamily: "var(--font-mono)", minWidth: 42 }}>
+                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: t.color, fontFamily: "var(--font-mono)", minWidth: 42 }}>
                   {t.state === 'Bullish' ? '⬆' : t.state === 'Bearish' ? '⬇' : '◆'} {t.state === 'Bullish' ? tm('bullish') : t.state === 'Bearish' ? tm('bearish') : tm('neutral')}
                 </span>
               )}
@@ -142,16 +142,16 @@ export function MultiTfScannerMini() {
         )}
       </div>
 
-      <div className="card" style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 6, fontSize: 10, color: T.text2, padding: '10px 12px', border: `1px solid ${T.border}`, borderRadius: 12, fontWeight: 600 }}>
+      <div className="card" style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 6, fontSize: 'var(--text-xs)', color: T.text2, padding: '10px 12px', border: `1px solid ${T.border}`, borderRadius: 'var(--radius-lg)', fontWeight: 600 }}>
         <div style={{ textAlign: 'center' }}>
           {tm('tfStrategy')} <span style={{color: T.purple}}>{strategy}</span>
         </div>
         {summary && (
           <>
-            <div style={{ textAlign: 'center', fontSize: 9, color: T.text }}>
+            <div style={{ textAlign: 'center', fontSize: 'var(--text-xs)', color: T.text }}>
               {summary.alignment}
             </div>
-            <div style={{ textAlign: 'center', fontSize: 9, color: T.accent }}>
+            <div style={{ textAlign: 'center', fontSize: 'var(--text-xs)', color: T.accent }}>
               {summary.executionHint}
             </div>
           </>

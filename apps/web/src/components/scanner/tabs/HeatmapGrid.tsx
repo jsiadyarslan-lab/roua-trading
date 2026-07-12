@@ -94,7 +94,7 @@ export function HeatmapGrid() {
         {CATS.map(c => (
           <button key={c.key} onClick={() => setCatFilter(c.key)}
             style={{
-              padding: '4px 12px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+              padding: '4px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 700,
               fontFamily: "var(--font-ar)", cursor: 'pointer',
               background: catFilter === c.key ? `${T.cyan}20` : T.surface,
               color: catFilter === c.key ? T.cyan : T.text3,
@@ -107,7 +107,7 @@ export function HeatmapGrid() {
         {SORTS.map(s => (
           <button key={s.key} onClick={() => setSortMode(s.key)}
             style={{
-              padding: '4px 12px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+              padding: '4px 12px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 700,
               fontFamily: "var(--font-ar)", cursor: 'pointer',
               background: sortMode === s.key ? `${T.cyan}20` : T.surface,
               color: sortMode === s.key ? T.cyan : T.text3,
@@ -138,7 +138,7 @@ export function HeatmapGrid() {
                 gridColumn: `span ${cell.colSpan}`,
                 gridRow: `span ${cell.rowSpan}`,
                 background: `linear-gradient(135deg, ${color}${Math.round(op * 255).toString(16).padStart(2, '0')}, ${T.bg2})`,
-                borderRadius: 6, padding: '10px 12px', cursor: 'pointer',
+                borderRadius: 'var(--radius-sm)', padding: '10px 12px', cursor: 'pointer',
                 border: `0.5px solid ${T.border}`,
                 display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
                 transition: 'all 0.25s ease',
@@ -154,7 +154,7 @@ export function HeatmapGrid() {
                   {cell.symbol}
                 </div>
                 <div style={{
-                  fontSize: 9, color: T.text3, fontWeight: 600,
+                  fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 600,
                   fontFamily: "var(--font-ar)", marginTop: 2,
                 }}>
                   {getLocalizedAssetName(cell.symbol, safeStr(cell.name), t, locale)}
@@ -169,7 +169,7 @@ export function HeatmapGrid() {
                     {cell.changePercent >= 0 ? '+' : ''}{cell.changePercent.toFixed(2)}%
                   </div>
                   <div style={{
-                    fontSize: 9, color: T.text2,
+                    fontSize: 'var(--text-xs)', color: T.text2,
                     fontFamily: "var(--font-mono)",
                   }}>
                     ${cell.price.toLocaleString()}

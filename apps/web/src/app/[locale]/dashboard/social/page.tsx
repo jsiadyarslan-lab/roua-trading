@@ -59,14 +59,14 @@ export default function SocialPage() {
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
           <Users size={20} color={T.cyan} />
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>{sl('pageTitle')}</h1>
+          <h1 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: T.text }}>{sl('pageTitle')}</h1>
           <span style={{
-            fontSize: 10, padding: '2px 8px', borderRadius: 20,
+            fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-2xl)',
             background: `${T.cyan}18`, color: T.cyan,
             fontFamily: "var(--font-mono)",
           }}>COMING SOON</span>
         </div>
-        <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
+        <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: T.text2 }}>
           {sl('pageSubtitle')}
         </p>
       </div>
@@ -75,7 +75,7 @@ export default function SocialPage() {
       <div style={{
         background: `linear-gradient(135deg, ${T.bg2}, ${T.card})`,
         border: `1px solid ${T.border2}`,
-        borderRadius: 20, padding: '48px 40px', textAlign: 'center', marginBottom: 32,
+        borderRadius: 'var(--radius-2xl)', padding: '48px 40px', textAlign: 'center', marginBottom: 32,
         position: 'relative', overflow: 'hidden',
       }}>
         {/* Background decoration */}
@@ -92,24 +92,24 @@ export default function SocialPage() {
 
         <div style={{ position: 'relative' }}>
           <div style={{
-            width: 64, height: 64, borderRadius: 20,
+            width: 64, height: 64, borderRadius: 'var(--radius-2xl)',
             background: `${T.cyan}15`, border: `1px solid ${T.cyan}30`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             margin: '0 auto 20px',
           }}>
             <Users size={28} color={T.cyan} />
           </div>
-          <h2 style={{ color: T.text, fontSize: 22, fontWeight: 900, margin: '0 0 12px' }}>
+          <h2 style={{ color: T.text, fontSize: 'var(--text-xl)', fontWeight: 900, margin: '0 0 12px' }}>
             {sl('heroTitle')}
           </h2>
-          <p style={{ color: T.text2, fontSize: 14, lineHeight: 1.8, maxWidth: 480, margin: '0 auto 24px' }}>
+          <p style={{ color: T.text2, fontSize: 'var(--text-base)', lineHeight: 1.8, maxWidth: 480, margin: '0 auto 24px' }}>
             {sl('heroDesc')}
           </p>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '8px 20px', borderRadius: 20,
+            padding: '8px 20px', borderRadius: 'var(--radius-2xl)',
             background: `${T.cyan}15`, border: `1px solid ${T.cyan}40`,
-            color: T.cyan, fontSize: 12, fontWeight: 700,
+            color: T.cyan, fontSize: 'var(--text-sm)', fontWeight: 700,
           }}>
             <ArrowUpRight size={13} /> {sl('inDevelopment')}
           </div>
@@ -117,7 +117,7 @@ export default function SocialPage() {
       </div>
 
       {/* Feature Preview Cards */}
-      <h3 style={{ fontSize: 16, fontWeight: 800, color: T.text, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+      <h3 style={{ fontSize: 'var(--text-md)', fontWeight: 800, color: T.text, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
         <TrendingUp size={16} color={T.cyan} />
         {sl('upcomingFeatures')}
       </h3>
@@ -127,24 +127,24 @@ export default function SocialPage() {
           <div key={i} style={{
             background: feature.gradient,
             border: `1px solid ${feature.borderColor}`,
-            borderRadius: 16, padding: 24,
+            borderRadius: 'var(--radius-xl)', padding: 24,
             transition: 'all 0.3s',
           }}
             onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-4px)'}
             onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
           >
             <div style={{
-              width: 44, height: 44, borderRadius: 12,
+              width: 44, height: 44, borderRadius: 'var(--radius-lg)',
               background: `${feature.color}15`, border: `1px solid ${feature.color}30`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               marginBottom: 16,
             }}>
               <feature.icon size={20} color={feature.color} />
             </div>
-            <h4 style={{ fontSize: 15, fontWeight: 800, color: T.text, margin: '0 0 8px' }}>
+            <h4 style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text, margin: '0 0 8px' }}>
               {feature.title}
             </h4>
-            <p style={{ fontSize: 12, color: T.text2, lineHeight: 1.7, margin: 0 }}>
+            <p style={{ fontSize: 'var(--text-sm)', color: T.text2, lineHeight: 1.7, margin: 0 }}>
               {feature.desc}
             </p>
           </div>
@@ -154,12 +154,12 @@ export default function SocialPage() {
       {/* Email Notification Signup */}
       <div style={{
         background: T.card, border: `1px solid ${T.border}`,
-        borderRadius: 16, padding: 24,
+        borderRadius: 'var(--radius-xl)', padding: 24,
         display: 'flex', alignItems: 'center', gap: 20,
         flexWrap: 'wrap',
       }}>
         <div style={{
-          width: 44, height: 44, borderRadius: 12,
+          width: 44, height: 44, borderRadius: 'var(--radius-lg)',
           background: `${T.green}15`, border: `1px solid ${T.green}30`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0,
@@ -167,10 +167,10 @@ export default function SocialPage() {
           <Mail size={20} color={T.green} />
         </div>
         <div style={{ flex: 1, minWidth: 200 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 4 }}>
+          <div style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: T.text, marginBottom: 4 }}>
             {sl('signupTitle')}
           </div>
-          <div style={{ fontSize: 12, color: T.text2 }}>
+          <div style={{ fontSize: 'var(--text-sm)', color: T.text2 }}>
             {sl('signupDesc')}
           </div>
         </div>
@@ -178,9 +178,9 @@ export default function SocialPage() {
         {submitted ? (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8,
-            padding: '10px 20px', borderRadius: 10,
+            padding: '10px 20px', borderRadius: 'var(--radius-lg)',
             background: `${T.green}15`, border: `1px solid ${T.green}30`,
-            color: T.green, fontSize: 13, fontWeight: 700,
+            color: T.green, fontSize: 'var(--text-sm)', fontWeight: 700,
           }}>
             <CheckCircle size={16} /> {sl('registeredSuccess')}
           </div>
@@ -194,18 +194,18 @@ export default function SocialPage() {
               required
               dir="ltr"
               style={{
-                flex: 1, padding: '10px 14px', borderRadius: 10,
+                flex: 1, padding: '10px 14px', borderRadius: 'var(--radius-lg)',
                 background: T.surface, border: `1px solid ${T.border}`,
-                color: T.text, fontSize: 13, outline: 'none',
+                color: T.text, fontSize: 'var(--text-sm)', outline: 'none',
                 fontFamily: "var(--font-mono)",
               }}
             />
             <button
               type="submit"
               style={{
-                padding: '10px 20px', borderRadius: 10,
+                padding: '10px 20px', borderRadius: 'var(--radius-lg)',
                 background: `linear-gradient(135deg, ${T.cyan}, ${T.blue})`,
-                color: '#fff', fontSize: 13, fontWeight: 800, border: 'none',
+                color: '#fff', fontSize: 'var(--text-sm)', fontWeight: 800, border: 'none',
                 cursor: 'pointer', whiteSpace: 'nowrap',
                 fontFamily: "var(--font-ar)",
                 transition: 'all 0.2s',

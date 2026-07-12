@@ -21,7 +21,7 @@ export function SectionCard({
       background: "linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.012) 100%)",
       backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
       border: `1px solid ${COLORS.border}`,
-      borderRadius: 16,
+      borderRadius: 'var(--radius-xl)',
       overflow: "hidden",
       ...style,
     }}>
@@ -32,7 +32,7 @@ export function SectionCard({
         }}>
           {icon && (
             <div style={{
-              width: 28, height: 28, borderRadius: 8,
+              width: 28, height: 28, borderRadius: 'var(--radius-md)',
               background: iconBg ?? `${iconColor}14`,
               display: "flex", alignItems: "center", justifyContent: "center",
               flexShrink: 0,
@@ -41,8 +41,8 @@ export function SectionCard({
             </div>
           )}
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.textPrimary, letterSpacing: "-0.01em" }}>{title}</div>
-            {subtitle && <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>{subtitle}</div>}
+            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.textPrimary, letterSpacing: "-0.01em" }}>{title}</div>
+            {subtitle && <div style={{ fontSize: 'var(--text-xs)', color: COLORS.textMuted, marginTop: 2 }}>{subtitle}</div>}
           </div>
         </div>
       )}
@@ -67,8 +67,8 @@ export function SettingRow({
       <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
         {icon && <div style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>{icon}</div>}
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.textPrimary }}>{label}</div>
-          {description && <div style={{ fontSize: 10, color: COLORS.textMuted, marginTop: 2, lineHeight: 1.4 }}>{description}</div>}
+          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: COLORS.textPrimary }}>{label}</div>
+          {description && <div style={{ fontSize: 'var(--text-xs)', color: COLORS.textMuted, marginTop: 2, lineHeight: 1.4 }}>{description}</div>}
         </div>
       </div>
       {children && <div style={{ flexShrink: 0 }}>{children}</div>}
@@ -90,7 +90,7 @@ export function Toggle({
     <button
       onClick={onChange}
       style={{
-        width: w, height: h, borderRadius: 999, border: "none",
+        width: w, height: h, borderRadius: 'var(--radius-2xl)', border: "none",
         background: checked ? color : "rgba(255,255,255,0.08)",
         cursor: "pointer", position: "relative",
         transition: "background 200ms ease",
@@ -124,7 +124,7 @@ export function SelectBox({
       onChange={e => onChange(e.target.value)}
       style={{
         padding: small ? "4px 8px" : "6px 10px",
-        borderRadius: 8,
+        borderRadius: 'var(--radius-md)',
         background: "rgba(255,255,255,0.03)",
         border: `1px solid ${COLORS.border}`,
         color: COLORS.textPrimary,
@@ -166,16 +166,16 @@ export function NumberInput({
         value={value}
         onChange={e => onChange(e.target.value)}
         style={{
-          width: 60, padding: "4px 8px", borderRadius: 8,
+          width: 60, padding: "4px 8px", borderRadius: 'var(--radius-md)',
           background: "rgba(255,255,255,0.03)",
           border: `1px solid ${COLORS.border}`,
-          color: COLORS.textPrimary, fontSize: 12,
+          color: COLORS.textPrimary, fontSize: 'var(--text-sm)',
           fontFamily: "var(--font-mono)",
           textAlign: "center", outline: "none",
         }}
         dir="ltr"
       />
-      {suffix && <span style={{ fontSize: 11, color: COLORS.textMuted, fontWeight: 600 }}>{suffix}</span>}
+      {suffix && <span style={{ fontSize: 'var(--text-xs)', color: COLORS.textMuted, fontWeight: 600 }}>{suffix}</span>}
     </div>
   );
 }
@@ -193,10 +193,10 @@ export function SaveStatusBar({ status }: { status: "idle" | "saving" | "saved" 
   return (
     <div style={{
       display: "inline-flex", alignItems: "center", gap: 4,
-      padding: "2px 8px", borderRadius: 6,
+      padding: "2px 8px", borderRadius: 'var(--radius-sm)',
       background: `${config.color}15`,
       border: `1px solid ${config.color}30`,
-      color: config.color, fontSize: 10, fontWeight: 700,
+      color: config.color, fontSize: 'var(--text-xs)', fontWeight: 700,
     }}>
       {config.text}
     </div>

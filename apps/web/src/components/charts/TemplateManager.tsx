@@ -145,7 +145,7 @@ export function TemplateManager({
     <div style={{
       background: COLORS.card,
       border: '1px solid rgba(0,212,255,0.2)',
-      borderRadius: 10,
+      borderRadius: 'var(--radius-lg)',
       padding: 12,
       zIndex: 500,
       boxShadow: '0 15px 45px rgba(0,0,0,0.85)',
@@ -154,20 +154,20 @@ export function TemplateManager({
     }}>
       {/* Header */}
       <div data-drag-handle style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, cursor: 'grab' }}>
-        <span style={{ fontSize: 11, color: COLORS.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
+        <span style={{ fontSize: 'var(--text-xs)', color: COLORS.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
           💾 {tc('templateManager')}
         </span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', fontSize: 14 }}>✕</button>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', fontSize: 'var(--text-base)' }}>✕</button>
       </div>
 
       {/* Tab Switcher (multi-chart mode only) */}
       {isMultiChart && (
-        <div style={{ display: 'flex', gap: 2, marginBottom: 10, background: COLORS.bg, borderRadius: 4, padding: 2 }}>
+        <div style={{ display: 'flex', gap: 2, marginBottom: 10, background: COLORS.bg, borderRadius: 'var(--radius-sm)', padding: 2 }}>
           <button
             onClick={() => setActiveTab('grid')}
             style={{
-              flex: 1, padding: '4px 6px', borderRadius: 3, cursor: 'pointer',
-              fontFamily: "var(--font-ar)", fontSize: 9, fontWeight: 600,
+              flex: 1, padding: '4px 6px', borderRadius: 'var(--radius-xs)', cursor: 'pointer',
+              fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 600,
               background: activeTab === 'grid' ? 'rgba(168,85,247,0.2)' : 'transparent',
               color: activeTab === 'grid' ? COLORS.purple : COLORS.textMuted,
               border: activeTab === 'grid' ? '1px solid rgba(168,85,247,0.3)' : '1px solid transparent',
@@ -178,8 +178,8 @@ export function TemplateManager({
           <button
             onClick={() => setActiveTab('single')}
             style={{
-              flex: 1, padding: '4px 6px', borderRadius: 3, cursor: 'pointer',
-              fontFamily: "var(--font-ar)", fontSize: 9, fontWeight: 600,
+              flex: 1, padding: '4px 6px', borderRadius: 'var(--radius-xs)', cursor: 'pointer',
+              fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', fontWeight: 600,
               background: activeTab === 'single' ? 'rgba(0,212,255,0.15)' : 'transparent',
               color: activeTab === 'single' ? COLORS.cyan : COLORS.textMuted,
               border: activeTab === 'single' ? '1px solid rgba(0,212,255,0.2)' : '1px solid transparent',
@@ -196,9 +196,9 @@ export function TemplateManager({
           {/* Info badge */}
           <div style={{
             background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.15)',
-            borderRadius: 4, padding: '5px 8px', marginBottom: 8,
+            borderRadius: 'var(--radius-sm)', padding: '5px 8px', marginBottom: 8,
           }}>
-            <span style={{ fontSize: 8, color: COLORS.purple, fontFamily: "var(--font-ar)" }}>
+            <span style={{ fontSize: 'var(--text-xs)', color: COLORS.purple, fontFamily: "var(--font-ar)" }}>
               {locale === 'ar'
                 ? '✨ يحفظ ويستعيد حالة جميع الشارتات في الشبكة (المؤشرات + الرسومات + الإعدادات)'
                 : '✨ Saves & restores ALL charts state (indicators + drawings + settings)'}
@@ -218,9 +218,9 @@ export function TemplateManager({
                 padding: '5px 8px',
                 background: COLORS.bg,
                 border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 4,
+                borderRadius: 'var(--radius-sm)',
                 color: COLORS.text,
-                fontSize: 10,
+                fontSize: 'var(--text-xs)',
                 fontFamily: "var(--font-ar)",
                 outline: 'none',
               }}
@@ -232,9 +232,9 @@ export function TemplateManager({
                 padding: '5px 10px',
                 background: COLORS.purple,
                 border: 'none',
-                borderRadius: 4,
+                borderRadius: 'var(--radius-sm)',
                 color: '#fff',
-                fontSize: 10,
+                fontSize: 'var(--text-xs)',
                 fontWeight: 700,
                 cursor: newName.trim() && onSaveGridTemplate ? 'pointer' : 'default',
                 fontFamily: "var(--font-ar)",
@@ -248,7 +248,7 @@ export function TemplateManager({
           {/* Grid Templates List */}
           <div style={{ maxHeight: 220, overflowY: 'auto', marginBottom: 8 }}>
             {gridTemplates.length === 0 ? (
-              <div style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 9, padding: '10px 0', fontFamily: "var(--font-ar)" }}>
+              <div style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 'var(--text-xs)', padding: '10px 0', fontFamily: "var(--font-ar)" }}>
                 {locale === 'ar' ? 'لا توجد قوالب شبكة محفوظة' : 'No grid templates saved'}
               </div>
             ) : (
@@ -264,13 +264,13 @@ export function TemplateManager({
                   }}
                 >
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 10, color: COLORS.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>
+                    <div style={{ fontSize: 'var(--text-xs)', color: COLORS.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>
                       🏗️ {tpl.name}
                     </div>
-                    <div style={{ fontSize: 8, color: COLORS.textMuted, fontFamily: "var(--font-mono)" }}>
+                    <div style={{ fontSize: 'var(--text-xs)', color: COLORS.textMuted, fontFamily: "var(--font-mono)" }}>
                       {tpl.layout} • {tpl.cells.length} {locale === 'ar' ? 'شارتات' : 'charts'} • {new Date(tpl.updatedAt).toLocaleDateString(dateLocale)}
                     </div>
-                    <div style={{ fontSize: 7, color: COLORS.purple, fontFamily: "var(--font-mono)", marginTop: 1 }}>
+                    <div style={{ fontSize: 'var(--text-xs)', color: COLORS.purple, fontFamily: "var(--font-mono)", marginTop: 1 }}>
                       {tpl.cells.map((c, i) => `${c.symbol}:${c.timeframe}${c.indicators.length > 0 ? ` (${c.indicators.length})` : ''}`).join(' • ')}
                     </div>
                   </div>
@@ -281,9 +281,9 @@ export function TemplateManager({
                     style={{
                       background: 'rgba(168,85,247,0.1)',
                       border: '1px solid rgba(168,85,247,0.2)',
-                      borderRadius: 4,
+                      borderRadius: 'var(--radius-sm)',
                       color: COLORS.purple,
-                      fontSize: 8,
+                      fontSize: 'var(--text-xs)',
                       padding: '3px 6px',
                       cursor: 'pointer',
                       fontFamily: "var(--font-ar)",
@@ -295,7 +295,7 @@ export function TemplateManager({
                   {/* Export */}
                   <button
                     onClick={() => handleExportGrid(tpl.id)}
-                    style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', fontSize: 10 }}
+                    style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', fontSize: 'var(--text-xs)' }}
                     title={tc('export')}
                   >
                     📤
@@ -304,7 +304,7 @@ export function TemplateManager({
                   {/* Delete */}
                   <button
                     onClick={() => handleDeleteGrid(tpl.id)}
-                    style={{ background: 'none', border: 'none', color: COLORS.danger, cursor: 'pointer', fontSize: 10 }}
+                    style={{ background: 'none', border: 'none', color: COLORS.danger, cursor: 'pointer', fontSize: 'var(--text-xs)' }}
                     title={tc('delete')}
                   >
                     🗑
@@ -330,9 +330,9 @@ export function TemplateManager({
                 padding: '5px 8px',
                 background: COLORS.bg,
                 border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 4,
+                borderRadius: 'var(--radius-sm)',
                 color: COLORS.text,
-                fontSize: 10,
+                fontSize: 'var(--text-xs)',
                 fontFamily: "var(--font-ar)",
                 outline: 'none',
               }}
@@ -344,9 +344,9 @@ export function TemplateManager({
                 padding: '5px 10px',
                 background: COLORS.cyan,
                 border: 'none',
-                borderRadius: 4,
+                borderRadius: 'var(--radius-sm)',
                 color: '#000',
-                fontSize: 10,
+                fontSize: 'var(--text-xs)',
                 fontWeight: 700,
                 cursor: 'pointer',
                 fontFamily: "var(--font-ar)",
@@ -360,7 +360,7 @@ export function TemplateManager({
           {/* Templates List */}
           <div style={{ maxHeight: 200, overflowY: 'auto', marginBottom: 8 }}>
             {templates.length === 0 ? (
-              <div style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 9, padding: '10px 0', fontFamily: "var(--font-ar)" }}>
+              <div style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 'var(--text-xs)', padding: '10px 0', fontFamily: "var(--font-ar)" }}>
                 {tc('noTemplates')}
               </div>
             ) : (
@@ -376,10 +376,10 @@ export function TemplateManager({
                   }}
                 >
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 10, color: COLORS.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>
+                    <div style={{ fontSize: 'var(--text-xs)', color: COLORS.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>
                       {tpl.name}
                     </div>
-                    <div style={{ fontSize: 8, color: COLORS.textMuted, fontFamily: "var(--font-mono)" }}>
+                    <div style={{ fontSize: 'var(--text-xs)', color: COLORS.textMuted, fontFamily: "var(--font-mono)" }}>
                       {tpl.indicators.length} {tc('indicatorsCount')} • {new Date(tpl.updatedAt).toLocaleDateString(dateLocale)}
                     </div>
                   </div>
@@ -390,9 +390,9 @@ export function TemplateManager({
                     style={{
                       background: 'rgba(0,212,255,0.1)',
                       border: '1px solid rgba(0,212,255,0.2)',
-                      borderRadius: 4,
+                      borderRadius: 'var(--radius-sm)',
                       color: COLORS.cyan,
-                      fontSize: 8,
+                      fontSize: 'var(--text-xs)',
                       padding: '3px 6px',
                       cursor: 'pointer',
                       fontFamily: "var(--font-ar)",
@@ -404,7 +404,7 @@ export function TemplateManager({
                   {/* Export */}
                   <button
                     onClick={() => handleExportSingle(tpl.id)}
-                    style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', fontSize: 10 }}
+                    style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', fontSize: 'var(--text-xs)' }}
                     title={tc('export')}
                   >
                     📤
@@ -413,7 +413,7 @@ export function TemplateManager({
                   {/* Delete */}
                   <button
                     onClick={() => handleDeleteSingle(tpl.id)}
-                    style={{ background: 'none', border: 'none', color: COLORS.danger, cursor: 'pointer', fontSize: 10 }}
+                    style={{ background: 'none', border: 'none', color: COLORS.danger, cursor: 'pointer', fontSize: 'var(--text-xs)' }}
                     title={tc('delete')}
                   >
                     🗑
@@ -434,9 +434,9 @@ export function TemplateManager({
             padding: '5px 0',
             background: 'rgba(255,255,255,0.04)',
             border: '1px solid rgba(255,255,255,0.06)',
-            borderRadius: 4,
+            borderRadius: 'var(--radius-sm)',
             color: COLORS.textMuted,
-            fontSize: 9,
+            fontSize: 'var(--text-xs)',
             cursor: 'pointer',
             fontFamily: "var(--font-ar)",
           }}
@@ -455,9 +455,9 @@ export function TemplateManager({
               padding: '5px 8px',
               background: COLORS.bg,
               border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: 4,
+              borderRadius: 'var(--radius-sm)',
               color: COLORS.text,
-              fontSize: 9,
+              fontSize: 'var(--text-xs)',
               fontFamily: "var(--font-mono)",
               outline: 'none',
               resize: 'vertical',
@@ -471,9 +471,9 @@ export function TemplateManager({
                 padding: '4px 0',
                 background: COLORS.success,
                 border: 'none',
-                borderRadius: 4,
+                borderRadius: 'var(--radius-sm)',
                 color: '#000',
-                fontSize: 9,
+                fontSize: 'var(--text-xs)',
                 fontWeight: 600,
                 cursor: 'pointer',
                 fontFamily: "var(--font-ar)",
@@ -488,9 +488,9 @@ export function TemplateManager({
                 padding: '4px 0',
                 background: 'rgba(255,255,255,0.04)',
                 border: '1px solid rgba(255,255,255,0.06)',
-                borderRadius: 4,
+                borderRadius: 'var(--radius-sm)',
                 color: COLORS.textMuted,
-                fontSize: 9,
+                fontSize: 'var(--text-xs)',
                 cursor: 'pointer',
                 fontFamily: "var(--font-ar)",
               }}

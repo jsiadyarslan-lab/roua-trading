@@ -180,25 +180,25 @@ export function MiniHeatmap({ selectedSymbol, onSelectSymbol, onClose }: MiniHea
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
-            width: 24, height: 24, borderRadius: 6,
+            width: 24, height: 24, borderRadius: 'var(--radius-sm)',
             background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.25)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-xs)',
           }}>
             🔲
           </div>
           <div>
-            <div style={{ fontSize: 12, color: C.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
+            <div style={{ fontSize: 'var(--text-sm)', color: C.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
               Heatmap
             </div>
-            <div style={{ fontSize: 9, color: C.textDim, fontFamily: "var(--font-mono)" }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: C.textDim, fontFamily: "var(--font-mono)" }}>
               {items.length} symbols • {activeAlertCount} hot
             </div>
           </div>
         </div>
         <button onClick={onClose} style={{
-          background: 'rgba(255,255,255,0.04)', border: 'none', borderRadius: 5,
+          background: 'rgba(255,255,255,0.04)', border: 'none', borderRadius: 'var(--radius-sm)',
           color: C.textMuted, width: 22, height: 22, cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, padding: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-xs)', padding: 0,
         }}>
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
         </button>
@@ -218,8 +218,8 @@ export function MiniHeatmap({ selectedSymbol, onSelectSymbol, onClose }: MiniHea
               flex: 1, padding: '4px 0',
               background: sortMode === s.mode ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.03)',
               border: `1px solid ${sortMode === s.mode ? 'rgba(0,212,255,0.25)' : C.border}`,
-              borderRadius: 4, color: sortMode === s.mode ? C.cyan : C.textDim,
-              fontSize: 8, fontWeight: sortMode === s.mode ? 700 : 500,
+              borderRadius: 'var(--radius-sm)', color: sortMode === s.mode ? C.cyan : C.textDim,
+              fontSize: 'var(--text-xs)', fontWeight: sortMode === s.mode ? 700 : 500,
               cursor: 'pointer', fontFamily: "var(--font-mono)",
             }}
           >
@@ -231,10 +231,10 @@ export function MiniHeatmap({ selectedSymbol, onSelectSymbol, onClose }: MiniHea
         <button
           onClick={fetchData}
           style={{
-            width: 24, height: 24, borderRadius: 4,
+            width: 24, height: 24, borderRadius: 'var(--radius-sm)',
             background: 'rgba(255,255,255,0.03)',
             border: `1px solid ${C.border}`,
-            color: C.textDim, fontSize: 10, cursor: 'pointer',
+            color: C.textDim, fontSize: 'var(--text-xs)', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
             transition: 'transform 0.3s ease',
             transform: loading ? 'rotate(180deg)' : 'rotate(0deg)',
@@ -272,7 +272,7 @@ export function MiniHeatmap({ selectedSymbol, onSelectSymbol, onClose }: MiniHea
                 minHeight: 52,
                 background: bgColor,
                 border: `1px solid ${isSelected ? 'rgba(0,212,255,0.5)' : isHot ? (item.change >= 0 ? 'rgba(0,255,163,0.2)' : 'rgba(255,71,87,0.2)') : 'rgba(255,255,255,0.04)'}`,
-                borderRadius: 5,
+                borderRadius: 'var(--radius-sm)',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
                 outline: 'none',
@@ -291,7 +291,7 @@ export function MiniHeatmap({ selectedSymbol, onSelectSymbol, onClose }: MiniHea
             >
               {/* Symbol name */}
               <span style={{
-                fontSize: 9,
+                fontSize: 'var(--text-xs)',
                 fontWeight: 700,
                 color: isSelected ? C.cyan : C.text,
                 fontFamily: "var(--font-mono)",
@@ -306,7 +306,7 @@ export function MiniHeatmap({ selectedSymbol, onSelectSymbol, onClose }: MiniHea
 
               {/* Change % */}
               <span style={{
-                fontSize: 10,
+                fontSize: 'var(--text-xs)',
                 fontWeight: 900,
                 color: textColor,
                 fontFamily: "var(--font-mono)",
@@ -337,28 +337,28 @@ export function MiniHeatmap({ selectedSymbol, onSelectSymbol, onClose }: MiniHea
         alignItems: 'center',
         justifyContent: 'center',
         gap: 12,
-        fontSize: 8,
+        fontSize: 'var(--text-xs)',
         fontFamily: "var(--font-mono)",
         color: C.textMuted,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          <div style={{ width: 12, height: 8, borderRadius: 2, background: getHeatmapColor(4) }} />
+          <div style={{ width: 12, height: 8, borderRadius: 'var(--radius-xs)', background: getHeatmapColor(4) }} />
           <span>+5%</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          <div style={{ width: 12, height: 8, borderRadius: 2, background: getHeatmapColor(1) }} />
+          <div style={{ width: 12, height: 8, borderRadius: 'var(--radius-xs)', background: getHeatmapColor(1) }} />
           <span>+1%</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          <div style={{ width: 12, height: 8, borderRadius: 2, background: 'rgba(255,255,255,0.06)' }} />
+          <div style={{ width: 12, height: 8, borderRadius: 'var(--radius-xs)', background: 'rgba(255,255,255,0.06)' }} />
           <span>0%</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          <div style={{ width: 12, height: 8, borderRadius: 2, background: getHeatmapColor(-1) }} />
+          <div style={{ width: 12, height: 8, borderRadius: 'var(--radius-xs)', background: getHeatmapColor(-1) }} />
           <span>-1%</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          <div style={{ width: 12, height: 8, borderRadius: 2, background: getHeatmapColor(-4) }} />
+          <div style={{ width: 12, height: 8, borderRadius: 'var(--radius-xs)', background: getHeatmapColor(-4) }} />
           <span>-5%</span>
         </div>
       </div>

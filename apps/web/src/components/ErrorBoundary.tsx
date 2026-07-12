@@ -51,7 +51,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
           fontFamily: "var(--font-ar)",
         }}>
           <div style={{
-            width: 56, height: 56, borderRadius: 14,
+            width: 56, height: 56, borderRadius: 'var(--radius-xl)',
             background: 'rgba(255,77,77,0.1)',
             border: '1px solid rgba(255,77,77,0.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -60,19 +60,19 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             <AlertTriangle size={28} color={T.redAlt} />
           </div>
           <h2 style={{
-            fontSize: 18, fontWeight: 800, color: '#E6EBF5',
+            fontSize: 'var(--text-lg)', fontWeight: 800, color: '#E6EBF5',
             margin: '0 0 8px',
           }}>
             حدث خطأ غير متوقع
           </h2>
           <p style={{
-            fontSize: 13, color: '#8090A8',
+            fontSize: 'var(--text-sm)', color: '#8090A8',
             margin: '0 0 6px', maxWidth: 420, lineHeight: 1.7,
           }}>
             {this.state.error?.message || 'حدث خطأ أثناء عرض هذا القسم.'}
           </p>
           <p style={{
-            fontSize: 11, color: '#5A6A80',
+            fontSize: 'var(--text-xs)', color: '#5A6A80',
             margin: '0 0 20px',
           }}>
             يمكنك المحاولة مرة أخرى أو العودة لاحقاً.
@@ -81,10 +81,10 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             onClick={this.handleRetry}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 20px', borderRadius: 8,
+              padding: '8px 20px', borderRadius: 'var(--radius-md)',
               background: 'rgba(10,132,255,0.1)',
               border: '1px solid rgba(10,132,255,0.2)',
-              color: '#00C8FF', fontSize: 12, fontWeight: 700,
+              color: '#00C8FF', fontSize: 'var(--text-sm)', fontWeight: 700,
               cursor: 'pointer', fontFamily: "var(--font-ar)",
               transition: 'all 0.2s',
             }}

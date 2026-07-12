@@ -88,10 +88,10 @@ export function AutonomousAgentTab({ settings, update }: AutonomousAgentTabProps
             onChange={e => update("agentPairs", e.target.value)}
             placeholder="BTC/USDT,ETH/USDT"
             style={{
-              width: 200, padding: "4px 8px", borderRadius: 8,
+              width: 200, padding: "4px 8px", borderRadius: 'var(--radius-md)',
               background: "rgba(255,255,255,0.03)",
               border: `1px solid ${COLORS.border}`,
-              color: COLORS.textPrimary, fontSize: 11,
+              color: COLORS.textPrimary, fontSize: 'var(--text-xs)',
               fontFamily: "var(--font-mono)",
               outline: "none",
             }}

@@ -43,7 +43,7 @@ export function ChartDiagOverlay({ connectionState }: { connectionState?: string
         color: '#9be29b',
         font: '11px/1.5 monospace',
         padding: '8px 10px',
-        borderRadius: 8,
+        borderRadius: 'var(--radius-md)',
         pointerEvents: 'none',
         minWidth: 210,
         border: '1px solid rgba(155,226,155,0.3)',

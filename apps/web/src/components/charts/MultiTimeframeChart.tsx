@@ -163,7 +163,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
 
       const chart = createChart(container, {
         width, height,
-        layout: { background: { color: C.bg }, textColor: C.textDim, fontSize: 9, fontFamily: "var(--font-mono)", attributionLogo: false },
+        layout: { background: { color: C.bg }, textColor: C.textDim, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)", attributionLogo: false },
         grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } },
         rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.15, bottom: 0.05 } },
         timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false, rightOffset: 3, barSpacing: 5, minBarSpacing: 2 },
@@ -366,7 +366,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
         width: '92vw', maxWidth: 1200,
         height: '88vh', maxHeight: 820,
         display: 'flex', flexDirection: 'column',
-        background: C.card, borderRadius: 14,
+        background: C.card, borderRadius: 'var(--radius-xl)',
         border: `1px solid ${C.cardBorder}`,
         overflow: 'hidden',
         boxShadow: '0 25px 60px rgba(0,0,0,0.7), 0 0 40px rgba(0,212,255,0.05)',
@@ -381,7 +381,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{
-              width: 28, height: 28, borderRadius: 7,
+              width: 28, height: 28, borderRadius: 'var(--radius-md)',
               background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
@@ -390,10 +390,10 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
               </svg>
             </div>
             <div>
-              <div style={{ color: C.text, fontWeight: 700, fontSize: 14, fontFamily: "var(--font-ar)", lineHeight: 1.2 }}>
+              <div style={{ color: C.text, fontWeight: 700, fontSize: 'var(--text-base)', fontFamily: "var(--font-ar)", lineHeight: 1.2 }}>
                 {tc('multiTimeframeAnalysis')}
               </div>
-              <div style={{ color: C.cyan, fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, letterSpacing: 0.5 }}>
+              <div style={{ color: C.cyan, fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 600, letterSpacing: 0.5 }}>
                 {symbol}
               </div>
             </div>
@@ -406,8 +406,8 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
               style={{
                 background: 'rgba(0,212,255,0.1)',
                 border: '1px solid rgba(0,212,255,0.25)',
-                borderRadius: 8, color: C.cyan,
-                padding: '6px 12px', fontSize: 11, fontWeight: 700,
+                borderRadius: 'var(--radius-md)', color: C.cyan,
+                padding: '6px 12px', fontSize: 'var(--text-xs)', fontWeight: 700,
                 cursor: 'pointer', fontFamily: "var(--font-ar)",
                 display: 'flex', alignItems: 'center', gap: 4,
                 transition: 'all 0.15s ease',
@@ -423,8 +423,8 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
 
             <button onClick={onClose} style={{
               background: 'rgba(255,255,255,0.05)', border: `1px solid ${C.cardBorder}`,
-              borderRadius: 8, color: C.textDim, width: 32, height: 32, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, padding: 0,
+              borderRadius: 'var(--radius-md)', color: C.textDim, width: 32, height: 32, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-base)', padding: 0,
               transition: 'all 0.15s ease',
             }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.15)'; e.currentTarget.style.color = C.danger; }}
@@ -465,7 +465,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                   display: 'flex',
                   flexDirection: 'column',
                   overflow: 'hidden',
-                  borderRadius: 8,
+                  borderRadius: 'var(--radius-md)',
                   border: isActive
                     ? '1px solid rgba(0,212,255,0.4)'
                     : `1px solid ${C.cardBorder}`,
@@ -493,9 +493,9 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                       style={{
                         background: 'rgba(0,212,255,0.08)',
                         border: '1px solid rgba(0,212,255,0.2)',
-                        borderRadius: 4, color: C.cyan,
+                        borderRadius: 'var(--radius-sm)', color: C.cyan,
                         fontFamily: "var(--font-mono)",
-                        fontSize: 10, fontWeight: 700,
+                        fontSize: 'var(--text-xs)', fontWeight: 700,
                         padding: '2px 6px', cursor: 'pointer',
                         outline: 'none', maxWidth: 90,
                       }}
@@ -513,9 +513,9 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                       style={{
                         background: 'rgba(255,255,255,0.04)',
                         border: '1px solid rgba(255,255,255,0.08)',
-                        borderRadius: 4, color: C.textDim,
+                        borderRadius: 'var(--radius-sm)', color: C.textDim,
                         fontFamily: "var(--font-mono)",
-                        fontSize: 9, padding: '2px 4px',
+                        fontSize: 'var(--text-xs)', padding: '2px 4px',
                         cursor: 'pointer', outline: 'none',
                       }}
                     >
@@ -532,15 +532,15 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
 
                     {state?.currentPrice != null && !state?.loading && (
                       <>
-                        <span style={{ color: C.text, fontSize: 10, fontWeight: 600, fontFamily: "var(--font-mono)" }}>
+                        <span style={{ color: C.text, fontSize: 'var(--text-xs)', fontWeight: 600, fontFamily: "var(--font-mono)" }}>
                           {formatPrice(state.currentPrice)}
                         </span>
                         {changePercent !== null && (
                           <span style={{
                             color: isPositive ? C.success : C.danger,
-                            fontSize: 9, fontWeight: 700,
+                            fontSize: 'var(--text-xs)', fontWeight: 700,
                             fontFamily: "var(--font-mono)",
-                            padding: '1px 4px', borderRadius: 3,
+                            padding: '1px 4px', borderRadius: 'var(--radius-xs)',
                             background: isPositive ? 'rgba(0,255,163,0.1)' : 'rgba(255,71,87,0.1)',
                           }}>
                             {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
@@ -550,7 +550,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                     )}
 
                     {state?.error && (
-                      <span style={{ color: C.danger, fontSize: 9, fontFamily: "var(--font-ar)" }}>
+                      <span style={{ color: C.danger, fontSize: 'var(--text-xs)', fontFamily: "var(--font-ar)" }}>
                         {state.error}
                       </span>
                     )}
@@ -561,10 +561,10 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                       style={{
                         background: 'rgba(255,71,87,0.1)',
                         border: '1px solid rgba(255,71,87,0.2)',
-                        borderRadius: 4, color: C.danger,
+                        borderRadius: 'var(--radius-sm)', color: C.danger,
                         width: 18, height: 18, cursor: 'pointer',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 10, padding: 0, transition: 'all 0.15s ease',
+                        fontSize: 'var(--text-xs)', padding: 0, transition: 'all 0.15s ease',
                         flexShrink: 0,
                       }}
                       onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.25)'; }}
@@ -601,7 +601,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                       style={{
                         background: isActive ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.04)',
                         border: isActive ? '1px solid rgba(0,212,255,0.25)' : '1px solid rgba(255,255,255,0.06)',
-                        borderRadius: 3,
+                        borderRadius: 'var(--radius-xs)',
                         color: isActive ? C.cyan : C.textMuted,
                         height: 18,
                         padding: '0 5px',
@@ -609,7 +609,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: 8,
+                        fontSize: 'var(--text-xs)',
                         fontFamily: "var(--font-mono)",
                         fontWeight: 600,
                         transition: 'all 0.15s ease',
@@ -629,7 +629,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                       style={{
                         background: isActive ? 'rgba(0,212,255,0.08)' : 'rgba(255,255,255,0.04)',
                         border: isActive ? '1px solid rgba(0,212,255,0.15)' : '1px solid rgba(255,255,255,0.06)',
-                        borderRadius: 3,
+                        borderRadius: 'var(--radius-xs)',
                         color: isActive ? 'rgba(0,212,255,0.7)' : C.textMuted,
                         height: 18,
                         padding: '0 5px',
@@ -637,7 +637,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: 8,
+                        fontSize: 'var(--text-xs)',
                         fontFamily: "var(--font-mono)",
                         fontWeight: 600,
                         transition: 'all 0.15s ease',
@@ -659,7 +659,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                       style={{
                         background: isActive ? 'rgba(0,212,255,0.08)' : 'rgba(255,255,255,0.04)',
                         border: isActive ? '1px solid rgba(0,212,255,0.15)' : '1px solid rgba(255,255,255,0.06)',
-                        borderRadius: 3,
+                        borderRadius: 'var(--radius-xs)',
                         color: isActive ? 'rgba(0,212,255,0.8)' : C.textMuted,
                         width: 18, height: 18,
                         cursor: 'pointer',
@@ -681,7 +681,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                       style={{
                         background: isActive ? 'rgba(0,212,255,0.08)' : 'rgba(255,255,255,0.04)',
                         border: isActive ? '1px solid rgba(0,212,255,0.15)' : '1px solid rgba(255,255,255,0.06)',
-                        borderRadius: 3,
+                        borderRadius: 'var(--radius-xs)',
                         color: isActive ? 'rgba(0,212,255,0.8)' : C.textMuted,
                         width: 18, height: 18,
                         cursor: 'pointer',
@@ -703,7 +703,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                       style={{
                         background: isActive ? 'rgba(0,212,255,0.08)' : 'rgba(255,255,255,0.04)',
                         border: isActive ? '1px solid rgba(0,212,255,0.15)' : '1px solid rgba(255,255,255,0.06)',
-                        borderRadius: 3,
+                        borderRadius: 'var(--radius-xs)',
                         color: isActive ? 'rgba(0,212,255,0.8)' : C.textMuted,
                         width: 18, height: 18,
                         cursor: 'pointer',

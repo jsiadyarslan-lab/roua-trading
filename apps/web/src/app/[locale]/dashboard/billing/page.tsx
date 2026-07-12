@@ -107,9 +107,9 @@ function StatusBadge({ status, label }: { status: BillingRecord['status']; label
   const c = colors[status] || colors.pending
   return (
     <span style={{
-      padding: '2px 8px', borderRadius: 6,
+      padding: '2px 8px', borderRadius: 'var(--radius-sm)',
       background: c.bg, color: c.text,
-      fontSize: 10, fontWeight: 700,
+      fontSize: 'var(--text-xs)', fontWeight: 700,
       fontFamily: "var(--font-ar)",
       border: `1px solid ${c.border}`,
       display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -223,7 +223,7 @@ export default function BillingPage() {
       }}>
         <div className="billing-header-row" style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
           <div style={{
-            width: 40, height: 40, borderRadius: 11,
+            width: 40, height: 40, borderRadius: 'var(--radius-lg)',
             background: 'linear-gradient(135deg, #00D4FF, #0A84FF)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0,
@@ -231,15 +231,15 @@ export default function BillingPage() {
             <CreditCard size={18} color="#fff" />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: T.text }}>
+            <h1 style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 900, color: T.text }}>
               {t('title')}
             </h1>
-            <p style={{ margin: 0, fontSize: 11, color: T.text3 }}>
+            <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: T.text3 }}>
               {t('subtitleFull')}
             </p>
           </div>
           <div style={{
-            padding: '6px 14px', borderRadius: 10,
+            padding: '6px 14px', borderRadius: 'var(--radius-lg)',
             background: `${roleInfo.color}12`, border: `1px solid ${roleInfo.color}25`,
             display: 'flex', alignItems: 'center', gap: 6,
             flexShrink: 0,
@@ -247,7 +247,7 @@ export default function BillingPage() {
             {['PREMIUM', 'INSTITUTIONAL', 'PLUS'].includes(userTier) ? <Sparkles size={13} color={roleInfo.color} /> :
              userTier === 'PRO' ? <Star size={13} color={roleInfo.color} /> :
              <Crown size={13} color={roleInfo.color} />}
-            <span style={{ fontSize: 11, fontWeight: 700, color: roleInfo.color, fontFamily: "var(--font-ar)" }}>
+            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: roleInfo.color, fontFamily: "var(--font-ar)" }}>
               {tc(roleInfo.labelKey)}
             </span>
           </div>
@@ -262,7 +262,7 @@ export default function BillingPage() {
         {/* ─── Current Plan Card ─── */}
         <div style={{
           background: T.card, border: `1px solid ${roleInfo.color}25`,
-          borderRadius: 16, overflow: 'hidden', position: 'relative',
+          borderRadius: 'var(--radius-xl)', overflow: 'hidden', position: 'relative',
         }}>
           {/* Glow Effect */}
           <div style={{
@@ -275,7 +275,7 @@ export default function BillingPage() {
           <div style={{ padding: '22px 24px', position: 'relative' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
               <div style={{
-                width: 56, height: 56, borderRadius: 14,
+                width: 56, height: 56, borderRadius: 'var(--radius-xl)',
                 background: `linear-gradient(135deg, ${roleInfo.color}, ${roleInfo.color}88)`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 boxShadow: `0 0 24px ${roleInfo.color}25`,
@@ -286,17 +286,17 @@ export default function BillingPage() {
                  <Crown size={24} color="#fff" />}
               </div>
               <div style={{ flex: 1, minWidth: 120 }}>
-                <div style={{ fontSize: 20, fontWeight: 900, color: T.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: T.text, display: 'flex', alignItems: 'center', gap: 8 }}>
                   {t('currentPlanLabel', { plan: tc(roleInfo.labelKey) })}
                   {userTier === 'FREE' && (
                     <span style={{
-                      fontSize: 9, padding: '2px 8px', borderRadius: 10,
+                      fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-lg)',
                       background: `${T.cyan}12`, color: T.cyan,
                       fontFamily: "var(--font-ar)", fontWeight: 700,
                     }}>{tc('upgradeAvailable')}</span>
                   )}
                 </div>
-                <div style={{ fontSize: 12, color: T.text3, marginTop: 4, lineHeight: 1.6 }}>
+                <div style={{ fontSize: 'var(--text-sm)', color: T.text3, marginTop: 4, lineHeight: 1.6 }}>
                   {tc(roleInfo.descriptionKey)} — {t('currentlyOnPlan', { plan: tc(roleInfo.labelKey) })}
                   {userTier !== 'INSTITUTIONAL' && t('upgradeAnytime')}
                   {userTier === 'INSTITUTIONAL' && t('highestServiceLevel')}
@@ -304,12 +304,12 @@ export default function BillingPage() {
               </div>
               <div style={{ textAlign: 'center', flexShrink: 0 }}>
                 <div style={{
-                  fontSize: 28, fontWeight: 900, color: roleInfo.color,
+                  fontSize: 'var(--text-2xl)', fontWeight: 900, color: roleInfo.color,
                   fontFamily: "var(--font-mono)",
                 }}>
                   {PLANS.find(p => p.id === userTier)?.price || 0}
                 </div>
-                <div style={{ fontSize: 10, color: T.text4 }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: T.text4 }}>
                   {tc('perMonth')}
                 </div>
               </div>
@@ -318,12 +318,12 @@ export default function BillingPage() {
             {/* Next billing date (for paid plans) */}
             {userTier !== 'FREE' && (
               <div style={{
-                marginTop: 16, padding: '10px 14px', borderRadius: 10,
+                marginTop: 16, padding: '10px 14px', borderRadius: 'var(--radius-lg)',
                 background: `${roleInfo.color}06`, border: `1px solid ${roleInfo.color}12`,
                 display: 'flex', alignItems: 'center', gap: 10,
               }}>
                 <Clock size={14} color={roleInfo.color} />
-                <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.5 }}>
                   <span style={{ fontWeight: 700, color: T.text }}>{t('nextPayment')}</span>
                   {' '}{t('nextPaymentDate')} — {t('autoRenewAt')}{' '}
                   <span style={{ color: roleInfo.color, fontFamily: "var(--font-mono)", fontWeight: 700 }}>
@@ -339,15 +339,15 @@ export default function BillingPage() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <div style={{
-              width: 30, height: 30, borderRadius: 8,
+              width: 30, height: 30, borderRadius: 'var(--radius-md)',
               background: `${T.purple}14`, display: 'flex',
               alignItems: 'center', justifyContent: 'center',
             }}>
               <Sparkles size={14} color={T.purple} />
             </div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>{t('plansTitle')}</div>
-              <div style={{ fontSize: 11, color: T.text3 }}>{t('plansSubtitleFull')}</div>
+              <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text }}>{t('plansTitle')}</div>
+              <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{t('plansSubtitleFull')}</div>
             </div>
           </div>
 
@@ -364,7 +364,7 @@ export default function BillingPage() {
                 <div key={plan.id} style={{
                   background: T.card,
                   border: isCurrentPlan ? `1px solid ${plan.color}40` : `1px solid ${T.border}`,
-                  borderRadius: 16, overflow: 'hidden',
+                  borderRadius: 'var(--radius-xl)', overflow: 'hidden',
                   position: 'relative',
                   transition: 'all 0.3s',
                   boxShadow: isCurrentPlan ? `0 0 20px ${plan.color}10` : 'none',
@@ -373,9 +373,9 @@ export default function BillingPage() {
                   {plan.popular && (
                     <div style={{
                       position: 'absolute', top: 12, left: 12,
-                      padding: '3px 10px', borderRadius: 10,
+                      padding: '3px 10px', borderRadius: 'var(--radius-lg)',
                       background: `linear-gradient(135deg, ${T.cyan}, ${T.blue})`,
-                      color: '#000', fontSize: 9, fontWeight: 800,
+                      color: '#000', fontSize: 'var(--text-xs)', fontWeight: 800,
                       fontFamily: "var(--font-ar)",
                       boxShadow: `0 0 12px ${T.cyan}30`,
                     }}>
@@ -387,9 +387,9 @@ export default function BillingPage() {
                   {plan.badge && !plan.popular && (
                     <div style={{
                       position: 'absolute', top: 12, left: 12,
-                      padding: '3px 10px', borderRadius: 10,
+                      padding: '3px 10px', borderRadius: 'var(--radius-lg)',
                       background: `linear-gradient(135deg, ${T.amber}, #FF8C00)`,
-                      color: '#000', fontSize: 9, fontWeight: 800,
+                      color: '#000', fontSize: 'var(--text-xs)', fontWeight: 800,
                       fontFamily: "var(--font-ar)",
                     }}>
                       {plan.badge}
@@ -400,7 +400,7 @@ export default function BillingPage() {
                     {/* Plan Icon & Name */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                       <div style={{
-                        width: 36, height: 36, borderRadius: 10,
+                        width: 36, height: 36, borderRadius: 'var(--radius-lg)',
                         background: `${plan.color}15`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         color: plan.color,
@@ -408,7 +408,7 @@ export default function BillingPage() {
                         {plan.icon}
                       </div>
                       <div>
-                        <div style={{ fontSize: 15, fontWeight: 900, color: T.text, fontFamily: "var(--font-ar)" }}>
+                        <div style={{ fontSize: 'var(--text-base)', fontWeight: 900, color: T.text, fontFamily: "var(--font-ar)" }}>
                           {plan.name}
                         </div>
                       </div>
@@ -417,19 +417,19 @@ export default function BillingPage() {
                     {/* Price */}
                     <div style={{ marginBottom: 12, display: 'flex', alignItems: 'baseline', gap: 4 }}>
                       <span style={{
-                        fontSize: 30, fontWeight: 900, color: plan.color,
+                        fontSize: 'var(--text-2xl)', fontWeight: 900, color: plan.color,
                         fontFamily: "var(--font-mono)", lineHeight: 1,
                       }}>
                         ${plan.price}
                       </span>
-                      <span style={{ fontSize: 11, color: T.text4 }}>
+                      <span style={{ fontSize: 'var(--text-xs)', color: T.text4 }}>
                         /{plan.period}
                       </span>
                     </div>
 
                     {/* Description */}
                     <div style={{
-                      fontSize: 10, color: T.text3, lineHeight: 1.7,
+                      fontSize: 'var(--text-xs)', color: T.text3, lineHeight: 1.7,
                       marginBottom: 14, minHeight: 55,
                     }}>
                       {plan.description.slice(0, 100)}...
@@ -440,7 +440,7 @@ export default function BillingPage() {
                       {plan.features.map((feat, fi) => (
                         <div key={fi} style={{
                           display: 'flex', alignItems: 'center', gap: 6,
-                          fontSize: 10, color: feat.included ? T.text2 : T.text4,
+                          fontSize: 'var(--text-xs)', color: feat.included ? T.text2 : T.text4,
                           textDecoration: feat.included ? 'none' : 'line-through',
                           opacity: feat.included ? 1 : 0.5,
                         }}>
@@ -457,9 +457,9 @@ export default function BillingPage() {
                     {/* Action Button */}
                     {isCurrentPlan ? (
                       <div style={{
-                        padding: '10px 14px', borderRadius: 10,
+                        padding: '10px 14px', borderRadius: 'var(--radius-lg)',
                         background: `${plan.color}10`, border: `1px solid ${plan.color}20`,
-                        color: plan.color, fontSize: 12, fontWeight: 700,
+                        color: plan.color, fontSize: 'var(--text-sm)', fontWeight: 700,
                         textAlign: 'center', fontFamily: "var(--font-ar)",
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                       }}>
@@ -471,11 +471,11 @@ export default function BillingPage() {
                         onClick={() => handleUpgrade(plan.id)}
                         disabled={upgrading === plan.id}
                         style={{
-                          width: '100%', padding: '10px 14px', borderRadius: 10,
+                          width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-lg)',
                           background: isDowngrade ? T.surface : `linear-gradient(135deg, ${plan.color}, ${plan.color}cc)`,
                           border: isDowngrade ? `1px solid ${T.border2}` : 'none',
                           color: isDowngrade ? T.cyan : '#000',
-                          fontSize: 12, fontWeight: 800, cursor: upgrading === plan.id ? 'wait' : 'pointer',
+                          fontSize: 'var(--text-sm)', fontWeight: 800, cursor: upgrading === plan.id ? 'wait' : 'pointer',
                           fontFamily: "var(--font-ar)",
                           transition: 'all 0.2s',
                           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -503,15 +503,15 @@ export default function BillingPage() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <div style={{
-              width: 30, height: 30, borderRadius: 8,
+              width: 30, height: 30, borderRadius: 'var(--radius-md)',
               background: `${T.green}14`, display: 'flex',
               alignItems: 'center', justifyContent: 'center',
             }}>
               <Wallet size={14} color={T.green} />
             </div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>{t('paymentMethods')}</div>
-              <div style={{ fontSize: 11, color: T.text3 }}>
+              <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text }}>{t('paymentMethods')}</div>
+              <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>
                 {t('paymentMethodsSubtitle')}
               </div>
             </div>
@@ -523,7 +523,7 @@ export default function BillingPage() {
             {/* Credit Card */}
             <div style={{
               background: T.card, border: `1px solid ${selectedPayment === 'card' ? T.border2 : T.border}`,
-              borderRadius: 16, overflow: 'hidden',
+              borderRadius: 'var(--radius-xl)', overflow: 'hidden',
               cursor: 'pointer', transition: 'all 0.3s',
             }}
               onClick={() => setSelectedPayment('card')}
@@ -531,18 +531,18 @@ export default function BillingPage() {
               <div style={{ padding: '16px 18px', borderBottom: `1px solid ${T.border}` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{
-                    width: 8, height: 8, borderRadius: 4,
+                    width: 8, height: 8, borderRadius: 'var(--radius-sm)',
                     background: selectedPayment === 'card' ? T.cyan : T.text4,
                     boxShadow: selectedPayment === 'card' ? `0 0 8px ${T.cyan}50` : 'none',
                     transition: 'all 0.3s',
                   }} />
                   <CreditCard size={16} color={selectedPayment === 'card' ? T.cyan : T.text3} />
-                  <span style={{ fontSize: 13, fontWeight: 700, color: selectedPayment === 'card' ? T.text : T.text3 }}>
+                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: selectedPayment === 'card' ? T.text : T.text3 }}>
                     {t('creditDebit')}
                   </span>
                   <span style={{
-                    marginRight: 'auto', fontSize: 9, padding: '2px 7px',
-                    borderRadius: 10, background: `${T.green}12`, color: T.green,
+                    marginRight: 'auto', fontSize: 'var(--text-xs)', padding: '2px 7px',
+                    borderRadius: 'var(--radius-lg)', background: `${T.green}12`, color: T.green,
                     fontWeight: 600, fontFamily: "var(--font-mono)",
                   }}>
                     <Lock size={8} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: 3 }} />
@@ -556,7 +556,7 @@ export default function BillingPage() {
                   {/* Card Visual */}
                   <div style={{
                     background: `linear-gradient(135deg, ${T.surface}, #242838)`,
-                    borderRadius: 12, padding: '16px 18px',
+                    borderRadius: 'var(--radius-lg)', padding: '16px 18px',
                     border: `1px solid ${T.border2}`,
                     marginBottom: 14, position: 'relative', overflow: 'hidden',
                   }}>
@@ -567,13 +567,13 @@ export default function BillingPage() {
                     }} />
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                       <div style={{
-                        fontSize: 11, fontWeight: 700, color: T.cyan,
+                        fontSize: 'var(--text-xs)', fontWeight: 700, color: T.cyan,
                         fontFamily: "var(--font-mono)",
                       }}>VISA</div>
                       <Lock size={12} color={T.text4} />
                     </div>
                     <div style={{
-                      fontSize: 15, fontWeight: 600, color: T.text,
+                      fontSize: 'var(--text-base)', fontWeight: 600, color: T.text,
                       fontFamily: "var(--font-mono)",
                       letterSpacing: 2, marginBottom: 12,
                       direction: 'ltr', textAlign: 'left',
@@ -582,12 +582,12 @@ export default function BillingPage() {
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                       <div>
-                        <div style={{ fontSize: 8, color: T.text4, marginBottom: 2 }}>{t('cardHolder')}</div>
-                        <div style={{ fontSize: 11, color: T.text2, fontWeight: 600 }}>{user?.displayName || 'ROUA USER'}</div>
+                        <div style={{ fontSize: 'var(--text-xs)', color: T.text4, marginBottom: 2 }}>{t('cardHolder')}</div>
+                        <div style={{ fontSize: 'var(--text-xs)', color: T.text2, fontWeight: 600 }}>{user?.displayName || 'ROUA USER'}</div>
                       </div>
                       <div>
-                        <div style={{ fontSize: 8, color: T.text4, marginBottom: 2 }}>{t('expiry')}</div>
-                        <div style={{ fontSize: 11, color: T.text2, fontFamily: "var(--font-mono)" }}>{cardExpiry}</div>
+                        <div style={{ fontSize: 'var(--text-xs)', color: T.text4, marginBottom: 2 }}>{t('expiry')}</div>
+                        <div style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-mono)" }}>{cardExpiry}</div>
                       </div>
                     </div>
                   </div>
@@ -595,11 +595,11 @@ export default function BillingPage() {
                   {/* Card Form (visual only) */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     <div>
-                      <label style={{ fontSize: 10, color: T.text3, marginBottom: 4, display: 'block' }}>{t('cardNumber')}</label>
+                      <label style={{ fontSize: 'var(--text-xs)', color: T.text3, marginBottom: 4, display: 'block' }}>{t('cardNumber')}</label>
                       <div style={{
                         display: 'flex', alignItems: 'center', gap: 8,
                         background: T.surface, border: `1px solid ${T.border}`,
-                        borderRadius: 8, padding: '8px 12px',
+                        borderRadius: 'var(--radius-md)', padding: '8px 12px',
                       }}>
                         <input
                           type="text"
@@ -607,7 +607,7 @@ export default function BillingPage() {
                           onChange={e => setCardNumber(e.target.value)}
                           style={{
                             flex: 1, background: 'none', border: 'none',
-                            color: T.text, fontSize: 12,
+                            color: T.text, fontSize: 'var(--text-sm)',
                             fontFamily: "var(--font-mono)",
                             outline: 'none', direction: 'ltr', textAlign: 'left',
                           }}
@@ -623,15 +623,15 @@ export default function BillingPage() {
                     </div>
                     <div style={{ display: 'flex', gap: 10 }}>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: 10, color: T.text3, marginBottom: 4, display: 'block' }}>{t('expiryDate')}</label>
+                        <label style={{ fontSize: 'var(--text-xs)', color: T.text3, marginBottom: 4, display: 'block' }}>{t('expiryDate')}</label>
                         <input
                           type="text"
                           value={cardExpiry}
                           onChange={e => setCardExpiry(e.target.value)}
                           style={{
                             width: '100%', background: T.surface,
-                            border: `1px solid ${T.border}`, borderRadius: 8,
-                            padding: '8px 12px', color: T.text, fontSize: 12,
+                            border: `1px solid ${T.border}`, borderRadius: 'var(--radius-md)',
+                            padding: '8px 12px', color: T.text, fontSize: 'var(--text-sm)',
                             fontFamily: "var(--font-mono)",
                             outline: 'none', direction: 'ltr', textAlign: 'left',
                           }}
@@ -639,15 +639,15 @@ export default function BillingPage() {
                         />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: 10, color: T.text3, marginBottom: 4, display: 'block' }}>CVC</label>
+                        <label style={{ fontSize: 'var(--text-xs)', color: T.text3, marginBottom: 4, display: 'block' }}>CVC</label>
                         <input
                           type="text"
                           value={cardCvc}
                           onChange={e => setCardCvc(e.target.value)}
                           style={{
                             width: '100%', background: T.surface,
-                            border: `1px solid ${T.border}`, borderRadius: 8,
-                            padding: '8px 12px', color: T.text, fontSize: 12,
+                            border: `1px solid ${T.border}`, borderRadius: 'var(--radius-md)',
+                            padding: '8px 12px', color: T.text, fontSize: 'var(--text-sm)',
                             fontFamily: "var(--font-mono)",
                             outline: 'none', direction: 'ltr', textAlign: 'left',
                           }}
@@ -663,7 +663,7 @@ export default function BillingPage() {
             {/* Crypto Payment */}
             <div style={{
               background: T.card, border: `1px solid ${selectedPayment === 'crypto' ? T.border2 : T.border}`,
-              borderRadius: 16, overflow: 'hidden',
+              borderRadius: 'var(--radius-xl)', overflow: 'hidden',
               cursor: 'pointer', transition: 'all 0.3s',
             }}
               onClick={() => setSelectedPayment('crypto')}
@@ -671,18 +671,18 @@ export default function BillingPage() {
               <div style={{ padding: '16px 18px', borderBottom: `1px solid ${T.border}` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{
-                    width: 8, height: 8, borderRadius: 4,
+                    width: 8, height: 8, borderRadius: 'var(--radius-sm)',
                     background: selectedPayment === 'crypto' ? T.amber : T.text4,
                     boxShadow: selectedPayment === 'crypto' ? `0 0 8px ${T.amber}50` : 'none',
                     transition: 'all 0.3s',
                   }} />
                   <Bitcoin size={16} color={selectedPayment === 'crypto' ? T.amber : T.text3} />
-                  <span style={{ fontSize: 13, fontWeight: 700, color: selectedPayment === 'crypto' ? T.text : T.text3 }}>
+                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: selectedPayment === 'crypto' ? T.text : T.text3 }}>
                     {t('cryptoPay')}
                   </span>
                   <span style={{
-                    marginRight: 'auto', fontSize: 9, padding: '2px 7px',
-                    borderRadius: 10, background: `${T.amber}12`, color: T.amber,
+                    marginRight: 'auto', fontSize: 'var(--text-xs)', padding: '2px 7px',
+                    borderRadius: 'var(--radius-lg)', background: `${T.amber}12`, color: T.amber,
                     fontWeight: 600,
                   }}>
                     {t('decentralized')}
@@ -693,11 +693,11 @@ export default function BillingPage() {
               {selectedPayment === 'crypto' && (
                 <div style={{ padding: '14px 18px' }}>
                   <div style={{
-                    padding: '12px 14px', borderRadius: 10,
+                    padding: '12px 14px', borderRadius: 'var(--radius-lg)',
                     background: `${T.amber}06`, border: `1px solid ${T.amber}12`,
                     marginBottom: 14,
                   }}>
-                    <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.7 }}>
+                    <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.7 }}>
                       {t('cryptoPayDesc')}
                     </div>
                   </div>
@@ -711,7 +711,7 @@ export default function BillingPage() {
                     ].map(coin => (
                       <div key={coin.symbol} style={{
                         display: 'flex', alignItems: 'center', gap: 10,
-                        padding: '10px 12px', borderRadius: 10,
+                        padding: '10px 12px', borderRadius: 'var(--radius-lg)',
                         background: T.surface, border: `1px solid ${T.border}`,
                         transition: 'all 0.2s', cursor: 'pointer',
                       }}
@@ -719,7 +719,7 @@ export default function BillingPage() {
                         onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = T.surface }}
                       >
                         <div style={{
-                          width: 30, height: 30, borderRadius: 8,
+                          width: 30, height: 30, borderRadius: 'var(--radius-md)',
                           background: `${coin.color}15`,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           color: coin.color,
@@ -727,8 +727,8 @@ export default function BillingPage() {
                           {coin.icon}
                         </div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: T.text }}>{coin.name}</div>
-                          <div style={{ fontSize: 9, color: T.text4, fontFamily: "var(--font-mono)" }}>{coin.symbol}</div>
+                          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text }}>{coin.name}</div>
+                          <div style={{ fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-mono)" }}>{coin.symbol}</div>
                         </div>
                         <ArrowUpRight size={14} color={T.text4} />
                       </div>
@@ -744,15 +744,15 @@ export default function BillingPage() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <div style={{
-              width: 30, height: 30, borderRadius: 8,
+              width: 30, height: 30, borderRadius: 'var(--radius-md)',
               background: `${T.blue}14`, display: 'flex',
               alignItems: 'center', justifyContent: 'center',
             }}>
               <Receipt size={14} color={T.blue} />
             </div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>{t('invoiceHistory')}</div>
-              <div style={{ fontSize: 11, color: T.text3 }}>
+              <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text }}>{t('invoiceHistory')}</div>
+              <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>
                 {t('invoiceSubtitle')}
               </div>
             </div>
@@ -760,16 +760,16 @@ export default function BillingPage() {
 
           <div style={{
             background: T.card, border: `1px solid ${T.border}`,
-            borderRadius: 16, overflow: 'hidden',
+            borderRadius: 'var(--radius-xl)', overflow: 'hidden',
           }}>
             <div className="billing-table-wrap">
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${T.border}` }}>
                     {[t('tableDate'), t('tableDescription'), t('tableAmount'), t('tableStatus'), ''].map(h => (
                       <th key={h} style={{
                         padding: '12px 16px', textAlign: 'right',
-                        fontSize: 10, fontWeight: 700, color: T.text4,
+                        fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text4,
                         fontFamily: "var(--font-ar)",
                         letterSpacing: '0.05em',
                       }}>
@@ -788,19 +788,19 @@ export default function BillingPage() {
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
                       <td style={{ padding: '12px 16px' }}>
-                        <div style={{ fontSize: 11, color: T.text2, fontFamily: "var(--font-mono)", direction: 'ltr', textAlign: 'right' }}>
+                        <div style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-mono)", direction: 'ltr', textAlign: 'right' }}>
                           {record.date}
                         </div>
                       </td>
                       <td style={{ padding: '12px 16px' }}>
-                        <div style={{ fontSize: 11, color: T.text, fontWeight: 600 }}>{record.description}</div>
-                        <div style={{ fontSize: 9, color: T.text4, fontFamily: "var(--font-mono)", direction: 'ltr', textAlign: 'right' }}>
+                        <div style={{ fontSize: 'var(--text-xs)', color: T.text, fontWeight: 600 }}>{record.description}</div>
+                        <div style={{ fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-mono)", direction: 'ltr', textAlign: 'right' }}>
                           {record.id}
                         </div>
                       </td>
                       <td style={{ padding: '12px 16px' }}>
                         <span style={{
-                          fontSize: 12, fontWeight: 700, color: T.text,
+                          fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text,
                           fontFamily: "var(--font-mono)",
                         }}>
                           {record.amount}
@@ -814,8 +814,8 @@ export default function BillingPage() {
                           <button
                             style={{
                               background: 'none', border: `1px solid ${T.border}`,
-                              borderRadius: 6, padding: '4px 8px',
-                              color: T.text3, fontSize: 10, cursor: 'pointer',
+                              borderRadius: 'var(--radius-sm)', padding: '4px 8px',
+                              color: T.text3, fontSize: 'var(--text-xs)', cursor: 'pointer',
                               display: 'flex', alignItems: 'center', gap: 4,
                               fontFamily: "var(--font-ar)",
                               transition: 'all 0.2s',
@@ -841,10 +841,10 @@ export default function BillingPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               background: `${T.surface}30`,
             }}>
-              <div style={{ fontSize: 10, color: T.text4 }}>
+              <div style={{ fontSize: 'var(--text-xs)', color: T.text4 }}>
                 {t('lastTransactions', { n: billingHistory.length })}
               </div>
-              <div style={{ fontSize: 10, color: T.text3, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ fontSize: 'var(--text-xs)', color: T.text3, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <FileText size={10} />
                 {t('totalPayments')}: <span style={{ color: T.text, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
                   ${billingHistory.filter(r => r.status === 'paid').reduce((sum, r) => sum + parseFloat(r.amount.replace('$', '')), 0).toFixed(2)}
@@ -857,20 +857,20 @@ export default function BillingPage() {
         {/* ─── Promo Code Section ─── */}
         <div style={{
           background: T.card, border: `1px solid ${T.border}`,
-          borderRadius: 16, overflow: 'hidden',
+          borderRadius: 'var(--radius-xl)', overflow: 'hidden',
         }}>
           <div style={{ padding: '18px 20px', borderBottom: `1px solid ${T.border}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{
-                width: 36, height: 36, borderRadius: 10,
+                width: 36, height: 36, borderRadius: 'var(--radius-lg)',
                 background: `${T.pink}14`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 <Gift size={18} color={T.pink} />
               </div>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: T.text }}>{t('promoCode')}</div>
-                <div style={{ fontSize: 11, color: T.text3 }}>
+                <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text }}>{t('promoCode')}</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>
                   {t('promoDesc')}
                 </div>
               </div>
@@ -884,7 +884,7 @@ export default function BillingPage() {
               <div style={{
                 flex: 1, display: 'flex', alignItems: 'center',
                 background: T.surface, border: `1px solid ${T.border}`,
-                borderRadius: 10, padding: '4px 12px',
+                borderRadius: 'var(--radius-lg)', padding: '4px 12px',
               }}>
                 <Tag size={14} color={T.text4} style={{ flexShrink: 0, marginLeft: 8 }} />
                 <input
@@ -895,7 +895,7 @@ export default function BillingPage() {
                   maxLength={20}
                   style={{
                     flex: 1, background: 'none', border: 'none',
-                    color: T.text, fontSize: 13,
+                    color: T.text, fontSize: 'var(--text-sm)',
                     fontFamily: "var(--font-mono)",
                     outline: 'none', padding: '8px 0',
                     direction: 'ltr', textAlign: 'right',
@@ -908,10 +908,10 @@ export default function BillingPage() {
                 onClick={handlePromoApply}
                 disabled={promoApplying}
                 style={{
-                  padding: '10px 24px', borderRadius: 10,
+                  padding: '10px 24px', borderRadius: 'var(--radius-lg)',
                   background: `linear-gradient(135deg, ${T.pink}, ${T.purple})`,
                   border: 'none', color: '#fff',
-                  fontSize: 12, fontWeight: 800, cursor: promoApplying ? 'wait' : 'pointer',
+                  fontSize: 'var(--text-sm)', fontWeight: 800, cursor: promoApplying ? 'wait' : 'pointer',
                   fontFamily: "var(--font-ar)",
                   transition: 'all 0.2s',
                   boxShadow: `0 0 16px ${T.pink}20`,
@@ -925,7 +925,7 @@ export default function BillingPage() {
 
             <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Shield size={12} color={T.text4} />
-              <span style={{ fontSize: 10, color: T.text4 }}>
+              <span style={{ fontSize: 'var(--text-xs)', color: T.text4 }}>
                 {t('allEncrypted')}
               </span>
             </div>
@@ -944,12 +944,12 @@ export default function BillingPage() {
             { icon: <Users size={14} />, color: T.purple, label: t('continuousSupport'), desc: t('continuousSupportDesc') },
           ].map((item, i) => (
             <div key={i} style={{
-              padding: '12px 14px', borderRadius: 10,
+              padding: '12px 14px', borderRadius: 'var(--radius-lg)',
               background: T.card, border: `1px solid ${T.border}`,
               display: 'flex', alignItems: 'flex-start', gap: 10,
             }}>
               <div style={{
-                width: 28, height: 28, borderRadius: 7,
+                width: 28, height: 28, borderRadius: 'var(--radius-md)',
                 background: `${item.color}12`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: item.color, flexShrink: 0,
@@ -957,8 +957,8 @@ export default function BillingPage() {
                 {item.icon}
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: T.text, marginBottom: 2 }}>{item.label}</div>
-                <div style={{ fontSize: 9, color: T.text4, lineHeight: 1.5 }}>{item.desc}</div>
+                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text, marginBottom: 2 }}>{item.label}</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: T.text4, lineHeight: 1.5 }}>{item.desc}</div>
               </div>
             </div>
           ))}

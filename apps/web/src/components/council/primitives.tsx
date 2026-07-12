@@ -19,7 +19,7 @@ export function GlassCard({
       : "linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.012) 100%)",
     backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
     border: `1px solid ${strong ? COLORS.borderStrong : COLORS.border}`,
-    borderRadius: 16,
+    borderRadius: 'var(--radius-xl)',
     boxShadow: glow
       ? `0 0 0 1px ${hexToRgba(glow, 0.12)}, 0 18px 48px -16px ${hexToRgba(glow, 0.35)}, 0 6px 16px -8px rgba(0,0,0,0.4)`
       : "0 12px 32px -16px rgba(0,0,0,0.5), 0 4px 12px -6px rgba(0,0,0,0.35)",
@@ -84,9 +84,9 @@ export function CircularProgress({
 export function DirectionBadge({ direction, size = "md", label }: { direction: Direction; size?: "sm" | "md" | "lg"; label?: string }) {
   const color = directionColor(direction);
   const soft = directionSoft(direction);
-  const sizing = size === "lg" ? { padding: "8px 14px", fontSize: 14, fontWeight: 700 } : size === "sm" ? { padding: "3px 8px", fontSize: 11, fontWeight: 600 } : { padding: "5px 10px", fontSize: 12, fontWeight: 700 };
+  const sizing = size === "lg" ? { padding: "8px 14px", fontSize: 'var(--text-base)', fontWeight: 700 } : size === "sm" ? { padding: "3px 8px", fontSize: 'var(--text-xs)', fontWeight: 600 } : { padding: "5px 10px", fontSize: 'var(--text-sm)', fontWeight: 700 };
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 8, background: soft, border: `1px solid ${hexToRgba(color, 0.35)}`, color, textTransform: "uppercase", ...sizing }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 'var(--radius-md)', background: soft, border: `1px solid ${hexToRgba(color, 0.35)}`, color, textTransform: "uppercase", ...sizing }}>
       <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: color, boxShadow: `0 0 8px ${color}` }} />
       {label ?? direction}
     </span>
@@ -96,7 +96,7 @@ export function DirectionBadge({ direction, size = "md", label }: { direction: D
 export function StatusPill({ status, label }: { status: ReviewStatus; label: string }) {
   const color = statusColor(status);
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 9px", borderRadius: 999, fontSize: 11, fontWeight: 600, textTransform: "uppercase", background: hexToRgba(color, 0.1), color, border: `1px solid ${hexToRgba(color, 0.3)}` }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 9px", borderRadius: 'var(--radius-2xl)', fontSize: 'var(--text-xs)', fontWeight: 600, textTransform: "uppercase", background: hexToRgba(color, 0.1), color, border: `1px solid ${hexToRgba(color, 0.3)}` }}>
       <span aria-hidden style={{ width: 5, height: 5, borderRadius: "50%", background: color }} />
       {label}
     </span>
@@ -105,7 +105,7 @@ export function StatusPill({ status, label }: { status: ReviewStatus; label: str
 
 export function LiveDot({ color = COLORS.buy, size = 8, label }: { color?: string; size?: number; label?: string }) {
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 11, fontWeight: 600, color: COLORS.textSecondary, textTransform: "uppercase" }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 'var(--text-xs)', fontWeight: 600, color: COLORS.textSecondary, textTransform: "uppercase" }}>
       <span style={{ position: "relative", width: size, height: size }}>
         <motion.span aria-hidden style={{ position: "absolute", inset: 0, borderRadius: "50%", background: color }}
           animate={{ scale: [1, 1.6, 1], opacity: [0.6, 0, 0.6] }}
@@ -120,9 +120,9 @@ export function LiveDot({ color = COLORS.buy, size = 8, label }: { color?: strin
 export function ConfidenceBar({ value, color, height = 6 }: { value: number; color?: string; height?: number }) {
   const c = color ?? COLORS.council;
   return (
-    <div style={{ width: "100%", height, background: "rgba(255,255,255,0.06)", borderRadius: 999, overflow: "hidden" }}>
+    <div style={{ width: "100%", height, background: "rgba(255,255,255,0.06)", borderRadius: 'var(--radius-2xl)', overflow: "hidden" }}>
       <motion.div
-        style={{ height: "100%", background: `linear-gradient(90deg, ${c}, ${c === COLORS.council ? COLORS.info : c})`, borderRadius: 999 }}
+        style={{ height: "100%", background: `linear-gradient(90deg, ${c}, ${c === COLORS.council ? COLORS.info : c})`, borderRadius: 'var(--radius-2xl)' }}
         initial={{ width: 0 }} animate={{ width: `${Math.min(100, Math.max(0, value))}%` }}
         transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }} />
     </div>
@@ -136,12 +136,12 @@ export function SectionHeader({ index, eyebrow, title, subtitle, right }: {
     <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, marginBottom: 18, flexWrap: "wrap" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
         {index ? (
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, letterSpacing: "0.18em", color: COLORS.council, padding: "4px 8px", borderRadius: 6, background: hexToRgba(COLORS.council, 0.1), border: `1px solid ${hexToRgba(COLORS.council, 0.25)}` }}>{index}</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 600, letterSpacing: "0.18em", color: COLORS.council, padding: "4px 8px", borderRadius: 'var(--radius-sm)', background: hexToRgba(COLORS.council, 0.1), border: `1px solid ${hexToRgba(COLORS.council, 0.25)}` }}>{index}</div>
         ) : null}
         <div style={{ minWidth: 0 }}>
-          {eyebrow ? <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.textMuted, marginBottom: 4 }}>{eyebrow}</div> : null}
-          <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.015em", color: COLORS.textPrimary, margin: 0, lineHeight: 1.1 }}>{title}</h2>
-          {subtitle ? <p style={{ fontSize: 13, color: COLORS.textMuted, margin: "6px 0 0", lineHeight: 1.4 }}>{subtitle}</p> : null}
+          {eyebrow ? <div style={{ fontSize: 'var(--text-xs)', fontWeight: 500, letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.textMuted, marginBottom: 4 }}>{eyebrow}</div> : null}
+          <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 600, letterSpacing: "-0.015em", color: COLORS.textPrimary, margin: 0, lineHeight: 1.1 }}>{title}</h2>
+          {subtitle ? <p style={{ fontSize: 'var(--text-sm)', color: COLORS.textMuted, margin: "6px 0 0", lineHeight: 1.4 }}>{subtitle}</p> : null}
         </div>
       </div>
       {right ? <div style={{ flexShrink: 0 }}>{right}</div> : null}
@@ -155,11 +155,11 @@ export function StatTile({ label, value, sub, accent, icon }: {
   return (
     <GlassCard padding={16} style={{ height: "100%" }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.textMuted }}>{label}</div>
-        {icon ? <div style={{ width: 28, height: 28, borderRadius: 8, background: accent ? hexToRgba(accent, 0.12) : "rgba(255,255,255,0.05)", color: accent ?? COLORS.textMuted, display: "flex", alignItems: "center", justifyContent: "center" }}>{icon}</div> : null}
+        <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.textMuted }}>{label}</div>
+        {icon ? <div style={{ width: 28, height: 28, borderRadius: 'var(--radius-md)', background: accent ? hexToRgba(accent, 0.12) : "rgba(255,255,255,0.05)", color: accent ?? COLORS.textMuted, display: "flex", alignItems: "center", justifyContent: "center" }}>{icon}</div> : null}
       </div>
-      <div style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.025em", color: accent ?? COLORS.textPrimary, lineHeight: 1, fontFamily: "var(--font-mono)" }}>{value}</div>
-      {sub ? <div style={{ marginTop: 6, fontSize: 12, color: COLORS.textMuted }}>{sub}</div> : null}
+      <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 600, letterSpacing: "-0.025em", color: accent ?? COLORS.textPrimary, lineHeight: 1, fontFamily: "var(--font-mono)" }}>{value}</div>
+      {sub ? <div style={{ marginTop: 6, fontSize: 'var(--text-sm)', color: COLORS.textMuted }}>{sub}</div> : null}
     </GlassCard>
   );
 }

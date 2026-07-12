@@ -82,7 +82,7 @@ function SelectBox({ value, onChange, options, small }: {
         onChange={e => onChange(e.target.value)}
         style={{
           background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-          borderRadius: 10, padding: small ? '5px 28px 5px 10px' : '7px 30px 7px 12px',
+          borderRadius: 'var(--radius-lg)', padding: small ? '5px 28px 5px 10px' : '7px 30px 7px 12px',
           color: T.text, fontSize: small ? 11 : 12,
           fontFamily: "var(--font-ar)", fontWeight: 600,
           outline: 'none', cursor: 'pointer',
@@ -114,7 +114,7 @@ function SectionCard({ icon, iconColor, iconBg, title, subtitle, children, badge
       background: T.glassCard,
       backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
       border: `1px solid ${T.border2}`,
-      borderRadius: 18, overflow: 'hidden',
+      borderRadius: 'var(--radius-xl)', overflow: 'hidden',
       boxShadow: T.shadowGlass,
       transition: 'border-color 0.3s, transform 0.3s, box-shadow 0.3s',
     }}>
@@ -125,7 +125,7 @@ function SectionCard({ icon, iconColor, iconBg, title, subtitle, children, badge
         background: 'linear-gradient(180deg, rgba(255,255,255,0.025), transparent)',
       }}>
         <div style={{
-          width: 44, height: 44, borderRadius: 13,
+          width: 44, height: 44, borderRadius: 'var(--radius-lg)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           background: `linear-gradient(135deg, ${iconBg}, ${iconBg}88)`,
           border: `1px solid ${iconColor}25`,
@@ -135,18 +135,18 @@ function SectionCard({ icon, iconColor, iconBg, title, subtitle, children, badge
           {icon}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14.5, fontWeight: 800, color: T.text, display: 'flex', alignItems: 'center', gap: 8, letterSpacing: '-0.01em' }}>
+          <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text, display: 'flex', alignItems: 'center', gap: 8, letterSpacing: '-0.01em' }}>
             {title}
             {badge && (
               <span style={{
-                fontSize: 9.5, padding: '2px 8px', borderRadius: 10,
+                fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-lg)',
                 background: `${iconColor}15`, color: iconColor,
                 fontFamily: "var(--font-mono)", fontWeight: 700,
                 border: `1px solid ${iconColor}25`,
               }}>{badge}</span>
             )}
           </div>
-          <div style={{ fontSize: 11.5, color: T.text3, marginTop: 3, lineHeight: 1.5 }}>{subtitle}</div>
+          <div style={{ fontSize: 'var(--text-xs)', color: T.text3, marginTop: 3, lineHeight: 1.5 }}>{subtitle}</div>
         </div>
       </div>
       {/* Section Body */}
@@ -173,14 +173,14 @@ function SettingRow({ icon, label, description, children, indent }: {
         {icon && (
           <span style={{
             flexShrink: 0, display: 'flex',
-            width: 26, height: 26, borderRadius: 8,
+            width: 26, height: 26, borderRadius: 'var(--radius-md)',
             alignItems: 'center', justifyContent: 'center',
             background: 'rgba(255,255,255,0.03)',
           }}>{icon}</span>
         )}
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 13, color: T.text, fontWeight: 600, whiteSpace: 'nowrap', letterSpacing: '-0.005em' }}>{label}</div>
-          {description && <div style={{ fontSize: 10.5, color: T.text4, marginTop: 2, lineHeight: 1.4 }}>{description}</div>}
+          <div style={{ fontSize: 'var(--text-sm)', color: T.text, fontWeight: 600, whiteSpace: 'nowrap', letterSpacing: '-0.005em' }}>{label}</div>
+          {description && <div style={{ fontSize: 'var(--text-xs)', color: T.text4, marginTop: 2, lineHeight: 1.4 }}>{description}</div>}
         </div>
       </div>
       <div style={{ flexShrink: 0, marginInlineStart: 12 }}>{children}</div>
@@ -193,10 +193,10 @@ function PermissionTag({ label, active, color }: { label: string; active: boolea
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 5,
-      padding: '5px 10px', borderRadius: 8,
+      padding: '5px 10px', borderRadius: 'var(--radius-md)',
       background: active ? `${color}12` : 'rgba(255,255,255,0.025)',
       color: active ? color : T.text4,
-      fontSize: 10.5, fontWeight: 600,
+      fontSize: 'var(--text-xs)', fontWeight: 600,
       fontFamily: "var(--font-ar)",
       border: `1px solid ${active ? `${color}30` : T.border}`,
       transition: 'all 0.25s',
@@ -265,7 +265,7 @@ function ActiveAccountSelector() {
 
   if (loading) {
     return (
-      <div style={{ padding: '16px 0', textAlign: 'center', color: T.text3, fontSize: 11.5 }}>
+      <div style={{ padding: '16px 0', textAlign: 'center', color: T.text3, fontSize: 'var(--text-xs)' }}>
         <Loader2 size={16} color={T.council} style={{ margin: '0 auto 8px', display: 'block', animation: 'spin 1s linear infinite' }} />
         {t('loadingAccounts')}
       </div>
@@ -275,16 +275,16 @@ function ActiveAccountSelector() {
   if (credentials.length === 0) {
     return (
       <div style={{ padding: '16px 0', textAlign: 'center' }}>
-        <div style={{ fontSize: 12.5, color: T.text3, marginBottom: 12 }}>
+        <div style={{ fontSize: 'var(--text-sm)', color: T.text3, marginBottom: 12 }}>
           {t('noLinkedAccounts')}
         </div>
         <button
           onClick={() => window.location.href = '/dashboard/settings/exchange'}
           style={{
-            padding: '8px 18px', borderRadius: 10,
+            padding: '8px 18px', borderRadius: 'var(--radius-lg)',
             background: `linear-gradient(135deg, ${T.council}18, ${T.cyan}12)`,
             border: `1px solid ${T.council}30`,
-            color: T.council, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+            color: T.council, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
             fontFamily: "var(--font-ar)",
             boxShadow: `0 4px 14px ${T.council}15`,
           }}
@@ -300,13 +300,13 @@ function ActiveAccountSelector() {
       {/* Info banner */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
-        padding: '12px 16px', borderRadius: 12,
+        padding: '12px 16px', borderRadius: 'var(--radius-lg)',
         background: `linear-gradient(135deg, ${T.council}08, ${T.cyan}06)`,
         border: `1px solid ${T.council}18`,
         marginBottom: 14,
       }}>
         <Shield size={16} color={T.council} />
-        <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.6 }}>
+        <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.6 }}>
           {t('accountSelectorBanner')}
         </div>
       </div>
@@ -336,7 +336,7 @@ function ActiveAccountSelector() {
               key={cred.id}
               onClick={() => saveActiveAccount(cred.id)}
               style={{
-                width: '100%', padding: '12px 16px', borderRadius: 12,
+                width: '100%', padding: '12px 16px', borderRadius: 'var(--radius-lg)',
                 border: isActive ? `1px solid ${typeColor}50` : `1px solid ${T.border2}`,
                 background: isActive
                   ? `linear-gradient(135deg, ${typeColor}10, ${typeColor}05)`
@@ -351,14 +351,14 @@ function ActiveAccountSelector() {
               }}
             >
               {/* Account type indicator */}
-              <span style={{ fontSize: 18 }}>{typeIcon}</span>
+              <span style={{ fontSize: 'var(--text-lg)' }}>{typeIcon}</span>
 
               {/* Account info */}
               <div style={{ flex: 1, textAlign: 'right' }}>
-                <div style={{ fontSize: 12.5, fontWeight: 700, color: isActive ? typeColor : T.text, display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: isActive ? typeColor : T.text, display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
                   {cred.label || cred.exchange}
                   <span style={{
-                    fontSize: 9, padding: '2px 7px', borderRadius: 5,
+                    fontSize: 'var(--text-xs)', padding: '2px 7px', borderRadius: 'var(--radius-sm)',
                     background: `${typeColor}18`, color: typeColor,
                     fontWeight: 700, fontFamily: "var(--font-mono)",
                     border: `1px solid ${typeColor}25`,
@@ -366,7 +366,7 @@ function ActiveAccountSelector() {
                     {typeLabel}
                   </span>
                 </div>
-                <div style={{ fontSize: 10, color: T.text4, marginTop: 3 }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: T.text4, marginTop: 3 }}>
                   {cred.exchange} {cred.lastValidatedAt ? `• ${t('lastVerified')}: ${new Date(cred.lastValidatedAt).toLocaleDateString()}` : ''}
                 </div>
               </div>
@@ -445,10 +445,10 @@ function SaveStatusBadge({ status, t }: {
       transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
       style={{
         display: 'inline-flex', alignItems: 'center', gap: 7,
-        padding: '7px 13px', borderRadius: 10,
+        padding: '7px 13px', borderRadius: 'var(--radius-lg)',
         background: config.bg,
         border: `1px solid ${config.border}`,
-        color: config.color, fontSize: 11, fontWeight: 700,
+        color: config.color, fontSize: 'var(--text-xs)', fontWeight: 700,
         fontFamily: "var(--font-ar)", flexShrink: 0,
         boxShadow: config.glow,
         backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
@@ -1164,7 +1164,7 @@ export default function SettingsPage() {
         {/* Brand — Council Purple Gradient */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
           <div style={{
-            width: 42, height: 42, borderRadius: 13,
+            width: 42, height: 42, borderRadius: 'var(--radius-lg)',
             background: 'linear-gradient(135deg, #A855F7, #06B6D4)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: `0 4px 18px ${T.councilGlow}, inset 0 1px 0 rgba(255,255,255,0.2)`,
@@ -1173,20 +1173,20 @@ export default function SettingsPage() {
             <Settings size={20} color="#fff" />
             {/* Subtle inner glow */}
             <div style={{
-              position: 'absolute', inset: 0, borderRadius: 13,
+              position: 'absolute', inset: 0, borderRadius: 'var(--radius-lg)',
               background: 'linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.1))',
               pointerEvents: 'none',
             }} />
           </div>
           <div className="settings-brand-meta">
             <h1 style={{
-              margin: 0, fontSize: 18, fontWeight: 900, color: T.text,
+              margin: 0, fontSize: 'var(--text-lg)', fontWeight: 900, color: T.text,
               letterSpacing: '-0.02em',
               background: 'linear-gradient(135deg, #F0F2F5, #A855F7)',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
             }}>{t('title')}</h1>
-            <p style={{ margin: 0, fontSize: 11, color: T.text3, fontWeight: 500 }}>{t('subtitle')}</p>
+            <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 500 }}>{t('subtitle')}</p>
           </div>
         </div>
 
@@ -1194,7 +1194,7 @@ export default function SettingsPage() {
         <div className="settings-search" style={{
           flex: 1, maxWidth: 420, minWidth: 0,
           display: 'flex', alignItems: 'center', gap: 10,
-          padding: '9px 14px', borderRadius: 12,
+          padding: '9px 14px', borderRadius: 'var(--radius-lg)',
           background: 'rgba(255,255,255,0.04)',
           border: `1px solid ${T.border2}`,
           transition: 'border-color 0.25s, box-shadow 0.25s, background 0.25s',
@@ -1218,7 +1218,7 @@ export default function SettingsPage() {
             aria-label={t('searchSettingsAria')}
             style={{
               flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'transparent',
-              color: T.text, fontSize: 12.5, fontFamily: "var(--font-ar)", fontWeight: 500,
+              color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-ar)", fontWeight: 500,
             }}
           />
           {searchQuery ? (
@@ -1238,7 +1238,7 @@ export default function SettingsPage() {
             </button>
           ) : (
             <kbd style={{
-              fontSize: 9.5, padding: '2px 6px', borderRadius: 5,
+              fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)',
               background: 'rgba(255,255,255,0.05)', color: T.text4,
               fontFamily: "var(--font-mono)", fontWeight: 600,
               border: `1px solid ${T.border}`,
@@ -1283,7 +1283,7 @@ export default function SettingsPage() {
               <div key={group.id} style={{ marginBottom: 4, position: 'relative' }}>
                 {/* Group label */}
                 <div className="settings-group-label">
-                  <span style={{ color: group.accent, fontSize: 11 }}>●</span>
+                  <span style={{ color: group.accent, fontSize: 'var(--text-xs)' }}>●</span>
                   {group.label}
                 </div>
                 {/* Tabs in this group */}
@@ -1297,12 +1297,12 @@ export default function SettingsPage() {
                       style={{
                         display: 'flex', alignItems: 'center', gap: 12,
                         width: '100%', padding: '11px 12px',
-                        borderRadius: 11, border: 'none', cursor: 'pointer',
+                        borderRadius: 'var(--radius-lg)', border: 'none', cursor: 'pointer',
                         background: isActive
                           ? `linear-gradient(135deg, ${tab.color}18, ${tab.color}08)`
                           : 'transparent',
                         color: isActive ? tab.color : T.text3,
-                        fontSize: 13, fontWeight: isActive ? 800 : 600,
+                        fontSize: 'var(--text-sm)', fontWeight: isActive ? 800 : 600,
                         fontFamily: "var(--font-ar)",
                         transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                         borderInlineStart: isActive
@@ -1339,15 +1339,15 @@ export default function SettingsPage() {
           ) : (
             <div style={{ padding: '32px 16px', textAlign: 'center' }}>
               <div style={{
-                width: 48, height: 48, borderRadius: 14,
+                width: 48, height: 48, borderRadius: 'var(--radius-xl)',
                 background: `${T.council}10`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 margin: '0 auto 12px',
               }}>
                 <Search size={22} color={T.council} />
               </div>
-              <div style={{ fontSize: 12.5, color: T.text3, fontWeight: 700 }}>{t('noSearchResults')}</div>
-              <div style={{ fontSize: 10.5, color: T.text4, marginTop: 6, lineHeight: 1.5 }}>{t('noSearchResultsDesc')}</div>
+              <div style={{ fontSize: 'var(--text-sm)', color: T.text3, fontWeight: 700 }}>{t('noSearchResults')}</div>
+              <div style={{ fontSize: 'var(--text-xs)', color: T.text4, marginTop: 6, lineHeight: 1.5 }}>{t('noSearchResultsDesc')}</div>
             </div>
           )}
 
@@ -1358,12 +1358,12 @@ export default function SettingsPage() {
           }}>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
-              padding: '8px 10px', borderRadius: 10,
+              padding: '8px 10px', borderRadius: 'var(--radius-lg)',
               background: `linear-gradient(135deg, ${T.council}10, transparent)`,
               border: `1px solid ${T.council}20`,
             }}>
               <div style={{
-                width: 22, height: 22, borderRadius: 7,
+                width: 22, height: 22, borderRadius: 'var(--radius-md)',
                 background: 'linear-gradient(135deg, #A855F7, #06B6D4)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0,
@@ -1371,8 +1371,8 @@ export default function SettingsPage() {
                 <Sparkles size={11} color="#fff" />
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: T.text2, fontFamily: "var(--font-mono)", letterSpacing: '0.02em' }}>ROUA COUNCIL</div>
-                <div style={{ fontSize: 8.5, color: T.text4 }}>AI Strategic Council</div>
+                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.text2, fontFamily: "var(--font-mono)", letterSpacing: '0.02em' }}>ROUA COUNCIL</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: T.text4 }}>AI Strategic Council</div>
               </div>
             </div>
           </div>
@@ -1398,12 +1398,12 @@ export default function SettingsPage() {
                       onClick={() => setActiveTab(tab.id)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 7,
-                        padding: '8px 14px', borderRadius: 10, border: 'none', cursor: 'pointer',
+                        padding: '8px 14px', borderRadius: 'var(--radius-lg)', border: 'none', cursor: 'pointer',
                         background: isActive
                           ? `linear-gradient(135deg, ${tab.color}18, ${tab.color}08)`
                           : 'rgba(255,255,255,0.03)',
                         color: isActive ? tab.color : T.text3,
-                        fontSize: 12, fontWeight: isActive ? 800 : 600,
+                        fontSize: 'var(--text-sm)', fontWeight: isActive ? 800 : 600,
                         fontFamily: "var(--font-ar)",
                         whiteSpace: 'nowrap', flexShrink: 0,
                         transition: 'all 0.25s',
@@ -1419,7 +1419,7 @@ export default function SettingsPage() {
               </div>
             ))
           ) : (
-            <div style={{ padding: '8px 10px', fontSize: 11.5, color: T.text3 }}>{t('noSearchResults')}</div>
+            <div style={{ padding: '8px 10px', fontSize: 'var(--text-xs)', color: T.text3 }}>{t('noSearchResults')}</div>
           )}
         </div>
 
@@ -1449,7 +1449,7 @@ export default function SettingsPage() {
               animate={{ scale: 1, opacity: 1, rotate: 0 }}
               transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
               style={{
-                width: 56, height: 56, borderRadius: 16,
+                width: 56, height: 56, borderRadius: 'var(--radius-xl)',
                 background: `linear-gradient(135deg, ${activeTabMeta.color}, ${activeTabMeta.color}aa)`,
                 border: `1px solid ${activeTabMeta.color}40`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1470,7 +1470,7 @@ export default function SettingsPage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, delay: 0.05 }}
                 style={{
-                  margin: 0, fontSize: 22, fontWeight: 900, color: T.text,
+                  margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: T.text,
                   letterSpacing: '-0.02em',
                 }}
               >
@@ -1481,7 +1481,7 @@ export default function SettingsPage() {
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, delay: 0.1 }}
-                style={{ margin: '4px 0 0', fontSize: 12.5, color: T.text3, lineHeight: 1.5, fontWeight: 500 }}
+                style={{ margin: '4px 0 0', fontSize: 'var(--text-sm)', color: T.text3, lineHeight: 1.5, fontWeight: 500 }}
               >
                 {activeTabMeta.description}
               </motion.p>
@@ -1509,7 +1509,7 @@ export default function SettingsPage() {
               background: T.glassCard,
               backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
               border: `1px solid ${T.border2}`,
-              borderRadius: 18, padding: 26, display: 'flex', alignItems: 'center', gap: 22,
+              borderRadius: 'var(--radius-xl)', padding: 26, display: 'flex', alignItems: 'center', gap: 22,
               boxShadow: T.shadowGlass,
               position: 'relative', overflow: 'hidden',
             }}>
@@ -1521,10 +1521,10 @@ export default function SettingsPage() {
                 pointerEvents: 'none', filter: 'blur(20px)',
               }} />
               <div style={{
-                width: 68, height: 68, borderRadius: 18,
+                width: 68, height: 68, borderRadius: 'var(--radius-xl)',
                 background: `linear-gradient(135deg, ${roleInfo.color}, ${roleInfo.color}88)`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 28, fontWeight: 900, color: '#fff',
+                fontSize: 'var(--text-2xl)', fontWeight: 900, color: '#fff',
                 fontFamily: "var(--font-mono)",
                 boxShadow: `0 8px 24px ${roleInfo.color}30, inset 0 1px 0 rgba(255,255,255,0.2)`,
                 flexShrink: 0,
@@ -1533,18 +1533,18 @@ export default function SettingsPage() {
                 {user?.displayName?.[0] || user?.email?.[0]?.toUpperCase() || 'R'}
               </div>
               <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
-                <div style={{ fontSize: 19, fontWeight: 900, color: T.text, marginBottom: 5, letterSpacing: '-0.02em' }}>
+                <div style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: T.text, marginBottom: 5, letterSpacing: '-0.02em' }}>
                   {user?.displayName || t('defaultUserName')}
                 </div>
-                <div style={{ fontSize: 12, color: T.text2, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <div style={{ fontSize: 'var(--text-sm)', color: T.text2, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                   <Mail size={12} />
                   <span style={{ fontFamily: "var(--font-mono)" }}>{user?.email || 'user@roua.io'}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <span style={{
-                    padding: '4px 11px', borderRadius: 11,
+                    padding: '4px 11px', borderRadius: 'var(--radius-lg)',
                     background: `${roleInfo.color}15`, color: roleInfo.color,
-                    fontSize: 10.5, fontWeight: 700,
+                    fontSize: 'var(--text-xs)', fontWeight: 700,
                     fontFamily: "var(--font-mono)",
                     border: `1px solid ${roleInfo.color}30`,
                     display: 'flex', alignItems: 'center', gap: 5,
@@ -1552,16 +1552,16 @@ export default function SettingsPage() {
                     {['PREMIUM', 'INSTITUTIONAL', 'PLUS'].includes(userTier) ? <Sparkles size={11} /> : userTier === 'PRO' ? <Star size={11} /> : <Crown size={11} />}
                     {tc(roleInfo.labelKey)}
                   </span>
-                  <span style={{ fontSize: 10.5, color: T.text4 }}>{tc(roleInfo.descriptionKey)}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: T.text4 }}>{tc(roleInfo.descriptionKey)}</span>
                 </div>
               </div>
               <button
                 onClick={() => router.push('/dashboard/portfolio')}
                 style={{
-                  padding: '9px 18px', borderRadius: 11, border: `1px solid ${T.council}30`,
+                  padding: '9px 18px', borderRadius: 'var(--radius-lg)', border: `1px solid ${T.council}30`,
                   background: `linear-gradient(135deg, ${T.council}12, ${T.cyan}08)`,
                   color: T.council,
-                  fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+                  fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                   fontFamily: "var(--font-ar)",
                   display: 'flex', alignItems: 'center', gap: 7,
                   transition: 'all 0.25s', flexShrink: 0,
@@ -1586,12 +1586,12 @@ export default function SettingsPage() {
               <div style={{ padding: '8px 0' }}>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '12px 16px', borderRadius: 12,
+                  padding: '12px 16px', borderRadius: 'var(--radius-lg)',
                   background: 'rgba(0,212,255,0.04)', border: `1px solid rgba(0,212,255,0.12)`,
                   marginBottom: 14,
                 }}>
                   <Shield size={16} color={T.cyan} />
-                  <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.6 }}>
+                  <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.6 }}>
                     {t('apiKeysSecurityInfo')}
                     <span style={{ color: T.red, fontWeight: 600 }}> {t('withdrawKeysRejected')}</span>
                   </div>
@@ -1599,9 +1599,9 @@ export default function SettingsPage() {
                 <button
                   onClick={() => router.push('/dashboard/settings/exchange')}
                   style={{
-                    width: '100%', padding: '13px 18px', borderRadius: 12,
+                    width: '100%', padding: '13px 18px', borderRadius: 'var(--radius-lg)',
                     border: `1px dashed ${T.border2}`, background: 'transparent',
-                    color: T.cyan, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                    color: T.cyan, fontSize: 'var(--text-sm)', fontWeight: 700, cursor: 'pointer',
                     fontFamily: "var(--font-ar)",
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                     transition: 'all 0.2s',
@@ -1617,9 +1617,9 @@ export default function SettingsPage() {
                 <button
                   onClick={() => router.push('/dashboard/settings/ea-bridge')}
                   style={{
-                    width: '100%', padding: '13px 18px', borderRadius: 12,
+                    width: '100%', padding: '13px 18px', borderRadius: 'var(--radius-lg)',
                     border: `1px dashed ${T.border2}`, background: 'transparent',
-                    color: T.council, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                    color: T.council, fontSize: 'var(--text-sm)', fontWeight: 700, cursor: 'pointer',
                     fontFamily: "var(--font-ar)",
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                     transition: 'all 0.2s', marginTop: 8,
@@ -1647,7 +1647,7 @@ export default function SettingsPage() {
                 label={t("userId")}
                 description={user?.id || '—'}
               >
-                <span style={{ fontSize: 10, color: T.text3, fontFamily: "var(--font-mono)" }}>
+                <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>
                   {user?.id?.slice(0, 12) || '—'}...
                 </span>
               </SettingRow>
@@ -1656,9 +1656,9 @@ export default function SettingsPage() {
                 label={t("subscriptionLevel")}
               >
                 <span style={{
-                  padding: '3px 9px', borderRadius: 7,
+                  padding: '3px 9px', borderRadius: 'var(--radius-md)',
                   background: `${roleInfo.color}15`, color: roleInfo.color,
-                  fontSize: 10, fontWeight: 700,
+                  fontSize: 'var(--text-xs)', fontWeight: 700,
                   fontFamily: "var(--font-mono)",
                 }}>
                   {user?.tier?.toUpperCase() || 'FREE'}
@@ -1668,8 +1668,8 @@ export default function SettingsPage() {
                 icon={<Clock size={13} color={T.text3} />}
                 label={t("sessionStatus")}
               >
-                <span style={{ fontSize: 11, color: T.green, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: 3, background: T.green, boxShadow: `0 0 6px ${T.green}60` }} />
+                <span style={{ fontSize: 'var(--text-xs)', color: T.green, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: 'var(--radius-xs)', background: T.green, boxShadow: `0 0 6px ${T.green}60` }} />
                   {t('activeAutoRenew')}
                 </span>
               </SettingRow>
@@ -1679,7 +1679,7 @@ export default function SettingsPage() {
 
             {/* Danger Zone */}
             <div style={{
-              border: `1px solid rgba(255,71,87,0.18)`, borderRadius: 18,
+              border: `1px solid rgba(255,71,87,0.18)`, borderRadius: 'var(--radius-xl)',
               background: 'rgba(255,71,87,0.03)', overflow: 'hidden',
               backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
               boxShadow: '0 8px 32px rgba(255,71,87,0.08)',
@@ -1687,7 +1687,7 @@ export default function SettingsPage() {
               <div style={{ padding: '18px 22px', borderBottom: `1px solid rgba(255,71,87,0.12)`, background: 'linear-gradient(180deg, rgba(255,71,87,0.04), transparent)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <AlertTriangle size={16} color={T.red} />
-                  <span style={{ fontSize: 13.5, fontWeight: 800, color: T.red, letterSpacing: '-0.01em' }}>{t('dangerZone')}</span>
+                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: T.red, letterSpacing: '-0.01em' }}>{t('dangerZone')}</span>
                 </div>
               </div>
               <div style={{ padding: '8px 22px 18px' }}>
@@ -1699,9 +1699,9 @@ export default function SettingsPage() {
                   <button
                     onClick={authLogout}
                     style={{
-                      padding: '7px 16px', borderRadius: 9,
+                      padding: '7px 16px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,71,87,0.10)', border: `1px solid rgba(255,71,87,0.22)`,
-                      color: T.red, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                      color: T.red, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                       fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                     }}
                   >
@@ -1716,9 +1716,9 @@ export default function SettingsPage() {
                   <button
                     onClick={() => setShowDeleteDialog(true)}
                     style={{
-                      padding: '7px 16px', borderRadius: 9,
+                      padding: '7px 16px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,71,87,0.10)', border: '1px solid rgba(255,71,87,0.28)',
-                      color: T.red, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                      color: T.red, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                       fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                     }}
                   >
@@ -1732,11 +1732,11 @@ export default function SettingsPage() {
                   padding: '18px 22px', borderTop: `1px solid rgba(255,71,87,0.18)`,
                   background: 'rgba(255,71,87,0.04)',
                 }}>
-                  <div style={{ fontSize: 12, color: T.text2, marginBottom: 12, lineHeight: 1.6 }}>
+                  <div style={{ fontSize: 'var(--text-sm)', color: T.text2, marginBottom: 12, lineHeight: 1.6 }}>
                     {t('deleteAccountWarning')}
                   </div>
                   <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 11, color: T.text3, marginBottom: 5 }}>
+                    <div style={{ fontSize: 'var(--text-xs)', color: T.text3, marginBottom: 5 }}>
                       {t('typeToConfirm')} &quot;DELETE&quot;
                     </div>
                     <input
@@ -1745,9 +1745,9 @@ export default function SettingsPage() {
                       onChange={e => setDeleteConfirmText(e.target.value)}
                       placeholder="DELETE"
                       style={{
-                        width: '100%', padding: '8px 12px', borderRadius: 9,
+                        width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-md)',
                         background: T.surface, border: `1px solid rgba(255,71,87,0.22)`,
-                        color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
+                        color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                         outline: 'none', direction: 'ltr',
                       }}
                     />
@@ -1756,9 +1756,9 @@ export default function SettingsPage() {
                     <button
                       onClick={() => { setShowDeleteDialog(false); setDeleteConfirmText('') }}
                       style={{
-                        padding: '7px 16px', borderRadius: 9,
+                        padding: '7px 16px', borderRadius: 'var(--radius-md)',
                         background: T.surface, border: `1px solid ${T.border}`,
-                        color: T.text3, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                        color: T.text3, fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer',
                         fontFamily: "var(--font-ar)",
                       }}
                     >
@@ -1774,10 +1774,10 @@ export default function SettingsPage() {
                         setShowDeleteDialog(false); setDeleteConfirmText('')
                       }}
                       style={{
-                        padding: '7px 16px', borderRadius: 9,
+                        padding: '7px 16px', borderRadius: 'var(--radius-md)',
                         background: deleteConfirmText === 'DELETE' ? 'rgba(255,71,87,0.18)' : T.surface,
                         border: '1px solid rgba(255,71,87,0.28)',
-                        color: T.red, fontSize: 11, fontWeight: 700,
+                        color: T.red, fontSize: 'var(--text-xs)', fontWeight: 700,
                         cursor: deleteConfirmText === 'DELETE' ? 'pointer' : 'not-allowed',
                         fontFamily: "var(--font-ar)",
                         opacity: deleteConfirmText === 'DELETE' ? 1 : 0.5,
@@ -1800,7 +1800,7 @@ export default function SettingsPage() {
               background: T.glassCard,
               backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
               border: `1px solid ${roleInfo.color}30`,
-              borderRadius: 18, overflow: 'hidden',
+              borderRadius: 'var(--radius-xl)', overflow: 'hidden',
               boxShadow: T.shadowGlass,
             }}>
               <div style={{
@@ -1815,7 +1815,7 @@ export default function SettingsPage() {
                 }} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 18, position: 'relative' }}>
                   <div style={{
-                    width: 60, height: 60, borderRadius: 16,
+                    width: 60, height: 60, borderRadius: 'var(--radius-xl)',
                     background: `linear-gradient(135deg, ${roleInfo.color}, ${roleInfo.color}88)`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     boxShadow: `0 8px 28px ${roleInfo.color}35, inset 0 1px 0 rgba(255,255,255,0.2)`,
@@ -1826,18 +1826,18 @@ export default function SettingsPage() {
                      <Crown size={26} color="#fff" />}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 23, fontWeight: 900, color: T.text, display: 'flex', alignItems: 'center', gap: 8, letterSpacing: '-0.02em' }}>
+                    <div style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: T.text, display: 'flex', alignItems: 'center', gap: 8, letterSpacing: '-0.02em' }}>
                       {t('planLabel', { plan: tc(roleInfo.labelKey) })}
                       {userTier === 'FREE' && (
                         <span style={{
-                          fontSize: 10, padding: '3px 10px', borderRadius: 11,
+                          fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-lg)',
                           background: `${T.cyan}15`, color: T.cyan,
                           fontFamily: "var(--font-ar)", fontWeight: 700,
                           border: `1px solid ${T.cyan}25`,
                         }}>{t('upgrade')}</span>
                       )}
                     </div>
-                    <div style={{ fontSize: 12, color: T.text3, marginTop: 3 }}>{tc(roleInfo.descriptionKey)}</div>
+                    <div style={{ fontSize: 'var(--text-sm)', color: T.text3, marginTop: 3 }}>{tc(roleInfo.descriptionKey)}</div>
                   </div>
                 </div>
 
@@ -1847,19 +1847,19 @@ export default function SettingsPage() {
                     const isActive = key === userTier
                     return (
                       <div key={key} style={{
-                        flex: 1, padding: '13px 8px', borderRadius: 12, textAlign: 'center',
+                        flex: 1, padding: '13px 8px', borderRadius: 'var(--radius-lg)', textAlign: 'center',
                         background: isActive ? `${info.color}12` : 'rgba(255,255,255,0.025)',
                         border: isActive ? `1px solid ${info.color}40` : `1px solid ${T.border}`,
                         transition: 'all 0.3s',
                         boxShadow: isActive ? `0 4px 18px ${info.color}12` : 'none',
                       }}>
-                        <div style={{ fontSize: 12, fontWeight: 800, color: isActive ? info.color : T.text3, fontFamily: "var(--font-ar)" }}>
+                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: isActive ? info.color : T.text3, fontFamily: "var(--font-ar)" }}>
                           {tc(info.labelKey)}
                         </div>
-                        <div style={{ fontSize: 9, color: T.text4, marginTop: 3 }}>{tc(info.descriptionKey)}</div>
+                        <div style={{ fontSize: 'var(--text-xs)', color: T.text4, marginTop: 3 }}>{tc(info.descriptionKey)}</div>
                         {isActive && (
                           <div style={{
-                            marginTop: 8, fontSize: 8.5, fontWeight: 700,
+                            marginTop: 8, fontSize: 'var(--text-xs)', fontWeight: 700,
                             color: info.color, fontFamily: "var(--font-mono)",
                           }}>{t('current')}</div>
                         )}
@@ -1882,7 +1882,7 @@ export default function SettingsPage() {
               <div style={{ padding: '8px 0' }}>
                 {permissionCategories.map((cat, ci) => (
                   <div key={ci} style={{ marginBottom: ci < permissionCategories.length - 1 ? 14 : 0 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: T.text4, marginBottom: 8, letterSpacing: '0.06em' }}>{cat.name}</div>
+                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text4, marginBottom: 8, letterSpacing: '0.06em' }}>{cat.name}</div>
                     <div className="perm-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 7 }}>
                       {cat.perms.map((p, pi) => (
                         <PermissionTag key={pi} label={p.label} active={hasPermission(userTier, p.perm)} color={roleInfo.color} />
@@ -1897,7 +1897,7 @@ export default function SettingsPage() {
             {userTier === 'FREE' && (
               <div style={{
                 background: `linear-gradient(135deg, ${T.council}10, ${T.cyan}08)`,
-                border: `1px solid ${T.council}25`, borderRadius: 18,
+                border: `1px solid ${T.council}25`, borderRadius: 'var(--radius-xl)',
                 padding: 24, textAlign: 'center',
                 backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
                 boxShadow: `0 8px 32px ${T.council}12`,
@@ -1909,18 +1909,18 @@ export default function SettingsPage() {
                   background: `radial-gradient(circle, ${T.council}20, transparent 70%)`,
                   pointerEvents: 'none', filter: 'blur(30px)',
                 }} />
-                <div style={{ fontSize: 17, fontWeight: 900, color: T.text, marginBottom: 10, position: 'relative', letterSpacing: '-0.02em' }}>
+                <div style={{ fontSize: 'var(--text-md)', fontWeight: 900, color: T.text, marginBottom: 10, position: 'relative', letterSpacing: '-0.02em' }}>
                   {t('unlockFullPotential')}
                 </div>
-                <div style={{ fontSize: 12, color: T.text3, lineHeight: 1.8, marginBottom: 18, position: 'relative' }}>
+                <div style={{ fontSize: 'var(--text-sm)', color: T.text3, lineHeight: 1.8, marginBottom: 18, position: 'relative' }}>
                   {t('upgradeProDesc')}
                 </div>
                 <button
                   onClick={() => router.push('/dashboard/billing')}
                   style={{
-                  padding: '11px 32px', borderRadius: 12,
+                  padding: '11px 32px', borderRadius: 'var(--radius-lg)',
                   background: `linear-gradient(135deg, ${T.council}, ${T.cyan})`,
-                  border: 'none', color: '#fff', fontSize: 13, fontWeight: 800,
+                  border: 'none', color: '#fff', fontSize: 'var(--text-sm)', fontWeight: 800,
                   cursor: 'pointer', fontFamily: "var(--font-ar)",
                   boxShadow: `0 8px 24px ${T.council}35`,
                   position: 'relative',
@@ -1964,7 +1964,7 @@ export default function SettingsPage() {
                     key={m.id}
                     onClick={() => setMode(m.id)}
                     style={{
-                      flex: 1, padding: '16px 12px', borderRadius: 13, cursor: 'pointer',
+                      flex: 1, padding: '16px 12px', borderRadius: 'var(--radius-lg)', cursor: 'pointer',
                       background: mode === m.id
                         ? `linear-gradient(135deg, ${m.color}15, ${m.color}08)`
                         : 'rgba(255,255,255,0.025)',
@@ -1976,10 +1976,10 @@ export default function SettingsPage() {
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8, color: mode === m.id ? m.color : T.text3 }}>
                       {m.icon}
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: mode === m.id ? m.color : T.text2, fontFamily: "var(--font-ar)" }}>
+                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: mode === m.id ? m.color : T.text2, fontFamily: "var(--font-ar)" }}>
                       {m.label}
                     </div>
-                    <div style={{ fontSize: 9.5, color: T.text4, marginTop: 3 }}>{m.desc}</div>
+                    <div style={{ fontSize: 'var(--text-xs)', color: T.text4, marginTop: 3 }}>{m.desc}</div>
                   </button>
                 ))}
               </div>
@@ -2005,7 +2005,7 @@ export default function SettingsPage() {
                     onChange={e => setOrderSize(e.target.value)}
                     style={{ width: 90, accentColor: T.council, height: 3 }}
                   />
-                  <span style={{ fontSize: 11, fontWeight: 700, color: T.council, fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
+                  <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.council, fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
                     {orderSize}%
                   </span>
                 </div>
@@ -2061,14 +2061,14 @@ export default function SettingsPage() {
                     value={userStopLoss}
                     onChange={e => setUserStopLoss(e.target.value)}
                     style={{
-                      width: 60, padding: '5px 8px', borderRadius: 9,
+                      width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
+                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
                   />
-                  <span style={{ fontSize: 11, color: T.text3, fontWeight: 600 }}>%</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 600 }}>%</span>
                 </div>
               </SettingRow>
               <SettingRow
@@ -2082,14 +2082,14 @@ export default function SettingsPage() {
                     value={userTakeProfit}
                     onChange={e => setUserTakeProfit(e.target.value)}
                     style={{
-                      width: 60, padding: '5px 8px', borderRadius: 9,
+                      width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
+                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
                   />
-                  <span style={{ fontSize: 11, color: T.text3, fontWeight: 600 }}>%</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 600 }}>%</span>
                 </div>
               </SettingRow>
               <SettingRow
@@ -2103,14 +2103,14 @@ export default function SettingsPage() {
                     value={userRiskPerTrade}
                     onChange={e => setUserRiskPerTrade(e.target.value)}
                     style={{
-                      width: 60, padding: '5px 8px', borderRadius: 9,
+                      width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
+                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
                   />
-                  <span style={{ fontSize: 11, color: T.text3, fontWeight: 600 }}>%</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 600 }}>%</span>
                 </div>
               </SettingRow>
               <SettingRow
@@ -2124,21 +2124,21 @@ export default function SettingsPage() {
                     value={userMaxDailyLoss}
                     onChange={e => setUserMaxDailyLoss(e.target.value)}
                     style={{
-                      width: 60, padding: '5px 8px', borderRadius: 9,
+                      width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
+                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
                   />
-                  <span style={{ fontSize: 11, color: T.text3, fontWeight: 600 }}>%</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 600 }}>%</span>
                 </div>
               </SettingRow>
               {/* BUG-066: Configurable hard caps */}
               <div style={{
-                marginTop: 8, marginBottom: 4, padding: '8px 10px', borderRadius: 8,
+                marginTop: 8, marginBottom: 4, padding: '8px 10px', borderRadius: 'var(--radius-md)',
                 background: `${T.danger}08`, border: `1px solid ${T.danger}20`,
-                fontSize: 10, color: T.text3, fontFamily: "var(--font-ar)", lineHeight: 1.5,
+                fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)", lineHeight: 1.5,
               }}>
                 {t('hardCapsBanner')}
               </div>
@@ -2153,14 +2153,14 @@ export default function SettingsPage() {
                     value={hardRiskCap}
                     onChange={e => setHardRiskCap(e.target.value)}
                     style={{
-                      width: 60, padding: '5px 8px', borderRadius: 9,
+                      width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
+                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
                   />
-                  <span style={{ fontSize: 11, color: T.text3, fontWeight: 600 }}>%</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 600 }}>%</span>
                 </div>
               </SettingRow>
               <SettingRow
@@ -2174,14 +2174,14 @@ export default function SettingsPage() {
                     value={maxNotionalPct}
                     onChange={e => setMaxNotionalPct(e.target.value)}
                     style={{
-                      width: 60, padding: '5px 8px', borderRadius: 9,
+                      width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
+                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
                   />
-                  <span style={{ fontSize: 11, color: T.text3, fontWeight: 600 }}>%</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 600 }}>%</span>
                 </div>
               </SettingRow>
               <SettingRow
@@ -2195,9 +2195,9 @@ export default function SettingsPage() {
                     value={userMaxOpenPositions}
                     onChange={e => setUserMaxOpenPositions(e.target.value)}
                     style={{
-                      width: 60, padding: '5px 8px', borderRadius: 9,
+                      width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
+                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -2221,16 +2221,16 @@ export default function SettingsPage() {
 
               {/* BUG-066f: Reset paper account — closes inflated positions + resets balance */}
               <div style={{
-                marginTop: 12, padding: '12px 14px', borderRadius: 10,
+                marginTop: 12, padding: '12px 14px', borderRadius: 'var(--radius-lg)',
                 background: `${T.danger}08`, border: `1px solid ${T.danger}30`,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                   <AlertTriangle size={14} color={T.danger} />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: T.danger, fontFamily: "var(--font-ar)" }}>
+                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.danger, fontFamily: "var(--font-ar)" }}>
                     {t('resetPaperAccountTitle')}
                   </span>
                 </div>
-                <div style={{ fontSize: 10, color: T.text3, fontFamily: "var(--font-ar)", marginBottom: 10, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)", marginBottom: 10, lineHeight: 1.5 }}>
                   {t('resetPaperAccountDesc')}
                 </div>
                 <button
@@ -2255,9 +2255,9 @@ export default function SettingsPage() {
                     }
                   }}
                   style={{
-                    padding: '8px 16px', borderRadius: 8,
+                    padding: '8px 16px', borderRadius: 'var(--radius-md)',
                     background: `${T.danger}15`, border: `1px solid ${T.danger}40`,
-                    color: T.danger, fontSize: 11, fontWeight: 700,
+                    color: T.danger, fontSize: 'var(--text-xs)', fontWeight: 700,
                     fontFamily: "var(--font-ar)", cursor: 'pointer',
                   }}
                 >
@@ -2333,7 +2333,7 @@ export default function SettingsPage() {
               </SettingRow>
               {pairFilterMode === 'whitelist' && (
                 <div style={{ padding: '8px 0' }}>
-                  <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 8 }}>
+                  <div style={{ fontSize: 'var(--text-sm)', color: T.text, fontWeight: 600, marginBottom: 8 }}>
                     {t('pairWhitelistLabel')}
                   </div>
                   <textarea
@@ -2342,9 +2342,9 @@ export default function SettingsPage() {
                     placeholder={'BTC/USDT\nETH/USDT\nSOL/USDT'}
                     rows={4}
                     style={{
-                      width: '100%', padding: '10px 14px', borderRadius: 10,
+                      width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-lg)',
                       background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 11, fontFamily: "var(--font-mono)",
+                      color: T.text, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
                       outline: 'none', direction: 'ltr', resize: 'vertical',
                       lineHeight: 1.6,
                     }}
@@ -2353,7 +2353,7 @@ export default function SettingsPage() {
               )}
               {pairFilterMode === 'blacklist' && (
                 <div style={{ padding: '8px 0' }}>
-                  <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 8 }}>
+                  <div style={{ fontSize: 'var(--text-sm)', color: T.text, fontWeight: 600, marginBottom: 8 }}>
                     {t('pairBlacklistLabel')}
                   </div>
                   <textarea
@@ -2362,9 +2362,9 @@ export default function SettingsPage() {
                     placeholder={'DOGE/USDT\nXRP/USDT'}
                     rows={4}
                     style={{
-                      width: '100%', padding: '10px 14px', borderRadius: 10,
+                      width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-lg)',
                       background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 11, fontFamily: "var(--font-mono)",
+                      color: T.text, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
                       outline: 'none', direction: 'ltr', resize: 'vertical',
                       lineHeight: 1.6,
                     }}
@@ -2374,12 +2374,12 @@ export default function SettingsPage() {
               {/* Info note */}
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 10,
-                padding: '12px 16px', borderRadius: 12,
+                padding: '12px 16px', borderRadius: 'var(--radius-lg)',
                 background: 'rgba(0,255,163,0.04)', border: `1px solid rgba(0,255,163,0.12)`,
                 marginTop: 10,
               }}>
                 <CheckCircle2 size={16} color={T.green} />
-                <div style={{ fontSize: 10.5, color: T.text2, lineHeight: 1.6 }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.6 }}>
                   {t('pairFilterInfo')}
                 </div>
               </div>
@@ -2412,9 +2412,9 @@ export default function SettingsPage() {
                       value={tradingScheduleStart}
                       onChange={e => setTradingScheduleStart(e.target.value)}
                       style={{
-                        padding: '5px 10px', borderRadius: 9,
+                        padding: '5px 10px', borderRadius: 'var(--radius-md)',
                         background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                        color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
+                        color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                         outline: 'none', direction: 'ltr',
                       }}
                     />
@@ -2429,15 +2429,15 @@ export default function SettingsPage() {
                       value={tradingScheduleEnd}
                       onChange={e => setTradingScheduleEnd(e.target.value)}
                       style={{
-                        padding: '5px 10px', borderRadius: 9,
+                        padding: '5px 10px', borderRadius: 'var(--radius-md)',
                         background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                        color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
+                        color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                         outline: 'none', direction: 'ltr',
                       }}
                     />
                   </SettingRow>
                   <div style={{ padding: '8px 0' }}>
-                    <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 10 }}>
+                    <div style={{ fontSize: 'var(--text-sm)', color: T.text, fontWeight: 600, marginBottom: 10 }}>
                       {t('tradingDays')}
                     </div>
                     <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
@@ -2462,11 +2462,11 @@ export default function SettingsPage() {
                               setTradingScheduleDays(newDays.length > 0 ? newDays.join(',') : '1,2,3,4,5')
                             }}
                             style={{
-                              padding: '7px 12px', borderRadius: 9,
+                              padding: '7px 12px', borderRadius: 'var(--radius-md)',
                               border: isSelected ? `1px solid ${T.amber}45` : `1px solid ${T.border2}`,
                               background: isSelected ? `${T.amber}14` : 'rgba(255,255,255,0.025)',
                               color: isSelected ? T.amber : T.text3,
-                              fontSize: 10.5, fontWeight: 700, cursor: 'pointer',
+                              fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                               fontFamily: "var(--font-ar)",
                               transition: 'all 0.2s',
                             }}
@@ -2480,12 +2480,12 @@ export default function SettingsPage() {
                   {/* Info note */}
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '12px 16px', borderRadius: 12,
+                    padding: '12px 16px', borderRadius: 'var(--radius-lg)',
                     background: 'rgba(255,184,0,0.04)', border: `1px solid rgba(255,184,0,0.12)`,
                     marginTop: 10,
                   }}>
                     <AlertTriangle size={16} color={T.amber} />
-                    <div style={{ fontSize: 10.5, color: T.text2, lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.6 }}>
                       {t('tradingScheduleInfo')}
                     </div>
                   </div>
@@ -2595,7 +2595,7 @@ export default function SettingsPage() {
 
 
               <div style={{ height: 1, background: T.border, margin: '10px 0' }} />
-              <div style={{ fontSize: 10, fontWeight: 700, color: T.text4, padding: '4px 0 0', letterSpacing: '0.06em' }}>{t('notificationSources')}</div>
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.text4, padding: '4px 0 0', letterSpacing: '0.06em' }}>{t('notificationSources')}</div>
 
               <SettingRow icon={<Bot size={13} color={T.council} />} label={t('botAlerts')}>
                 <Toggle checked={settings.botAlerts} onChange={() => updateSettings({ botAlerts: !settings.botAlerts })} color={T.council} size="sm" />
@@ -2614,14 +2614,14 @@ export default function SettingsPage() {
               {/* Confidence Slider */}
               <div style={{ marginTop: 10, padding: '8px 0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span style={{ fontSize: 12, color: T.text2, fontWeight: 600 }}>
+                  <span style={{ fontSize: 'var(--text-sm)', color: T.text2, fontWeight: 600 }}>
                     <Target size={13} style={{ display: 'inline', verticalAlign: -2, marginLeft: 4 }} />
                     {t('minConfidenceLevel')}
                   </span>
                   <span style={{
-                    fontSize: 12, fontWeight: 800, color: T.cyan,
+                    fontSize: 'var(--text-sm)', fontWeight: 800, color: T.cyan,
                     fontFamily: "var(--font-mono)",
-                    background: `${T.cyan}15`, padding: '3px 10px', borderRadius: 7,
+                    background: `${T.cyan}15`, padding: '3px 10px', borderRadius: 'var(--radius-md)',
                     border: `1px solid ${T.cyan}25`,
                   }}>
                     {settings.minConfidence}%
@@ -2634,8 +2634,8 @@ export default function SettingsPage() {
                   style={{ width: '100%', accentColor: T.council, height: 4 }}
                 />
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-                  <span style={{ fontSize: 9, color: T.text4 }}>{t('allSignals')}</span>
-                  <span style={{ fontSize: 9, color: T.text4 }}>{t('highConfidenceOnly')}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: T.text4 }}>{t('allSignals')}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: T.text4 }}>{t('highConfidenceOnly')}</span>
                 </div>
               </div>
             </SectionCard>
@@ -2683,9 +2683,9 @@ export default function SettingsPage() {
                   onChange={e => setTelegramBotToken(e.target.value)}
                   placeholder="123456:ABC-DEF..."
                   style={{
-                    width: 180, padding: '5px 10px', borderRadius: 9,
+                    width: 180, padding: '5px 10px', borderRadius: 'var(--radius-md)',
                     background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                    color: T.text, fontSize: 11, fontFamily: "var(--font-mono)",
+                    color: T.text, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
                     outline: 'none', direction: 'ltr',
                   }}
                 />
@@ -2701,9 +2701,9 @@ export default function SettingsPage() {
                   onChange={e => setTelegramChatId(e.target.value)}
                   placeholder="-1001234567890"
                   style={{
-                    width: 180, padding: '5px 10px', borderRadius: 9,
+                    width: 180, padding: '5px 10px', borderRadius: 'var(--radius-md)',
                     background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                    color: T.text, fontSize: 11, fontFamily: "var(--font-mono)",
+                    color: T.text, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
                     outline: 'none', direction: 'ltr',
                   }}
                 />
@@ -2719,9 +2719,9 @@ export default function SettingsPage() {
                   onChange={e => setDiscordWebhookUrl(e.target.value)}
                   placeholder="https://discord.com/api/webhooks/..."
                   style={{
-                    width: 180, padding: '5px 10px', borderRadius: 9,
+                    width: 180, padding: '5px 10px', borderRadius: 'var(--radius-md)',
                     background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                    color: T.text, fontSize: 11, fontFamily: "var(--font-mono)",
+                    color: T.text, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
                     outline: 'none', direction: 'ltr',
                   }}
                 />
@@ -2775,7 +2775,7 @@ export default function SettingsPage() {
                     onChange={e => setAiConfidence(e.target.value)}
                     style={{ width: 90, accentColor: T.council, height: 3 }}
                   />
-                  <span style={{ fontSize: 11, fontWeight: 700, color: T.council, fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
+                  <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.council, fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
                     {aiConfidence}%
                   </span>
                 </div>
@@ -2824,7 +2824,7 @@ export default function SettingsPage() {
                     />
                   </SettingRow>
                   <div style={{ padding: '8px 0' }}>
-                    <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 8 }}>
+                    <div style={{ fontSize: 'var(--text-sm)', color: T.text, fontWeight: 600, marginBottom: 8 }}>
                       {t('monitoringPairsLabel')}
                     </div>
                     <textarea
@@ -2833,9 +2833,9 @@ export default function SettingsPage() {
                       placeholder={'BTC/USDT\nETH/USDT\nSOL/USDT'}
                       rows={3}
                       style={{
-                        width: '100%', padding: '10px 14px', borderRadius: 10,
+                        width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-lg)',
                         background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border2}`,
-                        color: T.text, fontSize: 11, fontFamily: "var(--font-mono)",
+                        color: T.text, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
                         outline: 'none', direction: 'ltr', resize: 'vertical',
                         lineHeight: 1.6,
                       }}
@@ -2843,12 +2843,12 @@ export default function SettingsPage() {
                   </div>
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '12px 16px', borderRadius: 12,
+                    padding: '12px 16px', borderRadius: 'var(--radius-lg)',
                     background: 'rgba(0,212,255,0.04)', border: `1px solid rgba(0,212,255,0.12)`,
                     marginTop: 10,
                   }}>
                     <Radar size={16} color={T.cyan} />
-                    <div style={{ fontSize: 10.5, color: T.text2, lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.6 }}>
                       {t('monitoringInfo')}
                     </div>
                   </div>
@@ -2885,7 +2885,7 @@ export default function SettingsPage() {
                         onChange={e => setSignalMinConfidence(e.target.value)}
                         style={{ width: 90, accentColor: T.green, height: 3 }}
                       />
-                      <span style={{ fontSize: 11, fontWeight: 700, color: T.green, fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
+                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.green, fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
                         {signalMinConfidence}%
                       </span>
                     </div>
@@ -2908,12 +2908,12 @@ export default function SettingsPage() {
                   </SettingRow>
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '12px 16px', borderRadius: 12,
+                    padding: '12px 16px', borderRadius: 'var(--radius-lg)',
                     background: 'rgba(0,255,163,0.04)', border: `1px solid rgba(0,255,163,0.12)`,
                     marginTop: 10,
                   }}>
                     <Activity size={16} color={T.green} />
-                    <div style={{ fontSize: 10.5, color: T.text2, lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.6 }}>
                       {t('signalsInfo')}
                     </div>
                   </div>
@@ -2950,7 +2950,7 @@ export default function SettingsPage() {
                         onChange={e => setVolatilityThreshold(e.target.value)}
                         style={{ width: 90, accentColor: T.amber, height: 3 }}
                       />
-                      <span style={{ fontSize: 11, fontWeight: 700, color: T.amber, fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
+                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: T.amber, fontFamily: "var(--font-mono)", minWidth: 32, textAlign: 'center' }}>
                         {volatilityThreshold}%
                       </span>
                     </div>
@@ -2973,12 +2973,12 @@ export default function SettingsPage() {
                   </SettingRow>
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '12px 16px', borderRadius: 12,
+                    padding: '12px 16px', borderRadius: 'var(--radius-lg)',
                     background: 'rgba(255,184,0,0.04)', border: `1px solid rgba(255,184,0,0.12)`,
                     marginTop: 10,
                   }}>
                     <AlertTriangle size={16} color={T.amber} />
-                    <div style={{ fontSize: 10.5, color: T.text2, lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.6 }}>
                       {t('riskAlertsInfo')}
                     </div>
                   </div>
@@ -3037,12 +3037,12 @@ export default function SettingsPage() {
                   </SettingRow>
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '12px 16px', borderRadius: 12,
+                    padding: '12px 16px', borderRadius: 'var(--radius-lg)',
                     background: `${T.council}08`, border: `1px solid ${T.council}18`,
                     marginTop: 10,
                   }}>
                     <BarChart3 size={16} color={T.council} />
-                    <div style={{ fontSize: 10.5, color: T.text2, lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.6 }}>
                       {t('sentimentInfo')}
                     </div>
                   </div>
@@ -3061,12 +3061,12 @@ export default function SettingsPage() {
               {/* Warning banner */}
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 10,
-                padding: '12px 16px', borderRadius: 12,
+                padding: '12px 16px', borderRadius: 'var(--radius-lg)',
                 background: 'rgba(255,184,0,0.06)', border: `1px solid rgba(255,184,0,0.18)`,
                 marginBottom: 14,
               }}>
                 <AlertTriangle size={16} color={T.amber} />
-                <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.6 }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: T.text2, lineHeight: 1.6 }}>
                   {t('advStrategyWarning')}
                 </div>
               </div>
@@ -3097,9 +3097,9 @@ export default function SettingsPage() {
                     value={scalpingTakeProfitPips}
                     onChange={e => setScalpingTakeProfitPips(e.target.value)}
                     style={{
-                      width: 60, padding: '5px 8px', borderRadius: 9,
+                      width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
+                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -3117,9 +3117,9 @@ export default function SettingsPage() {
                     value={scalpingStopLossPips}
                     onChange={e => setScalpingStopLossPips(e.target.value)}
                     style={{
-                      width: 60, padding: '5px 8px', borderRadius: 9,
+                      width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
+                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -3137,9 +3137,9 @@ export default function SettingsPage() {
                     value={scalpingMaxSpread}
                     onChange={e => setScalpingMaxSpread(e.target.value)}
                     style={{
-                      width: 60, padding: '5px 8px', borderRadius: 9,
+                      width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
+                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -3157,9 +3157,9 @@ export default function SettingsPage() {
                     value={gridLevels}
                     onChange={e => setGridLevels(e.target.value)}
                     style={{
-                      width: 60, padding: '5px 8px', borderRadius: 9,
+                      width: 60, padding: '5px 8px', borderRadius: 'var(--radius-md)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
+                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       textAlign: 'center', outline: 'none',
                     }}
                     dir="ltr"
@@ -3240,7 +3240,7 @@ export default function SettingsPage() {
                 description={t('textDirectionRtl')}
               >
                 <span style={{
-                  fontSize: 10, padding: '3px 9px', borderRadius: 7,
+                  fontSize: 'var(--text-xs)', padding: '3px 9px', borderRadius: 'var(--radius-md)',
                   background: 'rgba(255,255,255,0.04)', color: T.text3,
                   fontFamily: "var(--font-mono)", fontWeight: 600,
                   border: `1px solid ${T.border2}`,
@@ -3283,13 +3283,13 @@ export default function SettingsPage() {
                 icon={<BarChart3 size={13} color={T.text3} />}
                 label={t('bullishCandleColor')}
               >
-                <div style={{ width: 28, height: 18, borderRadius: 5, background: T.green, border: `1px solid ${T.border2}`, boxShadow: `0 0 8px ${T.green}40` }} />
+                <div style={{ width: 28, height: 18, borderRadius: 'var(--radius-sm)', background: T.green, border: `1px solid ${T.border2}`, boxShadow: `0 0 8px ${T.green}40` }} />
               </SettingRow>
               <SettingRow
                 icon={<BarChart3 size={13} color={T.text3} />}
                 label={t('bearishCandleColor')}
               >
-                <div style={{ width: 28, height: 18, borderRadius: 5, background: T.red, border: `1px solid ${T.border2}`, boxShadow: `0 0 8px ${T.red}40` }} />
+                <div style={{ width: 28, height: 18, borderRadius: 'var(--radius-sm)', background: T.red, border: `1px solid ${T.border2}`, boxShadow: `0 0 8px ${T.red}40` }} />
               </SettingRow>
               <SettingRow
                 icon={<Eye size={13} color={T.text3} />}
@@ -3320,9 +3320,9 @@ export default function SettingsPage() {
                 <button
                   onClick={() => router.push('/dashboard/security/2fa')}
                   style={{
-                  padding: '6px 14px', borderRadius: 9,
+                  padding: '6px 14px', borderRadius: 'var(--radius-md)',
                   background: `${T.green}12`, border: `1px solid ${T.green}28`,
-                  color: T.green, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  color: T.green, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                   fontFamily: "var(--font-ar)",
                 }}>{tc('activate')}</button>
               </SettingRow>
@@ -3376,9 +3376,9 @@ export default function SettingsPage() {
                   onClick={handleKillOtherSessions}
                   disabled={killLoading}
                   style={{
-                    padding: '6px 14px', borderRadius: 9,
+                    padding: '6px 14px', borderRadius: 'var(--radius-md)',
                     background: 'rgba(255,71,87,0.10)', border: '1px solid rgba(255,71,87,0.24)',
-                    color: T.red, fontSize: 11, fontWeight: 700, cursor: killLoading ? 'wait' : 'pointer',
+                    color: T.red, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: killLoading ? 'wait' : 'pointer',
                     fontFamily: "var(--font-ar)",
                     opacity: killLoading ? 0.6 : 1,
                   }}
@@ -3396,20 +3396,20 @@ export default function SettingsPage() {
             >
               <div style={{ padding: '8px 0' }}>
                 {sessionsLoading && (
-                  <div style={{ padding: '14px 0', textAlign: 'center', color: T.text3, fontSize: 11.5 }}>
+                  <div style={{ padding: '14px 0', textAlign: 'center', color: T.text3, fontSize: 'var(--text-xs)' }}>
                     <Loader2 size={16} color={T.council} style={{ margin: '0 auto 8px', display: 'block', animation: 'spin 1s linear infinite' }} />
                     {t('loadingAccounts')}
                   </div>
                 )}
                 {!sessionsLoading && sessions.length === 0 && (
-                  <div style={{ padding: '14px 0', textAlign: 'center', color: T.text3, fontSize: 11.5 }}>
+                  <div style={{ padding: '14px 0', textAlign: 'center', color: T.text3, fontSize: 'var(--text-xs)' }}>
                     {t('noActiveSessions')}
                   </div>
                 )}
                 {sessions.map(session => (
                   <div key={session.id} style={{
                     display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '12px 16px', borderRadius: 12,
+                    padding: '12px 16px', borderRadius: 'var(--radius-lg)',
                     background: session.current ? `${T.cyan}06` : 'rgba(255,255,255,0.025)',
                     border: `1px solid ${session.current ? `${T.cyan}18` : T.border}`,
                     marginBottom: 10,
@@ -3417,18 +3417,18 @@ export default function SettingsPage() {
                   }}>
                     <Monitor size={16} color={session.current ? T.cyan : T.text3} />
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: T.text, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: T.text, display: 'flex', alignItems: 'center', gap: 6 }}>
                         {session.device}
                         {session.current && (
                           <span style={{
-                            fontSize: 8.5, padding: '2px 7px', borderRadius: 6,
+                            fontSize: 'var(--text-xs)', padding: '2px 7px', borderRadius: 'var(--radius-sm)',
                             background: `${T.cyan}15`, color: T.cyan,
                             fontFamily: "var(--font-mono)", fontWeight: 700,
                             border: `1px solid ${T.cyan}25`,
                           }}>{t('current')}</span>
                         )}
                       </div>
-                      <div style={{ fontSize: 10, color: T.text4, display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
+                      <div style={{ fontSize: 'var(--text-xs)', color: T.text4, display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
                         <span>{t('lastActivity')}: {session.lastActive}</span>
                         {session.maskedIp && <span>IP: {session.maskedIp}</span>}
                       </div>
@@ -3449,9 +3449,9 @@ export default function SettingsPage() {
                           } catch {}
                         }}
                         style={{
-                          padding: '4px 10px', borderRadius: 7,
+                          padding: '4px 10px', borderRadius: 'var(--radius-md)',
                           background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.18)',
-                          color: T.red, fontSize: 9.5, fontWeight: 700, cursor: 'pointer',
+                          color: T.red, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                           fontFamily: "var(--font-ar)",
                         }}
                       >{t('terminate')}</button>
@@ -3477,7 +3477,7 @@ export default function SettingsPage() {
               </SettingRow>
               {antiPhishingEnabled && (
                 <div style={{ padding: '8px 0' }}>
-                  <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 8 }}>
+                  <div style={{ fontSize: 'var(--text-sm)', color: T.text, fontWeight: 600, marginBottom: 8 }}>
                     {t('antiPhishingSecretWord')}
                   </div>
                   <input
@@ -3487,13 +3487,13 @@ export default function SettingsPage() {
                     placeholder={t('antiPhishingPlaceholder')}
                     maxLength={20}
                     style={{
-                      width: '100%', padding: '8px 12px', borderRadius: 10,
+                      width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-lg)',
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`,
-                      color: T.text, fontSize: 12, fontFamily: "var(--font-mono)",
+                      color: T.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-mono)",
                       outline: 'none', direction: 'ltr',
                     }}
                   />
-                  <div style={{ fontSize: 10, color: T.text3, marginTop: 6, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 'var(--text-xs)', color: T.text3, marginTop: 6, lineHeight: 1.5 }}>
                     {t('antiPhishingHint')}
                   </div>
                 </div>
@@ -3521,9 +3521,9 @@ export default function SettingsPage() {
                   onClick={handleDataExport}
                   disabled={dataExportLoading}
                   style={{
-                    padding: '6px 14px', borderRadius: 9,
+                    padding: '6px 14px', borderRadius: 'var(--radius-md)',
                     background: `${T.cyan}12`, border: `1px solid ${T.cyan}28`,
-                    color: T.cyan, fontSize: 11, fontWeight: 700, cursor: dataExportLoading ? 'wait' : 'pointer',
+                    color: T.cyan, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: dataExportLoading ? 'wait' : 'pointer',
                     fontFamily: "var(--font-ar)",
                     display: 'flex', alignItems: 'center', gap: 5,
                     opacity: dataExportLoading ? 0.6 : 1,
@@ -3585,9 +3585,9 @@ export default function SettingsPage() {
                   }}
                   disabled={importLoading}
                   style={{
-                    padding: '6px 14px', borderRadius: 9,
+                    padding: '6px 14px', borderRadius: 'var(--radius-md)',
                     background: `${T.council}12`, border: `1px solid ${T.council}28`,
-                    color: T.council, fontSize: 11, fontWeight: 700,
+                    color: T.council, fontSize: 'var(--text-xs)', fontWeight: 700,
                     cursor: importLoading ? 'wait' : 'pointer',
                     fontFamily: "var(--font-ar)",
                     display: 'flex', alignItems: 'center', gap: 5,
@@ -3648,9 +3648,9 @@ export default function SettingsPage() {
                     localStorage.removeItem('roua_auth_cache_time')
                   }}
                   style={{
-                    padding: '6px 14px', borderRadius: 9,
+                    padding: '6px 14px', borderRadius: 'var(--radius-md)',
                     background: 'rgba(255,71,87,0.10)', border: '1px solid rgba(255,71,87,0.24)',
-                    color: T.red, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                    color: T.red, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                     fontFamily: "var(--font-ar)",
                   }}
                 >{tc('reset')}</button>

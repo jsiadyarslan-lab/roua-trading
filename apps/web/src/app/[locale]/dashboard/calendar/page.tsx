@@ -91,13 +91,13 @@ export default function CalendarPage() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
               <CalendarDays size={22} color={T.amber} />
-              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: T.text }}>{t('title')}</h1>
+              <h1 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: T.text }}>{t('title')}</h1>
               <span style={{
-                fontSize: 10, padding: '2px 10px', borderRadius: 20,
+                fontSize: 'var(--text-xs)', padding: '2px 10px', borderRadius: 'var(--radius-2xl)',
                 background: `${T.amber}18`, color: T.amber, fontFamily: "var(--font-mono)", fontWeight: 700,
               }}>ECONOMIC CALENDAR</span>
             </div>
-            <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
+            <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: T.text2 }}>
               {t('subtitle')}
             </p>
           </div>
@@ -105,7 +105,7 @@ export default function CalendarPage() {
           <button onClick={fetchCalendar} disabled={loading} style={{
             display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px',
             background: `${T.blue}18`, border: `1px solid ${T.blue}40`,
-            borderRadius: 10, color: T.blue, fontSize: 12, fontWeight: 800, cursor: 'pointer',
+            borderRadius: 'var(--radius-lg)', color: T.blue, fontSize: 'var(--text-sm)', fontWeight: 800, cursor: 'pointer',
           }}>
             <RefreshCw size={13} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
             {t('refresh')}
@@ -121,16 +121,16 @@ export default function CalendarPage() {
           ].map(s => (
             <div key={s.label} style={{
               display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px',
-              background: T.card, border: `1px solid ${T.border}`, borderRadius: 10,
+              background: T.card, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-lg)',
             }}>
-              <span style={{ fontSize: 20, fontWeight: 900, color: s.color, fontFamily: "var(--font-mono)" }}>{s.value}</span>
-              <span style={{ fontSize: 11, color: T.text2, fontWeight: 700 }}>{s.label}</span>
+              <span style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: s.color, fontFamily: "var(--font-mono)" }}>{s.value}</span>
+              <span style={{ fontSize: 'var(--text-xs)', color: T.text2, fontWeight: 700 }}>{s.label}</span>
             </div>
           ))}
           {lastFetch && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: T.card, border: `1px solid ${T.border}`, borderRadius: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: T.card, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-lg)' }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.green, boxShadow: `0 0 6px ${T.green}` }} />
-              <span style={{ fontSize: 10, color: T.text2 }}>{t('lastUpdate')} {lastFetch.toLocaleTimeString('ar-SA')}</span>
+              <span style={{ fontSize: 'var(--text-xs)', color: T.text2 }}>{t('lastUpdate')} {lastFetch.toLocaleTimeString('ar-SA')}</span>
             </div>
           )}
         </div>
@@ -140,26 +140,26 @@ export default function CalendarPage() {
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Filter size={13} color={T.text2} />
-          <span style={{ fontSize: 11, color: T.text2, fontWeight: 700 }}>{t('currency')}</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: T.text2, fontWeight: 700 }}>{t('currency')}</span>
           {CURRENCIES.map(c => (
             <button key={c} onClick={() => setCurrency(c)} style={{
-              padding: '4px 10px', borderRadius: 20, border: `1px solid ${currency === c ? T.blue : T.border}`,
+              padding: '4px 10px', borderRadius: 'var(--radius-2xl)', border: `1px solid ${currency === c ? T.blue : T.border}`,
               background: currency === c ? `${T.blue}20` : 'transparent',
               color: currency === c ? T.blue : T.text2,
-              fontSize: 10, fontWeight: 800, cursor: 'pointer', transition: 'all 0.15s',
+              fontSize: 'var(--text-xs)', fontWeight: 800, cursor: 'pointer', transition: 'all 0.15s',
               fontFamily: "var(--font-mono)",
             }}>{c}</button>
           ))}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 11, color: T.text2, fontWeight: 700 }}>{t('impact')}</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: T.text2, fontWeight: 700 }}>{t('impact')}</span>
           {['All', 'high', 'medium', 'low'].map(i => (
             <button key={i} onClick={() => setImpact(i)} style={{
-              padding: '4px 10px', borderRadius: 20,
+              padding: '4px 10px', borderRadius: 'var(--radius-2xl)',
               border: `1px solid ${impact === i ? (IMPACT_STYLE[i]?.color ?? T.blue) : T.border}`,
               background: impact === i ? `${(IMPACT_STYLE[i]?.color ?? T.blue)}18` : 'transparent',
               color: impact === i ? (IMPACT_STYLE[i]?.color ?? T.blue) : T.text2,
-              fontSize: 10, fontWeight: 800, cursor: 'pointer', transition: 'all 0.15s',
+              fontSize: 'var(--text-xs)', fontWeight: 800, cursor: 'pointer', transition: 'all 0.15s',
             }}>
               {i === 'All' ? t('all') : IMPACT_STYLE[i]?.label}
             </button>
@@ -171,7 +171,7 @@ export default function CalendarPage() {
       {loading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {[1,2,3,4,5].map(i => (
-            <div key={i} style={{ height: 72, background: T.card, borderRadius: 12, border: `1px solid ${T.border}`, opacity: 0.5, animation: 'pulse 1.5s ease-in-out infinite' }} />
+            <div key={i} style={{ height: 72, background: T.card, borderRadius: 'var(--radius-lg)', border: `1px solid ${T.border}`, opacity: 0.5, animation: 'pulse 1.5s ease-in-out infinite' }} />
           ))}
         </div>
       ) : Object.entries(grouped).map(([dateLabelKey, dayEvents]) => (
@@ -182,9 +182,9 @@ export default function CalendarPage() {
             paddingBottom: 8, borderBottom: `1px solid ${T.border}`,
           }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: dateLabelKey === 'today' ? T.green : T.amber }} />
-            <span style={{ fontSize: 15, fontWeight: 900, color: T.text }}>{t(dateLabelKey)} — {dayEvents[0]?.dateLabel || ''}</span>
+            <span style={{ fontSize: 'var(--text-base)', fontWeight: 900, color: T.text }}>{t(dateLabelKey)} — {dayEvents[0]?.dateLabel || ''}</span>
             <span style={{
-              fontSize: 9, padding: '1px 8px', borderRadius: 20,
+              fontSize: 'var(--text-xs)', padding: '1px 8px', borderRadius: 'var(--radius-2xl)',
               background: dateLabelKey === 'today' ? `${T.green}15` : `${T.amber}15`,
               color: dateLabelKey === 'today' ? T.green : T.amber, fontWeight: 800,
             }}>
@@ -204,7 +204,7 @@ export default function CalendarPage() {
                   onClick={() => setExpanded(isOpen ? null : key)}
                   style={{
                     background: T.card, border: `1px solid ${isOpen ? style.color + '40' : T.border}`,
-                    borderRadius: 12, overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s',
+                    borderRadius: 'var(--radius-lg)', overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s',
                     boxShadow: isOpen ? `0 0 20px ${style.color}10` : 'none',
                   }}
                 >
@@ -212,7 +212,7 @@ export default function CalendarPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px' }}>
                     {/* Time */}
                     <div style={{ minWidth: 48, textAlign: 'center' }}>
-                      <div style={{ fontSize: 13, fontWeight: 900, color: T.text, fontFamily: "var(--font-mono)" }}>{event.time}</div>
+                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 900, color: T.text, fontFamily: "var(--font-mono)" }}>{event.time}</div>
                     </div>
 
                     {/* Impact bullets */}
@@ -220,26 +220,26 @@ export default function CalendarPage() {
 
                     {/* Currency badge */}
                     <span style={{
-                      fontSize: 10, padding: '3px 10px', borderRadius: 20, fontFamily: "var(--font-mono)", fontWeight: 900,
+                      fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-2xl)', fontFamily: "var(--font-mono)", fontWeight: 900,
                       background: `${style.color}15`, color: style.color,
                       border: `1px solid ${style.color}30`, minWidth: 38, textAlign: 'center',
                     }}>{event.currency}</span>
 
                     {/* Event name */}
-                    <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: T.text }}>{event.event}</span>
+                    <span style={{ flex: 1, fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text }}>{event.event}</span>
 
                     {/* Forecast vs Previous */}
-                    <div style={{ display: 'flex', gap: 12, textAlign: 'center', fontSize: 10, color: T.text2 }}>
+                    <div style={{ display: 'flex', gap: 12, textAlign: 'center', fontSize: 'var(--text-xs)', color: T.text2 }}>
                       {event.forecast !== '—' && (
                         <div>
                           <div style={{ fontWeight: 900, color: T.cyan, fontFamily: "var(--font-mono)" }}>{event.forecast}</div>
-                          <div style={{ fontSize: 8 }}>{t('forecast')}</div>
+                          <div style={{ fontSize: 'var(--text-xs)' }}>{t('forecast')}</div>
                         </div>
                       )}
                       {event.previous !== '—' && (
                         <div>
                           <div style={{ fontWeight: 700, fontFamily: "var(--font-mono)" }}>{event.previous}</div>
-                          <div style={{ fontSize: 8 }}>{t('previous')}</div>
+                          <div style={{ fontSize: 'var(--text-xs)' }}>{t('previous')}</div>
                         </div>
                       )}
                     </div>
@@ -259,15 +259,15 @@ export default function CalendarPage() {
                       <div style={{ display: 'flex', gap: 10, marginBottom: 12, alignItems: 'flex-start' }}>
                         <Brain size={14} color={T.purple} style={{ flexShrink: 0, marginTop: 2 }} />
                         <div>
-                          <div style={{ fontSize: 10, fontWeight: 800, color: T.purple, marginBottom: 4 }}>{t('aiAnalysis')}</div>
-                          <div style={{ fontSize: 12, color: T.text, lineHeight: 1.7 }}>{event.ai.summary}</div>
+                          <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.purple, marginBottom: 4 }}>{t('aiAnalysis')}</div>
+                          <div style={{ fontSize: 'var(--text-sm)', color: T.text, lineHeight: 1.7 }}>{event.ai.summary}</div>
                         </div>
                         {/* Strength bar */}
                         <div style={{ marginRight: 'auto', textAlign: 'center', minWidth: 60 }}>
-                          <div style={{ fontSize: 16, fontWeight: 900, color: style.color, fontFamily: "var(--font-mono)" }}>{event.ai.strength}%</div>
-                          <div style={{ fontSize: 8, color: T.text2 }}>{t('impactStrength')}</div>
-                          <div style={{ marginTop: 4, height: 4, background: `${style.color}20`, borderRadius: 2, overflow: 'hidden' }}>
-                            <div style={{ height: '100%', width: `${event.ai.strength}%`, background: style.color, borderRadius: 2 }} />
+                          <div style={{ fontSize: 'var(--text-md)', fontWeight: 900, color: style.color, fontFamily: "var(--font-mono)" }}>{event.ai.strength}%</div>
+                          <div style={{ fontSize: 'var(--text-xs)', color: T.text2 }}>{t('impactStrength')}</div>
+                          <div style={{ marginTop: 4, height: 4, background: `${style.color}20`, borderRadius: 'var(--radius-xs)', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${event.ai.strength}%`, background: style.color, borderRadius: 'var(--radius-xs)' }} />
                           </div>
                         </div>
                       </div>
@@ -275,10 +275,10 @@ export default function CalendarPage() {
                       {/* Affected pairs */}
                       {event.affectedPairs?.length > 0 && (
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                          <span style={{ fontSize: 10, color: T.text2, fontWeight: 700 }}>{t('affectedPairs')}</span>
+                          <span style={{ fontSize: 'var(--text-xs)', color: T.text2, fontWeight: 700 }}>{t('affectedPairs')}</span>
                           {event.affectedPairs.map((pair: string) => (
                             <span key={pair} style={{
-                              fontSize: 10, padding: '2px 8px', borderRadius: 20,
+                              fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-2xl)',
                               background: `${T.cyan}10`, color: T.cyan, fontFamily: "var(--font-mono)", fontWeight: 800,
                               border: `1px solid ${T.cyan}25`,
                             }}>{pair}</span>
@@ -297,7 +297,7 @@ export default function CalendarPage() {
       {!loading && events.length === 0 && (
         <div style={{ textAlign: 'center', padding: '60px 0', color: T.text2 }}>
           <CalendarDays size={40} style={{ marginBottom: 12, opacity: 0.3 }} />
-          <div style={{ fontSize: 15, fontWeight: 700 }}>{t('noEvents')}</div>
+          <div style={{ fontSize: 'var(--text-base)', fontWeight: 700 }}>{t('noEvents')}</div>
         </div>
       )}
     </div>

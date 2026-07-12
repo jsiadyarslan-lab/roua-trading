@@ -152,7 +152,7 @@ export function CommandPalette({ commands, isOpen, onClose, onExecute }: Command
           maxHeight: '60vh',
           background: C.bg,
           border: `1px solid ${C.border}`,
-          borderRadius: 12,
+          borderRadius: 'var(--radius-lg)',
           boxShadow: '0 24px 80px rgba(0,0,0,0.8)',
           display: 'flex',
           flexDirection: 'column',
@@ -170,7 +170,7 @@ export function CommandPalette({ commands, isOpen, onClose, onExecute }: Command
           borderBottom: `1px solid ${C.border}`,
           gap: 10,
         }}>
-          <span style={{ color: C.textDim, fontSize: 14 }}>🔍</span>
+          <span style={{ color: C.textDim, fontSize: 'var(--text-base)' }}>🔍</span>
           <input
             ref={inputRef}
             type="text"
@@ -183,16 +183,16 @@ export function CommandPalette({ commands, isOpen, onClose, onExecute }: Command
               border: 'none',
               outline: 'none',
               color: C.text,
-              fontSize: 14,
+              fontSize: 'var(--text-base)',
               fontFamily: 'inherit',
             }}
           />
           <span style={{
             color: C.textMuted,
-            fontSize: 10,
+            fontSize: 'var(--text-xs)',
             background: C.card,
             padding: '2px 8px',
-            borderRadius: 4,
+            borderRadius: 'var(--radius-sm)',
             border: `1px solid ${C.border}`,
           }}>ESC</span>
         </div>
@@ -200,7 +200,7 @@ export function CommandPalette({ commands, isOpen, onClose, onExecute }: Command
         {/* Results */}
         <div ref={listRef} style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
           {filteredCommands.length === 0 && (
-            <div style={{ textAlign: 'center', padding: 24, color: C.textMuted, fontSize: 12 }}>
+            <div style={{ textAlign: 'center', padding: 24, color: C.textMuted, fontSize: 'var(--text-sm)' }}>
               {isAr ? 'لا توجد نتائج' : 'No results found'}
             </div>
           )}
@@ -210,7 +210,7 @@ export function CommandPalette({ commands, isOpen, onClose, onExecute }: Command
               <div style={{
                 padding: '6px 16px 4px',
                 color: C.textMuted,
-                fontSize: 10,
+                fontSize: 'var(--text-xs)',
                 fontWeight: 700,
                 letterSpacing: 0.5,
                 textTransform: 'uppercase',
@@ -236,21 +236,21 @@ export function CommandPalette({ commands, isOpen, onClose, onExecute }: Command
                       transition: 'background 0.1s',
                     }}
                   >
-                    <span style={{ fontSize: 14, width: 20, textAlign: 'center' }}>
+                    <span style={{ fontSize: 'var(--text-base)', width: 20, textAlign: 'center' }}>
                       {cmd.icon || '◦'}
                     </span>
                     <div style={{ flex: 1 }}>
-                      <div style={{ color: isSelected ? C.cyan : C.text, fontSize: 12.5, fontWeight: 600 }}>
+                      <div style={{ color: isSelected ? C.cyan : C.text, fontSize: 'var(--text-sm)', fontWeight: 600 }}>
                         {isAr && cmd.labelAr ? cmd.labelAr : cmd.label}
                       </div>
                     </div>
                     {cmd.shortcut && (
                       <span style={{
                         color: C.textMuted,
-                        fontSize: 10,
+                        fontSize: 'var(--text-xs)',
                         background: C.card,
                         padding: '1px 6px',
-                        borderRadius: 3,
+                        borderRadius: 'var(--radius-xs)',
                         border: `1px solid ${C.border}`,
                         fontFamily: "var(--font-mono)",
                       }}>
@@ -271,7 +271,7 @@ export function CommandPalette({ commands, isOpen, onClose, onExecute }: Command
           padding: '8px 16px',
           borderTop: `1px solid ${C.border}`,
           color: C.textMuted,
-          fontSize: 10,
+          fontSize: 'var(--text-xs)',
         }}>
           <span>↑↓ {isAr ? 'تنقل' : 'Navigate'}</span>
           <span>↵ {isAr ? 'تنفيذ' : 'Execute'}</span>

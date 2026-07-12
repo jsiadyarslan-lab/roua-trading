@@ -45,7 +45,7 @@ function StatCard({ icon, label, value, color, subtext }: {
   return (
     <div style={{
       background: T.surface, border: `1px solid ${T.border}`,
-      borderRadius: 12, padding: '14px 16px',
+      borderRadius: 'var(--radius-lg)', padding: '14px 16px',
       display: 'flex', flexDirection: 'column', gap: 8,
       transition: 'border-color 0.2s',
     }}
@@ -54,22 +54,22 @@ function StatCard({ icon, label, value, color, subtext }: {
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{
-          width: 28, height: 28, borderRadius: 8,
+          width: 28, height: 28, borderRadius: 'var(--radius-md)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           background: `${color}14`, color, flexShrink: 0,
         }}>
           {icon}
         </div>
-        <span style={{ fontSize: 11, color: T.text3, fontWeight: 600, fontFamily: "var(--font-ar)" }}>{label}</span>
+        <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 600, fontFamily: "var(--font-ar)" }}>{label}</span>
       </div>
       <div style={{
-        fontSize: 20, fontWeight: 900, color,
+        fontSize: 'var(--text-lg)', fontWeight: 900, color,
         fontFamily: "var(--font-mono)",
         letterSpacing: '-0.02em',
       }}>
         {value}
       </div>
-      {subtext && <div style={{ fontSize: 9, color: T.text4, fontFamily: "var(--font-ar)" }}>{subtext}</div>}
+      {subtext && <div style={{ fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-ar)" }}>{subtext}</div>}
     </div>
   )
 }
@@ -82,7 +82,7 @@ function SectionCard({ icon, iconColor, iconBg, title, subtitle, children, badge
   return (
     <div style={{
       background: T.card, border: `1px solid ${T.border}`,
-      borderRadius: 16, overflow: 'hidden',
+      borderRadius: 'var(--radius-xl)', overflow: 'hidden',
       transition: 'border-color 0.3s',
     }}>
       <div style={{
@@ -90,24 +90,24 @@ function SectionCard({ icon, iconColor, iconBg, title, subtitle, children, badge
         padding: '18px 20px', borderBottom: `1px solid ${T.border}`,
       }}>
         <div style={{
-          width: 40, height: 40, borderRadius: 11,
+          width: 40, height: 40, borderRadius: 'var(--radius-lg)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           background: iconBg, flexShrink: 0,
         }}>
           {icon}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: T.text, display: 'flex', alignItems: 'center', gap: 8, fontFamily: "var(--font-ar)" }}>
+          <div style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text, display: 'flex', alignItems: 'center', gap: 8, fontFamily: "var(--font-ar)" }}>
             {title}
             {badge && (
               <span style={{
-                fontSize: 9, padding: '2px 7px', borderRadius: 10,
+                fontSize: 'var(--text-xs)', padding: '2px 7px', borderRadius: 'var(--radius-lg)',
                 background: 'rgba(255,255,255,0.04)', color: T.text3,
                 fontFamily: "var(--font-mono)", fontWeight: 600,
               }}>{badge}</span>
             )}
           </div>
-          <div style={{ fontSize: 11, color: T.text3, marginTop: 2, fontFamily: "var(--font-ar)" }}>{subtitle}</div>
+          <div style={{ fontSize: 'var(--text-xs)', color: T.text3, marginTop: 2, fontFamily: "var(--font-ar)" }}>{subtitle}</div>
         </div>
       </div>
       <div style={{ padding: '4px 20px 18px' }}>
@@ -124,7 +124,7 @@ function FormInput({ label, value, onChange, placeholder, readonly, type, icon }
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <label style={{ fontSize: 12, fontWeight: 700, color: T.text2, fontFamily: "var(--font-ar)" }}>
+      <label style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text2, fontFamily: "var(--font-ar)" }}>
         {label}
       </label>
       <div style={{ position: 'relative' }}>
@@ -145,8 +145,8 @@ function FormInput({ label, value, onChange, placeholder, readonly, type, icon }
           style={{
             width: '100%', background: readonly ? 'rgba(255,255,255,0.02)' : T.surface,
             border: `1px solid ${readonly ? T.border : T.border2}`,
-            borderRadius: 10, padding: icon ? '10px 40px 10px 14px' : '10px 14px',
-            color: readonly ? T.text3 : T.text, fontSize: 13,
+            borderRadius: 'var(--radius-lg)', padding: icon ? '10px 40px 10px 14px' : '10px 14px',
+            color: readonly ? T.text3 : T.text, fontSize: 'var(--text-sm)',
             fontFamily: type === 'email' ? "'JetBrains Mono', monospace" : "'Cairo', sans-serif",
             fontWeight: readonly ? 500 : 600, outline: 'none',
             direction: 'inherit', transition: 'border-color 0.2s',
@@ -167,7 +167,7 @@ function FormSelect({ label, value, onChange, options, icon }: {
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <label style={{ fontSize: 12, fontWeight: 700, color: T.text2, fontFamily: "var(--font-ar)" }}>
+      <label style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text2, fontFamily: "var(--font-ar)" }}>
         {label}
       </label>
       <div style={{ position: 'relative' }}>
@@ -184,9 +184,9 @@ function FormSelect({ label, value, onChange, options, icon }: {
           onChange={e => onChange(e.target.value)}
           style={{
             width: '100%', background: T.surface,
-            border: `1px solid ${T.border2}`, borderRadius: 10,
+            border: `1px solid ${T.border2}`, borderRadius: 'var(--radius-lg)',
             padding: icon ? '10px 40px 10px 14px' : '10px 14px',
-            color: T.text, fontSize: 13, fontWeight: 600,
+            color: T.text, fontSize: 'var(--text-sm)', fontWeight: 600,
             fontFamily: "var(--font-ar)", outline: 'none',
             direction: 'inherit', appearance: 'none', cursor: 'pointer',
           }}
@@ -309,15 +309,15 @@ export default function ProfilePage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
           <div style={{
-            width: 36, height: 36, borderRadius: 10,
+            width: 36, height: 36, borderRadius: 'var(--radius-lg)',
             background: 'linear-gradient(135deg, #00d4ff, #0A84FF)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <UserCircle size={18} color="#fff" />
           </div>
           <div>
-            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: T.text, fontFamily: "var(--font-ar)" }}>الملف الشخصي</h1>
-            <p style={{ margin: 0, fontSize: 11, color: T.text3, fontFamily: "var(--font-ar)" }}>إدارة بياناتك الشخصية وإعدادات حسابك على منصة رؤى</p>
+            <h1 style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 900, color: T.text, fontFamily: "var(--font-ar)" }}>الملف الشخصي</h1>
+            <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>إدارة بياناتك الشخصية وإعدادات حسابك على منصة رؤى</p>
           </div>
         </div>
       </div>
@@ -328,7 +328,7 @@ export default function ProfilePage() {
         {/* ═══ Profile Hero Card ═══ */}
         <div className="profile-section" style={{
           background: T.card, border: `1px solid ${T.border}`,
-          borderRadius: 16, overflow: 'hidden', position: 'relative',
+          borderRadius: 'var(--radius-xl)', overflow: 'hidden', position: 'relative',
         }}>
           {/* Background Glow */}
           <div style={{
@@ -344,10 +344,10 @@ export default function ProfilePage() {
           }}>
             {/* Avatar */}
             <div style={{
-              width: 64, height: 64, borderRadius: 16,
+              width: 64, height: 64, borderRadius: 'var(--radius-xl)',
               background: `linear-gradient(135deg, ${roleInfo.color}, ${roleInfo.color}88)`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 26, fontWeight: 900, color: '#fff',
+              fontSize: 'var(--text-2xl)', fontWeight: 900, color: '#fff',
               fontFamily: "var(--font-mono)",
               boxShadow: `0 0 24px ${roleInfo.color}30`,
               flexShrink: 0,
@@ -357,19 +357,19 @@ export default function ProfilePage() {
 
             {/* Info */}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 18, fontWeight: 900, color: T.text, marginBottom: 4, fontFamily: "var(--font-ar)" }}>
+              <div style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: T.text, marginBottom: 4, fontFamily: "var(--font-ar)" }}>
                 {user?.displayName || 'مستخدم رؤى'}
               </div>
-              <div style={{ fontSize: 12, color: T.text2, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontFamily: "var(--font-mono)" }}>
+              <div style={{ fontSize: 'var(--text-sm)', color: T.text2, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontFamily: "var(--font-mono)" }}>
                 <Mail size={12} />
                 <span>{user?.email || 'user@roua.io'}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 {/* Tier Badge */}
                 <span style={{
-                  padding: '3px 10px', borderRadius: 10,
+                  padding: '3px 10px', borderRadius: 'var(--radius-lg)',
                   background: `${roleInfo.color}15`, color: roleInfo.color,
-                  fontSize: 10, fontWeight: 700,
+                  fontSize: 'var(--text-xs)', fontWeight: 700,
                   fontFamily: "var(--font-mono)",
                   border: `1px solid ${roleInfo.color}25`,
                   display: 'flex', alignItems: 'center', gap: 4,
@@ -378,7 +378,7 @@ export default function ProfilePage() {
                   {tc(roleInfo.labelKey)}
                 </span>
                 {/* Member Since */}
-                <span style={{ fontSize: 10, color: T.text4, display: 'flex', alignItems: 'center', gap: 4, fontFamily: "var(--font-ar)" }}>
+                <span style={{ fontSize: 'var(--text-xs)', color: T.text4, display: 'flex', alignItems: 'center', gap: 4, fontFamily: "var(--font-ar)" }}>
                   <Calendar size={10} />
                   عضو منذ {MOCK_STATS.memberSince}
                 </span>
@@ -391,9 +391,9 @@ export default function ProfilePage() {
                 <button
                   onClick={() => setIsEditing(true)}
                   style={{
-                    padding: '8px 16px', borderRadius: 10, border: `1px solid ${T.border2}`,
+                    padding: '8px 16px', borderRadius: 'var(--radius-lg)', border: `1px solid ${T.border2}`,
                     background: 'rgba(0,212,255,0.06)', color: T.cyan,
-                    fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                    fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                     fontFamily: "var(--font-ar)",
                     display: 'flex', alignItems: 'center', gap: 6,
                     transition: 'all 0.2s', flexShrink: 0,
@@ -410,9 +410,9 @@ export default function ProfilePage() {
                     onClick={handleSave}
                     disabled={isSaving}
                     style={{
-                      padding: '8px 16px', borderRadius: 10, border: 'none',
+                      padding: '8px 16px', borderRadius: 'var(--radius-lg)', border: 'none',
                       background: `linear-gradient(135deg, ${T.cyan}, ${T.blue})`,
-                      color: '#000', fontSize: 11, fontWeight: 800, cursor: isSaving ? 'wait' : 'pointer',
+                      color: '#000', fontSize: 'var(--text-xs)', fontWeight: 800, cursor: isSaving ? 'wait' : 'pointer',
                       fontFamily: "var(--font-ar)",
                       display: 'flex', alignItems: 'center', gap: 6,
                       transition: 'all 0.2s', opacity: isSaving ? 0.7 : 1,
@@ -424,9 +424,9 @@ export default function ProfilePage() {
                   <button
                     onClick={handleCancel}
                     style={{
-                      padding: '8px 14px', borderRadius: 10, border: `1px solid ${T.border}`,
+                      padding: '8px 14px', borderRadius: 'var(--radius-lg)', border: `1px solid ${T.border}`,
                       background: T.surface, color: T.text3,
-                      fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                      fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                       fontFamily: "var(--font-ar)",
                       display: 'flex', alignItems: 'center', gap: 4,
                       transition: 'all 0.2s',
@@ -463,7 +463,7 @@ export default function ProfilePage() {
 
               {/* Email (readonly) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: T.text2, fontFamily: "var(--font-ar)" }}>
+                <label style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text2, fontFamily: "var(--font-ar)" }}>
                   البريد الإلكتروني
                 </label>
                 <div style={{ position: 'relative' }}>
@@ -479,9 +479,9 @@ export default function ProfilePage() {
                     readOnly
                     style={{
                       width: '100%', background: 'rgba(255,255,255,0.02)',
-                      border: `1px solid ${T.border}`, borderRadius: 10,
+                      border: `1px solid ${T.border}`, borderRadius: 'var(--radius-lg)',
                       padding: '10px 40px 10px 14px',
-                      color: T.text3, fontSize: 13,
+                      color: T.text3, fontSize: 'var(--text-sm)',
                       fontFamily: "var(--font-mono)",
                       fontWeight: 500, outline: 'none', direction: 'inherit', cursor: 'default',
                     }}
@@ -492,9 +492,9 @@ export default function ProfilePage() {
                       style={{
                         position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)',
                         background: 'none', border: 'none', cursor: 'pointer',
-                        color: T.cyan, fontSize: 10, fontWeight: 700,
+                        color: T.cyan, fontSize: 'var(--text-xs)', fontWeight: 700,
                         fontFamily: "var(--font-ar)",
-                        padding: '4px 8px', borderRadius: 6,
+                        padding: '4px 8px', borderRadius: 'var(--radius-sm)',
                         transition: 'background 0.2s',
                       }}
                       onMouseEnter={e => { e.currentTarget.style.background = `${T.cyan}12` }}
@@ -539,7 +539,7 @@ export default function ProfilePage() {
 
               {/* Bio / About */}
               <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: T.text2, fontFamily: "var(--font-ar)" }}>
+                <label style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text2, fontFamily: "var(--font-ar)" }}>
                   نبذة عنك
                 </label>
                 <textarea
@@ -551,8 +551,8 @@ export default function ProfilePage() {
                   style={{
                     width: '100%', background: isEditing ? T.surface : 'rgba(255,255,255,0.02)',
                     border: `1px solid ${isEditing ? T.border2 : T.border}`,
-                    borderRadius: 10, padding: '10px 14px',
-                    color: isEditing ? T.text : T.text3, fontSize: 13,
+                    borderRadius: 'var(--radius-lg)', padding: '10px 14px',
+                    color: isEditing ? T.text : T.text3, fontSize: 'var(--text-sm)',
                     fontFamily: "var(--font-ar)", fontWeight: isEditing ? 600 : 500,
                     outline: 'none', direction: 'inherit', resize: isEditing ? 'vertical' : 'none',
                     transition: 'border-color 0.2s', lineHeight: 1.8,
@@ -615,7 +615,7 @@ export default function ProfilePage() {
                 subtext="من آخر 180 يوماً"
               />
             </div>
-            <div style={{ fontSize: 11, color: T.text4, fontFamily: "var(--font-ar)", textAlign: 'center', padding: '6px 0 0' }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-ar)", textAlign: 'center', padding: '6px 0 0' }}>
               ستظهر إحصائياتك الحقيقية بعد ربط حساباتك وبدء المتابعة
             </div>
           </SectionCard>
@@ -638,7 +638,7 @@ export default function ProfilePage() {
                   borderBottom: i < MOCK_ACTIVITY.length - 1 ? `1px solid ${T.border}` : 'none',
                 }}>
                   <div style={{
-                    width: 32, height: 32, borderRadius: 9,
+                    width: 32, height: 32, borderRadius: 'var(--radius-md)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     background: `${item.color}12`, color: item.color,
                     flexShrink: 0, marginTop: 2,
@@ -646,16 +646,16 @@ export default function ProfilePage() {
                     {item.icon}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)", marginBottom: 2 }}>
+                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)", marginBottom: 2 }}>
                       {item.label}
                     </div>
-                    <div style={{ fontSize: 11, color: T.text3, fontFamily: "var(--font-ar)", lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)", lineHeight: 1.6 }}>
                       {item.detail}
                     </div>
                   </div>
                   <div style={{ flexShrink: 0, marginTop: 2 }}>
                     <span style={{
-                      fontSize: 10, color: T.text4,
+                      fontSize: 'var(--text-xs)', color: T.text4,
                       fontFamily: "var(--font-mono)", fontWeight: 500,
                       whiteSpace: 'nowrap',
                     }}>
@@ -682,7 +682,7 @@ export default function ProfilePage() {
               {/* Google */}
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 14,
-                padding: '12px 16px', borderRadius: 12,
+                padding: '12px 16px', borderRadius: 'var(--radius-lg)',
                 background: T.surface, border: `1px solid ${T.border}`,
                 transition: 'border-color 0.2s',
               }}
@@ -690,75 +690,75 @@ export default function ProfilePage() {
                 onMouseLeave={e => { e.currentTarget.style.borderColor = T.border }}
               >
                 <div style={{
-                  width: 36, height: 36, borderRadius: 10,
+                  width: 36, height: 36, borderRadius: 'var(--radius-lg)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   background: `${T.red}14`, flexShrink: 0,
                 }}>
                   <Mail size={16} color={T.red} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>Google</div>
-                  <div style={{ fontSize: 11, color: T.text3, fontFamily: "var(--font-mono)" }}>{user?.email || 'user@roua.io'}</div>
+                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>Google</div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>{user?.email || 'user@roua.io'}</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <CheckCircle2 size={14} color={T.green} />
-                  <span style={{ fontSize: 11, color: T.green, fontWeight: 700, fontFamily: "var(--font-ar)" }}>متصل</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: T.green, fontWeight: 700, fontFamily: "var(--font-ar)" }}>متصل</span>
                 </div>
               </div>
 
               {/* Exchange Accounts */}
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 14,
-                padding: '12px 16px', borderRadius: 12,
+                padding: '12px 16px', borderRadius: 'var(--radius-lg)',
                 background: T.surface, border: `1px solid ${T.border}`,
               }}>
                 <div style={{
-                  width: 36, height: 36, borderRadius: 10,
+                  width: 36, height: 36, borderRadius: 'var(--radius-lg)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   background: `${T.amber}14`, flexShrink: 0,
                 }}>
                   <Cpu size={16} color={T.amber} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>حسابات البورصة</div>
-                  <div style={{ fontSize: 11, color: T.text3, fontFamily: "var(--font-ar)" }}>Binance, Alpaca</div>
+                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>حسابات البورصة</div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>Binance, Alpaca</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{
-                    padding: '3px 10px', borderRadius: 8,
+                    padding: '3px 10px', borderRadius: 'var(--radius-md)',
                     background: `${T.amber}15`, color: T.amber,
-                    fontSize: 11, fontWeight: 700,
+                    fontSize: 'var(--text-xs)', fontWeight: 700,
                     fontFamily: "var(--font-mono)",
                   }}>2</span>
-                  <span style={{ fontSize: 11, color: T.text3, fontFamily: "var(--font-ar)" }}>مرتبط</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>مرتبط</span>
                 </div>
               </div>
 
               {/* WebAuthn Passkeys */}
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 14,
-                padding: '12px 16px', borderRadius: 12,
+                padding: '12px 16px', borderRadius: 'var(--radius-lg)',
                 background: T.surface, border: `1px solid ${T.border}`,
               }}>
                 <div style={{
-                  width: 36, height: 36, borderRadius: 10,
+                  width: 36, height: 36, borderRadius: 'var(--radius-lg)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   background: `${T.green}14`, flexShrink: 0,
                 }}>
                   <Fingerprint size={16} color={T.green} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>مفاتيح المرور (WebAuthn)</div>
-                  <div style={{ fontSize: 11, color: T.text3, fontFamily: "var(--font-ar)" }}>مصادقة بيومترية سريعة وآمنة</div>
+                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text, fontFamily: "var(--font-ar)" }}>مفاتيح المرور (WebAuthn)</div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>مصادقة بيومترية سريعة وآمنة</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{
-                    padding: '3px 10px', borderRadius: 8,
+                    padding: '3px 10px', borderRadius: 'var(--radius-md)',
                     background: `${T.green}15`, color: T.green,
-                    fontSize: 11, fontWeight: 700,
+                    fontSize: 'var(--text-xs)', fontWeight: 700,
                     fontFamily: "var(--font-mono)",
                   }}>1</span>
-                  <span style={{ fontSize: 11, color: T.text3, fontFamily: "var(--font-ar)" }}>مفتاح</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>مفتاح</span>
                 </div>
               </div>
 
@@ -768,16 +768,16 @@ export default function ProfilePage() {
 
         {/* ═══ Danger Zone ═══ */}
         <div className="profile-section" style={{
-          border: `1px solid rgba(255,71,87,0.15)`, borderRadius: 16,
+          border: `1px solid rgba(255,71,87,0.15)`, borderRadius: 'var(--radius-xl)',
           background: 'rgba(255,71,87,0.02)', overflow: 'hidden',
         }}>
           {/* Header */}
           <div style={{ padding: '16px 20px', borderBottom: `1px solid rgba(255,71,87,0.10)` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <AlertTriangle size={16} color={T.red} />
-              <span style={{ fontSize: 13, fontWeight: 700, color: T.red, fontFamily: "var(--font-ar)" }}>منطقة الخطر</span>
+              <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.red, fontFamily: "var(--font-ar)" }}>منطقة الخطر</span>
             </div>
-            <div style={{ fontSize: 11, color: T.text4, marginTop: 4, fontFamily: "var(--font-ar)" }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: T.text4, marginTop: 4, fontFamily: "var(--font-ar)" }}>
               إجراءات لا يمكن التراجع عنها — يرجى التوخي الحذر
             </div>
           </div>
@@ -791,16 +791,16 @@ export default function ProfilePage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <LogOut size={14} color={T.red} />
                 <div>
-                  <div style={{ fontSize: 13, color: T.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>تسجيل الخروج</div>
-                  <div style={{ fontSize: 10, color: T.text4, fontFamily: "var(--font-ar)" }}>إنهاء الجلسة الحالية من جميع الأجهزة</div>
+                  <div style={{ fontSize: 'var(--text-sm)', color: T.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>تسجيل الخروج</div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-ar)" }}>إنهاء الجلسة الحالية من جميع الأجهزة</div>
                 </div>
               </div>
               <button
                 onClick={authLogout}
                 style={{
-                  padding: '6px 14px', borderRadius: 8,
+                  padding: '6px 14px', borderRadius: 'var(--radius-md)',
                   background: 'rgba(255,71,87,0.10)', border: `1px solid rgba(255,71,87,0.20)`,
-                  color: T.red, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  color: T.red, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                   fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.18)' }}
@@ -818,8 +818,8 @@ export default function ProfilePage() {
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                 <Trash2 size={14} color={T.red} style={{ marginTop: 2 }} />
                 <div>
-                  <div style={{ fontSize: 13, color: T.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>حذف الحساب نهائياً</div>
-                  <div style={{ fontSize: 10, color: T.text4, fontFamily: "var(--font-ar)", lineHeight: 1.7, maxWidth: 400 }}>
+                  <div style={{ fontSize: 'var(--text-sm)', color: T.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>حذف الحساب نهائياً</div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: T.text4, fontFamily: "var(--font-ar)", lineHeight: 1.7, maxWidth: 400 }}>
                     سيتم حذف حسابك وجميع بياناتك نهائياً بعد 30 يوماً من الطلب. لا يمكن التراجع عن هذا الإجراء بعد تأكيده.
                   </div>
                 </div>
@@ -827,9 +827,9 @@ export default function ProfilePage() {
               <button
                 onClick={() => setShowDeleteConfirm(true)}
                 style={{
-                  padding: '6px 14px', borderRadius: 8,
+                  padding: '6px 14px', borderRadius: 'var(--radius-md)',
                   background: 'rgba(255,71,87,0.10)', border: `1px solid rgba(255,71,87,0.20)`,
-                  color: T.red, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  color: T.red, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                   fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                   flexShrink: 0,
                 }}
@@ -844,14 +844,14 @@ export default function ProfilePage() {
             {showDeleteConfirm && (
               <div style={{
                 background: 'rgba(255,71,87,0.04)', border: `1px solid rgba(255,71,87,0.15)`,
-                borderRadius: 12, padding: 16,
+                borderRadius: 'var(--radius-lg)', padding: 16,
                 animation: 'profile-fade-in 0.3s ease-out',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                   <XCircle size={16} color={T.red} />
-                  <span style={{ fontSize: 13, fontWeight: 800, color: T.red, fontFamily: "var(--font-ar)" }}>تأكيد حذف الحساب</span>
+                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: T.red, fontFamily: "var(--font-ar)" }}>تأكيد حذف الحساب</span>
                 </div>
-                <div style={{ fontSize: 12, color: T.text3, lineHeight: 1.8, marginBottom: 14, fontFamily: "var(--font-ar)" }}>
+                <div style={{ fontSize: 'var(--text-sm)', color: T.text3, lineHeight: 1.8, marginBottom: 14, fontFamily: "var(--font-ar)" }}>
                   هذا الإجراء لا يمكن التراجع عنه. سيتم حذف جميع بياناتك بما في ذلك سجل التداول والإعدادات والمفاتيح المرتبطة.
                   اكتب <strong style={{ color: T.red }}>&quot;حذف&quot;</strong> للتأكيد.
                 </div>
@@ -863,8 +863,8 @@ export default function ProfilePage() {
                     placeholder='اكتب "حذف" هنا'
                     style={{
                       flex: 1, background: T.surface, border: `1px solid rgba(255,71,87,0.20)`,
-                      borderRadius: 8, padding: '8px 12px',
-                      color: T.text, fontSize: 12, fontWeight: 600,
+                      borderRadius: 'var(--radius-md)', padding: '8px 12px',
+                      color: T.text, fontSize: 'var(--text-sm)', fontWeight: 600,
                       fontFamily: "var(--font-ar)", outline: 'none',
                       direction: 'inherit',
                     }}
@@ -873,10 +873,10 @@ export default function ProfilePage() {
                     onClick={handleDeleteAccount}
                     disabled={deleteConfirmText !== 'حذف'}
                     style={{
-                      padding: '8px 16px', borderRadius: 8, border: 'none',
+                      padding: '8px 16px', borderRadius: 'var(--radius-md)', border: 'none',
                       background: deleteConfirmText === 'حذف' ? T.red : 'rgba(255,71,87,0.2)',
                       color: deleteConfirmText === 'حذف' ? '#fff' : T.text4,
-                      fontSize: 11, fontWeight: 800, cursor: deleteConfirmText === 'حذف' ? 'pointer' : 'not-allowed',
+                      fontSize: 'var(--text-xs)', fontWeight: 800, cursor: deleteConfirmText === 'حذف' ? 'pointer' : 'not-allowed',
                       fontFamily: "var(--font-ar)", transition: 'all 0.2s',
                     }}
                   >
@@ -885,9 +885,9 @@ export default function ProfilePage() {
                   <button
                     onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText('') }}
                     style={{
-                      padding: '8px 14px', borderRadius: 8, border: `1px solid ${T.border}`,
+                      padding: '8px 14px', borderRadius: 'var(--radius-md)', border: `1px solid ${T.border}`,
                       background: T.surface, color: T.text3,
-                      fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                      fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                       fontFamily: "var(--font-ar)",
                     }}
                   >

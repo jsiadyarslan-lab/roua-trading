@@ -179,7 +179,7 @@ export function SmartExecutorPanel() {
     <div style={{
       display: 'flex', flexDirection: 'column', height: '100%',
       background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))',
-      borderRadius: 16, border: '1px solid rgba(0,212,255,0.08)',
+      borderRadius: 'var(--radius-xl)', border: '1px solid rgba(0,212,255,0.08)',
       overflow: 'hidden', fontFamily: "var(--font-ar)",
     }}>
       {/* Header */}
@@ -196,28 +196,28 @@ export function SmartExecutorPanel() {
             boxShadow: isActive ? `0 0 10px ${T.success}, 0 0 20px rgba(0,255,163,0.4)` : 'none',
             animation: isActive ? 'agentCtrlPulse 2s ease-in-out infinite' : 'none',
           }} />
-          <span style={{ fontSize: 10, fontWeight: 800, color: T.text }}>{t('title')}</span>
+          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.text }}>{t('title')}</span>
 
           {/* Monitoring Heartbeat */}
           {isActive && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: 4,
               background: 'rgba(0,255,163,0.05)', padding: '1px 6px',
-              borderRadius: 10, border: '1px solid rgba(0,255,163,0.1)'
+              borderRadius: 'var(--radius-lg)', border: '1px solid rgba(0,255,163,0.1)'
             }}>
               <div style={{
                 width: 4, height: 4, borderRadius: '50%', background: T.success,
                 boxShadow: `0 0 5px ${T.success}`,
                 animation: 'agentCtrlPulse 1s ease-in-out infinite'
               }} />
-              <span style={{ fontSize: 7, color: T.success, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
+              <span style={{ fontSize: 'var(--text-xs)', color: T.success, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
                 {t('monitoring')} {currentMonitoredSymbol}
               </span>
             </div>
           )}
 
           <span style={{
-            fontSize: 6.5, padding: '1px 5px', borderRadius: 4,
+            fontSize: 'var(--text-xs)', padding: '1px 5px', borderRadius: 'var(--radius-sm)',
             background: isActive ? 'rgba(0,255,163,0.15)' : 'rgba(255,255,255,0.06)',
             color: isActive ? T.success : T.text3, fontWeight: 700, fontFamily: "var(--font-mono)",
           }}>
@@ -227,16 +227,16 @@ export function SmartExecutorPanel() {
         <div style={{ display: 'flex', gap: 4 }}>
           {!isActive ? (
             <button onClick={enableExecutor} disabled={loading} style={{
-              fontSize: 7, minHeight: 20, padding: '2px 8px',
-              borderRadius: 5, border: '1px solid rgba(0,255,163,0.3)', cursor: loading ? 'not-allowed' : 'pointer',
+              fontSize: 'var(--text-xs)', minHeight: 20, padding: '2px 8px',
+              borderRadius: 'var(--radius-sm)', border: '1px solid rgba(0,255,163,0.3)', cursor: loading ? 'not-allowed' : 'pointer',
               background: 'rgba(0,255,163,0.15)', color: T.success, fontWeight: 800,
             }}>
               {loading ? '...' : t('activate')}
             </button>
           ) : (
             <button onClick={disableExecutor} disabled={loading} style={{
-              fontSize: 7, minHeight: 20, padding: '2px 8px',
-              borderRadius: 5, border: '1px solid rgba(255,71,87,0.3)', cursor: loading ? 'not-allowed' : 'pointer',
+              fontSize: 'var(--text-xs)', minHeight: 20, padding: '2px 8px',
+              borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255,71,87,0.3)', cursor: loading ? 'not-allowed' : 'pointer',
               background: 'rgba(255,71,87,0.15)', color: T.danger, fontWeight: 700,
             }}>
               {loading ? '...' : t('deactivate')}
@@ -261,13 +261,13 @@ export function SmartExecutorPanel() {
       {/* V135: Active Account Banner — shows live/testnet/paper mode */}
       <div style={{
         padding: '5px 8px', borderBottom: '1px solid rgba(0,212,255,0.08)',
-        display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 7,
+        display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 'var(--text-xs)',
         background: isActive ? 'rgba(0,255,163,0.04)' : 'transparent',
       }}>
         <span style={{ color: T.text3 }}>{t('account')}:</span>
         {isActive && activeCredId ? (
           <span style={{
-            padding: '1px 6px', borderRadius: 3,
+            padding: '1px 6px', borderRadius: 'var(--radius-xs)',
             background: userState?.isTestnet
               ? 'rgba(255,184,0,0.15)'
               : userState?.isPaperTrading
@@ -294,14 +294,14 @@ export function SmartExecutorPanel() {
           </span>
         ) : isActive ? (
           <span style={{
-            padding: '1px 6px', borderRadius: 3,
+            padding: '1px 6px', borderRadius: 'var(--radius-xs)',
             background: 'rgba(255,184,0,0.15)', color: T.amber, fontWeight: 700,
             border: '1px solid rgba(255,184,0,0.3)',
           }}>
             {t('chooseAccount')}
           </span>
         ) : (
-          <span style={{ color: T.text3, fontSize: 6.5 }}>
+          <span style={{ color: T.text3, fontSize: 'var(--text-xs)' }}>
             {t('activateAndChoose')}
           </span>
         )}
@@ -316,14 +316,14 @@ export function SmartExecutorPanel() {
       {/* Backend Offline Banner */}
       {backendOffline && (
         <div style={{ padding: '4px 8px', background: 'rgba(255,184,0,0.1)', borderBottom: '1px solid rgba(255,184,0,0.2)' }}>
-          <span style={{ fontSize: 7, color: T.amber }}>{t('serverUnavailableBanner')}</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: T.amber }}>{t('serverUnavailableBanner')}</span>
         </div>
       )}
 
       {/* Error */}
       {error && (
         <div style={{ padding: '4px 8px', background: 'rgba(255,71,87,0.1)', borderBottom: '1px solid rgba(255,71,87,0.2)' }}>
-          <span style={{ fontSize: 7, color: T.danger }}>{error}</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: T.danger }}>{error}</span>
         </div>
       )}
 
@@ -335,27 +335,27 @@ export function SmartExecutorPanel() {
         {positions.length === 0 ? (
           <div style={{ padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 6 }}>
             {isActive && status?.activeBriefs === 0 && (
-              <div style={{ fontSize: 7, color: T.amber, textAlign: 'center', opacity: 0.8 }}>
+              <div style={{ fontSize: 'var(--text-xs)', color: T.amber, textAlign: 'center', opacity: 0.8 }}>
                 {t('awaitingBriefs')}
               </div>
             )}
             {isActive && (status?.activeBriefs ?? 0) > 0 && (
-              <div style={{ fontSize: 7, color: T.cyan, textAlign: 'center', opacity: 0.8 }}>
+              <div style={{ fontSize: 'var(--text-xs)', color: T.cyan, textAlign: 'center', opacity: 0.8 }}>
                 {t('activeBriefScanning', { count: status?.activeBriefs ?? 0 })}
               </div>
             )}
             {isActive && status?.lastError && (
-              <div style={{ fontSize: 6.5, color: T.danger, textAlign: 'center', padding: '2px 4px', background: 'rgba(255,71,87,0.08)', borderRadius: 4 }}>
+              <div style={{ fontSize: 'var(--text-xs)', color: T.danger, textAlign: 'center', padding: '2px 4px', background: 'rgba(255,71,87,0.08)', borderRadius: 'var(--radius-sm)' }}>
                 ⚠ {status.lastError}
               </div>
             )}
             {!isActive && (
-              <div style={{ padding: 12, textAlign: 'center', opacity: 0.4, fontSize: 9 }}>
+              <div style={{ padding: 12, textAlign: 'center', opacity: 0.4, fontSize: 'var(--text-xs)' }}>
                 {t('activateToStart')}
               </div>
             )}
             {isActive && !status?.lastError && (status?.activeBriefs ?? 0) === 0 && (
-              <div style={{ padding: 6, textAlign: 'center', opacity: 0.3, fontSize: 8 }}>
+              <div style={{ padding: 6, textAlign: 'center', opacity: 0.3, fontSize: 'var(--text-xs)' }}>
                 {t('noOpenPositions')}
               </div>
             )}
@@ -368,8 +368,8 @@ export function SmartExecutorPanel() {
               .map((pos: any) => (
               <div key={pos.id} style={{
                 display: 'flex', alignItems: 'center', gap: 6,
-                padding: '5px 6px', borderRadius: 4,
-                background: 'rgba(255,255,255,0.02)', fontSize: 8,
+                padding: '5px 6px', borderRadius: 'var(--radius-sm)',
+                background: 'rgba(255,255,255,0.02)', fontSize: 'var(--text-xs)',
               }}>
                 <span style={{ color: pos.side === 'BUY' ? T.success : T.danger, fontWeight: 800, minWidth: 22 }}>
                   {pos.side === 'BUY' ? tc('buy') : tc('sell')}
@@ -395,10 +395,10 @@ function StatBox({ label, value, color }: { label: string; value: string; color:
   return (
     <div style={{
       padding: 5, textAlign: 'center', minHeight: 30,
-      background: 'rgba(255,255,255,0.02)', borderRadius: 6,
+      background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)',
     }}>
-      <div style={{ fontSize: 7, color: T.text3 }}>{label}</div>
-      <div style={{ fontSize: 10, fontWeight: 800, color }}>{value}</div>
+      <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{label}</div>
+      <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color }}>{value}</div>
     </div>
   )
 }

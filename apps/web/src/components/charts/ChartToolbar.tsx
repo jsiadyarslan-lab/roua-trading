@@ -277,7 +277,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
     background: isActive ? 'rgba(0,212,255,0.15)' : 'none',
     border: `1px solid ${isActive ? 'rgba(0,212,255,0.3)' : 'transparent'}`,
     color: isActive ? COLORS.cyan : COLORS.textSecondary,
-    borderRadius: 4,
+    borderRadius: 'var(--radius-sm)',
   });
 
   const activeBtnStyle: React.CSSProperties = {
@@ -300,7 +300,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
     position: 'fixed',
     background: COLORS.card,
     border: `1px solid rgba(0,212,255,0.2)`,
-    borderRadius: 8,
+    borderRadius: 'var(--radius-md)',
     padding: 10,
     zIndex: 99999,
     boxShadow: '0 15px 45px rgba(0,0,0,0.85)',
@@ -313,13 +313,13 @@ export function ChartToolbar(props: ChartToolbarProps) {
     width: '100%',
     textAlign: 'start' as const,
     padding: '8px 10px',
-    fontSize: 11,
+    fontSize: 'var(--text-xs)',
     fontFamily: "var(--font-mono)",
     background: 'none',
     border: 'none',
     color: COLORS.textSecondary,
     cursor: 'pointer',
-    borderRadius: 6,
+    borderRadius: 'var(--radius-sm)',
     transition: 'all 0.15s',
     marginBottom: 2,
   };
@@ -342,7 +342,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
   // ── Portal dropdown panels ──
   const tfPanelPortal = showTimeframePanel && tfPanelPos ? createPortal(
     <div ref={tfPanelRef} style={{ ...panelBaseStyle, top: tfPanelPos.top, left: tfPanelPos.left, right: 'auto', minWidth: mobile ? 200 : 240 }}>
-      <div style={{ fontSize: 9, color: COLORS.textMuted, letterSpacing: 1, marginBottom: 6, fontFamily: "var(--font-ar)" }}>{t('timeframe')}</div>
+      <div style={{ fontSize: 'var(--text-xs)', color: COLORS.textMuted, letterSpacing: 1, marginBottom: 6, fontFamily: "var(--font-ar)" }}>{t('timeframe')}</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 3 }}>
         {TIMEFRAMES.map(tf => {
           const isActive = timeframe === tf.value;
@@ -353,7 +353,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
                 background: isActive ? COLORS.cyan : '#1a1f2e',
                 border: `1px solid ${isActive ? COLORS.cyan : 'rgba(255,255,255,0.08)'}`,
                 color: isActive ? '#000' : COLORS.textSecondary,
-                borderRadius: 6,
+                borderRadius: 'var(--radius-sm)',
                 padding: mobile ? '5px 0' : '6px 0',
                 fontSize: mobile ? 9 : 10,
                 fontFamily: "var(--font-mono)",
@@ -377,7 +377,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
 
   const ctPanelPortal = showChartTypePanel && ctPanelPos ? createPortal(
     <div ref={ctPanelRef} style={{ ...panelBaseStyle, top: ctPanelPos.top, left: ctPanelPos.left, minWidth: mobile ? 130 : 150 }}>
-      <div style={{ fontSize: 9, color: COLORS.textMuted, letterSpacing: 1, marginBottom: 6, fontFamily: "var(--font-ar)" }}>{t('chartType')}</div>
+      <div style={{ fontSize: 'var(--text-xs)', color: COLORS.textMuted, letterSpacing: 1, marginBottom: 6, fontFamily: "var(--font-ar)" }}>{t('chartType')}</div>
       {CHART_TYPE_KEYS.map(ctKey => (
         <button
           key={ctKey}
@@ -723,10 +723,10 @@ export function ChartToolbar(props: ChartToolbarProps) {
               style={{
                 background: 'rgba(0,212,255,0.08)',
                 border: '1px solid rgba(0,212,255,0.25)',
-                borderRadius: 4,
+                borderRadius: 'var(--radius-sm)',
                 color: COLORS.cyan,
                 fontFamily: "var(--font-mono)",
-                fontSize: 9,
+                fontSize: 'var(--text-xs)',
                 fontWeight: 700,
                 padding: '0 2px',
                 cursor: 'pointer',
@@ -869,7 +869,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M2 12h4l3-9 6 18 3-9h4"/>
             </svg>
-            <span style={{ fontSize: 8, fontWeight: 700, marginInlineStart: 2 }}>SSE</span>
+            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, marginInlineStart: 2 }}>SSE</span>
           </button>
         )}
 
@@ -939,7 +939,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/>
             </svg>
-            <span style={{ fontSize: 8, fontWeight: 700, marginInlineStart: 2 }}>{isMultiChart ? '1×1' : 'Grid'}</span>
+            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, marginInlineStart: 2 }}>{isMultiChart ? '1×1' : 'Grid'}</span>
           </button>
         )}
 
@@ -959,7 +959,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
             </svg>
-            <span style={{ fontSize: 8, fontWeight: 700, marginInlineStart: 2 }}>▦</span>
+            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, marginInlineStart: 2 }}>▦</span>
           </button>
         )}
 
@@ -1062,7 +1062,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
               right: -4,
               background: COLORS.danger,
               color: '#fff',
-              fontSize: 7,
+              fontSize: 'var(--text-xs)',
               fontWeight: 900,
               width: 14,
               height: 14,
@@ -1076,7 +1076,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
             }}>
               {priceAlertsCount}
             </span>
-            <span style={{ fontSize: 13 }}>🔔</span>
+            <span style={{ fontSize: 'var(--text-sm)' }}>🔔</span>
           </div>
         )}
 

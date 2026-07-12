@@ -284,36 +284,36 @@ export function PortfolioMini({
         justifyContent: 'space-between',
         alignItems: 'center',
         gap: 8,
-        borderRadius: 10,
+        borderRadius: 'var(--radius-lg)',
         padding: compact ? '6px 8px' : '7px 10px',
         border: `1px solid ${statusTone}28`,
         background: 'rgba(255,255,255,0.025)',
       }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 9, color: T.text2, marginBottom: 3 }}>{tp('accountStatus')}</div>
+          <div style={{ fontSize: 'var(--text-xs)', color: T.text2, marginBottom: 3 }}>{tp('accountStatus')}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
             <span style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 5,
               padding: '2px 7px',
-              borderRadius: 999,
+              borderRadius: 'var(--radius-2xl)',
               border: `1px solid ${statusTone}40`,
               background: `${statusTone}16`,
               color: statusTone,
-              fontSize: 8.5,
+              fontSize: 'var(--text-xs)',
               fontWeight: 800,
               fontFamily: "var(--font-mono)",
             }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusTone }} />
               {getStatusLabel(dataStatus, tc)}
             </span>
-            {selectedSymbol && <span style={{ fontSize: 9, color: T.text2, fontFamily: "var(--font-mono)" }}>{selectedSymbol}</span>}
+            {selectedSymbol && <span style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-mono)" }}>{selectedSymbol}</span>}
           </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ fontSize: 8.5, color: T.text3 }}>{sourceLabel}</div>
-          <div style={{ fontSize: 9, color: T.text, fontFamily: "var(--font-mono)" }}>{formatFreshness(lastUpdatedAt, tc)}</div>
+          <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{sourceLabel}</div>
+          <div style={{ fontSize: 'var(--text-xs)', color: T.text, fontFamily: "var(--font-mono)" }}>{formatFreshness(lastUpdatedAt, tc)}</div>
         </div>
       </div>
 
@@ -325,7 +325,7 @@ export function PortfolioMini({
           tabIndex={0}
           style={{
             display: 'flex', alignItems: 'flex-start', gap: 5,
-            padding: '5px 8px', borderRadius: 8,
+            padding: '5px 8px', borderRadius: 'var(--radius-md)',
             background: 'rgba(255,184,0,0.12)',
             border: '1px solid rgba(255,184,0,0.3)',
             cursor: 'pointer',
@@ -333,12 +333,12 @@ export function PortfolioMini({
           onClick={() => window.location.href = '/dashboard/settings/exchange'}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.href = '/dashboard/settings/exchange' } }}
         >
-          <span style={{ fontSize: 11 }}>⚠️</span>
+          <span style={{ fontSize: 'var(--text-xs)' }}>⚠️</span>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 9, fontWeight: 800, color: T.amber, fontFamily: "var(--font-ar)" }}>
+            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.amber, fontFamily: "var(--font-ar)" }}>
               {tp('exchangeUnavailable')}
             </div>
-            <div style={{ fontSize: 8.5, color: T.text2, fontFamily: "var(--font-ar)" }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-ar)" }}>
               {tp('exchangeUnavailableHint')}
             </div>
           </div>
@@ -356,14 +356,14 @@ export function PortfolioMini({
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <div style={{
               fontFamily: "var(--font-ar)",
-              fontSize: 9, color: T.text2,
+              fontSize: 'var(--text-xs)', color: T.text2,
             }}>{tp('totalBalance')}</div>
             {/* V175: Show active exchange badge (e.g., "MT5") when active account succeeded */}
             {/* V164: Show "ورقي" badge only when falling back to paper balance */}
             {/* V185: Show "مخزّن" indicator when balance is from cache */}
             {activeExchangeName && !exchangeUnavailable ? (
               <span style={{
-                fontSize: 8, padding: '1px 5px', borderRadius: 3,
+                fontSize: 'var(--text-xs)', padding: '1px 5px', borderRadius: 'var(--radius-xs)',
                 background: isStaleBalance ? 'rgba(245,158,11,0.15)' : 'rgba(0,255,163,0.15)',
                 color: isStaleBalance ? T.amber : T.green,
                 fontWeight: 800, fontFamily: "var(--font-mono)",
@@ -373,7 +373,7 @@ export function PortfolioMini({
               </span>
             ) : exchangeUnavailable ? (
               <span style={{
-                fontSize: 8, padding: '1px 5px', borderRadius: 3,
+                fontSize: 'var(--text-xs)', padding: '1px 5px', borderRadius: 'var(--radius-xs)',
                 background: 'rgba(0,212,255,0.15)', color: T.cyan,
                 fontWeight: 800, fontFamily: "var(--font-ar)",
                 border: '0.5px solid rgba(0,212,255,0.3)',
@@ -402,14 +402,14 @@ export function PortfolioMini({
       {/* V193: Prominent stale balance warning for MT5/real trading accounts */}
       {isStaleBalance && activeExchangeName && !exchangeUnavailable && (
         <div style={{
-          padding: '4px 8px', borderRadius: 6,
+          padding: '4px 8px', borderRadius: 'var(--radius-sm)',
           background: 'rgba(245,158,11,0.12)',
           border: '1px solid rgba(245,158,11,0.3)',
           display: 'flex', alignItems: 'center', gap: 5,
         }}>
-          <span style={{ fontSize: 10 }}>⚠️</span>
+          <span style={{ fontSize: 'var(--text-xs)' }}>⚠️</span>
           <span style={{
-            fontSize: 8, color: T.amber, fontFamily: "var(--font-ar)",
+            fontSize: 'var(--text-xs)', color: T.amber, fontFamily: "var(--font-ar)",
             fontWeight: 700, lineHeight: 1.4,
           }}>
             بيانات مؤقتة — فشل الاتصال بـ MetaAPI. الرصيد معروض من ذاكرة التخزين المؤقت وقد لا يكون دقيقاً. اذهب للإعدادات لفحص الاتصال.
@@ -419,14 +419,14 @@ export function PortfolioMini({
       {/* V193: MetaAPI completely down (TOKEN_MISSING) — critical warning */}
       {usePositionsStore(s => s.account?.metaapiDown === true) && !isStaleBalance && (
         <div style={{
-          padding: '5px 8px', borderRadius: 6,
+          padding: '5px 8px', borderRadius: 'var(--radius-sm)',
           background: 'rgba(239,68,68,0.12)',
           border: '1px solid rgba(239,68,68,0.35)',
           display: 'flex', alignItems: 'center', gap: 5,
         }}>
-          <span style={{ fontSize: 10 }}>🔴</span>
+          <span style={{ fontSize: 'var(--text-xs)' }}>🔴</span>
           <span style={{
-            fontSize: 8, color: '#f87171', fontFamily: "var(--font-ar)",
+            fontSize: 'var(--text-xs)', color: '#f87171', fontFamily: "var(--font-ar)",
             fontWeight: 700, lineHeight: 1.4,
           }}>
             MetaAPI غير متصل — لا يمكن جلب بيانات حساب MT5 الحقيقي. {usePositionsStore(s => s.account?.metaapiError) || 'تأكد من ضبط مفتاح METAAPI_TOKEN.'}
@@ -438,11 +438,11 @@ export function PortfolioMini({
       {exchangeBalances.length > 0 && (
         <div style={{
           display: 'flex', flexDirection: 'column', gap: 3,
-          padding: '5px 6px', borderRadius: 6,
+          padding: '5px 6px', borderRadius: 'var(--radius-sm)',
           background: 'rgba(255,255,255,0.02)',
           border: '0.5px solid rgba(255,255,255,0.04)',
         }}>
-          <div style={{ fontSize: 8.5, color: T.text2, fontFamily: "var(--font-ar)", fontWeight: 700, marginBottom: 1 }}>
+          <div style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-ar)", fontWeight: 700, marginBottom: 1 }}>
             {tp('exchangeBalances')}
           </div>
           {exchangeBalances.map((ex) => {
@@ -457,7 +457,7 @@ export function PortfolioMini({
             })()
             return (
               <div key={ex.credentialId || ex.exchange} style={{
-                display: 'flex', alignItems: 'center', gap: 5, fontSize: 8,
+                display: 'flex', alignItems: 'center', gap: 5, fontSize: 'var(--text-xs)',
               }}>
                 <div style={{
                   width: 5, height: 5, borderRadius: '50%',
@@ -471,13 +471,13 @@ export function PortfolioMini({
                   ${fmt((ex as any).balance ?? ex.equity, 2)}
                 </span>
                 {ex.error && (
-                  <span style={{ fontSize: 8, color: T.red, fontFamily: "var(--font-ar)" }} title={(ex as any).errorDetail || ex.error}>
+                  <span style={{ fontSize: 'var(--text-xs)', color: T.red, fontFamily: "var(--font-ar)" }} title={(ex as any).errorDetail || ex.error}>
                     ⚠ {(ex as any).errorDetail || ex.error?.length > 30 ? ex.error?.substring(0, 25) + '…' : ex.error}
                   </span>
                 )}
                 {!isPaper && !ex.isTestnet && (
                   <span style={{
-                    fontSize: 7.5, padding: '1px 4px', borderRadius: 2,
+                    fontSize: 'var(--text-xs)', padding: '1px 4px', borderRadius: 'var(--radius-xs)',
                     background: 'rgba(0,255,163,0.12)', color: T.green,
                     fontWeight: 700,
                   }}>
@@ -486,7 +486,7 @@ export function PortfolioMini({
                 )}
                 {ex.isTestnet && !isPaper && (
                   <span style={{
-                    fontSize: 7.5, padding: '1px 4px', borderRadius: 2,
+                    fontSize: 'var(--text-xs)', padding: '1px 4px', borderRadius: 'var(--radius-xs)',
                     background: 'rgba(255,184,0,0.12)', color: T.amber,
                     fontWeight: 700,
                   }}>
@@ -503,13 +503,13 @@ export function PortfolioMini({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 3,
-          padding: '2px 7px', borderRadius: 12,
+          padding: '2px 7px', borderRadius: 'var(--radius-lg)',
           background: `${data.totalPnl > 0 ? T.green : data.totalPnl < 0 ? T.red : T.text2}18`,
           border: `0.5px solid ${data.totalPnl > 0 ? T.green : data.totalPnl < 0 ? T.red : T.text2}44`,
         }}>
           <span style={{
             fontFamily: "var(--font-mono)",
-            fontSize: 10, fontWeight: 700,
+            fontSize: 'var(--text-xs)', fontWeight: 700,
             color: data.totalPnl > 0 ? T.green : data.totalPnl < 0 ? T.red : T.text2,
           }}>
             {data.totalPnl > 0 ? '+' : data.totalPnl < 0 ? '-' : ''}{fmt(Math.abs(data.pnlPercent))}%
@@ -517,14 +517,14 @@ export function PortfolioMini({
         </div>
         <div style={{
           display: 'flex', justifyContent: 'space-between',
-          padding: '5px 8px', borderRadius: 7,
+          padding: '5px 8px', borderRadius: 'var(--radius-md)',
           background: `${data.totalPnl > 0 ? T.green : data.totalPnl < 0 ? T.red : T.text2}0d`,
           border: `0.5px solid ${data.totalPnl > 0 ? T.green : data.totalPnl < 0 ? T.red : T.text2}22`,
         }}>
-          <span style={{ fontFamily: "var(--font-ar)", fontSize: 9.5, color: T.text2, marginInlineEnd: 6 }}>P/L</span>
+          <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text2, marginInlineEnd: 6 }}>P/L</span>
           <span style={{
             fontFamily: "var(--font-mono)",
-            fontSize: 11, fontWeight: 700,
+            fontSize: 'var(--text-xs)', fontWeight: 700,
             color: data.totalPnl > 0 ? T.green : data.totalPnl < 0 ? T.red : T.text2,
           }}>
             {data.totalPnl > 0 ? '+' : data.totalPnl < 0 ? '-' : ''}${fmt(Math.abs(data.totalPnl), 0)}
@@ -541,17 +541,17 @@ export function PortfolioMini({
         ].map((stat) => (
           <div key={stat.label} style={{
             flex: 1, textAlign: 'center',
-            padding: '4px 2px', borderRadius: 6,
+            padding: '4px 2px', borderRadius: 'var(--radius-sm)',
             background: `${stat.color}0d`,
             border: `0.5px solid ${stat.color}22`,
           }}>
             <div style={{
               fontFamily: "var(--font-mono)",
-              fontSize: 11, fontWeight: 700, color: stat.color,
+              fontSize: 'var(--text-xs)', fontWeight: 700, color: stat.color,
             }}>{stat.value}</div>
             <div style={{
               fontFamily: "var(--font-ar)",
-              fontSize: 8, color: T.text3,
+              fontSize: 'var(--text-xs)', color: T.text3,
             }}>{stat.label}</div>
           </div>
         ))}
@@ -560,19 +560,19 @@ export function PortfolioMini({
       {/* Win rate bar */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-          <span style={{ fontFamily: "var(--font-ar)", fontSize: 8.5, color: T.text3 }}>
+          <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>
             {data.winCount} {tp('winningTrades', { count: data.winCount })}
           </span>
-          <span style={{ fontFamily: "var(--font-ar)", fontSize: 8.5, color: T.text3 }}>
+          <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>
             {data.lossCount} {tp('losingTrades', { count: data.lossCount })}
           </span>
         </div>
         <div style={{
-          height: 5, borderRadius: 3,
+          height: 5, borderRadius: 'var(--radius-xs)',
           background: `${T.red}30`, overflow: 'hidden',
         }}>
           <div style={{
-            height: '100%', borderRadius: 3,
+            height: '100%', borderRadius: 'var(--radius-xs)',
             width: `${data.winRate}%`,
             background: `linear-gradient(90deg, ${T.green}, ${T.cyan})`,
             transition: 'width 0.8s ease',
@@ -645,7 +645,7 @@ export function PortfolioMini({
             />
           ))}
           {positions.length > 5 && (
-            <div style={{ textAlign: 'center', padding: '4px 0', fontSize: 8, color: T.text3, fontFamily: "var(--font-ar)" }}>
+            <div style={{ textAlign: 'center', padding: '4px 0', fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>
               +{positions.length - 5} {tp('additionalPositions', { count: positions.length - 5 })}
             </div>
           )}
@@ -659,10 +659,10 @@ export function PortfolioMini({
           alignItems: 'center',
           borderTop: `0.5px solid ${T.border}`, paddingTop: 4,
         }}>
-          <span style={{ fontFamily: "var(--font-ar)", fontSize: 8.5, color: T.text3 }}>{tp('marginUsed')}</span>
+          <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{tp('marginUsed')}</span>
           <span style={{
             fontFamily: "var(--font-mono)",
-            fontSize: 9.5, color: T.amber,
+            fontSize: 'var(--text-xs)', color: T.amber,
           }}>${fmt(data.margin, 0)}</span>
         </div>
         <div style={{
@@ -670,10 +670,10 @@ export function PortfolioMini({
           alignItems: 'center',
           paddingTop: 2,
         }}>
-          <span style={{ fontFamily: "var(--font-ar)", fontSize: 8.5, color: T.text3 }}>{tp('freeMargin')}</span>
+          <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{tp('freeMargin')}</span>
           <span style={{
             fontFamily: "var(--font-mono)",
-            fontSize: 9.5, color: T.green,
+            fontSize: 'var(--text-xs)', color: T.green,
           }}>${fmt(data.freeMargin, 0)}</span>
         </div>
         <div style={{
@@ -681,10 +681,10 @@ export function PortfolioMini({
           alignItems: 'center',
           paddingTop: 2,
         }}>
-          <span style={{ fontFamily: "var(--font-ar)", fontSize: 8.5, color: T.text3 }}>{tp('balance')}</span>
+          <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)', color: T.text3 }}>{tp('balance')}</span>
           <span style={{
             fontFamily: "var(--font-mono)",
-            fontSize: 9.5, color: T.text,
+            fontSize: 'var(--text-xs)', color: T.text,
           }}>${fmt(data.balance, 0)}</span>
         </div>
       </>}

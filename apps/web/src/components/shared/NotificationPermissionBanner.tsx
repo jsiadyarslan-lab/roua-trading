@@ -76,7 +76,7 @@ export default function NotificationPermissionBanner() {
           background: 'rgba(28,28,30,0.95)',
           backdropFilter: 'blur(40px) saturate(190%)',
           WebkitBackdropFilter: 'blur(40px) saturate(190%)',
-          borderRadius: 18,
+          borderRadius: 'var(--radius-xl)',
           padding: '14px 16px',
           border: '0.5px solid rgba(0,212,255,0.2)',
           boxShadow: '0 8px 32px rgba(0,0,0,0.6), inset 0 0 0 0.5px rgba(0,212,255,0.1)',
@@ -98,7 +98,7 @@ export default function NotificationPermissionBanner() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {/* Icon */}
           <div style={{
-            width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+            width: 40, height: 40, borderRadius: 'var(--radius-lg)', flexShrink: 0,
             background: 'rgba(0,212,255,0.1)',
             border: '0.5px solid rgba(0,212,255,0.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -109,13 +109,13 @@ export default function NotificationPermissionBanner() {
           {/* Content */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{
-              fontSize: 13, fontWeight: 800, color: T.text,
+              fontSize: 'var(--text-sm)', fontWeight: 800, color: T.text,
               margin: 0, lineHeight: 1.4,
             }}>
               {tn('enableDeviceNotifications')}
             </p>
             <p style={{
-              fontSize: 11, color: 'rgba(235,235,245,0.5)',
+              fontSize: 'var(--text-xs)', color: 'rgba(235,235,245,0.5)',
               margin: '2px 0 0 0', lineHeight: 1.4,
             }}>
               {tn('receiveAlertsInstantly')}
@@ -129,10 +129,10 @@ export default function NotificationPermissionBanner() {
               style={{
                 background: 'rgba(0,212,255,0.15)',
                 border: '0.5px solid rgba(0,212,255,0.35)',
-                borderRadius: 10,
+                borderRadius: 'var(--radius-lg)',
                 color: T.info,
                 padding: '6px 14px',
-                fontSize: 11,
+                fontSize: 'var(--text-xs)',
                 fontWeight: 800,
                 cursor: 'pointer',
                 fontFamily: "var(--font-ar)",
@@ -144,7 +144,7 @@ export default function NotificationPermissionBanner() {
             <button
               onClick={() => setDismissed(true)}
               style={{
-                width: 28, height: 28, borderRadius: 8,
+                width: 28, height: 28, borderRadius: 'var(--radius-md)',
                 background: 'rgba(255,255,255,0.06)',
                 border: 'none',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -163,7 +163,7 @@ export default function NotificationPermissionBanner() {
         }}>
           <Shield size={10} color="rgba(235,235,245,0.3)" />
           <span style={{
-            fontSize: 9, color: 'rgba(235,235,245,0.3)',
+            fontSize: 'var(--text-xs)', color: 'rgba(235,235,245,0.3)',
           }}>
             {tn('secureNote')}
           </span>

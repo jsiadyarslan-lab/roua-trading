@@ -104,7 +104,7 @@ export default function AdminLoginPage() {
         maxWidth: 400,
         background: COLORS.card,
         border: `1px solid ${COLORS.border}`,
-        borderRadius: 16,
+        borderRadius: 'var(--radius-xl)',
         padding: 40,
         position: 'relative',
         overflow: 'hidden',
@@ -122,7 +122,7 @@ export default function AdminLoginPage() {
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{
-            width: 64, height: 64, borderRadius: 16,
+            width: 64, height: 64, borderRadius: 'var(--radius-xl)',
             background: 'linear-gradient(135deg, #00E5FF, #0A84FF)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             margin: '0 auto 16px',
@@ -130,19 +130,19 @@ export default function AdminLoginPage() {
           }}>
             <Shield size={28} color="#000" strokeWidth={2.5} />
           </div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", marginBottom: 4 }}>لوحة الإدارة</div>
-          <div style={{ fontSize: 11, color: COLORS.accent, fontFamily: "var(--font-mono)", fontWeight: 600, letterSpacing: 2 }}>ADMIN PANEL</div>
+          <div style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", marginBottom: 4 }}>لوحة الإدارة</div>
+          <div style={{ fontSize: 'var(--text-xs)', color: COLORS.accent, fontFamily: "var(--font-mono)", fontWeight: 600, letterSpacing: 2 }}>ADMIN PANEL</div>
         </div>
 
         {/* Login Form */}
         <form onSubmit={handleLogin}>
           <div style={{ marginBottom: 20 }}>
-            <label style={{ fontSize: 12, color: COLORS.muted, fontFamily: "var(--font-ar)", display: 'block', marginBottom: 8 }}>
+            <label style={{ fontSize: 'var(--text-sm)', color: COLORS.muted, fontFamily: "var(--font-ar)", display: 'block', marginBottom: 8 }}>
               كلمة مرور الإدارة
             </label>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
-              padding: '12px 14px', borderRadius: 10,
+              padding: '12px 14px', borderRadius: 'var(--radius-lg)',
               background: 'rgba(255,255,255,0.03)',
               border: `1px solid ${error ? COLORS.danger + '40' : COLORS.border}`,
               transition: 'border-color 0.2s',
@@ -157,7 +157,7 @@ export default function AdminLoginPage() {
                 autoFocus
                 style={{
                   flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                  color: COLORS.text, fontSize: 14, fontFamily: "var(--font-ar)",
+                  color: COLORS.text, fontSize: 'var(--text-base)', fontFamily: "var(--font-ar)",
                   direction: 'ltr', textAlign: 'right',
                 }}
               />
@@ -174,10 +174,10 @@ export default function AdminLoginPage() {
 
           {error && (
             <div style={{
-              padding: '10px 14px', borderRadius: 8, marginBottom: 16,
+              padding: '10px 14px', borderRadius: 'var(--radius-md)', marginBottom: 16,
               background: `${COLORS.danger}10`,
               border: `1px solid ${COLORS.danger}25`,
-              fontSize: 12, color: COLORS.danger,
+              fontSize: 'var(--text-sm)', color: COLORS.danger,
               fontFamily: "var(--font-ar)",
               textAlign: 'center',
             }}>
@@ -189,11 +189,11 @@ export default function AdminLoginPage() {
             type="submit"
             disabled={loading || !password.trim()}
             style={{
-              width: '100%', padding: '12px', borderRadius: 10,
+              width: '100%', padding: '12px', borderRadius: 'var(--radius-lg)',
               border: 'none',
               background: loading || !password.trim() ? `${COLORS.accent}30` : 'linear-gradient(135deg, #00E5FF, #0A84FF)',
               color: loading || !password.trim() ? COLORS.muted : '#000',
-              fontSize: 14, fontWeight: 700,
+              fontSize: 'var(--text-base)', fontWeight: 700,
               fontFamily: "var(--font-ar)",
               cursor: loading || !password.trim() ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s',
@@ -216,7 +216,7 @@ export default function AdminLoginPage() {
             onClick={() => router.push('/dashboard')}
             style={{
               background: 'transparent', border: 'none',
-              color: COLORS.muted, fontSize: 11, fontFamily: "var(--font-ar)",
+              color: COLORS.muted, fontSize: 'var(--text-xs)', fontFamily: "var(--font-ar)",
               cursor: 'pointer', textDecoration: 'underline',
             }}
           >

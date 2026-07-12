@@ -311,7 +311,7 @@ export function AICouncilPanel() {
   const totalModels = data?.meta?.modelsExpected || 8
 
   return (
-    <div className="flex flex-col h-full overflow-hidden custom-scrollbar" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', fontFamily: "var(--font-ar)", border: `1px solid ${isRealAI ? 'rgba(0,212,255,0.15)' : 'rgba(0,212,255,0.08)'}`, borderRadius: 16 }}>
+    <div className="flex flex-col h-full overflow-hidden custom-scrollbar" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', fontFamily: "var(--font-ar)", border: `1px solid ${isRealAI ? 'rgba(0,212,255,0.15)' : 'rgba(0,212,255,0.08)'}`, borderRadius: 'var(--radius-xl)' }}>
       {/* Header */}
       <div className="p-3 border-b border-white/5 flex items-center justify-between" style={{ background: isRealAI ? 'linear-gradient(90deg, rgba(0,212,255,0.18), rgba(179,136,255,0.08), transparent)' : 'linear-gradient(90deg, rgba(0,212,255,0.12), transparent)' }}>
         <div className="flex items-center gap-2">
@@ -327,7 +327,7 @@ export function AICouncilPanel() {
             <div style={{ 
               display: 'flex', alignItems: 'center', gap: 4, 
               background: 'rgba(179,136,255,0.05)', padding: '1px 6px', 
-              borderRadius: 10, border: '1px solid rgba(179,136,255,0.1)',
+              borderRadius: 'var(--radius-lg)', border: '1px solid rgba(179,136,255,0.1)',
               marginTop: 1, marginBottom: 1
             }}>
               <div style={{ 
@@ -335,7 +335,7 @@ export function AICouncilPanel() {
                 boxShadow: `0 0 5px ${T.purple}`,
                 animation: 'agentCtrlPulse 1s ease-in-out infinite'
               }} />
-              <span style={{ fontSize: 7, color: T.purple, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
+              <span style={{ fontSize: 'var(--text-xs)', color: T.purple, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
                 {tai('monitoringTrends')}: {currentTrendSymbol}
               </span>
             </div>
@@ -353,29 +353,29 @@ export function AICouncilPanel() {
           {/* Keep-Alive Status Indicator */}
           <div className="flex items-center gap-1" style={{
             padding: '1px 4px',
-            borderRadius: 3,
+            borderRadius: 'var(--radius-xs)',
             background: keepAliveStatus?.nestJSUp ? 'rgba(0,255,163,0.12)' : 'rgba(255,184,0,0.12)',
             border: `1px solid ${keepAliveStatus?.nestJSUp ? 'rgba(0,255,163,0.25)' : 'rgba(255,184,0,0.2)'}`,
           }} title={`Keep-alive: NestJS ${keepAliveStatus?.nestJSUp ? 'UP' : 'DOWN'} | Last ping: ${keepAliveStatus?.lastPingAt || 'never'}`}>
             <Heart size={7} color={keepAliveStatus?.nestJSUp ? T.green : T.amber} className={keepAliveStatus?.nestJSUp ? '' : 'animate-pulse'} />
-            <span style={{ fontSize: 6, fontWeight: 700, color: keepAliveStatus?.nestJSUp ? T.green : T.amber, fontFamily: "var(--font-mono)" }}>
+            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: keepAliveStatus?.nestJSUp ? T.green : T.amber, fontFamily: "var(--font-mono)" }}>
               {keepAliveStatus?.nestJSUp ? tai('up') : tai('ping')}
             </span>
           </div>
           {/* Data Source Badge */}
           <div className="flex items-center gap-1" style={{
             padding: '2px 6px',
-            borderRadius: 4,
+            borderRadius: 'var(--radius-sm)',
             background: isRealAI ? 'rgba(179,136,255,0.15)' : 'rgba(255,184,0,0.12)',
             border: `1px solid ${isRealAI ? 'rgba(179,136,255,0.3)' : 'rgba(255,184,0,0.2)'}`,
           }}>
             {isRealAI ? <Cpu size={8} color={T.purple} /> : <WifiOff size={8} color={T.amber} />}
-            <span style={{ fontSize: 7, fontWeight: 700, color: isPartialAI ? T.accent : isRealAI ? T.purple : T.amber, fontFamily: "var(--font-mono)" }}>
+            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: isPartialAI ? T.accent : isRealAI ? T.purple : T.amber, fontFamily: "var(--font-mono)" }}>
               {isPartialAI ? `${data?.meta?.modelsResponded || '?'}/${data?.meta?.modelsExpected || 7} AI` : isRealAI ? `${data?.meta?.modelsResponded || 7}/${data?.meta?.modelsExpected || 7} AI` : dataSource === 'scanner-rules' ? tai('technicalAnalysis') : 'FB'}
             </span>
           </div>
           {/* Countdown */}
-          <span style={{ fontSize: 7, color: T.text2, fontFamily: "var(--font-mono)", minWidth: 24, textAlign: 'center' }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: T.text2, fontFamily: "var(--font-mono)", minWidth: 24, textAlign: 'center' }}>
             {formatCountdown}
           </span>
           <button
@@ -409,7 +409,7 @@ export function AICouncilPanel() {
                       key={m + '-' + i} 
                       className="transition-all duration-500" 
                       style={{ 
-                        fontSize: 6, padding: '2px 5px', borderRadius: 3, 
+                        fontSize: 'var(--text-xs)', padding: '2px 5px', borderRadius: 'var(--radius-xs)', 
                         background: isActive ? 'rgba(179,136,255,0.4)' : 'rgba(179,136,255,0.1)', 
                         color: isActive ? '#fff' : T.purple, 
                         fontFamily: "var(--font-mono)",
@@ -463,10 +463,10 @@ export function AICouncilPanel() {
                   {isCachedAI ? tai('cachedAnalysis') : tai('realAnalysisFrom', { ms: data.meta?.processingTimeMs || 0 })}
                 </span>
                 {connectionLayer === 'direct' && (
-                  <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(0,212,255,0.15)', color: T.accent, fontFamily: "var(--font-mono)", fontWeight: 700 }}>{tc('live')}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: 'rgba(0,212,255,0.15)', color: T.accent, fontFamily: "var(--font-mono)", fontWeight: 700 }}>{tc('live')}</span>
                 )}
                 {connectionLayer === 'nestjs' && (
-                  <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(179,136,255,0.15)', color: T.purple, fontFamily: "var(--font-mono)", fontWeight: 700 }}>NestJS</span>
+                  <span style={{ fontSize: 'var(--text-xs)', padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: 'rgba(179,136,255,0.15)', color: T.purple, fontFamily: "var(--font-mono)", fontWeight: 700 }}>NestJS</span>
                 )}
               </div>
             )}
@@ -477,7 +477,7 @@ export function AICouncilPanel() {
                   {tai('partialAnalysis', { count: data.meta?.modelsResponded || '?' })}
                 </span>
                 {connectionLayer === 'direct' && (
-                  <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(0,212,255,0.15)', color: T.accent, fontFamily: "var(--font-mono)", fontWeight: 700 }}>{tc('live')}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', padding: '1px 4px', borderRadius: 'var(--radius-xs)', background: 'rgba(0,212,255,0.15)', color: T.accent, fontFamily: "var(--font-mono)", fontWeight: 700 }}>{tc('live')}</span>
                 )}
               </div>
             )}
@@ -494,9 +494,9 @@ export function AICouncilPanel() {
                     <span
                       key={model}
                       style={{
-                        fontSize: 6,
+                        fontSize: 'var(--text-xs)',
                         padding: '1px 5px',
-                        borderRadius: 3,
+                        borderRadius: 'var(--radius-xs)',
                         background: `${color}20`,
                         color,
                         fontFamily: "var(--font-mono)",
@@ -513,9 +513,9 @@ export function AICouncilPanel() {
                   <span
                     key={`missing-${i}`}
                     style={{
-                      fontSize: 6,
+                      fontSize: 'var(--text-xs)',
                       padding: '1px 5px',
-                      borderRadius: 3,
+                      borderRadius: 'var(--radius-xs)',
                       background: 'rgba(255,255,255,0.03)',
                       color: 'rgba(255,255,255,0.15)',
                       fontFamily: "var(--font-mono)",

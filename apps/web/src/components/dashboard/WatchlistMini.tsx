@@ -26,11 +26,11 @@ function PriceDisplay({ price, isUp }: { price: number | null, isUp: boolean }) 
     if (prevPrice.current === null) prevPrice.current = price
   }, [price])
 
-  if (price === null) return <span style={{ color: 'var(--muted)', fontSize: 11 }}>{tw('loading')}</span>
+  if (price === null) return <span style={{ color: 'var(--muted)', fontSize: 'var(--text-xs)' }}>{tw('loading')}</span>
 
   return (
     <div className={`price ${pulse ? 'price-pulse' : ''}`} style={{ 
-      fontSize: 18, 
+      fontSize: 'var(--text-lg)', 
       color: pulse ? 'var(--accent)' : 'var(--foreground)',
       transition: 'color 0.3s'
     }}>
@@ -161,9 +161,9 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp, onSelectSymb
             <button key={tab} onClick={() => setActiveTab(tab)}
               style={{
                 background: isActive ? `${accent}15` : 'transparent',
-                border: 'none', borderRadius: 6, padding: '4px 8px',
+                border: 'none', borderRadius: 'var(--radius-sm)', padding: '4px 8px',
                 color: isActive ? accent : 'var(--muted)',
-                fontSize: 11, fontWeight: isActive ? 800 : 500, cursor: 'pointer',
+                fontSize: 'var(--text-xs)', fontWeight: isActive ? 800 : 500, cursor: 'pointer',
                 fontFamily: "var(--font-ar)", transition: '0.2s',
                 whiteSpace: 'nowrap', flexShrink: 0,
               }}>
@@ -175,15 +175,15 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp, onSelectSymb
 
       {/* V329: Compact hot mover */}
       <div style={{
-        margin: '6px 8px 0', borderRadius: 8,
+        margin: '6px 8px 0', borderRadius: 'var(--radius-md)',
         border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)',
         padding: '4px 8px', display: 'flex', justifyContent: 'space-between',
         alignItems: 'center', gap: 8,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <Flame size={10} color="var(--warning)" />
-          <span style={{ fontSize: 11, fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--foreground)' }}>{hotMover?.sym ?? '—'}</span>
-          <span style={{ fontSize: 11, fontFamily: 'var(--mono)', color: (hotMover?.quote?.changePercent ?? 0) >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--foreground)' }}>{hotMover?.sym ?? '—'}</span>
+          <span style={{ fontSize: 'var(--text-xs)', fontFamily: 'var(--mono)', color: (hotMover?.quote?.changePercent ?? 0) >= 0 ? 'var(--success)' : 'var(--danger)' }}>
             {hotMover?.quote ? `${hotMover.quote.changePercent >= 0 ? '+' : ''}${hotMover.quote.changePercent.toFixed(2)}%` : '—'}
           </span>
         </div>
@@ -217,12 +217,12 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp, onSelectSymb
                 <div style={{ position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 2, background: q ? color : 'transparent', borderRadius: '0 4px 4px 0' }} />
                 {/* Pair name */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                  <span style={{ fontSize: 11, fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--foreground)', whiteSpace: 'nowrap' }}>{sym}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--foreground)', whiteSpace: 'nowrap' }}>{sym}</span>
                 </div>
                 {/* Price + change */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                   {price !== null ? (
-                    <span style={{ fontSize: 11, fontWeight: 600, fontFamily: 'var(--mono)', color: 'var(--foreground)' }}>
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, fontFamily: 'var(--mono)', color: 'var(--foreground)' }}>
                       {price >= 1000 ? price.toLocaleString('en-US', { maximumFractionDigits: 1 }) : price >= 1 ? price.toFixed(3) : price.toFixed(5)}
                     </span>
                   ) : (
@@ -231,8 +231,8 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp, onSelectSymb
                   {q ? (
                     <div style={{
                       display: 'flex', alignItems: 'center', gap: 2, padding: '1px 5px',
-                      borderRadius: 12, background: isUp ? 'rgba(0,255,163,0.1)' : 'rgba(255,71,87,0.1)',
-                      color, fontSize: 11, fontWeight: 800, fontFamily: 'var(--mono)', whiteSpace: 'nowrap',
+                      borderRadius: 'var(--radius-lg)', background: isUp ? 'rgba(0,255,163,0.1)' : 'rgba(255,71,87,0.1)',
+                      color, fontSize: 'var(--text-xs)', fontWeight: 800, fontFamily: 'var(--mono)', whiteSpace: 'nowrap',
                     }}>
                       {isUp ? '+' : ''}{changePct.toFixed(2)}%
                     </div>

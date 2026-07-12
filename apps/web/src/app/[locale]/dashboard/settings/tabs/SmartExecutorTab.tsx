@@ -159,10 +159,10 @@ export function SmartExecutorTab({ settings, update }: SmartExecutorTabProps) {
             value={allowedTimeframes}
             onChange={e => update("executorTimeframes", e.target.value)}
             style={{
-              width: 120, padding: "4px 8px", borderRadius: 8,
+              width: 120, padding: "4px 8px", borderRadius: 'var(--radius-md)',
               background: "rgba(255,255,255,0.03)",
               border: `1px solid ${COLORS.border}`,
-              color: COLORS.textPrimary, fontSize: 11,
+              color: COLORS.textPrimary, fontSize: 'var(--text-xs)',
               fontFamily: "var(--font-mono)",
               textAlign: "center", outline: "none",
             }}

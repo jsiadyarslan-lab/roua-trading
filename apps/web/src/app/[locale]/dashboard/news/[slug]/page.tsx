@@ -153,7 +153,7 @@ export default function NewsArticlePage() {
       <div style={{ direction: 'inherit', fontFamily: FONT_AR, minHeight: '100dvh', background: T.bg, color: T.text, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ width: 44, height: 44, border: `3px solid ${T.border}`, borderTopColor: T.cyan, borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
-          <p style={{ color: T.text2, fontSize: 14 }}>{t('Loading article...', 'جارٍ تحميل الخبر...', 'Chargement de l\'article...', 'Makale yükleniyor...', lang)}</p>
+          <p style={{ color: T.text2, fontSize: 'var(--text-base)' }}>{t('Loading article...', 'جارٍ تحميل الخبر...', 'Chargement de l\'article...', 'Makale yükleniyor...', lang)}</p>
         </div>
       </div>
     )
@@ -164,8 +164,8 @@ export default function NewsArticlePage() {
       <div style={{ direction: 'inherit', fontFamily: FONT_AR, minHeight: '100dvh', background: T.bg, color: T.text, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center', maxWidth: 400, padding: 24 }}>
           <AlertTriangle size={40} color={T.red} style={{ marginBottom: 16 }} />
-          <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>{error || (t('Article not found', 'خبر غير موجود', 'Article non trouvé', 'Makale bulunamadı', lang))}</h2>
-          <button onClick={() => router.back()} style={{ padding: '10px 24px', borderRadius: 12, background: T.cyan, color: '#000', border: 'none', fontWeight: 800, fontFamily: FONT_AR, cursor: 'pointer' }}>{t('Back', 'العودة', 'Retour', 'Geri', lang)}</button>
+          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 800, marginBottom: 8 }}>{error || (t('Article not found', 'خبر غير موجود', 'Article non trouvé', 'Makale bulunamadı', lang))}</h2>
+          <button onClick={() => router.back()} style={{ padding: '10px 24px', borderRadius: 'var(--radius-lg)', background: T.cyan, color: '#000', border: 'none', fontWeight: 800, fontFamily: FONT_AR, cursor: 'pointer' }}>{t('Back', 'العودة', 'Retour', 'Geri', lang)}</button>
         </div>
       </div>
     )
@@ -198,10 +198,10 @@ export default function NewsArticlePage() {
             style={{
               position: 'absolute', top: 20, right: 20,
               display: 'flex', alignItems: 'center', gap: 6,
-              padding: '10px 18px', borderRadius: 12,
+              padding: '10px 18px', borderRadius: 'var(--radius-lg)',
               background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(12px)',
               border: '0.5px solid rgba(255,255,255,0.1)',
-              color: '#FFF', cursor: 'pointer', fontSize: 13,
+              color: '#FFF', cursor: 'pointer', fontSize: 'var(--text-sm)',
               fontFamily: FONT_AR, fontWeight: 700,
             }}
           >
@@ -212,12 +212,12 @@ export default function NewsArticlePage() {
           {/* Category badge on image */}
           <div style={{ position: 'absolute', bottom: 20, right: 24, display: 'flex', gap: 8, alignItems: 'center' }}>
             {(localizedCategory(article, lang)) && (
-              <span style={{ fontSize: 11, padding: '5px 14px', borderRadius: 10, background: 'rgba(0,229,255,0.2)', backdropFilter: 'blur(8px)', color: '#00E5FF', fontWeight: 800, border: '0.5px solid rgba(0,229,255,0.3)' }}>
+              <span style={{ fontSize: 'var(--text-xs)', padding: '5px 14px', borderRadius: 'var(--radius-lg)', background: 'rgba(0,229,255,0.2)', backdropFilter: 'blur(8px)', color: '#00E5FF', fontWeight: 800, border: '0.5px solid rgba(0,229,255,0.3)' }}>
                 {localizedCategory(article, lang)}
               </span>
             )}
             {article.newsType === 'live' && (
-              <span style={{ fontSize: 10, padding: '4px 10px', borderRadius: 8, background: 'rgba(255,69,58,0.25)', color: '#FF453A', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 'var(--text-xs)', padding: '4px 10px', borderRadius: 'var(--radius-md)', background: 'rgba(255,69,58,0.25)', color: '#FF453A', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}>
                 <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#FF453A', animation: 'pulse-glow 2s infinite' }} />
                 {t('LIVE', 'مباشر', 'EN DIRECT', 'CANLI', lang)}
               </span>
@@ -235,9 +235,9 @@ export default function NewsArticlePage() {
             onClick={() => router.back()}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 16px', borderRadius: 10,
+              padding: '8px 16px', borderRadius: 'var(--radius-lg)',
               background: T.card, border: `1px solid ${T.border}`,
-              color: T.text2, cursor: 'pointer', fontSize: 12,
+              color: T.text2, cursor: 'pointer', fontSize: 'var(--text-sm)',
               fontFamily: FONT_AR, fontWeight: 700, marginBottom: 20,
             }}
           >
@@ -251,29 +251,29 @@ export default function NewsArticlePage() {
           {/* Badges row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
             {!hasImage && (localizedCategory(article, lang)) && (
-              <span style={{ fontSize: 11, padding: '5px 14px', borderRadius: 10, background: `${T.cyan}12`, color: T.cyan, fontWeight: 800, border: `0.5px solid ${T.cyan}22` }}>
+              <span style={{ fontSize: 'var(--text-xs)', padding: '5px 14px', borderRadius: 'var(--radius-lg)', background: `${T.cyan}12`, color: T.cyan, fontWeight: 800, border: `0.5px solid ${T.cyan}22` }}>
                 {localizedCategory(article, lang)}
               </span>
             )}
-            <span style={{ fontSize: 11, padding: '5px 14px', borderRadius: 10, background: sentiment.bg, color: sentiment.color, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ fontSize: 'var(--text-xs)', padding: '5px 14px', borderRadius: 'var(--radius-lg)', background: sentiment.bg, color: sentiment.color, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 5 }}>
               <SentimentIcon size={13} />
               {sentiment.text}
             </span>
             {article.impactLevel && (
-              <span style={{ fontSize: 11, padding: '5px 14px', borderRadius: 10, background: `${T.amber}12`, color: T.amber, fontWeight: 800 }}>
+              <span style={{ fontSize: 'var(--text-xs)', padding: '5px 14px', borderRadius: 'var(--radius-lg)', background: `${T.amber}12`, color: T.amber, fontWeight: 800 }}>
                 {t('Impact', 'تأثير', 'Impact', 'Etki', lang)} {article.impactLevel === 'high' ? t('High', 'عالي', 'Élevé', 'Yüksek', lang) : article.impactLevel === 'low' ? t('Low', 'منخفض', 'Faible', 'Düşük', lang) : t('Medium', 'متوسط', 'Moyen', 'Orta', lang)}
               </span>
             )}
           </div>
 
           {/* Title */}
-          <h1 style={{ fontSize: 28, fontWeight: 900, lineHeight: 1.65, marginBottom: 12, color: T.text, letterSpacing: '-0.01em' }}>
+          <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 900, lineHeight: 1.65, marginBottom: 12, color: T.text, letterSpacing: '-0.01em' }}>
             {displayTitle}
           </h1>
 
           {/* English subtitle */}
           {article.translatedTitle && article.translatedTitle !== article.title && (
-            <p style={{ fontSize: 13, color: T.text3, direction: 'ltr', textAlign: 'left', fontFamily: FONT_MONO, marginBottom: 16, lineHeight: 1.6, opacity: 0.6 }}>
+            <p style={{ fontSize: 'var(--text-sm)', color: T.text3, direction: 'ltr', textAlign: 'left', fontFamily: FONT_MONO, marginBottom: 16, lineHeight: 1.6, opacity: 0.6 }}>
               {article.title}
             </p>
           )}
@@ -281,26 +281,26 @@ export default function NewsArticlePage() {
           {/* Meta row: Source + Time + Actions */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg, #00E5FF20, #00B0FF20)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '0.5px solid #00E5FF22' }}>
+              <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-lg)', background: 'linear-gradient(135deg, #00E5FF20, #00B0FF20)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '0.5px solid #00E5FF22' }}>
                 <Globe size={18} color="#00E5FF" />
               </div>
               <div>
-                <span style={{ fontSize: 14, fontWeight: 700, color: T.text, display: 'block' }}>{article.source || (t("Ru'aa News", 'رؤى للأخبار', "Actualités Ru'aa", "Ru'aa Haberler", lang))}</span>
-                <span style={{ fontSize: 11, color: T.text3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: T.text, display: 'block' }}>{article.source || (t("Ru'aa News", 'رؤى للأخبار', "Actualités Ru'aa", "Ru'aa Haberler", lang))}</span>
+                <span style={{ fontSize: 'var(--text-xs)', color: T.text3, display: 'flex', alignItems: 'center', gap: 4 }}>
                   <Clock size={10} />
                   {formatTime(article.publishedAt, lang)}
                 </span>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button style={{ width: 38, height: 38, borderRadius: 10, background: T.card, border: `1px solid ${T.border}`, color: T.text3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
+              <button style={{ width: 38, height: 38, borderRadius: 'var(--radius-lg)', background: T.card, border: `1px solid ${T.border}`, color: T.text3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
                 <Bookmark size={16} />
               </button>
-              <button style={{ width: 38, height: 38, borderRadius: 10, background: T.card, border: `1px solid ${T.border}`, color: T.text3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
+              <button style={{ width: 38, height: 38, borderRadius: 'var(--radius-lg)', background: T.card, border: `1px solid ${T.border}`, color: T.text3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
                 <Share2 size={16} />
               </button>
               {article.url && (
-                <a href={article.url} target="_blank" rel="noreferrer" style={{ width: 38, height: 38, borderRadius: 10, background: `${T.cyan}12`, border: `1px solid ${T.cyan}22`, color: T.cyan, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', transition: 'all 0.2s' }}>
+                <a href={article.url} target="_blank" rel="noreferrer" style={{ width: 38, height: 38, borderRadius: 'var(--radius-lg)', background: `${T.cyan}12`, border: `1px solid ${T.cyan}22`, color: T.cyan, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', transition: 'all 0.2s' }}>
                   <ExternalLink size={16} />
                 </a>
               )}
@@ -312,24 +312,24 @@ export default function NewsArticlePage() {
         {Array.isArray(article.keyTakeaways) && article.keyTakeaways.length > 0 && (
           <div style={{
             animation: 'slide-up 0.5s ease-out 0.1s both',
-            margin: '0 0 28px', borderRadius: 18, overflow: 'hidden',
+            margin: '0 0 28px', borderRadius: 'var(--radius-xl)', overflow: 'hidden',
             border: `1px solid ${T.green}20`,
             background: `linear-gradient(135deg, ${T.green}06, ${T.green}02)`,
           }}>
             <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: `1px solid ${T.green}12` }}>
-              <div style={{ width: 32, height: 32, borderRadius: 10, background: `${T.green}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-lg)', background: `${T.green}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Zap size={16} color={T.green} />
               </div>
-              <span style={{ fontSize: 14, fontWeight: 900, color: T.green }}>{t('Key Takeaways', 'النقاط الرئيسية', 'Points clés', 'Önemli Noktalar', lang)}</span>
-              <span style={{ fontSize: 11, color: `${T.green}80`, fontFamily: FONT_MONO, marginRight: 4 }}>({article.keyTakeaways.length})</span>
+              <span style={{ fontSize: 'var(--text-base)', fontWeight: 900, color: T.green }}>{t('Key Takeaways', 'النقاط الرئيسية', 'Points clés', 'Önemli Noktalar', lang)}</span>
+              <span style={{ fontSize: 'var(--text-xs)', color: `${T.green}80`, fontFamily: FONT_MONO, marginRight: 4 }}>({article.keyTakeaways.length})</span>
             </div>
             <div style={{ padding: '16px 20px' }}>
               {article.keyTakeaways.map((point, i) => (
                 <div key={i} style={{ display: 'flex', gap: 12, marginBottom: i < article.keyTakeaways!.length - 1 ? 12 : 0, alignItems: 'flex-start' }}>
-                  <div style={{ width: 24, height: 24, borderRadius: 8, background: `${T.green}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
-                    <span style={{ fontSize: 11, color: T.green, fontWeight: 900 }}>{i + 1}</span>
+                  <div style={{ width: 24, height: 24, borderRadius: 'var(--radius-md)', background: `${T.green}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+                    <span style={{ fontSize: 'var(--text-xs)', color: T.green, fontWeight: 900 }}>{i + 1}</span>
                   </div>
-                  <span style={{ fontSize: 14, color: T.text2, lineHeight: 1.75 }}>{point}</span>
+                  <span style={{ fontSize: 'var(--text-base)', color: T.text2, lineHeight: 1.75 }}>{point}</span>
                 </div>
               ))}
             </div>
@@ -342,16 +342,16 @@ export default function NewsArticlePage() {
             animation: 'slide-up 0.5s ease-out 0.15s both',
             margin: '0 0 28px', padding: '20px 22px',
             background: `linear-gradient(135deg, ${sentiment.color}06, ${sentiment.color}02)`,
-            borderRadius: 18,
+            borderRadius: 'var(--radius-xl)',
             borderRight: `4px solid ${sentiment.color}`,
             border: `1px solid ${sentiment.color}15`,
             borderRightWidth: 4, borderRightColor: sentiment.color,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
               <SentimentIcon size={16} color={sentiment.color} />
-              <span style={{ fontSize: 12, fontWeight: 800, color: sentiment.color }}>{t('Analysis Summary', 'ملخص التحليل', 'Résumé analytique', 'Analiz Özeti', lang)}</span>
+              <span style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: sentiment.color }}>{t('Analysis Summary', 'ملخص التحليل', 'Résumé analytique', 'Analiz Özeti', lang)}</span>
             </div>
-            <p style={{ fontSize: 15, color: T.text2, lineHeight: 1.9, margin: 0 }}>{article.summary}</p>
+            <p style={{ fontSize: 'var(--text-base)', color: T.text2, lineHeight: 1.9, margin: 0 }}>{article.summary}</p>
           </div>
         )}
 
@@ -370,19 +370,19 @@ export default function NewsArticlePage() {
           <div style={{
             animation: 'slide-up 0.5s ease-out 0.3s both',
             margin: '0 0 28px', padding: '18px 20px',
-            background: T.card, borderRadius: 18,
+            background: T.card, borderRadius: 'var(--radius-xl)',
             border: `1px solid ${T.border}`,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 10, background: `${T.amber}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-lg)', background: `${T.amber}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <BarChart3 size={16} color={T.amber} />
               </div>
-              <span style={{ fontSize: 14, fontWeight: 800, color: T.amber }}>{t('Affected Assets', 'الأصول المتأثرة', 'Actifs concernés', 'Etkilenen Varlıklar', lang)}</span>
+              <span style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.amber }}>{t('Affected Assets', 'الأصول المتأثرة', 'Actifs concernés', 'Etkilenen Varlıklar', lang)}</span>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {article.affectedAssets.map((asset, i) => (
                 <span key={i} style={{
-                  fontSize: 13, padding: '6px 16px', borderRadius: 10,
+                  fontSize: 'var(--text-sm)', padding: '6px 16px', borderRadius: 'var(--radius-lg)',
                   background: `${T.amber}10`, color: T.amber, fontWeight: 800,
                   fontFamily: FONT_MONO, border: `1px solid ${T.amber}20`,
                 }}>
@@ -397,37 +397,37 @@ export default function NewsArticlePage() {
         <div style={{
           animation: 'slide-up 0.5s ease-out 0.35s both',
           margin: '0 0 28px', padding: '18px 20px',
-          background: T.card, borderRadius: 18,
+          background: T.card, borderRadius: 'var(--radius-xl)',
           border: `1px solid ${T.border}`,
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: T.text2, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.text2, display: 'flex', alignItems: 'center', gap: 6 }}>
               <ShieldAlert size={14} color={T.text3} />
               {t('Sentiment Analysis', 'تحليل المشاعر', 'Analyse de sentiment', 'Duygu Analizi', lang)}
             </span>
-            <span style={{ fontSize: 14, fontWeight: 800, color: sentiment.color, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: sentiment.color, display: 'flex', alignItems: 'center', gap: 5 }}>
               <SentimentIcon size={14} />
               {sentiment.text}
             </span>
           </div>
-          <div style={{ height: 6, borderRadius: 3, background: T.bg2, overflow: 'hidden', direction: 'ltr' }}>
+          <div style={{ height: 6, borderRadius: 'var(--radius-xs)', background: T.bg2, overflow: 'hidden', direction: 'ltr' }}>
             <div style={{
-              height: '100%', borderRadius: 3, width: `${Math.max(Math.abs(article.sentiment || 0) * 100, 8)}%`,
+              height: '100%', borderRadius: 'var(--radius-xs)', width: `${Math.max(Math.abs(article.sentiment || 0) * 100, 8)}%`,
               background: `linear-gradient(90deg, ${sentiment.color}60, ${sentiment.color})`,
               transition: 'width 0.8s ease-out',
             }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-            <span style={{ fontSize: 10, color: T.text3 }}>{t('Negative', 'سلبي', 'Négatif', 'Olumsuz', lang)}</span>
-            <span style={{ fontSize: 10, color: T.text3 }}>{t('Neutral', 'محايد', 'Neutre', 'Nötr', lang)}</span>
-            <span style={{ fontSize: 10, color: T.text3 }}>{t('Positive', 'إيجابي', 'Positif', 'Olumlu', lang)}</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{t('Negative', 'سلبي', 'Négatif', 'Olumsuz', lang)}</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{t('Neutral', 'محايد', 'Neutre', 'Nötr', lang)}</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{t('Positive', 'إيجابي', 'Positif', 'Olumlu', lang)}</span>
           </div>
         </div>
 
         {/* ─── Disclaimer ─── */}
-        <div style={{ padding: '16px 18px', borderRadius: 14, background: `${T.amber}04`, border: `1px solid ${T.amber}10`, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+        <div style={{ padding: '16px 18px', borderRadius: 'var(--radius-xl)', background: `${T.amber}04`, border: `1px solid ${T.amber}10`, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
           <AlertTriangle size={14} color={T.amber} style={{ flexShrink: 0, marginTop: 2 }} />
-          <p style={{ fontSize: 11, color: `${T.amber}88`, lineHeight: 1.7, margin: 0 }}>
+          <p style={{ fontSize: 'var(--text-xs)', color: `${T.amber}88`, lineHeight: 1.7, margin: 0 }}>
             {t('News and analysis are provided for educational purposes only and are not investment advice. Trade responsibly.', 'الأخبار والتحليلات مقدمة لأغراض تعليمية فقط وليست نصيحة استثمارية. تداول بمسؤولية.', 'Les actualités et analyses sont fournies à des fins éducatives uniquement et ne constituent pas des conseils en investissement. Tradez de manière responsable.', 'Haberler ve analizler yalnızca eğitim amaçlıdır ve yatırım tavsiyesi değildir. Sorumlu bir şekilde işlem yapın.', lang)}
           </p>
         </div>
@@ -489,7 +489,7 @@ function ArticleFullContent({ content }: { content: string }) {
             className="section-card"
             style={{
               animation: `slide-up 0.5s ease-out ${0.2 + index * 0.08}s both`,
-              borderRadius: 18, overflow: 'hidden',
+              borderRadius: 'var(--radius-xl)', overflow: 'hidden',
               border: `1px solid ${config.borderColor}`,
               background: config.bgColor,
             }}
@@ -502,7 +502,7 @@ function ArticleFullContent({ content }: { content: string }) {
               background: `${config.borderColor}08`,
             }}>
               <div style={{
-                width: 36, height: 36, borderRadius: 11,
+                width: 36, height: 36, borderRadius: 'var(--radius-lg)',
                 background: config.iconBg,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 border: `1px solid ${config.borderColor}`,
@@ -511,10 +511,10 @@ function ArticleFullContent({ content }: { content: string }) {
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 6, background: config.iconBg, color: config.borderColor.replace('40', ''), fontWeight: 900, fontFamily: FONT_MONO }}>
+                  <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: config.iconBg, color: config.borderColor.replace('40', ''), fontWeight: 900, fontFamily: FONT_MONO }}>
                     {section.num}
                   </span>
-                  <span style={{ fontSize: 14, fontWeight: 900, color: config.borderColor.replace('40', '') }}>
+                  <span style={{ fontSize: 'var(--text-base)', fontWeight: 900, color: config.borderColor.replace('40', '') }}>
                     {section.title}
                   </span>
                 </div>
@@ -523,7 +523,7 @@ function ArticleFullContent({ content }: { content: string }) {
 
             {/* Section Body */}
             <div style={{ padding: '18px 20px' }}>
-              <p style={{ fontSize: 15, color: T.text2, lineHeight: 1.9, margin: 0, whiteSpace: 'pre-wrap' }}>
+              <p style={{ fontSize: 'var(--text-base)', color: T.text2, lineHeight: 1.9, margin: 0, whiteSpace: 'pre-wrap' }}>
                 {section.body}
               </p>
             </div>
@@ -642,7 +642,7 @@ function PlainArticleContent({ content }: { content: string }) {
               style={{
                 animation: `slide-up 0.5s ease-out ${0.2 + index * 0.06}s both`,
                 padding: '16px 20px',
-                borderRadius: 14,
+                borderRadius: 'var(--radius-xl)',
                 background: 'linear-gradient(135deg, rgba(255,184,0,0.08), rgba(255,107,53,0.04))',
                 border: '1px solid rgba(255,184,0,0.2)',
                 borderRight: '3.5px solid rgba(255,184,0,0.6)',
@@ -652,7 +652,7 @@ function PlainArticleContent({ content }: { content: string }) {
               }}
             >
               <AlertTriangle size={14} color={T.amber} style={{ flexShrink: 0, marginTop: 2 }} />
-              <p style={{ fontSize: 12, color: `${T.amber}cc`, lineHeight: 1.7, margin: 0 }}>
+              <p style={{ fontSize: 'var(--text-sm)', color: `${T.amber}cc`, lineHeight: 1.7, margin: 0 }}>
                 {section.body}
               </p>
             </div>
@@ -668,7 +668,7 @@ function PlainArticleContent({ content }: { content: string }) {
             className="section-card"
             style={{
               animation: `slide-up 0.5s ease-out ${0.2 + index * 0.06}s both`,
-              borderRadius: 18, overflow: 'hidden',
+              borderRadius: 'var(--radius-xl)', overflow: 'hidden',
               border: `1px solid ${colors.border}`,
               background: colors.bg,
             }}
@@ -682,14 +682,14 @@ function PlainArticleContent({ content }: { content: string }) {
                 background: `${colors.border}08`,
               }}>
                 <div style={{
-                  width: 36, height: 36, borderRadius: 11,
+                  width: 36, height: 36, borderRadius: 'var(--radius-lg)',
                   background: colors.iconBg,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   border: `1px solid ${colors.border}`,
                 }}>
                   <Newspaper size={17} color={colors.color} />
                 </div>
-                <span style={{ fontSize: 14, fontWeight: 900, color: colors.color }}>
+                <span style={{ fontSize: 'var(--text-base)', fontWeight: 900, color: colors.color }}>
                   {section.title}
                 </span>
               </div>
@@ -699,7 +699,7 @@ function PlainArticleContent({ content }: { content: string }) {
             <div style={{ padding: '18px 20px' }}>
               {section.body.split('\n\n').map((paragraph, pIdx) => (
                 <p key={pIdx} style={{
-                  fontSize: 15, color: T.text2, lineHeight: 1.9, margin: pIdx > 0 ? '12px 0 0' : 0,
+                  fontSize: 'var(--text-base)', color: T.text2, lineHeight: 1.9, margin: pIdx > 0 ? '12px 0 0' : 0,
                   whiteSpace: 'pre-wrap',
                 }}>
                   {paragraph}

@@ -186,8 +186,8 @@ function MiniChartHeader({
         onChange={e => onSymbolChange(e.target.value)}
         style={{
           background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)',
-          borderRadius: 3, color: T.info, fontFamily: "var(--font-mono)",
-          fontSize: 10, fontWeight: 700, padding: '1px 4px', cursor: 'pointer',
+          borderRadius: 'var(--radius-xs)', color: T.info, fontFamily: "var(--font-mono)",
+          fontSize: 'var(--text-xs)', fontWeight: 700, padding: '1px 4px', cursor: 'pointer',
           outline: 'none', maxWidth: 90, flexShrink: 0,
         }}
       >
@@ -206,8 +206,8 @@ function MiniChartHeader({
               style={{
                 background: active ? 'rgba(0,212,255,0.15)' : 'transparent',
                 border: active ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent',
-                borderRadius: 2, color: active ? T.info : '#4B5563',
-                fontFamily: "var(--font-mono)", fontSize: 8,
+                borderRadius: 'var(--radius-xs)', color: active ? T.info : '#4B5563',
+                fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)',
                 fontWeight: active ? 700 : 500, padding: '0 3px', height: 18,
                 cursor: 'pointer', whiteSpace: 'nowrap',
               }}
@@ -222,16 +222,16 @@ function MiniChartHeader({
         <div style={{ width: 10, height: 10, border: '2px solid #1E2530',
           borderTopColor: T.info, borderRadius: '50%', animation: 'mcSpin 1s linear infinite' }} />
       )}
-      {isPaused && !loading && <span style={{ color: '#fbbf24', fontSize: 8, fontWeight: 700 }}>⏸</span>}
+      {isPaused && !loading && <span style={{ color: '#fbbf24', fontSize: 'var(--text-xs)', fontWeight: 700 }}>⏸</span>}
 
       {/* Candle Countdown Timer */}
       {candleCountdown && !loading && (
         <span style={{
-          color: T.info, fontSize: 9, fontWeight: 700,
+          color: T.info, fontSize: 'var(--text-xs)', fontWeight: 700,
           fontFamily: "var(--font-mono)",
           background: 'rgba(0,212,255,0.08)',
           border: '1px solid rgba(0,212,255,0.15)',
-          borderRadius: 3, padding: '0 4px', lineHeight: '16px',
+          borderRadius: 'var(--radius-xs)', padding: '0 4px', lineHeight: '16px',
           flexShrink: 0,
         }}>
           {candleCountdown}
@@ -240,13 +240,13 @@ function MiniChartHeader({
 
       {currentPrice !== null && !loading && (
         <>
-          <span style={{ color: T.text, fontSize: 10, fontWeight: 600,
+          <span style={{ color: T.text, fontSize: 'var(--text-xs)', fontWeight: 600,
             fontFamily: "var(--font-mono)" }}>
             {fmtPrice(currentPrice)}
           </span>
           {changePercent !== null && (
-            <span style={{ color: isPositive ? '#3fb950' : '#f85149', fontSize: 8, fontWeight: 700,
-              fontFamily: "var(--font-mono)", padding: '0 3px', borderRadius: 2,
+            <span style={{ color: isPositive ? '#3fb950' : '#f85149', fontSize: 'var(--text-xs)', fontWeight: 700,
+              fontFamily: "var(--font-mono)", padding: '0 3px', borderRadius: 'var(--radius-xs)',
               background: isPositive ? 'rgba(63,185,80,0.1)' : 'rgba(248,81,73,0.1)' }}>
               {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
             </span>
@@ -258,7 +258,7 @@ function MiniChartHeader({
         <button onClick={e => { e.stopPropagation(); onClose(); }}
           style={{
             background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 2, color: '#4B5563', width: 18, height: 18, cursor: 'pointer',
+            borderRadius: 'var(--radius-xs)', color: '#4B5563', width: 18, height: 18, cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
             flexShrink: 0,
           }}
@@ -342,7 +342,7 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull, compact }: {
         background: bgColor,
         color: '#fff',
         fontFamily: "var(--font-mono)",
-        fontSize: 10 * scale,
+        fontSize: 'var(--text-xs)' * scale,
         fontWeight: 700,
         padding: compact ? '1px 5px' : '1px 7px',
         borderRadius: '0 0 3px 3px',
@@ -3172,7 +3172,7 @@ export default function RouaChart({
       {feedState === 'fallback' && (
         <div style={{
           position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-          fontSize: 36, fontWeight: 900, color: 'rgba(255,184,0,0.12)',
+          fontSize: 'var(--text-3xl)', fontWeight: 900, color: 'rgba(255,184,0,0.12)',
           fontFamily: "var(--font-mono)", pointerEvents: 'none', zIndex: 1,
           letterSpacing: 4, textTransform: 'uppercase', whiteSpace: 'nowrap',
         }}>
@@ -3207,8 +3207,8 @@ export default function RouaChart({
             }}
             style={{
               background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)',
-              borderRadius: 3, color: T.info, fontFamily: "var(--font-mono)",
-              fontSize: 10, fontWeight: 700, padding: '1px 4px', cursor: 'pointer',
+              borderRadius: 'var(--radius-xs)', color: T.info, fontFamily: "var(--font-mono)",
+              fontSize: 'var(--text-xs)', fontWeight: 700, padding: '1px 4px', cursor: 'pointer',
               outline: 'none', maxWidth: 95, flexShrink: 0,
             }}
           >
@@ -3227,8 +3227,8 @@ export default function RouaChart({
                   style={{
                     background: active ? 'rgba(0,212,255,0.15)' : 'transparent',
                     border: active ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent',
-                    borderRadius: 2, color: active ? T.info : '#4B5563',
-                    fontFamily: "var(--font-mono)", fontSize: 8,
+                    borderRadius: 'var(--radius-xs)', color: active ? T.info : '#4B5563',
+                    fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)',
                     fontWeight: active ? 700 : 500, padding: '0 3px', height: 18,
                     cursor: 'pointer', whiteSpace: 'nowrap',
                   }}
@@ -3237,7 +3237,7 @@ export default function RouaChart({
             })}
           </div>
           {chart.isPaused && (
-            <span style={{ color: '#fbbf24', fontSize: 8, fontWeight: 700 }}>⏸</span>
+            <span style={{ color: '#fbbf24', fontSize: 'var(--text-xs)', fontWeight: 700 }}>⏸</span>
           )}
           {feedState === 'waiting' && (
             <div style={{ width: 8, height: 8, border: '2px solid #1E2530',
@@ -3251,7 +3251,7 @@ export default function RouaChart({
               style={{
                 background: isExpanded ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.04)',
                 border: isExpanded ? '1px solid rgba(0,212,255,0.3)' : '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 2, color: isExpanded ? T.info : '#4B5563', width: 16, height: 16, cursor: 'pointer',
+                borderRadius: 'var(--radius-xs)', color: isExpanded ? T.info : '#4B5563', width: 16, height: 16, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
                 flexShrink: 0, transition: 'all 0.15s ease',
               }}
@@ -3275,7 +3275,7 @@ export default function RouaChart({
             <button onClick={e => { e.stopPropagation(); onClose(); }}
               style={{
                 background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 2, color: '#4B5563', width: 16, height: 16, cursor: 'pointer',
+                borderRadius: 'var(--radius-xs)', color: '#4B5563', width: 16, height: 16, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
                 flexShrink: 0,
               }}
@@ -3390,12 +3390,12 @@ export default function RouaChart({
             right: 60,
             background: T.card,
             border: '1px solid rgba(0,212,255,0.2)',
-            borderRadius: 10,
+            borderRadius: 'var(--radius-lg)',
             padding: 10,
             zIndex: 99999,
             boxShadow: '0 20px 50px rgba(0,0,0,0.8)',
           }}>
-            <div style={{ fontSize: 9, color: '#4B5563', letterSpacing: 1, marginBottom: 8, textAlign: 'center', fontFamily: "var(--font-ar)" }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: '#4B5563', letterSpacing: 1, marginBottom: 8, textAlign: 'center', fontFamily: "var(--font-ar)" }}>
               تخطيط الشارت
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
@@ -3415,7 +3415,7 @@ export default function RouaChart({
                       gap: 3,
                       background: isActive ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.03)',
                       border: isActive ? '1px solid rgba(0,212,255,0.4)' : '1px solid rgba(255,255,255,0.06)',
-                      borderRadius: 6,
+                      borderRadius: 'var(--radius-sm)',
                       padding: '6px 4px',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
@@ -3429,13 +3429,13 @@ export default function RouaChart({
                   >
                     <span style={{
                       color: isActive ? T.info : T.text2,
-                      fontSize: 10,
+                      fontSize: 'var(--text-xs)',
                       fontWeight: isActive ? 700 : 500,
                       fontFamily: "var(--font-mono)",
                     }}>
                       {m.label}
                     </span>
-                    <span style={{ color: '#4B5563', fontSize: 7 }}>
+                    <span style={{ color: '#4B5563', fontSize: 'var(--text-xs)' }}>
                       {m.cols * m.rows}
                     </span>
                   </button>
@@ -3641,14 +3641,14 @@ export default function RouaChart({
                     gap: 4,
                     background: bgSolid,
                     border: `1.5px solid ${color}`,
-                    borderRadius: 4,
+                    borderRadius: 'var(--radius-sm)',
                     padding: '2px 7px 2px 6px',
                     boxShadow: `0 0 8px ${color}55, 0 2px 4px rgba(0,0,0,0.4)`,
                   }}>
                     <span style={{
                       color,
                       fontFamily: "var(--font-mono)",
-                      fontSize: 10,
+                      fontSize: 'var(--text-xs)',
                       fontWeight: 800,
                       letterSpacing: 0.5,
                       whiteSpace: 'nowrap',
@@ -3660,7 +3660,7 @@ export default function RouaChart({
                       <span style={{
                         color: entryPnl >= 0 ? T.success : T.danger,
                         fontFamily: "var(--font-mono)",
-                        fontSize: 10,
+                        fontSize: 'var(--text-xs)',
                         fontWeight: 700,
                         whiteSpace: 'nowrap',
                         borderLeft: `1px solid ${color}44`,
@@ -3675,7 +3675,7 @@ export default function RouaChart({
                       <span style={{
                         color: ov.linePnl !== undefined && ov.linePnl >= 0 ? T.success : T.danger,
                         fontFamily: "var(--font-mono)",
-                        fontSize: 10,
+                        fontSize: 'var(--text-xs)',
                         fontWeight: 700,
                         whiteSpace: 'nowrap',
                         borderLeft: `1px solid ${color}44`,
@@ -3689,7 +3689,7 @@ export default function RouaChart({
                     {isDraggable && (
                       <span style={{
                         color: color + 'AA',
-                        fontSize: 8,
+                        fontSize: 'var(--text-xs)',
                         marginLeft: 2,
                         lineHeight: 1,
                       }}>⇕</span>
@@ -3763,7 +3763,7 @@ export default function RouaChart({
                   minWidth: 200,
                   background: 'rgba(11, 14, 20, 0.98)',
                   border: '1px solid rgba(0, 212, 255, 0.25)',
-                  borderRadius: 8,
+                  borderRadius: 'var(--radius-md)',
                   boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 16px rgba(0,212,255,0.1)',
                   backdropFilter: 'blur(12px)',
                   padding: '4px 0',
@@ -3777,17 +3777,17 @@ export default function RouaChart({
                     display: 'flex', alignItems: 'center', gap: 6,
                   }}>
                     <span style={{
-                      fontSize: 9, fontWeight: 800,
+                      fontSize: 'var(--text-xs)', fontWeight: 800,
                       color: contextMenu.side === 'long' ? T.success : T.danger,
-                      padding: '1px 5px', borderRadius: 3,
+                      padding: '1px 5px', borderRadius: 'var(--radius-xs)',
                       background: contextMenu.side === 'long' ? 'rgba(0,255,163,0.12)' : 'rgba(255,71,87,0.12)',
                     }}>
                       {contextMenu.side === 'long' ? 'BUY' : 'SELL'}
                     </span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#E0ECF8', fontFamily: 'var(--font-mono)' }}>
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#E0ECF8', fontFamily: 'var(--font-mono)' }}>
                       {contextMenu.symbol || '—'}
                     </span>
-                    <span style={{ fontSize: 9, color: '#5A6A80', marginLeft: 'auto', fontFamily: 'var(--font-mono)' }}>
+                    <span style={{ fontSize: 'var(--text-xs)', color: '#5A6A80', marginLeft: 'auto', fontFamily: 'var(--font-mono)' }}>
                       {contextMenu.qty} @ {contextMenu.entryPrice.toFixed(contextMenu.entryPrice > 100 ? 2 : 5)}
                     </span>
                     {/* Close button */}
@@ -3795,7 +3795,7 @@ export default function RouaChart({
                       onClick={() => setContextMenu(null)}
                       style={{
                         background: 'transparent', border: 'none', cursor: 'pointer',
-                        color: '#5A6A80', fontSize: 14, lineHeight: 1, padding: '0 2px',
+                        color: '#5A6A80', fontSize: 'var(--text-base)', lineHeight: 1, padding: '0 2px',
                         marginLeft: 4,
                       }}
                       onMouseEnter={(e) => { e.currentTarget.style.color = T.danger; }}
@@ -3868,7 +3868,7 @@ export default function RouaChart({
                         display: 'flex', alignItems: 'center', gap: 8,
                         cursor: 'pointer',
                         color: '#C8D4E4',
-                        fontSize: 11,
+                        fontSize: 'var(--text-xs)',
                         fontWeight: 600,
                         transition: 'background 0.15s',
                       }}
@@ -3881,7 +3881,7 @@ export default function RouaChart({
                         e.currentTarget.style.color = '#C8D4E4';
                       }}
                     >
-                      <span style={{ fontSize: 12, width: 16, textAlign: 'center' }}>{item.icon}</span>
+                      <span style={{ fontSize: 'var(--text-sm)', width: 16, textAlign: 'center' }}>{item.icon}</span>
                       <span>{item.label}</span>
                     </div>
                   ))}
@@ -3913,7 +3913,7 @@ export default function RouaChart({
                     minWidth: 360, maxWidth: 440,
                     background: 'rgba(15, 18, 28, 0.98)',
                     border: '1px solid rgba(0, 212, 255, 0.3)',
-                    borderRadius: 16,
+                    borderRadius: 'var(--radius-xl)',
                     boxShadow: '0 24px 64px rgba(0,0,0,0.6), 0 0 32px rgba(0,212,255,0.15)',
                     backdropFilter: 'blur(20px)',
                     WebkitBackdropFilter: 'blur(20px)',
@@ -3930,14 +3930,14 @@ export default function RouaChart({
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{
-                          fontSize: 10, fontWeight: 800,
+                          fontSize: 'var(--text-xs)', fontWeight: 800,
                           color: modal.positionData.side === 'long' ? T.success : T.danger,
-                          padding: '2px 8px', borderRadius: 4,
+                          padding: '2px 8px', borderRadius: 'var(--radius-sm)',
                           background: modal.positionData.side === 'long' ? 'rgba(0,255,163,0.12)' : 'rgba(255,71,87,0.12)',
                         }}>
                           {modal.positionData.side === 'long' ? 'BUY' : 'SELL'}
                         </span>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: '#E0ECF8', fontFamily: 'var(--font-mono)' }}>
+                        <span style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: '#E0ECF8', fontFamily: 'var(--font-mono)' }}>
                           {modal.positionData.symbol}
                         </span>
                       </div>
@@ -3945,8 +3945,8 @@ export default function RouaChart({
                         onClick={() => setModal(null)}
                         style={{
                           background: 'transparent', border: 'none', cursor: 'pointer',
-                          color: '#5A6A80', fontSize: 16, lineHeight: 1, padding: '2px 6px',
-                          borderRadius: 4,
+                          color: '#5A6A80', fontSize: 'var(--text-md)', lineHeight: 1, padding: '2px 6px',
+                          borderRadius: 'var(--radius-sm)',
                         }}
                         onMouseEnter={(e) => { e.currentTarget.style.color = T.danger; e.currentTarget.style.background = 'rgba(255,71,87,0.1)'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.color = '#5A6A80'; e.currentTarget.style.background = 'transparent'; }}
@@ -3957,7 +3957,7 @@ export default function RouaChart({
 
                     {/* Modal Title */}
                     <div style={{ padding: '10px 18px 4px' }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: T.info }}>
+                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: T.info }}>
                         {modal.title}
                       </span>
                     </div>
@@ -3969,7 +3969,7 @@ export default function RouaChart({
                       {modal.type === 'modify_sltp' && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                           <div>
-                            <label style={{ fontSize: 11, color: T.text2, display: 'block', marginBottom: 4 }}>
+                            <label style={{ fontSize: 'var(--text-xs)', color: T.text2, display: 'block', marginBottom: 4 }}>
                               وقف الخسارة (SL)
                             </label>
                             <input
@@ -3982,8 +3982,8 @@ export default function RouaChart({
                                 width: '100%', padding: '8px 12px',
                                 background: 'rgba(255,71,87,0.06)',
                                 border: '1px solid rgba(255,71,87,0.25)',
-                                borderRadius: 8, color: '#E0ECF8',
-                                fontSize: 14, fontFamily: 'var(--font-mono)',
+                                borderRadius: 'var(--radius-md)', color: '#E0ECF8',
+                                fontSize: 'var(--text-base)', fontFamily: 'var(--font-mono)',
                                 outline: 'none',
                               }}
                               onFocus={(e) => e.target.style.borderColor = 'rgba(255,71,87,0.5)'}
@@ -3991,7 +3991,7 @@ export default function RouaChart({
                             />
                           </div>
                           <div>
-                            <label style={{ fontSize: 11, color: T.text2, display: 'block', marginBottom: 4 }}>
+                            <label style={{ fontSize: 'var(--text-xs)', color: T.text2, display: 'block', marginBottom: 4 }}>
                               أخذ الربح (TP)
                             </label>
                             <input
@@ -4004,8 +4004,8 @@ export default function RouaChart({
                                 width: '100%', padding: '8px 12px',
                                 background: 'rgba(0,255,163,0.06)',
                                 border: '1px solid rgba(0,255,163,0.25)',
-                                borderRadius: 8, color: '#E0ECF8',
-                                fontSize: 14, fontFamily: 'var(--font-mono)',
+                                borderRadius: 'var(--radius-md)', color: '#E0ECF8',
+                                fontSize: 'var(--text-base)', fontFamily: 'var(--font-mono)',
                                 outline: 'none',
                               }}
                               onFocus={(e) => e.target.style.borderColor = 'rgba(0,255,163,0.5)'}
@@ -4019,8 +4019,8 @@ export default function RouaChart({
                                 flex: 1, padding: '8px',
                                 background: 'rgba(255,255,255,0.04)',
                                 border: '1px solid rgba(255,255,255,0.1)',
-                                borderRadius: 8, color: T.text2,
-                                fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                borderRadius: 'var(--radius-md)', color: T.text2,
+                                fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                                 fontFamily: 'var(--font-ar)',
                               }}
                             >
@@ -4048,8 +4048,8 @@ export default function RouaChart({
                                 flex: 1, padding: '8px',
                                 background: 'rgba(0,212,255,0.12)',
                                 border: '1px solid rgba(0,212,255,0.4)',
-                                borderRadius: 8, color: T.info,
-                                fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                borderRadius: 'var(--radius-md)', color: T.info,
+                                fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                                 fontFamily: 'var(--font-ar)',
                               }}
                             >
@@ -4063,14 +4063,14 @@ export default function RouaChart({
                       {modal.type === 'close' && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                           <div style={{
-                            padding: '10px 12px', borderRadius: 8,
+                            padding: '10px 12px', borderRadius: 'var(--radius-md)',
                             background: 'rgba(255,71,87,0.08)',
                             border: '1px solid rgba(255,71,87,0.2)',
-                            fontSize: 12, color: '#C8D4E4', lineHeight: 1.6,
+                            fontSize: 'var(--text-sm)', color: '#C8D4E4', lineHeight: 1.6,
                           }}>
                             هل أنت متأكد من إغلاق صفقة <strong style={{ color: '#E0ECF8' }}>{modal.positionData.symbol}</strong>؟
                             <br />
-                            <span style={{ fontSize: 10, color: '#5A6A80' }}>
+                            <span style={{ fontSize: 'var(--text-xs)', color: '#5A6A80' }}>
                               الحجم: {modal.positionData.qty} @ {modal.positionData.entryPrice.toFixed(modal.positionData.entryPrice > 100 ? 2 : 5)}
                             </span>
                           </div>
@@ -4081,8 +4081,8 @@ export default function RouaChart({
                                 flex: 1, padding: '8px',
                                 background: 'rgba(255,255,255,0.04)',
                                 border: '1px solid rgba(255,255,255,0.1)',
-                                borderRadius: 8, color: T.text2,
-                                fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                borderRadius: 'var(--radius-md)', color: T.text2,
+                                fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                                 fontFamily: 'var(--font-ar)',
                               }}
                             >
@@ -4105,8 +4105,8 @@ export default function RouaChart({
                                 flex: 1, padding: '8px',
                                 background: 'rgba(255,71,87,0.15)',
                                 border: '1px solid rgba(255,71,87,0.4)',
-                                borderRadius: 8, color: T.danger,
-                                fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                borderRadius: 'var(--radius-md)', color: T.danger,
+                                fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                                 fontFamily: 'var(--font-ar)',
                               }}
                             >
@@ -4120,14 +4120,14 @@ export default function RouaChart({
                       {modal.type === 'reverse' && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                           <div style={{
-                            padding: '10px 12px', borderRadius: 8,
+                            padding: '10px 12px', borderRadius: 'var(--radius-md)',
                             background: 'rgba(255,184,0,0.08)',
                             border: '1px solid rgba(255,184,0,0.2)',
-                            fontSize: 12, color: '#C8D4E4', lineHeight: 1.6,
+                            fontSize: 'var(--text-sm)', color: '#C8D4E4', lineHeight: 1.6,
                           }}>
                             تأكيد عكس صفقة <strong style={{ color: '#E0ECF8' }}>{modal.positionData.symbol}</strong>؟
                             <br />
-                            <span style={{ fontSize: 10, color: '#5A6A80' }}>
+                            <span style={{ fontSize: 'var(--text-xs)', color: '#5A6A80' }}>
                               سيُغلق المركز الحالي ({modal.positionData.side === 'long' ? 'شراء' : 'بيع'}) ويُفتح مركز عكسي بنفس الحجم.
                             </span>
                           </div>
@@ -4138,8 +4138,8 @@ export default function RouaChart({
                                 flex: 1, padding: '8px',
                                 background: 'rgba(255,255,255,0.04)',
                                 border: '1px solid rgba(255,255,255,0.1)',
-                                borderRadius: 8, color: T.text2,
-                                fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                borderRadius: 'var(--radius-md)', color: T.text2,
+                                fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                                 fontFamily: 'var(--font-ar)',
                               }}
                             >
@@ -4171,8 +4171,8 @@ export default function RouaChart({
                                 flex: 1, padding: '8px',
                                 background: 'rgba(255,184,0,0.15)',
                                 border: '1px solid rgba(255,184,0,0.4)',
-                                borderRadius: 8, color: T.warning,
-                                fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                borderRadius: 'var(--radius-md)', color: T.warning,
+                                fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                                 fontFamily: 'var(--font-ar)',
                               }}
                             >
@@ -4186,7 +4186,7 @@ export default function RouaChart({
                       {modal.type === 'alert' && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                           <div>
-                            <label style={{ fontSize: 11, color: T.text2, display: 'block', marginBottom: 4 }}>
+                            <label style={{ fontSize: 'var(--text-xs)', color: T.text2, display: 'block', marginBottom: 4 }}>
                               سعر التنبيه
                             </label>
                             <input
@@ -4199,8 +4199,8 @@ export default function RouaChart({
                                 width: '100%', padding: '8px 12px',
                                 background: 'rgba(179,136,255,0.06)',
                                 border: '1px solid rgba(179,136,255,0.25)',
-                                borderRadius: 8, color: '#E0ECF8',
-                                fontSize: 14, fontFamily: 'var(--font-mono)',
+                                borderRadius: 'var(--radius-md)', color: '#E0ECF8',
+                                fontSize: 'var(--text-base)', fontFamily: 'var(--font-mono)',
                                 outline: 'none',
                               }}
                             />
@@ -4212,8 +4212,8 @@ export default function RouaChart({
                                 flex: 1, padding: '8px',
                                 background: 'rgba(255,255,255,0.04)',
                                 border: '1px solid rgba(255,255,255,0.1)',
-                                borderRadius: 8, color: T.text2,
-                                fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                borderRadius: 'var(--radius-md)', color: T.text2,
+                                fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                                 fontFamily: 'var(--font-ar)',
                               }}
                             >
@@ -4239,8 +4239,8 @@ export default function RouaChart({
                                 flex: 1, padding: '8px',
                                 background: 'rgba(179,136,255,0.15)',
                                 border: '1px solid rgba(179,136,255,0.4)',
-                                borderRadius: 8, color: T.council,
-                                fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                borderRadius: 'var(--radius-md)', color: T.council,
+                                fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                                 fontFamily: 'var(--font-ar)',
                               }}
                             >
@@ -4265,12 +4265,12 @@ export default function RouaChart({
                           ].map((row, i) => (
                             <div key={i} style={{
                               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                              padding: '6px 10px', borderRadius: 6,
+                              padding: '6px 10px', borderRadius: 'var(--radius-sm)',
                               background: 'rgba(255,255,255,0.02)',
                             }}>
-                              <span style={{ fontSize: 11, color: '#5A6A80' }}>{row.label}</span>
+                              <span style={{ fontSize: 'var(--text-xs)', color: '#5A6A80' }}>{row.label}</span>
                               <span style={{
-                                fontSize: 12, fontWeight: 600, color: row.color,
+                                fontSize: 'var(--text-sm)', fontWeight: 600, color: row.color,
                                 fontFamily: row.mono ? 'var(--font-mono)' : 'var(--font-ar)',
                                 maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                               }}>
@@ -4284,8 +4284,8 @@ export default function RouaChart({
                               marginTop: 8, padding: '8px',
                               background: 'rgba(0,212,255,0.12)',
                               border: '1px solid rgba(0,212,255,0.4)',
-                              borderRadius: 8, color: T.info,
-                              fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                              borderRadius: 'var(--radius-md)', color: T.info,
+                              fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                               fontFamily: 'var(--font-ar)',
                             }}
                           >
@@ -4328,7 +4328,7 @@ export default function RouaChart({
                   width: 240,
                   background: 'rgba(11, 14, 20, 0.98)',
                   border: '1px solid rgba(0, 212, 255, 0.3)',
-                  borderRadius: 12,
+                  borderRadius: 'var(--radius-lg)',
                   boxShadow: '0 12px 40px rgba(0,0,0,0.6), 0 0 24px rgba(0,212,255,0.12)',
                   backdropFilter: 'blur(20px)',
                   overflow: 'visible',
@@ -4353,15 +4353,15 @@ export default function RouaChart({
                       userSelect: 'none',
                     }}
                   >
-                    <span style={{ fontSize: 10, color: 'rgba(0,212,255,0.4)' }}>⠿</span>
-                    <span style={{ fontSize: 11, fontWeight: 800, color: T.info }}>
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'rgba(0,212,255,0.4)' }}>⠿</span>
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.info }}>
                       {tc('chartContextMenu.title')}
                     </span>
                     <button
                       onClick={() => { setChartContextMenu(null); setChartSubMenu(null); }}
                       style={{
                         background: 'transparent', border: 'none', cursor: 'pointer',
-                        color: '#5A6A80', fontSize: 14, lineHeight: 1, padding: '0 2px', marginLeft: 'auto',
+                        color: '#5A6A80', fontSize: 'var(--text-base)', lineHeight: 1, padding: '0 2px', marginLeft: 'auto',
                       }}
                       onMouseEnter={(e) => { e.currentTarget.style.color = T.danger; }}
                       onMouseLeave={(e) => { e.currentTarget.style.color = '#5A6A80'; }}
@@ -4376,20 +4376,20 @@ export default function RouaChart({
                       onMouseEnter={() => setChartSubMenu('chartType')}
                       style={{
                         padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 8,
-                        cursor: 'pointer', color: '#C8D4E4', fontSize: 11, fontWeight: 600,
+                        cursor: 'pointer', color: '#C8D4E4', fontSize: 'var(--text-xs)', fontWeight: 600,
                         background: chartSubMenu === 'chartType' ? 'rgba(0,212,255,0.1)' : 'transparent',
                       }}
                     >
-                      <span style={{ fontSize: 13, width: 18, textAlign: 'center' }}>📊</span>
+                      <span style={{ fontSize: 'var(--text-sm)', width: 18, textAlign: 'center' }}>📊</span>
                       <span style={{ flex: 1 }}>{tc('chartType')}</span>
-                      <span style={{ fontSize: 8, color: '#5A6A80' }}>{chart.settings.type === 'heikin-ashi' ? 'Heikin' : chart.settings.type}</span>
-                      <span style={{ fontSize: 8, color: '#5A6A80' }}>▶</span>
+                      <span style={{ fontSize: 'var(--text-xs)', color: '#5A6A80' }}>{chart.settings.type === 'heikin-ashi' ? 'Heikin' : chart.settings.type}</span>
+                      <span style={{ fontSize: 'var(--text-xs)', color: '#5A6A80' }}>▶</span>
                     </div>
                     {chartSubMenu === 'chartType' && (
                       <div style={{
                         position: 'absolute', left: '100%', top: 0, marginLeft: 4, width: 170,
                         background: 'rgba(11, 14, 20, 0.98)', border: '1px solid rgba(0, 212, 255, 0.25)',
-                        borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.5)', padding: '4px 0',
+                        borderRadius: 'var(--radius-md)', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', padding: '4px 0',
                       }}>
                         {([
                           { type: 'candle', label: tc('chartContextMenu.chartTypeCandle'), icon: '🕯' },
@@ -4402,15 +4402,15 @@ export default function RouaChart({
                           <div key={ct.type} onClick={() => { chart.setChartType(ct.type); setChartContextMenu(null); setChartSubMenu(null); }}
                             style={{
                               padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 8,
-                              cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                              cursor: 'pointer', fontSize: 'var(--text-xs)', fontWeight: 600,
                               color: chart.settings.type === ct.type ? T.info : '#C8D4E4',
                               background: chart.settings.type === ct.type ? 'rgba(0,212,255,0.1)' : 'transparent',
                             }}
                             onMouseEnter={(e) => { if (chart.settings.type !== ct.type) { e.currentTarget.style.background = 'rgba(0,212,255,0.06)'; e.currentTarget.style.color = T.info; } }}
                             onMouseLeave={(e) => { if (chart.settings.type !== ct.type) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#C8D4E4'; } }}>
-                            <span style={{ fontSize: 12, width: 16, textAlign: 'center' }}>{ct.icon}</span>
+                            <span style={{ fontSize: 'var(--text-sm)', width: 16, textAlign: 'center' }}>{ct.icon}</span>
                             <span style={{ flex: 1 }}>{ct.label}</span>
-                            {chart.settings.type === ct.type && <span style={{ fontSize: 9, color: T.info }}>✓</span>}
+                            {chart.settings.type === ct.type && <span style={{ fontSize: 'var(--text-xs)', color: T.info }}>✓</span>}
                           </div>
                         ))}
                       </div>
@@ -4421,20 +4421,20 @@ export default function RouaChart({
                       onMouseEnter={() => setChartSubMenu('timeframe')}
                       style={{
                         padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 8,
-                        cursor: 'pointer', color: '#C8D4E4', fontSize: 11, fontWeight: 600,
+                        cursor: 'pointer', color: '#C8D4E4', fontSize: 'var(--text-xs)', fontWeight: 600,
                         background: chartSubMenu === 'timeframe' ? 'rgba(0,212,255,0.1)' : 'transparent',
                       }}
                     >
-                      <span style={{ fontSize: 13, width: 18, textAlign: 'center' }}>⏱</span>
+                      <span style={{ fontSize: 'var(--text-sm)', width: 18, textAlign: 'center' }}>⏱</span>
                       <span style={{ flex: 1 }}>{tc('timeframe') || 'Timeframe'}</span>
-                      <span style={{ fontSize: 8, color: '#5A6A80' }}>{timeframe_}</span>
-                      <span style={{ fontSize: 8, color: '#5A6A80' }}>▶</span>
+                      <span style={{ fontSize: 'var(--text-xs)', color: '#5A6A80' }}>{timeframe_}</span>
+                      <span style={{ fontSize: 'var(--text-xs)', color: '#5A6A80' }}>▶</span>
                     </div>
                     {chartSubMenu === 'timeframe' && (
                       <div style={{
                         position: 'absolute', left: '100%', top: 32, marginLeft: 4, width: 140,
                         background: 'rgba(11, 14, 20, 0.98)', border: '1px solid rgba(0, 212, 255, 0.25)',
-                        borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.5)', padding: '4px 0',
+                        borderRadius: 'var(--radius-md)', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', padding: '4px 0',
                         maxHeight: 280, overflowY: 'auto',
                         scrollbarWidth: 'thin',
                         scrollbarColor: 'rgba(0,212,255,0.3) transparent',
@@ -4444,14 +4444,14 @@ export default function RouaChart({
                           <div key={tf.value} onClick={() => { setTimeframe(tf.value); setChartContextMenu(null); setChartSubMenu(null); }}
                             style={{
                               padding: '5px 12px', display: 'flex', alignItems: 'center', gap: 8,
-                              cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                              cursor: 'pointer', fontSize: 'var(--text-xs)', fontWeight: 600,
                               color: timeframe_ === tf.value ? T.info : '#C8D4E4',
                               background: timeframe_ === tf.value ? 'rgba(0,212,255,0.1)' : 'transparent',
                             }}
                             onMouseEnter={(e) => { if (timeframe_ !== tf.value) { e.currentTarget.style.background = 'rgba(0,212,255,0.06)'; e.currentTarget.style.color = T.info; } }}
                             onMouseLeave={(e) => { if (timeframe_ !== tf.value) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#C8D4E4'; } }}>
                             <span style={{ flex: 1 }}>{tf.label}</span>
-                            {timeframe_ === tf.value && <span style={{ fontSize: 9, color: T.info }}>✓</span>}
+                            {timeframe_ === tf.value && <span style={{ fontSize: 'var(--text-xs)', color: T.info }}>✓</span>}
                           </div>
                         ))}
                       </div>
@@ -4473,10 +4473,10 @@ export default function RouaChart({
                           else if (item.action === 'settings') { setShowSettingsPanel(prev => !prev); setChartContextMenu(null); }
                           else if (item.action === 'ai_analysis') { window.location.href = '/dashboard/autonomous-trader'; setChartContextMenu(null); }
                         }}
-                        style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#C8D4E4', fontSize: 11, fontWeight: 600 }}
+                        style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#C8D4E4', fontSize: 'var(--text-xs)', fontWeight: 600 }}
                         onMouseEnter={(e) => { e.currentTarget.style.background = `${item.color}15`; e.currentTarget.style.color = item.color; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#C8D4E4'; }}>
-                        <span style={{ fontSize: 13, width: 18, textAlign: 'center' }}>{item.icon}</span>
+                        <span style={{ fontSize: 'var(--text-sm)', width: 18, textAlign: 'center' }}>{item.icon}</span>
                         <span>{item.label}</span>
                       </div>
                     ))}
@@ -4485,12 +4485,12 @@ export default function RouaChart({
 
                     {/* ── View (zoom in/out merged into one row + pause) ── */}
                     <div style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <div onClick={() => { chart.zoomIn(); }} style={{ flex: 1, textAlign: 'center', padding: '3px 0', borderRadius: 4, cursor: 'pointer', background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)', color: T.info, fontSize: 11, fontWeight: 700 }}
+                      <div onClick={() => { chart.zoomIn(); }} style={{ flex: 1, textAlign: 'center', padding: '3px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)', color: T.info, fontSize: 'var(--text-xs)', fontWeight: 700 }}
                         onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0,212,255,0.15)'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(0,212,255,0.08)'; }}>
                         {tc('chartContextMenu.zoomIn')}
                       </div>
-                      <div onClick={() => { chart.zoomOut(); }} style={{ flex: 1, textAlign: 'center', padding: '3px 0', borderRadius: 4, cursor: 'pointer', background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)', color: T.info, fontSize: 11, fontWeight: 700 }}
+                      <div onClick={() => { chart.zoomOut(); }} style={{ flex: 1, textAlign: 'center', padding: '3px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)', color: T.info, fontSize: 'var(--text-xs)', fontWeight: 700 }}
                         onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0,212,255,0.15)'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(0,212,255,0.08)'; }}>
                         {tc('chartContextMenu.zoomOut')}
@@ -4498,10 +4498,10 @@ export default function RouaChart({
                     </div>
                     <div
                       onClick={() => { chart.togglePause(); setChartContextMenu(null); }}
-                      style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#C8D4E4', fontSize: 11, fontWeight: 600 }}
+                      style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#C8D4E4', fontSize: 'var(--text-xs)', fontWeight: 600 }}
                       onMouseEnter={(e) => { e.currentTarget.style.background = chart.isPaused ? 'rgba(0,255,163,0.1)' : 'rgba(255,184,0,0.1)'; e.currentTarget.style.color = chart.isPaused ? T.success : T.warning; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#C8D4E4'; }}>
-                      <span style={{ fontSize: 13, width: 18, textAlign: 'center' }}>{chart.isPaused ? '▶' : '⏸'}</span>
+                      <span style={{ fontSize: 'var(--text-sm)', width: 18, textAlign: 'center' }}>{chart.isPaused ? '▶' : '⏸'}</span>
                       <span>{chart.isPaused ? tc('chartContextMenu.resume') : tc('chartContextMenu.pause')}</span>
                     </div>
 
@@ -4524,10 +4524,10 @@ export default function RouaChart({
                             }
                           }
                         }}
-                        style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#C8D4E4', fontSize: 11, fontWeight: 600 }}
+                        style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#C8D4E4', fontSize: 'var(--text-xs)', fontWeight: 600 }}
                         onMouseEnter={(e) => { e.currentTarget.style.background = `${item.color}15`; e.currentTarget.style.color = item.color; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#C8D4E4'; }}>
-                        <span style={{ fontSize: 13, width: 18, textAlign: 'center' }}>{item.icon}</span>
+                        <span style={{ fontSize: 'var(--text-sm)', width: 18, textAlign: 'center' }}>{item.icon}</span>
                         <span>{item.label}</span>
                       </div>
                     ))}
@@ -4541,10 +4541,10 @@ export default function RouaChart({
                         if (name) { chart.saveTemplate(name); }
                         setChartContextMenu(null);
                       }}
-                      style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#C8D4E4', fontSize: 11, fontWeight: 600 }}
+                      style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#C8D4E4', fontSize: 'var(--text-xs)', fontWeight: 600 }}
                       onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0,255,163,0.1)'; e.currentTarget.style.color = T.success; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#C8D4E4'; }}>
-                      <span style={{ fontSize: 13, width: 18, textAlign: 'center' }}>💾</span>
+                      <span style={{ fontSize: 'var(--text-sm)', width: 18, textAlign: 'center' }}>💾</span>
                       <span>{tc('chartContextMenu.saveTemplate') || 'Save Template'}</span>
                     </div>
                     {([
@@ -4559,10 +4559,10 @@ export default function RouaChart({
                             if (canvas) { const link = document.createElement('a'); link.download = `chart_${selectedSymbol_}_${Date.now()}.png`; link.href = canvas.toDataURL(); link.click(); }
                           } else if (item.action === 'reset_chart') { chart.zoomOut(); setTimeout(() => chart.zoomIn(), 50); }
                         }}
-                        style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#C8D4E4', fontSize: 11, fontWeight: 600 }}
+                        style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#C8D4E4', fontSize: 'var(--text-xs)', fontWeight: 600 }}
                         onMouseEnter={(e) => { e.currentTarget.style.background = `${item.color}15`; e.currentTarget.style.color = item.color; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#C8D4E4'; }}>
-                        <span style={{ fontSize: 13, width: 18, textAlign: 'center' }}>{item.icon}</span>
+                        <span style={{ fontSize: 'var(--text-sm)', width: 18, textAlign: 'center' }}>{item.icon}</span>
                         <span>{item.label}</span>
                       </div>
                     ))}
@@ -4595,7 +4595,7 @@ export default function RouaChart({
                     display: 'flex',
                     alignItems: 'stretch',
                     gap: 0,
-                    borderRadius: 5,
+                    borderRadius: 'var(--radius-sm)',
                     background: 'rgba(18,18,22,0.96)',
                     border: '1px solid rgba(255,255,255,0.08)',
                     boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
@@ -4628,8 +4628,8 @@ export default function RouaChart({
                     onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.15)'; }}
                     onMouseLeave={e => { e.currentTarget.style.filter = 'none'; }}
                   >
-                    <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: 1, lineHeight: 1 }}>SELL</span>
-                    <span style={{ fontSize: 9, fontWeight: 700, lineHeight: 1.3, marginTop: 1 }}>{bid.toFixed(pDec)}</span>
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, letterSpacing: 1, lineHeight: 1 }}>SELL</span>
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, lineHeight: 1.3, marginTop: 1 }}>{bid.toFixed(pDec)}</span>
                   </button>
                   {/* Volume with ▲▼ arrows */}
                   <div style={{
@@ -4648,14 +4648,14 @@ export default function RouaChart({
                         border: 'none',
                         color: '#AAA',
                         cursor: 'pointer',
-                        fontSize: 7,
+                        fontSize: 'var(--text-xs)',
                         lineHeight: 1,
                         padding: '0 0 1px',
                         display: 'block',
                       }}
                     >▲</button>
                     <span style={{
-                      fontSize: 9,
+                      fontSize: 'var(--text-xs)',
                       fontWeight: 800,
                       color: '#FFF',
                       lineHeight: 1.2,
@@ -4668,7 +4668,7 @@ export default function RouaChart({
                         border: 'none',
                         color: '#AAA',
                         cursor: 'pointer',
-                        fontSize: 7,
+                        fontSize: 'var(--text-xs)',
                         lineHeight: 1,
                         padding: '1px 0 0',
                         display: 'block',
@@ -4698,8 +4698,8 @@ export default function RouaChart({
                     onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.15)'; }}
                     onMouseLeave={e => { e.currentTarget.style.filter = 'none'; }}
                   >
-                    <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: 1, lineHeight: 1 }}>BUY</span>
-                    <span style={{ fontSize: 9, fontWeight: 700, lineHeight: 1.3, marginTop: 1 }}>{ask.toFixed(pDec)}</span>
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, letterSpacing: 1, lineHeight: 1 }}>BUY</span>
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, lineHeight: 1.3, marginTop: 1 }}>{ask.toFixed(pDec)}</span>
                   </button>
                   {/* Expand button */}
                   <button
@@ -4714,7 +4714,7 @@ export default function RouaChart({
                       borderLeft: '1px solid rgba(255,255,255,0.06)',
                       color: '#888',
                       cursor: 'pointer',
-                      fontSize: 9,
+                      fontSize: 'var(--text-xs)',
                       transition: 'color 0.12s',
                     }}
                     onMouseEnter={e => { e.currentTarget.style.color = '#FFF'; }}
@@ -4736,7 +4736,7 @@ export default function RouaChart({
                   zIndex: 100,
                   display: 'flex',
                   flexDirection: 'column',
-                  borderRadius: 6,
+                  borderRadius: 'var(--radius-sm)',
                   background: 'rgba(18,18,22,0.97)',
                   border: '1px solid rgba(255,255,255,0.08)',
                   boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
@@ -4756,7 +4756,7 @@ export default function RouaChart({
                   background: 'rgba(255,255,255,0.03)',
                   borderBottom: '1px solid rgba(255,255,255,0.06)',
                 }}>
-                  <span style={{ fontSize: 12, color: '#FFF', fontWeight: 800, letterSpacing: 0.5 }}>{selectedSymbol_}</span>
+                  <span style={{ fontSize: 'var(--text-sm)', color: '#FFF', fontWeight: 800, letterSpacing: 0.5 }}>{selectedSymbol_}</span>
                   <button
                     onClick={() => setTradePanelCollapsed(true)}
                     style={{
@@ -4764,9 +4764,9 @@ export default function RouaChart({
                       border: 'none',
                       color: '#888',
                       cursor: 'pointer',
-                      fontSize: 10,
+                      fontSize: 'var(--text-xs)',
                       padding: '2px 6px',
-                      borderRadius: 3,
+                      borderRadius: 'var(--radius-xs)',
                       fontWeight: 700,
                       lineHeight: 1,
                     }}
@@ -4780,13 +4780,13 @@ export default function RouaChart({
                   gap: 4,
                 }}>
                   <div style={{ flex: 1, textAlign: 'center' as const }}>
-                    <div style={{ fontSize: 7, color: '#FF5252', fontWeight: 700, letterSpacing: 1 }}>BID</div>
-                    <div style={{ fontSize: 16, color: '#FF5252', fontWeight: 800, letterSpacing: -0.3, lineHeight: 1.2 }}>{bid.toFixed(pDec)}</div>
+                    <div style={{ fontSize: 'var(--text-xs)', color: '#FF5252', fontWeight: 700, letterSpacing: 1 }}>BID</div>
+                    <div style={{ fontSize: 'var(--text-md)', color: '#FF5252', fontWeight: 800, letterSpacing: -0.3, lineHeight: 1.2 }}>{bid.toFixed(pDec)}</div>
                   </div>
                   <div style={{ width: 1, background: 'rgba(255,255,255,0.08)' }} />
                   <div style={{ flex: 1, textAlign: 'center' as const }}>
-                    <div style={{ fontSize: 7, color: '#69F0AE', fontWeight: 700, letterSpacing: 1 }}>ASK</div>
-                    <div style={{ fontSize: 16, color: '#69F0AE', fontWeight: 800, letterSpacing: -0.3, lineHeight: 1.2 }}>{ask.toFixed(pDec)}</div>
+                    <div style={{ fontSize: 'var(--text-xs)', color: '#69F0AE', fontWeight: 700, letterSpacing: 1 }}>ASK</div>
+                    <div style={{ fontSize: 'var(--text-md)', color: '#69F0AE', fontWeight: 800, letterSpacing: -0.3, lineHeight: 1.2 }}>{ask.toFixed(pDec)}</div>
                   </div>
                 </div>
 
@@ -4796,8 +4796,8 @@ export default function RouaChart({
                   padding: '0 10px 6px',
                   borderBottom: '1px solid rgba(255,255,255,0.06)',
                 }}>
-                  <span style={{ fontSize: 7, color: '#555', letterSpacing: 1 }}>SPREAD </span>
-                  <span style={{ fontSize: 8, color: '#888', fontWeight: 700 }}>
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#555', letterSpacing: 1 }}>SPREAD </span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#888', fontWeight: 700 }}>
                     {pDec <= 2 ? spreadVal.toFixed(1) : Math.round(spreadVal * Math.pow(10, pDec))}
                   </span>
                 </div>
@@ -4819,7 +4819,7 @@ export default function RouaChart({
                         border: orderType === ot ? '1px solid rgba(255,255,255,0.15)' : '1px solid transparent',
                         borderRadius: '3px 3px 0 0',
                         color: orderType === ot ? '#FFF' : '#555',
-                        fontSize: 9,
+                        fontSize: 'var(--text-xs)',
                         fontWeight: orderType === ot ? 800 : 600,
                         cursor: 'pointer',
                         letterSpacing: 0.5,
@@ -4834,13 +4834,13 @@ export default function RouaChart({
                 <div style={{ padding: '6px 10px', background: 'rgba(0,0,0,0.2)', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                   {/* Volume */}
                   <div style={{ marginBottom: 6 }}>
-                    <span style={{ fontSize: 7, color: '#666', fontWeight: 700, letterSpacing: 1, display: 'block', marginBottom: 3 }}>VOLUME</span>
+                    <span style={{ fontSize: 'var(--text-xs)', color: '#666', fontWeight: 700, letterSpacing: 1, display: 'block', marginBottom: 3 }}>VOLUME</span>
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
                       background: 'rgba(0,0,0,0.3)',
                       border: '1px solid rgba(255,255,255,0.08)',
-                      borderRadius: 4,
+                      borderRadius: 'var(--radius-sm)',
                       overflow: 'hidden',
                     }}>
                       <button
@@ -4850,7 +4850,7 @@ export default function RouaChart({
                           border: 'none',
                           borderRight: '1px solid rgba(255,255,255,0.06)',
                           color: '#AAA',
-                          fontSize: 13,
+                          fontSize: 'var(--text-sm)',
                           cursor: 'pointer',
                           padding: '4px 8px',
                           outline: 'none',
@@ -4868,7 +4868,7 @@ export default function RouaChart({
                           textAlign: 'center' as const,
                           padding: '4px 0',
                           border: 'none',
-                          fontSize: 11,
+                          fontSize: 'var(--text-xs)',
                           fontWeight: 700,
                           fontFamily: "var(--font-mono)",
                           color: '#FFF',
@@ -4884,7 +4884,7 @@ export default function RouaChart({
                           border: 'none',
                           borderLeft: '1px solid rgba(255,255,255,0.06)',
                           color: '#AAA',
-                          fontSize: 13,
+                          fontSize: 'var(--text-sm)',
                           cursor: 'pointer',
                           padding: '4px 8px',
                           outline: 'none',
@@ -4897,7 +4897,7 @@ export default function RouaChart({
 
                   {/* Stop Loss */}
                   <div style={{ marginBottom: 6 }}>
-                    <span style={{ fontSize: 7, color: '#FF5252', fontWeight: 700, letterSpacing: 1, display: 'block', marginBottom: 2 }}>STOP LOSS</span>
+                    <span style={{ fontSize: 'var(--text-xs)', color: '#FF5252', fontWeight: 700, letterSpacing: 1, display: 'block', marginBottom: 2 }}>STOP LOSS</span>
                     <input
                       type="number"
                       value={tradeSl}
@@ -4908,9 +4908,9 @@ export default function RouaChart({
                         padding: '4px 8px',
                         background: 'rgba(255,82,82,0.06)',
                         border: '1px solid rgba(255,82,82,0.2)',
-                        borderRadius: 4,
+                        borderRadius: 'var(--radius-sm)',
                         color: '#FF5252',
-                        fontSize: 10,
+                        fontSize: 'var(--text-xs)',
                         fontFamily: "var(--font-mono)",
                         outline: 'none',
                         direction: 'ltr' as const,
@@ -4921,7 +4921,7 @@ export default function RouaChart({
 
                   {/* Take Profit */}
                   <div>
-                    <span style={{ fontSize: 7, color: '#69F0AE', fontWeight: 700, letterSpacing: 1, display: 'block', marginBottom: 2 }}>TAKE PROFIT</span>
+                    <span style={{ fontSize: 'var(--text-xs)', color: '#69F0AE', fontWeight: 700, letterSpacing: 1, display: 'block', marginBottom: 2 }}>TAKE PROFIT</span>
                     <input
                       type="number"
                       value={tradeTp}
@@ -4932,9 +4932,9 @@ export default function RouaChart({
                         padding: '4px 8px',
                         background: 'rgba(105,240,174,0.06)',
                         border: '1px solid rgba(105,240,174,0.2)',
-                        borderRadius: 4,
+                        borderRadius: 'var(--radius-sm)',
                         color: '#69F0AE',
-                        fontSize: 10,
+                        fontSize: 'var(--text-xs)',
                         fontFamily: "var(--font-mono)",
                         outline: 'none',
                         direction: 'ltr' as const,
@@ -4963,9 +4963,9 @@ export default function RouaChart({
                         ? 'linear-gradient(180deg, #FF5252 0%, #D32F2F 50%, #B71C1C 100%)'
                         : 'rgba(255,82,82,0.15)',
                       border: tradeSide === 'sell' ? 'none' : '1px solid rgba(255,82,82,0.3)',
-                      borderRadius: 4,
+                      borderRadius: 'var(--radius-sm)',
                       color: '#FFF',
-                      fontSize: 11,
+                      fontSize: 'var(--text-xs)',
                       fontWeight: 900,
                       cursor: 'pointer',
                       letterSpacing: 0.5,
@@ -4991,9 +4991,9 @@ export default function RouaChart({
                         ? 'linear-gradient(180deg, #69F0AE 0%, #00C853 50%, #009624 100%)'
                         : 'rgba(105,240,174,0.15)',
                       border: tradeSide === 'buy' ? 'none' : '1px solid rgba(105,240,174,0.3)',
-                      borderRadius: 4,
+                      borderRadius: 'var(--radius-sm)',
                       color: '#FFF',
-                      fontSize: 11,
+                      fontSize: 'var(--text-xs)',
                       fontWeight: 900,
                       cursor: 'pointer',
                       letterSpacing: 0.5,
@@ -5491,7 +5491,7 @@ export default function RouaChart({
           background: 'rgba(248,81,73,0.15)',
           border: '1px solid rgba(248,81,73,0.4)',
           backdropFilter: 'blur(16px)',
-          borderRadius: 10,
+          borderRadius: 'var(--radius-lg)',
           padding: '10px 18px',
           zIndex: 600,
           animation: 'slideInRight 0.3s ease-out',
@@ -5503,7 +5503,7 @@ export default function RouaChart({
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.danger} strokeWidth="2">
             <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
           </svg>
-          <span style={{ fontSize: 12, color: T.danger, fontFamily: "var(--font-ar)", fontWeight: 700 }}>
+          <span style={{ fontSize: 'var(--text-sm)', color: T.danger, fontFamily: "var(--font-ar)", fontWeight: 700 }}>
             {orderError}
           </span>
         </div>

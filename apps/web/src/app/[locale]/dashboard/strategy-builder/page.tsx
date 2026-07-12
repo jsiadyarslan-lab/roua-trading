@@ -116,21 +116,21 @@ export default function StrategyBuilderPage() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <GitBranch size={20} color={T.cyan} />
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>{sb('pageTitle')}</h1>
+            <h1 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: T.text }}>{sb('pageTitle')}</h1>
             <span style={{
-              fontSize: 10, padding: '2px 8px', borderRadius: 20,
+              fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-2xl)',
               background: `${T.cyan}18`, color: T.cyan,
               fontFamily: "var(--font-mono)",
             }}>NO-CODE BUILDER</span>
           </div>
-          <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
+          <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: T.text2 }}>
             {sb('pageSubtitle')}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 12 }}>
           <button
             onClick={handleSaveDraft}
-            style={{ background: T.surface, color: T.text, padding: '8px 20px', borderRadius: 8, fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6, border: `1px solid ${T.border}`, cursor: 'pointer', transition: 'all 0.2s' }}
+            style={{ background: T.surface, color: T.text, padding: '8px 20px', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6, border: `1px solid ${T.border}`, cursor: 'pointer', transition: 'all 0.2s' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = T.cyan; e.currentTarget.style.color = T.cyan }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.text }}
           >
@@ -138,7 +138,7 @@ export default function StrategyBuilderPage() {
           </button>
           <button
             onClick={handleBacktest}
-            style={{ background: `linear-gradient(135deg, ${T.cyan}, ${T.blue})`, color: '#fff', padding: '8px 20px', borderRadius: 8, fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6, border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+            style={{ background: `linear-gradient(135deg, ${T.cyan}, ${T.blue})`, color: '#fff', padding: '8px 20px', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6, border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
           >
             <Play size={16} /> {sb('backtestBtn')}
           </button>
@@ -150,7 +150,7 @@ export default function StrategyBuilderPage() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Strategy Name Input */}
           <div style={{
-            background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: '14px 20px',
+            background: T.card, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-xl)', padding: '14px 20px',
             display: 'flex', alignItems: 'center', gap: 12,
           }}>
             <GitBranch size={16} color={T.cyan} />
@@ -160,18 +160,18 @@ export default function StrategyBuilderPage() {
               onChange={e => setStrategyName(e.target.value)}
               style={{
                 flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                color: T.text, fontSize: 15, fontWeight: 700, fontFamily: "var(--font-ar)",
+                color: T.text, fontSize: 'var(--text-base)', fontWeight: 700, fontFamily: "var(--font-ar)",
                 direction: 'inherit',
               }}
               placeholder={sb('strategyNamePlaceholder')}
             />
-            <span style={{ fontSize: 11, color: T.text3, fontFamily: "var(--font-mono)" }}>
+            <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>
               {sb('componentCount', { count: nodes.length })}
             </span>
             {nodes.length > 0 && (
               <button
                 onClick={handleClearAll}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.red, display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, fontFamily: "var(--font-ar)" }}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.red, display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: "var(--font-ar)" }}
               >
                 <Trash2 size={12} /> {sb('clearAll')}
               </button>
@@ -180,7 +180,7 @@ export default function StrategyBuilderPage() {
 
           {/* Flow Canvas */}
           <div style={{
-            flex: 1, background: '#02040a', border: `1px solid ${T.border}`, borderRadius: 16,
+            flex: 1, background: '#02040a', border: `1px solid ${T.border}`, borderRadius: 'var(--radius-xl)',
             position: 'relative', overflow: 'auto', padding: 24,
           }}>
             {/* Grid Background */}
@@ -194,10 +194,10 @@ export default function StrategyBuilderPage() {
               /* Empty State */
               <div style={{ position: 'relative', textAlign: 'center', padding: '60px 20px' }}>
                 <Settings2 size={48} color={T.border} style={{ marginBottom: 16, marginInline: 'auto' }} />
-                <div style={{ color: T.text2, fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
+                <div style={{ color: T.text2, fontSize: 'var(--text-base)', fontWeight: 700, marginBottom: 8 }}>
                   {sb('emptyTitle')}
                 </div>
-                <div style={{ color: T.text3, fontSize: 12 }}>
+                <div style={{ color: T.text3, fontSize: 'var(--text-sm)' }}>
                   {sb('emptySubtitle')}
                 </div>
               </div>
@@ -206,9 +206,9 @@ export default function StrategyBuilderPage() {
               <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, maxWidth: 500, margin: '0 auto' }}>
                 {/* Start Node */}
                 <div style={{
-                  padding: '8px 24px', borderRadius: 20,
+                  padding: '8px 24px', borderRadius: 'var(--radius-2xl)',
                   background: `${T.cyan}15`, border: `1px solid ${T.cyan}40`,
-                  color: T.cyan, fontSize: 12, fontWeight: 800, fontFamily: "var(--font-mono)",
+                  color: T.cyan, fontSize: 'var(--text-sm)', fontWeight: 800, fontFamily: "var(--font-mono)",
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}>
                   ▶ {sb('strategyStart')}
@@ -218,14 +218,14 @@ export default function StrategyBuilderPage() {
                 {nodes.map((node, idx) => (
                   <div key={node.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
                     <div style={{
-                      width: '100%', padding: '14px 18px', borderRadius: 12,
+                      width: '100%', padding: '14px 18px', borderRadius: 'var(--radius-lg)',
                       background: `${node.color}10`, border: `1px solid ${node.color}35`,
                       display: 'flex', alignItems: 'center', gap: 12,
                       position: 'relative', transition: 'all 0.2s',
                     }}>
                       {/* Type Badge */}
                       <span style={{
-                        fontSize: 10, padding: '2px 8px', borderRadius: 10,
+                        fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-lg)',
                         background: `${node.color}20`, color: node.color,
                         fontWeight: 700, fontFamily: "var(--font-mono)",
                         whiteSpace: 'nowrap',
@@ -233,13 +233,13 @@ export default function StrategyBuilderPage() {
                         {node.type === 'indicator' ? 'IND' : node.type === 'condition' ? 'COND' : node.type === 'action' ? 'ACT' : 'RISK'}
                       </span>
                       {/* Icon & Label */}
-                      <span style={{ fontSize: 16 }}>{node.icon}</span>
+                      <span style={{ fontSize: 'var(--text-md)' }}>{node.icon}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{node.label}</div>
-                        <div style={{ fontSize: 10, color: T.text3 }}>{node.sublabel}</div>
+                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{node.label}</div>
+                        <div style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>{node.sublabel}</div>
                       </div>
                       {/* Step Number */}
-                      <span style={{ fontSize: 10, color: T.text3, fontFamily: "var(--font-mono)" }}>
+                      <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>
                         {sb('step', { n: idx + 1 })}
                       </span>
                       {/* Move & Delete Buttons */}
@@ -248,7 +248,7 @@ export default function StrategyBuilderPage() {
                           onClick={() => moveNode(idx, 'up')}
                           disabled={idx === 0}
                           style={{
-                            background: 'transparent', border: `1px solid ${T.border}`, borderRadius: 4,
+                            background: 'transparent', border: `1px solid ${T.border}`, borderRadius: 'var(--radius-sm)',
                             color: idx === 0 ? T.text3 : T.text2, cursor: idx === 0 ? 'not-allowed' : 'pointer',
                             padding: 2, display: 'flex', opacity: idx === 0 ? 0.3 : 1,
                           }}
@@ -260,7 +260,7 @@ export default function StrategyBuilderPage() {
                           onClick={() => moveNode(idx, 'down')}
                           disabled={idx === nodes.length - 1}
                           style={{
-                            background: 'transparent', border: `1px solid ${T.border}`, borderRadius: 4,
+                            background: 'transparent', border: `1px solid ${T.border}`, borderRadius: 'var(--radius-sm)',
                             color: idx === nodes.length - 1 ? T.text3 : T.text2, cursor: idx === nodes.length - 1 ? 'not-allowed' : 'pointer',
                             padding: 2, display: 'flex', opacity: idx === nodes.length - 1 ? 0.3 : 1,
                           }}
@@ -271,7 +271,7 @@ export default function StrategyBuilderPage() {
                         <button
                           onClick={() => removeNode(node.id)}
                           style={{
-                            background: 'transparent', border: `1px solid ${T.border}`, borderRadius: 4,
+                            background: 'transparent', border: `1px solid ${T.border}`, borderRadius: 'var(--radius-sm)',
                             color: T.red, cursor: 'pointer', padding: 2, display: 'flex',
                           }}
                           title={sb('deleteNode')}
@@ -287,9 +287,9 @@ export default function StrategyBuilderPage() {
 
                 {/* End Node */}
                 <div style={{
-                  padding: '8px 24px', borderRadius: 20,
+                  padding: '8px 24px', borderRadius: 'var(--radius-2xl)',
                   background: `${T.purple}15`, border: `1px solid ${T.purple}40`,
-                  color: T.purple, fontSize: 12, fontWeight: 800, fontFamily: "var(--font-mono)",
+                  color: T.purple, fontSize: 'var(--text-sm)', fontWeight: 800, fontFamily: "var(--font-mono)",
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}>
                   ◼ {sb('strategyEnd')}
@@ -302,7 +302,7 @@ export default function StrategyBuilderPage() {
         {/* Right Panel - Components */}
         <div style={{
           width: showPanel ? 280 : 48, background: T.card, border: `1px solid ${T.border}`,
-          borderRadius: 16, padding: showPanel ? 16 : 8, display: 'flex', flexDirection: 'column',
+          borderRadius: 'var(--radius-xl)', padding: showPanel ? 16 : 8, display: 'flex', flexDirection: 'column',
           transition: 'all 0.3s', overflow: 'hidden', flexShrink: 0,
         }}>
           {/* Toggle Panel Button */}
@@ -319,11 +319,11 @@ export default function StrategyBuilderPage() {
 
           {showPanel && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', flex: 1 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 800, color: T.text, margin: 0 }}>{sb('availableComponents')}</h3>
+              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 800, color: T.text, margin: 0 }}>{sb('availableComponents')}</h3>
 
               {availableComponents.map((cat, catIdx) => (
                 <div key={catIdx}>
-                  <div style={{ fontSize: 11, color: T.text2, fontWeight: 700, marginBottom: 8, paddingBottom: 4, borderBottom: `1px solid ${T.border}` }}>
+                  <div style={{ fontSize: 'var(--text-xs)', color: T.text2, fontWeight: 700, marginBottom: 8, paddingBottom: 4, borderBottom: `1px solid ${T.border}` }}>
                     {cat.category}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -333,8 +333,8 @@ export default function StrategyBuilderPage() {
                         onClick={() => addNode(item)}
                         style={{
                           padding: '10px 12px', background: `${item.color}08`,
-                          border: `1px solid ${item.color}25`, borderRadius: 8,
-                          color: T.text, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                          border: `1px solid ${item.color}25`, borderRadius: 'var(--radius-md)',
+                          color: T.text, fontSize: 'var(--text-sm)', fontWeight: 700, cursor: 'pointer',
                           display: 'flex', alignItems: 'center', gap: 8,
                           transition: 'all 0.2s', textAlign: 'right',
                           fontFamily: "var(--font-ar)",
@@ -348,10 +348,10 @@ export default function StrategyBuilderPage() {
                           e.currentTarget.style.borderColor = `${item.color}25`
                         }}
                       >
-                        <span style={{ fontSize: 14 }}>{item.icon}</span>
+                        <span style={{ fontSize: 'var(--text-base)' }}>{item.icon}</span>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: item.color }}>{item.label}</div>
-                          <div style={{ fontSize: 9, color: T.text3, fontWeight: 400 }}>{item.sublabel}</div>
+                          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: item.color }}>{item.label}</div>
+                          <div style={{ fontSize: 'var(--text-xs)', color: T.text3, fontWeight: 400 }}>{item.sublabel}</div>
                         </div>
                         <Plus size={12} color={item.color} style={{ opacity: 0.5 }} />
                       </button>

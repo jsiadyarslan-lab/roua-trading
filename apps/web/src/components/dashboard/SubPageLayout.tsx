@@ -84,7 +84,7 @@ export default function SubPageLayout({
           onClick={() => router.push(backPath)}
           style={{
             display: 'flex', alignItems: 'center', gap: '6px',
-            minHeight: 44, minWidth: 44, borderRadius: 8,
+            minHeight: 44, minWidth: 44, borderRadius: 'var(--radius-md)',
             background: 'none', border: 'none', cursor: 'pointer',
             color: 'var(--text-muted)', fontSize: '12px', fontFamily: 'var(--font-ar)',
           }}
@@ -136,7 +136,7 @@ export default function SubPageLayout({
             className="subpage-tabs-mobile-btn"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             style={{
-              display: 'none', width: 32, height: 32, borderRadius: 6,
+              display: 'none', width: 32, height: 32, borderRadius: 'var(--radius-sm)',
               background: 'var(--bg-input)', border: '1px solid var(--border)',
               color: 'var(--text-muted)', cursor: 'pointer',
               alignItems: 'center', justifyContent: 'center',

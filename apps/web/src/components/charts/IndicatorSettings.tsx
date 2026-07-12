@@ -101,7 +101,7 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
     <div style={{
       background: COLORS.card,
       border: '1px solid rgba(0,212,255,0.2)',
-      borderRadius: 10,
+      borderRadius: 'var(--radius-lg)',
       padding: 12,
       zIndex: 600,
       boxShadow: '0 15px 45px rgba(0,0,0,0.85)',
@@ -117,7 +117,7 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
         cursor: 'grab',
       }}>
         <span style={{
-          fontSize: 11,
+          fontSize: 'var(--text-xs)',
           color: COLORS.text,
           fontWeight: 700,
           fontFamily: "var(--font-ar)",
@@ -126,7 +126,7 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
         </span>
         <button
           onClick={onClose}
-          style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', fontSize: 14, lineHeight: 1 }}
+          style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', fontSize: 'var(--text-base)', lineHeight: 1 }}
         >
           ✕
         </button>
@@ -139,13 +139,13 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
         <div key={key} style={{ marginBottom: 8 }}>
           <label style={{
             display: 'block',
-            fontSize: 9,
+            fontSize: 'var(--text-xs)',
             color: COLORS.textMuted,
             marginBottom: 3,
             fontFamily: "var(--font-ar)",
           }}>
             {paramLabels[key] || key}
-            {constraint && <span style={{ fontSize: 8, color: COLORS.textMuted, marginRight: 4 }}>({constraint.min}–{constraint.max})</span>}
+            {constraint && <span style={{ fontSize: 'var(--text-xs)', color: COLORS.textMuted, marginRight: 4 }}>({constraint.min}–{constraint.max})</span>}
           </label>
           <input
             type="number"
@@ -164,9 +164,9 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
               padding: '4px 8px',
               background: COLORS.bg,
               border: `1px solid ${value < (constraint?.min ?? 0) || value > (constraint?.max ?? Infinity) ? 'rgba(248,81,73,0.6)' : 'rgba(255,255,255,0.08)'}`,
-              borderRadius: 4,
+              borderRadius: 'var(--radius-sm)',
               color: COLORS.text,
-              fontSize: 11,
+              fontSize: 'var(--text-xs)',
               fontFamily: "var(--font-mono)",
               outline: 'none',
             }}
@@ -179,7 +179,7 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
       <div style={{ marginBottom: 8 }}>
         <label style={{
           display: 'block',
-          fontSize: 9,
+          fontSize: 'var(--text-xs)',
           color: COLORS.textMuted,
           marginBottom: 3,
           fontFamily: "var(--font-ar)",
@@ -191,9 +191,9 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
             type="color"
             value={color}
             onChange={e => setColor(e.target.value)}
-            style={{ width: 28, height: 22, padding: 0, border: 'none', borderRadius: 4, cursor: 'pointer' }}
+            style={{ width: 28, height: 22, padding: 0, border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}
           />
-          <span style={{ fontSize: 10, color: COLORS.textSecondary, fontFamily: "var(--font-mono)" }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: COLORS.textSecondary, fontFamily: "var(--font-mono)" }}>
             {color}
           </span>
         </div>
@@ -203,7 +203,7 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
       <div style={{ marginBottom: 10 }}>
         <label style={{
           display: 'block',
-          fontSize: 9,
+          fontSize: 'var(--text-xs)',
           color: COLORS.textMuted,
           marginBottom: 3,
           fontFamily: "var(--font-ar)",
@@ -229,9 +229,9 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
           padding: '7px 0',
           background: COLORS.cyan,
           border: 'none',
-          borderRadius: 6,
+          borderRadius: 'var(--radius-sm)',
           color: '#000',
-          fontSize: 11,
+          fontSize: 'var(--text-xs)',
           fontWeight: 700,
           cursor: 'pointer',
           fontFamily: "var(--font-ar)",

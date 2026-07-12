@@ -49,7 +49,7 @@ const COLORS = {
 const CARD_STYLE: React.CSSProperties = {
   background: 'rgba(255,255,255,0.02)',
   border: '1px solid rgba(0,229,255,0.08)',
-  borderRadius: 10,
+  borderRadius: 'var(--radius-lg)',
   position: 'relative',
   overflow: 'hidden',
 }
@@ -249,19 +249,19 @@ export default function AdminUsersPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", margin: 0 }}>إدارة المستخدمين</h1>
-          <p style={{ fontSize: 12, color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '4px 0 0' }}>{total} مستخدم مسجل</p>
+          <h1 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", margin: 0 }}>إدارة المستخدمين</h1>
+          <p style={{ fontSize: 'var(--text-sm)', color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '4px 0 0' }}>{total} مستخدم مسجل</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button
             onClick={() => setHideGuests(!hideGuests)}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 14px', borderRadius: 8,
+              padding: '8px 14px', borderRadius: 'var(--radius-md)',
               border: `1px solid ${hideGuests ? COLORS.success + '40' : COLORS.border}`,
               background: hideGuests ? 'rgba(0,230,118,0.08)' : 'rgba(255,255,255,0.03)',
               color: hideGuests ? COLORS.success : COLORS.muted,
-              fontSize: 11, fontWeight: 600, fontFamily: "var(--font-ar)", cursor: 'pointer',
+              fontSize: 'var(--text-xs)', fontWeight: 600, fontFamily: "var(--font-ar)", cursor: 'pointer',
             }}
           >
             {hideGuests ? 'إخفاء الوهميين' : 'عرض الكل'}
@@ -271,9 +271,9 @@ export default function AdminUsersPage() {
             disabled={cleanupLoading}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 14px', borderRadius: 8,
+              padding: '8px 14px', borderRadius: 'var(--radius-md)',
               border: `1px solid ${COLORS.danger}40`, background: 'rgba(255,82,82,0.08)',
-              color: COLORS.danger, fontSize: 11, fontWeight: 600,
+              color: COLORS.danger, fontSize: 'var(--text-xs)', fontWeight: 600,
               fontFamily: "var(--font-ar)", cursor: cleanupLoading ? 'not-allowed' : 'pointer',
               opacity: cleanupLoading ? 0.6 : 1,
             }}
@@ -284,9 +284,9 @@ export default function AdminUsersPage() {
             onClick={fetchUsers}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 16px', borderRadius: 8,
+              padding: '8px 16px', borderRadius: 'var(--radius-md)',
               border: `1px solid ${COLORS.border}`, background: 'rgba(0,229,255,0.06)',
-              color: COLORS.accent, fontSize: 12, fontWeight: 600,
+              color: COLORS.accent, fontSize: 'var(--text-sm)', fontWeight: 600,
               fontFamily: "var(--font-ar)", cursor: 'pointer',
               transition: 'all 0.2s',
             }}
@@ -299,14 +299,14 @@ export default function AdminUsersPage() {
       {/* Cleanup Result */}
       {cleanupResult && (
         <div style={{
-          padding: '12px 16px', borderRadius: 8,
+          padding: '12px 16px', borderRadius: 'var(--radius-md)',
           background: cleanupResult.deletedCount > 0 ? `${COLORS.success}10` : `${COLORS.amber}10`,
           border: `1px solid ${cleanupResult.deletedCount > 0 ? COLORS.success + '25' : COLORS.amber + '25'}`,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Trash2 size={16} color={cleanupResult.deletedCount > 0 ? COLORS.success : COLORS.amber} />
-            <span style={{ fontSize: 12, color: cleanupResult.deletedCount > 0 ? COLORS.success : COLORS.amber, fontFamily: "var(--font-ar)" }}>
+            <span style={{ fontSize: 'var(--text-sm)', color: cleanupResult.deletedCount > 0 ? COLORS.success : COLORS.amber, fontFamily: "var(--font-ar)" }}>
               {cleanupResult.deletedCount > 0
                 ? `تم حذف ${cleanupResult.deletedCount} حساب وهمي`
                 : 'لا توجد حسابات وهمية للحذف'}
@@ -322,22 +322,22 @@ export default function AdminUsersPage() {
       {/* Error Banner */}
       {error && (
         <div style={{
-          padding: '12px 16px', borderRadius: 8,
+          padding: '12px 16px', borderRadius: 'var(--radius-md)',
           background: `${COLORS.danger}10`, border: `1px solid ${COLORS.danger}25`,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <AlertCircle size={16} color={COLORS.danger} />
-            <span style={{ fontSize: 12, color: COLORS.danger, fontFamily: "var(--font-ar)" }}>
+            <span style={{ fontSize: 'var(--text-sm)', color: COLORS.danger, fontFamily: "var(--font-ar)" }}>
               {error}
             </span>
           </div>
           <button
             onClick={fetchUsers}
             style={{
-              padding: '4px 10px', borderRadius: 6,
+              padding: '4px 10px', borderRadius: 'var(--radius-sm)',
               border: `1px solid ${COLORS.danger}40`, background: `${COLORS.danger}10`,
-              color: COLORS.danger, fontSize: 10, fontWeight: 600,
+              color: COLORS.danger, fontSize: 'var(--text-xs)', fontWeight: 600,
               fontFamily: "var(--font-ar)", cursor: 'pointer',
             }}
           >
@@ -350,7 +350,7 @@ export default function AdminUsersPage() {
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{
           flex: 1, minWidth: 200, display: 'flex', alignItems: 'center', gap: 8,
-          padding: '8px 12px', borderRadius: 8,
+          padding: '8px 12px', borderRadius: 'var(--radius-md)',
           background: 'rgba(255,255,255,0.03)',
           border: `1px solid ${COLORS.border}`,
         }}>
@@ -362,7 +362,7 @@ export default function AdminUsersPage() {
             onChange={e => setSearchInput(e.target.value)}
             style={{
               flex: 1, background: 'transparent', border: 'none', outline: 'none',
-              color: COLORS.text, fontSize: 12, fontFamily: "var(--font-ar)",
+              color: COLORS.text, fontSize: 'var(--text-sm)', fontFamily: "var(--font-ar)",
             }}
             dir={dir}
           />
@@ -377,9 +377,9 @@ export default function AdminUsersPage() {
             onClick={() => setShowFilter(!showFilter)}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 14px', borderRadius: 8,
+              padding: '8px 14px', borderRadius: 'var(--radius-md)',
               border: `1px solid ${COLORS.border}`, background: 'rgba(255,255,255,0.03)',
-              color: COLORS.muted, fontSize: 12, fontFamily: "var(--font-ar)", cursor: 'pointer',
+              color: COLORS.muted, fontSize: 'var(--text-sm)', fontFamily: "var(--font-ar)", cursor: 'pointer',
             }}
           >
             <Filter size={14} />
@@ -389,7 +389,7 @@ export default function AdminUsersPage() {
           {showFilter && (
             <div style={{
               position: 'absolute', top: '100%', right: 0, marginTop: 4,
-              background: '#161B22', border: `1px solid ${COLORS.border}`, borderRadius: 8,
+              background: '#161B22', border: `1px solid ${COLORS.border}`, borderRadius: 'var(--radius-md)',
               padding: 4, zIndex: 50, minWidth: 140,
             }}>
               {['all', 'FREE', 'PRO', 'PLUS', 'PREMIUM', 'INSTITUTIONAL'].map(tier => (
@@ -397,10 +397,10 @@ export default function AdminUsersPage() {
                   key={tier}
                   onClick={() => { setTierFilter(tier); setShowFilter(false); setPage(1) }}
                   style={{
-                    display: 'block', width: '100%', padding: '8px 12px', borderRadius: 6,
+                    display: 'block', width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)',
                     border: 'none', background: tierFilter === tier ? 'rgba(0,229,255,0.10)' : 'transparent',
                     color: tierFilter === tier ? COLORS.accent : COLORS.muted,
-                    fontSize: 12, fontFamily: "var(--font-ar)", cursor: 'pointer', textAlign: 'right',
+                    fontSize: 'var(--text-sm)', fontFamily: "var(--font-ar)", cursor: 'pointer', textAlign: 'right',
                   }}
                 >
                   {tier === 'all' ? 'الكل' : getTierStyle(tier).label}
@@ -414,13 +414,13 @@ export default function AdminUsersPage() {
       {/* Users Table */}
       <div style={{ ...CARD_STYLE, padding: 0 }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
                 {['الاسم', 'البريد', 'المستوى', 'الصفقات', 'المراكز المفتوحة', 'أول تسجيل', 'آخر نشاط'].map(h => (
                   <th key={h} style={{
                     padding: '10px 14px', textAlign: 'right',
-                    fontSize: 10, fontWeight: 700, color: COLORS.muted,
+                    fontSize: 'var(--text-xs)', fontWeight: 700, color: COLORS.muted,
                     fontFamily: "var(--font-ar)", whiteSpace: 'nowrap',
                   }}>
                     {h}
@@ -460,11 +460,11 @@ export default function AdminUsersPage() {
                       <td style={{ padding: '10px 14px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <div style={{
-                            width: 30, height: 30, borderRadius: 8,
+                            width: 30, height: 30, borderRadius: 'var(--radius-md)',
                             background: `${COLORS.accent}15`,
                             border: `1px solid ${COLORS.accent}25`,
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 12, fontWeight: 700, color: COLORS.accent,
+                            fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.accent,
                             fontFamily: "var(--font-ar)",
                           }}>
                             {user.displayName.charAt(0)}
@@ -472,21 +472,21 @@ export default function AdminUsersPage() {
                           <span style={{ fontWeight: 600, color: COLORS.text, fontFamily: "var(--font-ar)" }}>{user.displayName}</span>
                         </div>
                       </td>
-                      <td style={{ padding: '10px 14px', fontFamily: "var(--font-mono)", fontSize: 11, color: COLORS.muted }} dir="ltr">{user.email}</td>
+                      <td style={{ padding: '10px 14px', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: COLORS.muted }} dir="ltr">{user.email}</td>
                       <td style={{ padding: '10px 14px' }}>
                         <span style={{
-                          padding: '2px 8px', borderRadius: 4,
+                          padding: '2px 8px', borderRadius: 'var(--radius-sm)',
                           background: tierStyle.bg, border: `1px solid ${tierStyle.border}`,
-                          color: tierStyle.color, fontSize: 10, fontWeight: 700,
+                          color: tierStyle.color, fontSize: 'var(--text-xs)', fontWeight: 700,
                           fontFamily: "var(--font-ar)",
                         }}>
                           {tierStyle.label}
                         </span>
                       </td>
-                      <td style={{ padding: '10px 14px', fontFamily: "var(--font-mono)", fontSize: 11, color: COLORS.text }}>{user.tradeCount}</td>
-                      <td style={{ padding: '10px 14px', fontFamily: "var(--font-mono)", fontSize: 11, color: COLORS.accent }}>{user.openPositions}</td>
-                      <td style={{ padding: '10px 14px', fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{formatDate(user.createdAt)}</td>
-                      <td style={{ padding: '10px 14px', fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{formatDate(user.lastActive)}</td>
+                      <td style={{ padding: '10px 14px', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: COLORS.text }}>{user.tradeCount}</td>
+                      <td style={{ padding: '10px 14px', fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', color: COLORS.accent }}>{user.openPositions}</td>
+                      <td style={{ padding: '10px 14px', fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{formatDate(user.createdAt)}</td>
+                      <td style={{ padding: '10px 14px', fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{formatDate(user.lastActive)}</td>
                     </tr>
                   )
                 })
@@ -503,29 +503,29 @@ export default function AdminUsersPage() {
             onClick={() => setPage(p => Math.max(1, p - 1))}
             disabled={page === 1}
             style={{
-              padding: '6px 10px', borderRadius: 6,
+              padding: '6px 10px', borderRadius: 'var(--radius-sm)',
               border: `1px solid ${COLORS.border}`,
               background: page === 1 ? 'transparent' : 'rgba(0,229,255,0.06)',
               color: page === 1 ? COLORS.muted : COLORS.accent,
               cursor: page === 1 ? 'not-allowed' : 'pointer',
-              fontSize: 12, fontFamily: "var(--font-ar)",
+              fontSize: 'var(--text-sm)', fontFamily: "var(--font-ar)",
             }}
           >
             <ChevronRight size={14} />
           </button>
-          <span style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-mono)" }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-mono)" }}>
             {page} / {totalPages}
           </span>
           <button
             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
             style={{
-              padding: '6px 10px', borderRadius: 6,
+              padding: '6px 10px', borderRadius: 'var(--radius-sm)',
               border: `1px solid ${COLORS.border}`,
               background: page === totalPages ? 'transparent' : 'rgba(0,229,255,0.06)',
               color: page === totalPages ? COLORS.muted : COLORS.accent,
               cursor: page === totalPages ? 'not-allowed' : 'pointer',
-              fontSize: 12, fontFamily: "var(--font-ar)",
+              fontSize: 'var(--text-sm)', fontFamily: "var(--font-ar)",
             }}
           >
             <ChevronLeft size={14} />
@@ -554,7 +554,7 @@ export default function AdminUsersPage() {
             onClick={e => e.stopPropagation()}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <span style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>تفاصيل المستخدم</span>
+              <span style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>تفاصيل المستخدم</span>
               <button onClick={() => setSelectedUser(null)} style={{ background: 'transparent', border: 'none', color: COLORS.muted, cursor: 'pointer' }}>
                 <XIcon size={18} />
               </button>
@@ -562,18 +562,18 @@ export default function AdminUsersPage() {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
               <div style={{
-                width: 48, height: 48, borderRadius: 12,
+                width: 48, height: 48, borderRadius: 'var(--radius-lg)',
                 background: `${COLORS.accent}15`,
                 border: `1px solid ${COLORS.accent}25`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 20, fontWeight: 700, color: COLORS.accent,
+                fontSize: 'var(--text-lg)', fontWeight: 700, color: COLORS.accent,
                 fontFamily: "var(--font-ar)",
               }}>
                 {selectedUser.displayName.charAt(0)}
               </div>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>{selectedUser.displayName}</div>
-                <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-mono)" }} dir="ltr">{selectedUser.email}</div>
+                <div style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>{selectedUser.displayName}</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-mono)" }} dir="ltr">{selectedUser.email}</div>
               </div>
             </div>
 
@@ -587,15 +587,15 @@ export default function AdminUsersPage() {
                 const ItemIcon = item.icon
                 return (
                   <div key={i} style={{
-                    padding: 12, borderRadius: 8,
+                    padding: 12, borderRadius: 'var(--radius-md)',
                     background: 'rgba(255,255,255,0.02)',
                     border: `1px solid ${COLORS.border}`,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
                       <ItemIcon size={10} color={item.color} />
-                      <span style={{ fontSize: 9, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{item.label}</span>
+                      <span style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>{item.label}</span>
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: item.color, fontFamily: "var(--font-mono)" }}>{item.value}</div>
+                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: item.color, fontFamily: "var(--font-mono)" }}>{item.value}</div>
                   </div>
                 )
               })}
@@ -604,7 +604,7 @@ export default function AdminUsersPage() {
             {/* BUG-047: Delete User Button */}
             <div style={{
               display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between',
-              padding: 12, borderRadius: 8,
+              padding: 12, borderRadius: 'var(--radius-md)',
               background: `${COLORS.danger}08`,
               border: `1px solid ${COLORS.danger}20`,
               marginTop: 8,
@@ -612,10 +612,10 @@ export default function AdminUsersPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Trash2 size={14} color={COLORS.danger} />
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.danger, fontFamily: "var(--font-ar)" }}>
+                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.danger, fontFamily: "var(--font-ar)" }}>
                     حذف الحساب نهائياً
                   </div>
-                  <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
+                  <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>
                     سيتم حذف المستخدم وجميع بياناته (الصفقات، المراكز، الاعتمادات، سجلات التدقيق)
                   </div>
                 </div>
@@ -627,11 +627,11 @@ export default function AdminUsersPage() {
                 }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '8px 14px', borderRadius: 6,
+                  padding: '8px 14px', borderRadius: 'var(--radius-sm)',
                   border: `1px solid ${COLORS.danger}40`,
                   background: `${COLORS.danger}15`,
                   color: COLORS.danger,
-                  fontSize: 11, fontWeight: 700,
+                  fontSize: 'var(--text-xs)', fontWeight: 700,
                   fontFamily: "var(--font-ar)", cursor: 'pointer',
                   whiteSpace: 'nowrap',
                 }}
@@ -668,14 +668,14 @@ export default function AdminUsersPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{
-                  width: 36, height: 36, borderRadius: 10,
+                  width: 36, height: 36, borderRadius: 'var(--radius-lg)',
                   background: `${COLORS.danger}15`,
                   border: `1px solid ${COLORS.danger}30`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                   <Trash2 size={18} color={COLORS.danger} />
                 </div>
-                <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.danger, fontFamily: "var(--font-ar)" }}>
+                <span style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: COLORS.danger, fontFamily: "var(--font-ar)" }}>
                   تأكيد حذف الحساب
                 </span>
               </div>
@@ -686,14 +686,14 @@ export default function AdminUsersPage() {
 
             {/* Warning Box */}
             <div style={{
-              padding: 12, borderRadius: 8, marginBottom: 16,
+              padding: 12, borderRadius: 'var(--radius-md)', marginBottom: 16,
               background: `${COLORS.danger}08`,
               border: `1px solid ${COLORS.danger}20`,
             }}>
-              <p style={{ fontSize: 11, color: COLORS.danger, fontFamily: "var(--font-ar)", margin: 0, lineHeight: 1.6 }}>
+              <p style={{ fontSize: 'var(--text-xs)', color: COLORS.danger, fontFamily: "var(--font-ar)", margin: 0, lineHeight: 1.6 }}>
                 ⚠️ <strong>تحذير:</strong> هذا الإجراء <strong>لا يمكن التراجع عنه</strong>. سيتم حذف:
               </p>
-              <ul style={{ fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '8px 0 0 0', paddingRight: 18, lineHeight: 1.7 }}>
+              <ul style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '8px 0 0 0', paddingRight: 18, lineHeight: 1.7 }}>
                 <li>المستخدم: <span style={{ color: COLORS.text, fontWeight: 600 }}>{deleteModalUser.displayName || deleteModalUser.email}</span></li>
                 <li>{deleteModalUser.tradeCount} صفقة</li>
                 <li>{deleteModalUser.openPositions} مركز مفتوح</li>
@@ -704,7 +704,7 @@ export default function AdminUsersPage() {
 
             {/* Confirmation Input */}
             <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 11, color: COLORS.text, fontFamily: "var(--font-ar)", display: 'block', marginBottom: 6 }}>
+              <label style={{ fontSize: 'var(--text-xs)', color: COLORS.text, fontFamily: "var(--font-ar)", display: 'block', marginBottom: 6 }}>
                 اكتب <span style={{ color: COLORS.danger, fontWeight: 700, fontFamily: "var(--font-mono)" }}>حذف</span> للتأكيد:
               </label>
               <input
@@ -715,10 +715,10 @@ export default function AdminUsersPage() {
                 dir="rtl"
                 autoFocus
                 style={{
-                  width: '100%', padding: '10px 12px', borderRadius: 6,
+                  width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-sm)',
                   background: 'rgba(255,255,255,0.03)',
                   border: `1px solid ${deleteConfirmText === 'حذف' ? COLORS.danger + '40' : COLORS.border}`,
-                  color: COLORS.text, fontSize: 13,
+                  color: COLORS.text, fontSize: 'var(--text-sm)',
                   fontFamily: "var(--font-ar)", outline: 'none',
                 }}
               />
@@ -727,7 +727,7 @@ export default function AdminUsersPage() {
             {/* Result Banner */}
             {deleteResult && (
               <div style={{
-                padding: '10px 12px', borderRadius: 6, marginBottom: 12,
+                padding: '10px 12px', borderRadius: 'var(--radius-sm)', marginBottom: 12,
                 background: deleteResult.success ? `${COLORS.success}10` : `${COLORS.danger}10`,
                 border: `1px solid ${deleteResult.success ? COLORS.success + '25' : COLORS.danger + '25'}`,
                 display: 'flex', alignItems: 'center', gap: 8,
@@ -737,7 +737,7 @@ export default function AdminUsersPage() {
                 ) : (
                   <AlertCircle size={12} color={COLORS.danger} />
                 )}
-                <span style={{ fontSize: 11, fontFamily: "var(--font-ar)", color: deleteResult.success ? COLORS.success : COLORS.danger }}>
+                <span style={{ fontSize: 'var(--text-xs)', fontFamily: "var(--font-ar)", color: deleteResult.success ? COLORS.success : COLORS.danger }}>
                   {deleteResult.message}
                 </span>
               </div>
@@ -749,10 +749,10 @@ export default function AdminUsersPage() {
                 onClick={closeDeleteModal}
                 disabled={deleteLoading}
                 style={{
-                  padding: '8px 16px', borderRadius: 6,
+                  padding: '8px 16px', borderRadius: 'var(--radius-sm)',
                   border: `1px solid ${COLORS.border}`,
                   background: 'rgba(255,255,255,0.03)',
-                  color: COLORS.muted, fontSize: 11, fontWeight: 600,
+                  color: COLORS.muted, fontSize: 'var(--text-xs)', fontWeight: 600,
                   fontFamily: "var(--font-ar)", cursor: deleteLoading ? 'not-allowed' : 'pointer',
                   opacity: deleteLoading ? 0.6 : 1,
                 }}
@@ -764,10 +764,10 @@ export default function AdminUsersPage() {
                 disabled={deleteLoading || deleteConfirmText !== 'حذف'}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '8px 16px', borderRadius: 6,
+                  padding: '8px 16px', borderRadius: 'var(--radius-sm)',
                   border: `1px solid ${COLORS.danger}40`,
                   background: deleteConfirmText === 'حذف' && !deleteLoading ? `${COLORS.danger}20` : `${COLORS.danger}08`,
-                  color: COLORS.danger, fontSize: 11, fontWeight: 700,
+                  color: COLORS.danger, fontSize: 'var(--text-xs)', fontWeight: 700,
                   fontFamily: "var(--font-ar)",
                   cursor: deleteLoading || deleteConfirmText !== 'حذف' ? 'not-allowed' : 'pointer',
                   opacity: deleteLoading || deleteConfirmText !== 'حذف' ? 0.5 : 1,

@@ -244,14 +244,14 @@ export function AlNarratorMini({
             boxShadow: data ? `0 0 12px ${sentimentColor[data.sentiment]}` : 'none',
             animation: isHighConfidence ? 'orb-pulse 2s infinite' : 'none'
           }} />
-          <span style={{ fontFamily: "var(--font-ar)", fontSize: 12, color: 'var(--foreground)', fontWeight: 800 }}>
+          <span style={{ fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)', color: 'var(--foreground)', fontWeight: 800 }}>
             {selectedSymbol ? t('whatIsHappening', { symbol: selectedSymbol }) : t('aiInsights')}
           </span>
         </div>
 
         {data && (
           <div style={{
-             fontSize: 10, padding: '2px 8px', borderRadius: 20,
+             fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-2xl)',
              background: `${statusTone}16`, border: `1px solid ${statusTone}32`,
              color: statusTone, fontFamily: 'var(--mono)', fontWeight: 700
           }}>
@@ -264,12 +264,12 @@ export function AlNarratorMini({
         <>
           {/* Council Briefs Row — إشارات المجلس النشطة */}
           {activeBriefs.length > 0 && (
-            <div style={{ padding: '8px 10px', background: 'rgba(0,212,255,0.05)', borderRadius: 10, border: '1px solid rgba(0,212,255,0.15)', marginBottom: 4 }}>
-              <div style={{ fontSize: 8, color: 'rgba(0,212,255,0.8)', fontWeight: 700, marginBottom: 6, letterSpacing: 1 }}>🏛️ {t('councilSignals')}</div>
+            <div style={{ padding: '8px 10px', background: 'rgba(0,212,255,0.05)', borderRadius: 'var(--radius-lg)', border: '1px solid rgba(0,212,255,0.15)', marginBottom: 4 }}>
+              <div style={{ fontSize: 'var(--text-xs)', color: 'rgba(0,212,255,0.8)', fontWeight: 700, marginBottom: 6, letterSpacing: 1 }}>🏛️ {t('councilSignals')}</div>
               {activeBriefs.map((b: any, i: number) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0', fontSize: 9, borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0', fontSize: 'var(--text-xs)', borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
                   <span style={{ color: b.direction === 'BUY' ? T.success : T.danger, fontWeight: 800 }}>{b.direction === 'BUY' ? '▲' : '▼'} {b.pair}</span>
-                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 8 }}>{b.timeframe}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 'var(--text-xs)' }}>{b.timeframe}</span>
                   <span style={{ color: 'rgba(255,255,255,0.7)' }}>@ {Number(b.entryPrice).toLocaleString()}</span>
                   <span style={{ color: '#FFD700', fontWeight: 700 }}>{b.confidence}%</span>
                 </div>
@@ -280,26 +280,26 @@ export function AlNarratorMini({
           {/* Signal & Risk Row */}
           <div style={{ display: 'flex', gap: compact ? 8 : 10 }}>
             <div style={{
-               flex: 1, padding: compact ? '10px' : '12px', borderRadius: 12, background: 'rgba(255,255,255,0.02)',
+               flex: 1, padding: compact ? '10px' : '12px', borderRadius: 'var(--radius-lg)', background: 'rgba(255,255,255,0.02)',
                border: '1px solid var(--card-border)', display: 'flex', flexDirection: 'column', gap: 4
             }}>
-               <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 700 }}>{t('overallTrend')}</span>
+               <span style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', fontWeight: 700 }}>{t('overallTrend')}</span>
                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   {data.sentiment === 'bullish' ? <TrendingUp size={16} color="var(--success)" /> : <TrendingDown size={16} color="var(--danger)" />}
-                  <span style={{ fontSize: 13, fontWeight: 900, color: sentimentColor[data.sentiment], fontFamily: "var(--font-ar)" }}>
+                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 900, color: sentimentColor[data.sentiment], fontFamily: "var(--font-ar)" }}>
                     {data.sentiment === 'bullish' ? t('institutionalBullish') : data.sentiment === 'bearish' ? t('sovereignBearish') : data.sentiment === 'volatile' ? t('sharpVolatility') : t('sidewaysVolatility')}
                   </span>
                </div>
             </div>
             <div style={{
-               flex: 1, padding: compact ? '10px' : '12px', borderRadius: 12, background: 'rgba(255,255,255,0.02)',
+               flex: 1, padding: compact ? '10px' : '12px', borderRadius: 'var(--radius-lg)', background: 'rgba(255,255,255,0.02)',
                border: '1px solid var(--card-border)', display: 'flex', flexDirection: 'column', gap: 4
             }}>
-               <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 700 }}>{t('riskLevel')}</span>
+               <span style={{ fontSize: 'var(--text-xs)', color: 'var(--muted)', fontWeight: 700 }}>{t('riskLevel')}</span>
                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <ShieldCheck size={16} color={data.risk === 'Low' ? 'var(--success)' : data.risk === 'Medium' ? T.warning : 'var(--danger)'} />
                   <span style={{
-                    fontSize: 13, fontWeight: 900,
+                    fontSize: 'var(--text-sm)', fontWeight: 900,
                     color: data.risk === 'Low' ? 'var(--success)' : data.risk === 'Medium' ? T.warning : 'var(--danger)',
                     fontFamily: "var(--font-ar)"
                   }}>
@@ -312,15 +312,15 @@ export function AlNarratorMini({
           {/* Institutional Confidence Meter */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 9, color: 'var(--text-muted-safe)', fontWeight: 800 }}>{t('digitalConfidenceIndex')}</span>
-                <span className="price" style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 900 }}>{data.confidence}%</span>
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted-safe)', fontWeight: 800 }}>{t('digitalConfidenceIndex')}</span>
+                <span className="price" style={{ fontSize: 'var(--text-sm)', color: 'var(--accent)', fontWeight: 900 }}>{data.confidence}%</span>
              </div>
-             <div style={{ width: '100%', height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 10, overflow: 'hidden', padding: 1.5 }}>
+             <div style={{ width: '100%', height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', padding: 1.5 }}>
                 <div style={{
                    height: '100%', width: `${data.confidence}%`,
                    background: `linear-gradient(90deg, var(--primary), var(--accent))`,
                    boxShadow: `0 0 15px var(--accent)40`,
-                   borderRadius: 8,
+                   borderRadius: 'var(--radius-md)',
                    transition: 'width 1.2s cubic-bezier(0.4, 0, 0.2, 1)'
                 }} />
              </div>
@@ -330,9 +330,9 @@ export function AlNarratorMini({
           {!compact && <div style={{
             display: 'flex', flexDirection: 'column', gap: 6,
             padding: '10px', background: 'rgba(0,229,255,0.03)',
-            borderRadius: 10, border: '1px solid rgba(0,229,255,0.1)'
+            borderRadius: 'var(--radius-lg)', border: '1px solid rgba(0,229,255,0.1)'
           }}>
-             <span style={{ fontSize: 9, color: 'var(--accent)', fontWeight: 800, marginBottom: 4 }}>{t('analysisSteps')}</span>
+             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)', fontWeight: 800, marginBottom: 4 }}>{t('analysisSteps')}</span>
              {[
                { label: t('globalNewsAnalysis'), status: 'checked' },
                { label: t('technicalIndicatorsCheck'), status: 'checked' },
@@ -341,7 +341,7 @@ export function AlNarratorMini({
              ].map((step, si) => (
                <div key={si} style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: step.status === 'checked' ? 1 : 0.4 }}>
                   {step.status === 'checked' ? <CheckCircle2 size={12} color="var(--success)" /> : <Activity size={12} className="spinning" />}
-                  <span style={{ fontSize: 10, color: 'var(--text2)', fontFamily: "var(--font-ar)" }}>{step.label}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text2)', fontFamily: "var(--font-ar)" }}>{step.label}</span>
                </div>
              ))}
           </div>}
@@ -349,10 +349,10 @@ export function AlNarratorMini({
           {/* Narrative Insight */}
           <div style={{
             padding: compact ? '8px 10px' : '10px 12px',
-            borderRadius: 10,
+            borderRadius: 'var(--radius-lg)',
             background: 'rgba(255,255,255,0.02)',
             border: '1px solid var(--card-border)',
-            fontSize: 10,
+            fontSize: 'var(--text-xs)',
             color: 'var(--text2)',
             lineHeight: 1.7,
           }}>
@@ -364,10 +364,10 @@ export function AlNarratorMini({
           {!compact && data.nextTrigger && (
             <div style={{
               padding: '10px 12px',
-              borderRadius: 10,
+              borderRadius: 'var(--radius-lg)',
               background: 'rgba(0,229,255,0.04)',
               border: '1px solid rgba(0,229,255,0.12)',
-              fontSize: 10,
+              fontSize: 'var(--text-xs)',
               color: 'var(--text2)',
               lineHeight: 1.7,
             }}>
@@ -379,8 +379,8 @@ export function AlNarratorMini({
             onClick={() => setExpanded(!expanded)}
             style={{
                flex: 1, cursor: 'pointer', overflow: 'hidden', padding: compact ? '10px' : '12px',
-               background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--card-border)', borderRadius: 10,
-               fontSize: 11, color: 'var(--foreground)', lineHeight: 1.6, fontFamily: "var(--font-ar)",
+               background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--card-border)', borderRadius: 'var(--radius-lg)',
+               fontSize: 'var(--text-xs)', color: 'var(--foreground)', lineHeight: 1.6, fontFamily: "var(--font-ar)",
                position: 'relative', transition: 'max-height 0.3s'
             }}
           >
@@ -391,7 +391,7 @@ export function AlNarratorMini({
                <div style={{
                   position: 'absolute', bottom: 0, left: 0, right: 0, height: 24,
                   background: 'linear-gradient(to top, var(--surface), transparent)',
-                  display: 'flex', justifyContent: 'center', alignItems: 'flex-end', fontSize: 8, color: 'var(--accent)', fontWeight: 800
+                  display: 'flex', justifyContent: 'center', alignItems: 'flex-end', fontSize: 'var(--text-xs)', color: 'var(--accent)', fontWeight: 800
                }}>{t('tapToExpand')}</div>
              )}
           </div>
@@ -399,31 +399,31 @@ export function AlNarratorMini({
           {/* ── Smart Recommendation Panel (functional) ── */}
           {showRecommendation && (
             <div style={{
-              padding: '10px 12px', borderRadius: 10,
+              padding: '10px 12px', borderRadius: 'var(--radius-lg)',
               background: 'rgba(0,229,255,0.04)', border: '1px solid rgba(0,229,255,0.15)',
             }}>
               <div style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
               }}>
-                <span style={{ fontSize: 9, color: 'var(--accent)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}>
                   <Crosshair size={10} /> {t('smartRecommendationTitle', { symbol: String(selectedSymbol) })}
                 </span>
                 <button
                   onClick={() => setShowRecommendation(false)}
-                  style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 10 }}
+                  style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 'var(--text-xs)' }}
                 >
                   ✕
                 </button>
               </div>
               {recLoading ? (
-                <div style={{ fontSize: 10, color: 'var(--text2)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text2)', display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Activity size={10} className="spinning" /> {t('analyzing')}
                 </div>
               ) : recommendation ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 10, color: 'var(--text2)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 'var(--text-xs)', color: 'var(--text2)' }}>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <span style={{
-                      padding: '2px 8px', borderRadius: 4, fontWeight: 800,
+                      padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontWeight: 800,
                       background: recommendation.action === 'buy' ? 'rgba(0,255,198,0.1)' : recommendation.action === 'sell' ? 'rgba(255,77,77,0.1)' : 'rgba(255,184,0,0.1)',
                       color: recommendation.action === 'buy' ? 'var(--success)' : recommendation.action === 'sell' ? 'var(--danger)' : T.warning,
                     }}>
@@ -435,7 +435,7 @@ export function AlNarratorMini({
                     <span>SL: <strong style={{ color: 'var(--danger)' }}>{recommendation.sl}</strong></span>
                     <span>TP: <strong style={{ color: 'var(--success)' }}>{recommendation.tp}</strong></span>
                   </div>
-                  <div style={{ fontSize: 9, color: 'var(--text2)', lineHeight: 1.4, marginTop: 2 }}>
+                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text2)', lineHeight: 1.4, marginTop: 2 }}>
                     {recommendation.reason}
                   </div>
                 </div>
@@ -450,8 +450,8 @@ export function AlNarratorMini({
                disabled={recLoading}
                className="btn-cyan-active"
                style={{
-                  flex: 1.5, padding: '8px', borderRadius: 8, border: 'none',
-                  fontSize: 11, fontWeight: 800, cursor: recLoading ? 'not-allowed' : 'pointer',
+                  flex: 1.5, padding: '8px', borderRadius: 'var(--radius-md)', border: 'none',
+                  fontSize: 'var(--text-xs)', fontWeight: 800, cursor: recLoading ? 'not-allowed' : 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                   fontFamily: "var(--font-ar)",
                   opacity: recLoading ? 0.6 : 1,
@@ -462,9 +462,9 @@ export function AlNarratorMini({
              <button
                onClick={handleAlert}
                style={{
-                  flex: 1, padding: '8px', borderRadius: 8, border: '1px solid var(--border)',
+                  flex: 1, padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)',
                   background: 'rgba(255,255,255,0.05)',
-                  color: 'var(--text)', fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                  color: 'var(--text)', fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
                   fontFamily: "var(--font-ar)"
                }}
@@ -477,12 +477,12 @@ export function AlNarratorMini({
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
           {/* Skeleton Loader */}
           <div style={{ display: 'flex', gap: 10 }}>
-            <div className="skeleton" style={{ flex: 1, height: 52, borderRadius: 12 }} />
-            <div className="skeleton" style={{ flex: 1, height: 52, borderRadius: 12 }} />
+            <div className="skeleton" style={{ flex: 1, height: 52, borderRadius: 'var(--radius-lg)' }} />
+            <div className="skeleton" style={{ flex: 1, height: 52, borderRadius: 'var(--radius-lg)' }} />
           </div>
-          <div className="skeleton" style={{ width: '100%', height: 40, borderRadius: 10 }} />
-          <div className="skeleton" style={{ width: '100%', height: 8, borderRadius: 4 }} />
-          <div className="skeleton" style={{ width: '100%', flex: 1, borderRadius: 10 }} />
+          <div className="skeleton" style={{ width: '100%', height: 40, borderRadius: 'var(--radius-lg)' }} />
+          <div className="skeleton" style={{ width: '100%', height: 8, borderRadius: 'var(--radius-sm)' }} />
+          <div className="skeleton" style={{ width: '100%', flex: 1, borderRadius: 'var(--radius-lg)' }} />
         </div>
       )}
 
@@ -493,8 +493,8 @@ export function AlNarratorMini({
           padding: '10px 14px',
           background: 'rgba(0,229,255,0.12)',
           border: '1px solid rgba(0,229,255,0.3)',
-          borderRadius: 10,
-          fontSize: 10, color: 'var(--text2)',
+          borderRadius: 'var(--radius-lg)',
+          fontSize: 'var(--text-xs)', color: 'var(--text2)',
           fontFamily: "var(--font-ar)",
           direction: 'inherit', lineHeight: 1.6,
           zIndex: 10,
@@ -504,7 +504,7 @@ export function AlNarratorMini({
             <span style={{ fontWeight: 800, color: 'var(--accent)' }}>🔔 {t('alertTitle', { symbol: alertToast.symbol })}</span>
             <button
               onClick={() => setAlertToast(null)}
-              style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 10 }}
+              style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 'var(--text-xs)' }}
             >
               ✕
             </button>

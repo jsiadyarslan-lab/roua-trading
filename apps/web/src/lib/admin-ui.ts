@@ -26,7 +26,7 @@ export const COLORS = {
 export const CARD_STYLE: React.CSSProperties = {
   background: 'rgba(255,255,255,0.02)',
   border: '1px solid rgba(0,229,255,0.08)',
-  borderRadius: 10,
+  borderRadius: 'var(--radius-lg)',
   position: 'relative',
   overflow: 'hidden',
 } as const
@@ -48,6 +48,6 @@ export const EMPTY_STATE_STYLE: React.CSSProperties = {
   padding: 30,
   textAlign: 'center',
   color: COLORS.muted,
-  fontSize: 12,
+  fontSize: 'var(--text-sm)',
   fontFamily: "var(--font-ar)",
 } as const

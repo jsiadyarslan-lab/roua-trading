@@ -406,7 +406,7 @@ export function renderOverlays(
           color: sw.structureLabel === 'HH' || sw.structureLabel === 'HL'
             ? OVERLAY_COLORS.trendUp
             : OVERLAY_COLORS.trendDown,
-          fontSize: 10,
+          fontSize: 'var(--text-xs)',
           align: 'center',
           bg: 'rgba(11, 14, 20, 0.8)',
           position: sw.type === 'HIGH' ? 'above' : 'below',
@@ -473,7 +473,7 @@ export function renderOverlays(
           price: pt.price,
           text: labels[i],
           color: col,
-          fontSize: 12,
+          fontSize: 'var(--text-sm)',
           align: 'center',
           bg: 'rgba(11, 14, 20, 0.85)',
           position: i % 2 === 0 ? 'below' : 'above',
@@ -608,7 +608,7 @@ export function renderOverlays(
         price: br.breakPrice,
         text: br.type,
         color,
-        fontSize: 11,
+        fontSize: 'var(--text-xs)',
         align: 'center',
         bg: 'rgba(11, 14, 20, 0.85)',
         position: isBull ? 'below' : 'above',
@@ -668,7 +668,7 @@ export function renderOverlays(
           price: isBull ? ob.highPrice : ob.lowPrice,
           text: `✓ ${ob.labelAr} مخفف`,
           color: 'rgba(156, 163, 175, 0.7)',
-          fontSize: 8,
+          fontSize: 'var(--text-xs)',
           align: 'center',
           bg: 'rgba(11, 14, 20, 0.7)',
           position: isBull ? 'above' : 'below',
@@ -700,7 +700,7 @@ export function renderOverlays(
           price: lastPrice * (confluentFVGs[0].type === 'bullish' ? 0.998 : 1.002),
           text: `⬡ تقاطع OB+FVG (${confluentFVGs.length})`,
           color: T.gold,
-          fontSize: 9,
+          fontSize: 'var(--text-xs)',
           align: 'right',
           bg: 'rgba(212, 175, 55, 0.1)',
           position: confluentFVGs[0].type === 'bullish' ? 'below' : 'above',
@@ -833,7 +833,7 @@ export function renderOverlays(
           price: w.price,
           text: `W${w.waveNumber}`,
           color: i % 2 === 0 ? col : '#fbbf24',
-          fontSize: 12,
+          fontSize: 'var(--text-sm)',
           align: 'center',
           bg: 'rgba(11, 14, 20, 0.85)',
           position: isBull === (i % 2 === 0) ? 'below' : 'above',
@@ -902,7 +902,7 @@ export function renderOverlays(
         price: bias === 'bullish' ? safeMin(candles.slice(-20).map(c => c.low)) : safeMax(candles.slice(-20).map(c => c.high)),
         text: phase,
         color: col,
-        fontSize: 12,
+        fontSize: 'var(--text-sm)',
         align: 'right',
         bg: 'rgba(11, 14, 20, 0.85)',
         position: bias === 'bullish' ? 'below' : 'above',
@@ -1134,7 +1134,7 @@ export function renderOverlays(
         price: lastPrice,
         text: `${arrowLabel} تقارب ${fusion.confluenceScore}%`,
         color: confluenceColor,
-        fontSize: 11,
+        fontSize: 'var(--text-xs)',
         align: 'right',
         bg: isBull ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
         position: isBull ? 'above' : 'below',
@@ -1149,7 +1149,7 @@ export function renderOverlays(
           : safeMax(recentCandles.map(c => c.high)) * 1.0005,
         text: layerText,
         color: 'rgba(255,255,255,0.4)',
-        fontSize: 8,
+        fontSize: 'var(--text-xs)',
         align: 'left',
         bg: 'rgba(11,14,20,0.6)',
         position: isBull ? 'below' : 'above',
@@ -1198,7 +1198,7 @@ export function renderOverlays(
         price: lastPrice,
         text: `⬡ بايزي ${isBull ? 'صعودي' : 'هبوطي'} ${confPct}%`,
         color: bayesColor,
-        fontSize: 9,
+        fontSize: 'var(--text-xs)',
         align: 'right',
         bg: `${bayesColor}15`,
         position: isBull ? 'below' : 'above',
@@ -1214,7 +1214,7 @@ export function renderOverlays(
           : safeMax(candles.slice(-10).map(c => c.high)),
         text: `P(▲)=${bullPct}% P(▼)=${bearPct}%`,
         color: 'rgba(255,255,255,0.35)',
-        fontSize: 7,
+        fontSize: 'var(--text-xs)',
         align: 'left',
         bg: 'rgba(11,14,20,0.5)',
         position: isBull ? 'below' : 'above',
@@ -1298,7 +1298,7 @@ export function renderOverlays(
           : safeMax(candles.slice(-10).map(c => c.high)) * 1.001,
         text: `${arrow} MTF ${mtf.confluenceScore}% (${mtf.agreeingTFs}/${mtf.totalTFs})`,
         color: mtfColor,
-        fontSize: 10,
+        fontSize: 'var(--text-xs)',
         align: 'right',
         bg: isBull ? 'rgba(34, 211, 238, 0.12)' : 'rgba(249, 115, 22, 0.12)',
         position: isBull ? 'below' : 'above',
@@ -1343,7 +1343,7 @@ export function renderOverlays(
         price: lastPrice,
         text: `⚠ ${div.type === 'bullish-divergence' ? 'تباعد صعودي' : div.type === 'bearish-divergence' ? 'تباعد هبوطي' : 'تباعد زخم'}`,
         color: 'rgba(245, 158, 11, 0.7)',
-        fontSize: 8,
+        fontSize: 'var(--text-xs)',
         align: 'right',
         bg: 'rgba(245, 158, 11, 0.08)',
         position: 'above',
@@ -1460,7 +1460,7 @@ export function renderOverlays(
           : safeMin(candles.slice(-5).map(c => c.low)) * 0.998,
         text: `R:R 1:${proposal.rrRatio} | جودة ${proposal.qualityScore}% | ثقة ${Math.round(proposal.confidence * 100)}%`,
         color: 'rgba(255,255,255,0.5)',
-        fontSize: 8,
+        fontSize: 'var(--text-xs)',
         align: 'right',
         bg: 'rgba(11,14,20,0.7)',
         position: isBull ? 'above' : 'below',
@@ -1472,7 +1472,7 @@ export function renderOverlays(
         price: proposal.entryPrice,
         text: isBull ? '▲ شراء' : '▼ بيع',
         color: isBull ? '#22d3ee' : '#f97316',
-        fontSize: 11,
+        fontSize: 'var(--text-xs)',
         align: 'right',
         bg: isBull ? 'rgba(34, 211, 238, 0.1)' : 'rgba(249, 115, 22, 0.1)',
         position: isBull ? 'above' : 'below',
@@ -1537,7 +1537,7 @@ export function renderOverlays(
             price: sweepIsBull ? zone.high : zone.low,
             text: sweepIsBull ? '⚡ مسح' : '⚡ مسح',
             color: sweepIsBull ? 'rgba(0, 255, 163, 0.7)' : 'rgba(255, 71, 87, 0.7)',
-            fontSize: 7,
+            fontSize: 'var(--text-xs)',
             align: 'center',
             bg: sweepIsBull ? 'rgba(0, 255, 163, 0.08)' : 'rgba(255, 71, 87, 0.08)',
             position: sweepIsBull ? 'above' : 'below',
@@ -1556,7 +1556,7 @@ export function renderOverlays(
               : zone.low,
             text: zone.labelAr,
             color: labelColor,
-            fontSize: 7,
+            fontSize: 'var(--text-xs)',
             align: 'left',
             bg: zone.sweepDirection === 'bullish'
               ? 'rgba(0, 255, 163, 0.08)'
@@ -1593,7 +1593,7 @@ export function renderOverlays(
             : safeMax(candles.slice(-5).map(c => c.high)) * 1.002,
           text: `${isBull ? '▲' : '▼'} سيولة ${isBull ? 'صاعد' : 'هابط'} (${liqData.sweptZones} مسحوب)`,
           color: isBull ? 'rgba(0, 255, 163, 0.9)' : 'rgba(255, 71, 87, 0.9)',
-          fontSize: 9,
+          fontSize: 'var(--text-xs)',
           align: 'right',
           bg: isBull ? 'rgba(0, 255, 163, 0.1)' : 'rgba(255, 71, 87, 0.1)',
           position: isBull ? 'below' : 'above',
@@ -1607,7 +1607,7 @@ export function renderOverlays(
           price: safeMin(candles.slice(-5).map(c => c.low)) * 0.995,
           text: liqData.interpretationAr,
           color: 'rgba(255,255,255,0.4)',
-          fontSize: 7,
+          fontSize: 'var(--text-xs)',
           align: 'right',
           bg: 'rgba(11,14,20,0.5)',
           position: 'below',
@@ -1771,10 +1771,10 @@ export function renderAnalysisOverlays(
       const isBull = fusion.direction === 'bullish';
       const confluenceColor = isBull ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)';
       const arrowLabel = isBull ? '▲' : '▼';
-      registry.add('fusion', new LabelPrimitive({ time: lastTime as any, price: lastPrice, text: `${arrowLabel} تقارب ${fusion.confluenceScore}%`, color: confluenceColor, fontSize: 11, align: 'right', bg: isBull ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', position: isBull ? 'above' : 'below' }));
+      registry.add('fusion', new LabelPrimitive({ time: lastTime as any, price: lastPrice, text: `${arrowLabel} تقارب ${fusion.confluenceScore}%`, color: confluenceColor, fontSize: 'var(--text-xs)', align: 'right', bg: isBull ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', position: isBull ? 'above' : 'below' }));
       const recentCandles = candles.slice(-5);
       const layerText = `L1:${fusion.layerScores.directionalAgreement}% L2:${fusion.layerScores.spatialConfluence}%`;
-      registry.add('fusion', new LabelPrimitive({ time: recentCandles[0]?.time as any || lastTime as any, price: isBull ? safeMin(recentCandles.map(c => c.low)) * 0.9995 : safeMax(recentCandles.map(c => c.high)) * 1.0005, text: layerText, color: 'rgba(255,255,255,0.4)', fontSize: 8, align: 'left', bg: 'rgba(11,14,20,0.6)', position: isBull ? 'below' : 'above' }));
+      registry.add('fusion', new LabelPrimitive({ time: recentCandles[0]?.time as any || lastTime as any, price: isBull ? safeMin(recentCandles.map(c => c.low)) * 0.9995 : safeMax(recentCandles.map(c => c.high)) * 1.0005, text: layerText, color: 'rgba(255,255,255,0.4)', fontSize: 'var(--text-xs)', align: 'left', bg: 'rgba(11,14,20,0.6)', position: isBull ? 'below' : 'above' }));
     }
     } // smartRedraw: data unchanged, existing primitives stay
   } else {
@@ -1793,10 +1793,10 @@ export function renderAnalysisOverlays(
       const isBull = bayes.direction === 'bullish';
       const bayesColor = isBull ? '#22d3ee' : '#f97316';
       const confPct = Math.round(bayes.confidence * 100);
-      registry.add('bayesian', new LabelPrimitive({ time: (lastTime - 3600) as any, price: lastPrice, text: `⬡ بايزي ${isBull ? 'صعودي' : 'هبوطي'} ${confPct}%`, color: bayesColor, fontSize: 9, align: 'right', bg: `${bayesColor}15`, position: isBull ? 'below' : 'above' }));
+      registry.add('bayesian', new LabelPrimitive({ time: (lastTime - 3600) as any, price: lastPrice, text: `⬡ بايزي ${isBull ? 'صعودي' : 'هبوطي'} ${confPct}%`, color: bayesColor, fontSize: 'var(--text-xs)', align: 'right', bg: `${bayesColor}15`, position: isBull ? 'below' : 'above' }));
       const bullPct = Math.round(bayes.posteriorBullish * 100);
       const bearPct = Math.round(bayes.posteriorBearish * 100);
-      registry.add('bayesian', new LabelPrimitive({ time: (lastTime - 7200) as any, price: isBull ? safeMin(candles.slice(-10).map(c => c.low)) : safeMax(candles.slice(-10).map(c => c.high)), text: `P(▲)=${bullPct}% P(▼)=${bearPct}%`, color: 'rgba(255,255,255,0.35)', fontSize: 7, align: 'left', bg: 'rgba(11,14,20,0.5)', position: isBull ? 'below' : 'above' }));
+      registry.add('bayesian', new LabelPrimitive({ time: (lastTime - 7200) as any, price: isBull ? safeMin(candles.slice(-10).map(c => c.low)) : safeMax(candles.slice(-10).map(c => c.high)), text: `P(▲)=${bullPct}% P(▼)=${bearPct}%`, color: 'rgba(255,255,255,0.35)', fontSize: 'var(--text-xs)', align: 'left', bg: 'rgba(11,14,20,0.5)', position: isBull ? 'below' : 'above' }));
     }
     } // smartRedraw: data unchanged, existing primitives stay
   } else {
@@ -1838,7 +1838,7 @@ export function renderAnalysisOverlays(
       const isBull = mtf.confluenceDirection === 'bullish';
       const mtfColor = isBull ? 'rgba(34, 211, 238, 0.9)' : 'rgba(249, 115, 22, 0.9)';
       const arrow = isBull ? '▲' : '▼';
-      registry.add('mtf', new LabelPrimitive({ time: lastTime as any, price: isBull ? safeMin(candles.slice(-10).map(c => c.low)) * 0.999 : safeMax(candles.slice(-10).map(c => c.high)) * 1.001, text: `${arrow} MTF ${mtf.confluenceScore}% (${mtf.agreeingTFs}/${mtf.totalTFs})`, color: mtfColor, fontSize: 10, align: 'right', bg: isBull ? 'rgba(34, 211, 238, 0.12)' : 'rgba(249, 115, 22, 0.12)', position: isBull ? 'below' : 'above' }));
+      registry.add('mtf', new LabelPrimitive({ time: lastTime as any, price: isBull ? safeMin(candles.slice(-10).map(c => c.low)) * 0.999 : safeMax(candles.slice(-10).map(c => c.high)) * 1.001, text: `${arrow} MTF ${mtf.confluenceScore}% (${mtf.agreeingTFs}/${mtf.totalTFs})`, color: mtfColor, fontSize: 'var(--text-xs)', align: 'right', bg: isBull ? 'rgba(34, 211, 238, 0.12)' : 'rgba(249, 115, 22, 0.12)', position: isBull ? 'below' : 'above' }));
     }
     for (const sr of mtf.srConfluences.slice(0, 3)) {
       const opacity = Math.min(0.8, sr.combinedStrength);
@@ -1852,7 +1852,7 @@ export function renderAnalysisOverlays(
       safeAddPriceLine(`mtf-fib-${fib.price}`, fib.price, fibColor, `Fib MTF ${((fib as any).ratios || []).map((r: any) => r.label).join('+')}`, 1, 2, false, 'mtf');
     }
     for (const div of mtf.divergences.filter(d => d.significance > 0.5).slice(0, 2)) {
-      registry.add('mtf', new LabelPrimitive({ time: (lastTime - 3600) as any, price: lastPrice, text: `⚠ ${div.type === 'bullish-divergence' ? 'تباعد صعودي' : div.type === 'bearish-divergence' ? 'تباعد هبوطي' : 'تباعد زخم'}`, color: 'rgba(245, 158, 11, 0.7)', fontSize: 8, align: 'right', bg: 'rgba(245, 158, 11, 0.08)', position: 'above' }));
+      registry.add('mtf', new LabelPrimitive({ time: (lastTime - 3600) as any, price: lastPrice, text: `⚠ ${div.type === 'bullish-divergence' ? 'تباعد صعودي' : div.type === 'bearish-divergence' ? 'تباعد هبوطي' : 'تباعد زخم'}`, color: 'rgba(245, 158, 11, 0.7)', fontSize: 'var(--text-xs)', align: 'right', bg: 'rgba(245, 158, 11, 0.08)', position: 'above' }));
     }
     } // smartRedraw: data unchanged, existing primitives stay
   } else {
@@ -1881,7 +1881,7 @@ export function renderAnalysisOverlays(
         registry.add('trade', new ZonePrimitive({ startTime: candles[candles.length - 30]?.time as any || candles[0].time as any, endTime: candles[candles.length - 1].time as any, highPrice: Math.max(proposal.entryPrice, proposal.takeProfits[2]), lowPrice: Math.min(proposal.entryPrice, proposal.takeProfits[2]), fillColor: 'rgba(16, 185, 129, 0.04)', borderColor: undefined }));
       }
       // NOTE: No safeAddPriceLine — HorizontalLinePrimitive handles lines + labels
-      registry.add('trade', new LabelPrimitive({ time: candles[candles.length - 1].time as any, price: isBull ? safeMax(candles.slice(-5).map(c => c.high)) * 1.002 : safeMin(candles.slice(-5).map(c => c.low)) * 0.998, text: `R:R 1:${proposal.rrRatio} | جودة ${proposal.qualityScore}% | ثقة ${Math.round(proposal.confidence * 100)}%`, color: 'rgba(255,255,255,0.5)', fontSize: 8, align: 'right', bg: 'rgba(11,14,20,0.7)', position: isBull ? 'above' : 'below' }));
+      registry.add('trade', new LabelPrimitive({ time: candles[candles.length - 1].time as any, price: isBull ? safeMax(candles.slice(-5).map(c => c.high)) * 1.002 : safeMin(candles.slice(-5).map(c => c.low)) * 0.998, text: `R:R 1:${proposal.rrRatio} | جودة ${proposal.qualityScore}% | ثقة ${Math.round(proposal.confidence * 100)}%`, color: 'rgba(255,255,255,0.5)', fontSize: 'var(--text-xs)', align: 'right', bg: 'rgba(11,14,20,0.7)', position: isBull ? 'above' : 'below' }));
     }
     if (!proposal) registry.clearType('trade');
     } // smartRedraw: data unchanged, existing primitives stay
@@ -1901,7 +1901,7 @@ export function renderAnalysisOverlays(
         registry.add('liq', new ZonePrimitive({ startTime: zone.startTime as any, endTime: (zone.swept ? (zone.sweepTime || zone.endTime) : lastTime) as any, highPrice: zone.high, lowPrice: zone.low, fillColor: zone.swept ? 'rgba(156, 163, 175, 0.06)' : zone.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.08)' : 'rgba(255, 71, 87, 0.08)', borderColor: zone.swept ? undefined : zone.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.3)' : 'rgba(255, 71, 87, 0.3)' }));
         if (!zone.swept && zone.strength >= 2) {
           const labelColor = zone.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.8)' : 'rgba(255, 71, 87, 0.8)';
-          registry.add('liq', new LabelPrimitive({ time: zone.startTime as any, price: zone.type === 'equal_highs' || zone.type === 'previous_high' ? zone.high : zone.low, text: zone.labelAr, color: labelColor, fontSize: 7, align: 'left', bg: zone.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.08)' : 'rgba(255, 71, 87, 0.08)', position: zone.type === 'equal_highs' || zone.type === 'previous_high' ? 'above' : 'below' }));
+          registry.add('liq', new LabelPrimitive({ time: zone.startTime as any, price: zone.type === 'equal_highs' || zone.type === 'previous_high' ? zone.high : zone.low, text: zone.labelAr, color: labelColor, fontSize: 'var(--text-xs)', align: 'left', bg: zone.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.08)' : 'rgba(255, 71, 87, 0.08)', position: zone.type === 'equal_highs' || zone.type === 'previous_high' ? 'above' : 'below' }));
         }
         if (!zone.swept && zone.strength >= 3) {
           const lineColor = zone.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.5)' : 'rgba(255, 71, 87, 0.5)';
@@ -1911,7 +1911,7 @@ export function renderAnalysisOverlays(
       }
       if (liqData.dominantSweepDirection !== 'neutral' && liqData.sweptZones > 0) {
         const isBull = liqData.dominantSweepDirection === 'bullish';
-        registry.add('liq', new LabelPrimitive({ time: lastTime as any, price: isBull ? safeMin(candles.slice(-5).map(c => c.low)) * 0.998 : safeMax(candles.slice(-5).map(c => c.high)) * 1.002, text: `${isBull ? '▲' : '▼'} سيولة ${isBull ? 'صاعد' : 'هابط'} (${liqData.sweptZones} مسحوب)`, color: isBull ? 'rgba(0, 255, 163, 0.9)' : 'rgba(255, 71, 87, 0.9)', fontSize: 9, align: 'right', bg: isBull ? 'rgba(0, 255, 163, 0.1)' : 'rgba(255, 71, 87, 0.1)', position: isBull ? 'below' : 'above' }));
+        registry.add('liq', new LabelPrimitive({ time: lastTime as any, price: isBull ? safeMin(candles.slice(-5).map(c => c.low)) * 0.998 : safeMax(candles.slice(-5).map(c => c.high)) * 1.002, text: `${isBull ? '▲' : '▼'} سيولة ${isBull ? 'صاعد' : 'هابط'} (${liqData.sweptZones} مسحوب)`, color: isBull ? 'rgba(0, 255, 163, 0.9)' : 'rgba(255, 71, 87, 0.9)', fontSize: 'var(--text-xs)', align: 'right', bg: isBull ? 'rgba(0, 255, 163, 0.1)' : 'rgba(255, 71, 87, 0.1)', position: isBull ? 'below' : 'above' }));
       }
     }
     } // smartRedraw: data unchanged, existing primitives stay

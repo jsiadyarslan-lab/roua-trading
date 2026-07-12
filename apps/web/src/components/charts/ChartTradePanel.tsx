@@ -55,7 +55,7 @@ export function ChartTradePanel({
         flexDirection: 'column',
         alignItems: 'center',
         gap: 3,
-        borderRadius: 10,
+        borderRadius: 'var(--radius-lg)',
         background: 'rgba(8,10,18,0.88)',
         backdropFilter: 'blur(24px) saturate(2)',
         border: '1px solid rgba(255,255,255,0.07)',
@@ -74,7 +74,7 @@ export function ChartTradePanel({
         style={{
           background: 'rgba(255,255,255,0.05)',
           border: 'none',
-          borderRadius: 4,
+          borderRadius: 'var(--radius-sm)',
           color: 'rgba(255,255,255,0.35)',
           width: collapsed ? 20 : '100%',
           height: 14,
@@ -102,10 +102,10 @@ export function ChartTradePanel({
             style={{
               background: '#00C853',
               border: 'none',
-              borderRadius: 5,
+              borderRadius: 'var(--radius-sm)',
               color: '#000',
               padding: '4px 9px',
-              fontSize: 10,
+              fontSize: 'var(--text-xs)',
               fontWeight: 800,
               cursor: 'pointer',
               fontFamily: "var(--font-ar)",
@@ -120,19 +120,19 @@ export function ChartTradePanel({
           </button>
 
           {/* LOT */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 5, padding: '2px 4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 'var(--radius-sm)', padding: '2px 4px' }}>
             <button
               onClick={() => onSetLotSize(Math.max(0.01, +(lotSize - 0.01).toFixed(2)))}
               aria-label="Decrease lot size"
-              style={{ background: 'none', border: 'none', color: '#888', fontSize: 12, cursor: 'pointer', padding: '0 2px', outline: 'none' }}
+              style={{ background: 'none', border: 'none', color: '#888', fontSize: 'var(--text-sm)', cursor: 'pointer', padding: '0 2px', outline: 'none' }}
             >−</button>
-            <span style={{ color: '#ccc', fontSize: 9, fontWeight: 700, fontFamily: "var(--font-mono)", minWidth: 28, textAlign: 'center' }}>
+            <span style={{ color: '#ccc', fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: "var(--font-mono)", minWidth: 28, textAlign: 'center' }}>
               {lotSize.toFixed(2)}
             </span>
             <button
               onClick={() => onSetLotSize(+(lotSize + 0.01).toFixed(2))}
               aria-label="Increase lot size"
-              style={{ background: 'none', border: 'none', color: '#888', fontSize: 12, cursor: 'pointer', padding: '0 2px', outline: 'none' }}
+              style={{ background: 'none', border: 'none', color: '#888', fontSize: 'var(--text-sm)', cursor: 'pointer', padding: '0 2px', outline: 'none' }}
             >+</button>
           </div>
 
@@ -144,10 +144,10 @@ export function ChartTradePanel({
             style={{
               background: '#F44336',
               border: 'none',
-              borderRadius: 5,
+              borderRadius: 'var(--radius-sm)',
               color: '#fff',
               padding: '4px 9px',
-              fontSize: 10,
+              fontSize: 'var(--text-xs)',
               fontWeight: 800,
               cursor: 'pointer',
               fontFamily: "var(--font-ar)",

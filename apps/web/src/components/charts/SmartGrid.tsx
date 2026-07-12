@@ -340,37 +340,37 @@ function CellToolOverlay({
           borderBottom: `1px solid ${C.cardBorder}`,
           flexShrink: 0,
         }}>
-          <span style={{ fontSize: 8, fontWeight: 800, color: signalColor, fontFamily: "var(--font-mono)" }}>
+          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: signalColor, fontFamily: "var(--font-mono)" }}>
             AI
           </span>
-          <span style={{ fontSize: 7, color: C.textDim, fontFamily: "var(--font-mono)" }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: C.textDim, fontFamily: "var(--font-mono)" }}>
             {cell.symbol} {TIMEFRAME_OPTIONS.find(tf => tf.value === cell.timeframe)?.label}
           </span>
           <div style={{ flex: 1 }} />
           {/* Focus button — opens on main chart */}
           <button onClick={onFocus} style={{
             background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)',
-            borderRadius: 3, color: C.cyan, fontSize: 6.5, fontWeight: 700, cursor: 'pointer', padding: '1px 4px',
+            borderRadius: 'var(--radius-xs)', color: C.cyan, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer', padding: '1px 4px',
           }}>
             Focus
           </button>
           <button onClick={onClose} style={{
             background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer',
-            fontSize: 10, lineHeight: 1, padding: '0 2px',
+            fontSize: 'var(--text-xs)', lineHeight: 1, padding: '0 2px',
           }}>x</button>
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflow: 'auto', padding: '4px 8px', fontSize: 7.5 }}>
+        <div style={{ flex: 1, overflow: 'auto', padding: '4px 8px', fontSize: 'var(--text-xs)' }}>
           {aiLoading && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '8px 0' }}>
               <div style={{ width: 16, height: 16, border: `2px solid ${C.cyan}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-              <span style={{ color: C.textDim, fontSize: 7 }}>جاري التحليل...</span>
+              <span style={{ color: C.textDim, fontSize: 'var(--text-xs)' }}>جاري التحليل...</span>
             </div>
           )}
 
           {aiError && (
-            <div style={{ color: C.danger, fontSize: 7, textAlign: 'center', padding: 4 }}>
+            <div style={{ color: C.danger, fontSize: 'var(--text-xs)', textAlign: 'center', padding: 4 }}>
               {aiError}
             </div>
           )}
@@ -380,7 +380,7 @@ function CellToolOverlay({
               {/* Signal Badge */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                 <span style={{
-                  padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 900,
+                  padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 900,
                   fontFamily: "var(--font-mono)",
                   background: `${signalColor}20`, color: signalColor,
                   border: `1px solid ${signalColor}40`,
@@ -388,7 +388,7 @@ function CellToolOverlay({
                   {aiData.signal}
                 </span>
                 {aiData.confidence != null && (
-                  <span style={{ fontSize: 8, color: C.textDim, fontFamily: "var(--font-mono)" }}>
+                  <span style={{ fontSize: 'var(--text-xs)', color: C.textDim, fontFamily: "var(--font-mono)" }}>
                     {aiData.confidence.toFixed(0)}% conf
                   </span>
                 )}
@@ -398,25 +398,25 @@ function CellToolOverlay({
               {(aiData.entry || aiData.sl || aiData.tp) && (
                 <div style={{ display: 'flex', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
                   {aiData.entry && (
-                    <div style={{ background: 'rgba(0,212,255,0.08)', borderRadius: 3, padding: '2px 5px' }}>
-                      <span style={{ color: C.textMuted, fontSize: 6 }}>Entry </span>
-                      <span style={{ color: C.cyan, fontSize: 8, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
+                    <div style={{ background: 'rgba(0,212,255,0.08)', borderRadius: 'var(--radius-xs)', padding: '2px 5px' }}>
+                      <span style={{ color: C.textMuted, fontSize: 'var(--text-xs)' }}>Entry </span>
+                      <span style={{ color: C.cyan, fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: "var(--font-mono)" }}>
                         {aiData.entry.toFixed(aiData.entry > 100 ? 1 : 5)}
                       </span>
                     </div>
                   )}
                   {aiData.sl && (
-                    <div style={{ background: 'rgba(255,71,87,0.08)', borderRadius: 3, padding: '2px 5px' }}>
-                      <span style={{ color: C.textMuted, fontSize: 6 }}>SL </span>
-                      <span style={{ color: C.danger, fontSize: 8, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
+                    <div style={{ background: 'rgba(255,71,87,0.08)', borderRadius: 'var(--radius-xs)', padding: '2px 5px' }}>
+                      <span style={{ color: C.textMuted, fontSize: 'var(--text-xs)' }}>SL </span>
+                      <span style={{ color: C.danger, fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: "var(--font-mono)" }}>
                         {aiData.sl.toFixed(aiData.sl > 100 ? 1 : 5)}
                       </span>
                     </div>
                   )}
                   {aiData.tp && (
-                    <div style={{ background: 'rgba(0,255,163,0.08)', borderRadius: 3, padding: '2px 5px' }}>
-                      <span style={{ color: C.textMuted, fontSize: 6 }}>TP </span>
-                      <span style={{ color: C.success, fontSize: 8, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
+                    <div style={{ background: 'rgba(0,255,163,0.08)', borderRadius: 'var(--radius-xs)', padding: '2px 5px' }}>
+                      <span style={{ color: C.textMuted, fontSize: 'var(--text-xs)' }}>TP </span>
+                      <span style={{ color: C.success, fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: "var(--font-mono)" }}>
                         {aiData.tp.toFixed(aiData.tp > 100 ? 1 : 5)}
                       </span>
                     </div>
@@ -434,9 +434,9 @@ function CellToolOverlay({
                     aiData.tp || aiData.entry! * (aiData.signal === 'BUY' ? 1.02 : 0.98),
                   )}
                   style={{
-                    width: '100%', padding: '3px 0', borderRadius: 4,
+                    width: '100%', padding: '3px 0', borderRadius: 'var(--radius-sm)',
                     background: `${signalColor}20`, border: `1px solid ${signalColor}40`,
-                    color: signalColor, fontSize: 8, fontWeight: 800, cursor: 'pointer',
+                    color: signalColor, fontSize: 'var(--text-xs)', fontWeight: 800, cursor: 'pointer',
                     fontFamily: "var(--font-ar)", marginBottom: 4,
                   }}
                 >
@@ -446,7 +446,7 @@ function CellToolOverlay({
 
               {/* Reasoning */}
               {aiData.reasoning && (
-                <div style={{ color: C.textDim, fontSize: 7, lineHeight: 1.4, marginBottom: 4, maxHeight: 60, overflow: 'auto' }}>
+                <div style={{ color: C.textDim, fontSize: 'var(--text-xs)', lineHeight: 1.4, marginBottom: 4, maxHeight: 60, overflow: 'auto' }}>
                   {aiData.reasoning}
                 </div>
               )}
@@ -454,14 +454,14 @@ function CellToolOverlay({
               {/* Engine breakdown */}
               {aiData.engines && aiData.engines.length > 0 && (
                 <div style={{ borderTop: `1px solid ${C.cardBorder}`, paddingTop: 3, marginTop: 2 }}>
-                  <span style={{ color: C.textMuted, fontSize: 6, fontWeight: 700 }}>ENGINES</span>
+                  <span style={{ color: C.textMuted, fontSize: 'var(--text-xs)', fontWeight: 700 }}>ENGINES</span>
                   {aiData.engines.map((eng, i) => {
                     const engColor = eng.signal === 'BUY' ? C.upColor : eng.signal === 'SELL' ? C.downColor : C.warning;
                     return (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '1px 0' }}>
-                        <span style={{ fontSize: 6.5, color: C.textDim, flex: 1 }}>{eng.name}</span>
-                        <span style={{ fontSize: 6.5, color: engColor, fontWeight: 700 }}>{eng.signal}</span>
-                        <span style={{ fontSize: 6, color: C.textMuted }}>{eng.confidence?.toFixed(0)}%</span>
+                        <span style={{ fontSize: 'var(--text-xs)', color: C.textDim, flex: 1 }}>{eng.name}</span>
+                        <span style={{ fontSize: 'var(--text-xs)', color: engColor, fontWeight: 700 }}>{eng.signal}</span>
+                        <span style={{ fontSize: 'var(--text-xs)', color: C.textMuted }}>{eng.confidence?.toFixed(0)}%</span>
                       </div>
                     );
                   })}
@@ -496,15 +496,15 @@ function CellToolOverlay({
           background: `linear-gradient(90deg, ${C.gold}15, transparent)`,
           borderBottom: `1px solid ${C.cardBorder}`,
         }}>
-          <span style={{ fontSize: 8, fontWeight: 800, color: C.gold }}>Trade</span>
-          <span style={{ fontSize: 7, color: C.textDim, fontFamily: "var(--font-mono)" }}>{cell.symbol}</span>
+          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: C.gold }}>Trade</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: C.textDim, fontFamily: "var(--font-mono)" }}>{cell.symbol}</span>
           <div style={{ flex: 1 }} />
           <button onClick={onFocus} style={{
             background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)',
-            borderRadius: 3, color: C.cyan, fontSize: 6.5, fontWeight: 700, cursor: 'pointer', padding: '1px 4px',
+            borderRadius: 'var(--radius-xs)', color: C.cyan, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer', padding: '1px 4px',
           }}>Focus</button>
           <button onClick={onClose} style={{
-            background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 10, padding: '0 2px',
+            background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 'var(--text-xs)', padding: '0 2px',
           }}>x</button>
         </div>
         <div style={{ padding: '6px 8px', display: 'flex', gap: 6 }}>
@@ -514,9 +514,9 @@ function CellToolOverlay({
               onClose();
             }
           }} style={{
-            flex: 1, padding: '6px 0', borderRadius: 5,
+            flex: 1, padding: '6px 0', borderRadius: 'var(--radius-sm)',
             background: `${C.upColor}20`, border: `1px solid ${C.upColor}40`,
-            color: C.upColor, fontSize: 9, fontWeight: 800, cursor: 'pointer',
+            color: C.upColor, fontSize: 'var(--text-xs)', fontWeight: 800, cursor: 'pointer',
             fontFamily: "var(--font-ar)",
           }}>
             شراء / Long
@@ -527,9 +527,9 @@ function CellToolOverlay({
               onClose();
             }
           }} style={{
-            flex: 1, padding: '6px 0', borderRadius: 5,
+            flex: 1, padding: '6px 0', borderRadius: 'var(--radius-sm)',
             background: `${C.downColor}20`, border: `1px solid ${C.downColor}40`,
-            color: C.downColor, fontSize: 9, fontWeight: 800, cursor: 'pointer',
+            color: C.downColor, fontSize: 'var(--text-xs)', fontWeight: 800, cursor: 'pointer',
             fontFamily: "var(--font-ar)",
           }}>
             بيع / Short
@@ -537,8 +537,8 @@ function CellToolOverlay({
         </div>
         {currentPrice && (
           <div style={{ padding: '0 8px 6px', textAlign: 'center' }}>
-            <span style={{ color: C.textDim, fontSize: 7 }}>السعر الحالي: </span>
-            <span style={{ color: C.text, fontSize: 8, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
+            <span style={{ color: C.textDim, fontSize: 'var(--text-xs)' }}>السعر الحالي: </span>
+            <span style={{ color: C.text, fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: "var(--font-mono)" }}>
               {currentPrice.toFixed(currentPrice > 100 ? 1 : 5)}
             </span>
           </div>
@@ -578,33 +578,33 @@ function CellToolOverlay({
           background: `linear-gradient(90deg, ${C.cyan}15, transparent)`,
           borderBottom: `1px solid ${C.cardBorder}`,
         }}>
-          <span style={{ fontSize: 8, fontWeight: 800, color: C.cyan }}>Draw</span>
-          <span style={{ fontSize: 7, color: C.textDim, fontFamily: "var(--font-mono)" }}>{cell.symbol}</span>
+          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: C.cyan }}>Draw</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: C.textDim, fontFamily: "var(--font-mono)" }}>{cell.symbol}</span>
           <div style={{ flex: 1 }} />
           <button onClick={onFocus} style={{
             background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)',
-            borderRadius: 3, color: C.cyan, fontSize: 6.5, fontWeight: 700, cursor: 'pointer', padding: '1px 4px',
+            borderRadius: 'var(--radius-xs)', color: C.cyan, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer', padding: '1px 4px',
           }}>Focus</button>
           <button onClick={onClose} style={{
-            background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 10, padding: '0 2px',
+            background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 'var(--text-xs)', padding: '0 2px',
           }}>x</button>
         </div>
-        <div style={{ padding: '4px 6px', fontSize: 7, color: C.textMuted, textAlign: 'center', fontFamily: "var(--font-ar)", borderBottom: `1px solid ${C.cardBorder}` }}>
+        <div style={{ padding: '4px 6px', fontSize: 'var(--text-xs)', color: C.textMuted, textAlign: 'center', fontFamily: "var(--font-ar)", borderBottom: `1px solid ${C.cardBorder}` }}>
           اختر أداة ثم اضغط Focus للرسم على الشارت الرئيسي
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 3, padding: 4 }}>
           {DRAW_TOOLS.map(tool => (
             <button key={tool.key} onClick={onFocus} style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
-              padding: '4px 2px', borderRadius: 4, cursor: 'pointer',
+              padding: '4px 2px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
               background: 'rgba(255,255,255,0.03)', border: `1px solid ${C.cardBorder}`,
-              color: C.text, fontSize: 7, fontWeight: 600,
+              color: C.text, fontSize: 'var(--text-xs)', fontWeight: 600,
               fontFamily: "var(--font-ar)",
             }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(0,212,255,0.1)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(0,212,255,0.3)'; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.03)'; (e.currentTarget as HTMLElement).style.borderColor = C.cardBorder; }}
             >
-              <span style={{ fontSize: 12 }}>{tool.icon}</span>
+              <span style={{ fontSize: 'var(--text-sm)' }}>{tool.icon}</span>
               <span>{tool.label}</span>
             </button>
           ))}
@@ -640,18 +640,18 @@ function CellToolOverlay({
           borderBottom: `1px solid ${C.cardBorder}`,
           flexShrink: 0,
         }}>
-          <span style={{ fontSize: 8, fontWeight: 800, color: C.cyan, fontFamily: "var(--font-mono)" }}>Ind</span>
-          <span style={{ fontSize: 7, color: C.textDim, fontFamily: "var(--font-mono)" }}>
+          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: C.cyan, fontFamily: "var(--font-mono)" }}>Ind</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: C.textDim, fontFamily: "var(--font-mono)" }}>
             {cell.symbol} {TIMEFRAME_OPTIONS.find(tf => tf.value === cell.timeframe)?.label}
           </span>
           <div style={{ flex: 1 }} />
           <button onClick={onFocus} style={{
             background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)',
-            borderRadius: 3, color: C.cyan, fontSize: 6.5, fontWeight: 700, cursor: 'pointer', padding: '1px 4px',
+            borderRadius: 'var(--radius-xs)', color: C.cyan, fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer', padding: '1px 4px',
           }}>Focus</button>
           <button onClick={onClose} style={{
             background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer',
-            fontSize: 10, lineHeight: 1, padding: '0 2px',
+            fontSize: 'var(--text-xs)', lineHeight: 1, padding: '0 2px',
           }}>x</button>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '4px 4px', maxHeight: 180 }}>
@@ -660,7 +660,7 @@ function CellToolOverlay({
             return (
               <div key={config.key} style={{
                 display: 'flex', alignItems: 'center', gap: 4, padding: '3px 6px', cursor: 'pointer',
-                borderRadius: 3, transition: 'background 0.15s',
+                borderRadius: 'var(--radius-xs)', transition: 'background 0.15s',
                 background: isOn ? 'rgba(0,212,255,0.1)' : 'transparent',
               }}
               onClick={() => onToggleIndicator?.(cellId, config.key, !isOn)}
@@ -668,22 +668,22 @@ function CellToolOverlay({
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isOn ? 'rgba(0,212,255,0.1)' : 'transparent'; }}
               >
                 <div style={{
-                  width: 10, height: 10, borderRadius: 2, border: `1.5px solid ${isOn ? C.cyan : C.cardBorder}`,
+                  width: 10, height: 10, borderRadius: 'var(--radius-xs)', border: `1.5px solid ${isOn ? C.cyan : C.cardBorder}`,
                   background: isOn ? C.cyan : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   flexShrink: 0,
                 }}>
-                  {isOn && <span style={{ color: C.bg, fontSize: 7, fontWeight: 900, lineHeight: 1 }}>✓</span>}
+                  {isOn && <span style={{ color: C.bg, fontSize: 'var(--text-xs)', fontWeight: 900, lineHeight: 1 }}>✓</span>}
                 </div>
-                <span style={{ fontSize: 8, fontWeight: 700, color: isOn ? C.cyan : C.text, fontFamily: "var(--font-mono)", flex: 1 }}>
+                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: isOn ? C.cyan : C.text, fontFamily: "var(--font-mono)", flex: 1 }}>
                   {config.labelEn}
                 </span>
-                <div style={{ width: 8, height: 3, borderRadius: 2, background: config.defaultColor, flexShrink: 0 }} />
+                <div style={{ width: 8, height: 3, borderRadius: 'var(--radius-xs)', background: config.defaultColor, flexShrink: 0 }} />
               </div>
             );
           })}
           {oscillatorIndicators.length > 0 && (
             <>
-              <div style={{ padding: '4px 6px 2px', fontSize: 7, fontWeight: 700, color: C.textMuted, fontFamily: "var(--font-mono)", borderTop: `1px solid ${C.cardBorder}` }}>
+              <div style={{ padding: '4px 6px 2px', fontSize: 'var(--text-xs)', fontWeight: 700, color: C.textMuted, fontFamily: "var(--font-mono)", borderTop: `1px solid ${C.cardBorder}` }}>
                 OSCILLATOR
               </div>
               {oscillatorIndicators.map(config => {
@@ -691,7 +691,7 @@ function CellToolOverlay({
                 return (
                   <div key={config.key} style={{
                     display: 'flex', alignItems: 'center', gap: 4, padding: '3px 6px', cursor: 'pointer',
-                    borderRadius: 3, transition: 'background 0.15s',
+                    borderRadius: 'var(--radius-xs)', transition: 'background 0.15s',
                     background: isOn ? 'rgba(0,212,255,0.1)' : 'transparent',
                   }}
                   onClick={() => onToggleIndicator?.(cellId, config.key, !isOn)}
@@ -699,16 +699,16 @@ function CellToolOverlay({
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isOn ? 'rgba(0,212,255,0.1)' : 'transparent'; }}
                   >
                     <div style={{
-                      width: 10, height: 10, borderRadius: 2, border: `1.5px solid ${isOn ? C.cyan : C.cardBorder}`,
+                      width: 10, height: 10, borderRadius: 'var(--radius-xs)', border: `1.5px solid ${isOn ? C.cyan : C.cardBorder}`,
                       background: isOn ? C.cyan : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',
                       flexShrink: 0,
                     }}>
-                      {isOn && <span style={{ color: C.bg, fontSize: 7, fontWeight: 900, lineHeight: 1 }}>✓</span>}
+                      {isOn && <span style={{ color: C.bg, fontSize: 'var(--text-xs)', fontWeight: 900, lineHeight: 1 }}>✓</span>}
                     </div>
-                    <span style={{ fontSize: 8, fontWeight: 700, color: isOn ? C.cyan : C.text, fontFamily: "var(--font-mono)", flex: 1 }}>
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: isOn ? C.cyan : C.text, fontFamily: "var(--font-mono)", flex: 1 }}>
                       {config.labelEn}
                     </span>
-                    <div style={{ width: 8, height: 3, borderRadius: 2, background: config.defaultColor, flexShrink: 0 }} />
+                    <div style={{ width: 8, height: 3, borderRadius: 'var(--radius-xs)', background: config.defaultColor, flexShrink: 0 }} />
                   </div>
                 );
               })}
@@ -1137,7 +1137,7 @@ export function SmartGrid({
 
       const chart = createChart(container, {
         width: w, height: h,
-        layout: { background: { color: C.bg }, textColor: C.textDim, fontSize: 9, fontFamily: "var(--font-mono)", attributionLogo: false },
+        layout: { background: { color: C.bg }, textColor: C.textDim, fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)", attributionLogo: false },
         grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } },
         rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.1, bottom: 0.2 } },
         timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false, rightOffset: 3, barSpacing: 6, minBarSpacing: 2 },
@@ -1965,7 +1965,7 @@ export function SmartGrid({
 
   const tbBtn: React.CSSProperties = {
     background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: 5, color: C.textDim, padding: '4px 8px', fontSize: 9, fontWeight: 700,
+    borderRadius: 'var(--radius-sm)', color: C.textDim, padding: '4px 8px', fontSize: 'var(--text-xs)', fontWeight: 700,
     cursor: 'pointer', fontFamily: "var(--font-ar)",
     display: 'flex', alignItems: 'center', gap: 3, transition: 'all 0.15s', whiteSpace: 'nowrap' as const,
   };
@@ -2003,14 +2003,14 @@ export function SmartGrid({
       }}>
         {/* Title */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginRight: 4 }}>
-          <div style={{ width: 22, height: 22, borderRadius: 5, background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 22, height: 22, borderRadius: 'var(--radius-sm)', background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.cyan} strokeWidth="2">
               <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
             </svg>
           </div>
-          <span style={{ color: C.text, fontSize: 11, fontWeight: 700, fontFamily: "var(--font-ar)" }}>Smart Grid</span>
+          <span style={{ color: C.text, fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: "var(--font-ar)" }}>Smart Grid</span>
           {activeCell && (
-            <span style={{ color: C.cyan, fontFamily: "var(--font-mono)", fontSize: 9.5, fontWeight: 600 }}>
+            <span style={{ color: C.cyan, fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 600 }}>
               {activeCell.symbol} · {TIMEFRAME_OPTIONS.find(tf => tf.value === activeCell.timeframe)?.label}
             </span>
           )}
@@ -2069,7 +2069,7 @@ export function SmartGrid({
 
         {/* Trades count */}
         {activeTrades.length > 0 && (
-          <span style={{ padding: '0px 5px', borderRadius: 3, fontSize: 8, fontWeight: 700, fontFamily: "var(--font-mono)", background: 'rgba(0,255,163,0.1)', color: C.success, border: '1px solid rgba(0,255,163,0.2)' }}>
+          <span style={{ padding: '0px 5px', borderRadius: 'var(--radius-xs)', fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: "var(--font-mono)", background: 'rgba(0,255,163,0.1)', color: C.success, border: '1px solid rgba(0,255,163,0.2)' }}>
             {activeTrades.length} trades
           </span>
         )}
@@ -2094,10 +2094,10 @@ export function SmartGrid({
             {activeConfig.icon} {activeConfig.label}
           </button>
           {showGridSelector && (
-            <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 10, background: C.card, border: `1px solid ${C.cardBorder}`, borderRadius: 8, padding: 6, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 3, boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
+            <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 10, background: C.card, border: `1px solid ${C.cardBorder}`, borderRadius: 'var(--radius-md)', padding: 6, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 3, boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
               {GRID_CONFIGS.map(cfg => (
                 <button key={cfg.label} onClick={() => handleConfigChange(cfg)}
-                  style={{ background: activeConfig.label === cfg.label ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${activeConfig.label === cfg.label ? 'rgba(0,212,255,0.3)' : C.cardBorder}`, borderRadius: 4, color: activeConfig.label === cfg.label ? C.cyan : C.textDim, padding: '3px 5px', fontSize: 8, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>
+                  style={{ background: activeConfig.label === cfg.label ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${activeConfig.label === cfg.label ? 'rgba(0,212,255,0.3)' : C.cardBorder}`, borderRadius: 'var(--radius-sm)', color: activeConfig.label === cfg.label ? C.cyan : C.textDim, padding: '3px 5px', fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>
                   {cfg.icon} {cfg.label}
                 </button>
               ))}
@@ -2136,7 +2136,7 @@ export function SmartGrid({
               onContextMenu={(e) => { e.preventDefault(); handleOpenTool(cell, 'ai'); }}
               style={{
                 background: C.card, display: 'flex', flexDirection: 'column', overflow: 'hidden',
-                borderRadius: 6, border: isActive ? '1px solid rgba(0,212,255,0.4)' : `1px solid ${C.cardBorder}`,
+                borderRadius: 'var(--radius-sm)', border: isActive ? '1px solid rgba(0,212,255,0.4)' : `1px solid ${C.cardBorder}`,
                 boxShadow: isActive ? '0 0 12px rgba(0,212,255,0.1)' : 'none',
                 cursor: 'pointer', transition: 'border-color 0.2s, box-shadow 0.2s', minHeight: 0,
               }}
@@ -2144,14 +2144,14 @@ export function SmartGrid({
               {/* Cell Header */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '2px 5px', borderBottom: `1px solid ${C.cardBorder}`, background: isActive ? 'rgba(0,212,255,0.03)' : 'transparent', flexShrink: 0 }}>
                 <select value={cell.symbol} onClick={e => e.stopPropagation()} onChange={e => handleChangeSymbol(cell.id, e.target.value)}
-                  style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)', borderRadius: 3, color: C.cyan, fontFamily: "var(--font-mono)", fontSize: 8.5, fontWeight: 700, padding: '1px 3px', cursor: 'pointer', outline: 'none', maxWidth: 70 }}>
+                  style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)', borderRadius: 'var(--radius-xs)', color: C.cyan, fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700, padding: '1px 3px', cursor: 'pointer', outline: 'none', maxWidth: 70 }}>
                   {POPULAR_PAIRS.map(p => <option key={p} value={p} style={{ background: C.card, color: C.text }}>{p}</option>)}
                 </select>
 
                 <div style={{ display: 'flex', gap: 1 }}>
                   {TIMEFRAME_OPTIONS.slice(0, 6).map(tf => (
                     <button key={tf.value} onClick={e => { e.stopPropagation(); handleChangeTimeframe(cell.id, tf.value); }}
-                      style={{ padding: '1px 2px', borderRadius: 2, fontSize: 6.5, fontWeight: 700, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', border: 'none', background: cell.timeframe === tf.value ? 'rgba(0,212,255,0.15)' : 'transparent', color: cell.timeframe === tf.value ? C.cyan : C.textMuted }}>
+                      style={{ padding: '1px 2px', borderRadius: 'var(--radius-xs)', fontSize: 'var(--text-xs)', fontWeight: 700, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', border: 'none', background: cell.timeframe === tf.value ? 'rgba(0,212,255,0.15)' : 'transparent', color: cell.timeframe === tf.value ? C.cyan : C.textMuted }}>
                       {tf.label}
                     </button>
                   ))}
@@ -2164,7 +2164,7 @@ export function SmartGrid({
                 {/* Data source badge */}
                 {state?.dataSource && state.dataSource !== 'loading' && (
                   <span style={{
-                    padding: '0px 3px', borderRadius: 2, fontSize: 6, fontWeight: 700,
+                    padding: '0px 3px', borderRadius: 'var(--radius-xs)', fontSize: 'var(--text-xs)', fontWeight: 700,
                     fontFamily: "var(--font-mono)",
                     background: `${sourceInfo.color}15`,
                     color: sourceInfo.color,
@@ -2176,7 +2176,7 @@ export function SmartGrid({
 
                 {/* Trade count badge */}
                 {tradesForCell.length > 0 && (
-                  <span style={{ padding: '0px 3px', borderRadius: 2, fontSize: 6.5, fontWeight: 700, fontFamily: "var(--font-mono)", background: 'rgba(0,255,163,0.12)', color: C.success, border: '1px solid rgba(0,255,163,0.2)' }}>
+                  <span style={{ padding: '0px 3px', borderRadius: 'var(--radius-xs)', fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: "var(--font-mono)", background: 'rgba(0,255,163,0.12)', color: C.success, border: '1px solid rgba(0,255,163,0.2)' }}>
                     {tradesForCell.length} trade{tradesForCell.length > 1 ? 's' : ''}
                   </span>
                 )}
@@ -2184,14 +2184,14 @@ export function SmartGrid({
 
 
                 <select value={cell.chartType} onClick={e => e.stopPropagation()} onChange={e => handleChangeChartType(cell.id, e.target.value as any)}
-                  style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.cardBorder}`, borderRadius: 3, color: C.textDim, fontSize: 7.5, padding: '0px 2px', cursor: 'pointer', outline: 'none' }}>
+                  style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.cardBorder}`, borderRadius: 'var(--radius-xs)', color: C.textDim, fontSize: 'var(--text-xs)', padding: '0px 2px', cursor: 'pointer', outline: 'none' }}>
                   <option value="candle" style={{ background: C.card }}>Candle</option>
                   <option value="line" style={{ background: C.card }}>Line</option>
                   <option value="area" style={{ background: C.card }}>Area</option>
                 </select>
 
                 <button onClick={e => { e.stopPropagation(); setFullscreenCellId(prev => prev === cell.id ? null : cell.id); }}
-                  style={{ background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 9, padding: 0, outline: 'none' }}>
+                  style={{ background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 'var(--text-xs)', padding: 0, outline: 'none' }}>
                   {fullscreenCellId === cell.id ? 'v' : '^'}
                 </button>
               </div>
@@ -2200,10 +2200,10 @@ export function SmartGrid({
               <div ref={setContainerRef(cell.id)} style={{ flex: 1, minHeight: 0, overflow: cellToolOpen.has(cell.id) ? 'visible' : 'hidden', position: 'relative' }}>
                 {/* Price overlay — positioned at top-right under chart type button */}
                 {state?.currentPrice != null && state.currentPrice > 0 && (
-                  <div style={{ position: 'absolute', top: 2, right: 4, zIndex: 10, display: 'flex', alignItems: 'center', gap: 2, background: 'rgba(11,14,20,0.75)', borderRadius: 3, padding: '1px 4px', backdropFilter: 'blur(4px)' }}>
-                    <span style={{ color: C.text, fontFamily: "var(--font-mono)", fontSize: 8, fontWeight: 600 }}>{formatPrice(state.currentPrice)}</span>
+                  <div style={{ position: 'absolute', top: 2, right: 4, zIndex: 10, display: 'flex', alignItems: 'center', gap: 2, background: 'rgba(11,14,20,0.75)', borderRadius: 'var(--radius-xs)', padding: '1px 4px', backdropFilter: 'blur(4px)' }}>
+                    <span style={{ color: C.text, fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 600 }}>{formatPrice(state.currentPrice)}</span>
                     {state?.changePercent != null && (
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 6.5, fontWeight: 700, color: isPositive ? C.upColor : C.downColor }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)', fontWeight: 700, color: isPositive ? C.upColor : C.downColor }}>
                         {isPositive ? '+' : ''}{state.changePercent.toFixed(2)}%
                       </span>
                     )}
@@ -2219,14 +2219,14 @@ export function SmartGrid({
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={C.danger} strokeWidth="1.5" style={{ opacity: 0.6 }}>
                       <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
                     </svg>
-                    <span style={{ color: C.danger, fontSize: 9, fontWeight: 700, fontFamily: "var(--font-ar)", textAlign: 'center', lineHeight: 1.4 }}>
+                    <span style={{ color: C.danger, fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: "var(--font-ar)", textAlign: 'center', lineHeight: 1.4 }}>
                       {state?.error || 'لا توجد بيانات'}
                     </span>
                     <button
                       onClick={e => { e.stopPropagation(); handleRetry(cell); }}
                       style={{
                         background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.3)',
-                        borderRadius: 4, color: C.cyan, padding: '4px 12px', fontSize: 8, fontWeight: 700,
+                        borderRadius: 'var(--radius-sm)', color: C.cyan, padding: '4px 12px', fontSize: 'var(--text-xs)', fontWeight: 700,
                         cursor: 'pointer', fontFamily: "var(--font-ar)",
                       }}
                     >
@@ -2275,7 +2275,7 @@ export function SmartGrid({
                     const isLong = trade.side === 'long' || trade.side === 'BUY';
                     const srcIcon = trade.source === 'bot' ? ' B' : trade.source === 'agent' ? ' A' : trade.source === 'exchange' ? ' E' : ' P';
                     return (
-                      <span key={i} style={{ fontSize: 6.5, fontFamily: "var(--font-mono)", color: isLong ? C.upColor : C.downColor, fontWeight: 700 }}>
+                      <span key={i} style={{ fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)", color: isLong ? C.upColor : C.downColor, fontWeight: 700 }}>
                         {isLong ? '^' : 'v'} {trade.entry.toFixed(trade.entry > 100 ? 1 : 4)}{srcIcon}
                         {trade.sl && <span style={{ color: C.danger }}> SL:{trade.sl.toFixed(trade.sl > 100 ? 1 : 4)}</span>}
                         {trade.tp && <span style={{ color: C.success }}> TP:{trade.tp.toFixed(trade.tp > 100 ? 1 : 4)}</span>}

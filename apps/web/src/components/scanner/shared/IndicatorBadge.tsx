@@ -27,14 +27,14 @@ export function IndicatorBadge({ label, value, status = 'neutral' }: IndicatorBa
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 4,
-      padding: '2px 8px', borderRadius: 4,
+      padding: '2px 8px', borderRadius: 'var(--radius-sm)',
       background: s.bg, color: s.color,
       border: `0.5px solid ${s.border}`,
-      fontSize: 9, fontWeight: 700,
+      fontSize: 'var(--text-xs)', fontWeight: 700,
       fontFamily: "var(--font-mono)",
       lineHeight: '16px', whiteSpace: 'nowrap',
     }}>
-      <span style={{ color: T.text2, fontWeight: 600, fontFamily: "var(--font-ar)", fontSize: 8 }}>
+      <span style={{ color: T.text2, fontWeight: 600, fontFamily: "var(--font-ar)", fontSize: 'var(--text-xs)' }}>
         {label}
       </span>
       {displayValue}

@@ -49,21 +49,21 @@ export function ScannerTable() {
       {ctx.loading && ctx.filteredData.length === 0 ? (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          height: 300, color: T.text3, fontFamily: "var(--font-ar)", fontSize: 13,
+          height: 300, color: T.text3, fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)',
         }}>
           {t('table.loading')}
         </div>
       ) : ctx.filteredData.length === 0 ? (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          height: 300, color: T.text3, fontFamily: "var(--font-ar)", fontSize: 13,
+          height: 300, color: T.text3, fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)',
         }}>
           {t('table.noData')}
         </div>
       ) : (
         <table style={{
           width: '100%', borderCollapse: 'collapse',
-          fontSize: 11, fontFamily: "var(--font-ar)",
+          fontSize: 'var(--text-xs)', fontFamily: "var(--font-ar)",
         }}>
           {/* Header */}
           <thead>
@@ -76,7 +76,7 @@ export function ScannerTable() {
                     key={col.labelKey}
                     onClick={col.key ? () => { ctx.toggleSort(col.key!) } : undefined}
                     style={{
-                      padding: '10px 8px', fontSize: 9, fontWeight: 800,
+                      padding: '10px 8px', fontSize: 'var(--text-xs)', fontWeight: 800,
                       color: col.key === ctx.sortKey ? T.cyan : T.text3,
                       fontFamily: "var(--font-ar)",
                       borderBottom: `1px solid ${T.border}`,

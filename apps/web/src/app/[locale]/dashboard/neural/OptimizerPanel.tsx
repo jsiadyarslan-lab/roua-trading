@@ -252,13 +252,13 @@ export default function OptimizerPanel() {
                   { name: t('sharpeRatio'), [t('optimizerBest')]: result.performance.sharpeRatio, [t('optimizerPrevious')]: result.previousBest.sharpeRatio },
                 ]}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                  <XAxis dataKey="name" stroke={T.text3} tick={{ fontSize: 11 }} />
-                  <YAxis stroke={T.text3} tick={{ fontSize: 10 }} />
+                  <XAxis dataKey="name" stroke={T.text3} tick={{ fontSize: 'var(--text-xs)' }} />
+                  <YAxis stroke={T.text3} tick={{ fontSize: 'var(--text-xs)' }} />
                   <Tooltip
-                    contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 8, fontSize: 12 }}
+                    contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)' }}
                     labelStyle={{ color: '#9ca3af' }}
                   />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 'var(--text-sm)' }} />
                   <Bar dataKey={t('optimizerBest')} fill={T.profit} radius={[4, 4, 0, 0]} />
                   <Bar dataKey={t('optimizerPrevious')} fill={T.text3} radius={[4, 4, 0, 0]} />
                 </BarChart>

@@ -458,7 +458,7 @@ export default function PositionsPage() {
         {/* المراكز */}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderInlineEnd: '1px solid var(--border)' }}>
           <div style={{
-            width: 28, height: 28, borderRadius: 8,
+            width: 28, height: 28, borderRadius: 'var(--radius-md)',
             background: 'linear-gradient(135deg, #00FFC6, #00B894)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0,
@@ -466,15 +466,15 @@ export default function PositionsPage() {
             <BarChart3 size={13} stroke="#fff" strokeWidth={2} />
           </div>
           <div>
-            <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-faint)', fontFamily: 'var(--font-ar)', marginBottom: 1 }}>المراكز</div>
-            <div style={{ fontSize: 16, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>{summary?.totalPositions ?? positions.length}</div>
+            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-faint)', fontFamily: 'var(--font-ar)', marginBottom: 1 }}>المراكز</div>
+            <div style={{ fontSize: 'var(--text-md)', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>{summary?.totalPositions ?? positions.length}</div>
           </div>
         </div>
 
         {/* القيمة الإجمالية */}
         <div style={{ flex: 1.5, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderInlineEnd: '1px solid var(--border)' }}>
           <div style={{
-            width: 28, height: 28, borderRadius: 8,
+            width: 28, height: 28, borderRadius: 'var(--radius-md)',
             background: 'linear-gradient(135deg, #FFB800, #FF8C00)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0,
@@ -482,15 +482,15 @@ export default function PositionsPage() {
             <Briefcase size={13} stroke="#fff" strokeWidth={2} />
           </div>
           <div>
-            <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-faint)', fontFamily: 'var(--font-ar)', marginBottom: 1 }}>القيمة الإجمالية</div>
-            <div dir="ltr" style={{ fontSize: 16, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>{formatCurrency(summary?.totalValue ?? 0)}</div>
+            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-faint)', fontFamily: 'var(--font-ar)', marginBottom: 1 }}>القيمة الإجمالية</div>
+            <div dir="ltr" style={{ fontSize: 'var(--text-md)', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>{formatCurrency(summary?.totalValue ?? 0)}</div>
           </div>
         </div>
 
         {/* أ.خ غير محققة */}
         <div style={{ flex: 1.5, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderInlineEnd: '1px solid var(--border)' }}>
           <div style={{
-            width: 28, height: 28, borderRadius: 8,
+            width: 28, height: 28, borderRadius: 'var(--radius-md)',
             background: (summary?.unrealizedPnl ?? totalUnrealizedPnl) >= 0
               ? 'linear-gradient(135deg, #00FFC6, #0A84FF)'
               : 'linear-gradient(135deg, #FF4D4D, #FF6B6B)',
@@ -500,9 +500,9 @@ export default function PositionsPage() {
             <Activity size={13} stroke="#fff" strokeWidth={2} />
           </div>
           <div>
-            <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-faint)', fontFamily: 'var(--font-ar)', marginBottom: 1 }}>أ.خ غير محققة</div>
+            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-faint)', fontFamily: 'var(--font-ar)', marginBottom: 1 }}>أ.خ غير محققة</div>
             <div dir="ltr" style={{
-              fontSize: 16, fontWeight: 800, fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--text-md)', fontWeight: 800, fontFamily: 'var(--font-mono)',
               color: (summary?.unrealizedPnl ?? totalUnrealizedPnl) > 0 ? 'var(--profit)' : (summary?.unrealizedPnl ?? totalUnrealizedPnl) < 0 ? 'var(--loss)' : 'var(--text-secondary)',
               letterSpacing: '-0.02em',
             }}>
@@ -514,7 +514,7 @@ export default function PositionsPage() {
         {/* الأرباح المحققة */}
         <div style={{ flex: 1.5, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px' }}>
           <div style={{
-            width: 28, height: 28, borderRadius: 8,
+            width: 28, height: 28, borderRadius: 'var(--radius-md)',
             background: (summary?.realizedPnl ?? 0) >= 0
               ? 'linear-gradient(135deg, #A259FF, #7C3AED)'
               : 'linear-gradient(135deg, #FF4D4D, #FF6B6B)',
@@ -524,9 +524,9 @@ export default function PositionsPage() {
             <Target size={13} stroke="#fff" strokeWidth={2} />
           </div>
           <div>
-            <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-faint)', fontFamily: 'var(--font-ar)', marginBottom: 1 }}>الأرباح المحققة</div>
+            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-faint)', fontFamily: 'var(--font-ar)', marginBottom: 1 }}>الأرباح المحققة</div>
             <div dir="ltr" style={{
-              fontSize: 16, fontWeight: 800, fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--text-md)', fontWeight: 800, fontFamily: 'var(--font-mono)',
               color: (summary?.realizedPnl ?? 0) > 0 ? 'var(--profit)' : (summary?.realizedPnl ?? 0) < 0 ? 'var(--loss)' : 'var(--text-secondary)',
               letterSpacing: '-0.02em',
             }}>
@@ -600,29 +600,29 @@ export default function PositionsPage() {
                   <div key={pos.id} style={{
                     background: 'rgba(255,255,255,0.02)',
                     border: '1px solid var(--border)',
-                    borderRadius: 10, padding: '10px 12px',
+                    borderRadius: 'var(--radius-lg)', padding: '10px 12px',
                     display: 'flex', flexDirection: 'column', gap: 8,
                   }}>
                     {/* Header row: Symbol + Side + P&L */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <div style={{
-                          width: 24, height: 24, borderRadius: 6,
+                          width: 24, height: 24, borderRadius: 'var(--radius-sm)',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           background: pos.side === 'BUY' ? 'linear-gradient(135deg, #00FFC6, #00B894)' : 'linear-gradient(135deg, #FF4D4D, #FF6B6B)',
                         }}>
                           {pos.side === 'BUY' ? <TrendingUp size={10} stroke="#fff" strokeWidth={2} /> : <TrendingDown size={10} stroke="#fff" strokeWidth={2} />}
                         </div>
-                        <span dir="ltr" style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>{pos.symbol}</span>
-                        <span style={{ fontSize: 8, fontWeight: 600, background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', padding: '1px 5px', borderRadius: '4px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{pos.exchange}</span>
-                        {(() => { const badge = getSourceBadge(pos.source, pos.tradeSource); return badge ? <span style={{ fontSize: 8, fontWeight: 700, background: badge.bg, border: `1px solid ${badge.border}`, padding: '1px 5px', borderRadius: '4px', color: badge.color, fontFamily: 'var(--font-ar)' }}>{badge.icon} {badge.label}</span> : null })()}
+                        <span dir="ltr" style={{ fontSize: 'var(--text-sm)', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>{pos.symbol}</span>
+                        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', padding: '1px 5px', borderRadius: '4px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{pos.exchange}</span>
+                        {(() => { const badge = getSourceBadge(pos.source, pos.tradeSource); return badge ? <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, background: badge.bg, border: `1px solid ${badge.border}`, padding: '1px 5px', borderRadius: '4px', color: badge.color, fontFamily: 'var(--font-ar)' }}>{badge.icon} {badge.label}</span> : null })()}
                       </div>
-                      <span dir="ltr" style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: (pos.unrealizedPnl || 0) > 0 ? 'var(--profit)' : (pos.unrealizedPnl || 0) < 0 ? 'var(--loss)' : 'var(--text-secondary)' }}>
+                      <span dir="ltr" style={{ fontSize: 'var(--text-sm)', fontWeight: 700, fontFamily: 'var(--font-mono)', color: (pos.unrealizedPnl || 0) > 0 ? 'var(--profit)' : (pos.unrealizedPnl || 0) < 0 ? 'var(--loss)' : 'var(--text-secondary)' }}>
                         {(pos.unrealizedPnl || 0) > 0 ? '+' : ''}{formatCurrency(pos.unrealizedPnl || 0)}
                       </span>
                     </div>
                     {/* Details grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', fontSize: 10 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', fontSize: 'var(--text-xs)' }}>
                       <div><span style={{ color: 'var(--text-faint)' }}>الاتجاه: </span><span style={{ fontWeight: 800, color: pos.side === 'BUY' ? 'var(--profit)' : 'var(--loss)' }}>{pos.side === 'BUY' ? 'شراء' : 'بيع'}</span></div>
                       <div><span style={{ color: 'var(--text-faint)' }}>الكمية: </span><span dir="ltr" style={{ fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>{pos.quantity}</span></div>
                       <div><span style={{ color: 'var(--text-faint)' }}>دخول: </span><span dir="ltr" style={{ fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{formatPrice(pos.entryPrice)}</span></div>
@@ -632,10 +632,10 @@ export default function PositionsPage() {
                     </div>
                     {/* Action buttons */}
                     <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                      <button onClick={() => openEditDialog(pos)} aria-label="تعديل" style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid var(--border-subtle)', background: 'var(--bg-input)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, color: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-ar)', fontWeight: 600, minHeight: 36 }}>
+                      <button onClick={() => openEditDialog(pos)} aria-label="تعديل" style={{ padding: '6px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: 'var(--bg-input)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, color: 'var(--text-muted)', fontSize: 'var(--text-xs)', fontFamily: 'var(--font-ar)', fontWeight: 600, minHeight: 36 }}>
                         <Edit3 size={11} /> تعديل
                       </button>
-                      <button onClick={() => openCloseDialog(pos)} aria-label="إغلاق" style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid var(--border-loss)', background: 'var(--loss-bg)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, color: 'var(--loss)', fontSize: 10, fontFamily: 'var(--font-ar)', fontWeight: 600, minHeight: 36 }}>
+                      <button onClick={() => openCloseDialog(pos)} aria-label="إغلاق" style={{ padding: '6px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-loss)', background: 'var(--loss-bg)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, color: 'var(--loss)', fontSize: 'var(--text-xs)', fontFamily: 'var(--font-ar)', fontWeight: 600, minHeight: 36 }}>
                         <XCircle size={11} /> إغلاق
                       </button>
                     </div>

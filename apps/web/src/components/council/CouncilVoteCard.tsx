@@ -111,7 +111,7 @@ function renderInline(text: string, keyBase: string): React.ReactNode[] {
           fontFamily: "var(--font-mono)",
           fontSize: "0.9em",
           padding: "1px 4px",
-          borderRadius: 3,
+          borderRadius: 'var(--radius-xs)',
           background: "rgba(168,85,247,0.15)",
           color: COLORS.council,
         }}>
@@ -175,7 +175,7 @@ export function CouncilVoteCard({
       style={{
         position: "relative",
         padding: compact ? "8px 10px" : "12px 14px",
-        borderRadius: 10,
+        borderRadius: 'var(--radius-lg)',
         background: `linear-gradient(180deg, ${hexToRgba(cardAccent, 0.04)} 0%, rgba(255,255,255,0.015) 100%)`,
         border: `1px solid ${hexToRgba(cardAccent, 0.18)}`,
         overflow: "hidden",
@@ -198,7 +198,7 @@ export function CouncilVoteCard({
           <div style={{
             width: compact ? 16 : 20,
             height: compact ? 16 : 20,
-            borderRadius: 5,
+            borderRadius: 'var(--radius-sm)',
             background: hexToRgba(voteColor, 0.15),
             border: `1px solid ${hexToRgba(voteColor, 0.35)}`,
             display: "flex",
@@ -225,7 +225,7 @@ export function CouncilVoteCard({
           alignItems: "center",
           gap: 3,
           padding: compact ? "2px 6px" : "3px 8px",
-          borderRadius: 6,
+          borderRadius: 'var(--radius-sm)',
           background: hexToRgba(voteColor, 0.15),
           border: `1px solid ${hexToRgba(voteColor, 0.4)}`,
           color: voteColor,
@@ -244,7 +244,7 @@ export function CouncilVoteCard({
         <div style={{
           flex: 1,
           height: compact ? 2 : 3,
-          borderRadius: 999,
+          borderRadius: 'var(--radius-2xl)',
           background: "rgba(255,255,255,0.06)",
           overflow: "hidden",
         }}>
@@ -255,7 +255,7 @@ export function CouncilVoteCard({
             style={{
               height: "100%",
               background: `linear-gradient(90deg, ${voteColor}, ${hexToRgba(voteColor, 0.6)})`,
-              borderRadius: 999,
+              borderRadius: 'var(--radius-2xl)',
             }}
           />
         </div>
@@ -278,7 +278,7 @@ export function CouncilVoteCard({
           fontWeight: 600,
           color: COLORS.textMuted,
           padding: "1px 4px",
-          borderRadius: 3,
+          borderRadius: 'var(--radius-xs)',
           background: "rgba(255,255,255,0.04)",
           border: "1px solid rgba(255,255,255,0.06)",
         }}>
@@ -312,7 +312,7 @@ export function CouncilVoteCard({
             alignItems: "center",
             gap: 3,
             padding: "3px 8px",
-            borderRadius: 5,
+            borderRadius: 'var(--radius-sm)',
             background: hexToRgba(cardAccent, 0.08),
             border: `1px solid ${hexToRgba(cardAccent, 0.2)}`,
             color: cardAccent,

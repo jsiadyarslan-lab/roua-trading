@@ -152,14 +152,14 @@ export function ChartOverlayPanel({
               gap: 4,
               background: bgSolid,
               border: `1.5px solid ${color}`,
-              borderRadius: 4,
+              borderRadius: 'var(--radius-sm)',
               padding: '2px 7px 2px 6px',
               boxShadow: `0 0 8px ${color}55, 0 2px 4px rgba(0,0,0,0.4)`,
             }}>
               <span style={{
                 color,
                 fontFamily: "var(--font-mono)",
-                fontSize: 10,
+                fontSize: 'var(--text-xs)',
                 fontWeight: 800,
                 letterSpacing: 0.5,
                 whiteSpace: 'nowrap',
@@ -170,7 +170,7 @@ export function ChartOverlayPanel({
                 <span style={{
                   color: ov.linePnl !== undefined && ov.linePnl >= 0 ? T.success : T.danger,
                   fontFamily: "var(--font-mono)",
-                  fontSize: 10,
+                  fontSize: 'var(--text-xs)',
                   fontWeight: 700,
                   whiteSpace: 'nowrap',
                   borderLeft: `1px solid ${color}44`,
@@ -184,7 +184,7 @@ export function ChartOverlayPanel({
               {isDraggable && (
                 <span style={{
                   color: color + 'AA',
-                  fontSize: 8,
+                  fontSize: 'var(--text-xs)',
                   marginLeft: 2,
                   lineHeight: 1,
                 }}>⇕</span>

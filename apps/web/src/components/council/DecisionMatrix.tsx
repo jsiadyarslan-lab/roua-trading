@@ -39,7 +39,7 @@ export function DecisionMatrix({ briefs, onSelect, selectedPair, selectedTf }: D
 
   if (briefs.length === 0) {
     return (
-      <div style={{ padding: 40, textAlign: 'center', color: COLORS.textMuted, fontSize: 13 }}>
+      <div style={{ padding: 40, textAlign: 'center', color: COLORS.textMuted, fontSize: 'var(--text-sm)' }}>
         No briefs to display
       </div>
     );
@@ -50,11 +50,11 @@ export function DecisionMatrix({ briefs, onSelect, selectedPair, selectedTf }: D
       <div style={{ minWidth: 580 }}>
         {/* Header row */}
         <div style={{ display: 'grid', gridTemplateColumns: `120px repeat(${TIMEFRAMES.length}, 1fr)`, gap: 4, marginBottom: 4 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: COLORS.textMuted, padding: '8px 10px' }}>
+          <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: COLORS.textMuted, padding: '8px 10px' }}>
             Pair / TF
           </div>
           {TIMEFRAMES.map(tf => (
-            <div key={tf} style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: COLORS.textMuted, padding: '8px 4px', textAlign: 'center', fontFamily: "var(--font-mono)" }}>
+            <div key={tf} style={{ fontSize: 'var(--text-xs)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: COLORS.textMuted, padding: '8px 4px', textAlign: 'center', fontFamily: "var(--font-mono)" }}>
               {tf}
             </div>
           ))}
@@ -62,13 +62,13 @@ export function DecisionMatrix({ briefs, onSelect, selectedPair, selectedTf }: D
         {/* Data rows */}
         {pairs.map((pair, pi) => (
           <div key={pair} style={{ display: 'grid', gridTemplateColumns: `120px repeat(${TIMEFRAMES.length}, 1fr)`, gap: 4, marginBottom: 4 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.textPrimary, padding: '8px 10px', fontFamily: "var(--font-mono)", display: 'flex', alignItems: 'center' }}>
+            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: COLORS.textPrimary, padding: '8px 10px', fontFamily: "var(--font-mono)", display: 'flex', alignItems: 'center' }}>
               {pair}
             </div>
             {TIMEFRAMES.map(tf => {
               const brief = matrix.get(`${pair}:${tf}`);
               if (!brief) {
-                return <div key={tf} style={{ padding: '8px 4px', textAlign: 'center', fontSize: 11, color: COLORS.textDim, borderRadius: 6, background: 'rgba(255,255,255,0.015)' }}>·</div>;
+                return <div key={tf} style={{ padding: '8px 4px', textAlign: 'center', fontSize: 'var(--text-xs)', color: COLORS.textDim, borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.015)' }}>·</div>;
               }
               const dc = directionColor(brief.direction);
               const isSelected = selectedPair === pair && selectedTf === tf;
@@ -82,7 +82,7 @@ export function DecisionMatrix({ briefs, onSelect, selectedPair, selectedTf }: D
                   whileTap={{ scale: 0.96 }}
                   onClick={() => onSelect?.(pair, tf)}
                   style={{
-                    padding: '8px 4px', textAlign: 'center', borderRadius: 6, cursor: 'pointer',
+                    padding: '8px 4px', textAlign: 'center', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                     border: `1px solid ${isSelected ? hexToRgba(dc, 0.6) : hexToRgba(dc, 0.2)}`,
                     background: directionSoft(brief.direction),
                     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
@@ -90,7 +90,7 @@ export function DecisionMatrix({ briefs, onSelect, selectedPair, selectedTf }: D
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                     {brief.direction === 'BUY' ? <TrendingUp size={10} color={dc} strokeWidth={2.5} /> : <TrendingDown size={10} color={dc} strokeWidth={2.5} />}
-                    <span style={{ fontSize: 11, fontWeight: 700, color: dc, fontFamily: "var(--font-mono)" }}>{brief.confidence}</span>
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: dc, fontFamily: "var(--font-mono)" }}>{brief.confidence}</span>
                   </div>
                 </motion.button>
               );

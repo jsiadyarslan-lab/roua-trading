@@ -241,7 +241,7 @@ export function PatternProgress({ symbol, candles, onClose }: PatternProgressPro
       background: C.bg,
       backdropFilter: 'blur(12px)',
       WebkitBackdropFilter: 'blur(12px)',
-      borderRadius: 10,
+      borderRadius: 'var(--radius-lg)',
       padding: 10,
       border: `1px solid ${C.border}`,
       maxWidth: 220,
@@ -255,11 +255,11 @@ export function PatternProgress({ symbol, candles, onClose }: PatternProgressPro
         cursor: 'grab',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <span style={{ fontSize: 10 }}>📈</span>
-          <span style={{ fontSize: 10, color: C.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: 'var(--text-xs)' }}>📈</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: C.text, fontWeight: 700, fontFamily: "var(--font-ar)" }}>
             {tc('patternProgress')}
           </span>
-          <span style={{ fontSize: 8, color: C.textMuted, fontFamily: "var(--font-mono)" }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: C.textMuted, fontFamily: "var(--font-mono)" }}>
             {symbol}
           </span>
         </div>
@@ -267,10 +267,10 @@ export function PatternProgress({ symbol, candles, onClose }: PatternProgressPro
           <button
             onClick={onClose}
             style={{
-              background: 'rgba(255,255,255,0.04)', border: 'none', borderRadius: 3,
+              background: 'rgba(255,255,255,0.04)', border: 'none', borderRadius: 'var(--radius-xs)',
               color: C.textMuted, width: 16, height: 16, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 9, padding: 0,
+              fontSize: 'var(--text-xs)', padding: 0,
             }}
           >
             ✕
@@ -286,23 +286,23 @@ export function PatternProgress({ symbol, candles, onClose }: PatternProgressPro
             <div key={p.name} style={{
               display: 'flex', alignItems: 'center', gap: 6,
             }}>
-              <span style={{ fontSize: 10, flexShrink: 0 }}>{p.icon}</span>
+              <span style={{ fontSize: 'var(--text-xs)', flexShrink: 0 }}>{p.icon}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 9, color: C.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>
+                  <span style={{ fontSize: 'var(--text-xs)', color: C.text, fontWeight: 600, fontFamily: "var(--font-ar)" }}>
                     {p.nameAr}
                   </span>
-                  <span style={{ fontSize: 8, color: getDirectionColor(p.direction), fontWeight: 700, fontFamily: "var(--font-mono)" }}>
+                  <span style={{ fontSize: 'var(--text-xs)', color: getDirectionColor(p.direction), fontWeight: 700, fontFamily: "var(--font-mono)" }}>
                     {p.expectedMove}
                   </span>
                 </div>
                 {/* Progress bar */}
                 <div style={{
-                  height: 3, borderRadius: 2, background: C.border,
+                  height: 3, borderRadius: 'var(--radius-xs)', background: C.border,
                   marginTop: 2, overflow: 'hidden',
                 }}>
                   <div style={{
-                    height: '100%', borderRadius: 2,
+                    height: '100%', borderRadius: 'var(--radius-xs)',
                     width: `${p.progress}%`,
                     background: progressColor,
                     transition: 'width 0.5s ease, background 0.5s ease',
@@ -310,7 +310,7 @@ export function PatternProgress({ symbol, candles, onClose }: PatternProgressPro
                 </div>
               </div>
               <span style={{
-                fontSize: 8, color: progressColor, fontWeight: 800,
+                fontSize: 'var(--text-xs)', color: progressColor, fontWeight: 800,
                 fontFamily: "var(--font-mono)",
                 minWidth: 28, textAlign: 'left', flexShrink: 0,
               }}>

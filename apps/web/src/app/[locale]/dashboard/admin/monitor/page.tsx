@@ -287,7 +287,7 @@ export default function AdminMonitorPage() {
         }}>
           {toasts.map(toast => (
             <div key={toast.id} style={{
-              padding: '12px 16px', borderRadius: 8,
+              padding: '12px 16px', borderRadius: 'var(--radius-md)',
               background: toast.type === 'success' ? `${COLORS.success}15` :
                 toast.type === 'error' ? `${COLORS.danger}15` : `${COLORS.accent}15`,
               border: `1px solid ${
@@ -296,7 +296,7 @@ export default function AdminMonitorPage() {
               }`,
               color: toast.type === 'success' ? COLORS.success :
                 toast.type === 'error' ? COLORS.danger : COLORS.accent,
-              fontSize: 12, fontWeight: 600,
+              fontSize: 'var(--text-sm)', fontWeight: 600,
               fontFamily: "var(--font-ar)",
               display: 'flex', alignItems: 'center', gap: 8,
               backdropFilter: 'blur(12px)',
@@ -313,10 +313,10 @@ export default function AdminMonitorPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", margin: 0 }}>
+          <h1 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", margin: 0 }}>
             وكيل المراقبة
           </h1>
-          <p style={{ fontSize: 12, color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '4px 0 0' }}>
+          <p style={{ fontSize: 'var(--text-sm)', color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '4px 0 0' }}>
             لوحة تحكم وكيل المراقبة التلقائي
           </p>
         </div>
@@ -324,9 +324,9 @@ export default function AdminMonitorPage() {
           onClick={() => { fetchStatus(); fetchHealth() }}
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
-            padding: '8px 16px', borderRadius: 8,
+            padding: '8px 16px', borderRadius: 'var(--radius-md)',
             border: `1px solid ${COLORS.border}`, background: 'rgba(0,229,255,0.06)',
-            color: COLORS.accent, fontSize: 12, fontWeight: 600,
+            color: COLORS.accent, fontSize: 'var(--text-sm)', fontWeight: 600,
             fontFamily: "var(--font-ar)", cursor: 'pointer',
             transition: 'all 0.2s',
           }}
@@ -338,13 +338,13 @@ export default function AdminMonitorPage() {
       {/* Agent not deployed warning */}
       {agentDeployed === false && (
         <div style={{
-          padding: '12px 16px', borderRadius: 8,
+          padding: '12px 16px', borderRadius: 'var(--radius-md)',
           background: `${COLORS.amber}10`,
           border: `1px solid ${COLORS.amber}30`,
           display: 'flex', alignItems: 'center', gap: 10,
         }}>
           <AlertTriangle size={16} color={COLORS.amber} />
-          <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.amber, fontFamily: "var(--font-ar)" }}>
+          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: COLORS.amber, fontFamily: "var(--font-ar)" }}>
             وكيل المراقبة غير منشور — قم بتعيين MONITOR_AGENT_URL في متغيرات البيئة ونشر الوكيل على Railway أولاً
           </span>
         </div>
@@ -364,15 +364,15 @@ export default function AdminMonitorPage() {
               flexShrink: 0,
             }} />
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>
+              <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>
                 {status?.running ? 'الوكيل يعمل' : 'الوكيل متوقف'}
               </div>
-              <div style={{ fontSize: 11, color: status?.running ? COLORS.success : COLORS.muted, fontFamily: "var(--font-ar)", marginTop: 2 }}>
+              <div style={{ fontSize: 'var(--text-xs)', color: status?.running ? COLORS.success : COLORS.muted, fontFamily: "var(--font-ar)", marginTop: 2 }}>
                 {status?.message || 'لا توجد معلومات'}
               </div>
             </div>
             <div style={{
-              width: 48, height: 48, borderRadius: 12,
+              width: 48, height: 48, borderRadius: 'var(--radius-lg)',
               background: status?.running ? `${COLORS.success}15` : `${COLORS.danger}15`,
               border: `1px solid ${status?.running ? COLORS.success + '30' : COLORS.danger + '30'}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -383,22 +383,22 @@ export default function AdminMonitorPage() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <div style={{
-              padding: 10, borderRadius: 6,
+              padding: 10, borderRadius: 'var(--radius-sm)',
               background: 'rgba(255,255,255,0.02)',
               border: `1px solid ${COLORS.border}`,
             }}>
-              <div style={{ fontSize: 9, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>آخر فحص</div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.text, fontFamily: "var(--font-ar)", marginTop: 2 }}>
+              <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>آخر فحص</div>
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: COLORS.text, fontFamily: "var(--font-ar)", marginTop: 2 }}>
                 {formatDate(status?.lastCheck || null)}
               </div>
             </div>
             <div style={{
-              padding: 10, borderRadius: 6,
+              padding: 10, borderRadius: 'var(--radius-sm)',
               background: 'rgba(255,255,255,0.02)',
               border: `1px solid ${COLORS.border}`,
             }}>
-              <div style={{ fontSize: 9, color: COLORS.muted, fontFamily: "var(--font-ar)" }}>إجمالي نقاط النهاية</div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.text, fontFamily: "var(--font-mono)", marginTop: 2 }}>
+              <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)" }}>إجمالي نقاط النهاية</div>
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: COLORS.text, fontFamily: "var(--font-mono)", marginTop: 2 }}>
                 {monitoredEndpoints.length}
               </div>
             </div>
@@ -409,7 +409,7 @@ export default function AdminMonitorPage() {
         <div style={{ ...CARD_STYLE, padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
             <Settings size={14} color={COLORS.accent} />
-            <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>التحكم بالوكيل</span>
+            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>التحكم بالوكيل</span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -419,10 +419,10 @@ export default function AdminMonitorPage() {
               disabled={agentActionLoading !== null}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                padding: '12px', borderRadius: 8,
+                padding: '12px', borderRadius: 'var(--radius-md)',
                 border: `1px solid ${COLORS.success}25`,
                 background: `${COLORS.success}08`,
-                color: COLORS.success, fontSize: 13, fontWeight: 700,
+                color: COLORS.success, fontSize: 'var(--text-sm)', fontWeight: 700,
                 fontFamily: "var(--font-ar)", cursor: agentActionLoading ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s',
                 opacity: agentActionLoading ? 0.6 : 1,
@@ -432,7 +432,7 @@ export default function AdminMonitorPage() {
               {agentActionLoading === 'start' ? 'جارٍ التشغيل...' : 'تشغيل الوكيل'}
             </button>
             <div style={{
-              fontSize: 9, color: COLORS.muted, fontFamily: "var(--font-ar)",
+              fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)",
               textAlign: 'center', marginTop: -4,
             }}>
               يحتاج نشر الوكيل على Railway أولاً
@@ -444,10 +444,10 @@ export default function AdminMonitorPage() {
               disabled={agentActionLoading !== null}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                padding: '12px', borderRadius: 8,
+                padding: '12px', borderRadius: 'var(--radius-md)',
                 border: `1px solid ${COLORS.danger}25`,
                 background: `${COLORS.danger}08`,
-                color: COLORS.danger, fontSize: 13, fontWeight: 700,
+                color: COLORS.danger, fontSize: 'var(--text-sm)', fontWeight: 700,
                 fontFamily: "var(--font-ar)", cursor: agentActionLoading ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s',
                 opacity: agentActionLoading ? 0.6 : 1,
@@ -463,10 +463,10 @@ export default function AdminMonitorPage() {
               disabled={checking}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                padding: '12px', borderRadius: 8,
+                padding: '12px', borderRadius: 'var(--radius-md)',
                 border: `1px solid ${COLORS.accent}25`,
                 background: `${COLORS.accent}08`,
-                color: COLORS.accent, fontSize: 13, fontWeight: 700,
+                color: COLORS.accent, fontSize: 'var(--text-sm)', fontWeight: 700,
                 fontFamily: "var(--font-ar)", cursor: checking ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s',
                 opacity: checking ? 0.6 : 1,
@@ -490,7 +490,7 @@ export default function AdminMonitorPage() {
           return (
             <div key={i} style={{ ...CARD_STYLE, padding: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{
-                width: 32, height: 32, borderRadius: 8,
+                width: 32, height: 32, borderRadius: 'var(--radius-md)',
                 background: `${card.color}15`,
                 border: `1px solid ${card.color}30`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -498,8 +498,8 @@ export default function AdminMonitorPage() {
                 <CardIcon size={14} color={card.color} />
               </div>
               <div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: card.color, fontFamily: "var(--font-mono)", lineHeight: 1 }}>{card.value}</div>
-                <div style={{ fontSize: 9, color: COLORS.muted, fontFamily: "var(--font-ar)", marginTop: 2 }}>{card.label}</div>
+                <div style={{ fontSize: 'var(--text-lg)', fontWeight: 800, color: card.color, fontFamily: "var(--font-mono)", lineHeight: 1 }}>{card.value}</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", marginTop: 2 }}>{card.label}</div>
               </div>
             </div>
           )
@@ -516,21 +516,21 @@ export default function AdminMonitorPage() {
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
             <Activity size={14} color={COLORS.accent} />
-            <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>نقاط النهاية المراقبة</span>
+            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>نقاط النهاية المراقبة</span>
           </div>
           <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 360, overflowY: 'auto' }}>
             {loading ? (
-              <div style={{ padding: 20, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 12 }}>
+              <div style={{ padding: 20, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)' }}>
                 جارٍ التحميل...
               </div>
             ) : monitoredEndpoints.length === 0 ? (
-              <div style={{ padding: 20, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 12 }}>
+              <div style={{ padding: 20, textAlign: 'center', color: COLORS.muted, fontFamily: "var(--font-ar)", fontSize: 'var(--text-sm)' }}>
                 لا توجد نقاط نهاية مراقبة
               </div>
             ) : (
               monitoredEndpoints.map((ep, i) => (
                 <div key={i} style={{
-                  padding: '10px 12px', borderRadius: 6,
+                  padding: '10px 12px', borderRadius: 'var(--radius-sm)',
                   background: 'rgba(255,255,255,0.02)',
                   border: `1px solid ${COLORS.border}`,
                   display: 'flex', alignItems: 'center', gap: 10,
@@ -539,15 +539,15 @@ export default function AdminMonitorPage() {
                     {getStatusIcon(ep.status)}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} dir="ltr">
+                    <div style={{ fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)", color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} dir="ltr">
                       {ep.path}
                     </div>
                     {ep.label && ep.label !== ep.path && (
-                      <div style={{ fontSize: 9, color: COLORS.muted, fontFamily: "var(--font-ar)", marginTop: 1 }}>{ep.label}</div>
+                      <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", marginTop: 1 }}>{ep.label}</div>
                     )}
                   </div>
                   <span style={{
-                    fontSize: 10, fontFamily: "var(--font-mono)",
+                    fontSize: 'var(--text-xs)', fontFamily: "var(--font-mono)",
                     color: getStatusColor(ep.status),
                     flexShrink: 0,
                   }}>
@@ -568,12 +568,12 @@ export default function AdminMonitorPage() {
               display: 'flex', alignItems: 'center', gap: 8,
             }}>
               <Settings size={14} color={COLORS.amber} />
-              <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>إعدادات الوكيل</span>
+              <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>إعدادات الوكيل</span>
             </div>
             <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
               {/* Check interval */}
               <div>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 6 }}>
+                <label style={{ display: 'block', fontSize: 'var(--text-xs)', fontWeight: 600, color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 6 }}>
                   فاصل الفحص (ثانية)
                 </label>
                 <input
@@ -583,10 +583,10 @@ export default function AdminMonitorPage() {
                   value={checkInterval}
                   onChange={(e) => setCheckInterval(Number(e.target.value))}
                   style={{
-                    width: '100%', padding: '10px 12px', borderRadius: 8,
+                    width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-md)',
                     background: 'rgba(255,255,255,0.03)',
                     border: `1px solid ${COLORS.border}`,
-                    color: COLORS.text, fontSize: 13,
+                    color: COLORS.text, fontSize: 'var(--text-sm)',
                     fontFamily: "var(--font-mono)",
                     outline: 'none', direction: 'ltr', boxSizing: 'border-box',
                   }}
@@ -595,7 +595,7 @@ export default function AdminMonitorPage() {
 
               {/* Alert threshold */}
               <div>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 6 }}>
+                <label style={{ display: 'block', fontSize: 'var(--text-xs)', fontWeight: 600, color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 6 }}>
                   عتبة التنبيه (ميلي ثانية)
                 </label>
                 <input
@@ -605,10 +605,10 @@ export default function AdminMonitorPage() {
                   value={alertThreshold}
                   onChange={(e) => setAlertThreshold(Number(e.target.value))}
                   style={{
-                    width: '100%', padding: '10px 12px', borderRadius: 8,
+                    width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-md)',
                     background: 'rgba(255,255,255,0.03)',
                     border: `1px solid ${COLORS.border}`,
-                    color: COLORS.text, fontSize: 13,
+                    color: COLORS.text, fontSize: 'var(--text-sm)',
                     fontFamily: "var(--font-mono)",
                     outline: 'none', direction: 'ltr', boxSizing: 'border-box',
                   }}
@@ -618,25 +618,25 @@ export default function AdminMonitorPage() {
               {/* Telegram notifications toggle */}
               <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: 12, borderRadius: 8,
+                padding: 12, borderRadius: 'var(--radius-md)',
                 background: 'rgba(255,255,255,0.02)',
                 border: `1px solid ${COLORS.border}`,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Bell size={14} color={telegramToggle ? COLORS.accent : COLORS.muted} />
-                  <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.text, fontFamily: "var(--font-ar)" }}>تنبيهات تلغرام</span>
+                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: COLORS.text, fontFamily: "var(--font-ar)" }}>تنبيهات تلغرام</span>
                 </div>
                 <button
                   onClick={() => setTelegramToggle(!telegramToggle)}
                   style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
                 >
                   {telegramToggle ? (
-                    <div style={{ width: 36, height: 20, borderRadius: 10, background: COLORS.accent, position: 'relative', transition: 'all 0.2s' }}>
-                      <div style={{ width: 16, height: 16, borderRadius: 8, background: '#fff', position: 'absolute', top: 2, left: 2 }} />
+                    <div style={{ width: 36, height: 20, borderRadius: 'var(--radius-lg)', background: COLORS.accent, position: 'relative', transition: 'all 0.2s' }}>
+                      <div style={{ width: 16, height: 16, borderRadius: 'var(--radius-md)', background: '#fff', position: 'absolute', top: 2, left: 2 }} />
                     </div>
                   ) : (
-                    <div style={{ width: 36, height: 20, borderRadius: 10, background: COLORS.muted, position: 'relative', transition: 'all 0.2s' }}>
-                      <div style={{ width: 16, height: 16, borderRadius: 8, background: '#fff', position: 'absolute', top: 2, right: 2 }} />
+                    <div style={{ width: 36, height: 20, borderRadius: 'var(--radius-lg)', background: COLORS.muted, position: 'relative', transition: 'all 0.2s' }}>
+                      <div style={{ width: 16, height: 16, borderRadius: 'var(--radius-md)', background: '#fff', position: 'absolute', top: 2, right: 2 }} />
                     </div>
                   )}
                 </button>
@@ -648,10 +648,10 @@ export default function AdminMonitorPage() {
                 disabled={settingsSaving}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  padding: '10px', borderRadius: 8,
+                  padding: '10px', borderRadius: 'var(--radius-md)',
                   border: `1px solid ${COLORS.accent}25`,
                   background: `${COLORS.accent}08`,
-                  color: COLORS.accent, fontSize: 12, fontWeight: 600,
+                  color: COLORS.accent, fontSize: 'var(--text-sm)', fontWeight: 600,
                   fontFamily: "var(--font-ar)",
                   cursor: settingsSaving ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s',
@@ -667,7 +667,7 @@ export default function AdminMonitorPage() {
               </button>
               {settingsMessage && (
                 <div style={{
-                  fontSize: 11, fontWeight: 600,
+                  fontSize: 'var(--text-xs)', fontWeight: 600,
                   color: settingsMessage.includes('نجاح') ? COLORS.success : COLORS.danger,
                   fontFamily: "var(--font-ar)",
                   textAlign: 'center',
@@ -682,14 +682,14 @@ export default function AdminMonitorPage() {
           <div style={{ ...CARD_STYLE, padding: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
               <ExternalLink size={14} color={COLORS.purple} />
-              <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>نشر على Railway</span>
+              <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>نشر على Railway</span>
             </div>
             <div style={{
-              padding: 14, borderRadius: 8,
+              padding: 14, borderRadius: 'var(--radius-md)',
               background: 'rgba(179,136,255,0.04)',
               border: `1px solid ${COLORS.purple}15`,
             }}>
-              <div style={{ fontSize: 11, color: COLORS.muted, fontFamily: "var(--font-ar)", lineHeight: 1.8, marginBottom: 10 }}>
+              <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", lineHeight: 1.8, marginBottom: 10 }}>
                 قم بربط المستودع على Railway لنشر الوكيل
               </div>
               <a
@@ -698,10 +698,10 @@ export default function AdminMonitorPage() {
                 rel="noopener noreferrer"
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8,
-                  padding: '8px 12px', borderRadius: 6,
+                  padding: '8px 12px', borderRadius: 'var(--radius-sm)',
                   background: `${COLORS.purple}10`,
                   border: `1px solid ${COLORS.purple}25`,
-                  color: COLORS.purple, fontSize: 11, fontWeight: 600,
+                  color: COLORS.purple, fontSize: 'var(--text-xs)', fontWeight: 600,
                   fontFamily: "var(--font-mono)",
                   textDecoration: 'none',
                   transition: 'all 0.2s',
@@ -718,10 +718,10 @@ export default function AdminMonitorPage() {
                   rel="noopener noreferrer"
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 6,
-                    padding: '6px 10px', borderRadius: 6,
+                    padding: '6px 10px', borderRadius: 'var(--radius-sm)',
                     background: 'rgba(255,255,255,0.03)',
                     border: `1px solid ${COLORS.border}`,
-                    color: COLORS.text, fontSize: 10, fontWeight: 600,
+                    color: COLORS.text, fontSize: 'var(--text-xs)', fontWeight: 600,
                     fontFamily: "var(--font-ar)",
                     textDecoration: 'none',
                     transition: 'all 0.2s',

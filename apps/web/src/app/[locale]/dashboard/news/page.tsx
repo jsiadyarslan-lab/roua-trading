@@ -392,7 +392,7 @@ export default function NewsPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 44, height: 44, borderRadius: 14,
+              width: 44, height: 44, borderRadius: 'var(--radius-xl)',
               background: 'linear-gradient(135deg, #0A84FF, #00C8FF)',
               boxShadow: '0 4px 16px rgba(0,212,255,0.25)',
             }}>
@@ -400,25 +400,25 @@ export default function NewsPage() {
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <h1 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: T.text }}>{t('News Room', 'غرفة الأخبار', 'Salle de presse', 'Haber Odası', newsLang)}</h1>
+                <h1 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 900, color: T.text }}>{t('News Room', 'غرفة الأخبار', 'Salle de presse', 'Haber Odası', newsLang)}</h1>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '3px 10px', borderRadius: 20,
+                  padding: '3px 10px', borderRadius: 'var(--radius-2xl)',
                   background: `${T.red}14`, border: `0.5px solid ${T.red}33`,
                 }}>
                   <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.red, animation: 'live-dot 1.8s ease-in-out infinite' }} />
-                  <span style={{ fontSize: 10, color: T.red, fontFamily: FONT_MONO, fontWeight: 800 }}>LIVE</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: T.red, fontFamily: FONT_MONO, fontWeight: 800 }}>LIVE</span>
                 </div>
               </div>
-              <p style={{ margin: '2px 0 0', fontSize: 12, color: T.text3 }}>
+              <p style={{ margin: '2px 0 0', fontSize: 'var(--text-sm)', color: T.text3 }}>
                 {t("Financial news & analysis from Ru'aa", 'أخبار وتحليلات مالية من رؤى', "Actualités et analyses financières de Ru'aa", "Ru'aa'dan finansal haberler ve analizler", newsLang)} — {stats.total} {t('articles', 'خبر', 'articles', 'makale', newsLang)}
               </p>
             </div>
             <button onClick={handleRefresh} disabled={refreshing} style={{
               display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 16px', borderRadius: 10,
+              padding: '8px 16px', borderRadius: 'var(--radius-lg)',
               border: `1px solid ${T.border}`, background: T.card,
-              color: T.text2, cursor: 'pointer', fontSize: 12,
+              color: T.text2, cursor: 'pointer', fontSize: 'var(--text-sm)',
               fontFamily: FONT_AR, fontWeight: 700,
             }}>
               <RefreshCw size={14} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
@@ -426,13 +426,13 @@ export default function NewsPage() {
             </button>
             {/* Language Toggle */}
             <div style={{
-              display: 'flex', borderRadius: 10,
+              display: 'flex', borderRadius: 'var(--radius-lg)',
               border: `1px solid ${T.border}`, overflow: 'hidden',
             }}>
               <button
                 onClick={() => setNewsLang('ar')}
                 style={{
-                  padding: '6px 14px', fontSize: 11, fontWeight: 800,
+                  padding: '6px 14px', fontSize: 'var(--text-xs)', fontWeight: 800,
                   fontFamily: FONT_AR, cursor: 'pointer',
                   border: 'none',
                   background: newsLang === 'ar' ? `${T.cyan}18` : T.card,
@@ -445,7 +445,7 @@ export default function NewsPage() {
               <button
                 onClick={() => setNewsLang('en')}
                 style={{
-                  padding: '6px 14px', fontSize: 11, fontWeight: 800,
+                  padding: '6px 14px', fontSize: 'var(--text-xs)', fontWeight: 800,
                   fontFamily: FONT_AR, cursor: 'pointer',
                   border: 'none', borderInlineStart: `1px solid ${T.border}`,
                   background: newsLang === 'en' ? `${T.cyan}18` : T.card,
@@ -458,7 +458,7 @@ export default function NewsPage() {
               <button
                 onClick={() => setNewsLang('fr')}
                 style={{
-                  padding: '6px 14px', fontSize: 11, fontWeight: 800,
+                  padding: '6px 14px', fontSize: 'var(--text-xs)', fontWeight: 800,
                   fontFamily: FONT_AR, cursor: 'pointer',
                   border: 'none', borderInlineStart: `1px solid ${T.border}`,
                   background: newsLang === 'fr' ? `${T.cyan}18` : T.card,
@@ -471,7 +471,7 @@ export default function NewsPage() {
               <button
                 onClick={() => setNewsLang('tr')}
                 style={{
-                  padding: '6px 14px', fontSize: 11, fontWeight: 800,
+                  padding: '6px 14px', fontSize: 'var(--text-xs)', fontWeight: 800,
                   fontFamily: FONT_AR, cursor: 'pointer',
                   border: 'none', borderInlineStart: `1px solid ${T.border}`,
                   background: newsLang === 'tr' ? `${T.cyan}18` : T.card,
@@ -502,7 +502,7 @@ export default function NewsPage() {
               style={{
                 display: 'flex', alignItems: 'center', gap: 7,
                 padding: '12px 22px',
-                fontFamily: FONT_AR, fontSize: 13,
+                fontFamily: FONT_AR, fontSize: 'var(--text-sm)',
                 fontWeight: activeTab === tab.id ? 800 : 500,
                 color: activeTab === tab.id ? tab.color : T.text2,
                 background: 'transparent', border: 'none',
@@ -538,7 +538,7 @@ export default function NewsPage() {
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
               background: T.card, border: `1px solid ${T.border}`,
-              borderRadius: 14, padding: '10px 16px', marginBottom: 16,
+              borderRadius: 'var(--radius-xl)', padding: '10px 16px', marginBottom: 16,
             }}>
               <Search size={16} color={T.text3} />
               <input
@@ -548,7 +548,7 @@ export default function NewsPage() {
                 onChange={e => setSearchQuery(e.target.value)}
                 style={{
                   background: 'transparent', border: 'none', outline: 'none',
-                  color: T.text, fontSize: 13, width: '100%', fontFamily: FONT_AR,
+                  color: T.text, fontSize: 'var(--text-sm)', width: '100%', fontFamily: FONT_AR,
                 }}
               />
             </div>
@@ -569,18 +569,18 @@ export default function NewsPage() {
                     onClick={() => setActiveCategory(cat.id)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 6,
-                      padding: '8px 16px', borderRadius: 12,
+                      padding: '8px 16px', borderRadius: 'var(--radius-lg)',
                       border: `1px solid ${isActive ? cat.color : T.border}`,
                       background: isActive ? `${cat.color}14` : T.card,
                       color: isActive ? cat.color : T.text2,
-                      fontSize: 12, fontWeight: isActive ? 800 : 600,
+                      fontSize: 'var(--text-sm)', fontWeight: isActive ? 800 : 600,
                       fontFamily: FONT_AR, whiteSpace: 'nowrap',
                       flexShrink: 0,
                     }}
                   >
                     <span>{cat.icon}</span>
                     {cat.label}
-                    <span style={{ fontSize: 10, opacity: 0.7 }}>({count})</span>
+                    <span style={{ fontSize: 'var(--text-xs)', opacity: 0.7 }}>({count})</span>
                   </button>
                 )
               })}
@@ -590,11 +590,11 @@ export default function NewsPage() {
             {fetchError && (
               <div style={{
                 background: `${T.red}08`, border: `1px solid ${T.red}22`,
-                borderRadius: 10, padding: '10px 14px', marginBottom: 16,
+                borderRadius: 'var(--radius-lg)', padding: '10px 14px', marginBottom: 16,
                 display: 'flex', alignItems: 'center', gap: 8,
               }}>
                 <AlertTriangle size={14} style={{ color: T.red, flexShrink: 0 }} />
-                <span style={{ fontFamily: FONT_AR, fontSize: 11, color: T.red, flex: 1 }}>{fetchError}</span>
+                <span style={{ fontFamily: FONT_AR, fontSize: 'var(--text-xs)', color: T.red, flex: 1 }}>{fetchError}</span>
               </div>
             )}
 
@@ -602,19 +602,19 @@ export default function NewsPage() {
             {loading ? (
               <div style={{
                 background: T.card, border: `1px solid ${T.border}`,
-                borderRadius: 20, padding: '32px', textAlign: 'center', color: T.text2,
+                borderRadius: 'var(--radius-2xl)', padding: '32px', textAlign: 'center', color: T.text2,
               }}>
                 <RefreshCw size={28} color={T.cyan} style={{ marginBottom: 14, animation: 'spin 1s linear infinite' }} />
-                <p style={{ fontSize: 14, fontFamily: FONT_AR }}>{t("Loading news from Ru'aa...", 'جارٍ تحميل الأخبار من رؤى...', "Chargement des actualités de Ru'aa...", "Ru'aa'dan haberler yükleniyor...", newsLang)}</p>
+                <p style={{ fontSize: 'var(--text-base)', fontFamily: FONT_AR }}>{t("Loading news from Ru'aa...", 'جارٍ تحميل الأخبار من رؤى...', "Chargement des actualités de Ru'aa...", "Ru'aa'dan haberler yükleniyor...", newsLang)}</p>
               </div>
             ) : filteredItems.length === 0 ? (
               <div style={{
                 background: T.card, border: `1px solid ${T.border}`,
-                borderRadius: 20, padding: '40px 32px', textAlign: 'center',
+                borderRadius: 'var(--radius-2xl)', padding: '40px 32px', textAlign: 'center',
               }}>
                 <Newspaper size={34} color={T.cyan} style={{ marginBottom: 14 }} />
-                <h2 style={{ color: T.text, fontSize: 18, fontWeight: 800, margin: '0 0 8px' }}>{t('No matching news', 'لا توجد أخبار مطابقة', 'Aucune actualité correspondante', 'Eşleşen haber yok', newsLang)}</h2>
-                <p style={{ color: T.text2, fontSize: 13, margin: 0 }}>{t('Change the category or search', 'غيّر التصنيف أو البحث', 'Changez la catégorie ou la recherche', 'Kategoriyi veya aramayı değiştirin', newsLang)}</p>
+                <h2 style={{ color: T.text, fontSize: 'var(--text-lg)', fontWeight: 800, margin: '0 0 8px' }}>{t('No matching news', 'لا توجد أخبار مطابقة', 'Aucune actualité correspondante', 'Eşleşen haber yok', newsLang)}</h2>
+                <p style={{ color: T.text2, fontSize: 'var(--text-sm)', margin: 0 }}>{t('Change the category or search', 'غيّر التصنيف أو البحث', 'Changez la catégorie ou la recherche', 'Kategoriyi veya aramayı değiştirin', newsLang)}</p>
               </div>
             ) : (
               /* News Grid */
@@ -664,7 +664,7 @@ function HeroSlider({
   const sentiment = getSentimentBadge(item.sentimentLabel, newsLang)
 
   return (
-    <div style={{ marginBottom: 20, borderRadius: 20, overflow: 'hidden', position: 'relative', height: 280 }}>
+    <div style={{ marginBottom: 20, borderRadius: 'var(--radius-2xl)', overflow: 'hidden', position: 'relative', height: 280 }}>
       {/* Background Image */}
       {item.imageUrl ? (
         <img src={item.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }} />
@@ -682,24 +682,24 @@ function HeroSlider({
         {/* Badges */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
           {(localizedCategory(item, newsLang)) && (
-            <span style={{ fontSize: 10, padding: '3px 10px', borderRadius: 8, background: `${T.cyan}22`, color: T.cyan, fontWeight: 800, fontFamily: FONT_AR }}>
+            <span style={{ fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-md)', background: `${T.cyan}22`, color: T.cyan, fontWeight: 800, fontFamily: FONT_AR }}>
               {localizedCategory(item, newsLang)}
             </span>
           )}
-          <span style={{ fontSize: 10, padding: '3px 10px', borderRadius: 8, background: sentiment.bg, color: sentiment.color, fontWeight: 800, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-md)', background: sentiment.bg, color: sentiment.color, fontWeight: 800, fontFamily: FONT_AR }}>
             {sentiment.text}
           </span>
-          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', gap: 4, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', gap: 4, fontFamily: FONT_AR }}>
             <Clock size={10} /> {timeAgo(item.publishedAt, newsLang)}
           </span>
         </div>
 
-        <h2 style={{ fontSize: 20, fontWeight: 900, color: '#FFF', lineHeight: 1.5, margin: '0 0 8px', fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+        <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: '#FFF', lineHeight: 1.5, margin: '0 0 8px', fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {displayTitle}
         </h2>
 
         {item.summary && (
-          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: 0, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          <p style={{ fontSize: 'var(--text-sm)', color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: 0, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
             {item.summary}
           </p>
         )}
@@ -715,7 +715,7 @@ function HeroSlider({
               className="slider-dot"
               style={{
                 width: currentSlide === i ? 24 : 8, height: 8,
-                borderRadius: 4, border: 'none',
+                borderRadius: 'var(--radius-sm)', border: 'none',
                 background: currentSlide === i ? T.cyan : 'rgba(255,255,255,0.3)',
                 cursor: 'pointer', padding: 0,
               }}
@@ -731,7 +731,7 @@ function HeroSlider({
             onClick={() => setCurrentSlide((currentSlide - 1 + items.length) % items.length)}
             style={{
               position: 'absolute', top: '50%', right: 12, transform: 'translateY(-50%)',
-              width: 32, height: 32, borderRadius: 8,
+              width: 32, height: 32, borderRadius: 'var(--radius-md)',
               background: 'rgba(0,0,0,0.5)', border: 'none',
               color: '#FFF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
@@ -742,7 +742,7 @@ function HeroSlider({
             onClick={() => setCurrentSlide((currentSlide + 1) % items.length)}
             style={{
               position: 'absolute', top: '50%', left: 12, transform: 'translateY(-50%)',
-              width: 32, height: 32, borderRadius: 8,
+              width: 32, height: 32, borderRadius: 'var(--radius-md)',
               background: 'rgba(0,0,0,0.5)', border: 'none',
               color: '#FFF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
@@ -771,7 +771,7 @@ function NewsCard({ item, index, onClick, newsLang }: { item: NewsItem; index: n
         background: T.card,
         border: `1px solid ${T.border}`,
         borderRight: `3px solid ${sentiment.color}`,
-        borderRadius: 16,
+        borderRadius: 'var(--radius-xl)',
         overflow: 'hidden',
         animation: `fade-in 0.25s ease-out ${index * 20}ms both`,
       }}
@@ -787,26 +787,26 @@ function NewsCard({ item, index, onClick, newsLang }: { item: NewsItem; index: n
         {/* Badges */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 10, flexWrap: 'wrap' }}>
           {(localizedCategory(item, newsLang)) && (
-            <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 6, background: `${T.cyan}12`, color: T.cyan, fontWeight: 800, fontFamily: FONT_AR }}>
+            <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${T.cyan}12`, color: T.cyan, fontWeight: 800, fontFamily: FONT_AR }}>
               {localizedCategory(item, newsLang)}
             </span>
           )}
-          <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 6, background: sentiment.bg, color: sentiment.color, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 2, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: sentiment.bg, color: sentiment.color, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 2, fontFamily: FONT_AR }}>
             <SentimentIcon size={9} /> {sentiment.text}
           </span>
-          <span style={{ fontSize: 9, color: T.text3, marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: T.text3, marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT_AR }}>
             <Clock size={9} /> {timeAgo(item.publishedAt, newsLang)}
           </span>
         </div>
 
         {/* Title */}
-        <h3 style={{ color: T.text, fontSize: 15, fontWeight: 800, margin: '0 0 8px', lineHeight: 1.6, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+        <h3 style={{ color: T.text, fontSize: 'var(--text-base)', fontWeight: 800, margin: '0 0 8px', lineHeight: 1.6, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {displayTitle}
         </h3>
 
         {/* Summary */}
         {item.summary && (
-          <p style={{ color: T.text2, fontSize: 12, margin: '0 0 10px', lineHeight: 1.7, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          <p style={{ color: T.text2, fontSize: 'var(--text-sm)', margin: '0 0 10px', lineHeight: 1.7, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
             {item.summary}
           </p>
         )}
@@ -815,16 +815,16 @@ function NewsCard({ item, index, onClick, newsLang }: { item: NewsItem; index: n
         {Array.isArray(item.keyTakeaways) && item.keyTakeaways.length > 0 && (
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
             <Zap size={10} color={T.green} style={{ flexShrink: 0, marginTop: 2 }} />
-            <span style={{ fontSize: 10, color: T.green, fontWeight: 700, fontFamily: FONT_AR }}>{item.keyTakeaways.length} {t('key points', 'نقاط رئيسية', 'points clés', 'anahtar noktalar', newsLang)}</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: T.green, fontWeight: 700, fontFamily: FONT_AR }}>{item.keyTakeaways.length} {t('key points', 'نقاط رئيسية', 'points clés', 'anahtar noktalar', newsLang)}</span>
           </div>
         )}
 
         {/* Source */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Globe size={11} color={T.text3} />
-          <span style={{ fontSize: 10, color: T.text3, fontFamily: FONT_AR }}>{item.source || (t("Ru'aa News", 'رؤى للأخبار', "Actualités Ru'aa", "Ru'aa Haberleri", newsLang))}</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: FONT_AR }}>{item.source || (t("Ru'aa News", 'رؤى للأخبار', "Actualités Ru'aa", "Ru'aa Haberleri", newsLang))}</span>
           {item.fullContent && item.fullContent.length > 10 && (
-            <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: `${T.cyan}10`, color: T.cyan, fontWeight: 700, fontFamily: FONT_AR, marginInlineStart: 'auto' }}>{t('Full Analysis', 'تحليل كامل', 'Analyse complète', 'Tam Analiz', newsLang)}</span>
+            <span style={{ fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: `${T.cyan}10`, color: T.cyan, fontWeight: 700, fontFamily: FONT_AR, marginInlineStart: 'auto' }}>{t('Full Analysis', 'تحليل كامل', 'Analyse complète', 'Tam Analiz', newsLang)}</span>
           )}
         </div>
       </div>
@@ -840,19 +840,19 @@ function ReportsTab({ reports, loading, newsLang }: { reports: ReportItem[]; loa
 
   if (loading) {
     return (
-      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 20, padding: '32px', textAlign: 'center', color: T.text2 }}>
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-2xl)', padding: '32px', textAlign: 'center', color: T.text2 }}>
         <RefreshCw size={28} color={T.amber} style={{ marginBottom: 14, animation: 'spin 1s linear infinite' }} />
-        <p style={{ fontSize: 14, fontFamily: FONT_AR }}>{t('Loading reports...', 'جارٍ تحميل التقارير...', 'Chargement des rapports...', 'Raporlar yükleniyor...', newsLang)}</p>
+        <p style={{ fontSize: 'var(--text-base)', fontFamily: FONT_AR }}>{t('Loading reports...', 'جارٍ تحميل التقارير...', 'Chargement des rapports...', 'Raporlar yükleniyor...', newsLang)}</p>
       </div>
     )
   }
 
   if (reports.length === 0) {
     return (
-      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 20, padding: '40px 32px', textAlign: 'center' }}>
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-2xl)', padding: '40px 32px', textAlign: 'center' }}>
         <BarChart2 size={34} color={T.amber} style={{ marginBottom: 14 }} />
-        <h2 style={{ color: T.text, fontSize: 18, fontWeight: 800, margin: '0 0 8px' }}>{t('No reports available', 'لا توجد تقارير حالياً', 'Aucun rapport disponible', 'Rapor mevcut değil', newsLang)}</h2>
-        <p style={{ color: T.text2, fontSize: 13, margin: 0 }}>{t('Analyzed reports will appear here when available', 'ستظهر التقارير المحللة هنا عند توفرها', 'Les rapports analysés apparaîtront ici', 'Analiz edilen raporlar mevcut olduğunda burada görünecek', newsLang)}</p>
+        <h2 style={{ color: T.text, fontSize: 'var(--text-lg)', fontWeight: 800, margin: '0 0 8px' }}>{t('No reports available', 'لا توجد تقارير حالياً', 'Aucun rapport disponible', 'Rapor mevcut değil', newsLang)}</h2>
+        <p style={{ color: T.text2, fontSize: 'var(--text-sm)', margin: 0 }}>{t('Analyzed reports will appear here when available', 'ستظهر التقارير المحللة هنا عند توفرها', 'Les rapports analysés apparaîtront ici', 'Analiz edilen raporlar mevcut olduğunda burada görünecek', newsLang)}</p>
       </div>
     )
   }
@@ -867,11 +867,11 @@ function ReportsTab({ reports, loading, newsLang }: { reports: ReportItem[]; loa
       {economicReports.length > 0 && (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 10, background: `${T.amber}14`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-lg)', background: `${T.amber}14`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <FileText size={16} color={T.amber} />
             </div>
-            <h2 style={{ fontSize: 16, fontWeight: 800, color: T.text, margin: 0 }}>{t('Strategic Economic Reports', 'تقارير اقتصادية استراتيجية', 'Rapports économiques stratégiques', 'Stratejik Ekonomik Raporlar', newsLang)}</h2>
-            <span style={{ fontSize: 11, color: T.text3, fontFamily: FONT_AR }}>({economicReports.length})</span>
+            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 800, color: T.text, margin: 0 }}>{t('Strategic Economic Reports', 'تقارير اقتصادية استراتيجية', 'Rapports économiques stratégiques', 'Stratejik Ekonomik Raporlar', newsLang)}</h2>
+            <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: FONT_AR }}>({economicReports.length})</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {economicReports.map((report, i) => (
@@ -885,11 +885,11 @@ function ReportsTab({ reports, loading, newsLang }: { reports: ReportItem[]; loa
       {analysisReports.length > 0 && (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 10, background: `${T.cyan}14`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-lg)', background: `${T.cyan}14`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <BarChart2 size={16} color={T.cyan} />
             </div>
-            <h2 style={{ fontSize: 16, fontWeight: 800, color: T.text, margin: 0 }}>{t('Market Analysis', 'تحليلات السوق', 'Analyse du marché', 'Piyasa Analizi', newsLang)}</h2>
-            <span style={{ fontSize: 11, color: T.text3, fontFamily: FONT_AR }}>({analysisReports.length})</span>
+            <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 800, color: T.text, margin: 0 }}>{t('Market Analysis', 'تحليلات السوق', 'Analyse du marché', 'Piyasa Analizi', newsLang)}</h2>
+            <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: FONT_AR }}>({analysisReports.length})</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
             {analysisReports.map((report, i) => (
@@ -938,7 +938,7 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
         background: T.card,
         border: `1px solid ${expanded ? cat.color + '40' : T.border}`,
         borderRight: `3px solid ${cat.color}`,
-        borderRadius: 14,
+        borderRadius: 'var(--radius-xl)',
         overflow: 'hidden',
         animation: `fade-in 0.25s ease-out ${index * 20}ms both`,
       }}
@@ -953,27 +953,27 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
       <div style={{ padding: '16px 18px' }}>
         {/* Badges */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6, background: `${cat.color}14`, color: cat.color, fontWeight: 800, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 3 }}>
+          <span style={{ fontSize: 'var(--text-xs)', padding: '3px 8px', borderRadius: 'var(--radius-sm)', background: `${cat.color}14`, color: cat.color, fontWeight: 800, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 3 }}>
             {cat.icon} {cat.label}
           </span>
           {report.confidenceScore != null && (
-            <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: `${T.green}12`, color: T.green, fontWeight: 700, fontFamily: FONT_AR }}>
+            <span style={{ fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: `${T.green}12`, color: T.green, fontWeight: 700, fontFamily: FONT_AR }}>
               {t('Confidence', 'ثقة', 'Confiance', 'Güven', newsLang)} {report.confidenceScore}%
             </span>
           )}
-          <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: `${risk.color}10`, color: risk.color, fontWeight: 700, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: `${risk.color}10`, color: risk.color, fontWeight: 700, fontFamily: FONT_AR }}>
             {risk.label}
           </span>
-          <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: `${sentimentConf.color}10`, color: sentimentConf.color, fontWeight: 700, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: `${sentimentConf.color}10`, color: sentimentConf.color, fontWeight: 700, fontFamily: FONT_AR }}>
             {sentimentConf.label}
           </span>
-          <span style={{ fontSize: 9, color: T.text3, marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: T.text3, marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT_AR }}>
             <Clock size={9} /> {timeAgo(report.publishedAt, newsLang)}
           </span>
         </div>
 
         {/* Title */}
-        <h3 style={{ color: T.text, fontSize: 14, fontWeight: 800, margin: '0 0 8px', lineHeight: 1.6, fontFamily: FONT_AR }}>
+        <h3 style={{ color: T.text, fontSize: 'var(--text-base)', fontWeight: 800, margin: '0 0 8px', lineHeight: 1.6, fontFamily: FONT_AR }}>
           {report.titleAr || (t('Report', 'تقرير', 'Rapport', 'Rapor', newsLang))}
         </h3>
 
@@ -981,17 +981,17 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
         {Array.isArray(report.sectors) && report.sectors.length > 0 && !expanded && (
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {report.sectors.slice(0, 4).map((s, i) => (
-              <span key={i} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: T.bg2, color: T.text3, fontWeight: 600, fontFamily: FONT_AR }}>
+              <span key={i} style={{ fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: T.bg2, color: T.text3, fontWeight: 600, fontFamily: FONT_AR }}>
                 {safeStr(s)}
               </span>
             ))}
-            {report.sectors.length > 4 && <span style={{ fontSize: 9, color: T.text3 }}>+{report.sectors.length - 4}</span>}
+            {report.sectors.length > 4 && <span style={{ fontSize: 'var(--text-xs)', color: T.text3 }}>+{report.sectors.length - 4}</span>}
           </div>
         )}
 
         {/* Expand indicator */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 8 }}>
-          <span style={{ fontSize: 10, color: T.text3, display: 'flex', alignItems: 'center', gap: 4, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: T.text3, display: 'flex', alignItems: 'center', gap: 4, fontFamily: FONT_AR }}>
             {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
             {expanded ? t('Close', 'إغلاق', 'Fermer', 'Kapat', newsLang) : t('View Details', 'عرض التفاصيل', 'Voir les détails', 'Detayları Gör', newsLang)}
           </span>
@@ -1003,21 +1003,21 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
         <div style={{ padding: '0 18px 18px', borderTop: `1px solid ${T.border}`, paddingTop: 14 }}>
           {/* Key Indicators */}
           {report.keyIndicators && (
-            <div style={{ padding: 14, background: `${T.cyan}06`, borderRadius: 12, border: `0.5px solid ${T.cyan}15`, marginBottom: 12 }}>
+            <div style={{ padding: 14, background: `${T.cyan}06`, borderRadius: 'var(--radius-lg)', border: `0.5px solid ${T.cyan}15`, marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                 <Brain size={12} color={T.cyan} />
-                <span style={{ fontSize: 11, fontWeight: 800, color: T.cyan, fontFamily: FONT_AR }}>{t('Key Indicators', 'المؤشرات الرئيسية', 'Indicateurs clés', 'Temel Göstergeler', newsLang)}</span>
+                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.cyan, fontFamily: FONT_AR }}>{t('Key Indicators', 'المؤشرات الرئيسية', 'Indicateurs clés', 'Temel Göstergeler', newsLang)}</span>
               </div>
               {report.keyIndicators.topic && (
-                <p style={{ fontSize: 12, color: T.text2, lineHeight: 1.7, margin: '0 0 6px', fontFamily: FONT_AR }}>{report.keyIndicators.topic}</p>
+                <p style={{ fontSize: 'var(--text-sm)', color: T.text2, lineHeight: 1.7, margin: '0 0 6px', fontFamily: FONT_AR }}>{report.keyIndicators.topic}</p>
               )}
               {report.keyIndicators.region && (
-                <p style={{ fontSize: 11, color: T.text3, margin: '0 0 6px', fontFamily: FONT_AR }}>{t('Region:', 'المنطقة:', 'Région:', 'Bölge:', newsLang)} {report.keyIndicators.region}</p>
+                <p style={{ fontSize: 'var(--text-xs)', color: T.text3, margin: '0 0 6px', fontFamily: FONT_AR }}>{t('Region:', 'المنطقة:', 'Région:', 'Bölge:', newsLang)} {report.keyIndicators.region}</p>
               )}
               {Array.isArray(report.keyIndicators.scenarios) && report.keyIndicators.scenarios.length > 0 && (
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
                   {report.keyIndicators.scenarios.map((s, i) => (
-                    <span key={i} style={{ fontSize: 9, padding: '2px 8px', borderRadius: 6, background: `${T.amber}10`, color: T.amber, fontWeight: 600, fontFamily: FONT_AR }}>{safeStr(s)}</span>
+                    <span key={i} style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${T.amber}10`, color: T.amber, fontWeight: 600, fontFamily: FONT_AR }}>{safeStr(s)}</span>
                   ))}
                 </div>
               )}
@@ -1026,23 +1026,23 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
 
           {/* Price Target */}
           {report.priceTarget && report.priceTarget.symbol && (
-            <div style={{ padding: 14, background: `${T.green}06`, borderRadius: 12, border: `0.5px solid ${T.green}15`, marginBottom: 12 }}>
+            <div style={{ padding: 14, background: `${T.green}06`, borderRadius: 'var(--radius-lg)', border: `0.5px solid ${T.green}15`, marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                 <TrendingUp size={12} color={T.green} />
-                <span style={{ fontSize: 11, fontWeight: 800, color: T.green, fontFamily: FONT_AR }}>{t('Price Target', 'السعر المستهدف', 'Objectif de prix', 'Fiyat Hedefi', newsLang)}</span>
+                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.green, fontFamily: FONT_AR }}>{t('Price Target', 'السعر المستهدف', 'Objectif de prix', 'Fiyat Hedefi', newsLang)}</span>
               </div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 {report.priceTarget.symbol && (
-                  <span style={{ fontSize: 14, fontWeight: 900, color: T.text, fontFamily: FONT_MONO }}>{report.priceTarget.symbol}</span>
+                  <span style={{ fontSize: 'var(--text-base)', fontWeight: 900, color: T.text, fontFamily: FONT_MONO }}>{report.priceTarget.symbol}</span>
                 )}
                 {(report.priceTarget.current ?? 0) > 0 && (
-                  <span style={{ fontSize: 12, color: T.text2 }}>{t('Current:', 'الحالي:', 'Actuel:', 'Mevcut:', newsLang)} <strong style={{ color: T.text }}>{report.priceTarget.current}</strong></span>
+                  <span style={{ fontSize: 'var(--text-sm)', color: T.text2 }}>{t('Current:', 'الحالي:', 'Actuel:', 'Mevcut:', newsLang)} <strong style={{ color: T.text }}>{report.priceTarget.current}</strong></span>
                 )}
                 {report.priceTarget.target != null && (
-                  <span style={{ fontSize: 12, color: T.green }}>{t('Target:', 'المستهدف:', 'Objectif:', 'Hedef:', newsLang)} <strong>{report.priceTarget.target}</strong></span>
+                  <span style={{ fontSize: 'var(--text-sm)', color: T.green }}>{t('Target:', 'المستهدف:', 'Objectif:', 'Hedef:', newsLang)} <strong>{report.priceTarget.target}</strong></span>
                 )}
                 {report.priceTarget.stopLoss != null && (
-                  <span style={{ fontSize: 12, color: T.red }}>{t('Stop Loss:', 'وقف الخسارة:', 'Stop Loss:', 'Zarar Durdurma:', newsLang)} <strong>{report.priceTarget.stopLoss}</strong></span>
+                  <span style={{ fontSize: 'var(--text-sm)', color: T.red }}>{t('Stop Loss:', 'وقف الخسارة:', 'Stop Loss:', 'Zarar Durdurma:', newsLang)} <strong>{report.priceTarget.stopLoss}</strong></span>
                 )}
               </div>
             </div>
@@ -1050,14 +1050,14 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
 
           {/* Scope & Countries */}
           {(report.scope || (Array.isArray(report.countries) && report.countries.length > 0)) && (
-            <div style={{ padding: 14, background: `${T.amber}06`, borderRadius: 12, border: `0.5px solid ${T.amber}15`, marginBottom: 12 }}>
+            <div style={{ padding: 14, background: `${T.amber}06`, borderRadius: 'var(--radius-lg)', border: `0.5px solid ${T.amber}15`, marginBottom: 12 }}>
               {report.scope && (
-                <p style={{ fontSize: 12, color: T.text2, margin: '0 0 6px', fontFamily: FONT_AR }}>{t('Scope:', 'النطاق:', 'Portée:', 'Kapsam:', newsLang)} <strong style={{ color: T.text }}>{report.scope === 'arabic' ? (t('Arab World', 'العالم العربي', 'Monde arabe', 'Arap Dünyası', newsLang)) : report.scope === 'regional' ? (t('Regional', 'إقليمي', 'Régional', 'Bölgesel', newsLang)) : report.scope === 'global' ? (t('Global', 'عالمي', 'Mondial', 'Küresel', newsLang)) : report.scope}</strong></p>
+                <p style={{ fontSize: 'var(--text-sm)', color: T.text2, margin: '0 0 6px', fontFamily: FONT_AR }}>{t('Scope:', 'النطاق:', 'Portée:', 'Kapsam:', newsLang)} <strong style={{ color: T.text }}>{report.scope === 'arabic' ? (t('Arab World', 'العالم العربي', 'Monde arabe', 'Arap Dünyası', newsLang)) : report.scope === 'regional' ? (t('Regional', 'إقليمي', 'Régional', 'Bölgesel', newsLang)) : report.scope === 'global' ? (t('Global', 'عالمي', 'Mondial', 'Küresel', newsLang)) : report.scope}</strong></p>
               )}
               {Array.isArray(report.countries) && report.countries.length > 0 && (
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {report.countries.map((c, i) => (
-                    <span key={i} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: T.bg2, color: T.text3, fontWeight: 600, fontFamily: FONT_AR }}>{safeStr(c)}</span>
+                    <span key={i} style={{ fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: T.bg2, color: T.text3, fontWeight: 600, fontFamily: FONT_AR }}>{safeStr(c)}</span>
                   ))}
                 </div>
               )}
@@ -1068,7 +1068,7 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
           {Array.isArray(report.sectors) && report.sectors.length > 0 && (
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 12 }}>
               {report.sectors.map((s, i) => (
-                <span key={i} style={{ fontSize: 10, padding: '3px 10px', borderRadius: 6, background: `${cat.color}10`, color: cat.color, fontWeight: 700, fontFamily: FONT_AR }}>{safeStr(s)}</span>
+                <span key={i} style={{ fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-sm)', background: `${cat.color}10`, color: cat.color, fontWeight: 700, fontFamily: FONT_AR }}>{safeStr(s)}</span>
               ))}
             </div>
           )}
@@ -1077,11 +1077,11 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
           {report.confidenceScore != null && (
             <div style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ fontSize: 10, color: T.text3, fontFamily: FONT_AR }}>{t('Confidence Level', 'مستوى الثقة', 'Niveau de confiance', 'Güven Seviyesi', newsLang)}</span>
-                <span style={{ fontSize: 11, fontWeight: 800, color: T.green, fontFamily: FONT_MONO }}>{report.confidenceScore}%</span>
+                <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: FONT_AR }}>{t('Confidence Level', 'مستوى الثقة', 'Niveau de confiance', 'Güven Seviyesi', newsLang)}</span>
+                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.green, fontFamily: FONT_MONO }}>{report.confidenceScore}%</span>
               </div>
-              <div style={{ height: 4, borderRadius: 2, background: T.bg2, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${report.confidenceScore}%`, borderRadius: 2, background: `linear-gradient(90deg, ${T.green}60, ${T.green})`, transition: 'width 0.5s' }} />
+              <div style={{ height: 4, borderRadius: 'var(--radius-xs)', background: T.bg2, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${report.confidenceScore}%`, borderRadius: 'var(--radius-xs)', background: `linear-gradient(90deg, ${T.green}60, ${T.green})`, transition: 'width 0.5s' }} />
               </div>
             </div>
           )}
@@ -1089,14 +1089,14 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
           {/* Market Impact */}
           {report.marketImpact && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-              <span style={{ fontSize: 10, color: T.text3, fontFamily: FONT_AR }}>{t('Market Impact:', 'تأثير السوق:', 'Impact marché:', 'Piyasa Etkisi:', newsLang)}</span>
-              <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 6, background: `${sentimentConf.color}10`, color: sentimentConf.color, fontWeight: 700, fontFamily: FONT_AR }}>{report.marketImpact === 'neutral' ? t('Neutral', 'محايد', 'Neutre', 'Nötr', newsLang) : report.marketImpact === 'bullish' ? t('Bullish', 'صعودي', 'Haussier', 'Yükseliş', newsLang) : report.marketImpact === 'bearish' ? t('Bearish', 'هبوطي', 'Baissier', 'Düşüş', newsLang) : report.marketImpact}</span>
+              <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: FONT_AR }}>{t('Market Impact:', 'تأثير السوق:', 'Impact marché:', 'Piyasa Etkisi:', newsLang)}</span>
+              <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${sentimentConf.color}10`, color: sentimentConf.color, fontWeight: 700, fontFamily: FONT_AR }}>{report.marketImpact === 'neutral' ? t('Neutral', 'محايد', 'Neutre', 'Nötr', newsLang) : report.marketImpact === 'bullish' ? t('Bullish', 'صعودي', 'Haussier', 'Yükseliş', newsLang) : report.marketImpact === 'bearish' ? t('Bearish', 'هبوطي', 'Baissier', 'Düşüş', newsLang) : report.marketImpact}</span>
             </div>
           )}
 
           {/* Link to news site */}
           {report.siteUrl && (
-            <a href={report.siteUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: T.cyan, fontFamily: FONT_AR, textDecoration: 'none', padding: '8px 16px', borderRadius: 10, background: `${T.cyan}08`, border: `0.5px solid ${T.cyan}18` }}>
+            <a href={report.siteUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-sm)', fontWeight: 700, color: T.cyan, fontFamily: FONT_AR, textDecoration: 'none', padding: '8px 16px', borderRadius: 'var(--radius-lg)', background: `${T.cyan}08`, border: `0.5px solid ${T.cyan}18` }}>
               {t('Read Full Report', 'قراءة التقرير الكامل', 'Lire le rapport complet', 'Tam Raporu Oku', newsLang)} <ExternalLink size={12} />
             </a>
           )}
@@ -1135,19 +1135,19 @@ function TechnicalAnalysisTab({ analyses, loading, newsLang }: { analyses: any[]
 
   if (loading) {
     return (
-      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 20, padding: '32px', textAlign: 'center', color: T.text2 }}>
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-2xl)', padding: '32px', textAlign: 'center', color: T.text2 }}>
         <RefreshCw size={28} color={T.green} style={{ marginBottom: 14, animation: 'spin 1s linear infinite' }} />
-        <p style={{ fontSize: 14, fontFamily: FONT_AR }}>{t('Loading technical analysis...', 'جارٍ تحميل التحليلات الفنية...', 'Chargement des analyses techniques...', 'Teknik analizler yükleniyor...', newsLang)}</p>
+        <p style={{ fontSize: 'var(--text-base)', fontFamily: FONT_AR }}>{t('Loading technical analysis...', 'جارٍ تحميل التحليلات الفنية...', 'Chargement des analyses techniques...', 'Teknik analizler yükleniyor...', newsLang)}</p>
       </div>
     )
   }
 
   if (analyses.length === 0) {
     return (
-      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 20, padding: '48px 32px', textAlign: 'center' }}>
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 'var(--radius-2xl)', padding: '48px 32px', textAlign: 'center' }}>
         <LineChart size={40} color={T.green} style={{ marginBottom: 16, opacity: 0.5 }} />
-        <h2 style={{ color: T.text, fontSize: 18, fontWeight: 800, margin: '0 0 8px' }}>{t('No technical analysis available', 'لا توجد تحليلات فنية حالياً', 'Aucune analyse technique disponible', 'Teknik analiz mevcut değil', newsLang)}</h2>
-        <p style={{ color: T.text2, fontSize: 13, margin: 0, lineHeight: 1.8 }}>{t('Technical analysis will appear here when generated by the content agent', 'ستظهر التحليلات الفنية هنا عند توليدها من وكيل المحتوى', 'Les analyses techniques apparaîtront ici', 'İçerik aracısı tarafından üretildiğinde teknik analizler burada görünecek', newsLang)}</p>
+        <h2 style={{ color: T.text, fontSize: 'var(--text-lg)', fontWeight: 800, margin: '0 0 8px' }}>{t('No technical analysis available', 'لا توجد تحليلات فنية حالياً', 'Aucune analyse technique disponible', 'Teknik analiz mevcut değil', newsLang)}</h2>
+        <p style={{ color: T.text2, fontSize: 'var(--text-sm)', margin: 0, lineHeight: 1.8 }}>{t('Technical analysis will appear here when generated by the content agent', 'ستظهر التحليلات الفنية هنا عند توليدها من وكيل المحتوى', 'Les analyses techniques apparaîtront ici', 'İçerik aracısı tarafından üretildiğinde teknik analizler burada görünecek', newsLang)}</p>
       </div>
     )
   }
@@ -1157,7 +1157,7 @@ function TechnicalAnalysisTab({ analyses, loading, newsLang }: { analyses: any[]
       {/* Category Filter Chips */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         <button onClick={() => setFilterCat('')} style={{
-          padding: '6px 14px', borderRadius: 10, fontSize: 11, fontWeight: filterCat ? 600 : 800,
+          padding: '6px 14px', borderRadius: 'var(--radius-lg)', fontSize: 'var(--text-xs)', fontWeight: filterCat ? 600 : 800,
           fontFamily: FONT_AR, border: `1px solid ${filterCat ? T.border : T.green}`,
           background: filterCat ? T.card : `${T.green}14`, color: filterCat ? T.text2 : T.green, cursor: 'pointer',
         }}>
@@ -1168,7 +1168,7 @@ function TechnicalAnalysisTab({ analyses, loading, newsLang }: { analyses: any[]
           if (count === 0) return null
           return (
             <button key={key} onClick={() => setFilterCat(filterCat === key ? '' : key)} style={{
-              padding: '6px 14px', borderRadius: 10, fontSize: 11, fontWeight: filterCat === key ? 800 : 600,
+              padding: '6px 14px', borderRadius: 'var(--radius-lg)', fontSize: 'var(--text-xs)', fontWeight: filterCat === key ? 800 : 600,
               fontFamily: FONT_AR, border: `1px solid ${filterCat === key ? val.color : T.border}`,
               background: filterCat === key ? `${val.color}14` : T.card, color: filterCat === key ? val.color : T.text2, cursor: 'pointer',
             }}>
@@ -1280,7 +1280,7 @@ function AnalysisContentCard({
         background: T.card,
         border: `1px solid ${expanded ? cat.color + '30' : T.border}`,
         borderRight: `3px solid ${cat.color}`,
-        borderRadius: 16,
+        borderRadius: 'var(--radius-xl)',
         overflow: 'hidden',
         animation: `fade-in 0.3s ease-out ${index * 30}ms both`,
       }}
@@ -1289,28 +1289,28 @@ function AnalysisContentCard({
       <div style={{ padding: '22px 22px 0' }}>
         {/* Top Row: Badges */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 10, padding: '3px 10px', borderRadius: 7, background: `${cat.color}18`, color: cat.color, fontWeight: 800, fontFamily: FONT_AR, border: `0.5px solid ${cat.color}25` }}>
+          <span style={{ fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-md)', background: `${cat.color}18`, color: cat.color, fontWeight: 800, fontFamily: FONT_AR, border: `0.5px solid ${cat.color}25` }}>
             {cat.label}
           </span>
-          <span style={{ fontSize: 10, padding: '3px 10px', borderRadius: 7, background: `${typ.color}12`, color: typ.color, fontWeight: 700, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 'var(--text-xs)', padding: '3px 10px', borderRadius: 'var(--radius-md)', background: `${typ.color}12`, color: typ.color, fontWeight: 700, fontFamily: FONT_AR }}>
             {typ.label}
           </span>
-          <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 6, background: `${sentimentConf.color}10`, color: sentimentConf.color, fontWeight: 700, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 3 }}>
+          <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${sentimentConf.color}10`, color: sentimentConf.color, fontWeight: 700, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 3 }}>
             {sentimentConf.icon} {sentimentConf.label}
           </span>
           {article.impactLevel && (
-            <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 6, background: `${impactConf.color}10`, color: impactConf.color, fontWeight: 700, fontFamily: FONT_AR }}>
+            <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${impactConf.color}10`, color: impactConf.color, fontWeight: 700, fontFamily: FONT_AR }}>
               {impactConf.label}
             </span>
           )}
-          <span style={{ fontSize: 9, color: T.text3, marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: T.text3, marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT_AR }}>
             <Clock size={9} /> {timeAgo(article.publishedAt || article.createdAt, newsLang)}
           </span>
         </div>
 
         {/* Title */}
         <h3 style={{
-          color: T.text, fontSize: 18, fontWeight: 900, margin: '0 0 14px', lineHeight: 1.7, fontFamily: FONT_AR,
+          color: T.text, fontSize: 'var(--text-lg)', fontWeight: 900, margin: '0 0 14px', lineHeight: 1.7, fontFamily: FONT_AR,
           background: 'linear-gradient(180deg, #F0F2F5 0%, #C8CCD4 100%)',
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
         }}>
@@ -1322,7 +1322,7 @@ function AnalysisContentCard({
           <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
             {symbols.slice(0, 6).map((sym, i) => (
               <span key={i} style={{
-                fontSize: 11, padding: '4px 12px', borderRadius: 8,
+                fontSize: 'var(--text-xs)', padding: '4px 12px', borderRadius: 'var(--radius-md)',
                 background: `linear-gradient(135deg, ${T.cyan}10, ${T.cyan}06)`,
                 color: T.cyan, fontWeight: 800,
                 fontFamily: FONT_MONO, border: `1px solid ${T.cyan}18`,
@@ -1330,13 +1330,13 @@ function AnalysisContentCard({
                 {sym}
               </span>
             ))}
-            {symbols.length > 6 && <span style={{ fontSize: 9, color: T.text3, padding: '4px 8px' }}>+{symbols.length - 6}</span>}
+            {symbols.length > 6 && <span style={{ fontSize: 'var(--text-xs)', color: T.text3, padding: '4px 8px' }}>+{symbols.length - 6}</span>}
           </div>
         )}
 
         {/* Summary */}
         {summaryText && !expanded && (
-          <p style={{ color: T.text2, fontSize: 13, margin: '0 0 14px', lineHeight: 1.9, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          <p style={{ color: T.text2, fontSize: 'var(--text-sm)', margin: '0 0 14px', lineHeight: 1.9, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
             {summaryText}
           </p>
         )}
@@ -1345,14 +1345,14 @@ function AnalysisContentCard({
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Target size={12} color={qualityScore >= 70 ? T.green : T.amber} />
-            <span style={{ fontSize: 10, color: T.text3, fontFamily: FONT_AR, fontWeight: 600 }}>{t('Analysis Quality', 'جودة التحليل', 'Qualité analytique', 'Analiz Kalitesi', newsLang)}</span>
-            <div style={{ flex: 1, height: 4, borderRadius: 2, background: T.bg2, overflow: 'hidden', maxWidth: 120 }}>
-              <div style={{ height: '100%', width: `${Math.min(qualityScore, 100)}%`, borderRadius: 2, background: qualityScore >= 70 ? `linear-gradient(90deg, ${T.green}60, ${T.green})` : `linear-gradient(90deg, ${T.amber}60, ${T.amber})`, transition: 'width 0.5s' }} />
+            <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: FONT_AR, fontWeight: 600 }}>{t('Analysis Quality', 'جودة التحليل', 'Qualité analytique', 'Analiz Kalitesi', newsLang)}</span>
+            <div style={{ flex: 1, height: 4, borderRadius: 'var(--radius-xs)', background: T.bg2, overflow: 'hidden', maxWidth: 120 }}>
+              <div style={{ height: '100%', width: `${Math.min(qualityScore, 100)}%`, borderRadius: 'var(--radius-xs)', background: qualityScore >= 70 ? `linear-gradient(90deg, ${T.green}60, ${T.green})` : `linear-gradient(90deg, ${T.amber}60, ${T.amber})`, transition: 'width 0.5s' }} />
             </div>
-            <span style={{ fontSize: 10, fontWeight: 800, color: qualityScore >= 70 ? T.green : T.amber, fontFamily: FONT_MONO }}>{qualityScore}%</span>
+            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: qualityScore >= 70 ? T.green : T.amber, fontFamily: FONT_MONO }}>{qualityScore}%</span>
           </div>
           {article.readingTimeMinutes > 0 && (
-            <span style={{ fontSize: 9, color: T.text3, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 3 }}>
+            <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 3 }}>
               <BookOpen size={9} /> {article.readingTimeMinutes} {t('min read', 'دقائق قراءة', 'min de lecture', 'dk okuma', newsLang)}
             </span>
           )}
@@ -1371,9 +1371,9 @@ function AnalysisContentCard({
         }}
       >
         <span style={{
-          fontSize: 12, color: expanded ? cat.color : T.text2, fontWeight: 700,
+          fontSize: 'var(--text-sm)', color: expanded ? cat.color : T.text2, fontWeight: 700,
           fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 6,
-          padding: '6px 18px', borderRadius: 8,
+          padding: '6px 18px', borderRadius: 'var(--radius-md)',
           background: expanded ? `${cat.color}10` : 'rgba(255,255,255,0.04)',
           border: `1px solid ${expanded ? cat.color + '25' : T.border}`,
           transition: 'all 0.2s',
@@ -1397,7 +1397,7 @@ function AnalysisContentCard({
               <Tag size={11} color={T.text3} style={{ flexShrink: 0, marginTop: 2 }} />
               {tags.slice(0, 8).map((tag, i) => (
                 <span key={i} style={{
-                  fontSize: 9, padding: '3px 9px', borderRadius: 6,
+                  fontSize: 'var(--text-xs)', padding: '3px 9px', borderRadius: 'var(--radius-sm)',
                   background: 'rgba(255,255,255,0.04)', color: T.text3, fontWeight: 600, fontFamily: FONT_AR,
                   border: '1px solid rgba(255,255,255,0.06)',
                 }}>
@@ -1410,16 +1410,16 @@ function AnalysisContentCard({
           {/* Meta Footer */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 22px', borderTop: `1px solid ${T.border}`, flexWrap: 'wrap', background: `${T.bg2}40` }}>
             {article.views > 0 && (
-              <span style={{ fontSize: 10, color: T.text3, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Eye size={10} /> {article.views} {t('views', 'مشاهدة', 'vues', 'görüntülenme', newsLang)}
               </span>
             )}
             {article.generationSource && (
-              <span style={{ fontSize: 9, color: T.text3, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Sparkles size={9} /> {article.generationSource === 'GLM' ? 'GLM AI' : article.generationSource}
               </span>
             )}
-            <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 6, background: `${T.green}10`, color: T.green, fontWeight: 700, fontFamily: FONT_AR }}>
+            <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: `${T.green}10`, color: T.green, fontWeight: 700, fontFamily: FONT_AR }}>
               {t('Published', 'منشور', 'Publié', 'Yayınlandı', newsLang)}
             </span>
           </div>
@@ -1660,7 +1660,7 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
               borderRadius: '0 7px 7px 0',
             }}>
               <span style={{
-                fontSize: 14, fontWeight: 800, color: T.text2,
+                fontSize: 'var(--text-base)', fontWeight: 800, color: T.text2,
                 fontFamily: FONT_AR, lineHeight: 1.6,
               }}>
                 {renderInline(block.text)}
@@ -1679,7 +1679,7 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
               borderRadius: '0 8px 8px 0',
             }}>
               <span style={{
-                fontSize: 15, fontWeight: 900, color: T.text,
+                fontSize: 'var(--text-base)', fontWeight: 900, color: T.text,
                 fontFamily: FONT_AR, lineHeight: 1.6,
               }}>
                 {renderInline(block.text)}
@@ -1698,7 +1698,7 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
               borderRadius: '0 10px 10px 0',
             }}>
               <span style={{
-                fontSize: 17, fontWeight: 900, color: T.text,
+                fontSize: 'var(--text-md)', fontWeight: 900, color: T.text,
                 fontFamily: FONT_AR, lineHeight: 1.5,
               }}>
                 {renderInline(block.text)}
@@ -1717,7 +1717,7 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
               borderRadius: '0 6px 6px 0',
             }}>
               <span style={{
-                fontSize: 14, fontWeight: 800, color: T.text,
+                fontSize: 'var(--text-base)', fontWeight: 800, color: T.text,
                 fontFamily: FONT_AR, lineHeight: 1.6,
               }}>
                 {renderInline(block.text)}
@@ -1743,7 +1743,7 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
                 marginTop: 9, flexShrink: 0,
               }} />
               <span style={{
-                color: T.text2, fontSize: 13, lineHeight: 2,
+                color: T.text2, fontSize: 'var(--text-sm)', lineHeight: 2,
                 fontFamily: FONT_AR,
               }}>
                 {renderInline(block.text)}
@@ -1760,11 +1760,11 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
               background: 'linear-gradient(135deg, rgba(255,184,0,0.08), rgba(255,107,53,0.04))',
               border: `1px solid rgba(255,184,0,0.2)`,
               borderRight: `3.5px solid rgba(255,184,0,0.6)`,
-              borderRadius: 10,
+              borderRadius: 'var(--radius-lg)',
               display: 'flex', gap: 12, alignItems: 'flex-start',
             }}>
               <div style={{
-                width: 28, height: 28, borderRadius: 8,
+                width: 28, height: 28, borderRadius: 'var(--radius-md)',
                 background: 'rgba(255,184,0,0.12)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0,
@@ -1773,13 +1773,13 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
               </div>
               <div style={{ flex: 1 }}>
                 <span style={{
-                  color: T.amber, fontSize: 13, fontWeight: 800,
+                  color: T.amber, fontSize: 'var(--text-sm)', fontWeight: 800,
                   fontFamily: FONT_AR, display: 'block', marginBottom: 4,
                 }}>
                   {block.text.replace(/^#{1,6}\s*/, '')}
                 </span>
                 <span style={{
-                  color: 'rgba(255,184,0,0.7)', fontSize: 11, fontWeight: 500,
+                  color: 'rgba(255,184,0,0.7)', fontSize: 'var(--text-xs)', fontWeight: 500,
                   fontFamily: FONT_AR, lineHeight: 1.7,
                 }}>
                   {t('Content is for educational and analytical purposes only, not financial advice', 'المحتوى لأغراض تعليمية وتحليلية فقط وليس نصيحة مالية', 'Contenu à des fins éducatives et analytiques uniquement, non un conseil financier', 'İçerik yalnızca eğitim ve analiz amaçlıdır, finansal tavsiye değildir', newsLang)}
@@ -1794,7 +1794,7 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
         const cleanParagraph = block.text.replace(/^#{1,6}\s*/, '')
         return (
           <p key={i} style={{
-            color: T.text2, fontSize: 13, lineHeight: 2.1,
+            color: T.text2, fontSize: 'var(--text-sm)', lineHeight: 2.1,
             margin: '0 0 12px', fontFamily: FONT_AR,
           }}>
             {renderInline(cleanParagraph)}

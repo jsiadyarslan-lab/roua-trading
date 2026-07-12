@@ -388,10 +388,10 @@ export default function AdminNotificationsPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", margin: 0 }}>
+          <h1 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)", margin: 0 }}>
             إعدادات التنبيهات
           </h1>
-          <p style={{ fontSize: 12, color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '4px 0 0' }}>
+          <p style={{ fontSize: 'var(--text-sm)', color: COLORS.muted, fontFamily: "var(--font-ar)", margin: '4px 0 0' }}>
             تكوين قنوات وأحداث التنبيهات — الإعدادات المحفوظة تُستخدم فوراً من قبل النظام
           </p>
         </div>
@@ -399,9 +399,9 @@ export default function AdminNotificationsPage() {
           onClick={fetchConfigs}
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
-            padding: '8px 16px', borderRadius: 8,
+            padding: '8px 16px', borderRadius: 'var(--radius-md)',
             border: `1px solid ${COLORS.border}`, background: 'rgba(0,229,255,0.06)',
-            color: COLORS.accent, fontSize: 12, fontWeight: 600,
+            color: COLORS.accent, fontSize: 'var(--text-sm)', fontWeight: 600,
             fontFamily: "var(--font-ar)", cursor: 'pointer',
             transition: 'all 0.2s',
           }}
@@ -421,7 +421,7 @@ export default function AdminNotificationsPage() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <MessageSquare size={14} color={COLORS.accent} />
-              <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>تنبيهات Telegram</span>
+              <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>تنبيهات Telegram</span>
             </div>
             <button
               onClick={() => {
@@ -433,12 +433,12 @@ export default function AdminNotificationsPage() {
               style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
             >
               {telegramEnabled ? (
-                <div style={{ width: 40, height: 22, borderRadius: 11, background: COLORS.success, position: 'relative', transition: 'all 0.2s' }}>
-                  <div style={{ width: 18, height: 18, borderRadius: 9, background: '#fff', position: 'absolute', top: 2, left: 2 }} />
+                <div style={{ width: 40, height: 22, borderRadius: 'var(--radius-lg)', background: COLORS.success, position: 'relative', transition: 'all 0.2s' }}>
+                  <div style={{ width: 18, height: 18, borderRadius: 'var(--radius-md)', background: '#fff', position: 'absolute', top: 2, left: 2 }} />
                 </div>
               ) : (
-                <div style={{ width: 40, height: 22, borderRadius: 11, background: COLORS.muted, position: 'relative', transition: 'all 0.2s' }}>
-                  <div style={{ width: 18, height: 18, borderRadius: 9, background: '#fff', position: 'absolute', top: 2, right: 2 }} />
+                <div style={{ width: 40, height: 22, borderRadius: 'var(--radius-lg)', background: COLORS.muted, position: 'relative', transition: 'all 0.2s' }}>
+                  <div style={{ width: 18, height: 18, borderRadius: 'var(--radius-md)', background: '#fff', position: 'absolute', top: 2, right: 2 }} />
                 </div>
               )}
             </button>
@@ -447,7 +447,7 @@ export default function AdminNotificationsPage() {
             {/* Status indicator */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
-              padding: '8px 12px', borderRadius: 6,
+              padding: '8px 12px', borderRadius: 'var(--radius-sm)',
               background: telegramStatusInfo.color === COLORS.success ? `${COLORS.success}08` :
                 telegramStatusInfo.color === COLORS.danger ? `${COLORS.danger}08` :
                 telegramStatusInfo.color === COLORS.amber ? `${COLORS.amber}08` :
@@ -460,14 +460,14 @@ export default function AdminNotificationsPage() {
                 boxShadow: telegramStatusInfo.color === COLORS.success ? `0 0 6px ${COLORS.success}` : 'none',
               }} />
               <span style={{
-                fontSize: 10, fontWeight: 600,
+                fontSize: 'var(--text-xs)', fontWeight: 600,
                 color: telegramStatusInfo.color,
                 fontFamily: "var(--font-ar)",
               }}>
                 {telegramStatusInfo.text}
               </span>
               {telegramTriggerCount > 0 && (
-                <span style={{ fontSize: 9, color: COLORS.muted, fontFamily: "var(--font-ar)", marginRight: 'auto' }}>
+                <span style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", marginRight: 'auto' }}>
                   {telegramTriggerCount} تنبيه | آخر: {timeAgo(telegramLastTriggered)}
                 </span>
               )}
@@ -475,7 +475,7 @@ export default function AdminNotificationsPage() {
 
             {/* Bot Token */}
             <div>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 6 }}>
+              <label style={{ display: 'block', fontSize: 'var(--text-xs)', fontWeight: 600, color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 6 }}>
                 Bot Token
               </label>
               <div style={{ position: 'relative' }}>
@@ -489,10 +489,10 @@ export default function AdminNotificationsPage() {
                   placeholder={telegramTokenMasked ? 'أدخل رمز جديد أو اتركه فارغاً للإبقاء على الحالي' : 'أدخل Bot Token'}
                   dir="ltr"
                   style={{
-                    width: '100%', padding: '10px 40px 10px 12px', borderRadius: 8,
+                    width: '100%', padding: '10px 40px 10px 12px', borderRadius: 'var(--radius-md)',
                     background: 'rgba(255,255,255,0.03)',
                     border: `1px solid ${COLORS.border}`,
-                    color: COLORS.text, fontSize: 12,
+                    color: COLORS.text, fontSize: 'var(--text-sm)',
                     fontFamily: "var(--font-mono)",
                     outline: 'none', boxSizing: 'border-box',
                   }}
@@ -512,7 +512,7 @@ export default function AdminNotificationsPage() {
 
             {/* Chat ID */}
             <div>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 6 }}>
+              <label style={{ display: 'block', fontSize: 'var(--text-xs)', fontWeight: 600, color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 6 }}>
                 Chat ID
               </label>
               <input
@@ -522,10 +522,10 @@ export default function AdminNotificationsPage() {
                 placeholder="أدخل Chat ID (مثال: -1001234567890)"
                 dir="ltr"
                 style={{
-                  width: '100%', padding: '10px 12px', borderRadius: 8,
+                  width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-md)',
                   background: 'rgba(255,255,255,0.03)',
                   border: `1px solid ${COLORS.border}`,
-                  color: COLORS.text, fontSize: 12,
+                  color: COLORS.text, fontSize: 'var(--text-sm)',
                   fontFamily: "var(--font-mono)",
                   outline: 'none', boxSizing: 'border-box',
                 }}
@@ -538,10 +538,10 @@ export default function AdminNotificationsPage() {
               disabled={telegramTesting || !telegramEnabled}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                padding: '10px', borderRadius: 8,
+                padding: '10px', borderRadius: 'var(--radius-md)',
                 border: `1px solid ${COLORS.accent}25`,
                 background: `${COLORS.accent}08`,
-                color: COLORS.accent, fontSize: 12, fontWeight: 600,
+                color: COLORS.accent, fontSize: 'var(--text-sm)', fontWeight: 600,
                 fontFamily: "var(--font-ar)",
                 cursor: telegramTesting || !telegramEnabled ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s',
@@ -555,10 +555,10 @@ export default function AdminNotificationsPage() {
             {/* Test result */}
             {telegramTestResult && (
               <div style={{
-                padding: '8px 12px', borderRadius: 6,
+                padding: '8px 12px', borderRadius: 'var(--radius-sm)',
                 background: telegramStatus === 'connected' ? `${COLORS.success}08` : `${COLORS.danger}08`,
                 border: `1px solid ${telegramStatus === 'connected' ? COLORS.success + '25' : COLORS.danger + '25'}`,
-                fontSize: 10, fontWeight: 600,
+                fontSize: 'var(--text-xs)', fontWeight: 600,
                 color: telegramStatus === 'connected' ? COLORS.success : COLORS.danger,
                 fontFamily: "var(--font-ar)",
               }}>
@@ -577,19 +577,19 @@ export default function AdminNotificationsPage() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Globe size={14} color={COLORS.purple} />
-              <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>تنبيهات المتصفح</span>
+              <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>تنبيهات المتصفح</span>
             </div>
             <button
               onClick={() => setBrowserEnabled(!browserEnabled)}
               style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
             >
               {browserEnabled ? (
-                <div style={{ width: 40, height: 22, borderRadius: 11, background: COLORS.success, position: 'relative', transition: 'all 0.2s' }}>
-                  <div style={{ width: 18, height: 18, borderRadius: 9, background: '#fff', position: 'absolute', top: 2, left: 2 }} />
+                <div style={{ width: 40, height: 22, borderRadius: 'var(--radius-lg)', background: COLORS.success, position: 'relative', transition: 'all 0.2s' }}>
+                  <div style={{ width: 18, height: 18, borderRadius: 'var(--radius-md)', background: '#fff', position: 'absolute', top: 2, left: 2 }} />
                 </div>
               ) : (
-                <div style={{ width: 40, height: 22, borderRadius: 11, background: COLORS.muted, position: 'relative', transition: 'all 0.2s' }}>
-                  <div style={{ width: 18, height: 18, borderRadius: 9, background: '#fff', position: 'absolute', top: 2, right: 2 }} />
+                <div style={{ width: 40, height: 22, borderRadius: 'var(--radius-lg)', background: COLORS.muted, position: 'relative', transition: 'all 0.2s' }}>
+                  <div style={{ width: 18, height: 18, borderRadius: 'var(--radius-md)', background: '#fff', position: 'absolute', top: 2, right: 2 }} />
                 </div>
               )}
             </button>
@@ -597,11 +597,11 @@ export default function AdminNotificationsPage() {
           <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
             {/* Current permission status */}
             <div style={{
-              padding: 14, borderRadius: 8,
+              padding: 14, borderRadius: 'var(--radius-md)',
               background: 'rgba(255,255,255,0.02)',
               border: `1px solid ${COLORS.border}`,
             }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 8 }}>
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: COLORS.muted, fontFamily: "var(--font-ar)", marginBottom: 8 }}>
                 حالة إذن المتصفح
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -613,14 +613,14 @@ export default function AdminNotificationsPage() {
                   <Bell size={18} color={COLORS.amber} />
                 )}
                 <span style={{
-                  fontSize: 12, fontWeight: 600,
+                  fontSize: 'var(--text-sm)', fontWeight: 600,
                   color: browserPermission === 'granted' ? COLORS.success : browserPermission === 'denied' ? COLORS.danger : COLORS.amber,
                   fontFamily: "var(--font-ar)",
                 }}>
                   {browserPermission === 'granted' ? 'مسموح' : browserPermission === 'denied' ? 'مرفوض' : 'غير محدد'}
                 </span>
                 {browserTriggerCount > 0 && (
-                  <span style={{ fontSize: 9, color: COLORS.muted, fontFamily: "var(--font-ar)", marginRight: 'auto' }}>
+                  <span style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", marginRight: 'auto' }}>
                     {browserTriggerCount} تنبيه
                   </span>
                 )}
@@ -633,10 +633,10 @@ export default function AdminNotificationsPage() {
               disabled={browserPermission === 'granted'}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                padding: '10px', borderRadius: 8,
+                padding: '10px', borderRadius: 'var(--radius-md)',
                 border: `1px solid ${COLORS.purple}25`,
                 background: `${COLORS.purple}08`,
-                color: COLORS.purple, fontSize: 12, fontWeight: 600,
+                color: COLORS.purple, fontSize: 'var(--text-sm)', fontWeight: 600,
                 fontFamily: "var(--font-ar)",
                 cursor: browserPermission === 'granted' ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s',
@@ -653,10 +653,10 @@ export default function AdminNotificationsPage() {
               disabled={browserTesting || !browserEnabled || browserPermission !== 'granted'}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                padding: '10px', borderRadius: 8,
+                padding: '10px', borderRadius: 'var(--radius-md)',
                 border: `1px solid ${COLORS.accent}25`,
                 background: `${COLORS.accent}08`,
-                color: COLORS.accent, fontSize: 12, fontWeight: 600,
+                color: COLORS.accent, fontSize: 'var(--text-sm)', fontWeight: 600,
                 fontFamily: "var(--font-ar)",
                 cursor: browserTesting || !browserEnabled ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s',
@@ -669,11 +669,11 @@ export default function AdminNotificationsPage() {
 
             {/* Info */}
             <div style={{
-              padding: 12, borderRadius: 8,
+              padding: 12, borderRadius: 'var(--radius-md)',
               background: 'rgba(0,229,255,0.03)',
               border: `1px solid ${COLORS.accent}10`,
             }}>
-              <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)", lineHeight: 1.6 }}>
+              <div style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", lineHeight: 1.6 }}>
                 تنبيهات المتصفح تظهر كإشعارات سطح المكتب. يجب منح الإذن من المتصفح أولاً لتفعيل هذه الميزة.
                 Service Worker يدعم استقبال push events من الخادم.
               </div>
@@ -690,8 +690,8 @@ export default function AdminNotificationsPage() {
           display: 'flex', alignItems: 'center', gap: 8,
         }}>
           <Zap size={14} color={COLORS.amber} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>أحداث التنبيهات</span>
-          <span style={{ fontSize: 10, color: COLORS.muted, fontFamily: "var(--font-ar)", marginRight: 'auto' }}>
+          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: COLORS.text, fontFamily: "var(--font-ar)" }}>أحداث التنبيهات</span>
+          <span style={{ fontSize: 'var(--text-xs)', color: COLORS.muted, fontFamily: "var(--font-ar)", marginRight: 'auto' }}>
             الأحداث المفعّلة تُرسل عبر القنوات النشطة (Telegram + المتصفح)
           </span>
         </div>
@@ -703,7 +703,7 @@ export default function AdminNotificationsPage() {
               <div
                 key={event.key}
                 style={{
-                  padding: 14, borderRadius: 8,
+                  padding: 14, borderRadius: 'var(--radius-md)',
                   background: isEnabled ? 'rgba(0,229,255,0.04)' : 'rgba(255,255,255,0.02)',
                   border: `1px solid ${isEnabled ? COLORS.accent + '25' : COLORS.border}`,
                   transition: 'all 0.2s',
@@ -712,7 +712,7 @@ export default function AdminNotificationsPage() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => toggleEvent(event.key)}>
                     <EventIcon size={14} color={isEnabled ? COLORS.accent : COLORS.muted} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: isEnabled ? COLORS.text : COLORS.muted, fontFamily: "var(--font-ar)" }}>
+                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: isEnabled ? COLORS.text : COLORS.muted, fontFamily: "var(--font-ar)" }}>
                       {event.label}
                     </span>
                   </div>
@@ -720,12 +720,12 @@ export default function AdminNotificationsPage() {
                   <div
                     onClick={() => toggleEvent(event.key)}
                     style={{
-                      width: 36, height: 20, borderRadius: 10,
+                      width: 36, height: 20, borderRadius: 'var(--radius-lg)',
                       background: isEnabled ? COLORS.accent : COLORS.muted + '40',
                       position: 'relative', transition: 'all 0.2s', cursor: 'pointer',
                     }}>
                     <div style={{
-                      width: 16, height: 16, borderRadius: 8,
+                      width: 16, height: 16, borderRadius: 'var(--radius-md)',
                       background: isEnabled ? '#000' : '#666',
                       position: 'absolute', top: 2,
                       insetInlineStart: isEnabled ? 18 : 2,
@@ -739,10 +739,10 @@ export default function AdminNotificationsPage() {
                     onClick={(e) => { e.stopPropagation(); handleTestEvent(event.key) }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 4,
-                      padding: '4px 8px', borderRadius: 4,
+                      padding: '4px 8px', borderRadius: 'var(--radius-sm)',
                       border: `1px solid ${COLORS.accent}15`,
                       background: 'transparent',
-                      color: COLORS.accent, fontSize: 9, fontWeight: 600,
+                      color: COLORS.accent, fontSize: 'var(--text-xs)', fontWeight: 600,
                       fontFamily: "var(--font-ar)",
                       cursor: 'pointer', transition: 'all 0.15s',
                       marginTop: 4,
@@ -764,10 +764,10 @@ export default function AdminNotificationsPage() {
           disabled={saving}
           style={{
             display: 'flex', alignItems: 'center', gap: 8,
-            padding: '12px 24px', borderRadius: 8,
+            padding: '12px 24px', borderRadius: 'var(--radius-md)',
             border: 'none',
             background: COLORS.success,
-            color: '#000', fontSize: 13, fontWeight: 700,
+            color: '#000', fontSize: 'var(--text-sm)', fontWeight: 700,
             fontFamily: "var(--font-ar)", cursor: saving ? 'not-allowed' : 'pointer',
             transition: 'all 0.2s',
             boxShadow: saving ? 'none' : '0 0 20px rgba(0,230,118,0.15)',
@@ -779,7 +779,7 @@ export default function AdminNotificationsPage() {
         </button>
         {saveMessage && (
           <span style={{
-            fontSize: 12, fontWeight: 600,
+            fontSize: 'var(--text-sm)', fontWeight: 600,
             color: saveMessage.includes('نجاح') ? COLORS.success : COLORS.danger,
             fontFamily: "var(--font-ar)",
           }}>

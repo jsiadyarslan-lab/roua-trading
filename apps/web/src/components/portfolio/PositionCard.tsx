@@ -128,7 +128,7 @@ export function PositionCard({
         alignItems: 'center',
         gap: 8,
         padding: '6px 8px',
-        borderRadius: 8,
+        borderRadius: 'var(--radius-md)',
         border: `1px solid ${unrealizedPnl > 0 ? 'rgba(0,255,163,0.12)' : unrealizedPnl < 0 ? 'rgba(255,71,87,0.12)' : 'rgba(255,255,255,0.06)'}`,
         background: unrealizedPnl > 0
           ? 'rgba(0,255,163,0.03)'
@@ -155,7 +155,7 @@ export function PositionCard({
         style={{
           width: 3,
           height: 24,
-          borderRadius: 2,
+          borderRadius: 'var(--radius-xs)',
           background: sideColor,
           boxShadow: `0 0 6px ${sideColor}44`,
           flexShrink: 0,
@@ -166,7 +166,7 @@ export function PositionCard({
       <div style={{ minWidth: 0, flexShrink: 0, width: 72 }}>
         <div
           style={{
-            fontSize: 10,
+            fontSize: 'var(--text-xs)',
             fontWeight: 800,
             color: T.text,
             fontFamily: "var(--font-mono)",
@@ -179,7 +179,7 @@ export function PositionCard({
         </div>
         <div
           style={{
-            fontSize: 7,
+            fontSize: 'var(--text-xs)',
             fontWeight: 700,
             color: sideColor,
             fontFamily: "var(--font-ar)",
@@ -202,7 +202,7 @@ export function PositionCard({
         <div style={{ minWidth: 0 }}>
           <div
             style={{
-              fontSize: 7.5,
+              fontSize: 'var(--text-xs)',
               color: T.textMuted,
               fontFamily: "var(--font-ar)",
             }}
@@ -211,7 +211,7 @@ export function PositionCard({
           </div>
           <div
             style={{
-              fontSize: 9,
+              fontSize: 'var(--text-xs)',
               color: T.text2,
               fontFamily: "var(--font-mono)",
             }}
@@ -222,7 +222,7 @@ export function PositionCard({
         <div style={{ minWidth: 0 }}>
           <div
             style={{
-              fontSize: 7.5,
+              fontSize: 'var(--text-xs)',
               color: T.textMuted,
               fontFamily: "var(--font-ar)",
             }}
@@ -231,7 +231,7 @@ export function PositionCard({
           </div>
           <div
             style={{
-              fontSize: 9,
+              fontSize: 'var(--text-xs)',
               color: T.text,
               fontWeight: 700,
               fontFamily: "var(--font-mono)",
@@ -255,7 +255,7 @@ export function PositionCard({
         <div style={{ textAlign: 'right' }}>
           <div
             style={{
-              fontSize: 9,
+              fontSize: 'var(--text-xs)',
               fontWeight: 800,
               color: pnlColor,
               fontFamily: "var(--font-mono)",
@@ -265,7 +265,7 @@ export function PositionCard({
           </div>
           <div
             style={{
-              fontSize: 7,
+              fontSize: 'var(--text-xs)',
               fontWeight: 700,
               color: pnlColor,
               fontFamily: "var(--font-mono)",
@@ -301,9 +301,9 @@ export function PositionCard({
               style={{
                 width: 48,
                 height: 18,
-                fontSize: 7,
+                fontSize: 'var(--text-xs)',
                 padding: '0 3px',
-                borderRadius: 3,
+                borderRadius: 'var(--radius-xs)',
                 border: '1px solid rgba(255,71,87,0.3)',
                 background: 'rgba(255,71,87,0.08)',
                 color: T.red,
@@ -324,13 +324,13 @@ export function PositionCard({
             style={{
               height: 18,
               padding: '0 4px',
-              borderRadius: 3,
+              borderRadius: 'var(--radius-xs)',
               border: effectiveSl
                 ? '1px solid rgba(255,71,87,0.3)'
                 : '1px dashed rgba(255,71,87,0.2)',
               background: effectiveSl ? 'rgba(255,71,87,0.08)' : 'transparent',
               color: effectiveSl ? T.red : 'rgba(255,71,87,0.5)',
-              fontSize: 7,
+              fontSize: 'var(--text-xs)',
               fontWeight: 700,
               fontFamily: "var(--font-mono)",
               cursor: 'pointer',
@@ -366,9 +366,9 @@ export function PositionCard({
               style={{
                 width: 48,
                 height: 18,
-                fontSize: 7,
+                fontSize: 'var(--text-xs)',
                 padding: '0 3px',
-                borderRadius: 3,
+                borderRadius: 'var(--radius-xs)',
                 border: '1px solid rgba(0,255,163,0.3)',
                 background: 'rgba(0,255,163,0.08)',
                 color: T.green,
@@ -389,13 +389,13 @@ export function PositionCard({
             style={{
               height: 18,
               padding: '0 4px',
-              borderRadius: 3,
+              borderRadius: 'var(--radius-xs)',
               border: effectiveTp
                 ? '1px solid rgba(0,255,163,0.3)'
                 : '1px dashed rgba(0,255,163,0.2)',
               background: effectiveTp ? 'rgba(0,255,163,0.08)' : 'transparent',
               color: effectiveTp ? T.green : 'rgba(0,255,163,0.5)',
-              fontSize: 7,
+              fontSize: 'var(--text-xs)',
               fontWeight: 700,
               fontFamily: "var(--font-mono)",
               cursor: 'pointer',
@@ -430,11 +430,11 @@ export function PositionCard({
                 }}
                 style={{
                   padding: '2px 6px',
-                  borderRadius: 4,
+                  borderRadius: 'var(--radius-sm)',
                   border: '1px solid rgba(255,71,87,0.4)',
                   background: 'rgba(255,71,87,0.15)',
                   color: T.red,
-                  fontSize: 7,
+                  fontSize: 'var(--text-xs)',
                   fontWeight: 800,
                   cursor: closing || loading ? 'not-allowed' : 'pointer',
                   fontFamily: "var(--font-ar)",
@@ -453,11 +453,11 @@ export function PositionCard({
                 onClick={() => setConfirmClose(false)}
                 style={{
                   padding: '2px 4px',
-                  borderRadius: 4,
+                  borderRadius: 'var(--radius-sm)',
                   border: '1px solid rgba(255,255,255,0.08)',
                   background: 'transparent',
                   color: T.textMuted,
-                  fontSize: 7,
+                  fontSize: 'var(--text-xs)',
                   cursor: closing || loading ? 'not-allowed' : 'pointer',
                   opacity: closing || loading ? 0.5 : 1,
                 }}
@@ -473,7 +473,7 @@ export function PositionCard({
               style={{
                 width: 20,
                 height: 20,
-                borderRadius: 4,
+                borderRadius: 'var(--radius-sm)',
                 border: '1px solid rgba(255,255,255,0.06)',
                 background: 'rgba(255,255,255,0.03)',
                 cursor: 'pointer',

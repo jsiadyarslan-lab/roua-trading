@@ -83,7 +83,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
           backdropFilter: 'blur(16px) saturate(1.4)',
           WebkitBackdropFilter: 'blur(16px) saturate(1.4)',
           border: '1px solid rgba(255,255,255,0.06)',
-          borderRadius: 14,
+          borderRadius: 'var(--radius-xl)',
           overflow: 'hidden',
           boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)',
           padding: '8px 4px',
@@ -98,7 +98,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
           style={{
             width: 28,
             height: 28,
-            borderRadius: 6,
+            borderRadius: 'var(--radius-sm)',
             border: '1px solid rgba(0,212,255,0.18)',
             background: 'rgba(0, 0, 0, 0.9)',
             color: T.text3,
@@ -123,7 +123,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
               style={{
                 width: 28,
                 height: 28,
-                borderRadius: 6,
+                borderRadius: 'var(--radius-sm)',
                 background: isActive ? `${t.accent}18` : 'rgba(255,255,255,0.035)',
                 border: `1px solid ${isActive ? `${t.accent}55` : 'rgba(255,255,255,0.08)'}`,
                 color: isActive ? t.accent : T.text3,
@@ -155,7 +155,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
         backdropFilter: 'blur(16px) saturate(1.4)',
         WebkitBackdropFilter: 'blur(16px) saturate(1.4)',
         border: '1px solid rgba(255,255,255,0.06)',
-        borderRadius: 14,
+        borderRadius: 'var(--radius-xl)',
         overflow: 'hidden',
         boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)',
         position: 'relative',
@@ -191,22 +191,22 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
                   boxShadow: `0 0 10px ${activeTab.accent}66`,
                 }}
               />
-              <div style={{ fontSize: 10, fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: T.text, fontFamily: "var(--font-ar)" }}>
                 {tr('decisionCenter')}
               </div>
             </div>
-            <div style={{ marginTop: 2, fontSize: 7.5, color: T.text3, fontFamily: "var(--font-ar)" }}>
+            <div style={{ marginTop: 2, fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-ar)" }}>
               {headline}
             </div>
           </div>
           <div style={{ display: 'grid', gap: 3, justifyItems: 'end' }}>
             <div
               style={{
-                fontSize: 8,
+                fontSize: 'var(--text-xs)',
                 color: activeTab.accent,
                 background: `${activeTab.accent}12`,
                 border: `1px solid ${activeTab.accent}25`,
-                borderRadius: 999,
+                borderRadius: 'var(--radius-2xl)',
                 padding: '2px 6px',
                 fontWeight: 800,
                 fontFamily: "var(--font-mono)",
@@ -215,7 +215,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
             >
               {activeTab.label}
             </div>
-            <div style={{ fontSize: 7, color: T.text3, fontFamily: "var(--font-mono)" }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: T.text3, fontFamily: "var(--font-mono)" }}>
               {selectedSymbol}
             </div>
           </div>
@@ -228,7 +228,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
             style={{
               width: 24,
               height: 24,
-              borderRadius: 6,
+              borderRadius: 'var(--radius-sm)',
               border: '1px solid rgba(0,212,255,0.18)',
               background: 'rgba(0, 0, 0, 0.9)',
               color: T.text3,
@@ -277,7 +277,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
                 padding: '2px 2px',
                 background: isActive ? `${t.accent}18` : hasAlert ? `${alertColor}06` : 'rgba(255,255,255,0.035)',
                 border: `1px solid ${isActive ? `${t.accent}55` : hasAlert ? `${alertColor}35` : 'rgba(255,255,255,0.08)'}`,
-                borderRadius: 5,
+                borderRadius: 'var(--radius-sm)',
                 color: isActive ? T.text : T.text3,
                 cursor: 'pointer',
                 fontFamily: "var(--font-ar)",
@@ -303,10 +303,10 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
                   insetInlineEnd: 1,
                   minWidth: 8,
                   height: 8,
-                  borderRadius: 999,
+                  borderRadius: 'var(--radius-2xl)',
                   background: alertColor,
                   color: '#000',
-                  fontSize: 5,
+                  fontSize: 'var(--text-xs)',
                   fontWeight: 900,
                   fontFamily: "var(--font-mono)",
                   display: 'flex',
@@ -321,7 +321,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
               )}
 
               <Icon size={8} color={isActive ? t.accent : hasAlert ? alertColor : '#93A7C3'} />
-              <span style={{ fontSize: 6, fontWeight: isActive ? 800 : 600, lineHeight: 1, color: isActive ? T.text : hasAlert ? alertColor : '#AEC0D6', whiteSpace: 'nowrap' }}>{t.label}</span>
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight: isActive ? 800 : 600, lineHeight: 1, color: isActive ? T.text : hasAlert ? alertColor : '#AEC0D6', whiteSpace: 'nowrap' }}>{t.label}</span>
             </button>
           )
         })}
@@ -346,7 +346,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
             minHeight: 0,
             height: '100%',
             overflowY: 'auto',
-            borderRadius: 10,
+            borderRadius: 'var(--radius-lg)',
             border: `1px solid rgba(0,212,255,0.10)`,
             background: 'linear-gradient(180deg, rgba(14,20,30,0.98), rgba(8,13,20,0.98))',
             boxShadow: `inset 0 1px 0 rgba(255,255,255,0.035), 0 18px 40px rgba(0,0,0,0.26)`,

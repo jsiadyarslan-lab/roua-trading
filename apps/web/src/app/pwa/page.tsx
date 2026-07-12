@@ -14,7 +14,7 @@ export default function PWAEntry() {
       background:'#0A0D13',
       display:'flex', alignItems:'center', justifyContent:'center',
     }}>
-      <div style={{ color:T.info, fontFamily: "var(--font-mono)", fontSize:14 }}>
+      <div style={{ color:T.info, fontFamily: "var(--font-mono)", fontSize: 'var(--text-base)' }}>
         جاري التحميل...
       </div>
     </div>

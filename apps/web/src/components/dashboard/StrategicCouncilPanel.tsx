@@ -3,20 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
-
-const T = {
-  bg: '#0B0E14',
-  card: '#1A1D29',
-  accent: '#00D4FF',
-  success: '#00FFA3',
-  danger: '#FF4757',
-  amber: '#FFB800',
-  purple: '#B388FF',
-  cyan: '#00D4FF',
-  text: '#F0F2F5',
-  text2: '#8B92A8',
-  text3: '#8B92A8',
-}
+import { T } from '@/lib/unified-tokens'
 
 interface TradingBrief {
   id: string

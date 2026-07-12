@@ -9,21 +9,7 @@ import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useBotStore } from '@/hooks/useBotStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
 import { useTranslations, useLocale } from 'next-intl'
-
-const T = {
-  bg:      '#0B0E14',
-  bg2:     '#1A1D29',
-  card:    '#1A1D29',
-  border:  'rgba(255,255,255,0.06)',
-  accent:  '#00D4FF',
-  success: '#00FFA3',
-  danger:  '#FF4757',
-  amber:   '#FFB800',
-  purple:  '#B388FF',
-  text:    '#F0F2F5',
-  text2:   '#8B92A8',
-  text3:   '#8B92A8',
-}
+import { T } from '@/lib/unified-tokens'
 
 interface SmartSignal {
   id?: string

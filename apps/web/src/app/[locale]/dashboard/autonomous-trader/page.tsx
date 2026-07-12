@@ -19,13 +19,6 @@ import { safeToFixed } from '@/lib/charts/chart-utils'
    Design Tokens — matching Roua Trading theme
    ═══════════════════════════════════════════════ */
 import { T as _T, getPnlColor } from '@/lib/unified-tokens'
-const T = {
-  ..._T,
-  bg3:      '#141824',
-  glass:    'rgba(26, 29, 41, 0.65)',
-  glow:     'rgba(0,212,255,0.15)',
-}
-
 const FONT_AR = "'Cairo', sans-serif"
 const FONT_MONO = "'JetBrains Mono', monospace"
 

@@ -57,6 +57,41 @@ export const T = {
   purple: '#B388FF',
   gold: '#d4af37',
 
+  // ═══════════════════════════════════════════════════════════
+  // ADDITIONAL PROPERTIES (preserved from local const T definitions
+  // that existed in 39+ component files before Phase 1 unification)
+  // ═══════════════════════════════════════════════════════════
+
+  // Text variants (used 110+ times across components)
+  text4: '#6B7280',        // darker than text3 — for truly muted text
+  muted: '#8B92A8',        // alias for text2 — used in some components
+
+  // Brand/Accent variants
+  accent2: '#047857',      // darker brand accent
+  council: '#B388FF',      // AI Council violet (was only in TExtended)
+
+  // Surface variants
+  panel: '#151A22',        // alias for card
+  headerBg: '#0B0E14',     // alias for bg
+  cardAlt: '#1A1D29',      // alternate card color (slightly lighter)
+
+  // Semantic colors (used in specific pages)
+  orange: '#FF8040',       // warm accent for warnings/highlights
+  pink: '#F472B6',         // used in billing page
+  silver: '#C0C0C0',       // used in leaderboard (2nd place)
+  bronze: '#CD7F32',       // used in leaderboard (3rd place)
+
+  // Glass effects
+  glassCard: 'rgba(255,255,255,0.04)',
+  glassSidebar: 'rgba(11,14,20,0.85)',
+  glassTopBar: 'rgba(11,14,20,0.85)',
+
+  // Shadow effects
+  shadowGlass: '0 8px 32px rgba(0,0,0,0.3)',
+  shadowActiveTab: '0 0 0 2px #059669',
+  councilGlow: '0 0 16px rgba(179,136,255,0.35)',
+  glow: '0 0 12px rgba(0,212,255,0.4)',
+
   // Text (aligned with globals.css --text-main: #F0F2F5, --text-secondary: #8B92A8)
   // V594: differentiated text2/text3 for better visual hierarchy
   text: '#F0F2F5',

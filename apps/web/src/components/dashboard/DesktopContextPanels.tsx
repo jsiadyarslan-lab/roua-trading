@@ -9,10 +9,6 @@ import { formatFreshness } from '@/lib/dashboard-live'
 import { T as _T, getPnlColor } from '@/lib/unified-tokens'
 import { safeStr } from '@/lib/utils'
 
-const T = {
-  ..._T,
-}
-
 function PanelShell({
   title,
   accent,

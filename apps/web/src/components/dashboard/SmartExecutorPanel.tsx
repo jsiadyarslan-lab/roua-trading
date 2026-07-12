@@ -3,26 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
-import { getPnlColor } from '@/lib/unified-tokens'
-
-const T = {
-  bg: '#0B0E14',
-  bg2: '#1A1D29',
-  card: '#1A1D29',
-  border: 'rgba(255,255,255,0.06)',
-  primary: '#0A84FF',
-  accent: '#00D4FF',
-  success: '#00FFA3',
-  danger: '#FF4757',
-  amber: '#FFB800',
-  purple: '#B388FF',
-  cyan: '#00D4FF',
-  green: '#00FFA3',
-  red: '#FF4757',
-  text: '#F0F2F5',
-  text2: '#8B92A8',
-  text3: '#8B92A8',
-}
+import { T, getPnlColor } from '@/lib/unified-tokens'
 
 interface ExecutorStatus {
   isRunning: boolean

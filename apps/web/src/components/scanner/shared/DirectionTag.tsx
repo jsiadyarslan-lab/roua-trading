@@ -1,12 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-
-const T = {
-  green: '#00FFA3', greenDim: '#00CC82', red: '#FF4757', redDim: '#FF3344',
-  blue: '#0A84FF', purple: '#B388FF', amber: '#FFB800', cyan: '#00D4FF',
-  text2: '#8B92A8', text3: '#8B92A8',
-}
+import { T } from '@/lib/unified-tokens'
 
 type TagSize = 'sm' | 'md' | 'lg'
 

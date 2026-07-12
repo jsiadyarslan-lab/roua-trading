@@ -5,12 +5,7 @@ import { Search, Clock, Filter } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useScannerContext } from './ScannerProvider'
 import type { CategoryFilter, DirectionFilter, SignalFilter } from './hooks/useScannerFilters'
-
-const T = {
-  bg2: '#1A1D29', card: '#1A1D29', surface: '#1A1D29', blue: '#0A84FF',
-  cyan: '#00D4FF', text: '#F0F2F5', text2: '#8B92A8', text3: '#8B92A8',
-  border: 'rgba(255,255,255,0.06)', border2: 'rgba(0,212,255,0.16)',
-}
+import { T } from '@/lib/unified-tokens'
 
 function Pill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (

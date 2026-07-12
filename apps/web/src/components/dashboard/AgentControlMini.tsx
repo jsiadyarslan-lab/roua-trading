@@ -9,26 +9,11 @@ import {
 import { useAgentStore, AgentStatus, StrategyType } from '@/hooks/useAgentStore'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
-import { getPnlColor, getPnlSign } from '@/lib/unified-tokens'
+import { T, getPnlColor, getPnlSign } from '@/lib/unified-tokens'
 
 /* ═══════════════════════════════════════════════
    Design Tokens — Roua Trading dark theme
    ═══════════════════════════════════════════════ */
-const T = {
-  bg: '#0B0E14',
-  bg2: '#1A1D29',
-  card: '#1A1D29',
-  accent: '#00D4FF',
-  green: '#00FFA3',
-  red: '#FF4757',
-  amber: '#FFB800',
-  purple: '#B388FF',
-  text: '#F0F2F5',
-  text2: '#8B92A8',
-  text3: '#5A6178',
-  border: 'rgba(255,255,255,0.06)',
-}
-
 const FONT_AR = "'Cairo', sans-serif"
 const FONT_MONO = "'JetBrains Mono', monospace"
 

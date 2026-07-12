@@ -1,10 +1,7 @@
 'use client'
 
-const T = {
-  green: '#00FFA3', red: '#FF4757', amber: '#FFB800',
-  cyan: '#00D4FF', text3: '#8B92A8', bg: '#0B0E14',
-  surface: '#1A1D29',
-}
+
+import { T } from '@/lib/unified-tokens'
 
 interface VolumeBarProps {
   current: number

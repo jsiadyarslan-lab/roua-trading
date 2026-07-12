@@ -14,30 +14,10 @@ import { useTabAlertStore, type TabId } from '@/hooks/useTabAlertStore'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useRightPanelState } from '@/hooks/useRightPanelState'
 import { useTranslations } from 'next-intl'
+import { T } from '@/lib/unified-tokens'
 
 // LazicPanel uses browser-only APIs (fetch + interval) → load on client only
 const LazicPanel = dynamic(() => import('@/components/dashboard/LazicPanel').then(m => ({ default: m.LazicPanel })), { ssr: false })
-
-const T = {
-  bg: '#0B0E14',
-  bg2: '#1A1D29',
-  bg3: '#16181A',
-  card: '#1A1D29',
-  border: 'rgba(255,255,255,0.06)',
-  border2: 'rgba(0,212,255,0.12)',
-  primary: '#0A84FF',
-  accent: '#00D4FF',
-  success: '#00FFA3',
-  danger: '#FF4757',
-  amber: '#FFB800',
-  purple: '#B388FF',
-  cyan: '#00D4FF',
-  green: '#00FFA3',
-  red: '#FF4757',
-  text: '#F0F2F5',
-  text2: '#8B92A8',
-  text3: '#8B92A8',
-}
 
 export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
   useScopedStyle(`

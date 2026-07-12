@@ -7,6 +7,7 @@ import type { HeatmapItem } from '../hooks/useScannerData'
 import { ScopedStyle } from '@/components/ScopedStyle'
 import { useLocale } from 'next-intl'
 import { getLocalizedAssetName, safeStr } from '@/lib/utils'
+import { T } from '@/lib/unified-tokens'
 
 function safeMax(arr: number[]): number {
   if (arr.length === 0) return -Infinity;
@@ -19,13 +20,6 @@ function safeMin(arr: number[]): number {
   let min = arr[0];
   for (let i = 1; i < arr.length; i++) { if (arr[i] < min) min = arr[i]; }
   return min;
-}
-
-const T = {
-  bg: '#0B0E14', bg2: '#1A1D29', card: '#1A1D29', surface: '#1A1D29',
-  green: '#00FFA3', greenDim: '#00CC82', red: '#FF4757', redDim: '#FF3344',
-  cyan: '#00D4FF', text: '#F0F2F5', text2: '#8B92A8', text3: '#8B92A8',
-  border: 'rgba(255,255,255,0.06)', border2: 'rgba(0,212,255,0.16)',
 }
 
 type SortMode = 'changePercent' | 'volume' | 'technicalScore'

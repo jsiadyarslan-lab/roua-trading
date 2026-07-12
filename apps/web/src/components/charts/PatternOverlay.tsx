@@ -5,7 +5,8 @@
 'use client';
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import type { DetectedPattern } from '@/lib/charts/pattern-engine';
+import type { DetectedPattern } from '@/lib/charts/pattern-engine'
+import { T } from '@/lib/unified-tokens';
 
 interface PatternOverlayProps {
   patterns: DetectedPattern[];
@@ -41,16 +42,7 @@ export function PatternOverlay({ patterns, onPatternClick, onClose }: PatternOve
       : b.timeEnd - a.timeEnd
     );
 
-  const T = {
-    bg: '#0B0E14',
-    border: 'rgba(0,212,255,0.15)',
-    accent: '#00D4FF',
-    green: '#00FFA3',
-    red: '#FF4757',
-    muted: 'rgba(255,255,255,0.4)',
-    text: 'rgba(255,255,255,0.85)',
-    headerBg: 'rgba(0,212,255,0.08)',
-  };
+  ;
 
   return (
     <div style={{

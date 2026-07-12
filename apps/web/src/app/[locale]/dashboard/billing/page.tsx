@@ -11,15 +11,13 @@ import {
 import { useAuthStore } from '@/lib/auth-store'
 import { ROLE_INFO, type Role } from '@/lib/permissions'
 import { toast } from '@/hooks/use-toast'
-import { T as SharedT } from '@/lib/unified-tokens'
+import { T } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations } from 'next-intl'
 
 /* ═══════════════════════════════════════════════════════
    Design Tokens (canonical + local extensions)
 ═══════════════════════════════════════════════════════ */
-const T = { ...SharedT, pink: '#f472b6', text4: '#475569' }
-
 /* ═══════════════════════════════════════════════════════
    Plan Data
 ═══════════════════════════════════════════════════════ */

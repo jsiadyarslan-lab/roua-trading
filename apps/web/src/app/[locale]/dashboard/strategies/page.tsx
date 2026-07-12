@@ -9,12 +9,10 @@ import {
   Download, Calendar, Save, AlertTriangle, BarChart, ChevronDown
 } from 'lucide-react'
 
-import { T as SharedT } from '@/lib/unified-tokens'
+import { T } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 // Unified Theme matching Portfolio and Scanner exactly (canonical + local extensions)
-const T = { ...SharedT, amber2: '#E6A23C' }
-
 const Gauge = ({ value, max, label, color }: { value: number, max: number, label: string, color: string }) => {
   const radius = 20
   const circum = 2 * Math.PI * radius

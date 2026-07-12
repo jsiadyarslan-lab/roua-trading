@@ -22,7 +22,7 @@ import { hasPermission, getPermissions, ROLE_INFO, type Role, type Permission } 
 import { SmartExecutorTab } from './tabs/SmartExecutorTab'
 import { AutonomousAgentTab } from './tabs/AutonomousAgentTab'
 import { AICouncilTab } from './tabs/AICouncilTab'
-import { T as SharedT } from '@/lib/unified-tokens'
+import { T } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations } from 'next-intl'
 import { useLocale } from 'next-intl'
@@ -33,25 +33,6 @@ import { useLocale } from 'next-intl'
 // Color palette: #0B0E14 bg / #A855F7 council purple /
 //                #10B981 green / #EF4444 red / #06B6D4 cyan
 // ═══════════════════════════════════════════════════════════
-const T = {
-  ...SharedT,
-  pink: '#f472b6',
-  text4: '#475569',
-  // Council purple — the signature accent of Roua's AI Strategic Council
-  council: '#A855F7',
-  councilDim: '#9333EA',
-  councilGlow: 'rgba(168, 85, 247, 0.35)',
-  // Premium glass surfaces
-  glassCard: 'rgba(26, 29, 41, 0.55)',
-  glassCardHover: 'rgba(31, 35, 53, 0.7)',
-  glassSidebar: 'rgba(15, 17, 23, 0.65)',
-  glassTopBar: 'rgba(11, 14, 20, 0.78)',
-  // Premium shadows
-  shadowGlass: '0 8px 32px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.04)',
-  shadowElevated: '0 12px 48px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
-  shadowActiveTab: '0 4px 16px rgba(168, 85, 247, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
-}
-
 /* ─── Toggle Switch (Premium) ─── */
 function Toggle({ checked, onChange, color, size = 'md', ariaLabel }: {
   checked: boolean; onChange: () => void; color: string; size?: 'sm' | 'md'; ariaLabel?: string

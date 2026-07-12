@@ -6,12 +6,7 @@ import { useTranslations } from 'next-intl'
 import { usePriceAlertStore, AlertCondition } from '@/hooks/usePriceAlertStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
-
-const T = {
-  bg: 'var(--bg)', surface: 'var(--surface)', border: 'var(--card-border)',
-  text: 'var(--foreground)', muted: 'var(--muted)',
-  green: '#00FFC6', red: '#FF4D4D', amber: '#FFB800', blue: '#0A84FF',
-}
+import { T } from '@/lib/unified-tokens'
 
 const CONDITION_COLORS: Record<AlertCondition, string> = {
   above: T.green, below: T.red, change_up: T.green, change_down: T.red,

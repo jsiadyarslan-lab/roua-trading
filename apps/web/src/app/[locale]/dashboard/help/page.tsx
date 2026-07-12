@@ -9,12 +9,10 @@ import {
   Zap, Globe, RefreshCw, ExternalLink, Sparkles, X, Link2, Bell, Eye
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
-import { T as SharedT } from '@/lib/unified-tokens'
+import { T } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 /* ── Design Tokens (canonical + local extensions) ── */
-const T = { ...SharedT, pink: '#f472b6', text4: '#475569' }
-
 /* ── FAQ Data Types ── */
 interface FAQItem {
   id: string

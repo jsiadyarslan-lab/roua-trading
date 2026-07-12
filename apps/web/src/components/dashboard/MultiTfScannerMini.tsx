@@ -6,19 +6,7 @@ import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
 import { RefreshCw, Layers, Activity } from 'lucide-react'
-
-const T = {
-  bg:      '#0B0E14',
-  bg2:     '#1A1D29',
-  border:  'rgba(255,255,255,0.06)',
-  accent:  '#00D4FF',
-  green:   '#00FFA3',
-  red:     '#FF4757',
-  amber:   '#FFB800',
-  purple:  '#B388FF',
-  text:    '#F0F2F5',
-  text2:   '#8B92A8',
-}
+import { T } from '@/lib/unified-tokens'
 
 export function MultiTfScannerMini() {
   const tm = useTranslations('dashboard.multiTf')

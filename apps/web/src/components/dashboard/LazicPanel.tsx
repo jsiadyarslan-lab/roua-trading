@@ -3,20 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { useTranslations } from 'next-intl'
-
-const T = {
-  bg: '#0B0E14',
-  bg2: '#1A1D29',
-  card: '#1A1D29',
-  border: 'rgba(255,255,255,0.06)',
-  accent: '#FF6B35',   // لون اللاسع — برتقالي ناري كالدبور
-  green: '#00FFA3',
-  red: '#FF4757',
-  amber: '#FFB800',
-  text: '#F0F2F5',
-  text2: '#8B92A8',
-  text3: '#5A6178',
-}
+import { T } from '@/lib/unified-tokens'
 
 interface LasicSettings {
   obiThreshold: number

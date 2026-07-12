@@ -6,12 +6,7 @@ import { useScannerContext } from '../ScannerProvider'
 import { ScannerTableRow } from './ScannerTableRow'
 import type { SortKey } from '../hooks/useScannerFilters'
 import { ScopedStyle } from '@/components/ScopedStyle'
-
-const T = {
-  bg2: '#1A1D29', card: '#1A1D29', surface: '#1A1D29',
-  cyan: '#00D4FF', text: '#F0F2F5', text2: '#8B92A8', text3: '#8B92A8',
-  border: 'rgba(255,255,255,0.06)',
-}
+import { T } from '@/lib/unified-tokens'
 
 const COLUMN_KEYS: { key: SortKey | null; labelKey: string; width?: number }[] = [
   { key: null, labelKey: 'table.symbol', width: 160 },

@@ -10,7 +10,7 @@ import {
   KeyRound, Plug, Server, Globe, ToggleLeft, ToggleRight
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { T as SharedT } from '@/lib/unified-tokens'
+import { T } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations, useLocale } from 'next-intl'
 
@@ -18,8 +18,6 @@ import { getDirection } from '@/lib/i18n-utils';
 /* ═══════════════════════════════════════════════════════
    Design Tokens (canonical + local extensions)
 ═══════════════════════════════════════════════════════ */
-const T = { ...SharedT, text4: '#475569' }
-
 /* ═══════════════════════════════════════════════════════
    Types
 ═══════════════════════════════════════════════════════ */

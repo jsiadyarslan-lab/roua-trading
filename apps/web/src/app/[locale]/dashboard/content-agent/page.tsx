@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { getDirection } from '@/lib/i18n-utils';
-import { useLocale } from 'next-intl';
+import { useLocale } from 'next-intl'
+import { T } from '@/lib/unified-tokens';
 import {
   PenLine, Sparkles, TrendingUp, FileText, BarChart3,
   Settings2, Plus, Clock, Eye, ThumbsUp, Share2,
@@ -20,28 +21,6 @@ import {
 /* ═══════════════════════════════════════════════
    Design Tokens — matching Roua Trading theme
    ═══════════════════════════════════════════════ */
-const T = {
-  bg:       '#0B0E14',
-  bg2:      '#151A22',
-  bg3:      '#141824',
-  card:     '#1A1D29',
-  accent:   '#059669',
-  accent2:  '#00D4FF',
-  green:    '#00FFA3',
-  red:      '#FF4757',
-  amber:    '#FFB800',
-  purple:   '#B388FF',
-  orange:   '#FF8C42',
-  gold:     '#d4af37',
-  text:     '#F0F2F5',
-  text2:    '#8B92A8',
-  text3:    '#5A6178',
-  border:   '#2A313C',
-  border2:  'rgba(255,255,255,0.12)',
-  glass:    'rgba(26, 29, 41, 0.65)',
-  glow:     'rgba(5,150,105,0.15)',
-}
-
 const FONT_AR = "'Cairo', sans-serif"
 const FONT_EN = "'Inter', sans-serif"
 const FONT_MONO = "'JetBrains Mono', monospace"

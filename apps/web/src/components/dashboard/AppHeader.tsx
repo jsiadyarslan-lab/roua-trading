@@ -78,30 +78,9 @@ import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { useAuthStore } from '@/lib/auth-store'
 import { NotificationCenter } from '@/components/dashboard/NotificationCenter'
 import { LocaleSwitcher } from '@/components/shared/LocaleSwitcher'
+import { T } from '@/lib/unified-tokens'
 
 /* ─── Design tokens ─── */
-const T = {
-  bg:       '#0B0E14',
-  bg2:      '#1A1D29',
-  blue:     'var(--primary)',
-  accent:   'var(--accent)',
-  green:    'var(--success)',
-  red:      'var(--danger)',
-  amber:    '#FFB800',
-  purple:   '#B388FF',
-  text:     '#F0F2F5',
-  text2:    '#8B92A8',
-  text3:    '#8B92A8',
-  border:   'rgba(255,255,255,0.05)',
-  border2:  'rgba(255,255,255,0.12)',
-  navGlass: 'rgba(11, 14, 20, 0.85)',
-  card:     'var(--surface)',
-  success:  '#00FFA3',
-  danger:   '#FF4757',
-  warning:  '#FFB800',
-  info:     '#00D4FF',
-}
-
 const H_NEWS  = 22
 const H_CURR  = 34
 const H_NAV   = 46

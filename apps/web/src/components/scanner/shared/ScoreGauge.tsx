@@ -1,9 +1,7 @@
 'use client'
 
-const T = {
-  green: '#00FFA3', greenDim: '#00CC82', red: '#FF4757', redDim: '#FF3344',
-  amber: '#FFB800', text2: '#8B92A8', text3: '#8B92A8', text: '#F0F2F5',
-}
+
+import { T } from '@/lib/unified-tokens'
 
 interface ScoreGaugeProps {
   score: number

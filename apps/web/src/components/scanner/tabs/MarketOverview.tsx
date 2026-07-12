@@ -7,14 +7,7 @@ import { useScannerContext } from '../ScannerProvider'
 import { DirectionTag } from '../shared/DirectionTag'
 import { ScoreGauge } from '../shared/ScoreGauge'
 import { ScopedStyle } from '@/components/ScopedStyle'
-
-const T = {
-  bg: '#0B0E14', bg2: '#1A1D29', card: '#1A1D29', cardHover: '#1F2335',
-  surface: '#1A1D29', cyan: '#00D4FF', green: '#00FFA3', greenDim: '#00CC82',
-  red: '#FF4757', redDim: '#FF3344', amber: '#FFB800', purple: '#B388FF',
-  blue: '#0A84FF', text: '#F0F2F5', text2: '#8B92A8', text3: '#8B92A8',
-  border: 'rgba(255,255,255,0.06)', border2: 'rgba(0,212,255,0.16)',
-}
+import { T } from '@/lib/unified-tokens'
 
 export function MarketOverview() {
   const t = useTranslations('scannerAdvanced')

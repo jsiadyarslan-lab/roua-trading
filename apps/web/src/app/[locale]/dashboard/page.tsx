@@ -20,7 +20,7 @@ import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { getDataStatus, getSourceLabel, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
-import { T as SharedT } from '@/lib/unified-tokens'
+import { T } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { getSymbolLeverage } from '@/lib/margin-calculator'
 import { useSidebarState } from '@/hooks/useSidebarState'
@@ -44,25 +44,6 @@ const AgentControlMini   = dynamic(() => import('@/components/dashboard/AgentCon
 const StrategicCouncilPanel = dynamic(() => import('@/components/dashboard/StrategicCouncilPanel').then(m => ({ default: m.StrategicCouncilPanel })), { ssr: false })
 const SmartExecutorPanel = dynamic(() => import('@/components/dashboard/SmartExecutorPanel').then(m => ({ default: m.SmartExecutorPanel })), { ssr: false })
 const LazicPanel         = dynamic(() => import('@/components/dashboard/LazicPanel').then(m => ({ default: m.LazicPanel })), { ssr: false })
-
-const T = {
-  bg: SharedT.bg,
-  bg2: SharedT.bg2,
-  card: SharedT.card,
-  border: SharedT.border,
-  cyan: SharedT.cyan,
-  success: SharedT.success,
-  danger: SharedT.danger,
-  warning: SharedT.warning,
-  info: SharedT.info,
-  amber: SharedT.amber,
-  text: SharedT.text,
-  text2: SharedT.text2,
-  text3: SharedT.text3,
-  gradientProfit: SharedT.gradientProfit,
-  gradientLoss: SharedT.gradientLoss,
-  gradientInfo: SharedT.gradientInfo,
-}
 
 const HEADER_H = 108
 const PANEL_H = 30

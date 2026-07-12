@@ -16,6 +16,7 @@ import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { fmtPriceLocale as fmtPrice, fmtPrice as fmtPricePlain, fmtPnl } from '@/lib/price-format'
 import { isNestJsId } from '@/lib/api-fetch'
 import { PositionModal, type PositionModalData } from './PositionModal'
+import { T } from '@/lib/unified-tokens'
 
 // Fix: تحويل الوحدات الخام إلى لوتات للعرض
 // للكريبتو: contractSize=1, فاللوتات = الوحدات (0.01 BTC = 0.01 لوت)
@@ -43,21 +44,6 @@ interface Position {
   currentPrice: number
   marketValue: number
   unrealizedPnl: number
-}
-
-const T = {
-  success: '#00FFA3',
-  danger: '#FF4757',
-  cyan: '#00D4FF',
-  amber: '#FFB800',
-  purple: '#A855F7',
-  text: '#F0F2F5',
-  text2: '#8B92A8',
-  text3: '#8B92A8',
-  border: 'rgba(255,255,255,0.06)',
-  panel: '#0B0E14',
-  card: '#1A1D29',
-  cardAlt: '#1F2335',
 }
 
 /**

@@ -1450,3 +1450,23 @@
   - Fail-safe: if one table fails, continues to next
 - **Commit:** (filled after push)
 - **Test:** (manual — check logs for `🧹 BUG-066r: DB cleanup complete` after deploy)
+
+### CHANGE-001: Design Tokens Unification — Phase 1 (Re-applied correctly)
+- **Type:** REFACTORING
+- **Status:** COMPLETED
+- **Severity:** MEDIUM (visual consistency)
+- **Files:** 40 component files + unified-tokens.ts + globals.css + landing.css
+- **Description:** 40 component files had local `const T = { ... }` definitions with hardcoded hex colors. These were replaced with canonical imports from `@/lib/unified-tokens`. Additionally, `landing.css` had 21 references to undefined CSS font variables (`--font-ibm-plex-ar`, `--font-noto-naskh`).
+- **Fix:**
+  - Phase 1a: Updated `unified-tokens.ts` and `globals.css` to align with Roua brand spec (#151A22 card, #2A313C border, #9CA3B5 text2 for WCAG AAA)
+  - Phase 1b: Fixed 21 broken font variable references in `landing.css`
+  - Phase 1c: Replaced local `const T` in 40 files with `import { T } from '@/lib/unified-tokens'`
+  - Phase 1d: Added 19 missing T.* properties to `unified-tokens.ts` (text4, council, accent2, muted, pink, silver, bronze, cardAlt, orange, glassCard, glassSidebar, glassTopBar, shadowGlass, shadowActiveTab, councilGlow, glow, panel, headerBg)
+  - Phase 1e: Fixed `'use client'` directive position in 3 files (must be before imports)
+  - Phase 1f: Replaced `import { T as SharedT }` with `import { T }` in 10 dashboard pages
+  - Phase 1g: Added missing `T` to import statements in SmartExecutorPanel and AgentControlMini (they imported only getPnlColor, not T)
+- **Verification:**
+  - Comprehensive audit: 66/66 files using T.* have T properly imported
+  - All 49 unique T.* properties are defined in unified-tokens.ts
+  - 0 missing properties
+- **Commit:** (filled after push)

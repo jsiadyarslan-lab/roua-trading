@@ -7,13 +7,11 @@ import {
   ChevronUp, Award,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
-import { T as SharedT } from '@/lib/unified-tokens'
+import { T } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations, useLocale } from 'next-intl'
 
 /* ──────────────── Design Tokens (canonical + local extensions) ──────────────── */
-const T = { ...SharedT, silver: '#8B92A8', bronze: '#CD7F32' }
-
 /* ──────────────── Types (locale-independent string keys) ──────────────── */
 type TimePeriod = 'weekly' | 'monthly' | 'yearly' | 'all'
 type CategoryFilter = 'return' | 'winRate' | 'consistency' | 'copyTrading'

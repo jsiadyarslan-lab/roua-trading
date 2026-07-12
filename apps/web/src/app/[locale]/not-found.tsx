@@ -3,7 +3,6 @@
 import { Link } from '@/i18n/navigation'
 import { Home, ArrowLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import T from '@/lib/unified-tokens'
 
 export default function LocaleNotFound() {
   const t = useTranslations('notFound')
@@ -44,7 +43,7 @@ export default function LocaleNotFound() {
           className="text-sm mb-8"
           style={{
             fontFamily: 'var(--font-ar)',
-            color: T.text2,
+            color: '#9CA3B5',
           }}
         >
           {t('description')}

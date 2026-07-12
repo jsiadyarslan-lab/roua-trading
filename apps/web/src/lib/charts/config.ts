@@ -9,12 +9,12 @@
 // (#22c55e/#ef4444 vs #3fb950/#f85149) that were never imported but could
 // cause confusion. Chart-specific colors are now centralized.
 import { CHART_COLORS } from './chart-utils'
-import T from '@/lib/unified-tokens';
-export { CHART_COLORS };
 
 // ── UI-specific colors not covered by chart-utils CHART_COLORS ──
+// Inlined hex values to avoid importing T from unified-tokens in server context
+// (causes 'Cannot access d before initialization' SSR error)
 export const UI_COLORS = {
-  background: T.bg,
+  background: '#0B0E14',  // T.bg
   gridText: '#64748b',
   borderColor: '#64748b',
 } as const;

@@ -26,7 +26,6 @@ import type { DrawingRenderer } from '../lib/charts/DrawingRenderer';
 import { KeyboardShortcuts } from '../lib/charts/KeyboardShortcuts';
 import { ChartExporter } from '../lib/charts/ChartExporter';
 import { ChartTemplateManager } from '../lib/charts/ChartTemplate';
-import T from '@/lib/unified-tokens';
 import { useChartStateStore, type SerializedIndicator } from '@/hooks/useChartStateStore';
 import { useAuthStore } from '@/lib/auth-store'; // M2 REAL FIX: Get userId for DrawingManager
 import {
@@ -237,7 +236,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     crosshairType: 'cross',
     upColor: '#3fb950',
     downColor: '#f85149',
-    bgColor: T.bg,
+    bgColor: '#0B0E14',
     gridColor: 'rgba(42,49,60,0.5)',
     ...options.settings,
   });
@@ -550,10 +549,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       width: initialWidth,
       height: initialHeight,
       isMobile: isMobile ?? false,
-      bgColor: T.bg,
-      textColor: T.text2,
-      cardColor: T.card,
-      cardBorderColor: T.cardBorder,
+      bgColor: '#0B0E14',
+      textColor: '#9CA3B5',
+      cardColor: '#151A22',
+      cardBorderColor: '#2A313C',
     });
 
     const chart = createChart(container, chartOptions);
@@ -2098,7 +2097,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     chart.applyOptions({
       layout: {
         background: { color: settings.bgColor },
-        textColor: T.text2,
+        textColor: '#9CA3B5',
         attributionLogo: false,
       },
       grid: {
@@ -2115,14 +2114,14 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         } else if (settings.crosshairType === 'dot') {
           return {
             mode: 0,
-            vertLine: { visible: true, style: 0, width: 0 as any, labelVisible: true, labelBackgroundColor: T.card },
-            horzLine: { visible: true, style: 0, width: 0 as any, labelVisible: true, labelBackgroundColor: T.card },
+            vertLine: { visible: true, style: 0, width: 0 as any, labelVisible: true, labelBackgroundColor: '#151A22' },
+            horzLine: { visible: true, style: 0, width: 0 as any, labelVisible: true, labelBackgroundColor: '#151A22' },
           };
         } else {
           return {
             mode: 0, // Normal
-            vertLine: { visible: true, color: isMobile ? 'rgba(160,200,220,0.7)' : CHART_OPTIONS_COLORS.crosshair, width: 1, style: 2, labelVisible: true, labelBackgroundColor: isMobile ? '#2a2e3e' : T.card },
-            horzLine: { visible: true, color: isMobile ? 'rgba(160,200,220,0.7)' : CHART_OPTIONS_COLORS.crosshair, width: 1, style: 2, labelVisible: true, labelBackgroundColor: isMobile ? '#2a2e3e' : T.card },
+            vertLine: { visible: true, color: isMobile ? 'rgba(160,200,220,0.7)' : CHART_OPTIONS_COLORS.crosshair, width: 1, style: 2, labelVisible: true, labelBackgroundColor: isMobile ? '#2a2e3e' : '#151A22' },
+            horzLine: { visible: true, color: isMobile ? 'rgba(160,200,220,0.7)' : CHART_OPTIONS_COLORS.crosshair, width: 1, style: 2, labelVisible: true, labelBackgroundColor: isMobile ? '#2a2e3e' : '#151A22' },
           };
         }
       })(),

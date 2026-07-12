@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import T from '@/lib/unified-tokens'
 
 /* ── Mock Leaderboard API ──
  * Returns demo leaderboard data for the leaderboard page.
@@ -45,8 +44,8 @@ const DEMO_TRADERS: Trader[] = [
 
 const DEMO_BADGES: Badge[] = [
   { id: 'b1', name: 'Early Adopter', desc: 'Joined Roua in the first year', icon: 'Star', color: '#FFD700', unlocked: true },
-  { id: 'b2', name: 'Top 10', desc: 'Ranked in the top 10 traders', icon: 'Trophy', color: T.info, unlocked: true },
-  { id: 'b3', name: 'Consistency King', desc: 'Maintained 80%+ consistency for 3 months', icon: 'Award', color: T.success, unlocked: false },
+  { id: 'b2', name: 'Top 10', desc: 'Ranked in the top 10 traders', icon: 'Trophy', color: '#00D4FF', unlocked: true },
+  { id: 'b3', name: 'Consistency King', desc: 'Maintained 80%+ consistency for 3 months', icon: 'Award', color: '#00FFA3', unlocked: false },
   { id: 'b4', name: 'Risk Manager', desc: 'Max drawdown below 5% for 6 months', icon: 'Shield', color: '#8B5CF6', unlocked: false },
   { id: 'b5', name: '100 Trades', desc: 'Completed 100 trades', icon: 'Target', color: '#F59E0B', unlocked: true },
   { id: 'b6', name: 'Community Star', desc: 'Gained 500+ followers', icon: 'Users', color: '#EC4899', unlocked: false },

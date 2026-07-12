@@ -1,4 +1,3 @@
-import T from '@/lib/unified-tokens'
 
 /**
  * RBAC Permission System for ROUA Trading Platform
@@ -199,14 +198,14 @@ export const ROLE_INFO: Record<Role, { label: string; labelKey: string; color: s
   FREE: {
     label: 'Free',
     labelKey: 'roleFree',
-    color: T.text2,
+    color: '#9CA3B5',
     description: 'One account & basic insights',
     descriptionKey: 'roleFreeDesc',
   },
   PRO: {
     label: 'Pro',
     labelKey: 'rolePro',
-    color: T.info,
+    color: '#00D4FF',
     description: 'Multiple accounts & AI',
     descriptionKey: 'roleProDesc',
   },
@@ -220,21 +219,21 @@ export const ROLE_INFO: Record<Role, { label: string; labelKey: string; color: s
   PREMIUM: {
     label: 'Premium',
     labelKey: 'rolePremium',
-    color: T.warning,
+    color: '#FFB800',
     description: 'Full access, API & advanced tools',
     descriptionKey: 'rolePremiumDesc',
   },
   INSTITUTIONAL: {
     label: 'Enterprise',
     labelKey: 'roleInstitutional',
-    color: T.profit,
+    color: '#10b981',
     description: 'Full institutional permissions',
     descriptionKey: 'roleInstDesc',
   },
   ADMIN: {
     label: 'Admin',
     labelKey: 'roleAdmin',
-    color: T.danger,
+    color: '#FF4757',
     description: 'Full administrative permissions',
     descriptionKey: 'roleAdminDesc',
   },

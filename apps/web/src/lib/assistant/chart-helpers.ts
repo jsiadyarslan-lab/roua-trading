@@ -1,4 +1,3 @@
-import T from '@/lib/unified-tokens'
 
 // SVG Sparkline Chart Helpers for the Assistant Chat
 // Lightweight - no external dependencies
@@ -54,7 +53,7 @@ export function renderMiniCandlestick(
   const candleSvgs = candles.map((c, i) => {
     const x = gap * i + gap / 2;
     const isUp = c.close >= c.open;
-    const color = isUp ? '#22c55e' : T.loss;
+    const color = isUp ? '#22c55e' : '#ef4444';
     
     const highY = height - ((c.high - min) / range) * height;
     const lowY = height - ((c.low - min) / range) * height;
@@ -76,7 +75,7 @@ export function renderMiniCandlestick(
 export function renderPriceChange(change: number, changePercent: number, _locale: string = 'ar'): string {
   const isUp = change >= 0;
   const arrow = isUp ? '▲' : '▼';
-  const color = isUp ? '#22c55e' : T.loss;
+  const color = isUp ? '#22c55e' : '#ef4444';
   const sign = isUp ? '+' : '';
   
   return `<span style="color:${color};font-weight:600;font-size:0.9em">${arrow} ${sign}${changePercent.toFixed(2)}%</span>`;
@@ -110,5 +109,5 @@ export function getTrendColor(prices: number[]): { stroke: string; fill: string 
   const isUp = prices[prices.length - 1] >= prices[0];
   return isUp
     ? { stroke: '#22c55e', fill: 'rgba(34,197,94,0.1)' }
-    : { stroke: T.loss, fill: 'rgba(239,68,68,0.1)' };
+    : { stroke: '#ef4444', fill: 'rgba(239,68,68,0.1)' };
 }

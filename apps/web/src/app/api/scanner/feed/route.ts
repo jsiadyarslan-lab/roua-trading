@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import T from '@/lib/unified-tokens'
 
 export const dynamic = 'force-dynamic'
 
@@ -100,25 +99,25 @@ export async function GET(req: Request) {
 
           // Determine AI score from real indicators
           let aiScore = 'Neutral'
-          let aiColor = T.warning
+          let aiColor = '#FFB800'
           let reasons: string[] = []
           let signalStrength = 50
 
           if (rsi !== null) {
             if (rsi < 30) {
-              aiScore = 'Strong Buy'; aiColor = T.greenAlt
+              aiScore = 'Strong Buy'; aiColor = '#00FFC6'
               reasons.push(`Oversold (RSI: ${rsi})`)
               signalStrength += 25
             } else if (rsi < 45) {
-              aiScore = 'Buy'; aiColor = T.greenAlt
+              aiScore = 'Buy'; aiColor = '#00FFC6'
               reasons.push(`Low RSI (${rsi})`)
               signalStrength += 12
             } else if (rsi > 70) {
-              aiScore = 'Strong Sell'; aiColor = T.redAlt
+              aiScore = 'Strong Sell'; aiColor = '#FF4D4D'
               reasons.push(`Overbought (RSI: ${rsi})`)
               signalStrength += 25
             } else if (rsi > 58) {
-              aiScore = 'Sell'; aiColor = T.redAlt
+              aiScore = 'Sell'; aiColor = '#FF4D4D'
               reasons.push(`High RSI (${rsi})`)
               signalStrength += 12
             }
@@ -126,11 +125,11 @@ export async function GET(req: Request) {
 
           if (ema20 !== null && ema50 !== null) {
             if (ema20 > ema50) {
-              if (aiScore === 'Neutral') { aiScore = 'Buy'; aiColor = T.greenAlt }
+              if (aiScore === 'Neutral') { aiScore = 'Buy'; aiColor = '#00FFC6' }
               reasons.push('EMA 20/50 Bullish Cross')
               signalStrength += 10
             } else {
-              if (aiScore === 'Neutral') { aiScore = 'Sell'; aiColor = T.redAlt }
+              if (aiScore === 'Neutral') { aiScore = 'Sell'; aiColor = '#FF4D4D' }
               reasons.push('EMA 20/50 Bearish Cross')
               signalStrength += 10
             }

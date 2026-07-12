@@ -758,7 +758,7 @@ export function buildHTMLCards(bundle: any, locale: Locale): string {
     cardGlow: '0 4px 24px rgba(99,102,241,0.08)',
     textPrimary: '#E2E8F0',
     textSecondary: '#94A3B8',
-    textMuted: T.text2,
+    textMuted: '#9CA3B5',
     accentBlue: '#60A5FA',
     accentPurple: '#C084FC',
     accentGreen: '#4ADE80',
@@ -1656,7 +1656,6 @@ export function buildHTMLCards(bundle: any, locale: Locale): string {
 // ═══════════════════════════════════════════════════════════════════════
 
 import { chatCompletion } from '@/lib/ai-provider'
-import T from '@/lib/unified-tokens';
 
 // ── Robust markdown-to-HTML cleanup for AI content ──
 // Handles all common markdown formats that AI might still emit despite prompts.

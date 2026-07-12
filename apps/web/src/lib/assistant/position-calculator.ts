@@ -17,7 +17,6 @@
 
 import type { Locale } from './tools';
 import type { DataBundle } from './data-fetcher'
-import T from '@/lib/unified-tokens';
 
 // ─── Contract Specifications ──────────────────────────────────────
 
@@ -583,7 +582,7 @@ export function buildPositionSizeHTML(
     cardBg: '#1E293B',
     textPrimary: '#E2E8F0',
     textSecondary: '#94A3B8',
-    textMuted: T.text2,
+    textMuted: '#9CA3B5',
     accentGreen: '#4ADE80',
     accentRed: '#F87171',
     accentYellow: '#FBBF24',

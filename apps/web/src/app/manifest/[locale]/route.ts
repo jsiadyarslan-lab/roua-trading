@@ -15,7 +15,6 @@
  * Fallback: unknown locales fall back to English (LTR, en-US).
  */
 import { NextResponse } from 'next/server'
-import T from '@/lib/unified-tokens';
 
 const MANIFESTS: Record<string, { name: string; short_name: string; description: string; dir: 'rtl' | 'ltr' }> = {
   ar: { name: 'رؤى للتداول', short_name: 'رؤى', description: 'منصة تداول ذكية بالذكاء الاصطناعي', dir: 'rtl' },
@@ -71,7 +70,7 @@ export async function GET(
     scope: '/',
     display: 'standalone',
     background_color: '#000000',
-    theme_color: T.bg,
+    theme_color: '#0B0E14',
     orientation: 'portrait',
     categories: ['finance', 'business'],
     icons: [

@@ -16,7 +16,6 @@
 // ═══════════════════════════════════════════════════════════════════════
 
 import type { CandleData } from './types'
-import T from '@/lib/unified-tokens';
 
 // ── Block Types ─────────────────────────────────────────────────────
 
@@ -155,9 +154,9 @@ export const SIGNAL_BLOCK_LIBRARY: Array<{
   { category: 'smc', signalType: 'FVG', labelAr: 'فجوة قيمة عادلة', color: '#22d3ee', defaultConfidence: 0.5 },
 
   // Elliott Wave
-  { category: 'elliott', signalType: 'impulse', labelAr: 'موجة نبضة', color: T.profit, defaultConfidence: 0.6 },
-  { category: 'elliott', signalType: 'correction', labelAr: 'موجة تصحيحية', color: T.profit, defaultConfidence: 0.55 },
-  { category: 'elliott', signalType: 'wave3', labelAr: 'الموجة 3 (أقوى موجة)', color: T.profit, defaultConfidence: 0.65 },
+  { category: 'elliott', signalType: 'impulse', labelAr: 'موجة نبضة', color: '#10b981', defaultConfidence: 0.6 },
+  { category: 'elliott', signalType: 'correction', labelAr: 'موجة تصحيحية', color: '#10b981', defaultConfidence: 0.55 },
+  { category: 'elliott', signalType: 'wave3', labelAr: 'الموجة 3 (أقوى موجة)', color: '#10b981', defaultConfidence: 0.65 },
 
   // Wyckoff
   { category: 'wyckoff', signalType: 'spring', labelAr: 'سبرينج (Spring)', color: '#f59e0b', defaultConfidence: 0.7 },
@@ -167,19 +166,19 @@ export const SIGNAL_BLOCK_LIBRARY: Array<{
   { category: 'wyckoff', signalType: 'Distribution', labelAr: 'توزيع', color: '#f59e0b', defaultConfidence: 0.5 },
 
   // Candlestick
-  { category: 'candlestick', signalType: 'Engulfing', labelAr: 'ابتلاع', color: T.loss, defaultConfidence: 0.55 },
-  { category: 'candlestick', signalType: 'Hammer', labelAr: 'مطرقة', color: T.loss, defaultConfidence: 0.5 },
-  { category: 'candlestick', signalType: 'Doji', labelAr: 'دوجي', color: T.loss, defaultConfidence: 0.4 },
-  { category: 'candlestick', signalType: 'MorningStar', labelAr: 'نجمة صباحية', color: T.loss, defaultConfidence: 0.55 },
-  { category: 'candlestick', signalType: 'EveningStar', labelAr: 'نجمة مسائية', color: T.loss, defaultConfidence: 0.55 },
+  { category: 'candlestick', signalType: 'Engulfing', labelAr: 'ابتلاع', color: '#ef4444', defaultConfidence: 0.55 },
+  { category: 'candlestick', signalType: 'Hammer', labelAr: 'مطرقة', color: '#ef4444', defaultConfidence: 0.5 },
+  { category: 'candlestick', signalType: 'Doji', labelAr: 'دوجي', color: '#ef4444', defaultConfidence: 0.4 },
+  { category: 'candlestick', signalType: 'MorningStar', labelAr: 'نجمة صباحية', color: '#ef4444', defaultConfidence: 0.55 },
+  { category: 'candlestick', signalType: 'EveningStar', labelAr: 'نجمة مسائية', color: '#ef4444', defaultConfidence: 0.55 },
 
   // Volume
   { category: 'volume', signalType: 'spike', labelAr: 'ارتفاع حجم مفاجئ', color: '#3b82f6', defaultConfidence: 0.45 },
   { category: 'volume', signalType: 'dryup', labelAr: 'جفاف حجم', color: '#3b82f6', defaultConfidence: 0.4 },
 
   // Fibonacci
-  { category: 'fibonacci', signalType: 'retracement0618', labelAr: 'ارتداد 61.8%', color: T.gold, defaultConfidence: 0.55 },
-  { category: 'fibonacci', signalType: 'retracement0382', labelAr: 'ارتداد 38.2%', color: T.gold, defaultConfidence: 0.5 },
+  { category: 'fibonacci', signalType: 'retracement0618', labelAr: 'ارتداد 61.8%', color: '#d4af37', defaultConfidence: 0.55 },
+  { category: 'fibonacci', signalType: 'retracement0382', labelAr: 'ارتداد 38.2%', color: '#d4af37', defaultConfidence: 0.5 },
 
   // Trendline
   { category: 'trendline', signalType: 'touch', labelAr: 'ملامسة خط اتجاه', color: '#6366f1', defaultConfidence: 0.5 },

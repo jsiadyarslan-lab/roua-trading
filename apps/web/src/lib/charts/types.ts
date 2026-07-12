@@ -324,7 +324,7 @@ export const DEFAULT_CHART_SETTINGS: ChartSettings = {
   crosshairType: 'cross',
   upColor: '#3fb950',
   downColor: '#f85149',
-  bgColor: T.bg,
+  bgColor: '#0B0E14',
   gridColor: 'rgba(42,49,60,0.5)',
 };
 
@@ -413,18 +413,17 @@ export interface CrosshairData {
 // that duplicated grid/crosshair values from chart-utils. Now we keep UI colors
 // in a separate constant and re-export chart colors.
 import { CHART_COLORS } from './chart-utils'
-import T from '@/lib/unified-tokens';
 export { CHART_COLORS };
 
 export const UI_PALETTE = {
-  bg: T.bg,
-  card: T.card,
-  border: T.border,
+  bg: '#0B0E14',
+  card: '#151A22',
+  border: '#2A313C',
   borderLight: 'rgba(42,49,60,0.5)',
-  text: T.text,
-  textSecondary: T.text2,
+  text: '#F0F2F5',
+  textSecondary: '#9CA3B5',
   textMuted: '#64748b',
-  cyan: T.info,
+  cyan: '#00D4FF',
   success: '#3fb950',
   danger: '#f85149',
   warning: '#fbbf24',

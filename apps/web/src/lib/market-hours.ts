@@ -15,7 +15,6 @@
  */
 
 import { CRYPTO_BASES as _CRYPTO_BASES } from '@/lib/charts/config'
-import T from '@/lib/unified-tokens'
 
 export type MarketType = 'crypto' | 'forex' | 'stock' | 'commodity' | 'unknown'
 
@@ -389,7 +388,7 @@ export function getSymbolMarketStatus(symbol: string): {
   return {
     isOpen: open,
     statusText: open ? 'السوق مفتوح' : 'السوق مغلق',
-    statusColor: open ? '#00C853' : T.redAlt,
+    statusColor: open ? '#00C853' : '#FF4D4D',
     marketType,
   }
 }

@@ -31,7 +31,6 @@ import {
   type SRLevel, type FVGZone, type OrderBlock, type FVGZoneEnhanced,
 } from './chart-detection';
 import { safeMax, safeMin } from './chart-utils'
-import T from '@/lib/unified-tokens';
 
 // ═══════════════════════════════════════════════════════════════════════
 // STABLE ENTRY CACHE — prevents "dancing lines"
@@ -429,7 +428,7 @@ export function renderOverlays(
     if (registry.smartRedraw('harmonic', harmonicSig)) {
     harmonics.slice(0, 4).forEach((harm, idx) => {
       const isBull = harm.direction === 'bullish';
-      const col = isBull ? OVERLAY_COLORS.harmonic : T.loss;
+      const col = isBull ? OVERLAY_COLORS.harmonic : '#ef4444';
 
       // Draw XABCD legs as trend line primitives
       const pts = harm.points;
@@ -548,8 +547,8 @@ export function renderOverlays(
 
       // OB confluence gets gold border and higher opacity
       const borderColor = fvg.confluenceWithOB
-        ? T.gold // Gold for OB+FVG confluence
-        : (isBull ? OVERLAY_COLORS.fvg : T.loss);
+        ? '#d4af37' // Gold for OB+FVG confluence
+        : (isBull ? OVERLAY_COLORS.fvg : '#ef4444');
 
       const fillBase = isBull ? '34, 211, 238' : '239, 68, 68';
       const fillColor = fvg.confluenceWithOB
@@ -699,7 +698,7 @@ export function renderOverlays(
           time: lastTime as any,
           price: lastPrice * (confluentFVGs[0].type === 'bullish' ? 0.998 : 1.002),
           text: `⬡ تقاطع OB+FVG (${confluentFVGs.length})`,
-          color: T.gold,
+          color: '#d4af37',
           fontSize: 'var(--text-xs)',
           align: 'right',
           bg: 'rgba(212, 175, 55, 0.1)',
@@ -1098,9 +1097,9 @@ export function renderOverlays(
     }
 
     // Price lines for axis labels
-    safeAddPriceLine('ee-entry', entry, T.info, `Entry ${dir === 'long' ? 'BUY' : 'SELL'}`, 2, 0, true, 'entry');
-    if (sl > 0) safeAddPriceLine('ee-sl', sl, T.danger, `SL`, 2, 2, true, 'entry');
-    if (tp > 0) safeAddPriceLine('ee-tp', tp, T.success, `TP`, 2, 2, true, 'entry');
+    safeAddPriceLine('ee-entry', entry, '#00D4FF', `Entry ${dir === 'long' ? 'BUY' : 'SELL'}`, 2, 0, true, 'entry');
+    if (sl > 0) safeAddPriceLine('ee-sl', sl, '#FF4757', `SL`, 2, 2, true, 'entry');
+    if (tp > 0) safeAddPriceLine('ee-tp', tp, '#00FFA3', `TP`, 2, 2, true, 'entry');
     } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('entry');
@@ -1387,7 +1386,7 @@ export function renderOverlays(
       const effectiveSL = proposal.currentTrailSL ?? proposal.stopLoss;
       registry.add('trade', new HorizontalLinePrimitive({
         price: effectiveSL,
-        color: proposal.currentTrailSL ? '#fbbf24' : T.loss,
+        color: proposal.currentTrailSL ? '#fbbf24' : '#ef4444',
         lineWidth: 2,
         lineStyle: proposal.currentTrailSL ? 0 : 2,
         label: proposal.currentTrailSL ? 'Trail SL' : 'SL',
@@ -1751,9 +1750,9 @@ export function renderAnalysisOverlays(
     if (tp > 0) registry.add('entry', new HorizontalLinePrimitive({ price: tp, color: OVERLAY_COLORS.tp, lineWidth: 2, lineStyle: 2, label: 'TP', showPrice: true }));
     if (sl > 0 && entry > 0) registry.add('entry', new ZonePrimitive({ startTime: candles[candles.length - 30]?.time as any || candles[0].time as any, endTime: candles[candles.length - 1].time as any, highPrice: Math.max(entry, sl), lowPrice: Math.min(entry, sl), fillColor: 'rgba(239, 68, 68, 0.04)', borderColor: undefined }));
     if (tp > 0 && entry > 0) registry.add('entry', new ZonePrimitive({ startTime: candles[candles.length - 30]?.time as any || candles[0].time as any, endTime: candles[candles.length - 1].time as any, highPrice: Math.max(entry, tp), lowPrice: Math.min(entry, tp), fillColor: 'rgba(16, 185, 129, 0.04)', borderColor: undefined }));
-    safeAddPriceLine('ee-entry', entry, T.info, `Entry ${dir === 'long' ? 'BUY' : 'SELL'}`, 2, 0, true, 'entry');
-    if (sl > 0) safeAddPriceLine('ee-sl', sl, T.danger, 'SL', 2, 2, true, 'entry');
-    if (tp > 0) safeAddPriceLine('ee-tp', tp, T.success, 'TP', 2, 2, true, 'entry');
+    safeAddPriceLine('ee-entry', entry, '#00D4FF', `Entry ${dir === 'long' ? 'BUY' : 'SELL'}`, 2, 0, true, 'entry');
+    if (sl > 0) safeAddPriceLine('ee-sl', sl, '#FF4757', 'SL', 2, 2, true, 'entry');
+    if (tp > 0) safeAddPriceLine('ee-tp', tp, '#00FFA3', 'TP', 2, 2, true, 'entry');
     } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('entry');
@@ -1870,7 +1869,7 @@ export function renderAnalysisOverlays(
       const dirAr = isBull ? 'شراء' : 'بيع';
       registry.add('trade', new HorizontalLinePrimitive({ price: proposal.entryPrice, color: isBull ? '#22d3ee' : '#f97316', lineWidth: 2, lineStyle: 0, label: `Entry ${dirAr} (Q:${proposal.qualityScore})`, showPrice: true }));
       const effectiveSL = proposal.currentTrailSL ?? proposal.stopLoss;
-      registry.add('trade', new HorizontalLinePrimitive({ price: effectiveSL, color: proposal.currentTrailSL ? '#fbbf24' : T.loss, lineWidth: 2, lineStyle: proposal.currentTrailSL ? 0 : 2, label: proposal.currentTrailSL ? 'Trail SL' : 'SL', showPrice: true }));
+      registry.add('trade', new HorizontalLinePrimitive({ price: effectiveSL, color: proposal.currentTrailSL ? '#fbbf24' : '#ef4444', lineWidth: 2, lineStyle: proposal.currentTrailSL ? 0 : 2, label: proposal.currentTrailSL ? 'Trail SL' : 'SL', showPrice: true }));
       const tpLabels = ['TP1 (50%)', 'TP2 (30%)', 'TP3 (20%)'];
       const tpColors = ['rgba(16, 185, 129, 0.8)', 'rgba(16, 185, 129, 0.6)', 'rgba(16, 185, 129, 0.4)'];
       for (let i = 0; i < proposal.takeProfits.length; i++) {

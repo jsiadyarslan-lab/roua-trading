@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 
 interface TradingBrief {
   id: string

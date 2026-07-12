@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { DetectedPattern } from '@/lib/charts/pattern-engine'
-import { T } from '@/lib/unified-tokens';
+import T from '@/lib/unified-tokens';
 
 interface PatternOverlayProps {
   patterns: DetectedPattern[];

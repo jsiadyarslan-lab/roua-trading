@@ -21,7 +21,7 @@
  * Usage:
  *   import { T } from '@/lib/unified-tokens';
  */
-export const T = {
+const T = {
   // Background (aligned with globals.css --bg-app: #0B0E14, --bg-nav: #05070efa)
   bg: '#0B0E14',
   bgLight: '#111520',
@@ -138,9 +138,10 @@ export const T = {
   radiusLg: '16px',
 } as const;
 
-/**
- * Minimal theme subset used by lightweight pages
- */
+// Default export — more robust against webpack tree-shaking issues
+export default T;
+// Named export for backward compatibility
+export { T };
 export const TMinimal = {
   bg: T.bg,
   bg2: T.bg2,

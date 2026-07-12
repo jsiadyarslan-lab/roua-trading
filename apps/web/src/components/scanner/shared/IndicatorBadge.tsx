@@ -1,7 +1,7 @@
 'use client'
 
 
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 
 type BadgeStatus = 'bullish' | 'bearish' | 'neutral' | 'warning' | 'oversold' | 'overbought'
 

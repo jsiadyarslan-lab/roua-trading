@@ -8,7 +8,7 @@ import { DirectionTag } from '../shared/DirectionTag'
 import { ScoreGauge } from '../shared/ScoreGauge'
 import type { SmartScore } from '../hooks/useScannerData'
 import { ScopedStyle } from '@/components/ScopedStyle'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 
 export function ScreenerTab() {
   const t = useTranslations('scannerAdvanced')

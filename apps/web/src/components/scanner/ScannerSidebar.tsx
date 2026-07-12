@@ -3,7 +3,7 @@
 import { ScanSearch, LayoutGrid, Map, Brain, Clock, BarChart3, Filter, RefreshCw } from 'lucide-react'
 import { useScannerContext } from './ScannerProvider'
 import { useTranslations } from 'next-intl'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 
 const NAV_KEYS = ['scanner', 'heatmap', 'patterns', 'multitf', 'overview', 'screener'] as const
 const NAV_ICONS = [LayoutGrid, Map, Brain, Clock, BarChart3, Filter] as const

@@ -7,7 +7,7 @@ import { useScannerContext } from '../ScannerProvider'
 import { DirectionTag } from '../shared/DirectionTag'
 import { ScoreGauge } from '../shared/ScoreGauge'
 import { ScopedStyle } from '@/components/ScopedStyle'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 
 export function MarketOverview() {
   const t = useTranslations('scannerAdvanced')

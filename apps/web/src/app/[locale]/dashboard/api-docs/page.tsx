@@ -8,7 +8,7 @@ import {
   BarChart3, Brain, Radio, TrendingUp, Server, BookOpen
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations } from 'next-intl'
 

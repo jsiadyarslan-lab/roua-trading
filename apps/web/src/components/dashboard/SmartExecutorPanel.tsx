@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
-import { T, getPnlColor } from '@/lib/unified-tokens'
+import T, { getPnlColor } from '@/lib/unified-tokens'
 
 interface ExecutorStatus {
   isRunning: boolean

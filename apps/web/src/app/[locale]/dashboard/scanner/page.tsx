@@ -16,7 +16,7 @@ const MarketOverview = dynamic(() => import('@/components/scanner/tabs/MarketOve
 const ScreenerTab = dynamic(() => import('@/components/scanner/tabs/ScreenerTab').then(m => ({ default: m.ScreenerTab })), { ssr: false })
 const DeepAnalysisModal = dynamic(() => import('@/components/scanner/modals/DeepAnalysisModal').then(m => ({ default: m.DeepAnalysisModal })), { ssr: false })
 
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 // ── Design Tokens (canonical + local extensions) ──

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter, usePathname } from '@/i18n/navigation'
 import { useAuthStore } from '@/lib/auth-store'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 import { useTranslations } from 'next-intl'
 
 /**

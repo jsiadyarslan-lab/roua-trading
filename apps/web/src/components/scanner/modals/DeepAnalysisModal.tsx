@@ -10,7 +10,7 @@ import { IndicatorBadge } from '../shared/IndicatorBadge'
 import type { ScannerItem } from '../hooks/useScannerData'
 import { ScopedStyle } from '@/components/ScopedStyle'
 import { sanitizeDeepAnalysis, getLocalizedAssetName, safeStr } from '@/lib/utils'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 
 interface DeepData {
   symbol: string; name: string; category: string; price: number; changePercent: number

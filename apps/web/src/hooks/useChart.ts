@@ -26,7 +26,7 @@ import type { DrawingRenderer } from '../lib/charts/DrawingRenderer';
 import { KeyboardShortcuts } from '../lib/charts/KeyboardShortcuts';
 import { ChartExporter } from '../lib/charts/ChartExporter';
 import { ChartTemplateManager } from '../lib/charts/ChartTemplate';
-import { T } from '@/lib/unified-tokens';
+import T from '@/lib/unified-tokens';
 import { useChartStateStore, type SerializedIndicator } from '@/hooks/useChartStateStore';
 import { useAuthStore } from '@/lib/auth-store'; // M2 REAL FIX: Get userId for DrawingManager
 import {

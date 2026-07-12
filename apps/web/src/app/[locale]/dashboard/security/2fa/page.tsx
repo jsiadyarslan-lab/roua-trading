@@ -12,7 +12,7 @@ import {
   Fingerprint as BiometricIcon, CircleCheck, CircleX
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { T as SharedT } from '@/lib/unified-tokens'
+import SharedT from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations } from 'next-intl'
 

@@ -7,7 +7,7 @@ import { useScannerContext } from '../ScannerProvider'
 import { DirectionTag } from '../shared/DirectionTag'
 import { IndicatorBadge } from '../shared/IndicatorBadge'
 import { ScopedStyle } from '@/components/ScopedStyle'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 
 function safeMax(arr: number[]): number {
   if (arr.length === 0) return -Infinity;

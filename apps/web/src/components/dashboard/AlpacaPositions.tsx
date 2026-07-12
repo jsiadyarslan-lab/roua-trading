@@ -16,7 +16,7 @@ import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { fmtPriceLocale as fmtPrice, fmtPrice as fmtPricePlain, fmtPnl } from '@/lib/price-format'
 import { isNestJsId } from '@/lib/api-fetch'
 import { PositionModal, type PositionModalData } from './PositionModal'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 
 // Fix: تحويل الوحدات الخام إلى لوتات للعرض
 // للكريبتو: contractSize=1, فاللوتات = الوحدات (0.01 BTC = 0.01 لوت)

@@ -6,7 +6,7 @@ import { PortfolioSparkline } from '@/components/portfolio/PortfolioSparkline'
 import { PortfolioHeatMap } from '@/components/portfolio/PortfolioHeatMap'
 import { QuickActionsBar } from '@/components/portfolio/QuickActionsBar'
 import { PositionCard } from '@/components/portfolio/PositionCard'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 import { useTranslations } from 'next-intl'
 
 /* ── Default Real Data State ── */

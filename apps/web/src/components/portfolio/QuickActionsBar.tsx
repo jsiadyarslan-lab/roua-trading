@@ -1,7 +1,7 @@
 'use client'
 
 import { XCircle, Shield, RefreshCw, Link2 } from 'lucide-react'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 import { useTranslations } from 'next-intl'
 
 interface QuickActionsBarProps {

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { getDirection } from '@/lib/i18n-utils';
 import { useLocale } from 'next-intl'
-import { T } from '@/lib/unified-tokens';
+import T from '@/lib/unified-tokens';
 import {
   PenLine, Sparkles, TrendingUp, FileText, BarChart3,
   Settings2, Plus, Clock, Eye, ThumbsUp, Share2,

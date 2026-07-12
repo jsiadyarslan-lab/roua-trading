@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Users, MessageCircle, Trophy, TrendingUp, Mail, ArrowUpRight, Sparkles, CheckCircle } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 
 export default function SocialPage() {
   const sl = useTranslations('dashboard.social')

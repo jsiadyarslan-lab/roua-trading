@@ -60,7 +60,7 @@ import { createIncrementalState, initializeState, updateIncremental, needsFullRe
 import { renderHeatmapOnChart, type HeatmapResult } from '@/lib/charts/ConfidenceHeatmap';
 import { detectTrendLines } from './AIPatternPanel';
 import type { AIAnalysisResult } from './AIPatternPanel';
-import { T } from '@/lib/unified-tokens';
+import T from '@/lib/unified-tokens';
 import { fmtPrice as unifiedFmtPrice } from '@/lib/price-format';
 import { ScopedStyle } from '@/components/ScopedStyle';
 import { useTranslations, useLocale } from 'next-intl';

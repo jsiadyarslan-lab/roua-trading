@@ -7,7 +7,7 @@ import type { HeatmapItem } from '../hooks/useScannerData'
 import { ScopedStyle } from '@/components/ScopedStyle'
 import { useLocale } from 'next-intl'
 import { getLocalizedAssetName, safeStr } from '@/lib/utils'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 
 function safeMax(arr: number[]): number {
   if (arr.length === 0) return -Infinity;

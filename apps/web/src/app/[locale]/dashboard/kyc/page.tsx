@@ -10,7 +10,7 @@ import {
   KeyRound, Plug, Server, Globe, ToggleLeft, ToggleRight
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations, useLocale } from 'next-intl'
 

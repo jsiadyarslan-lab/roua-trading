@@ -9,7 +9,7 @@ import {
   Download, Calendar, Save, AlertTriangle, BarChart, ChevronDown
 } from 'lucide-react'
 
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 // Unified Theme matching Portfolio and Scanner exactly (canonical + local extensions)

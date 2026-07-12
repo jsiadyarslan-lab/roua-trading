@@ -7,7 +7,7 @@ import { useExecutionEngine } from './hooks/useExecutionEngine'
 import { ExecutionOverlay } from './ExecutionOverlay'
 import { OrderHistory } from './OrderHistory'
 import type { DataStatus } from '@/lib/dashboard-live'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 
 export function ExecutionPanel({
   mobile = false,

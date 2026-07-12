@@ -22,7 +22,7 @@ import { hasPermission, getPermissions, ROLE_INFO, type Role, type Permission } 
 import { SmartExecutorTab } from './tabs/SmartExecutorTab'
 import { AutonomousAgentTab } from './tabs/AutonomousAgentTab'
 import { AICouncilTab } from './tabs/AICouncilTab'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations } from 'next-intl'
 import { useLocale } from 'next-intl'

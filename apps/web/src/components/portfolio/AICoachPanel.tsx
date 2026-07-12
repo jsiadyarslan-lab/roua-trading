@@ -11,7 +11,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 
 /* ── Theme ── */
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 import { ScopedStyle } from '@/components/ScopedStyle'
 
 /* ── Types ── */

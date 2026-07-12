@@ -17,7 +17,7 @@ import {
   PanelRightOpen,
   type LucideIcon,
 } from 'lucide-react'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 import { useTranslations, useLocale } from 'next-intl'
 import { isRtlLocale } from '@/lib/i18n-utils'
 

@@ -6,7 +6,7 @@ import { useScannerContext } from '../ScannerProvider'
 import { ScannerTableRow } from './ScannerTableRow'
 import type { SortKey } from '../hooks/useScannerFilters'
 import { ScopedStyle } from '@/components/ScopedStyle'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 
 const COLUMN_KEYS: { key: SortKey | null; labelKey: string; width?: number }[] = [
   { key: null, labelKey: 'table.symbol', width: 160 },

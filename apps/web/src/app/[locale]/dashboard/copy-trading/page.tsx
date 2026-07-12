@@ -5,7 +5,7 @@ import { useRouter } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { Eye, Shield, Star, TrendingUp, ArrowUpRight, Activity, AlertTriangle, UserCheck } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 
 type FilterKey = 'performance' | 'risk' | 'popularity'
 

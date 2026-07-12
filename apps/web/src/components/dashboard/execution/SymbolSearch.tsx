@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Search, X as XIcon, Star, TrendingUp, TrendingDown } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 import { useTranslations } from 'next-intl'
 
 import { CRYPTO_BASES } from '@/lib/charts/config'

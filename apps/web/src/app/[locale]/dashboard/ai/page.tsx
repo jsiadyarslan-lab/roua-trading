@@ -13,7 +13,7 @@ import { sanitizeCouncilResult, safeStr } from '@/lib/utils'
 import { useTranslations, useLocale } from 'next-intl'
 
 // ── Theme ──
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 // ── Types ──

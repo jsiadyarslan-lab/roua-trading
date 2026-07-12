@@ -7,7 +7,7 @@ import { SidebarContentPanel } from './SidebarContentPanel'
 import { useSidebarState, type TabId } from '@/hooks/useSidebarState'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { usePriceAlertStore } from '@/hooks/usePriceAlertStore'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 import { useTranslations } from 'next-intl'
 
 export function PrimarySidebarLayout() {

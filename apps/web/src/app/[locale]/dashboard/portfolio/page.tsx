@@ -27,7 +27,7 @@ import {
 // as intended.
 
 /* ── Theme (MUST be imported BEFORE any usage in dynamic() loading/fallback arrows) ── */
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 
 // Lazy-load AICoachPanel to avoid blocking initial render
 // Uses error-safe dynamic import to prevent ReferenceError

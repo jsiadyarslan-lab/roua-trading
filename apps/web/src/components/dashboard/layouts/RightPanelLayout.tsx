@@ -14,7 +14,7 @@ import { useTabAlertStore, type TabId } from '@/hooks/useTabAlertStore'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useRightPanelState } from '@/hooks/useRightPanelState'
 import { useTranslations } from 'next-intl'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 
 // LazicPanel uses browser-only APIs (fetch + interval) → load on client only
 const LazicPanel = dynamic(() => import('@/components/dashboard/LazicPanel').then(m => ({ default: m.LazicPanel })), { ssr: false })

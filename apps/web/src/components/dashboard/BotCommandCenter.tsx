@@ -9,7 +9,7 @@ import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useBotStore } from '@/hooks/useBotStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
 import { useTranslations, useLocale } from 'next-intl'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 
 interface SmartSignal {
   id?: string

@@ -9,7 +9,7 @@ import { IndicatorBadge } from '../shared/IndicatorBadge'
 import { MiniHeatmap } from '../shared/MiniHeatmap'
 import type { ScannerItem } from '../hooks/useScannerData'
 import { safeStr, getLocalizedAssetName } from '@/lib/utils'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 
 interface ScannerTableRowProps {
   item: ScannerItem

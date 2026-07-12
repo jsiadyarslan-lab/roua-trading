@@ -9,7 +9,7 @@ import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { formatExecutionLabel, formatFreshness, getStatusLabel, getStatusTone, type DataStatus, type ExecutionState } from '@/lib/dashboard-live'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 
 function formatCashValue(value: unknown) {
   const cash = Number(value)

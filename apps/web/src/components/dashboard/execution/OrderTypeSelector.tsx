@@ -1,6 +1,6 @@
 'use client'
 
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 import type { OrderType, TimeInForce } from './hooks/useExecutionEngine'
 import { useTranslations } from 'next-intl'
 

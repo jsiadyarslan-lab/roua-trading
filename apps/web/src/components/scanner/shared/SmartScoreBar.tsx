@@ -1,7 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 
 interface SmartScore {
   trendScore: number

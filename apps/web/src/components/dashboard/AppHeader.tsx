@@ -78,7 +78,7 @@ import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { useAuthStore } from '@/lib/auth-store'
 import { NotificationCenter } from '@/components/dashboard/NotificationCenter'
 import { LocaleSwitcher } from '@/components/shared/LocaleSwitcher'
-import { T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 
 /* ─── Design tokens ─── */
 const H_NEWS  = 22

@@ -43,7 +43,7 @@ export default function LocaleNotFound() {
           className="text-sm mb-8"
           style={{
             fontFamily: 'var(--font-ar)',
-            color: '#64748B',
+            color: T.text2,
           }}
         >
           {t('description')}

@@ -582,7 +582,7 @@ export function buildPositionSizeHTML(
     cardBg: '#1E293B',
     textPrimary: '#E2E8F0',
     textSecondary: '#94A3B8',
-    textMuted: '#64748B',
+    textMuted: T.text2,
     accentGreen: '#4ADE80',
     accentRed: '#F87171',
     accentYellow: '#FBBF24',

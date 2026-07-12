@@ -75,7 +75,7 @@ function ChartInner() {
     const chart = createChart(container, {
       layout: {
         background: { type: ColorType.Solid, color: '#0a0f1a' },
-        textColor: '#475569',
+        textColor: T.text3,
         fontFamily: 'var(--font-mono)',
       },
       grid: {

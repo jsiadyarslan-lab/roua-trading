@@ -454,7 +454,7 @@ function LoginForm() {
             className="mb-3"
           >
             <div className="relative">
-              <Mail className="absolute end-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#64748B' }} />
+              <Mail className="absolute end-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: T.text2 }} />
               <input
                 type="email"
                 value={email}

@@ -16,7 +16,7 @@
   --danger: #f87171;
   --text-primary: #f0f9ff;
   --text-secondary: #8B92A8;
-  --text-muted: #475569;
+  --text-muted: #7C8499;  /* WCAG AA: 5.5:1 on #000 (was #475569 = 2.77:1 FAIL) */
   --glass: rgba(255, 255, 255, 0.025);
   --glass-border: rgba(255, 255, 255, 0.05);
   --wormhole-purple: #a78bfa;

@@ -111,7 +111,7 @@ export function ChartGridCellHeader({
               style={{
                 background: active ? 'rgba(0,212,255,0.15)' : 'transparent',
                 border: active ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent',
-                borderRadius: 'var(--radius-xs)', color: active ? T.info : '#4B5563',
+                borderRadius: 'var(--radius-xs)', color: active ? T.info : T.text3,
                 fontFamily: "var(--font-mono)", fontSize: 'var(--text-xs)',
                 fontWeight: active ? 700 : 500, padding: '0 3px', height: 18,
                 cursor: 'pointer', whiteSpace: 'nowrap',
@@ -136,7 +136,7 @@ export function ChartGridCellHeader({
           style={{
             background: isExpanded ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.04)',
             border: isExpanded ? '1px solid rgba(0,212,255,0.3)' : '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 'var(--radius-xs)', color: isExpanded ? T.info : '#4B5563', width: 16, height: 16, cursor: 'pointer',
+            borderRadius: 'var(--radius-xs)', color: isExpanded ? T.info : T.text3, width: 16, height: 16, cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
             flexShrink: 0, transition: 'all 0.15s ease',
           }}
@@ -161,7 +161,7 @@ export function ChartGridCellHeader({
           aria-label="Close chart"
           style={{
             background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 'var(--radius-xs)', color: '#4B5563', width: 16, height: 16, cursor: 'pointer',
+            borderRadius: 'var(--radius-xs)', color: T.text3, width: 16, height: 16, cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
             flexShrink: 0,
           }}

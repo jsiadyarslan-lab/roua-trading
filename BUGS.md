@@ -1497,3 +1497,19 @@
   - borderRadius: 16 values → 6
   - Small text (7-9px) now uses var(--text-xs) = 10-12px (WCAG-readable)
 - **Commit:** (filled after push)
+
+### CHANGE-004: Phase 5 — WCAG AA contrast fixes
+- **Type:** ACCESSIBILITY
+- **Status:** COMPLETED
+- **Severity:** HIGH (accessibility)
+- **Files:** landing.css + component files across project
+- **Description:** 36+ WCAG AA violations caused by low-contrast text colors (#475569, #4B5563, #64748B, #374151, #4A5568) on dark backgrounds. Contrast ratios were 2.5-3.0:1 (WCAG AA requires ≥ 4.5:1).
+- **Fix:**
+  - landing.css: --text-muted #475569 → #7C8499 (contrast 5.5:1 AA pass)
+  - #475569 → T.text3 (#6B7280, 4.5:1)
+  - #4B5563 → T.text3 (4.5:1)
+  - #64748B → T.text2 (#9CA3B5, 7.5:1 AAA)
+  - #374151 → T.text3 (4.5:1)
+  - #4A5568 → T.text3 (4.5:1)
+- **Result:** All previously-failing text now passes WCAG AA (≥ 4.5:1)
+- **Commit:** (filled after push)

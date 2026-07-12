@@ -36,7 +36,7 @@ const C = {
   border: T.border,
   text: T.text,
   textDim: T.text2,
-  textMuted: '#4B5563',
+  textMuted: T.text3,
   cyan: T.info,
   success: T.accent,
   gold: T.gold,

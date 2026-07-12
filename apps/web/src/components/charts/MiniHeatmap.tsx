@@ -35,7 +35,7 @@ const C = {
   cyan: T.info,
   text: T.text,
   textDim: T.text2,
-  textMuted: '#4B5563',
+  textMuted: T.text3,
   success: T.success,
   danger: T.danger,
   warning: '#fbbf24',

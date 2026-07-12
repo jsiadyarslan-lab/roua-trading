@@ -54,7 +54,7 @@ export default function CTASection() {
 
         <p
           className="text-base mb-8 max-w-md mx-auto"
-          style={{ color: '#64748B', fontFamily: 'var(--font-ar)' }}
+          style={{ color: T.text2, fontFamily: 'var(--font-ar)' }}
         >
           {t('joinCaption')}
         </p>
@@ -79,7 +79,7 @@ export default function CTASection() {
 
         <p
           className="mt-5 text-xs"
-          style={{ color: '#475569', fontFamily: 'var(--font-ar)' }}
+          style={{ color: T.text3, fontFamily: 'var(--font-ar)' }}
         >
           {t('noCreditCard')}
         </p>

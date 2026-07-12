@@ -51,7 +51,7 @@ export default function Loading() {
           className="text-sm"
           style={{
             fontFamily: 'var(--font-ar)',
-            color: '#64748B',
+            color: T.text2,
           }}
         >
           {td('loading')}

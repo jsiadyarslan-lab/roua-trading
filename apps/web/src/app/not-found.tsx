@@ -34,7 +34,7 @@ export default function RootNotFound() {
             <h1 className="text-2xl font-bold mb-3" style={{ color: '#E2E8F0' }}>
               الصفحة غير موجودة
             </h1>
-            <p className="text-sm mb-8" style={{ color: '#64748B' }}>
+            <p className="text-sm mb-8" style={{ color: T.text2 }}>
               عذراً، الصفحة التي تبحث عنها غير موجودة أو تم نقلها
             </p>
             <Link

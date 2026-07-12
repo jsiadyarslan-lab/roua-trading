@@ -115,7 +115,7 @@ export default function HowItWorksSection() {
           </h2>
           <p
             className="text-base max-w-lg mx-auto"
-            style={{ color: '#64748B', fontFamily: 'var(--font-ar)' }}
+            style={{ color: T.text2, fontFamily: 'var(--font-ar)' }}
           >
             {t('subtitle')}
           </p>
@@ -186,7 +186,7 @@ export default function HowItWorksSection() {
                   </h3>
                   <p
                     className="text-[10px] font-medium tracking-wider mb-3"
-                    style={{ color: '#475569', fontFamily: 'var(--font-en)' }}
+                    style={{ color: T.text3, fontFamily: 'var(--font-en)' }}
                   >
                     {t(step.subtitleKey)}
                   </p>

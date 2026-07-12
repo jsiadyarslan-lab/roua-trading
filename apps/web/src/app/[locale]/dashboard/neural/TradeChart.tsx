@@ -105,10 +105,10 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
           horzLine: { color: T.text3, width: 1, style: 2 },
         },
         rightPriceScale: {
-          borderColor: '#374151',
+          borderColor: T.text3,
         },
         timeScale: {
-          borderColor: '#374151',
+          borderColor: T.text3,
           timeVisible: false,
         },
       });

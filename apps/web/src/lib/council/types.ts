@@ -86,7 +86,7 @@ export const COLORS = {
   textPrimary: "#F1F5F9",
   textSecondary: "#CBD5E1",
   textMuted: "#94A3B8",
-  textDim: "#64748B",
+  textDim: T.text2,
   buy: T.profit,
   buySoft: "rgba(16, 185, 129, 0.12)",
   sell: T.loss,

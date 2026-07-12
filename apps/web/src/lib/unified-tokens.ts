@@ -97,7 +97,7 @@ const T = {
   text: '#F0F2F5',
   text2: '#9CA3B5',   // slightly brighter than before (#8B92A8) for small text readability
   text3: '#6B7280',   // darker than text2 — for truly muted/tertiary text only
-  textMuted: '#4A5568',
+  textMuted: T.text3,
 
   // Borders (aligned with globals.css --border-subtle: #ffffff0f, --border-strong: #ffffff1a)
   border: 'rgba(255,255,255,0.06)',

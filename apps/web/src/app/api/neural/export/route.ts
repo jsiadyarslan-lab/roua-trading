@@ -243,7 +243,7 @@ export async function POST(request: NextRequest) {
       doc.fontSize(12).fillColor('#9CA3AF').text('Roua Trading - AI Trading Lab', { align: 'center' });
       doc.moveDown(1.5);
 
-      doc.strokeColor('#374151').lineWidth(1).moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+      doc.strokeColor(T.text3).lineWidth(1).moveTo(50, doc.y).lineTo(545, doc.y).stroke();
       doc.moveDown(1);
 
       // Info

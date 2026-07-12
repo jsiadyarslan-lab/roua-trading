@@ -76,7 +76,7 @@ const C = {
   grid: 'rgba(42,49,60,0.25)',
   text: T.text,
   textDim: T.text2,
-  textMuted: '#4B5563',
+  textMuted: T.text3,
   cyan: T.info,
   success: T.success,
   danger: T.danger,

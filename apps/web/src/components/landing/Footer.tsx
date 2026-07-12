@@ -61,7 +61,7 @@ export default function Footer() {
                 key={link.label}
                 href={link.href}
                 className="text-xs transition-colors duration-200 hover:text-white"
-                style={{ color: '#64748B', fontFamily: 'var(--font-ar)' }}
+                style={{ color: T.text2, fontFamily: 'var(--font-ar)' }}
               >
                 {link.label}
               </a>
@@ -81,7 +81,7 @@ export default function Footer() {
                   style={{
                     background: 'rgba(255,255,255,0.02)',
                     border: '1px solid rgba(255,255,255,0.04)',
-                    color: '#475569',
+                    color: T.text3,
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = 'rgba(16,185,129,0.08)'
@@ -91,7 +91,7 @@ export default function Footer() {
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = 'rgba(255,255,255,0.02)'
                     e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)'
-                    e.currentTarget.style.color = '#475569'
+                    e.currentTarget.style.color = T.text3
                   }}
                 >
                   <Icon className="w-3.5 h-3.5" />

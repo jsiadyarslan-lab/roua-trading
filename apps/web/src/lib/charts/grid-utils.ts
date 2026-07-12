@@ -112,7 +112,7 @@ export const MTF_DEFAULT_TIMEFRAMES = ['15min', '1h', '4h', '1day', '5min', '1mi
 /** Source labels for display next to data source badges */
 // UNIFY (4.4): was only in SmartGrid, now shared
 export const SOURCE_LABELS: Record<DataSource, { label: string; color: string }> = {
-  loading: { label: '...', color: '#4B5563' },
+  loading: { label: '...', color: T.text3 },
   binance: { label: 'Binance', color: T.success },
   coingecko: { label: 'CoinGecko', color: '#8B5CF6' },
   yahoo: { label: 'Yahoo', color: '#6366F1' },
@@ -129,7 +129,7 @@ export const GRID_COLORS = {
   grid: 'rgba(42,49,60,0.25)',
   text: T.text,
   textDim: T.text2,
-  textMuted: '#4B5563',
+  textMuted: T.text3,
   cyan: T.info,
   success: T.success,
   danger: T.danger,

@@ -758,7 +758,7 @@ export function buildHTMLCards(bundle: any, locale: Locale): string {
     cardGlow: '0 4px 24px rgba(99,102,241,0.08)',
     textPrimary: '#E2E8F0',
     textSecondary: '#94A3B8',
-    textMuted: '#64748B',
+    textMuted: T.text2,
     accentBlue: '#60A5FA',
     accentPurple: '#C084FC',
     accentGreen: '#4ADE80',

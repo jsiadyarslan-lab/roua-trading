@@ -26,7 +26,7 @@ import {
   Activity,
 } from 'lucide-react'
 import SubPageLayout from '@/components/dashboard/SubPageLayout'
-import { T } from '@/lib/theme-tokens'
+import { T } from '@/lib/unified-tokens'
 import { toast } from '@/hooks/use-toast'
 import { useNotificationStore, Notification as StoreNotification } from '@/hooks/useNotificationStore'
 import { useScopedStyle } from '@/hooks/useScopedStyle'

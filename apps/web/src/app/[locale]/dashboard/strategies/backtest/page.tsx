@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Play, Activity } from 'lucide-react'
-import { T } from '@/lib/theme-tokens'
+import { T } from '@/lib/unified-tokens'
 import { getPnlColor } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 

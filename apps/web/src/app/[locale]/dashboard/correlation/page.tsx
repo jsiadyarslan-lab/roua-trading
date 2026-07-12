@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { GitMerge, RefreshCw, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react'
-import { T } from '@/lib/theme-tokens'
+import { T } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 function corrColor(v: number): string {

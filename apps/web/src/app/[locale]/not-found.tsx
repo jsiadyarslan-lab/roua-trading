@@ -33,7 +33,7 @@ export default function LocaleNotFound() {
           className="text-2xl font-bold mb-3"
           style={{
             fontFamily: 'var(--font-ar)',
-            color: T.text2,
+            color: #9CA3B5,
           }}
         >
           {t('title')}
@@ -69,7 +69,7 @@ export default function LocaleNotFound() {
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-medium transition-all duration-300 hover:bg-white/5"
             style={{
               border: '1px solid rgba(148,163,184,0.15)',
-              color: T.text2,
+              color: #9CA3B5,
               fontFamily: 'var(--font-ar)',
             }}
           >

@@ -61,7 +61,7 @@ export function CrosshairOverlay({
   const decimals = useMemo(() => priceDecimals(price, symbol), [symbol, price]);
 
   const isBull = displayData ? displayData.close >= displayData.open : true;
-  const changeColor = displayData && displayData.change >= 0 ? '#00FFA3' : '#FF4757';
+  const changeColor = displayData && displayData.change >= 0 ? '#00FFA3' : #FF4757;
 
   const COLORS = {
     text: '#F0F2F5',

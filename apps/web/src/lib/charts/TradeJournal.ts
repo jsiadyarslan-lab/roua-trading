@@ -552,26 +552,26 @@ export function generateReportHTML(symbol?: string): string {
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;600;700&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Noto Sans Arabic', sans-serif; background: '#0a0a0f'; color: '#e0e0e0'; padding: 40px; direction: rtl; }
+  body { font-family: 'Noto Sans Arabic', sans-serif; background: #0a0a0f; color: #e0e0e0; padding: 40px; direction: rtl; }
   .header { text-align: center; border-bottom: 2px solid #ffd700; padding-bottom: 20px; margin-bottom: 30px; }
-  .header h1 { color: '#ffd700'; font-size: 28px; margin-bottom: 8px; }
+  .header h1 { color: #ffd700; font-size: 28px; margin-bottom: 8px; }
   .header p { color: #888; font-size: 14px; }
   .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 30px; }
-  .stat-card { background: '#151520'; border: 1px solid #2a2a3a; border-radius: 12px; padding: 20px; text-align: center; }
+  .stat-card { background: #151520; border: 1px solid #2a2a3a; border-radius: 12px; padding: 20px; text-align: center; }
   .stat-card .value { font-size: 32px; font-weight: 700; margin-bottom: 4px; }
   .stat-card .label { font-size: 13px; color: #888; }
-  .green { color: '#00e676'; }
-  .red { color: '#ff5252'; }
-  .gold { color: '#ffd700'; }
-  .blue { color: '#448aff'; }
+  .green { color: #00e676; }
+  .red { color: #ff5252; }
+  .gold { color: #ffd700; }
+  .blue { color: #448aff; }
   .section { margin-bottom: 30px; }
-  .section h2 { color: '#ffd700'; font-size: 18px; margin-bottom: 12px; border-bottom: 1px solid #2a2a3a; padding-bottom: 8px; }
+  .section h2 { color: #ffd700; font-size: 18px; margin-bottom: 12px; border-bottom: 1px solid #2a2a3a; padding-bottom: 8px; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { background: '#1a1a2a'; color: '#ffd700'; padding: 10px; text-align: right; border: 1px solid #2a2a3a; }
+  th { background: #1a1a2a; color: #ffd700; padding: 10px; text-align: right; border: 1px solid #2a2a3a; }
   td { padding: 8px 10px; border: 1px solid #1a1a2a; }
-  tr:nth-child(even) { background: '#0f0f18'; }
-  .win { color: '#00e676'; }
-  .loss { color: '#ff5252'; }
+  tr:nth-child(even) { background: #0f0f18; }
+  .win { color: #00e676; }
+  .loss { color: #ff5252; }
   .footer { text-align: center; color: #555; font-size: 12px; margin-top: 40px; border-top: 1px solid #2a2a3a; padding-top: 20px; }
   @media print { body { background: white; color: black; } .stat-card { border: 1px solid #ccc; } }
 </style>

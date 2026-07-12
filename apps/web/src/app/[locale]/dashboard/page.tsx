@@ -792,7 +792,7 @@ export default function DashboardPage() {
             display: flex !important;
             flex-direction: column;
             width: 100%;
-            background: '#0A0D13';
+            background: #0A0D13;
             overflow: hidden;
             position: fixed;
             top: 0; left: 0; right: 0;
@@ -1481,7 +1481,7 @@ export default function DashboardPage() {
                   // منخفض = آمن (استخدام محافظ)
                   const isCritical = mlPct < 120 && mlPct > 0;  // < 120% خطر فعلي (قريب من margin call)
                   const isWarning  = mlPct >= 120 && mlPct < 200;              // 120-200% تحذير
-                  const mlColor = isCritical ? '#FF4757' : isWarning ? '#FFB800' : '#00D4FF';
+                  const mlColor = isCritical ? '#FF4757' : isWarning ? '#FFB800' : #00D4FF;
                   return (
                     <div style={{
                       display: 'flex', alignItems: 'center', gap: 5,

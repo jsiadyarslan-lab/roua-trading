@@ -1337,8 +1337,8 @@ export function buildHTMLCards(bundle: any, locale: Locale): string {
             const positionSize = (riskAmount / slDistance).toFixed(0);
             return `<tr>
               <td style="padding:5px 10px; border-bottom:1px solid ${C.divider}; color:${rl.color}; font-weight:600; font-size:11px;">${rl.label}</td>
-              <td style="padding:5px 10px; border-bottom:1px solid ${C.divider}; color: '#E2E8F0'; font-size:11px; font-family:'JetBrains Mono',monospace;">$${riskAmount.toFixed(0)}</td>
-              <td style="padding:5px 10px; border-bottom:1px solid ${C.divider}; color: '#E2E8F0'; font-size:11px; font-family:'JetBrains Mono',monospace;">${positionSize}</td>
+              <td style="padding:5px 10px; border-bottom:1px solid ${C.divider}; color: #E2E8F0; font-size:11px; font-family:'JetBrains Mono',monospace;">$${riskAmount.toFixed(0)}</td>
+              <td style="padding:5px 10px; border-bottom:1px solid ${C.divider}; color: #E2E8F0; font-size:11px; font-family:'JetBrains Mono',monospace;">${positionSize}</td>
             </tr>`;
           }).join('');
 
@@ -1673,11 +1673,11 @@ function cleanupAIContent(raw: string, isRtl: boolean): string {
 
     let table = `<table style="width:100%; border-collapse:collapse; margin:10px 0; font-size:12px;">`;
     table += '<tr>' + headers.map((h: string) =>
-      `<th style="padding:8px 12px; background:rgba(168,85,247,0.1); color: '#C084FC'; text-align:${align}; border-bottom:2px solid rgba(168,85,247,0.3);">${h}</th>`
+      `<th style="padding:8px 12px; background:rgba(168,85,247,0.1); color: #C084FC; text-align:${align}; border-bottom:2px solid rgba(168,85,247,0.3);">${h}</th>`
     ).join('') + '</tr>';
     for (const row of rows) {
       table += '<tr>' + row.map((c: string) =>
-        `<td style="padding:6px 12px; border-bottom:1px solid rgba(99,102,241,0.1); color: '#E2E8F0';">${c}</td>`
+        `<td style="padding:6px 12px; border-bottom:1px solid rgba(99,102,241,0.1); color: #E2E8F0;">${c}</td>`
       ).join('') + '</tr>';
     }
     table += '</table>';
@@ -1685,10 +1685,10 @@ function cleanupAIContent(raw: string, isRtl: boolean): string {
   });
 
   // 2. Convert ### and ## headers to h3
-  html = html.replace(/^#{1,3}\s+(.+)$/gm, '<h3 style="color: '#C084FC'; font-size: 14px; font-weight: 700; margin: 14px 0 8px 0; padding-bottom: 4px; border-bottom: 1px solid rgba(168,85,247,0.2);">$1</h3>');
+  html = html.replace(/^#{1,3}\s+(.+)$/gm, '<h3 style="color: #C084FC; font-size: 14px; font-weight: 700; margin: 14px 0 8px 0; padding-bottom: 4px; border-bottom: 1px solid rgba(168,85,247,0.2);">$1</h3>');
 
   // 3. Convert bold **text** → <strong>
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong style="color: '#F1F5F9';">$1</strong>');
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong style="color: #F1F5F9;">$1</strong>');
 
   // 4. Convert italic *text* → <em> (but not inside already converted strong)
   html = html.replace(/(?<!<)\*(.+?)\*(?!>)/g, '<em>$1</em>');
@@ -1700,22 +1700,22 @@ function cleanupAIContent(raw: string, isRtl: boolean): string {
   html = html.replace(/((?:^\d+\.\s+.+$\n?)+)/gm, (match) => {
     const items = match.trim().split('\n').map((line: string) => {
       const text = line.replace(/^\d+\.\s+/, '');
-      return `<li style="margin:4px 0; line-height:1.8; color: '#E2E8F0';">${text}</li>`;
+      return `<li style="margin:4px 0; line-height:1.8; color: #E2E8F0;">${text}</li>`;
     }).join('');
-    return `<ol style="margin:8px 0; padding-${isRtl ? 'right' : 'left'}:20px; color: '#E2E8F0';">${items}</ol>`;
+    return `<ol style="margin:8px 0; padding-${isRtl ? 'right' : 'left'}:20px; color: #E2E8F0;">${items}</ol>`;
   });
 
   // 7. Convert bullet lists: "- text" or "* text" → <ul><li>
   html = html.replace(/((?:^[-*]\s+.+$\n?)+)/gm, (match) => {
     const items = match.trim().split('\n').map((line: string) => {
       const text = line.replace(/^[-*]\s+/, '');
-      return `<li style="margin:4px 0; line-height:1.8; color: '#E2E8F0';">${text}</li>`;
+      return `<li style="margin:4px 0; line-height:1.8; color: #E2E8F0;">${text}</li>`;
     }).join('');
-    return `<ul style="margin:8px 0; padding-${isRtl ? 'right' : 'left'}:20px; color: '#E2E8F0';">${items}</ul>`;
+    return `<ul style="margin:8px 0; padding-${isRtl ? 'right' : 'left'}:20px; color: #E2E8F0;">${items}</ul>`;
   });
 
   // 8. Convert double newlines to paragraph breaks
-  html = html.replace(/\n{2,}/g, '</p><p style="margin: 8px 0; line-height: 1.9; color: '#E2E8F0'; font-size: 13px;">');
+  html = html.replace(/\n{2,}/g, '</p><p style="margin: 8px 0; line-height: 1.9; color: #E2E8F0; font-size: 13px;">');
 
   // 9. Convert single newlines to <br>
   html = html.replace(/\n/g, '<br>');
@@ -1911,7 +1911,7 @@ Answer with genuine understanding and professionalism. Use Markdown only (no HTM
     : questionType === 'entry_timing' ? '#FB923C'
     : questionType === 'risk_assessment' ? '#FF4757'
     : questionType === 'technical_deep' ? '#B388FF'
-    : '#818CF8';
+    : #818CF8;
 
   const analysisTitle: Record<Locale, string> = {
     ar: questionType === 'recommendation' ? 'تحليل التوصية' 
@@ -1955,7 +1955,7 @@ Answer with genuine understanding and professionalism. Use Markdown only (no HTM
 
   return `
 <div style="
-  background: '#1E293B';
+  background: #1E293B;
   border: 1px solid ${themeColor}33;
   border-radius: 12px;
   overflow: hidden;
@@ -1977,7 +1977,7 @@ Answer with genuine understanding and professionalism. Use Markdown only (no HTM
       ${analysisTitle[locale] || analysisTitle.en}
     </span>
   </div>
-  <div style="padding: 14px 16px; color: '#E2E8F0'; font-size: 13px; line-height: 1.9;">
+  <div style="padding: 14px 16px; color: #E2E8F0; font-size: 13px; line-height: 1.9;">
     ${aiContentFinal}
   </div>
 </div>`;

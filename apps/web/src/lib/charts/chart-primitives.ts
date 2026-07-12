@@ -825,7 +825,7 @@ class AlertMarkerRenderer implements IPrimitivePaneRenderer {
         // Color based on direction
         const isBull = this._direction === 'bullish';
         const isBear = this._direction === 'bearish';
-        const pinColor = isBull ? '#10b981' : isBear ? '#ef4444' : '#FFB800';
+        const pinColor = isBull ? '#10b981' : isBear ? '#ef4444' : #FFB800;
         const bgColor = isBull ? 'rgba(16, 185, 129, 0.15)' : isBear ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)';
         const borderColor = isBull ? 'rgba(16, 185, 129, 0.6)' : isBear ? 'rgba(239, 68, 68, 0.6)' : 'rgba(245, 158, 11, 0.6)';
 

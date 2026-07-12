@@ -318,7 +318,7 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull, compact }: {
   }, [currentPrice]);
 
   // Colors match the price-scale last-price label
-  const bgColor = isBull ? '#00FFA3' : '#FF4757';
+  const bgColor = isBull ? '#00FFA3' : #FF4757;
   const scale = compact ? 0.85 : 1;
 
   return (
@@ -3559,7 +3559,7 @@ export default function RouaChart({
 
               const color = isEntry ? (ov.direction === 'long' ? '#00D4FF' : '#FFB800')
                           : isSL   ? '#FF4757'
-                          : '#00FFA3';
+                          : #00FFA3;
               const bgSolid = isEntry ? (ov.direction === 'long' ? 'rgba(0,212,255,0.25)' : 'rgba(255,140,66,0.25)')
                             : isSL   ? 'rgba(248,81,73,0.30)'
                             : 'rgba(0,255,163,0.25)';
@@ -4498,7 +4498,7 @@ export default function RouaChart({
                     <div
                       onClick={() => { chart.togglePause(); setChartContextMenu(null); }}
                       style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#9CA3B5', fontSize: 'var(--text-xs)', fontWeight: 600 }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = chart.isPaused ? 'rgba(0,255,163,0.1)' : 'rgba(255,184,0,0.1)'; e.currentTarget.style.color = chart.isPaused ? '#00FFA3' : '#FFB800'; }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = chart.isPaused ? 'rgba(0,255,163,0.1)' : 'rgba(255,184,0,0.1)'; e.currentTarget.style.color = chart.isPaused ? '#00FFA3' : #FFB800; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9CA3B5'; }}>
                       <span style={{ fontSize: 'var(--text-sm)', width: 18, textAlign: 'center' }}>{chart.isPaused ? '▶' : '⏸'}</span>
                       <span>{chart.isPaused ? tc('chartContextMenu.resume') : tc('chartContextMenu.pause')}</span>

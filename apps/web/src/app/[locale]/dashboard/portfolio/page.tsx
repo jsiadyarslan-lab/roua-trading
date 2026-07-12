@@ -988,29 +988,29 @@ export default function PortfolioPage() {
 <title>تقرير أداء — رؤى للتداول</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Cairo', 'Arial', sans-serif; background: ${'#0B0E14'}; color: '#F1F5F9'; padding: 40px; }
+  body { font-family: 'Cairo', 'Arial', sans-serif; background: ${'#0B0E14'}; color: #F1F5F9; padding: 40px; }
   .header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #A855F7; }
-  .header h1 { font-size: 24px; color: '#A855F7'; margin-bottom: 8px; }
-  .header .date { font-size: 12px; color: '#94A3B8'; }
+  .header h1 { font-size: 24px; color: #A855F7; margin-bottom: 8px; }
+  .header .date { font-size: 12px; color: #94A3B8; }
   .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 30px; }
   .stat-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; text-align: center; }
-  .stat-label { font-size: 10px; color: '#94A3B8'; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+  .stat-label { font-size: 10px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
   .stat-value { font-size: 22px; font-weight: 700; font-family: monospace; }
   .stat-value.green { color: ${'#10b981'}; }
   .stat-value.red { color: ${'#ef4444'}; }
-  .stat-value.purple { color: '#A855F7'; }
-  .stat-value.cyan { color: '#06B6D4'; }
+  .stat-value.purple { color: #A855F7; }
+  .stat-value.cyan { color: #06B6D4; }
   .section { margin-bottom: 25px; }
-  .section h2 { font-size: 14px; color: '#A855F7'; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid rgba(168,85,247,0.2); }
+  .section h2 { font-size: 14px; color: #A855F7; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid rgba(168,85,247,0.2); }
   table { width: 100%; border-collapse: collapse; font-size: 11px; }
-  th { text-align: right; padding: 8px 10px; background: rgba(168,85,247,0.08); color: '#A855F7'; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid rgba(168,85,247,0.15); }
-  td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); color: '#CBD5E1'; }
+  th { text-align: right; padding: 8px 10px; background: rgba(168,85,247,0.08); color: #A855F7; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid rgba(168,85,247,0.15); }
+  td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); color: #CBD5E1; }
   td.pnl-pos { color: ${'#10b981'}; font-weight: 600; }
   td.pnl-neg { color: ${'#ef4444'}; font-weight: 600; }
   .direction-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .dir-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; }
   .dir-card h3 { font-size: 12px; margin-bottom: 8px; }
-  .footer { margin-top: 30px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.06); text-align: center; font-size: 10px; color: '#64748B'; }
+  .footer { margin-top: 30px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.06); text-align: center; font-size: 10px; color: #64748B; }
   @media print { body { padding: 20px; } .stats-grid { grid-template-columns: repeat(4, 1fr); } }
 </style>
 </head>
@@ -1063,11 +1063,11 @@ export default function PortfolioPage() {
     <div class="direction-grid">
       <div class="dir-card">
         <h3 style="color:${'#10b981'};">شراء (BUY)</h3>
-        <p style="font-size:11px;color: '#CBD5E1';">${buyTrades.length} صفقة | P&L: <span style="color:${buyPnl >= 0 ? '#10b981' : '#ef4444'};font-weight:600;">$${buyPnl.toFixed(2)}</span></p>
+        <p style="font-size:11px;color: #CBD5E1;">${buyTrades.length} صفقة | P&L: <span style="color:${buyPnl >= 0 ? '#10b981' : '#ef4444'};font-weight:600;">$${buyPnl.toFixed(2)}</span></p>
       </div>
       <div class="dir-card">
         <h3 style="color:${'#ef4444'};">بيع (SELL)</h3>
-        <p style="font-size:11px;color: '#CBD5E1';">${sellTrades.length} صفقة | P&L: <span style="color:${sellPnl >= 0 ? '#10b981' : '#ef4444'};font-weight:600;">$${sellPnl.toFixed(2)}</span></p>
+        <p style="font-size:11px;color: #CBD5E1;">${sellTrades.length} صفقة | P&L: <span style="color:${sellPnl >= 0 ? '#10b981' : '#ef4444'};font-weight:600;">$${sellPnl.toFixed(2)}</span></p>
       </div>
     </div>
   </div>
@@ -1103,7 +1103,7 @@ export default function PortfolioPage() {
             <td>${t.exitPrice ? Number(t.exitPrice).toFixed(4) : '—'}</td>
             <td>${t.exitReason || '—'}</td>
             <td class="${(t.pnl || 0) >= 0 ? 'pnl-pos' : 'pnl-neg'}">${(t.pnl || 0) >= 0 ? '+' : ''}$${(t.pnl || 0).toFixed(2)}</td>
-            <td style="font-size:10px;color: '#64748B';">${t.executedAt ? new Date(t.executedAt).toLocaleDateString('en-GB') : '—'}</td>
+            <td style="font-size:10px;color: #64748B;">${t.executedAt ? new Date(t.executedAt).toLocaleDateString('en-GB') : '—'}</td>
           </tr>
         `).join('')}
       </tbody>

@@ -428,7 +428,7 @@ export function renderOverlays(
     if (registry.smartRedraw('harmonic', harmonicSig)) {
     harmonics.slice(0, 4).forEach((harm, idx) => {
       const isBull = harm.direction === 'bullish';
-      const col = isBull ? OVERLAY_COLORS.harmonic : '#ef4444';
+      const col = isBull ? OVERLAY_COLORS.harmonic : #ef4444;
 
       // Draw XABCD legs as trend line primitives
       const pts = harm.points;
@@ -893,7 +893,7 @@ export function renderOverlays(
     const wyckoffSig = JSON.stringify({ phase, bias, events: events.map((e: any) => `${e.type}:${e.price}`).join('|') });
     if (registry.smartRedraw('wyckoff', wyckoffSig)) {
     if (phase !== 'Unknown') {
-      const col = bias === 'bullish' ? OVERLAY_COLORS.trendUp : bias === 'bearish' ? OVERLAY_COLORS.trendDown : '#FFB800';
+      const col = bias === 'bullish' ? OVERLAY_COLORS.trendUp : bias === 'bearish' ? OVERLAY_COLORS.trendDown : #FFB800;
 
       // Phase label at latest candle
       registry.add('wyckoff', new LabelPrimitive({
@@ -1188,7 +1188,7 @@ export function renderOverlays(
 
     if (bayes.direction !== 'neutral') {
       const isBull = bayes.direction === 'bullish';
-      const bayesColor = isBull ? '#00D4FF' : '#FFB800';
+      const bayesColor = isBull ? '#00D4FF' : #FFB800;
       const confPct = Math.round(bayes.confidence * 100);
 
       // Bayesian direction label
@@ -1790,7 +1790,7 @@ export function renderAnalysisOverlays(
     if (registry.smartRedraw('bayesian', bayesianSig)) {
     if (bayes.direction !== 'neutral') {
       const isBull = bayes.direction === 'bullish';
-      const bayesColor = isBull ? '#00D4FF' : '#FFB800';
+      const bayesColor = isBull ? '#00D4FF' : #FFB800;
       const confPct = Math.round(bayes.confidence * 100);
       registry.add('bayesian', new LabelPrimitive({ time: (lastTime - 3600) as any, price: lastPrice, text: `⬡ بايزي ${isBull ? 'صعودي' : 'هبوطي'} ${confPct}%`, color: bayesColor, fontSize: 'var(--text-xs)', align: 'right', bg: `${bayesColor}15`, position: isBull ? 'below' : 'above' }));
       const bullPct = Math.round(bayes.posteriorBullish * 100);

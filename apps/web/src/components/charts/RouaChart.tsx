@@ -385,6 +385,7 @@ export default function RouaChart({
   onToggleExpand,
 }: RouaChartProps) {
   const tc = useTranslations('dashboard.chart');
+  const tco = useTranslations('chartOverlay');
   const chartLocale = useLocale();
   const { selectedSymbol, timeframe: storeTimeframe, setTimeframe, setSelectedSymbol } = useSymbolStore();
 
@@ -1041,6 +1042,7 @@ export default function RouaChart({
                 const cached = lastAnalysisResultRef.current;
                 overlayMod.renderOverlays(series, {
                   locale: chartLocale,
+                  t: tco,
                   candles: candlesRef.current,
                   overlays: currentOverlays,
                   symbol: selectedSymbol_,  // BUG-007: required for fallback entry cache keying
@@ -1201,6 +1203,7 @@ export default function RouaChart({
         const cached = lastAnalysisResultRef.current;
         overlayMod.renderOverlays(series, {
           locale: chartLocale,
+          t: tco,
           candles: candlesRef.current,
           overlays: currentOverlays,
           symbol: selectedSymbol_,  // BUG-007: required for fallback entry cache keying
@@ -2738,6 +2741,7 @@ export default function RouaChart({
     // remain untouched on the chart.
     overlayMod.renderAnalysisOverlays(series, {
     locale: chartLocale,
+    t: tco,
       candles: candlesRef.current,
       overlays: ov,
       supportLevels: result.supportLevels,
@@ -2827,6 +2831,7 @@ export default function RouaChart({
 
       overlayMod.renderOverlays(series, {
         locale: chartLocale,
+        t: tco,
         candles: candlesRef.current,
         overlays,
         supportLevels: cached?.supportLevels || [],

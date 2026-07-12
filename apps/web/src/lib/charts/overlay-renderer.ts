@@ -114,9 +114,13 @@ export function resetFallbackEntryCache(): void {
 export interface OverlayInput {
   candles: CandleData[];
   /** Locale code (e.g. 'ar', 'en', 'fr'). When 'ar', Arabic *Ar fields are
-   *  rendered directly. For any other locale, English fallback is used so
-   *  Arabic text never leaks onto the chart. */
+   *  rendered directly. For any other locale, the t() function is used to
+   *  render the proper translation from the chartOverlay namespace. */
   locale?: string;
+  /** Translation function from next-intl (useTranslations('chartOverlay')).
+   *  Used to render labels in the user's locale for non-Arabic languages.
+   *  If absent, falls back to the translation key as a literal. */
+  t?: (key: string) => string;
   overlays: Record<string, boolean>;
   /** BUG-007: Symbol is required to key the fallback entry cache correctly.
    *  Without it, switching from BTC to ETH (same direction) shows BTC's entry on ETH chart. */
@@ -210,21 +214,41 @@ export interface OverlayInput {
 
 // ═══════════════════════════════════════════════════════════════════════
 // LOCALE-AWARE LABEL HELPER
-// Engine data objects contain Arabic-specific fields (*Ar). On the chart,
-// we must render Arabic ONLY when locale === 'ar'; otherwise render the
-// English fallback. This prevents Arabic text from leaking into non-Arabic
-// chart overlays (Wyckoff events, OB labels, MTF S/R, liquidity zones).
+// Engine data objects contain Arabic-specific fields (*Ar). On the chart:
+// - For Arabic locale (locale === 'ar'): render the Arabic text from engine
+// - For any other locale: render the proper translation via t(tKey) from
+//   the chartOverlay namespace in messages/<locale>.json
+// This way French users see French, German users see German, etc.
 // ═══════════════════════════════════════════════════════════════════════
 
 /**
  * Locale-aware label picker for chart overlay text.
- * @param locale  current locale code (e.g. 'ar', 'en')
+ * @param locale  current locale code (e.g. 'ar', 'en', 'fr', 'de')
  * @param arText  Arabic text from engine (e.g. `event.labelAr === 'قمة'`)
- * @param enText  English fallback to display for non-Arabic locales
- * @returns Arabic text if locale === 'ar', else English fallback
+ * @param tKey    translation key in chartOverlay namespace (e.g. 'peak')
+ * @param t       translation function (useTranslations('chartOverlay'))
+ * @returns Arabic text if locale === 'ar'; else t(tKey) translated to user locale
  */
-function arLabel(locale: string | undefined, arText: string, enText: string): string {
-  return locale === 'ar' ? arText : enText;
+function arLabel(
+  locale: string | undefined,
+  arText: string,
+  tKey: string,
+  t?: (key: string) => string,
+): string {
+  if (locale === 'ar') return arText;
+  if (t) {
+    try {
+      const translated = t(tKey);
+      // next-intl returns the key itself if translation is missing.
+      // In that case, fall back to a human-readable form of the key.
+      if (translated && translated !== tKey) return translated;
+    } catch { /* fall through */ }
+  }
+  // Final fallback: humanize the tKey (e.g. "bullishOB" → "Bullish OB")
+  return tKey
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, s => s.toUpperCase())
+    .trim();
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -279,7 +303,7 @@ export function renderOverlays(
   addPriceLine?: (id: string, price: number, color: string, label: string, lineWidth: number, lineStyle: number, axisLabelVisible: boolean) => void,
   removePriceLine?: (id: string) => void,
 ): void {
-  const { candles, overlays, locale } = input;
+  const { candles, overlays, locale, t } = input;
   if (!candles.length || candles.length < 20) return;
 
   const registry = getOverlayRegistry();
@@ -579,7 +603,7 @@ export function renderOverlays(
         : `rgba(${fillBase}, ${fillOpacity})`;
 
       const fillLabel = isFilled
-        ? `FVG${isBull ? '↑' : '↓'} ${arLabel(locale, 'ممتلئ', 'filled')}`
+        ? `FVG${isBull ? '↑' : '↓'} ${arLabel(locale, 'ممتلئ', 'filled', t)}`
         : isPartial
           ? `FVG${isBull ? '↑' : '↓'} ${Math.round((1 - fillPct) * 100)}%`
           : `FVG${isBull ? '↑' : '↓'}`;
@@ -680,7 +704,7 @@ export function renderOverlays(
         lowPrice: ob.lowPrice,
         fillColor,
         borderColor: borderCol,
-        label: ob.mitigated ? `${arLabel(locale, ob.labelAr, 'OB')} ${arLabel(locale, '(مخفف)', '(mitigated)')}` : `${arLabel(locale, ob.labelAr, 'OB')} S${ob.strength}`,
+        label: ob.mitigated ? `${arLabel(locale, ob.labelAr, 'orderBlock', t)} ${arLabel(locale, '(مخفف)', 'mitigatedParens', t)}` : `${arLabel(locale, ob.labelAr, 'orderBlock', t)} S${ob.strength}`,
       }));
 
       // Mitigation marker — show where price returned to OB zone
@@ -688,7 +712,7 @@ export function renderOverlays(
         registry.add('ob', new LabelPrimitive({
           time: ob.mitigationTime as any,
           price: isBull ? ob.highPrice : ob.lowPrice,
-          text: `✓ ${arLabel(locale, ob.labelAr, 'OB')} ${arLabel(locale, 'مخفف', 'mitigated')}`,
+          text: `✓ ${arLabel(locale, ob.labelAr, 'orderBlock', t)} ${arLabel(locale, 'مخفف', 'mitigated', t)}`,
           color: 'rgba(156, 163, 175, 0.7)',
           fontSize: 11,
           align: 'center',
@@ -705,9 +729,9 @@ export function renderOverlays(
           color: lineColor,
           lineWidth: 1,
           lineStyle: 2,
-          label: `${arLabel(locale, ob.labelAr, 'OB')} S${ob.strength}`,
+          label: `${arLabel(locale, ob.labelAr, 'orderBlock', t)} S${ob.strength}`,
         }));
-        safeAddPriceLine(`ob-${i}`, isBull ? ob.lowPrice : ob.highPrice, lineColor, `${arLabel(locale, ob.labelAr, 'OB')} S${ob.strength}`, 1, 2, false, 'ob');
+        safeAddPriceLine(`ob-${i}`, isBull ? ob.lowPrice : ob.highPrice, lineColor, `${arLabel(locale, ob.labelAr, 'orderBlock', t)} S${ob.strength}`, 1, 2, false, 'ob');
       }
     });
 
@@ -720,7 +744,7 @@ export function renderOverlays(
         registry.add('ob', new LabelPrimitive({
           time: lastTime as any,
           price: lastPrice * (confluentFVGs[0].type === 'bullish' ? 0.998 : 1.002),
-          text: `⬡ ${arLabel(locale, 'تقاطع OB+FVG', 'OB+FVG intersection')} (${confluentFVGs.length})`,
+          text: `⬡ ${arLabel(locale, 'تقاطع OB+FVG', 'obFvgIntersection', t)} (${confluentFVGs.length})`,
           color: '#d4af37',
           fontSize: 11,
           align: 'right',
@@ -933,7 +957,7 @@ export function renderOverlays(
       // Event price lines
       (events || []).forEach((ev: any, i: number) => {
         if (ev.price > 0) {
-          safeAddPriceLine(`wy-ev-${i}`, ev.price, col, `Wyckoff: ${arLabel(locale, ev.labelAr || ev.type, ev.type)}`, 1, 0, true, 'wyckoff');
+          safeAddPriceLine(`wy-ev-${i}`, ev.price, col, `Wyckoff: ${arLabel(locale, ev.labelAr || ev.type, ev.type, t)}`, 1, 0, true, 'wyckoff');
         }
       });
 
@@ -1154,7 +1178,7 @@ export function renderOverlays(
       registry.add('fusion', new LabelPrimitive({
         time: lastTime as any,
         price: lastPrice,
-        text: `${arrowLabel} ${arLabel(locale, 'تقارب', 'Confluence')} ${fusion.confluenceScore}%`,
+        text: `${arrowLabel} ${arLabel(locale, 'تقارب', 'confluence', t)} ${fusion.confluenceScore}%`,
         color: confluenceColor,
         fontSize: 11,
         align: 'right',
@@ -1218,7 +1242,7 @@ export function renderOverlays(
       registry.add('bayesian', new LabelPrimitive({
         time: (lastTime - 3600) as any, // Slightly left of current candle
         price: lastPrice,
-        text: `⬡ ${arLabel(locale, 'بايزي', 'Bayesian')} ${arLabel(locale, isBull ? 'صعودي' : 'هبوطي', isBull ? 'Bullish' : 'Bearish')} ${confPct}%`,
+        text: `⬡ ${arLabel(locale, 'بايزي', 'bayesian', t)} ${arLabel(locale, isBull ? 'صعودي' : 'هبوطي', isBull ? 'bullish' : 'bearish', t)} ${confPct}%`,
         color: bayesColor,
         fontSize: 11,
         align: 'right',
@@ -1338,9 +1362,9 @@ export function renderOverlays(
         color: srColor,
         lineWidth: sr.combinedStrength > 0.7 ? 2 : 1,
         lineStyle: 1,
-        label: `${arLabel(locale, sr.labelAr, sr.type === 'support' ? 'Support' : 'Resistance')} (${(sr as any).timeframes?.length || 0}TF)`,
+        label: `${arLabel(locale, sr.labelAr, sr.type === 'support' ? 'support' : 'resistance', t)} (${(sr as any).timeframes?.length || 0}TF)`,
       }));
-      safeAddPriceLine(`mtf-sr-${sr.price}`, sr.price, srColor, arLabel(locale, sr.labelAr, sr.type === 'support' ? 'Support' : 'Resistance'), sr.combinedStrength > 0.7 ? 2 : 1, 1, true, 'mtf');
+      safeAddPriceLine(`mtf-sr-${sr.price}`, sr.price, srColor, arLabel(locale, sr.labelAr, sr.type === 'support' ? 'support' : 'resistance', t), sr.combinedStrength > 0.7 ? 2 : 1, 1, true, 'mtf');
     }
 
     // Fibonacci confluence zones
@@ -1363,7 +1387,7 @@ export function renderOverlays(
       registry.add('mtf', new LabelPrimitive({
         time: (lastTime - 3600) as any,
         price: lastPrice,
-        text: `⚠ ${arLabel(locale, div.type === 'bullish-divergence' ? 'تباعد صعودي' : div.type === 'bearish-divergence' ? 'تباعد هبوطي' : 'تباعد زخم', div.type === 'bullish-divergence' ? 'Bullish Divergence' : div.type === 'bearish-divergence' ? 'Bearish Divergence' : 'Momentum Divergence')}`,
+        text: `⚠ ${arLabel(locale, div.type === 'bullish-divergence' ? 'تباعد صعودي' : div.type === 'bearish-divergence' ? 'تباعد هبوطي' : 'تباعد زخم', div.type === 'bullish-divergence' ? 'bullishDivergence' : div.type === 'bearish-divergence' ? 'bearishDivergence' : 'momentumDivergence', t)}`,
         color: 'rgba(245, 158, 11, 0.7)',
         fontSize: 11,
         align: 'right',
@@ -1393,7 +1417,7 @@ export function renderOverlays(
 
     if (proposal) {
       const isBull = proposal.direction === 'bullish';
-      const dirAr = arLabel(locale, isBull ? 'شراء' : 'بيع', isBull ? 'Buy' : 'Sell');
+      const dirAr = arLabel(locale, isBull ? 'شراء' : 'بيع', isBull ? 'buy' : 'sell', t);
 
       // Entry line
       registry.add('trade', new HorizontalLinePrimitive({
@@ -1480,7 +1504,7 @@ export function renderOverlays(
         price: isBull
           ? safeMax(candles.slice(-5).map(c => c.high)) * 1.002
           : safeMin(candles.slice(-5).map(c => c.low)) * 0.998,
-        text: `R:R 1:${proposal.rrRatio} | ${arLabel(locale, 'جودة', 'Quality')} ${proposal.qualityScore}% | ${arLabel(locale, 'ثقة', 'Confidence')} ${Math.round(proposal.confidence * 100)}%`,
+        text: `R:R 1:${proposal.rrRatio} | ${arLabel(locale, 'جودة', 'quality', t)} ${proposal.qualityScore}% | ${arLabel(locale, 'ثقة', 'confidence', t)} ${Math.round(proposal.confidence * 100)}%`,
         color: 'rgba(255,255,255,0.5)',
         fontSize: 11,
         align: 'right',
@@ -1492,7 +1516,7 @@ export function renderOverlays(
       registry.add('trade', new LabelPrimitive({
         time: candles[candles.length - 1].time as any,
         price: proposal.entryPrice,
-        text: isBull ? `▲ ${arLabel(locale, 'شراء', 'Buy')}` : `▼ ${arLabel(locale, 'بيع', 'Sell')}`,
+        text: isBull ? `▲ ${arLabel(locale, 'شراء', 'buy', t)}` : `▼ ${arLabel(locale, 'بيع', 'sell', t)}`,
         color: isBull ? '#00D4FF' : '#FFB800',
         fontSize: 11,
         align: 'right',
@@ -1557,7 +1581,7 @@ export function renderOverlays(
           registry.add('liq', new LabelPrimitive({
             time: zone.sweepTime as any,
             price: sweepIsBull ? zone.high : zone.low,
-            text: `⚡ ${arLabel(locale, 'مسح', 'Sweep')}`,
+            text: `⚡ ${arLabel(locale, 'مسح', 'sweep', t)}`,
             color: sweepIsBull ? 'rgba(0, 255, 163, 0.7)' : 'rgba(255, 71, 87, 0.7)',
             fontSize: 11,
             align: 'center',
@@ -1576,7 +1600,7 @@ export function renderOverlays(
             price: zone.type === 'equal_highs' || zone.type === 'previous_high'
               ? zone.high
               : zone.low,
-            text: arLabel(locale, zone.labelAr, zone.type),
+            text: arLabel(locale, zone.labelAr, zone.type, t),
             color: labelColor,
             fontSize: 11,
             align: 'left',
@@ -1599,9 +1623,9 @@ export function renderOverlays(
             color: lineColor,
             lineWidth: 1,
             lineStyle: 2,
-            label: `${arLabel(locale, zone.labelAr, zone.type)} ×${zone.strength}`,
+            label: `${arLabel(locale, zone.labelAr, zone.type, t)} ×${zone.strength}`,
           }));
-          safeAddPriceLine(`liq-${zone.type}-${zone.price}`, zone.price, lineColor, `${arLabel(locale, zone.labelAr, zone.type)} ×${zone.strength}`, 1, 2, false, 'liq');
+          safeAddPriceLine(`liq-${zone.type}-${zone.price}`, zone.price, lineColor, `${arLabel(locale, zone.labelAr, zone.type, t)} ×${zone.strength}`, 1, 2, false, 'liq');
         }
       }
 
@@ -1613,7 +1637,7 @@ export function renderOverlays(
           price: isBull
             ? safeMin(candles.slice(-5).map(c => c.low)) * 0.998
             : safeMax(candles.slice(-5).map(c => c.high)) * 1.002,
-          text: `${isBull ? '▲' : '▼'} ${arLabel(locale, 'سيولة', 'Liquidity')} ${arLabel(locale, isBull ? 'صاعد' : 'هابط', isBull ? 'Bullish' : 'Bearish')} (${liqData.sweptZones} ${arLabel(locale, 'مسحوب', 'swept')})`,
+          text: `${isBull ? '▲' : '▼'} ${arLabel(locale, 'سيولة', 'liquidity', t)} ${arLabel(locale, isBull ? 'صاعد' : 'هابط', isBull ? 'bullish' : 'bearish', t)} (${liqData.sweptZones} ${arLabel(locale, 'مسحوب', 'swept', t)})`,
           color: isBull ? 'rgba(0, 255, 163, 0.9)' : 'rgba(255, 71, 87, 0.9)',
           fontSize: 11,
           align: 'right',
@@ -1693,7 +1717,7 @@ export function renderAnalysisOverlays(
   addPriceLine?: (id: string, price: number, color: string, label: string, lineWidth: number, lineStyle: number, axisLabelVisible: boolean) => void,
   removePriceLine?: (id: string) => void,
 ): void {
-  const { candles, overlays, locale } = input;
+  const { candles, overlays, locale, t } = input;
   if (!candles.length || candles.length < 20) return;
 
   const registry = getOverlayRegistry();
@@ -1793,7 +1817,7 @@ export function renderAnalysisOverlays(
       const isBull = fusion.direction === 'bullish';
       const confluenceColor = isBull ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)';
       const arrowLabel = isBull ? '▲' : '▼';
-      registry.add('fusion', new LabelPrimitive({ time: lastTime as any, price: lastPrice, text: `${arrowLabel} ${arLabel(locale, 'تقارب', 'Confluence')} ${fusion.confluenceScore}%`, color: confluenceColor, fontSize: 11, align: 'right', bg: isBull ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', position: isBull ? 'above' : 'below' }));
+      registry.add('fusion', new LabelPrimitive({ time: lastTime as any, price: lastPrice, text: `${arrowLabel} ${arLabel(locale, 'تقارب', 'confluence', t)} ${fusion.confluenceScore}%`, color: confluenceColor, fontSize: 11, align: 'right', bg: isBull ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', position: isBull ? 'above' : 'below' }));
       const recentCandles = candles.slice(-5);
       const layerText = `L1:${fusion.layerScores.directionalAgreement}% L2:${fusion.layerScores.spatialConfluence}%`;
       registry.add('fusion', new LabelPrimitive({ time: recentCandles[0]?.time as any || lastTime as any, price: isBull ? safeMin(recentCandles.map(c => c.low)) * 0.9995 : safeMax(recentCandles.map(c => c.high)) * 1.0005, text: layerText, color: 'rgba(255,255,255,0.4)', fontSize: 11, align: 'left', bg: 'rgba(11,14,20,0.6)', position: isBull ? 'below' : 'above' }));
@@ -1815,7 +1839,7 @@ export function renderAnalysisOverlays(
       const isBull = bayes.direction === 'bullish';
       const bayesColor = isBull ? '#00D4FF' : '#FFB800';
       const confPct = Math.round(bayes.confidence * 100);
-      registry.add('bayesian', new LabelPrimitive({ time: (lastTime - 3600) as any, price: lastPrice, text: `⬡ ${arLabel(locale, 'بايزي', 'Bayesian')} ${arLabel(locale, isBull ? 'صعودي' : 'هبوطي', isBull ? 'Bullish' : 'Bearish')} ${confPct}%`, color: bayesColor, fontSize: 11, align: 'right', bg: `${bayesColor}15`, position: isBull ? 'below' : 'above' }));
+      registry.add('bayesian', new LabelPrimitive({ time: (lastTime - 3600) as any, price: lastPrice, text: `⬡ ${arLabel(locale, 'بايزي', 'bayesian', t)} ${arLabel(locale, isBull ? 'صعودي' : 'هبوطي', isBull ? 'bullish' : 'bearish', t)} ${confPct}%`, color: bayesColor, fontSize: 11, align: 'right', bg: `${bayesColor}15`, position: isBull ? 'below' : 'above' }));
       const bullPct = Math.round(bayes.posteriorBullish * 100);
       const bearPct = Math.round(bayes.posteriorBearish * 100);
       registry.add('bayesian', new LabelPrimitive({ time: (lastTime - 7200) as any, price: isBull ? safeMin(candles.slice(-10).map(c => c.low)) : safeMax(candles.slice(-10).map(c => c.high)), text: `P(▲)=${bullPct}% P(▼)=${bearPct}%`, color: 'rgba(255,255,255,0.35)', fontSize: 11, align: 'left', bg: 'rgba(11,14,20,0.5)', position: isBull ? 'below' : 'above' }));
@@ -1865,8 +1889,8 @@ export function renderAnalysisOverlays(
     for (const sr of mtf.srConfluences.slice(0, 3)) {
       const opacity = Math.min(0.8, sr.combinedStrength);
       const srColor = sr.type === 'support' ? `rgba(0, 255, 163, ${opacity})` : `rgba(255, 71, 87, ${opacity})`;
-      registry.add('mtf', new HorizontalLinePrimitive({ price: sr.price, color: srColor, lineWidth: sr.combinedStrength > 0.7 ? 2 : 1, lineStyle: 1, label: `${arLabel(locale, sr.labelAr, sr.type === 'support' ? 'Support' : 'Resistance')} (${(sr as any).timeframes?.length || 0}TF)` }));
-      safeAddPriceLine(`mtf-sr-${sr.price}`, sr.price, srColor, arLabel(locale, sr.labelAr, sr.type === 'support' ? 'Support' : 'Resistance'), sr.combinedStrength > 0.7 ? 2 : 1, 1, true, 'mtf');
+      registry.add('mtf', new HorizontalLinePrimitive({ price: sr.price, color: srColor, lineWidth: sr.combinedStrength > 0.7 ? 2 : 1, lineStyle: 1, label: `${arLabel(locale, sr.labelAr, sr.type === 'support' ? 'support' : 'resistance', t)} (${(sr as any).timeframes?.length || 0}TF)` }));
+      safeAddPriceLine(`mtf-sr-${sr.price}`, sr.price, srColor, arLabel(locale, sr.labelAr, sr.type === 'support' ? 'support' : 'resistance', t), sr.combinedStrength > 0.7 ? 2 : 1, 1, true, 'mtf');
     }
     for (const fib of mtf.fibConfluences.slice(0, 3)) {
       const fibColor = 'rgba(212, 175, 55, 0.3)';
@@ -1874,7 +1898,7 @@ export function renderAnalysisOverlays(
       safeAddPriceLine(`mtf-fib-${fib.price}`, fib.price, fibColor, `Fib MTF ${((fib as any).ratios || []).map((r: any) => r.label).join('+')}`, 1, 2, false, 'mtf');
     }
     for (const div of mtf.divergences.filter(d => d.significance > 0.5).slice(0, 2)) {
-      registry.add('mtf', new LabelPrimitive({ time: (lastTime - 3600) as any, price: lastPrice, text: `⚠ ${arLabel(locale, div.type === 'bullish-divergence' ? 'تباعد صعودي' : div.type === 'bearish-divergence' ? 'تباعد هبوطي' : 'تباعد زخم', div.type === 'bullish-divergence' ? 'Bullish Divergence' : div.type === 'bearish-divergence' ? 'Bearish Divergence' : 'Momentum Divergence')}`, color: 'rgba(245, 158, 11, 0.7)', fontSize: 11, align: 'right', bg: 'rgba(245, 158, 11, 0.08)', position: 'above' }));
+      registry.add('mtf', new LabelPrimitive({ time: (lastTime - 3600) as any, price: lastPrice, text: `⚠ ${arLabel(locale, div.type === 'bullish-divergence' ? 'تباعد صعودي' : div.type === 'bearish-divergence' ? 'تباعد هبوطي' : 'تباعد زخم', div.type === 'bullish-divergence' ? 'bullishDivergence' : div.type === 'bearish-divergence' ? 'bearishDivergence' : 'momentumDivergence', t)}`, color: 'rgba(245, 158, 11, 0.7)', fontSize: 11, align: 'right', bg: 'rgba(245, 158, 11, 0.08)', position: 'above' }));
     }
     } // smartRedraw: data unchanged, existing primitives stay
   } else {
@@ -1889,7 +1913,7 @@ export function renderAnalysisOverlays(
     if (registry.smartRedraw('trade', tradeSig)) {
     if (proposal) {
       const isBull = proposal.direction === 'bullish';
-      const dirAr = arLabel(locale, isBull ? 'شراء' : 'بيع', isBull ? 'Buy' : 'Sell');
+      const dirAr = arLabel(locale, isBull ? 'شراء' : 'بيع', isBull ? 'buy' : 'sell', t);
       registry.add('trade', new HorizontalLinePrimitive({ price: proposal.entryPrice, color: isBull ? '#00D4FF' : '#FFB800', lineWidth: 2, lineStyle: 0, label: `Entry ${dirAr} (Q:${proposal.qualityScore})`, showPrice: true }));
       const effectiveSL = proposal.currentTrailSL ?? proposal.stopLoss;
       registry.add('trade', new HorizontalLinePrimitive({ price: effectiveSL, color: proposal.currentTrailSL ? '#FFB800' : '#ef4444', lineWidth: 2, lineStyle: proposal.currentTrailSL ? 0 : 2, label: proposal.currentTrailSL ? 'Trail SL' : 'SL', showPrice: true }));
@@ -1903,7 +1927,7 @@ export function renderAnalysisOverlays(
         registry.add('trade', new ZonePrimitive({ startTime: candles[candles.length - 30]?.time as any || candles[0].time as any, endTime: candles[candles.length - 1].time as any, highPrice: Math.max(proposal.entryPrice, proposal.takeProfits[2]), lowPrice: Math.min(proposal.entryPrice, proposal.takeProfits[2]), fillColor: 'rgba(16, 185, 129, 0.04)', borderColor: undefined }));
       }
       // NOTE: No safeAddPriceLine — HorizontalLinePrimitive handles lines + labels
-      registry.add('trade', new LabelPrimitive({ time: candles[candles.length - 1].time as any, price: isBull ? safeMax(candles.slice(-5).map(c => c.high)) * 1.002 : safeMin(candles.slice(-5).map(c => c.low)) * 0.998, text: `R:R 1:${proposal.rrRatio} | ${arLabel(locale, 'جودة', 'Quality')} ${proposal.qualityScore}% | ${arLabel(locale, 'ثقة', 'Confidence')} ${Math.round(proposal.confidence * 100)}%`, color: 'rgba(255,255,255,0.5)', fontSize: 11, align: 'right', bg: 'rgba(11,14,20,0.7)', position: isBull ? 'above' : 'below' }));
+      registry.add('trade', new LabelPrimitive({ time: candles[candles.length - 1].time as any, price: isBull ? safeMax(candles.slice(-5).map(c => c.high)) * 1.002 : safeMin(candles.slice(-5).map(c => c.low)) * 0.998, text: `R:R 1:${proposal.rrRatio} | ${arLabel(locale, 'جودة', 'quality', t)} ${proposal.qualityScore}% | ${arLabel(locale, 'ثقة', 'confidence', t)} ${Math.round(proposal.confidence * 100)}%`, color: 'rgba(255,255,255,0.5)', fontSize: 11, align: 'right', bg: 'rgba(11,14,20,0.7)', position: isBull ? 'above' : 'below' }));
     }
     if (!proposal) registry.clearType('trade');
     } // smartRedraw: data unchanged, existing primitives stay
@@ -1923,17 +1947,17 @@ export function renderAnalysisOverlays(
         registry.add('liq', new ZonePrimitive({ startTime: zone.startTime as any, endTime: (zone.swept ? (zone.sweepTime || zone.endTime) : lastTime) as any, highPrice: zone.high, lowPrice: zone.low, fillColor: zone.swept ? 'rgba(156, 163, 175, 0.06)' : zone.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.08)' : 'rgba(255, 71, 87, 0.08)', borderColor: zone.swept ? undefined : zone.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.3)' : 'rgba(255, 71, 87, 0.3)' }));
         if (!zone.swept && zone.strength >= 2) {
           const labelColor = zone.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.8)' : 'rgba(255, 71, 87, 0.8)';
-          registry.add('liq', new LabelPrimitive({ time: zone.startTime as any, price: zone.type === 'equal_highs' || zone.type === 'previous_high' ? zone.high : zone.low, text: arLabel(locale, zone.labelAr, zone.type), color: labelColor, fontSize: 11, align: 'left', bg: zone.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.08)' : 'rgba(255, 71, 87, 0.08)', position: zone.type === 'equal_highs' || zone.type === 'previous_high' ? 'above' : 'below' }));
+          registry.add('liq', new LabelPrimitive({ time: zone.startTime as any, price: zone.type === 'equal_highs' || zone.type === 'previous_high' ? zone.high : zone.low, text: arLabel(locale, zone.labelAr, zone.type, t), color: labelColor, fontSize: 11, align: 'left', bg: zone.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.08)' : 'rgba(255, 71, 87, 0.08)', position: zone.type === 'equal_highs' || zone.type === 'previous_high' ? 'above' : 'below' }));
         }
         if (!zone.swept && zone.strength >= 3) {
           const lineColor = zone.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.5)' : 'rgba(255, 71, 87, 0.5)';
-          registry.add('liq', new HorizontalLinePrimitive({ price: zone.price, color: lineColor, lineWidth: 1, lineStyle: 2, label: `${arLabel(locale, zone.labelAr, zone.type)} ×${zone.strength}` }));
-          safeAddPriceLine(`liq-${zone.type}-${zone.price}`, zone.price, lineColor, `${arLabel(locale, zone.labelAr, zone.type)} ×${zone.strength}`, 1, 2, false, 'liq');
+          registry.add('liq', new HorizontalLinePrimitive({ price: zone.price, color: lineColor, lineWidth: 1, lineStyle: 2, label: `${arLabel(locale, zone.labelAr, zone.type, t)} ×${zone.strength}` }));
+          safeAddPriceLine(`liq-${zone.type}-${zone.price}`, zone.price, lineColor, `${arLabel(locale, zone.labelAr, zone.type, t)} ×${zone.strength}`, 1, 2, false, 'liq');
         }
       }
       if (liqData.dominantSweepDirection !== 'neutral' && liqData.sweptZones > 0) {
         const isBull = liqData.dominantSweepDirection === 'bullish';
-        registry.add('liq', new LabelPrimitive({ time: lastTime as any, price: isBull ? safeMin(candles.slice(-5).map(c => c.low)) * 0.998 : safeMax(candles.slice(-5).map(c => c.high)) * 1.002, text: `${isBull ? '▲' : '▼'} ${arLabel(locale, 'سيولة', 'Liquidity')} ${arLabel(locale, isBull ? 'صاعد' : 'هابط', isBull ? 'Bullish' : 'Bearish')} (${liqData.sweptZones} ${arLabel(locale, 'مسحوب', 'swept')})`, color: isBull ? 'rgba(0, 255, 163, 0.9)' : 'rgba(255, 71, 87, 0.9)', fontSize: 11, align: 'right', bg: isBull ? 'rgba(0, 255, 163, 0.1)' : 'rgba(255, 71, 87, 0.1)', position: isBull ? 'below' : 'above' }));
+        registry.add('liq', new LabelPrimitive({ time: lastTime as any, price: isBull ? safeMin(candles.slice(-5).map(c => c.low)) * 0.998 : safeMax(candles.slice(-5).map(c => c.high)) * 1.002, text: `${isBull ? '▲' : '▼'} ${arLabel(locale, 'سيولة', 'liquidity', t)} ${arLabel(locale, isBull ? 'صاعد' : 'هابط', isBull ? 'bullish' : 'bearish', t)} (${liqData.sweptZones} ${arLabel(locale, 'مسحوب', 'swept', t)})`, color: isBull ? 'rgba(0, 255, 163, 0.9)' : 'rgba(255, 71, 87, 0.9)', fontSize: 11, align: 'right', bg: isBull ? 'rgba(0, 255, 163, 0.1)' : 'rgba(255, 71, 87, 0.1)', position: isBull ? 'below' : 'above' }));
       }
     }
     } // smartRedraw: data unchanged, existing primitives stay

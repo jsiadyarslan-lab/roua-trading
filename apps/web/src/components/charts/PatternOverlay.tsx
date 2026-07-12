@@ -119,7 +119,7 @@ export function PatternOverlay({ patterns, onPatternClick, onClose }: PatternOve
           </div>
         )}
         {filtered.map((p, i) => {
-          const col = p.direction === 'bullish' ? '#00FFA3' : #FF4757;
+          const col = p.direction === 'bullish' ? '#00FFA3' : '#FF4757';
           const statusCol = STATUS_COLOR[p.status] || '#8B92A8';
           return (
             <div key={p.id} onClick={() => onPatternClick(p)} style={{

@@ -561,7 +561,7 @@ export function LazicPanel() {
           width: 12px;
           height: 12px;
           border-radius: 50%;
-          background: #FF6B35;
+          background: '#FF6B35';
           cursor: pointer;
           box-shadow: 0 0 4px rgba(255,107,53,0.5);
         }
@@ -569,7 +569,7 @@ export function LazicPanel() {
           width: 12px;
           height: 12px;
           border-radius: 50%;
-          background: #FF6B35;
+          background: '#FF6B35';
           cursor: pointer;
           border: none;
         }

@@ -53,7 +53,7 @@ export function renderMiniCandlestick(
   const candleSvgs = candles.map((c, i) => {
     const x = gap * i + gap / 2;
     const isUp = c.close >= c.open;
-    const color = isUp ? '#00FFA3' : #ef4444;
+    const color = isUp ? '#00FFA3' : '#ef4444';
     
     const highY = height - ((c.high - min) / range) * height;
     const lowY = height - ((c.low - min) / range) * height;
@@ -75,7 +75,7 @@ export function renderMiniCandlestick(
 export function renderPriceChange(change: number, changePercent: number, _locale: string = 'ar'): string {
   const isUp = change >= 0;
   const arrow = isUp ? '▲' : '▼';
-  const color = isUp ? '#00FFA3' : #ef4444;
+  const color = isUp ? '#00FFA3' : '#ef4444';
   const sign = isUp ? '+' : '';
   
   return `<span style="color:${color};font-weight:600;font-size:0.9em">${arrow} ${sign}${changePercent.toFixed(2)}%</span>`;

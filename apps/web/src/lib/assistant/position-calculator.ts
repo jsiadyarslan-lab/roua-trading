@@ -752,7 +752,7 @@ export function buildPositionSizeHTML(
   ">
     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
       <span style="font-size: 24px;">🧮</span>
-      <span style="font-size: 14px; font-weight: 800; color: #34D399; letter-spacing: 0.5px;">${L.title}</span>
+      <span style="font-size: 14px; font-weight: 800; color: '#34D399'; letter-spacing: 0.5px;">${L.title}</span>
     </div>
     <div style="font-size: 12px; color: ${C.textSecondary};">
       ${locale === 'ar' ? result.assetNameAr : result.assetName} (${result.symbol})

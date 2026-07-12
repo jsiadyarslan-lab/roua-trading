@@ -2641,10 +2641,10 @@ export class DrawingRenderer {
     menu.className = 'roua-drawing-menu';
     menu.style.cssText = `
       position: fixed; left: ${clientX}px; top: ${clientY}px;
-      z-index: 99999; background: #1a1b26; border: 1px solid rgba(255,255,255,0.12);
+      z-index: 99999; background: '#1a1b26'; border: 1px solid rgba(255,255,255,0.12);
       border-radius: 8px; padding: 8px 0; min-width: 180px;
       box-shadow: 0 8px 32px rgba(0,0,0,0.5); font-family: 'JetBrains Mono', monospace;
-      font-size: 11px; color: #e0e0e0; user-select: none;
+      font-size: 11px; color: '#e0e0e0'; user-select: none;
     `;
 
     // ── Color Section ──
@@ -2753,7 +2753,7 @@ export class DrawingRenderer {
     opacitySlider.max = '1';
     opacitySlider.step = '0.1';
     opacitySlider.value = String(drawing.opacity);
-    opacitySlider.style.cssText = 'flex:1;accent-color: #00d4ff;height:4px;';
+    opacitySlider.style.cssText = 'flex:1;accent-color: '#00d4ff';height:4px;';
     const opacityLabel = document.createElement('span');
     opacityLabel.textContent = `${Math.round(drawing.opacity * 100)}%`;
     opacityLabel.style.cssText = 'font-size:10px;color:#888;min-width:32px;text-align:right;';
@@ -2785,7 +2785,7 @@ export class DrawingRenderer {
       `;
       const lbl = document.createElement('span');
       lbl.textContent = so.label;
-      lbl.style.cssText = 'font-size:10px;font-weight:600;color: #e0e0e0;';
+      lbl.style.cssText = 'font-size:10px;font-weight:600;color: '#e0e0e0';';
       const desc = document.createElement('span');
       desc.textContent = so.desc;
       desc.style.cssText = 'font-size:8px;color:#888;margin-top:1px;';
@@ -2807,7 +2807,7 @@ export class DrawingRenderer {
     const deleteBtn = document.createElement('div');
     deleteBtn.style.cssText = `
       display:flex;align-items:center;gap:8px;padding:6px 12px;
-      cursor:pointer;color: #f85149;border-radius:4px;margin:0 4px;
+      cursor:pointer;color: '#f85149';border-radius:4px;margin:0 4px;
       transition:background 0.15s;
     `;
     deleteBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg><span style="font-size:11px;">Delete</span>`;

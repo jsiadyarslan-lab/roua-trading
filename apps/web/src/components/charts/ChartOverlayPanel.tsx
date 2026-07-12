@@ -106,7 +106,7 @@ export function ChartOverlayPanel({
 
         const color = isEntry ? (ov.direction === 'long' ? '#00D4FF' : '#FFB800')
                     : isSL   ? '#FF4757'
-                    : #00FFA3;
+                    : '#00FFA3';
         const bgSolid = isEntry ? (ov.direction === 'long' ? 'rgba(0,212,255,0.25)' : 'rgba(255,140,66,0.25)')
                       : isSL   ? 'rgba(248,81,73,0.30)'
                       : 'rgba(0,255,163,0.25)';

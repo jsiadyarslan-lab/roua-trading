@@ -1500,7 +1500,7 @@ export function AIPatternPanel({
           ) : (
             <div>
               {enginePatterns.map((p, i) => {
-                const col = p.direction === 'bullish' ? '#00FFA3' : #FF4757;
+                const col = p.direction === 'bullish' ? '#00FFA3' : '#FF4757';
                 return (
                   <div key={p.id} style={{
                     padding: '8px 12px',

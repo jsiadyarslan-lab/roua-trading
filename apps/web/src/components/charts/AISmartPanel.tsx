@@ -2561,7 +2561,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                   </div>
                 </div>
                 <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '4px 6px', textAlign: 'center' }}>
-                  <div style={{ color: C.mut, fontSize: 11 }}>اتجاه تكيفي</div>
+                  <div style={{ color: C.mut, fontSize: 11 }}>{t('asp2_adaptiveTrend')}</div>
                   <div style={{ color: adaptiveResult?.direction === 'bullish' ? C.green : adaptiveResult?.direction === 'bearish' ? C.red : C.dim, fontSize: 11, fontWeight: 700 }}>
                     {adaptiveResult ? (adaptiveResult.direction === 'bullish' ? t('asp_uptrend') : adaptiveResult.direction === 'bearish' ? t('asp_downtrend') : t('asp_neutral')) : '—'}
                   </div>
@@ -2606,8 +2606,8 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 11 }}>
                   <div><span style={{ color: C.mut }}>مصادر كلية:</span> <span style={{ color: C.text }}>{adaptiveSummary.totalSources}</span></div>
                   <div><span style={{ color: C.mut }}>مصادر متكيفة:</span> <span style={{ color: C.text }}>{adaptiveSummary.adaptedSources}</span></div>
-                  <div><span style={{ color: C.mut }}>أفضل مصدر:</span> <span style={{ color: C.green }}>{adaptiveSummary.bestSource || '—'}</span></div>
-                  <div><span style={{ color: C.mut }}>أضعف مصدر:</span> <span style={{ color: C.red }}>{adaptiveSummary.worstSource || '—'}</span></div>
+                  <div><span style={{ color: C.mut }}>{t('asp2_bestSource')}</span> <span style={{ color: C.green }}>{adaptiveSummary.bestSource || '—'}</span></div>
+                  <div><span style={{ color: C.mut }}>{t('asp2_weakestSource')}</span> <span style={{ color: C.red }}>{adaptiveSummary.worstSource || '—'}</span></div>
                   <div><span style={{ color: C.mut }}>متوسط النجاح:</span> <span style={{ color: C.text }}>{Math.round(adaptiveSummary.avgWinRate * 100)}%</span></div>
                   <div><span style={{ color: C.mut }}>النظام السائد:</span> <span style={{ color: C.text }}>{adaptiveSummary.dominantRegime === 'trending' ? 'اتجاهي' : adaptiveSummary.dominantRegime === 'volatile' ? 'متقلب' : adaptiveSummary.dominantRegime === 'ranging' ? t('asp_sideways') : 'هادئ'}</span></div>
                 </div>
@@ -2621,7 +2621,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
             <div style={{ background: `${C.blue}08`, border: `1px solid ${C.blue}20`, borderRadius: 'var(--radius-sm)', padding: '8px 10px', marginBottom: 10 }}>
               <div style={{ color: C.blue, fontSize: 11, fontWeight: 700, marginBottom: 5 }}>📐 نظام القواعد المرئي — Visual Rule Builder</div>
-              <div style={{ fontSize: 11, color: C.dim }}>أنشئ قواعد تنبيه مركبة بسهولة. اسحب كتل الإشارات وصلها بـ AND/OR/NOT.</div>
+              <div style={{ fontSize: 11, color: C.dim }}>{t('asp2_createRulesHint')}</div>
             </div>
 
             {/* Triggered Rules */}
@@ -2675,15 +2675,15 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 <div style={{ color: C.green, fontSize: 11, fontWeight: 700, marginBottom: 5 }}>📝 تداول وهمي — Paper Trading</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
                   <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '4px 6px', textAlign: 'center' }}>
-                    <div style={{ color: C.mut, fontSize: 11 }}>الرصيد</div>
+                    <div style={{ color: C.mut, fontSize: 11 }}>{t('asp2_balance')}</div>
                     <div style={{ color: C.text, fontSize: 11, fontWeight: 700, fontFamily: "var(--font-mono)" }}>${paperAccountState.currentBalance.toFixed(2)}</div>
                   </div>
                   <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '4px 6px', textAlign: 'center' }}>
-                    <div style={{ color: C.mut, fontSize: 11 }}>معدل النجاح</div>
+                    <div style={{ color: C.mut, fontSize: 11 }}>{t('asp2_successRate')}</div>
                     <div style={{ color: paperAccountState.winRate > 0.5 ? C.green : C.red, fontSize: 11, fontWeight: 700 }}>{Math.round(paperAccountState.winRate * 100)}%</div>
                   </div>
                   <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '4px 6px', textAlign: 'center' }}>
-                    <div style={{ color: C.mut, fontSize: 11 }}>أقصى سحب</div>
+                    <div style={{ color: C.mut, fontSize: 11 }}>{t('asp2_maxPull')}</div>
                     <div style={{ color: C.red, fontSize: 11, fontWeight: 700 }}>{paperAccountState.maxDrawdownPct.toFixed(1)}%</div>
                   </div>
                 </div>
@@ -2723,7 +2723,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             {/* Recent Trades */}
             {paperTradesList.length > 0 && (
               <div>
-                <div style={{ color: C.cyan, fontSize: 11, fontWeight: 700, marginBottom: 5 }}>آخر الصفقات</div>
+                <div style={{ color: C.cyan, fontSize: 11, fontWeight: 700, marginBottom: 5 }}>{t('asp2_recentTrades')}</div>
                 {paperTradesList.slice(0, 5).map((trade, i) => {
                   const dirColor = trade.direction === 'long' ? C.green : C.red;
                   const pnlColor = trade.netPnl > 0 ? C.green : trade.netPnl < 0 ? C.red : C.dim;
@@ -2816,9 +2816,8 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                       background: `${C.dim}15`, color: C.dim,
                       fontSize: 11, fontWeight: 600,
                     }}
-                  >
-                    إغلاق الكل
-                  </button>
+                  >{t('asp2_closeAll')}
+</button>
                 </div>
                 {getOpenPaperTrades().length > 0 && (
                   <div style={{ marginTop: 4, fontSize: 11, color: C.dim }}>
@@ -2857,7 +2856,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 {/* Top Bullish */}
                 {scanResult.topBullish.length > 0 && (
                   <div style={{ marginBottom: 10 }}>
-                    <div style={{ color: C.green, fontSize: 11, fontWeight: 700, marginBottom: 5 }}>أقوى الإشارات الصاعدة</div>
+                    <div style={{ color: C.green, fontSize: 11, fontWeight: 700, marginBottom: 5 }}>{t('asp2_strongestBullish')}</div>
                     {scanResult.topBullish.slice(0, 5).map((asset, i) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 8px', borderRadius: 'var(--radius-sm)', background: C.card, marginBottom: 2 }}>
                         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
@@ -2877,7 +2876,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 {/* Top Bearish */}
                 {scanResult.topBearish.length > 0 && (
                   <div style={{ marginBottom: 10 }}>
-                    <div style={{ color: C.red, fontSize: 11, fontWeight: 700, marginBottom: 5 }}>أقوى الإشارات الهابطة</div>
+                    <div style={{ color: C.red, fontSize: 11, fontWeight: 700, marginBottom: 5 }}>{t('asp2_strongestBearish')}</div>
                     {scanResult.topBearish.slice(0, 5).map((asset, i) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 8px', borderRadius: 'var(--radius-sm)', background: C.card, marginBottom: 2 }}>
                         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
@@ -2912,7 +2911,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 )}
               </>
             ) : (
-              <div style={{ color: C.mut, fontSize: 11, textAlign: 'center', padding: 20 }}>اضغط "فحص الآن" لفحص 50+ زوج تداول</div>
+              <div style={{ color: C.mut, fontSize: 11, textAlign: 'center', padding: 20 }}>{t('asp2_pressScan')}</div>
             )}
           </div>
         )}
@@ -2975,7 +2974,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             {/* AI vs Algorithm Stats */}
             {aiVsAlgoStats && (
               <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '8px 10px', marginBottom: 10 }}>
-                <div style={{ color: C.gold, fontSize: 11, fontWeight: 700, marginBottom: 5 }}>إحصائيات المقارنة</div>
+                <div style={{ color: C.gold, fontSize: 11, fontWeight: 700, marginBottom: 5 }}>{t('asp2_comparisonStats')}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
                   <div style={{ textAlign: 'center' }}><div style={{ color: C.mut, fontSize: 11 }}>نجاح AI</div><div style={{ color: C.purple, fontSize: 11, fontWeight: 700 }}>{Math.round(aiVsAlgoStats.aiWinRate * 100)}%</div></div>
                   <div style={{ textAlign: 'center' }}><div style={{ color: C.mut, fontSize: 11 }}>نجاح الخوارزمية</div><div style={{ color: C.cyan, fontSize: 11, fontWeight: 700 }}>{Math.round(aiVsAlgoStats.algoWinRate * 100)}%</div></div>
@@ -2992,20 +2991,20 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             {/* Bridge Payload Preview (collapsed by default — secondary info) */}
             {aiBridgePayload && (
               <details style={{ marginBottom: 10 }}>
-                <summary style={{ color: C.cyan, fontSize: 11, fontWeight: 700, cursor: 'pointer', marginBottom: 5 }}>البيانات المُمررة للذكاء الاصطناعي</summary>
+                <summary style={{ color: C.cyan, fontSize: 11, fontWeight: 700, cursor: 'pointer', marginBottom: 5 }}>{t('asp2_aiDataPassed')}</summary>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 11, marginTop: 5 }}>
-                  <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '3px 6px' }}><span style={{ color: C.mut }}>الرمز:</span> <span style={{ color: C.text }}>{aiBridgePayload.symbol}</span></div>
+                  <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '3px 6px' }}><span style={{ color: C.mut }}>{t('asp2_symbol')}</span> <span style={{ color: C.text }}>{aiBridgePayload.symbol}</span></div>
                   <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '3px 6px' }}><span style={{ color: C.mut }}>السعر:</span> <span style={{ color: C.text }}>{aiBridgePayload.currentPrice.toFixed(2)}</span></div>
                   <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '3px 6px' }}><span style={{ color: C.mut }}>النظام:</span> <span style={{ color: C.text }}>{aiBridgePayload.regime}</span></div>
                   <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '3px 6px' }}><span style={{ color: C.mut }}>بايزي:</span> <span style={{ color: aiBridgePayload.bayesian.direction === 'bullish' ? C.green : aiBridgePayload.bayesian.direction === 'bearish' ? C.red : C.dim }}>{aiBridgePayload.bayesian.direction} ({Math.round(aiBridgePayload.bayesian.confidence * 100)}%)</span></div>
                   <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '3px 6px' }}><span style={{ color: C.mut }}>SMC OBs:</span> <span style={{ color: C.text }}>{aiBridgePayload.smcSummary.orderBlocks}</span></div>
                   <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '3px 6px' }}><span style={{ color: C.mut }}>MTF:</span> <span style={{ color: C.text }}>{aiBridgePayload.mtfConfluence.score}%</span></div>
                   <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '3px 6px' }}><span style={{ color: C.mut }}>ويكوف:</span> <span style={{ color: C.text }}>{aiBridgePayload.wyckoffSummary.scheme}</span></div>
-                  <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '3px 6px' }}><span style={{ color: C.mut }}>إليوت:</span> <span style={{ color: C.text }}>{aiBridgePayload.elliottSummary.dominantDirection}</span></div>
+                  <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '3px 6px' }}><span style={{ color: C.mut }}>{t('asp2_elliott')}</span> <span style={{ color: C.text }}>{aiBridgePayload.elliottSummary.dominantDirection}</span></div>
                 </div>
                 {aiBridgePayload.keyPatterns.length > 0 && (
                   <div style={{ marginTop: 6 }}>
-                    <div style={{ color: C.green, fontSize: 11, fontWeight: 600, marginBottom: 3 }}>الأنماط:</div>
+                    <div style={{ color: C.green, fontSize: 11, fontWeight: 600, marginBottom: 3 }}>{t('asp2_patterns')}</div>
                     {aiBridgePayload.keyPatterns.map((p, i) => {
                       const col = p.direction === 'bullish' ? C.green : p.direction === 'bearish' ? C.red : C.dim;
                       return (
@@ -3041,7 +3040,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                   <div style={{ color: C.green, fontSize: 15, fontWeight: 800, fontFamily: "var(--font-mono)" }}>{Math.round(backtestStats.winRate * 100)}%</div>
                 </div>
                 <div style={{ background: `${C.cyan}10`, border: `1px solid ${C.cyan}30`, borderRadius: 'var(--radius-sm)', padding: '6px 8px', textAlign: 'center' }}>
-                  <div style={{ color: C.mut, fontSize: 11 }}>إجمالي الإشارات</div>
+                  <div style={{ color: C.mut, fontSize: 11 }}>{t('asp2_totalSignals')}</div>
                   <div style={{ color: C.cyan, fontSize: 15, fontWeight: 800, fontFamily: "var(--font-mono)" }}>{backtestStats.totalSignals}</div>
                 </div>
                 <div style={{ background: `${C.gold}10`, border: `1px solid ${C.gold}30`, borderRadius: 'var(--radius-sm)', padding: '6px 8px', textAlign: 'center' }}>
@@ -3148,7 +3147,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                         </div>
                         <div style={{ flex: 1, background: `${C.cyan}08`, borderRadius: 'var(--radius-xs)', padding: '2px 4px', textAlign: 'center' }}>
                           <div style={{ color: C.cyan, fontSize: 11, fontWeight: 700 }}>{z.signalCount}</div>
-                          <div style={{ color: C.mut, fontSize: 11 }}>إشارات</div>
+                          <div style={{ color: C.mut, fontSize: 11 }}>{t('asp2_signals')}</div>
                         </div>
                         <div style={{ flex: 1, background: `${C.purple}08`, borderRadius: 'var(--radius-xs)', padding: '2px 4px', textAlign: 'center' }}>
                           <div style={{ color: C.purple, fontSize: 11, fontWeight: 700 }}>{z.distancePct.toFixed(1)}%</div>
@@ -3184,7 +3183,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
             {/* Signal selector */}
             <div style={{ marginBottom: 10 }}>
-              <div style={{ color: C.purple, fontSize: 11, fontWeight: 700, marginBottom: 5 }}>اختر إشارة للشرح:</div>
+              <div style={{ color: C.purple, fontSize: 11, fontWeight: 700, marginBottom: 5 }}>{t('asp2_selectSignal')}</div>
               <div style={{ maxHeight: 120, overflowY: 'auto' }}>
                 {patterns.filter(p => p.direction !== 'neutral').slice(0, 20).map((p, i) => {
                   const isSelected = explainSource === `${p.type}_${i}`;
@@ -3440,21 +3439,21 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 {/* Summary Stats */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, marginBottom: 8 }}>
                   <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '5px 6px', textAlign: 'center' }}>
-                    <div style={{ color: C.mut, fontSize: 11 }}>إجمالي التوقعات</div>
+                    <div style={{ color: C.mut, fontSize: 11 }}>{t('asp2_totalPredictions')}</div>
                     <div style={{ color: C.text, fontSize: 11, fontWeight: 700 }}>{adaptiveIntelligence.totalPredictions}</div>
                   </div>
                   <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '5px 6px', textAlign: 'center' }}>
-                    <div style={{ color: C.mut, fontSize: 11 }}>معدل الفوز</div>
+                    <div style={{ color: C.mut, fontSize: 11 }}>{t('asp2_winRate')}</div>
                     <div style={{ color: adaptiveIntelligence.overallWinRate > 0.5 ? C.green : C.red, fontSize: 11, fontWeight: 700 }}>{Math.round(adaptiveIntelligence.overallWinRate * 100)}%</div>
                   </div>
                   <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '5px 6px', textAlign: 'center' }}>
-                    <div style={{ color: C.mut, fontSize: 11 }}>أفضل محرك</div>
+                    <div style={{ color: C.mut, fontSize: 11 }}>{t('asp2_bestEngine')}</div>
                     <div style={{ color: C.gold, fontSize: 11, fontWeight: 700 }}>{adaptiveIntelligence.bestSource || '—'}</div>
                   </div>
                 </div>
 
                 {/* Source Performance Table */}
-                <div style={{ color: C.cyan, fontSize: 11, fontWeight: 700, marginBottom: 4 }}>أداء المحركات</div>
+                <div style={{ color: C.cyan, fontSize: 11, fontWeight: 700, marginBottom: 4 }}>{t('asp2_enginePerformance')}</div>
                 {adaptiveIntelligence.sources.length > 0 ? adaptiveIntelligence.sources.map((src, i) => (
                   <div key={i} style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '6px 8px', marginBottom: 4, borderLeft: `3px solid ${src.isHot ? C.green : src.emaWinRate < 0.4 ? C.red : C.dim}` }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
@@ -3544,7 +3543,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                           <span style={{ fontSize: 11, color: dirCol, fontWeight: 800 }}>{isBull ? '▲' : '▼'} {sc.nameAr}</span>
-                          {isDominant && <span style={{ fontSize: 11, color: C.gold, fontWeight: 700, background: `${C.gold}15`, padding: '1px 4px', borderRadius: 'var(--radius-xs)' }}>الأرجح</span>}
+                          {isDominant && <span style={{ fontSize: 11, color: C.gold, fontWeight: 700, background: `${C.gold}15`, padding: '1px 4px', borderRadius: 'var(--radius-xs)' }}>{t('asp2_mostLikely')}</span>}
                         </div>
                         <span style={{ fontSize: 11, color: C.text, fontWeight: 700 }}>{Math.round(sc.probability * 100)}%</span>
                       </div>
@@ -3555,11 +3554,11 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                       <div style={{ fontSize: 11, color: C.dim, lineHeight: 1.5, marginBottom: 4 }}>{sc.descriptionAr}</div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 3 }}>
                         <div style={{ background: `${dirCol}08`, borderRadius: 'var(--radius-xs)', padding: '3px 5px', textAlign: 'center' }}>
-                          <div style={{ color: C.mut, fontSize: 11 }}>الهدف</div>
+                          <div style={{ color: C.mut, fontSize: 11 }}>{t('asp2_targetShort')}</div>
                           <div style={{ color: dirCol, fontSize: 11, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{sc.priceTarget}</div>
                         </div>
                         <div style={{ background: `${C.red}08`, borderRadius: 'var(--radius-xs)', padding: '3px 5px', textAlign: 'center' }}>
-                          <div style={{ color: C.mut, fontSize: 11 }}>إبطال</div>
+                          <div style={{ color: C.mut, fontSize: 11 }}>{t('asp2_invalidation')}</div>
                           <div style={{ color: C.red, fontSize: 11, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{sc.invalidationLevel}</div>
                         </div>
                         <div style={{ background: `${C.cyan}08`, borderRadius: 'var(--radius-xs)', padding: '3px 5px', textAlign: 'center' }}>
@@ -3623,7 +3622,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     <div style={{ color: C.red, fontSize: 11, fontWeight: 700 }}>{springResult.counts.upthrust}</div>
                   </div>
                   <div style={{ background: C.card, borderRadius: 'var(--radius-xs)', padding: '3px 4px', textAlign: 'center' }}>
-                    <div style={{ color: C.mut, fontSize: 11 }}>اصطياد</div>
+                    <div style={{ color: C.mut, fontSize: 11 }}>{t('asp2_hunting')}</div>
                     <div style={{ color: C.yellow, fontSize: 11, fontWeight: 700 }}>{springResult.counts.stop_hunt}</div>
                   </div>
                   <div style={{ background: C.card, borderRadius: 'var(--radius-xs)', padding: '3px 4px', textAlign: 'center' }}>
@@ -3712,11 +3711,11 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                   <div style={{ fontSize: 15, fontWeight: 700, color: journalStats.winRate >= 0.5 ? C.green : C.red }}>{Math.round(journalStats.winRate * 100)}%</div>
                 </div>
                 <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '5px 4px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 11, color: C.mut }}>إجمالي الربح</div>
+                  <div style={{ fontSize: 11, color: C.mut }}>{t('asp2_totalProfit')}</div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: journalStats.totalPnL >= 0 ? C.green : C.red }}>{journalStats.totalPnL >= 0 ? '+' : ''}{journalStats.totalPnL}</div>
                 </div>
                 <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '5px 4px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 11, color: C.mut }}>معامل الربح</div>
+                  <div style={{ fontSize: 11, color: C.mut }}>{t('asp2_profitFactor')}</div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: C.gold }}>{journalStats.profitFactor >= 999 ? '∞' : journalStats.profitFactor}</div>
                 </div>
                 <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '5px 4px', textAlign: 'center' }}>
@@ -3739,14 +3738,14 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                   </div>
                 </div>
                 <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '4px 6px' }}>
-                  <div style={{ fontSize: 11, color: C.mut }}>أداء الاتجاه</div>
+                  <div style={{ fontSize: 11, color: C.mut }}>{t('asp2_trendPerformance')}</div>
                   <div style={{ display: 'flex', gap: 6, fontSize: 11 }}>
                     <span style={{ color: C.green }}>شراء {Math.round(journalStats.byDirection.bullish.winRate * 100)}%</span>
                     <span style={{ color: C.red }}>بيع {Math.round(journalStats.byDirection.bearish.winRate * 100)}%</span>
                   </div>
                 </div>
                 <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '4px 6px' }}>
-                  <div style={{ fontSize: 11, color: C.mut }}>أقصى تراجع</div>
+                  <div style={{ fontSize: 11, color: C.mut }}>{t('asp2_maxDrawdown')}</div>
                   <div style={{ fontSize: 11, color: C.red }}>{journalStats.maxDrawdown} | شارب: {journalStats.sharpeEstimate}</div>
                 </div>
               </div>
@@ -3800,7 +3799,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             {/* Weekly Breakdown */}
             {journalStats && journalStats.weeklyBreakdown.length > 0 && (
               <div style={{ marginBottom: 8 }}>
-                <div style={{ color: C.cyan, fontSize: 11, fontWeight: 700, marginBottom: 4 }}>الأداء الأسبوعي</div>
+                <div style={{ color: C.cyan, fontSize: 11, fontWeight: 700, marginBottom: 4 }}>{t('asp2_weeklyPerformance')}</div>
                 <div style={{ display: 'flex', gap: 2, height: 30, alignItems: 'flex-end' }}>
                   {journalStats.weeklyBreakdown.map((w, i) => {
                     const maxPnl = Math.max(...journalStats.weeklyBreakdown.map(x => Math.abs(x.pnl)), 1);

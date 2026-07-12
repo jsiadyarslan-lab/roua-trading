@@ -1034,7 +1034,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           stopLoss: entrySL,
           takeProfit: entryTP,
           confidence: 0.5,
-          reasonAr: 'تحليل ATR تكيفي',
+          reasonAr: t('asp_adaptiveATR'),
           keyLevels: [],
         },
         smcData,
@@ -1689,7 +1689,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           {/* Engine verification badge — click to verify engines are real */}
           <button
             onClick={() => { const report = runFullVerification(); setVerificationReport(report); setShowVerification(true); }}
-            title="تحقق من المحركات | Verify Engines"
+            title=t('asp_verifyEngines')
             style={{
               padding: '1px 5px', borderRadius: 'var(--radius-xs)', fontSize: 11, fontWeight: 700, fontFamily: "var(--font-mono)",
               background: verificationReport?.allReal ? `${C.green}18` : `${C.gold}18`,
@@ -1733,7 +1733,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 15 }}>🔬</span>
-              <span style={{ color: C.text, fontSize: 11, fontWeight: 700 }}>التحقق من المحركات — Engine Verification</span>
+              <span style={{ color: C.text, fontSize: 11, fontWeight: 700 }}>{t('asp_engineVerification')}</span>
             </div>
             <button onClick={() => setShowVerification(false)} style={{ background: 'none', border: 'none', color: C.mut, fontSize: 15, cursor: 'pointer', outline: 'none' }}>×</button>
           </div>
@@ -1744,7 +1744,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
               {verificationReport.overallScore}%
             </div>
             <div style={{ fontSize: 11, color: C.dim, marginTop: 2 }}>
-              {verificationReport.allReal ? '✓ جميع المحركات حقيقية — All engines are REAL' : '⚠ بعض المحركات تحتاج مراجعة — Some engines need review'}
+              {verificationReport.allReal ? t('asp_allEnginesReal') : t('asp_someEnginesNeedReview')}
             </div>
           </div>
 
@@ -1766,7 +1766,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
               {/* Market comparison */}
               <div style={{ marginTop: 4, padding: '3px 6px', borderRadius: 'var(--radius-xs)', background: 'rgba(0,212,255,0.06)', border: '1px solid rgba(0,212,255,0.1)' }}>
                 <div style={{ fontSize: 11, color: C.cyan, fontWeight: 700 }}>
-                  🏆 {eng.comparisonWithMarket.featureAr}: {eng.comparisonWithMarket.advantage === 'roua' ? 'روا متفوق' : 'تعادل'}
+                  🏆 {eng.comparisonWithMarket.featureAr}: {eng.comparisonWithMarket.advantage === 'roua' ? t('asp_rouaSuperior') : t('asp_tie')}
                 </div>
                 <div style={{ fontSize: 11, color: C.dim, marginTop: 1 }}>
                   روا: {eng.comparisonWithMarket.rouaHas ? '✓' : '✗'} | TradingView: {eng.comparisonWithMarket.tradingViewHas ? '✓' : '✗'} | MultiCharts: {eng.comparisonWithMarket.multiChartsHas ? '✓' : '✗'}
@@ -1884,7 +1884,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                               <span style={{ fontSize: 11, color: isCritical ? C.red : '#FFB800' }}>⚠</span>
                               <span style={{ fontSize: 11, color: isCritical ? C.red : '#FFB800', fontWeight: 600, lineHeight: 1.3 }}>
                                 {locale === 'ar'
-                                  ? (isCritical ? 'نسبة ربح/خطر ضعيفة جداً — يُنصح بعدم الدخول' : 'نسبة ربح/خطر أقل من المثالي — الحد الأدنى الموصى به 1:1.5')
+                                  ? (isCritical ? t('asp_weakRRNoEntry') : t('asp_suboptimalRR'))
                                   : (isCritical ? 'Very weak R/R — entry not recommended' : 'Suboptimal R/R — minimum recommended is 1:1.5')}
                               </span>
                             </div>
@@ -2083,7 +2083,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         {tab === 'wyckoff' && (
           <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
             {!wyckoffAdvanced || wyckoffAdvanced.scheme === 'none' ? (
-              <div style={{ color: C.mut, textAlign: 'center', padding: 24 }}>لا يوجد هيكل وايكوف — No Wyckoff structure detected</div>
+              <div style={{ color: C.mut, textAlign: 'center', padding: 24 }}>{t('asp_noWyckoff')}</div>
             ) : (
               <>
                 {/* Scheme Header */}
@@ -2092,7 +2092,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ fontSize: 15 }}>{wyckoffAdvanced.direction === 'bullish' ? '📈' : '📉'}</span>
                       <span style={{ color: wyckoffAdvanced.direction === 'bullish' ? C.green : C.red, fontWeight: 700, fontSize: 13 }}>
-                        {wyckoffAdvanced.scheme === 'accumulation' ? 'تراكم وايكوف — Accumulation' : 'توزيع وايكوف — Distribution'}
+                        {wyckoffAdvanced.scheme === 'accumulation' ? t('asp_wyckoffAccumulation') : t('asp_wyckoffDistribution')}
                       </span>
                     </div>
                     <div style={{ padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: 11, fontWeight: 700, background: 'rgba(245,158,11,0.12)', color: C.yellow, border: '1px solid rgba(245,158,11,0.2)' }}>
@@ -2103,18 +2103,18 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     <div style={{ height: '100%', borderRadius: 'var(--radius-xs)', width: `${wyckoffAdvanced.confidence * 100}%`, background: wyckoffAdvanced.direction === 'bullish' ? C.green : C.red, transition: 'width 0.5s' }} />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 8, fontSize: 11 }}>
-                    <div><span style={{ color: C.dim }}>أعلى النطاق:</span> <span style={{ color: C.text, fontFamily: "var(--font-mono)" }}>{safeToFixed(wyckoffAdvanced.range?.high, 2)}</span></div>
-                    <div><span style={{ color: C.dim }}>أدنى النطاق:</span> <span style={{ color: C.text, fontFamily: "var(--font-mono)" }}>{safeToFixed(wyckoffAdvanced.range?.low, 2)}</span></div>
-                    <div><span style={{ color: C.dim }}>الدعم:</span> <span style={{ color: C.green, fontFamily: "var(--font-mono)" }}>{safeToFixed(wyckoffAdvanced.support, 2)}</span></div>
-                    <div><span style={{ color: C.dim }}>المقاومة:</span> <span style={{ color: C.red, fontFamily: "var(--font-mono)" }}>{safeToFixed(wyckoffAdvanced.resistance, 2)}</span></div>
+                    <div><span style={{ color: C.dim }}>{t('asp_rangeHigh')}</span> <span style={{ color: C.text, fontFamily: "var(--font-mono)" }}>{safeToFixed(wyckoffAdvanced.range?.high, 2)}</span></div>
+                    <div><span style={{ color: C.dim }}>{t('asp_rangeLow')}</span> <span style={{ color: C.text, fontFamily: "var(--font-mono)" }}>{safeToFixed(wyckoffAdvanced.range?.low, 2)}</span></div>
+                    <div><span style={{ color: C.dim }}>{t('asp_support')}</span> <span style={{ color: C.green, fontFamily: "var(--font-mono)" }}>{safeToFixed(wyckoffAdvanced.support, 2)}</span></div>
+                    <div><span style={{ color: C.dim }}>{t('asp_resistance')}</span> <span style={{ color: C.red, fontFamily: "var(--font-mono)" }}>{safeToFixed(wyckoffAdvanced.resistance, 2)}</span></div>
                   </div>
                 </div>
 
                 {/* Events Timeline */}
                 <div style={{ marginBottom: 8 }}>
-                  <div style={{ color: C.dim, fontSize: 11, marginBottom: 4, fontWeight: 600 }}>الأحداث — Events Timeline</div>
+                  <div style={{ color: C.dim, fontSize: 11, marginBottom: 4, fontWeight: 600 }}>{t('asp_eventsTimeline')}</div>
                   {wyckoffAdvanced.events.length === 0 ? (
-                    <div style={{ color: C.mut, textAlign: 'center', padding: 8 }}>لا أحداث بعد</div>
+                    <div style={{ color: C.mut, textAlign: 'center', padding: 8 }}>{t('asp_noEvents')}</div>
                   ) : (
                     wyckoffAdvanced.events.map((evt: WyckoffEvent, i: number) => (
                       <div key={i} style={{ display: 'flex', gap: 6, padding: '4px 6px', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)', marginBottom: 3, alignItems: 'flex-start' }}>
@@ -2136,7 +2136,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
                 {/* Phase Progress */}
                 <div>
-                  <div style={{ color: C.dim, fontSize: 11, marginBottom: 4, fontWeight: 600 }}>تقدم المراحل — Phase Progress</div>
+                  <div style={{ color: C.dim, fontSize: 11, marginBottom: 4, fontWeight: 600 }}>{t('asp_phaseProgress')}</div>
                   <div style={{ display: 'flex', gap: 3 }}>
                     {(['A', 'B', 'C', 'D', 'E'] as const).map(phase => {
                       const isActive = phase === wyckoffAdvanced.currentPhase;
@@ -2158,7 +2158,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         {tab === 'elliott' && (
           <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
             {!elliottAdvanced || elliottAdvanced.counts.length === 0 ? (
-              <div style={{ color: C.mut, textAlign: 'center', padding: 24 }}>لا أنماط إليوت — No Elliott patterns detected</div>
+              <div style={{ color: C.mut, textAlign: 'center', padding: 24 }}>{t('asp_noElliott')}</div>
             ) : (
               <>
                 {/* Dominant Count */}
@@ -2168,7 +2168,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ fontSize: 15 }}>〰️</span>
                         <span style={{ color: elliottAdvanced.dominantCount.direction === 'bullish' ? C.green : C.red, fontWeight: 700, fontSize: 13 }}>
-                          {elliottAdvanced.dominantCount.type === 'impulse' ? 'نبضة' : elliottAdvanced.dominantCount.type === 'zigzag' ? 'زيگزاج' : elliottAdvanced.dominantCount.type === 'flat' ? 'مسطح' : elliottAdvanced.dominantCount.type === 'triangle' ? 'مثلث' : 'مركب'} {elliottAdvanced.dominantCount.direction === 'bullish' ? '↑' : '↓'}
+                          {elliottAdvanced.dominantCount.type === 'impulse' ? t('asp_impulse') : elliottAdvanced.dominantCount.type === 'zigzag' ? t('asp_zigzag') : elliottAdvanced.dominantCount.type === 'flat' ? t('asp_flat') : elliottAdvanced.dominantCount.type === 'triangle' ? t('asp_triangle') : t('asp_complex')} {elliottAdvanced.dominantCount.direction === 'bullish' ? '↑' : '↓'}
                         </span>
                       </div>
                       <div style={{ padding: '1px 6px', borderRadius: 'var(--radius-xs)', fontSize: 11, fontWeight: 700, background: 'rgba(245,158,11,0.12)', color: C.yellow, border: '1px solid rgba(245,158,11,0.2)' }}>
@@ -2188,7 +2188,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 {/* Fibonacci Ratios (impulse only) */}
                 {elliottAdvanced.dominantCount && elliottAdvanced.dominantCount.type === 'impulse' && (
                   <div style={{ marginBottom: 8 }}>
-                    <div style={{ color: C.dim, fontSize: 11, marginBottom: 4, fontWeight: 600 }}>نسب فيبوناتشي — Fibonacci Ratios</div>
+                    <div style={{ color: C.dim, fontSize: 11, marginBottom: 4, fontWeight: 600 }}>{t('asp_fibRatios')}</div>
                     {[
                       { label: 'W2/W1', val: elliottAdvanced.dominantCount.ratios.wave2Retrace, target: 0.618 },
                       { label: 'W3/W1', val: elliottAdvanced.dominantCount.ratios.wave3Extend, target: 1.618 },
@@ -2208,7 +2208,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 {/* Alternate Counts */}
                 {elliottAdvanced.counts.length > 1 && (
                   <div>
-                    <div style={{ color: C.dim, fontSize: 11, marginBottom: 4, fontWeight: 600 }}>العدادات البديلة — Alternate Counts</div>
+                    <div style={{ color: C.dim, fontSize: 11, marginBottom: 4, fontWeight: 600 }}>{t('asp_altCounts')}</div>
                     {elliottAdvanced.counts.slice(1).map((count: WaveCount, i: number) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 6px', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)', marginBottom: 3 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -2340,7 +2340,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             {mtfLoading && (
               <div style={{ textAlign: 'center', padding: 12 }}>
                 <div style={{ width: 16, height: 16, border: `2px solid ${C.cyan}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite', margin: '0 auto' }} />
-                <div style={{ color: C.dim, fontSize: 11, marginTop: 6 }}>جاري تحليل الفريمات...</div>
+                <div style={{ color: C.dim, fontSize: 11, marginTop: 6 }}>{t('asp_analyzingTimeframes')}</div>
               </div>
             )}
             {mtfResult && !mtfLoading && (
@@ -2352,21 +2352,21 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                       <span style={{ fontSize: 19 }}>{mtfResult.confluenceDirection === 'bullish' ? '▲' : mtfResult.confluenceDirection === 'bearish' ? '▼' : '◆'}</span>
                       <div>
                         <div style={{ color: mtfResult.confluenceDirection === 'bullish' ? C.green : mtfResult.confluenceDirection === 'bearish' ? C.red : C.yellow, fontSize: 13, fontWeight: 800 }}>
-                          تقارب MTF: {mtfResult.confluenceDirection === 'bullish' ? 'صعودي' : mtfResult.confluenceDirection === 'bearish' ? 'هبوطي' : 'محايد'}
+                          تقارب MTF: {mtfResult.confluenceDirection === 'bullish' ? t('asp_bullish') : mtfResult.confluenceDirection === 'bearish' ? t('asp_bearish') : t('asp_neutral')}
                         </div>
                         <div style={{ color: C.dim, fontSize: 11 }}>{mtfResult.agreeingTFs} من {mtfResult.totalTFs} فريمات تتفق</div>
                       </div>
                     </div>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: 22, fontWeight: 900, color: mtfResult.confluenceDirection === 'bullish' ? C.green : mtfResult.confluenceDirection === 'bearish' ? C.red : C.yellow, fontFamily: "var(--font-mono)" }}>{mtfResult.confluenceScore}%</div>
-                      <div style={{ color: C.mut, fontSize: 11 }}>مجموع التقارب</div>
+                      <div style={{ color: C.mut, fontSize: 11 }}>{t('asp_totalConfluence')}</div>
                     </div>
                   </div>
                 </div>
 
                 {/* Per-Timeframe Breakdown */}
                 <div style={{ marginBottom: 8 }}>
-                  <div style={{ color: C.cyan, fontSize: 11, fontWeight: 700, marginBottom: 4 }}>تحليل كل فريم</div>
+                  <div style={{ color: C.cyan, fontSize: 11, fontWeight: 700, marginBottom: 4 }}>{t('asp_perTimeframeAnalysis')}</div>
                   {mtfResult.timeframes.map((tf) => {
                     const tfCol = tf.direction === 'bullish' ? C.green : tf.direction === 'bearish' ? C.red : C.yellow;
                     return (
@@ -2375,7 +2375,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                           <span style={{ color: tfCol, fontSize: 11 }}>{tf.direction === 'bullish' ? '▲' : tf.direction === 'bearish' ? '▼' : '◆'}</span>
                           <div>
                             <div style={{ color: C.text, fontSize: 11, fontWeight: 600 }}>{TF_LABELS_AR[tf.timeframe] || tf.timeframe}</div>
-                            <div style={{ color: C.mut, fontSize: 11 }}>{tf.trendState === 'uptrend' ? 'صاعد' : tf.trendState === 'downtrend' ? 'هابط' : tf.trendState === 'ranging' ? 'عرضي' : tf.trendState === 'counter-uptrend' ? 'ارتداد صاعد' : 'ارتداد هابط'} | زخم: {tf.momentum === 'accelerating' ? 'تسارع' : tf.momentum === 'decelerating' ? 'تباطؤ' : tf.momentum === 'diverging' ? 'تباعد' : 'عادي'}</div>
+                            <div style={{ color: C.mut, fontSize: 11 }}>{tf.trendState === 'uptrend' ? t('asp_uptrend') : tf.trendState === 'downtrend' ? t('asp_downtrend') : tf.trendState === 'ranging' ? t('asp_sideways') : tf.trendState === 'counter-uptrend' ? t('asp_bullishReversal') : t('asp_bearishReversal')} | زخم: {tf.momentum === 'accelerating' ? t('asp_accelerating') : tf.momentum === 'decelerating' ? t('asp_decelerating') : tf.momentum === 'diverging' ? t('asp_divergence') : t('asp_normal')}</div>
                           </div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -2392,7 +2392,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 {/* Entry Recommendation */}
                 {mtfResult.entryRecommendation && mtfResult.entryRecommendation.direction !== 'neutral' && (
                   <div style={{ background: `${C.cyan}08`, border: `1px solid ${C.cyan}20`, borderRadius: 'var(--radius-sm)', padding: '6px 8px', marginBottom: 8 }}>
-                    <div style={{ color: C.cyan, fontSize: 11, fontWeight: 700, marginBottom: 3 }}>🎯 توصية الدخول</div>
+                    <div style={{ color: C.cyan, fontSize: 11, fontWeight: 700, marginBottom: 3 }}>{t('asp_entryRecommendation')}</div>
                     <div style={{ color: C.dim, fontSize: 11, lineHeight: 1.5 }}>{mtfResult.entryRecommendation.reasonAr}</div>
                   </div>
                 )}
@@ -2400,7 +2400,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 {/* S/R Confluence */}
                 {mtfResult.srConfluences.length > 0 && (
                   <div style={{ marginBottom: 8 }}>
-                    <div style={{ color: C.gold, fontSize: 11, fontWeight: 700, marginBottom: 4 }}>📋 مستويات متعددة الفريمات</div>
+                    <div style={{ color: C.gold, fontSize: 11, fontWeight: 700, marginBottom: 4 }}>{t('asp_mtfLevels')}</div>
                     {mtfResult.srConfluences.map((sr, i) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', borderRadius: 'var(--radius-sm)', marginBottom: 2, background: C.card }}>
                         <span style={{ color: sr.type === 'support' ? C.green : C.red, fontSize: 11 }}>{sr.labelAr}</span>
@@ -2413,7 +2413,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 {/* Divergences */}
                 {mtfResult.divergences.length > 0 && (
                   <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)', borderRadius: 'var(--radius-sm)', padding: '6px 8px', marginBottom: 8 }}>
-                    <div style={{ color: '#FFB800', fontSize: 11, fontWeight: 700, marginBottom: 3 }}>⚠️ تباعدات بين الفريمات</div>
+                    <div style={{ color: '#FFB800', fontSize: 11, fontWeight: 700, marginBottom: 3 }}>{t('asp_tfDivergences')}</div>
                     {mtfResult.divergences.map((div, i) => (
                       <div key={i} style={{ color: C.dim, fontSize: 11, marginBottom: 3, lineHeight: 1.4 }}>{div.descriptionAr}</div>
                     ))}
@@ -2429,7 +2429,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             {!mtfResult && !mtfLoading && (
               <div style={{ textAlign: 'center', padding: 24, color: C.dim }}>
                 <div style={{ fontSize: 27, marginBottom: 8 }}>📊</div>
-                <div style={{ fontSize: 11 }}>اضغط تحليل لعرض تحليل الفريمات</div>
+                <div style={{ fontSize: 11 }}>{t('asp_clickToAnalyze')}</div>
               </div>
             )}
           </div>
@@ -2459,7 +2459,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                         </div>
                       </div>
                       <span style={{ background: `${pColor}20`, color: pColor, fontSize: 11, fontWeight: 700, padding: '2px 5px', borderRadius: 'var(--radius-xs)' }}>
-                        {alert.priority === 'critical' ? 'حرج' : alert.priority === 'high' ? 'عالي' : 'متوسط'}
+                        {alert.priority === 'critical' ? t('asp_critical') : alert.priority === 'high' ? t('asp_high') : t('asp_medium')}
                       </span>
                     </div>
                   );
@@ -2557,13 +2557,13 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '4px 6px', textAlign: 'center' }}>
                   <div style={{ color: C.mut, fontSize: 11 }}>نظام السوق</div>
                   <div style={{ color: marketRegime === 'trending' ? C.green : marketRegime === 'volatile' ? C.red : marketRegime === 'ranging' ? C.yellow : C.dim, fontSize: 11, fontWeight: 700 }}>
-                    {marketRegime === 'trending' ? 'اتجاهي' : marketRegime === 'volatile' ? 'متقلب' : marketRegime === 'ranging' ? 'عرضي' : 'هادئ'}
+                    {marketRegime === 'trending' ? 'اتجاهي' : marketRegime === 'volatile' ? 'متقلب' : marketRegime === 'ranging' ? t('asp_sideways') : 'هادئ'}
                   </div>
                 </div>
                 <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '4px 6px', textAlign: 'center' }}>
                   <div style={{ color: C.mut, fontSize: 11 }}>اتجاه تكيفي</div>
                   <div style={{ color: adaptiveResult?.direction === 'bullish' ? C.green : adaptiveResult?.direction === 'bearish' ? C.red : C.dim, fontSize: 11, fontWeight: 700 }}>
-                    {adaptiveResult ? (adaptiveResult.direction === 'bullish' ? 'صاعد' : adaptiveResult.direction === 'bearish' ? 'هابط' : 'محايد') : '—'}
+                    {adaptiveResult ? (adaptiveResult.direction === 'bullish' ? t('asp_uptrend') : adaptiveResult.direction === 'bearish' ? t('asp_downtrend') : t('asp_neutral')) : '—'}
                   </div>
                 </div>
                 <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '4px 6px', textAlign: 'center' }}>
@@ -2609,7 +2609,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                   <div><span style={{ color: C.mut }}>أفضل مصدر:</span> <span style={{ color: C.green }}>{adaptiveSummary.bestSource || '—'}</span></div>
                   <div><span style={{ color: C.mut }}>أضعف مصدر:</span> <span style={{ color: C.red }}>{adaptiveSummary.worstSource || '—'}</span></div>
                   <div><span style={{ color: C.mut }}>متوسط النجاح:</span> <span style={{ color: C.text }}>{Math.round(adaptiveSummary.avgWinRate * 100)}%</span></div>
-                  <div><span style={{ color: C.mut }}>النظام السائد:</span> <span style={{ color: C.text }}>{adaptiveSummary.dominantRegime === 'trending' ? 'اتجاهي' : adaptiveSummary.dominantRegime === 'volatile' ? 'متقلب' : adaptiveSummary.dominantRegime === 'ranging' ? 'عرضي' : 'هادئ'}</span></div>
+                  <div><span style={{ color: C.mut }}>النظام السائد:</span> <span style={{ color: C.text }}>{adaptiveSummary.dominantRegime === 'trending' ? 'اتجاهي' : adaptiveSummary.dominantRegime === 'volatile' ? 'متقلب' : adaptiveSummary.dominantRegime === 'ranging' ? t('asp_sideways') : 'هادئ'}</span></div>
                 </div>
               </div>
             )}
@@ -2766,7 +2766,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                           entryPrice: entry,
                           stopLoss: sl,
                           takeProfits: [tp, dir === 'long' ? entry + (tp - entry) * 1.5 : entry - (entry - tp) * 1.5, dir === 'long' ? entry + (tp - entry) * 2 : entry - (entry - tp) * 2],
-                          entryReasonAr: `إشارة ${dir === 'long' ? 'صاعد' : 'هابط'} — ثقة ${Math.round(signal.conf * 100)}%`,
+                          entryReasonAr: `إشارة ${dir === 'long' ? t('asp_uptrend') : t('asp_downtrend')} — ثقة ${Math.round(signal.conf * 100)}%`,
                           entrySignals: ['council-consensus'],
                           confluenceScore: Math.round(signal.conf * 100),
                           timeframe: 'auto',
@@ -2847,9 +2847,9 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 {/* Market Overview */}
                 <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '8px 10px', marginBottom: 10 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 4 }}>
-                    <div style={{ textAlign: 'center' }}><div style={{ color: C.mut, fontSize: 11 }}>صاعد</div><div style={{ color: C.green, fontSize: 11, fontWeight: 700 }}>{scanResult.marketOverview.bullishPct}%</div></div>
-                    <div style={{ textAlign: 'center' }}><div style={{ color: C.mut, fontSize: 11 }}>هابط</div><div style={{ color: C.red, fontSize: 11, fontWeight: 700 }}>{scanResult.marketOverview.bearishPct}%</div></div>
-                    <div style={{ textAlign: 'center' }}><div style={{ color: C.mut, fontSize: 11 }}>متوسط</div><div style={{ color: C.cyan, fontSize: 11, fontWeight: 700 }}>{scanResult.marketOverview.avgStrength}</div></div>
+                    <div style={{ textAlign: 'center' }}><div style={{ color: C.mut, fontSize: 11 }}>{t('asp_uptrend')}</div><div style={{ color: C.green, fontSize: 11, fontWeight: 700 }}>{scanResult.marketOverview.bullishPct}%</div></div>
+                    <div style={{ textAlign: 'center' }}><div style={{ color: C.mut, fontSize: 11 }}>{t('asp_downtrend')}</div><div style={{ color: C.red, fontSize: 11, fontWeight: 700 }}>{scanResult.marketOverview.bearishPct}%</div></div>
+                    <div style={{ textAlign: 'center' }}><div style={{ color: C.mut, fontSize: 11 }}>{t('asp_medium')}</div><div style={{ color: C.cyan, fontSize: 11, fontWeight: 700 }}>{scanResult.marketOverview.avgStrength}</div></div>
                     <div style={{ textAlign: 'center' }}><div style={{ color: C.mut, fontSize: 11 }}>مفحوص</div><div style={{ color: C.text, fontSize: 11, fontWeight: 700 }}>{scanResult.totalScanned}</div></div>
                   </div>
                 </div>
@@ -2931,7 +2931,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 <div style={{ color: C.purple, fontSize: 11, fontWeight: 700, marginBottom: 5 }}>🔬 توقعات النماذج ({councilAnalyses.length} نماذج)</div>
                 {councilAnalyses.map((a, i) => {
                   const dirCol = a.direction === 'BUY' ? C.green : a.direction === 'SELL' ? C.red : C.dim;
-                  const dirAr = a.direction === 'BUY' ? 'شراء' : a.direction === 'SELL' ? 'بيع' : 'انتظار';
+                  const dirAr = a.direction === 'BUY' ? t('asp_buy') : a.direction === 'SELL' ? t('asp_sell') : 'انتظار';
                   const dirIcon = a.direction === 'BUY' ? '▲' : a.direction === 'SELL' ? '▼' : '◆';
                   return (
                     <div key={i} style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '6px 8px', marginBottom: 4, borderLeft: `2px solid ${dirCol}` }}>
@@ -2965,7 +2965,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 </div>
                 {signal.bayesianDir && (
                   <div style={{ marginTop: 4, fontSize: 11, color: C.dim }}>
-                    بايزي: {signal.bayesianDir === 'BUY' ? 'صاعد' : signal.bayesianDir === 'SELL' ? 'هابط' : 'محايد'} ({Math.round((signal.bayesianConf || 0) * 100)}%)
+                    بايزي: {signal.bayesianDir === 'BUY' ? t('asp_uptrend') : signal.bayesianDir === 'SELL' ? t('asp_downtrend') : t('asp_neutral')} ({Math.round((signal.bayesianConf || 0) * 100)}%)
                     {signal.fusionScore !== undefined && ` | تقارب: ${signal.fusionScore}%`}
                   </div>
                 )}
@@ -3063,7 +3063,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 </div>
                 <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '4px 6px', textAlign: 'center' }}>
                   <div style={{ color: C.yellow, fontSize: 11, fontWeight: 700 }}>{backtestStats.breakevens}</div>
-                  <div style={{ color: C.mut, fontSize: 11 }}>تعادل</div>
+                  <div style={{ color: C.mut, fontSize: 11 }}>{t('asp_tie')}</div>
                 </div>
                 <div style={{ background: C.card, borderRadius: 'var(--radius-sm)', padding: '4px 6px', textAlign: 'center' }}>
                   <div style={{ color: C.dim, fontSize: 11, fontWeight: 700 }}>{backtestStats.pending}</div>
@@ -3260,7 +3260,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     {signalExplanation.relatedSignals.map((rs, i) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 6px', background: C.card, borderRadius: 'var(--radius-xs)', marginBottom: 1 }}>
                         <span style={{ fontSize: 11, color: rs.agrees ? C.green : C.red }}>{rs.agrees ? '✓' : '✗'} {rs.labelAr}</span>
-                        <span style={{ fontSize: 11, color: C.mut }}>{rs.direction === 'bullish' ? 'صاعد' : rs.direction === 'bearish' ? 'هابط' : 'محايد'}</span>
+                        <span style={{ fontSize: 11, color: C.mut }}>{rs.direction === 'bullish' ? t('asp_uptrend') : rs.direction === 'bearish' ? t('asp_downtrend') : t('asp_neutral')}</span>
                       </div>
                     ))}
                   </div>
@@ -3269,7 +3269,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 {/* Risk level */}
                 <div style={{ marginTop: 8, padding: '4px 8px', borderRadius: 'var(--radius-sm)', background: signalExplanation.riskLevel === 'low' ? `${C.green}08` : signalExplanation.riskLevel === 'medium' ? `${C.yellow}08` : `${C.red}08`, border: `1px solid ${signalExplanation.riskLevel === 'low' ? C.green : signalExplanation.riskLevel === 'medium' ? C.yellow : C.red}30` }}>
                   <span style={{ fontSize: 11, color: signalExplanation.riskLevel === 'low' ? C.green : signalExplanation.riskLevel === 'medium' ? C.yellow : C.red, fontWeight: 700 }}>
-                    مستوى المخاطرة: {signalExplanation.riskLevel === 'low' ? 'منخفض' : signalExplanation.riskLevel === 'medium' ? 'متوسط' : 'مرتفع'}
+                    مستوى المخاطرة: {signalExplanation.riskLevel === 'low' ? 'منخفض' : signalExplanation.riskLevel === 'medium' ? t('asp_medium') : 'مرتفع'}
                   </span>
                   {signalExplanation.historicalWinRate !== null && (
                     <span style={{ fontSize: 11, color: C.dim, marginRight: 8 }}>| تاريخياً: {Math.round(signalExplanation.historicalWinRate * 100)}% نجاح</span>
@@ -3530,7 +3530,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 <div style={{ background: `${C.gold}08`, borderRadius: 'var(--radius-sm)', padding: '4px 6px', marginBottom: 8, textAlign: 'center' }}>
                   <span style={{ fontSize: 11, color: C.mut }}>المستوى الحرج: </span>
                   <span style={{ fontSize: 11, color: C.gold, fontWeight: 700 }}>{scenarioResult.keyLevel}</span>
-                  <span style={{ fontSize: 11, color: C.mut }}> ({scenarioResult.keyLevelType === 'support' ? 'دعم' : scenarioResult.keyLevelType === 'resistance' ? 'مقاومة' : 'محوري'})</span>
+                  <span style={{ fontSize: 11, color: C.mut }}> ({scenarioResult.keyLevelType === 'support' ? t('asp_supportShort') : scenarioResult.keyLevelType === 'resistance' ? t('asp_resistanceShort') : 'محوري'})</span>
                 </div>
 
                 {/* Scenarios */}

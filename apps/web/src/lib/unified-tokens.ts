@@ -174,23 +174,9 @@ export const TMinimal = {
  *   {isPnlPositive(pnl) ? '+' : ''}   // → '+' only when truly positive
  *   {getPnlSign(pnl)}{Math.abs(pnl)}  // → '+$100' / '-$50' / '$0'
  */
-export function getPnlColor(value: number): string {
-  if (value > 0) return T.profit;
-  if (value < 0) return T.loss;
-  return T.text2; // neutral/gray for zero
-}
-
-/** Returns true ONLY when value is strictly positive (> 0) */
-export function isPnlPositive(value: number): boolean {
-  return value > 0;
-}
-
-/** Returns '+' for positive, '-' for negative, '' for zero */
-export function getPnlSign(value: number): string {
-  if (value > 0) return '+';
-  if (value < 0) return '-';
-  return '';
-}
+// P/L functions moved to separate file to avoid SSR circular dependency
+// Re-exported here for backward compatibility
+export { getPnlColor, isPnlPositive, getPnlSign } from './pnl-utils';
 
 export const TExtended = {
   ...TMinimal,

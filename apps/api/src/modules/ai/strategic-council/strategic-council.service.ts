@@ -1420,17 +1420,17 @@ export class StrategicCouncilService {
    * because SL/TP levels are calculated as percentages from the entry price.
    */
   private readonly REFERENCE_PRICES: Record<string, number> = {
-    // Forex (updated 2026-05)
-    'EUR/USD': 1.1350, 'GBP/USD': 1.3250, 'USD/JPY': 143.50,
-    // Stocks (approximate, updated 2026-05)
+    // Forex (updated 2026-07-12)
+    'EUR/USD': 1.10, 'GBP/USD': 1.34, 'USD/JPY': 157.0,
+    // Stocks (approximate, updated 2026-07-12)
     'AAPL': 210.0, 'MSFT': 440.0, 'GOOGL': 168.0, 'TSLA': 280.0,
     // Commodities
     'XAU/USD': 3250.0,
-    // Crypto (added 2026-05 — were MISSING, causing wrong prices)
-    'BTC/USDT': 81000.0, 'ETH/USDT': 2340.0, 'SOL/USDT': 95.0,
-    'BNB/USDT': 652.0, 'XRP/USDT': 2.4, 'ADA/USDT': 0.75,
-    'DOGE/USDT': 0.22, 'DOT/USDT': 7.0, 'AVAX/USDT': 35.0,
-    'MATIC/USDT': 0.50, 'LINK/USDT': 15.0, 'UNI/USDT': 8.0,
+    // Crypto (updated 2026-07-12 — V1182: was 736% off on DOT, 445% off on AVAX)
+    'BTC/USDT': 64032.0, 'ETH/USDT': 1817.0, 'SOL/USDT': 77.3,
+    'BNB/USDT': 579.0, 'XRP/USDT': 1.10, 'ADA/USDT': 0.164,
+    'DOGE/USDT': 0.0734, 'DOT/USDT': 0.84, 'AVAX/USDT': 6.42,
+    'MATIC/USDT': 0.379, 'LINK/USDT': 8.03, 'UNI/USDT': 3.66,
   };
 
   /**

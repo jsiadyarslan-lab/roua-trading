@@ -35,21 +35,24 @@ const PRICE_SANITY: Record<string, { min: number; max: number }> = {
 };
 
 /** Reference prices — used as fallback when all live sources fail or return insane prices.
- *  Updated 2026-05.
+ *  Updated 2026-07-12 with live Binance prices.
+ *  V1182: Previous prices were from May 2026 and caused 736% deviation on DOT/USDT
+ *  (reference=$7.00 vs actual=$0.84). This created phantom trades at wrong prices.
  */
 const REFERENCE_PRICES: Record<string, number> = {
-  'BTC/USDT': 81000, 'BTC/USD': 81000,
-  'ETH/USDT': 2340, 'ETH/USD': 2340,
-  'SOL/USDT': 95, 'SOL/USD': 95,
-  'BNB/USDT': 652, 'BNB/USD': 652,
-  'XRP/USDT': 2.4, 'XRP/USD': 2.4,
-  'ADA/USDT': 0.75, 'ADA/USD': 0.75,
-  'DOGE/USDT': 0.22, 'DOGE/USD': 0.22,
-  'DOT/USDT': 7.0, 'DOT/USD': 7.0,
-  'AVAX/USDT': 35, 'AVAX/USD': 35,
-  'LINK/USDT': 15, 'LINK/USD': 15,
-  'MATIC/USDT': 0.50, 'MATIC/USD': 0.50,
-  'EUR/USD': 1.135, 'GBP/USD': 1.325, 'USD/JPY': 143.5,
+  'BTC/USDT': 64032, 'BTC/USD': 64032,
+  'ETH/USDT': 1817, 'ETH/USD': 1817,
+  'SOL/USDT': 77.3, 'SOL/USD': 77.3,
+  'BNB/USDT': 579, 'BNB/USD': 579,
+  'XRP/USDT': 1.10, 'XRP/USD': 1.10,
+  'ADA/USDT': 0.164, 'ADA/USD': 0.164,
+  'DOGE/USDT': 0.0734, 'DOGE/USD': 0.0734,
+  'DOT/USDT': 0.84, 'DOT/USD': 0.84,
+  'AVAX/USDT': 6.42, 'AVAX/USD': 6.42,
+  'LINK/USDT': 8.03, 'LINK/USD': 8.03,
+  'MATIC/USDT': 0.379, 'MATIC/USD': 0.379,
+  'UNI/USDT': 3.66, 'UNI/USD': 3.66,
+  'EUR/USD': 1.10, 'GBP/USD': 1.34, 'USD/JPY': 157,
   'XAU/USD': 3250,
   'AAPL': 210, 'MSFT': 440, 'GOOGL': 168, 'TSLA': 280,
 };
@@ -147,23 +150,10 @@ export class MarketDataService {
         const change24h = res.data?.[coingeckoId]?.usd_24h_change;
         return { price, source: 'coingecko', change24h };
       })(),
-      // Source 3: CoinCap (FIX: Use proper CoinCap IDs instead of raw ticker)
-      // OLD BUG: Used symbol.split('/')[0].toLowerCase() = "btc" → wrong asset
-      // FIX: Use COINCAP_IDS mapping → "bitcoin" → correct price
-      (async () => {
-        const base = symbol.split('/')[0].toUpperCase();
-        const coincapId = COINCAP_IDS[base];
-        if (!coincapId) {
-          // Unknown symbol — skip CoinCap to avoid returning wrong asset data
-          // (e.g., "BTC" → Bitcoin Group SE stock at $34.98 instead of Bitcoin at $79K)
-          throw new Error(`No CoinCap ID mapping for ${base} — skipping to prevent wrong price`);
-        }
-        const res = await axios.get(`https://api.coincap.io/v2/assets/${coincapId}`, { timeout: 5000 });
-        const price = parseFloat(res.data?.data?.priceUsd || '0');
-        if (price <= 0) throw new Error('CoinCap price=0');
-        const change24h = parseFloat(res.data?.data?.changePercent24Hr || '0');
-        return { price, source: 'coincap', change24h };
-      })(),
+      // Source 3: CoinCap — REMOVED V1182
+      // DNS resolution for api.coincap.io fails on Railway (getaddrinfo ENOTFOUND).
+      // This source was causing 5s timeout delays on every fetchQuickMarketData call.
+      // Binance + Bybit + Yahoo Finance provide sufficient cross-validation.
       // Source 4: Bybit (alternative exchange, works on cloud)
       (async () => {
         const bybitSymbol = symbol.replace(/[\/\-]/g, '').toUpperCase();

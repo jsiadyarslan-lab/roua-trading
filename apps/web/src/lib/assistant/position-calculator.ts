@@ -16,7 +16,8 @@
 //   Example: $3 / (20 pips × $10) = 0.015 lot
 
 import type { Locale } from './tools';
-import type { DataBundle } from './data-fetcher';
+import type { DataBundle } from './data-fetcher'
+import T from '@/lib/unified-tokens';
 
 // ─── Contract Specifications ──────────────────────────────────────
 

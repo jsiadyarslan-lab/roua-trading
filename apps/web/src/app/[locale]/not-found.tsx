@@ -3,6 +3,7 @@
 import { Link } from '@/i18n/navigation'
 import { Home, ArrowLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import T from '@/lib/unified-tokens'
 
 export default function LocaleNotFound() {
   const t = useTranslations('notFound')

@@ -1655,7 +1655,8 @@ export function buildHTMLCards(bundle: any, locale: Locale): string {
 // the real data context. But the ANALYSIS and REASONING are genuine AI.
 // ═══════════════════════════════════════════════════════════════════════
 
-import { chatCompletion } from '@/lib/ai-provider';
+import { chatCompletion } from '@/lib/ai-provider'
+import T from '@/lib/unified-tokens';
 
 // ── Robust markdown-to-HTML cleanup for AI content ──
 // Handles all common markdown formats that AI might still emit despite prompts.

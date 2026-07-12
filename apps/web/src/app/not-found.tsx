@@ -8,6 +8,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import Link from 'next/link'
+import T from '@/lib/unified-tokens'
 
 export default function RootNotFound() {
   return (

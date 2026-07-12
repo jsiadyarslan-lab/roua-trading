@@ -24,7 +24,7 @@ import {
   ShieldAlert,
 } from 'lucide-react'
 import { safeStr } from '@/lib/utils'
-import { TExtended as T } from '@/lib/unified-tokens'
+import T from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 const FONT_AR = 'var(--font-ar)'

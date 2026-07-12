@@ -142,53 +142,7 @@ const T = {
 export default T;
 // Named export for backward compatibility
 export { T };
-export const TMinimal = {
-  bg: T.bg,
-  bg2: T.bg2,
-  card: T.card,
-  blue: T.blue,
-  cyan: T.cyan,
-  green: T.green,
-  red: T.red,
-  amber: T.amber,
-  purple: T.purple,
-  text: T.text,
-  text2: T.text2,
-  border: T.border,
-} as const;
 
-/**
- * Extended theme with surface/cardHover for richer pages
- */
-/**
- * P/L Color Utility — Single source of truth for profit/loss coloring
- *
- * Rule: ZERO is NEUTRAL (not profit, not loss).
- *   > 0 → profit color (green)
- *   < 0 → loss color (red)
- *   = 0 → neutral/muted color (gray)
- *
- * Usage:
- *   import { getPnlColor, isPnlPositive, getPnlSign } from '@/lib/unified-tokens';
- *   color: getPnlColor(pnl)           // → T.profit | T.loss | T.text2
- *   {isPnlPositive(pnl) ? '+' : ''}   // → '+' only when truly positive
- *   {getPnlSign(pnl)}{Math.abs(pnl)}  // → '+$100' / '-$50' / '$0'
- */
-// P/L functions are in separate file: @/lib/pnl-utils
-// Do NOT re-export here — it causes webpack TDZ (Temporal Dead Zone) errors
-
-export const TExtended = {
-  ...TMinimal,
-  cardHover: T.cardHover,
-  surface: T.surface,
-  cyanBright: T.cyanBright,
-  greenDim: T.greenDim,
-  redDim: T.redDim,
-  text3: T.text3,
-  border2: T.border2,
-  glass: T.glass,
-  profit: T.profit,
-  loss: T.loss,
-  gold: T.gold,
-  accent: T.accent,
-} as const;
+// TMinimal and TExtended REMOVED — they referenced T.* at module level
+// which caused webpack TDZ (Temporal Dead Zone) errors in production.
+// Use `import T from '@/lib/unified-tokens'` instead.
